@@ -12,9 +12,6 @@ import contextlib
 import os
 
 from mercurial.i18n import _
-from mercurial.pycompat import (
-    open,
-)
 from mercurial.node import (
     bin,
     hex,
@@ -222,7 +219,7 @@ class _annotatecontext:
     def linelog(self):
         if self._linelog is None:
             if os.path.exists(self.linelogpath):
-                with open(self.linelogpath, b'rb') as f:
+                with open(self.linelogpath, 'rb') as f:
                     try:
                         self._linelog = linelogmod.linelog.fromdata(f.read())
                     except linelogmod.LineLogError:
@@ -242,7 +239,7 @@ class _annotatecontext:
             self._revmap.flush()
             self._revmap = None
         if self._linelog is not None:
-            with open(self.linelogpath, b'wb') as f:
+            with open(self.linelogpath, 'wb') as f:
                 f.write(self._linelog.encode())
             self._linelog = None
 

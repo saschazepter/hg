@@ -42,7 +42,6 @@ pytype --version
 # hgext/remotefilelog/fileserverclient.py  # [attribute-error]
 # hgext/remotefilelog/shallowbundle.py     # [attribute-error]
 # hgext/remotefilelog/remotefilectx.py  # [module-attr] (This is an actual bug)
-# hgext/sqlitestore.py          # [attribute-error]
 # hgext/zeroconf/__init__.py    # bytes vs str; tests fail on macOS
 #
 # mercurial/context.py          # many [attribute-error]
@@ -54,11 +53,9 @@ pytype --version
 # mercurial/hgweb/server.py     # [attribute-error], [name-error], [module-attr]
 # mercurial/hgweb/wsgicgi.py    # confused values in os.environ
 # mercurial/httppeer.py         # [attribute-error], [wrong-arg-types]
-# mercurial/interfaces          # No attribute 'capabilities' on peer [attribute-error]
 # mercurial/keepalive.py        # [attribute-error]
 # mercurial/localrepo.py        # [attribute-error]
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
-# mercurial/pure/parsers.py     # [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
 # mercurial/win32.py            # [not-callable]
@@ -104,7 +101,6 @@ pytype --keep-going --jobs auto \
     -x hgext/remotefilelog/fileserverclient.py \
     -x hgext/remotefilelog/remotefilectx.py \
     -x hgext/remotefilelog/shallowbundle.py \
-    -x hgext/sqlitestore.py \
     -x hgext/zeroconf/__init__.py \
     -x mercurial/context.py \
     -x mercurial/crecord.py \
@@ -115,11 +111,9 @@ pytype --keep-going --jobs auto \
     -x mercurial/hgweb/server.py \
     -x mercurial/hgweb/wsgicgi.py \
     -x mercurial/httppeer.py \
-    -x mercurial/interfaces \
     -x mercurial/keepalive.py \
     -x mercurial/localrepo.py \
     -x mercurial/minirst.py \
-    -x mercurial/pure/parsers.py \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \

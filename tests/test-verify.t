@@ -1,5 +1,3 @@
-#require reporevlogstore
-
 prepare repo
 
   $ hg init a
@@ -321,7 +319,8 @@ test revlog corruption
   $ cat start b > .hg/store/data/a.i
 
   $ hg verify -q
-   a@1: broken revlog! (index a is corrupted)
+   a@1: broken revlog! (index a is corrupted) (no-rust !)
+   a@1: broken revlog! (abort: unexpected inline revlog length) (rust !)
   warning: orphan data file 'data/a.i'
   not checking dirstate because of previous errors
   1 warnings encountered!

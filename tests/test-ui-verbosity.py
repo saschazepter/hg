@@ -45,20 +45,18 @@ for i in range(64):
         check = ' +'
 
     print(
-        (
-            '%2d  %5s %5s %5s   %5s %5s %5s  ->  %5s %5s %5s%s'
-            % (
-                i,
-                hgrc_quiet,
-                hgrc_verbose,
-                hgrc_debug,
-                cmd_quiet,
-                cmd_verbose,
-                cmd_debug,
-                u.quiet,
-                u.verbose,
-                u.debugflag,
-                check,
-            )
+        '%2d  %5s %5s %5s   %5s %5s %5s  ->  %5s %5s %5s%s'
+        % (
+            i,
+            hgrc_quiet,
+            hgrc_verbose,
+            hgrc_debug,
+            cmd_quiet,
+            cmd_verbose,
+            cmd_debug,
+            u.quiet,
+            u.verbose,
+            u.debugflag,
+            check,
         )
     )

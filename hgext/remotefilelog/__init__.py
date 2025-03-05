@@ -136,7 +136,6 @@ from mercurial.node import (
     wdirrev,
 )
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     changegroup,
     changelog,
@@ -868,9 +867,8 @@ def gcclient(ui, cachepath):
         ui.warn(_(b"no known cache at %s\n") % cachepath)
         return
 
-    reposfile = open(repospath, b'rb')
-    repos = {r[:-1] for r in reposfile.readlines()}
-    reposfile.close()
+    with open(repospath, 'rb') as reposfile:
+        repos = {r[:-1] for r in reposfile.readlines()}
 
     # build list of useful files
     validrepos = []
@@ -922,7 +920,7 @@ def gcclient(ui, cachepath):
                 repackmod.incrementalrepack(repo)
                 filesrepacked = True
                 continue
-            except (IOError, repackmod.RepackAlreadyRunning):
+            except (OSError, repackmod.RepackAlreadyRunning):
                 # If repack cannot be performed due to not enough disk space
                 # continue doing garbage collection of loose files w/o repack
                 pass
@@ -942,9 +940,8 @@ def gcclient(ui, cachepath):
     # write list of valid repos back
     oldumask = os.umask(0o002)
     try:
-        reposfile = open(repospath, b'wb')
-        reposfile.writelines([(b"%s\n" % r) for r in validrepos])
-        reposfile.close()
+        with open(repospath, 'wb') as reposfile:
+            reposfile.writelines([(b"%s\n" % r) for r in validrepos])
     finally:
         os.umask(oldumask)
 
@@ -1010,7 +1007,7 @@ def readytofetch(repo):
     fname = repo.vfs.join(b'lastprefetch')
 
     ready = False
-    with open(fname, b'a'):
+    with open(fname, 'a'):
         # the with construct above is used to avoid race conditions
         modtime = os.path.getmtime(fname)
         if (time.time() - modtime) > timeout:

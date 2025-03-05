@@ -17,13 +17,13 @@ from mercurial.node import (
     short,
 )
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     error,
     filelog,
     lock as lockmod,
     pycompat,
     revlog,
+    util,
 )
 from mercurial.utils import hashutil
 from . import (
@@ -128,19 +128,15 @@ def debugindex(orig, ui, repo, file_=None, **opts):
         basehdr = b'  base'
 
     if format == 0:
-        ui.write(
-            (
-                b"   rev    offset  length " + basehdr + b" linkrev"
-                b" nodeid       p1           p2\n"
-            )
+        ui.writenoi18n(
+            b"   rev    offset  length " + basehdr + b" linkrev"
+            b" nodeid       p1           p2\n"
         )
     elif format == 1:
-        ui.write(
-            (
-                b"   rev flag   offset   length"
-                b"     size " + basehdr + b"   link     p1     p2"
-                b"       nodeid\n"
-            )
+        ui.writenoi18n(
+            b"   rev flag   offset   length"
+            b"     size " + basehdr + b"   link     p1     p2"
+            b"       nodeid\n"
         )
 
     for i in r:
@@ -228,11 +224,7 @@ def _decompressblob(raw):
 
 
 def parsefileblob(path, decompress):
-    f = open(path, b"rb")
-    try:
-        raw = f.read()
-    finally:
-        f.close()
+    raw = util.readfile(path)
 
     if decompress:
         raw = _decompressblob(raw)
@@ -311,7 +303,7 @@ def debugdatapack(ui, *paths, **opts):
         for filename, node, deltabase, deltalen in dpack.iterentries():
             bases[node] = deltabase
             if node in nodes:
-                ui.write((b"Bad entry: %s appears twice\n" % short(node)))
+                ui.writenoi18n(b"Bad entry: %s appears twice\n" % short(node))
                 failures += 1
             nodes.add(node)
             if filename != lastfilename:
@@ -354,7 +346,7 @@ def debugdatapack(ui, *paths, **opts):
 
         failures += _sanitycheck(ui, set(nodes), bases)
         if failures > 1:
-            ui.warn((b"%d failures\n" % failures))
+            ui.warnnoi18n(b"%d failures\n" % failures)
             return 1
 
 
@@ -374,21 +366,17 @@ def _sanitycheck(ui, nodes, bases):
 
         while deltabase != sha1nodeconstants.nullid:
             if deltabase not in nodes:
-                ui.warn(
-                    (
-                        b"Bad entry: %s has an unknown deltabase (%s)\n"
-                        % (short(node), short(deltabase))
-                    )
+                ui.warnnoi18n(
+                    b"Bad entry: %s has an unknown deltabase (%s)\n"
+                    % (short(node), short(deltabase))
                 )
                 failures += 1
                 break
 
             if deltabase in seen:
-                ui.warn(
-                    (
-                        b"Bad entry: %s has a cycle (at %s)\n"
-                        % (short(node), short(deltabase))
-                    )
+                ui.warnnoi18n(
+                    b"Bad entry: %s has a cycle (at %s)\n"
+                    % (short(node), short(deltabase))
                 )
                 failures += 1
                 break

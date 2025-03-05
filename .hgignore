@@ -19,6 +19,7 @@ syntax: glob
 *.zip
 \#*\#
 .\#*
+.venv*
 result/
 tests/artifacts/cache/big-file-churn.hg
 tests/.coverage*
@@ -51,8 +52,6 @@ doc/*.[0-9].{x,ht}ml
 doc/build
 doc/html
 doc/man
-MANIFEST
-MANIFEST.in
 patches
 mercurial/__modulepolicy__.py
 mercurial/__version__.py

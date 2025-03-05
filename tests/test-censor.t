@@ -1,4 +1,3 @@
-#require no-reposimplestore
 #testcases revlogv1 revlogv2
 
 #if revlogv2

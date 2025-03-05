@@ -882,6 +882,8 @@ Empty graft
   grafting 23:72d9c7c75bcc "24"
   note: graft of 23:72d9c7c75bcc created no changes to commit
 
+  $ pwd
+  $TESTTMP/a
   $ cd ..
 
 Graft to duplicate a commit
@@ -921,3 +923,329 @@ Graft to duplicate a commit twice
   |/
   o  0
   
+  $ cd ../
+
+In memory graft with --to
+=========================
+
+
+setup a repository
+
+  $ hg init base-to
+  $ cd base-to
+  $ hg debugbuilddag -m ".:base..:dst*base.:src*base..:wc"
+  $ hg up "wc"
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  @  7:r7 tip wc
+  |
+  o  6:r6
+  |
+  o  5:r5
+  |
+  | o  4:r4 src
+  | |
+  | o  3:r3
+  |/
+  | o  2:r2 dst
+  | |
+  | o  1:r1
+  |/
+  o  0:r0 base
+  
+
+  $ cd ..
+
+Simple test
+-----------
+
+As few special case as possible
+
+  $ cp -R base-to test-to-simple
+  $ cd test-to-simple
+  $ hg graft --rev src --to dst
+  grafting 4:4178b3134f52 "r4" (src)
+  merging mf
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  o  8:r4 tip
+  |
+  | @  7:r7 wc
+  | |
+  | o  6:r6
+  | |
+  | o  5:r5
+  | |
+  | | o  4:r4 src
+  | | |
+  | | o  3:r3
+  | |/
+  o |  2:r2 dst
+  | |
+  o |  1:r1
+  |/
+  o  0:r0 base
+  
+  $ cd ..
+
+Single changeset, local changes
+-------------------------------
+
+Run "graft --to" with local changes
+
+  $ cp -R base-to test-to-local-change
+  $ cd test-to-local-change
+  $ hg st --all
+  C mf
+  $ echo foo >> mf
+  $ hg status
+  M mf
+  $ hg graft --rev src --to dst
+  grafting 4:4178b3134f52 "r4" (src)
+  merging mf
+
+local file should not have been touched.
+
+  $ hg status
+  M mf
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  o  8:r4 tip
+  |
+  | @  7:r7 wc
+  | |
+  | o  6:r6
+  | |
+  | o  5:r5
+  | |
+  | | o  4:r4 src
+  | | |
+  | | o  3:r3
+  | |/
+  o |  2:r2 dst
+  | |
+  o |  1:r1
+  |/
+  o  0:r0 base
+  
+  $ cd ..
+
+Multiple linear changesets
+--------------------------
+
+grafting multiple linear changesets
+
+  $ cp -R base-to test-to-multiple-linear
+  $ cd test-to-multiple-linear
+  $ hg graft --rev 'src~1::src' --to dst
+  grafting 3:181578a106da "r3"
+  merging mf
+  grafting 4:4178b3134f52 "r4" (src)
+  merging mf
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  o  9:r4 tip
+  |
+  o  8:r3
+  |
+  | @  7:r7 wc
+  | |
+  | o  6:r6
+  | |
+  | o  5:r5
+  | |
+  | | o  4:r4 src
+  | | |
+  | | o  3:r3
+  | |/
+  o |  2:r2 dst
+  | |
+  o |  1:r1
+  |/
+  o  0:r0 base
+  
+  $ cd ..
+
+Multiple unrelated changesets
+--------------------------
+
+Grafting multiple changesets on different branch
+
+The order specified on the command line should be preserved.
+The result should be linear.
+
+  $ cp -R base-to test-to-multiple-unrelated
+  $ cd test-to-multiple-unrelated
+  $ hg graft 'src' 'wc~1' 'src~1' --to dst
+  grafting 4:4178b3134f52 "r4" (src)
+  merging mf
+  grafting 6:735f0f7a080b "r6"
+  merging mf
+  grafting 3:181578a106da "r3"
+  merging mf
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  o  10:r3 tip
+  |
+  o  9:r6
+  |
+  o  8:r4
+  |
+  | @  7:r7 wc
+  | |
+  | o  6:r6
+  | |
+  | o  5:r5
+  | |
+  | | o  4:r4 src
+  | | |
+  | | o  3:r3
+  | |/
+  o |  2:r2 dst
+  | |
+  o |  1:r1
+  |/
+  o  0:r0 base
+  
+  $ cd ..
+
+with base
+---------
+
+  $ cp -R base-to test-to-base
+  $ cd test-to-base
+  $ hg graft --base base src --to dst
+  grafting 4:4178b3134f52 "r4" (src)
+  merging mf
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  o  8:r4 tip
+  |
+  | @  7:r7 wc
+  | |
+  | o  6:r6
+  | |
+  | o  5:r5
+  | |
+  | | o  4:r4 src
+  | | |
+  | | o  3:r3
+  | |/
+  o |  2:r2 dst
+  | |
+  o |  1:r1
+  |/
+  o  0:r0 base
+  
+  $ hg diff --from base --to src
+  diff -r 93cbaf5e6529 -r 4178b3134f52 mf
+  --- a/mf	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/mf	Thu Jan 01 00:00:04 1970 +0000
+  @@ -4,9 +4,9 @@
+   3
+   4
+   5
+  -6
+  +6 r3
+   7
+  -8
+  +8 r4
+   9
+   10
+   11
+  $ hg export src
+  # HG changeset patch
+  # User debugbuilddag
+  # Date 4 0
+  #      Thu Jan 01 00:00:04 1970 +0000
+  # Node ID 4178b3134f5224d297d3b9e0e98b983f42e53d55
+  # Parent  181578a106daabea66d4465f4883f7f8552bbc9d
+  r4
+  
+  diff -r 181578a106da -r 4178b3134f52 mf
+  --- a/mf	Thu Jan 01 00:00:03 1970 +0000
+  +++ b/mf	Thu Jan 01 00:00:04 1970 +0000
+  @@ -6,7 +6,7 @@
+   5
+   6 r3
+   7
+  -8
+  +8 r4
+   9
+   10
+   11
+  $ hg export tip
+  # HG changeset patch
+  # User debugbuilddag
+  # Date 4 0
+  #      Thu Jan 01 00:00:04 1970 +0000
+  # Node ID 40112ab60ecb01882916c1a4439c798746e34165
+  # Parent  37d4c1cec295ddfa401f4a365e15a82a1974b056
+  r4
+  
+  diff -r 37d4c1cec295 -r 40112ab60ecb mf
+  --- a/mf	Thu Jan 01 00:00:02 1970 +0000
+  +++ b/mf	Thu Jan 01 00:00:04 1970 +0000
+  @@ -4,9 +4,9 @@
+   3
+   4 r2
+   5
+  -6
+  +6 r3
+   7
+  -8
+  +8 r4
+   9
+   10
+   11
+  $ cd ..
+
+with conflict
+-------------
+
+We should abort in case of conflict and rollback any grafted procress
+
+  $ cp -R base-to test-to-conflict
+  $ cd test-to-conflict
+  $ hg up src
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo this-will-conflict >> mf
+  $ hg ci -m 'this-will-conflict'
+  $ hg up dst
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo conflict-this-will-conflict >> mf
+  $ hg ci -m 'conflict-this-will'
+  $ hg up wc
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg graft --to 'max(dst::)' src:: --dry-run
+  grafting 4:4178b3134f52 "r4" (src)
+  grafting 8:9fa2d3fe2323 "this-will-conflict"
+  $ hg graft --to 'max(dst::)' src::
+  grafting 4:4178b3134f52 "r4" (src)
+  merging mf
+  grafting 8:9fa2d3fe2323 "this-will-conflict"
+  merging mf
+  transaction abort!
+  rollback completed
+  abort: cannot graft in memory: merge conflicts
+  (in-memory merge does not support merge conflicts)
+  [255]
+  $ hg log -G -T '{rev}:{desc} {tags}\n'
+  o  9:conflict-this-will tip
+  |
+  | o  8:this-will-conflict
+  | |
+  | | @  7:r7 wc
+  | | |
+  | | o  6:r6
+  | | |
+  | | o  5:r5
+  | | |
+  | o |  4:r4 src
+  | | |
+  | o |  3:r3
+  | |/
+  o |  2:r2 dst
+  | |
+  o |  1:r1
+  |/
+  o  0:r0 base
+  
+  $ cd ..
+
+

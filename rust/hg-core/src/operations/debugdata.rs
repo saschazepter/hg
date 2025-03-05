@@ -6,9 +6,10 @@
 // GNU General Public License version 2 or any later version.
 
 use crate::errors::HgError;
+use crate::exit_codes;
 use crate::repo::Repo;
-use crate::revlog::Revlog;
-use crate::{exit_codes, RevlogError, RevlogType};
+use crate::revlog::options::default_revlog_options;
+use crate::revlog::{Revlog, RevlogError, RevlogType};
 
 /// Dump the contents data of a revision.
 pub fn debug_data(
@@ -31,10 +32,14 @@ pub fn debug_data(
         &repo.store_vfs(),
         index_file,
         None,
-        repo.default_revlog_options(RevlogType::Changelog)?,
+        default_revlog_options(
+            repo.config(),
+            repo.requirements(),
+            RevlogType::Changelog,
+        )?,
     )?;
     let rev =
         crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
-    let data = revlog.get_rev_data_for_checked_rev(rev)?;
+    let data = revlog.get_data(rev)?;
     Ok(data.into_owned())
 }

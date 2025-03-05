@@ -1,4 +1,3 @@
-# coding: utf8
 # ext-sidedata-2.py - small extension to test (differently) the sidedata logic
 #
 # Simulates a client for a complex sidedata exchange.

@@ -408,21 +408,16 @@ test --xunit support
   <testsuite errors="0" failures="2" name="run-tests" skipped="0" tests="3">
     <testcase name="test-success.t" time="*"/> (glob)
     <testcase name="test-failure-unicode.t" time="*"> (glob)
-      <failure message="output changed" type="output-mismatch"><![CDATA[--- $TESTTMP/test-failure-unicode.t (py38 !)
-      <failure message="output changed" type="output-mismatch"> (no-py38 !)
-  <![CDATA[--- $TESTTMP/test-failure-unicode.t (no-py38 !)
+      <failure message="output changed" type="output-mismatch"><![CDATA[--- $TESTTMP/test-failure-unicode.t
   +++ $TESTTMP/test-failure-unicode.t.err
   @@ -1,2 +1,2 @@
      $ echo babar\xce\xb1 (esc)
   -  l\xce\xb5\xce\xb5t (esc)
   +  babar\xce\xb1 (esc)
-  ]]></failure> (py38 !)
-  ]]>    </failure> (no-py38 !)
+  ]]></failure>
     </testcase>
     <testcase name="test-failure.t" time="*"> (glob)
-      <failure message="output changed" type="output-mismatch"><![CDATA[--- $TESTTMP/test-failure.t (py38 !)
-      <failure message="output changed" type="output-mismatch"> (no-py38 !)
-  <![CDATA[--- $TESTTMP/test-failure.t (no-py38 !)
+      <failure message="output changed" type="output-mismatch"><![CDATA[--- $TESTTMP/test-failure.t
   +++ $TESTTMP/test-failure.t.err
   @@ -1,5 +1,5 @@
      $ echo babar
@@ -431,8 +426,7 @@ test --xunit support
    This is a noop statement so that
    this test is still more bytes than success.
    pad pad pad pad............................................................
-  ]]></failure> (py38 !)
-  ]]>    </failure> (no-py38 !)
+  ]]></failure>
     </testcase>
   </testsuite>
 
@@ -1071,6 +1065,22 @@ test for --time with --job enabled
   start   end     cuser   csys    real      Test
   \s*[\d\.]{5,8} \s*[\d\.]{5,8} \s*[\d\.]{5,8} \s*[\d\.]{5,8} \s*[\d\.]{5,8}   test-success.t (re)
 
+test for --tail-report
+====================================
+
+  $ rt --tail-report --jobs 2 --nodiff
+  running 2 tests using 2 parallel processes 
+  ?? (glob)
+  ### test tail-report ###
+  [* s] 1 tests still running; finished test-*.t (glob)
+  [* s] 0 tests still running; finished test-*.t (glob)
+  Failed test-failure.t: output changed
+  # Ran 2 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
+
+
+
 Skips
 ================
   $ cat > test-skip.t <<EOF
@@ -1112,9 +1122,7 @@ Skips with xml
   <testsuite errors="0" failures="0" name="run-tests" skipped="2" tests="2">
     <testcase name="test-success.t" time="*"/> (glob)
     <testcase name="test-skip.t">
-      <skipped><![CDATA[missing feature: nail clipper]]></skipped> (py38 !)
-      <skipped> (no-py38 !)
-  <![CDATA[missing feature: nail clipper]]>    </skipped> (no-py38 !)
+      <skipped><![CDATA[missing feature: nail clipper]]></skipped>
     </testcase>
   </testsuite>
 
@@ -1548,94 +1556,6 @@ support for running run-tests.py from another directory
   python hash seed: * (glob)
   [1]
 
-support for bisecting failed tests automatically
-  $ hg init bisect
-  $ cd bisect
-  $ cat >> test-bisect.t <<EOF
-  >   $ echo pass
-  >   pass
-  > EOF
-  $ hg add test-bisect.t
-  $ hg ci -m 'good'
-  $ cat >> test-bisect.t <<EOF
-  >   $ echo pass
-  >   fail
-  > EOF
-  $ hg ci -m 'bad'
-  $ rt --known-good-rev=0 test-bisect.t
-  running 1 tests using 1 parallel processes 
-  
-  --- $TESTTMP/anothertests/bisect/test-bisect.t
-  +++ $TESTTMP/anothertests/bisect/test-bisect.t.err
-  @@ -1,4 +1,4 @@
-     $ echo pass
-     pass
-     $ echo pass
-  -  fail
-  +  pass
-  
-  ERROR: test-bisect.t output changed
-  !
-  Failed test-bisect.t: output changed
-  test-bisect.t broken by 72cbf122d116 (bad)
-  # Ran 1 tests, 0 skipped, 1 failed.
-  python hash seed: * (glob)
-  [1]
-
-  $ cd ..
-
-support bisecting a separate repo
-
-  $ hg init bisect-dependent
-  $ cd bisect-dependent
-  $ cat > test-bisect-dependent.t <<EOF
-  >   $ tail -1 \$TESTDIR/../bisect/test-bisect.t
-  >     pass
-  > EOF
-  $ hg commit -Am dependent test-bisect-dependent.t
-
-  $ rt --known-good-rev=0 test-bisect-dependent.t
-  running 1 tests using 1 parallel processes 
-  
-  --- $TESTTMP/anothertests/bisect-dependent/test-bisect-dependent.t
-  +++ $TESTTMP/anothertests/bisect-dependent/test-bisect-dependent.t.err
-  @@ -1,2 +1,2 @@
-     $ tail -1 $TESTDIR/../bisect/test-bisect.t
-  -    pass
-  +    fail
-  
-  ERROR: test-bisect-dependent.t output changed
-  !
-  Failed test-bisect-dependent.t: output changed
-  Failed to identify failure point for test-bisect-dependent.t
-  # Ran 1 tests, 0 skipped, 1 failed.
-  python hash seed: * (glob)
-  [1]
-
-  $ rt --bisect-repo=../test-bisect test-bisect-dependent.t
-  usage: run-tests.py [options] [tests]
-  run-tests.py: error: --bisect-repo cannot be used without --known-good-rev
-  [2]
-
-  $ rt --known-good-rev=0 --bisect-repo=../bisect test-bisect-dependent.t
-  running 1 tests using 1 parallel processes 
-  
-  --- $TESTTMP/anothertests/bisect-dependent/test-bisect-dependent.t
-  +++ $TESTTMP/anothertests/bisect-dependent/test-bisect-dependent.t.err
-  @@ -1,2 +1,2 @@
-     $ tail -1 $TESTDIR/../bisect/test-bisect.t
-  -    pass
-  +    fail
-  
-  ERROR: test-bisect-dependent.t output changed
-  !
-  Failed test-bisect-dependent.t: output changed
-  test-bisect-dependent.t broken by 72cbf122d116 (bad)
-  # Ran 1 tests, 0 skipped, 1 failed.
-  python hash seed: * (glob)
-  [1]
-
-  $ cd ..
 
 Test a broken #if statement doesn't break run-tests threading.
 ==============================================================

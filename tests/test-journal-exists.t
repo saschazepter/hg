@@ -45,12 +45,21 @@ Check that zero-size journals are correctly aborted:
   $ hg bundle -qa repo.hg
   $ chmod -w foo/.hg/store/00changelog.i
 
+#if rust
+  $ hg -R foo unbundle repo.hg
+  adding changesets
+  transaction abort!
+  rollback completed
+  abort: abort: when writing $TESTTMP/repo/foo/.hg/store/00changelog.i: $EACCES$
+  [50]
+#else
   $ hg -R foo unbundle repo.hg
   adding changesets
   transaction abort!
   rollback completed
   abort: $EACCES$: '$TESTTMP/repo/foo/.hg/store/.00changelog.i-*' (glob)
   [255]
+#endif
 
   $ if test -f foo/.hg/store/journal; then echo 'journal exists :-('; fi
 #endif

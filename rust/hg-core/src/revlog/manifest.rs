@@ -1,14 +1,12 @@
 use std::num::NonZeroU8;
 
 use crate::errors::HgError;
-use crate::revlog::{Node, NodePrefix};
-use crate::revlog::{Revlog, RevlogError};
+use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::{Node, NodePrefix, Revlog, RevlogError};
 use crate::utils::hg_path::HgPath;
-use crate::utils::SliceExt;
+use crate::utils::strings::SliceExt;
 use crate::vfs::VfsImpl;
-use crate::{
-    Graph, GraphError, Revision, RevlogOpenOptions, UncheckedRevision,
-};
+use crate::{Graph, GraphError, Revision, UncheckedRevision, NULL_REVISION};
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
@@ -44,7 +42,7 @@ impl Manifestlog {
         node: NodePrefix,
     ) -> Result<Manifest, RevlogError> {
         let rev = self.revlog.rev_from_node(node)?;
-        self.data_for_checked_rev(rev)
+        self.data(rev)
     }
 
     /// Return the `Manifest` of a given revision number.
@@ -53,20 +51,38 @@ impl Manifestlog {
     /// changeset.
     ///
     /// See also `Repo::manifest_for_rev`
-    pub fn data_for_rev(
+    pub fn data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
-        let bytes = self.revlog.get_rev_data(rev)?.into_owned();
+        let bytes = self.revlog.get_data_for_unchecked_rev(rev)?.into_owned();
         Ok(Manifest { bytes })
     }
 
-    pub fn data_for_checked_rev(
+    /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
+    pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
+        let bytes = self.revlog.get_data(rev)?.into_owned();
+        Ok(Manifest { bytes })
+    }
+
+    /// Returns a manifest containing entries for `rev` that are not in its
+    /// parents. It is inexact because it might return a superset of this.
+    /// Equivalent to `manifestctx.read_delta_parents(exact=False)` in Python.
+    pub fn inexact_data_delta_parents(
         &self,
         rev: Revision,
     ) -> Result<Manifest, RevlogError> {
-        let bytes =
-            self.revlog.get_rev_data_for_checked_rev(rev)?.into_owned();
+        let delta_parent = self.revlog.delta_parent(rev);
+        let parents = self.parents(rev).map_err(|err| {
+            RevlogError::corrupted(format!("rev {rev}: {err}"))
+        })?;
+        if delta_parent == NULL_REVISION || !parents.contains(&delta_parent) {
+            return self.data(rev);
+        }
+        let mut bytes = vec![];
+        for chunk in self.revlog.get_data_incr(rev)?.as_patch_list()?.chunks {
+            bytes.extend_from_slice(chunk.data);
+        }
         Ok(Manifest { bytes })
     }
 }
@@ -145,12 +161,11 @@ impl Manifest {
             let middle = bytes.len() / 2;
             // Integer division rounds down, so `middle < len`.
             let (before, after) = bytes.split_at(middle);
-            let is_newline = |&byte: &u8| byte == b'\n';
-            let entry_start = match before.iter().rposition(is_newline) {
+            let entry_start = match memchr::memrchr(b'\n', before) {
                 Some(i) => i + 1,
                 None => 0, // We choose the first entry in `bytes`
             };
-            let entry_end = match after.iter().position(is_newline) {
+            let entry_end = match memchr::memchr(b'\n', after) {
                 Some(i) => {
                     // No `+ 1` here to exclude this newline from the range
                     middle + i

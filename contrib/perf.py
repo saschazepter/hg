@@ -464,32 +464,29 @@ def gettimer(ui, opts=None):
     # experimental config: perf.all-timing
     displayall = ui.configbool(b"perf", b"all-timing", True)
 
+    # ui.warnnoi18n was introduced in 5209fc94b982
+    ui_warn = ui.warn
+
     # experimental config: perf.run-limits
     limitspec = ui.configlist(b"perf", b"run-limits", [])
     limits = []
     for item in limitspec:
         parts = item.split(b'-', 1)
         if len(parts) < 2:
-            ui.warn((b'malformatted run limit entry, missing "-": %s\n' % item))
+            ui_warn(b'malformatted run limit entry, missing "-": %s\n' % item)
             continue
         try:
             time_limit = float(_sysstr(parts[0]))
         except ValueError as e:
-            ui.warn(
-                (
-                    b'malformatted run limit entry, %s: %s\n'
-                    % (_bytestr(e), item)
-                )
+            ui_warn(
+                b'malformatted run limit entry, %s: %s\n' % (_bytestr(e), item)
             )
             continue
         try:
             run_limit = int(_sysstr(parts[1]))
         except ValueError as e:
-            ui.warn(
-                (
-                    b'malformatted run limit entry, %s: %s\n'
-                    % (_bytestr(e), item)
-                )
+            ui_warn(
+                b'malformatted run limit entry, %s: %s\n' % (_bytestr(e), item)
             )
             continue
         limits.append((time_limit, run_limit))
@@ -2182,7 +2179,21 @@ def perf_stream_clone_generate(ui, repo, stream_version, **opts):
 
 @command(
     b'perf::stream-consume',
-    formatteropts,
+    [
+        (
+            b'',
+            b'in-memory-bundle',
+            False,
+            b'load the full bundle in userspace memory before proceeding',
+        ),
+        (
+            b'',
+            b'unbundle-progress',
+            False,
+            b"compute and display progress during stream processing",
+        ),
+    ]
+    + formatteropts,
 )
 def perf_stream_clone_consume(ui, repo, filename, **opts):
     """benchmark the full application of a stream clone
@@ -2220,7 +2231,7 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
     if not (os.path.isfile(filename) and os.access(filename, os.R_OK)):
         raise error.Abort("not a readable file: %s" % filename)
 
-    run_variables = [None, None]
+    run_variables = [None, None, None]
 
     # we create the new repository next to the other one for two reasons:
     # - this way we use the same file system, which are relevant for benchmark
@@ -2229,21 +2240,30 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
 
     @contextlib.contextmanager
     def context():
-        with open(filename, mode='rb') as bundle:
+        with open(filename, mode='rb', buffering=0) as bundle:
+            bundle_name = bundle.name
+            if opts.get(b'in_memory_bundle'):
+                # you hate memory, don't you?
+                import io
+
+                bundle = io.BytesIO(bundle.read())
             with tempfile.TemporaryDirectory(
                 prefix=b'hg-perf-stream-consume-',
                 dir=source_repo_dir,
             ) as tmp_dir:
                 tmp_dir = fsencode(tmp_dir)
                 run_variables[0] = bundle
-                run_variables[1] = tmp_dir
+                run_variables[1] = bundle_name
+                run_variables[2] = tmp_dir
                 yield
                 run_variables[0] = None
                 run_variables[1] = None
+                run_variables[2] = None
 
     def runone():
         bundle = run_variables[0]
-        tmp_dir = run_variables[1]
+        bundle_name = run_variables[1]
+        tmp_dir = run_variables[2]
 
         # we actually wants to copy all config to ensure the repo config is
         # taken in account during the benchmark
@@ -2253,7 +2273,12 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
             new_ui, tmp_dir, requirements=repo.requirements
         )
         target = hg.repository(new_ui, tmp_dir)
-        gen = exchange.readbundle(target.ui, bundle, bundle.name)
+        # we don't need to use a config override here because this is a
+        # dedicated UI object for the disposable repository create for the
+        # benchmark.
+        show_progress = bool(opts.get("show_progress"))
+        target.ui.setconfig(b"progress", b"disable", not show_progress)
+        gen = exchange.readbundle(target.ui, bundle, bundle_name)
         # stream v1
         if util.safehasattr(gen, 'apply'):
             gen.apply(target)
@@ -3288,6 +3313,14 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
     if parse_index_v1 is None:
         parse_index_v1 = mercurial.revlog.revlogio().parseindex
 
+    uses_generaldelta = "uses_generaldelta" in getargspec(parse_index_v1).args
+    if uses_generaldelta is not None:
+        # Mercurial 7.0 and above
+        # This test isn't affected by generaldelta at all, so just pass `False`
+        parse_index_v1 = functools.partial(
+            parse_index_v1, uses_generaldelta=False
+        )
+
     rllen = len(rl)
 
     node0 = rl.node(0)
@@ -3780,6 +3813,11 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogchunks', file_, opts)
 
+    if rl.uses_rust:
+        raise NotImplementedError(
+            "perfrevlogchunks is not implemented for the Rust revlog"
+        )
+
     # - _chunkraw was renamed to _getsegmentforrevs
     # - _getsegmentforrevs was moved on the inner object
     try:
@@ -3960,6 +3998,10 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         raise error.CommandError(b'perfrevlogrevision', b'invalid arguments')
 
     r = cmdutil.openrevlog(repo, b'perfrevlogrevision', file_, opts)
+    if r.uses_rust:
+        raise NotImplementedError(
+            "perfrevlogrevision is not implemented for the Rust revlog"
+        )
 
     # _chunkraw was renamed to _getsegmentforrevs.
     try:

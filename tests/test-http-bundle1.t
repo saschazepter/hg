@@ -35,19 +35,15 @@ Test server address cannot be reused
 
 clone via stream
 
-#if no-reposimplestore
   $ hg clone --stream http://localhost:$HGPORT/ copy 2>&1
   streaming all changes
-  7 files to transfer, 606 bytes of data (no-zstd !)
-  7 files to transfer, 608 bytes of data (zstd no-rust !)
-  9 files to transfer, 734 bytes of data (zstd rust !)
-  transferred * bytes in * seconds (*/sec) (glob)
+  * files to transfer, * bytes of data (glob)
+  stream-cloned * files / * bytes in * seconds (*/sec) (glob)
   searching for changes
   no changes found
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R copy -q
-#endif
 
 try to clone via stream, should use pull instead
 
@@ -216,18 +212,14 @@ test http authentication
   $ hg id http://user@localhost:$HGPORT2/
   5fed3813f7f5
 
-#if no-reposimplestore
   $ hg clone http://user:pass@localhost:$HGPORT2/ dest 2>&1
   streaming all changes
-  8 files to transfer, 916 bytes of data (no-zstd !)
-  8 files to transfer, 919 bytes of data (zstd no-rust !)
-  10 files to transfer, 1.02 KB of data (zstd rust !)
-  transferred * in * seconds (*/sec) (glob)
+  * files to transfer, * of data (glob)
+  stream-cloned * files / * in * seconds (*/sec) (glob)
   searching for changes
   no changes found
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
-#endif
 
 --pull should override server's preferuncompressed
 
@@ -286,16 +278,16 @@ test http authentication
   "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
-  "GET /?cmd=capabilities HTTP/1.1" 401 - (no-reposimplestore !)
-  "GET /?cmd=capabilities HTTP/1.1" 200 - (no-reposimplestore !)
-  "GET /?cmd=branchmap HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=stream_out HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D5fed3813f7f5e1824344fdc9cf8f63bb662c292d x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
-  "GET /?cmd=capabilities HTTP/1.1" 401 - (no-reposimplestore !)
-  "GET /?cmd=capabilities HTTP/1.1" 200 - (no-reposimplestore !)
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (no-reposimplestore !)
+  "GET /?cmd=capabilities HTTP/1.1" 401 -
+  "GET /?cmd=capabilities HTTP/1.1" 200 -
+  "GET /?cmd=branchmap HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=stream_out HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D5fed3813f7f5e1824344fdc9cf8f63bb662c292d x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
+  "GET /?cmd=capabilities HTTP/1.1" 401 -
+  "GET /?cmd=capabilities HTTP/1.1" 200 -
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
@@ -373,18 +365,14 @@ disable pull-based clones
   server has pull-based clones disabled
   [100]
 
-#if no-reposimplestore
 ... but keep stream clones working
 
   $ hg clone --stream --noupdate http://localhost:$HGPORT1/ test-stream-clone
   streaming all changes
   * files to transfer, * of data (glob)
-  transferred 1.36 KB in * seconds (* */sec) (glob) (no-zstd !)
-  transferred 1.38 KB in * seconds (* */sec) (glob) (zstd no-rust !)
-  transferred 1.56 KB in * seconds (* */sec) (glob) (zstd rust !)
+  stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes
   no changes found
-#endif
 
 ... and also keep partial clones and pulls working
   $ hg clone http://localhost:$HGPORT1 --rev 0 test-partial-clone

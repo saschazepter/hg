@@ -1,17 +1,19 @@
-use crate::ui::utf8_to_local;
 use crate::ui::UiError;
 use crate::NoRepoInCwdError;
 use format_bytes::format_bytes;
 use hg::config::{ConfigError, ConfigParseError, ConfigValueParseError};
-use hg::dirstate_tree::on_disk::DirstateV2ParseError;
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::status::StatusError;
+use hg::dirstate::DirstateError;
+use hg::dirstate::DirstateMapError;
 use hg::errors::HgError;
 use hg::exit_codes;
+use hg::filepatterns::PatternError;
 use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
-use hg::{DirstateError, DirstateMapError, PatternError, StatusError};
 use std::convert::From;
 
 /// The kind of command error
@@ -50,7 +52,7 @@ impl CommandError {
             // TODO: bytes-based (instead of Unicode-based) formatting
             // of error messages to handle non-UTF-8 filenames etc:
             // https://www.mercurial-scm.org/wiki/EncodingStrategy#Mixing_output
-            message: utf8_to_local(message.as_ref()).into(),
+            message: message.as_ref().as_bytes().to_owned(),
             detailed_exit_code,
             hint: None,
         }
@@ -62,9 +64,9 @@ impl CommandError {
         hint: Option<impl AsRef<str>>,
     ) -> Self {
         CommandError::Abort {
-            message: utf8_to_local(message.as_ref()).into(),
+            message: message.as_ref().as_bytes().to_owned(),
             detailed_exit_code,
-            hint: hint.map(|h| utf8_to_local(h.as_ref()).into()),
+            hint: hint.map(|h| h.as_ref().as_bytes().to_owned()),
         }
     }
 
@@ -83,7 +85,7 @@ impl CommandError {
 
     pub fn unsupported(message: impl AsRef<str>) -> Self {
         CommandError::UnsupportedFeature {
-            message: utf8_to_local(message.as_ref()).into(),
+            message: message.as_ref().as_bytes().to_owned(),
         }
     }
 }
@@ -201,22 +203,10 @@ impl From<ConfigParseError> for CommandError {
     }
 }
 
-impl From<(RevlogError, &str)> for CommandError {
-    fn from((err, rev): (RevlogError, &str)) -> CommandError {
-        match err {
-            RevlogError::WDirUnsupported => CommandError::abort(
-                "abort: working directory revision cannot be specified",
-            ),
-            RevlogError::InvalidRevision(r) => CommandError::abort(format!(
-                "abort: invalid revision identifier: {}",
-                r
-            )),
-            RevlogError::AmbiguousPrefix => CommandError::abort(format!(
-                "abort: ambiguous revision identifier: {}",
-                rev
-            )),
-            RevlogError::Other(error) => error.into(),
-        }
+impl From<RevlogError> for CommandError {
+    fn from(err: RevlogError) -> CommandError {
+        let err: HgError = err.into();
+        err.into()
     }
 }
 

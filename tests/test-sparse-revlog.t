@@ -11,35 +11,41 @@ repeatedly while some of it changes rarely.
 
   $ bundlepath="$TESTDIR/artifacts/cache/big-file-churn.hg"
 
+#if pure
   $ expectedhash=`cat "$bundlepath".md5`
-
-#if slow
-
-  $ if [ ! -f "$bundlepath" ]; then
-  >     "$TESTDIR"/artifacts/scripts/generate-churning-bundle.py > /dev/null
-  > fi
-
-#else
-
   $ if [ ! -f "$bundlepath" ]; then
   >     echo 'skipped: missing artifact, run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
   >     exit 80
   > fi
-
-#endif
-
   $ currenthash=`f -M "$bundlepath" | cut -d = -f 2`
   $ if [ "$currenthash" != "$expectedhash" ]; then
   >     echo 'skipped: outdated artifact, md5 "'"$currenthash"'" expected "'"$expectedhash"'" run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
   >     exit 80
   > fi
+#else
+
+#if slow
+  $ LAZY_GEN=""
+
+#else
+  $ LAZY_GEN="--lazy"
+#endif
+
+#endif
+
+If the validation fails, either something is broken or the expected md5 need updating.
+To update the md5, invoke the script without --validate
+
+  $ "$TESTDIR"/artifacts/scripts/generate-churning-bundle.py --validate $LAZY_GEN > /dev/null
 
   $ cat >> $HGRCPATH << EOF
   > [format]
   > sparse-revlog = yes
   > maxchainlen = 15
+  > revlog-compression=zlib
   > [storage]
   > revlog.optimize-delta-parent-choice = yes
+  > revlog.reuse-external-delta-parent = no
   > revlog.reuse-external-delta = no
   > EOF
   $ hg init sparse-repo
@@ -49,12 +55,119 @@ repeatedly while some of it changes rarely.
   adding manifests
   adding file changes
   added 5001 changesets with 5001 changes to 1 files (+89 heads)
-  new changesets 9706f5af64f4:d9032adc8114 (5001 drafts)
+  new changesets 9706f5af64f4:e4eee5e41c37 (5001 drafts)
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg up
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  updated to "d9032adc8114: commit #5000"
+  updated to "e4eee5e41c37: commit #5000"
   89 other heads for branch "default"
+
+Sanity check the graph shape
+
+  $ hg log -T '{rev} {p1rev} {p2rev}\n' --rev '0:100'
+  0 -1 -1
+  1 0 -1
+  2 1 -1
+  3 2 -1
+  4 3 -1
+  5 4 -1
+  6 5 -1
+  7 1 -1
+  8 7 6
+  9 8 -1
+  10 9 -1
+  11 10 -1
+  12 11 -1
+  13 12 -1
+  14 1 -1
+  15 14 -1
+  16 15 13
+  17 16 -1
+  18 17 -1
+  19 18 -1
+  20 19 -1
+  21 16 -1
+  22 21 -1
+  23 22 -1
+  24 23 20
+  25 24 -1
+  26 25 -1
+  27 26 -1
+  28 21 -1
+  29 28 -1
+  30 29 -1
+  31 30 -1
+  32 31 27
+  33 32 -1
+  34 33 -1
+  35 31 -1
+  36 35 -1
+  37 36 -1
+  38 37 -1
+  39 38 -1
+  40 39 34
+  41 40 -1
+  42 36 -1
+  43 42 -1
+  44 43 -1
+  45 44 -1
+  46 45 -1
+  47 46 -1
+  48 47 41
+  49 36 -1
+  50 49 -1
+  51 50 -1
+  52 51 -1
+  53 52 -1
+  54 53 -1
+  55 54 -1
+  56 51 48
+  57 56 -1
+  58 57 -1
+  59 58 -1
+  60 59 -1
+  61 60 -1
+  62 61 -1
+  63 56 -1
+  64 63 55
+  65 64 -1
+  66 65 -1
+  67 66 -1
+  68 67 -1
+  69 68 -1
+  70 66 -1
+  71 70 -1
+  72 71 62
+  73 72 -1
+  74 73 -1
+  75 74 -1
+  76 75 -1
+  77 71 -1
+  78 77 -1
+  79 78 -1
+  80 79 69
+  81 80 -1
+  82 81 -1
+  83 82 -1
+  84 71 -1
+  85 84 -1
+  86 85 -1
+  87 86 -1
+  88 87 76
+  89 88 -1
+  90 89 -1
+  91 86 -1
+  92 91 -1
+  93 92 -1
+  94 93 -1
+  95 94 -1
+  96 95 83
+  97 96 -1
+  98 91 -1
+  99 98 -1
+  100 99 -1
+
+sanity check the change pattern
 
   $ hg log --stat -r 0:3
   changeset:   0:9706f5af64f4
@@ -91,7 +204,7 @@ repeatedly while some of it changes rarely.
   
 
   $ f -s .hg/store/data/*.d
-  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=58616973
+  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=81370673
   $ hg debugrevlog *
   format : 1
   flags  : generaldelta
@@ -103,54 +216,51 @@ repeatedly while some of it changes rarely.
       empty     :        0 ( 0.00%)
                      text  :        0 (100.00%)
                      delta :        0 (100.00%)
-      snapshot  :      383 ( 7.66%)
-        lvl-0   :              3 ( 0.06%)
-        lvl-1   :             18 ( 0.36%)  non-ancestor-bases:        9 (50.00%)
-        lvl-2   :             62 ( 1.24%)  non-ancestor-bases:       58 (93.55%)
-        lvl-3   :            108 ( 2.16%)  non-ancestor-bases:      108 (100.00%)
-        lvl-4   :            191 ( 3.82%)  non-ancestor-bases:      180 (94.24%)
-        lvl-5   :              1 ( 0.02%)  non-ancestor-bases:        1 (100.00%)
-      deltas    :     4618 (92.34%)
-  revision size : 58616973
-      snapshot  :  9247844 (15.78%)
-        lvl-0   :         539532 ( 0.92%)
-        lvl-1   :        1467743 ( 2.50%)
-        lvl-2   :        1873820 ( 3.20%)
-        lvl-3   :        2326874 ( 3.97%)
-        lvl-4   :        3029118 ( 5.17%)
-        lvl-5   :          10757 ( 0.02%)
-      deltas    : 49369129 (84.22%)
+      snapshot  :      360 ( 7.20%)
+        lvl-0   :             11 ( 0.22%)
+        lvl-1   :             50 ( 1.00%)  non-ancestor-bases:       41 (82.00%)
+        lvl-2   :            128 ( 2.56%)  non-ancestor-bases:      119 (92.97%)
+        lvl-3   :            122 ( 2.44%)  non-ancestor-bases:      111 (90.98%)
+        lvl-4   :             49 ( 0.98%)  non-ancestor-bases:       46 (93.88%)
+      deltas    :     4641 (92.80%)
+  revision size : 81370673
+      snapshot  : 16282100 (20.01%)
+        lvl-0   :        2188012 ( 2.69%)
+        lvl-1   :        4848143 ( 5.96%)
+        lvl-2   :        5366175 ( 6.59%)
+        lvl-3   :        3085157 ( 3.79%)
+        lvl-4   :         794613 ( 0.98%)
+      deltas    : 65088573 (79.99%)
   
   chunks        :     5001
-      0x28      :     5001 (100.00%)
-  chunks size   : 58616973
-      0x28      : 58616973 (100.00%)
+      0x78 (x)  :     5001 (100.00%)
+  chunks size   : 81370673
+      0x78 (x)  : 81370673 (100.00%)
   
   
-  total-stored-content: 1 732 705 361 bytes
+  total-stored-content: 1 717 863 086 bytes
   
-  avg chain length  :        9
+  avg chain length  :        8
   max chain length  :       15
-  max chain reach   : 27366701
-  compression ratio :       29
+  max chain reach   : 18326506
+  compression ratio :       21
   
-  uncompressed data size (min/max/avg) : 346468 / 346472 / 346471
-  full revision size (min/max/avg)     : 179288 / 180786 / 179844
-  inter-snapshot size (min/max/avg)    : 10757 / 169507 / 22916
-      level-1   (min/max/avg)          : 13905 / 169507 / 81541
-      level-2   (min/max/avg)          : 10887 / 83873 / 30222
-      level-3   (min/max/avg)          : 10911 / 43047 / 21545
-      level-4   (min/max/avg)          : 10838 / 21390 / 15859
-      level-5   (min/max/avg)          : 10757 / 10757 / 10757
-  delta size (min/max/avg)             : 9672 / 108072 / 10690
+  uncompressed data size (min/max/avg) : 339930 / 346471 / 343503
+  full revision size (min/max/avg)     : 196682 / 201129 / 198910
+  inter-snapshot size (min/max/avg)    : 11620 / 172223 / 40384
+      level-1   (min/max/avg)          : 14329 / 172223 / 96962
+      level-2   (min/max/avg)          : 11664 / 86421 / 41923
+      level-3   (min/max/avg)          : 11620 / 42674 / 25288
+      level-4   (min/max/avg)          : 11631 / 21209 / 16216
+  delta size (min/max/avg)             : 10610 / 190651 / 14024
   
-  deltas against prev  : 3906 (84.58%)
-      where prev = p1  : 3906     (100.00%)
+  deltas against prev  : 3916 (84.38%)
+      where prev = p1  : 3916     (100.00%)
       where prev = p2  :    0     ( 0.00%)
       other-ancestor   :    0     ( 0.00%)
       unrelated        :    0     ( 0.00%)
-  deltas against p1    :  649 (14.05%)
-  deltas against p2    :   63 ( 1.36%)
+  deltas against p1    :  667 (14.37%)
+  deltas against p2    :   58 ( 1.25%)
   deltas against ancs  :    0 ( 0.00%)
   deltas against other :    0 ( 0.00%)
 
@@ -161,56 +271,55 @@ Test `debug-delta-find`
   $ ls -1
   SPARSE-REVLOG-TEST-FILE
   $ hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1
-     4971    4970      -1       3        5     4930    snap
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971
-  DBG-DELTAS-SEARCH: SEARCH rev=4971
-  DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=13781
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=173765
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=106516 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4335
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=14385
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=171587
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=105187 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=18296
-  DBG-DELTAS-SEARCH:     base=4930
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=30377
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=16872 (BAD)
-  DBG-DELTAS-SEARCH: ROUND #2 - 2 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4325
+     4996    4995      -1      11        3     4947    snap
+  $ LAST_SNAP=`hg debugdeltachain SPARSE-REVLOG-TEST-FILE | grep snap | tail -1| sed 's/^ *//'| cut -d ' ' -f 1`
+  $ echo Last Snapshot: $LAST_SNAP
+  Last Snapshot: 4996
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP
+  DBG-DELTAS-SEARCH: SEARCH rev=4996
+  DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4964
   DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=17384
-  DBG-DELTAS-SEARCH:     base=4318
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=178121
+  DBG-DELTAS-SEARCH:     size=15153
+  DBG-DELTAS-SEARCH:     base=4958
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=109064 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=39228
-  DBG-DELTAS-SEARCH:     base=4799
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=33050
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
-  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - refine-down
-  DBG-DELTAS-SEARCH:   CONTENDER: rev=4930 - length=19179
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4799
+  DBG-DELTAS-SEARCH:     DELTA: length=36297 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4958
   DBG-DELTAS-SEARCH:     type=snapshot-2
-  DBG-DELTAS-SEARCH:     size=50213
-  DBG-DELTAS-SEARCH:     base=4623
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=82661
+  DBG-DELTAS-SEARCH:     size=30977
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=36578 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4947
+  DBG-DELTAS-SEARCH:     type=snapshot-1
+  DBG-DELTAS-SEARCH:     size=164878
+  DBG-DELTAS-SEARCH:     base=4667
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=87938
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=52101 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4667
+  DBG-DELTAS-SEARCH:     type=snapshot-0
+  DBG-DELTAS-SEARCH:     size=196699
+  DBG-DELTAS-SEARCH:     base=-1
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=281309
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=165408 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #5 - 1 candidates - refine-up
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4954
+  DBG-DELTAS-SEARCH:     type=snapshot-2
+  DBG-DELTAS-SEARCH:     size=58198
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=92195
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=54601 (BAD)
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=0 - search-rounds=5 try-count=5 - delta-type=snapshot snap-depth=2 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
 
   $ cat << EOF >>.hg/hgrc
   > [storage]
@@ -218,214 +327,198 @@ Test `debug-delta-find`
   > revlog.reuse-external-delta = yes
   > EOF
 
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --quiet
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source full
-  DBG-DELTAS-SEARCH: SEARCH rev=4971
-  DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=13781
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=173765
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=106516 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4335
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=14385
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=171587
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=105187 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=18296
-  DBG-DELTAS-SEARCH:     base=4930
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=30377
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=16872 (BAD)
-  DBG-DELTAS-SEARCH: ROUND #2 - 2 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4325
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --quiet
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=0 - search-rounds=5 try-count=5 - delta-type=snapshot snap-depth=2 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source full
+  DBG-DELTAS-SEARCH: SEARCH rev=4996
+  DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4964
   DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=17384
-  DBG-DELTAS-SEARCH:     base=4318
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=178121
+  DBG-DELTAS-SEARCH:     size=15153
+  DBG-DELTAS-SEARCH:     base=4958
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=109064 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=39228
-  DBG-DELTAS-SEARCH:     base=4799
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=33050
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
-  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - refine-down
-  DBG-DELTAS-SEARCH:   CONTENDER: rev=4930 - length=19179
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4799
+  DBG-DELTAS-SEARCH:     DELTA: length=36297 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4958
   DBG-DELTAS-SEARCH:     type=snapshot-2
-  DBG-DELTAS-SEARCH:     size=50213
-  DBG-DELTAS-SEARCH:     base=4623
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=82661
+  DBG-DELTAS-SEARCH:     size=30977
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source storage
-  DBG-DELTAS-SEARCH: SEARCH rev=4971
+  DBG-DELTAS-SEARCH:     DELTA: length=36578 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4947
+  DBG-DELTAS-SEARCH:     type=snapshot-1
+  DBG-DELTAS-SEARCH:     size=164878
+  DBG-DELTAS-SEARCH:     base=4667
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=87938
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=52101 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4667
+  DBG-DELTAS-SEARCH:     type=snapshot-0
+  DBG-DELTAS-SEARCH:     size=196699
+  DBG-DELTAS-SEARCH:     base=-1
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=281309
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=165408 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #5 - 1 candidates - refine-up
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4954
+  DBG-DELTAS-SEARCH:     type=snapshot-2
+  DBG-DELTAS-SEARCH:     size=58198
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=92195
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=54601 (BAD)
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=0 - search-rounds=5 try-count=5 - delta-type=snapshot snap-depth=2 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source storage
+  DBG-DELTAS-SEARCH: SEARCH rev=4996
   DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - cached-delta
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4947
+  DBG-DELTAS-SEARCH:     type=snapshot-1
+  DBG-DELTAS-SEARCH:     size=164878
+  DBG-DELTAS-SEARCH:     base=4667
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=87938
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=52101 (GOOD)
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source p1
+  DBG-DELTAS-SEARCH: SEARCH rev=4996
+  DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4964
   DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=39228
-  DBG-DELTAS-SEARCH:     base=4799
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=33050
+  DBG-DELTAS-SEARCH:     size=15153
+  DBG-DELTAS-SEARCH:     base=4958
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=1 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source p1
-  DBG-DELTAS-SEARCH: SEARCH rev=4971
-  DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=13781
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=173765
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=106516 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4335
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=14385
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=171587
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=105187 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=18296
-  DBG-DELTAS-SEARCH:     base=4930
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=30377
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=16872 (BAD)
-  DBG-DELTAS-SEARCH: ROUND #2 - 2 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4325
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=17384
-  DBG-DELTAS-SEARCH:     base=4318
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=178121
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=109064 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=39228
-  DBG-DELTAS-SEARCH:     base=4799
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=33050
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
-  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - refine-down
-  DBG-DELTAS-SEARCH:   CONTENDER: rev=4930 - length=19179
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4799
+  DBG-DELTAS-SEARCH:     DELTA: length=36297 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4958
   DBG-DELTAS-SEARCH:     type=snapshot-2
-  DBG-DELTAS-SEARCH:     size=50213
-  DBG-DELTAS-SEARCH:     base=4623
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=82661
+  DBG-DELTAS-SEARCH:     size=30977
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source p2
-  DBG-DELTAS-SEARCH: SEARCH rev=4971
-  DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=13781
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=173765
+  DBG-DELTAS-SEARCH:     DELTA: length=36578 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4947
+  DBG-DELTAS-SEARCH:     type=snapshot-1
+  DBG-DELTAS-SEARCH:     size=164878
+  DBG-DELTAS-SEARCH:     base=4667
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=87938
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=106516 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4335
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=14385
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=171587
+  DBG-DELTAS-SEARCH:     DELTA: length=52101 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4667
+  DBG-DELTAS-SEARCH:     type=snapshot-0
+  DBG-DELTAS-SEARCH:     size=196699
+  DBG-DELTAS-SEARCH:     base=-1
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=281309
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=105187 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=18296
-  DBG-DELTAS-SEARCH:     base=4930
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=30377
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=16872 (BAD)
-  DBG-DELTAS-SEARCH: ROUND #2 - 2 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4325
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=17384
-  DBG-DELTAS-SEARCH:     base=4318
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=178121
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=109064 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=39228
-  DBG-DELTAS-SEARCH:     base=4799
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=33050
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
-  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - refine-down
-  DBG-DELTAS-SEARCH:   CONTENDER: rev=4930 - length=19179
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4799
+  DBG-DELTAS-SEARCH:     DELTA: length=165408 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #5 - 1 candidates - refine-up
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4954
   DBG-DELTAS-SEARCH:     type=snapshot-2
-  DBG-DELTAS-SEARCH:     size=50213
-  DBG-DELTAS-SEARCH:     base=4623
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=82661
+  DBG-DELTAS-SEARCH:     size=58198
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=92195
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
-  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE 4971 --source prev
-  DBG-DELTAS-SEARCH: SEARCH rev=4971
-  DBG-DELTAS-SEARCH: ROUND #1 - 3 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4329
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=13781
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=173765
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=106516 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4335
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=14385
-  DBG-DELTAS-SEARCH:     base=4325
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=171587
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=105187 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
-  DBG-DELTAS-SEARCH:     type=snapshot-4
-  DBG-DELTAS-SEARCH:     size=18296
-  DBG-DELTAS-SEARCH:     base=4930
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=30377
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=16872 (BAD)
-  DBG-DELTAS-SEARCH: ROUND #2 - 2 candidates - search-down
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4325
+  DBG-DELTAS-SEARCH:     DELTA: length=54601 (BAD)
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=0 - search-rounds=5 try-count=5 - delta-type=snapshot snap-depth=2 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source p2
+  DBG-DELTAS-SEARCH: SEARCH rev=4996
+  DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4964
   DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=17384
-  DBG-DELTAS-SEARCH:     base=4318
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=178121
+  DBG-DELTAS-SEARCH:     size=15153
+  DBG-DELTAS-SEARCH:     base=4958
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=109064 (BAD)
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4930
-  DBG-DELTAS-SEARCH:     type=snapshot-3
-  DBG-DELTAS-SEARCH:     size=39228
-  DBG-DELTAS-SEARCH:     base=4799
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=33050
-  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=19179 (GOOD)
-  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - refine-down
-  DBG-DELTAS-SEARCH:   CONTENDER: rev=4930 - length=19179
-  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4799
+  DBG-DELTAS-SEARCH:     DELTA: length=36297 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4958
   DBG-DELTAS-SEARCH:     type=snapshot-2
-  DBG-DELTAS-SEARCH:     size=50213
-  DBG-DELTAS-SEARCH:     base=4623
-  DBG-DELTAS-SEARCH:     uncompressed-delta-size=82661
+  DBG-DELTAS-SEARCH:     size=30977
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=49132 (BAD)
-  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4971: delta-base=4930 is-cached=0 - search-rounds=3 try-count=6 - delta-type=snapshot snap-depth=4 - p1-chain-length=15 p2-chain-length=-1 - duration=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=36578 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4947
+  DBG-DELTAS-SEARCH:     type=snapshot-1
+  DBG-DELTAS-SEARCH:     size=164878
+  DBG-DELTAS-SEARCH:     base=4667
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=87938
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=52101 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4667
+  DBG-DELTAS-SEARCH:     type=snapshot-0
+  DBG-DELTAS-SEARCH:     size=196699
+  DBG-DELTAS-SEARCH:     base=-1
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=281309
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=165408 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #5 - 1 candidates - refine-up
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4954
+  DBG-DELTAS-SEARCH:     type=snapshot-2
+  DBG-DELTAS-SEARCH:     size=58198
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=92195
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=54601 (BAD)
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=0 - search-rounds=5 try-count=5 - delta-type=snapshot snap-depth=2 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
+  $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source prev
+  DBG-DELTAS-SEARCH: SEARCH rev=4996
+  DBG-DELTAS-SEARCH: ROUND #1 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4964
+  DBG-DELTAS-SEARCH:     type=snapshot-3
+  DBG-DELTAS-SEARCH:     size=15153
+  DBG-DELTAS-SEARCH:     base=4958
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=36297 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4958
+  DBG-DELTAS-SEARCH:     type=snapshot-2
+  DBG-DELTAS-SEARCH:     size=30977
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=61571
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=36578 (BAD)
+  DBG-DELTAS-SEARCH: ROUND #3 - 1 candidates - search-down
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4947
+  DBG-DELTAS-SEARCH:     type=snapshot-1
+  DBG-DELTAS-SEARCH:     size=164878
+  DBG-DELTAS-SEARCH:     base=4667
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=87938
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=52101 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4667
+  DBG-DELTAS-SEARCH:     type=snapshot-0
+  DBG-DELTAS-SEARCH:     size=196699
+  DBG-DELTAS-SEARCH:     base=-1
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=281309
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=165408 (GOOD)
+  DBG-DELTAS-SEARCH: ROUND #5 - 1 candidates - refine-up
+  DBG-DELTAS-SEARCH:   CONTENDER: rev=4947 - length=52101
+  DBG-DELTAS-SEARCH:   CANDIDATE: rev=4954
+  DBG-DELTAS-SEARCH:     type=snapshot-2
+  DBG-DELTAS-SEARCH:     size=58198
+  DBG-DELTAS-SEARCH:     base=4947
+  DBG-DELTAS-SEARCH:     uncompressed-delta-size=92195
+  DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
+  DBG-DELTAS-SEARCH:     DELTA: length=54601 (BAD)
+  DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4996: delta-base=4947 is-cached=0 - search-rounds=5 try-count=5 - delta-type=snapshot snap-depth=2 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
 
   $ cd ..

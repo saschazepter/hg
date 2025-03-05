@@ -46,7 +46,7 @@ class Hint:
 
     def __init__(self, *args, **kw):
         self.hint: Optional[bytes] = kw.pop('hint', None)
-        super(Hint, self).__init__(*args, **kw)
+        super().__init__(*args, **kw)
 
 
 class Error(Hint, Exception):
@@ -150,7 +150,7 @@ class CommandError(Exception):
     def __init__(self, command: Optional[bytes], message: bytes) -> None:
         self.command = command
         self.message = message
-        super(CommandError, self).__init__()
+        super().__init__()
 
     __bytes__ = _tobytes
 
@@ -165,7 +165,7 @@ class UnknownCommand(Exception):
     ) -> None:
         self.command = command
         self.all_commands = all_commands
-        super(UnknownCommand, self).__init__()
+        super().__init__()
 
     __bytes__ = _tobytes
 
@@ -176,7 +176,7 @@ class AmbiguousCommand(Exception):
     def __init__(self, prefix: bytes, matches: List[bytes]) -> None:
         self.prefix = prefix
         self.matches = matches
-        super(AmbiguousCommand, self).__init__()
+        super().__init__()
 
     __bytes__ = _tobytes
 
@@ -187,7 +187,7 @@ class WorkerError(Exception):
     def __init__(self, status_code: int) -> None:
         self.status_code = status_code
         # Pass status code to superclass just so it becomes part of __bytes__
-        super(WorkerError, self).__init__(status_code)
+        super().__init__(status_code)
 
     __bytes__ = _tobytes
 
@@ -285,7 +285,7 @@ class ConfigError(Abort):
         location: Optional[bytes] = None,
         hint: Optional[bytes] = None,
     ) -> None:
-        super(ConfigError, self).__init__(message, hint=hint)
+        super().__init__(message, hint=hint)
         self.location = location
 
     def format(self) -> bytes:
@@ -349,7 +349,7 @@ class OutOfBandError(RemoteError):
             message = _(b"remote error:\n%s") % message.rstrip(b'\n')
         else:
             message = _(b"remote error")
-        super(OutOfBandError, self).__init__(message, hint=hint)
+        super().__init__(message, hint=hint)
 
 
 class ParseError(Abort):
@@ -363,7 +363,7 @@ class ParseError(Abort):
         location: Optional[Union[bytes, int]] = None,
         hint: Optional[bytes] = None,
     ):
-        super(ParseError, self).__init__(message, hint=hint)
+        super().__init__(message, hint=hint)
         self.location = location
 
     def format(self) -> bytes:
@@ -481,7 +481,7 @@ class UnknownVersion(Abort):
         version: Optional[bytes] = None,
     ) -> None:
         self.version = version
-        super(UnknownVersion, self).__init__(msg, hint=hint)
+        super().__init__(msg, hint=hint)
 
 
 class LockError(IOError):
@@ -549,7 +549,7 @@ class ProgrammingError(Hint, RuntimeError):
         # an internal-only error that won't be printed except in a
         # stack traces.
         msg = pycompat.sysstr(msg)
-        super(ProgrammingError, self).__init__(msg, *args, **kwargs)
+        super().__init__(msg, *args, **kwargs)
 
     __bytes__ = _tobytes
 

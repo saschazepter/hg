@@ -361,8 +361,7 @@ class hgweb:
         with self._obtainrepo() as repo:
             profile = repo.ui.configbool(b'profiling', b'enabled')
             with profiling.profile(repo.ui, enabled=profile):
-                for r in self._runwsgi(req, res, repo):
-                    yield r
+                yield from self._runwsgi(req, res, repo)
 
     def _runwsgi(self, req, res, repo):
         rctx = requestcontext(self, repo, req, res)

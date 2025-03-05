@@ -52,8 +52,7 @@ class config:
         return self._data.get(section, {})
 
     def __iter__(self):
-        for d in self.sections():
-            yield d
+        yield from self.sections()
 
     def update(self, src):
         current_level = self._current_source_level
@@ -196,7 +195,7 @@ class config:
                 expanded = util.expandpath(m.group(1))
                 try:
                     include(expanded, remap=remap, sections=sections)
-                except IOError as inst:
+                except OSError as inst:
                     if inst.errno != errno.ENOENT:
                         raise error.ConfigError(
                             _(b"cannot include %s (%s)")

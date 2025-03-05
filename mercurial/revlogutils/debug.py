@@ -231,11 +231,9 @@ def dump(ui, revlog):
     # XXX seems redundant with debug index ?
     r = revlog
     numrevs = len(r)
-    ui.write(
-        (
-            b"# rev p1rev p2rev start   end deltastart base   p1   p2"
-            b" rawsize totalsize compression heads chainlen\n"
-        )
+    ui.writenoi18n(
+        b"# rev p1rev p2rev start   end deltastart base   p1   p2"
+        b" rawsize totalsize compression heads chainlen\n"
     )
     ts = 0
     heads = set()
@@ -307,9 +305,9 @@ def debug_revlog(ui, revlog):
     # intermediate snapshot against a prior snapshot
     numsemi = 0
     # snapshot count per depth
-    numsnapdepth = collections.defaultdict(lambda: 0)
+    numsnapdepth = collections.defaultdict(int)
     # number of snapshots with a non-ancestor delta
-    numsnapdepth_nad = collections.defaultdict(lambda: 0)
+    numsnapdepth_nad = collections.defaultdict(int)
     # delta against previous revision
     numprev = 0
     # delta against prev, where prev is a non-ancestor

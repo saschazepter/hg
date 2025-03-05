@@ -464,7 +464,7 @@ class Block(dict):
     contains up to 16 entry indexed from 0 to 15"""
 
     def __init__(self):
-        super(Block, self).__init__()
+        super().__init__()
         # If this block exist on disk, here is its ID
         self.ondisk_id = None
 
@@ -556,8 +556,7 @@ def _walk_trie(block):
     """
     for __, item in sorted(block.items()):
         if isinstance(item, dict):
-            for sub_block in _walk_trie(item):
-                yield sub_block
+            yield from _walk_trie(item)
     yield block
 
 

@@ -85,10 +85,16 @@ setup the step-by-step stream cloning
   $ export HG_TEST_STREAM_WALKED_FILE_2
   $ HG_TEST_STREAM_WALKED_FILE_3="$TESTTMP/sync_file_walked_3"
   $ export HG_TEST_STREAM_WALKED_FILE_3
+  $ HG_TEST_STREAM_WALKED_FILE_4="$TESTTMP/sync_file_walked_4"
+  $ export HG_TEST_STREAM_WALKED_FILE_4
+  $ HG_TEST_STREAM_WALKED_FILE_5="$TESTTMP/sync_file_walked_5"
+  $ export HG_TEST_STREAM_WALKED_FILE_5
   $ cat << EOF >> test-repo/.hg/hgrc
   > [extensions]
   > steps=$RUNTESTDIR/testlib/ext-stream-clone-steps.py
   > EOF
+(we don't need this wait point)
+  $ touch $HG_TEST_STREAM_WALKED_FILE_2
 
 Check and record file state beforehand
 
@@ -112,12 +118,12 @@ Prepare a commit
 
 Do a mix of clone and commit at the same time so that the file listed on disk differ at actual transfer time.
 
-  $ (hg clone -U --stream ssh://user@dummy/test-repo stream-clone-race-1 --debug 2>> clone-output | grep -E '00(changelog|manifest)' >> clone-output; touch $HG_TEST_STREAM_WALKED_FILE_3) &
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_1
+  $ (hg clone -U --stream ssh://user@dummy/test-repo stream-clone-race-1 --debug 2>> clone-output | grep -E '00(changelog|manifest)' >> clone-output; touch $HG_TEST_STREAM_WALKED_FILE_5) &
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
   $ hg -R test-repo/ commit -m foo
   created new head
-  $ touch $HG_TEST_STREAM_WALKED_FILE_2
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
+  $ touch $HG_TEST_STREAM_WALKED_FILE_4
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_5
   $ cat clone-output
   adding [s] 00manifest.n (62 bytes)
   adding [s] 00manifest-*.nd (118 KB) (glob)
@@ -174,9 +180,9 @@ This isn't the case for the `no-rust` `no-pure` implementation as it use a very 
 
 Clean up after the test.
 
-  $ rm -f "$HG_TEST_STREAM_WALKED_FILE_1"
-  $ rm -f "$HG_TEST_STREAM_WALKED_FILE_2"
   $ rm -f "$HG_TEST_STREAM_WALKED_FILE_3"
+  $ rm -f "$HG_TEST_STREAM_WALKED_FILE_4"
+  $ rm -f "$HG_TEST_STREAM_WALKED_FILE_5"
 
 full regeneration
 -----------------
@@ -211,13 +217,13 @@ Check the initial state
 Performe the mix of clone and full refresh of the nodemap, so that the files
 (and filenames) are different between listing time and actual transfer time.
 
-  $ (hg clone -U --stream ssh://user@dummy/test-repo stream-clone-race-2 --debug 2>> clone-output-2 | grep -E '00(changelog|manifest)' >> clone-output-2; touch $HG_TEST_STREAM_WALKED_FILE_3) &
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_1
+  $ (hg clone -U --stream ssh://user@dummy/test-repo stream-clone-race-2 --debug 2>> clone-output-2 | grep -E '00(changelog|manifest)' >> clone-output-2; touch $HG_TEST_STREAM_WALKED_FILE_5) &
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
   $ rm test-repo/.hg/store/00changelog.n
   $ rm test-repo/.hg/store/00changelog-*.nd
   $ hg -R test-repo/ debugupdatecache
-  $ touch $HG_TEST_STREAM_WALKED_FILE_2
-  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_3
+  $ touch $HG_TEST_STREAM_WALKED_FILE_4
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $HG_TEST_STREAM_WALKED_FILE_5
 
 (note: the stream clone code wronly pick the `undo.` files)
 
@@ -282,7 +288,7 @@ This isn't the case for the `no-rust` `no-pure` implementation as it use a very 
 
 Clean up after the test
 
-  $ rm -f $HG_TEST_STREAM_WALKED_FILE_1
-  $ rm -f $HG_TEST_STREAM_WALKED_FILE_2
   $ rm -f $HG_TEST_STREAM_WALKED_FILE_3
+  $ rm -f $HG_TEST_STREAM_WALKED_FILE_4
+  $ rm -f $HG_TEST_STREAM_WALKED_FILE_5
 

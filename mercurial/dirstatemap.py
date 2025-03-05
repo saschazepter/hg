@@ -10,6 +10,7 @@ import stat
 from typing import (
     Optional,
     TYPE_CHECKING,
+    Tuple,
 )
 
 from .i18n import _
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     )
 
 parsers = policy.importmod('parsers')
-rustmod = policy.importrust('dirstate')
+rustmod = policy.importrust('dirstate', pyo3=True)
 
 propertycache = util.propertycache
 
@@ -62,12 +63,12 @@ class _dirstatemapcommon:
 
     _use_dirstate_v2: bool
     _nodeconstants: typelib.NodeConstants
-    _ui: "uimod.ui"
+    _ui: uimod.ui
     _root: bytes
     _filename: bytes
     _nodelen: int
     _dirtyparents: bool
-    _docket: Optional["docketmod.DirstateDocket"]
+    _docket: Optional[docketmod.DirstateDocket]
     _write_mode: int
     _pendingmode: Optional[bool]
     identity: Optional[typelib.CacheStat]
@@ -79,7 +80,7 @@ class _dirstatemapcommon:
 
     def __init__(
         self,
-        ui: "uimod.ui",
+        ui: uimod.ui,
         opener,
         root: bytes,
         nodeconstants: typelib.NodeConstants,
@@ -108,9 +109,6 @@ class _dirstatemapcommon:
 
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
-
-    def _set_identity(self) -> None:
-        self.identity = self._get_current_identity()
 
     def _get_current_identity(self) -> Optional[typelib.CacheStat]:
         # TODO have a cleaner approach on httpstaticrepo side
@@ -172,32 +170,51 @@ class _dirstatemapcommon:
         self._pendingmode = mode
         return fp
 
-    def _readdirstatefile(self, size: int = -1) -> bytes:
+    def _readdirstatefile(
+        self,
+        size: int = -1,
+    ) -> Tuple[Optional[typelib.CacheStat], bytes]:
+        """read the content of the file used as "entry point" for the dirstate
+
+        Return a (identity, data) tuple. The identity can be used for cache
+        validation and concurrent changes detection and must be set as
+        `self.identity` if `data` is preserved.
+        """
+        identity = self._get_current_identity()
+        # There is a race condition between fetching the identity and reading
+        # the file content.  Another process might update the file after we get
+        # the identity information.  However this is fine for our purpose as
+        # this will only create false-positive for "data changed" and no
+        # false-negative.
+        #
+        # in addition for the case that matter the most (updating the dirstate
+        # semantic content and not just some cache information), this will not
+        # happens as the lock should be held when changes to the dirstate
+        # content are made.
         testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         try:
             with self._opendirstatefile() as fp:
-                return fp.read(size)
+                data = fp.read(size)
         except FileNotFoundError:
             # File doesn't exist, so the current state is empty
-            return b''
+            data = b''
+        testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
+        return identity, data
 
     @property
-    def docket(self) -> "docketmod.DirstateDocket":
-        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
+    def docket(self) -> docketmod.DirstateDocket:
         if not self._docket:
             if not self._use_dirstate_v2:
                 raise error.ProgrammingError(
                     b'dirstate only has a docket in v2 format'
                 )
-            self._set_identity()
-            data = self._readdirstatefile()
+            self.identity, data = self._readdirstatefile()
             if data == b'' or data.startswith(docketmod.V2_FORMAT_MARKER):
                 self._docket = docketmod.DirstateDocket.parse(
                     data, self._nodeconstants
                 )
             else:
                 raise error.CorruptedDirstate(b"dirstate is not in v2 format")
-            testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
         return self._docket
 
     def _read_v2_data(self):
@@ -281,7 +298,7 @@ class _dirstatemapcommon:
 
     def _v1_parents(self, from_v2_exception=None):
         read_len = self._nodelen * 2
-        st = self._readdirstatefile(read_len)
+        _identity, st = self._readdirstatefile(read_len)
         l = len(st)
         if l == read_len:
             self._parents = (
@@ -396,22 +413,18 @@ class dirstatemap(_dirstatemapcommon):
     ### disk interaction
 
     def read(self):
-        testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
         if self._use_dirstate_v2:
             try:
                 self.docket
             except error.CorruptedDirstate:
                 # fall back to dirstate-v1 if we fail to read v2
-                self._set_identity()
-                st = self._readdirstatefile()
+                self.identity, st = self._readdirstatefile()
             else:
                 if not self.docket.uuid:
                     return
-                testing.wait_on_cfg(self._ui, b'dirstate.post-docket-read-file')
                 st = self._read_v2_data()
         else:
-            self._set_identity()
-            st = self._readdirstatefile()
+            self.identity, st = self._readdirstatefile()
 
         if not st:
             return
@@ -474,7 +487,14 @@ class dirstatemap(_dirstatemapcommon):
         self._dirtyparents = False
 
     @propertycache
-    def identity(self):
+    def identity(self) -> Optional[typelib.CacheStat]:
+        """A cache identifier for the state of the file as data were read
+
+        This must always be set with the object returned from
+        `self._readdirstatefile()`. assigning another value later will break
+        some security mechanism and can lead to misbehavior when concurrent
+        operation are run.
+        """
         self._map
         return self.identity
 
@@ -675,7 +695,6 @@ if rustmod is not None:
             """
             # ignore HG_PENDING because identity is used only for writing
 
-            testing.wait_on_cfg(self._ui, b'dirstate.pre-read-file')
             if self._use_dirstate_v2:
                 try:
                     self.docket
@@ -685,9 +704,6 @@ if rustmod is not None:
                 else:
                     parents = self.docket.parents
                     identity = self._get_rust_identity()
-                    testing.wait_on_cfg(
-                        self._ui, b'dirstate.post-docket-read-file'
-                    )
                     if not self.docket.uuid:
                         data = b''
                         self._map = rustmod.DirstateMap.new_empty()
@@ -733,11 +749,9 @@ if rustmod is not None:
 
         def _v1_map(self, from_v2_exception=None):
             try:
-                self._set_identity()
+                self.identity, data = self._readdirstatefile()
                 identity = self._get_rust_identity()
-                self._map, parents = rustmod.DirstateMap.new_v1(
-                    self._readdirstatefile(), identity
-                )
+                self._map, parents = rustmod.DirstateMap.new_v1(data, identity)
             except OSError as e:
                 if from_v2_exception is not None:
                     raise e from from_v2_exception

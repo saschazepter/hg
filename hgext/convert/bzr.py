@@ -62,7 +62,7 @@ class bzr_source(common.converter_source):
     """Reads Bazaar repositories by using the Bazaar Python libraries"""
 
     def __init__(self, ui, repotype, path, revs=None):
-        super(bzr_source, self).__init__(ui, repotype, path, revs=revs)
+        super().__init__(ui, repotype, path, revs=revs)
 
         if not os.path.exists(os.path.join(path, b'.bzr')):
             raise common.NoRepo(
@@ -263,7 +263,7 @@ class bzr_source(common.converter_source):
             paths = change.path
             kind = change.kind
             executable = change.executable
-            if paths[0] == u'' or paths[1] == u'':
+            if paths[0] == '' or paths[1] == '':
                 # ignore changes to tree root
                 continue
 
@@ -332,7 +332,7 @@ class bzr_source(common.converter_source):
                 changes.append((path, revid))
 
             # populate the mode cache
-            kind, executable = [e[1] for e in (kind, executable)]
+            kind, executable = (e[1] for e in (kind, executable))
             mode = (executable and b'x') or (kind == 'symlink' and b'l') or b''
             self._modecache[(topath, revid)] = mode
             changes.append((topath, revid))

@@ -32,7 +32,7 @@ class datapackstore(basepack.basepackstore):
     PACKSUFFIX = PACKSUFFIX
 
     def __init__(self, ui, path):
-        super(datapackstore, self).__init__(ui, path)
+        super().__init__(ui, path)
 
     def getpack(self, path):
         return datapack(path)

@@ -15,9 +15,6 @@ import traceback
 import wsgiref.validate
 
 from ..i18n import _
-from ..pycompat import (
-    open,
-)
 
 from .. import (
     encoding,
@@ -351,11 +348,11 @@ except ImportError:
 
 def openlog(opt, default):
     if opt and opt != b'-':
-        return open(opt, b'ab')
+        return open(opt, 'ab')
     return default
 
 
-class MercurialHTTPServer(_mixin, httpservermod.httpserver, object):
+class MercurialHTTPServer(_mixin, httpservermod.httpserver):
     # SO_REUSEADDR has broken semantics on windows
     if pycompat.iswindows:
         allow_reuse_address = 0
@@ -389,7 +386,7 @@ class IPv6HTTPServer(MercurialHTTPServer):
     def __init__(self, *args, **kwargs):
         if self.address_family is None:
             raise error.RepoError(_(b'IPv6 is not available on this system'))
-        super(IPv6HTTPServer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 def create_server(ui, app):
@@ -412,7 +409,7 @@ def create_server(ui, app):
     port = urlutil.getport(ui.config(b'web', b'port'))
     try:
         return cls(ui, app, (address, port), handler)
-    except socket.error as inst:
+    except OSError as inst:
         raise error.Abort(
             _(b"cannot start server at '%s:%d': %s")
             % (address, port, encoding.strtolocal(inst.args[1]))

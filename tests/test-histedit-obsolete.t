@@ -80,7 +80,7 @@ With some node gone missing during the edit.
   $ hg commit --amend -X . -m XXXXXX
   $ hg commit --amend -X . -m b2
   $ hg --hidden --config extensions.strip= strip 'desc(XXXXXX)' --no-backup
-  $ hg histedit --continue
+  $ hg continue
   $ hg log -G
   @  8:273c1f3b8626 c
   |
@@ -363,7 +363,7 @@ New-commit as draft (default)
   (to edit b449568bf7fc, `hg histedit --continue` after making changes)
   [240]
   $ echo f >> f
-  $ hg histedit --continue
+  $ hg continue
   $ hg log -G
   @  24:12e89af74238 (secret) k
   |
@@ -569,7 +569,7 @@ when in dry-run mode
   Editing (ee118ab9fa44), commit as needed now to split the change
   (to edit ee118ab9fa44, `hg histedit --continue` after making changes)
   [240]
-  $ hg histedit --continue --config experimental.evolution.track-operation=1
+  $ hg continue --config experimental.evolution.track-operation=1
   $ hg log -G
   @  23:175d6b286a22 (secret) k
   |

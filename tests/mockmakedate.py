@@ -12,7 +12,7 @@ def mockmakedate():
     try:
         with open(filename, 'rb') as timef:
             time = float(timef.read()) + 1
-    except IOError:
+    except OSError:
         time = 0.0
     with open(filename, 'wb') as timef:
         timef.write(pycompat.bytestr(time))

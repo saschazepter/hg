@@ -233,7 +233,6 @@ Ensure the data got to the server OK
   $ echo '[BASE64]a-bit-longer-branching' > base64
   $ hg commit -q -m branching
 
-#if repobundlerepo
   $ hg bundle --base 1 bundle.hg
   4 changesets found
   $ hg --config extensions.strip= strip -r 2 --no-backup --force -q
@@ -290,7 +289,6 @@ Ensure the data got to the server OK
    1 files changed, 1 insertions(+), 0 deletions(-)
   
   $ rm bundle.hg bundle-again.hg
-#endif
 
 # TEST: hg status
 

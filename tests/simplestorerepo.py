@@ -13,6 +13,12 @@
 
 import stat
 
+from typing import (
+    Iterable,
+    Iterator,
+    Optional,
+)
+
 from mercurial.i18n import _
 from mercurial.node import (
     bin,
@@ -34,7 +40,6 @@ from mercurial import (
 )
 from mercurial.interfaces import (
     repository,
-    util as interfaceutil,
 )
 from mercurial.utils import (
     cborutil,
@@ -68,30 +73,29 @@ class simplestoreerror(error.StorageError):
     pass
 
 
-@interfaceutil.implementer(repository.irevisiondelta)
 @attr.s(slots=True)
-class simplestorerevisiondelta:
-    node = attr.ib()
-    p1node = attr.ib()
-    p2node = attr.ib()
-    basenode = attr.ib()
-    flags = attr.ib()
-    baserevisionsize = attr.ib()
-    revision = attr.ib()
-    delta = attr.ib()
-    linknode = attr.ib(default=None)
+class simplestorerevisiondelta(repository.irevisiondelta):
+    node = attr.ib(type=bytes)
+    p1node = attr.ib(type=bytes)
+    p2node = attr.ib(type=bytes)
+    basenode = attr.ib(type=bytes)
+    flags = attr.ib(type=int)
+    baserevisionsize = attr.ib(type=Optional[int])
+    revision = attr.ib(type=Optional[bytes])
+    delta = attr.ib(type=Optional[bytes])
+    sidedata = attr.ib(type=Optional[bytes])
+    protocol_flags = attr.ib(type=int)
+    linknode = attr.ib(default=None, type=Optional[bytes])
 
 
-@interfaceutil.implementer(repository.iverifyproblem)
 @attr.s(frozen=True)
-class simplefilestoreproblem:
-    warning = attr.ib(default=None)
-    error = attr.ib(default=None)
-    node = attr.ib(default=None)
+class simplefilestoreproblem(repository.iverifyproblem):
+    warning = attr.ib(default=None, type=Optional[bytes])
+    error = attr.ib(default=None, type=Optional[bytes])
+    node = attr.ib(default=None, type=Optional[bytes])
 
 
-@interfaceutil.implementer(repository.ifilestorage)
-class filestorage:
+class filestorage(repository.ifilestorage):
     """Implements storage for a tracked path.
 
     Data is stored in the VFS in a directory corresponding to the tracked
@@ -160,10 +164,10 @@ class filestorage:
 
         self._index.append((0, 0, 0, -1, -1, -1, -1, self._repo.nullid))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._indexdata)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return iter(range(len(self)))
 
     def revs(self, start=0, stop=None):
@@ -427,7 +431,7 @@ class filestorage:
             'storedsize': None,
         }
 
-    def verifyintegrity(self, state):
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
         state['skipread'] = set()
         for rev in self:
             node = self.node(rev)
@@ -452,7 +456,7 @@ class filestorage:
         nodes = [n for n in nodes if n != self._repo.nullid]
         if not nodes:
             return
-        for delta in storageutil.emitrevisions(
+        yield from storageutil.emitrevisions(
             self,
             nodes,
             nodesorder,
@@ -461,8 +465,7 @@ class filestorage:
             assumehaveparentrevisions=assumehaveparentrevisions,
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
-        ):
-            yield delta
+        )
 
     def add(self, text, meta, transaction, linkrev, p1, p2):
         if meta or text.startswith(b'\1\n'):
@@ -665,8 +668,7 @@ def issimplestorefile(f, kind, st):
 
 class simplestore(store.encodedstore):
     def data_entries(self, undecodable=None):
-        for x in super(simplestore, self).data_entries():
-            yield x
+        yield from super().data_entries()
 
         # Supplement with non-revlog files.
         extrafiles = self._walk('data', True, filefilter=issimplestorefile)

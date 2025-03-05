@@ -1526,20 +1526,22 @@ The following options control default behavior for all hosts.
     This option requires Python 2.7.
 
 ``minimumprotocol``
-    Defines the minimum channel encryption protocol to use.
+    Defines the minimum channel encryption protocol to use in the client.
 
     By default, the highest version of TLS supported by both client and server
     is used.
 
-    Allowed values are: ``tls1.0``, ``tls1.1``, ``tls1.2``.
+    Allowed values are: ``tls1.0``, ``tls1.1``, ``tls1.2``, ``tls1.3``.
 
-    When running on an old Python version, only ``tls1.0`` is allowed since
-    old versions of Python only support up to TLS 1.0.
+    Depending on the version of Python being used, not all of these values may
+    be available.  See ``hg debuginstall`` for the values supported by the
+    current installation.
 
     When running a Python that supports modern TLS versions, the default is
-    ``tls1.1``. ``tls1.0`` can still be used to allow TLS 1.0. However, this
-    weakens security and should only be used as a feature of last resort if
-    a server does not support TLS 1.1+.
+    ``tls1.2``. ``tls1.0`` and ``tls1.1`` can still be used to allow TLS 1.0
+    or TLS 1.1 respectively, if supported by Python. However, this weakens
+    security and should only be used as a feature of last resort if a server
+    does not support TLS 1.2+.
 
 Options in the ``[hostsecurity]`` section can have the form
 ``hostname``:``setting``. This allows multiple settings to be defined on a
@@ -2323,6 +2325,12 @@ The pure Rust fast-path for Mercurial. See `rust/README.rst` in the Mercurial re
 Control the strategy Mercurial uses internally to store history. Options in this
 category impact performance and repository size.
 
+``all-slow-path``
+    :config-doc:`storage.all-slow-path`
+
+``revlog.dirstate-v2.slow-path``
+    :config-doc:`storage.dirstate-v2.slow-path`
+
 ``revlog.issue6528.fix-incoming``
     Version 5.8 of Mercurial had a bug leading to altering the parent of file
     revision with copy information (or any other metadata) on exchange. This
@@ -2383,16 +2391,7 @@ category impact performance and repository size.
     :hg:`help config.format.use-persistent-nodemap`.
 
 ``revlog.persistent-nodemap.slow-path``
-    Control the behavior of Merucrial when using a repository with "persistent"
-    nodemap with an installation of Mercurial without a fast implementation for
-    the feature:
-
-    ``allow``: Silently use the slower implementation to access the repository.
-    ``warn``: Warn, but use the slower implementation to access the repository.
-    ``abort``: Prevent access to such repositories. (This is the default)
-
-    For details on the "persistent-nodemap" feature, see:
-    :hg:`help config.format.use-persistent-nodemap`.
+    :config-doc:`storage.revlog.persistent-nodemap.slow-path`
 
 ``revlog.reuse-external-delta-parent``
     Control the order in which delta parents are considered when adding new

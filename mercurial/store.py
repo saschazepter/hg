@@ -16,6 +16,7 @@ import typing
 
 from typing import (
     Generator,
+    Iterator,
     List,
     Optional,
 )
@@ -54,7 +55,7 @@ parsers = policy.importmod('parsers')
 fncache_chunksize = 10**6
 
 
-def _match_tracked_entry(entry: "BaseStoreEntry", matcher):
+def _match_tracked_entry(entry: BaseStoreEntry, matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
     matched by matcher or not.
 
@@ -116,7 +117,7 @@ def decodedir(path):
     )
 
 
-def _reserved():
+def _reserved() -> Iterator[int]:
     """characters that are problematic for filesystems
 
     * ascii escapes (0..31)
@@ -125,13 +126,10 @@ def _reserved():
 
     these characters will be escaped by encodefunctions
     """
-    winreserved = [ord(x) for x in u'\\:*?"<>|']
-    for x in range(32):
-        yield x
-    for x in range(126, 256):
-        yield x
-    for x in winreserved:
-        yield x
+    winreserved = [ord(x) for x in '\\:*?"<>|']
+    yield from range(32)
+    yield from range(126, 256)
+    yield from winreserved
 
 
 def _buildencodefun():
@@ -460,6 +458,9 @@ class StoreFile:
     unencoded_path = attr.ib()
     _file_size = attr.ib(default=None)
     is_volatile = attr.ib(default=False)
+    # Missing file can be safely ignored, used by "copy/hardlink" local clone
+    # for cache file not covered by lock.
+    optional = False
 
     def file_size(self, vfs):
         if self._file_size is None:
@@ -523,6 +524,16 @@ class BaseStoreEntry:
         """
         assert vfs is not None
         return [f.get_stream(vfs, volatiles) for f in self.files()]
+
+    def preserve_volatiles(self, vfs, volatiles):
+        """Use a VolatileManager to preserve the state of any volatile file
+
+        This is useful for code that need a consistent view of the content like stream clone.
+        """
+        if self.maybe_volatile:
+            for f in self.files():
+                if f.is_volatile:
+                    volatiles(vfs.join(f.unencoded_path))
 
 
 @attr.s(slots=True, init=False)
@@ -915,10 +926,8 @@ class basicstore:
         are passed with matches the matcher
         """
         # yield data files first
-        for x in self.data_entries(matcher):
-            yield x
-        for x in self.top_entries(phase=phase, obsolescence=obsolescence):
-            yield x
+        yield from self.data_entries(matcher)
+        yield from self.top_entries(phase=phase, obsolescence=obsolescence)
 
     def copylist(self):
         return _data
@@ -973,9 +982,7 @@ class encodedstore(basicstore):
     def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
-        entries = super(encodedstore, self).data_entries(
-            undecodable=undecodable
-        )
+        entries = super().data_entries(undecodable=undecodable)
         for entry in entries:
             if _match_tracked_entry(entry, matcher):
                 yield entry
@@ -998,12 +1005,16 @@ class fncache:
         # set of new additions to fncache
         self.addls = set()
 
+    @property
+    def is_loaded(self):
+        return self.entries is not None
+
     def ensureloaded(self, warn=None):
         """read the fncache file if not already read.
 
         If the file on disk is corrupted, raise. If warn is provided,
         warn and keep going instead."""
-        if self.entries is None:
+        if not self.is_loaded:
             self._load(warn)
 
     def _load(self, warn=None):
@@ -1011,7 +1022,7 @@ class fncache:
         self._dirty = False
         try:
             fp = self.vfs(b'fncache', mode=b'rb')
-        except IOError:
+        except OSError:
             # skip nonexistent file
             self.entries = set()
             return
@@ -1058,7 +1069,7 @@ class fncache:
 
     def write(self, tr):
         if self._dirty:
-            assert self.entries is not None
+            assert self.is_loaded
             self.entries = self.entries | self.addls
             self.addls = set()
             tr.addbackup(b'fncache')
@@ -1083,13 +1094,13 @@ class fncache:
     def add(self, fn):
         if fn in self._ignores:
             return
-        if self.entries is None:
+        if not self.is_loaded:
             self._load()
         if fn not in self.entries:
             self.addls.add(fn)
 
     def remove(self, fn):
-        if self.entries is None:
+        if not self.is_loaded:
             self._load()
         if fn in self.addls:
             self.addls.remove(fn)
@@ -1103,12 +1114,12 @@ class fncache:
     def __contains__(self, fn):
         if fn in self.addls:
             return True
-        if self.entries is None:
+        if not self.is_loaded:
             self._load()
         return fn in self.entries
 
     def __iter__(self):
-        if self.entries is None:
+        if not self.is_loaded:
             self._load()
         return iter(self.entries | self.addls)
 
@@ -1116,8 +1127,9 @@ class fncache:
 class _fncachevfs(vfsmod.proxyvfs):
     def __init__(self, vfs, fnc, encode):
         vfsmod.proxyvfs.__init__(self, vfs)
-        self.fncache = fnc
+        self.fncache: fncache = fnc
         self.encode = encode
+        self.uses_dotencode = encode is _pathencode
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
@@ -1128,7 +1140,7 @@ class _fncachevfs(vfsmod.proxyvfs):
         ):
             # do not trigger a fncache load when adding a file that already is
             # known to exist.
-            notload = self.fncache.entries is None and (
+            notload = not self.fncache.is_loaded and (
                 # if the file has size zero, it should be considered as missing.
                 # Such zero-size files are the result of truncation when a
                 # transaction is aborted.

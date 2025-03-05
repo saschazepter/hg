@@ -47,6 +47,7 @@ mod pybytes_deref;
 pub mod revlog;
 pub mod update;
 pub mod utils;
+pub mod vfs;
 
 /// Revision as exposed to/from the Python layer.
 ///
@@ -105,10 +106,3 @@ py_module_initializer!(rustext, initrustext, PyInit_rustext, |py, m| {
     m.add(py, "GraphError", py.get_type::<exceptions::GraphError>())?;
     Ok(())
 });
-
-#[cfg(not(feature = "python3-bin"))]
-#[test]
-#[ignore]
-fn libpython_must_be_linked_to_run_tests() {
-    // stub function to tell that some tests wouldn't run
-}

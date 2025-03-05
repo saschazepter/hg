@@ -151,14 +151,12 @@ def showdoc(ui, debugcmds=False):
             b"extensions is available in the help system."
         )
     )
-    ui.write(
-        (
-            b"\n\n"
-            b".. contents::\n"
-            b"   :class: htmlonly\n"
-            b"   :local:\n"
-            b"   :depth: 1\n\n"
-        )
+    ui.writenoi18n(
+        b"\n\n"
+        b".. contents::\n"
+        b"   :class: htmlonly\n"
+        b"   :local:\n"
+        b"   :depth: 1\n\n"
     )
 
     for extensionname in sorted(allextensionnames()):
@@ -363,7 +361,7 @@ def _splitdoc(obj):
 
 def _rendertpl(tplname, data):
     tplpath = os.path.join(os.path.dirname(__file__), 'templates', tplname)
-    with open(tplpath, 'r') as f:
+    with open(tplpath) as f:
         tpl = f.read()
 
     if isinstance(tpl, bytes):

@@ -67,8 +67,6 @@ Verify empty
   [1]
   $ hg -R empty verify -q
 
-#if repobundlerepo
-
 Pull full.hg into test (using --cwd)
 
   $ hg --cwd test pull ../full.hg
@@ -271,8 +269,6 @@ Pull full.hg into empty again (using -R; with hook)
   
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
-#endif
-
 Cannot produce streaming clone bundles with "hg bundle"
 
   $ hg -R test bundle -t packed1 packed.hg
@@ -283,7 +279,7 @@ Cannot produce streaming clone bundles with "hg bundle"
 packed1 is produced properly
 
 
-#if reporevlogstore rust
+#if rust
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
   writing 2665 bytes for 6 files (no-rust !)
@@ -294,7 +290,7 @@ packed1 is produced properly
   packed.hg: size=2865, sha1=353d10311f4befa195d9a1ca4b8e26518115c702 (no-rust !)
   0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........| (no-rust !)
   0010: 00 00 00 00 0a 69 00 3b 67 65 6e 65 72 61 6c 64 |.....i.;generald| (no-rust !)
-  packed.hg: size=3181, sha1=b202787710a1c109246554be589506cd2916acb7 (rust !)
+  packed.hg: size=3181, sha1=3e865df183d388222969c5b19c844dd8697c85c6 (rust !)
   0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 09 00 00 |HGS1UN..........| (rust !)
   0010: 00 00 00 00 0b 67 00 3b 67 65 6e 65 72 61 6c 64 |.....g.;generald| (rust !)
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 2d 63 6f 6d 70 |elta,revlog-comp|
@@ -303,7 +299,7 @@ packed1 is produced properly
   none-packed1;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 #endif
 
-#if reporevlogstore no-rust zstd
+#if no-rust zstd
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
   writing 2665 bytes for 7 files
@@ -319,7 +315,7 @@ packed1 is produced properly
   none-packed1;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 #endif
 
-#if reporevlogstore no-rust no-zstd
+#if no-rust no-zstd
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
   writing 2664 bytes for 7 files
@@ -335,8 +331,6 @@ packed1 is produced properly
   none-packed1;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog
 #endif
 
-#if reporevlogstore
-
 generaldelta requirement is not listed in stream clone bundles unless used
 
   $ hg --config format.usegeneraldelta=false init testnongd
@@ -345,9 +339,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
   $ hg -q commit -A -m initial
   $ cd ..
 
-#endif
-
-#if reporevlogstore rust
+#if rust
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
   writing 301 bytes for 3 files (no-rust !)
@@ -369,7 +361,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
 #endif
 
-#if reporevlogstore no-rust zstd
+#if no-rust zstd
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
   writing 301 bytes for 4 files
@@ -388,7 +380,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
 #endif
 
-#if reporevlogstore no-rust no-zstd
+#if no-rust no-zstd
 
   $ hg -R testnongd debugcreatestreamclonebundle packednongd.hg
   writing 301 bytes for 4 files
@@ -407,8 +399,6 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
 #endif
 
-#if reporevlogstore
-
 Warning emitted when packed bundles contain secret changesets
 
   $ hg init testsecret
@@ -418,9 +408,7 @@ Warning emitted when packed bundles contain secret changesets
   $ hg phase --force --secret -r .
   $ cd ..
 
-#endif
-
-#if reporevlogstore rust
+#if rust
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
@@ -430,7 +418,7 @@ Warning emitted when packed bundles contain secret changesets
 
 #endif
 
-#if reporevlogstore no-rust zstd
+#if no-rust zstd
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
@@ -439,7 +427,7 @@ Warning emitted when packed bundles contain secret changesets
 
 #endif
 
-#if reporevlogstore no-rust no-zstd
+#if no-rust no-zstd
 
   $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
   (warning: stream clone bundle will contain secret revisions)
@@ -447,8 +435,6 @@ Warning emitted when packed bundles contain secret changesets
   bundle requirements: generaldelta, revlogv1, sparserevlog
 
 #endif
-
-#if reporevlogstore
 
 Unpacking packed1 bundles with "hg unbundle" isn't allowed
 
@@ -492,8 +478,8 @@ transaction)
   9 files to transfer, 2.85 KB of data (rust !)
   pretxnopen: 000000000000
   pretxnclose: aa35859c02ea
-  transferred 2.60 KB in * seconds (* */sec) (glob) (no-rust !)
-  transferred 2.85 KB in * seconds (* */sec) (glob) (rust !)
+  stream-cloned 7 files / 2.60 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 9 files / 2.85 KB in * seconds (* */sec) (glob) (rust !)
   txnclose: aa35859c02ea
 
 (for safety, confirm visibility of streamclone-ed changes by another
@@ -513,8 +499,6 @@ Does not work on non-empty repo
   abort: cannot apply stream clone bundle on non-empty repo
   [255]
 
-#endif
-
 Create partial clones
 
   $ rm -r empty
@@ -531,8 +515,6 @@ Create partial clones
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd partial
-
-#if repobundlerepo
 
 Log -R full.hg in partial
 
@@ -669,16 +651,12 @@ Outgoing -R does-not-exist.hg vs partial2 in partial
   abort: *../does-not-exist.hg* (glob)
   [255]
 
-#endif
-
   $ cd ..
 
 hide outer repo
   $ hg init
 
 Direct clone from bundle (all-history)
-
-#if repobundlerepo
 
   $ hg clone full.hg full-clone
   requesting all changes
@@ -761,8 +739,6 @@ View full contents of the bundle
   
   $ cd ..
 
-#endif
-
 test for 540d1059c802
 
   $ hg init orig
@@ -785,7 +761,6 @@ test for 540d1059c802
 
   $ cd ..
 
-#if repobundlerepo
   $ cd orig
   $ hg incoming ../bundle.hg
   comparing with ../bundle.hg
@@ -815,8 +790,6 @@ note that percent encoding is not handled:
   [255]
   $ cd ..
 
-#endif
-
 test to bundle revisions on the newly created branch (issue3828):
 
   $ hg -q clone -U test test-clone
@@ -827,10 +800,8 @@ test to bundle revisions on the newly created branch (issue3828):
   $ hg -q outgoing ../test-clone
   9:b4f5acb1ee27
   $ hg -q bundle --branch foo foo.hg ../test-clone
-#if repobundlerepo
   $ hg -R foo.hg -q log -r "bundle()"
   9:b4f5acb1ee27
-#endif
 
   $ cd ..
 
@@ -846,17 +817,14 @@ partial history bundle, fails w/ unknown parent
 
 full history bundle, refuses to verify non-local repo
 
-#if repobundlerepo
   $ hg -R all.hg verify
   abort: cannot verify bundle or remote repos
   [255]
-#endif
 
 but, regular verify must continue to work
 
   $ hg -R orig verify -q
 
-#if repobundlerepo
 diff against bundle
 
   $ hg init b
@@ -871,7 +839,6 @@ diff against bundle
   -2
   -3
   $ cd ..
-#endif
 
 bundle single branch
 
@@ -930,13 +897,11 @@ bundle single branch
   files: x 3/3 files (100.00%)
   bundle2-output-part: "cache:rev-branch-cache" (advisory) streamed payload
 
-#if repobundlerepo
 == Test for issue3441
 
   $ hg clone -q -r0 . part2
   $ hg -q -R part2 pull bundle.hg
   $ hg -R part2 verify -q
-#endif
 
 == Test bundling no commits
 
@@ -996,8 +961,6 @@ directory does not exist
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     0
   
-
-#if repobundlerepo
   $ hg bundle --base 1 -r 3 ../update2bundled.hg
   1 changesets found
   $ hg strip -r 3
@@ -1019,7 +982,6 @@ the warning shouldn't be emitted
 
   $ hg update -R ../update2bundled.hg -r 0
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
-#endif
 
 Test the option that create slim bundle
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """dummy SMTP server for use in tests"""
 
@@ -126,7 +126,7 @@ def run(host, port, certificate):
 
 
 def _encodestrsonly(v):
-    if isinstance(v, type(u'')):
+    if isinstance(v, str):
         return v.encode('ascii')
     return v
 

@@ -51,7 +51,7 @@ def buildprobtable(fp, cmd='hg manifest tip'):
     """Construct and print a table of probabilities for path name
     components.  The numbers are percentages."""
 
-    counts = collections.defaultdict(lambda: 0)
+    counts = collections.defaultdict(int)
     for line in os.popen(cmd).read().splitlines():
         if line[-2:] in ('.i', '.d'):
             line = line[:-2]

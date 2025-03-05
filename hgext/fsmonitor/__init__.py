@@ -119,7 +119,6 @@ import weakref
 from mercurial.i18n import _
 from mercurial.node import hex
 
-from mercurial.pycompat import open
 from mercurial import (
     context,
     encoding,
@@ -564,11 +563,11 @@ def overridestatus(
         try:
             if b'FSMONITOR_LOG_FILE' in encoding.environ:
                 fn = encoding.environ[b'FSMONITOR_LOG_FILE']
-                f = open(fn, b'wb')
+                f = open(fn, 'wb')
             else:
                 fn = b'fsmonitorfail.log'
                 f = self.vfs.open(fn, b'wb')
-        except (IOError, OSError):
+        except OSError:
             self.ui.warn(_(b'warning: unable to write to %s\n') % fn)
             return
 
@@ -668,22 +667,24 @@ def overridestatus(
         quiet = self.ui.quiet
         self.ui.quiet = True
         fout, ferr = self.ui.fout, self.ui.ferr
-        self.ui.fout = self.ui.ferr = open(os.devnull, b'wb')
 
-        try:
-            rv2 = orig(
-                node1,
-                node2,
-                match,
-                listignored,
-                listclean,
-                listunknown,
-                listsubrepos,
-            )
-        finally:
-            self.dirstate._fsmonitordisable = False
-            self.ui.quiet = quiet
-            self.ui.fout, self.ui.ferr = fout, ferr
+        with open(os.devnull, 'wb') as fp:
+            self.ui.fout = self.ui.ferr = fp
+
+            try:
+                rv2 = orig(
+                    node1,
+                    node2,
+                    match,
+                    listignored,
+                    listclean,
+                    listunknown,
+                    listsubrepos,
+                )
+            finally:
+                self.dirstate._fsmonitordisable = False
+                self.ui.quiet = quiet
+                self.ui.fout, self.ui.ferr = fout, ferr
 
         # clean isn't tested since it's set to True above
         with self.wlock():
@@ -725,18 +726,18 @@ def makedirstate(repo, dirstate):
             self._repo = weakref.proxy(repo)
 
         def walk(self, *args, **kwargs):
-            orig = super(fsmonitordirstate, self).walk
+            orig = super().walk
             if self._fsmonitordisable:
                 return orig(*args, **kwargs)
             return overridewalk(orig, self, *args, **kwargs)
 
         def rebuild(self, *args, **kwargs):
             self._fsmonitorstate.invalidate()
-            return super(fsmonitordirstate, self).rebuild(*args, **kwargs)
+            return super().rebuild(*args, **kwargs)
 
         def invalidate(self, *args, **kwargs):
             self._fsmonitorstate.invalidate()
-            return super(fsmonitordirstate, self).invalidate(*args, **kwargs)
+            return super().invalidate(*args, **kwargs)
 
     dirstate.__class__ = fsmonitordirstate
     dirstate._fsmonitorinit(repo)
@@ -978,14 +979,14 @@ def reposetup(ui, repo):
 
         class fsmonitorrepo(repo.__class__):
             def status(self, *args, **kwargs):
-                orig = super(fsmonitorrepo, self).status
+                orig = super().status
                 return overridestatus(orig, self, *args, **kwargs)
 
             def wlocknostateupdate(self, *args, **kwargs):
-                return super(fsmonitorrepo, self).wlock(*args, **kwargs)
+                return super().wlock(*args, **kwargs)
 
             def wlock(self, *args, **kwargs):
-                l = super(fsmonitorrepo, self).wlock(*args, **kwargs)
+                l = super().wlock(*args, **kwargs)
                 if not ui.configbool(
                     b"experimental", b"fsmonitor.transaction_notify"
                 ):

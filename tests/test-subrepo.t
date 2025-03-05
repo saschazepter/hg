@@ -1258,7 +1258,7 @@ Check that share works with subrepo
   ../shared/subrepo-2/.hg/wcache/checkisexec (execbit !)
   ../shared/subrepo-2/.hg/wcache/checklink (symlink no-rust !)
   ../shared/subrepo-2/.hg/wcache/checklink-target (symlink no-rust !)
-  ../shared/subrepo-2/.hg/wcache/manifestfulltextcache (reporevlogstore !)
+  ../shared/subrepo-2/.hg/wcache/manifestfulltextcache
   ../shared/subrepo-2/file
   $ hg -R ../shared in
   abort: repository default not found
@@ -2014,3 +2014,67 @@ Test convert subrepositories including merge (issue5526):
   $ cat tconv/.hgsubstate
   fc627a69481fcbe5f1135069e8a3881c023e4cf5 s
   60ca1237c19474e7a3978b0dc1ca4e6f36d51382 t
+
+test calling outgoing to multiple paths
+
+  $ hg out -S -R tcc tc t
+  comparing with tc
+  searching for changes
+  no changes found
+  comparing with tc/s
+  searching for changes
+  no changes found
+  comparing with tc/s/ss
+  searching for changes
+  no changes found
+  comparing with tc/t
+  searching for changes
+  no changes found
+  comparing with t
+  searching for changes
+  no changes found
+  comparing with t/s
+  searching for changes
+  no changes found
+  comparing with t/s/ss
+  searching for changes
+  no changes found
+  comparing with t/t
+  searching for changes
+  no changes found
+  [1]
+
+test calling outgoing to multiple paths using multi-urls
+
+  $ cat >> tcc/.hg/hgrc << EOF
+  > [paths]
+  > t=$TESTTMP/t
+  > all=path://default path://t
+  > all:multi-urls=True
+  > EOF
+  $ hg out -S -R tcc all
+  comparing with $TESTTMP/tc
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/tc/s
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/tc/s/ss
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/tc/t
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s/ss
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/t
+  searching for changes
+  no changes found
+  [1]

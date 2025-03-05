@@ -118,7 +118,6 @@ from typing import (
     List,
 )
 
-from .pycompat import open
 from . import (
     encoding,
     pycompat,
@@ -160,7 +159,7 @@ def clock():
 
 
 class ProfileState:
-    samples: List["Sample"]
+    samples: List[Sample]
 
     def __init__(self, frequency=None):
         self.reset(frequency)
@@ -245,7 +244,7 @@ class CodeSite:
         if self.source is None:
             try:
                 lineno = self.lineno - 1  # lineno can be None
-                with open(self.path, b'rb') as fp:
+                with open(self.path, 'rb') as fp:
                     for i, line in enumerate(fp):
                         if i == lineno:
                             self.source = line.strip()
@@ -385,7 +384,7 @@ def stop():
 
 
 def save_data(path):
-    with open(path, b'w+') as file:
+    with open(path, 'w+b') as file:
         file.write(b"%f %f\n" % state.accumulated_time)
         for sample in state.samples:
             time = sample.time
@@ -398,7 +397,8 @@ def save_data(path):
 
 
 def load_data(path):
-    lines = open(path, b'rb').read().splitlines()
+    with open(path, 'rb') as fp:
+        lines = fp.read().splitlines()
 
     state.accumulated_time = [float(value) for value in lines[0].split()]
     state.samples = []
@@ -831,7 +831,7 @@ def write_to_flame(data, fp, scriptpath=None, outputfile=None, **kwargs):
 
     fd, path = pycompat.mkstemp()
 
-    with open(path, b"w+") as file:
+    with open(path, "w+b") as file:
         for line, count in lines.items():
             file.write(b"%s %d\n" % (line, count))
 
@@ -959,16 +959,14 @@ def write_to_chrome(data, fp, minthreshold=0.005, maxthreshold=0.999):
     for sample in data.samples:
         stack = tuple(
             (
-                (
-                    '%s:%d'
-                    % (
-                        simplifypath(pycompat.sysstr(frame.path)),
-                        frame.lineno or -1,
-                    ),
-                    pycompat.sysstr(frame.function),
-                )
-                for frame in sample.stack
+                '%s:%d'
+                % (
+                    simplifypath(pycompat.sysstr(frame.path)),
+                    frame.lineno or -1,
+                ),
+                pycompat.sysstr(frame.function),
             )
+            for frame in sample.stack
         )
         qstack = collections.deque(stack)
         if laststack == qstack:

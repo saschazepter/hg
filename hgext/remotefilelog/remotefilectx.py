@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import collections
 import time
+import typing
 
 from mercurial.node import bin, hex, nullrev
 from mercurial import (
@@ -19,6 +20,11 @@ from mercurial import (
     util,
 )
 from . import shallowutil
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Iterator,
+    )
 
 propertycache = util.propertycache
 FASTLOG_TIMEOUT_IN_SECS = 0.5
@@ -39,9 +45,7 @@ class remotefilectx(context.filectx):
             fileid = repo.nullid
         if fileid and len(fileid) == 40:
             fileid = bin(fileid)
-        super(remotefilectx, self).__init__(
-            repo, path, changeid, fileid, filelog, changectx
-        )
+        super().__init__(repo, path, changeid, fileid, filelog, changectx)
         self._ancestormap = ancestormap
 
     def size(self):
@@ -381,7 +385,7 @@ class remotefilectx(context.filectx):
             # the correct linknode.
             return False
 
-    def ancestors(self, followfirst=False):
+    def ancestors(self, followfirst=False) -> Iterator[remotefilectx]:
         ancestors = []
         queue = collections.deque((self,))
         seen = set()
@@ -407,8 +411,7 @@ class remotefilectx(context.filectx):
         # The copy tracing algorithm depends on these coming out in order
         ancestors = sorted(ancestors, reverse=True, key=lambda x: x.linkrev())
 
-        for ancestor in ancestors:
-            yield ancestor
+        yield from ancestors
 
     def ancestor(self, fc2, actx):
         # the easy case: no (relevant) renames
@@ -485,7 +488,7 @@ class remotefilectx(context.filectx):
         )
         if fetch:
             self._repo.fileservice.prefetch(fetch)
-        return super(remotefilectx, self).annotate(*args, **kwargs)
+        return super().annotate(*args, **kwargs)
 
     # Return empty set so that the hg serve and thg don't stack trace
     def children(self):
@@ -495,9 +498,7 @@ class remotefilectx(context.filectx):
 class remoteworkingfilectx(context.workingfilectx, remotefilectx):
     def __init__(self, repo, path, filelog=None, workingctx=None):
         self._ancestormap = None
-        super(remoteworkingfilectx, self).__init__(
-            repo, path, filelog, workingctx
-        )
+        super().__init__(repo, path, filelog, workingctx)
 
     def parents(self):
         return remotefilectx.parents(self)

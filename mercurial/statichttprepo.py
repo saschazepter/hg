@@ -72,9 +72,9 @@ class httprangereader:
             # Explicitly convert the exception to str as Py3 will try
             # convert it to local encoding and with as the HTTPResponse
             # instance doesn't support encode.
-            raise IOError(num, str(inst))
+            raise OSError(num, str(inst))
         except urlerr.urlerror as inst:
-            raise IOError(None, inst.reason)
+            raise OSError(None, inst.reason)
 
         if code == 200:
             # HTTPRangeHandler does nothing if remote does not support
@@ -140,7 +140,7 @@ def build_opener(ui, authinfo):
 
         def __call__(self, path, mode=b'r', *args, **kw):
             if mode not in (b'r', b'rb'):
-                raise IOError('Permission denied')
+                raise OSError('Permission denied')
             f = b"/".join((self.base, urlreq.quote(path)))
             return httprangereader(f, urlopener)
 
@@ -219,6 +219,9 @@ class statichttprepository(
         self.store = localrepo.makestore(requirements, self.path, vfsclass)
         self.spath = self.store.path
         self.svfs = self.store.opener
+        # We can't use Rust because the Rust code cannot cope with the
+        # `httprangereader` (yet?)
+        self.svfs.rust_compatible = False
         self.sjoin = self.store.join
         self._filecache = {}
         self.requirements = requirements
@@ -238,7 +241,7 @@ class statichttprepository(
         self._dirstate = None
 
     def _restrictcapabilities(self, caps):
-        caps = super(statichttprepository, self)._restrictcapabilities(caps)
+        caps = super()._restrictcapabilities(caps)
         return caps.difference([b"pushkey"])
 
     def url(self):
@@ -250,7 +253,7 @@ class statichttprepository(
     def peer(self, path=None, remotehidden=False):
         return statichttppeer(self, path=path, remotehidden=remotehidden)
 
-    def wlock(self, wait=True):
+    def wlock(self, wait=True, steal_from=None):
         raise error.LockUnavailable(
             0,
             pycompat.sysstr(_(b'lock not available')),
@@ -258,7 +261,7 @@ class statichttprepository(
             _(b'cannot lock static-http repository'),
         )
 
-    def lock(self, wait=True):
+    def lock(self, wait=True, steal_from=None):
         raise error.LockUnavailable(
             0,
             pycompat.sysstr(_(b'lock not available')),
