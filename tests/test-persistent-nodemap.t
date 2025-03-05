@@ -913,9 +913,11 @@ Persistent nodemap and local/streaming clone
 standard clone
 --------------
 
-The persistent nodemap should exist after a streaming clone
+The persistent nodemap should exist after a normal clone
 
   $ hg clone --pull --quiet -U test-repo standard-clone
+  $ hg debugformat -R standard-clone | grep persistent-nodemap
+  persistent-nodemap: yes
   $ ls -1 standard-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
@@ -929,6 +931,19 @@ The persistent nodemap should exist after a streaming clone
   data-unused: 0
   data-unused: 0.000%
 
+standard clone, no nodemap requested
+-------------------------------------
+
+If persistent normal is requested to not be here, it should not exist after a normal clone
+
+  $ hg clone --pull --quiet -U test-repo standard-clone-no-nm \
+  >     --config format.use-persistent-nodemap=no
+  $ hg debugformat -R standard-clone-no-nm | grep persistent-nodemap
+  persistent-nodemap:  no
+  $ ls -1 standard-clone-no-nm/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
+  [1]
+  $ hg -R standard-clone-no-nm debugnodemap --metadata
+
 
 local clone
 ------------
@@ -936,6 +951,8 @@ local clone
 The persistent nodemap should exist after a streaming clone
 
   $ hg clone -U test-repo local-clone
+  $ hg debugformat -R local-clone | grep persistent-nodemap
+  persistent-nodemap: yes
   $ ls -1 local-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
@@ -948,6 +965,44 @@ The persistent nodemap should exist after a streaming clone
   data-length: 121088
   data-unused: 0
   data-unused: 0.000%
+
+stream clone
+------------
+
+  $ hg clone -U  --stream ssh://user@dummy/test-repo stream-clone --quiet
+  $ hg debugformat -R stream-clone | grep persistent-nodemap
+  persistent-nodemap: yes
+  $ ls -1 stream-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
+  00changelog-*.nd (glob)
+  00changelog.n
+  00manifest-*.nd (glob)
+  00manifest.n
+  $ hg -R stream-clone debugnodemap --metadata
+  uid: * (glob)
+  tip-rev: 5005
+  tip-node: 90d5d3ba2fc47db50f712570487cb261a68c8ffe
+  data-length: 121088
+  data-unused: 0
+  data-unused: 0.000%
+
+stream requesting no persistent nodemap
+---------------------------------------
+
+Even if persistent nodemap affect the store, there is logic to stream clone
+without it.
+
+This helps client without supports for persistent nodemap.
+
+  $ hg clone -U --stream ssh://user@dummy/test-repo stream-clone-no-nm \
+  >     --config format.use-persistent-nodemap=no \
+  >     --config devel.persistent-nodemap=no \
+  >     --config revlog.persistent-nodemap.slow-path=no \
+  >     --quiet
+  $ hg debugformat -R stream-clone-no-nm | grep persistent-nodemap
+  persistent-nodemap:  no
+  $ ls -1 stream-clone-no-nm/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
+  [1]
+  $ hg -R stream-clone-no-nm debugnodemap --metadata
 
 Test various corruption case
 ============================

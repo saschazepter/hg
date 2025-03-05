@@ -323,11 +323,18 @@ def parsebundlespec(repo, spec, strict=True):
     # repo supports and error if the bundle isn't compatible.
     if b'requirements' in params:
         requirements = set(cast(bytes, params[b'requirements']).split(b','))
-        missingreqs = requirements - requirementsmod.STREAM_FIXED_REQUIREMENTS
-        if missingreqs:
+        relevant_reqs = (
+            requirements - requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
+        )
+        # avoid cycle (not great for pytype)
+        from . import localrepo
+
+        supported_req = localrepo.gathersupportedrequirements(repo.ui)
+        missing_reqs = relevant_reqs - supported_req
+        if missing_reqs:
             raise error.UnsupportedBundleSpecification(
                 _(b'missing support for repository features: %s')
-                % b', '.join(sorted(missingreqs))
+                % b', '.join(sorted(missing_reqs))
             )
 
     # Compute contentopts based on the version
