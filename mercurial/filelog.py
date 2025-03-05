@@ -28,7 +28,7 @@ from .revlogutils import (
 )
 
 
-class filelog:  # (repository.ifilestorage)
+class filelog(repository.ifilestorage):
     _revlog: revlog.revlog
     nullid: bytes
     _fix_issue6528: bool
@@ -241,7 +241,7 @@ class filelog:  # (repository.ifilestorage)
         """
         return not storageutil.filedataequivalent(self, node, text)
 
-    def verifyintegrity(self, state) -> Iterable[revlog.revlogproblem]:
+    def verifyintegrity(self, state) -> Iterable[repository.iverifyproblem]:
         return self._revlog.verifyintegrity(state)
 
     def storageinfo(
@@ -274,11 +274,11 @@ class narrowfilelog(filelog):
     """Filelog variation to be used with narrow stores."""
 
     def __init__(self, opener, path, narrowmatch, try_split=False):
-        super(narrowfilelog, self).__init__(opener, path, try_split=try_split)
+        super().__init__(opener, path, try_split=try_split)
         self._narrowmatch = narrowmatch
 
     def renamed(self, node):
-        res = super(narrowfilelog, self).renamed(node)
+        res = super().renamed(node)
 
         # Renames that come from outside the narrowspec are problematic
         # because we may lack the base text for the rename. This can result
@@ -303,10 +303,10 @@ class narrowfilelog(filelog):
         # Because we have a custom renamed() that may lie, we need to call
         # the base renamed() to report accurate results.
         node = self.node(rev)
-        if super(narrowfilelog, self).renamed(node):
+        if super().renamed(node):
             return len(self.read(node))
         else:
-            return super(narrowfilelog, self).size(rev)
+            return super().size(rev)
 
     def cmp(self, node, text):
         # We don't call `super` because narrow parents can be buggy in case of a

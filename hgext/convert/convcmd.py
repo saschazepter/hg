@@ -23,7 +23,6 @@ from typing import (
 )
 
 from mercurial.i18n import _
-from mercurial.pycompat import open
 from mercurial import (
     encoding,
     error,
@@ -73,10 +72,10 @@ svn_source = subversion.svn_source
 orig_encoding: bytes = b'ascii'
 
 
-def readauthormap(ui: "uimod.ui", authorfile, authors=None):
+def readauthormap(ui: uimod.ui, authorfile, authors=None):
     if authors is None:
         authors = {}
-    with open(authorfile, b'rb') as afile:
+    with open(authorfile, 'rb') as afile:
         for line in afile:
             line = line.strip()
             if not line or line.startswith(b'#'):
@@ -163,7 +162,7 @@ sink_converters = [
 ]
 
 
-def convertsource(ui: "uimod.ui", path: bytes, type: bytes, revs):
+def convertsource(ui: uimod.ui, path: bytes, type: bytes, revs):
     exceptions = []
     if type and type not in [s[0] for s in source_converters]:
         raise error.Abort(_(b'%s: invalid source repository type') % type)
@@ -180,7 +179,7 @@ def convertsource(ui: "uimod.ui", path: bytes, type: bytes, revs):
 
 
 def convertsink(
-    ui: "uimod.ui", path: bytes, type: bytes
+    ui: uimod.ui, path: bytes, type: bytes
 ) -> Union[hgconvert.mercurial_sink, subversion.svn_sink]:
     if type and type not in [s[0] for s in sink_converters]:
         raise error.Abort(_(b'%s: invalid destination repository type') % type)
@@ -196,9 +195,7 @@ def convertsink(
 
 
 class progresssource:
-    def __init__(
-        self, ui: "uimod.ui", source, filecount: Optional[int]
-    ) -> None:
+    def __init__(self, ui: uimod.ui, source, filecount: Optional[int]) -> None:
         self.ui = ui
         self.source = source
         self.progress = ui.makeprogress(
@@ -273,7 +270,7 @@ class keysorter:
 
 
 class converter:
-    def __init__(self, ui: "uimod.ui", source, dest, revmapfile, opts) -> None:
+    def __init__(self, ui: uimod.ui, source, dest, revmapfile, opts) -> None:
         self.source = source
         self.dest = dest
         self.ui = ui
@@ -314,7 +311,7 @@ class converter:
             return {}
         m = {}
         try:
-            with open(path, b'rb') as fp:
+            with open(path, 'rb') as fp:
                 for i, line in enumerate(fp):
                     line = line.splitlines()[0].rstrip()
                     if not line:
@@ -340,7 +337,7 @@ class converter:
                     else:
                         m[child] = p1 + p2
         # if file does not exist or error reading, exit
-        except IOError:
+        except OSError:
             raise error.Abort(
                 _(b'splicemap file not found or error reading %s:') % path
             )
@@ -511,7 +508,7 @@ class converter:
         authorfile = self.authorfile
         if authorfile:
             self.ui.status(_(b'writing author map file %s\n') % authorfile)
-            with open(authorfile, b'wb+') as ofile:
+            with open(authorfile, 'wb+') as ofile:
                 for author in self.authors:
                     ofile.write(
                         util.tonativeeol(
@@ -655,7 +652,7 @@ class converter:
 
 
 def convert(
-    ui: "uimod.ui", src, dest: Optional[bytes] = None, revmapfile=None, **opts
+    ui: uimod.ui, src, dest: Optional[bytes] = None, revmapfile=None, **opts
 ) -> None:
     opts = pycompat.byteskwargs(opts)
     global orig_encoding

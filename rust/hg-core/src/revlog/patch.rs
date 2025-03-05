@@ -1,5 +1,9 @@
 use byteorder::{BigEndian, ByteOrder};
 
+use crate::revlog::RevlogError;
+
+use super::inner_revlog::RevisionBuffer;
+
 /// A chunk of data to insert, delete or replace in a patch
 ///
 /// A chunk is:
@@ -8,13 +12,13 @@ use byteorder::{BigEndian, ByteOrder};
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
 #[derive(Debug, Clone)]
-struct Chunk<'a> {
+pub(crate) struct Chunk<'a> {
     /// The start position of the chunk of data to replace
-    start: u32,
+    pub(crate) start: u32,
     /// The end position of the chunk of data to replace (open end interval)
-    end: u32,
+    pub(crate) end: u32,
     /// The data replacing the chunk
-    data: &'a [u8],
+    pub(crate) data: &'a [u8],
 }
 
 impl Chunk<'_> {
@@ -56,19 +60,21 @@ pub struct PatchList<'a> {
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
-    chunks: Vec<Chunk<'a>>,
+    pub(crate) chunks: Vec<Chunk<'a>>,
 }
 
 impl<'a> PatchList<'a> {
     /// Create a `PatchList` from bytes.
-    pub fn new(data: &'a [u8]) -> Self {
+    pub fn new(data: &'a [u8]) -> Result<Self, RevlogError> {
         let mut chunks = vec![];
         let mut data = data;
         while !data.is_empty() {
             let start = BigEndian::read_u32(&data[0..]);
             let end = BigEndian::read_u32(&data[4..]);
             let len = BigEndian::read_u32(&data[8..]);
-            assert!(start <= end);
+            if start > end {
+                return Err(RevlogError::corrupted("patch cannot be decoded"));
+            }
             chunks.push(Chunk {
                 start,
                 end,
@@ -76,29 +82,34 @@ impl<'a> PatchList<'a> {
             });
             data = &data[12 + (len as usize)..];
         }
-        PatchList { chunks }
+        Ok(PatchList { chunks })
     }
 
-    /// Return the final length of data after patching
-    /// given its initial length .
-    fn size(&self, initial_size: i32) -> i32 {
-        self.chunks
-            .iter()
-            .fold(initial_size, |acc, chunk| acc + chunk.len_diff())
+    /// Creates a patch for a full snapshot, going from nothing to `data`.
+    pub fn full_snapshot(data: &'a [u8]) -> Self {
+        Self {
+            chunks: vec![Chunk {
+                start: 0,
+                end: 0,
+                data,
+            }],
+        }
     }
 
     /// Apply the patch to some data.
-    pub fn apply(&self, initial: &[u8]) -> Vec<u8> {
+    pub fn apply<T>(
+        &self,
+        buffer: &mut dyn RevisionBuffer<Target = T>,
+        initial: &[u8],
+    ) {
         let mut last: usize = 0;
-        let mut vec =
-            Vec::with_capacity(self.size(initial.len() as i32) as usize);
         for Chunk { start, end, data } in self.chunks.iter() {
-            vec.extend(&initial[last..(*start as usize)]);
-            vec.extend(data.iter());
+            let slice = &initial[last..(*start as usize)];
+            buffer.extend_from_slice(slice);
+            buffer.extend_from_slice(data);
             last = *end as usize;
         }
-        vec.extend(&initial[last..]);
-        vec
+        buffer.extend_from_slice(&initial[last..]);
     }
 
     /// Combine two patch lists into a single patch list.
@@ -229,6 +240,8 @@ pub fn fold_patch_lists<'a>(lists: &[PatchList<'a>]) -> PatchList<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::revlog::inner_revlog::CoreRevisionBuffer;
+
     use super::*;
 
     struct PatchDataBuilder {
@@ -264,17 +277,18 @@ mod tests {
         let data = vec![0u8, 0u8, 0u8];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(0, 1, &[1, 2]);
-        let mut patch1 = PatchList::new(patch1_data.get());
+        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(2, 4, &[3, 4]);
-        let mut patch2 = PatchList::new(patch2_data.get());
+        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
-        let result = patch.apply(&data);
+        let mut buffer = CoreRevisionBuffer::new();
+        patch.apply(&mut buffer, &data);
 
-        assert_eq!(result, vec![1u8, 2, 3, 4]);
+        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
     }
 
     #[test]
@@ -282,17 +296,18 @@ mod tests {
         let data = vec![0u8, 0u8, 0u8];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(2, 3, &[3]);
-        let mut patch1 = PatchList::new(patch1_data.get());
+        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 2, &[1, 2]);
-        let mut patch2 = PatchList::new(patch2_data.get());
+        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
-        let result = patch.apply(&data);
+        let mut buffer = CoreRevisionBuffer::new();
+        patch.apply(&mut buffer, &data);
 
-        assert_eq!(result, vec![0u8, 1, 2, 3]);
+        assert_eq!(buffer.finish(), vec![0u8, 1, 2, 3]);
     }
 
     #[test]
@@ -300,17 +315,18 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(1, 2, &[3, 4]);
-        let mut patch1 = PatchList::new(patch1_data.get());
+        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 4, &[1, 2, 3]);
-        let mut patch2 = PatchList::new(patch2_data.get());
+        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
-        let result = patch.apply(&data);
+        let mut buffer = CoreRevisionBuffer::new();
+        patch.apply(&mut buffer, &data);
 
-        assert_eq!(result, vec![0u8, 1, 2, 3]);
+        assert_eq!(buffer.finish(), vec![0u8, 1, 2, 3]);
     }
 
     #[test]
@@ -318,17 +334,18 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(0, 1, &[1, 3]);
-        let mut patch1 = PatchList::new(patch1_data.get());
+        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 4, &[2, 3, 4]);
-        let mut patch2 = PatchList::new(patch2_data.get());
+        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
-        let result = patch.apply(&data);
+        let mut buffer = CoreRevisionBuffer::new();
+        patch.apply(&mut buffer, &data);
 
-        assert_eq!(result, vec![1u8, 2, 3, 4]);
+        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
     }
 
     #[test]
@@ -336,17 +353,18 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(1, 3, &[1, 3, 4]);
-        let mut patch1 = PatchList::new(patch1_data.get());
+        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(0, 2, &[1, 2]);
-        let mut patch2 = PatchList::new(patch2_data.get());
+        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
-        let result = patch.apply(&data);
+        let mut buffer = CoreRevisionBuffer::new();
+        patch.apply(&mut buffer, &data);
 
-        assert_eq!(result, vec![1u8, 2, 3, 4]);
+        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
     }
 
     #[test]
@@ -354,16 +372,17 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(0, 3, &[1, 3, 3, 4]);
-        let mut patch1 = PatchList::new(patch1_data.get());
+        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 3, &[2, 3]);
-        let mut patch2 = PatchList::new(patch2_data.get());
+        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
-        let result = patch.apply(&data);
+        let mut buffer = CoreRevisionBuffer::new();
+        patch.apply(&mut buffer, &data);
 
-        assert_eq!(result, vec![1u8, 2, 3, 4]);
+        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
     }
 }

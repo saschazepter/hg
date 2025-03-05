@@ -26,7 +26,9 @@ import itertools
 import locale
 import mmap
 import os
-import pickle  # provides util.pickle symbol
+
+# provides util.pickle symbol
+import pickle  # noqa: F401 (ignore imported but not used)
 import re as remod
 import shutil
 import stat
@@ -57,9 +59,6 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
-from .pycompat import (
-    open,
-)
 from hgdemandimport import tracing
 from . import (
     encoding,
@@ -71,6 +70,7 @@ from . import (
     urllibcompat,
 )
 from .interfaces import (
+    misc as int_misc,
     modules as intmod,
 )
 from .utils import (
@@ -89,6 +89,12 @@ assert [
     Tuple,
 ]
 
+if typing.TYPE_CHECKING:
+    from typing_extensions import (
+        Self,
+    )
+
+    _Tcow = TypeVar('_Tcow', bound="cow")
 
 base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
@@ -373,7 +379,7 @@ class bufferedinputpipe:
         if isinstance(fh, fileobjectproxy):
             cls = observedbufferedinputpipe
 
-        return super(bufferedinputpipe, cls).__new__(cls)
+        return super().__new__(cls)
 
     def __init__(self, input):
         self._input = input
@@ -715,7 +721,7 @@ class observedbufferedinputpipe(bufferedinputpipe):
     """
 
     def _fillbuffer(self, size=_chunksize):
-        res = super(observedbufferedinputpipe, self)._fillbuffer(size=size)
+        res = super()._fillbuffer(size=size)
 
         fn = getattr(self._input._observer, 'osread', None)
         if fn:
@@ -726,7 +732,7 @@ class observedbufferedinputpipe(bufferedinputpipe):
     # We use different observer methods because the operation isn't
     # performed on the actual file object but on us.
     def read(self, size):
-        res = super(observedbufferedinputpipe, self).read(size)
+        res = super().read(size)
 
         fn = getattr(self._input._observer, 'bufferedread', None)
         if fn:
@@ -735,7 +741,7 @@ class observedbufferedinputpipe(bufferedinputpipe):
         return res
 
     def readline(self, *args, **kwargs):
-        res = super(observedbufferedinputpipe, self).readline(*args, **kwargs)
+        res = super().readline(*args, **kwargs)
 
         fn = getattr(self._input._observer, 'bufferedreadline', None)
         if fn:
@@ -926,7 +932,7 @@ class fileobjectobserver(baseproxyobserver):
     def __init__(
         self, fh, name, reads=True, writes=True, logdata=False, logdataapis=True
     ):
-        super(fileobjectobserver, self).__init__(fh, name, logdata, logdataapis)
+        super().__init__(fh, name, logdata, logdataapis)
         self.reads = reads
         self.writes = writes
 
@@ -1049,7 +1055,7 @@ class socketobserver(baseproxyobserver):
         logdata=False,
         logdataapis=True,
     ):
-        super(socketobserver, self).__init__(fh, name, logdata, logdataapis)
+        super().__init__(fh, name, logdata, logdataapis)
         self.reads = reads
         self.writes = writes
         self.states = states
@@ -1200,7 +1206,8 @@ def version():
     try:
         from . import __version__  # pytype: disable=import-error
 
-        return __version__.version
+        # setuptools-scm uses py3 str
+        return __version__.version.encode()
     except ImportError:
         return b'unknown'
 
@@ -1329,7 +1336,9 @@ class cow:
     Call preparewrite before doing any writes.
     """
 
-    def preparewrite(self):
+    _copied: int  # doesn't exist until first preparewrite()
+
+    def preparewrite(self: _Tcow) -> _Tcow:
         """call this before writes, return self or a copied new object"""
         if getattr(self, '_copied', 0):
             self._copied -= 1
@@ -1337,7 +1346,7 @@ class cow:
             return self.__class__(self)  # pytype: disable=wrong-arg-count
         return self
 
-    def copy(self):
+    def copy(self) -> Self:
         """always do a cheap copy"""
         self._copied = getattr(self, '_copied', 0) + 1
         return self
@@ -1361,7 +1370,7 @@ class sortdict(collections.OrderedDict):
     def __setitem__(self, key, value):
         if key in self:
             del self[key]
-        super(sortdict, self).__setitem__(key, value)
+        super().__setitem__(key, value)
 
     if pycompat.ispypy:
         # __setitem__() isn't called as of PyPy 5.8.0
@@ -1416,26 +1425,24 @@ class cowsortdict(cow, sortdict):
     """
 
 
-class transactional:  # pytype: disable=ignored-metaclass
+class transactional(abc.ABC):
     """Base class for making a transactional type into a context manager."""
 
-    __metaclass__ = abc.ABCMeta
-
     @abc.abstractmethod
-    def close(self):
+    def close(self) -> None:
         """Successfully closes the transaction."""
 
     @abc.abstractmethod
-    def release(self):
+    def release(self) -> None:
         """Marks the end of the transaction.
 
         If the transaction has not been closed, it will be aborted.
         """
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
             if exc_type is None:
                 self.close()
@@ -2026,7 +2033,7 @@ def copyfile(
                 m = "the `nb_bytes` argument is incompatible with `hardlink`"
                 raise error.ProgrammingError(m)
             return
-        except (IOError, OSError) as exc:
+        except OSError as exc:
             if exc.errno != errno.EEXIST and no_hardlink_cb is not None:
                 no_hardlink_cb()
             # fall back to normal copy
@@ -2092,7 +2099,7 @@ def copyfiles(src, dst, hardlink=None, progress=None):
         if hardlink:
             try:
                 oslink(src, dst)
-            except (IOError, OSError) as exc:
+            except OSError as exc:
                 if exc.errno != errno.EEXIST:
                     hardlink = False
                 # XXX maybe try to relink if the file exist ?
@@ -2493,7 +2500,7 @@ def mktempcopy(
     try:
         try:
             ifp = posixfile(name, b"rb")
-        except IOError as inst:
+        except OSError as inst:
             if inst.errno == errno.ENOENT:
                 return temp
             if not getattr(inst, 'filename', None):
@@ -2754,17 +2761,17 @@ def makedirs(
 
 
 def readfile(path: bytes) -> bytes:
-    with open(path, b'rb') as fp:
+    with open(path, 'rb') as fp:
         return fp.read()
 
 
 def writefile(path: bytes, text: bytes) -> None:
-    with open(path, b'wb') as fp:
+    with open(path, 'wb') as fp:
         fp.write(text)
 
 
 def appendfile(path: bytes, text: bytes) -> None:
-    with open(path, b'ab') as fp:
+    with open(path, 'ab') as fp:
         fp.write(text)
 
 
@@ -2789,6 +2796,25 @@ class chunkbuffer:
         self.iter = splitbig(in_iter)
         self._queue = collections.deque()
         self._chunkoffset = 0
+        self._absolute_offset = 0
+
+    def __iter__(self):
+        while self._queue:
+            chunk = self._queue.popleft()
+            if self._chunkoffset:
+                d = chunk[self._chunkoffset :]
+            else:
+                d = chunk
+            self._absolute_offset += len(d)
+            yield d
+            self._chunkoffset = 0
+        for d in self.iter:
+            self._absolute_offset += len(d)
+            yield d
+
+    def tell(self) -> int:
+        """tell how much data we have read so far"""
+        return self._absolute_offset
 
     def read(self, l=None):
         """Read L bytes of data from the iterator of chunks of data.
@@ -2796,7 +2822,9 @@ class chunkbuffer:
 
         If size parameter is omitted, read everything"""
         if l is None:
-            return b''.join(self.iter)
+            d = b''.join(self.iter)
+            self._absolute_offset += len(d)
+            return d
 
         left = l
         buf = []
@@ -2848,10 +2876,15 @@ class chunkbuffer:
                 self._chunkoffset += left
                 left -= chunkremaining
 
-        return b''.join(buf)
+        d = b''.join(buf)
+        self._absolute_offset += len(d)
+        return d
 
 
-def filechunkiter(f, size=131072, limit=None):
+DEFAULT_FILE_CHUNK = 128 * (2**10)
+
+
+def filechunkiter(f, size=DEFAULT_FILE_CHUNK, limit=None):
     """Create a generator that produces the data in the file size
     (default 131072) bytes at a time, up to optional limit (default is
     to read all data).  Chunks may be less than size bytes if the
@@ -3027,8 +3060,7 @@ def iterfile(fp):
 
 def iterlines(iterator: Iterable[bytes]) -> Iterator[bytes]:
     for chunk in iterator:
-        for line in chunk.splitlines():
-            yield line
+        yield from chunk.splitlines()
 
 
 def expandpath(path: bytes) -> bytes:
@@ -3179,7 +3211,7 @@ def sizetoint(s: bytes) -> int:
         raise error.ParseError(_(b"couldn't parse size: %s") % s)
 
 
-class hooks:
+class hooks(int_misc.IHooks):
     """A collection of hook functions that can be used to extend a
     function's behavior. Hooks are called in lexicographic order,
     based on the names of their sources."""
@@ -3187,10 +3219,10 @@ class hooks:
     def __init__(self):
         self._hooks = []
 
-    def add(self, source, hook):
+    def add(self, source: bytes, hook: Callable) -> None:
         self._hooks.append((source, hook))
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> List:
         self._hooks.sort(key=lambda x: x[0])
         results = []
         for source, hook in self._hooks:

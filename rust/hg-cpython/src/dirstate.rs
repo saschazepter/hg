@@ -21,7 +21,7 @@ use crate::{
 };
 use cpython::{PyBytes, PyDict, PyList, PyModule, PyObject, PyResult, Python};
 use dirstate_map::{DirstateIdentity, DirstateMap};
-use hg::dirstate_tree::on_disk::V2_FORMAT_MARKER;
+use hg::dirstate::on_disk::V2_FORMAT_MARKER;
 
 /// Create the module, with `__package__` given from parent
 pub fn init_module(py: Python, package: &str) -> PyResult<PyModule> {

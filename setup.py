@@ -1,46 +1,20 @@
-#
 # This is the mercurial setup script.
-#
-# 'python setup.py install', or
-# 'python setup.py --help' for more options
+
+import ctypes
+import logging
 import os
-
-supportedpy = ','.join(
-    [
-        '>=3.8.0',
-    ]
-)
-
-import sys, platform
-import sysconfig
-
-
-def sysstr(s):
-    return s.decode('latin-1')
-
-
-def eprint(*args, **kwargs):
-    kwargs['file'] = sys.stderr
-    print(*args, **kwargs)
-
-
+import re
+import shutil
 import ssl
+import stat
+import subprocess
+import sys
+import sysconfig
+import tempfile
 
-# ssl.HAS_TLSv1* are preferred to check support but they were added in Python
-# 3.7. Prior to CPython commit 6e8cda91d92da72800d891b2fc2073ecbc134d98
-# (backported to the 3.7 branch), ssl.PROTOCOL_TLSv1_1 / ssl.PROTOCOL_TLSv1_2
-# were defined only if compiled against a OpenSSL version with TLS 1.1 / 1.2
-# support. At the mentioned commit, they were unconditionally defined.
-_notset = object()
-has_tlsv1_1 = getattr(ssl, 'HAS_TLSv1_1', _notset)
-if has_tlsv1_1 is _notset:
-    has_tlsv1_1 = getattr(ssl, 'PROTOCOL_TLSv1_1', _notset) is not _notset
-has_tlsv1_2 = getattr(ssl, 'HAS_TLSv1_2', _notset)
-if has_tlsv1_2 is _notset:
-    has_tlsv1_2 = getattr(ssl, 'PROTOCOL_TLSv1_2', _notset) is not _notset
-if not (has_tlsv1_1 or has_tlsv1_2):
+if not ssl.HAS_TLSv1_2:
     error = """
-The `ssl` module does not advertise support for TLS 1.1 or TLS 1.2.
+The `ssl` module does not advertise support for TLS 1.2.
 Please make sure that your Python installation was compiled against an OpenSSL
 version enabling these features (likely this requires the OpenSSL version to
 be at least 1.0.1).
@@ -59,7 +33,7 @@ except ImportError:
     try:
         import sha
 
-        sha.sha  # silence unused import warning
+        del sha  # silence unused import warning
     except ImportError:
         raise SystemExit(
             "Couldn't import standard hashlib (incomplete Python install)."
@@ -68,71 +42,63 @@ except ImportError:
 try:
     import zlib
 
-    zlib.compressobj  # silence unused import warning
+    del zlib  # silence unused import warning
 except ImportError:
     raise SystemExit(
         "Couldn't import standard zlib (incomplete Python install)."
     )
 
-# The base IronPython distribution (as of 2.7.1) doesn't support bz2
-isironpython = False
 try:
-    isironpython = (
-        platform.python_implementation().lower().find("ironpython") != -1
+    import bz2
+
+    del bz2  # silence unused import warning
+except ImportError:
+    raise SystemExit(
+        "Couldn't import standard bz2 (incomplete Python install)."
     )
-except AttributeError:
-    pass
 
-if isironpython:
-    sys.stderr.write("warning: IronPython detected (no bz2 support)\n")
+from setuptools import setup, Command, Extension, Distribution
+from setuptools.command.build import build
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build_py import build_py
+from setuptools.command.install import install
+from setuptools.command.install_lib import install_lib
+
+from setuptools.errors import (
+    CCompilerError,
+    BaseError as DistutilsError,
+    ExecError as DistutilsExecError,
+)
+
+# no setuptools.command.build_scripts
+from distutils.command.build_scripts import build_scripts
+
+from distutils.spawn import spawn
+from distutils import file_util
+from distutils.sysconfig import get_python_inc
+from distutils.ccompiler import new_compiler
+
+# raise an explicit error if setuptools_scm is not importable
+try:
+    import setuptools_scm
+except ImportError:
+    raise SystemExit(
+        "Couldn't import setuptools_scm (direct call of setup.py?)."
+    )
 else:
-    try:
-        import bz2
+    del setuptools_scm
 
-        bz2.BZ2Compressor  # silence unused import warning
-    except ImportError:
-        raise SystemExit(
-            "Couldn't import standard bz2 (incomplete Python install)."
-        )
 
 ispypy = "PyPy" in sys.version
 
-import ctypes
-import stat, subprocess, time
-import re
-import shutil
-import tempfile
 
-# We have issues with setuptools on some platforms and builders. Until
-# those are resolved, setuptools is opt-in except for platforms where
-# we don't have issues.
-issetuptools = os.name == 'nt' or 'FORCE_SETUPTOOLS' in os.environ
-if issetuptools:
-    from setuptools import setup
-else:
-    try:
-        from distutils.core import setup
-    except ModuleNotFoundError:
-        from setuptools import setup
-from distutils.ccompiler import new_compiler
-from distutils.core import Command, Extension
-from distutils.dist import Distribution
-from distutils.command.build import build
-from distutils.command.build_ext import build_ext
-from distutils.command.build_py import build_py
-from distutils.command.build_scripts import build_scripts
-from distutils.command.install import install
-from distutils.command.install_lib import install_lib
-from distutils.command.install_scripts import install_scripts
-from distutils import log
-from distutils.spawn import spawn
-from distutils import file_util
-from distutils.errors import (
-    CCompilerError,
-    DistutilsError,
-    DistutilsExecError,
-)
-from distutils.sysconfig import get_python_inc
+def sysstr(s):
+    return s.decode('latin-1')
+
+
+def eprint(*args, **kwargs):
+    kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
 
 
 def write_if_changed(path, content):
@@ -156,19 +122,18 @@ if os.name == 'nt':
 
 def cancompile(cc, code):
     tmpdir = tempfile.mkdtemp(prefix='hg-install-')
-    devnull = oldstderr = None
+    oldstderr = None
     try:
         fname = os.path.join(tmpdir, 'testcomp.c')
-        f = open(fname, 'w')
-        f.write(code)
-        f.close()
+        with open(fname, 'w') as file:
+            file.write(code)
+        oldstderr = os.dup(sys.stderr.fileno())
         # Redirect stderr to /dev/null to hide any error messages
         # from the compiler.
         # This will have to be changed if we ever have to check
         # for a function on Windows.
-        devnull = open('/dev/null', 'w')
-        oldstderr = os.dup(sys.stderr.fileno())
-        os.dup2(devnull.fileno(), sys.stderr.fileno())
+        with open('/dev/null', 'w') as devnull:
+            os.dup2(devnull.fileno(), sys.stderr.fileno())
         objects = cc.compile([fname], output_dir=tmpdir)
         cc.link_executable(objects, os.path.join(tmpdir, "a.out"))
         return True
@@ -177,8 +142,6 @@ def cancompile(cc, code):
     finally:
         if oldstderr is not None:
             os.dup2(oldstderr, sys.stderr.fileno())
-        if devnull is not None:
-            devnull.close()
         shutil.rmtree(tmpdir)
 
 
@@ -265,74 +228,6 @@ def filterhgerr(err):
     return b'\n'.join(b'  ' + e for e in err)
 
 
-def findhg():
-    """Try to figure out how we should invoke hg for examining the local
-    repository contents.
-
-    Returns an hgcommand object."""
-    # By default, prefer the "hg" command in the user's path.  This was
-    # presumably the hg command that the user used to create this repository.
-    #
-    # This repository may require extensions or other settings that would not
-    # be enabled by running the hg script directly from this local repository.
-    hgenv = os.environ.copy()
-    # Use HGPLAIN to disable hgrc settings that would change output formatting,
-    # and disable localization for the same reasons.
-    hgenv['HGPLAIN'] = '1'
-    hgenv['LANGUAGE'] = 'C'
-    hgcmd = ['hg']
-    # Run a simple "hg log" command just to see if using hg from the user's
-    # path works and can successfully interact with this repository.  Windows
-    # gives precedence to hg.exe in the current directory, so fall back to the
-    # python invocation of local hg, where pythonXY.dll can always be found.
-    check_cmd = ['log', '-r.', '-Ttest']
-    attempts = []
-
-    def attempt(cmd, env):
-        try:
-            retcode, out, err = runcmd(hgcmd + check_cmd, hgenv)
-            res = (True, retcode, out, err)
-            if retcode == 0 and not filterhgerr(err):
-                return True
-        except EnvironmentError as e:
-            res = (False, e)
-        attempts.append((cmd, res))
-        return False
-
-    if os.name != 'nt' or not os.path.exists("hg.exe"):
-        if attempt(hgcmd + check_cmd, hgenv):
-            return hgcommand(hgcmd, hgenv)
-
-    # Fall back to trying the local hg installation (pure python)
-    repo_hg = os.path.join(os.path.dirname(__file__), 'hg')
-    hgenv = localhgenv()
-    hgcmd = [sys.executable, repo_hg]
-    if attempt(hgcmd + check_cmd, hgenv):
-        return hgcommand(hgcmd, hgenv)
-    # Fall back to trying the local hg installation (whatever we can)
-    hgenv = localhgenv(pure_python=False)
-    hgcmd = [sys.executable, repo_hg]
-    if attempt(hgcmd + check_cmd, hgenv):
-        return hgcommand(hgcmd, hgenv)
-
-    eprint("/!\\")
-    eprint(r"/!\ Unable to find a working hg binary")
-    eprint(r"/!\ Version cannot be extracted from the repository")
-    eprint(r"/!\ Re-run the setup once a first version is built")
-    eprint(r"/!\ Attempts:")
-    for i, e in enumerate(attempts):
-        eprint(r"/!\   attempt #%d:" % (i))
-        eprint(r"/!\     cmd:        ", e[0])
-        res = e[1]
-        if res[0]:
-            eprint(r"/!\     return code:", res[1])
-            eprint("/!\\     std output:\n%s" % (res[2].decode()), end="")
-            eprint("/!\\     std error:\n%s" % (res[3].decode()), end="")
-        else:
-            eprint(r"/!\     exception:  ", res[1])
-    return None
-
-
 def localhgenv(pure_python=True):
     """Get an environment dictionary to use for invoking or importing
     mercurial from the local repository."""
@@ -355,158 +250,6 @@ def localhgenv(pure_python=True):
 
 
 version = ''
-
-
-def _try_get_version():
-    hg = findhg()
-    if hg is None:
-        return ''
-    hgid = None
-    numerictags = []
-    cmd = ['log', '-r', '.', '--template', '{tags}\n']
-    pieces = sysstr(hg.run(cmd)).split()
-    numerictags = [t for t in pieces if t[0:1].isdigit()]
-    hgid = sysstr(hg.run(['id', '-i'])).strip()
-    if hgid.count('+') == 2:
-        hgid = hgid.replace("+", ".", 1)
-    if not hgid:
-        eprint("/!\\")
-        eprint(r"/!\ Unable to determine hg version from local repository")
-        eprint(r"/!\ Failed to retrieve current revision tags")
-        return ''
-    if numerictags:  # tag(s) found
-        return _version(tag=numerictags[-1], dirty=hgid.endswith('+'))
-    else:  # no tag found on the checked out revision
-        ltagcmd = ['log', '--rev', 'wdir()', '--template', '{latesttag}']
-        ltag = sysstr(hg.run(ltagcmd))
-        if not ltag:
-            eprint("/!\\")
-            eprint(r"/!\ Unable to determine hg version from local repository")
-            eprint(
-                r"/!\ Failed to retrieve current revision distance to lated tag"
-            )
-            return ''
-        changessincecmd = [
-            'log',
-            '-T',
-            'x\n',
-            '-r',
-            "only(parents(),'%s')" % ltag,
-        ]
-        changessince = len(hg.run(changessincecmd).splitlines())
-        branch = hg.run(["branch"]).strip()
-        return _version(
-            tag=ltag,
-            branch=branch,
-            hgid=hgid.rstrip('+'),
-            changes_since=changessince,
-            dirty=hgid.endswith('+'),
-        )
-
-
-def _version(
-    tag: str,
-    branch: str = '',
-    hgid: str = '',
-    changes_since: int = 0,
-    dirty: bool = False,
-):
-    """compute a version number from available information"""
-    version = tag
-    if changes_since > 0:
-        assert branch
-        if branch == b'stable':
-            post_nb = 0
-        elif branch == b'default':
-            # we use 1 here to be greater than 0 to make sure change from
-            # default are considered newer than change on stable
-            post_nb = 1
-        else:
-            # what is this branch ? probably a local variant ?
-            post_nb = 2
-
-        assert hgid
-
-        # logic of the scheme
-        # - '.postX' to mark the version as "above" the tagged version
-        #   X is 0 for stable, 1 for default, 2 for anything else
-        # - use '.devY'
-        #   Y is the number of extra revision compared to the tag. So that
-        #   revision with more change are "above" previous ones.
-        # - '+hg.NODEID.local.DATE' if there is any uncommitted changes.
-        version += '.post%d.dev%d+hg.%s' % (post_nb, changes_since, hgid)
-    if dirty:
-        version = version[:-1] + '.local.' + time.strftime('%Y%m%d')
-    # try to give warning early about bad version if possible
-    try:
-        from packaging.version import Version
-
-        Version(version)
-    except ImportError:
-        pass
-    except ValueError as exc:
-        eprint(r"/!\ generated version is invalid")
-        eprint(r"/!\ error: %s" % exc)
-    return version
-
-
-if os.path.isdir('.hg'):
-    version = _try_get_version()
-elif os.path.exists('.hg_archival.txt'):
-    kw = dict(
-        [[t.strip() for t in l.split(':', 1)] for l in open('.hg_archival.txt')]
-    )
-    if 'tag' in kw:
-        version = _version(tag=kw['tag'])
-    elif 'latesttag' in kw:
-        distance = int(kw.get('changessincelatesttag', kw['latesttagdistance']))
-        version = _version(
-            tag=kw['latesttag'],
-            branch=kw['branch'],
-            changes_since=distance,
-            hgid=kw['node'][:12],
-        )
-    else:
-        version = _version(
-            tag='0',
-            branch='unknown-source',
-            changes_since=1,
-            hgid=kw.get('node', 'unknownid')[:12],
-            dirty=True,
-        )
-elif os.path.exists('mercurial/__version__.py'):
-    with open('mercurial/__version__.py') as f:
-        data = f.read()
-    version = re.search('version = b"(.*)"', data).group(1)
-if not version:
-    if os.environ.get("MERCURIAL_SETUP_MAKE_LOCAL") == "1":
-        version = "0.0+0"
-        eprint("/!\\")
-        eprint(r"/!\ Using '0.0+0' as the default version")
-        eprint(r"/!\ Re-run make local once that first version is built")
-        eprint("/!\\")
-    else:
-        eprint("/!\\")
-        eprint(r"/!\ Could not determine the Mercurial version")
-        eprint(r"/!\ You need to build a local version first")
-        eprint(r"/!\ Run `make local` and try again")
-        eprint("/!\\")
-        msg = "Run `make local` first to get a working local version"
-        raise SystemExit(msg)
-
-versionb = version
-if not isinstance(versionb, bytes):
-    versionb = versionb.encode('ascii')
-
-write_if_changed(
-    'mercurial/__version__.py',
-    b''.join(
-        [
-            b'# this file is autogenerated by setup.py\n'
-            b'version = b"%s"\n' % versionb,
-        ]
-    ),
-)
 
 
 class hgbuild(build):
@@ -534,7 +277,7 @@ class hgbuildmo(build):
             from distutils.spawn import find_executable
 
         if not find_executable('msgfmt'):
-            self.warn(
+            logging.warning(
                 "could not find msgfmt executable, no translations "
                 "will be built"
             )
@@ -542,7 +285,7 @@ class hgbuildmo(build):
 
         podir = 'i18n'
         if not os.path.isdir(podir):
-            self.warn("could not find %s/ directory" % podir)
+            logging.warning("could not find %s/ directory", podir)
             return False
 
         join = os.path.join
@@ -667,13 +410,13 @@ class hgbuildext(build_ext):
         # as Linux distributions would do)
         if self.distribution.rust and self.rust:
             if not sys.platform.startswith('linux'):
-                self.warn(
+                logging.warning(
                     "rust extensions have only been tested on Linux "
                     "and may not behave correctly on other platforms"
                 )
 
             for rustext in ruststandalones:
-                rustext.build('' if self.inplace else self.build_lib)
+                rustext.build('' if self.editable_mode else self.build_lib)
 
         return build_ext.build_extensions(self)
 
@@ -689,7 +432,7 @@ class hgbuildext(build_ext):
         except CCompilerError:
             if not getattr(ext, 'optional', False):
                 raise
-            log.warn(
+            logging.warning(
                 "Failed to build optional extension '%s' (skipping)", ext.name
             )
 
@@ -704,7 +447,7 @@ class hgbuildscripts(build_scripts):
             self.run_command('build_hgexe')
             exebuilt = True
         except (DistutilsError, CCompilerError):
-            log.warn('failed to build optional hg.exe')
+            logging.warning('failed to build optional hg.exe')
 
         if exebuilt:
             # Copying hg.exe to the scripts build directory ensures it is
@@ -751,9 +494,6 @@ class hgbuildpy(build_py):
                 )
 
     def run(self):
-        basepath = os.path.join(self.build_lib, 'mercurial')
-        self.mkpath(basepath)
-
         rust = self.distribution.rust
         if self.distribution.pure:
             modulepolicy = 'py'
@@ -769,6 +509,14 @@ class hgbuildpy(build_py):
                 b'modulepolicy = b"%s"\n' % modulepolicy.encode('ascii'),
             ]
         )
+
+        if self.editable_mode:
+            here = os.path.dirname(__file__)
+            basepath = os.path.join(here, 'mercurial')
+        else:
+            basepath = os.path.join(self.build_lib, 'mercurial')
+            self.mkpath(basepath)
+
         write_if_changed(os.path.join(basepath, '__modulepolicy__.py'), content)
 
         build_py.run(self)
@@ -924,14 +672,14 @@ class buildhgexe(build_ext):
                     shutil.copy(python_x, dest)
 
         if not pythonlib:
-            log.warn(
+            logging.warning(
                 'could not determine Python DLL filename; assuming pythonXY'
             )
 
             hv = sys.hexversion
             pythonlib = b'python%d%d' % (hv >> 24, (hv >> 16) & 0xFF)
 
-        log.info('using %s as Python library name' % pythonlib)
+        logging.info('using %s as Python library name', pythonlib)
         with open('mercurial/hgpythonlib.h', 'wb') as f:
             f.write(b'/* this file is autogenerated by setup.py */\n')
             f.write(b'#define HGPYTHONLIB "%s"\n' % pythonlib)
@@ -941,9 +689,7 @@ class buildhgexe(build_ext):
             output_dir=self.build_temp,
             macros=[('_UNICODE', None), ('UNICODE', None)],
         )
-        self.compiler.link_executable(
-            objects, self.hgtarget, libraries=[], output_dir=self.build_temp
-        )
+        self.compiler.link_executable(objects, self.hgtarget, libraries=[])
 
         self.addlongpathsmanifest()
 
@@ -958,9 +704,9 @@ class buildhgexe(build_ext):
         os.close(fdauto)
         with open(manfname, 'w', encoding="UTF-8") as f:
             f.write(self.LONG_PATHS_MANIFEST)
-        log.info("long paths manifest is written to '%s'" % manfname)
+        logging.info("long paths manifest is written to '%s'", manfname)
         outputresource = '-outputresource:%s;#1' % exefname
-        log.info("running mt.exe to update hg.exe's manifest in-place")
+        logging.info("running mt.exe to update hg.exe's manifest in-place")
 
         self.spawn(
             [
@@ -971,13 +717,14 @@ class buildhgexe(build_ext):
                 outputresource,
             ]
         )
-        log.info("done updating hg.exe's manifest")
+        logging.info("done updating hg.exe's manifest")
         os.remove(manfname)
 
     @property
     def hgexepath(self):
-        dir = os.path.dirname(self.get_ext_fullpath('dummy'))
-        return os.path.join(self.build_temp, dir, 'hg.exe')
+        return os.path.join(
+            os.path.dirname(self.get_ext_fullpath('dummy')), 'hg.exe'
+        )
 
 
 class hgbuilddoc(Command):
@@ -1011,13 +758,13 @@ class hgbuilddoc(Command):
             if b'\r\n' not in orig:
                 return
 
-            log.info('normalizing %s to LF line endings' % p)
+            logging.info('normalizing %s to LF line endings', p)
             with open(p, 'wb') as fh:
                 fh.write(orig.replace(b'\r\n', b'\n'))
 
         def gentxt(root):
             txt = 'doc/%s.txt' % root
-            log.info('generating %s' % txt)
+            logging.info('generating %s', txt)
             res, out, err = runcmd(
                 [sys.executable, 'gendoc.py', root], os.environ, cwd='doc'
             )
@@ -1033,7 +780,7 @@ class hgbuilddoc(Command):
         def gengendoc(root):
             gendoc = 'doc/%s.gendoc.txt' % root
 
-            log.info('generating %s' % gendoc)
+            logging.info('generating %s', gendoc)
             res, out, err = runcmd(
                 [sys.executable, 'gendoc.py', '%s.gendoc' % root],
                 os.environ,
@@ -1049,7 +796,7 @@ class hgbuilddoc(Command):
                 fh.write(out)
 
         def genman(root):
-            log.info('generating doc/%s' % root)
+            logging.info('generating doc/%s', root)
             res, out, err = runcmd(
                 [
                     sys.executable,
@@ -1074,7 +821,7 @@ class hgbuilddoc(Command):
             normalizecrlf('doc/%s' % root)
 
         def genhtml(root):
-            log.info('generating doc/%s.html' % root)
+            logging.info('generating doc/%s.html', root)
             res, out, err = runcmd(
                 [
                     sys.executable,
@@ -1188,77 +935,6 @@ class hginstalllib(install_lib):
             file_util.copy_file = realcopyfile
 
 
-class hginstallscripts(install_scripts):
-    """
-    This is a specialization of install_scripts that replaces the @LIBDIR@ with
-    the configured directory for modules. If possible, the path is made relative
-    to the directory for scripts.
-    """
-
-    def initialize_options(self):
-        install_scripts.initialize_options(self)
-
-        self.install_lib = None
-
-    def finalize_options(self):
-        install_scripts.finalize_options(self)
-        self.set_undefined_options('install', ('install_lib', 'install_lib'))
-
-    def run(self):
-        install_scripts.run(self)
-
-        # It only makes sense to replace @LIBDIR@ with the install path if
-        # the install path is known. For wheels, the logic below calculates
-        # the libdir to be "../..". This is because the internal layout of a
-        # wheel archive looks like:
-        #
-        #   mercurial-3.6.1.data/scripts/hg
-        #   mercurial/__init__.py
-        #
-        # When installing wheels, the subdirectories of the "<pkg>.data"
-        # directory are translated to system local paths and files therein
-        # are copied in place. The mercurial/* files are installed into the
-        # site-packages directory. However, the site-packages directory
-        # isn't known until wheel install time. This means we have no clue
-        # at wheel generation time what the installed site-packages directory
-        # will be. And, wheels don't appear to provide the ability to register
-        # custom code to run during wheel installation. This all means that
-        # we can't reliably set the libdir in wheels: the default behavior
-        # of looking in sys.path must do.
-
-        if (
-            os.path.splitdrive(self.install_dir)[0]
-            != os.path.splitdrive(self.install_lib)[0]
-        ):
-            # can't make relative paths from one drive to another, so use an
-            # absolute path instead
-            libdir = self.install_lib
-        else:
-            libdir = os.path.relpath(self.install_lib, self.install_dir)
-
-        for outfile in self.outfiles:
-            with open(outfile, 'rb') as fp:
-                data = fp.read()
-
-            # skip binary files
-            if b'\0' in data:
-                continue
-
-            # During local installs, the shebang will be rewritten to the final
-            # install path. During wheel packaging, the shebang has a special
-            # value.
-            if data.startswith(b'#!python'):
-                log.info(
-                    'not rewriting @LIBDIR@ in %s because install path '
-                    'not known' % outfile
-                )
-                continue
-
-            data = data.replace(b'@LIBDIR@', libdir.encode('unicode_escape'))
-            with open(outfile, 'wb') as fp:
-                fp.write(data)
-
-
 class hginstallcompletion(Command):
     description = 'Install shell completion'
 
@@ -1291,87 +967,6 @@ class hginstallcompletion(Command):
             self.copy_file(os.path.join('contrib', src), dest)
 
 
-# virtualenv installs custom distutils/__init__.py and
-# distutils/distutils.cfg files which essentially proxy back to the
-# "real" distutils in the main Python install. The presence of this
-# directory causes py2exe to pick up the "hacked" distutils package
-# from the virtualenv and "import distutils" will fail from the py2exe
-# build because the "real" distutils files can't be located.
-#
-# We work around this by monkeypatching the py2exe code finding Python
-# modules to replace the found virtualenv distutils modules with the
-# original versions via filesystem scanning. This is a bit hacky. But
-# it allows us to use virtualenvs for py2exe packaging, which is more
-# deterministic and reproducible.
-#
-# It's worth noting that the common StackOverflow suggestions for this
-# problem involve copying the original distutils files into the
-# virtualenv or into the staging directory after setup() is invoked.
-# The former is very brittle and can easily break setup(). Our hacking
-# of the found modules routine has a similar result as copying the files
-# manually. But it makes fewer assumptions about how py2exe works and
-# is less brittle.
-
-# This only catches virtualenvs made with virtualenv (as opposed to
-# venv, which is likely what Python 3 uses).
-py2exehacked = py2exeloaded and getattr(sys, 'real_prefix', None) is not None
-
-if py2exehacked:
-    from distutils.command.py2exe import py2exe as buildpy2exe
-    from py2exe.mf import Module as py2exemodule
-
-    class hgbuildpy2exe(buildpy2exe):
-        def find_needed_modules(self, mf, files, modules):
-            res = buildpy2exe.find_needed_modules(self, mf, files, modules)
-
-            # Replace virtualenv's distutils modules with the real ones.
-            modules = {}
-            for k, v in res.modules.items():
-                if k != 'distutils' and not k.startswith('distutils.'):
-                    modules[k] = v
-
-            res.modules = modules
-
-            import opcode
-
-            distutilsreal = os.path.join(
-                os.path.dirname(opcode.__file__), 'distutils'
-            )
-
-            for root, dirs, files in os.walk(distutilsreal):
-                for f in sorted(files):
-                    if not f.endswith('.py'):
-                        continue
-
-                    full = os.path.join(root, f)
-
-                    parents = ['distutils']
-
-                    if root != distutilsreal:
-                        rel = os.path.relpath(root, distutilsreal)
-                        parents.extend(p for p in rel.split(os.sep))
-
-                    modname = '%s.%s' % ('.'.join(parents), f[:-3])
-
-                    if modname.startswith('distutils.tests.'):
-                        continue
-
-                    if modname.endswith('.__init__'):
-                        modname = modname[: -len('.__init__')]
-                        path = os.path.dirname(full)
-                    else:
-                        path = None
-
-                    res.modules[modname] = py2exemodule(
-                        modname, full, path=path
-                    )
-
-            if 'distutils' not in res.modules:
-                raise SystemExit('could not find distutils modules')
-
-            return res
-
-
 cmdclass = {
     'build': hgbuild,
     'build_doc': hgbuilddoc,
@@ -1383,18 +978,16 @@ cmdclass = {
     'install': hginstall,
     'install_completion': hginstallcompletion,
     'install_lib': hginstalllib,
-    'install_scripts': hginstallscripts,
     'build_hgexe': buildhgexe,
 }
-
-if py2exehacked:
-    cmdclass['py2exe'] = hgbuildpy2exe
 
 packages = [
     'mercurial',
     'mercurial.admin',
     'mercurial.cext',
     'mercurial.cffi',
+    'mercurial.cmd_impls',
+    'mercurial.configuration',
     'mercurial.branching',
     'mercurial.defaultrc',
     'mercurial.dirstateutils',
@@ -1408,8 +1001,6 @@ packages = [
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
     'mercurial.thirdparty.tomli',
-    'mercurial.thirdparty.zope',
-    'mercurial.thirdparty.zope.interface',
     'mercurial.upgrade_utils',
     'mercurial.utils',
     'mercurial.revlogutils',
@@ -1531,6 +1122,9 @@ class RustExtension(Extension):
         if os.path.exists(cargo_lock):
             self.depends.append(cargo_lock)
         for dirpath, subdir, fnames in os.walk(os.path.join(srcdir, 'src')):
+            if dirpath == os.path.join(srcdir, "target"):
+                # Skip this large artifacts free
+                continue
             self.depends.extend(
                 os.path.join(dirpath, fname)
                 for fname in fnames
@@ -1574,6 +1168,7 @@ class RustExtension(Extension):
         env['PYTHON_SYS_EXECUTABLE'] = sys.executable
         env['PYTHONEXECUTABLE'] = sys.executable
         env['PYTHON'] = sys.executable
+        env['PYO3_PYTHON'] = sys.executable
 
         cargocmd = ['cargo', 'rustc', '--release']
 
@@ -1673,13 +1268,6 @@ extmodules = [
         depends=common_depends,
     ),
     Extension(
-        'mercurial.thirdparty.zope.interface._zope_interface_coptimizations',
-        [
-            'mercurial/thirdparty/zope/interface/_zope_interface_coptimizations.c',
-        ],
-        extra_compile_args=common_cflags,
-    ),
-    Extension(
         'mercurial.thirdparty.sha1dc',
         [
             'mercurial/thirdparty/sha1dc/cext.c',
@@ -1693,13 +1281,21 @@ extmodules = [
         ['hgext/fsmonitor/pywatchman/bser.c'],
         extra_compile_args=common_cflags,
     ),
-    RustStandaloneExtension(
-        'mercurial.rustext',
-        'hg-cpython',
-        'librusthg',
-    ),
 ]
 
+if os.name != 'nt':
+    extmodules += [
+        RustStandaloneExtension(
+            'mercurial.rustext',
+            'hg-cpython',
+            'librusthg',
+        ),
+        RustStandaloneExtension(
+            'mercurial.pyo3_rustext',
+            'hg-pyo3',
+            'librusthgpyo3',
+        ),
+    ]
 
 sys.path.insert(0, 'contrib/python-zstandard')
 import setup_zstd
@@ -1765,15 +1361,6 @@ for root in ('templates',):
         packagename = curdir.replace(os.sep, '.')
         packagedata[packagename] = list(filter(ordinarypath, files))
 
-datafiles = []
-
-# distutils expects version to be str/unicode. Converting it to
-# unicode on Python 2 still works because it won't contain any
-# non-ascii bytes and will be implicitly converted back to bytes
-# when operated on.
-assert isinstance(version, str)
-setupversion = version
-
 extra = {}
 
 py2exepackages = [
@@ -1792,9 +1379,6 @@ py2exe_includes = []
 
 py2exeexcludes = []
 py2exedllexcludes = ['crypt32.dll']
-
-if issetuptools:
-    extra['python_requires'] = supportedpy
 
 if py2exeloaded:
     extra['console'] = [
@@ -1834,7 +1418,6 @@ if os.environ.get('PYOXIDIZER'):
     hgbuild.sub_commands.insert(0, ('build_hgextindex', None))
 
 setup(
-    version=setupversion,
     long_description=(
         'Mercurial is a distributed SCM tool written in Python.'
         ' It is used by a number of large projects that require'
@@ -1845,7 +1428,6 @@ setup(
     scripts=scripts,
     packages=packages,
     ext_modules=extmodules,
-    data_files=datafiles,
     package_data=packagedata,
     cmdclass=cmdclass,
     distclass=hgdist,

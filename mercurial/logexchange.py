@@ -58,10 +58,8 @@ def readremotenames(repo):
     information, call the respective functions.
     """
 
-    for bmentry in readremotenamefile(repo, b'bookmarks'):
-        yield bmentry
-    for branchentry in readremotenamefile(repo, b'branches'):
-        yield branchentry
+    yield from readremotenamefile(repo, b'bookmarks')
+    yield from readremotenamefile(repo, b'branches')
 
 
 def writeremotenamefile(repo, remotepath, names, nametype):

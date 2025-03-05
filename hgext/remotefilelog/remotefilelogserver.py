@@ -14,7 +14,6 @@ import zlib
 
 from mercurial.i18n import _
 from mercurial.node import bin, hex
-from mercurial.pycompat import open
 from mercurial import (
     changegroup,
     changelog,
@@ -132,8 +131,7 @@ def onetimesetup(ui):
             def gen():
                 yield first
                 yield second
-                for value in streamres.gen:
-                    yield value
+                yield from streamres.gen
 
             return wireprototypes.streamres(gen())
         finally:
@@ -272,7 +270,7 @@ def _loadfileblob(repo, cachepath, path, node):
             try:
                 f = util.atomictempfile(filecachepath, b"wb")
                 f.write(text)
-            except (IOError, OSError):
+            except OSError:
                 # Don't abort if the user only has permission to read,
                 # and not write.
                 pass
@@ -282,7 +280,7 @@ def _loadfileblob(repo, cachepath, path, node):
         finally:
             os.umask(oldumask)
     else:
-        with open(filecachepath, b"rb") as f:
+        with open(filecachepath, "rb") as f:
             text = f.read()
     return text
 
@@ -291,7 +289,7 @@ def getflogheads(repo, proto, path):
     """A server api for requesting a filelog's heads"""
     flog = repo.file(path)
     heads = flog.heads()
-    return b'\n'.join((hex(head) for head in heads if head != repo.nullid))
+    return b'\n'.join(hex(head) for head in heads if head != repo.nullid)
 
 
 def getfile(repo, proto, file, node):

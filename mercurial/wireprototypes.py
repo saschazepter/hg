@@ -346,7 +346,7 @@ class commanddict(dict):
                 b'or 2-tuples'
             )
 
-        return super(commanddict, self).__setitem__(k, v)
+        return super().__setitem__(k, v)
 
     def commandavailable(self, command, proto):
         """Determine if a command is available for the requested protocol."""

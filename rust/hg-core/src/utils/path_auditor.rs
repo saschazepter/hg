@@ -8,8 +8,8 @@
 
 use crate::utils::{
     files::lower_clean,
-    find_slice_in_slice,
     hg_path::{hg_path_to_path_buf, HgPath, HgPathBuf, HgPathError},
+    strings::find_slice_in_slice,
 };
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

@@ -23,11 +23,11 @@
   $ hgcloneshallow ssh://user@dummy/master shallow --noupdate
   streaming all changes
   3 files to transfer, 528 bytes of data (no-zstd !)
-  transferred 528 bytes in * seconds (* */sec) (glob) (no-zstd !)
+  stream-cloned 3 files / 528 bytes in * seconds (* */sec) (glob) (no-zstd !)
   3 files to transfer, 532 bytes of data (zstd no-rust !)
-  transferred 532 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
-  5 files to transfer, 658 bytes of data (zstd rust !)
-  transferred 658 bytes in * seconds (*/sec) (glob) (zstd rust !)
+  stream-cloned 3 files / 532 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
+  5 files to transfer, 659 bytes of data (zstd rust !)
+  stream-cloned 5 files / 659 bytes in * seconds (*/sec) (glob) (zstd rust !)
   searching for changes
   no changes found
   $ cd shallow
@@ -169,11 +169,11 @@
   $ hgcloneshallow ssh://user@dummy/master shallow2
   streaming all changes
   3 files to transfer, 528 bytes of data (no-zstd !)
-  transferred 528 bytes in * seconds * (glob) (no-zstd !)
+  stream-cloned 3 files / 528 bytes in * seconds * (glob) (no-zstd !)
   3 files to transfer, 532 bytes of data (zstd no-rust !)
-  transferred 532 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
-  5 files to transfer, 658 bytes of data (zstd rust !)
-  transferred 658 bytes in * seconds (*/sec) (glob) (zstd rust !)
+  stream-cloned 3 files / 532 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
+  5 files to transfer, 659 bytes of data (zstd rust !)
+  stream-cloned 5 files / 659 bytes in * seconds (*/sec) (glob) (zstd rust !)
   searching for changes
   no changes found
   updating to branch default

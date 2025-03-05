@@ -38,9 +38,6 @@ from typing import (
 
 from .i18n import _
 from .node import hex
-from .pycompat import (
-    open,
-)
 
 from . import (
     color,
@@ -53,10 +50,10 @@ from . import (
     loggingutil,
     progress,
     pycompat,
-    rcutil,
     scmutil,
     util,
 )
+from .configuration import rcutil
 from .utils import (
     dateutil,
     procutil,
@@ -233,7 +230,7 @@ _reqexithandlers: List = []
 
 
 class ui:
-    def __init__(self, src: Optional["ui"] = None) -> None:
+    def __init__(self, src: Optional[ui] = None) -> None:
         """Create a fresh new ui object if no src given
 
         Use uimod.ui.load() to create a ui which knows global and user configs.
@@ -340,7 +337,7 @@ class ui:
         """Create a ui and load global and user configs"""
         u = cls()
         # we always trust global config files and environment variables
-        for t, f in rcutil.rccomponents():
+        for _lvl, t, f in rcutil.rccomponents():
             if t == b'path':
                 u.readconfig(f, trust=True)
             elif t == b'resource':
@@ -469,7 +466,7 @@ class ui:
     ) -> None:
         try:
             fp = resourceutil.open_resource(name[0], name[1])
-        except IOError:
+        except OSError:
             if not sections:  # ignore unless we were looking for something
                 return
             raise
@@ -483,7 +480,7 @@ class ui:
     ) -> None:
         try:
             fp = open(filename, 'rb')
-        except IOError:
+        except OSError:
             if not sections:  # ignore unless we were looking for something
                 return
             raise
@@ -985,8 +982,7 @@ class ui:
     def walkconfig(self, untrusted=False, all_known=False):
         defined = self._walk_config(untrusted)
         if not all_known:
-            for d in defined:
-                yield d
+            yield from defined
             return
         known = self._walk_known()
         current_defined = next(defined, None)
@@ -1266,7 +1262,7 @@ class ui:
                     label = opts.get('label', b'')
                     msg = self.label(msg, label)
                 dest.write(msg)
-        except IOError as err:
+        except OSError as err:
             raise error.StdioError(err)
         finally:
             self._blockedtimes[b'stdio_blocked'] += (
@@ -1315,7 +1311,7 @@ class ui:
             # including stdout.
             if dest is self._ferr and not getattr(dest, 'closed', False):
                 dest.flush()
-        except IOError as err:
+        except OSError as err:
             if dest is self._ferr and err.errno in (
                 errno.EPIPE,
                 errno.EIO,
@@ -1355,13 +1351,13 @@ class ui:
         try:
             try:
                 self._fout.flush()
-            except IOError as err:
+            except OSError as err:
                 if err.errno not in (errno.EPIPE, errno.EIO, errno.EBADF):
                     raise error.StdioError(err)
             finally:
                 try:
                     self._ferr.flush()
-                except IOError as err:
+                except OSError as err:
                     if err.errno not in (errno.EPIPE, errno.EIO, errno.EBADF):
                         raise error.StdioError(err)
         finally:
@@ -2017,8 +2013,7 @@ class ui:
                 blockedtag=b'editor',
             )
 
-            with open(name, 'rb') as f:
-                t = util.fromnativeeol(f.read())
+            t = util.fromnativeeol(util.readfile(name))
         finally:
             os.unlink(name)
 
@@ -2103,6 +2098,9 @@ class ui:
             # command. Proof: `vi -c ':unknown' -c ':qa'; echo $?` produces 1,
             # while s/vi/vim/ doesn't.
             editor = b'vim'
+        elif pycompat.iswindows:
+            # vi isn't installed by on Windows, while notepad.exe is.
+            editor = b'notepad.exe'
         else:
             editor = b'vi'
         return encoding.environ.get(b"HGEDITOR") or self.config(

@@ -1,5 +1,4 @@
 # localrepo.py - read/write repository class for mercurial
-# coding: utf-8
 #
 # Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #
@@ -20,6 +19,7 @@ import weakref
 from concurrent import futures
 from typing import (
     Optional,
+    Set,
 )
 
 from .i18n import _
@@ -59,7 +59,6 @@ from . import (
     policy,
     pushkey,
     pycompat,
-    rcutil,
     repoview,
     requirements as requirementsmod,
     revlog,
@@ -80,7 +79,7 @@ from . import (
 from .branching import (
     rev_cache as rev_branch_cache,
 )
-
+from .configuration import rcutil
 from .interfaces import (
     repository,
 )
@@ -124,17 +123,17 @@ class _basefilecache(scmutil.filecache):
             return unfi.__dict__[self.sname]
         except KeyError:
             pass
-        return super(_basefilecache, self).__get__(unfi, type)
+        return super().__get__(unfi, type)
 
     def set(self, repo, value):
-        return super(_basefilecache, self).set(repo.unfiltered(), value)
+        return super().set(repo.unfiltered(), value)
 
 
 class repofilecache(_basefilecache):
     """filecache for files in .hg but outside of .hg/store"""
 
     def __init__(self, *paths):
-        super(repofilecache, self).__init__(*paths)
+        super().__init__(*paths)
         for path in paths:
             _cachedfiles.add((path, b'plain'))
 
@@ -146,7 +145,7 @@ class storecache(_basefilecache):
     """filecache for files in the store"""
 
     def __init__(self, *paths):
-        super(storecache, self).__init__(*paths)
+        super().__init__(*paths)
         for path in paths:
             _cachedfiles.add((path, b''))
 
@@ -158,7 +157,7 @@ class changelogcache(storecache):
     """filecache for the changelog"""
 
     def __init__(self):
-        super(changelogcache, self).__init__()
+        super().__init__()
         _cachedfiles.add((b'00changelog.i', b''))
         _cachedfiles.add((b'00changelog.n', b''))
 
@@ -173,7 +172,7 @@ class manifestlogcache(storecache):
     """filecache for the manifestlog"""
 
     def __init__(self):
-        super(manifestlogcache, self).__init__()
+        super().__init__()
         _cachedfiles.add((b'00manifest.i', b''))
         _cachedfiles.add((b'00manifest.n', b''))
 
@@ -190,7 +189,7 @@ class mixedrepostorecache(_basefilecache):
     def __init__(self, *pathsandlocations):
         # scmutil.filecache only uses the path for passing back into our
         # join(), so we can safely pass a list of paths and locations
-        super(mixedrepostorecache, self).__init__(*pathsandlocations)
+        super().__init__(*pathsandlocations)
         _cachedfiles.update(pathsandlocations)
 
     def join(self, obj, fnameandlocation):
@@ -222,7 +221,7 @@ class unfilteredpropertycache(util.propertycache):
     def __get__(self, repo, type=None):
         unfi = repo.unfiltered()
         if unfi is repo:
-            return super(unfilteredpropertycache, self).__get__(unfi)
+            return super().__get__(unfi)
         return getattr(unfi, self.name)
 
 
@@ -259,7 +258,7 @@ moderncaps = {
 legacycaps = moderncaps.union({b'changegroupsubset'})
 
 
-class localcommandexecutor:  # (repository.ipeercommandexecutor)
+class localcommandexecutor(repository.ipeercommandexecutor):
     def __init__(self, peer):
         self._peer = peer
         self._sent = False
@@ -304,13 +303,11 @@ class localcommandexecutor:  # (repository.ipeercommandexecutor)
         self._closed = True
 
 
-class localpeer(repository.peer):  # (repository.ipeercommands)
+class localpeer(repository.peer, repository.ipeercommands):
     '''peer for a local repo; reflects only the most recent API'''
 
     def __init__(self, repo, caps=None, path=None, remotehidden=False):
-        super(localpeer, self).__init__(
-            repo.ui, path=path, remotehidden=remotehidden
-        )
+        super().__init__(repo.ui, path=path, remotehidden=remotehidden)
 
         if caps is None:
             caps = moderncaps.copy()
@@ -340,13 +337,17 @@ class localpeer(repository.peer):  # (repository.ipeercommands)
 
     # End of _basepeer interface.
 
+    # Begin of ipeercapabilities interface.
+
+    def capabilities(self) -> Set[bytes]:
+        return self._caps
+
+    # End of ipeercapabilities interface.
+
     # Begin of _basewirecommands interface.
 
     def branchmap(self):
         return self._repo.branchmap()
-
-    def capabilities(self):
-        return self._caps
 
     def get_cached_bundle_inline(self, path):
         # not needed with local peer
@@ -458,12 +459,12 @@ class localpeer(repository.peer):  # (repository.ipeercommands)
     # End of peer interface.
 
 
-class locallegacypeer(localpeer):  # (repository.ipeerlegacycommands)
+class locallegacypeer(localpeer, repository.ipeerlegacycommands):
     """peer extension which implements legacy methods too; used for tests with
     restricted capabilities"""
 
     def __init__(self, repo, path=None, remotehidden=False):
-        super(locallegacypeer, self).__init__(
+        super().__init__(
             repo, caps=legacycaps, path=path, remotehidden=remotehidden
         )
 
@@ -873,19 +874,19 @@ def loadhgrc(
         try:
             ui.readconfig(sharedvfs.join(b'hgrc'), root=sharedvfs.base)
             ret = True
-        except IOError:
+        except OSError:
             pass
 
     try:
         ui.readconfig(hgvfs.join(b'hgrc'), root=wdirvfs.base)
         ret = True
-    except IOError:
+    except OSError:
         pass
 
     try:
         ui.readconfig(hgvfs.join(b'hgrc-not-shared'), root=wdirvfs.base)
         ret = True
-    except IOError:
+    except OSError:
         pass
 
     return ret
@@ -1172,10 +1173,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         slow_path = ui.config(
             b'storage', b'revlog.persistent-nodemap.slow-path'
         )
+        if slow_path == b'default':
+            slow_path = ui.config(b'storage', b'all-slow-path')
         if slow_path not in (b'allow', b'warn', b'abort'):
-            default = ui.config_default(
-                b'storage', b'revlog.persistent-nodemap.slow-path'
-            )
+            default = ui.config_default(b'storage', b'all-slow-path')
             msg = _(
                 b'unknown value for config '
                 b'"storage.revlog.persistent-nodemap.slow-path": "%s"\n'
@@ -1205,8 +1206,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         options[b'persistent-nodemap'] = True
     if requirementsmod.DIRSTATE_V2_REQUIREMENT in requirements:
         slow_path = ui.config(b'storage', b'dirstate-v2.slow-path')
+        if slow_path == b'default':
+            slow_path = ui.config(b'storage', b'all-slow-path')
         if slow_path not in (b'allow', b'warn', b'abort'):
-            default = ui.config_default(b'storage', b'dirstate-v2.slow-path')
+            default = ui.config_default(b'storage', b'all-slow-path')
             msg = _(b'unknown value for config "dirstate-v2.slow-path": "%s"\n')
             ui.warn(msg % slow_path)
             if not ui.quiet:
@@ -1242,7 +1245,7 @@ def makemain(**kwargs):
     return localrepository
 
 
-class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
+class revlogfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs."""
 
     def file(self, path):
@@ -1257,7 +1260,7 @@ class revlogfilestorage:  # (repository.ilocalrepositoryfilestorage)
         return filelog.filelog(self.svfs, path, try_split=try_split)
 
 
-class revlognarrowfilestorage:  # (repository.ilocalrepositoryfilestorage)
+class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
@@ -2810,7 +2813,7 @@ class localrepository(_localrepo_base_classes):
                     b'repository tip rolled back to revision %d (undo %s)\n'
                 ) % (oldtip, desc)
             parentgone = any(self[p].rev() > oldtip for p in parents)
-        except IOError:
+        except OSError:
             msg = _(b'rolling back unknown transaction\n')
             desc = None
             parentgone = True
@@ -3068,6 +3071,7 @@ class localrepository(_localrepo_base_classes):
         releasefn,
         acquirefn,
         desc,
+        steal_from=None,
     ):
         timeout = 0
         warntimeout = 0
@@ -3080,18 +3084,31 @@ class localrepository(_localrepo_base_classes):
         if not sync_file:
             sync_file = None
 
-        l = lockmod.trylock(
-            self.ui,
-            vfs,
-            lockname,
-            timeout,
-            warntimeout,
-            releasefn=releasefn,
-            acquirefn=acquirefn,
-            desc=desc,
-            signalsafe=signalsafe,
-            devel_wait_sync_file=sync_file,
-        )
+        if steal_from is None:
+            l = lockmod.trylock(
+                self.ui,
+                vfs,
+                lockname,
+                timeout,
+                warntimeout,
+                releasefn=releasefn,
+                acquirefn=acquirefn,
+                desc=desc,
+                signalsafe=signalsafe,
+                devel_wait_sync_file=sync_file,
+            )
+        else:
+            l = lockmod.steal_lock(
+                self.ui,
+                vfs,
+                lockname,
+                steal_from,
+                releasefn=releasefn,
+                acquirefn=acquirefn,
+                desc=desc,
+                signalsafe=signalsafe,
+            )
+
         return l
 
     def _afterlock(self, callback):
@@ -3107,19 +3124,29 @@ class localrepository(_localrepo_base_classes):
         else:  # no lock have been found.
             callback(True)
 
-    def lock(self, wait=True):
+    def lock(self, wait=True, steal_from=None):
         """Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
         stripping). If you are opening a transaction, get a lock as well.)
 
         If both 'lock' and 'wlock' must be acquired, ensure you always acquires
-        'wlock' first to avoid a dead-lock hazard."""
+        'wlock' first to avoid a dead-lock hazard.
+
+
+        The steal_from argument is  used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
         l = self._currentlock(self._lockref)
         if l is not None:
+            if steal_from is not None:
+                msg = "cannot steal lock if already locked"
+                raise error.ProgrammingError(msg)
             l.lock()
             return l
 
-        self.hook(b'prelock', throw=True)
+        if steal_from is None:
+            self.hook(b'prelock', throw=True)
         l = self._lock(
             vfs=self.svfs,
             lockname=b"lock",
@@ -3127,24 +3154,34 @@ class localrepository(_localrepo_base_classes):
             releasefn=None,
             acquirefn=self.invalidate,
             desc=_(b'repository %s') % self.origroot,
+            steal_from=steal_from,
         )
         self._lockref = weakref.ref(l)
         return l
 
-    def wlock(self, wait=True):
+    def wlock(self, wait=True, steal_from=None):
         """Lock the non-store parts of the repository (everything under
         .hg except .hg/store) and return a weak reference to the lock.
 
         Use this before modifying files in .hg.
 
         If both 'lock' and 'wlock' must be acquired, ensure you always acquires
-        'wlock' first to avoid a dead-lock hazard."""
-        l = self._wlockref() if self._wlockref else None
-        if l is not None and l.held:
+        'wlock' first to avoid a dead-lock hazard.
+
+        The steal_from argument is  used during local clone when reloading a
+        repository. If we could remove the need for this during copy clone, we
+        could remove this function.
+        """
+        l = self._currentlock(self._wlockref)
+        if l is not None:
+            if steal_from is not None:
+                msg = "cannot steal wlock if already locked"
+                raise error.ProgrammingError(msg)
             l.lock()
             return l
 
-        self.hook(b'prewlock', throw=True)
+        if steal_from is None:
+            self.hook(b'prewlock', throw=True)
         # We do not need to check for non-waiting lock acquisition.  Such
         # acquisition would not cause dead-lock as they would just fail.
         if wait and (
@@ -3170,12 +3207,13 @@ class localrepository(_localrepo_base_classes):
                 del unfi.__dict__['dirstate']
 
         l = self._lock(
-            self.vfs,
-            b"wlock",
-            wait,
-            unlock,
-            self.invalidatedirstate,
-            _(b'working directory of %s') % self.origroot,
+            vfs=self.vfs,
+            lockname=b"wlock",
+            wait=wait,
+            releasefn=unlock,
+            acquirefn=self.invalidatedirstate,
+            desc=_(b'working directory of %s') % self.origroot,
+            steal_from=steal_from,
         )
         self._wlockref = weakref.ref(l)
         return l
@@ -3766,7 +3804,9 @@ def newreporequirements(ui, createopts):
         requirements.add(requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT)
 
     # The feature is disabled unless a fast implementation is available.
-    persistent_nodemap_default = policy.importrust('revlog') is not None
+    persistent_nodemap_default = (
+        policy.importrust('revlog', pyo3=True) is not None
+    )
     if ui.configbool(
         b'format', b'use-persistent-nodemap', persistent_nodemap_default
     ):
@@ -3962,7 +4002,7 @@ def createrepository(ui, path: bytes, createopts=None, requirements=None):
             try:
                 sharedpath = os.path.relpath(sharedpath, hgvfs.base)
                 sharedpath = util.pconvert(sharedpath)
-            except (IOError, ValueError) as e:
+            except (OSError, ValueError) as e:
                 # ValueError is raised on Windows if the drive letters differ
                 # on each path.
                 raise error.Abort(

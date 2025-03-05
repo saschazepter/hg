@@ -1,4 +1,4 @@
-#require unix-permissions no-root reporevlogstore
+#require unix-permissions no-root
 
 #testcases dirstate-v1 dirstate-v2
 
@@ -34,10 +34,16 @@
   $ chmod -w .hg/store/data/a.i
 
   $ echo barber > a
+#if rust
+  $ hg commit -m "2"
+  abort: abort: when writing $TESTTMP/t/.hg/store/data/a.i: $EACCES$
+  [50]
+#else
   $ hg commit -m "2"
   trouble committing a!
   abort: $EACCES$: '$TESTTMP/t/.hg/store/data/a.i'
   [255]
+#endif
 
   $ chmod -w .
 

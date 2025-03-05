@@ -14,20 +14,22 @@ use cpython::{
     exc::ValueError, ObjectProtocol, PyBool, PyBytes, PyErr, PyList, PyObject,
     PyResult, PyTuple, Python, PythonObject, ToPyObject,
 };
-use hg::dirstate::status::StatusPath;
+use hg::dirstate::status::{
+    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
+};
+use hg::filepatterns::{
+    parse_pattern_syntax_kind, IgnorePattern, PatternError, PatternFileWarning,
+};
 use hg::matchers::{
     DifferenceMatcher, IntersectionMatcher, Matcher, NeverMatcher,
     PatternMatcher, UnionMatcher,
 };
 use hg::{
     matchers::{AlwaysMatcher, FileMatcher, IncludeMatcher},
-    parse_pattern_syntax_kind,
     utils::{
         files::{get_bytes_from_path, get_path_from_bytes},
         hg_path::{HgPath, HgPathBuf},
     },
-    BadMatch, DirstateStatus, IgnorePattern, PatternError, PatternFileWarning,
-    StatusError, StatusOptions,
 };
 use std::borrow::Borrow;
 

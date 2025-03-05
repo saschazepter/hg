@@ -111,7 +111,7 @@ def auth_getuserpasswd(self, getkey, params):
                         else:
                             raise error.Abort(_(b'malformed password string'))
                     return (user, passwd)
-        except (OSError, IOError):
+        except OSError:
             raise error.Abort(_(b'factotum not responding'))
         finally:
             os.close(fd)

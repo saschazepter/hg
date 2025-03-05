@@ -1,5 +1,3 @@
-#require reporevlogstore
-
   $ CONTRIBDIR="$TESTDIR/../contrib"
 
   $ hg init repo-a

@@ -43,7 +43,7 @@ class gnuarch_source(common.converter_source, common.commandline):
             self.ren_dirs = {}
 
     def __init__(self, ui, repotype, path, revs=None):
-        super(gnuarch_source, self).__init__(ui, repotype, path, revs=revs)
+        super().__init__(ui, repotype, path, revs=revs)
 
         if not os.path.exists(os.path.join(path, b'{arch}')):
             raise common.NoRepo(

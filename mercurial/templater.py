@@ -962,12 +962,12 @@ class loader:
                 raise templateutil.TemplateNotFound(
                     _(b'"%s" not in template map') % inst.args[0]
                 )
-            except IOError as inst:
+            except OSError as inst:
                 reason = _(b'template file %s: %s') % (
                     self._map[t],
                     stringutil.forcebytestr(inst.args[1]),
                 )
-                raise IOError(inst.args[0], encoding.strfromlocal(reason))
+                raise OSError(inst.args[0], encoding.strfromlocal(reason))
         return self._parse(self.cache[t])
 
     def _parse(self, tmpl):
@@ -1170,5 +1170,5 @@ def try_open_template(
 ) -> Tuple[Optional[bytes], Optional[BinaryIO]]:
     try:
         return open_template(name, templatepath)
-    except (EnvironmentError, ImportError):
+    except (OSError, ImportError):
         return None, None

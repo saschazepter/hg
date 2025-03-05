@@ -33,9 +33,6 @@ from .node import (
     nullrev,
     short,
 )
-from .pycompat import (
-    open,
-)
 from . import (
     bundle2,
     bundlerepo,
@@ -267,7 +264,7 @@ def debugbuilddag(
         progress.update(id)
         for type, data in dagparser.parsedag(text):
             if type == b'n':
-                ui.note((b'node %s\n' % pycompat.bytestr(data)))
+                ui.notenoi18n(b'node %s\n' % pycompat.bytestr(data))
                 id, ps = data
 
                 files = []
@@ -280,9 +277,9 @@ def debugbuilddag(
                     if len(ps) > 1:
                         p2 = repo[ps[1]]
                         pa = p1.ancestor(p2)
-                        base, local, other = [
+                        base, local, other = (
                             x[fn].data() for x in (pa, p1, p2)
-                        ]
+                        )
                         m3 = simplemerge.Merge3Text(
                             base,
                             local,
@@ -348,10 +345,10 @@ def debugbuilddag(
                 at = id
             elif type == b'l':
                 id, name = data
-                ui.note((b'tag %s\n' % name))
+                ui.notenoi18n(b'tag %s\n' % name)
                 tags.append(b"%s %s\n" % (hex(repo.changelog.node(id)), name))
             elif type == b'a':
-                ui.note((b'branch %s\n' % data))
+                ui.notenoi18n(b'branch %s\n' % data)
                 atbranch = data
             progress.update(id)
 
@@ -445,13 +442,15 @@ def _debugbundle2(ui, gen, all=None, **opts):
     """lists the contents of a bundle2"""
     if not isinstance(gen, bundle2.unbundle20):
         raise error.Abort(_(b'not a bundle2 file'))
-    ui.write((b'Stream params: %s\n' % _quasirepr(gen.params)))
+    ui.writenoi18n(b'Stream params: %s\n' % _quasirepr(gen.params))
     parttypes = opts.get('part_type', [])
     for part in gen.iterparts():
         if parttypes and part.type not in parttypes:
             continue
         msg = b'%s -- %s (mandatory: %r)\n'
-        ui.write((msg % (part.type, _quasirepr(part.params), part.mandatory)))
+        ui.writenoi18n(
+            msg % (part.type, _quasirepr(part.params), part.mandatory)
+        )
         if part.type == b'changegroup':
             version = part.params.get(b'version', b'01')
             cg = changegroup.getunbundler(version, part, b'UN')
@@ -914,7 +913,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
         label = b' '.join(e[0] for e in entry)
         format = b' '.join(e[1] for e in entry)
         values = [e[3] for e in entry]
-        data = dict((e[2], e[3]) for e in entry)
+        data = {e[2]: e[3] for e in entry}
         fm.startitem()
         fm.write(label, format, *values, **data)
         fm.plain(b'\n')
@@ -1384,7 +1383,7 @@ def debugdownload(ui, repo, url, output=None, **opts):
 
     dest = ui
     if output:
-        dest = open(output, b"wb", _chunksize)
+        dest = open(output, "wb", _chunksize)
     try:
         data = fh.read(_chunksize)
         while data:
@@ -1628,12 +1627,20 @@ def debug_repair_issue6528(ui, repo, **opts):
     )
 
 
-@command(b'debugformat', [] + cmdutil.formatteropts)
-def debugformat(ui, repo, **opts):
+@command(
+    b'debugformat',
+    [] + cmdutil.formatteropts,
+    b'[PATTERN] ... [PATTERN]',
+)
+def debugformat(ui, repo, *patterns, **opts):
     """display format information about the current repository
 
     Use --verbose to get extra information about current config value and
-    Mercurial default."""
+    Mercurial default.
+
+    If patterns are specified, only format matching at least one of these
+    pattern will be displayed.
+    """
     maxvariantlength = max(len(fv.name) for fv in upgrade.allformatvariant)
     maxvariantlength = max(len(b'format-variant'), maxvariantlength)
 
@@ -1661,6 +1668,14 @@ def debugformat(ui, repo, **opts):
         fm.plain(b' config default')
     fm.plain(b'\n')
     for fv in upgrade.allformatvariant:
+        if patterns:
+            for p in patterns:
+                # XXX support "re:" at some point
+                if p in fv.name:
+                    break
+            else:
+                # no pattern matches, continue
+                continue
         fm.startitem()
         repovalue = fv.fromrepo(repo)
         configvalue = fv.fromconfig(repo)
@@ -3443,7 +3458,7 @@ def debugserve(ui, repo, **opts):
             # can't seek a pipe, so `ab` mode fails on py3
             logfh = os.fdopen(int(opts['logiofd']), 'wb', 0)
     elif opts['logiofile']:
-        logfh = open(opts['logiofile'], b'ab', 0)
+        logfh = open(opts['logiofile'], 'ab', 0)
 
     s = wireprotoserver.sshserver(ui, repo, logfh=logfh)
     s.serve_forever()
@@ -4699,8 +4714,7 @@ def debugwireproto(ui, repo, path=None, **opts):
                     continue
 
                 if line.startswith(b'BODYFILE '):
-                    with open(line.split(b' ', 1), b'rb') as fh:
-                        body = fh.read()
+                    body = util.readfile(line.split(b' ', 1))
                 elif line.startswith(b'frame '):
                     frame = wireprotoframing.makeframefromhumanstring(
                         line[len(b'frame ') :]

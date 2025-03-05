@@ -49,7 +49,7 @@ def handleexception(orig, ui):
         frame = tb.tb_frame
 
         try:
-            with open(inspect.getsourcefile(tb), 'r') as fh:
+            with open(inspect.getsourcefile(tb)) as fh:
                 hgline = fh.readlines()[frame.f_lineno - 1].strip()
         except (IndexError, OSError):
             pass

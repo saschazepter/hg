@@ -13,7 +13,6 @@ import os
 import struct
 
 from mercurial.node import hex
-from mercurial.pycompat import open
 from mercurial import (
     error as hgerror,
 )
@@ -163,12 +162,12 @@ class revmap:
         if not self.path:
             return
         if self._lastmaxrev == -1:  # write the entire file
-            with open(self.path, b'wb') as f:
+            with open(self.path, 'wb') as f:
                 f.write(self.HEADER)
                 for i in range(1, len(self._rev2hsh)):
                     self._writerev(i, f)
         else:  # append incrementally
-            with open(self.path, b'ab') as f:
+            with open(self.path, 'ab') as f:
                 for i in range(self._lastmaxrev + 1, len(self._rev2hsh)):
                     self._writerev(i, f)
         self._lastmaxrev = self.maxrev
@@ -181,7 +180,7 @@ class revmap:
         # which is faster than both LOAD_CONST and LOAD_GLOBAL.
         flaglen = 1
         hshlen = _hshlen
-        with open(self.path, b'rb') as f:
+        with open(self.path, 'rb') as f:
             if f.read(len(self.HEADER)) != self.HEADER:
                 raise error.CorruptedFileError()
             self.clear(flush=False)
@@ -251,10 +250,10 @@ def getlastnode(path):
     """
     hsh = None
     try:
-        with open(path, b'rb') as f:
+        with open(path, 'rb') as f:
             f.seek(-_hshlen, io.SEEK_END)
             if f.tell() > len(revmap.HEADER):
                 hsh = f.read(_hshlen)
-    except IOError:
+    except OSError:
         pass
     return hsh

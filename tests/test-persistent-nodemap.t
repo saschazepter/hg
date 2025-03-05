@@ -24,7 +24,7 @@ Test the persistent on-disk nodemap
   $ hg init test-repo --config storage.revlog.persistent-nodemap.slow-path=allow
   $ cd test-repo
 
-Check handling of the default slow-path value
+Check handling of the default slow-path value and its variants
 
 #if no-pure no-rust
 
@@ -32,6 +32,36 @@ Check handling of the default slow-path value
   abort: accessing `persistent-nodemap` repository without associated fast implementation.
   (check `hg help config.format.use-persistent-nodemap` for details)
   [255]
+
+  $ hg id \
+  >    --config storage.revlog.persistent-nodemap.slow-path=abort
+  abort: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  [255]
+
+  $ hg id \
+  >    --config storage.revlog.persistent-nodemap.slow-path=warn
+  warning: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  000000000000 tip
+
+  $ hg id \
+  >    --config storage.all-slow-path=warn
+  warning: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  000000000000 tip
+
+  $ hg id \
+  >    --config storage.all-slow-path=warn \
+  >    --config storage.revlog.persistent-nodemap.slow-path=abort
+  abort: accessing `persistent-nodemap` repository without associated fast implementation.
+  (check `hg help config.format.use-persistent-nodemap` for details)
+  [255]
+
+  $ hg id \
+  >    --config storage.all-slow-path=abort \
+  >    --config storage.revlog.persistent-nodemap.slow-path=allow
+  000000000000 tip
 
 Unlock further check (we are here to test the feature)
 
@@ -615,10 +645,12 @@ read/write patterns.
   $ hg share race-repo ./other-wc --config format.use-share-safe=yes
   updating working directory
   5001 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg debugformat -R ./race-repo | grep -E 'share-safe|persistent-nodemap'
+  $ hg debugformat -R ./race-repo share-safe persistent-nodemap
+  format-variant     repo
   share-safe:         yes
   persistent-nodemap: yes
-  $ hg debugformat -R ./other-wc/ | grep -E 'share-safe|persistent-nodemap'
+  $ hg debugformat -R ./other-wc/ share-safe persistent-nodemap
+  format-variant     repo
   share-safe:         yes
   persistent-nodemap: yes
   $ hg -R ./other-wc update 'min(head())'

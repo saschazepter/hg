@@ -183,15 +183,13 @@ def wraprepo(repo):
             if self.shallowmatch(f):
                 return remotefilelog.remotefilelog(self.svfs, f, self)
             else:
-                return super(shallowrepository, self).file(f)
+                return super().file(f)
 
         def filectx(self, path, *args, **kwargs):
             if self.shallowmatch(path):
                 return remotefilectx.remotefilectx(self, path, *args, **kwargs)
             else:
-                return super(shallowrepository, self).filectx(
-                    path, *args, **kwargs
-                )
+                return super().filectx(path, *args, **kwargs)
 
         @localrepo.unfilteredmethod
         def commitctx(self, ctx, error=False, origctx=None):
@@ -211,9 +209,7 @@ def wraprepo(repo):
                     if fparent1 != self.nullid:
                         files.append((f, hex(fparent1)))
                 self.fileservice.prefetch(files)
-            return super(shallowrepository, self).commitctx(
-                ctx, error=error, origctx=origctx
-            )
+            return super().commitctx(ctx, error=error, origctx=origctx)
 
         def backgroundprefetch(
             self, revs, base=None, repack=False, pats=None, opts=None
@@ -324,7 +320,7 @@ def wraprepo(repo):
                 repo.fileservice.prefetch(results)
 
         def close(self):
-            super(shallowrepository, self).close()
+            super().close()
             self.connectionpool.close()
 
     repo.__class__ = shallowrepository

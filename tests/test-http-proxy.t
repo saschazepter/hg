@@ -16,10 +16,8 @@ url for proxy, stream
 
   $ http_proxy=http://localhost:$HGPORT1/ hg --config http_proxy.always=True clone --stream http://localhost:$HGPORT/ b
   streaming all changes
-  7 files to transfer, 412 bytes of data (reporevlogstore no-rust !)
-  9 files to transfer, 538 bytes of data (reporevlogstore rust !)
-  4 files to transfer, 330 bytes of data (reposimplestore !)
-  transferred * bytes in * seconds (*/sec) (glob)
+  * files to transfer, * bytes of data (glob)
+  stream-cloned * files / * bytes in * seconds (*/sec) (glob)
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd b

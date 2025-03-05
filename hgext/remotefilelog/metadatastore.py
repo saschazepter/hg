@@ -12,7 +12,7 @@ from . import (
 
 class unionmetadatastore(basestore.baseunionstore):
     def __init__(self, *args, **kwargs):
-        super(unionmetadatastore, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.stores = args
         self.writestore = kwargs.get('writestore')

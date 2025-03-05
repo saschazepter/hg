@@ -17,7 +17,6 @@ from .node import (
     nullrev,
     short,
 )
-from .pycompat import open
 
 from . import (
     error,
@@ -87,7 +86,7 @@ def writechunks(ui, chunks, filename, vfs=None):
             else:
                 # Increase default buffer size because default is usually
                 # small (4k is common on Linux).
-                fh = open(filename, b"wb", 131072)
+                fh = open(filename, "wb", 131072)
         else:
             fd, filename = pycompat.mkstemp(prefix=b"hg-bundle-", suffix=b".hg")
             fh = os.fdopen(fd, "wb")
@@ -829,7 +828,7 @@ class cg3unpacker(cg2unpacker):
         debug_info=None,
         delta_base_reuse_policy=None,
     ):
-        super(cg3unpacker, self)._unpackmanifests(
+        super()._unpackmanifests(
             repo,
             revmap,
             trp,
@@ -869,7 +868,7 @@ class cg4unpacker(cg3unpacker):
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
     def deltachunk(self, prevnode):
-        res = super(cg4unpacker, self).deltachunk(prevnode)
+        res = super().deltachunk(prevnode)
         if not res:
             return res
 

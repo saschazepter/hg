@@ -13,7 +13,6 @@ import posixpath
 import shutil
 import stat
 import typing
-import weakref
 
 from .i18n import _
 from .node import (
@@ -950,14 +949,16 @@ def clone(
             # important:
             #
             #    We still need to release that lock at the end of the function
-            destpeer.local()._lockref = weakref.ref(destlock)
-            destpeer.local()._wlockref = weakref.ref(destwlock)
-            # dirstate also needs to be copied because `_wlockref` has a reference
-            # to it: this dirstate is saved to disk when the wlock is released
-            destpeer.local().dirstate = destrepo.dirstate
+            if destrepo.dirstate._dirty:
+                msg = "dirstate dirty after stream clone"
+                raise error.ProgrammingError(msg)
+            destwlock = destpeer.local().wlock(steal_from=destwlock)
+            destlock = destpeer.local().lock(steal_from=destlock)
 
             srcrepo.hook(
-                b'outgoing', source=b'clone', node=srcrepo.nodeconstants.nullhex
+                b'outgoing',
+                source=b'clone',
+                node=srcrepo.nodeconstants.nullhex,
             )
         else:
             try:
@@ -1121,8 +1122,10 @@ def clone(
                     bookmarks.activate(destrepo, update)
             if destlock is not None:
                 release(destlock)
+                destlock = None
             if destwlock is not None:
-                release(destlock)
+                release(destwlock)
+                destwlock = None
             # here is a tiny windows were someone could end up writing the
             # repository before the cache are sure to be warm. This is "fine"
             # as the only "bad" outcome would be some slowness. That potential
@@ -1434,8 +1437,7 @@ def _outgoing_filter(repo, revs, opts):
     if opts.get(b'newest_first'):
         revs.reverse()
     if limit is None and not no_merges:
-        for r in revs:
-            yield r
+        yield from revs
         return
 
     count = 0
@@ -1527,7 +1529,13 @@ def outgoing(ui, repo, dests, opts, subpath=None):
                     display_outgoing_revs(ui, repo, o, opts)
 
                 cmdutil.outgoinghooks(ui, repo, other, opts, o)
-                ret = min(ret, _outgoing_recurse(ui, repo, dests, opts))
+
+                # path.loc is used instead of dest because what we need to pass
+                # is the destination of the repository containing the
+                # subrepositories and not the destination of the current
+                # subrepository being processed. It will be used to discover
+                # subrepositories paths when using relative paths do map them
+                ret = min(ret, _outgoing_recurse(ui, repo, (path.loc,), opts))
             except:  # re-raises
                 raise
             finally:
@@ -1607,7 +1615,7 @@ def remoteui(src, opts):
 # Files of interest
 # Used to check if the repository has changed looking at mtime and size of
 # these files.
-foi: "List[Tuple[str, bytes]]" = [
+foi: List[Tuple[str, bytes]] = [
     ('spath', b'00changelog.i'),
     ('spath', b'phaseroots'),  # ! phase can change content at the same size
     ('spath', b'obsstore'),

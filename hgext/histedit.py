@@ -207,9 +207,6 @@ import pickle
 import struct
 
 from mercurial.i18n import _
-from mercurial.pycompat import (
-    open,
-)
 from mercurial.node import (
     bin,
     hex,
@@ -800,7 +797,7 @@ class pick(histeditaction):
             self.repo.ui.debug(b'node %s unchanged\n' % short(self.node))
             return rulectx, []
 
-        return super(pick, self).run()
+        return super().run()
 
 
 @action(
@@ -829,7 +826,7 @@ class edit(histeditaction):
 class fold(histeditaction):
     def verify(self, prev, expected, seen):
         """Verifies semantic correctness of the fold rule"""
-        super(fold, self).verify(prev, expected, seen)
+        super().verify(prev, expected, seen)
         repo = self.repo
         if not prev:
             c = repo[self.node].p1()
@@ -1487,7 +1484,7 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
             self.selected = oldpos if self.selected is None else None
             self.make_selection(self.selected)
         elif action == b'goto' and int(ch) < len(self.rules) <= 10:
-            newrule = next((r for r in self.rules if r.origpos == int(ch)))
+            newrule = next(r for r in self.rules if r.origpos == int(ch))
             self.move_cursor(oldpos, newrule.pos)
             if self.selected is not None:
                 self.swap(oldpos, newrule.pos)
@@ -1953,8 +1950,7 @@ def _readfile(ui, path):
         with ui.timeblockedsection(b'histedit'):
             return ui.fin.read()
     else:
-        with open(path, b'rb') as f:
-            return f.read()
+        return util.readfile(path)
 
 
 def _validateargs(ui, repo, freeargs, opts, goal, rules, revs):
@@ -2348,6 +2344,21 @@ def bootstrapcontinue(ui, state, opts):
     return state
 
 
+def hgcontinuehistedit(ui, repo):
+    fm = ui.formatter(b'continue', {})
+    fm.startitem()
+
+    state = histeditstate(repo)
+    with repo.wlock() as wlock, repo.lock() as lock:
+        state.wlock = wlock
+        state.lock = lock
+        state.read()
+        state = bootstrapcontinue(ui, state, None)
+        _continuehistedit(ui, repo, state)
+        _finishhistedit(ui, repo, state, fm)
+        fm.end()
+
+
 def between(repo, old, new, keep):
     """select and validate the set of revision to edit
 
@@ -2683,4 +2694,5 @@ def extsetup(ui):
         allowcommit=True,
         continueflag=True,
         abortfunc=hgaborthistedit,
+        continuefunc=hgcontinuehistedit,
     )

@@ -251,7 +251,6 @@ perfstatus
   $ hg perfdirstatedirs
   $ hg perfdirstatefoldmap
   $ hg perfdirstatewrite
-#if repofncache
   $ hg perffncacheencode
   $ hg perffncacheload
   $ hg debugrebuildfncache
@@ -259,7 +258,6 @@ perfstatus
   $ hg perffncachewrite
   $ hg debugrebuildfncache
   fncache already up to date
-#endif
   $ hg perfheads
   $ hg perfignore
   $ hg perfindex
@@ -280,11 +278,16 @@ perfstatus
   $ hg perfprogress --total 1000
   $ hg perfrawfiles 2
   $ hg perfrevlogindex -c
-#if reporevlogstore
   $ hg perfrevlogrevisions .hg/store/data/a.i
-#endif
+
+#if no-rust
+Cannot test in Rust because this these are highly invasive and expect a certain
+structure from Python code.
+
   $ hg perfrevlogrevision -m 0
   $ hg perfrevlogchunks -c
+#endif
+
   $ hg perfrevrange
   $ hg perfrevset 'all()'
   $ hg perfstartup

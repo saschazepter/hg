@@ -102,18 +102,18 @@ class NonClosingBytesIO(io.BytesIO):
     """
 
     def __init__(self, *args, **kwargs):
-        super(NonClosingBytesIO, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._saved_buffer = None
 
     def close(self):
         self._saved_buffer = self.getvalue()
-        return super(NonClosingBytesIO, self).close()
+        return super().close()
 
     def getvalue(self):
         if self.closed:
             return self._saved_buffer
         else:
-            return super(NonClosingBytesIO, self).getvalue()
+            return super().getvalue()
 
 
 class OpCountingBytesIO(NonClosingBytesIO):
@@ -121,19 +121,19 @@ class OpCountingBytesIO(NonClosingBytesIO):
         self._flush_count = 0
         self._read_count = 0
         self._write_count = 0
-        return super(OpCountingBytesIO, self).__init__(*args, **kwargs)
+        return super().__init__(*args, **kwargs)
 
     def flush(self):
         self._flush_count += 1
-        return super(OpCountingBytesIO, self).flush()
+        return super().flush()
 
     def read(self, *args):
         self._read_count += 1
-        return super(OpCountingBytesIO, self).read(*args)
+        return super().read(*args)
 
     def write(self, data):
         self._write_count += 1
-        return super(OpCountingBytesIO, self).write(data)
+        return super().write(data)
 
 
 _source_files = []

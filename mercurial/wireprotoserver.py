@@ -287,8 +287,7 @@ def _callhttp(repo, req, res, proto, cmd):
         yield struct.pack(b'B', len(name))
         yield name
 
-        for chunk in gen:
-            yield chunk
+        yield from gen
 
     def setresponse(code, contenttype, bodybytes=None, bodygen=None):
         if code == HTTP_OK:

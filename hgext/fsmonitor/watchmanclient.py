@@ -41,7 +41,7 @@ class Unavailable(Exception):
 class WatchmanNoRoot(Unavailable):
     def __init__(self, root, msg):
         self.root = root
-        super(WatchmanNoRoot, self).__init__(msg)
+        super().__init__(msg)
 
 
 class client:

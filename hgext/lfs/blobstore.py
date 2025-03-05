@@ -13,7 +13,6 @@ import hashlib
 import json
 import os
 import re
-import socket
 
 from typing import (
     Optional,
@@ -50,7 +49,7 @@ class lfsvfs(vfsmod.vfs):
         """split the path at first two characters, like: XX/XXXXX..."""
         if not _lfsre.match(path):
             raise error.ProgrammingError(b'unexpected lfs path: %s' % path)
-        return super(lfsvfs, self).join(path[0:2], path[2:], *insidef)
+        return super().join(path[0:2], path[2:], *insidef)
 
     def walk(self, path=None, onerror=None):
         """Yield (dirpath, [], oids) tuple for blobs under path
@@ -89,7 +88,7 @@ class nullvfs(lfsvfs):
         # self.vfs.  Raise the same error as a normal vfs when asked to read a
         # file that doesn't exist.  The only difference is the full file path
         # isn't available in the error.
-        raise IOError(
+        raise OSError(
             errno.ENOENT,
             pycompat.sysstr(b'%s: No such file or directory' % oid),
         )
@@ -105,7 +104,7 @@ class lfsuploadfile(httpconnectionmod.httpsendfile):
     """a file-like object that supports keepalive."""
 
     def __init__(self, ui, filename):
-        super(lfsuploadfile, self).__init__(ui, filename, b'rb')
+        super().__init__(ui, filename, b'rb')
         self.read = self._data.read
 
     def _makeprogress(self):
@@ -595,7 +594,7 @@ class _gitlfsremote:
                         self._basictransfer(obj, action, localstore)
                         yield 1, obj.get(b'oid')
                         break
-                    except socket.error as ex:
+                    except OSError as ex:
                         if retry > 0:
                             self.ui.note(
                                 _(b'lfs: failed: %r (remaining retry %d)\n')

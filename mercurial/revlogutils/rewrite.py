@@ -1,5 +1,4 @@
 # censor code related to censoring revision
-# coding: utf8
 #
 # Copyright 2021 Pierre-Yves David <pierre-yves.david@octobus.net>
 # Copyright 2015 Google, Inc <martinvonz@google.com>
@@ -60,7 +59,7 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
     # avoid cycle
     from .. import revlog
 
-    censor_revs = set(rl.rev(node) for node in censor_nodes)
+    censor_revs = {rl.rev(node) for node in censor_nodes}
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
 
     # Rewriting the revlog in place is hard. Our strategy for censoring is
@@ -136,8 +135,8 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
         rl.opener.rename(newrl._datafile, rl._datafile)
 
     rl.clearcaches()
-    chunk_cache = rl._loadindex()
-    rl._load_inner(chunk_cache)
+    index, chunk_cache = rl._loadindex()
+    rl._load_inner(index, chunk_cache)
 
 
 def v2_censor(revlog, tr, censor_nodes, tombstone=b''):
@@ -327,7 +326,8 @@ def _setup_new_files(
 
     # reload the revlog internal information
     revlog.clearcaches()
-    revlog._loadindex(docket=docket)
+    index, chunk_cache = revlog._loadindex(docket=docket)
+    revlog._load_inner(index, chunk_cache)
 
     @contextlib.contextmanager
     def all_files_opener():
@@ -569,7 +569,8 @@ def _reorder_filelog_parents(repo, fl, to_fix):
 
             rl.opener.rename(new_file_path, index_file)
             rl.clearcaches()
-            rl._loadindex()
+            index, chunk_cache = rl._loadindex()
+            rl._load_inner(index, chunk_cache)
         finally:
             util.tryunlink(new_file_path)
 
@@ -730,9 +731,9 @@ def _from_report(ui, repo, context, from_report, dry_run):
                 continue
             filenodes, filename = line.split(b' ', 1)
             fl = _filelog_from_filename(repo, filename)
-            to_fix = set(
+            to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
-            )
+            }
             excluded = set()
 
             for filerev in to_fix:

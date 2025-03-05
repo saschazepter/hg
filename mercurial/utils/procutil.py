@@ -24,9 +24,6 @@ from typing import (
 )
 
 from ..i18n import _
-from ..pycompat import (
-    open,
-)
 
 from .. import (
     encoding,
@@ -58,10 +55,10 @@ class BadFile(io.RawIOBase):
     """Dummy file object to simulate closed stdio behavior"""
 
     def readinto(self, b):
-        raise IOError(errno.EBADF, 'Bad file descriptor')
+        raise OSError(errno.EBADF, 'Bad file descriptor')
 
     def write(self, b):
-        raise IOError(errno.EBADF, 'Bad file descriptor')
+        raise OSError(errno.EBADF, 'Bad file descriptor')
 
 
 class LineBufferedWrapper:
@@ -331,9 +328,10 @@ def tempfilter(s, cmd):
     inname, outname = None, None
     try:
         infd, inname = pycompat.mkstemp(prefix=b'hg-filter-in-')
-        fp = os.fdopen(infd, 'wb')
-        fp.write(s)
-        fp.close()
+
+        with os.fdopen(infd, 'wb') as fp:
+            fp.write(s)
+
         outfd, outname = pycompat.mkstemp(prefix=b'hg-filter-out-')
         os.close(outfd)
         cmd = cmd.replace(b'INFILE', inname)
@@ -343,7 +341,7 @@ def tempfilter(s, cmd):
             raise error.Abort(
                 _(b"command '%s' failed: %s") % (cmd, explainexit(code))
             )
-        with open(outname, b'rb') as fp:
+        with open(outname, 'rb') as fp:
             return fp.read()
     finally:
         try:

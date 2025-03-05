@@ -1,4 +1,4 @@
-#require no-reposimplestore no-chg
+#require no-chg
 #testcases git-server hg-server
 
 #if git-server

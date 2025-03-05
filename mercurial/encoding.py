@@ -16,7 +16,6 @@ import unicodedata
 from typing import (
     Any,
     Callable,
-    Text,
     TypeVar,
 )
 
@@ -130,7 +129,7 @@ class localstr(bytes):
     if typing.TYPE_CHECKING:
         # pseudo implementation to help pytype see localstr() constructor
         def __init__(self, u: bytes, l: bytes) -> None:
-            super(localstr, self).__init__(l)
+            super().__init__(l)
             self._utf8 = u
 
     def __hash__(self):
@@ -386,7 +385,7 @@ def colwidth(s: bytes) -> int:
     return ucolwidth(s.decode(_sysstr(encoding), 'replace'))
 
 
-def ucolwidth(d: Text) -> int:
+def ucolwidth(d: str) -> int:
     """Find the column width of a Unicode string for display"""
     eaw = getattr(unicodedata, 'east_asian_width', None)
     if eaw is not None:
@@ -504,7 +503,7 @@ def trim(
     chars = chars[:i]
     if leftside:
         chars.reverse()
-    u = u''.join(chars).encode(_sysstr(encoding))
+    u = ''.join(chars).encode(_sysstr(encoding))
     if leftside:
         return ellipsis + u
     return u + ellipsis
