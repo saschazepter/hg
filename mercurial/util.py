@@ -3458,3 +3458,31 @@ def _estimatememory() -> Optional[int]:
         pass
     except KeyError:  # unknown parameter
         pass
+
+
+def rust_tracing_span(name: str):
+    """Maybe¹ returns a context manager that calls into the Rust extensions's
+    tracing system to register a span, creating it on `__enter__` and closing
+    it on `__exit__`.
+
+    See "Profiling and tracing" in `rust/README.rst` for more information.
+
+    [1] The context manager does nothing if the Rust extensions are unavailable
+    or have not been compiled with the `full-tracing` feature.
+    """
+    try:
+        tracer = policy.importrust("tracing", member="tracer", default=None)
+    except ImportError:
+        tracer = None
+
+    if tracer is None:
+        import contextlib
+
+        @contextlib.contextmanager
+        def trace_span(name: str):
+            yield
+
+    else:
+        trace_span = tracer.span
+
+    return trace_span(name)
