@@ -1980,7 +1980,7 @@ def _update(
         maybe_wlock = util.nullcontextmanager()
     else:
         maybe_wlock = repo.wlock()
-    with maybe_wlock:
+    with maybe_wlock, util.rust_tracing_span("under wlock"):
         if wc is None:
             wc = repo[None]
         pl = wc.parents()
