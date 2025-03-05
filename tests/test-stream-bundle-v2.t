@@ -97,20 +97,22 @@ The extension requires a repo (currently unused)
   $ "$PYTHON" $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
   $ cat http.pid >> $DAEMON_PIDS
 
+  $ cd ..
+
+
+Requirements filtering
+======================
+
+
+Unknown requirements
+--------------------
+
 Stream bundle spec with unknown requirements should be filtered out
 
-#if stream-v2
-  $ cat > .hg/clonebundles.manifest << EOF
-  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=v2;requirements%3Drevlogv42
+  $ cat > main/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=$stream_version;requirements%3Drevlogv42
   > EOF
-#endif
-#if stream-v3
-  $ cat > .hg/clonebundles.manifest << EOF
-  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=v3-exp;requirements%3Drevlogv42
-  > EOF
-#endif
 
-  $ cd ..
 
   $ hg clone -U http://localhost:$HGPORT stream-clone-unsupported-requirements
   no compatible clone bundles available on server; falling back to regular clone
@@ -122,7 +124,48 @@ Stream bundle spec with unknown requirements should be filtered out
   added 5 changesets with 5 changes to 5 files
   new changesets 426bada5c675:9bc730a19041 (5 drafts)
 
+known requirements
+------------------
+
+Stream bundle spec with known requirements should be filtered out
+
+
+
+  $ cat > main/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=$stream_version;requirements%3Dsparserevlog,revlogv1
+  > EOF
+
+  $ hg clone -U http://localhost:$HGPORT stream-clone-supported-requirements
+  applying clone bundle from http://localhost:$HGPORT1/bundle.hg
+  * to transfer* (glob)
+  transferred * in * seconds (*/sec) (glob)
+  finished applying clone bundle
+  searching for changes
+  no changes found
+
+
+known but irrelevant requirements
+---------------------------------
+
+As fncache and dotencode are abstracted by the vfs, they don't actually matters for streamclone
+
+  $ cat > main/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=$stream_version;requirements%3Dshare-safe
+  > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=none-v2;stream=$stream_version;requirements%3Dshare-safe,fncache,dotencode
+  > EOF
+
+  $ hg clone -U http://localhost:$HGPORT stream-clone-ignorable-requirements
+  applying clone bundle from http://localhost:$HGPORT1/bundle.hg
+  * to transfer* (glob)
+  transferred * in * seconds (*/sec) (glob)
+  finished applying clone bundle
+  searching for changes
+  no changes found
+
+
+
 Test that we can apply the bundle as a stream clone bundle
+==========================================================
 
   $ cat > main/.hg/clonebundles.manifest << EOF
   > http://localhost:$HGPORT1/bundle.hg BUNDLESPEC=`hg debugbundle --spec main/bundle.hg`

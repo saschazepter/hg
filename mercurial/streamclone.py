@@ -40,7 +40,7 @@ def new_stream_clone_requirements(default_requirements, streamed_requirements):
     configuration choice when possible.
     """
     requirements = set(default_requirements)
-    requirements -= requirementsmod.STREAM_FIXED_REQUIREMENTS
+    requirements & requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
     requirements.update(streamed_requirements)
     return requirements
 
@@ -51,7 +51,7 @@ def streamed_requirements(repo):
     This is used for advertising the stream options and to generate the actual
     stream content."""
     requiredformats = (
-        repo.requirements & requirementsmod.STREAM_FIXED_REQUIREMENTS
+        repo.requirements - requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
     )
     return requiredformats
 
