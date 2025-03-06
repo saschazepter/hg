@@ -5,9 +5,9 @@ use chrono::{DateTime, FixedOffset, Local};
 use format_bytes::format_bytes;
 use hg::{
     encoding::Encoder,
-    errors::IoResultExt as _,
+    errors::{HgError, IoResultExt as _},
     operations::{
-        annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotation,
+        annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotatedFile,
     },
     repo::Repo,
     revlog::{changelog::Changelog, RevisionOrWdir},
@@ -15,7 +15,10 @@ use hg::{
     FastHashMap, Node, Revision,
 };
 
-use crate::{error::CommandError, utils::path_utils::resolve_file_args};
+use crate::{
+    error::CommandError, ui::StdoutBuffer,
+    utils::path_utils::resolve_file_args,
+};
 
 pub const HELP_TEXT: &str = "
 show changeset information by line for each file
@@ -217,20 +220,20 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         None
     };
 
-    let mut formatter = Formatter::new(
-        repo,
-        invocation.ui.encoder(),
-        FormatterConfig {
-            include,
-            verbosity,
-            wdir_config,
-        },
-    )?;
+    let format_config = FormatConfig {
+        include,
+        verbosity,
+        wdir_config,
+    };
 
-    print_output(repo, invocation.ui, options, &mut formatter, rev, files)
+    let file_results = files.iter().map(|path| -> FileResult {
+        (path.as_ref(), annotate(repo, path, rev, options))
+    });
+
+    print_output(repo, invocation.ui, &format_config, rev, file_results)
 }
 
-struct FormatterConfig {
+struct FormatConfig {
     include: Include,
     verbosity: Verbosity,
     wdir_config: Option<WdirConfig>,
@@ -268,6 +271,7 @@ struct WdirConfig {
     user: Vec<u8>,
 }
 
+/// Information that we can cache per changeset.
 #[derive(Default)]
 struct ChangesetData {
     user: Option<Vec<u8>>,
@@ -282,30 +286,32 @@ enum SigilFor {
     Changeset,
 }
 
-fn print_output(
+type FileResult<'a> = (&'a HgPath, Result<AnnotateOutput, HgError>);
+
+fn print_output<'a>(
     repo: &Repo,
     ui: &crate::Ui,
-    options: AnnotateOptions,
-    formatter: &mut Formatter<'_>,
+    config: &FormatConfig,
     rev: RevisionOrWdir,
-    files: Vec<hg::utils::hg_path::HgPathBuf>,
+    file_results: impl Iterator<Item = FileResult<'a>>,
 ) -> Result<(), CommandError> {
-    let mut stdout = ui.stdout_buffer();
-    /* TODO move the below */
-    for path in files {
-        match annotate(repo, &path, rev, options)? {
-            AnnotateOutput::Text(text) => {
-                let annotations = formatter.format(&path, text.annotations)?;
-                for (annotation, line) in annotations.iter().zip(&text.lines) {
-                    stdout.write_all(&format_bytes!(
-                        b"{}: {}", annotation, line
-                    ))?;
-                }
-                if let Some(line) = text.lines.last() {
-                    if !line.ends_with(b"\n") {
-                        stdout.write_all(b"\n")?;
-                    }
-                }
+    let encoder = ui.encoder();
+    let stdout = &mut ui.stdout_buffer();
+    let dirstate_p1 = repo
+        .changelog()?
+        .rev_from_node(repo.dirstate_parents()?.p1.into())?;
+    let mut cache = Cache::new(repo)?;
+    for (path, output) in file_results {
+        match output? {
+            AnnotateOutput::Text(file) => {
+                print_lines_default(
+                    file,
+                    config,
+                    stdout,
+                    encoder,
+                    dirstate_p1,
+                    cache.for_path(path),
+                )?;
             }
             AnnotateOutput::Binary => {
                 stdout.write_all(&format_bytes!(
@@ -314,16 +320,7 @@ fn print_output(
                 ))?;
             }
             AnnotateOutput::NotFound => {
-                return Err(CommandError::abort(match rev.exclude_wdir() {
-                    Some(rev) => {
-                        let short =
-                            repo.changelog()?.node_from_rev(rev).short();
-                        format!("abort: {path}: no such file in rev {short:x}",)
-                    }
-                    None => {
-                        format!("abort: {path}: No such file or directory")
-                    }
-                }));
+                return handle_not_found(repo, rev, path)
             }
         }
     }
@@ -331,105 +328,96 @@ fn print_output(
     Ok(())
 }
 
-impl<'a> Formatter<'a> {
-    fn new(
-        repo: &'a Repo,
-        encoder: &'a Encoder,
-        config: FormatterConfig,
-    ) -> Result<Self, CommandError> {
-        let changelog = repo.changelog()?;
-        let dirstate_p1 =
-            changelog.rev_from_node(repo.dirstate_parents()?.p1.into())?;
-        Ok(Self {
-            repo,
-            changelog,
-            dirstate_p1,
-            encoder,
-            config,
-            cache: FastHashMap::default(),
-        })
-    }
+type Stdout<'a> =
+    StdoutBuffer<'a, std::io::BufWriter<std::io::StdoutLock<'a>>>;
 
-    fn format(
-        &mut self,
-        path: &HgPath,
-        annotations: Vec<ChangesetAnnotation>,
-    ) -> Result<Vec<Vec<u8>>, CommandError> {
-        let mut lines: Vec<Vec<Vec<u8>>> =
-            Vec::with_capacity(annotations.len());
-        let num_fields = self.config.include.count();
-        let mut widths = vec![0usize; num_fields];
-        // Clear the wdir cache entry, otherwise `rhg annotate --date f1 f2`
-        // would use f1's mtime for lines in f2 attributed to wdir.
-        self.cache.remove(&RevisionOrWdir::wdir());
-        for annotation in annotations {
-            let rev = annotation.revision;
-            let data = match self.cache.entry(rev) {
-                Entry::Occupied(occupied) => occupied.into_mut(),
-                Entry::Vacant(vacant) => vacant.insert(ChangesetData::create(
-                    rev,
-                    path,
-                    self.repo,
-                    &self.changelog,
-                    &self.config,
-                )?),
-            };
-            let mut fields = Vec::with_capacity(num_fields);
-            if let Some(user) = &data.user {
-                fields.push(user.clone());
-            }
-            if self.config.include.number {
-                let number = rev.exclude_wdir().unwrap_or(self.dirstate_p1);
-                let sigil = fmt_sigil(&self.config, rev, SigilFor::Number);
-                fields.push(format_bytes!(b"{}{}", number, sigil));
-            }
-            if let Some(changeset) = &data.changeset {
-                let sigil = fmt_sigil(&self.config, rev, SigilFor::Changeset);
-                fields.push(format_bytes!(b"{}{}", changeset, sigil));
-            }
-            if let Some(date) = &data.date {
-                fields.push(date.clone());
-            }
-            if self.config.include.file {
-                fields.push(annotation.path.into_vec());
-            }
-            if self.config.include.line_number {
-                fields.push(format_bytes!(b"{}", annotation.line_number));
-            }
-            for (field, width) in fields.iter().zip(widths.iter_mut()) {
-                *width = std::cmp::max(
-                    *width,
-                    self.encoder.column_width_bytes(field),
-                );
-            }
-            lines.push(fields);
+fn print_lines_default(
+    file: ChangesetAnnotatedFile,
+    config: &FormatConfig,
+    stdout: &mut Stdout,
+    encoder: &Encoder,
+    dirstate_p1: Revision,
+    mut cache: CacheForPath,
+) -> Result<(), CommandError> {
+    // Serialize the annotation fields (revision, user, etc.) for each line
+    // and keep track of their maximum lengths so that we can align them.
+    let mut field_lists: Vec<Vec<Vec<u8>>> =
+        Vec::with_capacity(file.annotations.len());
+    let num_fields = config.include.count();
+    let mut widths = vec![0usize; num_fields];
+    for annotation in file.annotations {
+        let rev = annotation.revision;
+        let data = cache.get_data(rev, config)?;
+        let mut fields = Vec::with_capacity(num_fields);
+        if let Some(user) = &data.user {
+            fields.push(user.clone());
         }
-        let total_width = widths.iter().sum::<usize>() + num_fields - 1;
-        Ok(lines
-            .iter()
-            .map(|fields| {
-                let mut bytes = Vec::with_capacity(total_width);
-                for (i, (field, width)) in
-                    fields.iter().zip(widths.iter()).enumerate()
-                {
-                    if i > 0 {
-                        let colon = self.config.include.line_number
-                            && i == num_fields - 1;
-                        bytes.push(if colon { b':' } else { b' ' });
-                    }
-                    let padding =
-                        width - self.encoder.column_width_bytes(field);
-                    bytes.resize(bytes.len() + padding, b' ');
-                    bytes.extend_from_slice(field);
-                }
-                bytes
-            })
-            .collect())
+        if config.include.number {
+            let number = rev.exclude_wdir().unwrap_or(dirstate_p1);
+            let sigil = fmt_sigil(config, rev, SigilFor::Number);
+            fields.push(format_bytes!(b"{}{}", number, sigil));
+        }
+        if let Some(changeset) = &data.changeset {
+            let sigil = fmt_sigil(config, rev, SigilFor::Changeset);
+            fields.push(format_bytes!(b"{}{}", changeset, sigil));
+        }
+        if let Some(date) = &data.date {
+            fields.push(date.clone());
+        }
+        if config.include.file {
+            fields.push(annotation.path.into_vec());
+        }
+        if config.include.line_number {
+            fields.push(format_bytes!(b"{}", annotation.line_number));
+        }
+        for (field, width) in fields.iter().zip(widths.iter_mut()) {
+            *width = std::cmp::max(*width, encoder.column_width_bytes(field));
+        }
+        field_lists.push(fields);
     }
+    // Print each line of the file prefixed by aligned annotations.
+    let total_width = widths.iter().sum::<usize>() + num_fields - 1;
+    for (fields, line) in field_lists.iter().zip(file.lines.iter()) {
+        let mut annotation = Vec::with_capacity(total_width);
+        for (i, (field, width)) in fields.iter().zip(widths.iter()).enumerate()
+        {
+            if i > 0 {
+                let colon = config.include.line_number && i == num_fields - 1;
+                annotation.push(if colon { b':' } else { b' ' });
+            }
+            let padding = width - encoder.column_width_bytes(field);
+            annotation.resize(annotation.len() + padding, b' ');
+            annotation.extend_from_slice(field);
+        }
+        stdout.write_all(&format_bytes!(b"{}: {}", annotation, line))?;
+    }
+    if let Some(line) = file.lines.last() {
+        if !line.ends_with(b"\n") {
+            stdout.write_all(b"\n")?;
+        }
+    }
+    Ok(())
 }
 
+fn handle_not_found(
+    repo: &Repo,
+    rev: RevisionOrWdir,
+    path: &HgPath,
+) -> Result<(), CommandError> {
+    Err(CommandError::abort(match rev.exclude_wdir() {
+        Some(rev) => {
+            let short = repo.changelog()?.node_from_rev(rev).short();
+            format!("abort: {path}: no such file in rev {short:x}",)
+        }
+        None => {
+            format!("abort: {path}: No such file or directory")
+        }
+    }))
+}
+
+/// Returns the sigil to put after the revision number or changeset.
 fn fmt_sigil(
-    config: &FormatterConfig,
+    config: &FormatConfig,
     rev: RevisionOrWdir,
     which: SigilFor,
 ) -> &'static [u8] {
@@ -448,13 +436,58 @@ fn fmt_sigil(
     }
 }
 
-struct Formatter<'a> {
+/// A cache of [`ChangesetData`] for each changeset we've seen.
+struct Cache<'a> {
     repo: &'a Repo,
     changelog: Ref<'a, Changelog>,
-    dirstate_p1: Revision,
-    encoder: &'a Encoder,
-    config: FormatterConfig,
-    cache: FastHashMap<RevisionOrWdir, ChangesetData>,
+    map: FastHashMap<RevisionOrWdir, ChangesetData>,
+}
+
+impl<'a> Cache<'a> {
+    fn new(repo: &'a Repo) -> Result<Self, CommandError> {
+        Ok(Self {
+            repo,
+            changelog: repo.changelog()?,
+            map: Default::default(),
+        })
+    }
+
+    fn for_path(&mut self, path: &'a HgPath) -> CacheForPath<'_, 'a> {
+        CacheForPath { cache: self, path }
+    }
+}
+
+/// [`Cache`] scoped to annotating a particular file.
+struct CacheForPath<'a, 'b> {
+    cache: &'a mut Cache<'b>,
+    path: &'a HgPath,
+}
+
+impl CacheForPath<'_, '_> {
+    fn get_data(
+        &mut self,
+        rev: RevisionOrWdir,
+        config: &FormatConfig,
+    ) -> Result<&ChangesetData, CommandError> {
+        Ok(match self.cache.map.entry(rev) {
+            Entry::Occupied(occupied) => occupied.into_mut(),
+            Entry::Vacant(vacant) => vacant.insert(ChangesetData::create(
+                rev,
+                self.path,
+                self.cache.repo,
+                &self.cache.changelog,
+                config,
+            )?),
+        })
+    }
+}
+
+impl Drop for CacheForPath<'_, '_> {
+    fn drop(&mut self) {
+        // Clear the wdir cache entry, otherwise `rhg annotate --date f1 f2`
+        // would use f1's mtime for lines in f2 attributed to wdir.
+        self.cache.map.remove(&RevisionOrWdir::wdir());
+    }
 }
 
 impl ChangesetData {
@@ -463,7 +496,7 @@ impl ChangesetData {
         path: &HgPath,
         repo: &Repo,
         changelog: &Changelog,
-        config: &FormatterConfig,
+        config: &FormatConfig,
     ) -> Result<Self, CommandError> {
         let include = &config.include;
         if !(include.user || include.changeset || include.date) {
@@ -474,7 +507,7 @@ impl ChangesetData {
                 let entry = changelog.entry(revision)?;
                 let data = entry.data()?;
                 let node = *entry.as_revlog_entry().node();
-                Ok(Self::new(data.user(), node, data.timestamp()?, config))
+                Self::new(data.user(), node, data.timestamp()?, config)
             }
             None => {
                 let p1 = repo.dirstate_parents()?.p1;
@@ -485,7 +518,7 @@ impl ChangesetData {
                 let mtime = DateTime::<Local>::from(mtime).fixed_offset();
                 let user =
                     &config.wdir_config.as_ref().expect("should be set").user;
-                Ok(Self::new(user, p1, mtime, config))
+                Self::new(user, p1, mtime, config)
             }
         }
     }
@@ -494,27 +527,30 @@ impl ChangesetData {
         user: &[u8],
         changeset: Node,
         date: DateTime<FixedOffset>,
-        config: &FormatterConfig,
-    ) -> Self {
+        config: &FormatConfig,
+    ) -> Result<Self, CommandError> {
         let mut result = ChangesetData::default();
         if config.include.user {
             let user = match config.verbosity {
-                Verbosity::Verbose => user,
-                _ => hg::utils::strings::short_user(user),
+                Verbosity::Verbose => user.to_vec(),
+                _ => hg::utils::strings::short_user(user).to_vec(),
             };
             result.user = Some(user.to_vec());
         }
         if config.include.changeset {
-            result.changeset =
-                Some(format!("{:x}", changeset.short()).into_bytes());
+            let hex = format!("{:x}", changeset.short());
+            result.changeset = Some(hex.into_bytes());
         }
         if config.include.date {
-            let date = date.format(match config.verbosity {
-                Verbosity::Quiet => "%Y-%m-%d",
-                _ => "%a %b %d %H:%M:%S %Y %z",
-            });
-            result.date = Some(format!("{}", date).into_bytes());
+            let date = format!(
+                "{}",
+                date.format(match config.verbosity {
+                    Verbosity::Quiet => "%Y-%m-%d",
+                    _ => "%a %b %d %H:%M:%S %Y %z",
+                })
+            );
+            result.date = Some(date.into_bytes());
         }
-        result
+        Ok(result)
     }
 }

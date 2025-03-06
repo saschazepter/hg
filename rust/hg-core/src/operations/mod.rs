@@ -8,7 +8,8 @@ mod debugdata;
 mod list_tracked_files;
 mod status_rev_rev;
 pub use annotate::{
-    annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotation,
+    annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotatedFile,
+    ChangesetAnnotation,
 };
 pub use cat::{cat, CatOutput};
 pub use debugdata::debug_data;
