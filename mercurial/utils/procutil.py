@@ -743,7 +743,7 @@ else:
             script = b' '.join(shellquote(x) for x in cmd)
         if record_wait is None:
             # double-fork to completely detach from the parent process
-            script = b'( %s ) &' % script
+            script = b'( ( %s ) <&3 3<&- &) 3<&0' % script
             start_new_session = True
         else:
             start_new_session = False
