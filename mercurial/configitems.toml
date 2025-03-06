@@ -465,6 +465,15 @@ name = "cache-vfs"
 
 [[items]]
 section = "devel"
+name = "clonebundles.override-operation-id"
+documentation = """
+override the operation id used to produce unique filename at generation time.
+
+Useful to stabilize some filename in the tests.
+"""
+
+[[items]]
+section = "devel"
 name = "check-locks"
 default = false
 

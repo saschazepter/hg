@@ -411,12 +411,61 @@ bundles should have been generated
   full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   $ ls -1 ../server/.hg/tmp-bundles
 
-Test HTTP URL
-=========================
+background generation without debug
+-----------------------------------
+
+The debug option make the command wait for background process and change the
+way stdin is accessible to the script. So we also test this variant.
+
+Gather the name of the expected bundle
+
+  $ v1_file=$TESTTMP/final-upload/full-bzip2-v1-11_revs-4226b1cd5fda_tip-background_testing.hg
+  $ v2_file=$TESTTMP/final-upload/full-bzip2-v2-11_revs-4226b1cd5fda_tip-background_testing.hg
+
+cleanup things
+
 
   $ hg -R ../server/ admin::clone-bundles-clear
   clone-bundles: deleting bundle full-bzip2-v1-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
   clone-bundles: deleting bundle full-bzip2-v2-11_revs-4226b1cd5fda_tip-*_acbr.hg (glob)
+(also delete the manifest to be sure)
+  $ rm ../server/.hg/clonebundles.manifest
+
+Nothing should remain
+
+  $ cat ../server/.hg/clonebundles.auto-gen
+  $ ls -1 ../final-upload
+  $ ls -1 ../server/.hg/tmp-bundles
+
+Start a process in the background without the debug option
+
+  $ hg -R ../server/ admin::clone-bundles-refresh --background \
+  >     --config devel.debug.clonebundles=no \
+  >     --config devel.clonebundles.override-operation-id=background_testing
+
+  $ $RUNTESTDIR/testlib/wait-on-file 30 $v1_file
+  $ $RUNTESTDIR/testlib/wait-on-file 30 $v2_file
+
+We should have bundle now
+
+  $ cat ../server/.hg/clonebundles.manifest
+  file:/*/$TESTTMP/final-upload/full-bzip2-v1-11_revs-4226b1cd5fda_tip-background_testing.hg BUNDLESPEC=bzip2-v1 (glob)
+  file:/*/$TESTTMP/final-upload/full-bzip2-v2-11_revs-4226b1cd5fda_tip-background_testing.hg BUNDLESPEC=bzip2-v2 (glob)
+  $ ls -1 ../final-upload
+  full-bzip2-v1-11_revs-4226b1cd5fda_tip-background_testing.hg
+  full-bzip2-v2-11_revs-4226b1cd5fda_tip-background_testing.hg
+  $ ls -1 ../server/.hg/tmp-bundles
+
+
+
+
+
+Test HTTP URL
+=========================
+
+  $ hg -R ../server/ admin::clone-bundles-clear
+  clone-bundles: deleting bundle full-bzip2-v1-11_revs-4226b1cd5fda_tip-*.hg (glob)
+  clone-bundles: deleting bundle full-bzip2-v2-11_revs-4226b1cd5fda_tip-*.hg (glob)
 
   $ cat >> ../server/.hg/hgrc << EOF
   > [clone-bundles]
