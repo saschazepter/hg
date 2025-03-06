@@ -1060,6 +1060,19 @@ Test empty annotate output
    }
   ]
 
+Test non-UTF8 (should use U+FFFD replacement character)
+TODO: fix Python which instead emits invalid JSON
+
+  $ "$PYTHON" -c 'open("latin1", "wb").write(b"\xc9")'
+  $ hg ci -qAm 'add latin1 file'
+  $ hg annotate -Tjson latin1
+  [
+   {
+    "lines": [{"line": "\xed\xb3\x89", "rev": 35}], (esc) (known-bad-output !)
+    "path": "latin1"
+   }
+  ]
+
 Test annotate with whitespace options
 
   $ cd ..
