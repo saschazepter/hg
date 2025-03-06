@@ -150,7 +150,7 @@ Stream bundle spec with known requirements should be filtered out
   $ hg clone -U http://localhost:$HGPORT stream-clone-supported-requirements
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   * to transfer* (glob)
-  transferred * in * seconds (*/sec) (glob)
+  stream-cloned * in * seconds (*/sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
@@ -169,7 +169,7 @@ As fncache and dotencode are abstracted by the vfs, they don't actually matters 
   $ hg clone -U http://localhost:$HGPORT stream-clone-ignorable-requirements
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   * to transfer* (glob)
-  transferred * in * seconds (*/sec) (glob)
+  stream-cloned * in * seconds (*/sec) (glob)
   finished applying clone bundle
   searching for changes
   no changes found
