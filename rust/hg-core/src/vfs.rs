@@ -929,7 +929,7 @@ impl Vfs for FnCacheVfs {
 /// a local clone, and we don't want to modify the original repo.
 fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
     let metadata = path.metadata().when_writing_file(path)?;
-    if metadata.nlink() > 0 {
+    if metadata.nlink() > 1 {
         // If it's hardlinked, copy it and rename it back before changing it.
         let tmpdir = path.parent().expect("file at root");
         let name = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
