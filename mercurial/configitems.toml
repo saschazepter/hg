@@ -1827,6 +1827,21 @@ name = "output"
 
 [[items]]
 section = "profiling"
+name = "output-dir"
+documentation = """Directory in which profiling data or report should \
+be saved. The data will be written to a file with the naming scheme \
+"hg-profile-{TIMESTAMP}-{PID}.prof". If both ``output`` and ``output-dir`` \
+are specified, ``output`` will take precedence.
+"""
+
+[[items]]
+section = "profiling"
+name = "output-dir:create"
+default = false
+documentation = "Create output-dir if it doesn't already exist."
+
+[[items]]
+section = "profiling"
 name = "showmax"
 default = 0.999
 

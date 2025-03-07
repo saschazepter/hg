@@ -2088,6 +2088,12 @@ statistical text report generated from the profiling data.
     file exists, it is replaced. (default: None, data is printed on
     stderr)
 
+``output-dir``
+  :config-doc:`profiling.output-dir`
+
+``output-dir:create``
+  :config-doc:`profiling.output-dir:create`
+
 ``sort``
     Sort field.  Specific to the ``ls`` instrumenting profiler.
     One of ``callcount``, ``reccallcount``, ``totaltime`` and
