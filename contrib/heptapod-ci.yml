@@ -702,5 +702,6 @@ upload-wheel-nightly:
       upload
       --verbose
       --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+      --skip-existing
       wheels/*/*/*/*.whl
       wheels/*/*.whl
