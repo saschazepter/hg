@@ -242,36 +242,43 @@ Change file contents via comments
   > |\      # B/dir2/b = 34
   > A B     # C/dir1/c = 5
   >         # C/dir2/c = 6
+  >         # A/to-be"deleted" = I am doomed.
+  >         # B/to-be-deleted_too = The end is near.
+  >         # C/to-be"deleted"=<deleted>
+  >         # C/to-be-deleted_too = <deleted>
   >         # C/A = a
   >         # C/B = b
   > EOS
 
   $ hg log -G -T '{desc} {files}'
-  o    C A B dir1/c dir2/c
+  o    C A B dir1/c dir2/c to-be"deleted" to-be-deleted_too
   |\
-  | o  B B dir2/b
+  | o  B B dir2/b to-be-deleted_too
   |
-  o  A A dir1/a
+  o  A A dir1/a to-be"deleted"
   
   $ for r in `hg log -T '{rev} ' --rev "sort(all())"`; do
   >     hg log --rev $r -T "### {tags} ###\n";
   >     hg diff --change $r --stat;
   > done
   ### A ###
-   A      |  1 +
-   dir1/a |  2 ++
-   2 files changed, 3 insertions(+), 0 deletions(-)
+   A              |  1 +
+   dir1/a         |  2 ++
+   to-be"deleted" |  1 +
+   3 files changed, 4 insertions(+), 0 deletions(-)
   ### B ###
-   B      |  1 +
-   dir2/b |  1 +
-   2 files changed, 2 insertions(+), 0 deletions(-)
+   B                 |  1 +
+   dir2/b            |  1 +
+   to-be-deleted_too |  1 +
+   3 files changed, 3 insertions(+), 0 deletions(-)
   ### C tip ###
-   A      |  1 +
-   B      |  2 +-
-   dir1/a |  2 ++
-   dir1/c |  1 +
-   dir2/c |  1 +
-   5 files changed, 6 insertions(+), 1 deletions(-)
+   A              |  2 +-
+   B              |  1 +
+   dir1/c         |  1 +
+   dir2/b         |  1 +
+   dir2/c         |  1 +
+   to-be"deleted" |  1 -
+   6 files changed, 5 insertions(+), 2 deletions(-)
   $ hg files -r C
   A
   B
