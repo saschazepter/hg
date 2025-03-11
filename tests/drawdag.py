@@ -79,6 +79,19 @@ Some special comments could have side effects:
       # replace: A -> B -> C -> D  # chained 1 to 1 replacements
       # split: A -> B, C           # 1 to many
       # prune: A, B, C             # many to nothing
+
+Special comment can also be used to control file content for some revision.
+
+The example below create two extra files in A, update on in B.
+
+In all case the file matching the node name is created for all non-merge
+commit.
+
+    C # A/file/path=content in A
+    | # A/other/file/path=content for another file
+    B # B/file/path=updated content in B
+    | 
+    A
 """
 
 import collections
