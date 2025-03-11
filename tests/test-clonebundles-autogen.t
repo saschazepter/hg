@@ -575,6 +575,7 @@ check first regeneration (should cleanup the one before that last)
   full-bzip2-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
   full-bzip2-v2-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
   $ ls -1 ../final-upload
+  $ cd ..
 
 Check the url is correct
 ------------------------
@@ -589,3 +590,44 @@ Check the url is correct
   searching for changes
   no changes found
   15 local changesets published
+
+Test spec with boolean component (issue6960)
+============================================
+
+  $ cat >> ./server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > auto-generate.formats = gzip-v2;obsolescence=yes,gzip-v3;obsolescence=no,gzip-v3;obsolescence=yes;obsolescence-mandatory=no
+  > EOF
+
+  $ rm ./server/.hg/clonebundles.manifest
+  $ hg -R ./server/ admin::clone-bundles-refresh
+  clone-bundles: deleting inline bundle full-bzip2-v1-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  clone-bundles: deleting inline bundle full-bzip2-v2-13_revs-8a81f9be54ea_tip-*_acbr.hg (glob)
+  clone-bundles: starting bundle generation: gzip-v2;obsolescence=yes
+  15 changesets found
+  clone-bundles: starting bundle generation: gzip-v3;obsolescence=no
+  15 changesets found
+  clone-bundles: starting bundle generation: gzip-v3;obsolescence=yes;obsolescence-mandatory=no
+  15 changesets found
+  $ cat ./server/.hg/clonebundles.manifest
+  peer-bundle-cache://full-bzip2-v1-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=bzip2-v1 (glob)
+  peer-bundle-cache://full-bzip2-v2-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=bzip2-v2 (glob)
+  peer-bundle-cache://full-gzip-v2;obsolescence=yes-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=gzip-v2;obsolescence=yes (glob)
+  peer-bundle-cache://full-gzip-v3;obsolescence=no-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=gzip-v3;obsolescence=no (glob)
+  peer-bundle-cache://full-gzip-v3;obsolescence=yes;obsolescence-mandatory=no-15_revs-17615b3984c2_tip-*_acbr.hg BUNDLESPEC=gzip-v3;obsolescence=yes;obsolescence-mandatory=no (glob)
+
+
+Check the manifest is correct
+-----------------------------
+
+  $ hg clone -U ssh://user@dummy/server ssh-inline-more-param-clone
+  applying clone bundle from peer-bundle-cache://full-bzip2-v1-15_revs-17615b3984c2_tip-*_acbr.hg (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 15 changesets with 15 changes to 15 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  15 local changesets published
+
