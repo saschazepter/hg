@@ -253,6 +253,32 @@ Change file contents via comments
   |
   o  A A dir1/a
   
+  $ for r in `hg log -T '{rev} ' --rev "sort(all())"`; do
+  >     hg log --rev $r -T "### {tags} ###\n";
+  >     hg diff --change $r --stat;
+  > done
+  ### A ###
+   A      |  1 +
+   dir1/a |  2 ++
+   2 files changed, 3 insertions(+), 0 deletions(-)
+  ### B ###
+   B      |  1 +
+   dir2/b |  1 +
+   2 files changed, 2 insertions(+), 0 deletions(-)
+  ### C tip ###
+   A      |  1 +
+   B      |  2 +-
+   dir1/a |  2 ++
+   dir1/c |  1 +
+   dir2/c |  1 +
+   5 files changed, 6 insertions(+), 1 deletions(-)
+  $ hg files -r C
+  A
+  B
+  dir1/a
+  dir1/c
+  dir2/b
+  dir2/c
   $ for f in `hg files -r C`; do
   >   echo FILE "$f"
   >   hg cat -r C "$f"
