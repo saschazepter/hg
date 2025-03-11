@@ -1029,8 +1029,10 @@ def cmd_admin_clone_bundles_refresh(
     details about how to configure this feature.
     """
     debug = repo.ui.configbool(b'devel', b'debug.clonebundles')
+    op_id = repo.ui.config(b'devel', b'clonebundles.override-operation-id')
     bundles = read_auto_gen(repo)
-    op_id = b"%d_acbr" % os.getpid()
+    if op_id is None:
+        op_id = b"%d_acbr" % os.getpid()
     create, delete = auto_bundle_needed_actions(repo, bundles, op_id)
 
     # if some bundles are scheduled for creation in the background, they will
