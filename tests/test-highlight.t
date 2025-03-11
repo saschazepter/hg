@@ -160,12 +160,15 @@ hgweb filerevision, html
   <span id="l4"><span class="sd">    where sieve (p:ns) = p : sieve [n | n &lt;- ns, mod n p /= 0]</span></span><a href="#l4"></a>
   <span id="l5"><span class="sd">&quot;&quot;&quot;</span></span><a href="#l5"></a>
   <span id="l6"></span><a href="#l6"></a>
-  <span id="l7"><span class="kn">import</span> <span class="nn">itertools</span></span><a href="#l7"></a>
+  <span id="l7"><span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span></span><a href="#l7"></a> (pygments219 !)
+  <span id="l7"><span class="kn">import</span> <span class="nn">itertools</span></span><a href="#l7"></a> (no-pygments219 !)
   <span id="l8"></span><a href="#l8"></a>
-  <span id="l9"><span class="kn">def</span> <span class="nf">primes</span><span class="p">():</span></span><a href="#l9"></a>
+  <span id="l9"><span class="kn">def</span><span class="w"> </span><span class="nf">primes</span><span class="p">():</span></span><a href="#l9"></a> (pygments219 !)
+  <span id="l9"><span class="kn">def</span> <span class="nf">primes</span><span class="p">():</span></span><a href="#l9"></a> (no-pygments219 !)
   <span id="l10"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a> (pygments214 !)
   <span id="l10">    <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a> (no-pygments214 !)
-  <span id="l11">    <span class="kn">def</span> <span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></span><a href="#l11"></a>
+  <span id="l11">    <span class="kn">def</span><span class="w"> </span><span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></span><a href="#l11"></a> (pygments219 !)
+  <span id="l11">    <span class="kn">def</span> <span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></span><a href="#l11"></a> (no-pygments219 !)
   <span id="l12">        <span class="n">p</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></span><a href="#l12"></a>
   <span id="l13">        <span class="c"># It is important to yield *here* in order to stop the</span></span><a href="#l13"></a>
   <span id="l14">        <span class="c"># infinite recursion.</span></span><a href="#l14"></a>
@@ -179,7 +182,8 @@ hgweb filerevision, html
   <span id="l22">    <span class="kn">return</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">([</span><span class="mi">2</span><span class="p">],</span> <span class="n">sieve</span><span class="p">(</span><span class="n">dropwhile</span><span class="p">(</span><span class="kn">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">,</span> <span class="n">odds</span><span class="p">)))</span></span><a href="#l22"></a>
   <span id="l23"></span><a href="#l23"></a>
   <span id="l24"><span class="kn">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span></span><a href="#l24"></a>
-  <span id="l25">    <span class="kn">import</span> <span class="nn">sys</span></span><a href="#l25"></a>
+  <span id="l25">    <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span></span><a href="#l25"></a> (pygments219 !)
+  <span id="l25">    <span class="kn">import</span> <span class="nn">sys</span></span><a href="#l25"></a> (no-pygments219 !)
   <span id="l26">    <span class="kn">try</span><span class="p">:</span></span><a href="#l26"></a>
   <span id="l27">        <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></span><a href="#l27"></a>
   <span id="l28">    <span class="kn">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">):</span></span><a href="#l28"></a>
@@ -439,7 +443,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l7">     7</a> <span class="kn">import</span> <span class="nn">itertools</span></td>
+  <td class="source followlines-btn-parent"><a href="#l7">     7</a> <span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span></td> (pygments219 !)
+  <td class="source followlines-btn-parent"><a href="#l7">     7</a> <span class="kn">import</span> <span class="nn">itertools</span></td> (no-pygments219 !)
   </tr>
   <tr id="l8" class="thisrev">
   <td class="annotate parity0">
@@ -473,7 +478,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l9">     9</a> <span class="kn">def</span> <span class="nf">primes</span><span class="p">():</span></td>
+  <td class="source followlines-btn-parent"><a href="#l9">     9</a> <span class="kn">def</span><span class="w"> </span><span class="nf">primes</span><span class="p">():</span></td> (pygments219 !)
+  <td class="source followlines-btn-parent"><a href="#l9">     9</a> <span class="kn">def</span> <span class="nf">primes</span><span class="p">():</span></td> (no-pygments219 !)
   </tr>
   <tr id="l10" class="thisrev">
   <td class="annotate parity0">
@@ -508,7 +514,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l11">    11</a>     <span class="kn">def</span> <span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></td>
+  <td class="source followlines-btn-parent"><a href="#l11">    11</a>     <span class="kn">def</span><span class="w"> </span><span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></td> (pygments219 !)
+  <td class="source followlines-btn-parent"><a href="#l11">    11</a>     <span class="kn">def</span> <span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></td> (no-pygments219 !)
   </tr>
   <tr id="l12" class="thisrev">
   <td class="annotate parity0">
@@ -746,7 +753,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l25">    25</a>     <span class="kn">import</span> <span class="nn">sys</span></td>
+  <td class="source followlines-btn-parent"><a href="#l25">    25</a>     <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span></td> (pygments219 !)
+  <td class="source followlines-btn-parent"><a href="#l25">    25</a>     <span class="kn">import</span> <span class="nn">sys</span></td> (no-pygments219 !)
   </tr>
   <tr id="l26" class="thisrev">
   <td class="annotate parity0">
@@ -1022,7 +1030,8 @@ We attempt to highlight unknown files by default
   $ cat hg.pid >> $DAEMON_PIDS
 
   $ get-with-headers.py localhost:$HGPORT 'file/tip/unknownfile' | grep l2
-  <span id="l2"><span class="k">def</span> <span class="nf">foo</span><span class="p">():</span></span><a href="#l2"></a>
+  <span id="l2"><span class="k">def</span><span class="w"> </span><span class="nf">foo</span><span class="p">():</span></span><a href="#l2"></a> (pygments219 !)
+  <span id="l2"><span class="k">def</span> <span class="nf">foo</span><span class="p">():</span></span><a href="#l2"></a> (no-pygments219 !)
 
 We can prevent Pygments from falling back to a non filename-based
 detection mode
