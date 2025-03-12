@@ -446,6 +446,21 @@ Start a process in the background without the debug option
   $ $RUNTESTDIR/testlib/wait-on-file 30 $v1_file
   $ $RUNTESTDIR/testlib/wait-on-file 30 $v2_file
 
+all file created, but some cleanup might still be in progress, we wait 30 second for them
+
+# note: we should adjust that timing according to the test timeout, but that is more a
+#       change for the default branch than the stable branch
+
+  $ for x in `$RUNTESTDIR/seq.py 30`; do
+  >      if grep --invert-match DONE ../server/.hg/clonebundles.auto-gen > /dev/null; then
+  >          # some task still running
+  >          sleep 1
+  >          continue
+  >      fi
+  >      # all task are done running
+  >      break
+  > done
+
 We should have bundle now
 
   $ cat ../server/.hg/clonebundles.manifest
