@@ -2988,8 +2988,8 @@ bundle.
 When set to 0, the default, the value used depends on the value of the
 `usage.resources.cpu` configuration:
 - low:    1 writer
-- medium: 2 writers (default)
-- high:   4 writers
+- medium: 4 writers (default)
+- high:   8 writers
 """
 
 [[items]]
@@ -3003,8 +3003,8 @@ If set to a negative value, the amount of memory used will not be restricted.
 
 When set to 0, the default value depends on the `usage.resources.memory` value.
 - low:    100 MB,
-- medium:   1 GB,
-- high:   unrestricted memory usage.
+- medium: 500 MB,
+- high:     2 GB
 """
 
 
