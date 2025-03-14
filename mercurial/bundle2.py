@@ -939,7 +939,16 @@ class unbundle20(unpackermixin):
             yield _pack(_fstreamparamsize, paramssize)
         # From there, payload might need to be decompressed
         self._fp = self._compengine.decompressorreader(self._fp)
-        emptycount = 0
+
+        # We usually wait for empty terminators: a bundle part terminator
+        # followed by a bundle terminator.
+        #
+        # Since the empty bundle has no parts,
+        # bundle part terminator never comes.
+        #
+        # So we boostrap this detection with am empty part, which the first
+        # piece of part will reset.
+        emptycount = 1
         while emptycount < 2:
             # so we can brainlessly loop
             assert _fpartheadersize == _fpayloadsize
