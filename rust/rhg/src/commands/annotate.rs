@@ -41,10 +41,19 @@ pub fn args() -> clap::Command {
                 .default_value("."),
         )
         .arg(
+            clap::Arg::new("follow")
+                .help(
+                    "follow copies/renames and list the filename (DEPRECATED)",
+                )
+                .long("follow")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
             clap::Arg::new("no-follow")
                 .help("don't follow copies and renames")
                 .long("no-follow")
-                .action(clap::ArgAction::SetTrue),
+                .action(clap::ArgAction::SetTrue)
+                .conflicts_with("follow"),
         )
         .arg(
             clap::Arg::new("text")
@@ -182,7 +191,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         number: args.get_flag("number"),
         changeset: args.get_flag("changeset"),
         date: args.get_flag("date"),
-        file: args.get_flag("file"),
+        file: args.get_flag("file") || args.get_flag("follow"),
         line_number: args.get_flag("line-number"),
     };
     if !(include.user || include.file || include.date || include.changeset) {
