@@ -102,8 +102,12 @@ class bundlespec:
 
     def as_spec(self):
         parts = [b"%s-%s" % (self.compression, self.version)]
-        for param in sorted(self._explicit_params.items()):
-            parts.append(b'%s=%s' % param)
+        for param, raw_value in sorted(self._explicit_params.items()):
+            if isinstance(raw_value, bool):
+                value = b"yes" if raw_value else b"no"
+            else:
+                value = raw_value
+            parts.append(b'%s=%s' % (param, value))
         return b';'.join(parts)
 
 

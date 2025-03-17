@@ -476,9 +476,9 @@ class abstractvfs(abc.ABC):
             <path> is the real file system path content should be written to,
             <mode> is the file mode that need to be set if any.
         """
-        self._auditpath(path, b'wb')
-        self.register_file(path)
         real_path = self.join(path)
+        self._auditpath(real_path, b'wb')
+        self.register_file(path)
         dirname, basename = util.split(real_path)
         if dirname not in known_directories:
             util.makedirs(dirname, self.createmode, True)
