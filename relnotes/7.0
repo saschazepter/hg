@@ -53,6 +53,9 @@ We now use `BuildTools 2022` when building Windows packages.
 - rhg: set the expected dirstate permissions (0o666 minus umask) (a48c688d3e80)
 - rhg: fix matcher issue (136e74c2bf8f)
 - rhg files correctly implements `--rev` (it instead provided `--revision`)
+- clone-bundles: fix background spawning of automatic generation
+- bundle-spec: properly format boolean parameter (issue6960)
+- bundle2: fix a bug where _forwardchunks doesn't work with empty bundles
 
 == Rust ==
 

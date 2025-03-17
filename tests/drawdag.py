@@ -79,6 +79,20 @@ Some special comments could have side effects:
       # replace: A -> B -> C -> D  # chained 1 to 1 replacements
       # split: A -> B, C           # 1 to many
       # prune: A, B, C             # many to nothing
+
+Special comment can also be used to control file content for some revision.
+
+The example below create two extra files in A, update on in B and delete the
+other on in C (using a special content to mark the deletion).
+
+In all case the file matching the node name is created for all non-merge
+commit.
+
+    C # A/file/path=content in A
+    | # A/other/file/path=content for another file
+    B # B/file/path=updated content in B
+    | # C/other/file/path=<deleted>
+    A
 """
 
 import collections
@@ -300,7 +314,10 @@ class simplecommitctx(context.committablectx):
             self._parents.append(repo[repo.nullid])
 
     def filectx(self, key):
-        return simplefilectx(key, self._added[key])
+        content = self._added.get(key)
+        if content is not None:
+            return simplefilectx(key, content)
+        return None
 
     def commit(self):
         return self._repo.commitctx(self)
@@ -381,10 +398,13 @@ def debugdrawdag(ui, repo, **opts):
     # parse comments to get extra file content instructions
     files = collections.defaultdict(dict)  # {(name, path): content}
     comments = list(_getcomments(text))
-    filere = re.compile(br'^(\w+)/([\w/]+)\s*=\s*(.*)$', re.M)
+    filere = re.compile(br'^(\w+)/([-_\w/"]+)\s*=\s*(.*)$', re.M)
     for name, path, content in filere.findall(b'\n'.join(comments)):
         content = content.replace(br'\n', b'\n').replace(br'\1', b'\1')
-        files[name][path] = content
+        if content == b"<deleted>":
+            files[name][path] = None
+        else:
+            files[name][path] = content
 
     committed = {None: repo.nullid}  # {name: node}
 

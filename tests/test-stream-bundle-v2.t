@@ -36,6 +36,8 @@ Test creating a consuming stream bundle v2 and v3
   $ cp $HGRCPATH $TESTTMP/hgrc.orig
 
   $ cat >> $HGRCPATH << EOF
+  > [ui]
+  > portablefilenames=abort
   > [experimental]
   > evolution.createmarkers=True
   > evolution.exchange=True
@@ -60,11 +62,11 @@ The extension requires a repo (currently unused)
   $ hg debugdrawdag <<'EOF'
   > E
   > |
-  > D
+  > D  # D/ba"r=<deleted>
   > |
-  > C
+  > C  # C/ba"r=faz
   > |
-  > B
+  > B  # B/blu=fuz
   > |
   > A
   > EOF
@@ -72,9 +74,9 @@ The extension requires a repo (currently unused)
   $ hg bundle -a --type="none-v2;stream=$stream_version" bundle.hg
   $ hg debugbundle bundle.hg
   Stream params: {}
-  stream2 -- {bytecount: 1693, filecount: 12, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
-  stream2 -- {bytecount: 1693, filecount: 12, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
-  stream2 -- {bytecount: 1819, filecount: 14, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
+  stream2 -- {bytecount: 1908, filecount: 14, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
+  stream2 -- {bytecount: 1911, filecount: 14, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
+  stream2 -- {bytecount: 2103, filecount: 16, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
   stream3-exp -- {requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 no-zstd !)
   stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 zstd no-rust !)
   stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 rust !)
@@ -89,9 +91,9 @@ The extension requires a repo (currently unused)
   $ hg bundle -a --type="none-$bundle_format" bundle.hg
   $ hg debugbundle bundle.hg
   Stream params: {}
-  stream2 -- {bytecount: 1693, filecount: 12, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
-  stream2 -- {bytecount: 1693, filecount: 12, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
-  stream2 -- {bytecount: 1819, filecount: 14, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
+  stream2 -- {bytecount: 1908, filecount: 14, requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 no-zstd !)
+  stream2 -- {bytecount: 1911, filecount: 14, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 zstd no-rust !)
+  stream2 -- {bytecount: 2103, filecount: 16, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v2 rust !)
   stream3-exp -- {requirements: generaldelta%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 no-zstd !)
   stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 zstd no-rust !)
   stream3-exp -- {requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True) (stream-v3 rust !)
@@ -133,8 +135,8 @@ Stream bundle spec with unknown requirements should be filtered out
   adding changesets
   adding manifests
   adding file changes
-  added 5 changesets with 5 changes to 5 files
-  new changesets 426bada5c675:9bc730a19041 (5 drafts)
+  added 5 changesets with 7 changes to 7 files
+  new changesets 426bada5c675:92165ab525bf (5 drafts)
 
 known requirements
 ------------------
@@ -193,8 +195,9 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported
   applying stream bundle
-  12 files to transfer, 1.65 KB of data (no-rust !)
-  14 files to transfer, 1.78 KB of data (rust !)
+  14 files to transfer, 1.86 KB of data (no-rust no-zstd !)
+  14 files to transfer, 1.87 KB of data (no-rust zstd !)
+  16 files to transfer, 2.05 KB of data (rust !)
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -202,19 +205,25 @@ Test that we can apply the bundle as a stream clone bundle
   adding [s] data/C.i (66 bytes)
   adding [s] data/D.i (66 bytes)
   adding [s] data/E.i (66 bytes)
+  adding [s] data/ba"r.i (68 bytes)
+  adding [s] data/blu.i (68 bytes)
   adding [s] phaseroots (43 bytes)
-  adding [s] 00manifest.i (584 bytes)
+  adding [s] 00manifest.i (649 bytes) (no-zstd !)
+  adding [s] 00manifest.i (652 bytes) (zstd no-rust !)
+  adding [s] 00manifest.i (654 bytes) (zstd rust !)
   adding [s] 00changelog.n (62 bytes) (rust !)
-  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
-  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog-b875dfc5.nd (128 bytes) (rust !)
+  adding [s] 00changelog.d (289 bytes)
   adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  bundle2-input-part: total payload size 1857 (no-rust !)
-  bundle2-input-part: total payload size 2025 (rust !)
-  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
-  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2099 (no-rust no-zstd !)
+  bundle2-input-part: total payload size 2102 (no-rust zstd !)
+  bundle2-input-part: total payload size 2337 (rust !)
+  stream-cloned 14 files / 1.86 KB in * seconds (* */sec) (glob) (no-rust no-zstd !)
+  stream-cloned 14 files / 1.87 KB in * seconds (* */sec) (glob) (no-rust zstd !)
+  stream-cloned 16 files / 2.05 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -233,7 +242,7 @@ Test that we can apply the bundle as a stream clone bundle
   updating to branch default
   resolving manifests (no-rust !)
    branchmerge: False, force: False, partial: False (no-rust !)
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 92165ab525bf (no-rust !)
    A: remote created -> g (no-rust !)
   getting A (no-rust !)
    B: remote created -> g (no-rust !)
@@ -244,7 +253,9 @@ Test that we can apply the bundle as a stream clone bundle
   getting D (no-rust !)
    E: remote created -> g (no-rust !)
   getting E (no-rust !)
-  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+   blu: remote created -> g (no-rust !)
+  getting blu (no-rust !)
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
@@ -261,8 +272,9 @@ test explicite stream request
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream2" (params: 3 mandatory) supported
   applying stream bundle
-  12 files to transfer, 1.65 KB of data (no-rust !)
-  14 files to transfer, 1.78 KB of data (rust !)
+  14 files to transfer, 1.86 KB of data (no-rust no-zstd !)
+  14 files to transfer, 1.87 KB of data (no-rust zstd !)
+  16 files to transfer, 2.05 KB of data (rust !)
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -270,19 +282,25 @@ test explicite stream request
   adding [s] data/C.i (66 bytes)
   adding [s] data/D.i (66 bytes)
   adding [s] data/E.i (66 bytes)
+  adding [s] data/ba"r.i (68 bytes)
+  adding [s] data/blu.i (68 bytes)
   adding [s] phaseroots (43 bytes)
-  adding [s] 00manifest.i (584 bytes)
+  adding [s] 00manifest.i (649 bytes) (no-zstd !)
+  adding [s] 00manifest.i (652 bytes) (zstd no-rust !)
+  adding [s] 00manifest.i (654 bytes) (zstd rust !)
   adding [s] 00changelog.n (62 bytes) (rust !)
-  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
-  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog-b875dfc5.nd (128 bytes) (rust !)
+  adding [s] 00changelog.d (289 bytes)
   adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  bundle2-input-part: total payload size 1857 (no-rust !)
-  bundle2-input-part: total payload size 2025 (rust !)
-  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
-  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2099 (no-rust no-zstd !)
+  bundle2-input-part: total payload size 2102 (no-rust zstd !)
+  bundle2-input-part: total payload size 2337 (rust !)
+  stream-cloned 14 files / 1.86 KB in * seconds (* */sec) (glob) (no-rust no-zstd !)
+  stream-cloned 14 files / 1.87 KB in * seconds (* */sec) (glob) (no-rust zstd !)
+  stream-cloned 16 files / 2.05 KB in * seconds (* */sec) (glob) (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -301,7 +319,7 @@ test explicite stream request
   updating to branch default
   resolving manifests (no-rust !)
    branchmerge: False, force: False, partial: False (no-rust !)
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 92165ab525bf (no-rust !)
    A: remote created -> g (no-rust !)
   getting A (no-rust !)
    B: remote created -> g (no-rust !)
@@ -312,7 +330,9 @@ test explicite stream request
   getting D (no-rust !)
    E: remote created -> g (no-rust !)
   getting E (no-rust !)
-  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+   blu: remote created -> g (no-rust !)
+  getting blu (no-rust !)
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
@@ -327,7 +347,7 @@ test explicite stream request
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported
   applying stream bundle
-  11 entries to transfer
+  13 entries to transfer
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -335,19 +355,25 @@ test explicite stream request
   adding [s] data/C.i (66 bytes)
   adding [s] data/D.i (66 bytes)
   adding [s] data/E.i (66 bytes)
+  adding [s] data/ba"r.i (68 bytes)
+  adding [s] data/blu.i (68 bytes)
   adding [s] phaseroots (43 bytes)
-  adding [s] 00manifest.i (584 bytes)
+  adding [s] 00manifest.i (649 bytes) (no-zstd !)
+  adding [s] 00manifest.i (652 bytes) (zstd no-rust !)
+  adding [s] 00manifest.i (654 bytes) (zstd rust !)
   adding [s] 00changelog.n (62 bytes) (rust !)
-  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
-  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog-b875dfc5.nd (128 bytes) (rust !)
+  adding [s] 00changelog.d (289 bytes)
   adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
-  bundle2-input-part: total payload size 1869 (no-rust !)
-  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
-  bundle2-input-part: total payload size 2037 (rust !)
+  stream-cloned 14 files / 1.86 KB in * seconds (* */sec) (glob) (no-rust no-zstd !)
+  stream-cloned 14 files / 1.87 KB in * seconds (* */sec) (glob) (no-rust zstd !)
+  bundle2-input-part: total payload size 2113 (no-rust no-zstd !)
+  bundle2-input-part: total payload size 2116 (no-rust zstd !)
+  stream-cloned 16 files / 2.05 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2351 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -366,7 +392,7 @@ test explicite stream request
   updating to branch default
   resolving manifests (no-rust !)
    branchmerge: False, force: False, partial: False (no-rust !)
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 92165ab525bf (no-rust !)
    A: remote created -> g (no-rust !)
   getting A (no-rust !)
    B: remote created -> g (no-rust !)
@@ -377,7 +403,9 @@ test explicite stream request
   getting D (no-rust !)
    E: remote created -> g (no-rust !)
   getting E (no-rust !)
-  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+   blu: remote created -> g (no-rust !)
+  getting blu (no-rust !)
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
@@ -389,7 +417,7 @@ test explicite stream request
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "stream3-exp" (params: 1 mandatory) supported
   applying stream bundle
-  11 entries to transfer
+  13 entries to transfer
   starting 4 threads for background file closing (?)
   starting 4 threads for background file closing (?)
   adding [s] data/A.i (66 bytes)
@@ -397,19 +425,25 @@ test explicite stream request
   adding [s] data/C.i (66 bytes)
   adding [s] data/D.i (66 bytes)
   adding [s] data/E.i (66 bytes)
+  adding [s] data/ba"r.i (68 bytes)
+  adding [s] data/blu.i (68 bytes)
   adding [s] phaseroots (43 bytes)
-  adding [s] 00manifest.i (584 bytes)
+  adding [s] 00manifest.i (649 bytes) (no-zstd !)
+  adding [s] 00manifest.i (652 bytes) (zstd no-rust !)
+  adding [s] 00manifest.i (654 bytes) (zstd rust !)
   adding [s] 00changelog.n (62 bytes) (rust !)
-  adding [s] 00changelog-b875dfc5.nd (64 bytes) (rust !)
-  adding [s] 00changelog.d (275 bytes)
+  adding [s] 00changelog-b875dfc5.nd (128 bytes) (rust !)
+  adding [s] 00changelog.d (289 bytes)
   adding [s] 00changelog.i (320 bytes)
   adding [c] branch2-served (94 bytes)
   adding [c] rbc-names-v2 (7 bytes)
   adding [c] rbc-revs-v2 (40 bytes)
-  stream-cloned 12 files / 1.65 KB in * seconds (* */sec) (glob) (no-rust !)
-  bundle2-input-part: total payload size 1869 (no-rust !)
-  stream-cloned 14 files / 1.78 KB in * seconds (* */sec) (glob) (rust !)
-  bundle2-input-part: total payload size 2037 (rust !)
+  stream-cloned 14 files / 1.86 KB in * seconds (* */sec) (glob) (no-rust no-zstd !)
+  stream-cloned 14 files / 1.87 KB in * seconds (* */sec) (glob) (no-rust zstd !)
+  bundle2-input-part: total payload size 2113 (no-rust no-zstd !)
+  bundle2-input-part: total payload size 2116 (no-rust zstd !)
+  stream-cloned 16 files / 2.05 KB in * seconds (* */sec) (glob) (rust !)
+  bundle2-input-part: total payload size 2351 (rust !)
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
@@ -428,7 +462,7 @@ test explicite stream request
   updating to branch default
   resolving manifests (no-rust !)
    branchmerge: False, force: False, partial: False (no-rust !)
-   ancestor: 000000000000, local: 000000000000+, remote: 9bc730a19041 (no-rust !)
+   ancestor: 000000000000, local: 000000000000+, remote: 92165ab525bf (no-rust !)
    A: remote created -> g (no-rust !)
   getting A (no-rust !)
    B: remote created -> g (no-rust !)
@@ -439,7 +473,9 @@ test explicite stream request
   getting D (no-rust !)
    E: remote created -> g (no-rust !)
   getting E (no-rust !)
-  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+   blu: remote created -> g (no-rust !)
+  getting blu (no-rust !)
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
