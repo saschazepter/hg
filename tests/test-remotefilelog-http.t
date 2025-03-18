@@ -44,9 +44,9 @@ as the getfile method it offers doesn't work with http.
   x_rfl_getflogheads
 
   $ get-with-headers.py localhost:$HGPORT '?cmd=this-command-does-not-exist' | head -n 1
-  400 no such method: this-command-does-not-exist
+  400 method not found
   $ get-with-headers.py localhost:$HGPORT '?cmd=x_rfl_getfiles' | head -n 1
-  400 no such method: x_rfl_getfiles
+  400 method not found
 
 Verify serving from a shallow clone doesn't allow for remotefile
 fetches. This also serves to test the error handling for our batchable

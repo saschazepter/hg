@@ -135,22 +135,22 @@ check http return codes
   body: size=506, sha1=70926a04cb8887d0bcccf5380488100a10222def (py38 no-py39 !)
   body: size=505, sha1=eb823c293bedff0df4070b854e2c5cbb06d6ec62 (py39 !)
   % tar.bz2 and zip disallowed should both give 403
-  403 Archive type not allowed: bz2
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=4c5cf0f574446c44feb7f88f4e0e2a56bd92c352
-  403 Archive type not allowed: zip
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=cbfa5574b337348bfd0564cc534474d002e7d6c7
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
   $ test_archtype bz2 tar.bz2 zip tar.gz
   % bz2 allowed should give 200
   200 Script output follows
@@ -165,22 +165,22 @@ check http return codes
   body: size=506, sha1=1bd1f8e8d3701704bd4385038bd9c09b81c77f4e (py38 no-py39 !)
   body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01 (py39 !)
   % zip and tar.gz disallowed should both give 403
-  403 Archive type not allowed: zip
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=cbfa5574b337348bfd0564cc534474d002e7d6c7
-  403 Archive type not allowed: gz
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1450, sha1=71f0b12d59f85fdcfe8ff493e2dc66863f2f7734
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
   $ test_archtype zip zip tar.gz tar.bz2
   % zip allowed should give 200
   200 Script output follows
@@ -193,22 +193,22 @@ check http return codes
   
   body: size=(1377|1461|1489), sha1=(677b14d3d048778d5eb5552c14a67e6192068650|be6d3983aa13dfe930361b2569291cdedd02b537|1897e496871aa89ad685a92b936f5fa0d008b9e8) (re)
   % tar.gz and tar.bz2 disallowed should both give 403
-  403 Archive type not allowed: gz
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1450, sha1=71f0b12d59f85fdcfe8ff493e2dc66863f2f7734
-  403 Archive type not allowed: bz2
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=4c5cf0f574446c44feb7f88f4e0e2a56bd92c352
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
 
 check http return codes (with deprecated option)
 
@@ -226,22 +226,22 @@ check http return codes (with deprecated option)
   body: size=506, sha1=70926a04cb8887d0bcccf5380488100a10222def (py38 no-py39 !)
   body: size=505, sha1=eb823c293bedff0df4070b854e2c5cbb06d6ec62 (py39 !)
   % tar.bz2 and zip disallowed should both give 403
-  403 Archive type not allowed: bz2
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=4c5cf0f574446c44feb7f88f4e0e2a56bd92c352
-  403 Archive type not allowed: zip
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=cbfa5574b337348bfd0564cc534474d002e7d6c7
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
   $ test_archtype_deprecated bz2 tar.bz2 zip tar.gz
   % bz2 allowed should give 200
   200 Script output follows
@@ -256,22 +256,22 @@ check http return codes (with deprecated option)
   body: size=506, sha1=1bd1f8e8d3701704bd4385038bd9c09b81c77f4e (py38 no-py39 !)
   body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01 (py39 !)
   % zip and tar.gz disallowed should both give 403
-  403 Archive type not allowed: zip
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=cbfa5574b337348bfd0564cc534474d002e7d6c7
-  403 Archive type not allowed: gz
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1450, sha1=71f0b12d59f85fdcfe8ff493e2dc66863f2f7734
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
   $ test_archtype_deprecated zip zip tar.gz tar.bz2
   % zip allowed should give 200
   200 Script output follows
@@ -284,22 +284,22 @@ check http return codes (with deprecated option)
   
   body: size=(1377|1461|1489), sha1=(677b14d3d048778d5eb5552c14a67e6192068650|be6d3983aa13dfe930361b2569291cdedd02b537|1897e496871aa89ad685a92b936f5fa0d008b9e8) (re)
   % tar.gz and tar.bz2 disallowed should both give 403
-  403 Archive type not allowed: gz
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1450, sha1=71f0b12d59f85fdcfe8ff493e2dc66863f2f7734
-  403 Archive type not allowed: bz2
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
+  403 Archive type not allowed
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=1451, sha1=4c5cf0f574446c44feb7f88f4e0e2a56bd92c352
+  body: size=1446, sha1=023cb60af79cf672217fbae8ecf20ad4b7472c9d
 
   $ echo "allow-archive = gz bz2 zip" >> .hg/hgrc
   $ hg serve -p $HGPORT -d --pid-file=hg.pid -E errors.log
@@ -315,7 +315,7 @@ check archive links' order
 invalid arch type should give 404
 
   $ get-with-headers.py localhost:$HGPORT "archive/tip.invalid" | head -n 1
-  404 Unsupported archive type: None
+  404 Unsupported archive type
 
   $ TIP=`hg id -v | cut -f1 -d' '`
   $ QTIP=`hg id -q`
@@ -386,12 +386,12 @@ test that we can download single directories and files
 test that we detect file patterns that match no files
 
   $ "$PYTHON" getarchive.py "$TIP" gz foobar
-  HTTP Error 404: file(s) not found: foobar
+  HTTP Error 404: file(s) not found
 
 test that we reject unsafe patterns
 
   $ "$PYTHON" getarchive.py "$TIP" gz relre:baz
-  HTTP Error 404: file(s) not found: relre:baz
+  HTTP Error 404: file(s) not found
 
   $ killdaemons.py
 
