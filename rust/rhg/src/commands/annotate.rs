@@ -226,54 +226,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             wdir_config,
         },
     )?;
-    let mut stdout = invocation.ui.stdout_buffer();
-    for path in files {
-        match annotate(repo, &path, rev, options)? {
-            AnnotateOutput::Text(text) => {
-                let annotations = formatter.format(&path, text.annotations)?;
-                for (annotation, line) in annotations.iter().zip(&text.lines) {
-                    stdout.write_all(&format_bytes!(
-                        b"{}: {}", annotation, line
-                    ))?;
-                }
-                if let Some(line) = text.lines.last() {
-                    if !line.ends_with(b"\n") {
-                        stdout.write_all(b"\n")?;
-                    }
-                }
-            }
-            AnnotateOutput::Binary => {
-                stdout.write_all(&format_bytes!(
-                    b"{}: binary file\n",
-                    path.as_bytes()
-                ))?;
-            }
-            AnnotateOutput::NotFound => {
-                return Err(CommandError::abort(match rev.exclude_wdir() {
-                    Some(rev) => {
-                        let short =
-                            repo.changelog()?.node_from_rev(rev).short();
-                        format!("abort: {path}: no such file in rev {short:x}",)
-                    }
-                    None => {
-                        format!("abort: {path}: No such file or directory")
-                    }
-                }));
-            }
-        }
-    }
-    stdout.flush()?;
 
-    Ok(())
-}
-
-struct Formatter<'a> {
-    repo: &'a Repo,
-    changelog: Ref<'a, Changelog>,
-    dirstate_p1: Revision,
-    encoder: &'a Encoder,
-    config: FormatterConfig,
-    cache: FastHashMap<RevisionOrWdir, ChangesetData>,
+    print_output(repo, invocation.ui, options, &mut formatter, rev, files)
 }
 
 struct FormatterConfig {
@@ -328,66 +282,53 @@ enum SigilFor {
     Changeset,
 }
 
-impl ChangesetData {
-    fn create(
-        revision: RevisionOrWdir,
-        path: &HgPath,
-        repo: &Repo,
-        changelog: &Changelog,
-        config: &FormatterConfig,
-    ) -> Result<Self, CommandError> {
-        let include = &config.include;
-        if !(include.user || include.changeset || include.date) {
-            return Ok(Self::default());
-        }
-        match revision.exclude_wdir() {
-            Some(revision) => {
-                let entry = changelog.entry(revision)?;
-                let data = entry.data()?;
-                let node = *entry.as_revlog_entry().node();
-                Ok(Self::new(data.user(), node, data.timestamp()?, config))
+fn print_output(
+    repo: &Repo,
+    ui: &crate::Ui,
+    options: AnnotateOptions,
+    formatter: &mut Formatter<'_>,
+    rev: RevisionOrWdir,
+    files: Vec<hg::utils::hg_path::HgPathBuf>,
+) -> Result<(), CommandError> {
+    let mut stdout = ui.stdout_buffer();
+    /* TODO move the below */
+    for path in files {
+        match annotate(repo, &path, rev, options)? {
+            AnnotateOutput::Text(text) => {
+                let annotations = formatter.format(&path, text.annotations)?;
+                for (annotation, line) in annotations.iter().zip(&text.lines) {
+                    stdout.write_all(&format_bytes!(
+                        b"{}: {}", annotation, line
+                    ))?;
+                }
+                if let Some(line) = text.lines.last() {
+                    if !line.ends_with(b"\n") {
+                        stdout.write_all(b"\n")?;
+                    }
+                }
             }
-            None => {
-                let p1 = repo.dirstate_parents()?.p1;
-                let fs_path = hg::utils::hg_path::hg_path_to_path_buf(path)?;
-                let meta =
-                    repo.working_directory_vfs().symlink_metadata(&fs_path)?;
-                let mtime = meta.modified().when_reading_file(&fs_path)?;
-                let mtime = DateTime::<Local>::from(mtime).fixed_offset();
-                let user =
-                    &config.wdir_config.as_ref().expect("should be set").user;
-                Ok(Self::new(user, p1, mtime, config))
+            AnnotateOutput::Binary => {
+                stdout.write_all(&format_bytes!(
+                    b"{}: binary file\n",
+                    path.as_bytes()
+                ))?;
+            }
+            AnnotateOutput::NotFound => {
+                return Err(CommandError::abort(match rev.exclude_wdir() {
+                    Some(rev) => {
+                        let short =
+                            repo.changelog()?.node_from_rev(rev).short();
+                        format!("abort: {path}: no such file in rev {short:x}",)
+                    }
+                    None => {
+                        format!("abort: {path}: No such file or directory")
+                    }
+                }));
             }
         }
     }
-
-    fn new(
-        user: &[u8],
-        changeset: Node,
-        date: DateTime<FixedOffset>,
-        config: &FormatterConfig,
-    ) -> Self {
-        let mut result = ChangesetData::default();
-        if config.include.user {
-            let user = match config.verbosity {
-                Verbosity::Verbose => user,
-                _ => hg::utils::strings::short_user(user),
-            };
-            result.user = Some(user.to_vec());
-        }
-        if config.include.changeset {
-            result.changeset =
-                Some(format!("{:x}", changeset.short()).into_bytes());
-        }
-        if config.include.date {
-            let date = date.format(match config.verbosity {
-                Verbosity::Quiet => "%Y-%m-%d",
-                _ => "%a %b %d %H:%M:%S %Y %z",
-            });
-            result.date = Some(format!("{}", date).into_bytes());
-        }
-        result
-    }
+    stdout.flush()?;
+    Ok(())
 }
 
 impl<'a> Formatter<'a> {
@@ -504,5 +445,76 @@ fn fmt_sigil(
         b"+"
     } else {
         b" "
+    }
+}
+
+struct Formatter<'a> {
+    repo: &'a Repo,
+    changelog: Ref<'a, Changelog>,
+    dirstate_p1: Revision,
+    encoder: &'a Encoder,
+    config: FormatterConfig,
+    cache: FastHashMap<RevisionOrWdir, ChangesetData>,
+}
+
+impl ChangesetData {
+    fn create(
+        revision: RevisionOrWdir,
+        path: &HgPath,
+        repo: &Repo,
+        changelog: &Changelog,
+        config: &FormatterConfig,
+    ) -> Result<Self, CommandError> {
+        let include = &config.include;
+        if !(include.user || include.changeset || include.date) {
+            return Ok(Self::default());
+        }
+        match revision.exclude_wdir() {
+            Some(revision) => {
+                let entry = changelog.entry(revision)?;
+                let data = entry.data()?;
+                let node = *entry.as_revlog_entry().node();
+                Ok(Self::new(data.user(), node, data.timestamp()?, config))
+            }
+            None => {
+                let p1 = repo.dirstate_parents()?.p1;
+                let fs_path = hg::utils::hg_path::hg_path_to_path_buf(path)?;
+                let meta =
+                    repo.working_directory_vfs().symlink_metadata(&fs_path)?;
+                let mtime = meta.modified().when_reading_file(&fs_path)?;
+                let mtime = DateTime::<Local>::from(mtime).fixed_offset();
+                let user =
+                    &config.wdir_config.as_ref().expect("should be set").user;
+                Ok(Self::new(user, p1, mtime, config))
+            }
+        }
+    }
+
+    fn new(
+        user: &[u8],
+        changeset: Node,
+        date: DateTime<FixedOffset>,
+        config: &FormatterConfig,
+    ) -> Self {
+        let mut result = ChangesetData::default();
+        if config.include.user {
+            let user = match config.verbosity {
+                Verbosity::Verbose => user,
+                _ => hg::utils::strings::short_user(user),
+            };
+            result.user = Some(user.to_vec());
+        }
+        if config.include.changeset {
+            result.changeset =
+                Some(format!("{:x}", changeset.short()).into_bytes());
+        }
+        if config.include.date {
+            let date = date.format(match config.verbosity {
+                Verbosity::Quiet => "%Y-%m-%d",
+                _ => "%a %b %d %H:%M:%S %Y %z",
+            });
+            result.date = Some(format!("{}", date).into_bytes());
+        }
+        result
     }
 }
