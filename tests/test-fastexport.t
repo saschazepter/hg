@@ -5,6 +5,10 @@
 
   $ hg init
 
+  $ hg fastexport
+  abort: no revisions matched
+  [255]
+
   $ hg debugbuilddag -mon '+2:tbase @name1 +3:thead1 <tbase @name2 +4:thead2 @both /thead1 +2:tmaintip'
 
   $ hg up -r 10

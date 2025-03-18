@@ -179,7 +179,7 @@ def fastexport(ui, repo, *revs, **opts):
     """
     revs += tuple(opts.get("rev", []))
     if not revs:
-        revs = scmutil.revrange(repo, [b":"])
+        revs = scmutil.revrange(repo, [b"all()"])
     else:
         revs = logcmdutil.revrange(repo, revs)
     if not revs:
