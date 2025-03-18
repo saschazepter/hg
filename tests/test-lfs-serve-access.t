@@ -30,7 +30,7 @@ Uploads fail...
   $ hg -R client push http://localhost:$HGPORT
   pushing to http://localhost:$HGPORT/
   searching for changes
-  abort: LFS HTTP error: HTTP Error 400: no such method: .git
+  abort: LFS HTTP error: HTTP Error 400: method not found
   (check that lfs serving is enabled on http://localhost:$HGPORT/.git/info/lfs and "upload" is supported)
   [50]
 
@@ -52,7 +52,7 @@ Downloads fail...
   added 1 changesets with 1 changes to 1 files
   new changesets 525251863cad
   updating to branch default
-  abort: LFS HTTP error: HTTP Error 400: no such method: .git
+  abort: LFS HTTP error: HTTP Error 400: method not found
   (check that lfs serving is enabled on http://localhost:$HGPORT/.git/info/lfs and "download" is supported)
   [50]
 
