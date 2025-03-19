@@ -582,7 +582,9 @@ def manifest(web):
             h[None] = None  # denotes files present
 
     if mf and not files and not dirs:
-        raise ErrorResponse(HTTP_NOT_FOUND, b'path not found: ' + path)
+        # /!\ Do not print `path` here unless you do *extensive* escaping.
+        # Because XSS escaping is hard, we just don't risk it.
+        raise ErrorResponse(HTTP_NOT_FOUND, b'path not found')
 
     def filelist(context):
         for f in sorted(files):
@@ -1252,11 +1254,15 @@ def archive(web):
     key = web.req.qsparams[b'node']
 
     if type_ not in webutil.archivespecs:
-        msg = b'Unsupported archive type: %s' % stringutil.pprint(type_)
+        # /!\ Do not print `type_` here unless you do *extensive* escaping.
+        # Because XSS escaping is hard, we just don't risk it.
+        msg = b'Unsupported archive type'
         raise ErrorResponse(HTTP_NOT_FOUND, msg)
 
     if not (type_ in allowed or web.configbool(b"web", b"allow" + type_)):
-        msg = b'Archive type not allowed: %s' % type_
+        # /!\ Do not print `type_` here unless you do *extensive* escaping.
+        # Because XSS escaping is hard, we just don't risk it.
+        msg = b'Archive type not allowed'
         raise ErrorResponse(HTTP_FORBIDDEN, msg)
 
     reponame = re.sub(br"\W+", b"-", os.path.basename(web.reponame))
@@ -1275,9 +1281,10 @@ def archive(web):
         if pats:
             files = [f for f in ctx.manifest().keys() if match(f)]
             if not files:
-                raise ErrorResponse(
-                    HTTP_NOT_FOUND, b'file(s) not found: %s' % file
-                )
+                # /!\ Do not print `files` here unless you do *extensive*
+                # escaping.
+                # Because XSS escaping is hard, we just don't risk it.
+                raise ErrorResponse(HTTP_NOT_FOUND, b'file(s) not found')
 
     mimetype, artype, extension, encoding = webutil.archivespecs[type_]
 
