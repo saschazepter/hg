@@ -235,6 +235,11 @@ impl Repo {
         &self.working_directory
     }
 
+    /// the path to the store directory
+    pub fn store_path(&self) -> &Path {
+        &self.store
+    }
+
     pub fn requirements(&self) -> &HashSet<String> {
         &self.requirements
     }
