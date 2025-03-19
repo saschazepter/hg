@@ -94,15 +94,18 @@ impl Repo {
     /// its ancestors
     pub fn find_repo_root() -> Result<PathBuf, RepoError> {
         let current_directory = crate::utils::current_dir()?;
-        // ancestors() is inclusive: it first yields `current_directory`
-        // as-is.
-        for ancestor in current_directory.ancestors() {
+        Repo::find_repo_root_from(&current_directory)
+    }
+
+    /// tries to find nearest repository root from a given path
+    pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, RepoError> {
+        for ancestor in path.ancestors() {
             if is_dir(ancestor.join(".hg"))? {
                 return Ok(ancestor.to_path_buf());
             }
         }
         Err(RepoError::NotFound {
-            at: current_directory,
+            at: path.to_path_buf(),
         })
     }
 
