@@ -1338,8 +1338,8 @@ class localrepository(_localrepo_base_classes):
         requirementsmod.REVLOGV2_REQUIREMENT,
         requirementsmod.SHARED_REQUIREMENT,
         requirementsmod.SHARESAFE_REQUIREMENT,
-        requirementsmod.SPARSE_REQUIREMENT,
         requirementsmod.SPARSEREVLOG_REQUIREMENT,
+        requirementsmod.SPARSE_REQUIREMENT,
         requirementsmod.STORE_REQUIREMENT,
         requirementsmod.TREEMANIFEST_REQUIREMENT,
     }
