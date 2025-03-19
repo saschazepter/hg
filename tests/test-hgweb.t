@@ -122,25 +122,25 @@ should give a 400 - bad command
   400* (glob)
   
   
-  error: no such method: spam
+  error: method not found
   [1]
 
   $ get-with-headers.py --headeronly localhost:$HGPORT '?cmd=spam'
-  400 no such method: spam
+  400 method not found
   [1]
 
 should give a 400 - bad command as a part of url path (issue4071)
 
   $ get-with-headers.py --headeronly localhost:$HGPORT 'spam'
-  400 no such method: spam
+  400 method not found
   [1]
 
   $ get-with-headers.py --headeronly localhost:$HGPORT 'raw-spam'
-  400 no such method: spam
+  400 method not found
   [1]
 
   $ get-with-headers.py --headeronly localhost:$HGPORT 'spam/tip/foo'
-  400 no such method: spam
+  400 method not found
   [1]
 
 should give a 404 - file does not exist

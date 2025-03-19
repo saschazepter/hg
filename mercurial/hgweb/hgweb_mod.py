@@ -465,7 +465,10 @@ class hgweb:
                 res.headers[b'ETag'] = tag
 
             if pycompat.sysstr(cmd) not in webcommands.__all__:
-                msg = b'no such method: %s' % cmd
+                msg = b'method not found'
+                # /!\ Do not print `cmd` here unless you do *extensive*
+                # escaping.
+                # Because XSS escaping is hard, we just don't risk it.
                 raise ErrorResponse(HTTP_BAD_REQUEST, msg)
             else:
                 # Set some globals appropriate for web handlers. Commands can
