@@ -37,6 +37,56 @@ share shouldn't have a store dir
    }
   ]
 
+Test the --share-source option for `hg root`
+
+(In a share)
+
+  $ hg root
+  $TESTTMP/repo2
+  $ hg root -T json | sed 's|\\\\|\\|g'
+  [
+   {
+    "hgpath": "$TESTTMP/repo2/.hg",
+    "reporoot": "$TESTTMP/repo2",
+    "storepath": "$TESTTMP/repo1/.hg/store"
+   }
+  ]
+
+  $ RHG_ON_UNSUPPORTED=abort hg root --share-source
+  $TESTTMP/repo1
+  $ hg root --share-source -T json | sed 's|\\\\|\\|g'
+  [
+   {
+    "hgpath": "$TESTTMP/repo1/.hg/",
+    "reporoot": "$TESTTMP/repo1",
+    "storepath": "$TESTTMP/repo1/.hg/store"
+   }
+  ]
+
+(not in a share)
+
+  $ hg -R ../repo1 root
+  $TESTTMP/repo1
+  $ hg -R ../repo1 root -T json | sed 's|\\\\|\\|g'
+  [
+   {
+    "hgpath": "$TESTTMP/repo1/.hg",
+    "reporoot": "$TESTTMP/repo1",
+    "storepath": "$TESTTMP/repo1/.hg/store"
+   }
+  ]
+
+  $ hg -R ../repo1 root --share-source
+  $TESTTMP/repo1
+  $ hg -R ../repo1 root --share-source -T json | sed 's|\\\\|\\|g'
+  [
+   {
+    "hgpath": "$TESTTMP/repo1/.hg/",
+    "reporoot": "$TESTTMP/repo1",
+    "storepath": "$TESTTMP/repo1/.hg/store"
+   }
+  ]
+
 share shouldn't have a full cache dir, original repo should
 
   $ hg branches

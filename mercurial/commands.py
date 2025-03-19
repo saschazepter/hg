@@ -6224,7 +6224,10 @@ def rollback(ui, repo, **opts):
 
 @command(
     b'root',
-    [] + formatteropts,
+    [
+        (b'', b'share-source', None, _(b'print the share source root instead')),
+    ]
+    + formatteropts,
     intents={INTENT_READONLY},
     helpcategory=command.CATEGORY_WORKING_DIRECTORY,
 )
@@ -6245,11 +6248,22 @@ def root(ui, repo, **opts):
 
     Returns 0 on success.
     """
+    use_share_source = bool(opts['share_source'])
+
+    w_path = repo.root
+    r_path = repo.path
+    s_path = repo.spath
+    if use_share_source:
+        # building a full repositry seems overkill and might have side effect,
+        # so we just do path manipulation instead.
+        w_path = cmdutil.findrepo(repo.spath)
+        r_path = os.path.join(cmdutil.findrepo(repo.spath), b'.hg/')
+
     opts = pycompat.byteskwargs(opts)
     with ui.formatter(b'root', opts) as fm:
         fm.startitem()
-        fm.write(b'reporoot', b'%s\n', repo.root)
-        fm.data(hgpath=repo.path, storepath=repo.spath)
+        fm.write(b'reporoot', b'%s\n', w_path)
+        fm.data(hgpath=r_path, storepath=s_path)
 
 
 @command(

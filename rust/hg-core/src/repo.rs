@@ -99,6 +99,8 @@ impl Repo {
 
     /// tries to find nearest repository root from a given path
     pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, RepoError> {
+        // ancestors() is inclusive: it first yields `patn`
+        // as-is.
         for ancestor in path.ancestors() {
             if is_dir(ancestor.join(".hg"))? {
                 return Ok(ancestor.to_path_buf());

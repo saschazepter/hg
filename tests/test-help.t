@@ -579,6 +579,8 @@ Test the textwidth config option
   
   options:
   
+      --share-source      print the share source
+                          root instead
    -T --template TEMPLATE display with template
   
   (some details hidden, use --verbose to show
