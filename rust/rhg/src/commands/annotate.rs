@@ -1,16 +1,17 @@
 use core::str;
 use std::{cell::Ref, collections::hash_map::Entry, ffi::OsString};
 
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Local};
 use format_bytes::format_bytes;
 use hg::{
     encoding::Encoder,
+    errors::IoResultExt as _,
     operations::{
         annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotation,
     },
     repo::Repo,
-    revlog::changelog::Changelog,
-    utils::strings::CleanWhitespace,
+    revlog::{changelog::Changelog, RevisionOrWdir},
+    utils::{hg_path::HgPath, strings::CleanWhitespace},
     FastHashMap, Node, Revision,
 };
 
@@ -154,11 +155,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let rev = args.get_one::<String>("rev").expect("rev has a default");
     let rev = hg::revset::resolve_single(rev, repo)?;
-    let Some(rev) = rev.exclude_wdir() else {
-        return Err(CommandError::unsupported(
-            "annotate wdir not implemented",
-        ));
-    };
 
     let files = match args.get_many::<OsString>("files") {
         None => vec![],
@@ -205,17 +201,27 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         (true, true) => unreachable!(),
     };
 
-    let changelog = repo.changelog()?;
+    let wdir_config = if rev.is_wdir() {
+        let user = config.username()?;
+        Some(WdirConfig { user })
+    } else {
+        None
+    };
+
     let mut formatter = Formatter::new(
         repo,
         invocation.ui.encoder(),
-        FormatterConfig { include, verbosity },
+        FormatterConfig {
+            include,
+            verbosity,
+            wdir_config,
+        },
     )?;
     let mut stdout = invocation.ui.stdout_buffer();
     for path in files {
         match annotate(repo, &path, rev, options)? {
             AnnotateOutput::Text(text) => {
-                let annotations = formatter.format(text.annotations)?;
+                let annotations = formatter.format(&path, text.annotations)?;
                 for (annotation, line) in annotations.iter().zip(&text.lines) {
                     stdout.write_all(&format_bytes!(
                         b"{}: {}", annotation, line
@@ -234,10 +240,16 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 ))?;
             }
             AnnotateOutput::NotFound => {
-                let short = changelog.node_from_rev(rev).short();
-                return Err(CommandError::abort(format!(
-                    "abort: {path}: no such file in rev {short:x}",
-                )));
+                return Err(CommandError::abort(match rev.exclude_wdir() {
+                    Some(rev) => {
+                        let short =
+                            repo.changelog()?.node_from_rev(rev).short();
+                        format!("abort: {path}: no such file in rev {short:x}",)
+                    }
+                    None => {
+                        format!("abort: {path}: No such file or directory")
+                    }
+                }));
             }
         }
     }
@@ -247,15 +259,18 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 }
 
 struct Formatter<'a> {
+    repo: &'a Repo,
     changelog: Ref<'a, Changelog>,
+    dirstate_p1: Revision,
     encoder: &'a Encoder,
     config: FormatterConfig,
-    cache: FastHashMap<Revision, ChangesetData>,
+    cache: FastHashMap<RevisionOrWdir, ChangesetData>,
 }
 
 struct FormatterConfig {
     include: Include,
     verbosity: Verbosity,
+    wdir_config: Option<WdirConfig>,
 }
 
 struct Include {
@@ -285,6 +300,11 @@ enum Verbosity {
     Verbose,
 }
 
+/// Information to use for lines that changed in the working directory.
+struct WdirConfig {
+    user: Vec<u8>,
+}
+
 #[derive(Default)]
 struct ChangesetData {
     user: Option<Vec<u8>>,
@@ -292,9 +312,18 @@ struct ChangesetData {
     date: Option<Vec<u8>>,
 }
 
+/// Whether the "+" sigil calculation is for --number or --changeset.
+#[derive(PartialEq, Eq)]
+enum SigilFor {
+    Number,
+    Changeset,
+}
+
 impl ChangesetData {
     fn create(
-        revision: Revision,
+        revision: RevisionOrWdir,
+        path: &HgPath,
+        repo: &Repo,
         changelog: &Changelog,
         config: &FormatterConfig,
     ) -> Result<Self, CommandError> {
@@ -302,10 +331,25 @@ impl ChangesetData {
         if !(include.user || include.changeset || include.date) {
             return Ok(Self::default());
         }
-        let entry = changelog.entry(revision)?;
-        let data = entry.data()?;
-        let node = *entry.as_revlog_entry().node();
-        Ok(Self::new(data.user(), node, data.timestamp()?, config))
+        match revision.exclude_wdir() {
+            Some(revision) => {
+                let entry = changelog.entry(revision)?;
+                let data = entry.data()?;
+                let node = *entry.as_revlog_entry().node();
+                Ok(Self::new(data.user(), node, data.timestamp()?, config))
+            }
+            None => {
+                let p1 = repo.dirstate_parents()?.p1;
+                let fs_path = hg::utils::hg_path::hg_path_to_path_buf(path)?;
+                let meta =
+                    repo.working_directory_vfs().symlink_metadata(&fs_path)?;
+                let mtime = meta.modified().when_reading_file(&fs_path)?;
+                let mtime = DateTime::<Local>::from(mtime).fixed_offset();
+                let user =
+                    &config.wdir_config.as_ref().expect("should be set").user;
+                Ok(Self::new(user, p1, mtime, config))
+            }
+        }
     }
 
     fn new(
@@ -344,8 +388,12 @@ impl<'a> Formatter<'a> {
         config: FormatterConfig,
     ) -> Result<Self, CommandError> {
         let changelog = repo.changelog()?;
+        let dirstate_p1 =
+            changelog.rev_from_node(repo.dirstate_parents()?.p1.into())?;
         Ok(Self {
+            repo,
             changelog,
+            dirstate_p1,
             encoder,
             config,
             cache: FastHashMap::default(),
@@ -354,18 +402,24 @@ impl<'a> Formatter<'a> {
 
     fn format(
         &mut self,
+        path: &HgPath,
         annotations: Vec<ChangesetAnnotation>,
     ) -> Result<Vec<Vec<u8>>, CommandError> {
         let mut lines: Vec<Vec<Vec<u8>>> =
             Vec::with_capacity(annotations.len());
         let num_fields = self.config.include.count();
         let mut widths = vec![0usize; num_fields];
+        // Clear the wdir cache entry, otherwise `rhg annotate --date f1 f2`
+        // would use f1's mtime for lines in f2 attributed to wdir.
+        self.cache.remove(&RevisionOrWdir::wdir());
         for annotation in annotations {
-            let revision = annotation.revision;
-            let data = match self.cache.entry(revision) {
+            let rev = annotation.revision;
+            let data = match self.cache.entry(rev) {
                 Entry::Occupied(occupied) => occupied.into_mut(),
                 Entry::Vacant(vacant) => vacant.insert(ChangesetData::create(
-                    revision,
+                    rev,
+                    path,
+                    self.repo,
                     &self.changelog,
                     &self.config,
                 )?),
@@ -375,10 +429,13 @@ impl<'a> Formatter<'a> {
                 fields.push(user.clone());
             }
             if self.config.include.number {
-                fields.push(format_bytes!(b"{}", revision));
+                let number = rev.exclude_wdir().unwrap_or(self.dirstate_p1);
+                let sigil = fmt_sigil(&self.config, rev, SigilFor::Number);
+                fields.push(format_bytes!(b"{}{}", number, sigil));
             }
             if let Some(changeset) = &data.changeset {
-                fields.push(changeset.clone());
+                let sigil = fmt_sigil(&self.config, rev, SigilFor::Changeset);
+                fields.push(format_bytes!(b"{}{}", changeset, sigil));
             }
             if let Some(date) = &data.date {
                 fields.push(date.clone());
@@ -418,5 +475,25 @@ impl<'a> Formatter<'a> {
                 bytes
             })
             .collect())
+    }
+}
+
+fn fmt_sigil(
+    config: &FormatterConfig,
+    rev: RevisionOrWdir,
+    which: SigilFor,
+) -> &'static [u8] {
+    // The "+" sigil is only used for '--rev wdir()'.
+    if config.wdir_config.is_none() {
+        return b"";
+    };
+    // With --number --changeset, put it after the changeset.
+    if which == SigilFor::Number && config.include.changeset {
+        return b"";
+    }
+    if rev.is_wdir() {
+        b"+"
+    } else {
+        b" "
     }
 }

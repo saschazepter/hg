@@ -693,8 +693,9 @@ annotate missing file
   $ rm baz
 
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo/baz: $ENOENT$ (windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
+  abort: baz: $ENOENT$ (rhg !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
   [255]
 
 annotate removed file
@@ -702,8 +703,9 @@ annotate removed file
   $ hg rm baz
 
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo/baz: $ENOENT$ (windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
+  abort: baz: $ENOENT$ (rhg !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
   [255]
 
 annotate file neither in repo nor working copy
