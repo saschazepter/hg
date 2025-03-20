@@ -104,6 +104,58 @@ pub trait Matcher: core::fmt::Debug {
     fn is_exact(&self) -> bool;
 }
 
+impl<'a, T: Matcher + ?Sized> Matcher for &'a T {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        (*self).file_set()
+    }
+
+    fn exact_match(&self, filename: &HgPath) -> bool {
+        (*self).exact_match(filename)
+    }
+
+    fn matches(&self, filename: &HgPath) -> bool {
+        (*self).matches(filename)
+    }
+
+    fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
+        (*self).visit_children_set(directory)
+    }
+
+    fn matches_everything(&self) -> bool {
+        (*self).matches_everything()
+    }
+
+    fn is_exact(&self) -> bool {
+        (*self).is_exact()
+    }
+}
+
+impl<T: Matcher + ?Sized> Matcher for Box<T> {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        (**self).file_set()
+    }
+
+    fn exact_match(&self, filename: &HgPath) -> bool {
+        (**self).exact_match(filename)
+    }
+
+    fn matches(&self, filename: &HgPath) -> bool {
+        (**self).matches(filename)
+    }
+
+    fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
+        (**self).visit_children_set(directory)
+    }
+
+    fn matches_everything(&self) -> bool {
+        (**self).matches_everything()
+    }
+
+    fn is_exact(&self) -> bool {
+        (**self).is_exact()
+    }
+}
+
 /// Matches everything.
 ///```
 /// use hg::{ matchers::{Matcher, AlwaysMatcher}, utils::hg_path::HgPath };
@@ -567,11 +619,11 @@ impl<'a> Matcher for IncludeMatcher<'a> {
 
 /// The union of multiple matchers. Will match if any of the matchers match.
 #[derive(Debug)]
-pub struct UnionMatcher {
-    matchers: Vec<Box<dyn Matcher + Sync>>,
+pub struct UnionMatcher<M> {
+    matchers: Vec<M>,
 }
 
-impl Matcher for UnionMatcher {
+impl<M: Matcher> Matcher for UnionMatcher<M> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         None
     }
@@ -624,20 +676,20 @@ impl Matcher for UnionMatcher {
     }
 }
 
-impl UnionMatcher {
-    pub fn new(matchers: Vec<Box<dyn Matcher + Sync>>) -> Self {
+impl<M> UnionMatcher<M> {
+    pub fn new(matchers: Vec<M>) -> Self {
         Self { matchers }
     }
 }
 
 #[derive(Debug)]
-pub struct IntersectionMatcher {
-    m1: Box<dyn Matcher + Sync>,
-    m2: Box<dyn Matcher + Sync>,
+pub struct IntersectionMatcher<M1, M2> {
+    m1: M1,
+    m2: M2,
     files: Option<HashSet<HgPathBuf>>,
 }
 
-impl Matcher for IntersectionMatcher {
+impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         self.files.as_ref()
     }
@@ -693,22 +745,28 @@ impl Matcher for IntersectionMatcher {
     }
 }
 
-impl IntersectionMatcher {
-    pub fn new(
-        mut m1: Box<dyn Matcher + Sync>,
-        mut m2: Box<dyn Matcher + Sync>,
-    ) -> Self {
+fn filter_fileset<M1: Matcher, M2: Matcher>(
+    m1_exact: M1,
+    m2: M2,
+) -> Option<HashSet<HgPathBuf>> {
+    assert!(m1_exact.is_exact());
+    m1_exact.file_set().map(|m1_files| {
+        m1_files
+            .iter()
+            .filter(|&f| m2.matches(f))
+            .cloned()
+            .collect()
+    })
+}
+
+impl<M1: Matcher, M2: Matcher> IntersectionMatcher<M1, M2> {
+    pub fn new(m1: M1, m2: M2) -> Self {
         let files = if m1.is_exact() || m2.is_exact() {
             if !m1.is_exact() {
-                std::mem::swap(&mut m1, &mut m2);
+                filter_fileset(&m2, &m1)
+            } else {
+                filter_fileset(&m1, &m2)
             }
-            m1.file_set().map(|m1_files| {
-                m1_files
-                    .iter()
-                    .filter(|&f| m2.matches(f))
-                    .cloned()
-                    .collect()
-            })
         } else {
             // without exact input file sets, we can't do an exact
             // intersection, so we must over-approximate by
@@ -723,13 +781,13 @@ impl IntersectionMatcher {
 }
 
 #[derive(Debug)]
-pub struct DifferenceMatcher {
-    base: Box<dyn Matcher + Sync>,
-    excluded: Box<dyn Matcher + Sync>,
+pub struct DifferenceMatcher<M1, M2> {
+    base: M1,
+    excluded: M2,
     files: Option<HashSet<HgPathBuf>>,
 }
 
-impl Matcher for DifferenceMatcher {
+impl<M1: Matcher, M2: Matcher> Matcher for DifferenceMatcher<M1, M2> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         self.files.as_ref()
     }
@@ -786,11 +844,8 @@ impl Matcher for DifferenceMatcher {
     }
 }
 
-impl DifferenceMatcher {
-    pub fn new(
-        base: Box<dyn Matcher + Sync>,
-        excluded: Box<dyn Matcher + Sync>,
-    ) -> Self {
+impl<M1: Matcher, M2: Matcher> DifferenceMatcher<M1, M2> {
+    pub fn new(base: M1, excluded: M2) -> Self {
         let base_is_exact = base.is_exact();
         let base_files = base.file_set().map(ToOwned::to_owned);
         let mut new = Self {
