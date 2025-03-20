@@ -557,6 +557,8 @@ impl Repo {
     }
 
     fn new_changelog(&self) -> Result<Changelog, HgError> {
+        // load dirstate before changelog to avoid race see issue6303
+        self.dirstate_parents()?;
         Changelog::open(
             &self.store_vfs(),
             default_revlog_options(
