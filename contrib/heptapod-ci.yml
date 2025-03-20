@@ -590,6 +590,9 @@ build-c-wheel-macos:
     tags:
       - macos
     script:
+      - sh -c 'which "$PYTHON"'
+      - sh -c '"$PYTHON" -V'
+      - sh -c 'which cibuildwheel'
       - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels
       - cibuildwheel --output-dir tmp-wheels/
