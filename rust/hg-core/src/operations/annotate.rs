@@ -18,6 +18,7 @@ use crate::{
 use itertools::Itertools as _;
 use rayon::prelude::*;
 use self_cell::self_cell;
+use std::cell::Ref;
 
 /// Options for [`annotate`].
 #[derive(Copy, Clone)]
@@ -98,6 +99,25 @@ struct Annotation {
     line_number: u32,
 }
 
+/// [`Repo`] and related objects that often need to be passed together.
+struct RepoState<'a> {
+    repo: &'a Repo,
+    changelog: Ref<'a, Changelog>,
+    manifestlog: Ref<'a, Manifestlog>,
+}
+
+impl<'a> RepoState<'a> {
+    fn new(repo: &'a Repo, include_dirstate: bool) -> Result<Self, HgError> {
+        let changelog = repo.changelog()?;
+        let manifestlog = repo.manifestlog()?;
+        Ok(Self {
+            repo,
+            changelog,
+            manifestlog,
+        })
+    }
+}
+
 /// Helper for keeping track of multiple filelogs.
 #[derive(Default)]
 struct FilelogSet {
@@ -147,7 +167,7 @@ impl FilelogSet {
         Ok(index)
     }
 
-    /// Opens a new filelog by path and returns the id for the given file node.
+    /// Opens a filelog by path and returns the id for the given file node.
     fn open_at_node(
         &mut self,
         repo: &Repo,
@@ -160,9 +180,44 @@ impl FilelogSet {
         Ok(FileId { index, revision })
     }
 
+    /// Opens a filelog by path and returns the id for the given changelog
+    /// revision. Returns `None` if no filelog exists for that path.
+    fn open_at_changelog_rev(
+        &mut self,
+        state: &RepoState,
+        path: &HgPath,
+        changelog_revision: Revision,
+    ) -> Result<Option<FileId>, HgError> {
+        let changelog_data =
+            state.changelog.entry(changelog_revision)?.data()?;
+        let manifest = state
+            .manifestlog
+            .data_for_node(changelog_data.manifest_node()?.into())?;
+        let Some(entry) = manifest.find_by_path(path)? else {
+            return Ok(None);
+        };
+        let node = entry.node_id()?;
+        Ok(Some(self.open_at_node(state.repo, path, node)?))
+    }
+
+    /// Opens and reads a file by path at a changelog revision, returning its
+    /// id and contents. Returns `None` if not found.
+    fn open_and_read(
+        &mut self,
+        state: &RepoState,
+        path: &HgPath,
+        revision: Revision,
+    ) -> Result<Option<(FileId, Vec<u8>)>, HgError> {
+        match self.open_at_changelog_rev(state, path, revision)? {
+            None => Ok(None),
+            Some(id) => Ok(Some((id, self.read(id)?))),
+        }
+    }
+
     /// Reads the contents of a file by id.
-    fn read(&self, id: FileId) -> Result<FilelogRevisionData, HgError> {
-        self.get(id.index).filelog.entry(id.revision)?.data()
+    fn read(&self, id: FileId) -> Result<Vec<u8>, HgError> {
+        let filelog = &self.get(id.index).filelog;
+        filelog.entry(id.revision)?.data()?.into_file_data()
     }
 
     /// Returns the parents of a file. If `follow_copies` is true, it treats
@@ -170,7 +225,7 @@ impl FilelogSet {
     /// (since it has to read the file to extract the copy metadata).
     fn parents(
         &mut self,
-        repo: &Repo,
+        state: &RepoState,
         id: FileId,
         follow_copies: bool,
     ) -> Result<(Vec<FileId>, Option<Vec<u8>>), HgError> {
@@ -192,7 +247,7 @@ impl FilelogSet {
             // If copy or copyrev occurs without the other, ignore it.
             // This matches filerevisioncopied in storageutil.py.
             if let (Some(copy), Some(copyrev)) = (meta.copy, meta.copyrev) {
-                parents.push(self.open_at_node(repo, copy, copyrev)?);
+                parents.push(self.open_at_node(state.repo, copy, copyrev)?);
             }
             file_data = Some(data.into_file_data()?);
         }
@@ -272,19 +327,13 @@ pub fn annotate(
     options: AnnotateOptions,
 ) -> Result<AnnotateOutput, HgError> {
     // Step 1: Load the base file and check if it's binary.
-    let changelog = repo.changelog()?;
-    let manifestlog = repo.manifestlog()?;
+    let state = RepoState::new(repo, changelog_revision.is_wdir())?;
     let mut fls = FilelogSet::default();
-    let base_id = {
-        let changelog_data = changelog.entry(changelog_revision)?.data()?;
-        let manifest = manifestlog
-            .data_for_node(changelog_data.manifest_node()?.into())?;
-        let Some(entry) = manifest.find_by_path(path)? else {
-            return Ok(AnnotateOutput::NotFound);
-        };
-        fls.open_at_node(repo, path, entry.node_id()?)?
+    let Some((base_id, base_file_data)) =
+        fls.open_and_read(&state, path, changelog_revision)?
+    else {
+        return Ok(AnnotateOutput::NotFound);
     };
-    let base_file_data = fls.read(base_id)?.into_file_data()?;
     if !options.treat_binary_as_text
         && utils::files::is_binary(&base_file_data)
     {
@@ -300,7 +349,7 @@ pub fn annotate(
             continue;
         }
         let (parents, file_data) =
-            fls.parents(repo, id, options.follow_copies)?;
+            fls.parents(&state, id, options.follow_copies)?;
         info.parents = Some(parents.clone());
         if let Some(data) = file_data {
             info.file = AnnotatedFileState::Read(OwnedLines::split(
@@ -331,7 +380,7 @@ pub fn annotate(
         |(&id, info)| -> Result<(), HgError> {
             if let AnnotatedFileState::None = info.file {
                 info.file = AnnotatedFileState::Read(OwnedLines::split(
-                    fls.read(id)?.into_file_data()?,
+                    fls.read(id)?,
                     options.whitespace,
                 )?);
             }
@@ -405,7 +454,7 @@ pub fn annotate(
     }
     // Use the same object for all ancestor checks, since it internally
     // builds a hash set of seen revisions.
-    let mut ancestors = ancestor_iter(&changelog, changelog_revision, None);
+    let mut ancestors = ancestor_iter(&state, changelog_revision, None);
     // Iterate in reverse topological order so that we visits nodes after their
     // children, that way we can propagate `descendant` correctly.
     for &id in topological_order.iter().rev() {
@@ -416,8 +465,7 @@ pub fn annotate(
             ChangelogRevisionState::NotNeeded => descendant,
             ChangelogRevisionState::Needed => {
                 let revision = adjust_link_revision(
-                    &changelog,
-                    &manifestlog,
+                    &state,
                     &fls,
                     &mut ancestors,
                     descendant,
@@ -481,13 +529,13 @@ fn annotate_pair(
 
 /// Creates an iterator over the ancestors of `base_revision` (inclusive),
 /// stopping at `stop_revision` if provided. Panics if `base_revision` is null.
-fn ancestor_iter(
-    changelog: &Changelog,
+fn ancestor_iter<'a>(
+    state: &'a RepoState<'a>,
     base_revision: Revision,
     stop_revision: Option<Revision>,
-) -> AncestorsIterator<&Changelog> {
+) -> AncestorsIterator<&'a Changelog> {
     AncestorsIterator::new(
-        changelog,
+        &*state.changelog,
         [base_revision],
         stop_revision.unwrap_or(NULL_REVISION),
         true,
@@ -498,8 +546,7 @@ fn ancestor_iter(
 /// If the linkrev of `id` is in `ancestors`, returns it. Otherwise, finds and
 /// returns the first ancestor of `descendant` that introduced `id`.
 fn adjust_link_revision(
-    changelog: &Changelog,
-    manifestlog: &Manifestlog,
+    state: &RepoState<'_>,
     fls: &FilelogSet,
     ancestors: &mut AncestorsIterator<&Changelog>,
     descendant: Revision,
@@ -508,19 +555,21 @@ fn adjust_link_revision(
     let FilelogSetItem { filelog, path } = fls.get(id.index);
     let linkrev = filelog
         .revlog
-        .link_revision(id.revision, &changelog.revlog)?;
+        .link_revision(id.revision, &state.changelog.revlog)?;
     if ancestors.contains(linkrev).map_err(from_graph_error)? {
         return Ok(linkrev);
     }
     let file_node = *filelog.revlog.node_from_rev(id.revision);
-    for ancestor in ancestor_iter(changelog, descendant, Some(linkrev)) {
+    for ancestor in ancestor_iter(state, descendant, Some(linkrev)) {
         let ancestor = ancestor.map_err(from_graph_error)?;
-        let data = changelog.entry(ancestor)?.data()?;
+        let data = state.changelog.entry(ancestor)?.data()?;
         if data.files().contains(&path.as_ref()) {
-            let manifest_rev = manifestlog
+            let manifest_rev = state
+                .manifestlog
                 .revlog
                 .rev_from_node(data.manifest_node()?.into())?;
-            if let Some(entry) = manifestlog
+            if let Some(entry) = state
+                .manifestlog
                 .inexact_data_delta_parents(manifest_rev)?
                 .find_by_path(path)?
             {
