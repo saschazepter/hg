@@ -356,6 +356,18 @@ pub fn with_sigint_wrapper<R>(
     py: Python,
     func: impl Fn() -> Result<R, HgError>,
 ) -> PyResult<Result<R, HgError>> {
+    let threading_py_mod = py.import(intern!(py, "threading"))?;
+    let current_py_thread =
+        threading_py_mod.call_method0(intern!(py, "current_thread"))?;
+    let main_py_thread =
+        threading_py_mod.call_method0(intern!(py, "main_thread"))?;
+    if !current_py_thread.is(&main_py_thread) {
+        log::debug!(
+            "not running in the main Python thread, signal handling skipped"
+        );
+        return Ok(func());
+    }
+
     let signal_py_mod = py.import(intern!(py, "signal"))?;
     let sigint_py_const = signal_py_mod.getattr(intern!(py, "SIGINT"))?;
     let old_handler = signal_py_mod
