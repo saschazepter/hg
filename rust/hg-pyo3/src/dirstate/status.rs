@@ -97,7 +97,7 @@ fn collect_kindpats(
 
 fn extract_matcher(
     matcher: &Bound<'_, PyAny>,
-) -> PyResult<Box<dyn Matcher + Sync>> {
+) -> PyResult<Box<dyn Matcher + Sync + Send>> {
     let py = matcher.py();
     let tampered = matcher
         .call_method0(intern!(py, "was_tampered_with_nonrec"))?
@@ -209,7 +209,7 @@ pub(super) fn status(
     let matcher = extract_matcher(matcher)?;
     DirstateMap::with_inner_write(dmap, |_dm_ref, mut inner| {
         inner.with_status(
-            &*matcher,
+            &matcher,
             root_dir.to_path_buf(),
             ignore_files,
             StatusOptions {

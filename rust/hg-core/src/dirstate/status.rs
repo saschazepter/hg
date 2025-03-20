@@ -73,7 +73,7 @@ pub enum BadMatch {
 /// `Box<dyn Trait>` is syntactic sugar for `Box<dyn Trait + 'static>`, so add
 /// an explicit lifetime here to not fight `'static` bounds "out of nowhere".
 pub type IgnoreFnType<'a> =
-    Box<dyn for<'r> Fn(&'r HgPath) -> bool + Sync + 'a>;
+    Box<dyn for<'r> Fn(&'r HgPath) -> bool + Sync + Send + 'a>;
 
 /// We have a good mix of owned (from directory traversal) and borrowed (from
 /// the dirstate/explicit) paths, this comes up a lot.
@@ -180,7 +180,7 @@ impl fmt::Display for StatusError {
 #[tracing::instrument(level = "debug", skip_all)]
 pub fn status<'dirstate>(
     dmap: &'dirstate mut DirstateMap,
-    matcher: &(dyn Matcher + Sync),
+    matcher: &(impl Matcher + Sync),
     root_dir: PathBuf,
     ignore_files: Vec<PathBuf>,
     options: StatusOptions,

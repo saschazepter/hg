@@ -17,11 +17,11 @@ use crate::utils::hg_path::HgPath;
 use crate::{Node, UncheckedRevision};
 
 /// List files under Mercurial control at a given revset.
-pub fn list_revset_tracked_files(
+pub fn list_revset_tracked_files<M: Matcher>(
     repo: &Repo,
     revset: &str,
-    narrow_matcher: Box<dyn Matcher + Sync>,
-) -> Result<FilesForRev, RevlogError> {
+    narrow_matcher: M,
+) -> Result<FilesForRev<M>, RevlogError> {
     match crate::revset::resolve_single(revset, repo)?.exclude_wdir() {
         Some(rev) => list_rev_tracked_files(repo, rev.into(), narrow_matcher),
         None => {
@@ -31,11 +31,11 @@ pub fn list_revset_tracked_files(
 }
 
 /// List files under Mercurial control at a given revision.
-pub fn list_rev_tracked_files(
+pub fn list_rev_tracked_files<M: Matcher>(
     repo: &Repo,
     rev: UncheckedRevision,
-    narrow_matcher: Box<dyn Matcher + Sync>,
-) -> Result<FilesForRev, RevlogError> {
+    narrow_matcher: M,
+) -> Result<FilesForRev<M>, RevlogError> {
     // TODO move this to the repo itself
     // This implies storing the narrow matcher in the repo, bubbling up the
     // errors and warnings, so it's a bit of churn. In the meantime, the repo
@@ -64,16 +64,16 @@ pub fn list_rev_tracked_files(
     })
 }
 
-pub struct FilesForRev {
+pub struct FilesForRev<M> {
     manifest: Manifest,
-    narrow_matcher: Box<dyn Matcher + Sync>,
+    narrow_matcher: M,
 }
 
 /// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
 /// already checked.
 pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, Option<NonZeroU8>);
 
-impl FilesForRev {
+impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ExpandedManifestEntry, HgError>> {

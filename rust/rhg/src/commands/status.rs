@@ -566,7 +566,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
-            matcher.as_ref(),
+            &matcher,
             repo.working_directory_path().to_owned(),
             ignore_files(repo, config),
             options,

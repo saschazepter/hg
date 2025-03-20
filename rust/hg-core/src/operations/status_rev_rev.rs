@@ -37,10 +37,10 @@ enum CopyStrategy<'a> {
     // TODO: For --rev --rev --copies use a precomputed copy map
 }
 
-pub struct StatusRevRev<'a> {
+pub struct StatusRevRev<'a, M> {
     manifest1: Manifest,
     manifest2: Manifest,
-    narrow_matcher: Box<dyn Matcher>,
+    narrow_matcher: M,
     copies: Option<(ListCopies, CopyStrategy<'a>)>,
 }
 
@@ -53,12 +53,12 @@ fn manifest_for_rev(repo: &Repo, rev: Revision) -> Result<Manifest, HgError> {
     })
 }
 
-pub fn status_rev_rev_no_copies(
+pub fn status_rev_rev_no_copies<M: Matcher>(
     repo: &Repo,
     rev1: Revision,
     rev2: Revision,
-    narrow_matcher: Box<dyn Matcher>,
-) -> Result<StatusRevRev, HgError> {
+    narrow_matcher: M,
+) -> Result<StatusRevRev<M>, HgError> {
     Ok(StatusRevRev {
         manifest1: manifest_for_rev(repo, rev1)?,
         manifest2: manifest_for_rev(repo, rev2)?,
@@ -68,12 +68,12 @@ pub fn status_rev_rev_no_copies(
 }
 
 /// Computes the status of `rev` against its first parent.
-pub fn status_change(
+pub fn status_change<M: Matcher>(
     repo: &Repo,
     rev: Revision,
-    narrow_matcher: Box<dyn Matcher>,
+    narrow_matcher: M,
     list_copies: Option<ListCopies>,
-) -> Result<StatusRevRev, HgError> {
+) -> Result<StatusRevRev<M>, HgError> {
     let parent = repo.changelog()?.revlog.get_entry(rev)?.p1();
     let parent = parent.unwrap_or(NULL_REVISION);
     Ok(StatusRevRev {
@@ -84,7 +84,7 @@ pub fn status_change(
     })
 }
 
-impl StatusRevRev<'_> {
+impl<M: Matcher> StatusRevRev<'_, M> {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<(StatusPath<'_>, DiffStatus), HgError>>
