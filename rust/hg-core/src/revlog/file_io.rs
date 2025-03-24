@@ -1,5 +1,6 @@
 //! Helpers for revlog file reading and writing.
 
+use std::cell::Ref;
 use std::cell::RefCell;
 use std::io::Read;
 use std::io::Seek;
@@ -67,17 +68,24 @@ impl RandomAccessFile {
 
     /// `pub` only for hg-pyo3
     #[doc(hidden)]
-    pub fn get_read_handle(&self) -> Result<FileHandle, HgError> {
-        if let Some(handle) = &*self.writing_handle.get_or_default().borrow() {
+    pub fn get_read_handle(&self) -> Result<Ref<FileHandle>, HgError> {
+        let write_handle = self.writing_handle.get_or_default().borrow();
+        if let Ok(handle) = Ref::filter_map(write_handle, Option::as_ref) {
             // Use a file handle being actively used for writes, if available.
             // There is some danger to doing this because reads will seek the
             // file.
             // However, [`Revlog::write_entry`] performs a `SeekFrom::End(0)`
             // before all writes, so we should be safe.
-            return Ok(handle.clone());
+            return Ok(handle);
         }
-        if let Some(handle) = &*self.reading_handle.get_or_default().borrow() {
-            return Ok(handle.clone());
+        let read_handle = self.reading_handle.get_or_default().borrow();
+        if let Ok(handle) = Ref::filter_map(read_handle, Option::as_ref) {
+            // Use a file handle being actively used for writes, if available.
+            // There is some danger to doing this because reads will seek the
+            // file.
+            // However, [`Revlog::write_entry`] performs a `SeekFrom::End(0)`
+            // before all writes, so we should be safe.
+            return Ok(handle);
         }
         // early returns done to work around borrowck being overzealous
         // See https://github.com/rust-lang/rust/issues/103108
@@ -87,9 +95,9 @@ impl RandomAccessFile {
             false,
             false,
         )?;
-        *self.reading_handle.get_or_default().borrow_mut() =
-            Some(new_handle.clone());
-        Ok(new_handle)
+        let read_handle = self.reading_handle.get_or_default();
+        *read_handle.borrow_mut() = Some(new_handle);
+        Ok(Ref::map(read_handle.borrow(), |h| h.as_ref().expect("just set")))
     }
 
     /// `pub` only for hg-pyo3
@@ -288,8 +296,8 @@ impl FileHandle {
         }
     }
 
-    /// Read exactly `length` bytes from the current position or from `offset`,
-    /// if it is `Some`.
+    /// Read exactly `length` bytes from `offset`.
+    /// Does not affect the file position.
     /// Errors are the same as [`std::io::Read::read_exact`].
     pub fn read_exact_at(
         &self,
