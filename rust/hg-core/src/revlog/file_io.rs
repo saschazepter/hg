@@ -5,6 +5,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
+use std::os::unix::fs::FileExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -60,11 +61,8 @@ impl RandomAccessFile {
         offset: usize,
         length: usize,
     ) -> Result<Vec<u8>, HgError> {
-        let mut handle = self.get_read_handle()?;
-        handle
-            .seek(SeekFrom::Start(offset as u64))
-            .when_reading_file(&self.filename)?;
-        handle.read_exact(length).when_reading_file(&self.filename)
+        let handle = self.get_read_handle()?;
+        handle.read_exact_at(length, offset).when_reading_file(&self.filename)
     }
 
     /// `pub` only for hg-pyo3
@@ -290,30 +288,36 @@ impl FileHandle {
         }
     }
 
-    /// Read exactly `length` bytes from the current position.
+    /// Read exactly `length` bytes from the current position or from `offset`,
+    /// if it is `Some`.
     /// Errors are the same as [`std::io::Read::read_exact`].
-    pub fn read_exact(
-        &mut self,
+    pub fn read_exact_at(
+        &self,
         length: usize,
+        offset: usize,
     ) -> Result<Vec<u8>, std::io::Error> {
-        if let Some(delay_buf) = self.delayed_buffer.as_mut() {
+        let offset: u64 = offset.try_into().expect("offset too large");
+        if let Some(delay_buf) = self.delayed_buffer.as_ref() {
             let mut delay_buf = delay_buf.lock().unwrap();
             let mut buf = vec![0; length];
-            let offset: isize =
-                delay_buf.offset.try_into().expect("buffer too large");
             let file_size: isize =
-                delay_buf.file_size.try_into().expect("file too large");
-            let span: isize = offset - file_size;
+                delay_buf.file_size.try_into().expect("file size too large");
+            let signed_offset: isize =
+                offset.try_into().expect("offset too large");
+            let span: isize = signed_offset - file_size;
             let length = length.try_into().expect("too large of a length");
             let absolute_span: u64 =
                 span.unsigned_abs().try_into().expect("length too large");
             if span < 0 {
                 if length <= absolute_span {
                     // We're only in the file
-                    self.file.read_exact(&mut buf)?;
+                    self.file.read_exact_at(&mut buf, offset)?;
                 } else {
                     // We're spanning file and buffer
-                    self.file.read_exact(&mut buf[..absolute_span as usize])?;
+                    self.file.read_exact_at(
+                        &mut buf[..absolute_span as usize],
+                        offset,
+                    )?;
                     delay_buf
                         .buffer
                         .take(length - absolute_span)
@@ -329,7 +333,7 @@ impl FileHandle {
             Ok(buf.to_owned())
         } else {
             let mut buf = vec![0; length];
-            self.file.read_exact(&mut buf)?;
+            self.file.read_exact_at(&mut buf, offset)?;
             Ok(buf)
         }
     }
@@ -401,9 +405,12 @@ mod tests {
         std::fs::write(file_path, b"1234567890").unwrap();
 
         // Should be able to open an existing file
-        let mut handle = raf.get_read_handle().unwrap();
+        let handle = raf.get_read_handle().unwrap();
         assert!(raf.is_open());
-        assert_eq!(handle.read_exact(10).unwrap(), b"1234567890".to_vec());
+        assert_eq!(
+            handle.read_exact_at(10, 0).unwrap(),
+            b"1234567890".to_vec()
+        );
     }
 
     #[test]
@@ -434,17 +441,19 @@ mod tests {
         read_handle.write_all(b"some data").unwrap_err();
 
         // reading exactly n bytes should work
-        assert_eq!(read_handle.read_exact(3).unwrap(), b"123".to_vec());
-        // and the position should be remembered
-        assert_eq!(read_handle.read_exact(2).unwrap(), b"45".to_vec());
+        assert_eq!(read_handle.read_exact_at(3, 0).unwrap(), b"123".to_vec());
+        // and the position shouldn't be remembered
+        assert_eq!(read_handle.read_exact_at(2, 0).unwrap(), b"12".to_vec());
+        // offset works
+        assert_eq!(read_handle.read_exact_at(2, 3).unwrap(), b"45".to_vec());
 
         // Seeking should work
         let position = read_handle.position().unwrap();
-        read_handle.seek(SeekFrom::Current(-2)).unwrap();
-        assert_eq!(position - 2, read_handle.position().unwrap());
+        read_handle.seek(SeekFrom::Current(2)).unwrap();
+        assert_eq!(position + 2, read_handle.position().unwrap());
 
         // Seeking too much data should fail
-        read_handle.read_exact(1000).unwrap_err();
+        read_handle.read_exact_at(1000, 0).unwrap_err();
 
         // Open a write handle
         let mut handle = FileHandle::new(
@@ -460,7 +469,7 @@ mod tests {
         // Opening or writing does not seek, so we should be at the start
         assert_eq!(handle.position().unwrap(), 8);
         // We can still read
-        assert_eq!(handle.read_exact(2).unwrap(), b"90".to_vec());
+        assert_eq!(handle.read_exact_at(2, 8).unwrap(), b"90".to_vec());
 
         let mut read_handle = FileHandle::new(
             Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
@@ -472,7 +481,7 @@ mod tests {
         read_handle.seek(SeekFrom::Start(0)).unwrap();
         // On-disk file contents should be changed
         assert_eq!(
-            &read_handle.read_exact(10).unwrap(),
+            &read_handle.read_exact_at(10, 0).unwrap(),
             &b"new data90".to_vec(),
         );
         // Flushing doesn't do anything unexpected
@@ -499,33 +508,33 @@ mod tests {
         );
         read_handle.seek(SeekFrom::Start(0)).unwrap();
         // On-disk file contents should be unchanged
-        assert_eq!(read_handle.read_exact(10).unwrap(), b"new data90".to_vec(),);
+        assert_eq!(
+            read_handle.read_exact_at(10, 0).unwrap(),
+            b"new data90".to_vec(),
+        );
 
         assert_eq!(
-            read_handle.read_exact(1).unwrap_err().kind(),
+            read_handle.read_exact_at(1, 10).unwrap_err().kind(),
             ErrorKind::UnexpectedEof
         );
 
         handle.flush().unwrap();
         // On-disk file contents should still be unchanged after a flush
         assert_eq!(
-            read_handle.read_exact(1).unwrap_err().kind(),
+            read_handle.read_exact_at(1, 10).unwrap_err().kind(),
             ErrorKind::UnexpectedEof
         );
 
         // Read from the buffer only
-        handle.seek(SeekFrom::End(-1)).unwrap();
-        assert_eq!(handle.read_exact(1).unwrap(), b"r".to_vec());
+        assert_eq!(handle.read_exact_at(6, 23).unwrap(), b"buffer".to_vec());
 
         // Read from an overlapping section of file and buffer
-        handle.seek(SeekFrom::Start(6)).unwrap();
         assert_eq!(
-            handle.read_exact(20).unwrap(),
+            handle.read_exact_at(20, 6).unwrap(),
             b"ta90should go to buf".to_vec()
         );
 
         // Read from file only
-        handle.seek(SeekFrom::Start(0)).unwrap();
-        assert_eq!(handle.read_exact(8).unwrap(), b"new data".to_vec());
+        assert_eq!(handle.read_exact_at(8, 0).unwrap(), b"new data".to_vec());
     }
 }

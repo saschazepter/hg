@@ -6,6 +6,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::FileExt;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -286,6 +287,24 @@ impl VfsFile {
         match self {
             VfsFile::Atomic(atomic_file) => atomic_file.fp.metadata(),
             VfsFile::Normal { file, .. } => file.metadata(),
+        }
+    }
+}
+
+impl FileExt for VfsFile {
+    fn read_at(&self, buf: &mut [u8], offset: u64) -> std::io::Result<usize> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.read_at(buf, offset),
+            VfsFile::Normal { file, .. } => file.read_at(buf, offset),
+        }
+    }
+
+    fn write_at(&self, buf: &[u8], offset: u64) -> std::io::Result<usize> {
+        match self {
+            VfsFile::Atomic(atomic_file) => {
+                atomic_file.fp.write_at(buf, offset)
+            }
+            VfsFile::Normal { file, .. } => file.write_at(buf, offset),
         }
     }
 }
