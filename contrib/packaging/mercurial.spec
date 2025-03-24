@@ -105,10 +105,10 @@ make install DESTDIR=$RPM_BUILD_ROOT
 rm -f %{buildroot}%{hgpyprefix}/lib/{,python2.*/config}/libpython2.*.a
 cd -
 
-PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
+PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 ( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/hg . )
-( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/python2.? %{pythonhg} )
+pathfix.py -n -i %{hgpyprefix}/bin/python3 $(readlink -f $RPM_BUILD_ROOT%{_bindir}/hg)
 
 %else
 PYTHON_FULLPATH=$(which python3)
@@ -144,7 +144,6 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_sysconfdir}/mercurial
 %dir %{_sysconfdir}/mercurial/hgrc.d
 %if "%{?withpython}"
-%{_bindir}/%{pythonhg}
 %{hgpyprefix}
 %else
 %{_libdir}/python%{pythonver}/site-packages/mercurial-*.dist-info/
