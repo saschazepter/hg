@@ -841,7 +841,7 @@ impl InnerRevlog {
         } else {
             self.data_end(Revision((self.len() - 1) as BaseRevision))
         };
-        let data_handle = if !self.is_inline() {
+        let mut data_handle = if !self.is_inline() {
             let data_handle = match self.vfs.open_write(&self.data_file) {
                 Ok(mut f) => {
                     if let Some(end) = data_end {
@@ -884,8 +884,12 @@ impl InnerRevlog {
             transaction.add(&self.index_file, index_size);
         }
         self.writing_handles = Some(WriteHandles {
-            index_handle: index_handle.clone(),
-            data_handle: data_handle.clone(),
+            index_handle: index_handle.try_clone()?,
+            data_handle: if let Some(d) = data_handle.as_mut() {
+                Some(d.try_clone()?)
+            } else {
+                None
+            },
         });
         *self.segment_file.reading_handle.get_or_default().borrow_mut() =
             if self.is_inline() {
@@ -1021,14 +1025,18 @@ impl InnerRevlog {
         );
         if existing_handles {
             // Switched from inline to conventional, reopen the index
-            let new_data_handle = Some(FileHandle::from_file(
+            let mut new_data_handle = Some(FileHandle::from_file(
                 new_data_file_handle,
                 dyn_clone::clone_box(&*self.vfs),
                 &self.data_file,
             ));
             self.writing_handles = Some(WriteHandles {
                 index_handle: self.index_write_handle()?,
-                data_handle: new_data_handle.clone(),
+                data_handle: if let Some(d) = new_data_handle.as_mut() {
+                    Some(d.try_clone()?)
+                } else {
+                    None
+                },
             });
             *self.segment_file.writing_handle.get_or_default().borrow_mut() =
                 new_data_handle;

@@ -254,6 +254,7 @@ impl VfsFile {
             path,
         })
     }
+
     pub fn try_clone(&self) -> Result<VfsFile, HgError> {
         Ok(match self {
             VfsFile::Atomic(AtomicFile {

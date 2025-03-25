@@ -162,19 +162,6 @@ impl std::fmt::Debug for FileHandle {
     }
 }
 
-impl Clone for FileHandle {
-    fn clone(&self) -> Self {
-        Self {
-            vfs: dyn_clone::clone_box(&*self.vfs),
-            filename: self.filename.clone(),
-            delayed_buffer: self.delayed_buffer.clone(),
-            // This can only fail if the OS doesn't have the file handle
-            // anymore, so we're not going to do anything useful anyway.
-            file: self.file.try_clone().expect("couldn't clone file handle"),
-        }
-    }
-}
-
 impl FileHandle {
     /// Get a (read or write) file handle to `filename`. Only creates the file
     /// if `create` is `true`.
@@ -369,6 +356,15 @@ impl FileHandle {
             self.file.write_all(data).when_writing_file(&self.filename)?;
             Ok(())
         }
+    }
+
+    pub fn try_clone(&self) -> Result<Self, HgError> {
+        Ok(Self {
+            vfs: dyn_clone::clone_box(&*self.vfs),
+            filename: self.filename.clone(),
+            delayed_buffer: self.delayed_buffer.clone(),
+            file: self.file.try_clone()?,
+        })
     }
 }
 
