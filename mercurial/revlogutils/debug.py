@@ -702,12 +702,12 @@ def debug_revlog_stats(
             revlog_type = b'file'
             revlog_target = target[1]
 
-        fm.write(b'revlog.rev-count', b'%9d', nb_rev)
-        fm.write(b'revlog.data-size', b'%12d', data_size)
+        fm.write(b'revlog_rev_count', b'%9d', nb_rev)
+        fm.write(b'revlog_data_size', b'%12d', data_size)
 
-        fm.write(b'revlog.inline', b' %-3s', b'yes' if inline else b'no')
-        fm.write(b'revlog.type', b' %-9s', revlog_type)
-        fm.write(b'revlog.target', b' %s', revlog_target)
+        fm.write(b'revlog_inline', b' %-3s', b'yes' if inline else b'no')
+        fm.write(b'revlog_type', b' %-9s', revlog_type)
+        fm.write(b'revlog_target', b' %s', revlog_target)
 
         fm.plain(b'\n')
 
