@@ -89,7 +89,7 @@ doc:
 .PHONY: cleanbutpackages
 cleanbutpackages:
 	rm -f hg.exe
-	rm -rf mercurial.egg-info dist
+	rm -rf mercurial.egg-info
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
 	rm -rf .venv_*
