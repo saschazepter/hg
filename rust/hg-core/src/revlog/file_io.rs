@@ -152,6 +152,36 @@ pub struct FileHandle {
     delayed_buffer: Option<Arc<Mutex<DelayedBuffer>>>,
 }
 
+impl Seek for FileHandle {
+    /// Move the position of the handle to `pos`,
+    /// spanning the [`DelayedBuffer`] if defined. Will return an error if
+    /// an invalid seek position is asked, or for any standard io error.
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
+        if let Some(delay_buf) = &self.delayed_buffer {
+            let mut delay_buf = delay_buf.lock().unwrap();
+            // Virtual file offset spans real file and data
+            match pos {
+                SeekFrom::Start(offset) => delay_buf.offset = offset,
+                SeekFrom::End(offset) => {
+                    delay_buf.offset =
+                        delay_buf.len().saturating_add_signed(offset)
+                }
+                SeekFrom::Current(offset) => {
+                    delay_buf.offset =
+                        delay_buf.offset.saturating_add_signed(offset);
+                }
+            }
+            if delay_buf.offset < delay_buf.file_size {
+                self.file.seek(pos)
+            } else {
+                Ok(delay_buf.offset)
+            }
+        } else {
+            self.file.seek(pos)
+        }
+    }
+}
+
 impl std::fmt::Debug for FileHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FileHandle")
@@ -253,34 +283,6 @@ impl FileHandle {
             delayed_buffer: Some(delayed_buffer),
             file,
         })
-    }
-
-    /// Move the position of the handle to `pos`,
-    /// spanning the [`DelayedBuffer`] if defined. Will return an error if
-    /// an invalid seek position is asked, or for any standard io error.
-    pub fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
-        if let Some(delay_buf) = &self.delayed_buffer {
-            let mut delay_buf = delay_buf.lock().unwrap();
-            // Virtual file offset spans real file and data
-            match pos {
-                SeekFrom::Start(offset) => delay_buf.offset = offset,
-                SeekFrom::End(offset) => {
-                    delay_buf.offset =
-                        delay_buf.len().saturating_add_signed(offset)
-                }
-                SeekFrom::Current(offset) => {
-                    delay_buf.offset =
-                        delay_buf.offset.saturating_add_signed(offset);
-                }
-            }
-            if delay_buf.offset < delay_buf.file_size {
-                self.file.seek(pos)
-            } else {
-                Ok(delay_buf.offset)
-            }
-        } else {
-            self.file.seek(pos)
-        }
     }
 
     /// Read exactly `length` bytes from `offset`.
