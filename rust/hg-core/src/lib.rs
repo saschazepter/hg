@@ -45,7 +45,7 @@ pub mod update;
 pub mod utils;
 pub mod vfs;
 use std::{collections::HashMap, sync::atomic::AtomicBool};
-use twox_hash::RandomXxHashBuilder64;
+use twox_hash::xxhash64::RandomState;
 
 /// Used to communicate with threads spawned from code within this crate that
 /// they should stop their work (SIGINT was received).
@@ -56,9 +56,8 @@ pub type LineNumber = usize;
 /// Rust's default hasher is too slow because it tries to prevent collision
 /// attacks. We are not concerned about those: if an ill-minded person has
 /// write access to your repository, you have other issues.
-pub type FastHashMap<K, V> = HashMap<K, V, RandomXxHashBuilder64>;
+pub type FastHashMap<K, V> = HashMap<K, V, RandomState>;
 
 // TODO: should this be the default `FastHashMap` for all of hg-core, not just
 // dirstate? How does XxHash compare with AHash, hashbrown’s default?
-pub type FastHashbrownMap<K, V> =
-    hashbrown::HashMap<K, V, RandomXxHashBuilder64>;
+pub type FastHashbrownMap<K, V> = hashbrown::HashMap<K, V, RandomState>;
