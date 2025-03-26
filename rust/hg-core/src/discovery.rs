@@ -13,7 +13,7 @@
 use super::{Graph, GraphError, Revision, NULL_REVISION};
 use crate::{ancestors::MissingAncestors, dagops, FastHashMap};
 use rand::seq::SliceRandom;
-use rand::{thread_rng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng};
 use std::cmp::{max, min};
 use std::collections::{HashSet, VecDeque};
 
@@ -161,7 +161,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
     ) -> Self {
         let mut seed = [0; 16];
         if randomize {
-            thread_rng().fill_bytes(&mut seed);
+            rand::rng().fill_bytes(&mut seed);
         }
         Self::new_with_seed(graph, target_heads, seed, respect_size, randomize)
     }
@@ -606,7 +606,7 @@ mod tests {
     fn test_limit_sample_less_than_half() {
         assert_eq!(
             full_disco().limit_sample((1..6).map(Revision).collect(), 2),
-            vec![2, 5]
+            vec![3, 5]
         );
     }
 
@@ -614,7 +614,7 @@ mod tests {
     fn test_limit_sample_more_than_half() {
         assert_eq!(
             full_disco().limit_sample((1..4).map(Revision).collect(), 2),
-            vec![1, 2]
+            vec![1, 3]
         );
     }
 

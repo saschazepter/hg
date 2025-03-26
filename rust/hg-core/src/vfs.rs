@@ -6,7 +6,7 @@ use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
 use dyn_clone::DynClone;
 use format_bytes::format_bytes;
 use memmap2::{Mmap, MmapOptions};
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 use std::fs::{File, Metadata, OpenOptions};
 use std::io::{ErrorKind, Read, Seek, Write};
 use std::os::fd::AsRawFd;
@@ -423,8 +423,7 @@ impl AtomicFile {
     ) -> Result<Self, HgError> {
         let target_path = target_path.as_ref().to_owned();
 
-        let random_id =
-            Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let random_id = Alphanumeric.sample_string(&mut rand::rng(), 12);
         let filename =
             target_path.file_name().expect("target has no filename");
         let filename = get_bytes_from_path(filename);
@@ -932,7 +931,7 @@ fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
     if metadata.nlink() > 1 {
         // If it's hardlinked, copy it and rename it back before changing it.
         let tmpdir = path.parent().expect("file at root");
-        let name = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        let name = Alphanumeric.sample_string(&mut rand::rng(), 16);
         let tmpfile = tmpdir.join(name);
         std::fs::create_dir_all(tmpfile.parent().expect("file at root"))
             .with_context(|| IoErrorContext::CopyingFile {

@@ -1,8 +1,8 @@
 use hg::testing::VecGraph;
 use hg::Revision;
 use hg::*;
-use rand::distributions::{Distribution, Uniform};
-use rand::{thread_rng, Rng, RngCore, SeedableRng};
+use rand::distr::{Distribution, Uniform};
+use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::LogNormal;
 use std::cmp::min;
 use std::collections::HashSet;
@@ -20,32 +20,32 @@ fn build_random_graph(
     let mergeprob = mergeprob_opt.unwrap_or(0.2);
     let prevprob = prevprob_opt.unwrap_or(0.7);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let mut vg: VecGraph = Vec::with_capacity(nodes);
     for i in 0..nodes {
-        if i == 0 || rng.gen_bool(rootprob) {
+        if i == 0 || rng.random_bool(rootprob) {
             vg.push([NULL_REVISION, NULL_REVISION])
         } else if i == 1 {
             vg.push([Revision(0), NULL_REVISION])
-        } else if rng.gen_bool(mergeprob) {
+        } else if rng.random_bool(mergeprob) {
             let p1 = {
-                if i == 2 || rng.gen_bool(prevprob) {
+                if i == 2 || rng.random_bool(prevprob) {
                     Revision((i - 1) as BaseRevision)
                 } else {
-                    Revision(rng.gen_range(0..i - 1) as BaseRevision)
+                    Revision(rng.random_range(0..i - 1) as BaseRevision)
                 }
             };
             // p2 is a random revision lower than i and different from p1
-            let mut p2 = Revision(rng.gen_range(0..i - 1) as BaseRevision);
+            let mut p2 = Revision(rng.random_range(0..i - 1) as BaseRevision);
             if p2 >= p1 {
                 p2.0 += 1;
             }
             vg.push([p1, p2]);
-        } else if rng.gen_bool(prevprob) {
+        } else if rng.random_bool(prevprob) {
             vg.push([Revision((i - 1) as BaseRevision), NULL_REVISION])
         } else {
             vg.push([
-                Revision(rng.gen_range(0..i - 1) as BaseRevision),
+                Revision(rng.random_range(0..i - 1) as BaseRevision),
                 NULL_REVISION,
             ])
         }
@@ -199,7 +199,7 @@ fn sample_revs<R: RngCore>(
     let log_normal = LogNormal::new(mu, sigma).unwrap();
     let nb = min(maxrev.0 as usize, log_normal.sample(rng).floor() as usize);
 
-    let dist = Uniform::from(NULL_REVISION.0..maxrev.0);
+    let dist = Uniform::new(NULL_REVISION.0, maxrev.0).expect("invalid range");
     rng.sample_iter(&dist).take(nb).map(Revision).collect()
 }
 
@@ -276,7 +276,7 @@ fn test_missing_ancestors_compare_naive() {
             seed_parse_in(&val, &mut seed);
         }
         Err(env::VarError::NotPresent) => {
-            thread_rng().fill_bytes(&mut seed);
+            rand::rng().fill_bytes(&mut seed);
         }
         Err(env::VarError::NotUnicode(_)) => {
             panic!("TEST_RANDOM_SEED must be 128 bits in hex");
@@ -314,13 +314,13 @@ fn test_missing_ancestors_compare_naive() {
                 &hex_seed,
             );
             for _m in 0..inccount {
-                if rng.gen_bool(0.2) {
+                if rng.random_bool(0.2) {
                     let new_bases =
                         sample_revs(&mut rng, graph_len, None, None);
                     inc.add_bases(new_bases.iter().cloned());
                     naive.add_bases(new_bases);
                 }
-                if rng.gen_bool(0.4) {
+                if rng.random_bool(0.4) {
                     // larger set so that there are more revs to remove from
                     let mut hrevs =
                         sample_revs(&mut rng, graph_len, Some(1.5), None);

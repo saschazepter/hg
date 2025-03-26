@@ -220,12 +220,12 @@ impl Docket<'_> {
     pub fn new_uid() -> String {
         const ID_LENGTH: usize = 8;
         let mut id = String::with_capacity(ID_LENGTH);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..ID_LENGTH {
             // One random hexadecimal digit.
             // `unwrap` never panics because `impl Write for String`
             // never returns an error.
-            write!(&mut id, "{:x}", rng.gen_range(0..16)).unwrap();
+            write!(&mut id, "{:x}", rng.random_range(0..16)).unwrap();
         }
         id
     }

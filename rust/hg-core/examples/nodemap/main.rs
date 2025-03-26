@@ -53,11 +53,11 @@ fn query(index: &Index, nm: &NodeTree, prefix: &str) {
 
 fn bench(index: &Index, nm: &NodeTree, queries: usize) {
     let len = index.len() as u32;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let nodes: Vec<Node> = (0..queries)
         .map(|_| {
             *index
-                .node(Revision((rng.gen::<u32>() % len) as BaseRevision))
+                .node(Revision((rng.random::<u32>() % len) as BaseRevision))
                 .unwrap()
         })
         .collect();
