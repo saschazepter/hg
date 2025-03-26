@@ -741,7 +741,7 @@ impl Config {
     pub fn iter_section<'a>(
         &'a self,
         section: &'a [u8],
-    ) -> impl Iterator<Item = (&[u8], &[u8])> + 'a {
+    ) -> impl Iterator<Item = (&'a [u8], &'a [u8])> + 'a {
         // Deduplicate keys redefined in multiple layers
         let mut keys_already_seen = HashSet::new();
         let mut key_is_new =

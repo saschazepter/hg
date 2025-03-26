@@ -668,7 +668,7 @@ struct NodeTreeVisitItem {
     element: Element,
 }
 
-impl<'n> Iterator for NodeTreeVisitor<'n> {
+impl Iterator for NodeTreeVisitor<'_> {
     type Item = NodeTreeVisitItem;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -451,7 +451,7 @@ impl<'a> BorrowPyShared<'a> {
     }
 }
 
-impl<'a> Drop for BorrowPyShared<'a> {
+impl Drop for BorrowPyShared<'_> {
     fn drop(&mut self) {
         self.state.decrease_borrow_count(self.py);
     }
@@ -719,7 +719,7 @@ pub struct SharedByPyObjectRef<'a, T: 'a + ?Sized> {
     data: &'a T,
 }
 
-impl<'a, T: ?Sized> Deref for SharedByPyObjectRef<'a, T> {
+impl<T: ?Sized> Deref for SharedByPyObjectRef<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -733,7 +733,7 @@ pub struct SharedByPyObjectRefMut<'a, T: 'a + ?Sized> {
     data: &'a mut T,
 }
 
-impl<'a, T: ?Sized> Deref for SharedByPyObjectRefMut<'a, T> {
+impl<T: ?Sized> Deref for SharedByPyObjectRefMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -741,7 +741,7 @@ impl<'a, T: ?Sized> Deref for SharedByPyObjectRefMut<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for SharedByPyObjectRefMut<'a, T> {
+impl<T: ?Sized> DerefMut for SharedByPyObjectRefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.data
     }

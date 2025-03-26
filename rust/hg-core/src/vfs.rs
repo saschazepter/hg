@@ -966,11 +966,11 @@ pub fn is_revlog_file(path: impl AsRef<Path>) -> bool {
 }
 
 pub(crate) fn is_dir(path: impl AsRef<Path>) -> Result<bool, HgError> {
-    Ok(fs_metadata(path)?.map_or(false, |meta| meta.is_dir()))
+    Ok(fs_metadata(path)?.is_some_and(|meta| meta.is_dir()))
 }
 
 pub(crate) fn is_file(path: impl AsRef<Path>) -> Result<bool, HgError> {
-    Ok(fs_metadata(path)?.map_or(false, |meta| meta.is_file()))
+    Ok(fs_metadata(path)?.is_some_and(|meta| meta.is_file()))
 }
 
 /// Returns whether the given `path` is on a network file system.

@@ -104,7 +104,7 @@ pub trait Matcher: core::fmt::Debug + Sync {
     fn is_exact(&self) -> bool;
 }
 
-impl<'a, T: Matcher + ?Sized> Matcher for &'a T {
+impl<T: Matcher + ?Sized> Matcher for &T {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         (*self).file_set()
     }
@@ -423,7 +423,7 @@ impl core::fmt::Debug for PatternMatcher<'_> {
     }
 }
 
-impl<'a> PatternMatcher<'a> {
+impl PatternMatcher<'_> {
     pub fn new(ignore_patterns: Vec<IgnorePattern>) -> PatternResult<Self> {
         let RootsDirsAndParents {
             roots,
@@ -454,7 +454,7 @@ impl<'a> PatternMatcher<'a> {
     }
 }
 
-impl<'a> Matcher for PatternMatcher<'a> {
+impl Matcher for PatternMatcher<'_> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         Some(&self.files)
     }
@@ -571,7 +571,7 @@ impl core::fmt::Debug for IncludeMatcher<'_> {
     }
 }
 
-impl<'a> Matcher for IncludeMatcher<'a> {
+impl Matcher for IncludeMatcher<'_> {
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
         None
     }
@@ -695,7 +695,7 @@ impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
     }
 
     fn exact_match(&self, filename: &HgPath) -> bool {
-        self.files.as_ref().map_or(false, |f| f.contains(filename))
+        self.files.as_ref().is_some_and(|f| f.contains(filename))
     }
 
     fn matches(&self, filename: &HgPath) -> bool {
@@ -793,7 +793,7 @@ impl<M1: Matcher, M2: Matcher> Matcher for DifferenceMatcher<M1, M2> {
     }
 
     fn exact_match(&self, filename: &HgPath) -> bool {
-        self.files.as_ref().map_or(false, |f| f.contains(filename))
+        self.files.as_ref().is_some_and(|f| f.contains(filename))
     }
 
     fn matches(&self, filename: &HgPath) -> bool {
@@ -1226,7 +1226,7 @@ pub fn get_ignore_function<'a>(
     })
 }
 
-impl<'a> IncludeMatcher<'a> {
+impl IncludeMatcher<'_> {
     fn new_gen(
         ignore_patterns: Vec<IgnorePattern>,
         regex_config: RegexCompleteness,
@@ -1274,7 +1274,7 @@ impl<'a> IncludeMatcher<'a> {
     }
 }
 
-impl<'a> Display for IncludeMatcher<'a> {
+impl Display for IncludeMatcher<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         // XXX What about exact matches?
         // I'm not sure it's worth it to clone the HashSet and keep it

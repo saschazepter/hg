@@ -246,7 +246,8 @@ impl RevisionDataParams {
     }
 
     pub fn into_v1(self) -> RevisionDataV1 {
-        let data_offset_or_flags = self.data_offset << 16 | self.flags as u64;
+        let data_offset_or_flags =
+            (self.data_offset << 16) | self.flags as u64;
         let mut node_id = [0; STORED_NODE_ID_BYTES];
         node_id[..NODE_BYTES_LENGTH].copy_from_slice(&self.node_id);
         RevisionDataV1 {
@@ -1072,7 +1073,7 @@ impl Index {
         revs: &'a [(Revision, IndexEntry)],
         start: usize,
         mut end: usize,
-    ) -> &'a [(Revision, IndexEntry)] {
+    ) -> &'a [(Revision, IndexEntry<'a>)] {
         // Trim empty revs at the end, except the very first rev of a chain
         let last_rev = revs[end - 1].0;
         if last_rev.0 < self.len() as BaseRevision {

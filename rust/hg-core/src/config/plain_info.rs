@@ -53,11 +53,11 @@ impl PlainInfo {
     }
 
     pub fn is_feature_plain(&self, feature: &str) -> bool {
-        return self.is_plain
+        self.is_plain
             && !self
                 .except
                 .iter()
-                .any(|exception| exception.as_slice() == feature.as_bytes());
+                .any(|exception| exception.as_slice() == feature.as_bytes())
     }
 
     pub fn is_plain(&self) -> bool {

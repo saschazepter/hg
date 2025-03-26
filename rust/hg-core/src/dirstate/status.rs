@@ -397,7 +397,7 @@ impl<'a> HasIgnoredAncestor<'a> {
     }
 }
 
-impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
+impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     fn push_outcome(
         &self,
         which: Outcome,
@@ -1103,7 +1103,7 @@ struct DirEntry<'a> {
     file_type: FakeFileType,
 }
 
-impl<'a> DirEntry<'a> {
+impl DirEntry<'_> {
     /// Returns **unsorted** entries in the given directory, with name,
     /// metadata and file type.
     ///

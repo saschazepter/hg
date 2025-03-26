@@ -50,7 +50,7 @@ fn try_share_string(
 fn mutate_string<'py>(
     owner: &'py Bound<'py, Owner>,
     f: impl FnOnce(&mut String),
-) -> () {
+) {
     let shareable = &owner.borrow_mut().string;
     let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
     f(&mut shared_ref.write());

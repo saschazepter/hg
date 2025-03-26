@@ -323,7 +323,7 @@ impl InnerRevlog {
     pub fn decompress<'a>(
         &'a self,
         data: &'a [u8],
-    ) -> Result<Cow<[u8]>, RevlogError> {
+    ) -> Result<Cow<'a, [u8]>, RevlogError> {
         if data.is_empty() {
             return Ok(data.into());
         }
@@ -428,7 +428,7 @@ impl InnerRevlog {
         self.enter_reading_context()?;
         let res = func();
         self.exit_reading_context();
-        res.map_err(Into::into)
+        res
     }
 
     /// `pub` only for use in hg-pyo3

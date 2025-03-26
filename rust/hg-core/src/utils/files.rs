@@ -86,7 +86,7 @@ impl<'a> Iterator for Ancestors<'a> {
     }
 }
 
-impl<'a> FusedIterator for Ancestors<'a> {}
+impl FusedIterator for Ancestors<'_> {}
 
 /// An iterator over repository path yielding itself and its ancestors.
 #[derive(Copy, Clone, Debug)]
@@ -108,7 +108,7 @@ impl<'a> Iterator for AncestorsWithBase<'a> {
     }
 }
 
-impl<'a> FusedIterator for AncestorsWithBase<'a> {}
+impl FusedIterator for AncestorsWithBase<'_> {}
 
 /// Returns an iterator yielding ancestor directories of the given repository
 /// path.

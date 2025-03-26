@@ -157,7 +157,7 @@ impl Escaped for u8 {
     }
 }
 
-impl<'a, T: Escaped> Escaped for &'a [T] {
+impl<T: Escaped> Escaped for &[T] {
     fn escaped_bytes(&self) -> Vec<u8> {
         self.iter().flat_map(Escaped::escaped_bytes).collect()
     }
@@ -169,7 +169,7 @@ impl<T: Escaped> Escaped for Vec<T> {
     }
 }
 
-impl<'a> Escaped for &'a HgPath {
+impl Escaped for &HgPath {
     fn escaped_bytes(&self) -> Vec<u8> {
         self.as_bytes().escaped_bytes()
     }

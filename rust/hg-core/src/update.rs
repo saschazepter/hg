@@ -513,7 +513,7 @@ mod test {
 
     #[test]
     fn test_chunk_tracked_files() {
-        fn chunk(v: Vec<&'static str>) -> Vec<ExpandedManifestEntry> {
+        fn chunk(v: Vec<&'static str>) -> Vec<ExpandedManifestEntry<'static>> {
             v.into_iter()
                 .map(|f| (HgPath::new(f.as_bytes()), NULL_NODE, None))
                 .collect()

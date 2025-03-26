@@ -97,7 +97,7 @@ pub struct StdoutBuffer<'a, W> {
     stdout: W,
 }
 
-impl<'a, W: Write> StdoutBuffer<'a, W> {
+impl<W: Write> StdoutBuffer<'_, W> {
     /// Write bytes to stdout with the given label
     ///
     /// Like the optional `label` parameter in `mercurial/ui.py`,

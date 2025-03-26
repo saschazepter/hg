@@ -284,7 +284,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
     /// Did we acquire full knowledge of our Revisions that the peer has?
     pub fn is_complete(&self) -> bool {
-        self.undecided.as_ref().map_or(false, HashSet::is_empty)
+        self.undecided.as_ref().is_some_and(HashSet::is_empty)
     }
 
     /// Return the heads of the currently known common set of revisions.

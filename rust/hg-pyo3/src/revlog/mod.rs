@@ -140,7 +140,7 @@ impl WritingContextManager {
 
 struct PySnapshotsCache<'a, 'py: 'a>(&'a Bound<'py, PyDict>);
 
-impl<'a, 'py> PySnapshotsCache<'a, 'py> {
+impl PySnapshotsCache<'_, '_> {
     fn insert_for_with_py_result(
         &self,
         rev: BaseRevision,
@@ -156,7 +156,7 @@ impl<'a, 'py> PySnapshotsCache<'a, 'py> {
     }
 }
 
-impl<'a, 'py> SnapshotsCache for PySnapshotsCache<'a, 'py> {
+impl SnapshotsCache for PySnapshotsCache<'_, '_> {
     fn insert_for(
         &mut self,
         rev: BaseRevision,

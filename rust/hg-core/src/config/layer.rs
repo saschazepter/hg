@@ -141,7 +141,7 @@ impl ConfigLayer {
     pub fn has_non_empty_section(&self, section: &[u8]) -> bool {
         self.sections
             .get(section)
-            .map_or(false, |section| !section.is_empty())
+            .is_some_and(|section| !section.is_empty())
     }
 
     pub fn is_empty(&self) -> bool {

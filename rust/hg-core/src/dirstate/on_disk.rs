@@ -212,7 +212,7 @@ impl TreeMetadata {
     }
 }
 
-impl<'on_disk> Docket<'on_disk> {
+impl Docket<'_> {
     /// Generate the identifier for a new data file
     ///
     /// TODO: support the `HGTEST_UUIDFILE` environment variable.

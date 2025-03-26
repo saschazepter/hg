@@ -185,7 +185,7 @@ pub(super) enum NodeRef<'tree, 'on_disk> {
     OnDisk(&'on_disk on_disk::Node),
 }
 
-impl<'tree, 'on_disk> BorrowedPath<'tree, 'on_disk> {
+impl<'on_disk> BorrowedPath<'_, 'on_disk> {
     pub fn detach_from_tree(&self) -> Cow<'on_disk, HgPath> {
         match *self {
             BorrowedPath::InMemory(in_memory) => Cow::Owned(in_memory.clone()),
@@ -194,7 +194,7 @@ impl<'tree, 'on_disk> BorrowedPath<'tree, 'on_disk> {
     }
 }
 
-impl<'tree, 'on_disk> std::ops::Deref for BorrowedPath<'tree, 'on_disk> {
+impl std::ops::Deref for BorrowedPath<'_, '_> {
     type Target = HgPath;
 
     fn deref(&self) -> &HgPath {
@@ -823,7 +823,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         filename: &HgPath,
         old_entry_opt: Option<DirstateEntry>,
     ) -> Result<bool, DirstateV2ParseError> {
-        let was_tracked = old_entry_opt.map_or(false, |e| e.tracked());
+        let was_tracked = old_entry_opt.is_some_and(|e| e.tracked());
         let had_entry = old_entry_opt.is_some();
         let tracked_count_increment = u32::from(!was_tracked);
         let mut new = false;
@@ -1168,7 +1168,7 @@ impl OwningDirstateMap {
         &mut self,
         filename: &HgPath,
     ) -> Result<(), DirstateError> {
-        let was_tracked = self.get(filename)?.map_or(false, |e| e.tracked());
+        let was_tracked = self.get(filename)?.is_some_and(|e| e.tracked());
         struct Dropped {
             was_tracked: bool,
             had_entry: bool,
@@ -1233,7 +1233,7 @@ impl OwningDirstateMap {
                 }
             } else {
                 let entry = node.data.as_entry();
-                let was_tracked = entry.map_or(false, |entry| entry.tracked());
+                let was_tracked = entry.is_some_and(|entry| entry.tracked());
                 let had_entry = entry.is_some();
                 if had_entry {
                     node.data = NodeData::None
