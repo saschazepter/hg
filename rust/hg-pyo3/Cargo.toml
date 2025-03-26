@@ -20,7 +20,7 @@ pyo3 = { version = "0.24" }
 pyo3-sharedref = { path = "../pyo3-sharedref" }
 hg-core = { path = "../hg-core" }
 stable_deref_trait = "1.2.0"
-derive_more = "0.99.17"
+derive_more = { version = "2.0.1", features = ["display", "from"] }
 vcsgraph = "0.2.0"
 crossbeam-channel = "0.5.14"
 tracing = { version = "0.1.41", features = ["attributes"] }

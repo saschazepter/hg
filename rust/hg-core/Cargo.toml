@@ -19,9 +19,9 @@ bitflags = "2.9.0"
 bytes-cast = "0.3.0"
 byteorder = "1.4.3"
 ctrlc = "3.4"
-derive_more = "0.99.17"
 hashbrown = { version = "0.13.1", features = ["rayon"] }
 home = "0.5.4"
+derive_more = { version = "2.0.1", features = ["display", "from"] }
 im-rc = "15.1.0"
 indicatif = "0.17.8"
 itertools = "0.10.5"

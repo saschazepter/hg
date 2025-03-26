@@ -245,7 +245,7 @@ const NULL_REVLOG_ENTRY_FLAGS: u16 = 0;
 
 #[derive(Debug, derive_more::From, derive_more::Display)]
 pub enum RevlogError {
-    #[display(fmt = "invalid revision identifier: {}", "_0")]
+    #[display("invalid revision identifier: {}", "_0")]
     InvalidRevision(String),
     /// Working directory is not supported
     WDirUnsupported,

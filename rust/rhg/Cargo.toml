@@ -17,10 +17,10 @@ full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 hg-core = { path = "../hg-core", default-features = false }
 chrono = "0.4.23"
 clap = { version = "4", features = ["cargo"] }
-derive_more = "0.99.17"
 home = "0.5.4"
 lazy_static = "1.4.0"
 regex = "1.7.0"
+derive_more = { version = "2.0.1", features = ["display", "from"] }
 format-bytes = "0.3.0"
 shellexpand = { version = "3.1", features = ["full"]}
 whoami = "1.4"
