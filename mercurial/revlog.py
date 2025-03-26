@@ -1171,9 +1171,35 @@ class RustIndexProxy(ProxyBase):
         # Do not rename as it's being used to access the index from Rust
         self.inner = inner
 
-    # TODO possibly write all index methods manually to save on overhead?
-    def __getattr__(self, name):
-        return getattr(self.inner, f"_index_{name}")
+        # Direct reforwards since `__getattr__` is *expensive*
+        self.get_rev = self.inner._index_get_rev
+        self.rev = self.inner._index_rev
+        self.has_node = self.inner._index_has_node
+        self.shortest = self.inner._index_shortest
+        self.partialmatch = self.inner._index_partialmatch
+        self.append = self.inner._index_append
+        self.ancestors = self.inner._index_ancestors
+        self.commonancestorsheads = self.inner._index_commonancestorsheads
+        self.clearcaches = self.inner._index_clearcaches
+        self.entry_binary = self.inner._index_entry_binary
+        self.pack_header = self.inner._index_pack_header
+        self.computephasesmapsets = self.inner._index_computephasesmapsets
+        self.reachableroots2 = self.inner._index_reachableroots2
+        self.headrevs = self.inner._index_headrevs
+        self.head_node_ids = self.inner._index_head_node_ids
+        self.headrevsdiff = self.inner._index_headrevsdiff
+        self.issnapshot = self.inner._index_issnapshot
+        self.findsnapshots = self.inner._index_findsnapshots
+        self.deltachain = self.inner._index_deltachain
+        self.slicechunktodensity = self.inner._index_slicechunktodensity
+        self.nodemap_data_all = self.inner._index_nodemap_data_all
+        self.nodemap_data_incremental = (
+            self.inner._index_nodemap_data_incremental
+        )
+        self.update_nodemap_data = self.inner._index_update_nodemap_data
+        self.entry_size = self.inner._index_entry_size
+        self.rust_ext_compat = self.inner._index_rust_ext_compat
+        self._is_rust = self.inner._index_is_rust
 
     # Magic methods need to be defined explicitely
     def __len__(self):
