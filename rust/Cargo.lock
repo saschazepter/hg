@@ -1138,7 +1138,6 @@ name = "pyo3-sharedref"
 version = "0.1.0"
 dependencies = [
  "pyo3",
- "stable_deref_trait",
  "static_assertions_next",
 ]
 
