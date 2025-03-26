@@ -15,18 +15,18 @@ full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 
 [dependencies]
 hg-core = { path = "../hg-core", default-features = false }
-chrono = "0.4.23"
+chrono = "0.4.41"
 clap = { version = "4", features = ["cargo"] }
-home = "0.5.4"
-lazy_static = "1.4.0"
-regex = "1.7.0"
 derive_more = { version = "2.0.1", features = ["display", "from"] }
+home = "0.5.11"
+lazy_static = "1.5.0"
+regex = "1.11.1"
 format-bytes = "0.3.0"
 shellexpand = { version = "3.1", features = ["full"]}
-whoami = "1.4"
-which = "4.3.0"
-rayon = "1.7.0"
-libc = "0.2.155"
+whoami = "1.6"
+which = "7.0.3"
+rayon = "1.10.0"
+libc = "0.2.172"
 tracing = { version = "0.1.41", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"]}

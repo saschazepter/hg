@@ -22,7 +22,7 @@ hg-core = { path = "../hg-core" }
 stable_deref_trait = "1.2.0"
 derive_more = { version = "2.0.1", features = ["display", "from"] }
 vcsgraph = "0.2.0"
-crossbeam-channel = "0.5.14"
+crossbeam-channel = "0.5.15"
 tracing = { version = "0.1.41", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
