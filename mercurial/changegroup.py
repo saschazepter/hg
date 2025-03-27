@@ -697,9 +697,10 @@ class cg1unpacker:
             newrevcount = len(cl)
             heads_removed, heads_added = cl.diffheads(oldrevcount, newrevcount)
             deltaheads += len(heads_added) - len(heads_removed)
-            for h in heads_added:
-                if repo[h].closesbranch():
-                    deltaheads -= 1
+            with cl.reading():
+                for h in heads_added:
+                    if repo[h].closesbranch():
+                        deltaheads -= 1
 
             # see previous comment about checking ui.quiet
             if not repo.ui.quiet:
