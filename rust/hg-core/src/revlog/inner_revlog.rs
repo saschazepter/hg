@@ -426,9 +426,12 @@ impl InnerRevlog {
         &self,
         func: impl FnOnce() -> Result<R, RevlogError>,
     ) -> Result<R, RevlogError> {
+        let exit_context = !self.is_open();
         self.enter_reading_context()?;
         let res = func();
-        self.exit_reading_context();
+        if exit_context {
+            self.exit_reading_context();
+        }
         res
     }
 
