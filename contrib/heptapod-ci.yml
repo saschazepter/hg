@@ -258,6 +258,7 @@ build-c-wheel-arm64-musl:
 
 checks:
     extends: .runtests
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-checks:v3.0"
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
