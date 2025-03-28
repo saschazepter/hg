@@ -261,7 +261,7 @@ checks:
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
-        RUNTEST_ARGS: "--time"
+        RUNTEST_ARGS: "--time --pure"
         FILTER: "--test-list ${TMP_WORK_DIR}/check-tests.txt"
         CI_CLEVER_CLOUD_FLAVOR: S
 
