@@ -17,9 +17,5 @@ Current checks:
   >   --enable=W0102,C0321 \
   >   --reports=no \
   >   --ignore=thirdparty \
+  >   --score=no \
   >   mercurial hgdemandimport hgext | sed 's/\r$//'
-  Using config file *fakerc (glob) (?)
-   (?)
-  ------------------------------------* (glob) (?)
-  Your code has been rated at 10.00/10* (glob) (?)
-   (?)
