@@ -884,6 +884,7 @@ def debug_delta_chain(
                 chainratio = chainsize
 
         if dist_info:
+            chainsize = info['chain_size']
             if chainsize != 0:
                 extraratio = float(extradist) / float(chainsize)
             else:
