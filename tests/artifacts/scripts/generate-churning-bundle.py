@@ -46,7 +46,7 @@ MOVE_BACK_RANGE = 5
 # and set of other lines changes too.
 FILENAME = 'SPARSE-REVLOG-TEST-FILE'
 NB_LINES = 10500
-ALWAYS_CHANGE_LINES = 500
+ALWAYS_CHANGE_LINES = 50
 OTHER_CHANGES = 300
 
 
@@ -77,6 +77,35 @@ def nextcontent(previous_content):
     return hashlib.md5(previous_content).hexdigest().encode('ascii')
 
 
+# make sure some of the revision change the same lines, to let the delta
+# folding have overwritten line to play with.
+
+SHIFT_GROUP = [
+    17,
+    13,
+    11,
+    7,
+    17,
+    13,
+    5,
+    17,
+    11,
+    7,
+    13,
+    17,
+    3,
+    11,
+    17,
+    13,
+    5,
+    17,
+    7,
+    11,
+    13,
+    17,
+]
+
+
 def filecontent(iteridx, oldcontent):
     """generate a new file content
 
@@ -90,9 +119,10 @@ def filecontent(iteridx, oldcontent):
         current = b"%d" % iteridx
 
     for idx in range(NB_LINES):
+        iter_shift = iteridx // SHIFT_GROUP[idx % len(SHIFT_GROUP)]
         do_change_line = True
         if oldcontent is not None and ALWAYS_CHANGE_LINES < idx:
-            do_change_line = not ((idx - iteridx) % OTHER_CHANGES)
+            do_change_line = not ((idx - iter_shift) % OTHER_CHANGES)
 
         if do_change_line:
             to_write = current + b'\n'
