@@ -736,7 +736,8 @@ impl Config {
             .any(|layer| layer.has_non_empty_section(section))
     }
 
-    /// Yields (key, value) pairs for everything in the given section
+    /// Yields (key, value) pairs for everything in the given section from
+    /// lowest to highest precedence.
     pub fn iter_section<'a>(
         &'a self,
         section: &'a [u8],
@@ -753,7 +754,6 @@ impl Config {
         let mut layer_iters = self
             .layers
             .iter()
-            .rev()
             .map(move |layer| layer.iter_section(section))
             .peekable();
         std::iter::from_fn(move || loop {

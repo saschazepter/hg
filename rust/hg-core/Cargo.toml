@@ -58,6 +58,7 @@ unicode-width = "0.2.0"
 bit-set = "0.8.0"
 static_assertions_next = "1.1.2"
 tracing = { version = "0.1.41", features = ["attributes", "log"] }
+indexmap = "2.8.0"
 
 # We don't use the `miniz-oxide` backend to not change rhg benchmarks and until
 # we have a clearer view of which backend is the fastest.

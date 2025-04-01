@@ -11,6 +11,7 @@ use crate::errors::HgError;
 use crate::exit_codes::{CONFIG_ERROR_ABORT, CONFIG_PARSE_ERROR_ABORT};
 use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
 use format_bytes::{format_bytes, write_bytes, DisplayBytes};
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
 use std::collections::HashMap;
@@ -124,7 +125,8 @@ impl ConfigLayer {
             .flat_map(|section| section.keys().map(|vec| &**vec))
     }
 
-    /// Returns the (key, value) pairs defined in the given section
+    /// Returns the (key, value) pairs defined in the given section from
+    /// lowest to highest precedence.
     pub fn iter_section<'layer>(
         &'layer self,
         section: &[u8],
@@ -226,7 +228,7 @@ impl ConfigLayer {
                 current_layer.add(section.clone(), item, value, line);
             } else if let Some(m) = UNSET_RE.captures(bytes) {
                 if let Some(map) = current_layer.sections.get_mut(&section) {
-                    map.remove(&m[1]);
+                    map.shift_remove(&m[1]);
                 }
             } else {
                 let message = if bytes.starts_with(b" ") {
@@ -283,7 +285,8 @@ impl DisplayBytes for ConfigLayer {
 /// paginate=no
 /// ```
 /// "paginate" is the section item and "no" the value.
-pub type ConfigItem = HashMap<Vec<u8>, ConfigValue>;
+/// Uses [`IndexMap`] to preserve insertion order.
+pub type ConfigItem = IndexMap<Vec<u8>, ConfigValue>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigValue {
