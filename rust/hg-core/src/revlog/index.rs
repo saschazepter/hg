@@ -44,19 +44,21 @@ pub struct IndexHeaderFlags {
     flags: u16,
 }
 
+// Match Python constants
+const FLAG_INLINE_DATA: u16 = 1;
+const FLAG_GENERALDELTA: u16 = 1 << 1;
+const FLAG_FILELOG_META: u16 = 1 << 2;
+
 /// Corresponds to the high bits of `_format_flags` in python
 impl IndexHeaderFlags {
-    /// Corresponds to FLAG_INLINE_DATA in python
     pub fn is_inline(self) -> bool {
-        self.flags & 1 != 0
+        self.flags & FLAG_INLINE_DATA != 0
     }
-    /// Corresponds to FLAG_GENERALDELTA in python
     pub fn uses_generaldelta(self) -> bool {
-        self.flags & 2 != 0
+        self.flags & FLAG_GENERALDELTA != 0
     }
-    /// Corresponds to FLAG_FILELOG_META in python
     pub fn uses_filelog_meta(self) -> bool {
-        self.flags & 4 != 0
+        self.flags & FLAG_FILELOG_META != 0
     }
 }
 
