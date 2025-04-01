@@ -1347,6 +1347,7 @@ dependencies = [
  "rayon",
  "regex",
  "shellexpand",
+ "shlex",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",

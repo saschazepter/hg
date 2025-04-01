@@ -5,12 +5,12 @@ use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
 use hg::utils::files::get_path_from_bytes;
-use hg::utils::strings::SliceExt;
+use hg::utils::strings::{join_display, SliceExt};
 use hg::{exit_codes, requirements};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
@@ -75,13 +75,106 @@ fn main_with_result(
                 .global(true),
         )
         .version("0.0.1");
+
     let subcommands = subcommands();
-    let app = subcommands.add_args(app);
 
-    let matches = app.try_get_matches_from(argv.iter())?;
+    let mut alias_definitions: Vec<(&[u8], &[u8])> =
+        config.iter_section(b"alias").collect();
+    let mut expand_alias =
+        |alias: &str| -> Result<Option<Vec<OsString>>, CommandError> {
+            let Some(index) = alias_definitions
+                .iter()
+                .rposition(|(name, _)| *name == alias.as_bytes())
+            else {
+                return Ok(None);
+            };
+            let (_, definition) = alias_definitions[index];
+            // Aliases can only refer to other aliases defined earlier.
+            alias_definitions.truncate(index);
+            tracing::debug!(
+                "resolved alias '{}' to '{}'",
+                alias,
+                String::from_utf8_lossy(definition)
+            );
+            if subcommands.run_fn(alias).is_some() {
+                tracing::warn!("alias '{alias}' shadows a subcommand");
+            }
+            if definition.starts_with(b"!") {
+                return Err(CommandError::unsupported("shell alias"));
+            }
+            if definition.contains(&b'$') {
+                return Err(CommandError::unsupported("alias interpolation"));
+            }
+            let mut iter = shlex::bytes::Shlex::new(definition);
+            let args: Vec<_> = iter.by_ref().map(OsString::from_vec).collect();
+            if iter.had_error {
+                let message = format!(
+                    "config error: error in definition for alias '{alias}': \
+                    invalid quotation or escape"
+                );
+                return Err(CommandError::abort_with_exit_code(
+                    message,
+                    exit_codes::CONFIG_ERROR_ABORT,
+                ));
+            };
+            let early_flags = EarlyArgs::parse_flags(&args);
+            if !early_flags.is_empty() {
+                let message = format!(
+                    "config error: error in definition for alias '{alias}': \
+                    {} may only be given on the command line",
+                    join_display(early_flags, "/")
+                );
+                return Err(CommandError::abort_with_exit_code(
+                    message,
+                    exit_codes::CONFIG_ERROR_ABORT,
+                ));
+            }
+            Ok(Some(args))
+        };
 
+    // First, parse "external" (i.e. unknown) subcommands so that we can try to
+    // resolve aliases, including ones that shadow normal subcommands.
+    let matches = app
+        .clone()
+        .allow_external_subcommands(true)
+        .try_get_matches_from(argv.iter())?;
+    let (alias, alias_matches) =
+        matches.subcommand().expect("subcommand required");
+    let expanded_argv = match expand_alias(alias)? {
+        None => argv.clone(),
+        Some(mut args) => {
+            let binary_name = argv[0].clone();
+            let trailing_args = alias_matches.get_many::<OsString>("").expect(
+                "allow_external_subcommands always sets the empty string",
+            );
+            // To expand further aliases, just use the first argument instead
+            // of re-parsing the whole thing. This matches Python behavior. It
+            // means `hg -q alias` is allowed (where -q is an example global
+            // option), but `[alias] alias = -q otheralias` is not allowed.
+            while let Some(alias) = args.first().and_then(|s| s.to_str()) {
+                let Some(expansion) = expand_alias(alias)? else {
+                    break;
+                };
+                args.splice(0..1, expansion);
+            }
+            let mut expanded_argv = vec![binary_name];
+            expanded_argv.extend_from_slice(&args);
+            expanded_argv.extend(trailing_args.cloned());
+            expanded_argv
+        }
+    };
+
+    // Second, parse the expanded argv with subcommand parsers enabled.
+    let matches = subcommands
+        .add_args(app)
+        .try_get_matches_from(expanded_argv)?;
     let (subcommand_name, subcommand_args) =
         matches.subcommand().expect("subcommand required");
+    let Some(run) = subcommands.run_fn(subcommand_name) else {
+        return Err(CommandError::unsupported(format!(
+            "unsuppported subcommand: {subcommand_name}"
+        )));
+    };
 
     // Mercurial allows users to define "defaults" for commands, fallback
     // if a default is detected for the current command
@@ -107,8 +200,6 @@ fn main_with_result(
             return Err(CommandError::unsupported(msg));
         }
     }
-    let run = subcommands.run_fn(subcommand_name)
-        .expect("unknown subcommand name from clap despite Command::subcommand_required");
 
     let invocation = CliInvocation {
         ui,
@@ -792,6 +883,19 @@ impl EarlyArgs {
             }
         }
         None
+    }
+
+    fn parse_flags<'a>(
+        args: impl IntoIterator<Item = &'a OsString>,
+    ) -> Vec<EarlyFlag> {
+        let mut args = args.into_iter();
+        let mut flags = Vec::new();
+        while let Some(arg) = args.next() {
+            if let Some((flag, _)) = Self::parse_one(arg, || args.next()) {
+                flags.push(flag);
+            }
+        }
+        flags
     }
 
     fn parse<'a>(args: impl IntoIterator<Item = &'a OsString>) -> Self {

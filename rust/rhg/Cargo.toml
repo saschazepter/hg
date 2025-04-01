@@ -30,3 +30,4 @@ libc = "0.2.155"
 tracing = { version = "0.1.41", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"]}
+shlex = "1.3.0"

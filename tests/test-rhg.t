@@ -38,6 +38,53 @@ Reading and setting configuration
   $ $NO_FALLBACK rhg --config ui.username=user3 config ui.username
   user3
 
+Alias to command
+  $ $NO_FALLBACK rhg foo --config alias.foo=root
+  $TESTTMP/repository
+  $ $NO_FALLBACK rhg --config alias.foo=root foo
+  $TESTTMP/repository
+
+Alias that shadows an existing command
+  $ $NO_FALLBACK rhg status --config alias.status=root
+  $TESTTMP/repository
+
+Alias to command with arguments
+  $ $NO_FALLBACK rhg foo --config alias.foo="config ui.username"
+  user2
+
+Alias to command with arguments, shell quoted
+  $ $NO_FALLBACK rhg foo --config alias.foo="\"config\" ui.username"
+  user2
+  $ $NO_FALLBACK rhg foo --config alias.foo="\"config ui.username"
+  config error: error in definition for alias 'foo': invalid quotation or escape
+  [30]
+
+Alias that adds arguments to command
+  $ $NO_FALLBACK rhg config --config alias.config="config ui.username"
+  user2
+
+Shell alias
+  $ $NO_FALLBACK rhg foo --config alias.foo="!echo hello"
+  unsupported feature: shell alias
+  [252]
+
+Alias interpolation
+  $ $NO_FALLBACK rhg foo --config alias.foo='status $1'
+  unsupported feature: alias interpolation
+  [252]
+
+Alias to another alias (can only refer to earlier one)
+  $ $NO_FALLBACK rhg foo --config alias.bar=root --config alias.foo=bar
+  $TESTTMP/repository
+  $ $NO_FALLBACK rhg foo --config alias.foo=bar --config alias.bar=root
+  unsupported feature: error: unrecognized subcommand 'bar'
+  
+  Usage: rhg [OPTIONS] <COMMAND>
+  
+  For more information, try '--help'.
+  
+  [252]
+
 Unwritable file descriptor
   $ $NO_FALLBACK rhg root > /dev/full
   abort: No space left on device (os error 28)
