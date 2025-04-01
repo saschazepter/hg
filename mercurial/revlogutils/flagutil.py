@@ -25,12 +25,13 @@ from .. import error, util
 
 # blanked usage of all the name to prevent pyflakes constraints
 # We need these name available in the module for extensions.
-REVIDX_ISCENSORED
+REVIDX_DEFAULT_FLAGS
 REVIDX_ELLIPSIS
 REVIDX_EXTSTORED
-REVIDX_HASCOPIESINFO,
-REVIDX_DEFAULT_FLAGS
 REVIDX_FLAGS_ORDER
+REVIDX_HASCOPIESINFO
+REVIDX_HASMETA
+REVIDX_ISCENSORED
 REVIDX_RAWTEXT_CHANGING_FLAGS
 
 # Keep this in sync with REVIDX_KNOWN_FLAGS in rust/hg-core/src/revlog/revlog.rs
