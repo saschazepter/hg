@@ -324,7 +324,12 @@ class changelog(revlog.revlog):
 
             self._format_flags &= ~revlog.FLAG_GENERALDELTA
             self.delta_config.general_delta = False
+            self.delta_config.sparse_revlog = False
             self.data_config.generaldelta = False
+            # stricly speaking we could still use sparse reading even if the
+            # delta are not stored as such, however this would not yield any
+            # benefit here either so we disable it for simplicity.
+            self.data_config.sparse_revlog = False
 
         # Delta chains for changelogs tend to be very small because entries
         # tend to be small and don't delta well with each. So disable delta
