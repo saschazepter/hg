@@ -10,7 +10,7 @@ use hg::{exit_codes, requirements};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
@@ -737,13 +737,14 @@ enum EarlyFlag {
     Color,
     Cwd,
     Repository,
+    Repo,
     R,
 }
 
 impl EarlyFlag {
     const fn all() -> &'static [EarlyFlag] {
         use EarlyFlag::*;
-        &[Config, Color, Cwd, Repository, R]
+        &[Config, Color, Cwd, Repository, Repo, R]
     }
 
     const fn as_str(&self) -> &'static str {
@@ -752,6 +753,7 @@ impl EarlyFlag {
             EarlyFlag::Color => "--color",
             EarlyFlag::Cwd => "--cwd",
             EarlyFlag::Repository => "--repository",
+            EarlyFlag::Repo => "--repo",
             EarlyFlag::R => "-R",
         }
     }
@@ -802,7 +804,7 @@ impl EarlyArgs {
                     EarlyFlag::Config => this.config.push(value),
                     EarlyFlag::Color => this.color = Some(value),
                     EarlyFlag::Cwd => this.cwd = Some(value),
-                    EarlyFlag::Repository | EarlyFlag::R => {
+                    EarlyFlag::Repository | EarlyFlag::Repo | EarlyFlag::R => {
                         this.repo = Some(value);
                     }
                 }
