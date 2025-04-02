@@ -14,7 +14,7 @@ authors = [
 ]
 description="Fast scalable distributed SCM (revision control, version control) system"
 readme = "README.rst"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license={text = "GNU GPLv2 or any later version"}
 classifiers=[
     "Development Status :: 6 - Mature",
