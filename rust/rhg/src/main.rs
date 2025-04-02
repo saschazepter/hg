@@ -4,12 +4,13 @@ use clap::{command, Arg, ArgMatches};
 use format_bytes::{format_bytes, join};
 use hg::config::{Config, ConfigSource, PlainInfo};
 use hg::repo::{Repo, RepoError};
-use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
+use hg::utils::files::get_path_from_bytes;
 use hg::utils::strings::SliceExt;
 use hg::{exit_codes, requirements};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
@@ -718,6 +719,7 @@ struct NoRepoInCwdError {
 ///
 /// These arguments are still declared when we do use Clap later, so that Clap
 /// does not return an error for their presence.
+#[derive(Default)]
 struct EarlyArgs {
     /// Values of all `--config` arguments. (Possibly none)
     config: Vec<Vec<u8>>,
@@ -729,56 +731,84 @@ struct EarlyArgs {
     cwd: Option<Vec<u8>>,
 }
 
+#[derive(Copy, Clone)]
+enum EarlyFlag {
+    Config,
+    Color,
+    Cwd,
+    Repository,
+    R,
+}
+
+impl EarlyFlag {
+    const fn all() -> &'static [EarlyFlag] {
+        use EarlyFlag::*;
+        &[Config, Color, Cwd, Repository, R]
+    }
+
+    const fn as_str(&self) -> &'static str {
+        match self {
+            EarlyFlag::Config => "--config",
+            EarlyFlag::Color => "--color",
+            EarlyFlag::Cwd => "--cwd",
+            EarlyFlag::Repository => "--repository",
+            EarlyFlag::R => "-R",
+        }
+    }
+
+    const fn value_sep(&self) -> &'static [u8] {
+        match self {
+            EarlyFlag::R => b"",
+            _ => b"=",
+        }
+    }
+}
+
+impl std::fmt::Display for EarlyFlag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
+}
+
 impl EarlyArgs {
+    fn parse_one<'a>(
+        arg: &'a OsString,
+        mut next: impl FnMut() -> Option<&'a OsString>,
+    ) -> Option<(EarlyFlag, &'a [u8])> {
+        let arg = arg.as_bytes();
+        for &flag in EarlyFlag::all() {
+            let flag_str = flag.as_str().as_bytes();
+            if arg == flag_str {
+                if let Some(value) = next() {
+                    return Some((flag, value.as_bytes()));
+                }
+            }
+            if let Some(rest) = arg.drop_prefix(flag_str) {
+                if let Some(value) = rest.drop_prefix(flag.value_sep()) {
+                    return Some((flag, value));
+                }
+            }
+        }
+        None
+    }
+
     fn parse<'a>(args: impl IntoIterator<Item = &'a OsString>) -> Self {
-        let mut args = args.into_iter().map(get_bytes_from_os_str);
-        let mut config = Vec::new();
-        let mut color = None;
-        let mut repo = None;
-        let mut cwd = None;
-        // Use `while let` instead of `for` so that we can also call
-        // `args.next()` inside the loop.
+        let mut args = args.into_iter();
+        let mut this = Self::default();
         while let Some(arg) = args.next() {
-            if arg == b"--config" {
-                if let Some(value) = args.next() {
-                    config.push(value)
+            if let Some((flag, value)) = Self::parse_one(arg, || args.next()) {
+                let value = value.to_owned();
+                match flag {
+                    EarlyFlag::Config => this.config.push(value),
+                    EarlyFlag::Color => this.color = Some(value),
+                    EarlyFlag::Cwd => this.cwd = Some(value),
+                    EarlyFlag::Repository | EarlyFlag::R => {
+                        this.repo = Some(value);
+                    }
                 }
-            } else if let Some(value) = arg.drop_prefix(b"--config=") {
-                config.push(value.to_owned())
-            }
-
-            if arg == b"--color" {
-                if let Some(value) = args.next() {
-                    color = Some(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--color=") {
-                color = Some(value.to_owned())
-            }
-
-            if arg == b"--cwd" {
-                if let Some(value) = args.next() {
-                    cwd = Some(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--cwd=") {
-                cwd = Some(value.to_owned())
-            }
-
-            if arg == b"--repository" || arg == b"-R" {
-                if let Some(value) = args.next() {
-                    repo = Some(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--repository=") {
-                repo = Some(value.to_owned())
-            } else if let Some(value) = arg.drop_prefix(b"-R") {
-                repo = Some(value.to_owned())
             }
         }
-        Self {
-            config,
-            color,
-            repo,
-            cwd,
-        }
+        this
     }
 }
 
