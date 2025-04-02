@@ -312,8 +312,10 @@ impl RevlogDeltaConfig {
                 None => None,
             };
 
-        delta_config.sparse_revlog =
-            requirements.contains(SPARSEREVLOG_REQUIREMENT);
+        // we should not create delta that rely on sparse logic if the revlog
+        // does not suport general delta.
+        delta_config.sparse_revlog = delta_config.general_delta
+            && requirements.contains(SPARSEREVLOG_REQUIREMENT);
 
         delta_config.max_chain_len =
             config.get_byte_size_no_default(b"format", b"maxchainlen")?;
