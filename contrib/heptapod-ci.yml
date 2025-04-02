@@ -102,7 +102,6 @@ trigger-nightly-build:
   parallel:
     matrix:
       - BUILD_PY_ID:
-          - cp38-cp38
           - cp39-cp39
           - cp311-cp311
           - cp310-cp310
@@ -370,16 +369,16 @@ trigger-pycompat:
 # note: we should probably get a full matrix for flavor × py-version, but this
 # is a simple start to be able to check if we break the lowest supported
 # version (and 3.12 have been giving us various troubles)
-test-3.8-c:
+test-3.9-c:
     extends: .test-c-pycompat
     variables:
-        PYTHON: python3.8
+        PYTHON: python3.9
     needs:
       - job: trigger-pycompat
       - job: build-c-wheel-libc
         parallel:
           matrix:
-            - BUILD_PY_ID: "cp38-cp38"
+            - BUILD_PY_ID: "cp39-cp39"
 
 test-3.9-c:
     extends: .test-c-pycompat
@@ -582,7 +581,6 @@ build-c-wheel-windows:
         # "cp39" is first as it unlock the tests
         - CIBW_BUILD:
           - "cp39-*"
-          - "cp38-*"
           - "cp310-*"
           - "cp311-*"
           - "cp312-*"
@@ -756,7 +754,6 @@ test-result-linux:
   extends: .sink
   needs:
     - test-c
-    - test-3.8-c
     - test-3.9-c
     - test-3.10-c
     - test-3.11-c
