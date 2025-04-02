@@ -55,7 +55,16 @@ class Error(Hint, Exception):
     coarse_exit_code = None
     detailed_exit_code = None
 
-    def __init__(self, message: bytes, hint: Optional[bytes] = None) -> None:
+    def __init__(
+        self,
+        message: Union[bytes | str],
+        hint: Optional[bytes] = None,
+    ) -> None:
+        # Ideally we would only accept "bytes" here, however the C code set
+        # error message as `str`, so we need to handle them on the fly or we
+        # will crash later down the road.
+        if isinstance(message, str):
+            message = pycompat.sysbytes(message)
         self.message = message
         self.hint = hint
         # Pass the message into the Exception constructor to help extensions
