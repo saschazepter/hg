@@ -941,12 +941,12 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
     available, and enabled by default if the fast implementation is available.
 
     To accomodate installations of Mercurial without the fast implementation,
-    you can downgrade your repository. To do so run the following command:
+    you can downgrade your repository. To do so run the following command::
 
-    $ hg debugupgraderepo \
-          --run \
-          --config format.use-dirstate-v2=False \
-          --config storage.dirstate-v2.slow-path=allow
+        $ hg debugupgraderepo \
+              --run \
+              --config format.use-dirstate-v2=False \
+              --config storage.dirstate-v2.slow-path=allow
 
     For a more comprehensive guide, see :hg:`help internals.dirstate-v2`.
 
@@ -1058,12 +1058,12 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
     available, and enabled by default if the fast implementation is available.
 
     To accomodate installations of Mercurial without the fast implementation,
-    you can downgrade your repository. To do so run the following command:
+    you can downgrade your repository. To do so run the following command::
 
-    $ hg debugupgraderepo \
-          --run \
-          --config format.use-persistent-nodemap=False \
-          --config storage.revlog.persistent-nodemap.slow-path=allow
+        $ hg debugupgraderepo \
+              --run \
+              --config format.use-persistent-nodemap=False \
+              --config storage.revlog.persistent-nodemap.slow-path=allow
 
 ``use-share-safe``
     Enforce "safe" behaviors for all "shares" that access this repository.
