@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2016-present, Gregory Szorc
 # All rights reserved.
 #
@@ -115,7 +115,7 @@ if CFFI_BACKEND and cffi:
 
 version = None
 
-with open("c-ext/python-zstandard.h", "r") as fh:
+with open("c-ext/python-zstandard.h") as fh:
     for line in fh:
         if not line.startswith("#define PYTHON_ZSTANDARD_VERSION"):
             continue
@@ -132,7 +132,7 @@ setup(
     name="zstandard",
     version=version,
     description="Zstandard bindings for Python",
-    long_description=open("README.rst", "r").read(),
+    long_description=open("README.rst").read(),
     url="https://github.com/indygreg/python-zstandard",
     author="Gregory Szorc",
     author_email="gregory.szorc@gmail.com",
