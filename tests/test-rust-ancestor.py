@@ -28,6 +28,16 @@ class RustAncestorsTestMixin:
     good enough.
 
     Algorithmic correctness is asserted by the Rust unit tests.
+
+    At this point, we have two sets of bindings, in `hg-cpython` and
+    `hg-pyo3`. This class used to be for the first and now contains
+    the tests that are identical in both bindings. As of this writing,
+    there are more implementations in `hg-cpython` than `hg-pyo3`, hence
+    some more tests in the subclass for `hg-cpython`. When the work on PyO3
+    is complete, the subclasses for `hg-cpython` should have no specific
+    test left. Later on, when we remove the dead code in `hg-cpython`, the tests
+    should migrate from the mixin to the class for `hg-pyo3`, until we can
+    simply remove the mixin.
     """
 
     @classmethod
@@ -138,6 +148,7 @@ class RustAncestorsTestMixin:
             AncestorsIterator(idx, [1], -1, False)
         exc = arc.exception
         self.assertIsInstance(exc, ValueError)
+        # rust-cpython issues appropriate str instances for Python 2 and 3
         self.assertEqual(exc.args, ('ParentOutOfRange', 1))
 
     def testwdirunsupported(self):
@@ -151,6 +162,7 @@ class RustAncestorsTestMixin:
 
         exc = arc.exception
         self.assertIsInstance(exc, ValueError)
+        # rust-cpython issues appropriate str instances for Python 2 and 3
         self.assertEqual(exc.args, ('InvalidRevision', wdirrev))
 
     def testheadrevs(self):

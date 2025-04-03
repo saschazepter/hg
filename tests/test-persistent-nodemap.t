@@ -73,9 +73,41 @@ Unlock further check (we are here to test the feature)
 
 #endif
 
-  $ hg debugformat persistent-nodemap
+#if rust
+
+Regression test for a previous bug in Rust/C FFI for the `Revlog_CAPI` capsule:
+in places where `mercurial/cext/revlog.c` function signatures use `Py_ssize_t`
+(64 bits on Linux x86_64), corresponding declarations in `rust/hg-cpython/src/cindex.rs`
+incorrectly used `libc::c_int` (32 bits).
+As a result, -1 passed from Rust for the null revision became 4294967295 in C.
+
+  $ hg log -r 00000000
+  changeset:   -1:000000000000
+  tag:         tip
+  user:        
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  
+
+#endif
+
+
+  $ hg debugformat
   format-variant     repo
+  fncache:            yes
+  dirstate-v2:         no
+  tracked-hint:        no
+  dotencode:          yes
+  generaldelta:       yes
+  share-safe:         yes
+  sparserevlog:       yes
   persistent-nodemap: yes
+  copies-sdc:          no
+  revlog-v2:           no
+  changelog-v2:        no
+  plain-cl-delta:     yes
+  compression:        zlib (no-zstd !)
+  compression:        zstd (zstd !)
+  compression-level:  default
   $ hg debugbuilddag .+5000 --new-file
 
   $ hg debugnodemap --metadata
@@ -787,9 +819,23 @@ downgrading
   > [format]
   > use-persistent-nodemap=no
   > EOF
-  $ hg debugformat -v persistent-nodemap
+  $ hg debugformat -v
   format-variant     repo config default
+  fncache:            yes    yes     yes
+  dirstate-v2:         no     no      no
+  tracked-hint:        no     no      no
+  dotencode:          yes    yes     yes
+  generaldelta:       yes    yes     yes
+  share-safe:         yes    yes     yes
+  sparserevlog:       yes    yes     yes
   persistent-nodemap: yes     no      no
+  copies-sdc:          no     no      no
+  revlog-v2:           no     no      no
+  changelog-v2:        no     no      no
+  plain-cl-delta:     yes    yes     yes
+  compression:        zlib   zlib    zlib (no-zstd !)
+  compression:        zstd   zstd    zstd (zstd !)
+  compression-level:  default default default
   $ hg debugupgraderepo --run --no-backup --quiet
   upgrade will perform the following actions:
   
@@ -815,9 +861,23 @@ upgrading
   > [format]
   > use-persistent-nodemap=yes
   > EOF
-  $ hg debugformat -v persistent-nodemap
+  $ hg debugformat -v
   format-variant     repo config default
+  fncache:            yes    yes     yes
+  dirstate-v2:         no     no      no
+  tracked-hint:        no     no      no
+  dotencode:          yes    yes     yes
+  generaldelta:       yes    yes     yes
+  share-safe:         yes    yes     yes
+  sparserevlog:       yes    yes     yes
   persistent-nodemap:  no    yes      no
+  copies-sdc:          no     no      no
+  revlog-v2:           no     no      no
+  changelog-v2:        no     no      no
+  plain-cl-delta:     yes    yes     yes
+  compression:        zlib   zlib    zlib (no-zstd !)
+  compression:        zstd   zstd    zstd (zstd !)
+  compression-level:  default default default
   $ hg debugupgraderepo --run --no-backup --quiet
   upgrade will perform the following actions:
   
