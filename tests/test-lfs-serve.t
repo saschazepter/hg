@@ -381,10 +381,12 @@ lfs content, and the extension enabled.
   *** runcommand debugprocessors lfs.bin -R ../server
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   registered processor '0x2000'
   *** runcommand debugprocessors nonlfs2.txt -R ../server
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   registered processor '0x2000'
   *** runcommand config extensions --cwd ../server
   extensions.debugprocessors=$TESTTMP/debugprocessors.py
@@ -394,6 +396,7 @@ lfs content, and the extension enabled.
   *** runcommand debugprocessors nonlfs3.txt
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   *** runcommand config extensions
   extensions.debugprocessors=$TESTTMP/debugprocessors.py
 
@@ -436,10 +439,12 @@ lfs content, and the extension enabled.
   *** runcommand debugprocessors lfs.bin -R ../server
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   registered processor '0x2000'
   *** runcommand debugprocessors nonlfs2.txt -R ../server
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   registered processor '0x2000'
   *** runcommand config extensions --cwd ../server
   extensions.debugprocessors=$TESTTMP/debugprocessors.py
@@ -449,6 +454,7 @@ lfs content, and the extension enabled.
   *** runcommand debugprocessors nonlfs3.txt
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   registered processor '0x2000'
   *** runcommand config extensions
   extensions.debugprocessors=$TESTTMP/debugprocessors.py
@@ -458,6 +464,7 @@ lfs content, and the extension enabled.
   *** runcommand debugprocessors nonlfs.txt -R ../nonlfs
   registered processor '0x8000'
   registered processor '0x1000'
+  registered processor '0x800'
   *** runcommand config extensions --cwd ../nonlfs
   extensions.debugprocessors=$TESTTMP/debugprocessors.py
   extensions.lfs=!

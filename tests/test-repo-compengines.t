@@ -194,11 +194,9 @@ checking zstd options
   > done
 
   $ $RUNTESTDIR/f -s zstd-*/.hg/store/data/*
-  zstd-level-1/.hg/store/data/a.i: size=4114 (no-rust !)
-  zstd-level-1/.hg/store/data/a.i: size=4112 (rust !)
+  zstd-level-1/.hg/store/data/a.i: size=4112
   zstd-level-22/.hg/store/data/a.i: size=4091
-  zstd-level-default/\.hg/store/data/a\.i: size=(4094|4102) (re) (no-rust !)
-  zstd-level-default/.hg/store/data/a.i: size=4097 (rust !)
+  zstd-level-default/.hg/store/data/a.i: size=4097
 
 Test error cases
 

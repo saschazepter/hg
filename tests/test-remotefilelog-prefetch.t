@@ -24,8 +24,8 @@
   streaming all changes
   3 files to transfer, 528 bytes of data (no-zstd !)
   stream-cloned 3 files / 528 bytes in * seconds (* */sec) (glob) (no-zstd !)
-  3 files to transfer, 532 bytes of data (zstd no-rust !)
-  stream-cloned 3 files / 532 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
+  3 files to transfer, 533 bytes of data (zstd no-rust !)
+  stream-cloned 3 files / 533 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
   5 files to transfer, 659 bytes of data (zstd rust !)
   stream-cloned 5 files / 659 bytes in * seconds (*/sec) (glob) (zstd rust !)
   searching for changes
@@ -170,8 +170,8 @@
   streaming all changes
   3 files to transfer, 528 bytes of data (no-zstd !)
   stream-cloned 3 files / 528 bytes in * seconds * (glob) (no-zstd !)
-  3 files to transfer, 532 bytes of data (zstd no-rust !)
-  stream-cloned 3 files / 532 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
+  3 files to transfer, 533 bytes of data (zstd no-rust !)
+  stream-cloned 3 files / 533 bytes in * seconds (* */sec) (glob) (zstd no-rust !)
   5 files to transfer, 659 bytes of data (zstd rust !)
   stream-cloned 5 files / 659 bytes in * seconds (*/sec) (glob) (zstd rust !)
   searching for changes

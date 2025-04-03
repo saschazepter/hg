@@ -456,9 +456,9 @@ annotate after ABA with follow
 
 missing file
 
-  $ hg ann nosuchfile
+  $ hg annotate nosuchfile
   abort: nosuchfile: no such file in rev e9e6b4fa872f
-  [10]
+  [255]
 
 annotate file without '\n' on last line
 

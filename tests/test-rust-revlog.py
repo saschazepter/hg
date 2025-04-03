@@ -7,23 +7,22 @@ from mercurial.node import (
 from mercurial import error
 
 try:
-    from mercurial import rustext
+    from mercurial import pyo3_rustext
 
-    rustext.__name__  # trigger immediate actual import
+    pyo3_rustext.__name__  # trigger immediate actual import
 except ImportError:
-    rustext = None
+    pyo3_rustext = None
 else:
     # this would fail already without appropriate ancestor.__package__
-    from mercurial.rustext.ancestor import LazyAncestors
+    from mercurial.pyo3_rustext.ancestor import LazyAncestors
 
 from mercurial.testing import revlog as revlogtesting
 
 header = struct.unpack(">I", revlogtesting.data_non_inlined[:4])[0]
 
 
-class RustInnerRevlogTestMixin:
-    """Common tests for both Rust Python bindings."""
-
+# Conditional skipping done by the base class
+class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
     node_hex0 = b'd1f4bbb0befc13bd8cd39d0fcdd93b8c078c4a2f'
     node0 = node_bin(node_hex0)
     bogus_node_hex = b'cafe' * 10
@@ -170,13 +169,6 @@ class RustInnerRevlogTestMixin:
             # well our data file does not even exist
             self.assertTrue(b"when reading Just a path/test.d" in exc.args[0])
 
-
-# Conditional skipping done by the base class
-class RustInnerRevlogTest(
-    revlogtesting.RustRevlogBasedTestBase, RustInnerRevlogTestMixin
-):
-    """For reference"""
-
     def test_ancestors(self):
         rustidx = self.parserustindex()
         lazy = LazyAncestors(rustidx, [3], 0, True)
@@ -195,13 +187,6 @@ class RustInnerRevlogTest(
     def test_canonical_index_file(self):
         irl = self.make_inner_revlog()
         self.assertEqual(irl.canonical_index_file, b'test.i')
-
-
-# Conditional skipping done by the base class
-class PyO3InnerRevlogTest(
-    revlogtesting.PyO3RevlogBasedTestBase, RustInnerRevlogTestMixin
-):
-    """Testing new PyO3 bindings, by comparison with rust-cpython bindings."""
 
 
 if __name__ == '__main__':

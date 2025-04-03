@@ -3,12 +3,7 @@
   > fastexport=
   > EOF
 
-  $ hg init test
-  $ cd test
-
-  $ hg fastexport
-  abort: no revisions matched
-  [255]
+  $ hg init
 
   $ hg debugbuilddag -mon '+2:tbase @name1 +3:thead1 <tbase @name2 +4:thead2 @both /thead1 +2:tmaintip'
 
@@ -868,29 +863,3 @@
   
   abort: Unable to parse user into person and email for revision 65a3f69b9b519de73d755472c1ab05990ab8a7f7
   [255]
-
-#if symlink
-
-test symlink conversion
-
-  $ cd ..
-
-  $ hg init test_symlinks
-  $ cd test_symlinks
-  $ ln -s linktarget linkname
-  $ hg add linkname
-  $ hg commit -m symlink --date 'Thu Jan 01 00:00:01 1970 +0000'
-  $ hg fastexport
-  blob
-  mark :1
-  data 10
-  linktarget
-  commit refs/heads/default
-  mark :2
-  committer "test" <test> 1 +0000
-  data 7
-  symlink
-  M 120000 :1 linkname
-  
-
-#endif

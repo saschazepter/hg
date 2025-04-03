@@ -74,7 +74,7 @@ use git diff to see rename
   > [format]
   > exp-use-copies-side-data-changeset = no
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
 #endif
 
@@ -83,7 +83,7 @@ use git diff to see rename
   > [format]
   > exp-use-copies-side-data-changeset = no
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
 #endif
 
@@ -1714,7 +1714,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
   $ cd ..
   $ mv repo-chain repo-source
@@ -1751,7 +1751,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
   $ cd ..
   $ mv repo-chain repo-source

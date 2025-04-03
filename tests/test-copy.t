@@ -1,3 +1,17 @@
+#testcases parent-swap meta-flag
+
+#if meta-flag
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-hasmeta-flag=yes
+  > EOF
+#else
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-hasmeta-flag=no
+  > EOF
+#endif
+
   $ mkdir part1
   $ cd part1
 
@@ -86,8 +100,17 @@ this should show the rename information in the metadata
   copy: a
   copyrev: b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3
 
+#if meta-flag
+  $ md5sum.py .hg/store/data/b.i
+  20472919b624970ca611b84700c72304  .hg/store/data/b.i
+  $ hg debugrevlog b | grep flags
+  flags  : inline, generaldelta, hasmeta
+#else
   $ md5sum.py .hg/store/data/b.i
   44913824c8f5890ae218f9829535922e  .hg/store/data/b.i
+  $ hg debugrevlog b | grep flags
+  flags  : inline, generaldelta
+#endif
   $ hg cat b > bsum
   $ md5sum.py bsum
   60b725f10c9c85c70d97880dfe8191b3  bsum
@@ -406,4 +429,114 @@ Test uncopy on committed copies
   bleah
   dirty
 
+  $ hg root
+  $TESTTMP/part2
   $ cd ..
+
+# This should survive push and pull with both changegroup3 and changegroup 4
+
+  $ hg clone --pull part1 clone1-cg3 --quiet --config experimental.changegroup4=no
+  $ hg -R clone1-cg3 status --copies --change 0
+  A a
+  $ hg -R clone1-cg3 status --copies --change 1
+  A b
+    a
+
+  $ hg clone --pull part2 clone2-cg3 --quiet --config experimental.changegroup4=no
+  $ hg -R clone2-cg3 status --copies --change 5
+  A baz
+  A qux
+    bar
+  $ hg -R clone2-cg3 status --copies --change 4
+  A dir/bar
+  A dir/foo
+  $ hg -R clone2-cg3 status --copies --change 3
+  M bar
+  $ hg -R clone2-cg3 status --copies --change 2
+  M bar
+  M foo
+  $ hg -R clone2-cg3 status --copies --change 1
+  A bar
+    foo
+  $ hg -R clone2-cg3 status --copies --change 0
+  A foo
+
+  $ hg clone --pull part1 clone1-cg4 --config experimental.changegroup4=yes --quiet
+  $ hg -R clone1-cg4 status --copies --change 0
+  A a
+  $ hg -R clone1-cg4 status --copies --change 1
+  A b
+    a
+
+  $ hg clone --pull part2 clone2-cg4 --config experimental.changegroup4=yes --quiet
+  $ hg -R clone2-cg4 status --copies --change 5
+  A baz
+  A qux
+    bar
+  $ hg -R clone2-cg4 status --copies --change 4
+  A dir/bar
+  A dir/foo
+  $ hg -R clone2-cg4 status --copies --change 3
+  M bar
+  $ hg -R clone2-cg4 status --copies --change 2
+  M bar
+  M foo
+  $ hg -R clone2-cg4 status --copies --change 1
+  A bar
+    foo
+  $ hg -R clone2-cg4 status --copies --change 0
+  A foo
+
+#if meta-flag
+  $ md5sum.py part1/.hg/store/data/b.i clone1*/.hg/store/data/b.i
+  20472919b624970ca611b84700c72304  part1/.hg/store/data/b.i
+  20472919b624970ca611b84700c72304  clone1-cg3/.hg/store/data/b.i
+  20472919b624970ca611b84700c72304  clone1-cg4/.hg/store/data/b.i
+  $ md5sum.py part1/.hg/store/data/a.i clone1*/.hg/store/data/a.i
+  24d79f4139052e75e98742bd9e9c774a  part1/.hg/store/data/a.i
+  24d79f4139052e75e98742bd9e9c774a  clone1-cg3/.hg/store/data/a.i
+  24d79f4139052e75e98742bd9e9c774a  clone1-cg4/.hg/store/data/a.i
+
+  $ md5sum.py part2/.hg/store/data/foo.i clone2*/.hg/store/data/foo.i
+  651dc40f4d89883b9d0bfb1ffaa3d617  part2/.hg/store/data/foo.i
+  651dc40f4d89883b9d0bfb1ffaa3d617  clone2-cg3/.hg/store/data/foo.i
+  651dc40f4d89883b9d0bfb1ffaa3d617  clone2-cg4/.hg/store/data/foo.i
+  $ md5sum.py part2/.hg/store/data/bar.i clone2*/.hg/store/data/bar.i
+  b52f445dd407671a6277ce4dbcffb992  part2/.hg/store/data/bar.i
+  b52f445dd407671a6277ce4dbcffb992  clone2-cg3/.hg/store/data/bar.i
+  b52f445dd407671a6277ce4dbcffb992  clone2-cg4/.hg/store/data/bar.i
+  $ md5sum.py part2/.hg/store/data/baz.i clone2*/.hg/store/data/baz.i
+  525c4d70b3f86d77993391629985e62b  part2/.hg/store/data/baz.i
+  525c4d70b3f86d77993391629985e62b  clone2-cg3/.hg/store/data/baz.i
+  525c4d70b3f86d77993391629985e62b  clone2-cg4/.hg/store/data/baz.i
+  $ md5sum.py part2/.hg/store/data/qux.i clone2*/.hg/store/data/qux.i
+  003ccc7043b63c06e93fdce109b10417  part2/.hg/store/data/qux.i
+  003ccc7043b63c06e93fdce109b10417  clone2-cg3/.hg/store/data/qux.i
+  003ccc7043b63c06e93fdce109b10417  clone2-cg4/.hg/store/data/qux.i
+#else
+  $ md5sum.py part1/.hg/store/data/b.i clone1*/.hg/store/data/b.i
+  44913824c8f5890ae218f9829535922e  part1/.hg/store/data/b.i
+  44913824c8f5890ae218f9829535922e  clone1-cg3/.hg/store/data/b.i
+  44913824c8f5890ae218f9829535922e  clone1-cg4/.hg/store/data/b.i
+  $ md5sum.py part1/.hg/store/data/a.i clone1*/.hg/store/data/a.i
+  c517d297466f14512660b97fb67ef39d  part1/.hg/store/data/a.i
+  c517d297466f14512660b97fb67ef39d  clone1-cg3/.hg/store/data/a.i
+  c517d297466f14512660b97fb67ef39d  clone1-cg4/.hg/store/data/a.i
+
+  $ md5sum.py part2/.hg/store/data/foo.i clone2*/.hg/store/data/foo.i
+  9fccff6dee6685292e72152627c295cb  part2/.hg/store/data/foo.i
+  9fccff6dee6685292e72152627c295cb  clone2-cg3/.hg/store/data/foo.i
+  9fccff6dee6685292e72152627c295cb  clone2-cg4/.hg/store/data/foo.i
+  $ md5sum.py part2/.hg/store/data/bar.i clone2*/.hg/store/data/bar.i
+  0eb3d23b50f1ccba7d6ec7212c4e4e64  part2/.hg/store/data/bar.i
+  0eb3d23b50f1ccba7d6ec7212c4e4e64  clone2-cg3/.hg/store/data/bar.i
+  0eb3d23b50f1ccba7d6ec7212c4e4e64  clone2-cg4/.hg/store/data/bar.i
+  $ md5sum.py part2/.hg/store/data/baz.i clone2*/.hg/store/data/baz.i
+  8a22e288ffd74c0d1fead0cb2ddd7bb0  part2/.hg/store/data/baz.i
+  8a22e288ffd74c0d1fead0cb2ddd7bb0  clone2-cg3/.hg/store/data/baz.i
+  8a22e288ffd74c0d1fead0cb2ddd7bb0  clone2-cg4/.hg/store/data/baz.i
+  $ md5sum.py part2/.hg/store/data/qux.i clone2*/.hg/store/data/qux.i
+  e106cd025269f85a938d68b6734822c2  part2/.hg/store/data/qux.i
+  e106cd025269f85a938d68b6734822c2  clone2-cg3/.hg/store/data/qux.i
+  e106cd025269f85a938d68b6734822c2  clone2-cg4/.hg/store/data/qux.i
+#endif
