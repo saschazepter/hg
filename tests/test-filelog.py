@@ -48,10 +48,7 @@ if not textwith == fl.read(node):
 if fl.cmp(node, textwith) or not fl.cmp(node, without):
     error('filelog.cmp for data starting with \\1\\n')
 if fl.size(0) != len(textwith):
-    error(
-        'FIXME: This is a known failure of filelog.size for data starting '
-        'with \\1\\n'
-    )
+    error('filelog.size for data starting with \\1\\n')
 
 node = addrev(textwith, renamed=True)
 if not textwith == fl.read(node):

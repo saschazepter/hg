@@ -832,12 +832,10 @@ Testing repository upgrade
   > done
   $ hg ci -m 'have some content'
   $ f -s .hg/store/00manifest.*
-  .hg/store/00manifest.i: size=798 (no-pure no-rust !)
-  .hg/store/00manifest.i: size=800 (rust !)
+  .hg/store/00manifest.i: size=800 (no-pure !)
   .hg/store/00manifest.i: size=784 (pure no-rust !)
   $ f -s .hg/store/meta/dir/00manifest*
-  .hg/store/meta/dir/00manifest.i: size=556 (no-pure no-rust !)
-  .hg/store/meta/dir/00manifest.i: size=557 (rust !)
+  .hg/store/meta/dir/00manifest.i: size=557 (no-pure !)
   .hg/store/meta/dir/00manifest.i: size=544 (pure no-rust !)
   $ hg debugupgraderepo --config format.revlog-compression=none --config experimental.treemanifest=yes --run --quiet --no-backup
   upgrade will perform the following actions:

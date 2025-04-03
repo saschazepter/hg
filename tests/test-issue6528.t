@@ -188,6 +188,10 @@ deltas where possible.)
   $ hg st
   M D.txt
   M b.txt
+  $ hg st --change 2 --copies
+  A b.txt
+    a.txt
+  R a.txt
   $ hg debugrevlogindex b.txt
      rev linkrev nodeid       p1           p2
        0       2 05b806ebe5ea 000000000000 000000000000
@@ -550,8 +554,8 @@ That we do see the symptoms of the bug
   $ hg up -- -1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg status
-  M D.txt (?)
-  M b.txt (?)
+  M D.txt
+  M b.txt
 
 And that the repair command find issue to fix.
 
@@ -598,8 +602,8 @@ That we do see the symptoms of the bug
   $ hg up -- -1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg status
-  M D.txt (?)
-  M b.txt (?)
+  M D.txt
+  M b.txt
 
 And that the repair command find issue to fix.
 
@@ -607,5 +611,160 @@ And that the repair command find issue to fix.
   found affected revision 1 for file 'D.txt'
   found affected revision 1 for file 'b.txt'
   found affected revision 3 for file 'b.txt'
+
+  $ cd ..
+
+Upgrading to explicit meta flags
+--------------------------------
+
+  $ hg init upgrade-to-has-meta --config format.exp-use-hasmeta-flag=no
+  $ cd upgrade-to-has-meta
+  $ hg debugformat hasmeta_flag
+  format-variant     repo
+  hasmeta_flag:        no
+
+  $ hg unbundle "$TESTDIR"/bundles/issue6528.hg-v2 --config storage.revlog.issue6528.fix-incoming=no
+  adding changesets
+  adding manifests
+  adding file changes
+  added 8 changesets with 12 changes to 4 files
+  new changesets f5a5a568022f:3beabb508514 (8 drafts)
+  (run 'hg update' to get a working copy)
+
+Check that revision were not fixed on the fly
+
+  $ hg debugrevlogindex a.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      0     -1     -1 38ecb501c5f4
+       1 0000       14      1      0     -1 dd95142cd79c
+       2 0000       82      4     -1     -1 24eaeb9b60a2
+       3 0000       19      5      2     -1 359eaa70a265
+  $ hg debugrevlogindex b.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       80      2     -1     -1 05b806ebe5ea
+       1 0000       82      3      0     -1 a58b36ad6b65
+       2 0000       82      6     -1     -1 216a5fe8b8ed
+       3 0000       85      7      2     -1 ea4f2f2463cc
+
+  $ hg debugrevlogindex C.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      4     -1     -1 38ecb501c5f4
+       1 0000       14      5      0     -1 dd95142cd79c
+  $ hg debugrevlogindex D.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       80      6     -1     -1 2a8d3833f2fb
+       1 0000       82      7      0     -1 2a80419dfc31
+
+That we do see the symptoms of the bug
+
+  $ hg status --change 2 --copies
+  A b.txt
+    a.txt
+  R a.txt
+  $ hg up -- -1
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg status
+  M D.txt
+  M b.txt
+
+Upgrading to a revlog format with explicit meta flag tracking
+
+  $ hg debugupgraderepo --run --config format.exp-use-hasmeta-flag=yes --quiet
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     added: exp-filelog-metaflag
+  
+  processed revlogs:
+    - all-filelogs
+  
+  $ hg debugformat hasmeta_flag
+  format-variant     repo
+  hasmeta_flag:       yes
+
+
+  $ hg debugrevlogindex a.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      0     -1     -1 38ecb501c5f4
+       1 0000       14      1      0     -1 dd95142cd79c
+       2 0800       82      4     -1     -1 24eaeb9b60a2
+       3 0000       19      5      2     -1 359eaa70a265
+  $ hg debugrevlogindex b.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0800       80      2     -1     -1 05b806ebe5ea
+       1 0800       82      3      0     -1 a58b36ad6b65
+       2 0800       82      6     -1     -1 216a5fe8b8ed
+       3 0800       85      7      2     -1 ea4f2f2463cc
+  $ hg debugrevlogindex C.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      4     -1     -1 38ecb501c5f4
+       1 0000       14      5      0     -1 dd95142cd79c
+
+  $ hg debugrevlogindex D.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0800       80      6     -1     -1 2a8d3833f2fb
+       1 0800       82      7      0     -1 2a80419dfc31
+
+We no longer see the bug
+
+  $ hg status --change 2 --copies
+  A b.txt
+    a.txt
+  R a.txt
+  $ hg debugrevlog b.txt | grep flags
+  flags  : generaldelta, hasmeta
+  $ hg debugrevlog D.txt | grep flags
+  flags  : generaldelta, hasmeta
+  $ hg status
+
+Downgrading does not regress
+
+  $ hg debugupgraderepo --run --config format.exp-use-hasmeta-flag=no --quiet
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: exp-filelog-metaflag
+  
+  processed revlogs:
+    - all-filelogs
+  
+  $ hg debugformat hasmeta_flag
+  format-variant     repo
+  hasmeta_flag:        no
+
+  $ hg debugrevlogindex a.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      0     -1     -1 38ecb501c5f4
+       1 0000       14      1      0     -1 dd95142cd79c
+       2 0000       82      4     -1     -1 24eaeb9b60a2
+       3 0000       19      5      2     -1 359eaa70a265
+  $ hg debugrevlogindex b.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       80      2     -1     -1 05b806ebe5ea
+       1 0000       82      3     -1      0 a58b36ad6b65
+       2 0000       82      6     -1     -1 216a5fe8b8ed
+       3 0000       85      7     -1      2 ea4f2f2463cc
+
+  $ hg debugrevlogindex C.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      4     -1     -1 38ecb501c5f4
+       1 0000       14      5      0     -1 dd95142cd79c
+  $ hg debugrevlogindex D.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       80      6     -1     -1 2a8d3833f2fb
+       1 0000       82      7     -1      0 2a80419dfc31
+
+
+  $ hg status --change 2 --copies
+  A b.txt
+    a.txt
+  R a.txt
+  $ hg debugrevlog b.txt | grep flags
+  flags  : generaldelta
+  $ hg debugrevlog D.txt | grep flags
+  flags  : generaldelta
+  $ hg status
 
   $ cd ..

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import socket
@@ -6,10 +8,7 @@ import subprocess
 import sys
 import tempfile
 
-try:
-    from setuptools.extern.packaging.version import Version
-except ImportError:
-    from distutils.version import StrictVersion as Version
+from packaging.version import Version
 
 tempprefix = 'hg-hghave-'
 

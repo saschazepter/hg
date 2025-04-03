@@ -258,10 +258,11 @@ build-c-wheel-arm64-musl:
 
 checks:
     extends: .runtests
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-checks:v3.0"
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
-        RUNTEST_ARGS: "--time"
+        RUNTEST_ARGS: "--time --pure"
         FILTER: "--test-list ${TMP_WORK_DIR}/check-tests.txt"
         CI_CLEVER_CLOUD_FLAVOR: S
 
@@ -590,9 +591,6 @@ build-c-wheel-macos:
     tags:
       - macos
     script:
-      - sh -c 'which "$PYTHON"'
-      - sh -c '"$PYTHON" -V'
-      - sh -c 'which cibuildwheel'
       - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels
       - cibuildwheel --output-dir tmp-wheels/

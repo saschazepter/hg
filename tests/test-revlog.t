@@ -13,10 +13,10 @@ Flags on revlog version 0 are rejected
 Unknown flags on revlog version 1 are rejected
 
   >>> with open('.hg/store/00changelog.i', 'wb') as fh:
-  ...     fh.write(b'\x00\x04\x00\x01') and None
+  ...     fh.write(b'\x00\x08\x00\x01') and None
 
   $ hg log
-  abort: unknown flags (0x04) in version 1 revlog 00changelog
+  abort: unknown flags (0x08) in version 1 revlog 00changelog
   [50]
 
 Unknown version is rejected

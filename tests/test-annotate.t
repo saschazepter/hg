@@ -516,9 +516,9 @@ annotate after ABA with follow
 
 missing file
 
-  $ hg ann nosuchfile
+  $ hg annotate nosuchfile
   abort: nosuchfile: no such file in rev e9e6b4fa872f
-  [10]
+  [255]
 
 annotate file without '\n' on last line
 
@@ -693,8 +693,9 @@ annotate missing file
   $ rm baz
 
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo/baz: $ENOENT$ (windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
+  abort: baz: $ENOENT$ (rhg !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
   [255]
 
 annotate removed file
@@ -702,8 +703,15 @@ annotate removed file
   $ hg rm baz
 
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo/baz: $ENOENT$ (windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
+  abort: baz: $ENOENT$ (rhg !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
+  [255]
+
+annotate file neither in repo nor working copy
+
+  $ hg annotate -ncr "wdir()" never_existed
+  abort: never_existed: $ENOENT$
   [255]
 
   $ hg revert --all --no-backup --quiet
