@@ -1,3 +1,10 @@
+= Mercurial 7.0.1 =
+
+This upgrade is long overdue and fixes a security vulnerability transitive
+from `zstd` itself.
+
+ * vendor: upgrade to python-zstandard 0.23.0
+
 = Mercurial 7.0=
 
 == Packaging Changes ==
