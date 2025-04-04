@@ -80,6 +80,19 @@ of minutes because you're compiling everything.
 
 See the "Checking for Rust" section to see if the install succeeded.
 
+Using pipx
+----------
+
+Using pipx is an efficient way to get an isolated installation of mercurial
+available for a user or globally.
+
+  $ pipx install mercurial \
+        --pip-args '--no-cache-dir --config-settings --global-option=--rust --no-binary=mercurial'
+
+You can then add extensions to that install using
+
+  $ pipx inject mercurial hg-foo
+
 From your distribution
 ----------------------
 
