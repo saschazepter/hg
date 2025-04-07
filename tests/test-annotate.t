@@ -1299,6 +1299,47 @@ from 4 (starting revision), not from 3 (most recent change to the file).
 
   $ cd ..
 
+When scanning the changelog to adjust linkrevs, it should start from a known descendant
+rather than from the top. Either result would be correct, but it's better for performance
+to start from a descendant, so we should consistently do that.
+TODO: Make Rust behave the same as Python.
+
+  $ hg init repo-descendant-behavior
+  $ cd repo-descendant-behavior
+  $ hg commit --config ui.allowemptycommit=True -m "initial"
+  $ echo A > file
+  $ hg commit -qAm "linkrev"
+  $ hg up 0 -q
+  $ echo A > file
+  $ hg commit -qAm "annotation if scanning from descendant"
+  $ echo B >> file
+  $ hg commit -m "descendant"
+  $ hg up 0 -q
+  $ echo A > file
+  $ hg commit -qAm "annotation if scanning from merge"
+  $ hg merge -r 'desc("descendant")' --tool :local
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit -m "merge"
+  $ hg log -G --template '{rev}: {desc}'
+  @    5: merge
+  |\
+  | o  4: annotation if scanning from merge
+  | |
+  o |  3: descendant
+  | |
+  o |  2: annotation if scanning from descendant
+  |/
+  | o  1: linkrev
+  |/
+  o  0: initial
+  
+  $ hg annotate file
+  2: A (no-rhg !)
+  4: A (rhg known-bad-output !)
+
+  $ cd ..
+
 Issue5360: Deleted chunk in p1 of a merge changeset
 
   $ hg init repo-5360
