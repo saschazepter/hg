@@ -1302,7 +1302,6 @@ from 4 (starting revision), not from 3 (most recent change to the file).
 When scanning the changelog to adjust linkrevs, it should start from a known descendant
 rather than from the top. Either result would be correct, but it's better for performance
 to start from a descendant, so we should consistently do that.
-TODO: Make Rust behave the same as Python.
 
   $ hg init repo-descendant-behavior
   $ cd repo-descendant-behavior
@@ -1335,8 +1334,7 @@ TODO: Make Rust behave the same as Python.
   o  0: initial
   
   $ hg annotate file
-  2: A (no-rhg !)
-  4: A (rhg known-bad-output !)
+  2: A
 
   $ cd ..
 

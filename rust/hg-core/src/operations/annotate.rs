@@ -513,13 +513,24 @@ pub fn annotate(
     };
     // Don't use the lines from the graph if they had whitespace cleaned.
     let lines = base_file_original_lines.unwrap_or(lines);
-    // Only convert revisions that actually appear in the final output.
+    // Record which revisions appear in the output, and so must be converted.
     for &Annotation { id, .. } in &annotations {
         graph[id].revision = ChangelogRevisionState::Needed;
     }
     // Use the same object for all ancestor checks, since it internally
     // builds a hash set of seen revisions.
     let mut ancestors = ancestor_iter(&state, changelog_revision, None);
+    // Do ancestor checks on all linkrevs. This is worthwhile even if they're
+    // `ChangelogRevisionState::NotNeeded`, because it will yield better
+    // `descendant`s for adjusting others. We go in topological order (older to
+    // newer) so that we populate the ancestor bitset in a tight loop early on.
+    for &id in &topological_order {
+        if let Some(revision) =
+            check_link_revision(&state, &fls, id, &mut ancestors)?
+        {
+            graph[id].revision = ChangelogRevisionState::Done(revision);
+        }
+    }
     // Iterate in reverse topological order so that we visits nodes after their
     // children, that way we can propagate `descendant` correctly.
     for &id in topological_order.iter().rev() {
@@ -528,18 +539,13 @@ pub fn annotate(
             info.descendant.expect("descendant set by prior iteration");
         let propagate = match info.revision {
             ChangelogRevisionState::NotNeeded => descendant,
+            ChangelogRevisionState::Done(revision) => revision,
             ChangelogRevisionState::Needed => {
-                let revision = adjust_link_revision(
-                    &state,
-                    &fls,
-                    &mut ancestors,
-                    descendant,
-                    id,
-                )?;
+                let revision =
+                    adjust_link_revision(&state, &fls, descendant, id)?;
                 info.revision = ChangelogRevisionState::Done(revision);
                 revision
             }
-            ChangelogRevisionState::Done(_) => unreachable!(),
         };
         for id in info.parents.clone().expect("parents set in step 2") {
             let descendant = &mut graph[id].descendant;
@@ -616,12 +622,31 @@ fn ancestor_iter<'a>(
     .expect("base_revision should not be null")
 }
 
-/// If the linkrev of `id` is in `ancestors`, returns it. Otherwise, finds and
-/// returns the first ancestor of `descendant` that introduced `id`.
+/// If the linkrev of `id` is in `ancestors`, returns it.
+fn check_link_revision(
+    state: &RepoState<'_>,
+    fls: &FilelogSet,
+    id: FileId,
+    ancestors: &mut AncestorsIterator<&Changelog>,
+) -> Result<Option<RevisionOrWdir>, HgError> {
+    let FileId::Rev(id) = id else {
+        return Ok(Some(RevisionOrWdir::wdir()));
+    };
+    let FilelogSetItem { filelog, .. } = fls.get(id.index);
+    let linkrev = filelog
+        .revlog
+        .link_revision(id.revision, &state.changelog.revlog)?;
+    if ancestors.contains(linkrev).map_err(from_graph_error)? {
+        return Ok(Some(linkrev.into()));
+    }
+    Ok(None)
+}
+
+/// Finds and returns the first ancestor of `descendant` that introduced `id`
+/// by scanning the changelog.
 fn adjust_link_revision(
     state: &RepoState<'_>,
     fls: &FilelogSet,
-    ancestors: &mut AncestorsIterator<&Changelog>,
     descendant: RevisionOrWdir,
     id: FileId,
 ) -> Result<RevisionOrWdir, HgError> {
@@ -632,9 +657,6 @@ fn adjust_link_revision(
     let linkrev = filelog
         .revlog
         .link_revision(id.revision, &state.changelog.revlog)?;
-    if ancestors.contains(linkrev).map_err(from_graph_error)? {
-        return Ok(linkrev.into());
-    }
     let file_node = *filelog.revlog.node_from_rev(id.revision);
     for ancestor in ancestor_iter(state, descendant, Some(linkrev)) {
         let ancestor = ancestor.map_err(from_graph_error)?;
