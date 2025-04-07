@@ -272,21 +272,25 @@ impl FilelogSet {
         follow_copies: bool,
     ) -> Result<(Vec<FileId>, Option<Vec<u8>>), HgError> {
         let mut parents = Vec::<FileId>::with_capacity(2);
-        let FileId::Rev(id) = id else {
-            // If a file in the working directory is copied/renamed, its parent
-            // is the copy source (just as it will be after committing).
-            let path = state
-                .dirstate_map()
-                .copy_map_get(base_path)?
-                .unwrap_or(base_path);
-            for rev in state.dirstate_parents() {
-                if let Some(id) =
-                    self.open_at_changelog_rev(state, path, rev)?
-                {
-                    parents.push(FileId::Rev(id));
+        let id = match id {
+            FileId::Rev(id) => id,
+            FileId::Wdir => {
+                // If a file in the working directory is copied/renamed, its
+                // parent is the copy source (just as it will be after
+                // committing).
+                let path = state
+                    .dirstate_map()
+                    .copy_map_get(base_path)?
+                    .unwrap_or(base_path);
+                for rev in state.dirstate_parents() {
+                    if let Some(id) =
+                        self.open_at_changelog_rev(state, path, rev)?
+                    {
+                        parents.push(FileId::Rev(id));
+                    }
                 }
+                return Ok((parents, None));
             }
-            return Ok((parents, None));
         };
         let filelog = &self.get(id.index).filelog;
         let revisions =
@@ -441,8 +445,9 @@ pub fn annotate(
     graph.0.par_iter_mut().try_for_each(
         |(&id, info)| -> Result<(), HgError> {
             if let AnnotatedFileState::None = info.file {
-                let FileId::Rev(id) = id else {
-                    unreachable!("only the base file can be wdir");
+                let id = match id {
+                    FileId::Rev(id) => id,
+                    FileId::Wdir => unreachable!("only base file can be wdir"),
                 };
                 info.file = AnnotatedFileState::Read(OwnedLines::split(
                     fls.read(id)?,
@@ -629,8 +634,9 @@ fn check_link_revision(
     id: FileId,
     ancestors: &mut AncestorsIterator<&Changelog>,
 ) -> Result<Option<RevisionOrWdir>, HgError> {
-    let FileId::Rev(id) = id else {
-        return Ok(Some(RevisionOrWdir::wdir()));
+    let id = match id {
+        FileId::Rev(id) => id,
+        FileId::Wdir => return Ok(Some(RevisionOrWdir::wdir())),
     };
     let FilelogSetItem { filelog, .. } = fls.get(id.index);
     let linkrev = filelog
@@ -650,8 +656,9 @@ fn adjust_link_revision(
     descendant: RevisionOrWdir,
     id: FileId,
 ) -> Result<RevisionOrWdir, HgError> {
-    let FileId::Rev(id) = id else {
-        return Ok(RevisionOrWdir::wdir());
+    let id = match id {
+        FileId::Rev(id) => id,
+        FileId::Wdir => return Ok(RevisionOrWdir::wdir()),
     };
     let FilelogSetItem { filelog, path } = fls.get(id.index);
     let linkrev = filelog
