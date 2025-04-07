@@ -1,7 +1,11 @@
-= Mercurial 7.0rc0 =
+= Mercurial 7.0.1 =
 
-/!\ These are the release notes for a tentative version of Mercurial, anything
-/!\ and everything is subject to change.
+This upgrade is long overdue and fixes a security vulnerability transitive
+from `zstd` itself.
+
+ * vendor: upgrade to python-zstandard 0.23.0
+
+= Mercurial 7.0=
 
 == Packaging Changes ==
 

@@ -139,7 +139,12 @@ def export_commit(ui, repo, rev, marks, authormap):
         else:
             filectx = ctx.filectx(fname)
             filerev = filectx.filenode()
-            fileperm = b"755" if filectx.isexec() else b"644"
+            if filectx.isexec():
+                fileperm = b"755"
+            elif filectx.islink():
+                fileperm = b"120000"
+            else:
+                fileperm = b"644"
             changed = b"M %s :%d %s\n" % (fileperm, marks[hex(filerev)], fname)
             filebuf.append((fname, changed))
     filebuf.sort()
@@ -179,7 +184,7 @@ def fastexport(ui, repo, *revs, **opts):
     """
     revs += tuple(opts.get("rev", []))
     if not revs:
-        revs = scmutil.revrange(repo, [b":"])
+        revs = scmutil.revrange(repo, [b"all()"])
     else:
         revs = logcmdutil.revrange(repo, revs)
     if not revs:
