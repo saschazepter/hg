@@ -287,7 +287,7 @@ packed1 is produced properly
   bundle requirements: generaldelta, revlog-compression-zstd, revlogv1, sparserevlog
 
   $ f -B 64 --size --sha1 --hexdump packed.hg
-  packed.hg: size=2865, sha1=353d10311f4befa195d9a1ca4b8e26518115c702 (no-rust !)
+  packed.hg: size=2865, sha1=e66b45f9d6b474d3516b42d38bb347f726ceb75f (no-rust !)
   0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........| (no-rust !)
   0010: 00 00 00 00 0a 69 00 3b 67 65 6e 65 72 61 6c 64 |.....i.;generald| (no-rust !)
   packed.hg: size=3181, sha1=3e865df183d388222969c5b19c844dd8697c85c6 (rust !)
@@ -306,7 +306,7 @@ packed1 is produced properly
   bundle requirements: generaldelta, revlog-compression-zstd, revlogv1, sparserevlog
 
   $ f -B 64 --size --sha1 --hexdump packed.hg
-  packed.hg: size=2882, sha1=6525b07e6bfced4b6c2319cb58c6ff76ca72fa13
+  packed.hg: size=2882, sha1=e66b45f9d6b474d3516b42d38bb347f726ceb75f
   0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 07 00 00 |HGS1UN..........|
   0010: 00 00 00 00 0a 69 00 3b 67 65 6e 65 72 61 6c 64 |.....i.;generald|
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 2d 63 6f 6d 70 |elta,revlog-comp|
