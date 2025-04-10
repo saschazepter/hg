@@ -51,7 +51,7 @@ pub enum VisitChildrenSet {
     Recursive,
 }
 
-pub trait Matcher: core::fmt::Debug {
+pub trait Matcher: core::fmt::Debug + Sync {
     /// Explicitly listed files
     fn file_set(&self) -> Option<&HashSet<HgPathBuf>>;
     /// Returns whether `filename` is in `file_set`

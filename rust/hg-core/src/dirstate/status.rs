@@ -180,7 +180,7 @@ impl fmt::Display for StatusError {
 #[tracing::instrument(level = "debug", skip_all)]
 pub fn status<'dirstate>(
     dmap: &'dirstate mut DirstateMap,
-    matcher: &(impl Matcher + Sync),
+    matcher: &impl Matcher,
     root_dir: PathBuf,
     ignore_files: Vec<PathBuf>,
     options: StatusOptions,
@@ -332,7 +332,7 @@ pub fn status<'dirstate>(
 struct StatusCommon<'a, 'tree, 'on_disk: 'tree> {
     dmap: &'tree DirstateMap<'on_disk>,
     options: StatusOptions,
-    matcher: &'a (dyn Matcher + Sync),
+    matcher: &'a dyn Matcher,
     ignore_fn: IgnoreFnType<'a>,
     outcome: Mutex<DirstateStatus<'on_disk>>,
     /// New timestamps of directories to be used for caching their readdirs

@@ -30,10 +30,7 @@ pub const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
 /// warnings to display.
 pub fn matcher(
     repo: &Repo,
-) -> Result<
-    (Box<dyn Matcher + Sync + Send>, Vec<SparseWarning>),
-    SparseConfigError,
-> {
+) -> Result<(Box<dyn Matcher + Send>, Vec<SparseWarning>), SparseConfigError> {
     let mut warnings = vec![];
     if !repo.requirements().contains(NARROW_REQUIREMENT) {
         return Ok((Box::new(AlwaysMatcher), warnings));
@@ -81,7 +78,7 @@ pub fn matcher(
     )?;
     warnings.extend(subwarnings.into_iter().map(From::from));
 
-    let mut m: Box<dyn Matcher + Sync + Send> =
+    let mut m: Box<dyn Matcher + Send> =
         Box::new(IncludeMatcher::new(patterns)?);
 
     let (patterns, subwarnings) = parse_pattern_file_contents(

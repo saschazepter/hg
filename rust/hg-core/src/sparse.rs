@@ -325,10 +325,7 @@ fn patterns_for_rev(
 /// Obtain a matcher for sparse working directories.
 pub fn matcher(
     repo: &Repo,
-) -> Result<
-    (Box<dyn Matcher + Sync + Send>, Vec<SparseWarning>),
-    SparseConfigError,
-> {
+) -> Result<(Box<dyn Matcher + Send>, Vec<SparseWarning>), SparseConfigError> {
     let mut warnings = vec![];
     if !repo.requirements().contains(SPARSE_REQUIREMENT) {
         return Ok((Box::new(AlwaysMatcher), warnings));
@@ -364,8 +361,7 @@ pub fn matcher(
         let config = patterns_for_rev(repo, *rev);
         if let Ok(Some(config)) = config {
             warnings.extend(config.warnings);
-            let mut m: Box<dyn Matcher + Sync + Send> =
-                Box::new(AlwaysMatcher);
+            let mut m: Box<dyn Matcher + Send> = Box::new(AlwaysMatcher);
             if !config.includes.is_empty() {
                 let (patterns, subwarnings) = parse_pattern_file_contents(
                     &config.includes,
@@ -394,7 +390,7 @@ pub fn matcher(
             matchers.push(m);
         }
     }
-    let result: Box<dyn Matcher + Sync + Send> = match matchers.len() {
+    let result: Box<dyn Matcher + Send> = match matchers.len() {
         0 => Box::new(AlwaysMatcher),
         1 => matchers.pop().expect("1 is equal to 0"),
         _ => Box::new(UnionMatcher::new(matchers)),
@@ -408,9 +404,9 @@ pub fn matcher(
 /// Returns a matcher that returns true for any of the forced includes before
 /// testing against the actual matcher
 fn force_include_matcher(
-    result: Box<dyn Matcher + Sync + Send>,
+    result: Box<dyn Matcher + Send>,
     temp_includes: &[Vec<u8>],
-) -> Result<Box<dyn Matcher + Sync + Send>, PatternError> {
+) -> Result<Box<dyn Matcher + Send>, PatternError> {
     if temp_includes.is_empty() {
         return Ok(result);
     }

@@ -1383,7 +1383,7 @@ impl OwningDirstateMap {
     /// we need to borrow from `Self`.
     pub fn with_status<R>(
         &mut self,
-        matcher: &(impl Matcher + Sync),
+        matcher: &impl Matcher,
         root_dir: PathBuf,
         ignore_files: Vec<PathBuf>,
         options: StatusOptions,

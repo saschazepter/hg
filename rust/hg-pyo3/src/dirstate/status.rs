@@ -97,7 +97,7 @@ fn collect_kindpats(
 
 fn extract_matcher(
     matcher: &Bound<'_, PyAny>,
-) -> PyResult<Box<dyn Matcher + Sync + Send>> {
+) -> PyResult<Box<dyn Matcher + Send>> {
     let py = matcher.py();
     let tampered = matcher
         .call_method0(intern!(py, "was_tampered_with_nonrec"))?
