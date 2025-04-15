@@ -29,5 +29,3 @@ touch ${HG_STUBS}/mercurial/thirdparty/__init__.pyi
 
 ln -sf $(hg root)/mercurial/cext/*.{pyi,typed} \
        ${HG_STUBS}/mercurial/cext
-ln -sf $(hg root)/mercurial/thirdparty/attr/*.{pyi,typed} \
-       ${HG_STUBS}/mercurial/thirdparty/attr
