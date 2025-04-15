@@ -417,7 +417,6 @@ check-pytype:
       - echo $HGWITHRUSTEXT
       # We need to unset HGWITHRUSTEXT since editable install is broken with Rust
       - unset HGWITHRUSTEXT
-      - make local PYTHON=$PYTHON
     script:
       - echo "Entering script section"
       - importlab --trim --tree mercurial hgext hgext3rd hgdemandimport | contrib/import-lab-tree-color.sh
