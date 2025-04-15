@@ -18,6 +18,18 @@ use crate::exceptions::FallbackError;
 use crate::revlog::InnerRevlog;
 use crate::revlog::PySharedIndex;
 
+#[allow(unused)]
+pub fn print_python_trace(py: Python) -> PyResult<PyObject> {
+    eprintln!("===============================");
+    eprintln!("Printing Python stack from Rust");
+    eprintln!("===============================");
+    let traceback = py.import("traceback")?;
+    let sys = py.import("sys")?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("file", sys.getattr("stderr")?)?;
+    traceback.call_method("print_stack", (), Some(&kwargs)).map(|r| r.unbind())
+}
+
 /// Create the module, with `__package__` given from parent
 ///
 /// According to PyO3 documentation, which links to
