@@ -26,6 +26,3 @@ mkdir -p ${HG_STUBS}/mercurial/cext ${HG_STUBS}/mercurial/thirdparty/attr
 touch ${HG_STUBS}/mercurial/__init__.pyi
 touch ${HG_STUBS}/mercurial/cext/__init__.pyi
 touch ${HG_STUBS}/mercurial/thirdparty/__init__.pyi
-
-ln -sf $(hg root)/mercurial/cext/*.{pyi,typed} \
-       ${HG_STUBS}/mercurial/cext

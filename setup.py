@@ -1349,6 +1349,10 @@ packagedata = {
         '*.pyi',
         'py.typed',
     ],
+    'mercurial.cext': [
+        '*.pyi',
+        'py.typed',
+    ],
 }
 
 
