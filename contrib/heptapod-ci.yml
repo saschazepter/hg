@@ -418,7 +418,6 @@ check-pytype:
       # We need to unset HGWITHRUSTEXT since editable install is broken with Rust
       - unset HGWITHRUSTEXT
       - make local PYTHON=$PYTHON
-      - ./contrib/setup-pytype.sh
     script:
       - echo "Entering script section"
       - bash contrib/check-pytype.sh
