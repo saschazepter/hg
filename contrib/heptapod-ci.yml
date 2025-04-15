@@ -275,6 +275,7 @@ rust-cargo-test:
         - make cargo-clippy
     variables:
         CI_CLEVER_CLOUD_FLAVOR: S
+        CARGO_TERM_COLOR: "always"
 
 .runtests-no-check:
   extends: .runtests
