@@ -1214,9 +1214,6 @@ def new_heads(
 
     * `heads`: define the first subset
     * `roots`: define the second we subtract from the first"""
-    # prevent an import cycle
-    # phases > dagop > patch > copies > scmutil > obsolete > obsutil > phases
-    from . import dagop
 
     if not roots:
         return heads
@@ -1241,7 +1238,11 @@ def new_heads(
         # remove candidate that are ancestors of other heads
         new_heads.update(candidates)
         prunestart = repo.revs(b"parents(%ld) and not null", new_heads)
-        pruned = dagop.reachableroots(repo, candidates, prunestart)
+        pruned = repo.changelog.reachableroots(
+            candidates.min(),
+            list(candidates),
+            list(prunestart),
+        )
         new_heads.difference_update(pruned)
 
     # PERF-XXX: do we actually need a sorted list here? Could we simply return
