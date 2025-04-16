@@ -420,6 +420,7 @@ check-pytype:
       - make local PYTHON=$PYTHON
     script:
       - echo "Entering script section"
+      - importlab --trim --tree mercurial hgext hgext3rd hgdemandimport | contrib/import-lab-tree-color.sh
       - bash contrib/check-pytype.sh
 
 # `sh.exe --login` sets a couple of extra environment variables that are defined
