@@ -1237,7 +1237,7 @@ def new_heads(
         b"parents(%ld + (%ld and merge())) and not null", roots, affected_zone
     )
     candidates -= affected_zone
-    if new_heads or candidates:
+    if candidates:
         # remove candidate that are ancestors of other heads
         new_heads.update(candidates)
         prunestart = repo.revs(b"parents(%ld) and not null", new_heads)
