@@ -1201,7 +1201,7 @@ def makeloggingsocket(
     return socketproxy(fh, observer)
 
 
-def version():
+def version() -> bytes:
     """Return version information if available."""
     try:
         from . import __version__  # pytype: disable=import-error
