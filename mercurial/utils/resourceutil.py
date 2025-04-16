@@ -20,7 +20,7 @@ from .. import pycompat
 
 if typing.TYPE_CHECKING:
     from typing import (
-        BinaryIO,
+        IO,
         Iterator,
     )
 
@@ -86,7 +86,7 @@ except (ImportError, AttributeError):
     # importlib.resources was not found (almost definitely because we're on a
     # Python version before 3.7)
 
-    def open_resource(package: bytes, name: bytes) -> BinaryIO:
+    def open_resource(package: bytes, name: bytes) -> IO[bytes]:
         path = os.path.join(_package_path(package), name)
         return open(path, "rb")
 
@@ -107,7 +107,7 @@ except (ImportError, AttributeError):
 else:
     from .. import encoding
 
-    def open_resource(package: bytes, name: bytes) -> BinaryIO:
+    def open_resource(package: bytes, name: bytes) -> IO[bytes]:
         if hasattr(resources, 'files'):
             return (
                 resources.files(  # pytype: disable=module-attr
