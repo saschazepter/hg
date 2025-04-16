@@ -14,7 +14,6 @@ from .i18n import _
 from .node import bin
 from . import (
     color,
-    dagop,
     diffutil,
     encoding,
     error,
@@ -31,6 +30,7 @@ from . import (
     util,
 )
 from .utils import (
+    dag_util,
     dateutil,
     stringutil,
 )
@@ -874,11 +874,11 @@ def subsetparents(context, mapping, args):
         if key in walkercache:
             walker = walkercache[key]
         else:
-            walker = dagop.subsetparentswalker(repo, subset)
+            walker = dag_util.subsetparentswalker(repo, subset)
             walkercache[key] = walker
     else:
         # for one-shot use, specify startrev to limit the search space
-        walker = dagop.subsetparentswalker(repo, subset, startrev=rev)
+        walker = dag_util.subsetparentswalker(repo, subset, startrev=rev)
     return templateutil.revslist(repo, walker.parentsset(rev))
 
 

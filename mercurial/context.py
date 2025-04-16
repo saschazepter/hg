@@ -18,7 +18,6 @@ from .node import (
     short,
 )
 from . import (
-    dagop,
     encoding,
     error,
     fileset,
@@ -41,6 +40,7 @@ from .interfaces import (
     status as istatus,
 )
 from .utils import (
+    dag_util,
     dateutil,
     stringutil,
 )
@@ -1234,7 +1234,7 @@ class basefilectx:
                 ac = cl.ancestors([self.rev()], inclusive=True)
             base._ancestrycontext = ac
 
-        return dagop.annotate(
+        return dag_util.annotate(
             base, parents, skiprevs=skiprevs, diffopts=diffopts
         )
 

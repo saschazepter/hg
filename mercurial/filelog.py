@@ -104,7 +104,7 @@ class filelog(repository.ifilestorage):
     def commonancestorsheads(self, node1, node2):
         return self._revlog.commonancestorsheads(node1, node2)
 
-    # Used by dagop.blockdescendants().
+    # Used by dag_util.blockdescendants().
     def descendants(self, revs):
         return self._revlog.descendants(revs)
 

@@ -41,6 +41,7 @@ from . import (
     util,
 )
 from .utils import (
+    dag_util,
     dateutil,
     stringutil,
     urlutil,
@@ -218,7 +219,7 @@ def _makerangeset(repo, subset, m, n, order):
 
 def dagrange(repo, subset, x, y, order):
     r = fullreposet(repo)
-    xs = dagop.reachableroots(
+    xs = dag_util.reachableroots(
         repo, getset(repo, r, x), getset(repo, r, y), includepath=True
     )
     return subset & xs
@@ -338,12 +339,12 @@ def generationssubrel(repo, subset, x, rel, z, order):
         return baseset()
 
     if ancstart is not None and descstart is not None:
-        s = dagop.revancestors(repo, revs, False, ancstart, ancstop)
-        s += dagop.revdescendants(repo, revs, False, descstart, descstop)
+        s = dag_util.revancestors(repo, revs, False, ancstart, ancstop)
+        s += dag_util.revdescendants(repo, revs, False, descstart, descstop)
     elif ancstart is not None:
-        s = dagop.revancestors(repo, revs, False, ancstart, ancstop)
+        s = dag_util.revancestors(repo, revs, False, ancstart, ancstop)
     elif descstart is not None:
-        s = dagop.revdescendants(repo, revs, False, descstart, descstop)
+        s = dag_util.revdescendants(repo, revs, False, descstart, descstop)
 
     return subset & s
 
@@ -466,7 +467,7 @@ def _ancestors(
     heads = getset(repo, fullreposet(repo), x)
     if not heads:
         return baseset()
-    s = dagop.revancestors(repo, heads, followfirst, startdepth, stopdepth)
+    s = dag_util.revancestors(repo, heads, followfirst, startdepth, stopdepth)
     return subset & s
 
 
@@ -795,7 +796,7 @@ def commonancestors(repo, subset, x):
     if not startrevs:
         return baseset()
     for r in startrevs:
-        subset &= dagop.revancestors(repo, baseset([r]))
+        subset &= dag_util.revancestors(repo, baseset([r]))
     return subset
 
 
@@ -918,7 +919,7 @@ def _descendants(
     roots = getset(repo, fullreposet(repo), x)
     if not roots:
         return baseset()
-    s = dagop.revdescendants(repo, roots, followfirst, startdepth, stopdepth)
+    s = dag_util.revdescendants(repo, roots, followfirst, startdepth, stopdepth)
     return subset & s
 
 
@@ -1254,11 +1255,11 @@ def _follow(repo, subset, x, name, followfirst=False):
                 repo.root, repo.getcwd(), [x], ctx=mctx, default=b'path'
             )
             fctxs.extend(ctx[f].introfilectx() for f in ctx.manifest().walk(m))
-        s = dagop.filerevancestors(fctxs, followfirst)
+        s = dag_util.filerevancestors(fctxs, followfirst)
     else:
         if revs is None:
             revs = baseset([repo[b'.'].rev()])
-        s = dagop.revancestors(repo, revs, followfirst)
+        s = dag_util.revancestors(repo, revs, followfirst)
 
     return subset & s
 
@@ -1335,7 +1336,7 @@ def followlines(repo, subset, x):
         rs = generatorset(
             (
                 c.rev()
-                for c, _linerange in dagop.blockdescendants(
+                for c, _linerange in dag_util.blockdescendants(
                     fctx, fromline, toline
                 )
             ),
@@ -1345,7 +1346,7 @@ def followlines(repo, subset, x):
         rs = generatorset(
             (
                 c.rev()
-                for c, _linerange in dagop.blockancestors(
+                for c, _linerange in dag_util.blockancestors(
                     fctx, fromline, toline
                 )
             ),
@@ -1810,7 +1811,7 @@ def only(repo, subset, x):
         if not include:
             return baseset()
 
-        descendants = set(dagop.revdescendants(repo, include, False))
+        descendants = set(dag_util.revdescendants(repo, include, False))
         exclude = [
             rev
             for rev in cl.headrevs()
@@ -2111,7 +2112,7 @@ def _phaseandancestors(repo, subset, x):
     def cutfunc(rev):
         return getphase(repo, rev) < minimalphase
 
-    revs = dagop.revancestors(repo, s, cutfunc=cutfunc)
+    revs = dag_util.revancestors(repo, s, cutfunc=cutfunc)
 
     if phasename == b'draft':  # need to remove secret changesets
         revs = revs.filter(lambda r: getphase(repo, r) == draft)

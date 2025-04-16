@@ -4,7 +4,7 @@ from mercurial import (
     mdiff,
     pycompat,
 )
-from mercurial.dagop import (
+from mercurial.utils.dag_util import (
     annotateline,
     _annotatedfile,
     _annotatepair,

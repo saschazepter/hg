@@ -54,6 +54,7 @@ from . import (
     util,
 )
 from .utils import (
+    dag_util,
     dateutil,
     stringutil,
 )
@@ -949,7 +950,9 @@ def _fileancestors(repo, revs, match, followfirst):
         return scmutil.matchfiles(repo, fcache.get(scmutil.intrev(ctx), []))
 
     def revgen():
-        for rev, cs in dagop.filectxancestors(fctxs, followfirst=followfirst):
+        for rev, cs in dag_util.filectxancestors(
+            fctxs, followfirst=followfirst
+        ):
             fcache[rev] = [c.path() for c in cs]
             yield rev
 
@@ -1102,7 +1105,9 @@ def makewalker(
     filematcher = None
     if wopts.follow:
         if slowpath or match.always():
-            revs = dagop.revancestors(repo, revs, followfirst=wopts.follow == 1)
+            revs = dag_util.revancestors(
+                repo, revs, followfirst=wopts.follow == 1
+            )
         else:
             assert not wopts.force_changelog_traversal
             revs, filematcher = _fileancestors(
@@ -1195,7 +1200,7 @@ def getlinerangerevs(repo, userrevs, opts):
                 _(b'cannot follow file not in parent revision: "%s"') % fname
             )
         fctx = wctx.filectx(fname)
-        for fctx, linerange in dagop.blockancestors(fctx, fromline, toline):
+        for fctx, linerange in dag_util.blockancestors(fctx, fromline, toline):
             rev = fctx.introrev()
             if rev is None:
                 rev = wdirrev

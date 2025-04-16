@@ -30,9 +30,12 @@ if typing.TYPE_CHECKING:
     import attr
 
 from . import (
-    dagop,
     smartset,
     util,
+)
+
+from .utils import (
+    dag_util,
 )
 
 CHANGESET = b'C'
@@ -81,7 +84,7 @@ def dagwalker(repo, revs):
                 if not isinstance(revs, smartset.baseset):
                     revs = smartset.baseset(revs)
                 gp = gpcache[mpar] = sorted(
-                    set(dagop.reachableroots(repo, revs, [mpar]))
+                    set(dag_util.reachableroots(repo, revs, [mpar]))
                 )
             if not gp:
                 parents.append((MISSINGPARENT, mpar))
