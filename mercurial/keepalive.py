@@ -216,11 +216,15 @@ class KeepAliveHandler:
         host = urllibcompat.gethost(req)
         if not host:
             raise urlerr.urlerror(b'no host given')
+        if req._tunnel_host:  # proxy
+            realhost = req._tunnel_host
+        else:
+            realhost = host
 
         try:
-            h = self._cm.get_ready_conn(host)
+            h = self._cm.get_ready_conn(realhost)
             while h:
-                r = self._reuse_connection(h, req, host)
+                r = self._reuse_connection(h, req, realhost)
 
                 # if this response is non-None, then it worked and we're
                 # done.  Break out, skipping the else block.
@@ -231,7 +235,7 @@ class KeepAliveHandler:
                 # discard it and ask for the next free connection
                 h.close()
                 self._cm.remove(h)
-                h = self._cm.get_ready_conn(host)
+                h = self._cm.get_ready_conn(realhost)
             else:
                 # no (working) free connections were found.  Create a new one.
                 h = http_class(host, timeout=self._timeout)
@@ -239,7 +243,7 @@ class KeepAliveHandler:
                     DEBUG.info(
                         b"creating new connection to %s (%d)", host, id(h)
                     )
-                self._cm.add(host, h, False)
+                self._cm.add(realhost, h, False)
                 self._start_transaction(h, req)
                 r = h.getresponse()
         # The string form of BadStatusLine is the status line. Add some context

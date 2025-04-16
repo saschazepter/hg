@@ -51,3 +51,33 @@
   added 1 changesets with 0 changes to 0 files
   new changesets 1ea73414a91b (1 drafts)
   (run 'hg update' to get a working copy)
+
+Test pushing zero changesets
+
+  $ hg init c
+  $ hg --cwd c debugbuilddag '.'
+  $ hg --cwd c log -G
+  o  changeset:   0:1ea73414a91b
+     tag:         tip
+     user:        debugbuilddag
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     r0
+  
+  $ cat <<EOF >> c/.hg/hgrc
+  > [hooks]
+  > pretxnclose.reject_new_heads = \
+  >   python:hgext.hooklib.reject_new_heads.hook
+  > EOF
+  $ hg init d
+  $ hg --cwd c push ../d
+  pushing to ../d
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 0 changes to 0 files
+  $ hg --cwd c push ../d
+  pushing to ../d
+  searching for changes
+  no changes found
+  [1]

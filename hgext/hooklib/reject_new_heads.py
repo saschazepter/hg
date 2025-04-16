@@ -28,6 +28,9 @@ def hook(ui, repo, hooktype, node=None, **kwargs):
         raise error.Abort(
             _(b'Unsupported hook type %r') % pycompat.bytestr(hooktype)
         )
+    if node is None:
+        return
+
     ctx = repo.unfiltered()[node]
     branches = set()
     for rev in repo.changelog.revs(start=ctx.rev()):

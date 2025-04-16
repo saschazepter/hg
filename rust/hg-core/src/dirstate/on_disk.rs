@@ -805,13 +805,13 @@ impl Writer<'_, '_> {
 
             let prefix_length = child_full_path.len()
                 // remove the filename
-                - child.base_name(self.dirstate_map.on_disk)?.len()
-                // remove the slash
-                - 1;
+                - child.base_name(self.dirstate_map.on_disk)?.len();
 
             let child_prefix = &child_full_path.as_bytes()[..prefix_length];
-
-            if child_prefix != full_path.as_bytes() {
+            if child_prefix.last() != Some(&b'/')
+                || &child_prefix[0..child_prefix.len() - 1]
+                    != full_path.as_bytes()
+            {
                 let explanation = format!(
                     "dirstate child node's path '{}' \
                         does not start with its parent's path '{}'",
