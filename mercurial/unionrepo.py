@@ -135,7 +135,7 @@ class unionrevlog(revlog.revlog):
         else:
             read_1 = util.nullcontextmanager
         if 0 < len(self.bundlerevs):
-            read_2 = self.revlog2.reading
+            read_2 = self.revlog2.get_revlog().reading
         else:
             read_2 = util.nullcontextmanager
         with read_1(), read_2():
