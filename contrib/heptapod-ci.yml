@@ -407,6 +407,7 @@ test-3.13-rust:
 check-pytype:
     extends: .test-rust
     stage: checks
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-pytype:v3.0
     before_script:
       - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
       - echo "PATH, $PATH"
