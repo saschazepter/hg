@@ -131,6 +131,7 @@ build-rust-wheel:
   extends: build-c-wheel
   variables:
     WHEEL_TYPE: "rust"
+    CI_CLEVER_CLOUD_FLAVOR: "M"
 
 .wheel-trigger:
   extends: .trigger
