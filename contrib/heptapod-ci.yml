@@ -408,9 +408,24 @@ check-pytype:
     extends: .all
     stage: checks
     image: registry.heptapod.net/mercurial/ci-images/hg-core-pytype:v3.0
+    cache:
+      key: pytype-cache
+      # the runner is too old to support VARIABLE policy
+      policy: pull-push
+      paths:
+        - pytype-cache
+    before_script:
+      - rm -rf .pytype
+      # make sure the directory exist, its easier
+      - mkdir -p pytype-cache
+      - cp -r pytype-cache/ .pytype
     script:
+      - bash contrib/adjust-pytype-cache.sh
       - importlab --trim --tree mercurial hgext hgext3rd hgdemandimport | contrib/import-lab-tree-color.sh
       - bash contrib/check-pytype.sh
+      - hg log -r . -T "{node}" > .pytype/CACHE_COMMIT
+      # to work around the lack of VARIABLE support in cache policy
+      - if  [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then rm -rf pytype-cache; mv .pytype pytype-cache; fi
 
 # `sh.exe --login` sets a couple of extra environment variables that are defined
 # in the MinGW shell, but switches CWD to /home/$username.  The previous value
