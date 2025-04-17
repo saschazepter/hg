@@ -22,10 +22,17 @@ Testing hghave extensibility for third party tools
   >   $ echo foo
   >   foo
   > EOF
+
+# We use --pure install to avoid doing a full build and install of Mercurial in
+# the middle of the test (and the associated dependencies)
+
   $ ( \
   > testrepohgenv; \
-  > "$PYTHON" $TESTDIR/run-tests.py --with-hg=$HGTEST_REAL_HG -j 1 \
-  >    $HGTEST_RUN_TESTS_PURE test-hghaveaddon.t \
+  > "$PYTHON" $TESTDIR/run-tests.py \
+  >     --with-hg=$HGTEST_REAL_HG \
+  >     --jobs 1 \
+  >     --pure \
+  >     test-hghaveaddon.t \
   > )
   installed Mercurial in * seconds  (glob) (?)
   running 1 tests using 1 parallel processes 
