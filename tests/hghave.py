@@ -1070,7 +1070,9 @@ def has_emacs():
     # Our emacs lisp uses `with-eval-after-load` which is new in emacs
     # 24.4, so we allow emacs 24.4, 24.5, and 25+ (24.5 was the last
     # 24 release)
-    return matchoutput('emacs --version', b'GNU Emacs 2(4.4|4.5|5|6|7|8|9)')
+    return matchoutput(
+        'emacs --version', br'GNU Emacs (3\d|2(4.4|4.5|5|6|7|8|9))'
+    )
 
 
 @check(
