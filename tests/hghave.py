@@ -441,13 +441,7 @@ def has_pygit2():
 # https://github.com/git-lfs/lfs-test-server
 @check("lfs-test-server", "git-lfs test server")
 def has_lfsserver():
-    exe = 'lfs-test-server'
-    if has_windows():
-        exe = 'lfs-test-server.exe'
-    return any(
-        os.access(os.path.join(path, exe), os.X_OK)
-        for path in os.environ["PATH"].split(os.pathsep)
-    )
+    return has_cmd('lfs-test-server')
 
 
 @checkvers("git", "git client (with ext::sh support) version >= %s", ('1.9',))
