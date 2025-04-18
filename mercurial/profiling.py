@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import contextlib
-import datetime
 import os
 import signal
 import subprocess
@@ -306,7 +305,7 @@ class profile:
                         return
                 pid = os.getpid()
                 timestamp = encoding.strtolocal(
-                    datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+                    pycompat.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
                 )
                 filename = b"hg-profile-%s-%d.prof" % (timestamp, pid)
                 self._output = os.path.join(output_dir, filename)
