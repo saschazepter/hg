@@ -2,14 +2,18 @@ This file tests the behavior of run-tests.py itself.
 
 Avoid interference from actual test env:
 
+  $ . "$TESTDIR/helpers-testrepo.sh"
   $ . "$TESTDIR/helper-runtests.sh"
 
 Smoke test with install
 ============
-  $ "$PYTHON" $TESTDIR/run-tests.py $HGTEST_RUN_TESTS_PURE -l
+
+  $ (testrepohgenv; "$PYTHON" $TESTDIR/run-tests.py --pure)
+  installed Mercurial in * seconds  (glob)
   running 0 tests using 0 parallel processes 
   
   # Ran 0 tests, 0 skipped, 0 failed.
+
 
 Define a helper to avoid the install step
 =============
