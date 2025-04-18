@@ -832,17 +832,17 @@ Testing repository upgrade
   > done
   $ hg ci -m 'have some content'
   $ f -s .hg/store/00manifest.*
-  .hg/store/00manifest.i: size=800 (no-pure !)
-  .hg/store/00manifest.i: size=784 (pure no-rust !)
+  .hg/store/00manifest.i: size=800 (zstd !)
+  .hg/store/00manifest.i: size=784 (no-zstd no-rust !)
   $ f -s .hg/store/meta/dir/00manifest*
-  .hg/store/meta/dir/00manifest.i: size=557 (no-pure !)
-  .hg/store/meta/dir/00manifest.i: size=544 (pure no-rust !)
+  .hg/store/meta/dir/00manifest.i: size=557 (zstd !)
+  .hg/store/meta/dir/00manifest.i: size=544 (no-zstd no-rust !)
   $ hg debugupgraderepo --config format.revlog-compression=none --config experimental.treemanifest=yes --run --quiet --no-backup
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     removed: revlog-compression-zstd (no-pure !)
+     removed: revlog-compression-zstd (zstd !)
      added: exp-compression-none
   
   processed revlogs:
