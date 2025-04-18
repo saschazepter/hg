@@ -13,6 +13,7 @@ from __future__ import annotations
 import builtins
 import codecs  # noqa: F401 (ignore imported but not used)
 import concurrent.futures as futures  # noqa: F401 (ignore imported but not used)
+import datetime
 import getopt
 import http.client as httplib  # noqa: F401 (ignore imported but not used)
 import http.cookiejar as cookielib  # noqa: F401 (ignore imported but not used)
@@ -528,3 +529,15 @@ def namedtempfile(
     return tempfile.NamedTemporaryFile(
         mode, bufsize, suffix=suffix, prefix=prefix, dir=dir, delete=delete
     )
+
+
+# datetime.datetime.utcnow is deprecated in Python3.12, but the replacement is
+# introduced in Python3.11
+try:
+    datetime.UTC  # Python >= 3.11
+except AttributeError:  # Python <= 3.10
+    utcnow = datetime.datetime.utcnow  # pytype: disable=attribute-error
+else:
+
+    def utcnow():
+        return datetime.datetime.now(datetime.UTC)
