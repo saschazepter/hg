@@ -131,6 +131,7 @@ build-rust-wheel:
   extends: build-c-wheel
   variables:
     WHEEL_TYPE: "rust"
+    CI_CLEVER_CLOUD_FLAVOR: "M"
 
 .wheel-trigger:
   extends: .trigger
@@ -524,10 +525,23 @@ build-c-wheel-windows:
         # it for now
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe -c 'cd "$OLDPWD" && echo tests/test-clonebundles-autogen.t > $TMP_WORK_DIR/windows-skip.txt'
 
+        # we immediately run with --retest in case of error as the windows test
+        # are so flaky.
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe
           --login -c 'cd "$OLDPWD"
             && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
                $PYTHON tests/run-tests.py
+               --color=always
+               --tail-report
+               $WHEEL_ARG
+               $FLAVOR
+               --port `expr 19051 + 1009 "*" $CI_CONCURRENT_ID`
+               --shard-index $CI_NODE_INDEX --shard-total $CI_NODE_TOTAL
+               $FILTER
+               $RUNTEST_ARGS
+            || HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
+               $PYTHON tests/run-tests.py
+               --retest
                --color=always
                --tail-report
                $WHEEL_ARG
