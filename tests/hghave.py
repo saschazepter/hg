@@ -785,7 +785,7 @@ def has_curses():
 
 @check("tic", "terminfo compiler")
 def has_tic():
-    return matchoutput('test -x "`which tic`"', br'')
+    return has_cmd('tic')
 
 
 @check("xz", "xz compression utility")
