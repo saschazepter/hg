@@ -790,9 +790,7 @@ def has_tic():
 
 @check("xz", "xz compression utility")
 def has_xz():
-    # When Windows invokes a subprocess in shell mode, it uses `cmd.exe`, which
-    # only knows `where`, not `which`.  So invoke MSYS shell explicitly.
-    return matchoutput("sh -c 'test -x \"`which xz`\"'", b'')
+    return has_cmd('xz')
 
 
 @check("msys", "Windows with MSYS")
