@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import socket
 import stat
 import subprocess
@@ -41,6 +42,11 @@ def _bytes2sys(p):
     if p is None:
         return p
     return p.decode('utf-8')
+
+
+def has_cmd(cmd: str) -> bool:
+    """return True if there is an executable `cmd` in the PATH"""
+    return shutil.which(cmd, os.X_OK) is not None
 
 
 def check(name, desc):
