@@ -711,6 +711,8 @@ class _LocalBranchCache(_BaseBranchCache):
             repo.filtername,
         )
         cl = repo.changelog
+        if self._hasnode is not None:
+            self._hasnode = cl.hasnode
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
