@@ -456,14 +456,9 @@ missing data file
 
 mercurial don't crash
 
-  $ hg log -r .
-  changeset:   5002:b355ef8adce0
-  tag:         tip
-  parent:      4998:d918ad6d18d3
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     babar
-  
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r $OTHERNODE babar
+  bar
+
   $ hg debugnodemap --metadata
 
   $ hg debugupdatecache
