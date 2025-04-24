@@ -396,8 +396,14 @@ If the nodemap is lagging behind, it can catch up fine
   data-length: 121088
   data-unused: 0
   data-unused: 0.000%
-  $ hg log -r "$NODE" -T '{rev}\n'
-  5003
+#if rhg
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r $NODE bar
+  unsupported feature: cannot parse revset 'c9329770f979ade2d16912267c38ba5f82fd37b3' (known-bad-output !)
+  [252]
+#else
+  $ hg cat -r $NODE bar
+  bar2
+#endif
 
 changelog altered
 -----------------
@@ -442,8 +448,15 @@ the nodemap should detect the changelog have been tampered with and recover.
   data-length: 121088
   data-unused: 0
   data-unused: 0.000%
-  $ hg log -r "$OTHERNODE" -T '{rev}\n'
-  5002
+#if rhg
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r $OTHERNODE babar
+  unsupported feature: cannot parse revset 'b355ef8adce0949b8bdf6afc72ca853740d65944' (known-bad-output !)
+  [252]
+#else
+  $ hg cat -r $OTHERNODE babar
+  bar
+#endif
+
 
 missing data file
 -----------------
