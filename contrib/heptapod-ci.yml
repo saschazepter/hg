@@ -301,7 +301,7 @@ test-c:
 
 test-pure:
     extends: .runtests-no-check
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-pure:v3.0"
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test:v3.0"
     variables:
         FLAVOR: "--pure"
 
