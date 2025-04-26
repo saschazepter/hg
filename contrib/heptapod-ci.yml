@@ -291,11 +291,12 @@ rust-cargo-test:
 
 test-c:
     extends: .test-c
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test:v3.0"
     needs:
-      - job: build-c-wheel
+      - job: build-c-wheel-musl
         parallel:
           matrix:
-            - BUILD_PY_ID: "cp311-cp311"
+            - BUILD_PY_ID: "cp312-cp312"
     variables:
         WHEEL_TYPE: "c"
 
