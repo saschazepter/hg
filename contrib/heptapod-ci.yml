@@ -318,14 +318,15 @@ test-pure:
 
 test-rust:
     extends: .test-rust
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-pure:v3.0"
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
     needs:
-      - job: build-rust-wheel
+      - job: build-rust-wheel-musl
         parallel:
           matrix:
-            - BUILD_PY_ID: "cp311-cp311"
+            - BUILD_PY_ID: "cp312-cp312"
     variables:
         WHEEL_TYPE: "rust"
 
