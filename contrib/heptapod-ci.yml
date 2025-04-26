@@ -160,6 +160,10 @@ build-c-wheel-musl:
   extends: build-c-wheel
   image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-c:v3.0"
 
+build-rust-wheel-musl:
+  extends: build-rust-wheel
+  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-rust:v3.0"
+
 trigger-wheel-i686:
   extends: .wheel-trigger
 
