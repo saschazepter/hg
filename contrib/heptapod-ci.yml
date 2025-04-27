@@ -379,6 +379,30 @@ test-3.8-c:
           matrix:
             - BUILD_PY_ID: "cp38-cp38"
 
+test-3.11-c:
+    extends: .test-c-pycompat
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py311:v3.0
+    variables:
+        PYTHON: python3.11
+    needs:
+      - job: trigger-pycompat
+      - job: build-c-wheel-musl
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+
+test-3.11-rust:
+    extends: .test-rust-pycompat
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py311:v3.0
+    needs:
+      - trigger-pycompat
+      - job: build-rust-wheel-musl
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+    variables:
+        PYTHON: python3.11
+
 test-3.12-c:
     extends: .test-c-pycompat
     image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py312:v3.0
@@ -683,6 +707,7 @@ test-result-linux:
   needs:
     - test-c
     - test-3.8-c
+    - test-3.11-c
     - test-3.12-c
     - test-3.13-c
 
