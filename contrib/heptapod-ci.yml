@@ -381,20 +381,22 @@ test-3.8-c:
 
 test-3.12-c:
     extends: .test-c-pycompat
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py312:v3.0
     variables:
         PYTHON: python3.12
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel
+      - job: build-c-wheel-musl
         parallel:
           matrix:
             - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
     extends: .test-rust-pycompat
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py312:v3.0
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel
+      - job: build-rust-wheel-musl
         parallel:
           matrix:
             - BUILD_PY_ID: "cp312-cp312"
@@ -403,20 +405,22 @@ test-3.12-rust:
 
 test-3.13-c:
     extends: .test-c-pycompat
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py313:v3.0
     variables:
         PYTHON: python3.13
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel
+      - job: build-c-wheel-musl
         parallel:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
     extends: .test-rust-pycompat
+    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py313:v3.0
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel
+      - job: build-rust-wheel-musl
         parallel:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
