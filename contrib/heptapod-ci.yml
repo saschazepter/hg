@@ -315,6 +315,7 @@ test-pure:
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
+        WHEEL_TYPE: "rust"
 
 test-rust:
     extends: .test-rust
@@ -360,6 +361,10 @@ trigger-pycompat:
     variables:
         WHEEL_TYPE: "c"
 
+.test-rust-pycompat:
+    extends: .test-rust
+    stage: py-version-compat
+
 # note: we should probably get a full matrix for flavor × py-version, but this
 # is a simple start to be able to check if we break the lowest supported
 # version (and 3.12 have been giving us various troubles)
@@ -386,10 +391,13 @@ test-3.12-c:
             - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
-    extends: .test-rust
-    stage: py-version-compat
+    extends: .test-rust-pycompat
     needs:
       - trigger-pycompat
+      - job: build-rust-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp312-cp312"
     variables:
         PYTHON: python3.12
 
@@ -405,10 +413,13 @@ test-3.13-c:
             - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
-    extends: .test-rust
-    stage: py-version-compat
+    extends: .test-rust-pycompat
     needs:
       - trigger-pycompat
+      - job: build-rust-wheel
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp313-cp313"
     variables:
         PYTHON: python3.13
 
