@@ -334,6 +334,7 @@ test-rust:
 
 test-rhg:
     extends: .runtests-no-check
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-py-dev-rust-dev:v3.0"
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust --rhg"
