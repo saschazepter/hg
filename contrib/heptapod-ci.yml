@@ -145,7 +145,7 @@ trigger-wheel-linux:
 
 # build linux wheel for amd64
 build-c-wheel-libc:
-  extends: .build-wheel
+  extends: .extra-wheel
   variables:
     ARCH: "x86_64"
     WHEEL_TYPE: "c"
