@@ -152,7 +152,7 @@ build-c-wheel-libc:
     WHEEL_TYPE: "c"
 
 build-rust-wheel-libc:
-  extends: .build-wheel
+  extends: .extra-wheel
   variables:
     ARCH: "x86_64"
     WHEEL_TYPE: "rust"
