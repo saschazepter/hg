@@ -1142,3 +1142,13 @@ def has_bash():
 @check("bigendian", "big-endian CPU")
 def has_bigendian():
     return sys.byteorder == 'big'
+
+
+@check("python-local-coerce", "Python use local coercion")
+def python_coercion():
+    return matchoutput(
+        "unset LC_ALL; unset LANG; LC_CTYPE= ;"
+        " $PYTHON -c \"import os; print(os.environ.get('LC_CTYPE',"
+        " '__NO_COERCES__'))\"",
+        b'^C.UTF-8$',
+    )
