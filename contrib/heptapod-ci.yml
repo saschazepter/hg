@@ -340,6 +340,7 @@ test-rhg:
 
 test-chg:
     extends: .runtests-no-check
+    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-py-dev:v3.0"
     variables:
         FLAVOR: "--chg"
 
