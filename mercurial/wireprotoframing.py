@@ -1344,12 +1344,7 @@ class serverreactor:
                     # TODO consider extracting the content normalization to a
                     # standalone function, as it may be useful for e.g. cachers.
 
-                    # A pre-encoded object is sent directly to the emitter.
-                    if isinstance(o, wireprototypes.encodedresponse):
-                        for frame in emitter.send(o.data):
-                            yield frame
-
-                    elif isinstance(
+                    if isinstance(
                         o, wireprototypes.indefinitebytestringresponse
                     ):
                         for chunk in cborutil.streamencodebytestringfromiter(

@@ -424,20 +424,6 @@ def supportedcompengines(ui, role):
 
 
 @attr.s
-class encodedresponse:
-    """Represents response data that is already content encoded.
-
-    Wire protocol version 2 only.
-
-    Commands typically emit Python objects that are encoded and sent over the
-    wire. If commands emit an object of this type, the encoding step is bypassed
-    and the content from this object is used instead.
-    """
-
-    data = attr.ib()
-
-
-@attr.s
 class alternatelocationresponse:
     """Represents a response available at an alternate location.
 

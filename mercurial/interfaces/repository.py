@@ -2321,9 +2321,7 @@ class iwireprotocolcommandcacher(Protocol):
     caching native Python objects in memory or has a way of reconstructing
     the original Python objects, implementations typically call this function
     to produce bytes from the output objects and then store those bytes in
-    the cache. When it comes time to re-emit those bytes, they are wrapped
-    in a ``wireprototypes.encodedresponse`` instance to tell the output
-    layer that they are pre-encoded.
+    the cache.
 
     When receiving the objects emitted by the command function, instances
     can choose what to do with those objects. The simplest thing to do is
@@ -2339,9 +2337,7 @@ class iwireprotocolcommandcacher(Protocol):
     When caching objects, typically the encoded form of the object will
     be stored. Keep in mind that if the original object is forwarded to
     the output layer, it will need to be encoded there as well. For large
-    output, this redundant encoding could add overhead. Implementations
-    could wrap the encoded object data in ``wireprototypes.encodedresponse``
-    instances to avoid this overhead.
+    output, this redundant encoding could add overhead.
     """
 
     @abc.abstractmethod
