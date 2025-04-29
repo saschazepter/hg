@@ -31,6 +31,14 @@ testedwith = b"ships-with-hg-core"
 cmdtable = {}
 command = registrar.command(cmdtable)
 
+configtable = {}
+configitem = registrar.configitem(configtable)
+configitem(
+    b'fastexport',
+    b'on-pre-existing-gitmodules',
+    default=b'abort',
+)
+
 GIT_PERSON_PROHIBITED = re.compile(b'[<>\n"]')
 GIT_EMAIL_PROHIBITED = re.compile(b"[<> \n]")
 
@@ -97,7 +105,7 @@ def export_commit(
     # For all files modified by the commit, check if they have already
     # been exported and otherwise dump the blob with the new mark.
     for fname in ctx.files():
-        if fname not in ctx:
+        if fname not in ctx or fname == b'.gitmodules':
             continue
         filectx = ctx.filectx(fname)
         filerev = hex(filectx.filenode())
@@ -138,9 +146,30 @@ def export_commit(
     subrepos_changed = False
     for fname in files:
         if fname == b'.gitmodules':
-            raise error.Abort(
-                _(b".gitmodules already present in source repository")
+            existing_gitmodules_behavior = ui.config(
+                b'fastexport', b'on-pre-existing-gitmodules'
             )
+            if existing_gitmodules_behavior == b'abort':
+                msg = _(b".gitmodules already present in source repository")
+                hint = _(
+                    b"to ignore this error, set config "
+                    b"fastexport.on-pre-existing-gitmodules=ignore"
+                )
+                raise error.Abort(msg, hint=hint)
+            elif existing_gitmodules_behavior == b'ignore':
+                msg = _(
+                    b"warning: ignoring change of .gitmodules in revision "
+                    b"%s\n"
+                )
+                msg %= revid
+                ui.warn(msg)
+                ui.warn(_(b"instead, .gitmodules is generated from .hgsub)\n"))
+                continue
+            else:
+                msg = _(b"fastexport.on-pre-existing-gitmodules not valid")
+                hint = _(b"should be 'abort' or 'ignore', but is '%s'")
+                hint %= existing_gitmodules_behavior
+                raise error.ConfigError(msg, hint=hint)
         elif fname not in ctx:
             filebuf.append((fname, b"D %s\n" % fname))
         else:

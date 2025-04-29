@@ -1147,10 +1147,11 @@ Test that Git subrepositories are converted to gitlinks and .gitmodules.
 
   $ cd ..
 
-Test that the presence of .gitmodules in the source repository aborts.
+Test that the presence of .gitmodules in the source repository aborts by default.
 
-  $ hg init test_existing_gitmodules
-  $ cd test_existing_gitmodules
+  $ hg init test_existing_gitmodules-abort
+  $ cd test_existing_gitmodules-abort
+
   $ git init subrepo_path --quiet
   $ cd subrepo_path
   $ touch first
@@ -1168,6 +1169,94 @@ Test that the presence of .gitmodules in the source repository aborts.
   $ hg commit -m 'add subrepo'
   $ hg fastexport > /dev/null
   abort: .gitmodules already present in source repository
+  (to ignore this error, set config fastexport.on-pre-existing-gitmodules=ignore)
   [255]
+
+  $ cd ..
+
+Test that it is possible to configure that .gitmodules in the source repository is ignored.
+
+  $ hg init test_existing_gitmodules-ignore
+  $ cd test_existing_gitmodules-ignore
+
+  $ cat >> .hg/hgrc << EOF
+  > [fastexport]
+  > on-pre-existing-gitmodules = ignore
+  > EOF
+  $ git init subrepo_path --quiet
+  $ cd subrepo_path
+  $ touch first
+  $ git add first
+  $ git commit -m first --quiet
+  $ cd ..
+  $ echo 'subrepo_path = [git]subrepo_source' > .hgsub
+  $ hg add .hgsub
+  $ cat >> .gitmodules << EOF
+  > [submodule "ignored"]
+  > 	path = subrepo_path
+  > 	url = subrepo_source
+  > EOF
+  $ hg add .gitmodules
+  $ hg commit -m 'add subrepo'
+  $ hg fastexport --export-marks fastexport.marks
+  blob
+  mark :1
+  data 35
+  subrepo_path = [git]subrepo_source
+  
+  blob
+  mark :2
+  data 54
+  f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo_path
+  
+  warning: ignoring change of .gitmodules in revision b55ff90e601e922957f29294f4eb98ebd2589618
+  instead, .gitmodules is generated from .hgsub)
+  commit refs/heads/default
+  mark :3
+  committer "test" <test> 0 +0000
+  data 11
+  add subrepo
+  M 644 inline .gitmodules
+  data 70
+  [submodule "subrepo_path"]
+  	path = subrepo_path
+  	url = subrepo_source
+  
+  M 644 :1 .hgsub
+  M 644 :2 .hgsubstate
+  M 160000 f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo_path
+  
+
+Test that removing .gitmodules from the source repository does not remove the generated .gitmodules.
+
+  $ hg rm .gitmodules
+  $ hg commit -m 'remove .gitmodules'
+  $ hg fastexport --import-marks fastexport.marks
+  warning: ignoring change of .gitmodules in revision f592781e95d5fcb42218365b85ff9db1307aabd0
+  instead, .gitmodules is generated from .hgsub)
+  commit refs/heads/default
+  mark :4
+  committer "test" <test> 0 +0000
+  data 18
+  remove .gitmodules
+  from :3
+  
+
+  $ cd ..
+
+  $ hg init test_existing_gitmodules-invalid_config
+  $ cd test_existing_gitmodules-invalid_config
+
+  $ cat >> .hg/hgrc << EOF
+  > [fastexport]
+  > on-pre-existing-gitmodules = invalid
+  > EOF
+  $ touch .gitmodules
+  $ hg add .gitmodules
+  $ hg commit -m 'add .gitmodules'
+  $ hg fastexport > /dev/null
+  config error: fastexport.on-pre-existing-gitmodules not valid
+  (should be 'abort' or 'ignore', but is 'invalid')
+  [30]
 
 #endif git
