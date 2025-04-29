@@ -32,7 +32,6 @@ if typing.TYPE_CHECKING:
 from . import (
     encoding,
     error,
-    pycompat,
     util,
     wireprototypes,
 )
@@ -481,47 +480,6 @@ def createcommandresponseeosframes(
 
         if done:
             break
-
-
-def createalternatelocationresponseframe(
-    stream: outputstream, requestid: int, location
-) -> bytearray:
-    data = {
-        b'status': b'redirect',
-        b'location': {
-            b'url': location.url,
-            b'mediatype': location.mediatype,
-        },
-    }
-
-    for a in (
-        'size',
-        'fullhashes',
-        'fullhashseed',
-        'serverdercerts',
-        'servercadercerts',
-    ):
-        value = getattr(location, a)
-        if value is not None:
-            # pytype: disable=unsupported-operands
-            data[b'location'][pycompat.bytestr(a)] = value
-            # pytype: enable=unsupported-operands
-
-    payload = b''.join(cborutil.streamencode(data))
-
-    if stream.streamsettingssent:
-        payload = stream.encode(payload)
-        encoded = True
-    else:
-        encoded = False
-
-    return stream.makeframe(
-        requestid=requestid,
-        typeid=FRAME_TYPE_COMMAND_RESPONSE,
-        flags=FLAG_COMMAND_RESPONSE_CONTINUATION,
-        payload=payload,
-        encoded=encoded,
-    )
 
 
 def createcommanderrorresponse(
@@ -1265,7 +1223,6 @@ class serverreactor:
 
         def sendframes():
             emitted = False
-            alternatelocationsent = False
             emitter = bufferingcommandresponseemitter(stream, requestid)
             while True:
                 try:
@@ -1300,32 +1257,6 @@ class serverreactor:
                     break
 
                 try:
-                    # Alternate location responses can only be the first and
-                    # only object in the output stream.
-                    if isinstance(o, wireprototypes.alternatelocationresponse):
-                        if emitted:
-                            raise error.ProgrammingError(
-                                b'alternatelocationresponse seen after initial '
-                                b'output object'
-                            )
-
-                        frame = stream.makestreamsettingsframe(requestid)
-                        if frame:
-                            yield frame
-
-                        yield createalternatelocationresponseframe(
-                            stream, requestid, o
-                        )
-
-                        alternatelocationsent = True
-                        emitted = True
-                        continue
-
-                    if alternatelocationsent:
-                        raise error.ProgrammingError(
-                            b'object follows alternatelocationresponse'
-                        )
-
                     if not emitted:
                         # Frame is optional.
                         frame = stream.makestreamsettingsframe(requestid)
