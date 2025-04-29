@@ -29,7 +29,7 @@ stages:
   - upload
 
 
-image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
+image: "$HG_CI_REG/each-job-should-set-this:$HG_CI_IMAGE_TAG"
 
 variables:
     # to debug use:
@@ -41,7 +41,8 @@ variables:
     RE_BRANCH: '/^branch/.+$/'
     RE_TOPIC: '/^topic/.+/.+$/'
     PYTHON: python
-    HG_CI_IMAGE_TAG: "v2.1"
+    HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
+    HG_CI_IMAGE_TAG: "v3.0"
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
@@ -92,7 +93,7 @@ trigger-nightly-build:
 
 .build-wheel:
   extends: .all
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-$ARCH-$WHEEL_TYPE:v3.0"
+  image: "$HG_CI_REG/core-wheel-$ARCH-$WHEEL_TYPE:$HG_CI_IMAGE_TAG"
   stage: build
   variables:
     ARCH: "x86_64"
@@ -264,7 +265,7 @@ build-c-wheel-arm64-musl:
 
 checks:
     extends: .runtests
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-checks:v3.0"
+    image: "$HG_CI_REG/hg-core-checks:$HG_CI_IMAGE_TAG"
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
@@ -274,7 +275,7 @@ checks:
 
 rust-cargo-test:
     extends: .all
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-rust-test:v3.0"
+    image: "$HG_CI_REG/hg-core-rust-test:$HG_CI_IMAGE_TAG"
     stage: checks
     script:
         - make rust-tests
@@ -296,7 +297,7 @@ rust-cargo-test:
 
 test-c:
     extends: .test-c
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test:v3.0"
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     needs:
       - job: build-c-wheel-musl
         parallel:
@@ -307,7 +308,7 @@ test-c:
 
 test-pure:
     extends: .runtests-no-check
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test:v3.0"
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     variables:
         FLAVOR: "--pure"
 
@@ -320,7 +321,7 @@ test-pure:
 
 test-rust:
     extends: .test-rust
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-pure:v3.0"
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
@@ -334,14 +335,14 @@ test-rust:
 
 test-rhg:
     extends: .runtests-no-check
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-py-dev-rust-dev:v3.0"
+    image: "$HG_CI_REG/hg-core-test-py-dev-rust-dev:$HG_CI_IMAGE_TAG"
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust --rhg"
 
 test-chg:
     extends: .runtests-no-check
-    image: "registry.heptapod.net/mercurial/ci-images/hg-core-test-py-dev:v3.0"
+    image: "$HG_CI_REG/hg-core-test-py-dev:$HG_CI_IMAGE_TAG"
     variables:
         FLAVOR: "--chg"
 
@@ -368,23 +369,9 @@ trigger-pycompat:
     extends: .test-rust
     stage: py-version-compat
 
-# note: we should probably get a full matrix for flavor × py-version, but this
-# is a simple start to be able to check if we break the lowest supported
-# version (and 3.12 have been giving us various troubles)
 test-3.9-c:
     extends: .test-c-pycompat
-    variables:
-        PYTHON: python3.9
-    needs:
-      - job: trigger-pycompat
-      - job: build-c-wheel-libc
-        parallel:
-          matrix:
-            - BUILD_PY_ID: "cp39-cp39"
-
-test-3.9-c:
-    extends: .test-c-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py39:v3.0
+    image: "$HG_CI_REG/hg-core-test-py39:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.9
     needs:
@@ -396,7 +383,7 @@ test-3.9-c:
 
 test-3.9-rust:
     extends: .test-rust-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py39:v3.0
+    image: "$HG_CI_REG/hg-core-test-py39:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
       - job: build-rust-wheel-musl
@@ -408,7 +395,7 @@ test-3.9-rust:
 
 test-3.10-c:
     extends: .test-c-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py310:v3.0
+    image: "$HG_CI_REG/hg-core-test-py310:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.10
     needs:
@@ -420,7 +407,7 @@ test-3.10-c:
 
 test-3.10-rust:
     extends: .test-rust-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py310:v3.0
+    image: "$HG_CI_REG/hg-core-test-py310:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
       - job: build-rust-wheel-musl
@@ -432,7 +419,7 @@ test-3.10-rust:
 
 test-3.11-c:
     extends: .test-c-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py311:v3.0
+    image: "$HG_CI_REG/hg-core-test-py311:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.11
     needs:
@@ -444,7 +431,7 @@ test-3.11-c:
 
 test-3.11-rust:
     extends: .test-rust-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py311:v3.0
+    image: "$HG_CI_REG/hg-core-test-py311:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
       - job: build-rust-wheel-musl
@@ -456,7 +443,7 @@ test-3.11-rust:
 
 test-3.12-c:
     extends: .test-c-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py312:v3.0
+    image: "$HG_CI_REG/hg-core-test-py312:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.12
     needs:
@@ -468,7 +455,7 @@ test-3.12-c:
 
 test-3.12-rust:
     extends: .test-rust-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py312:v3.0
+    image: "$HG_CI_REG/hg-core-test-py312:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
       - job: build-rust-wheel-musl
@@ -480,7 +467,7 @@ test-3.12-rust:
 
 test-3.13-c:
     extends: .test-c-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py313:v3.0
+    image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.13
     needs:
@@ -492,7 +479,7 @@ test-3.13-c:
 
 test-3.13-rust:
     extends: .test-rust-pycompat
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-test-py313:v3.0
+    image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
       - job: build-rust-wheel-musl
@@ -505,7 +492,7 @@ test-3.13-rust:
 check-pytype:
     extends: .all
     stage: checks
-    image: registry.heptapod.net/mercurial/ci-images/hg-core-pytype:v3.0
+    image: "$HG_CI_REG/hg-core-pytype:$HG_CI_IMAGE_TAG"
     cache:
       key: pytype-cache
       # the runner is too old to support VARIABLE policy
@@ -806,7 +793,7 @@ wheel-result-windows:
 # credential accessible only from protected branches.
 upload-wheel-nightly:
   extends: .nightly_build_step
-  image: "registry.heptapod.net/mercurial/ci-images/twine:v3.0"
+  image: "$HG_CI_REG/twine:$HG_CI_IMAGE_TAG"
   # because we don't want to upload only half of a wheel
   interruptible: false
   needs:
