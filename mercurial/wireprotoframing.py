@@ -33,7 +33,6 @@ from . import (
     encoding,
     error,
     util,
-    wireprototypes,
 )
 from .utils import (
     cborutil,
@@ -1275,20 +1274,10 @@ class serverreactor:
                     # TODO consider extracting the content normalization to a
                     # standalone function, as it may be useful for e.g. cachers.
 
-                    if isinstance(
-                        o, wireprototypes.indefinitebytestringresponse
-                    ):
-                        for chunk in cborutil.streamencodebytestringfromiter(
-                            o.chunks
-                        ):
-                            for frame in emitter.send(chunk):
-                                yield frame
-
                     # A regular object is CBOR encoded.
-                    else:
-                        for chunk in cborutil.streamencode(o):
-                            for frame in emitter.send(chunk):
-                                yield frame
+                    for chunk in cborutil.streamencode(o):
+                        for frame in emitter.send(chunk):
+                            yield frame
 
                 except Exception as e:
                     for frame in createerrorframe(

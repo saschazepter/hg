@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import abc
-import typing
 
 from typing import (
     Protocol,
@@ -17,12 +16,6 @@ from .node import (
     hex,
 )
 from .i18n import _
-from .thirdparty import attr
-
-# Force pytype to use the non-vendored package
-if typing.TYPE_CHECKING:
-    # noinspection PyPackageRequirements
-    import attr
 
 from . import (
     error,
@@ -421,14 +414,3 @@ def supportedcompengines(ui, role):
         )
 
     return compengines
-
-
-@attr.s
-class indefinitebytestringresponse:
-    """Represents an object to be encoded to an indefinite length bytestring.
-
-    Instances are initialized from an iterable of chunks, with each chunk being
-    a bytes instance.
-    """
-
-    chunks = attr.ib()
