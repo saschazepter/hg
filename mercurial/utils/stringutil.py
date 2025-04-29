@@ -17,8 +17,10 @@ import types
 import typing
 
 from typing import (
+    Callable,
     Iterator,
     Optional,
+    Pattern,
     overload,
 )
 
@@ -35,6 +37,10 @@ from .. import (
     error,
     pycompat,
 )
+
+if typing.TYPE_CHECKING:
+    ParsedMailMap = dict['mailmapping', 'mailmapping']
+
 
 # regex special chars pulled from https://bugs.python.org/issue29995
 # which was part of Python 3.7.
@@ -319,7 +325,7 @@ def binary(s: bytes) -> bool:
     return bool(s and b'\0' in s)
 
 
-def _splitpattern(pattern: bytes):
+def _splitpattern(pattern: bytes) -> tuple[bytes, bytes]:
     if pattern.startswith(b're:'):
         return b're', pattern[3:]
     elif pattern.startswith(b'literal:'):
@@ -327,7 +333,10 @@ def _splitpattern(pattern: bytes):
     return b'literal', pattern
 
 
-def stringmatcher(pattern: bytes, casesensitive: bool = True):
+# TODO: figure out callable with default args
+def stringmatcher(
+    pattern: bytes, casesensitive: bool = True
+) -> tuple[bytes, bytes, Callable]:
     """
     accepts a string, possibly starting with 're:' or 'literal:' prefix.
     returns the matcher name, pattern, and matcher function.
@@ -388,7 +397,7 @@ def stringmatcher(pattern: bytes, casesensitive: bool = True):
     raise error.ProgrammingError(b'unhandled pattern kind: %s' % kind)
 
 
-def substringregexp(pattern: bytes, flags: int = 0):
+def substringregexp(pattern: bytes, flags: int = 0) -> Pattern[bytes]:
     """Build a regexp object from a string pattern possibly starting with
     're:' or 'literal:' prefix.
 
@@ -509,11 +518,12 @@ class mailmapping:
     """Represents a username/email key or value in
     a mailmap file"""
 
-    email = attr.ib()
-    name = attr.ib(default=None)
+    # Both email and name are missing in an error handler, so email is optional
+    email = attr.ib(type=Optional[bytes])
+    name = attr.ib(default=None, type=Optional[bytes])
 
 
-def _ismailmaplineinvalid(names, emails):
+def _ismailmaplineinvalid(names: list[bytes], emails: list[bytes]) -> bool:
     """Returns True if the parsed names and emails
     in a mailmap entry are invalid.
 
@@ -538,7 +548,7 @@ def _ismailmaplineinvalid(names, emails):
     return not emails or not names and len(emails) < 2
 
 
-def parsemailmap(mailmapcontent):
+def parsemailmap(mailmapcontent: bytes) -> ParsedMailMap:
     """Parses data in the .mailmap format
 
     >>> mmdata = b"\\n".join([
@@ -620,7 +630,7 @@ def parsemailmap(mailmapcontent):
     return mailmap
 
 
-def mapname(mailmap, author: bytes) -> bytes:
+def mapname(mailmap: ParsedMailMap, author: bytes) -> bytes:
     """Returns the author field according to the mailmap cache, or
     the original author field.
 
@@ -727,7 +737,7 @@ def unescapestr(s: bytes) -> bytes:
     # pytype: enable=bad-return-type
 
 
-def forcebytestr(obj):
+def forcebytestr(obj) -> pycompat.bytestr:
     """Portably format an arbitrary object (e.g. exception) into a byte
     string."""
     try:
