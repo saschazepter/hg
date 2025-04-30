@@ -1380,7 +1380,7 @@ class revlog:
         _format_version = header & 0xFFFF
 
         features = FEATURES_BY_VERSION[_format_version]
-        return features[b'inline'](_format_flags)
+        return features['inline'](_format_flags)
 
     _docket_file: Optional[bytes]
 
@@ -1720,14 +1720,14 @@ class revlog:
                 raise error.RevlogError(msg)
 
             features = FEATURES_BY_VERSION[self._format_version]
-            self._inline = features[b'inline'](self._format_flags)
-            self.delta_config.general_delta = features[b'generaldelta'](
+            self._inline = features['inline'](self._format_flags)
+            self.delta_config.general_delta = features['generaldelta'](
                 self._format_flags
             )
             self.data_config.generaldelta = self.delta_config.general_delta
-            self.feature_config.has_side_data = features[b'sidedata']
+            self.feature_config.has_side_data = features['sidedata']
 
-            if not features[b'docket']:
+            if not features['docket']:
                 self._indexfile = entry_point
                 index_data = entry_data
             else:

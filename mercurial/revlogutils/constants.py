@@ -280,32 +280,32 @@ def _from_flag(flag):
 
 FEATURES_BY_VERSION = {
     REVLOGV0: {
-        b'inline': _no,
-        b'generaldelta': _no,
-        b'sidedata': False,
-        b'docket': False,
+        'inline': _no,
+        'generaldelta': _no,
+        'sidedata': False,
+        'docket': False,
     },
     REVLOGV1: {
-        b'inline': _from_flag(FLAG_INLINE_DATA),
-        b'generaldelta': _from_flag(FLAG_GENERALDELTA),
-        b'sidedata': False,
-        b'docket': False,
+        'inline': _from_flag(FLAG_INLINE_DATA),
+        'generaldelta': _from_flag(FLAG_GENERALDELTA),
+        'sidedata': False,
+        'docket': False,
     },
     REVLOGV2: {
         # The point of inline-revlog is to reduce the number of files used in
         # the store. Using a docket defeat this purpose. So we needs other
         # means to reduce the number of files for revlogv2.
-        b'inline': _no,
-        b'generaldelta': _yes,
-        b'sidedata': True,
-        b'docket': True,
+        'inline': _no,
+        'generaldelta': _yes,
+        'sidedata': True,
+        'docket': True,
     },
     CHANGELOGV2: {
-        b'inline': _no,
+        'inline': _no,
         # General delta is useless for changelog since we don't do any delta
-        b'generaldelta': _no,
-        b'sidedata': True,
-        b'docket': True,
+        'generaldelta': _no,
+        'sidedata': True,
+        'docket': True,
     },
 }
 
