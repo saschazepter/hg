@@ -385,6 +385,73 @@ If [diff] git is set to true, but the user says --no-git, we should
   +    return a + b + c + e;
    }
 
+showfunc diff with underscore or dollar sign prefix (issue6965)
+  $ cat > f1 << EOF
+  > int
+  > _rtld_main()
+  > {
+  >     int a = 0;
+  >     int b = 1;
+  >     int c = 2;
+  >     int d = 3;
+  >     return a + b + c + d;
+  > }
+  > 
+  > \$vms_quirk()
+  > {
+  >     int a = 0;
+  >     int b = 1;
+  >     int c = 2;
+  >     int d = 3;
+  >     return a + b + c + d;
+  > }
+  > EOF
+  $ hg commit -m "add function bsd style"
+  $ cat > f1 << EOF
+  > int
+  > _rtld_main()
+  > {
+  >     int a = 0;
+  >     int b = 1;
+  >     int c = 2;
+  >     int e = 3;
+  >     return a + b + c + e;
+  > }
+  > 
+  > \$vms_quirk()
+  > {
+  >     int a = 0;
+  >     int b = 1;
+  >     int c = 2;
+  >     int e = 3;
+  >     return a + b + c + e;
+  > }
+  > EOF
+  $ hg diff --nodates --config diff.showfunc=True
+  diff -r 21493d8e6bae f1
+  --- a/f1
+  +++ b/f1
+  @@ -4,8 +4,8 @@ int
+       int a = 0;
+       int b = 1;
+       int c = 2;
+  -    int d = 3;
+  -    return a + b + c + d;
+  +    int e = 3;
+  +    return a + b + c + e;
+   }
+   
+   $vms_quirk()
+  @@ -13,6 +13,6 @@ int
+       int a = 0;
+       int b = 1;
+       int c = 2;
+  -    int d = 3;
+  -    return a + b + c + d;
+  +    int e = 3;
+  +    return a + b + c + e;
+   }
+
   $ cd ..
 
 Long function names should be abbreviated, but multi-byte character shouldn't
