@@ -10,6 +10,12 @@
 from __future__ import annotations
 
 import struct
+import typing
+
+from typing import (
+    Callable,
+    TypedDict,
+)
 
 from ..interfaces import repository
 from .. import revlogutils
@@ -278,7 +284,17 @@ def _from_flag(flag):
     return lambda flags: bool(flags & flag)
 
 
-FEATURES_BY_VERSION = {
+if typing.TYPE_CHECKING:
+    _FromFlagsFnc = Callable[[int], bool]
+
+    class RevlogFeatures(TypedDict):
+        inline: _FromFlagsFnc
+        generaldelta: _FromFlagsFnc
+        sidedata: bool
+        docket: bool
+
+
+FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
     REVLOGV0: {
         'inline': _no,
         'generaldelta': _no,
