@@ -144,13 +144,13 @@ was always recording three commits, one for each diff hunk, in reverse order
   record change 1/3 to 'a'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -3,1 +3,1 @@ 2
+  @@ -3,1 +3,1 @@
   -3
   +33
   record change 2/3 to 'a'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -5,1 +5,1 @@ 4
+  @@ -5,1 +5,1 @@
   -5
   +55
   record change 3/3 to 'a'?
@@ -173,13 +173,13 @@ was always recording three commits, one for each diff hunk, in reverse order
   record change 1/3 to 'a'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -3,1 +3,1 @@ 2
+  @@ -3,1 +3,1 @@
   -3
   +33
   record change 2/3 to 'a'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -5,1 +5,1 @@ 4
+  @@ -5,1 +5,1 @@
   -5
   +55
   record change 3/3 to 'a'?
@@ -207,7 +207,7 @@ was always recording three commits, one for each diff hunk, in reverse order
   record change 1/2 to 'a'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -3,1 +3,1 @@ 2
+  @@ -3,1 +3,1 @@
   -3
   +33
   record change 2/2 to 'a'?
@@ -819,7 +819,7 @@ Test that splitting moves works properly (issue5723)
   record change 1/2 to 'file2'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -2,0 +5,2 @@ 2
+  @@ -2,0 +5,2 @@
   +3
   +4
   record change 2/2 to 'file2'?
@@ -917,7 +917,7 @@ accidentally.
   record change 2/3 to 'file2'?
   (enter ? for help) [Ynesfdaq?] n
   
-  @@ -2,0 +5,2 @@ 2
+  @@ -2,0 +5,2 @@
   +3
   +4
   record change 3/3 to 'file2'?

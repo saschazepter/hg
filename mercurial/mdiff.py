@@ -441,9 +441,10 @@ def _unidiff(
             lastpos, func = lastfunc
             # walk backwards from the start of the context up to the start of
             # the previous hunk context until we find a line starting with an
-            # alphanumeric char.
+            # `identifier' char (alphabetic, _, or $, like GNU diffutils,
+            # libxdiff, and git).
             for i in range(astart - 1, lastpos - 1, -1):
-                if l1[i][0:1].isalnum():
+                if l1[i][0:1].isalpha() or l1[i][0:1] in (b'_', b'$'):
                     func = b' ' + l1[i].rstrip()
                     # split long function name if ASCII. otherwise we have no
                     # idea where the multi-byte boundary is, so just leave it.

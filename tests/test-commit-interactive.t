@@ -304,7 +304,7 @@ Modify end of plain file, also test that diffopts are accounted for
   > EOF
   diff --git a/plain b/plain
   1 hunks, 1 lines changed
-  @@ -8,3 +8,4 @@ 7
+  @@ -8,3 +8,4 @@
    8
    9
    10
@@ -322,7 +322,7 @@ Modify end of plain file, no EOL
   > EOF
   diff --git a/plain b/plain
   1 hunks, 1 lines changed
-  @@ -9,3 +9,4 @@ 8
+  @@ -9,3 +9,4 @@
    9
    10
    11
@@ -467,7 +467,7 @@ Modify end of plain file, add EOL
   > EOF
   diff --git a/plain b/plain
   1 hunks, 1 lines changed
-  @@ -9,4 +9,4 @@ 8
+  @@ -9,4 +9,4 @@
    9
    10
    11
@@ -511,7 +511,7 @@ changes numbering
   record change 1/3 to 'plain'?
   (enter ? for help) [Ynesfdaq?] y
   
-  @@ -8,5 +8,3 @@ 7
+  @@ -8,5 +8,3 @@
    8
    9
    10
@@ -775,7 +775,7 @@ Record end
   > EOF
   diff --git a/plain b/plain
   1 hunks, 2 lines changed
-  @@ -9,3 +9,5 @@ 6
+  @@ -9,3 +9,5 @@
    7
    8
    9
@@ -1704,7 +1704,7 @@ Moving files
   examine changes to 'plain' and 'plain3'?
   (enter ? for help) [Ynesfdaq?] y
   
-  @@ -11,3 +11,4 @@ 8
+  @@ -11,3 +11,4 @@
    9
    10
    11
@@ -1962,12 +1962,12 @@ Test commands.commit.interactive.unified=0
   examine changes to 'foo'?
   (enter ? for help) [Ynesfdaq?] y
   
-  @@ -1,0 +2,1 @@ 1
+  @@ -1,0 +2,1 @@
   +change1
   record change 1/2 to 'foo'?
   (enter ? for help) [Ynesfdaq?] y
   
-  @@ -3,0 +5,1 @@ 3
+  @@ -3,0 +5,1 @@
   +change2
   record change 2/2 to 'foo'?
   (enter ? for help) [Ynesfdaq?] y

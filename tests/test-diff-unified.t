@@ -431,7 +431,7 @@ showfunc diff with underscore or dollar sign prefix (issue6965)
   diff -r 21493d8e6bae f1
   --- a/f1
   +++ b/f1
-  @@ -4,8 +4,8 @@ int
+  @@ -4,8 +4,8 @@ _rtld_main()
        int a = 0;
        int b = 1;
        int c = 2;
@@ -442,7 +442,7 @@ showfunc diff with underscore or dollar sign prefix (issue6965)
    }
    
    $vms_quirk()
-  @@ -13,6 +13,6 @@ int
+  @@ -13,6 +13,6 @@ $vms_quirk()
        int a = 0;
        int b = 1;
        int c = 2;
