@@ -12,8 +12,12 @@
 //! Following existing implicit conventions, the "nodemap" terminology
 //! is used in a more abstract context.
 
+use crate::errors::HgError;
+use crate::revlog::NodeMapDocket;
+use crate::vfs::VfsImpl;
 use crate::UncheckedRevision;
 
+use super::BaseRevision;
 use super::{
     node::NULL_NODE, Node, NodePrefix, Revision, RevlogIndex, NULL_REVISION,
 };
@@ -24,10 +28,11 @@ use std::fmt;
 use std::mem::{self, align_of, size_of};
 use std::ops::Deref;
 use std::ops::Index;
+use std::path::Path;
 
 type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, derive_more::Display)]
 pub enum NodeMapError {
     /// A `NodePrefix` matches several [`Revision`]s.
     ///
@@ -297,6 +302,42 @@ fn validate_candidate(
     }
 }
 
+/// Read the persistent nodemap corresponding to the `index` at `index_path`.
+/// `index` and `index_path` MUST reference the same index.
+pub(super) fn read_persistent_nodemap(
+    store_vfs: &VfsImpl,
+    index_path: &Path,
+    index: &impl RevlogIndex,
+) -> Result<Option<NodeTree>, HgError> {
+    if let Some((docket, data)) =
+        NodeMapDocket::read_from_file(store_vfs, index_path)?
+    {
+        let mut nodemap =
+            NodeTree::load_bytes(Box::new(data), docket.data_length);
+        if let Some(valid_tip_rev) = index.check_revision(docket.tip_rev) {
+            let valid_node =
+                index.node(valid_tip_rev) == Some(&docket.tip_node);
+            if valid_node && (valid_tip_rev.0 as usize) < index.len() {
+                // The index moved forward but wasn't rewritten
+                nodemap
+                    .catch_up_to_index(index, valid_tip_rev)
+                    .map_err(|e| HgError::abort_simple(e.to_string()))?;
+                return Ok(Some(nodemap));
+            }
+        }
+        if !index.is_empty() {
+            // The nodemap exists but is invalid somehow (strip, corruption...)
+            // so we rebuild it from scratch.
+            let mut nodemap = NodeTree::new(Box::<Vec<_>>::default());
+            nodemap
+                .catch_up_to_index(index, Revision(0))
+                .map_err(|e| HgError::abort_simple(e.to_string()))?;
+            return Ok(Some(nodemap));
+        }
+    }
+    Ok(None)
+}
+
 impl NodeTree {
     /// Initiate a NodeTree from an immutable slice-like of `Block`
     ///
@@ -525,6 +566,30 @@ impl NodeTree {
             }
             block.set(visited.nybble, to_write);
             block_idx = new_idx;
+        }
+        Ok(())
+    }
+
+    /// Insert all [`Revision`] from `from` inclusive, up to
+    /// [`RevlogIndex::len`] exclusive.
+    ///
+    /// `from` must be a valid revision for `index`, most likely should be the
+    /// tip of the nodemap docket.
+    ///
+    /// Useful for updating the [`NodeTree`] when the index has moved forward.
+    pub fn catch_up_to_index(
+        &mut self,
+        index: &impl RevlogIndex,
+        from: Revision,
+    ) -> Result<(), NodeMapError> {
+        for r in (from.0)..index.len() as BaseRevision {
+            let rev = Revision(r);
+            // in this case node() won't ever return None
+            self.insert(
+                index,
+                index.node(rev).expect("node should exist"),
+                rev,
+            )?;
         }
         Ok(())
     }

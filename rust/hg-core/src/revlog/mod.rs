@@ -14,6 +14,7 @@ use inner_revlog::InnerRevlog;
 use inner_revlog::RevisionBuffer;
 use memmap2::MmapOptions;
 pub use node::{FromHexError, Node, NodePrefix, NULL_NODE, NULL_NODE_ID};
+use nodemap::read_persistent_nodemap;
 use options::RevlogOpenOptions;
 pub mod changelog;
 pub mod compression;
@@ -346,14 +347,7 @@ impl Revlog {
         let nodemap = if index.is_inline() || !options.use_nodemap {
             None
         } else {
-            NodeMapDocket::read_from_file(store_vfs, index_path)?.map(
-                |(docket, data)| {
-                    nodemap::NodeTree::load_bytes(
-                        Box::new(data),
-                        docket.data_length,
-                    )
-                },
-            )
+            read_persistent_nodemap(store_vfs, index_path, &index)?
         };
 
         let nodemap = nodemap_for_test.or(nodemap);

@@ -364,8 +364,8 @@ If the nodemap is lagging behind, it can catch up fine
   data-length: 121088
   data-unused: 0
   data-unused: 0.000%
-  $ hg log -r "$NODE" -T '{rev}\n'
-  5003
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r $NODE bar
+  bar2
 
 changelog altered
 -----------------
@@ -410,8 +410,9 @@ the nodemap should detect the changelog have been tampered with and recover.
   data-length: 121088
   data-unused: 0
   data-unused: 0.000%
-  $ hg log -r "$OTHERNODE" -T '{rev}\n'
-  5002
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r $OTHERNODE babar
+  bar
+
 
 missing data file
 -----------------
@@ -424,14 +425,9 @@ missing data file
 
 mercurial don't crash
 
-  $ hg log -r .
-  changeset:   5002:b355ef8adce0
-  tag:         tip
-  parent:      4998:d918ad6d18d3
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     babar
-  
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r $OTHERNODE babar
+  bar
+
   $ hg debugnodemap --metadata
 
   $ hg debugupdatecache
