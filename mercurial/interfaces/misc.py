@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import abc
+import os
 
 from typing import (
+    Any,
     Callable,
     Dict,
     Iterator,
@@ -47,6 +49,26 @@ class IDirs(Protocol):
 
     @abc.abstractmethod
     def __contains__(self, d: bytes) -> bool:
+        ...
+
+
+class ICacheStat(Protocol):
+    stat: os.stat_result
+
+    @abc.abstractmethod
+    def cacheable(self) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def __hash__(self) -> int:
+        ...
+
+    @abc.abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def __ne__(self, other: Any) -> bool:
         ...
 
 
