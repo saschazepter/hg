@@ -37,6 +37,7 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces import misc as int_misc
 from . import (
     encoding,
     error,
@@ -706,7 +707,7 @@ def hidewindow() -> None:
     pass
 
 
-class cachestat:
+class cachestat(int_misc.ICacheStat):
     stat: os.stat_result
 
     def __init__(self, path: bytes) -> None:

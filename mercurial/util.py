@@ -526,7 +526,7 @@ def mmapread(fp, size=None, pre_populate=True):
         raise
 
 
-class uncacheable_cachestat:
+class uncacheable_cachestat(int_misc.ICacheStat):
     stat: Optional[os.stat_result]
 
     def __init__(self) -> None:
@@ -534,6 +534,14 @@ class uncacheable_cachestat:
 
     def cacheable(self) -> bool:
         return False
+
+    __hash__ = object.__hash__
+
+    def __eq__(self, other: Any) -> bool:
+        return False
+
+    def __ne__(self, other: Any) -> bool:
+        return True
 
 
 class fileobjectproxy:

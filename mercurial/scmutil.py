@@ -64,7 +64,10 @@ from . import (
     vfs,
 )
 
-from .interfaces import status as istatus
+from .interfaces import (
+    misc as int_misc,
+    status as istatus,
+)
 
 from .utils import (
     hashutil,
@@ -1764,7 +1767,7 @@ class filecachesubentry:
             return False
 
     @staticmethod
-    def stat(path: bytes) -> Optional[typelib.CacheStat]:
+    def stat(path: bytes) -> Optional[int_misc.ICacheStat]:
         # TODO have a cleaner approach on httpstaticrepo side
         if path.startswith(b'https://') or path.startswith(b'http://'):
             return util.uncacheable_cachestat()
