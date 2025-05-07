@@ -1168,3 +1168,21 @@ convert_revision from source
   message with extras
   
   
+
+Test that date and timezone is converted correctly.
+
+  $ git init --quiet git-repo8
+  $ cd git-repo8
+  $ echo a > a
+  $ git add a
+  $ GIT_COMMITTER_DATE='Wed May 07 23:41:27 2025 +0530' git commit --quiet -m a
+  $ cd ..
+  $ hg convert --quiet git-repo8 hg-repo8
+  $ hg -R hg-repo8 log
+  changeset:   0:53e7aea86468
+  bookmark:    master
+  tag:         tip
+  user:        nottest <test@example.org>
+  date:        Wed May 07 23:41:27 2025 +0530
+  summary:     a
+  

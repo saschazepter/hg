@@ -414,7 +414,7 @@ class convert_git(common.converter_source, common.commandline):
                 message += b'\n%s %s\n' % (messagedifferent, committer)
 
         tzs, tzh, tzm = tz[-5:-4] + b"1", tz[-4:-2], tz[-2:]
-        tz = -int(tzs) * (int(tzh) * 3600 + int(tzm))
+        tz = -int(tzs) * (int(tzh) * 3600 + int(tzm) * 60)
         date = tm + b" " + (b"%d" % tz)
         saverev = self.ui.configbool(b'convert', b'git.saverev')
 
