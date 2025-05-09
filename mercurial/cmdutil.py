@@ -1061,6 +1061,16 @@ def changebranch(ui, repo, revs, label, **opts):
             if oldbranch == label:
                 continue
 
+            # While changing branch of set of linear commits, make sure that
+            # we base our commits on new parent rather than old parent which
+            # was obsoleted while changing the branch
+            p1 = ctx.p1().node()
+            p2 = ctx.p2().node()
+            if p1 in replacements:
+                p1 = replacements[p1][0]
+            if p2 in replacements:
+                p2 = replacements[p2][0]
+
             def filectxfn(repo, newctx, path):
                 try:
                     return ctx[path]
@@ -1073,15 +1083,6 @@ def changebranch(ui, repo, revs, label, **opts):
             )
             extra = ctx.extra()
             extra[b'branch_change'] = hex(ctx.node())
-            # While changing branch of set of linear commits, make sure that
-            # we base our commits on new parent rather than old parent which
-            # was obsoleted while changing the branch
-            p1 = ctx.p1().node()
-            p2 = ctx.p2().node()
-            if p1 in replacements:
-                p1 = replacements[p1][0]
-            if p2 in replacements:
-                p2 = replacements[p2][0]
 
             if len(ctx.parents()) > 1:
                 # ctx.files() isn't reliable for merges, so fall back to the
