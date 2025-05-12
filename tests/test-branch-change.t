@@ -349,7 +349,6 @@ Changing branch of a merge commit
   ~
 
   $ hg branch -r . ghi
-  0 files updated, 0 files merged, 4 files removed, 0 files unresolved
   changed branch on 1 changesets
   $ hg branch -r . jkl
   changed branch on 1 changesets
@@ -362,7 +361,7 @@ Changing branch of a merge commit
   $ hg branch -r . stable --force
   changed branch on 1 changesets
   $ hg branches
-  stable                        34:d1c2addda4a2
+  stable                        34:606538977fa6
   jkl                           29:6bc1c6c2c9da (inactive)
   ghi                           28:2f1019bd29d2 (inactive)
 
@@ -370,49 +369,24 @@ Changing branch on public changeset
 
   $ hg phase -r . -p
   $ hg branch -r . def
-  abort: cannot change branch of public changesets: d1c2addda4a2
+  abort: cannot change branch of public changesets: 606538977fa6
   (see 'hg help phases' for details)
   [10]
 
 The previous series of branch-changing commands should keep the contents unchanged
-(currently broken)
 
   $ hg status --hidden --rev . --rev 4d56e6b1eb6b
-  A a.orig
-  A bar
-  A e
-  A f
   $ hg status --hidden --change 4d56e6b1eb6b
   A a.orig
   A bar
   A e
   A f
   $ hg status --change .
-  A a.orig (missing-correct-output !)
-  A bar (missing-correct-output !)
-  A e (missing-correct-output !)
-  A f (missing-correct-output !)
+  A a.orig
+  A bar
+  A e
+  A f
   $ hg diff --hidden --from 4d56e6b1eb6b --to .
-  diff -r 4d56e6b1eb6b -r d1c2addda4a2 a.orig (known-bad-output !)
-  --- a/a.orig	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  @@ -1,1 +0,0 @@ (known-bad-output !)
-  -bar (known-bad-output !)
-  diff -r 4d56e6b1eb6b -r d1c2addda4a2 bar (known-bad-output !)
-  --- a/bar	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  @@ -1,1 +0,0 @@ (known-bad-output !)
-  -foo (known-bad-output !)
-  diff -r 4d56e6b1eb6b -r d1c2addda4a2 e (known-bad-output !)
-  --- a/e	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  @@ -1,1 +0,0 @@ (known-bad-output !)
-  -foo (known-bad-output !)
-  diff -r 4d56e6b1eb6b -r d1c2addda4a2 f (known-bad-output !)
-  --- a/f	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
-  @@ -1,1 +0,0 @@ (known-bad-output !)
-  -f (known-bad-output !)
   $ hg diff --hidden --change 4d56e6b1eb6b
   diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b a.orig
   --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
@@ -435,26 +409,26 @@ The previous series of branch-changing commands should keep the contents unchang
   @@ -0,0 +1,1 @@
   +f
   $ hg diff --change .
-  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b a.orig (missing-correct-output !)
-  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  +++ b/a.orig	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  @@ -0,0 +1,1 @@ (missing-correct-output !)
-  +bar (missing-correct-output !)
-  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b bar (missing-correct-output !)
-  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  +++ b/bar	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  @@ -0,0 +1,1 @@ (missing-correct-output !)
-  +foo (missing-correct-output !)
-  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b e (missing-correct-output !)
-  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  +++ b/e	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  @@ -0,0 +1,1 @@ (missing-correct-output !)
-  +foo (missing-correct-output !)
-  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b f (missing-correct-output !)
-  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  +++ b/f	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
-  @@ -0,0 +1,1 @@ (missing-correct-output !)
-  +f (missing-correct-output !)
+  diff -r 6bc1c6c2c9da -r 606538977fa6 a.orig
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/a.orig	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +bar
+  diff -r 6bc1c6c2c9da -r 606538977fa6 bar
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/bar	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r 6bc1c6c2c9da -r 606538977fa6 e
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/e	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r 6bc1c6c2c9da -r 606538977fa6 f
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/f	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +f
 
 Merge commit with conflicts, with evolution and without
 

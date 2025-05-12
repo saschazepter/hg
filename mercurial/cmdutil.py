@@ -1083,11 +1083,19 @@ def changebranch(ui, repo, revs, label, **opts):
             if p2 in replacements:
                 p2 = replacements[p2][0]
 
+            if len(ctx.parents()) > 1:
+                # ctx.files() isn't reliable for merges, so fall back to the
+                # slower repo.status() method
+                st = ctx.p1().status(ctx)
+                files = set(st.modified) | set(st.added) | set(st.removed)
+            else:
+                files = set(ctx.files())
+
             mc = context.memctx(
                 repo,
                 (p1, p2),
                 ctx.description(),
-                ctx.files(),
+                files,
                 filectxfn,
                 user=ctx.user(),
                 date=ctx.date(),
