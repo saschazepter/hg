@@ -656,7 +656,6 @@ class ui:
         return value
 
     def _config(self, section, name, default=_unset, untrusted=False):
-        value = itemdefault = default
         item = self._knownconfig.get(section, {}).get(name)
         alternates = [(section, name)]
 
@@ -668,36 +667,14 @@ class ui:
 
         if item is not None:
             alternates.extend(item.alias)
-            if callable(item.default):
-                itemdefault = item.default()
-            else:
-                itemdefault = item.default
+            if default is _unset and item.default is configitems.dynamicdefault:
+                msg = b"config item requires an explicit default value: '%s.%s'"
+                msg %= (section, name)
+                self.develwarn(msg, 2, b'warn-config-default')
         else:
             msg = b"accessing unregistered config item: '%s.%s'"
             msg %= (section, name)
             self.develwarn(msg, 2, b'warn-config-unknown')
-
-        if default is _unset:
-            if item is None:
-                value = default
-            elif item.default is configitems.dynamicdefault:
-                value = None
-                msg = b"config item requires an explicit default value: '%s.%s'"
-                msg %= (section, name)
-                self.develwarn(msg, 2, b'warn-config-default')
-            else:
-                value = itemdefault
-        elif (
-            item is not None
-            and item.default is not configitems.dynamicdefault
-            and default != itemdefault
-        ):
-            msg = (
-                b"specifying a mismatched default value for a registered "
-                b"config item: '%s.%s' '%s'"
-            )
-            msg %= (section, name, pycompat.bytestr(default))
-            self.develwarn(msg, 2, b'warn-config-default')
 
         value_level = -1
         config = self._data(untrusted)
@@ -708,6 +685,24 @@ class ui:
                 if level > value_level:
                     value = candidate
                     value_level = level
+
+        if default is not _unset or value_level < 0:
+            if not (item is None or item.default is configitems.dynamicdefault):
+                if callable(item.default):
+                    item_default = item.default()
+                else:
+                    item_default = item.default
+                if default is _unset:
+                    default = item_default
+                elif default != item_default:
+                    msg = (
+                        b"specifying a mismatched default value for a "
+                        b"registered config item: '%s.%s' '%s'"
+                    )
+                    msg %= (section, name, pycompat.bytestr(default))
+                    self.develwarn(msg, 2, b'warn-config-default')
+            if value_level < 0:
+                value = default
 
         if self.debugflag and not untrusted and self._reportuntrusted:
             for s, n in alternates:
