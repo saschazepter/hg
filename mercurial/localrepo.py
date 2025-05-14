@@ -3765,9 +3765,18 @@ def newreporequirements(ui, createopts):
     elif compengine != b'zlib':
         requirements.add(b'exp-compression-%s' % compengine)
 
-    if scmutil.gdinitconfig(ui):
+    enabled_gd = scmutil.gdinitconfig(ui)
+    if enabled_gd:
         requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
-        if ui.configbool(b'format', b'sparse-revlog'):
+    if ui.configbool(b'format', b'sparse-revlog'):
+        explicit_gd = scmutil.explicit_gd_config(ui)
+        explicit_sr = ui.config_is_set(b'format', b'sparse-revlog')
+        # If sparse-revlog is implicitly added, but generaldelta is explicitly
+        # disabled, prioritize the explicit config and disable sparse-revlog
+        #
+        # If sparse-revlog is explicitly set, respect it enable sparse-revlog
+        # anyway (force enabling general delta in the process).
+        if explicit_sr or not explicit_gd or enabled_gd:
             requirements.add(requirementsmod.SPARSEREVLOG_REQUIREMENT)
 
     # experimental config: format.use-dirstate-v2
@@ -3778,6 +3787,18 @@ def newreporequirements(ui, createopts):
     # experimental config: format.exp-use-hasmeta-flag
     if ui.configbool(b'format', b'exp-use-hasmeta-flag'):
         requirements.add(requirementsmod.FILELOG_METAFLAG_REQUIREMENT)
+
+    # enforce requirement dependencies
+    #
+    # note: In practice this mean we don't need to explicitly use the
+    # "generaldelta" requirement for repository that already have the
+    # "sparserevlog" requirement, etc…
+    #
+    # In practice this has been the case for a while and older clients might
+    # rely on it. The redundancy does not hurt for now, but we could consider
+    # using such implicit approach for newly introduced requirements.
+    if requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements:
+        requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
 
     # experimental config: format.exp-use-copies-side-data-changeset
     if ui.configbool(b'format', b'exp-use-copies-side-data-changeset'):

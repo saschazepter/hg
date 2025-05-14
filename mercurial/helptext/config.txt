@@ -899,7 +899,7 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
 
     Repositories with this on-disk format require Mercurial version 1.9.
 
-    Enabled by default.
+    Enabled by default. Implied by `sparse-revlog`
 
 ``dotencode``
     Enable or disable the "dotencode" repository format which enhances
@@ -1131,6 +1131,8 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
     performance (by using shortened delta chains.)
 
     Repositories with this on-disk format require Mercurial version 4.7
+
+    Implies `usegeneraldelta`.
 
     Enabled by default.
 

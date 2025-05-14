@@ -2035,6 +2035,14 @@ def gdinitconfig(ui: uimod.ui):
     )
 
 
+def explicit_gd_config(ui: uimod.ui):
+    """return True if the general delta config is explicitly set"""
+    # experimental config: format.generaldelta
+    return (ui.config_is_set(b'format', b'generaldelta')) or (
+        ui.config_is_set(b'format', b'usegeneraldelta')
+    )
+
+
 def gddeltaconfig(ui: uimod.ui):
     """helper function to know if incoming deltas should be optimized
 

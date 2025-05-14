@@ -665,6 +665,28 @@ Various sub-optimal detections work
   re-delta-fulladd
      every revision will be re-added as if it was new content. It will go through the full storage mechanism giving extensions a chance to process it (eg. lfs). This is similar to "re-delta-all" but even slower since more logic is involved.
   
+
+Check that disabling general-delta also disable sparse-revlog
+(unless sparse-revlog is explicitly enabled in which case general-delta is forcily enabled)
+
+  $ hg debugformat --verbose generaldelta sparserevlog \
+  >     --config format.usegeneraldelta=no
+  format-variant     repo config default
+  generaldelta:        no     no     yes
+  sparserevlog:        no     no     yes
+  $ hg debugformat --verbose generaldelta sparserevlog \
+  >     --config format.usegeneraldelta=no \
+  >     --config format.sparse-revlog=no
+  format-variant     repo config default
+  generaldelta:        no     no     yes
+  sparserevlog:        no     no     yes
+  $ hg debugformat --verbose generaldelta sparserevlog \
+  >     --config format.usegeneraldelta=no \
+  >     --config format.sparse-revlog=yes
+  format-variant     repo config default
+  generaldelta:        no    yes     yes
+  sparserevlog:        no    yes     yes
+
   $ hg debugupgraderepo --quiet
   requirements
      preserved: revlogv1, store
