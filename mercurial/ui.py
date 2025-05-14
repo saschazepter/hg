@@ -655,16 +655,20 @@ class ui:
             return None
         return value
 
-    def _config(self, section, name, default=_unset, untrusted=False):
+    def _config_item(self, section, name):
+        """return the config item associated with section.name if any"""
         item = self._knownconfig.get(section, {}).get(name)
-        alternates = [(section, name)]
-
         if item is not None and item.in_core_extension is not None:
             # Only return the default for an in-core extension item if said
             # extension is enabled
             if item.in_core_extension in extensions.extensions(self):
                 item = None
+        return item
 
+    def _config(self, section, name, default=_unset, untrusted=False):
+        alternates = [(section, name)]
+
+        item = self._config_item(section, name)
         if item is not None:
             alternates.extend(item.alias)
             if default is _unset and item.default is configitems.dynamicdefault:
