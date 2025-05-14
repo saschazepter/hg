@@ -699,18 +699,15 @@ class ui:
             msg %= (section, name, pycompat.bytestr(default))
             self.develwarn(msg, 2, b'warn-config-default')
 
-        candidates = []
+        value_level = -1
         config = self._data(untrusted)
         for s, n in alternates:
             candidate = config.get(s, n, None)
             if candidate is not None:
-                candidates.append((s, n, candidate))
-        if candidates:
-
-            def level(x):
-                return config.level(x[0], x[1])
-
-            value = max(candidates, key=level)[2]
+                level = config.level(s, n)
+                if level > value_level:
+                    value = candidate
+                    value_level = level
 
         if self.debugflag and not untrusted and self._reportuntrusted:
             for s, n in alternates:
