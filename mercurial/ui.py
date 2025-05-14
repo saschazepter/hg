@@ -655,6 +655,23 @@ class ui:
             return None
         return value
 
+    def config_is_set(
+        self,
+        section: bytes,
+        name: bytes,
+        untrusted: bool = False,
+    ) -> bool:
+        """return True if there is any value set for this item"""
+        alternates = [(section, name)]
+        item = self._config_item(section, name)
+        if item is not None:
+            alternates.extend(item.alias)
+        config = self._data(untrusted)
+        for s, n in alternates:
+            if config.get(s, n, None) is not None:
+                return True
+        return False
+
     def _config_item(self, section, name):
         """return the config item associated with section.name if any"""
         item = self._knownconfig.get(section, {}).get(name)
