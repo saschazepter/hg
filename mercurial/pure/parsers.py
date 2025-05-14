@@ -857,20 +857,20 @@ class InlinedIndexObject(BaseIndexObject):
 
 def parse_index2(
     data: ByteString,
-    inline,
+    inlined,
     uses_generaldelta,
     format=revlog_constants.REVLOGV1,
 ) -> tuple[IndexObject | InlinedIndexObject, tuple[int, ByteString] | None]:
     if format == revlog_constants.CHANGELOGV2:
         return parse_index_cl_v2(data)
-    if not inline:
+    if not inlined:
         if format == revlog_constants.REVLOGV2:
             cls = IndexObject2
         else:
             cls = IndexObject
         return cls(data, uses_generaldelta), None
     cls = InlinedIndexObject
-    return cls(data, inline, uses_generaldelta), (0, data)
+    return cls(data, inlined, uses_generaldelta), (0, data)
 
 
 def parse_index_cl_v2(data):
