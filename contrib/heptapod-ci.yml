@@ -42,7 +42,7 @@ variables:
     RE_TOPIC: '/^topic/.+/.+$/'
     PYTHON: python
     HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
-    HG_CI_IMAGE_TAG: "v3.0"
+    HG_CI_IMAGE_TAG: "v3.1"
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
@@ -146,26 +146,26 @@ trigger-wheel-linux:
 
 # build linux wheel for amd64
 build-c-wheel-libc:
-  extends: .extra-wheel
+  extends: .build-wheel
   variables:
     ARCH: "x86_64"
     WHEEL_TYPE: "c"
 
 build-rust-wheel-libc:
-  extends: .extra-wheel
+  extends: .build-wheel
   variables:
     ARCH: "x86_64"
     WHEEL_TYPE: "rust"
     CI_CLEVER_CLOUD_FLAVOR: "M"
 
 build-c-wheel-musl:
-  extends: .build-wheel
+  extends: .extra-wheel
   variables:
     ARCH: "x86_64-musl"
     WHEEL_TYPE: "c"
 
 build-rust-wheel-musl:
-  extends: .build-wheel
+  extends: .extra-wheel
   variables:
     ARCH: "x86_64-musl"
     WHEEL_TYPE: "rust"
@@ -299,10 +299,10 @@ test-c:
     extends: .test-c
     image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     needs:
-      - job: build-c-wheel-musl
+      - job: build-c-wheel-libc
         parallel:
           matrix:
-            - BUILD_PY_ID: "cp312-cp312"
+            - BUILD_PY_ID: "cp311-cp311"
     variables:
         WHEEL_TYPE: "c"
 
@@ -326,10 +326,10 @@ test-rust:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
     needs:
-      - job: build-rust-wheel-musl
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
-            - BUILD_PY_ID: "cp312-cp312"
+            - BUILD_PY_ID: "cp311-cp311"
     variables:
         WHEEL_TYPE: "rust"
 
@@ -376,7 +376,7 @@ test-3.9-c:
         PYTHON: python3.9
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel-musl
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp39-cp39"
@@ -386,7 +386,7 @@ test-3.9-rust:
     image: "$HG_CI_REG/hg-core-test-py39:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel-musl
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp39-cp39"
@@ -400,7 +400,7 @@ test-3.10-c:
         PYTHON: python3.10
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel-musl
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp310-cp310"
@@ -410,7 +410,7 @@ test-3.10-rust:
     image: "$HG_CI_REG/hg-core-test-py310:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel-musl
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp310-cp310"
@@ -424,7 +424,7 @@ test-3.11-c:
         PYTHON: python3.11
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel-musl
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp311-cp311"
@@ -434,7 +434,7 @@ test-3.11-rust:
     image: "$HG_CI_REG/hg-core-test-py311:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel-musl
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp311-cp311"
@@ -448,7 +448,7 @@ test-3.12-c:
         PYTHON: python3.12
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel-musl
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp312-cp312"
@@ -458,7 +458,7 @@ test-3.12-rust:
     image: "$HG_CI_REG/hg-core-test-py312:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel-musl
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp312-cp312"
@@ -472,7 +472,7 @@ test-3.13-c:
         PYTHON: python3.13
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel-musl
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
@@ -482,7 +482,7 @@ test-3.13-rust:
     image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
-      - job: build-rust-wheel-musl
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
