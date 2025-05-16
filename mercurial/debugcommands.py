@@ -15,6 +15,7 @@ import contextlib
 import difflib
 import errno
 import glob
+import itertools
 import operator
 import os
 import platform
@@ -35,6 +36,7 @@ from .node import (
     short,
 )
 from . import (
+    ancestor,
     bundle2,
     bundlerepo,
     changegroup,
@@ -61,6 +63,7 @@ from . import (
     manifest,
     mergestate as mergestatemod,
     metadata,
+    node as nodemod,
     obsolete,
     obsutil,
     pathutil,
@@ -1860,24 +1863,101 @@ def debugindex(ui, repo, file_=None, **opts):
     )
 
 
+def _commonancestorclosure(r, revs):
+    """Compute the closure of 'revs' under r.ancestor for revlog 'r'."""
+    revs = set(revs)
+    seen = set()
+    while True:
+        new = set()
+        for pair in itertools.combinations(revs, 2):
+            if pair in seen:
+                continue
+            seen.add(pair)
+            anc = r.rev(r.ancestor(r.node(pair[0]), r.node(pair[1])))
+            if anc != nodemod.nullrev and anc not in revs:
+                new.add(anc)
+        if not new:
+            break
+        revs.update(new)
+    return revs
+
+
 @command(
     b'debugindexdot',
-    cmdutil.debugrevlogopts,
+    cmdutil.debugrevlogopts
+    + [
+        (b'i', b'include', [], _(b'arbitrary graphviz statement to include')),
+        (b'T', b'template', b'{rev}', _(b'label template'), _(b'TEMPLATE')),
+        (b'r', b'rev', [], _(b'only show these revisions'), b'REV'),
+        (b'', b'common', False, _(b'also show common ancestors'), b'REV'),
+    ],
     _(b'-c|-m|FILE'),
     optionalrepo=True,
 )
 def debugindexdot(ui, repo, file_=None, **opts):
-    """dump an index DAG as a graphviz dot file"""
+    """dump an index DAG as a graphviz dot file
+
+    With -r/--rev, it dumps a graph that includes only those revs, with solid
+    edges for parent->child and dashed edges for ancestor->descendant paths.
+    """
     r = cmdutil.openstorage(
-        repo, b'debugindexdot', file_, pycompat.byteskwargs(opts)
+        repo,
+        b'debugindexdot',
+        file_,
+        pycompat.byteskwargs(opts),
+        returnrevlog=True,
     )
+    displayer = None
+    if opts['template'] != b'{rev}':
+        if not opts['changelog']:
+            raise error.Abort(
+                _(b'-T/--template is only supported for -c/--changelog')
+            )
+        displayer = logcmdutil.maketemplater(ui, repo, opts['template'])
+
+    revs = original_revs = set(r.rev(r.lookup(rev)) for rev in opts['rev'])
+    if opts['common']:
+        if not opts['rev']:
+            raise error.Abort(_(b'--common has no effect without -r/--rev'))
+        revs = _commonancestorclosure(r, revs)
+
     ui.writenoi18n(b"digraph G {\n")
-    for i in r:
-        node = r.node(i)
-        pp = r.parents(node)
-        ui.write(b"\t%d -> %d\n" % (r.rev(pp[0]), i))
-        if pp[1] != repo.nullid:
-            ui.write(b"\t%d -> %d\n" % (r.rev(pp[1]), i))
+    for statement in opts['include']:
+        ui.write(b"\t%s\n" % statement)
+
+    if displayer or revs:
+        for i in revs or r:
+            attrs = []
+            if displayer:
+                ui.pushbuffer()
+                displayer.show(repo[i])
+                label = ui.popbuffer().replace(b'"', b'\\"')
+                attrs.append(b"label=\"%s\"" % label)
+            if revs and i not in original_revs:
+                attrs.append(b"style=filled")
+            extra = b" [%s]" % b",".join(attrs) if attrs else b""
+            ui.write(b"\t%d%s\n" % (i, extra))
+
+    null = nodemod.nullrev
+    if revs:
+        # Pretend revs have no parents so that in A -> B -> C, we don't draw
+        # a dashed edge from A to C unless it's reachable by a different path.
+        pfunc = lambda i: [null] * 2 if i in revs else r.parentrevs(i)
+        stoprev = min(revs)
+        for i in revs:
+            parents = set(r.parentrevs(i)) - {null}
+            for p in parents:
+                if p in revs:
+                    ui.write(b"\t%d -> %d\n" % (p, i))
+            for a in ancestor.lazyancestors(pfunc, parents, stoprev):
+                if a in revs:
+                    ui.writenoi18n(b"\t%d -> %d [style=dashed]\n" % (a, i))
+    else:
+        for i in r:
+            p1, p2 = r.parentrevs(i)
+            ui.write(b"\t%d -> %d\n" % (p1, i))
+            if p2 != null:
+                ui.write(b"\t%d -> %d\n" % (p2, i))
     ui.write(b"}\n")
 
 

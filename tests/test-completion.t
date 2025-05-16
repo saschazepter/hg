@@ -314,7 +314,7 @@ Show all commands + options
   debugfsinfo: 
   debuggetbundle: head, common, type
   debugignore: 
-  debugindexdot: changelog, manifest, dir
+  debugindexdot: changelog, manifest, dir, include, template, rev, common
   debugindexstats: 
   debuginstall: template
   debugknown: 
