@@ -689,25 +689,26 @@ class _BaseDeltaSearch(abc.ABC):
             or cachedelta[2] != DELTA_BASE_REUSE_FORCE
             or not revlog.delta_config.general_delta
         )
-        self.revlog = revlog
-        self.revinfo = revinfo
-        self.textlen = revinfo.textlen
-        self.p1 = p1
-        self.p2 = p2
-        self.cachedelta = cachedelta
-        self.excluded_bases = excluded_bases
+        self.revlog: RevlogT = revlog
+        self.revinfo: RevisionInfoT = revinfo
+        self.textlen: int = revinfo.textlen
+        self.p1: RevnumT = p1
+        self.p2: RevnumT = p2
+        self.cachedelta: Optional[Tuple[RevnumT, bytes, int]] = cachedelta
+        self.excluded_bases: Optional[Sequence[RevnumT]] = excluded_bases
         if target_rev is None:
-            self.target_rev = len(self.revlog)
-        self.target_rev = target_rev
+            self.target_rev: int = len(self.revlog)
+        else:
+            self.target_rev: int = target_rev
         if snapshot_cache is None:
             # map: base-rev: [snapshot-revs]
             snapshot_cache = SnapshotCache()
-        self.snapshot_cache = snapshot_cache
+        self.snapshot_cache: SnapshotCache = snapshot_cache
 
-        self.tested = {nullrev}
+        self.tested: Set[RevnumT] = {nullrev}
 
-        self.current_stage = _STAGE.UNSPECIFIED
-        self.current_group = None
+        self.current_stage: _STAGE = _STAGE.UNSPECIFIED
+        self.current_group: Optional[Sequence[RevnumT]] = None
         self._init_group()
 
     def is_good_delta_info(self, deltainfo: _deltainfo) -> bool:
