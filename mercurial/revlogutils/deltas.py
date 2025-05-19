@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import abc
 import collections
+import enum
 import struct
 import typing
 
@@ -644,19 +645,22 @@ def drop_u_compression(delta: _deltainfo) -> _deltainfo:
 # consider these candidates.
 LIMIT_BASE2TEXT: int = 500
 
-### stage of the search, used for debug and to select and to adjust some logic.
-# initial stage, next step is unknown
-_STAGE_UNSPECIFIED: str = "unspecified"
-# trying the cached delta
-_STAGE_CACHED: str = "cached"
-# trying delta based on parents
-_STAGE_PARENTS: str = "parents"
-# trying to build a valid snapshot of any level
-_STAGE_SNAPSHOT: str = "snapshot"
-# trying to build a delta based of the previous revision
-_STAGE_PREV: str = "prev"
-# trying to build a full snapshot
-_STAGE_FULL: str = "full"
+
+class _STAGE(enum.StrEnum):
+    """stage of the search, used for debug and to adjust some logic"""
+
+    # initial stage, next step is unknown
+    UNSPECIFIED: str = "unspecified"
+    # trying the cached delta
+    CACHED: str = "cached"
+    # trying delta based on parents
+    PARENTS: str = "parents"
+    # trying to build a valid snapshot of any level
+    SNAPSHOT: str = "snapshot"
+    # trying to build a delta based of the previous revision
+    PREV: str = "prev"
+    # trying to build a full snapshot
+    FULL: str = "full"
 
 
 class _BaseDeltaSearch(abc.ABC):
@@ -702,7 +706,7 @@ class _BaseDeltaSearch(abc.ABC):
 
         self.tested = {nullrev}
 
-        self.current_stage = _STAGE_UNSPECIFIED
+        self.current_stage = _STAGE.UNSPECIFIED
         self.current_group = None
         self._init_group()
 
@@ -832,7 +836,7 @@ class _NoDeltaSearch(_BaseDeltaSearch):
     """
 
     def _init_group(self) -> None:
-        self.current_stage = _STAGE_FULL
+        self.current_stage = _STAGE.FULL
 
     def next_group(
         self,
@@ -849,7 +853,7 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
     """
 
     def _init_group(self) -> None:
-        self.current_stage = _STAGE_PREV
+        self.current_stage = _STAGE.PREV
         self.current_group = [self.target_rev - 1]
         self.tested.update(self.current_group)
 
@@ -857,7 +861,7 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
         self,
         good_delta: Optional[_deltainfo] = None,
     ) -> Optional[Sequence[RevnumT]]:
-        self.current_stage = _STAGE_FULL
+        self.current_stage = _STAGE.FULL
         self.current_group = None
 
 
@@ -881,7 +885,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             # This logic only applies to general delta repositories and can be
             # disabled through configuration. Disabling reuse source delta is
             # useful when we want to make sure we recomputed "optimal" deltas.
-            self.current_stage = _STAGE_CACHED
+            self.current_stage = _STAGE.CACHED
             self._internal_group = (self.cachedelta[0],)
             self._internal_idx = 0
             self.current_group = self._internal_group
@@ -918,7 +922,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         old_good = self._last_good
         if good_delta is not None:
             self._last_good = good_delta
-        if self.current_stage == _STAGE_CACHED and good_delta is not None:
+        if self.current_stage == _STAGE.CACHED and good_delta is not None:
             # the cache is good, let us use the cache as requested
             self._candidates_iterator = None
             self._internal_group = None
@@ -1051,7 +1055,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         # exclude already lazy tested base if any
         parents = [p for p in (self.p1, self.p2) if p != nullrev]
 
-        self.current_stage = _STAGE_PARENTS
+        self.current_stage = _STAGE.PARENTS
         if (
             not self.revlog.delta_config.delta_both_parents
             and len(parents) == 2
@@ -1069,7 +1073,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
     def _iter_prev(self) -> Iterator[Sequence[RevnumT]]:
         # other approach failed try against prev to hopefully save us a
         # fulltext.
-        self.current_stage = _STAGE_PREV
+        self.current_stage = _STAGE.PREV
         yield (self.target_rev - 1,)
 
     def _iter_groups(
@@ -1187,7 +1191,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
 
     def _iter_snapshots_base(self) -> Iterator[Optional[Sequence[RevnumT]]]:
         assert self.revlog.delta_config.sparse_revlog
-        assert self.current_stage == _STAGE_SNAPSHOT
+        assert self.current_stage == _STAGE.SNAPSHOT
         prev = self.target_rev - 1
         deltachain = lambda rev: self.revlog._deltachain(rev)[0]
 
@@ -1280,7 +1284,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
 
     def _iter_snapshots(self) -> Iterator[Optional[Sequence[RevnumT]]]:
         assert self.revlog.delta_config.sparse_revlog
-        self.current_stage = _STAGE_SNAPSHOT
+        self.current_stage = _STAGE.SNAPSHOT
         good = None
         groups = self._iter_snapshots_base()
         for candidates in groups:
@@ -1289,7 +1293,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
                 break
         # if we have a refinable value, try to refine it
         if good is not None and good.snapshotdepth is not None:
-            assert self.current_stage == _STAGE_SNAPSHOT
+            assert self.current_stage == _STAGE.SNAPSHOT
             # refine snapshot down
             previous = None
             while previous != good:
@@ -1818,7 +1822,7 @@ class deltacomputer:
                     revinfo,
                     candidaterev,
                     target_rev=target_rev,
-                    as_snapshot=search.current_stage == _STAGE_SNAPSHOT,
+                    as_snapshot=search.current_stage == _STAGE.SNAPSHOT,
                 )
                 if self._debug_search:
                     delta_end = util.timer()
