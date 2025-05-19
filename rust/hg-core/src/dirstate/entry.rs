@@ -25,6 +25,7 @@ pub struct DirstateEntry {
 }
 
 bitflags! {
+    #[derive(Debug, Copy, Clone)]
     pub(crate) struct Flags: u8 {
         const WDIR_TRACKED = 1 << 0;
         const P1_TRACKED = 1 << 1;

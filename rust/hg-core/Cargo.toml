@@ -15,7 +15,7 @@ name = "hg"
 full-tracing = []
 
 [dependencies]
-bitflags = "1.3.2"
+bitflags = "2.9.0"
 bytes-cast = "0.3.0"
 byteorder = "1.4.3"
 ctrlc = "3.4"
