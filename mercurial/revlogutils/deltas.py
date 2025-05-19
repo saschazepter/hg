@@ -9,10 +9,23 @@
 
 from __future__ import annotations
 
+
 import abc
 import collections
 import struct
 import typing
+
+from typing import (
+    Callable,
+    Dict,
+    Generator,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 # import stuff from node for others to import from revlog
 from ..node import nullrev
@@ -29,6 +42,12 @@ from .constants import (
     KIND_MANIFESTLOG,
     REVIDX_ISCENSORED,
     REVIDX_RAWTEXT_CHANGING_FLAGS,
+)
+
+from ..interfaces.types import (
+    NodeIdT,
+    RevlogT,
+    RevnumT,
 )
 
 from ..thirdparty import attr
@@ -53,7 +72,13 @@ LIMIT_DELTA2TEXT = 2
 class _testrevlog:
     """minimalist fake revlog to use in doctests"""
 
-    def __init__(self, data, density=0.5, mingap=0, snapshot=()):
+    def __init__(
+        self,
+        data: Sequence[int],
+        density: float = 0.5,
+        mingap: int = 0,
+        snapshot: Sequence[RevnumT] = (),
+    ):
         """data is an list of revision payload boundaries"""
         self._data = data
         self.data_config = config.DataConfig()
@@ -64,31 +89,35 @@ class _testrevlog:
         self._snapshot = set(snapshot)
         self.index = None
 
-    def start(self, rev):
+    def start(self, rev: RevnumT) -> int:
         if rev == nullrev:
             return 0
         if rev == 0:
             return 0
         return self._data[rev - 1]
 
-    def end(self, rev):
+    def end(self, rev: RevnumT) -> int:
         if rev == nullrev:
             return 0
         return self._data[rev]
 
-    def length(self, rev):
+    def length(self, rev: RevnumT) -> int:
         return self.end(rev) - self.start(rev)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
-    def issnapshot(self, rev):
+    def issnapshot(self, rev: RevnumT) -> bool:
         if rev == nullrev:
             return True
         return rev in self._snapshot
 
 
-def slicechunk(revlog, revs, targetsize=None):
+def slicechunk(
+    revlog: RevlogT,
+    revs: Sequence[RevnumT],
+    targetsize: Optional[int] = None,
+) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
     ``revs`` is sliced into groups that should be read in one time.
@@ -163,7 +192,11 @@ def slicechunk(revlog, revs, targetsize=None):
         yield from _slicechunktosize(revlog, chunk, targetsize)
 
 
-def _slicechunktosize(revlog, revs, targetsize=None):
+def _slicechunktosize(
+    revlog: RevlogT,
+    revs: Sequence[RevnumT],
+    targetsize: Optional[int] = None,
+) -> Iterator[Sequence[RevnumT]]:
     """slice revs to match the target size
 
     This is intended to be used on chunk that density slicing selected by that
@@ -318,7 +351,12 @@ def _slicechunktosize(revlog, revs, targetsize=None):
         yield chunk
 
 
-def _slicechunktodensity(revlog, revs, targetdensity=0.5, mingapsize=0):
+def _slicechunktodensity(
+    revlog: RevlogT,
+    revs: Sequence[RevnumT],
+    targetdensity: float = 0.5,
+    mingapsize: int = 0,
+) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
     ``revs`` is sliced into groups that should be read in one time.
@@ -443,7 +481,12 @@ def _slicechunktodensity(revlog, revs, targetdensity=0.5, mingapsize=0):
         yield chunk
 
 
-def _trimchunk(revlog, revs, startidx, endidx=None):
+def _trimchunk(
+    revlog: RevlogT,
+    revs: Sequence[RevnumT],
+    startidx: int,
+    endidx: Optional[int] = None,
+) -> Sequence[RevnumT]:
     """returns revs[startidx:endidx] without empty trailing revs
 
     Doctest Setup
@@ -497,7 +540,7 @@ def _trimchunk(revlog, revs, startidx, endidx=None):
     return revs[startidx:endidx]
 
 
-def segmentspan(revlog, revs):
+def segmentspan(revlog: RevlogT, revs: Sequence[RevnumT]) -> int:
     """Get the byte span of a segment of revisions
 
     revs is a sorted array of revision numbers
@@ -527,7 +570,15 @@ def segmentspan(revlog, revs):
     return end - revlog.start(revs[0])
 
 
-def _textfromdelta(revlog, baserev, delta, p1, p2, flags, expectednode):
+def _textfromdelta(
+    revlog: RevlogT,
+    baserev: RevnumT,
+    delta: bytes,
+    p1: RevnumT,
+    p2: RevnumT,
+    flags: int,
+    expectednode: NodeIdT,
+) -> bytes:
     """build full text from a (base, delta) pair and other metadata"""
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
@@ -560,17 +611,17 @@ def _textfromdelta(revlog, baserev, delta, p1, p2, flags, expectednode):
 
 @attr.s(slots=True, frozen=True)
 class _deltainfo:
-    distance = attr.ib()
-    deltalen = attr.ib()
-    data = attr.ib()
-    base = attr.ib()
-    chainbase = attr.ib()
-    chainlen = attr.ib()
-    compresseddeltalen = attr.ib()
-    snapshotdepth = attr.ib()
+    distance = attr.ib(type=int)
+    deltalen = attr.ib(type=int)
+    data = attr.ib(type=Tuple[bytes, bytes])
+    base = attr.ib(type=RevnumT)
+    chainbase = attr.ib(type=RevnumT)
+    chainlen = attr.ib(type=int)
+    compresseddeltalen = attr.ib(type=int)
+    snapshotdepth = attr.ib(type=Optional[int])
 
 
-def drop_u_compression(delta):
+def drop_u_compression(delta: _deltainfo) -> _deltainfo:
     """turn into a "u" (no-compression) into no-compression without header
 
     This is useful for revlog format that has better compression method.
@@ -591,21 +642,21 @@ def drop_u_compression(delta):
 # If a revision's full text is that much bigger than a base candidate full
 # text's, it is very unlikely that it will produce a valid delta. We no longer
 # consider these candidates.
-LIMIT_BASE2TEXT = 500
+LIMIT_BASE2TEXT: int = 500
 
 ### stage of the search, used for debug and to select and to adjust some logic.
 # initial stage, next step is unknown
-_STAGE_UNSPECIFIED = "unspecified"
+_STAGE_UNSPECIFIED: str = "unspecified"
 # trying the cached delta
-_STAGE_CACHED = "cached"
+_STAGE_CACHED: str = "cached"
 # trying delta based on parents
-_STAGE_PARENTS = "parents"
+_STAGE_PARENTS: str = "parents"
 # trying to build a valid snapshot of any level
-_STAGE_SNAPSHOT = "snapshot"
+_STAGE_SNAPSHOT: str = "snapshot"
 # trying to build a delta based of the previous revision
-_STAGE_PREV = "prev"
+_STAGE_PREV: str = "prev"
 # trying to build a full snapshot
-_STAGE_FULL = "full"
+_STAGE_FULL: str = "full"
 
 
 class _BaseDeltaSearch(abc.ABC):
@@ -617,14 +668,14 @@ class _BaseDeltaSearch(abc.ABC):
 
     def __init__(
         self,
-        revlog,
-        revinfo,
-        p1,
-        p2,
-        cachedelta,
-        excluded_bases=None,
-        target_rev=None,
-        snapshot_cache=None,
+        revlog: RevlogT,
+        revinfo: RevisionInfoT,
+        p1: RevnumT,
+        p2: RevnumT,
+        cachedelta: Optional[Tuple[RevnumT, bytes, int]],
+        excluded_bases: Optional[Sequence[RevnumT]] = None,
+        target_rev: Optional[RevnumT] = None,
+        snapshot_cache: Optional[SnapshotCache] = None,
     ):
         # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
         # so we should never end up asking such question. Adding the assert as
@@ -655,7 +706,7 @@ class _BaseDeltaSearch(abc.ABC):
         self.current_group = None
         self._init_group()
 
-    def is_good_delta_info(self, deltainfo):
+    def is_good_delta_info(self, deltainfo: _deltainfo) -> bool:
         """Returns True if the given delta is good.
 
         Good means that it is within the disk span, disk size, and chain length
@@ -667,7 +718,7 @@ class _BaseDeltaSearch(abc.ABC):
             return False
         return True
 
-    def _is_good_delta_info_universal(self, deltainfo):
+    def _is_good_delta_info_universal(self, deltainfo: _deltainfo) -> bool:
         """Returns True if the given delta is good.
 
         This performs generic checks needed by all format variants.
@@ -696,7 +747,7 @@ class _BaseDeltaSearch(abc.ABC):
 
         return True
 
-    def _is_good_delta_info_chain_quality(self, deltainfo):
+    def _is_good_delta_info_chain_quality(self, deltainfo: _deltainfo) -> bool:
         """Returns True if the chain associated with the delta is good.
 
         This performs checks for format that use delta chains.
@@ -748,12 +799,15 @@ class _BaseDeltaSearch(abc.ABC):
         return True
 
     @property
-    def done(self):
+    def done(self) -> bool:
         """True when all possible candidate have been tested"""
         return self.current_group is None
 
     @abc.abstractmethod
-    def next_group(self, good_delta=None):
+    def next_group(
+        self,
+        good_delta: Optional[_deltainfo] = None,
+    ) -> Optional[Sequence[RevnumT]]:
         """move to the next group to test
 
         The group of revision to test will be available in
@@ -767,7 +821,7 @@ class _BaseDeltaSearch(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _init_group(self):
+    def _init_group(self) -> None:
         pass
 
 
@@ -777,10 +831,13 @@ class _NoDeltaSearch(_BaseDeltaSearch):
     This search variant is to be used in case where we should not store delta.
     """
 
-    def _init_group(self):
+    def _init_group(self) -> None:
         self.current_stage = _STAGE_FULL
 
-    def next_group(self, good_delta=None):
+    def next_group(
+        self,
+        good_delta: Optional[_deltainfo] = None,
+    ) -> Optional[Sequence[RevnumT]]:
         pass
 
 
@@ -791,12 +848,15 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
     against arbitrary bases.
     """
 
-    def _init_group(self):
+    def _init_group(self) -> None:
         self.current_stage = _STAGE_PREV
         self.current_group = [self.target_rev - 1]
         self.tested.update(self.current_group)
 
-    def next_group(self, good_delta=None):
+    def next_group(
+        self,
+        good_delta: Optional[_deltainfo] = None,
+    ) -> Optional[Sequence[RevnumT]]:
         self.current_stage = _STAGE_FULL
         self.current_group = None
 
@@ -804,7 +864,7 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
 class _GeneralDeltaSearch(_BaseDeltaSearch):
     """Delta search variant for general-delta repository"""
 
-    def _init_group(self):
+    def _init_group(self) -> None:
         # Why search for delta base if we cannot use a delta base ?
         # also see issue6056
         assert self.revlog.delta_config.general_delta
@@ -829,7 +889,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         else:
             self._next_internal_group()
 
-    def _next_internal_group(self):
+    def _next_internal_group(self) -> None:
         # self._internal_group can be larger than self.current_group
         self._internal_idx = 0
         group = self._candidates_iterator.send(self._last_good)
@@ -851,7 +911,10 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
             self.tested.update(self.current_group)
 
-    def next_group(self, good_delta=None):
+    def next_group(
+        self,
+        good_delta: Optional[_deltainfo] = None,
+    ) -> Optional[Sequence[RevnumT]]:
         old_good = self._last_good
         if good_delta is not None:
             self._last_good = good_delta
@@ -889,7 +952,10 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         else:
             self._next_internal_group()
 
-    def _pre_filter_candidate_revs(self, temptative):
+    def _pre_filter_candidate_revs(
+        self,
+        temptative: Sequence[RevnumT],
+    ) -> Sequence[RevnumT]:
         """filter possible candidate before computing a delta
 
         This function use various criteria to pre-filter candidate delta base
@@ -915,7 +981,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
                 self.tested.add(rev)
         return group
 
-    def _pre_filter_rev_universal(self, rev):
+    def _pre_filter_rev_universal(self, rev: RevnumT) -> bool:
         """pre filtering that is need in all cases.
 
         return True if it seems okay to test a rev, False otherwise.
@@ -942,7 +1008,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             return False
         return True
 
-    def _pre_filter_rev_delta_chain(self, rev):
+    def _pre_filter_rev_delta_chain(self, rev: RevnumT) -> bool:
         """pre filtering that is needed in sparse revlog cases
 
         return True if it seems okay to test a rev, False otherwise.
@@ -973,7 +1039,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             return False
         return True
 
-    def _pre_filter_rev(self, rev):
+    def _pre_filter_rev(self, rev: RevnumT) -> bool:
         """return True if it seems okay to test a rev, False otherwise"""
         if not self._pre_filter_rev_universal(rev):
             return False
@@ -981,7 +1047,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             return False
         return True
 
-    def _iter_parents(self):
+    def _iter_parents(self) -> Iterator[Sequence[RevnumT]]:
         # exclude already lazy tested base if any
         parents = [p for p in (self.p1, self.p2) if p != nullrev]
 
@@ -1000,13 +1066,15 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             # Test all parents (1 or 2), and keep the best candidate
             yield parents
 
-    def _iter_prev(self):
+    def _iter_prev(self) -> Iterator[Sequence[RevnumT]]:
         # other approach failed try against prev to hopefully save us a
         # fulltext.
         self.current_stage = _STAGE_PREV
         yield (self.target_rev - 1,)
 
-    def _iter_groups(self):
+    def _iter_groups(
+        self,
+    ) -> Generator[Optional[Sequence[RevnumT]], RevnumT, None,]:
         good = None
         for group in self._iter_parents():
             good = yield group
@@ -1021,7 +1089,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 class _SparseDeltaSearch(_GeneralDeltaSearch):
     """Delta search variants for sparse-revlog"""
 
-    def is_good_delta_info(self, deltainfo):
+    def is_good_delta_info(self, deltainfo: _deltainfo) -> bool:
         """Returns True if the given delta is good.
 
         Good means that it is within the disk span, disk size, and chain length
@@ -1035,7 +1103,10 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             return False
         return True
 
-    def _is_good_delta_info_snapshot_constraints(self, deltainfo):
+    def _is_good_delta_info_snapshot_constraints(
+        self,
+        deltainfo: _deltainfo,
+    ) -> bool:
         """Returns True if the chain associated with snapshots
 
         This performs checks for format that use sparse-revlog and intermediate
@@ -1063,7 +1134,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
 
         return True
 
-    def _pre_filter_rev(self, rev):
+    def _pre_filter_rev(self, rev: RevnumT) -> bool:
         """return True if it seems okay to test a rev, False otherwise"""
         if not self._pre_filter_rev_universal(rev):
             return False
@@ -1073,7 +1144,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             return False
         return True
 
-    def _pre_filter_rev_sparse(self, rev):
+    def _pre_filter_rev_sparse(self, rev: RevnumT) -> bool:
         """pre filtering that is needed in sparse revlog cases
 
         return True if it seems okay to test a rev, False otherwise.
@@ -1114,7 +1185,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
                     return False
         return True
 
-    def _iter_snapshots_base(self):
+    def _iter_snapshots_base(self) -> Iterator[Optional[Sequence[RevnumT]]]:
         assert self.revlog.delta_config.sparse_revlog
         assert self.current_stage == _STAGE_SNAPSHOT
         prev = self.target_rev - 1
@@ -1207,7 +1278,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         ]
         yield tuple(sorted(full))
 
-    def _iter_snapshots(self):
+    def _iter_snapshots(self) -> Iterator[Optional[Sequence[RevnumT]]]:
         assert self.revlog.delta_config.sparse_revlog
         self.current_stage = _STAGE_SNAPSHOT
         good = None
@@ -1239,7 +1310,9 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
                 good = yield children
         yield None
 
-    def _iter_groups(self):
+    def _iter_groups(
+        self,
+    ) -> Generator[Optional[Sequence[RevnumT]], RevnumT, None,]:
         good = None
         for group in self._iter_parents():
             good = yield group
@@ -1262,11 +1335,11 @@ class SnapshotCache:
     __slots__ = ('snapshots', '_start_rev', '_end_rev')
 
     def __init__(self):
-        self.snapshots = collections.defaultdict(set)
-        self._start_rev = None
-        self._end_rev = None
+        self.snapshots: Dict[int, Set[RevnumT]] = collections.defaultdict(set)
+        self._start_rev: Optional[int] = None
+        self._end_rev: Optional[int] = None
 
-    def update(self, revlog, start_rev=0):
+    def update(self, revlog: RevlogT, start_rev=0) -> None:
         """find snapshots from start_rev to tip"""
         nb_revs = len(revlog)
         end_rev = nb_revs - 1
@@ -1294,7 +1367,12 @@ class SnapshotCache:
             self._end_rev,
         )
 
-    def _update(self, revlog, start_rev, end_rev):
+    def _update(
+        self,
+        revlog: RevlogT,
+        start_rev: RevnumT,
+        end_rev: RevnumT,
+    ) -> None:
         """internal method that actually do update content"""
         assert self._start_rev is None or (
             start_rev < self._start_rev or start_rev > self._end_rev
@@ -1323,9 +1401,9 @@ class deltacomputer:
     def __init__(
         self,
         revlog,
-        write_debug=None,
-        debug_search=False,
-        debug_info=None,
+        write_debug: Optional[Callable[[bytes], None]] = None,
+        debug_search: bool = False,
+        debug_info: Optional[List[Dict]] = None,
     ):
         self.revlog = revlog
         self._write_debug = write_debug
@@ -1337,10 +1415,10 @@ class deltacomputer:
         self._snapshot_cache = SnapshotCache()
 
     @property
-    def _gather_debug(self):
+    def _gather_debug(self) -> bool:
         return self._write_debug is not None or self._debug_info is not None
 
-    def buildtext(self, revinfo):
+    def buildtext(self, revinfo: RevisionInfoT) -> bytes:
         """Builds a fulltext version of a revision
 
         revinfo: revisioninfo instance that contains all needed info
@@ -1365,7 +1443,7 @@ class deltacomputer:
         )
         return fulltext
 
-    def _builddeltadiff(self, base, revinfo):
+    def _builddeltadiff(self, base: RevnumT, revinfo: RevisionInfoT) -> bytes:
         revlog = self.revlog
         t = self.buildtext(revinfo)
         if revlog.iscensored(base):
@@ -1380,8 +1458,12 @@ class deltacomputer:
         return delta
 
     def _builddeltainfo(
-        self, revinfo, base, target_rev=None, as_snapshot=False
-    ):
+        self,
+        revinfo: RevisionInfoT,
+        base: RevnumT,
+        target_rev: Optional[RevnumT] = None,
+        as_snapshot: bool = False,
+    ) -> Optional[_deltainfo]:
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
@@ -1464,7 +1546,11 @@ class deltacomputer:
             snapshotdepth,
         )
 
-    def _fullsnapshotinfo(self, revinfo, curr):
+    def _fullsnapshotinfo(
+        self,
+        revinfo: RevisionInfoT,
+        curr: RevnumT,
+    ) -> _deltainfo:
         rawtext = self.buildtext(revinfo)
         data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
@@ -1483,7 +1569,12 @@ class deltacomputer:
             snapshotdepth,
         )
 
-    def finddeltainfo(self, revinfo, excluded_bases=None, target_rev=None):
+    def finddeltainfo(
+        self,
+        revinfo: RevisionInfoT,
+        excluded_bases: Optional[Sequence[RevnumT]] = None,
+        target_rev: Optional[RevnumT] = None,
+    ) -> _deltainfo:
         """Find an acceptable delta against a candidate revision
 
         revinfo: information about the revision (instance of _revisioninfo)
@@ -1796,7 +1887,7 @@ class deltacomputer:
             self._dbg_process_data(dbg)
         return deltainfo
 
-    def _one_dbg_data(self):
+    def _one_dbg_data(self) -> Dict:
         dbg = {
             'duration': None,
             'revision': None,
@@ -1826,7 +1917,7 @@ class deltacomputer:
         dbg['target-revlog'] = target_revlog
         return dbg
 
-    def _dbg_process_data(self, dbg):
+    def _dbg_process_data(self, dbg: Dict) -> None:
         if self._debug_info is not None:
             self._debug_info.append(dbg)
 
@@ -1862,7 +1953,10 @@ class deltacomputer:
             self._write_debug(msg)
 
 
-def delta_compression(default_compression_header, deltainfo):
+def delta_compression(
+    default_compression_header: bytes,
+    deltainfo: _deltainfo,
+) -> Tuple[int, _deltainfo]:
     """return (COMPRESSION_MODE, deltainfo)
 
     used by revlog v2+ format to dispatch between PLAIN and DEFAULT
