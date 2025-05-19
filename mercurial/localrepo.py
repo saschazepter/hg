@@ -93,6 +93,7 @@ from .utils import (
 
 from .revlogutils import (
     concurrency_checker as revlogchecker,
+    config as revlog_config,
     constants as revlogconst,
     sidedata as sidedatamod,
 )
@@ -1057,9 +1058,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     options = {}
     options[b'flagprocessors'] = {}
 
-    feature_config = options[b'feature-config'] = revlog.FeatureConfig()
-    data_config = options[b'data-config'] = revlog.DataConfig()
-    delta_config = options[b'delta-config'] = revlog.DeltaConfig()
+    feature_config = options[b'feature-config'] = revlog_config.FeatureConfig()
+    data_config = options[b'data-config'] = revlog_config.DataConfig()
+    delta_config = options[b'delta-config'] = revlog_config.DeltaConfig()
 
     if requirementsmod.REVLOGV1_REQUIREMENT in requirements:
         options[b'revlogv1'] = True

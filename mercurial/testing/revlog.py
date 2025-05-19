@@ -23,9 +23,11 @@ data_non_inlined = (
     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 )
 
+
 from ..revlogutils.constants import (
     KIND_CHANGELOG,
 )
+from ..revlogutils import config as revlog_config
 from .. import revlog
 
 
@@ -64,9 +66,9 @@ class RevlogBasedTestBase(unittest.TestCase):
 )
 class RustRevlogBasedTestBase(unittest.TestCase):
     # defaults
-    revlog_data_config = revlog.DataConfig()
-    revlog_delta_config = revlog.DeltaConfig()
-    revlog_feature_config = revlog.FeatureConfig()
+    revlog_data_config = revlog_config.DataConfig()
+    revlog_delta_config = revlog_config.DeltaConfig()
+    revlog_feature_config = revlog_config.FeatureConfig()
 
     @classmethod
     def irl_class(cls):

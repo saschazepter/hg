@@ -44,7 +44,7 @@ from .. import (
     util,
 )
 
-from . import flagutil
+from . import config, flagutil, revisioninfo as RevisionInfoT
 
 # maximum <delta-chain-data>/<revision-text-length> ratio
 LIMIT_DELTA2TEXT = 2
@@ -55,14 +55,12 @@ class _testrevlog:
 
     def __init__(self, data, density=0.5, mingap=0, snapshot=()):
         """data is an list of revision payload boundaries"""
-        from .. import revlog
-
         self._data = data
-        self.data_config = revlog.DataConfig()
+        self.data_config = config.DataConfig()
         self.data_config.sr_density_threshold = density
         self.data_config.sr_min_gap_size = mingap
-        self.delta_config = revlog.DeltaConfig()
-        self.feature_config = revlog.FeatureConfig()
+        self.delta_config = config.DeltaConfig()
+        self.feature_config = config.FeatureConfig()
         self._snapshot = set(snapshot)
         self.index = None
 

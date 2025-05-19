@@ -13,6 +13,7 @@ from mercurial import (
 )
 
 from mercurial.revlogutils import (
+    config,
     constants,
     deltas,
     flagutil,
@@ -51,7 +52,7 @@ tvfs = vfs.vfs(encoding.environ.get(b'TESTTMP', b'/tmp'))
 tvfs.options = {
     b'generaldelta': True,
     b'revlogv1': True,
-    b'delta-config': revlog.DeltaConfig(sparse_revlog=True),
+    b'delta-config': config.DeltaConfig(sparse_revlog=True),
 }
 
 
