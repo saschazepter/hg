@@ -1722,8 +1722,11 @@ class deltacomputer:
             p2r = revlog.rev(revinfo.p2)
 
         if self._debug_search:
-            msg = b"DBG-DELTAS-SEARCH: SEARCH rev=%d\n"
+            msg = b"DBG-DELTAS-SEARCH: SEARCH rev=%d"
             msg %= target_rev
+            if cachedelta is not None:
+                msg += b" (cached=%d)" % cachedelta[0]
+            msg += b'\n'
             self._write_debug(msg)
 
         # should we try to build a delta?
