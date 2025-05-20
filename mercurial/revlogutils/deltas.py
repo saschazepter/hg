@@ -1772,11 +1772,15 @@ class deltacomputer:
                 elif p1r in candidaterevs or p2r in candidaterevs:
                     round_type = b"parents"
                 elif prev is not None and all(c < prev for c in candidaterevs):
-                    round_type = b"refine-down"
+                    round_type = (
+                        b"refine-down (%s)" % search.current_stage.value
+                    )
                 elif prev is not None and all(c > prev for c in candidaterevs):
-                    round_type = b"refine-up"
+                    round_type = b"refine-up (%s)" % search.current_stage.value
                 else:
-                    round_type = b"search-down"
+                    round_type = (
+                        b"search-down (%s)" % search.current_stage.value
+                    )
                 msg = b"DBG-DELTAS-SEARCH: ROUND #%d - %d candidates - %s\n"
                 msg %= (dbg_try_rounds, len(candidaterevs), round_type)
                 self._write_debug(msg)
