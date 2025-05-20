@@ -1763,13 +1763,9 @@ class deltacomputer:
                 if deltainfo is not None:
                     prev = deltainfo.base
 
-                if (
-                    cachedelta is not None
-                    and len(candidaterevs) == 1
-                    and cachedelta[0] in candidaterevs
-                ):
+                if search.current_stage == _STAGE.CACHED:
                     round_type = b"cached-delta"
-                elif p1r in candidaterevs or p2r in candidaterevs:
+                elif search.current_stage == _STAGE.PARENTS:
                     round_type = b"parents"
                 elif prev is not None and all(c < prev for c in candidaterevs):
                     round_type = (
