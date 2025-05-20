@@ -112,6 +112,12 @@ Listing tracked files from root
   file2
   file3
 
+Listing tracked files with NUL delimiters.
+  $ $NO_FALLBACK rhg files -0 | xargs -0n1
+  file1
+  file2
+  file3
+
 Listing tracked files from subdirectory
   $ mkdir -p path/to/directory
   $ cd path/to/directory

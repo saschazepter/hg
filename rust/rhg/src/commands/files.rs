@@ -35,6 +35,14 @@ pub fn args() -> clap::Command {
                 .help("show only these files")
                 .action(clap::ArgAction::Append),
         )
+        .arg(
+            Arg::new("print0")
+                .required(false)
+                .short('0')
+                .long("print0")
+                .action(clap::ArgAction::SetTrue)
+                .help("end filenames with NUL, for use with xargs"),
+        )
         .about(HELP_TEXT)
 }
 
@@ -47,6 +55,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let args = invocation.subcommand_args;
     let rev = args.get_one::<String>("rev");
+    let delimiter = if args.get_flag("print0") {
+        b"\0"
+    } else {
+        b"\n"
+    };
 
     let repo = invocation.repo?;
 
@@ -94,6 +107,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             invocation.ui,
             repo,
             relative_paths,
+            delimiter,
             files.iter().map::<Result<_, CommandError>, _>(|f| {
                 let (f, _, _) = f?;
                 Ok(f)
@@ -119,6 +133,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             invocation.ui,
             repo,
             relative_paths,
+            delimiter,
             files.into_iter().map::<Result<_, CommandError>, _>(Ok),
         )
     }
@@ -128,6 +143,7 @@ fn display_files<'a, E>(
     ui: &Ui,
     repo: &Repo,
     relative_paths: bool,
+    delimiter: &[u8],
     files: impl IntoIterator<Item = Result<&'a HgPath, E>>,
 ) -> Result<(), CommandError>
 where
@@ -144,7 +160,7 @@ where
         } else {
             stdout.write_all(path.as_bytes())?;
         }
-        stdout.write_all(b"\n")?;
+        stdout.write_all(delimiter)?;
         any = true;
     }
 
