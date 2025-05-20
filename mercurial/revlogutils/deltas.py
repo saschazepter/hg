@@ -646,21 +646,21 @@ def drop_u_compression(delta: _deltainfo) -> _deltainfo:
 LIMIT_BASE2TEXT: int = 500
 
 
-class _STAGE(enum.StrEnum):
+class _STAGE(enum.Enum):
     """stage of the search, used for debug and to adjust some logic"""
 
     # initial stage, next step is unknown
-    UNSPECIFIED: str = "unspecified"
+    UNSPECIFIED: bytes = b"unspecified"
     # trying the cached delta
-    CACHED: str = "cached"
+    CACHED: bytes = b"cached"
     # trying delta based on parents
-    PARENTS: str = "parents"
+    PARENTS: bytes = b"parents"
     # trying to build a valid snapshot of any level
-    SNAPSHOT: str = "snapshot"
+    SNAPSHOT: bytes = b"snapshot"
     # trying to build a delta based of the previous revision
-    PREV: str = "prev"
+    PREV: bytes = b"prev"
     # trying to build a full snapshot
-    FULL: str = "full"
+    FULL: bytes = b"full"
 
 
 class _BaseDeltaSearch(abc.ABC):
