@@ -66,7 +66,7 @@ help:
 
 .PHONY: local
 local:
-	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps
+	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps --system-site-packages
 	$(VENV_NAME)/$(PYBINDIRNAME)/python -m \
 	  pip install -e . -v $(PIP_OPTIONS_PURE)
 	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
