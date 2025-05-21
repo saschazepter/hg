@@ -3331,6 +3331,7 @@ class TestRunner:
                 "-m",
                 "venv",
                 "--system-site-packages",
+                "--without-pip",
                 self._installdir,
             ]
             subprocess.run(command_create_venv, check=True)
