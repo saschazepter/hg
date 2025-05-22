@@ -721,6 +721,7 @@ mod commands {
     pub mod debugrequirements;
     pub mod debugrhgsparse;
     pub mod files;
+    pub mod purge;
     pub mod root;
     pub mod script_hgignore;
     pub mod status;
@@ -802,6 +803,7 @@ fn subcommands() -> Subcommands {
         subcommand!(debugrhgsparse),
         subcommand!(files),
         subcommand!(root),
+        subcommand!(purge),
         subcommand!(config),
         subcommand!(status),
         subcommand!(script_hgignore),
@@ -988,8 +990,16 @@ impl OnUnsupported {
 /// The `*` extension is an edge-case for config sub-options that apply to all
 /// extensions. For now, only `:required` exists, but that may change in the
 /// future.
-const SUPPORTED_EXTENSIONS: &[&[u8]] =
-    &[b"blackbox", b"share", b"sparse", b"narrow", b"*", b"strip", b"rebase"];
+const SUPPORTED_EXTENSIONS: &[&[u8]] = &[
+    b"blackbox",
+    b"share",
+    b"sparse",
+    b"narrow",
+    b"*",
+    b"strip",
+    b"rebase",
+    b"purge",
+];
 
 fn check_extensions(config: &Config) -> Result<(), CommandError> {
     if let Some(b"*") = config.get(b"rhg", b"ignored-extensions") {

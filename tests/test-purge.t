@@ -156,14 +156,9 @@ delete only part of the tree
   $ mkdir -p untracked_directory/nested_directory
   $ touch directory/untracked_file
   $ cd directory
-#if rust
   $ hg purge -p ../untracked_directory
   untracked_directory/nested_directory
-  untracked_directory
-#else
-  $ hg purge -p ../untracked_directory
-  untracked_directory/nested_directory
-#endif
+  untracked_directory (rust !)
   $ hg purge --confirm
   permanently delete 1 unknown files? (yN) n
   abort: removal cancelled

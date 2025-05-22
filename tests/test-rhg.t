@@ -277,6 +277,30 @@ Annotate files
    }
   ]
 
+Purge files
+  $ mkdir -p untracked/inner_untracked
+  $ touch untracked/inner_untracked/file
+  $ mkdir another_dir
+
+  $ $NO_FALLBACK rhg purge -p --no-confirm
+  untracked/inner_untracked/file
+  untracked/inner_untracked
+  untracked
+  another_dir
+  $ $NO_FALLBACK rhg purge -p --files --no-confirm
+  untracked/inner_untracked/file
+  $ $NO_FALLBACK rhg purge -p --dirs --no-confirm
+  another_dir
+  $ $NO_FALLBACK rhg purge -v --no-confirm
+  removing file untracked/inner_untracked/file
+  removing directory untracked/inner_untracked
+  removing directory untracked
+  removing directory another_dir
+
+  $ ls
+  copy_of_original
+  original
+
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
   unsupported feature: error: unexpected argument '--exclude' found
