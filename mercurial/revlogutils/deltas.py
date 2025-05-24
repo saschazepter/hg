@@ -613,7 +613,7 @@ def _textfromdelta(
 
 
 @attr.s(slots=True, frozen=True)
-class _deltainfo:
+class _DeltaInfo:
     distance = attr.ib(type=int)
     deltalen = attr.ib(type=int)
     data = attr.ib(type=tuple[bytes, bytes])
@@ -624,13 +624,13 @@ class _deltainfo:
     snapshotdepth = attr.ib(type=Optional[int])
 
 
-def drop_u_compression(delta: _deltainfo) -> _deltainfo:
+def drop_u_compression(delta: _DeltaInfo) -> _DeltaInfo:
     """turn into a "u" (no-compression) into no-compression without header
 
     This is useful for revlog format that has better compression method.
     """
     assert delta.data[0] == b'u', delta.data[0]
-    return _deltainfo(
+    return _DeltaInfo(
         delta.distance,
         delta.deltalen - 1,
         (b'', delta.data[1]),
@@ -713,7 +713,7 @@ class _BaseDeltaSearch(abc.ABC):
         self.current_group: Sequence[RevnumT] | None = None
         self._init_group()
 
-    def is_good_delta_info(self, deltainfo: _deltainfo) -> bool:
+    def is_good_delta_info(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the given delta is good.
 
         Good means that it is within the disk span, disk size, and chain length
@@ -725,7 +725,7 @@ class _BaseDeltaSearch(abc.ABC):
             return False
         return True
 
-    def _is_good_delta_info_universal(self, deltainfo: _deltainfo) -> bool:
+    def _is_good_delta_info_universal(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the given delta is good.
 
         This performs generic checks needed by all format variants.
@@ -754,7 +754,7 @@ class _BaseDeltaSearch(abc.ABC):
 
         return True
 
-    def _is_good_delta_info_chain_quality(self, deltainfo: _deltainfo) -> bool:
+    def _is_good_delta_info_chain_quality(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the chain associated with the delta is good.
 
         This performs checks for format that use delta chains.
@@ -813,7 +813,7 @@ class _BaseDeltaSearch(abc.ABC):
     @abc.abstractmethod
     def next_group(
         self,
-        good_delta: _deltainfo | None = None,
+        good_delta: _DeltaInfo | None = None,
     ) -> Sequence[RevnumT] | None:
         """move to the next group to test
 
@@ -843,7 +843,7 @@ class _NoDeltaSearch(_BaseDeltaSearch):
 
     def next_group(
         self,
-        good_delta: _deltainfo | None = None,
+        good_delta: _DeltaInfo | None = None,
     ) -> Sequence[RevnumT] | None:
         pass
 
@@ -862,7 +862,7 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
 
     def next_group(
         self,
-        good_delta: _deltainfo | None = None,
+        good_delta: _DeltaInfo | None = None,
     ) -> Sequence[RevnumT] | None:
         self.current_stage = _STAGE.FULL
         self.current_group = None
@@ -920,7 +920,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
     def next_group(
         self,
-        good_delta: _deltainfo | None = None,
+        good_delta: _DeltaInfo | None = None,
     ) -> Sequence[RevnumT] | None:
         old_good = self._last_good
         if good_delta is not None:
@@ -1096,7 +1096,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 class _SparseDeltaSearch(_GeneralDeltaSearch):
     """Delta search variants for sparse-revlog"""
 
-    def is_good_delta_info(self, deltainfo: _deltainfo) -> bool:
+    def is_good_delta_info(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the given delta is good.
 
         Good means that it is within the disk span, disk size, and chain length
@@ -1112,7 +1112,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
 
     def _is_good_delta_info_snapshot_constraints(
         self,
-        deltainfo: _deltainfo,
+        deltainfo: _DeltaInfo,
     ) -> bool:
         """Returns True if the chain associated with snapshots
 
@@ -1472,7 +1472,7 @@ class deltacomputer:
         base: RevnumT,
         target_rev: RevnumT | None = None,
         as_snapshot: bool = False,
-    ) -> _deltainfo | None:
+    ) -> _DeltaInfo | None:
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
@@ -1544,7 +1544,7 @@ class deltacomputer:
         chainlen += 1
         compresseddeltalen += deltalen
 
-        return _deltainfo(
+        return _DeltaInfo(
             dist,
             deltalen,
             (header, data),
@@ -1559,7 +1559,7 @@ class deltacomputer:
         self,
         revinfo: RevisionInfoT,
         curr: RevnumT,
-    ) -> _deltainfo:
+    ) -> _DeltaInfo:
         rawtext = self.buildtext(revinfo)
         data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
@@ -1567,7 +1567,7 @@ class deltacomputer:
         snapshotdepth = 0
         chainlen = 1
 
-        return _deltainfo(
+        return _DeltaInfo(
             dist,
             deltalen,
             data,
@@ -1583,7 +1583,7 @@ class deltacomputer:
         revinfo: RevisionInfoT,
         excluded_bases: Sequence[RevnumT] | None = None,
         target_rev: RevnumT | None = None,
-    ) -> _deltainfo:
+    ) -> _DeltaInfo:
         """Find an acceptable delta against a candidate revision
 
         revinfo: information about the revision (instance of _revisioninfo)
@@ -1686,7 +1686,7 @@ class deltacomputer:
                     chainlen = None
                     compresseddeltalen = None
                     snapshotdepth = None
-                deltainfo = _deltainfo(
+                deltainfo = _DeltaInfo(
                     distance=distance,
                     deltalen=deltalen,
                     data=(header, data),
@@ -1974,8 +1974,8 @@ class deltacomputer:
 
 def delta_compression(
     default_compression_header: bytes,
-    deltainfo: _deltainfo,
-) -> tuple[int, _deltainfo]:
+    deltainfo: _DeltaInfo,
+) -> tuple[int, _DeltaInfo]:
     """return (COMPRESSION_MODE, deltainfo)
 
     used by revlog v2+ format to dispatch between PLAIN and DEFAULT
