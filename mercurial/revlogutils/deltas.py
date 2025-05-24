@@ -622,6 +622,8 @@ class _DeltaInfo:
     chainlen = attr.ib(type=int)
     compresseddeltalen = attr.ib(type=int)
     snapshotdepth = attr.ib(type=Optional[int])
+    u_data = attr.ib(default=None, type=Optional[bytes])
+    """the uncompressed data"""
 
 
 def drop_u_compression(delta: _DeltaInfo) -> _DeltaInfo:
@@ -631,14 +633,15 @@ def drop_u_compression(delta: _DeltaInfo) -> _DeltaInfo:
     """
     assert delta.data[0] == b'u', delta.data[0]
     return _DeltaInfo(
-        delta.distance,
-        delta.deltalen - 1,
-        (b'', delta.data[1]),
-        delta.base,
-        delta.chainbase,
-        delta.chainlen,
-        delta.compresseddeltalen,
-        delta.snapshotdepth,
+        distance=delta.distance,
+        deltalen=delta.deltalen - 1,
+        u_data=delta.data[1],
+        data=(b'', delta.data[1]),
+        base=delta.base,
+        chainbase=delta.chainbase,
+        chainlen=delta.chainlen,
+        compresseddeltalen=delta.compresseddeltalen,
+        snapshotdepth=delta.snapshotdepth,
     )
 
 
@@ -1545,14 +1548,15 @@ class deltacomputer:
         compresseddeltalen += deltalen
 
         return _DeltaInfo(
-            dist,
-            deltalen,
-            (header, data),
-            deltabase,
-            chainbase,
-            chainlen,
-            compresseddeltalen,
-            snapshotdepth,
+            distance=dist,
+            deltalen=deltalen,
+            u_data=delta,
+            data=(header, data),
+            base=deltabase,
+            chainbase=chainbase,
+            chainlen=chainlen,
+            compresseddeltalen=compresseddeltalen,
+            snapshotdepth=snapshotdepth,
         )
 
     def _fullsnapshotinfo(
@@ -1568,14 +1572,15 @@ class deltacomputer:
         chainlen = 1
 
         return _DeltaInfo(
-            dist,
-            deltalen,
-            data,
-            deltabase,
-            chainbase,
-            chainlen,
-            compresseddeltalen,
-            snapshotdepth,
+            distance=dist,
+            deltalen=deltalen,
+            u_data=rawtext,
+            data=data,
+            base=deltabase,
+            chainbase=chainbase,
+            chainlen=chainlen,
+            compresseddeltalen=compresseddeltalen,
+            snapshotdepth=snapshotdepth,
         )
 
     def finddeltainfo(
@@ -1689,6 +1694,7 @@ class deltacomputer:
                 deltainfo = _DeltaInfo(
                     distance=distance,
                     deltalen=deltalen,
+                    u_data=delta,
                     data=(header, data),
                     base=base,
                     chainbase=chainbase,
