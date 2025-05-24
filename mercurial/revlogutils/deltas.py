@@ -1476,12 +1476,25 @@ class deltacomputer:
         target_rev: RevnumT | None = None,
         as_snapshot: bool = False,
     ) -> _DeltaInfo | None:
-        # can we use the cached delta?
+        """return a new _DeltaInfo based on <base> or None
+
+        If the delta seems hopelessly too large, return None early.
+
+        * <revinfo>:
+            contains information about the revision that the new delta encode,
+        * <base>:
+            the revision number of the target base
+        * <target_rev>:
+            potentially constains the revision number of that revision.
+        * as_snapshot:
+            True is the delta we search to compute will be used as a snapshot.
+        """
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
         if revlog.delta_config.general_delta:
             deltabase = base
         else:
+            deltabase = chainbase
             if target_rev is not None and base != target_rev - 1:
                 msg = (
                     b'general delta cannot use delta for something else '
@@ -1489,7 +1502,8 @@ class deltacomputer:
                 )
                 msg %= (base, target_rev)
                 raise error.ProgrammingError(msg)
-            deltabase = chainbase
+
+        # determine snapshot level when relevant.
         snapshotdepth = None
         if revlog.delta_config.sparse_revlog and deltabase == nullrev:
             snapshotdepth = 0
@@ -1500,6 +1514,8 @@ class deltacomputer:
             p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
             if deltabase not in (p1, p2) and revlog.issnapshot(deltabase):
                 snapshotdepth = len(revlog._deltachain(deltabase)[0])
+
+        # can we use the cached delta?
         delta = None
         if revinfo.cachedelta:
             cachebase = revinfo.cachedelta[0]
@@ -1513,33 +1529,48 @@ class deltacomputer:
                 currentbase = self.revlog.deltaparent(currentbase)
             if self.revlog.delta_config.lazy_delta and currentbase == base:
                 delta = revinfo.cachedelta[1]
+
+        # Compute the delta if we could not use an existing one.
         if delta is None:
             delta = self._builddeltadiff(base, revinfo)
         if self._debug_search:
             msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
             msg %= len(delta)
             self._write_debug(msg)
-        # snapshotdept need to be neither None nor 0 level snapshot
+
+        # Estimate the size of intermediate snapshot need to be smaller than:
+        #
+        #  1) the previous snapshot
+        #  2) <size-of-full-text> / 2 ** (<snapshot-level>)
+        #
+        # This only apply to intermediate snapshot so snapshotdept need to be
+        # neither None (not a snapshot) nor 0 (initial snapshot).
         if revlog.delta_config.upper_bound_comp is not None and snapshotdepth:
             lowestrealisticdeltalen = (
                 len(delta) // revlog.delta_config.upper_bound_comp
             )
-            snapshotlimit = revinfo.textlen >> snapshotdepth
             if self._debug_search:
                 msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
                 msg %= lowestrealisticdeltalen
                 self._write_debug(msg)
+
+            snapshotlimit = revinfo.textlen >> snapshotdepth
             if snapshotlimit < lowestrealisticdeltalen:
                 if self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (snapshot limit)\n"
                     self._write_debug(msg)
                 return None
+
             if revlog.length(base) < lowestrealisticdeltalen:
                 if self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
                     self._write_debug(msg)
                 return None
+
+        # try to compress the delta
         header, data = revlog._inner.compress(delta)
+
+        # compute information about the resulting chain
         deltalen = len(header) + len(data)
         offset = revlog.end(len(revlog) - 1)
         dist = deltalen + offset - revlog.start(chainbase)
