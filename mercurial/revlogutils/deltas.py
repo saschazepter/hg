@@ -46,6 +46,8 @@ from ..interfaces.types import (
     RevnumT,
 )
 
+from ..pure import deltas as delta_fold
+
 from ..thirdparty import attr
 
 # Force pytype to use the non-vendored package
@@ -1475,6 +1477,7 @@ class deltacomputer:
         base: RevnumT,
         target_rev: RevnumT | None = None,
         as_snapshot: bool = False,
+        known_delta: Optional[_DeltaInfo] = None,
     ) -> _DeltaInfo | None:
         """return a new _DeltaInfo based on <base> or None
 
@@ -1488,6 +1491,8 @@ class deltacomputer:
             potentially constains the revision number of that revision.
         * as_snapshot:
             True is the delta we search to compute will be used as a snapshot.
+        * known_delta:
+            A optional known delta that could be used for folding.
         """
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
@@ -1530,12 +1535,51 @@ class deltacomputer:
             if self.revlog.delta_config.lazy_delta and currentbase == base:
                 delta = revinfo.cachedelta[1]
 
+        # Can we use a size estimate for something ?
+        #
+        # See usage below.
+        use_estimate_size = (
+            revlog.delta_config.upper_bound_comp is not None and snapshotdepth
+        )
+
         # Compute the delta if we could not use an existing one.
-        if delta is None:
+        if delta is not None:
+            delta_size = len(delta)
+        elif (
+            # Try to use delta folding for estimate the final delta size.
+            #
+            # We can do it when
+            # - it is useful
+            use_estimate_size
+            # - the feature is enabled
+            and revlog.delta_config.delta_fold_estimate
+            # - we have a existing delta we could fold
+            and known_delta is not None
+            # - that delta has uncompressed delta we can use
+            #   (we could decompress the data if needed)
+            and known_delta.u_data is not None
+            # - Its base is stored as a delta against our target base
+            #   (we could do it more broadly if our target base is in the
+            #   "known_delta" delta chain. It "just" requires folding more
+            #   deltas)
+            and self.revlog.deltaparent(known_delta.base) == base
+        ):
+            delta_to_base = self.revlog.revdiff(base, known_delta.base)
+            delta_size = delta_fold.estimate_combined_delta_size(
+                delta_to_base,
+                known_delta.u_data,
+            )
+        else:
             delta = self._builddeltadiff(base, revinfo)
+            delta_size = len(delta)
+
         if self._debug_search:
-            msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
-            msg %= len(delta)
+            if delta is None:
+                estimated = b"estimated-"
+            else:
+                estimated = b""
+            msg = b"DBG-DELTAS-SEARCH:     %suncompressed-delta-size=%d\n"
+            msg %= (estimated, delta_size)
             self._write_debug(msg)
 
         # Estimate the size of intermediate snapshot need to be smaller than:
@@ -1547,7 +1591,7 @@ class deltacomputer:
         # neither None (not a snapshot) nor 0 (initial snapshot).
         if revlog.delta_config.upper_bound_comp is not None and snapshotdepth:
             lowestrealisticdeltalen = (
-                len(delta) // revlog.delta_config.upper_bound_comp
+                delta_size // revlog.delta_config.upper_bound_comp
             )
             if self._debug_search:
                 msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
@@ -1566,6 +1610,14 @@ class deltacomputer:
                     msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
                     self._write_debug(msg)
                 return None
+
+        # If we still have not delta, finally Compute it delta if we could not use an existing one.
+        if delta is None:
+            delta = self._builddeltadiff(base, revinfo)
+            if self._debug_search:
+                msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
+                msg %= len(delta)
+                self._write_debug(msg)
 
         # try to compress the delta
         header, data = revlog._inner.compress(delta)
@@ -1868,6 +1920,7 @@ class deltacomputer:
                     candidaterev,
                     target_rev=target_rev,
                     as_snapshot=search.current_stage == _STAGE.SNAPSHOT,
+                    known_delta=deltainfo,
                 )
                 if self._debug_search:
                     delta_end = util.timer()

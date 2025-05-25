@@ -134,3 +134,6 @@ class DeltaConfig(_Config):
     # Used to estimate delta size before compression. value <= 0 disable such
     # estimate.
     file_max_comp_ratio = attr.ib(default=10, type=int)
+    # Use delta folding to estimate the size of a delta before actually
+    # computing it.
+    delta_fold_estimate = attr.ib(default=True, type=bool)
