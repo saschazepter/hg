@@ -255,6 +255,10 @@ pub struct RevlogDeltaConfig {
     pub lazy_delta: bool,
     /// Trust the base of incoming deltas by default
     pub lazy_delta_base: bool,
+    /// A theoretical maximum compression ratio for file content
+    /// Used to estimate delta size before compression. value <= 0 disable such
+    /// estimate.
+    pub file_max_comp_ratio: u64,
 }
 
 impl RevlogDeltaConfig {
@@ -327,6 +331,19 @@ impl RevlogDeltaConfig {
         delta_config.max_chain_len =
             config.get_byte_size_no_default(b"format", b"maxchainlen")?;
 
+        delta_config.file_max_comp_ratio = match config
+            .get_i64(b"storage", b"filelog.expected-max-compression-ratio")?
+        {
+            Some(ratio) => {
+                if ratio < 0 {
+                    0
+                } else {
+                    ratio as u64
+                }
+            }
+            None => 10,
+        };
+
         Ok(delta_config)
     }
 }
@@ -344,6 +361,7 @@ impl Default for RevlogDeltaConfig {
             candidate_group_chunk_size: Default::default(),
             debug_delta: Default::default(),
             lazy_delta_base: Default::default(),
+            file_max_comp_ratio: 10,
         }
     }
 }

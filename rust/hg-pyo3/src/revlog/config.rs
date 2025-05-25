@@ -138,6 +138,7 @@ pub fn extract_delta_config(
             debug_delta: extract_attr!(conf, "debug_delta")?,
             lazy_delta: extract_attr!(conf, "lazy_delta")?,
             lazy_delta_base: extract_attr!(conf, "lazy_delta_base")?,
+            file_max_comp_ratio: extract_attr!(conf, "file_max_comp_ratio")?,
         };
         Ok(revlog_delta_config)
     })

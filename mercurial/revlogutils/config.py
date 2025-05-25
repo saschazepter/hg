@@ -130,3 +130,7 @@ class DeltaConfig(_Config):
     lazy_delta_base = attr.ib(default=False, type=bool)
     # check integrity of candidate bases before computing a delta against them
     validate_base = attr.ib(default=False, type=bool)
+    # A theoretical maximum compression ratio for file content
+    # Used to estimate delta size before compression. value <= 0 disable such
+    # estimate.
+    file_max_comp_ratio = attr.ib(default=10, type=int)

@@ -1174,6 +1174,12 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if maxchainlen is not None:
         delta_config.max_chain_len = maxchainlen
 
+    file_comp_ratio = ui.configint(
+        b'storage', b'filelog.expected-max-compression-ratio'
+    )
+    if file_comp_ratio > 0:
+        delta_config.file_max_comp_ratio = file_comp_ratio
+
     for r in requirements:
         # we allow multiple compression engine requirement to co-exist because
         # strickly speaking, revlog seems to support mixed compression style.

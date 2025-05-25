@@ -45,12 +45,17 @@ class filelog(repository.ifilestorage):
         *,
         try_split: bool = False,
     ):
+        upper_bound_comp = None
+        delta_config = opener.options.get(b'delta-config')
+        if delta_config is not None and delta_config.file_max_comp_ratio > 0:
+            upper_bound_comp = delta_config.file_max_comp_ratio
         self._revlog = revlog.revlog(
             opener,
             # XXX should use the unencoded path
             target=(revlog_constants.KIND_FILELOG, path),
             radix=b'/'.join((b'data', path)),
             censorable=True,
+            upperboundcomp=upper_bound_comp,
             canonical_parent_order=False,  # see comment in revlog.py
             try_split=try_split,
             writable=writable,

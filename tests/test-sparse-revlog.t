@@ -289,6 +289,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=7805
   DBG-DELTAS-SEARCH:     base=4919
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=46750
+  DBG-DELTAS-SEARCH:     projected-lower-size=4675
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=28543 (BAD)
   DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down (snapshot)
@@ -297,6 +298,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=42127
   DBG-DELTAS-SEARCH:     base=4833
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=52885
+  DBG-DELTAS-SEARCH:     projected-lower-size=5288
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=32239 (BAD)
   DBG-DELTAS-SEARCH: ROUND #3 - 2 candidates - search-down (snapshot)
@@ -305,6 +307,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=53375
   DBG-DELTAS-SEARCH:     base=4738
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=103267
+  DBG-DELTAS-SEARCH:     projected-lower-size=10326
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=62267 (BAD)
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
@@ -312,6 +315,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=44069
   DBG-DELTAS-SEARCH:     base=4913
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=13015
+  DBG-DELTAS-SEARCH:     projected-lower-size=1301
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=7918 (GOOD)
   DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down (snapshot)
@@ -321,6 +325,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=112050
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
+  DBG-DELTAS-SEARCH:     projected-lower-size=6956
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
@@ -341,6 +346,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=7805
   DBG-DELTAS-SEARCH:     base=4919
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=46750
+  DBG-DELTAS-SEARCH:     projected-lower-size=4675
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=28543 (BAD)
   DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down (snapshot)
@@ -349,6 +355,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=42127
   DBG-DELTAS-SEARCH:     base=4833
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=52885
+  DBG-DELTAS-SEARCH:     projected-lower-size=5288
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=32239 (BAD)
   DBG-DELTAS-SEARCH: ROUND #3 - 2 candidates - search-down (snapshot)
@@ -357,6 +364,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=53375
   DBG-DELTAS-SEARCH:     base=4738
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=103267
+  DBG-DELTAS-SEARCH:     projected-lower-size=10326
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=62267 (BAD)
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
@@ -364,6 +372,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=44069
   DBG-DELTAS-SEARCH:     base=4913
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=13015
+  DBG-DELTAS-SEARCH:     projected-lower-size=1301
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=7918 (GOOD)
   DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down (snapshot)
@@ -373,6 +382,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=112050
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
+  DBG-DELTAS-SEARCH:     projected-lower-size=6956
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
@@ -395,6 +405,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=7805
   DBG-DELTAS-SEARCH:     base=4919
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=46750
+  DBG-DELTAS-SEARCH:     projected-lower-size=4675
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=28543 (BAD)
   DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down (snapshot)
@@ -403,6 +414,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=42127
   DBG-DELTAS-SEARCH:     base=4833
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=52885
+  DBG-DELTAS-SEARCH:     projected-lower-size=5288
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=32239 (BAD)
   DBG-DELTAS-SEARCH: ROUND #3 - 2 candidates - search-down (snapshot)
@@ -411,6 +423,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=53375
   DBG-DELTAS-SEARCH:     base=4738
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=103267
+  DBG-DELTAS-SEARCH:     projected-lower-size=10326
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=62267 (BAD)
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
@@ -418,6 +431,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=44069
   DBG-DELTAS-SEARCH:     base=4913
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=13015
+  DBG-DELTAS-SEARCH:     projected-lower-size=1301
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=7918 (GOOD)
   DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down (snapshot)
@@ -427,6 +441,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=112050
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
+  DBG-DELTAS-SEARCH:     projected-lower-size=6956
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
@@ -438,6 +453,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=7805
   DBG-DELTAS-SEARCH:     base=4919
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=46750
+  DBG-DELTAS-SEARCH:     projected-lower-size=4675
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=28543 (BAD)
   DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down (snapshot)
@@ -446,6 +462,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=42127
   DBG-DELTAS-SEARCH:     base=4833
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=52885
+  DBG-DELTAS-SEARCH:     projected-lower-size=5288
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=32239 (BAD)
   DBG-DELTAS-SEARCH: ROUND #3 - 2 candidates - search-down (snapshot)
@@ -454,6 +471,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=53375
   DBG-DELTAS-SEARCH:     base=4738
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=103267
+  DBG-DELTAS-SEARCH:     projected-lower-size=10326
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=62267 (BAD)
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
@@ -461,6 +479,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=44069
   DBG-DELTAS-SEARCH:     base=4913
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=13015
+  DBG-DELTAS-SEARCH:     projected-lower-size=1301
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=7918 (GOOD)
   DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down (snapshot)
@@ -470,6 +489,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=112050
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
+  DBG-DELTAS-SEARCH:     projected-lower-size=6956
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
@@ -481,6 +501,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=7805
   DBG-DELTAS-SEARCH:     base=4919
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=46750
+  DBG-DELTAS-SEARCH:     projected-lower-size=4675
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=28543 (BAD)
   DBG-DELTAS-SEARCH: ROUND #2 - 1 candidates - search-down (snapshot)
@@ -489,6 +510,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=42127
   DBG-DELTAS-SEARCH:     base=4833
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=52885
+  DBG-DELTAS-SEARCH:     projected-lower-size=5288
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=32239 (BAD)
   DBG-DELTAS-SEARCH: ROUND #3 - 2 candidates - search-down (snapshot)
@@ -497,6 +519,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=53375
   DBG-DELTAS-SEARCH:     base=4738
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=103267
+  DBG-DELTAS-SEARCH:     projected-lower-size=10326
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=62267 (BAD)
   DBG-DELTAS-SEARCH:   CANDIDATE: rev=4962
@@ -504,6 +527,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=44069
   DBG-DELTAS-SEARCH:     base=4913
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=13015
+  DBG-DELTAS-SEARCH:     projected-lower-size=1301
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=7918 (GOOD)
   DBG-DELTAS-SEARCH: ROUND #4 - 1 candidates - refine-down (snapshot)
@@ -513,6 +537,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     size=112050
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
+  DBG-DELTAS-SEARCH:     projected-lower-size=6956
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)

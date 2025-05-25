@@ -2379,6 +2379,19 @@ experimental = true
 
 [[items]]
 section = "storage"
+name = "filelog.expected-max-compression-ratio"
+# Arbitrary value picked to help the delta searching algorithme, there might be
+# some data where compression works better, but 10 seems like a reasonably high
+# value that will help filter some cases.
+default = 10
+documentation = """the expected maximum compression ratio expected for a
+filelog. This is used to estimate the size of a delta before compressing it.
+
+Setting this to 0 will disable the use of such estimate."""
+experimental = true
+
+[[items]]
+section = "storage"
 name = "revlog.zlib.level"
 
 [[items]]
