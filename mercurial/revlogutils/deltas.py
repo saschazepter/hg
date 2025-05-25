@@ -1482,6 +1482,17 @@ class deltacomputer:
         creating foldable path from target_base to higher_base."""
         if target_base == self.revlog.deltaparent(higher_base):
             return [higher_base]
+        if higher_base < target_base:
+            return None
+        # TODO we could lazily detect the right subset (or lack of any chain)
+        # as we go instead of getting the full chain.
+        chain = self.revlog._deltachain(higher_base)
+        for idx in range(len(chain) - 1, -1, -1):
+            b = chain[idx]
+            if b == target_base:
+                return chain[idx:]
+            elif b < target_base:
+                break
         return None
 
     def _builddeltainfo(
