@@ -59,6 +59,8 @@ from .. import (
     util,
 )
 
+from ..utils import storageutil
+
 from . import config, flagutil, revisioninfo as RevisionInfoT
 
 # maximum <delta-chain-data>/<revision-text-length> ratio
@@ -574,24 +576,31 @@ def _textfromdelta(
     p2: RevnumT,
     flags: int,
     expectednode: NodeIdT,
+    validate: bool = True,
 ) -> bytes:
     """build full text from a (base, delta) pair and other metadata"""
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
     # they're decoded.
-    validate_base = revlog.delta_config.validate_base
     fulltext = mdiff.full_text_from_delta(
         delta,
         revlog.rawsize(baserev),
         # deltabase is rawtext before changed by flag processors, which is
         # equivalent to non-raw text
-        lambda: revlog._revisiondata(baserev, validate=validate_base),
+        lambda: revlog._revisiondata(baserev, validate=validate),
     )
 
     try:
         validatehash = flagutil.processflagsraw(revlog, fulltext, flags)
-        if validatehash:
+        if validate and validatehash:
             revlog.checkhash(fulltext, expectednode, p1=p1, p2=p2)
+        elif validatehash and storageutil.iscensoredtext(fulltext):
+            raise error.CensoredNodeError(
+                revlog.display_id,
+                expectednode,
+                fulltext,
+            )
+
         if flags & REVIDX_ISCENSORED:
             raise error.StorageError(
                 _(b'node %s is not censored') % expectednode
@@ -1438,6 +1447,7 @@ class deltacomputer:
             revinfo.p2,
             revinfo.flags,
             revinfo.node,
+            validate=self.revlog.delta_config.validate_base,
         )
         return fulltext
 
