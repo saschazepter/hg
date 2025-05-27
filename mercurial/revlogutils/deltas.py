@@ -579,12 +579,13 @@ def _textfromdelta(
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
     # they're decoded.
+    validate_base = revlog.delta_config.validate_base
     fulltext = mdiff.full_text_from_delta(
         delta,
         revlog.rawsize(baserev),
         # deltabase is rawtext before changed by flag processors, which is
         # equivalent to non-raw text
-        lambda: revlog.revision(baserev),
+        lambda: revlog._revisiondata(baserev, validate=validate_base),
     )
 
     try:
