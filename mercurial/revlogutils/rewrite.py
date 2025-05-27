@@ -911,9 +911,8 @@ def repair_issue6528(
         progress.complete()
 
 
-def _find_all_revs_with_meta(filelog):
+def _find_all_revs_with_meta(rl):
     meta = {}
-    rl = filelog._revlog
     for filerev in rl:
         if rl.iscensored(filerev):
             continue
@@ -937,17 +936,54 @@ def _find_all_revs_with_meta(filelog):
     return {k for k, v in meta.items() if v}
 
 
-def quick_upgrade(filelog):
-    rl = filelog._revlog
+def _find_all_snapshots(rl):
+    snapshots = set()
+    if hasattr(rl.index, 'findsnapshots'):
+        cache: dict[int, set[int]] = {}
+        rl.index.findsnapshots(cache, 0, len(rl))
+        for b, c in cache.items():
+            snapshots.add(b)
+            snapshots.update(c)
+    else:
+        for rev in rl:
+            if rl.issnapshot(rev):
+                snapshots.add(rev)
+    return snapshots
 
-    if rl._format_flags & constants.FLAG_FILELOG_META:
-        return
 
+def quick_upgrade(rl, upgrade_meta, upgrade_delta_info):
     assert rl._format_flags & constants.FLAG_GENERALDELTA
 
-    revs_with_meta = _find_all_revs_with_meta(filelog)
+    if rl.target[0] != constants.KIND_FILELOG:
+        upgrade_meta = False
 
-    if not revs_with_meta:
+    if upgrade_meta and rl._format_flags & constants.FLAG_FILELOG_META:
+        upgrade_meta = False
+
+    if rl.target[0] not in (constants.KIND_FILELOG, constants.KIND_MANIFESTLOG):
+        upgrade_delta_info = False
+
+    if upgrade_delta_info and rl._format_flags & constants.FLAG_DELTA_INFO:
+        upgrade_delta_info = False
+
+    if not (upgrade_meta or upgrade_delta_info):
+        return
+
+    new_flags = 0
+
+    if upgrade_meta:
+        revs_with_meta = _find_all_revs_with_meta(rl)
+        new_flags |= constants.FLAG_FILELOG_META
+    else:
+        revs_with_meta = set()
+
+    if upgrade_delta_info:
+        revs_with_snapshot = _find_all_snapshots(rl)
+        new_flags |= constants.FLAG_DELTA_INFO
+    else:
+        revs_with_snapshot = set()
+
+    if not (revs_with_meta or revs_with_snapshot):
         # We just need to write the header flag
         # XXX do we need to sort the parent anyway?
         with rl.opener(rl._indexfile, b'br+') as n:
@@ -955,7 +991,7 @@ def quick_upgrade(filelog):
             first_entry = rl.index.entry_binary(0)
             header = rl._format_flags
             header |= rl._format_version
-            header |= constants.FLAG_FILELOG_META
+            header |= new_flags
             header = rl.index.pack_header(header)
             first_entry = header + first_entry
             n.write(first_entry)
@@ -966,7 +1002,7 @@ def quick_upgrade(filelog):
         b'',
         False,
         True,
-        rl.delta_config.delta_info,
+        True,
     )[0]
 
     for filerev in rl:
@@ -994,6 +1030,9 @@ def quick_upgrade(filelog):
         if filerev in revs_with_meta:
             flags |= constants.REVIDX_HASMETA
 
+        if filerev in revs_with_snapshot:
+            flags |= constants.REVIDX_DELTA_IS_SNAPSHOT
+
         e = revlogutils.entry(
             flags=flags,
             data_offset=dataoffset,
@@ -1019,7 +1058,7 @@ def quick_upgrade(filelog):
             if rev == 0:
                 header = rl._format_flags
                 header |= rl._format_version
-                header |= constants.FLAG_FILELOG_META
+                header |= new_flags
                 header = new_index.pack_header(header)
                 idx = header + idx
             n.write(idx)

@@ -82,6 +82,7 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::fast-upgrade
   debug::revlog-reencoded-delta-info
   debug::stable-tail-sort
   debug::stable-tail-sort-leaps
@@ -285,6 +286,7 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::fast-upgrade: 
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, reuse-stored-delta
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific

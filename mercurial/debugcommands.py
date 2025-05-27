@@ -5033,17 +5033,44 @@ def fast_upgrade(ui, repo, *patterns, **opts):
     count = 0
     with repo.wlock(), repo.lock():
         new_requirements = repo.requirements
-        new_requirements.add(requirements.FILELOG_METAFLAG_REQUIREMENT)
+
+        if requirements.FILELOG_METAFLAG_REQUIREMENT not in new_requirements:
+            new_requirements.add(requirements.FILELOG_METAFLAG_REQUIREMENT)
+            upgrade_meta = True
+        else:
+            upgrade_meta = False
+
+        if requirements.DELTA_INFO_REQUIREMENT not in new_requirements:
+            new_requirements.add(requirements.DELTA_INFO_REQUIREMENT)
+            upgrade_delta_info = True
+        else:
+            upgrade_delta_info = False
+
+        if not (upgrade_meta or upgrade_delta_info):
+            ui.warnnoi18n(b"nothing to do")
+            return 0
+
+        assert upgrade_meta or upgrade_delta_info
+        if upgrade_meta:
+            ui.statusnoi18n(b"adding has-meta flag filelogs\n")
+        if upgrade_delta_info:
+            msg = b"adding delta-info flag to filelogs and manifests\n"
+            ui.statusnoi18n(msg)
+
         scmutil.writereporequirements(repo, new_requirements)
-        all_revlog = [e for e in repo.store.walk() if e.is_filelog]
+        all_revlog = [
+            e
+            for e in repo.store.walk()
+            if e.is_revlog
+            and (upgrade_delta_info or e.is_filelog)
+            and not e.is_changelog
+        ]
         with ui.makeprogress(
             b"upgrade", unit=_(b'revlog'), total=len(all_revlog)
         ) as p:
             for entry in all_revlog:
-                if not entry.is_filelog:
-                    continue
-                fl = entry.get_revlog_instance(repo)
-                rewrite.quick_upgrade(fl)
+                rl = entry.get_revlog_instance(repo)._revlog
+                rewrite.quick_upgrade(rl, upgrade_meta, upgrade_delta_info)
                 count += 1
                 p.increment()
     ui.statusnoi18n(b"upgraded %d filelog\n" % count)
