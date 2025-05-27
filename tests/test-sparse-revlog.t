@@ -322,7 +322,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=42257 (GOOD)
+  DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
 
   $ cat << EOF >>.hg/hgrc
@@ -374,7 +374,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=42257 (GOOD)
+  DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
   $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source storage
   DBG-DELTAS-SEARCH: SEARCH rev=4966 (cached=4962)
@@ -428,7 +428,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=42257 (GOOD)
+  DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
   $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source p2
   DBG-DELTAS-SEARCH: SEARCH rev=4966
@@ -471,7 +471,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=42257 (GOOD)
+  DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
   $ hg debug-delta-find SPARSE-REVLOG-TEST-FILE $LAST_SNAP --source prev
   DBG-DELTAS-SEARCH: SEARCH rev=4966 (cached=4965)
@@ -514,7 +514,7 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     base=4651
   DBG-DELTAS-SEARCH:     uncompressed-delta-size=69566
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
-  DBG-DELTAS-SEARCH:     DELTA: length=42257 (GOOD)
+  DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
 
   $ cd ..

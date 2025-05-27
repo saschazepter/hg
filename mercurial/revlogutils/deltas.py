@@ -1784,7 +1784,10 @@ class deltacomputer:
                 msg = b"DBG-DELTAS-SEARCH: ROUND #%d - %d candidates - %s\n"
                 msg %= (dbg_try_rounds, len(candidaterevs), round_type)
                 self._write_debug(msg)
-            nominateddeltas = []
+
+            # if we already found a good delta,
+            # challenge it against refined candidates
+            current_best = deltainfo
             if deltainfo is not None:
                 if self._debug_search:
                     msg = (
@@ -1792,9 +1795,6 @@ class deltacomputer:
                     )
                     msg %= (deltainfo.base, deltainfo.deltalen)
                     self._write_debug(msg)
-                # if we already found a good delta,
-                # challenge it against refined candidates
-                nominateddeltas.append(deltainfo)
             for candidaterev in candidaterevs:
                 if self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:   CANDIDATE: rev=%d\n"
@@ -1838,12 +1838,20 @@ class deltacomputer:
                     msg %= delta_end - delta_start
                     self._write_debug(msg)
                 if candidatedelta is not None:
-                    if search.is_good_delta_info(candidatedelta):
+                    if (
+                        current_best is not None
+                        and current_best.deltalen <= candidatedelta.deltalen
+                    ):
+                        if self._debug_search:
+                            msg = b"DBG-DELTAS-SEARCH:     DELTA: length=%d (BIGGER)\n"
+                            msg %= candidatedelta.deltalen
+                            self._write_debug(msg)
+                    elif search.is_good_delta_info(candidatedelta):
                         if self._debug_search:
                             msg = b"DBG-DELTAS-SEARCH:     DELTA: length=%d (GOOD)\n"
                             msg %= candidatedelta.deltalen
                             self._write_debug(msg)
-                        nominateddeltas.append(candidatedelta)
+                        current_best = candidatedelta
                     elif self._debug_search:
                         msg = b"DBG-DELTAS-SEARCH:     DELTA: length=%d (BAD)\n"
                         msg %= candidatedelta.deltalen
@@ -1851,8 +1859,7 @@ class deltacomputer:
                 elif self._debug_search:
                     msg = b"DBG-DELTAS-SEARCH:     NO-DELTA\n"
                     self._write_debug(msg)
-            if nominateddeltas:
-                deltainfo = min(nominateddeltas, key=lambda x: x.deltalen)
+            deltainfo = current_best
             search.next_group(deltainfo)
 
         if deltainfo is None:
