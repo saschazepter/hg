@@ -568,4 +568,10 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
 
+  $ cat << EOF >>.hg/hgrc
+  > [storage]
+  > revlog.optimize-delta-parent-choice = yes
+  > revlog.reuse-external-delta = no
+  > EOF
+
   $ cd ..
