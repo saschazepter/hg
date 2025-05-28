@@ -15,6 +15,7 @@ from __future__ import annotations
 
 GENERALDELTA_REQUIREMENT = b'generaldelta'
 DOTENCODE_REQUIREMENT = b'dotencode'
+PLAIN_ENCODE_REQUIREMENT = b"exp-very-fragile-and-unsafe-plain-store-encoding"
 STORE_REQUIREMENT = b'store'
 FNCACHE_REQUIREMENT = b'fncache'
 
@@ -115,6 +116,7 @@ WORKING_DIR_REQUIREMENTS = {
 # requirements not in this list safe to be altered during stream-clone.
 STREAM_IGNORABLE_REQUIREMENTS = WORKING_DIR_REQUIREMENTS | {
     DOTENCODE_REQUIREMENT,  # abstracted by the vfs layer
+    PLAIN_ENCODE_REQUIREMENT,  # abstracted by the vfs layer
     FNCACHE_REQUIREMENT,  # abstracted by the vfs layer
     STORE_REQUIREMENT,  # abstracted by the vfs layer
     NODEMAP_REQUIREMENT,  # Have some special logic to handle that case

@@ -1001,8 +1001,18 @@ def makestore(requirements, path, vfstype):
     """Construct a storage object for a repository."""
     if requirementsmod.STORE_REQUIREMENT in requirements:
         if requirementsmod.FNCACHE_REQUIREMENT in requirements:
-            dotencode = requirementsmod.DOTENCODE_REQUIREMENT in requirements
-            return storemod.fncachestore(path, vfstype, dotencode)
+            if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
+                if requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
+                    msg = _(
+                        b'bad requirements, cannot use both "dotencode" and "plain encoding"'
+                    )
+                    raise error.RepoError(msg)
+                encoding = storemod.Encoding.DOTENCODE
+            elif requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
+                encoding = storemod.Encoding.PLAIN
+            else:
+                encoding = storemod.Encoding.HYBRID
+            return storemod.fncachestore(path, vfstype, encoding)
 
         return storemod.encodedstore(path, vfstype)
 
@@ -1329,6 +1339,7 @@ class localrepository(_localrepo_base_classes):
         requirementsmod.DIRSTATE_TRACKED_HINT_V1,
         requirementsmod.DIRSTATE_V2_REQUIREMENT,
         requirementsmod.DOTENCODE_REQUIREMENT,
+        requirementsmod.PLAIN_ENCODE_REQUIREMENT,
         requirementsmod.FILELOG_METAFLAG_REQUIREMENT,
         requirementsmod.FNCACHE_REQUIREMENT,
         requirementsmod.GENERALDELTA_REQUIREMENT,
@@ -3736,6 +3747,24 @@ def newreporequirements(ui, createopts):
             requirements.add(requirementsmod.FNCACHE_REQUIREMENT)
             if ui.configbool(b'format', b'dotencode'):
                 requirements.add(requirementsmod.DOTENCODE_REQUIREMENT)
+
+    if ui.configbool(
+        b'format',
+        b'exp-use-very-fragile-and-unsafe-plain-store-encoding',
+    ):
+        if requirementsmod.STORE_REQUIREMENT not in requirements:
+            msg = _(b'"plain encoding" requires using the store')
+            hint = _(b'set "format.usestore=yes"')
+            raise error.Abort(msg, hint=hint)
+        if requirementsmod.FNCACHE_REQUIREMENT not in requirements:
+            msg = _(b'"plain encoding" requires using the fncache')
+            hint = _(b'set "format.usefncache=yes"')
+            raise error.Abort(msg, hint=hint)
+        if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
+            msg = _(b'"plain encoding" is incompatible with dotencode')
+            hint = _(b'set "format.dotencode=no"')
+            raise error.Abort(msg, hint=hint)
+        requirements.add(requirementsmod.PLAIN_ENCODE_REQUIREMENT)
 
     compengines = ui.configlist(b'format', b'revlog-compression')
     for compengine in compengines:

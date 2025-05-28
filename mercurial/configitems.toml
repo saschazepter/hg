@@ -1265,6 +1265,26 @@ section = "format"
 name = "exp-use-hasmeta-flag"
 experimental = true
 
+# Experimental TODOs:
+# * actually checks if nothing -unexpected- break
+# * teach the native code (especially rust) about it.
+[[items]]
+section = "format"
+name = "exp-use-very-fragile-and-unsafe-plain-store-encoding"
+experimental = true
+documentation = """Switch to an extremely simplified version of the store encoding used for filelogs.
+
+It only ensures that directories and filenames cannot collide. Any other filename
+weirdness is preserved as-is. This should not be used outside of specific
+server setups and it is very unlikely that you need it at all. If you think you
+should use it, please contact the Mercurial core developers.
+
+This feature currently implies the use of `store` and `fncache`. It is
+incompatible with the use of `dotencode`, so make sure you set `format.dotencode=no`.
+
+This is an experimental feature and its support might be removed in the future.
+"""
+
 [[items]]
 section = "format"
 name = "generaldelta"

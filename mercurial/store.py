@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import collections
+import enum
 import functools
 import os
 import re
@@ -72,6 +73,43 @@ def _match_tracked_entry(entry: BaseStoreEntry, matcher):
         return matcher.visitdir(entry.target_id.rstrip(b'/'))
     # pytype: enable=attribute-error
     raise error.ProgrammingError(b"cannot process entry %r" % entry)
+
+
+class Encoding(enum.IntEnum):
+    HYBRID = enum.auto()
+    DOTENCODE = enum.auto()
+    PLAIN = enum.auto()
+
+
+def _plain_encode(path: bytes) -> bytes:
+    """A very basic encoding that encode (almost) nothing
+
+    This only transforms filelog (or anything in 'data/store', really)
+    To avoid revlog-directory conflict, every directory will be suffixed with a
+    `_`. The filelog will use their usual `.i` and `.d` suffixes.
+
+    The change is inflicted to every directory names as this will be less
+    surprising and more future proof.
+
+    This is not an encoding that is intended for general usage, it make sense
+    for some large server installation for very controll repository.
+
+    >>> _plain_encode(b"foo")
+    b'foo'
+    >>> _plain_encode(b"foo.txt")
+    b'foo.txt'
+    >>> _plain_encode(b"bar/foo.txt")
+    b'bar/foo.txt'
+    >>> _plain_encode(b"data/foo.txt")
+    b'data/foo.txt'
+    >>> _plain_encode(b"data/bar/foo.txt")
+    b'data/bar_/foo.txt'
+    >>> _plain_encode(b"data/ b a r /fuz.d_/baz.i/foo.txt")
+    b'data/ b a r _/fuz.d__/baz.i_/foo.txt'
+    """
+    if path.startswith(b'data/'):
+        path = b'data/' + path[5:].replace(b'/', b'_/')
+    return path
 
 
 # This avoids a collision between a file named foo and a dir named
@@ -1164,11 +1202,15 @@ class _fncachevfs(vfsmod.proxyvfs):
 
 
 class fncachestore(basicstore):
-    def __init__(self, path, vfstype, dotencode):
-        if dotencode:
+    def __init__(self, path: bytes, vfstype, encoding: Encoding) -> None:
+        if encoding == Encoding.DOTENCODE:
             encode = _pathencode
-        else:
+        elif encoding == Encoding.HYBRID:
             encode = _plainhybridencode
+        elif encoding == Encoding.PLAIN:
+            encode = _plain_encode
+        else:
+            assert False, encoding
         self.encode = encode
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
