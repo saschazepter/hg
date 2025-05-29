@@ -76,7 +76,12 @@ pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
 }
 
 /// rhg does not support repositories that are *missing* any of these features
-const REQUIRED: &[&str] = &["revlogv1", "store", "fncache", "dotencode"];
+const REQUIRED: &[&str] = &[
+    REVLOGV1_REQUIREMENT,
+    STORE_REQUIREMENT,
+    FNCACHE_REQUIRMENT,
+    DOTENCODE_REQUIREMENT,
+];
 
 /// rhg supports repository with or without these
 const SUPPORTED: &[&str] = &[
@@ -104,6 +109,9 @@ const SUPPORTED: &[&str] = &[
 
 pub const DIRSTATE_V2_REQUIREMENT: &str = "dirstate-v2";
 pub const GENERALDELTA_REQUIREMENT: &str = "generaldelta";
+pub const DOTENCODE_REQUIREMENT: &str = "dotencode";
+pub const STORE_REQUIREMENT: &str = "store";
+pub const FNCACHE_REQUIRMENT: &str = "fncache";
 
 /// A repository that uses the tracked hint dirstate file
 #[allow(unused)]
