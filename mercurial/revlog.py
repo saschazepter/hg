@@ -1650,6 +1650,9 @@ class revlog:
             )
             self.data_config.generaldelta = self.delta_config.general_delta
             self.feature_config.has_side_data = features['sidedata']
+            self.feature_config.hasmeta_flag = features['hasmeta_flag'](
+                self._format_flags
+            )
 
             if not features['docket']:
                 self._indexfile = entry_point

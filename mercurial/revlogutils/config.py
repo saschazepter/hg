@@ -52,6 +52,9 @@ class FeatureConfig(_Config):
     # can ellipsis commit be used
     enable_ellipsis = attr.ib(default=False, type=bool)
 
+    # use a flag to signal that a filerevision constains metadata
+    hasmeta_flag = attr.ib(default=False, type=bool)
+
     def copy(self):
         new = super().copy()
         new.compression_engine_options = self.compression_engine_options.copy()

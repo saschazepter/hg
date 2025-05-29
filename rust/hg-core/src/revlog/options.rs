@@ -10,6 +10,7 @@ use crate::config::Config;
 use crate::config::ResourceProfileValue;
 use crate::errors::HgError;
 use crate::requirements::CHANGELOGV2_REQUIREMENT;
+use crate::requirements::FILELOG_METAFLAG_REQUIREMENT;
 use crate::requirements::GENERALDELTA_REQUIREMENT;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::requirements::NODEMAP_REQUIREMENT;
@@ -359,6 +360,8 @@ pub struct RevlogFeatureConfig {
     pub canonical_parent_order: bool,
     /// Can ellipsis commit be used
     pub enable_ellipsis: bool,
+    /// use a flag to signal that a filerevision constains metadata
+    pub hasmeta_flag: bool,
 }
 
 impl RevlogFeatureConfig {
@@ -369,6 +372,7 @@ impl RevlogFeatureConfig {
         Ok(Self {
             compression_engine: CompressionConfig::new(config, requirements)?,
             enable_ellipsis: requirements.contains(NARROW_REQUIREMENT),
+            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
             ..Default::default()
         })
     }

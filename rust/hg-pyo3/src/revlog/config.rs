@@ -229,6 +229,7 @@ pub fn extract_feature_config(
                 "canonical_parent_order"
             )?,
             enable_ellipsis: extract_attr!(conf, "enable_ellipsis")?,
+            hasmeta_flag: extract_attr!(conf, "hasmeta_flag")?,
         })
     })
 }

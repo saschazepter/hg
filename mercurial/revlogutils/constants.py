@@ -290,6 +290,7 @@ if typing.TYPE_CHECKING:
     class RevlogFeatures(TypedDict):
         inline: _FromFlagsFnc
         generaldelta: _FromFlagsFnc
+        hasmeta_flag: _FromFlagsFnc
         sidedata: bool
         docket: bool
 
@@ -298,12 +299,14 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
     REVLOGV0: {
         'inline': _no,
         'generaldelta': _no,
+        'hasmeta_flag': _no,
         'sidedata': False,
         'docket': False,
     },
     REVLOGV1: {
         'inline': _from_flag(FLAG_INLINE_DATA),
         'generaldelta': _from_flag(FLAG_GENERALDELTA),
+        'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
         'sidedata': False,
         'docket': False,
     },
@@ -313,6 +316,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         # means to reduce the number of files for revlogv2.
         'inline': _no,
         'generaldelta': _yes,
+        'hasmeta_flag': _no,  # Should become yes at some point
         'sidedata': True,
         'docket': True,
     },
@@ -320,6 +324,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'inline': _no,
         # General delta is useless for changelog since we don't do any delta
         'generaldelta': _no,
+        'hasmeta_flag': _no,  # Should become yes at some point
         'sidedata': True,
         'docket': True,
     },

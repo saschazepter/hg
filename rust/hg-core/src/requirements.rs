@@ -191,6 +191,10 @@ pub const CHANGELOGV2_REQUIREMENT: &str = "exp-changelog-v2";
 #[allow(unused)]
 pub const SPARSEREVLOG_REQUIREMENT: &str = "sparserevlog";
 
+/// The filelog uses explicit flag in the index to mark file revision that
+/// contains metadata.
+pub const FILELOG_METAFLAG_REQUIREMENT: &str = "exp-filelog-metaflag";
+
 /// A repository with the the copies-sidedata-changeset requirement will store
 /// copies related information in changeset's sidedata.
 #[allow(unused)]
