@@ -236,6 +236,13 @@ class dotencode(requirementformatvariant):
         b'beginning with a space or period'
     )
 
+    touches_filelogs = True
+    touches_manifests = False
+    touches_changelog = False
+    touches_requirements = True
+    touches_dirstate = False
+    compatible_with_share = True
+
 
 @registerformatvariant
 class generaldelta(requirementformatvariant):
@@ -1038,6 +1045,7 @@ def supportremovedrequirements(repo):
         requirements.COPIESSDC_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
+        requirements.DOTENCODE_REQUIREMENT,
         requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,
