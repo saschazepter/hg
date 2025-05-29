@@ -218,6 +218,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   dirstate-v2:                     no
   tracked-hint:                    no
   dotencode:                      yes
+  fragile-plain-encode:            no
   generaldelta:                   yes
   share-safe:                     yes
   hasmeta_flag:                    no
@@ -236,6 +237,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -255,6 +257,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes     no     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -274,6 +277,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   [formatvariant.name.uptodate|dirstate-v2:                   ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|tracked-hint:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchconfig|dotencode:                     ][formatvariant.repo.mismatchconfig| yes][formatvariant.config.special|     no][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|fragile-plain-encode:          ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|generaldelta:                  ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|share-safe:                    ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
@@ -312,6 +316,12 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "dotencode",
     "repo": true
+   },
+   {
+    "config": false,
+    "default": false,
+    "name": "fragile-plain-encode",
+    "repo": false
    },
    {
     "config": true,
@@ -527,6 +537,7 @@ Various sub-optimal detections work
   dirstate-v2:                     no
   tracked-hint:                    no
   dotencode:                       no
+  fragile-plain-encode:            no
   generaldelta:                    no
   share-safe:                      no
   hasmeta_flag:                    no
@@ -544,6 +555,7 @@ Various sub-optimal detections work
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                       no    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                    no    yes     yes
   share-safe:                      no    yes     yes
   hasmeta_flag:                    no     no      no
@@ -563,6 +575,7 @@ Various sub-optimal detections work
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                       no    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                    no     no     yes
   share-safe:                      no    yes     yes
   hasmeta_flag:                    no     no      no
@@ -582,6 +595,7 @@ Various sub-optimal detections work
   [formatvariant.name.uptodate|dirstate-v2:                   ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|tracked-hint:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchconfig|dotencode:                     ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|fragile-plain-encode:          ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|generaldelta:                  ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.mismatchconfig|share-safe:                    ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
@@ -1622,6 +1636,7 @@ upgrade
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -1667,6 +1682,7 @@ downgrade
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -1715,6 +1731,7 @@ upgrade from hgrc
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -1769,6 +1786,7 @@ upgrade
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -1820,6 +1838,7 @@ downgrade
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
@@ -1872,6 +1891,7 @@ upgrade from hgrc
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
+  fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no

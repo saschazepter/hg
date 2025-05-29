@@ -245,6 +245,25 @@ class dotencode(requirementformatvariant):
 
 
 @registerformatvariant
+class plain_encode(requirementformatvariant):
+    name = b'fragile-plain-encode'
+
+    _requirement = requirements.PLAIN_ENCODE_REQUIREMENT
+
+    default = False
+
+    description = _(b'using this option is dangerous and not recommended')
+
+    upgrademessage = _(b'you will move to this dangerous format, are you sure?')
+    touches_filelogs = True
+    touches_manifests = False
+    touches_changelog = False
+    touches_requirements = True
+    touches_dirstate = False
+    compatible_with_share = True
+
+
+@registerformatvariant
 class generaldelta(requirementformatvariant):
     name = b'generaldelta'
 
@@ -1048,6 +1067,7 @@ def supportremovedrequirements(repo):
         requirements.DOTENCODE_REQUIREMENT,
         requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
+        requirements.PLAIN_ENCODE_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,
         requirements.REVLOGV2_REQUIREMENT,
         requirements.SHARESAFE_REQUIREMENT,
@@ -1081,6 +1101,7 @@ def supporteddestrequirements(repo):
         requirements.GENERALDELTA_REQUIREMENT,
         requirements.NARROW_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
+        requirements.PLAIN_ENCODE_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,  # allowed in case of downgrade
         requirements.REVLOGV2_REQUIREMENT,
         requirements.SHARED_REQUIREMENT,
@@ -1118,6 +1139,7 @@ def allowednewrequirements(repo):
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
+        requirements.PLAIN_ENCODE_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,
         requirements.REVLOGV2_REQUIREMENT,
         requirements.SHARESAFE_REQUIREMENT,

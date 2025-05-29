@@ -122,12 +122,83 @@ stream clone
 Verify store layout
 -------------------
 
-  $ f --recurse plain-encoded/.hg/store/data
-  plain-encoded/.hg/store/data: directory with 3 files
-  plain-encoded/.hg/store/data/foo.i:
-  plain-encoded/.hg/store/data/rc.d_: directory with 1 files
-  plain-encoded/.hg/store/data/rc.d_/baz.i:
-  plain-encoded/.hg/store/data/toto_: directory with 2 files
-  plain-encoded/.hg/store/data/toto_/bar.i:
-  plain-encoded/.hg/store/data/toto_/tutu_: directory with 1 files
-  plain-encoded/.hg/store/data/toto_/tutu_/fuz.i:
+  $ cd plain-encoded
+
+  $ f --recurse .hg/store/data
+  .hg/store/data: directory with 3 files
+  .hg/store/data/foo.i:
+  .hg/store/data/rc.d_: directory with 1 files
+  .hg/store/data/rc.d_/baz.i:
+  .hg/store/data/toto_: directory with 2 files
+  .hg/store/data/toto_/bar.i:
+  .hg/store/data/toto_/tutu_: directory with 1 files
+  .hg/store/data/toto_/tutu_/fuz.i:
+
+Downgrade/Upgrade
+-----------------
+
+downgrade
+
+  $ hg debugformat fragile-plain-encode dotencode fncache
+  format-variant                 repo
+  fncache:                        yes
+  dotencode:                       no
+  fragile-plain-encode:           yes
+  $ hg debugupgraderepo --quiet --run \
+  >     --config format.dotencode=yes \
+  >     --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=no
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: exp-very-fragile-and-unsafe-plain-store-encoding
+     added: dotencode
+  
+  processed revlogs:
+    - all-filelogs
+  
+  $ hg debugformat fragile-plain-encode dotencode fncache
+  format-variant                 repo
+  fncache:                        yes
+  dotencode:                      yes
+  fragile-plain-encode:            no
+  $ hg verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 1 changesets with 4 changes to 4 files
+
+upgrade
+
+  $ hg debugformat fragile-plain-encode dotencode fncache
+  format-variant                 repo
+  fncache:                        yes
+  dotencode:                      yes
+  fragile-plain-encode:            no
+  $ hg debugupgraderepo --quiet --run \
+  >     --config format.dotencode=no \
+  >     --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=yes
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: dotencode
+     added: exp-very-fragile-and-unsafe-plain-store-encoding
+  
+  processed revlogs:
+    - all-filelogs
+  
+  $ hg debugformat fragile-plain-encode dotencode fncache
+  format-variant                 repo
+  fncache:                        yes
+  dotencode:                       no
+  fragile-plain-encode:           yes
+  $ hg verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 1 changesets with 4 changes to 4 files
