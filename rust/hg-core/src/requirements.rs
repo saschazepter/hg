@@ -52,7 +52,6 @@ pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
         .requirements()
         .iter()
         .map(String::as_str)
-        // .filter(|feature| !ALL_SUPPORTED.contains(feature.as_str()))
         .filter(|feature| {
             !REQUIRED.contains(feature) && !SUPPORTED.contains(feature)
         })
