@@ -1594,7 +1594,7 @@ class dirstate(intdirstate.idirstate):
             unknown,
             warnings,
             bad,
-            traversed,
+            empty_dirs,
             dirty,
         ) = rustmod.status(
             self._map._map,
@@ -1611,10 +1611,6 @@ class dirstate(intdirstate.idirstate):
 
         self._dirty |= dirty
 
-        if matcher.traversedir:
-            for dir in traversed:
-                matcher.traversedir(dir)
-
         if self._ui.warn:
             for warning in warnings:
                 self._ui.warn(warning)
@@ -1630,6 +1626,7 @@ class dirstate(intdirstate.idirstate):
             unknown=unknown,
             ignored=ignored,
             clean=clean,
+            empty_dirs=empty_dirs if matcher.traversedir else None,
         )
         return (lookup, status)
 

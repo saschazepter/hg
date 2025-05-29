@@ -69,6 +69,7 @@ delete an untracked directory
   $ hg purge -p
   untracked_dir/untracked_file1
   untracked_dir/untracked_file2
+  untracked_dir (rust !)
   $ hg purge -v
   removing file untracked_dir/untracked_file1
   removing file untracked_dir/untracked_file2
@@ -123,6 +124,7 @@ delete nested directories
   $ mkdir -p untracked_directory/nested_directory
   $ hg purge -p
   untracked_directory/nested_directory
+  untracked_directory (rust !)
   $ hg purge -v
   removing directory untracked_directory/nested_directory
   removing directory untracked_directory
@@ -138,6 +140,7 @@ delete nested directories from a subdir
   $ cd directory
   $ hg purge -p
   untracked_directory/nested_directory
+  untracked_directory (rust !)
   $ hg purge -v
   removing directory untracked_directory/nested_directory
   removing directory untracked_directory
@@ -153,8 +156,14 @@ delete only part of the tree
   $ mkdir -p untracked_directory/nested_directory
   $ touch directory/untracked_file
   $ cd directory
+#if rust
   $ hg purge -p ../untracked_directory
   untracked_directory/nested_directory
+  untracked_directory
+#else
+  $ hg purge -p ../untracked_directory
+  untracked_directory/nested_directory
+#endif
   $ hg purge --confirm
   permanently delete 1 unknown files? (yN) n
   abort: removal cancelled
@@ -341,6 +350,7 @@ remove both files and dirs
   dir/untracked_file
   untracked_file
   empty_dir
+  dir (rust !)
   $ hg purge -v --files --dirs
   removing file dir/untracked_file
   removing file untracked_file

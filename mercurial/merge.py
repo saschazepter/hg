@@ -2042,6 +2042,8 @@ def purge(
     res = []
 
     try:
+        use_rust = repo[None].use_rust_status()
+
         if removeemptydirs:
             directories = []
             matcher.traversedir = directories.append
@@ -2052,6 +2054,9 @@ def purge(
             unknown=unknown,
             empty_dirs_keep_files=not (removefiles),
         )
+
+        if use_rust:
+            directories = status.empty_dirs
 
         if confirm:
             msg = None
@@ -2092,7 +2097,7 @@ def purge(
 
         if removeemptydirs:
             for f in sorted(directories, reverse=True):
-                if matcher(f) and not repo.wvfs.listdir(f):
+                if use_rust or (matcher(f) and not repo.wvfs.listdir(f)):
                     if not noop:
                         repo.ui.note(_(b'removing directory %s\n') % f)
                         remove(repo.wvfs.rmdir, f)

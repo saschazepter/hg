@@ -251,7 +251,7 @@ fn build_response(
     let unknown = status_path_py_list(py, &status_res.unknown)?;
     let unsure = status_path_py_list(py, &status_res.unsure)?;
     let bad = collect_bad_matches(py, &status_res.bad)?;
-    let traversed = paths_py_list(py, status_res.traversed.iter())?;
+    let empty_dirs = paths_py_list(py, status_res.empty_dirs.iter())?;
     let py_warnings = hg_warnings_to_py_warnings(py, warnings, root_dir)?;
 
     let response = (
@@ -265,7 +265,7 @@ fn build_response(
         unknown,
         py_warnings,
         bad,
-        traversed,
+        empty_dirs,
         status_res.dirty,
     );
     Ok(response.into_pyobject(py)?.into())

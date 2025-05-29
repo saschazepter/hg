@@ -141,6 +141,10 @@ pub struct DirstateStatus<'a> {
     /// Only filled if `collect_traversed_dirs` is `true`
     pub traversed: Vec<HgPathCow<'a>>,
 
+    // Contains all directories which are empty or only have empty directories
+    // as children
+    pub empty_dirs: Vec<HgPathCow<'a>>,
+
     /// Whether `status()` made changed to the `DirstateMap` that should be
     /// written back to disk
     pub dirty: bool,
@@ -405,16 +409,20 @@ impl<'a> HasIgnoredAncestor<'a> {
 struct RecursiveResponse {
     /// `true` if all children are either ignored or have a dirstate node
     ignored_or_dirstate: bool,
+    /// `true` if the subtree will be removed in context of `purge`
+    subtree_will_be_purged: bool,
 }
 
 impl RecursiveResponse {
     fn identity() -> Self {
-        Self { ignored_or_dirstate: true }
+        Self { ignored_or_dirstate: true, subtree_will_be_purged: true }
     }
 
     fn combine(a: Self, b: Self) -> Self {
         Self {
             ignored_or_dirstate: a.ignored_or_dirstate && b.ignored_or_dirstate,
+            subtree_will_be_purged: a.subtree_will_be_purged
+                && b.subtree_will_be_purged,
         }
     }
 }
@@ -567,7 +575,10 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     ) -> Result<RecursiveResponse, DirstateV2ParseError> {
         let children_set = self.matcher.visit_children_set(directory_hg_path);
         if let VisitChildrenSet::Empty = children_set {
-            return Ok(RecursiveResponse { ignored_or_dirstate: false });
+            return Ok(RecursiveResponse {
+                ignored_or_dirstate: false,
+                subtree_will_be_purged: true,
+            });
         }
         if self.can_skip_fs_readdir(directory_entry, cached_directory_mtime) {
             dirstate_nodes
@@ -594,11 +605,13 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                                 file_type,
                             };
 
-                            self.traverse_fs_and_dirstate(
-                                &entry,
-                                dirstate_node,
-                                has_ignored_ancestor,
-                            )
+                            let _: RecursiveResponse = self
+                                .traverse_fs_and_dirstate(
+                                    &entry,
+                                    dirstate_node,
+                                    has_ignored_ancestor,
+                                )?;
+                            Ok(())
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                             self.traverse_dirstate_only(dirstate_node)
@@ -614,11 +627,11 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 .collect::<Result<(), _>>()?;
 
             // We don’t know, so conservatively say this isn’t the case
-            let children_all_have_dirstate_node_or_are_ignored = false;
+            let ignored_or_dirstate = false;
 
             return Ok(RecursiveResponse {
-                ignored_or_dirstate:
-                    children_all_have_dirstate_node_or_are_ignored,
+                ignored_or_dirstate,
+                subtree_will_be_purged: false,
             });
         }
 
@@ -675,21 +688,26 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 Right(fs_entry) => &fs_entry.hg_path,
             };
             if !Self::should_visit(&children_set, basename) {
-                return Ok(RecursiveResponse { ignored_or_dirstate: false });
+                return Ok(RecursiveResponse {
+                    ignored_or_dirstate: false,
+                    subtree_will_be_purged: false,
+                });
             }
             let has_dirstate_node_or_is_ignored = match pair {
-                Both(dirstate_node, fs_entry) => {
-                    self.traverse_fs_and_dirstate(
+                Both(dirstate_node, fs_entry) => RecursiveResponse {
+                    ignored_or_dirstate: true,
+                    ..self.traverse_fs_and_dirstate(
                         fs_entry,
                         dirstate_node,
                         has_ignored_ancestor,
-                    )?;
-
-                    RecursiveResponse { ignored_or_dirstate: true }
-                }
+                    )?
+                },
                 Left(dirstate_node) => {
                     self.traverse_dirstate_only(dirstate_node)?;
-                    RecursiveResponse { ignored_or_dirstate: true }
+                    RecursiveResponse {
+                        ignored_or_dirstate: true,
+                        subtree_will_be_purged: true,
+                    }
                 }
                 Right(fs_entry) => self.traverse_fs_only(
                     has_ignored_ancestor.force(&self.ignore_fn),
@@ -706,6 +724,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         .map(|response| RecursiveResponse {
             ignored_or_dirstate: response.ignored_or_dirstate
                 && readdir_succeeded,
+            ..response
         })
     }
 
@@ -718,7 +737,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         fs_entry: &DirEntry,
         dirstate_node: NodeRef<'tree, 'on_disk>,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<RecursiveResponse, DirstateV2ParseError> {
         let outdated_dircache =
             self.check_for_outdated_directory_cache(&dirstate_node)?;
         let hg_path = &dirstate_node.full_path_borrowed(self.dmap.on_disk)?;
@@ -740,7 +759,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             }
         }
 
-        if fs_entry.is_dir() {
+        let response = if fs_entry.is_dir() {
             if self.options.collect_traversed_dirs {
                 self.outcome
                     .lock()
@@ -760,6 +779,16 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 is_at_repo_root,
             )?;
 
+            if recursive_response.subtree_will_be_purged
+                && self.matcher.matches(hg_path)
+            {
+                self.outcome
+                    .lock()
+                    .unwrap()
+                    .empty_dirs
+                    .push(hg_path.detach_from_tree())
+            }
+
             let children_all_have_dirstate_node_or_are_ignored =
                 recursive_response.ignored_or_dirstate;
             self.maybe_save_directory_mtime(
@@ -767,9 +796,13 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 fs_entry,
                 dirstate_node,
                 outdated_dircache,
-            )?
+            )?;
+
+            recursive_response
         } else {
-            if file_or_symlink && self.matcher.matches(hg_path) {
+            let recursive_response = if file_or_symlink
+                && self.matcher.matches(hg_path)
+            {
                 if let Some(entry) = dirstate_node.entry()? {
                     if !entry.any_tracked() {
                         // Forward-compat if we start tracking unknown/ignored
@@ -789,6 +822,11 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     } else {
                         self.handle_normal_file(&dirstate_node, fs_entry)?;
                     }
+
+                    RecursiveResponse {
+                        ignored_or_dirstate: false,
+                        subtree_will_be_purged: entry.removed(),
+                    }
                 } else {
                     // `node.entry.is_none()` indicates a "directory"
                     // node, but the filesystem has a file
@@ -796,16 +834,28 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                         has_ignored_ancestor.force(&self.ignore_fn),
                         hg_path,
                     );
+
+                    RecursiveResponse {
+                        ignored_or_dirstate: true,
+                        subtree_will_be_purged: false,
+                    }
                 }
-            }
+            } else {
+                RecursiveResponse {
+                    ignored_or_dirstate: false,
+                    subtree_will_be_purged: false,
+                }
+            };
 
             for child_node in dirstate_node.children(self.dmap.on_disk)?.iter()
             {
-                self.traverse_dirstate_only(child_node)?
+                self.traverse_dirstate_only(child_node)?;
             }
-        }
 
-        Ok(())
+            recursive_response
+        };
+
+        Ok(response)
     }
 
     /// Save directory mtime if applicable.
@@ -1034,27 +1084,38 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 // ignored
                 self.options.list_unknown || self.options.list_ignored
             };
-            if traverse_children {
-                let is_at_repo_root = false;
+            let subtree_will_be_purged =
+                match self.read_dir(&hg_path, &fs_entry.fs_path, false) {
+                    Ok(children_fs_entries) if traverse_children => {
+                        children_fs_entries
+                            .par_iter()
+                            .map(|child_fs_entry| {
+                                self.traverse_fs_only(
+                                    is_ignored,
+                                    &hg_path,
+                                    child_fs_entry,
+                                )
+                            })
+                            .reduce(
+                                RecursiveResponse::identity,
+                                RecursiveResponse::combine,
+                            )
+                            .subtree_will_be_purged
+                    }
+                    _ => true,
+                };
 
-                if let Ok(children_fs_entries) =
-                    self.read_dir(&hg_path, &fs_entry.fs_path, is_at_repo_root)
-                {
-                    children_fs_entries.par_iter().for_each(|child_fs_entry| {
-                        self.traverse_fs_only(
-                            is_ignored,
-                            &hg_path,
-                            child_fs_entry,
-                        );
-                    })
-                }
+            let subtree_will_be_purged = subtree_will_be_purged
+                && (!is_ignored || self.options.list_ignored);
 
-                if self.options.collect_traversed_dirs {
-                    self.outcome.lock().unwrap().traversed.push(hg_path.into())
-                }
+            if subtree_will_be_purged && self.matcher.matches(&hg_path) {
+                self.outcome.lock().unwrap().empty_dirs.push(hg_path.into())
             }
 
-            RecursiveResponse { ignored_or_dirstate: is_ignored }
+            RecursiveResponse {
+                ignored_or_dirstate: is_ignored,
+                subtree_will_be_purged,
+            }
         } else if file_or_symlink {
             if self.matcher.matches(&hg_path) {
                 let ignored = self.mark_unknown_or_ignored(
@@ -1062,19 +1123,35 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     &BorrowedPath::InMemory(&hg_path),
                 );
 
-                RecursiveResponse { ignored_or_dirstate: ignored }
+                let remove_file = if ignored {
+                    self.options.list_ignored
+                } else {
+                    self.options.list_unknown
+                };
+
+                RecursiveResponse {
+                    ignored_or_dirstate: ignored,
+                    subtree_will_be_purged: remove_file
+                        && !self.options.empty_dirs_keep_files,
+                }
             } else {
                 // We haven’t computed whether this path is ignored. It
                 // might not be, and a future run of status might have a
                 // different matcher that matches it. So treat it as not
                 // ignored. That is, inhibit readdir caching of the parent
                 // directory.
-                RecursiveResponse { ignored_or_dirstate: false }
+                RecursiveResponse {
+                    ignored_or_dirstate: false,
+                    subtree_will_be_purged: false,
+                }
             }
         } else {
             // This is neither a directory, a plain file, or a symlink.
             // Treat it like an ignored file.
-            RecursiveResponse { ignored_or_dirstate: true }
+            RecursiveResponse {
+                ignored_or_dirstate: true,
+                subtree_will_be_purged: self.options.list_ignored,
+            }
         }
     }
 
