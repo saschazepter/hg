@@ -23,17 +23,17 @@ from ..utils import compression
 
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {
-    requirements.GENERALDELTA_REQUIREMENT,
-    requirements.SPARSEREVLOG_REQUIREMENT,
-    requirements.REVLOGV2_REQUIREMENT,
     requirements.CHANGELOGV2_REQUIREMENT,
+    requirements.GENERALDELTA_REQUIREMENT,
+    requirements.REVLOGV2_REQUIREMENT,
+    requirements.SPARSEREVLOG_REQUIREMENT,
 }
 
 
 def preservedrequirements(repo):
     preserved = {
-        requirements.SHARED_REQUIREMENT,
         requirements.NARROW_REQUIREMENT,
+        requirements.SHARED_REQUIREMENT,
     }
     return preserved & repo.requirements
 
@@ -1034,16 +1034,16 @@ def supportremovedrequirements(repo):
     to be allowed.
     """
     supported = {
-        requirements.SPARSEREVLOG_REQUIREMENT,
-        requirements.COPIESSDC_REQUIREMENT,
-        requirements.NODEMAP_REQUIREMENT,
-        requirements.SHARESAFE_REQUIREMENT,
-        requirements.REVLOGV2_REQUIREMENT,
         requirements.CHANGELOGV2_REQUIREMENT,
-        requirements.REVLOGV1_REQUIREMENT,
+        requirements.COPIESSDC_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.FILELOG_METAFLAG_REQUIREMENT,
+        requirements.NODEMAP_REQUIREMENT,
+        requirements.REVLOGV1_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
+        requirements.SHARESAFE_REQUIREMENT,
+        requirements.SPARSEREVLOG_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -1071,6 +1071,7 @@ def supporteddestrequirements(repo):
         requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
+        requirements.NARROW_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,  # allowed in case of downgrade
         requirements.REVLOGV2_REQUIREMENT,
@@ -1079,7 +1080,6 @@ def supporteddestrequirements(repo):
         requirements.SPARSEREVLOG_REQUIREMENT,
         requirements.STORE_REQUIREMENT,
         requirements.TREEMANIFEST_REQUIREMENT,
-        requirements.NARROW_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -1101,19 +1101,19 @@ def allowednewrequirements(repo):
     future, unknown requirements from accidentally being added.
     """
     supported = {
+        requirements.CHANGELOGV2_REQUIREMENT,
+        requirements.COPIESSDC_REQUIREMENT,
+        requirements.DIRSTATE_TRACKED_HINT_V1,
+        requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
         requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
-        requirements.SPARSEREVLOG_REQUIREMENT,
-        requirements.COPIESSDC_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
-        requirements.SHARESAFE_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,
         requirements.REVLOGV2_REQUIREMENT,
-        requirements.CHANGELOGV2_REQUIREMENT,
-        requirements.DIRSTATE_TRACKED_HINT_V1,
-        requirements.DIRSTATE_V2_REQUIREMENT,
+        requirements.SHARESAFE_REQUIREMENT,
+        requirements.SPARSEREVLOG_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
