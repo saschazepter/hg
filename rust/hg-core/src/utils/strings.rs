@@ -65,6 +65,53 @@ where
     }
 }
 
+/// Replaces every `from` slice with the `to` slice from `source` and returns
+/// a [`Vec`].
+/// For cases where `from` and `to` are the same length, use
+/// [`replace_slice_exact`] for better performance.
+///
+/// # Examples
+///
+/// ```
+/// use hg::utils::strings::replace_slice;
+///
+/// let line = b"I hate writing tests!".to_vec();
+/// assert_eq!(
+///     replace_slice(&line, b"hate", b"love"),
+///     b"I love writing tests!".to_vec()
+/// );
+/// let line = b"I hate writing tests!".to_vec();
+/// assert_eq!(
+///     replace_slice(&line, b"hate", b"enjoy"),
+///     b"I enjoy writing tests!".to_vec()
+/// );
+/// let line = b"I hate writing tests!".to_vec();
+/// assert_eq!(
+///     replace_slice(&line, b"hate", b"am"),
+///     b"I am writing tests!".to_vec()
+/// );
+/// ```
+pub fn replace_slice<T>(source: &[T], from: &[T], to: &[T]) -> Vec<T>
+where
+    T: Clone + PartialEq,
+{
+    let mut result = source.to_vec();
+    let from_len = from.len();
+    let to_len = to.len();
+
+    let mut i = 0;
+    while i + from_len <= result.len() {
+        if result[i..].starts_with(from) {
+            result.splice(i..i + from_len, to.iter().cloned());
+            i += to_len;
+        } else {
+            i += 1;
+        }
+    }
+
+    result
+}
+
 pub trait SliceExt {
     fn trim_end(&self) -> &Self;
     fn trim_start(&self) -> &Self;
