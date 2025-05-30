@@ -24,12 +24,12 @@ use std::time::SystemTime;
 use lazy_static::lazy_static;
 use same_file::is_same_file;
 
+use super::strings::replace_slice_exact;
 use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::path_auditor::PathAuditor;
-use crate::utils::strings::replace_slice;
 
 pub fn get_os_str_from_bytes(bytes: &[u8]) -> &OsStr {
     let os_str;
@@ -179,7 +179,7 @@ fn hfs_ignore_clean(bytes: &[u8]) -> Vec<u8> {
     let needs_escaping = bytes.iter().any(|b| *b == b'\xe2' || *b == b'\xef');
     if needs_escaping {
         for forbidden in IGNORED_CHARS.iter() {
-            replace_slice(&mut buf, forbidden, &[])
+            replace_slice_exact(&mut buf, forbidden, &[])
         }
         buf
     } else {

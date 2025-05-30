@@ -26,25 +26,38 @@ where
 }
 
 /// Replaces the `from` slice with the `to` slice inside the `buf` slice.
+/// `from` and `to` need to be of the exact same length, otherwise use
+/// [`replace_slice`].
+///
+/// # Panics
+///
+/// Panics if `from` and `to` have different lengths.
 ///
 /// # Examples
 ///
 /// ```
-/// use hg::utils::strings::replace_slice;
+/// use hg::utils::strings::replace_slice_exact;
+///
 /// let mut line = b"I hate writing tests!".to_vec();
-/// replace_slice(&mut line, b"hate", b"love");
+/// replace_slice_exact(&mut line, b"hate", b"love");
+///
 /// assert_eq!(
 ///     line,
 ///     b"I love writing tests!".to_vec()
 /// );
 /// ```
-pub fn replace_slice<T>(buf: &mut [T], from: &[T], to: &[T])
+///
+/// ```should_panic
+/// use hg::utils::strings::replace_slice_exact;
+///
+/// let mut line = b"I hate writing tests!".to_vec();
+/// replace_slice_exact(&mut line, b"hate", b"enjoy");
+/// ```
+pub fn replace_slice_exact<T>(buf: &mut [T], from: &[T], to: &[T])
 where
     T: Clone + PartialEq,
 {
-    if buf.len() < from.len() || from.len() != to.len() {
-        return;
-    }
+    assert_eq!(from.len(), to.len());
     for i in 0..=buf.len() - from.len() {
         if buf[i..].starts_with(from) {
             buf[i..(i + from.len())].clone_from_slice(to);
