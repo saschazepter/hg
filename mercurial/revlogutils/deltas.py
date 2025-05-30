@@ -1137,6 +1137,9 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         # if not a snapshot, this method has no filtering to do
         if deltainfo.snapshotdepth is None:
             return True
+        # level zero snapshot can't be bad.
+        if deltainfo.snapshotdepth == 0:
+            return True
         # bad delta from intermediate snapshot size limit
         #
         #   If an intermediate snapshot size is higher than the limit.  The
