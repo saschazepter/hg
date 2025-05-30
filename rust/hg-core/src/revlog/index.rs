@@ -45,9 +45,9 @@ pub struct IndexHeaderFlags {
 }
 
 // Match Python constants
-const FLAG_INLINE_DATA: u16 = 1;
-const FLAG_GENERALDELTA: u16 = 1 << 1;
-const FLAG_FILELOG_META: u16 = 1 << 2;
+pub const FLAG_INLINE_DATA: u16 = 1;
+pub const FLAG_GENERALDELTA: u16 = 1 << 1;
+pub const FLAG_FILELOG_META: u16 = 1 << 2;
 
 /// Corresponds to the high bits of `_format_flags` in python
 impl IndexHeaderFlags {

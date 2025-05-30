@@ -3,6 +3,8 @@
 use std::collections::HashSet;
 
 use super::compression::CompressionConfig;
+use super::index::FLAG_GENERALDELTA;
+use super::index::FLAG_INLINE_DATA;
 use super::RevlogType;
 use crate::config::Config;
 use crate::config::ResourceProfileValue;
@@ -82,13 +84,9 @@ impl RevlogOpenOptions {
                 RevlogVersionOptions::V0 => [0, 0, 0, 0],
                 RevlogVersionOptions::V1 { general_delta, inline } => [
                     0,
-                    if general_delta && inline {
-                        3
-                    } else if general_delta {
-                        2
-                    } else {
-                        u8::from(inline)
-                    },
+                    ((if general_delta { FLAG_GENERALDELTA } else { 0 })
+                        | (if inline { FLAG_INLINE_DATA } else { 0 }))
+                        as u8,
                     0,
                     1,
                 ],
