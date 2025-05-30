@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
-use crate::repo::Repo;
 use crate::utils::strings::join_display;
 use crate::vfs::VfsImpl;
 
@@ -47,9 +46,8 @@ pub(crate) fn load_if_exists(
     }
 }
 
-pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
-    let unknown: Vec<_> = repo
-        .requirements()
+pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
+    let unknown: Vec<_> = reqs
         .iter()
         .map(String::as_str)
         .filter(|feature| {
@@ -62,10 +60,8 @@ pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
             join_display(&unknown, ", ")
         )));
     }
-    let missing: Vec<_> = REQUIRED
-        .iter()
-        .filter(|&&feature| !repo.requirements().contains(feature))
-        .collect();
+    let missing: Vec<_> =
+        REQUIRED.iter().filter(|&&feature| !reqs.contains(feature)).collect();
     if !missing.is_empty() {
         return Err(HgError::unsupported(format!(
             "repository is missing feature required by this Mercurial: {}",

@@ -237,7 +237,7 @@ impl Repo {
             manifestlog: LazyCell::new(),
         };
 
-        requirements::check(&repo)?;
+        requirements::check(repo.requirements())?;
 
         Ok(repo)
     }
