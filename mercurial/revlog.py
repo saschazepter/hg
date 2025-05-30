@@ -1702,7 +1702,10 @@ class revlog:
 
         if hasattr(self.opener, "fncache"):
             vfs = self.opener.vfs
-            if not self.opener.uses_dotencode:
+            if (
+                not self.opener.uses_dotencode
+                and not self.opener.uses_plain_encode
+            ):
                 use_rust_index = False
             if not isinstance(vfs, vfsmod.vfs):
                 # Be cautious since we don't support other vfs
@@ -1780,6 +1783,7 @@ class revlog:
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
                 use_persistent_nodemap=self._nodemap_file is not None,
+                use_plain_encoding=self.opener.uses_plain_encode,
             )
             self.index = RustIndexProxy(self._inner)
             self._register_nodemap_info(self.index)

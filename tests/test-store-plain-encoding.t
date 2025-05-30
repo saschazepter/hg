@@ -69,7 +69,7 @@ verify that basic operations works
   @@ -0,0 +1,1 @@
   +fuz
 
-  $ hg cat -r 0 rc.d/baz
+  $ env RHG_ON_UNSUPPORTED=abort hg cat -r 0 rc.d/baz
   baz
 
   $ hg verify

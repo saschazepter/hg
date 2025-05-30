@@ -260,6 +260,7 @@ impl InnerRevlog {
         default_compression_header: &Bound<'_, PyAny>,
         revlog_type: usize,
         use_persistent_nodemap: bool,
+        use_plain_encoding: bool,
     ) -> PyResult<Self> {
         // Let clippy accept the unused arguments. This is a bit better than
         // a blank `allow` directive
@@ -294,7 +295,11 @@ impl InnerRevlog {
                 base,
                 vfs_is_readonly,
                 Box::new(PyFnCache::new(fncache.clone().unbind())),
-                PathEncoding::DotEncode,
+                if use_plain_encoding {
+                    PathEncoding::Plain
+                } else {
+                    PathEncoding::DotEncode
+                },
             )),
             index,
             index_file,

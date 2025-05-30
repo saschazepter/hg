@@ -1166,6 +1166,7 @@ class _fncachevfs(vfsmod.proxyvfs):
         self.fncache: fncache = fnc
         self.encode = encode
         self.uses_dotencode = encode is _pathencode
+        self.uses_plain_encode = encode is _plain_encode
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
