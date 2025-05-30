@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use super::compression::CompressionConfig;
+use super::index::FLAG_FILELOG_META;
 use super::index::FLAG_GENERALDELTA;
 use super::index::FLAG_INLINE_DATA;
 use super::RevlogType;
@@ -26,7 +27,7 @@ const DEFAULT_SPARSE_READ_MIN_GAP_SIZE: u64 = 262144;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RevlogVersionOptions {
     V0,
-    V1 { general_delta: bool, inline: bool },
+    V1 { general_delta: bool, hasmeta_flag: bool, inline: bool },
     V2,
     ChangelogV2 { compute_rank: bool },
 }
@@ -51,6 +52,7 @@ impl Default for RevlogOpenOptions {
             version: RevlogVersionOptions::V1 {
                 general_delta: true,
                 inline: false,
+                hasmeta_flag: false,
             },
             use_nodemap: true,
             data_config: Default::default(),
@@ -70,6 +72,7 @@ impl RevlogOpenOptions {
         Self {
             version: RevlogVersionOptions::V1 {
                 general_delta: data_config.general_delta,
+                hasmeta_flag: feature_config.hasmeta_flag,
                 inline,
             },
             use_nodemap: false,
@@ -83,9 +86,14 @@ impl RevlogOpenOptions {
         super::index::IndexHeader {
             header_bytes: match self.version {
                 RevlogVersionOptions::V0 => [0, 0, 0, 0],
-                RevlogVersionOptions::V1 { general_delta, inline } => [
+                RevlogVersionOptions::V1 {
+                    general_delta,
+                    hasmeta_flag,
+                    inline,
+                } => [
                     0,
                     ((if general_delta { FLAG_GENERALDELTA } else { 0 })
+                        | (if hasmeta_flag { FLAG_FILELOG_META } else { 0 })
                         | (if inline { FLAG_INLINE_DATA } else { 0 }))
                         as u8,
                     0,
@@ -386,21 +394,23 @@ pub fn default_revlog_options(
     revlog_type: RevlogType,
 ) -> Result<RevlogOpenOptions, HgError> {
     let is_changelog = revlog_type == RevlogType::Changelog;
-    let version =
-        if is_changelog && requirements.contains(CHANGELOGV2_REQUIREMENT) {
-            let compute_rank = config
-                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
-            RevlogVersionOptions::ChangelogV2 { compute_rank }
-        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
-            RevlogVersionOptions::V2
-        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
-            RevlogVersionOptions::V1 {
-                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
-                inline: !is_changelog,
-            }
-        } else {
-            RevlogVersionOptions::V0
-        };
+    let version = if is_changelog
+        && requirements.contains(CHANGELOGV2_REQUIREMENT)
+    {
+        let compute_rank =
+            config.get_bool(b"experimental", b"changelog-v2.compute-rank")?;
+        RevlogVersionOptions::ChangelogV2 { compute_rank }
+    } else if requirements.contains(REVLOGV2_REQUIREMENT) {
+        RevlogVersionOptions::V2
+    } else if requirements.contains(REVLOGV1_REQUIREMENT) {
+        RevlogVersionOptions::V1 {
+            general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
+            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            inline: !is_changelog,
+        }
+    } else {
+        RevlogVersionOptions::V0
+    };
     Ok(RevlogOpenOptions {
         version,
         // We don't need to dance around the slow path like in the Python
