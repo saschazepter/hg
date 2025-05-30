@@ -218,3 +218,57 @@ pub const SHARESAFE_REQUIREMENT: &str = "share-safe";
 /// A repository that use zstd compression inside its revlog
 #[allow(unused)]
 pub const REVLOG_COMPRESSION_ZSTD: &str = "revlog-compression-zstd";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_reqs(reqs: &[&str]) -> HashSet<String> {
+        let mut set = create_reqs_no_defaults(reqs);
+        for req in REQUIRED {
+            set.insert(req.to_string());
+        }
+        set
+    }
+
+    fn create_reqs_no_defaults(reqs: &[&str]) -> HashSet<String> {
+        let mut set = HashSet::new();
+        for &req in reqs {
+            set.insert(req.to_string());
+        }
+        set
+    }
+
+    #[test]
+    fn test_check() {
+        // minimum reqs
+        assert!(check(&create_reqs(&[PLAIN_ENCODE_REQUIREMENT])).is_ok());
+        assert!(check(&create_reqs(&[DOTENCODE_REQUIREMENT])).is_ok());
+        // all supported reqs
+        let mut reqs = create_reqs(SUPPORTED);
+        reqs.insert(DOTENCODE_REQUIREMENT.to_string());
+        assert!(check(&reqs).is_ok());
+
+        // no mutually exclusive reqs
+        assert!(check(&create_reqs(&[
+            DOTENCODE_REQUIREMENT,
+            PLAIN_ENCODE_REQUIREMENT
+        ]))
+        .is_err());
+        // no reqs is invalid
+        assert!(check(&create_reqs_no_defaults(&[])).is_err());
+        // missing from mutually exclusive pairs
+        assert!(check(&create_reqs(&[])).is_err());
+        // no reqs + mutually exclusive item is also wrong
+        assert!(
+            check(&create_reqs_no_defaults(&[DOTENCODE_REQUIREMENT])).is_err()
+        );
+
+        // no unknown req
+        assert!(check(&create_reqs(&[
+            DOTENCODE_REQUIREMENT,
+            "thisdoesnotexist"
+        ]))
+        .is_err());
+    }
+}
