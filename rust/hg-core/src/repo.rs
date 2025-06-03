@@ -25,6 +25,8 @@ use crate::lock::try_with_lock_no_wait;
 use crate::lock::LockError;
 use crate::requirements;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
+use crate::requirements::DOTENCODE_REQUIREMENT;
+use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifest;
@@ -272,7 +274,18 @@ impl Repo {
 
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.store.to_owned(), false, PathEncoding::DotEncode)
+        let repo_reqs = self.requirements();
+        let plain_encoding = repo_reqs.contains(PLAIN_ENCODE_REQUIREMENT);
+        let encoding = if repo_reqs.contains(DOTENCODE_REQUIREMENT) {
+            // checked before but doesn't hurt too much to check
+            assert!(!plain_encoding);
+            PathEncoding::DotEncode
+        } else if plain_encoding {
+            PathEncoding::Plain
+        } else {
+            unreachable!("invalid store encoding")
+        };
+        VfsImpl::new(self.store.to_owned(), false, encoding)
     }
 
     /// For accessing the working copy

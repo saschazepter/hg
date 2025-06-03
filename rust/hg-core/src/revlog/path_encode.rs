@@ -1,6 +1,8 @@
 use sha1::Digest;
 use sha1::Sha1;
 
+use crate::utils::strings::replace_slice;
+
 #[derive(PartialEq, Debug)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
@@ -586,9 +588,18 @@ fn hash_encode(src: &[u8]) -> Vec<u8> {
     hash_mangle(auxed.contents(), &sha)
 }
 
+fn plain_encode(src: &[u8]) -> Vec<u8> {
+    if src.starts_with(b"data/") {
+        [&b"data/"[..], &replace_slice(&src[5..], b"/", b"_/")].concat()
+    } else {
+        src.to_owned()
+    }
+}
+
 pub fn path_encode(path: &[u8], encoding: PathEncoding) -> Vec<u8> {
     match encoding {
         PathEncoding::Hybrid => unreachable!("hybrid encoding is unsupported"),
+        PathEncoding::Plain => return plain_encode(path),
         PathEncoding::None => {
             unreachable!("called path encode in a vfs that doesn't encode")
         }
@@ -621,6 +632,7 @@ pub enum PathEncoding {
     DotEncode,
     /// Unsupported in Rust code
     Hybrid,
+    Plain,
     /// Crutch used to define an encoding for non-store VFS while VfsImpl
     /// still exists and hasn't been cleaned up
     None,
@@ -650,6 +662,19 @@ mod tests {
         assert_eq!(
             HgPathBuf::from_bytes(&res),
             HgPathBuf::from_bytes(expected)
+        );
+    }
+
+    #[test]
+    fn test_plain_encode() {
+        assert_eq!(plain_encode(b"foo"), b"foo");
+        assert_eq!(plain_encode(b"foo.txt"), b"foo.txt");
+        assert_eq!(plain_encode(b"bar/foo.txt"), b"bar/foo.txt");
+        dbg!(String::from_utf8_lossy(&plain_encode(b"data/bar/foo.txt")));
+        assert_eq!(plain_encode(b"data/bar/foo.txt"), b"data/bar_/foo.txt");
+        assert_eq!(
+            plain_encode(b"data/ b a r /fuz.d_/baz.i/foo.txt"),
+            b"data/ b a r _/fuz.d__/baz.i_/foo.txt",
         );
     }
 }
