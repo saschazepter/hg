@@ -29,6 +29,7 @@ use hg::revlog::nodemap::NodeMap;
 use hg::revlog::nodemap::NodeMapError;
 use hg::revlog::nodemap::NodeTree as CoreNodeTree;
 use hg::revlog::options::RevlogOpenOptions;
+use hg::revlog::path_encode::PathEncoding;
 use hg::revlog::RevlogError;
 use hg::revlog::RevlogIndex;
 use hg::revlog::RevlogType;
@@ -293,6 +294,7 @@ impl InnerRevlog {
                 base,
                 vfs_is_readonly,
                 Box::new(PyFnCache::new(fncache.clone().unbind())),
+                PathEncoding::DotEncode,
             )),
             index,
             index_file,

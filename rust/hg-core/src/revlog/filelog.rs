@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use super::options::RevlogOpenOptions;
+use super::path_encode::PathEncoding;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::repo::Repo;
@@ -37,8 +38,8 @@ impl Filelog {
         file_path: &HgPath,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        let index_path = store_path(file_path, b".i");
-        let data_path = store_path(file_path, b".d");
+        let index_path = store_path(file_path, b".i", store_vfs.encoding);
+        let data_path = store_path(file_path, b".d", store_vfs.encoding);
         let revlog =
             Revlog::open(store_vfs, index_path, Some(&data_path), options)?;
         Ok(Self { revlog })
@@ -101,9 +102,13 @@ impl Filelog {
     }
 }
 
-fn store_path(hg_path: &HgPath, suffix: &[u8]) -> PathBuf {
+fn store_path(
+    hg_path: &HgPath,
+    suffix: &[u8],
+    encoding: PathEncoding,
+) -> PathBuf {
     let encoded_bytes =
-        path_encode(&[b"data/", hg_path.as_bytes(), suffix].concat());
+        path_encode(&[b"data/", hg_path.as_bytes(), suffix].concat(), encoding);
     get_path_from_bytes(&encoded_bytes).into()
 }
 

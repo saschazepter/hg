@@ -30,6 +30,7 @@ use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::Manifestlog;
 use crate::revlog::options::default_revlog_options;
+use crate::revlog::path_encode::PathEncoding;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
 use crate::utils::debug::debug_wait_for_file_or_print;
@@ -159,7 +160,7 @@ impl Repo {
         let mut repo_config_files =
             vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
-        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false);
+        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false, PathEncoding::None);
         let mut reqs = requirements::load_if_exists(&hg_vfs)?;
         let relative = reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
         let shared =
@@ -200,9 +201,12 @@ impl Repo {
 
             store_path = shared_path.join("store");
 
-            let source_is_share_safe =
-                requirements::load(VfsImpl::new(shared_path.to_owned(), true))?
-                    .contains(requirements::SHARESAFE_REQUIREMENT);
+            let source_is_share_safe = requirements::load(VfsImpl::new(
+                shared_path.to_owned(),
+                true,
+                PathEncoding::None,
+            ))?
+            .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
                 return Err(HgError::unsupported("share-safe mismatch").into());
@@ -216,6 +220,7 @@ impl Repo {
             reqs.extend(requirements::load(VfsImpl::new(
                 store_path.to_owned(),
                 true,
+                PathEncoding::None,
             ))?);
         }
 
@@ -262,17 +267,21 @@ impl Repo {
     /// For accessing repository files (in `.hg`), except for the store
     /// (`.hg/store`).
     pub fn hg_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.dot_hg.to_owned(), false)
+        VfsImpl::new(self.dot_hg.to_owned(), false, PathEncoding::None)
     }
 
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.store.to_owned(), false)
+        VfsImpl::new(self.store.to_owned(), false, PathEncoding::DotEncode)
     }
 
     /// For accessing the working copy
     pub fn working_directory_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.working_directory.to_owned(), false)
+        VfsImpl::new(
+            self.working_directory.to_owned(),
+            false,
+            PathEncoding::None,
+        )
     }
 
     pub fn try_with_wlock_no_wait<R>(

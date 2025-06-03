@@ -827,11 +827,16 @@ mod tests {
 
     use super::*;
     use crate::revlog::index::IndexEntryBuilder;
+    use crate::revlog::path_encode::PathEncoding;
 
     #[test]
     fn test_empty() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs = VfsImpl::new(
+            temp.path().to_owned(),
+            false,
+            PathEncoding::DotEncode,
+        );
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
         let revlog =
@@ -856,7 +861,11 @@ mod tests {
     #[test]
     fn test_inline() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs = VfsImpl::new(
+            temp.path().to_owned(),
+            false,
+            PathEncoding::DotEncode,
+        );
         let node0 =
             Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd").unwrap();
         let node1 =
@@ -923,7 +932,11 @@ mod tests {
     #[test]
     fn test_nodemap() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs = VfsImpl::new(
+            temp.path().to_owned(),
+            false,
+            PathEncoding::DotEncode,
+        );
 
         // building a revlog with a forced Node starting with zeros
         // This is a corruption, but it does not preclude using the nodemap

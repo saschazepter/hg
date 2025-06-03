@@ -30,6 +30,7 @@ use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::fncache::FnCache;
 use crate::revlog::path_encode::path_encode;
+use crate::revlog::path_encode::PathEncoding;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 
@@ -39,6 +40,10 @@ pub struct VfsImpl {
     pub(crate) base: PathBuf,
     pub readonly: bool,
     pub mode: Option<u32>,
+    /// XXX This encoding is only used to inform FnCacheVfs of its encoding
+    /// This is bad and will need to be reworked before or upon introduction
+    /// of the fileindex.
+    pub encoding: PathEncoding,
 }
 
 struct FileNotFound(std::io::Error, PathBuf);
@@ -75,9 +80,9 @@ fn get_mode(base: impl AsRef<Path>) -> Option<u32> {
 }
 
 impl VfsImpl {
-    pub fn new(base: PathBuf, readonly: bool) -> Self {
+    pub fn new(base: PathBuf, readonly: bool, encoding: PathEncoding) -> Self {
         let mode = get_mode(&base);
-        Self { base, readonly, mode }
+        Self { base, readonly, mode, encoding }
     }
 
     // XXX these methods are probably redundant with VFS trait?
@@ -801,8 +806,9 @@ impl FnCacheVfs {
         base: PathBuf,
         readonly: bool,
         fncache: Box<dyn FnCache>,
+        encoding: PathEncoding,
     ) -> Self {
-        let inner = VfsImpl::new(base, readonly);
+        let inner = VfsImpl::new(base, readonly, encoding);
         Self { inner, fncache }
     }
 
@@ -834,20 +840,23 @@ impl FnCacheVfs {
 
 impl Vfs for FnCacheVfs {
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.open(filename)
     }
 
     fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
         self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.open_write(encoded_path)
     }
 
     fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.open_check_ambig(filename)
     }
@@ -857,7 +866,8 @@ impl Vfs for FnCacheVfs {
         filename: &Path,
         check_ambig: bool,
     ) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
         self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.create(encoded_path, check_ambig)
@@ -868,7 +878,8 @@ impl Vfs for FnCacheVfs {
         filename: &Path,
         check_ambig: bool,
     ) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.create_atomic(filename, check_ambig)
     }
@@ -878,13 +889,15 @@ impl Vfs for FnCacheVfs {
     }
 
     fn exists(&self, filename: &Path) -> bool {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.exists(filename)
     }
 
     fn unlink(&self, filename: &Path) -> Result<(), HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.unlink(filename)
     }
@@ -895,17 +908,21 @@ impl Vfs for FnCacheVfs {
         to: &Path,
         check_ambig: bool,
     ) -> Result<(), HgError> {
-        let encoded = path_encode(&get_bytes_from_path(from));
+        let encoded =
+            path_encode(&get_bytes_from_path(from), self.inner.encoding);
         let from = get_path_from_bytes(&encoded);
-        let encoded = path_encode(&get_bytes_from_path(to));
+        let encoded =
+            path_encode(&get_bytes_from_path(to), self.inner.encoding);
         let to = get_path_from_bytes(&encoded);
         self.inner.rename(from, to, check_ambig)
     }
 
     fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
-        let encoded = path_encode(&get_bytes_from_path(from));
+        let encoded =
+            path_encode(&get_bytes_from_path(from), self.inner.encoding);
         let from = get_path_from_bytes(&encoded);
-        let encoded = path_encode(&get_bytes_from_path(to));
+        let encoded =
+            path_encode(&get_bytes_from_path(to), self.inner.encoding);
         let to = get_path_from_bytes(&encoded);
         self.inner.copy(from, to)
     }

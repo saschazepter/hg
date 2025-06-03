@@ -505,6 +505,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::revlog::path_encode::PathEncoding;
     use crate::vfs::VfsImpl;
     use crate::NULL_REVISION;
 
@@ -563,7 +564,8 @@ message",
     fn test_data_from_rev_null() -> Result<(), RevlogError> {
         // an empty revlog will be enough for this case
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs =
+            VfsImpl::new(temp.path().to_owned(), false, PathEncoding::None);
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         let revlog =
             Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())

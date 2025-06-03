@@ -374,6 +374,7 @@ mod tests {
     use std::io::ErrorKind;
 
     use super::*;
+    use crate::revlog::path_encode::PathEncoding;
     use crate::vfs::VfsImpl;
 
     #[test]
@@ -382,7 +383,7 @@ mod tests {
         let filename = Path::new("a");
         let file_path = base.join(filename);
         let raf = RandomAccessFile::new(
-            Box::new(VfsImpl::new(base.clone(), true)),
+            Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
             filename.to_owned(),
         );
 
@@ -411,7 +412,7 @@ mod tests {
         let filename = base.join("a");
         // No `create` should fail
         FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), false)),
+            Box::new(VfsImpl::new(base.clone(), false, PathEncoding::None)),
             &filename,
             false,
             false,
@@ -420,7 +421,7 @@ mod tests {
         std::fs::write(&filename, b"1234567890").unwrap();
 
         let mut read_handle = FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), true)),
+            Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
             &filename,
             false,
             false,
@@ -447,7 +448,7 @@ mod tests {
 
         // Open a write handle
         let mut handle = FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), false)),
+            Box::new(VfsImpl::new(base.clone(), false, PathEncoding::None)),
             &filename,
             false,
             true,
@@ -462,7 +463,7 @@ mod tests {
         assert_eq!(handle.read_exact(2).unwrap(), b"90".to_vec());
 
         let mut read_handle = FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), true)),
+            Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
             &filename,
             false,
             false,
@@ -479,7 +480,7 @@ mod tests {
 
         let delayed_buffer = Arc::new(Mutex::new(DelayedBuffer::default()));
         let mut handle = FileHandle::new_delayed(
-            Box::new(VfsImpl::new(base.clone(), false)),
+            Box::new(VfsImpl::new(base.clone(), false, PathEncoding::None)),
             &filename,
             false,
             delayed_buffer,

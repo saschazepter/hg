@@ -92,8 +92,9 @@ impl<'a> LogFile<'a> {
 
 #[test]
 fn test_rotation() {
+    use crate::revlog::path_encode::PathEncoding;
     let temp = tempfile::tempdir().unwrap();
-    let vfs = VfsImpl::new(temp.path().to_owned(), false);
+    let vfs = VfsImpl::new(temp.path().to_owned(), false, PathEncoding::None);
     let logger =
         LogFile::new(vfs.clone(), "log").max_size(Some(3)).max_files(2);
     logger.write(b"one\n").unwrap();

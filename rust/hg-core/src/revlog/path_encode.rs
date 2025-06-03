@@ -586,7 +586,14 @@ fn hash_encode(src: &[u8]) -> Vec<u8> {
     hash_mangle(auxed.contents(), &sha)
 }
 
-pub fn path_encode(path: &[u8]) -> Vec<u8> {
+pub fn path_encode(path: &[u8], encoding: PathEncoding) -> Vec<u8> {
+    match encoding {
+        PathEncoding::Hybrid => unreachable!("hybrid encoding is unsupported"),
+        PathEncoding::None => {
+            unreachable!("called path encode in a vfs that doesn't encode")
+        }
+        PathEncoding::DotEncode => {}
+    }
     let newlen = if path.len() <= MAXSTOREPATHLEN {
         let mut measure = MeasureDest::create();
         basic_encode(&mut measure, path);
@@ -608,6 +615,17 @@ pub fn path_encode(path: &[u8]) -> Vec<u8> {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone)]
+pub enum PathEncoding {
+    #[default]
+    DotEncode,
+    /// Unsupported in Rust code
+    Hybrid,
+    /// Crutch used to define an encoding for non-store VFS while VfsImpl
+    /// still exists and hasn't been cleaned up
+    None,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -617,7 +635,7 @@ mod tests {
     fn test_dirname_ends_with_underscore() {
         let input = b"data/dir1234.foo/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
         let expected = b"dh/dir1234_/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.if2e9ce59e095eff5f8f334dc809e65606a0aa50b.i";
-        let res = path_encode(input);
+        let res = path_encode(input, PathEncoding::DotEncode);
         assert_eq!(
             HgPathBuf::from_bytes(&res),
             HgPathBuf::from_bytes(expected)
@@ -628,7 +646,7 @@ mod tests {
     fn test_long_filename_at_root() {
         let input = b"data/ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ.i";
         let expected = b"dh/abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij.i708243a2237a7afae259ea3545a72a2ef11c247b.i";
-        let res = path_encode(input);
+        let res = path_encode(input, PathEncoding::DotEncode);
         assert_eq!(
             HgPathBuf::from_bytes(&res),
             HgPathBuf::from_bytes(expected)
