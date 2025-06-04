@@ -91,7 +91,7 @@ phases
     Include phase information relevant to the bundled changesets.
 
 revbranchcache
-    Include the "tags-fnodes" cache inside the bundle.
+    Include the "rev-branch" cache inside the bundle.
 
 tagsfnodescache
     Include the "tags-fnodes" cache inside the bundle.
