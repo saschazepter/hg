@@ -33,16 +33,16 @@ Check that copies are recorded correctly
   $ cd repo
 #if sidedata
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
-  format-variant     repo config default
-  copies-sdc:         yes    yes      no
-  revlog-v2:           no     no      no
-  changelog-v2:       yes    yes      no
+  format-variant                 repo config default
+  copies-sdc:                     yes    yes      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                   yes    yes      no
 #else
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
-  format-variant     repo config default
-  copies-sdc:          no     no      no
-  revlog-v2:           no     no      no
-  changelog-v2:        no     no      no
+  format-variant                 repo config default
+  copies-sdc:                      no     no      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                    no     no      no
 #endif
   $ echo a > a
   $ hg add a
@@ -420,10 +420,10 @@ Test upgrading/downgrading to sidedata storage
 downgrading
 
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
-  format-variant     repo config default
-  copies-sdc:         yes    yes      no
-  revlog-v2:           no     no      no
-  changelog-v2:       yes    yes      no
+  format-variant                 repo config default
+  copies-sdc:                     yes    yes      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                   yes    yes      no
   $ hg debugsidedata -c -- 0
   1 sidedata entries
    entry-0014 size 14
@@ -446,10 +446,10 @@ downgrading
     - changelog
   
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
-  format-variant     repo config default
-  copies-sdc:          no     no      no
-  revlog-v2:           no     no      no
-  changelog-v2:        no     no      no
+  format-variant                 repo config default
+  copies-sdc:                      no     no      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                    no     no      no
   $ hg debugsidedata -c -- 0
   $ hg debugsidedata -c -- 1
   $ hg debugsidedata -m -- 0
@@ -471,10 +471,10 @@ upgrading
     - changelog
   
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
-  format-variant     repo config default
-  copies-sdc:         yes    yes      no
-  revlog-v2:           no     no      no
-  changelog-v2:       yes    yes      no
+  format-variant                 repo config default
+  copies-sdc:                     yes    yes      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                   yes    yes      no
   $ hg debugsidedata -c -- 0
   1 sidedata entries
    entry-0014 size 14

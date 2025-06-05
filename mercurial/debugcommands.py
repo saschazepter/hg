@@ -1641,7 +1641,9 @@ def debugformat(ui, repo, *patterns, **opts):
     pattern will be displayed.
     """
     maxvariantlength = max(len(fv.name) for fv in upgrade.allformatvariant)
-    maxvariantlength = max(len(b'format-variant'), maxvariantlength)
+    # introducing longer name bump all output, so lets pick a largish value so
+    # that we don't have thproblem for a while.
+    maxvariantlength = max(30, maxvariantlength)
 
     def makeformatname(name):
         return b'%s:' + (b' ' * (maxvariantlength - len(name)))

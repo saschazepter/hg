@@ -74,8 +74,8 @@ Unlock further check (we are here to test the feature)
 #endif
 
   $ hg debugformat persistent-nodemap
-  format-variant     repo
-  persistent-nodemap: yes
+  format-variant                 repo
+  persistent-nodemap:             yes
   $ hg debugbuilddag .+5000 --new-file
 
   $ hg debugnodemap --metadata
@@ -610,13 +610,13 @@ read/write patterns.
   updating working directory
   5001 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugformat -R ./race-repo share-safe persistent-nodemap
-  format-variant     repo
-  share-safe:         yes
-  persistent-nodemap: yes
+  format-variant                 repo
+  share-safe:                     yes
+  persistent-nodemap:             yes
   $ hg debugformat -R ./other-wc/ share-safe persistent-nodemap
-  format-variant     repo
-  share-safe:         yes
-  persistent-nodemap: yes
+  format-variant                 repo
+  share-safe:                     yes
+  persistent-nodemap:             yes
   $ hg -R ./other-wc update 'min(head())'
   3 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg -R ./race-repo debugnodemap --metadata
@@ -784,8 +784,8 @@ downgrading
   > use-persistent-nodemap=no
   > EOF
   $ hg debugformat -v persistent-nodemap
-  format-variant     repo config default
-  persistent-nodemap: yes     no      no
+  format-variant                 repo config default
+  persistent-nodemap:             yes     no      no
   $ hg debugupgraderepo --run --no-backup --quiet
   upgrade will perform the following actions:
   
@@ -812,8 +812,8 @@ upgrading
   > use-persistent-nodemap=yes
   > EOF
   $ hg debugformat -v persistent-nodemap
-  format-variant     repo config default
-  persistent-nodemap:  no    yes      no
+  format-variant                 repo config default
+  persistent-nodemap:              no    yes      no
   $ hg debugupgraderepo --run --no-backup --quiet
   upgrade will perform the following actions:
   
@@ -885,7 +885,7 @@ The persistent nodemap should exist after a normal clone
 
   $ hg clone --pull --quiet -U test-repo standard-clone
   $ hg debugformat -R standard-clone | grep persistent-nodemap
-  persistent-nodemap: yes
+  persistent-nodemap:             yes
   $ ls -1 standard-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
@@ -907,7 +907,7 @@ If persistent normal is requested to not be here, it should not exist after a no
   $ hg clone --pull --quiet -U test-repo standard-clone-no-nm \
   >     --config format.use-persistent-nodemap=no
   $ hg debugformat -R standard-clone-no-nm | grep persistent-nodemap
-  persistent-nodemap:  no
+  persistent-nodemap:              no
   $ ls -1 standard-clone-no-nm/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   [1]
   $ hg -R standard-clone-no-nm debugnodemap --metadata
@@ -920,7 +920,7 @@ The persistent nodemap should exist after a streaming clone
 
   $ hg clone -U test-repo local-clone
   $ hg debugformat -R local-clone | grep persistent-nodemap
-  persistent-nodemap: yes
+  persistent-nodemap:             yes
   $ ls -1 local-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
@@ -939,7 +939,7 @@ stream clone
 
   $ hg clone -U  --stream ssh://user@dummy/test-repo stream-clone --quiet
   $ hg debugformat -R stream-clone | grep persistent-nodemap
-  persistent-nodemap: yes
+  persistent-nodemap:             yes
   $ ls -1 stream-clone/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   00changelog-*.nd (glob)
   00changelog.n
@@ -967,7 +967,7 @@ This helps client without supports for persistent nodemap.
   >     --config revlog.persistent-nodemap.slow-path=no \
   >     --quiet
   $ hg debugformat -R stream-clone-no-nm | grep persistent-nodemap
-  persistent-nodemap:  no
+  persistent-nodemap:              no
   $ ls -1 stream-clone-no-nm/.hg/store/ | grep -E '00(changelog|manifest)(\.n|-.*\.nd)'
   [1]
   $ hg -R stream-clone-no-nm debugnodemap --metadata

@@ -346,12 +346,12 @@ Check that (safe) share can control wc-specific format variant at creation time
 
   $ hg init repo-safe-d1 --config format.use-share-safe=yes --config format.exp-rc-dirstate-v2=no
   $ hg debugformat -R repo-safe-d1 dirstate-v2
-  format-variant     repo
-  dirstate-v2:         no
+  format-variant                 repo
+  dirstate-v2:                     no
 
   $ hg share repo-safe-d1 share-safe-d2 --config format.use-share-safe=yes --config format.exp-rc-dirstate-v2=yes
   updating working directory
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugformat  -R share-safe-d2 dirstate-v2
-  format-variant     repo
-  dirstate-v2:        yes
+  format-variant                 repo
+  dirstate-v2:                    yes

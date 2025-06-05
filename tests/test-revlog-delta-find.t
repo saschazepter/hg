@@ -335,8 +335,8 @@ Even if requested to be used, some of the delta in the revlog cannot be stored o
   >    --config format.sparse-revlog=no \
   >    local-forced-full-p1-no-gd
   $ hg debugformat -R local-forced-full-p1-no-gd generaldelta
-  format-variant     repo
-  generaldelta:        no
+  format-variant                 repo
+  generaldelta:                    no
   $ hg -R local-forced-full-p1-no-gd pull --quiet local-pre-pull-full \
   >    --config debug.revlog.debug-delta=no
   $ hg -R local-forced-full-p1-no-gd pull --quiet \

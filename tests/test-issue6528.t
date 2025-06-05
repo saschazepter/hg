@@ -620,8 +620,8 @@ Upgrading to explicit meta flags
   $ hg init upgrade-to-has-meta --config format.exp-use-hasmeta-flag=no
   $ cd upgrade-to-has-meta
   $ hg debugformat hasmeta_flag
-  format-variant     repo
-  hasmeta_flag:        no
+  format-variant                 repo
+  hasmeta_flag:                    no
 
   $ hg unbundle "$TESTDIR"/bundles/issue6528.hg-v2 --config storage.revlog.issue6528.fix-incoming=no
   adding changesets
@@ -680,8 +680,8 @@ Upgrading to a revlog format with explicit meta flag tracking
     - all-filelogs
   
   $ hg debugformat hasmeta_flag
-  format-variant     repo
-  hasmeta_flag:       yes
+  format-variant                 repo
+  hasmeta_flag:                   yes
 
 
   $ hg debugrevlogindex a.txt --format 1
@@ -731,8 +731,8 @@ Downgrading does not regress
     - all-filelogs
   
   $ hg debugformat hasmeta_flag
-  format-variant     repo
-  hasmeta_flag:        no
+  format-variant                 repo
+  hasmeta_flag:                    no
 
   $ hg debugrevlogindex a.txt --format 1
      rev flag     size   link     p1     p2       nodeid
