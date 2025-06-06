@@ -1,4 +1,4 @@
-FROM debian:wheezy
+FROM debian:buster
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV WSGI_PROCESSES 4
@@ -8,11 +8,12 @@ ENV WSGI_MAX_REQUESTS 100000
 EXPOSE 80
 VOLUME ["/var/hg/htdocs", "/var/hg/repos"]
 
-RUN apt-get update && apt-get -y install libapache2-mod-wsgi python-dev vim
+RUN apt-get update && \
+    apt-get -y install build-essential apache2 libapache2-mod-wsgi python-dev less vim
 
 # Install our own Apache site.
 RUN a2dissite 000-default
-ADD vhost.conf /etc/apache2/sites-available/hg
+ADD vhost.conf /etc/apache2/sites-available/hg.conf
 RUN a2ensite hg
 
 ADD hgwebconfig /defaulthgwebconfig
