@@ -123,7 +123,7 @@ mod_wsgi Configuration Settings
 -------------------------------
 
 mod_wsgi settings can be controlled with the following environment
-variables.
+variables (defined in ``Dockerfile`` and used in ``vhost.conf``).
 
 WSGI_PROCESSES
    Number of WSGI processes to run.
