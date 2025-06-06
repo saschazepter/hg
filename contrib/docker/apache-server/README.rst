@@ -133,7 +133,7 @@ WSGI_MAX_REQUESTS
    Maximum number of requests each WSGI process may serve before it is
    reaped.
 
-See https://code.google.com/p/modwsgi/wiki/ConfigurationDirectives#WSGIDaemonProcess
+See https://modwsgi.readthedocs.io/en/master/configuration-directives/WSGIDaemonProcess.html
 for more on these settings.
 
 .. note::
