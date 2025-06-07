@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:bookworm
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV WSGI_PROCESSES 4
@@ -9,7 +9,7 @@ EXPOSE 80
 VOLUME ["/var/hg/htdocs", "/var/hg/repos"]
 
 RUN apt-get update && \
-    apt-get -y install build-essential apache2 libapache2-mod-wsgi python-dev less vim
+    apt-get -y install build-essential apache2 libapache2-mod-wsgi-py3 python3-dev less vim
 
 # Install our own Apache site.
 RUN a2dissite 000-default

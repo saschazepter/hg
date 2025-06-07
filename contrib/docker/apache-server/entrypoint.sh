@@ -28,7 +28,7 @@ fi
 
 echo "Installing Mercurial from ${SOURCE_DIR} into ${INSTALL_DIR}"
 pushd ${SOURCE_DIR}
-/usr/bin/python2.7 setup.py install --root=/ --prefix=${INSTALL_DIR} --force
+/usr/bin/python3.11 setup.py install --root=/ --prefix=${INSTALL_DIR} --force
 popd
 
 mkdir -p ${HTDOCS_DIR}
@@ -40,10 +40,10 @@ fi
 
 if [ ! -f ${HTDOCS_DIR}/hgweb.wsgi ]; then
   cat >> ${HTDOCS_DIR}/hgweb.wsgi << EOF
-config = '${HTDOCS_DIR}/config'
+config = b'${HTDOCS_DIR}/config'
 
 import sys
-sys.path.insert(0, '${INSTALL_DIR}/lib/python2.7/site-packages')
+sys.path.insert(0, '${INSTALL_DIR}/lib/python3.11/site-packages')
 
 from mercurial import demandimport
 demandimport.enable()
