@@ -108,7 +108,7 @@ WORKING_DIR_REQUIREMENTS = {
 # List of requirement that do not impact "stream-clone" (and hardlink clone) and
 # can be ignored in such case.
 #
-# requirements not in this list safe to be altered during stream-clone.
+# requirements in this list can be safely altered during stream-clone.
 STREAM_IGNORABLE_REQUIREMENTS = WORKING_DIR_REQUIREMENTS | {
     DOTENCODE_REQUIREMENT,  # abstracted by the vfs layer
     FNCACHE_REQUIREMENT,  # abstracted by the vfs layer
