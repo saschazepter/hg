@@ -9,7 +9,8 @@ EXPOSE 80
 VOLUME ["/var/hg/htdocs", "/var/hg/repos"]
 
 RUN apt-get update && \
-    apt-get -y install build-essential apache2 libapache2-mod-wsgi-py3 python3-dev less vim
+    apt-get -y install build-essential apache2 libapache2-mod-wsgi-py3 python3-dev less vim && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install our own Apache site.
 RUN a2dissite 000-default
