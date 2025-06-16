@@ -28,7 +28,7 @@ Running the Server
 
 To run the container, you'll execute something like::
 
-  $ docker run --rm -it -v `pwd`/../../..:/var/hg/source -p 8000:80 hg-apache
+  $ docker run --rm -it -p 8000:80 hg-apache
 
 If you aren't a Docker expert:
 
@@ -36,27 +36,13 @@ If you aren't a Docker expert:
   your system)
 * ``-i`` will launch the container in interactive mode so stdin is attached
 * ``-t`` will allocate a pseudo TTY
-* ``-v src:dst`` will mount the host filesystem at ``src`` into ``dst``
-  in the container. In our example, we assume you are running from this
-  directory and use the source code a few directories up.
 * ``-p 8000:80`` will publish port ``80`` on the container to port ``8000``
   on the host, allowing you to access the HTTP server on the host interface.
 * ``hg-apache`` is the container image to run. This should correspond to what
   we build with ``docker build``.
 
-.. important::
-
-   The container **requires** that ``/var/hg/source`` contain the Mercurial
-   source code.
-
-   Upon start, the container will attempt an install of the source in that
-   directory. If the architecture of the host machine doesn't match that of
-   the Docker host (e.g. when running Boot2Docker under OS X), Mercurial's
-   Python C extensions will fail to run. Be sure to ``make clean`` your
-   host's source tree before mounting it in the container to avoid this.
-
 When starting the container, you should see some start-up actions (including
-a Mercurial install) and some output saying Apache has started::
+a Mercurial install) and some output saying Apache has started.
 
 Now if you load ``http://localhost:8000/`` (or whatever interface Docker
 is using), you should see hgweb running!

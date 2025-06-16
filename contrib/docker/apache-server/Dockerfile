@@ -3,7 +3,7 @@ FROM debian:bookworm
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
-ENV SOURCE_DIR=/var/hg/source
+ARG PIP_HG_VERSION=7.0.2
 ENV INSTALL_DIR=/var/hg/install
 ENV REPOS_DIR=/var/hg/repos
 ENV HTDOCS_DIR=/var/hg/htdocs
@@ -15,8 +15,11 @@ EXPOSE 80
 VOLUME ["${HTDOCS_DIR}", "${REPOS_DIR}"]
 
 RUN apt-get update && \
-    apt-get -y install build-essential apache2 libapache2-mod-wsgi-py3 python3-dev less vim-tiny && \
+    apt-get -y --no-install-recommends install apache2 libapache2-mod-wsgi-py3 python3-venv less vim-tiny && \
     rm -rf /var/lib/apt/lists/*
+
+RUN /usr/bin/python3.11 -m venv "${INSTALL_DIR}" && \
+    "${INSTALL_DIR}"/bin/python -m pip install "mercurial==${PIP_HG_VERSION}"
 
 # Install our own Apache site.
 RUN a2dissite 000-default

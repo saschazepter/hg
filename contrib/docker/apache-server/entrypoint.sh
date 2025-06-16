@@ -3,28 +3,10 @@
 # This script gets executed on container start. Its job is to set up
 # the Mercurial environment and invoke the server.
 
-# Mercurial can be started in two modes.
-# If the MERCURIAL_SOURCE environment variable is set and it points to a
-# Mercurial source directory, we will install Mercurial from that directory.
-# Otherwise, we download the Mercurial source and install it manually.
+# Currently it can install any Mercurial release that has binary packages
+# (wheels) available on PyPI.
 
 set -e
-
-if [ ! -d ${SOURCE_DIR} ]; then
-  echo "Mercurial source not available at ${SOURCE_DIR}"
-  echo "You need to mount a volume containing the Mercurial source code"
-  echo "when running the container. For example:"
-  echo ""
-  echo "  $ docker run -v ~/src/hg:/${SOURCE_DIR} hg-apache"
-  echo ""
-  echo "This container will now stop running."
-  exit 1
-fi
-
-echo "Installing Mercurial from ${SOURCE_DIR} into ${INSTALL_DIR}"
-pushd ${SOURCE_DIR}
-/usr/bin/python3.11 setup.py install --root=/ --prefix=${INSTALL_DIR} --force
-popd
 
 # Provide a default config if the user hasn't supplied one.
 if [ ! -f ${HTDOCS_DIR}/config ]; then
