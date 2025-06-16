@@ -16,12 +16,12 @@ RUN apt-get update && \
 
 # Install our own Apache site.
 RUN a2dissite 000-default
-ADD vhost.conf /etc/apache2/sites-available/hg.conf
+COPY vhost.conf /etc/apache2/sites-available/hg.conf
 RUN a2ensite hg
 
-ADD hgwebconfig /defaulthgwebconfig
+COPY hgwebconfig /defaulthgwebconfig
 
-ADD entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
 CMD ["/usr/sbin/apache2", "-DFOREGROUND"]
