@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from typing import Dict, List, Optional
+
 from .. import error
 
 ### Nearest subset relation
@@ -16,7 +18,7 @@ from .. import error
 # * X - Y is as small as possible.
 # This create and ordering used for branchmap purpose.
 # the ordering may be partial
-subsettable = {
+subsettable: Dict[Optional[bytes], bytes] = {
     None: b'visible',
     b'visible-hidden': b'visible',
     b'visible': b'served',
@@ -26,8 +28,11 @@ subsettable = {
 }
 
 
-def get_ordered_subset():
-    """return a list of subset name from dependencies to dependents"""
+def get_ordered_subset() -> List[Optional[bytes]]:
+    """return a list of subset name from dependencies to dependents
+
+    Unfiltered is represented using `None` as the subset "name" value.
+    """
     _unfinalized = set(subsettable.values())
     ordered = []
 
