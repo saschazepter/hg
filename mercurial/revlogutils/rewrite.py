@@ -499,15 +499,6 @@ def _get_filename_from_filelog_index(path):
     return path_part[1]
 
 
-def _filelog_from_filename(repo, path):
-    """Returns the filelog for the given `path`. Stolen from `engine.py`"""
-
-    from .. import filelog  # avoid cycle
-
-    fl = filelog.filelog(repo.svfs, path)
-    return fl
-
-
 def _write_swapped_parents(repo, rl, rev, offset, fp):
     """Swaps p1 and p2 and overwrites the revlog entry for `rev` in `fp`"""
     from ..pure import parsers  # avoid cycle
@@ -730,7 +721,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
             if not line:
                 continue
             filenodes, filename = line.split(b' ', 1)
-            fl = _filelog_from_filename(repo, filename)
+            fl = repo.file(filename)
             to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
             }
@@ -843,7 +834,7 @@ def repair_issue6528(
         for entry in files:
             progress.increment()
             filename = entry.target_id
-            fl = _filelog_from_filename(repo, entry.target_id)
+            fl = repo.file(entry.target_id)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
