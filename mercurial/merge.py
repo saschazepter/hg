@@ -1820,6 +1820,8 @@ def applyupdates(
 
     extraactions = ms.actions()
 
+    getfiledata = filter_ambiguous_files(repo, getfiledata)
+
     progress.complete()
     return (
         updateresult(updated, merged, removed, unresolved),
@@ -2284,9 +2286,6 @@ def _update(
                 mresult.len((mergestatemod.ACTION_GET,)) if wantfiledata else 0
             )
             with repo.dirstate.changing_parents(repo):
-                if getfiledata:
-                    getfiledata = filter_ambiguous_files(repo, getfiledata)
-
                 repo.setparents(fp1, fp2)
                 mergestatemod.recordupdates(
                     repo, mresult.actionsdict, branchmerge, getfiledata
@@ -2315,7 +2314,7 @@ def _update(
 FileData = Dict[bytes, Optional[Tuple[int, int, Optional[timestamp.timestamp]]]]
 
 
-def filter_ambiguous_files(repo, file_data: FileData) -> Optional[FileData]:
+def filter_ambiguous_files(repo, file_data: FileData) -> FileData:
     """We've gathered "cache" information for the clean files while updating
     them: their mtime, size and mode.
 
@@ -2403,9 +2402,8 @@ def filter_ambiguous_files(repo, file_data: FileData) -> Optional[FileData]:
 
     if fs_now_result is None:
         # we can't write to the FS, so we won't actually update
-        # the dirstate content anyway, no need to put cache
-        # information.
-        return None
+        # the dirstate content anyway, let another operation fail later.
+        return file_data
     else:
         now, timed_out = fs_now_result
         if timed_out:
