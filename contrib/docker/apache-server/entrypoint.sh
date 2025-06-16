@@ -10,11 +10,6 @@
 
 set -e
 
-SOURCE_DIR=/var/hg/source
-INSTALL_DIR=/var/hg/install
-REPOS_DIR=/var/hg/repos
-HTDOCS_DIR=/var/hg/htdocs
-
 if [ ! -d ${SOURCE_DIR} ]; then
   echo "Mercurial source not available at ${SOURCE_DIR}"
   echo "You need to mount a volume containing the Mercurial source code"
@@ -30,8 +25,6 @@ echo "Installing Mercurial from ${SOURCE_DIR} into ${INSTALL_DIR}"
 pushd ${SOURCE_DIR}
 /usr/bin/python3.11 setup.py install --root=/ --prefix=${INSTALL_DIR} --force
 popd
-
-mkdir -p ${HTDOCS_DIR}
 
 # Provide a default config if the user hasn't supplied one.
 if [ ! -f ${HTDOCS_DIR}/config ]; then
@@ -52,8 +45,6 @@ from mercurial.hgweb import hgweb
 application = hgweb(config)
 EOF
 fi
-
-mkdir -p ${REPOS_DIR}
 
 if [ ! -d ${REPOS_DIR}/repo ]; then
   ${INSTALL_DIR}/bin/hg init ${REPOS_DIR}/repo
