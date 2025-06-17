@@ -28,10 +28,12 @@ Running the Server
 
 To run the container, you'll execute something like::
 
-  $ docker run --rm -it -p 8000:80 hg-apache
+  $ docker run --init --rm -it -p 8000:80 hg-apache
 
 If you aren't a Docker expert:
 
+* ``--init`` will run an init inside the container so we can run multiple
+  processes at once (i.e. both Apache HTTP Server and Anubis)
 * ``--rm`` will remove the container when it stops (so it doesn't clutter
   your system)
 * ``-i`` will launch the container in interactive mode so stdin is attached

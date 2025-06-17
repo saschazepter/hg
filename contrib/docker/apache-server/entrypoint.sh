@@ -28,6 +28,13 @@ application = hgweb(config)
 EOF
 fi
 
+if [ ! -f /etc/anubis/hgweb.env ]; then
+  cat >> /etc/anubis/hgweb.env << EOF
+BIND=[::1]:8923
+TARGET=http://[::1]:3001
+EOF
+fi
+
 if [ ! -d ${REPOS_DIR}/repo ]; then
   ${INSTALL_DIR}/bin/hg init ${REPOS_DIR}/repo
   chown -R www-data:www-data ${REPOS_DIR}/repo

@@ -29,6 +29,10 @@ RUN apt-get install /tmp/anubis_${ANUBIS_VERSION}_amd64.deb && \
 RUN /usr/bin/python3.11 -m venv "${INSTALL_DIR}" && \
     "${INSTALL_DIR}"/bin/python -m pip install "mercurial==${PIP_HG_VERSION}"
 
+# Enable the extra Apache mods that we need.
+RUN a2enmod headers
+RUN a2enmod proxy_http
+
 # Install our own Apache site.
 RUN a2dissite 000-default
 COPY vhost.conf /etc/apache2/sites-available/hg.conf
