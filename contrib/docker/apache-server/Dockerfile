@@ -31,5 +31,7 @@ COPY hgwebconfig /var/hg/defaulthgwebconfig
 COPY --chmod=0700 entrypoint.sh /var/hg/entrypoint.sh
 ENTRYPOINT ["/var/hg/entrypoint.sh"]
 
+COPY --chmod=0700 cmd.sh /var/hg/cmd.sh
+CMD ["/var/hg/cmd.sh"]
+
 WORKDIR /var/hg/
-CMD ["/usr/sbin/apache2", "-DFOREGROUND"]

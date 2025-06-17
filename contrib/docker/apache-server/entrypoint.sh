@@ -44,10 +44,4 @@ fi
 echo "Verifying Mercurial installation looks happy"
 ${INSTALL_DIR}/bin/hg debuginstall
 
-. /etc/apache2/envvars
-
-echo "Starting Apache HTTP Server on port 80"
-echo "We hope you remembered to publish this port when running the container!"
-echo "If this is an interactive container, simply CTRL^C to stop."
-
 exec "$@"
