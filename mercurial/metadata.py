@@ -14,10 +14,12 @@ import struct
 from .node import nullrev
 from . import (
     error,
+    requirements as requirementsmod,
     util,
 )
 
 from .revlogutils import (
+    constants as revlog_constants,
     flagutil as sidedataflag,
     sidedata as sidedatamod,
 )
@@ -904,3 +906,15 @@ def _get_worker_sidedata_adder(srcrepo, destrepo):
         return sidedata, (new_flag, 0)
 
     return sidedata_companion
+
+
+def set_sidedata_spec_for_repo(repo):
+    if requirementsmod.COPIESSDC_REQUIREMENT in repo.requirements:
+        repo.register_wanted_sidedata(sidedatamod.SD_FILES)
+    repo.register_sidedata_computer(
+        revlog_constants.KIND_CHANGELOG,
+        sidedatamod.SD_FILES,
+        (sidedatamod.SD_FILES,),
+        copies_sidedata_computer,
+        sidedataflag.REVIDX_HASCOPIESINFO,
+    )
