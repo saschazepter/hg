@@ -10,7 +10,7 @@ set -e
 
 # Provide a default config if the user hasn't supplied one.
 if [ ! -f ${HTDOCS_DIR}/config ]; then
-  install -m 0644 /defaulthgwebconfig ${HTDOCS_DIR}/config
+  install -m 0644 /var/hg/defaulthgwebconfig ${HTDOCS_DIR}/config
 fi
 
 if [ ! -f ${HTDOCS_DIR}/hgweb.wsgi ]; then

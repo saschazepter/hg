@@ -26,9 +26,10 @@ RUN a2dissite 000-default
 COPY vhost.conf /etc/apache2/sites-available/hg.conf
 RUN a2ensite hg
 
-COPY hgwebconfig /defaulthgwebconfig
+COPY hgwebconfig /var/hg/defaulthgwebconfig
 
-COPY entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+COPY --chmod=0700 entrypoint.sh /var/hg/entrypoint.sh
+ENTRYPOINT ["/var/hg/entrypoint.sh"]
 
+WORKDIR /var/hg/
 CMD ["/usr/sbin/apache2", "-DFOREGROUND"]
