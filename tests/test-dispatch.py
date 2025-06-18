@@ -1,6 +1,6 @@
 import os
 import sys
-from mercurial import dispatch
+from mercurial import dispatch, main_script
 
 
 def printb(data, end=b'\n'):
@@ -15,7 +15,7 @@ def testdispatch(cmd):
     Prints command and result value, but does not handle quoting.
     """
     printb(b"running: %s" % (cmd,))
-    req = dispatch.request(cmd.split())
+    req = main_script.request(cmd.split())
     result = dispatch.dispatch(req)
     printb(b"result: %r" % (result,))
 

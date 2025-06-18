@@ -49,57 +49,6 @@ from .utils import (
 )
 
 
-class request:
-    def __init__(
-        self,
-        args,
-        ui=None,
-        repo=None,
-        fin=None,
-        fout=None,
-        ferr=None,
-        fmsg=None,
-        prereposetups=None,
-    ):
-        self.args = args
-        self.ui = ui
-        self.repo = repo
-
-        # input/output/error streams
-        self.fin = fin
-        self.fout = fout
-        self.ferr = ferr
-        # separate stream for status/error messages
-        self.fmsg = fmsg
-
-        # remember options pre-parsed by _earlyparseopts()
-        self.earlyoptions = {}
-
-        # reposetups which run before extensions, useful for chg to pre-fill
-        # low-level repo state (for example, changelog) before extensions.
-        self.prereposetups = prereposetups or []
-
-        # store the parsed and canonical command
-        self.canonical_command = None
-
-    def _runexithandlers(self) -> None:
-        exc = None
-        handlers = self.ui._exithandlers
-        try:
-            while handlers:
-                func, args, kwargs = handlers.pop()
-                try:
-                    func(*args, **kwargs)
-                except:  # re-raises below
-                    if exc is None:
-                        exc = sys.exc_info()[1]
-                    self.ui.warnnoi18n(b'error in exit handlers:\n')
-                    self.ui.traceback(force=True)
-        finally:
-            if exc is not None:
-                raise exc
-
-
 def _flushstdio(ui, err):
     status = None
     # In all cases we try to flush stdio streams.
@@ -134,7 +83,7 @@ def run():
     try:
         initstdio()
         with tracing.log('parse args into request'):
-            req = request(pycompat.sysargv[1:])
+            req = main_script.request(pycompat.sysargv[1:])
 
         status = dispatch(req)
         _silencestdio()

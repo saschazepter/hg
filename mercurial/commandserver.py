@@ -21,6 +21,7 @@ from . import (
     encoding,
     error,
     loggingutil,
+    main_script,
     pycompat,
     repocache,
     util,
@@ -310,8 +311,6 @@ class server:
     def runcommand(self):
         """reads a list of \0 terminated arguments, executes
         and writes the return code to the result channel"""
-        from . import dispatch  # avoid cycle
-
         args = self._readlist()
 
         # copy the uis so changes (e.g. --config or --verbose) don't
@@ -335,7 +334,7 @@ class server:
             if not hasattr(self.cin, 'fileno'):
                 ui.setconfig(b'ui', b'nontty', b'true', b'commandserver')
 
-        req = dispatch.request(
+        req = main_script.request(
             args[:],
             copiedui,
             self.repo,

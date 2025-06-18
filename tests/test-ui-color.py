@@ -1,6 +1,7 @@
 import os
 from mercurial import (
     dispatch,
+    main_script,
     ui as uimod,
 )
 from mercurial.utils import stringutil
@@ -29,7 +30,7 @@ ui_.fout = open(os.devnull, 'wb')
 # call some arbitrary command just so we go through
 # color's wrapped _runcommand twice.
 def runcmd():
-    dispatch.dispatch(dispatch.request([b'version', b'-q'], ui_))
+    dispatch.dispatch(main_script.request([b'version', b'-q'], ui_))
 
 
 runcmd()

@@ -34,7 +34,6 @@ will likely receive warnings about a direct import.
   mercurial/cmdutil.py:*: function level import: mercurial.hg (glob)
   mercurial/color.py:*: function level import: mercurial.win32 (glob)
   mercurial/commandserver.py:*: function level import: mercurial.dispatch (glob)
-  mercurial/commandserver.py:*: function level import: mercurial.dispatch (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.fileset (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.cext.base85 (glob)
