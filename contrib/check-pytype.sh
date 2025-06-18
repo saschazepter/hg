@@ -6,6 +6,13 @@ set -o pipefail
 
 cd "$(hg root)"
 
+if [[ $# -ge 1 ]] && [[ "$1" == "--import-graph" ]]; then
+    importlab --trim --tree mercurial hgext hgext3rd hgdemandimport \
+        | ./contrib/import-lab-tree-color.sh
+    exit 0
+fi
+
+
 printf "pytype version: "
 pytype --version
 

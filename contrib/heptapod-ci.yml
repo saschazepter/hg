@@ -506,7 +506,7 @@ check-pytype:
       - cp -r pytype-cache/ .pytype
     script:
       - bash contrib/adjust-pytype-cache.sh
-      - importlab --trim --tree mercurial hgext hgext3rd hgdemandimport | contrib/import-lab-tree-color.sh
+      - bash contrib/check-pytype.sh --import-graph
       - bash contrib/check-pytype.sh
       - hg log -r . -T "{node}" > .pytype/CACHE_COMMIT
       # to work around the lack of VARIABLE support in cache policy
