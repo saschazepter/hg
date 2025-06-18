@@ -80,6 +80,15 @@ if ! command -v ts; then
     }
 fi
 
+# __version__.py is regenerated anytime we run the tests, and ⅔ of the file in
+# the repository indirectly rely on it. So we move its modification date back
+# into oblivion to let the cache do its job.
+#
+# This is not expected to be a problem as the file structure is very simple and
+# very seldomly changes. (Hi, to anyone reading that comment because this
+# eventually created problem)
+touch --no-create --date '1970-01-01 00:00:00' mercurial/__version__.py
+
 pytype --keep-going --jobs auto \
     doc/check-seclevel.py hgdemandimport hgext mercurial \
     -x hgext/absorb.py \
