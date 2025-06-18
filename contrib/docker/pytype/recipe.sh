@@ -27,7 +27,7 @@ if groups | egrep -q '\<(docker|root)\>' ; then
         -v "$HG_ROOT:/tmp/mercurial-ci" \
         -w "/tmp/mercurial-ci" \
         "$HG_CI_REG/hg-core-pytype:$HG_CI_IMAGE_TAG" \
-        ./contrib/check-pytype.sh
+        ./contrib/check-pytype.sh $1
 else
     echo "user not in the docker group" >&2
     echo "(consider running this with \`sudo\`)" >&2

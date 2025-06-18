@@ -300,3 +300,7 @@ pyoxidizer-macos-tests: pyoxidizer
 .PHONY: pytype-docker
 pytype-docker:
 	contrib/docker/pytype/recipe.sh
+
+.PHONY: pytype-graph-docker
+pytype-graph-docker:
+	contrib/docker/pytype/recipe.sh --import-graph
