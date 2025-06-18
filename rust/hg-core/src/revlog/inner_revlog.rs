@@ -854,9 +854,13 @@ impl InnerRevlog {
                     f
                 }
                 Err(e) => match e {
-                    HgError::IoError { error, context } => {
+                    HgError::IoError { error, context, backtrace } => {
                         if error.kind() != ErrorKind::NotFound {
-                            return Err(HgError::IoError { error, context });
+                            return Err(HgError::IoError {
+                                error,
+                                context,
+                                backtrace,
+                            });
                         }
                         self.vfs.create(&self.data_file, true)?
                     }
@@ -924,9 +928,13 @@ impl InnerRevlog {
                 })
             }
             Err(e) => match e {
-                HgError::IoError { error, context } => {
+                HgError::IoError { error, context, backtrace } => {
                     if error.kind() != ErrorKind::NotFound {
-                        return Err(HgError::IoError { error, context });
+                        return Err(HgError::IoError {
+                            error,
+                            context,
+                            backtrace,
+                        });
                     };
                     if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
                         FileHandle::new_delayed(

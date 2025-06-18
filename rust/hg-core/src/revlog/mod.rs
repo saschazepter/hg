@@ -37,6 +37,7 @@ use std::ops::Deref;
 use std::path::Path;
 
 use self::nodemap_docket::NodeMapDocket;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
@@ -647,10 +648,18 @@ pub fn open_index(
             buf.unwrap()
         }
         Err(err) => match err {
-            HgError::IoError { error, context } => match error.kind() {
-                ErrorKind::NotFound => Box::<Vec<u8>>::default(),
-                _ => return Err(HgError::IoError { error, context }),
-            },
+            HgError::IoError { error, context, backtrace } => {
+                match error.kind() {
+                    ErrorKind::NotFound => Box::<Vec<u8>>::default(),
+                    _ => {
+                        return Err(HgError::IoError {
+                            error,
+                            context,
+                            backtrace,
+                        })
+                    }
+                }
+            }
             e => return Err(e),
         },
     };
@@ -815,7 +824,9 @@ impl<'revlog> RevlogEntry<'revlog> {
             Ok(())
         })?;
         if self.is_censored() {
-            return Err(HgError::CensoredNodeError.into());
+            return Err(
+                HgError::CensoredNodeError(HgBacktrace::capture()).into()
+            );
         }
         self.check_data(data.finish().into())
     }

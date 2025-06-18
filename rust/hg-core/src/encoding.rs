@@ -217,7 +217,7 @@ mod tests {
         assert_eq!(encoder.decode_internal(b"\xc3\xa9").unwrap(), "é");
         match encoder.decode_internal(b"A\xc3") {
             Ok(_) => panic!("expected an error"),
-            Err(HgError::CorruptedRepository(message)) => {
+            Err(HgError::CorruptedRepository(message, ..)) => {
                 assert_eq!(message, "invalid UTF-8 at offset 1: \"A\\xc3\"")
             }
             Err(_) => panic!("expected a CorruptedRepository error"),

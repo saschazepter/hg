@@ -325,8 +325,8 @@ where
             err @ HgError::IoError { .. } => {
                 PyIOError::new_err(err.to_string())
             }
-            HgError::UnsupportedFeature(e) => {
-                FallbackError::new_err(e.to_string())
+            err @ HgError::UnsupportedFeature(..) => {
+                FallbackError::new_err(err.to_string())
             }
             HgError::RaceDetected(_) => {
                 unreachable!("must not surface to the user")

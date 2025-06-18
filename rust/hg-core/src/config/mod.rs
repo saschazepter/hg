@@ -32,6 +32,7 @@ use self::config_items::DefaultConfig;
 use self::config_items::DefaultConfigItem;
 use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
@@ -91,6 +92,7 @@ pub struct ConfigValueParseErrorDetails {
     pub item: Vec<u8>,
     pub value: Vec<u8>,
     pub expected_type: &'static str,
+    pub backtrace: HgBacktrace,
 }
 
 // boxed to avoid very large Result types
@@ -413,6 +415,7 @@ impl Config {
                     section: section.to_owned(),
                     item: item.to_owned(),
                     expected_type,
+                    backtrace: HgBacktrace::capture(),
                 })
                 .into()),
             },

@@ -14,6 +14,7 @@ use im_rc::ordmap::OrdMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
 
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoErrorContext;
 
@@ -27,6 +28,7 @@ pub fn current_dir() -> Result<std::path::PathBuf, HgError> {
     std::env::current_dir().map_err(|error| HgError::IoError {
         error,
         context: IoErrorContext::CurrentDir,
+        backtrace: HgBacktrace::capture(),
     })
 }
 
@@ -34,6 +36,7 @@ pub fn current_exe() -> Result<std::path::PathBuf, HgError> {
     std::env::current_exe().map_err(|error| HgError::IoError {
         error,
         context: IoErrorContext::CurrentExe,
+        backtrace: HgBacktrace::capture(),
     })
 }
 

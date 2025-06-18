@@ -1,4 +1,7 @@
+use std::backtrace::Backtrace;
+use std::backtrace::BacktraceStatus;
 use std::fmt;
+use std::fmt::Write;
 
 use crate::config::ConfigValueParseError;
 use crate::exit_codes;
@@ -11,6 +14,7 @@ pub enum HgError {
     IoError {
         error: std::io::Error,
         context: IoErrorContext,
+        backtrace: HgBacktrace,
     },
 
     /// A file under `.hg/` normally only written by Mercurial is not in the
@@ -19,7 +23,7 @@ pub enum HgError {
     ///
     /// The given string is a short explanation for users, not intended to be
     /// machine-readable.
-    CorruptedRepository(String),
+    CorruptedRepository(String, HgBacktrace),
 
     /// The respository or requested operation involves a feature not
     /// supported by the Rust implementation. Falling back to the Python
@@ -27,7 +31,7 @@ pub enum HgError {
     ///
     /// The given string is a short explanation for users, not intended to be
     /// machine-readable.
-    UnsupportedFeature(String),
+    UnsupportedFeature(String, HgBacktrace),
 
     /// Operation cannot proceed for some other reason.
     ///
@@ -37,6 +41,7 @@ pub enum HgError {
         message: String,
         detailed_exit_code: exit_codes::ExitCode,
         hint: Option<String>,
+        backtrace: HgBacktrace,
     },
 
     /// A configuration value is not in the expected syntax.
@@ -48,7 +53,7 @@ pub enum HgError {
     ConfigValueParseError(ConfigValueParseError),
 
     /// Censored revision data.
-    CensoredNodeError,
+    CensoredNodeError(HgBacktrace),
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
@@ -84,14 +89,11 @@ pub enum IoErrorContext {
 
 impl HgError {
     pub fn corrupted(explanation: impl Into<String>) -> Self {
-        // TODO: capture a backtrace here and keep it in the error value
-        // to aid debugging?
-        // https://doc.rust-lang.org/std/backtrace/struct.Backtrace.html
-        HgError::CorruptedRepository(explanation.into())
+        HgError::CorruptedRepository(explanation.into(), HgBacktrace::capture())
     }
 
     pub fn unsupported(explanation: impl Into<String>) -> Self {
-        HgError::UnsupportedFeature(explanation.into())
+        HgError::UnsupportedFeature(explanation.into(), HgBacktrace::capture())
     }
 
     pub fn abort(
@@ -103,6 +105,7 @@ impl HgError {
             message: explanation.into(),
             detailed_exit_code: exit_code,
             hint,
+            backtrace: HgBacktrace::capture(),
         }
     }
 
@@ -111,6 +114,7 @@ impl HgError {
             message: explanation.into(),
             detailed_exit_code: exit_codes::ABORT,
             hint: None,
+            backtrace: HgBacktrace::capture(),
         }
     }
 }
@@ -119,18 +123,20 @@ impl HgError {
 impl fmt::Display for HgError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            HgError::Abort { message, .. } => write!(f, "{}", message),
-            HgError::IoError { error, context } => {
-                write!(f, "abort: {}: {}", context, error)
+            HgError::Abort { message, backtrace, .. } => {
+                write!(f, "{}{}", backtrace, message)
             }
-            HgError::CorruptedRepository(explanation) => {
-                write!(f, "abort: {}", explanation)
+            HgError::IoError { error, context, backtrace } => {
+                write!(f, "{}abort: {}: {}", backtrace, context, error)
             }
-            HgError::UnsupportedFeature(explanation) => {
-                write!(f, "unsupported feature: {}", explanation)
+            HgError::CorruptedRepository(explanation, backtrace) => {
+                write!(f, "{}abort: {}", backtrace, explanation)
             }
-            HgError::CensoredNodeError => {
-                write!(f, "encountered a censored node")
+            HgError::UnsupportedFeature(explanation, backtrace) => {
+                write!(f, "{}unsupported feature: {}", backtrace, explanation)
+            }
+            HgError::CensoredNodeError(backtrace) => {
+                write!(f, "{}encountered a censored node", backtrace)
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
             HgError::RaceDetected(context) => {
@@ -211,7 +217,11 @@ impl<T> IoResultExt<T> for std::io::Result<T> {
         self,
         context: impl FnOnce() -> IoErrorContext,
     ) -> Result<T, HgError> {
-        self.map_err(|error| HgError::IoError { error, context: context() })
+        self.map_err(|error| HgError::IoError {
+            error,
+            context: context(),
+            backtrace: HgBacktrace::capture(),
+        })
     }
 }
 
@@ -255,6 +265,77 @@ impl From<RevlogError> for HgError {
                 r
             )),
             RevlogError::Other(error) => error,
+        }
+    }
+}
+
+/// A simple wrapper around [`Backtrace`] that helps hide its display output
+/// when it's turned off. See [`HgBacktrace`]'s [`Display`] implementation
+/// for more info.
+#[derive(Debug)]
+pub struct HgBacktrace(Backtrace);
+
+impl HgBacktrace {
+    /// See [`Backtrace::capture`].
+    pub fn capture() -> Self {
+        Self(Backtrace::capture())
+    }
+
+    /// See [`Backtrace::force_capture`].
+    pub fn force_capture() -> Self {
+        Self(Backtrace::force_capture())
+    }
+
+    /// See [`Backtrace::disabled`].
+    pub const fn disabled() -> Self {
+        Self(Backtrace::disabled())
+    }
+
+    /// See [`Backtrace::status`].
+    pub fn status(&self) -> BacktraceStatus {
+        self.0.status()
+    }
+}
+
+impl std::fmt::Display for HgBacktrace {
+    /// [`Backtrace`] shows messages like `disabled backtrace` when disabled
+    /// or with a different status than
+    /// `[std::backtrace::BacktraceStatus::Captured]`, which we don't want.
+    ///
+    /// We also take the opportunity to filter out:
+    ///    - Rust runtime stuff about setting up the backtrace itself, because
+    ///      that's 60+ lines of useless output for our stdlib-using OS-having
+    ///      use cases.
+    ///    - Python FFI module setup in the context of Rust extensions
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0.status() {
+            std::backtrace::BacktraceStatus::Captured => {
+                let mut python_filtered = false;
+                // This is not really too performance sensitive since it
+                // only activates when `RUST_BACKTRACE*` is detected, and
+                // that means we're debugging.
+                let output = self.0.to_string();
+                for line in output.lines() {
+                    if line.contains("/Python-3.") {
+                        python_filtered = true;
+                        break;
+                    }
+                    if line.contains("__rust_begin_short_backtrace") {
+                        break;
+                    }
+                    f.write_str(line)?;
+                    f.write_char('\n')?;
+                }
+                if python_filtered {
+                    f.write_str(
+                        "(Python and rustc backtrace setups filtered out)\n",
+                    )?;
+                } else {
+                    f.write_str("(rustc backtrace setup filtered out)\n")?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
 }
