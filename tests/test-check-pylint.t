@@ -11,7 +11,13 @@ Current checks:
 - C0321: only one statement on a single line
 
   $ touch $TESTTMP/fakerc
+
+#if windows
+  $ PYTHONPATH="`dirname $TESTDIR`;$PYTHONPATH"
+#else
   $ PYTHONPATH="`dirname $TESTDIR`:$PYTHONPATH"
+#endif
+
   $ export PYTHONPATH
   $ pylint --rcfile=$TESTTMP/fakerc --disable=all \
   >   --enable=W0102,C0321 \
