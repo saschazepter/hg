@@ -1001,6 +1001,7 @@ packages = [
     'mercurial.helptext.internals',
     'mercurial.hgweb',
     'mercurial.interfaces',
+    'mercurial.main_script',
     'mercurial.pure',
     'mercurial.stabletailgraph',
     'mercurial.templates',

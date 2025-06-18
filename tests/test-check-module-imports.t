@@ -24,7 +24,6 @@ will likely receive warnings about a direct import.
   mercurial/bundle2.py:*: function level import: mercurial.exchange (glob)
   mercurial/bundlecaches.py:*: function level import: mercurial.localrepo (glob)
   mercurial/chgserver.py:*: function level import: mercurial.__version__ (glob)
-  mercurial/chgserver.py:*: function level import: mercurial.dispatch (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.hg (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
@@ -143,8 +142,8 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.branchmap
   Import cycle: mercurial.configuration.rcutil -> mercurial.vfs -> mercurial.ui -> mercurial.configuration.rcutil
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
-  Import cycle: mercurial.chgserver -> mercurial.dispatch -> mercurial.commands -> mercurial.server -> mercurial.chgserver
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
+  Import cycle: mercurial.chgserver -> mercurial.main_script.__init__ -> mercurial.commands -> mercurial.server -> mercurial.chgserver
   Import cycle: mercurial.destutil -> mercurial.scmutil -> mercurial.ui -> mercurial.extensions -> mercurial.revset -> mercurial.destutil
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.dirstate -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.dirstate

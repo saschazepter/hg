@@ -1,6 +1,6 @@
 from mercurial import (
-    dispatch,
     error,
+    main_script,
     pycompat,
     ui as uimod,
 )
@@ -16,7 +16,7 @@ testui = uimod.ui.load()
 testui.setconfig(b'devel', b'warn-config-unknown', False, b'test')
 testui.setconfig(b'devel', b'all-warnings', False, b'test')
 
-parsed = dispatch._parseconfig(
+parsed = main_script.parse_config_opts(
     testui,
     [
         b'values.string=string value',

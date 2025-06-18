@@ -57,6 +57,7 @@ from . import (
     encoding,
     error,
     extensions,
+    main_script,
     pycompat,
     util,
 )
@@ -254,8 +255,6 @@ def _newchgui(srcui, csystem, attachio):
 
 
 def _loadnewui(srcui, args, cdebug):
-    from . import dispatch  # avoid cycle
-
     newui = srcui.__class__.load()
     for a in ['fin', 'fout', 'ferr', 'environ']:
         setattr(newui, a, getattr(srcui, a))
@@ -263,9 +262,9 @@ def _loadnewui(srcui, args, cdebug):
         newui._csystem = srcui._csystem
 
     # command line args
-    options = dispatch._earlyparseopts(newui, args)
-    dispatch._parse_config_files(newui, args, options[b'config_file'])
-    dispatch._parseconfig(newui, options[b'config'])
+    options = main_script.early_parse_opts(newui, args)
+    main_script.parse_config_files_opts(newui, args, options[b'config_file'])
+    main_script.parse_config_opts(newui, options[b'config'])
 
     # stolen from tortoisehg.util.copydynamicconfig()
     for section, name, value in srcui.walkconfig():
@@ -279,7 +278,7 @@ def _loadnewui(srcui, args, cdebug):
     cwd = options[b'cwd']
     cwd = os.path.realpath(cwd) if cwd else None
     rpath = options[b'repository']
-    path, newlui = dispatch._getlocal(newui, rpath, wd=cwd)
+    path, newlui = main_script.get_local(newui, rpath, wd=cwd)
 
     extensions.populateui(newui)
     commandserver.setuplogging(newui, fp=cdebug)
