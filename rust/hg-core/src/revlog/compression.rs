@@ -64,7 +64,7 @@ impl CompressionConfig {
                 new = match split.next().unwrap() {
                     "zstd" => CompressionConfig::zstd(zstd_level)?,
                     e => {
-                        return Err(HgError::UnsupportedFeature(format!(
+                        return Err(HgError::unsupported(format!(
                             "Unsupported compression engine '{e}'"
                         )))
                     }

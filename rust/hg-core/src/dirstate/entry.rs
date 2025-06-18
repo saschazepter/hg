@@ -691,7 +691,7 @@ impl TryFrom<u8> for EntryState {
             b'a' => Ok(EntryState::Added),
             b'r' => Ok(EntryState::Removed),
             b'm' => Ok(EntryState::Merged),
-            _ => Err(HgError::CorruptedRepository(format!(
+            _ => Err(HgError::corrupted(format!(
                 "Incorrect dirstate entry state {}",
                 value
             ))),

@@ -225,7 +225,7 @@ impl ColorMode {
             match mode {
                 b"ansi" | b"auto" => Ok(Some(ColorMode::Ansi)),
                 // TODO: support other modes
-                _ => Err(HgError::UnsupportedFeature(format!(
+                _ => Err(HgError::unsupported(format!(
                     "color mode {}",
                     String::from_utf8_lossy(mode)
                 ))),

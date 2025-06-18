@@ -95,12 +95,11 @@ impl From<RepoError> for HgError {
                 exit_codes::ABORT,
                 None,
             ),
-            RepoError::ConfigParseError(config_parse_error) => HgError::Abort {
-                message: String::from_utf8_lossy(&config_parse_error.message)
-                    .to_string(),
-                detailed_exit_code: exit_codes::CONFIG_PARSE_ERROR_ABORT,
-                hint: None,
-            },
+            RepoError::ConfigParseError(config_parse_error) => {
+                HgError::abort_simple(String::from_utf8_lossy(
+                    &config_parse_error.message,
+                ))
+            }
             RepoError::Other(hg_error) => hg_error,
         }
     }

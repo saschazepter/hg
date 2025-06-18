@@ -348,17 +348,17 @@ impl From<ConfigParseError> for HgError {
         } else {
             Vec::new()
         };
-        HgError::Abort {
-            message: String::from_utf8_lossy(&format_bytes!(
+        HgError::abort(
+            String::from_utf8_lossy(&format_bytes!(
                 b"config error at {}{}: {}",
                 origin,
                 line_message,
                 message
             ))
             .to_string(),
-            detailed_exit_code: CONFIG_ERROR_ABORT,
-            hint: None,
-        }
+            CONFIG_ERROR_ABORT,
+            None,
+        )
     }
 }
 

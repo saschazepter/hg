@@ -130,7 +130,7 @@ impl<'changelog> ChangelogEntry<'changelog> {
             Ok(ChangelogRevisionData::null())
         } else {
             Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
-                RevlogError::Other(HgError::CorruptedRepository(format!(
+                RevlogError::Other(HgError::corrupted(format!(
                     "Invalid changelog data for revision {}: {:?}",
                     self.revlog_entry.revision(),
                     err

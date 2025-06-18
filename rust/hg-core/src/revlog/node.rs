@@ -165,7 +165,7 @@ impl Node {
     /// An error is treated as repository corruption.
     pub fn from_hex_for_repo(hex: impl AsRef<[u8]>) -> Result<Node, HgError> {
         Self::from_hex(hex.as_ref()).map_err(|FromHexError| {
-            HgError::CorruptedRepository(format!(
+            HgError::corrupted(format!(
                 "Expected a full hexadecimal node ID, found {}",
                 String::from_utf8_lossy(hex.as_ref())
             ))

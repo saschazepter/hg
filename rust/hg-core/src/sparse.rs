@@ -106,65 +106,63 @@ impl From<SparseConfigError> for HgError {
     fn from(value: SparseConfigError) -> Self {
         match value {
             SparseConfigError::IncludesAfterExcludes { context } => {
-                HgError::Abort {
-                    message: format!(
+                HgError::abort(
+                    format!(
                         "{} config cannot have includes after excludes",
                         context,
                     ),
-                    detailed_exit_code: STATE_ERROR,
-                    hint: None,
-                }
+                    STATE_ERROR,
+                    None,
+                )
             }
             SparseConfigError::EntryOutsideSection { context, line } => {
-                HgError::Abort {
-                    message: format!(
+                HgError::abort(
+                    format!(
                         "{} config entry outside of section: {}",
                         context,
                         String::from_utf8_lossy(&line)
                     ),
-                    detailed_exit_code: STATE_ERROR,
-                    hint: None,
-                }
+                    STATE_ERROR,
+                    None,
+                )
             }
-            SparseConfigError::IncludesInNarrow => HgError::Abort {
-                message: "including other spec files using '%include' is not \
+            SparseConfigError::IncludesInNarrow => HgError::abort(
+                "including other spec files using '%include' is not \
                 supported in narrowspec"
                     .to_string(),
-                detailed_exit_code: STATE_ERROR,
-                hint: None,
-            },
-            SparseConfigError::InvalidNarrowPrefix(vec) => HgError::Abort {
-                message: String::from_utf8_lossy(&format_bytes!(
+                STATE_ERROR,
+                None,
+            ),
+            SparseConfigError::InvalidNarrowPrefix(vec) => HgError::abort(
+                String::from_utf8_lossy(&format_bytes!(
                     b"invalid prefix on narrow pattern: {}",
                     vec
                 ))
                 .to_string(),
-                detailed_exit_code: STATE_ERROR,
-                hint: Some(format!(
+                STATE_ERROR,
+                Some(format!(
                     "narrow patterns must begin with one of the following: {}",
                     VALID_PREFIXES.join(", ")
                 )),
-            },
+            ),
             SparseConfigError::WhitespaceAtEdgeOfPattern(vec) => {
-                HgError::Abort {
-                    message: String::from_utf8_lossy(&format_bytes!(
+                HgError::abort(
+                    String::from_utf8_lossy(&format_bytes!(
                         b"narrow pattern with whitespace at the edge: {}",
                         vec
                     ))
                     .to_string(),
-                    detailed_exit_code: STATE_ERROR,
-                    hint: Some(
+                    STATE_ERROR,
+                    Some(
                         "narrow patterns can't begin or end in whitespace"
                             .to_string(),
                     ),
-                }
+                )
             }
             SparseConfigError::HgError(hg_error) => hg_error,
-            SparseConfigError::PatternError(pattern_error) => HgError::Abort {
-                message: pattern_error.to_string(),
-                detailed_exit_code: STATE_ERROR,
-                hint: None,
-            },
+            SparseConfigError::PatternError(pattern_error) => {
+                HgError::abort(pattern_error.to_string(), STATE_ERROR, None)
+            }
         }
     }
 }
