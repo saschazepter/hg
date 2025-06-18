@@ -3,6 +3,7 @@
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
 use std::borrow::Cow;
+use std::fmt::Display;
 use std::fmt::Write;
 
 use bitflags::bitflags;
@@ -24,6 +25,7 @@ use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::DirstateV2Data;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::path_with_basename::WithBasename;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::repo::Repo;
@@ -188,17 +190,27 @@ type OptPathSlice = PathSlice;
 #[derive(Debug)]
 pub struct DirstateV2ParseError {
     message: String,
+    backtrace: HgBacktrace,
 }
 
 impl DirstateV2ParseError {
     pub fn new<S: Into<String>>(message: S) -> Self {
-        Self { message: message.into() }
+        Self { message: message.into(), backtrace: HgBacktrace::capture() }
     }
 }
 
 impl From<DirstateV2ParseError> for HgError {
     fn from(e: DirstateV2ParseError) -> Self {
-        HgError::corrupted(format!("dirstate-v2 parse error: {}", e.message))
+        HgError::CorruptedRepository(
+            format!("dirstate-v2 parse error: {}", e.message),
+            e.backtrace,
+        )
+    }
+}
+
+impl Display for DirstateV2ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}dirstate-v2 parse error: {}", self.backtrace, self.message)
     }
 }
 

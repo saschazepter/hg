@@ -165,9 +165,7 @@ impl fmt::Display for StatusError {
         match self {
             StatusError::Path(error) => error.fmt(f),
             StatusError::Pattern(error) => error.fmt(f),
-            StatusError::DirstateV2ParseError(_) => {
-                f.write_str("dirstate-v2 parse error")
-            }
+            StatusError::DirstateV2ParseError(error) => error.fmt(f),
         }
     }
 }
