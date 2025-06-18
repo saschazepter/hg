@@ -21,6 +21,7 @@ use crate::utils::files;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
 use crate::FastHashMap;
 
 // could be encapsulated if we care API stability more seriously
@@ -88,10 +89,11 @@ impl DirsMultiset {
                 // as the only entrypoint for path data
                 let second_slash_index = subpath.len() - 1;
 
-                return Err(HgPathError::ConsecutiveSlashes {
+                return Err(HgPathErrorKind::ConsecutiveSlashes {
                     bytes: path.as_ref().as_bytes().to_owned(),
                     second_slash_index,
-                });
+                }
+                .into());
             }
             if let Some(val) = self.inner.get_mut(subpath) {
                 *val += 1;

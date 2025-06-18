@@ -14,11 +14,38 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::utils::strings::SliceExt;
 
+#[derive(Debug)]
+pub struct HgPathError {
+    kind: HgPathErrorKind,
+    backtrace: HgBacktrace,
+}
+
+impl PartialEq for HgPathError {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
+
+impl Eq for HgPathError {}
+
+impl From<HgPathErrorKind> for HgPathError {
+    fn from(value: HgPathErrorKind) -> Self {
+        Self {
+            kind: value,
+            // Uses of `HgPathErrorKind` should only be here to ease the
+            // ergonomics, not an actual error type to use in a signature,
+            // so we expect this capture to happen where/when we want it to.
+            backtrace: HgBacktrace::capture(),
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
-pub enum HgPathError {
+pub enum HgPathErrorKind {
     /// Bytes from the invalid `HgPath`
     LeadingSlash(Vec<u8>),
     ConsecutiveSlashes {
@@ -60,11 +87,13 @@ impl From<HgPathError> for HgError {
 
 impl fmt::Display for HgPathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            HgPathError::LeadingSlash(bytes) => {
+        f.write_str(&self.backtrace.to_string())?;
+
+        match &self.kind {
+            HgPathErrorKind::LeadingSlash(bytes) => {
                 write!(f, "Invalid HgPath '{:?}': has a leading slash.", bytes)
             }
-            HgPathError::ConsecutiveSlashes {
+            HgPathErrorKind::ConsecutiveSlashes {
                 bytes,
                 second_slash_index: pos,
             } => write!(
@@ -72,52 +101,52 @@ impl fmt::Display for HgPathError {
                 "Invalid HgPath '{:?}': consecutive slashes at pos {}.",
                 bytes, pos
             ),
-            HgPathError::ContainsNullByte { bytes, null_byte_index: pos } => {
-                write!(
-                    f,
-                    "Invalid HgPath '{:?}': contains null byte at pos {}.",
-                    bytes, pos
-                )
-            }
-            HgPathError::DecodeError(bytes) => {
+            HgPathErrorKind::ContainsNullByte {
+                bytes,
+                null_byte_index: pos,
+            } => write!(
+                f,
+                "Invalid HgPath '{:?}': contains null byte at pos {}.",
+                bytes, pos
+            ),
+            HgPathErrorKind::DecodeError(bytes) => {
                 write!(f, "Invalid HgPath '{:?}': could not be decoded.", bytes)
             }
-            HgPathError::EndsWithSlash(path) => {
+            HgPathErrorKind::EndsWithSlash(path) => {
                 write!(f, "path '{}': ends with a slash", path)
             }
-            HgPathError::ContainsIllegalComponent(path) => {
+            HgPathErrorKind::ContainsIllegalComponent(path) => {
                 write!(f, "path contains illegal component: {}", path)
             }
-            HgPathError::InsideDotHg(path) => {
+            HgPathErrorKind::InsideDotHg(path) => {
                 write!(f, "path '{}' is inside the '.hg' folder", path)
             }
-            HgPathError::IsInsideNestedRepo { path, nested_repo: nested } => {
+            HgPathErrorKind::IsInsideNestedRepo {
+                path,
+                nested_repo: nested,
+            } => {
                 write!(f, "path '{}' is inside nested repo '{}'", path, nested)
             }
-            HgPathError::TraversesSymbolicLink { path, symlink } => write!(
-                f,
-                "path '{}' traverses symbolic link '{}'",
-                path, symlink
-            ),
-            HgPathError::NotFsCompliant(path) => write!(
+            HgPathErrorKind::TraversesSymbolicLink { path, symlink } => {
+                write!(
+                    f,
+                    "path '{}' traverses symbolic link '{}'",
+                    path, symlink
+                )
+            }
+            HgPathErrorKind::NotFsCompliant(path) => write!(
                 f,
                 "path '{}' cannot be turned into a \
                  filesystem path",
                 path
             ),
-            HgPathError::NotUnderRoot { path, root } => write!(
+            HgPathErrorKind::NotUnderRoot { path, root } => write!(
                 f,
                 "path '{}' not under root {}",
                 path.display(),
                 root.display()
             ),
         }
-    }
-}
-
-impl From<HgPathError> for std::io::Error {
-    fn from(e: HgPathError) -> Self {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
     }
 }
 
@@ -326,7 +355,7 @@ impl HgPath {
     /// Checks for errors in the path, short-circuiting at the first one.
     /// This generates fine-grained errors useful for debugging.
     /// To simply check if the path is valid during tests, use `is_valid`.
-    pub fn check_state(&self) -> Result<(), HgPathError> {
+    pub fn check_state(&self) -> Result<(), HgPathErrorKind> {
         if self.is_empty() {
             return Ok(());
         }
@@ -334,19 +363,19 @@ impl HgPath {
         let mut previous_byte = None;
 
         if bytes[0] == b'/' {
-            return Err(HgPathError::LeadingSlash(bytes.to_vec()));
+            return Err(HgPathErrorKind::LeadingSlash(bytes.to_vec()));
         }
         for (index, byte) in bytes.iter().enumerate() {
             match byte {
                 0 => {
-                    return Err(HgPathError::ContainsNullByte {
+                    return Err(HgPathErrorKind::ContainsNullByte {
                         bytes: bytes.to_vec(),
                         null_byte_index: index,
                     })
                 }
                 b'/' => {
                     if previous_byte.is_some() && previous_byte == Some(b'/') {
-                        return Err(HgPathError::ConsecutiveSlashes {
+                        return Err(HgPathErrorKind::ConsecutiveSlashes {
                             bytes: bytes.to_vec(),
                             second_slash_index: index,
                         });
@@ -480,7 +509,7 @@ impl Extend<u8> for HgPathBuf {
 /// on the repository encoding: either `UTF-8` or `MBCS`.
 pub fn hg_path_to_os_string<P: AsRef<HgPath>>(
     hg_path: P,
-) -> Result<OsString, HgPathError> {
+) -> Result<OsString, HgPathErrorKind> {
     hg_path.as_ref().check_state()?;
     let os_str;
     #[cfg(unix)]
@@ -569,18 +598,18 @@ mod tests {
     #[test]
     fn test_path_states() {
         assert_eq!(
-            Err(HgPathError::LeadingSlash(b"/".to_vec())),
+            Err(HgPathErrorKind::LeadingSlash(b"/".to_vec())),
             HgPath::new(b"/").check_state()
         );
         assert_eq!(
-            Err(HgPathError::ConsecutiveSlashes {
+            Err(HgPathErrorKind::ConsecutiveSlashes {
                 bytes: b"a/b//c".to_vec(),
                 second_slash_index: 4
             }),
             HgPath::new(b"a/b//c").check_state()
         );
         assert_eq!(
-            Err(HgPathError::ContainsNullByte {
+            Err(HgPathErrorKind::ContainsNullByte {
                 bytes: b"a/b/\0c".to_vec(),
                 null_byte_index: 4
             }),

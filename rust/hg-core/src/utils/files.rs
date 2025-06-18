@@ -29,6 +29,7 @@ use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::path_auditor::PathAuditor;
 
 pub fn get_os_str_from_bytes(bytes: &[u8]) -> &OsStr {
@@ -240,10 +241,11 @@ pub fn canonical_path(
         }
         // TODO hint to the user about using --cwd
         // Bubble up the responsibility to Python for now
-        Err(HgPathError::NotUnderRoot {
+        Err(HgPathErrorKind::NotUnderRoot {
             path: original_name,
             root: root.to_owned(),
-        })
+        }
+        .into())
     }
 }
 
@@ -397,10 +399,11 @@ mod tests {
         let name = Path::new("filename");
         assert_eq!(
             canonical_path(root, cwd, name),
-            Err(HgPathError::NotUnderRoot {
+            Err(HgPathErrorKind::NotUnderRoot {
                 path: PathBuf::from("/dir/filename"),
                 root: root.to_path_buf()
-            })
+            }
+            .into())
         );
 
         let root = Path::new("/repo");
@@ -408,10 +411,11 @@ mod tests {
         let name = Path::new("filename");
         assert_eq!(
             canonical_path(root, cwd, name),
-            Err(HgPathError::NotUnderRoot {
+            Err(HgPathErrorKind::NotUnderRoot {
                 path: PathBuf::from("/filename"),
                 root: root.to_path_buf()
-            })
+            }
+            .into())
         );
 
         let root = Path::new("/repo");
@@ -464,10 +468,11 @@ mod tests {
         );
         assert_eq!(
             canonical_path(&root, Path::new(""), &beneath_repo),
-            Err(HgPathError::NotUnderRoot {
+            Err(HgPathErrorKind::NotUnderRoot {
                 path: beneath_repo,
                 root: root.to_owned()
-            })
+            }
+            .into())
         );
         assert_eq!(
             canonical_path(&root, Path::new(""), under_repo_symlink),

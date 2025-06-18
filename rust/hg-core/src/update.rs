@@ -35,7 +35,7 @@ use crate::utils::files::filesystem_now;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
-use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::path_auditor::PathAuditor;
 use crate::vfs::is_on_nfs_mount;
 use crate::vfs::VfsImpl;
@@ -326,14 +326,15 @@ fn working_copy_worker<'a: 'b, 'b>(
                             .when_reading_file(&path)?;
                         if metadata.is_dir() {
                             return Err(HgError::Path(
-                                HgPathError::TraversesSymbolicLink {
+                                HgPathErrorKind::TraversesSymbolicLink {
                                     // Technically it should be one of the
                                     // children, but good enough
                                     path: file
                                         .join(HgPath::new(b"*"))
                                         .to_owned(),
                                     symlink: file.to_owned(),
-                                },
+                                }
+                                .into(),
                             ));
                         }
                         return Err(e).when_writing_file(&path);
