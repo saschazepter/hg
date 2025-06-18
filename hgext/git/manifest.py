@@ -26,6 +26,10 @@ from mercurial.interfaces import (
 from . import gitutil
 
 if typing.TYPE_CHECKING:
+    # We need to fully qualify the set primitive when typing the imanifestdict
+    # class, so its set() method doesn't hide the primitive.
+    import builtins
+
     from typing import (
         ByteString,  # TODO: change to Buffer for 3.14
     )
@@ -131,7 +135,7 @@ class gittreemanifest(repository.imanifestdict):
         # TODO: should probably KeyError for already-deleted  files?
         self._pending_changes[path] = None
 
-    def filesnotin(self, other, match=None) -> Set[bytes]:
+    def filesnotin(self, other, match=None) -> builtins.set[bytes]:
         if match is not None:
             match = matchmod.badmatch(match, lambda path, msg: None)
             sm2 = set(other.walk(match))

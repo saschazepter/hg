@@ -26,6 +26,10 @@ from ..i18n import _
 from .. import error
 
 if typing.TYPE_CHECKING:
+    # We need to fully qualify the set primitive when typing the imanifestdict
+    # class, so its set() method doesn't hide the primitive.
+    import builtins
+
     from typing import (
         ByteString,  # TODO: change to Buffer for 3.14
     )
@@ -1162,7 +1166,7 @@ class imanifestdict(Protocol):
         """Obtain a list of paths in the manifest."""
 
     @abc.abstractmethod
-    def filesnotin(self, other, match=None) -> Set[bytes]:
+    def filesnotin(self, other, match=None) -> builtins.set[bytes]:
         """Obtain the set of paths in this manifest but not in another.
 
         ``match`` is an optional matcher function to be applied to both

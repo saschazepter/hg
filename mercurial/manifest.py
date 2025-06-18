@@ -55,6 +55,10 @@ from .revlogutils import (
 )
 
 if typing.TYPE_CHECKING:
+    # We need to fully qualify the set primitive when typing the imanifestdict
+    # class, so its set() method doesn't hide the primitive.
+    import builtins
+
     from typing import (
         ByteString,
     )
@@ -555,7 +559,7 @@ class manifestdict(repository.imanifestdict):
     def keys(self) -> List[bytes]:
         return list(self.iterkeys())
 
-    def filesnotin(self, m2, match=None) -> Set[bytes]:
+    def filesnotin(self, m2, match=None) -> builtins.set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match is not None:
             match = matchmod.badmatch(match, lambda path, msg: None)
@@ -1206,7 +1210,7 @@ class treemanifest(repository.imanifestdict):
 
     def filesnotin(
         self, m2: treemanifest, match: Optional[MatcherT] = None
-    ) -> Set[bytes]:
+    ) -> builtins.set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match and not match.always():
             m1 = self._matches(match)
