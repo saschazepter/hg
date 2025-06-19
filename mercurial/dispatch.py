@@ -256,6 +256,7 @@ def _rundispatch(req) -> int:
             req.earlyoptions.update(_earlyparseopts(req.ui, req.args))
             if req.earlyoptions[b'traceback']:
                 req.ui.setconfig(b'ui', b'traceback', b'on', b'--traceback')
+                encoding.enable_rust_backtrace()
 
             # set ui streams from the request
             if req.fin:

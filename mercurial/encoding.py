@@ -380,6 +380,18 @@ _wide = _sysstr(
 )
 
 
+def enable_rust_backtrace():
+    """Enable traceback tracking in Rust code.
+
+    Cannot be done through the config because we run some Rust code without a
+    config, and the first time any backtrace is captured, this environment
+    variable (and RUST_LIB_BACKTRACE) is cached, so do it early."""
+    # sometimes environ is copied, so let's make sure we change both the
+    # actual environment and the one in this module
+    environ[b"RUST_BACKTRACE"] = b"1"
+    os.putenv(b"RUST_BACKTRACE", b"1")
+
+
 def colwidth(s: bytes) -> int:
     """Find the column width of a string for display in the local encoding"""
     return ucolwidth(s.decode(_sysstr(encoding), 'replace'))
