@@ -5,7 +5,6 @@ use pyo3::buffer::Element;
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyIOError;
 use pyo3::exceptions::PyKeyboardInterrupt;
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;
 use pyo3::prelude::*;
@@ -355,7 +354,35 @@ where
                 )
             }
             HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
-            e => PyRuntimeError::new_err(e.to_string()),
+            err @ HgError::Abort { detailed_exit_code, .. } => {
+                let cls = py
+                    .import(intern!(py, "mercurial.error"))
+                    .and_then(|m| match detailed_exit_code {
+                        hg::exit_codes::STATE_ERROR => {
+                            m.getattr(intern!(py, "StateError"))
+                        }
+                        hg::exit_codes::CONFIG_ERROR_ABORT => {
+                            m.getattr(intern!(py, "ConfigError"))
+                        }
+                        // TODO more errors
+                        _ => m.getattr(intern!(py, "Abort")),
+                    })
+                    .expect("failed to import error.Abort");
+                PyErr::from_value(
+                    cls.call1((err.to_string().as_bytes(),))
+                        .expect("initializing an error.Abort failed"),
+                )
+            }
+            e => {
+                let cls = py
+                    .import(intern!(py, "mercurial.error"))
+                    .and_then(|m| m.getattr(intern!(py, "Abort")))
+                    .expect("failed to import error.Abort");
+                PyErr::from_value(
+                    cls.call1((e.to_string().as_bytes(),))
+                        .expect("initializing an error.Abort failed"),
+                )
+            }
         })
     }
 }
