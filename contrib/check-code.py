@@ -657,7 +657,6 @@ py3pats = [
         (r'sys\.platform', "use pycompat.sysplatform instead (py3)"),
         (r'getopt\.getopt', "use pycompat.getoptb instead (py3)"),
         (r'os\.getenv', "use encoding.environ.get instead"),
-        (r'os\.setenv', "modifying the environ dict is not preferred"),
         (r'(?<!pycompat\.)xrange', "use pycompat.xrange instead (py3)"),
     ],
     # warnings
