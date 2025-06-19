@@ -374,6 +374,88 @@ Changing branch on public changeset
   (see 'hg help phases' for details)
   [10]
 
+The previous series of branch-changing commands should keep the contents unchanged
+(currently broken)
+
+  $ hg status --hidden --rev . --rev 4d56e6b1eb6b
+  A a.orig
+  A bar
+  A e
+  A f
+  $ hg status --hidden --change 4d56e6b1eb6b
+  A a.orig
+  A bar
+  A e
+  A f
+  $ hg status --change .
+  A a.orig (missing-correct-output !)
+  A bar (missing-correct-output !)
+  A e (missing-correct-output !)
+  A f (missing-correct-output !)
+  $ hg diff --hidden --from 4d56e6b1eb6b --to .
+  diff -r 4d56e6b1eb6b -r d1c2addda4a2 a.orig (known-bad-output !)
+  --- a/a.orig	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  @@ -1,1 +0,0 @@ (known-bad-output !)
+  -bar (known-bad-output !)
+  diff -r 4d56e6b1eb6b -r d1c2addda4a2 bar (known-bad-output !)
+  --- a/bar	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  @@ -1,1 +0,0 @@ (known-bad-output !)
+  -foo (known-bad-output !)
+  diff -r 4d56e6b1eb6b -r d1c2addda4a2 e (known-bad-output !)
+  --- a/e	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  @@ -1,1 +0,0 @@ (known-bad-output !)
+  -foo (known-bad-output !)
+  diff -r 4d56e6b1eb6b -r d1c2addda4a2 f (known-bad-output !)
+  --- a/f	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000 (known-bad-output !)
+  @@ -1,1 +0,0 @@ (known-bad-output !)
+  -f (known-bad-output !)
+  $ hg diff --hidden --change 4d56e6b1eb6b
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b a.orig
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/a.orig	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +bar
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b bar
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/bar	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b e
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/e	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b f
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/f	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +f
+  $ hg diff --change .
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b a.orig (missing-correct-output !)
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  +++ b/a.orig	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  @@ -0,0 +1,1 @@ (missing-correct-output !)
+  +bar (missing-correct-output !)
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b bar (missing-correct-output !)
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  +++ b/bar	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  @@ -0,0 +1,1 @@ (missing-correct-output !)
+  +foo (missing-correct-output !)
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b e (missing-correct-output !)
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  +++ b/e	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  @@ -0,0 +1,1 @@ (missing-correct-output !)
+  +foo (missing-correct-output !)
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b f (missing-correct-output !)
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  +++ b/f	Thu Jan 01 00:00:00 1970 +0000 (missing-correct-output !)
+  @@ -0,0 +1,1 @@ (missing-correct-output !)
+  +f (missing-correct-output !)
+
 Merge commit with conflicts, with evolution and without
 
   $ mklozenge() {
