@@ -198,14 +198,65 @@ impl Manifest {
     }
 }
 
+/// Represents the flags of a given [`ManifestEntry`].
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ManifestFlags(Option<NonZeroU8>);
+
+impl ManifestFlags {
+    pub fn new_empty() -> Self {
+        Self(None)
+    }
+
+    pub fn new_link() -> Self {
+        Self(Some(b'l'.try_into().unwrap()))
+    }
+
+    pub fn new_exec() -> Self {
+        Self(Some(b'x'.try_into().unwrap()))
+    }
+
+    pub fn new_tree() -> Self {
+        Self(Some(b't'.try_into().unwrap()))
+    }
+
+    /// Whether this path is a symlink
+    pub fn is_link(&self) -> bool {
+        self.is_flag(b'l')
+    }
+
+    /// Whether this path has the executable permission set
+    pub fn is_exec(&self) -> bool {
+        self.is_flag(b'x')
+    }
+
+    /// Whether this path is a tree in the context of treemanifest
+    pub fn is_tree(&self) -> bool {
+        self.is_flag(b't')
+    }
+
+    fn is_flag(&self, flag: u8) -> bool {
+        self.0.map(|f| f == NonZeroU8::new(flag).unwrap()).unwrap_or(false)
+    }
+}
+
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
-#[derive(Debug)]
+#[derive(PartialEq)]
 pub struct ManifestEntry<'manifest> {
     pub path: &'manifest HgPath,
     pub hex_node_id: &'manifest [u8],
+    pub flags: ManifestFlags,
+}
 
-    /// `Some` values are b'x', b'l', or 't'
-    pub flags: Option<NonZeroU8>,
+impl std::fmt::Debug for ManifestEntry<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ManifestEntry({:x}:{:?}:'{}')",
+            self.node_id().unwrap(),
+            &self.flags,
+            self.path,
+        )
+    }
 }
 
 impl<'a> ManifestEntry<'a> {
@@ -225,7 +276,9 @@ impl<'a> ManifestEntry<'a> {
         Self {
             path: HgPath::new(path),
             hex_node_id,
-            flags: flags.map(|f| f.try_into().expect("invalid flag")),
+            flags: ManifestFlags(
+                flags.map(|f| f.try_into().expect("invalid flag")),
+            ),
         }
     }
 

@@ -5,13 +5,12 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use std::num::NonZeroU8;
-
 use crate::errors::HgError;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
 use crate::repo::Repo;
 use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::RevlogError;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
@@ -70,7 +69,7 @@ pub struct FilesForRev<M> {
 
 /// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
 /// already checked.
-pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, Option<NonZeroU8>);
+pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, ManifestFlags);
 
 impl<M: Matcher> FilesForRev<M> {
     pub fn iter(

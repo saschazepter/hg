@@ -299,19 +299,18 @@ fn working_copy_worker<'a: 'b, 'b>(
 
     for (file, file_node, flags) in chunk {
         auditor.audit_path(file)?;
-        let flags = flags.map(|f| f.into());
         let path =
             working_directory_path.join(get_path_from_bytes(file.as_bytes()));
 
         // Treemanifest is not supported
-        assert!(flags != Some(b't'));
+        assert!(!flags.is_tree());
 
         let filelog = Filelog::open_vfs(store_vfs, file, options)?;
         let filelog_revision_data =
             &filelog.data_for_node(file_node).map_err(handle_revlog_error)?;
         let file_data = filelog_revision_data.file_data()?;
 
-        if flags == Some(b'l') {
+        if flags.is_link() {
             let target = get_path_from_bytes(file_data);
             if let Err(e) = std::os::unix::fs::symlink(target, &path) {
                 // If the path already exists either:
@@ -347,7 +346,7 @@ fn working_copy_worker<'a: 'b, 'b>(
                 std::fs::File::create(&path).when_writing_file(&path)?;
             f.write_all(file_data).when_writing_file(&path)?;
         }
-        if flags == Some(b'x') {
+        if flags.is_exec() {
             std::fs::set_permissions(&path, Permissions::from_mode(0o755))
                 .when_writing_file(&path)?;
         }
@@ -517,12 +516,19 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::revlog::manifest::ManifestFlags;
 
     #[test]
     fn test_chunk_tracked_files() {
         fn chunk(v: Vec<&'static str>) -> Vec<ExpandedManifestEntry<'static>> {
             v.into_iter()
-                .map(|f| (HgPath::new(f.as_bytes()), NULL_NODE, None))
+                .map(|f| {
+                    (
+                        HgPath::new(f.as_bytes()),
+                        NULL_NODE,
+                        ManifestFlags::new_empty(),
+                    )
+                })
                 .collect()
         }
         let p = HgPath::new;

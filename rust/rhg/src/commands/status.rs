@@ -29,6 +29,7 @@ use hg::matchers::IntersectionMatcher;
 use hg::narrow;
 use hg::repo::Repo;
 use hg::revlog::manifest::Manifest;
+use hg::revlog::manifest::ManifestFlags;
 use hg::revlog::options::default_revlog_options;
 use hg::revlog::options::RevlogOpenOptions;
 use hg::revlog::RevisionOrWdir;
@@ -792,22 +793,22 @@ pub fn is_file_modified(
     // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
     // dirstate
     let fs_flags = if is_symlink {
-        Some(b'l')
+        ManifestFlags::new_link()
     } else if check_exec && has_exec_bit(&fs_metadata) {
-        Some(b'x')
+        ManifestFlags::new_exec()
     } else {
-        None
+        ManifestFlags::new_empty()
     };
 
     let entry_flags = if check_exec {
         entry.flags
-    } else if entry.flags.map(|f| f.into()) == Some(b'x') {
-        None
+    } else if entry.flags.is_link() {
+        ManifestFlags::new_empty()
     } else {
         entry.flags
     };
 
-    if entry_flags.map(|f| f.into()) != fs_flags {
+    if entry_flags != fs_flags {
         return Ok(FileCompOutcome::Modified);
     }
     let filelog = hg::revlog::filelog::Filelog::open_vfs(
