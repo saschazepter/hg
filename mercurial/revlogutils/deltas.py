@@ -113,7 +113,7 @@ class _testrevlog:
 def slicechunk(
     revlog: RevlogT,
     revs: Sequence[RevnumT],
-    targetsize: Optional[int] = None,
+    targetsize: int | None = None,
 ) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
@@ -192,7 +192,7 @@ def slicechunk(
 def _slicechunktosize(
     revlog: RevlogT,
     revs: Sequence[RevnumT],
-    targetsize: Optional[int] = None,
+    targetsize: int | None = None,
 ) -> Iterator[Sequence[RevnumT]]:
     """slice revs to match the target size
 
@@ -482,7 +482,7 @@ def _trimchunk(
     revlog: RevlogT,
     revs: Sequence[RevnumT],
     startidx: int,
-    endidx: Optional[int] = None,
+    endidx: int | None = None,
 ) -> Sequence[RevnumT]:
     """returns revs[startidx:endidx] without empty trailing revs
 
@@ -672,10 +672,10 @@ class _BaseDeltaSearch(abc.ABC):
         revinfo: RevisionInfoT,
         p1: RevnumT,
         p2: RevnumT,
-        cachedelta: Optional[tuple[RevnumT, bytes, int]],
-        excluded_bases: Optional[Sequence[RevnumT]] = None,
-        target_rev: Optional[RevnumT] = None,
-        snapshot_cache: Optional[SnapshotCache] = None,
+        cachedelta: tuple[RevnumT, bytes, int] | None,
+        excluded_bases: Sequence[RevnumT] | None = None,
+        target_rev: RevnumT | None = None,
+        snapshot_cache: SnapshotCache | None = None,
     ):
         # the DELTA_BASE_REUSE_FORCE case should have been taken care of sooner
         # so we should never end up asking such question. Adding the assert as
@@ -690,8 +690,8 @@ class _BaseDeltaSearch(abc.ABC):
         self.textlen: int = revinfo.textlen
         self.p1: RevnumT = p1
         self.p2: RevnumT = p2
-        self.cachedelta: Optional[tuple[RevnumT, bytes, int]] = cachedelta
-        self.excluded_bases: Optional[Sequence[RevnumT]] = excluded_bases
+        self.cachedelta: tuple[RevnumT, bytes, int] | None = cachedelta
+        self.excluded_bases: Sequence[RevnumT] | None = excluded_bases
         if target_rev is None:
             self.target_rev: int = len(self.revlog)
         else:
@@ -704,7 +704,7 @@ class _BaseDeltaSearch(abc.ABC):
         self.tested: set[RevnumT] = {nullrev}
 
         self.current_stage: _STAGE = _STAGE.UNSPECIFIED
-        self.current_group: Optional[Sequence[RevnumT]] = None
+        self.current_group: Sequence[RevnumT] | None = None
         self._init_group()
 
     def is_good_delta_info(self, deltainfo: _deltainfo) -> bool:
@@ -807,8 +807,8 @@ class _BaseDeltaSearch(abc.ABC):
     @abc.abstractmethod
     def next_group(
         self,
-        good_delta: Optional[_deltainfo] = None,
-    ) -> Optional[Sequence[RevnumT]]:
+        good_delta: _deltainfo | None = None,
+    ) -> Sequence[RevnumT] | None:
         """move to the next group to test
 
         The group of revision to test will be available in
@@ -837,8 +837,8 @@ class _NoDeltaSearch(_BaseDeltaSearch):
 
     def next_group(
         self,
-        good_delta: Optional[_deltainfo] = None,
-    ) -> Optional[Sequence[RevnumT]]:
+        good_delta: _deltainfo | None = None,
+    ) -> Sequence[RevnumT] | None:
         pass
 
 
@@ -856,8 +856,8 @@ class _PrevDeltaSearch(_BaseDeltaSearch):
 
     def next_group(
         self,
-        good_delta: Optional[_deltainfo] = None,
-    ) -> Optional[Sequence[RevnumT]]:
+        good_delta: _deltainfo | None = None,
+    ) -> Sequence[RevnumT] | None:
         self.current_stage = _STAGE.FULL
         self.current_group = None
 
@@ -914,8 +914,8 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
     def next_group(
         self,
-        good_delta: Optional[_deltainfo] = None,
-    ) -> Optional[Sequence[RevnumT]]:
+        good_delta: _deltainfo | None = None,
+    ) -> Sequence[RevnumT] | None:
         old_good = self._last_good
         if good_delta is not None:
             self._last_good = good_delta
@@ -1075,7 +1075,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
     def _iter_groups(
         self,
-    ) -> Generator[Optional[Sequence[RevnumT]], RevnumT, None,]:
+    ) -> Generator[Sequence[RevnumT] | None, RevnumT, None,]:
         good = None
         for group in self._iter_parents():
             good = yield group
@@ -1186,7 +1186,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
                     return False
         return True
 
-    def _iter_snapshots_base(self) -> Iterator[Optional[Sequence[RevnumT]]]:
+    def _iter_snapshots_base(self) -> Iterator[Sequence[RevnumT] | None]:
         assert self.revlog.delta_config.sparse_revlog
         assert self.current_stage == _STAGE.SNAPSHOT
         prev = self.target_rev - 1
@@ -1279,7 +1279,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         ]
         yield tuple(sorted(full))
 
-    def _iter_snapshots(self) -> Iterator[Optional[Sequence[RevnumT]]]:
+    def _iter_snapshots(self) -> Iterator[Sequence[RevnumT] | None]:
         assert self.revlog.delta_config.sparse_revlog
         self.current_stage = _STAGE.SNAPSHOT
         good = None
@@ -1313,7 +1313,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
 
     def _iter_groups(
         self,
-    ) -> Generator[Optional[Sequence[RevnumT]], RevnumT, None,]:
+    ) -> Generator[Sequence[RevnumT] | None, RevnumT, None,]:
         good = None
         for group in self._iter_parents():
             good = yield group
@@ -1337,8 +1337,8 @@ class SnapshotCache:
 
     def __init__(self):
         self.snapshots: dict[int, set[RevnumT]] = collections.defaultdict(set)
-        self._start_rev: Optional[int] = None
-        self._end_rev: Optional[int] = None
+        self._start_rev: int | None = None
+        self._end_rev: int | None = None
 
     def update(self, revlog: RevlogT, start_rev=0) -> None:
         """find snapshots from start_rev to tip"""
@@ -1402,9 +1402,9 @@ class deltacomputer:
     def __init__(
         self,
         revlog,
-        write_debug: Optional[Callable[[bytes], None]] = None,
+        write_debug: Callable[[bytes], None] | None = None,
         debug_search: bool = False,
-        debug_info: Optional[list[dict]] = None,
+        debug_info: list[dict] | None = None,
     ):
         self.revlog = revlog
         self._write_debug = write_debug
@@ -1462,9 +1462,9 @@ class deltacomputer:
         self,
         revinfo: RevisionInfoT,
         base: RevnumT,
-        target_rev: Optional[RevnumT] = None,
+        target_rev: RevnumT | None = None,
         as_snapshot: bool = False,
-    ) -> Optional[_deltainfo]:
+    ) -> _deltainfo | None:
         # can we use the cached delta?
         revlog = self.revlog
         chainbase = revlog.chainbase(base)
@@ -1573,8 +1573,8 @@ class deltacomputer:
     def finddeltainfo(
         self,
         revinfo: RevisionInfoT,
-        excluded_bases: Optional[Sequence[RevnumT]] = None,
-        target_rev: Optional[RevnumT] = None,
+        excluded_bases: Sequence[RevnumT] | None = None,
+        target_rev: RevnumT | None = None,
     ) -> _deltainfo:
         """Find an acceptable delta against a candidate revision
 

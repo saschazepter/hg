@@ -100,14 +100,14 @@ class IUrl(Protocol):
     See http://www.ietf.org/rfc/rfc2396.txt for more information.
     """
 
-    path: Optional[bytes]
-    scheme: Optional[bytes]
-    user: Optional[bytes]
-    passwd: Optional[bytes]
-    host: Optional[bytes]
-    port: Optional[bytes]
-    query: Optional[bytes]
-    fragment: Optional[bytes]
+    path: bytes | None
+    scheme: bytes | None
+    user: bytes | None
+    passwd: bytes | None
+    host: bytes | None
+    port: bytes | None
+    query: bytes | None
+    fragment: bytes | None
 
     @abc.abstractmethod
     def copy(self) -> IUrl:
@@ -134,7 +134,7 @@ class IPath(Protocol):
     """Represents an individual path and its configuration."""
 
     name: bytes
-    main_path: Optional[IPath]
+    main_path: IPath | None
     url: IUrl
     raw_url: IUrl
     branch: bytes
@@ -142,7 +142,7 @@ class IPath(Protocol):
     loc: bytes
 
     @abc.abstractmethod
-    def copy(self, new_raw_location: Optional[bytes] = None) -> IPath:
+    def copy(self, new_raw_location: bytes | None = None) -> IPath:
         ...
 
     @property

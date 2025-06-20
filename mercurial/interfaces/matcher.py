@@ -9,9 +9,7 @@ import abc
 
 from typing import (
     Callable,
-    Optional,
     Protocol,
-    Union,
 )
 
 from ._basetypes import (
@@ -39,12 +37,12 @@ class IMatcher(Protocol):
     # Callbacks related to how the matcher is used by dirstate.walk.
     # Subscribers to these events must monkeypatch the matcher object.
     @abc.abstractmethod
-    def bad(self, f: HgPathT, msg: Optional[UserMsgT]) -> None:
+    def bad(self, f: HgPathT, msg: UserMsgT | None) -> None:
         ...
 
     # If traversedir is set, it will be called when a directory discovered
     # by recursive traversal is visited.
-    traversedir: Optional[Callable[[HgPathT], None]] = None
+    traversedir: Callable[[HgPathT], None] | None = None
 
     @property
     @abc.abstractmethod
@@ -69,7 +67,7 @@ class IMatcher(Protocol):
         ...
 
     @abc.abstractmethod
-    def visitdir(self, dir: HgPathT) -> Union[bool, bytes]:
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories. This is
         based on the match's primary, included, and excluded patterns.
@@ -80,7 +78,7 @@ class IMatcher(Protocol):
         """
 
     @abc.abstractmethod
-    def visitchildrenset(self, dir: HgPathT) -> Union[set[HgPathT], bytes]:
+    def visitchildrenset(self, dir: HgPathT) -> set[HgPathT] | bytes:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories, and
         potentially lists which subdirectories of that directory should be

@@ -8,7 +8,6 @@ from __future__ import annotations
 import stat
 
 from typing import (
-    Optional,
     TYPE_CHECKING,
 )
 
@@ -69,10 +68,10 @@ class _dirstatemapcommon:
     _filename: bytes
     _nodelen: int
     _dirtyparents: bool
-    _docket: Optional[docketmod.DirstateDocket]
+    _docket: docketmod.DirstateDocket | None
     _write_mode: int
-    _pendingmode: Optional[bool]
-    identity: Optional[int_misc.ICacheStat]
+    _pendingmode: bool | None
+    identity: int_misc.ICacheStat | None
 
     # please pytype
 
@@ -111,7 +110,7 @@ class _dirstatemapcommon:
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
 
-    def _get_current_identity(self) -> Optional[int_misc.ICacheStat]:
+    def _get_current_identity(self) -> int_misc.ICacheStat | None:
         # TODO have a cleaner approach on httpstaticrepo side
         path = self._opener.join(self._filename)
         if path.startswith(b'https://') or path.startswith(b'http://'):
@@ -174,7 +173,7 @@ class _dirstatemapcommon:
     def _readdirstatefile(
         self,
         size: int = -1,
-    ) -> tuple[Optional[int_misc.ICacheStat], bytes]:
+    ) -> tuple[int_misc.ICacheStat | None, bytes]:
         """read the content of the file used as "entry point" for the dirstate
 
         Return a (identity, data) tuple. The identity can be used for cache
@@ -488,7 +487,7 @@ class dirstatemap(_dirstatemapcommon):
         self._dirtyparents = False
 
     @propertycache
-    def identity(self) -> Optional[int_misc.ICacheStat]:
+    def identity(self) -> int_misc.ICacheStat | None:
         """A cache identifier for the state of the file as data were read
 
         This must always be set with the object returned from

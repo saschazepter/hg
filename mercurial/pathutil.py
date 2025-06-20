@@ -10,7 +10,6 @@ from typing import (
     Any,
     Callable,
     Iterator,
-    Optional,
 )
 
 from .i18n import _
@@ -67,7 +66,7 @@ class pathauditor:
         else:
             self.normcase = lambda x: x
 
-    def __call__(self, path: bytes, mode: Optional[Any] = None) -> None:
+    def __call__(self, path: bytes, mode: Any | None = None) -> None:
         """Check the relative path.
         path may contain a pattern (e.g. foodir/**.txt)"""
 
@@ -134,7 +133,7 @@ class pathauditor:
         root,
         prefix: bytes,
         path: bytes,
-        callback: Optional[Callable[[bytes], bool]] = None,
+        callback: Callable[[bytes], bool] | None = None,
     ):
         """raise exception if a file system backed check fails.
 
@@ -196,7 +195,7 @@ def canonpath(
     root: bytes,
     cwd: bytes,
     myname: bytes,
-    auditor: Optional[pathauditor] = None,
+    auditor: pathauditor | None = None,
 ) -> bytes:
     """return the canonical path of myname, given cwd and root
 

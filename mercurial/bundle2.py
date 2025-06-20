@@ -186,7 +186,6 @@ from .interfaces import repository
 if typing.TYPE_CHECKING:
     from typing import (
         Iterator,
-        Optional,
         Union,
     )
 
@@ -673,7 +672,7 @@ class bundle20:
 
     _magicstring = b'HG20'
 
-    def __init__(self, ui, capabilities: Optional[Capabilities] = None):
+    def __init__(self, ui, capabilities: Capabilities | None = None):
         if capabilities is None:
             capabilities = {}
 

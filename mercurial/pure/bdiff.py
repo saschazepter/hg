@@ -12,10 +12,6 @@ import re
 import struct
 import typing
 
-from typing import (
-    Optional,
-)
-
 from ..interfaces import (
     modules as intmod,
 )
@@ -118,4 +114,4 @@ def fixws(text: bytes, allws: bool) -> bytes:
 # implementation of the module protocol.  Callers are responsible for
 # checking that the implementation is available before using them.
 if typing.TYPE_CHECKING:
-    xdiffblocks: Optional[intmod.BDiffBlocksFnc] = None
+    xdiffblocks: intmod.BDiffBlocksFnc | None = None

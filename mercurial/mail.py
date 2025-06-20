@@ -21,8 +21,6 @@ import time
 
 from typing import (
     Any,
-    Optional,
-    Union,
 )
 
 from .i18n import _
@@ -399,8 +397,8 @@ def _encode(ui: Any, s: bytes, charsets: list[str]) -> tuple[bytes, str]:
 
 def headencode(
     ui: Any,
-    s: Union[bytes, str],
-    charsets: Optional[list[str]] = None,
+    s: bytes | str,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> str:
     '''Returns RFC-2047 compliant header from given string.'''
@@ -412,7 +410,7 @@ def headencode(
 
 
 def _addressencode(
-    ui: Any, name: str, addr: str, charsets: Optional[list[str]] = None
+    ui: Any, name: str, addr: str, charsets: list[str] | None = None
 ) -> str:
     addr = encoding.strtolocal(addr)
     name = headencode(ui, name, charsets)
@@ -435,7 +433,7 @@ def _addressencode(
 def addressencode(
     ui: Any,
     address: bytes,
-    charsets: Optional[list[str]] = None,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> str:
     '''Turns address into RFC-2047 compliant header.'''
@@ -448,7 +446,7 @@ def addressencode(
 def addrlistencode(
     ui: Any,
     addrs: list[bytes],
-    charsets: Optional[list[str]] = None,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> list[str]:
     """Turns a list of addresses into a list of RFC-2047 compliant headers.
@@ -472,7 +470,7 @@ def addrlistencode(
 def mimeencode(
     ui: Any,
     s: bytes,
-    charsets: Optional[list[str]] = None,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> email.message.Message:
     """creates mime text object, encodes it if needed, and sets
@@ -505,7 +503,7 @@ def parsebytes(data: bytes) -> email.message.Message:
     return ep.parsebytes(data)
 
 
-def headdecode(s: Union[email.header.Header, bytes]) -> bytes:
+def headdecode(s: email.header.Header | bytes) -> bytes:
     '''Decodes RFC-2047 header'''
     uparts = []
     for part, charset in email.header.decode_header(s):

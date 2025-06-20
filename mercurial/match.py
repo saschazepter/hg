@@ -17,7 +17,6 @@ import typing
 from typing import (
     Any,
     Callable,
-    Union,
     overload,
 )
 
@@ -1702,7 +1701,7 @@ if typing.TYPE_CHECKING:
         filepath: bytes,
         warn: Callable[[bytes], Any],
         sourceinfo: bool = False,
-    ) -> list[Union[tuple[bytes, int, bytes], bytes]]:
+    ) -> list[tuple[bytes, int, bytes] | bytes]:
         ...
 
 

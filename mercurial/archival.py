@@ -16,10 +16,6 @@ import typing
 import zipfile
 import zlib
 
-from typing import (
-    Optional,
-)
-
 from .i18n import _
 from .node import nullrev
 
@@ -289,7 +285,7 @@ def archive(
     decode: bool = True,
     match=None,
     prefix: bytes = b'',
-    mtime: Optional[float] = None,
+    mtime: float | None = None,
     subrepos: bool = False,
 ) -> int:
     """create archive of repo as it was at node.

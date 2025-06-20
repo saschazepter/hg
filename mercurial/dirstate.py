@@ -17,7 +17,6 @@ from typing import (
     Any,
     Iterable,
     Iterator,
-    Optional,
 )
 
 from .i18n import _
@@ -598,7 +597,7 @@ class dirstate(intdirstate.idirstate):
             # we're outside the repo. return an absolute path.
             return cwd
 
-    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         if cwd is None:
             cwd = self.getcwd()
         path = util.pathto(self._root, cwd, f)
@@ -642,7 +641,7 @@ class dirstate(intdirstate.idirstate):
         return encoding.tolocal(self._branch)
 
     @requires_changing_parents
-    def setparents(self, p1: bytes, p2: Optional[bytes] = None):
+    def setparents(self, p1: bytes, p2: bytes | None = None):
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a
@@ -669,7 +668,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[TransactionT]
+        self, branch: bytes, transaction: TransactionT | None
     ) -> None:
         self.__class__._branch.set(self, encoding.fromlocal(branch))
         if transaction is not None:
@@ -718,7 +717,7 @@ class dirstate(intdirstate.idirstate):
         self._origpl = None
 
     @requires_changing_any
-    def copy(self, source: Optional[bytes], dest: bytes) -> None:
+    def copy(self, source: bytes | None, dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""
         if source == dest:
             return
@@ -729,7 +728,7 @@ class dirstate(intdirstate.idirstate):
         else:
             self._map.copymap.pop(dest, None)
 
-    def copied(self, file: bytes) -> Optional[bytes]:
+    def copied(self, file: bytes) -> bytes | None:
         return self._map.copymap.get(file, None)
 
     def copies(self) -> dict[bytes, bytes]:
@@ -1035,7 +1034,7 @@ class dirstate(intdirstate.idirstate):
         self,
         parent: bytes,
         allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Optional[Iterable[bytes]] = None,
+        changedfiles: Iterable[bytes] | None = None,
     ) -> None:
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():
@@ -1102,7 +1101,7 @@ class dirstate(intdirstate.idirstate):
             on_abort,
         )
 
-    def write(self, tr: Optional[TransactionT]) -> None:
+    def write(self, tr: TransactionT | None) -> None:
         if not self._dirty:
             return
         # make sure we don't request a write of invalidated content
@@ -1831,7 +1830,7 @@ class dirstate(intdirstate.idirstate):
         return tuple(files)
 
     def verify(
-        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+        self, m1, m2, p1: bytes, narrow_matcher: Any | None = None
     ) -> Iterator[bytes]:
         """
         check the dirstate contents against the parent manifest and yield errors

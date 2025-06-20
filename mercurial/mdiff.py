@@ -17,7 +17,6 @@ from typing import (
     Iterator,
     Optional,
     Sequence,
-    Union,
     cast,
 )
 
@@ -244,7 +243,7 @@ def blocksinrange(
     return filteredblocks, (lba, uba)
 
 
-def chooseblocksfunc(opts: Optional[diffopts] = None) -> intmod.BDiffBlocksFnc:
+def chooseblocksfunc(opts: diffopts | None = None) -> intmod.BDiffBlocksFnc:
     if (
         opts is None
         or not opts.xdiff
@@ -258,9 +257,9 @@ def chooseblocksfunc(opts: Optional[diffopts] = None) -> intmod.BDiffBlocksFnc:
 def allblocks(
     text1: bytes,
     text2: bytes,
-    opts: Optional[diffopts] = None,
-    lines1: Optional[Sequence[bytes]] = None,
-    lines2: Optional[Sequence[bytes]] = None,
+    opts: diffopts | None = None,
+    lines1: Sequence[bytes] | None = None,
+    lines2: Sequence[bytes] | None = None,
 ) -> Iterable[TypedBlock]:
     """Return (block, type) tuples, where block is an mdiff.blocks
     line entry. type is '=' for blocks matching exactly one another
@@ -312,7 +311,7 @@ def unidiff(
     fn2: bytes,
     binary: bool,
     opts: diffopts = defaultopts,
-) -> tuple[list[bytes], Iterable[tuple[Optional[HunkRange], HunkLines]]]:
+) -> tuple[list[bytes], Iterable[tuple[HunkRange | None, HunkLines]]]:
     """Return a unified diff as a (headers, hunks) tuple.
 
     If the diff is not null, `headers` is a list with unified diff header
@@ -323,7 +322,7 @@ def unidiff(
     Set binary=True if either a or b should be taken as a binary file.
     """
 
-    def datetag(date: bytes, fn: Optional[bytes] = None):
+    def datetag(date: bytes, fn: bytes | None = None):
         if not opts.git and not opts.nodates:
             return b'\t%s' % date
         if fn and b' ' in fn:
@@ -401,7 +400,7 @@ def unidiff(
 
 def _unidiff(
     t1: bytes, t2: bytes, opts: diffopts = defaultopts
-) -> Iterator[Union[bool, tuple[HunkRange, HunkLines]]]:
+) -> Iterator[bool | tuple[HunkRange, HunkLines]]:
     """Yield hunks of a headerless unified diff from t1 and t2 texts.
 
     Each hunk consists of a (hunkrange, hunklines) tuple where `hunkrange` is a
@@ -549,7 +548,7 @@ def _unidiff(
         yield False
 
 
-def b85diff(to: Optional[bytes], tn: Optional[bytes]) -> bytes:
+def b85diff(to: bytes | None, tn: bytes | None) -> bytes:
     '''print base85-encoded binary diff'''
 
     def fmtline(line):

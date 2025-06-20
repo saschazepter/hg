@@ -1280,7 +1280,7 @@ class revlog:
         features = FEATURES_BY_VERSION[_format_version]
         return features['inline'](_format_flags)
 
-    _docket_file: Optional[bytes]
+    _docket_file: bytes | None
 
     def __init__(
         self,
@@ -1362,7 +1362,7 @@ class revlog:
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
 
-        self.index: Optional[BaseIndexObject] = None
+        self.index: BaseIndexObject | None = None
         self._docket = None
         self._nodemap_docket = None
         # Mapping of partial identifiers to full nodes.

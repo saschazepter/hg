@@ -7,7 +7,6 @@ from typing import (
     Any,
     Iterable,
     Iterator,
-    Optional,
 )
 
 from mercurial.interfaces.types import (
@@ -119,7 +118,7 @@ class gitdirstate(intdirstate.idirstate):
         # TODO: MERGE_HEAD? something like that, right?
         return sha1nodeconstants.nullid
 
-    def setparents(self, p1: bytes, p2: Optional[bytes] = None):
+    def setparents(self, p1: bytes, p2: bytes | None = None):
         if p2 is None:
             p2 = sha1nodeconstants.nullid
         assert p2 == sha1nodeconstants.nullid, b'TODO merging support'
@@ -284,7 +283,7 @@ class gitdirstate(intdirstate.idirstate):
     def invalidate(self) -> None:
         raise NotImplementedError
 
-    def copy(self, source: Optional[bytes], dest: bytes) -> None:
+    def copy(self, source: bytes | None, dest: bytes) -> None:
         raise NotImplementedError
 
     def copies(self) -> dict[bytes, bytes]:
@@ -313,11 +312,11 @@ class gitdirstate(intdirstate.idirstate):
         self,
         parent: bytes,
         allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Optional[Iterable[bytes]] = None,
+        changedfiles: Iterable[bytes] | None = None,
     ) -> None:
         raise NotImplementedError
 
-    def write(self, tr: Optional[TransactionT]) -> None:
+    def write(self, tr: TransactionT | None) -> None:
         # TODO: call parent change callbacks
 
         if tr:
@@ -329,7 +328,7 @@ class gitdirstate(intdirstate.idirstate):
         else:
             self.git.index.write()
 
-    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         if cwd is None:
             cwd = self.getcwd()
         # TODO core dirstate does something about slashes here
@@ -422,7 +421,7 @@ class gitdirstate(intdirstate.idirstate):
         index.remove(pycompat.fsdecode(f))
         index.write()
 
-    def copied(self, file: bytes) -> Optional[bytes]:
+    def copied(self, file: bytes) -> bytes | None:
         # TODO: track copies?
         return None
 
@@ -456,14 +455,14 @@ class gitdirstate(intdirstate.idirstate):
         self._plchangecallbacks[category] = callback
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[TransactionT]
+        self, branch: bytes, transaction: TransactionT | None
     ) -> None:
         raise error.Abort(
             b'git repos do not support branches. try using bookmarks'
         )
 
     def verify(
-        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+        self, m1, m2, p1: bytes, narrow_matcher: Any | None = None
     ) -> Iterator[bytes]:
         raise NotImplementedError
 

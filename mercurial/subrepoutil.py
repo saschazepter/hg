@@ -14,7 +14,6 @@ import typing
 
 from typing import (
     Any,
-    Optional,
 )
 
 from .i18n import _
@@ -34,7 +33,6 @@ from .utils import (
 # keeps pyflakes happy
 assert [
     Any,
-    Optional,
 ]
 
 nullstate = (b'', b'', b'empty')
@@ -185,7 +183,7 @@ def submerge(
     mctx: context.changectx,
     actx: context.changectx,
     overwrite: bool,
-    labels: Optional[Any] = None,
+    labels: Any | None = None,
 ) -> Substate:
     # TODO: type the `labels` arg
     """delegated from merge.applyupdates: merging of .hgsubstate file
@@ -448,7 +446,7 @@ def _abssource(
     repo: localrepo.localrepository,
     push: bool = False,
     abort: bool = True,
-) -> Optional[bytes]:
+) -> bytes | None:
     """return pull/push path of repo - either based on parent repo .hgsub info
     or on the top repo config. Abort or return None if no source found."""
     if hasattr(repo, '_subparent'):

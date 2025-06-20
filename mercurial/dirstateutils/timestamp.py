@@ -9,7 +9,6 @@ import functools
 import os
 import stat
 import time
-from typing import Optional
 
 from .. import error
 
@@ -51,7 +50,7 @@ class timestamp(tuple):
         )
 
 
-def get_fs_now(vfs) -> Optional[timestamp]:
+def get_fs_now(vfs) -> timestamp | None:
     """return a timestamp for "now" in the current vfs
 
     This will raise an exception if no temporary files could be created.
@@ -99,7 +98,7 @@ def mtime_of(stat_result: os.stat_result) -> timestamp:
 
 def reliable_mtime_of(
     stat_result: os.stat_result, present_mtime: timestamp
-) -> Optional[timestamp]:
+) -> timestamp | None:
     """Wrapper for `make_mtime_reliable` for stat objects"""
     file_mtime = mtime_of(stat_result)
     return make_mtime_reliable(file_mtime, present_mtime)
@@ -107,7 +106,7 @@ def reliable_mtime_of(
 
 def make_mtime_reliable(
     file_timestamp: timestamp, present_mtime: timestamp
-) -> Optional[timestamp]:
+) -> timestamp | None:
     """Same as `mtime_of`, but return `None` or a `Timestamp` with
     `second_ambiguous` set if the date might be ambiguous.
 
@@ -142,7 +141,7 @@ def make_mtime_reliable(
 FS_TICK_WAIT_TIMEOUT = 0.1  # 100 milliseconds
 
 
-def wait_until_fs_tick(vfs) -> Optional[tuple[timestamp, bool]]:
+def wait_until_fs_tick(vfs) -> tuple[timestamp, bool] | None:
     """Wait until the next update from the filesystem time by writing in a loop
     a new temporary file inside the working directory and checking if its time
     differs from the first one observed.

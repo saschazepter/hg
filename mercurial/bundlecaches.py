@@ -10,7 +10,6 @@ import re
 import typing
 
 from typing import (
-    Union,
     cast,
 )
 
@@ -120,7 +119,7 @@ _bundlespeccgversions = {
 }
 
 # Maps bundle version with content opts to choose which part to bundle
-_bundlespeccontentopts: dict[bytes, dict[bytes, Union[bool, bytes]]] = {
+_bundlespeccontentopts: dict[bytes, dict[bytes, bool | bytes]] = {
     b'v1': {
         b'changegroup': True,
         b'cg.version': b'01',

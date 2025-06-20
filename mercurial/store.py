@@ -17,7 +17,6 @@ import typing
 from typing import (
     Generator,
     Iterator,
-    Optional,
 )
 
 from .i18n import _
@@ -1150,7 +1149,7 @@ class _fncachevfs(vfsmod.proxyvfs):
                 self.fncache.add(path)
         return self.vfs(encoded, mode, *args, **kw)
 
-    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         insidef = (self.encode(f) for f in insidef)
 
         if path:

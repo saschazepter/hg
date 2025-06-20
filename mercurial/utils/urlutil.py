@@ -13,8 +13,6 @@ import socket
 
 from typing import (
     Callable,
-    Optional,
-    Union,
 )
 
 from ..i18n import _
@@ -38,12 +36,14 @@ from ..revlogutils import (
 )
 
 # keeps pyflakes happy
-assert [Callable, Union]
+assert [
+    Callable,
+]
 
 urlreq = urllibcompat.urlreq
 
 
-def getport(port: Union[bytes, int]) -> int:
+def getport(port: bytes | int) -> int:
     """Return the port for a given network service.
 
     If port is an integer, it's returned as is. If it's a string, it's
@@ -891,7 +891,7 @@ class path(int_misc.IPath):
         self.rawloc = rawloc
         self.loc = b'%s' % u
 
-    def copy(self, new_raw_location: Optional[bytes] = None) -> path:
+    def copy(self, new_raw_location: bytes | None = None) -> path:
         """make a copy of this path object
 
         When `new_raw_location` is set, the new path will point to it.

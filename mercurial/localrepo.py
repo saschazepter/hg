@@ -17,9 +17,6 @@ import typing
 import weakref
 
 from concurrent import futures
-from typing import (
-    Optional,
-)
 
 from .i18n import _
 from .node import (
@@ -849,7 +846,7 @@ def loadhgrc(
     wdirvfs: vfsmod.vfs,
     hgvfs: vfsmod.vfs,
     requirements,
-    sharedvfs: Optional[vfsmod.vfs] = None,
+    sharedvfs: vfsmod.vfs | None = None,
 ):
     """Load hgrc files/content into a ui instance.
 
@@ -2337,7 +2334,7 @@ class localrepository(_localrepo_base_classes):
     def getcwd(self) -> bytes:
         return self.dirstate.getcwd()
 
-    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         return self.dirstate.pathto(f, cwd)
 
     def _loadfilter(self, filter):

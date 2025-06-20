@@ -288,7 +288,7 @@ _linebelow = b"^HG: ------------------------ >8 ------------------------$"
 def check_at_most_one_arg(
     opts: dict[AnyStr, Any],
     *args: AnyStr,
-) -> Optional[AnyStr]:
+) -> AnyStr | None:
     """abort if more than one of the arguments are in opts
 
     Returns the unique argument or None if none of them were specified.
@@ -1118,7 +1118,7 @@ def changebranch(ui, repo, revs, label, **opts):
         ui.status(_(b"changed branch on %d changesets\n") % len(replacements))
 
 
-def findrepo(p: bytes) -> Optional[bytes]:
+def findrepo(p: bytes) -> bytes | None:
     while not os.path.isdir(os.path.join(p, b".hg")):
         oldp, p = p, os.path.dirname(p)
         if p == oldp:
@@ -1146,7 +1146,7 @@ def bailifchanged(repo, merge=True, hint=None):
         ctx.sub(s).bailifchanged(hint=hint)
 
 
-def logmessage(ui: uimod.ui, opts: dict[bytes, Any]) -> Optional[bytes]:
+def logmessage(ui: uimod.ui, opts: dict[bytes, Any]) -> bytes | None:
     """get the log message according to -m and -l option"""
 
     check_at_most_one_arg(opts, b'message', b'logfile')

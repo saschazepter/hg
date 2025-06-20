@@ -17,9 +17,7 @@ from typing import (
     Any,
     Callable,
     Iterable,
-    Optional,
     TYPE_CHECKING,
-    Union,
     cast,
 )
 
@@ -199,10 +197,10 @@ class _BaseBranchCache:
     def __init__(
         self,
         repo: localrepo.localrepository,
-        entries: Union[
-            dict[bytes, list[bytes]], Iterable[tuple[bytes, list[bytes]]]
-        ] = (),
-        closed_nodes: Optional[set[bytes]] = None,
+        entries: (
+            dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
+        ) = (),
+        closed_nodes: set[bytes] | None = None,
     ) -> None:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
@@ -434,14 +432,14 @@ class _LocalBranchCache(_BaseBranchCache):
     def __init__(
         self,
         repo: localrepo.localrepository,
-        entries: Union[
-            dict[bytes, list[bytes]], Iterable[tuple[bytes, list[bytes]]]
-        ] = (),
-        tipnode: Optional[bytes] = None,
-        tiprev: Optional[int] = nullrev,
-        key_hashes: Optional[tuple[bytes]] = None,
-        closednodes: Optional[set[bytes]] = None,
-        hasnode: Optional[Callable[[bytes], bool]] = None,
+        entries: (
+            dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
+        ) = (),
+        tipnode: bytes | None = None,
+        tiprev: int | None = nullrev,
+        key_hashes: tuple[bytes] | None = None,
+        closednodes: set[bytes] | None = None,
+        hasnode: Callable[[bytes], bool] | None = None,
         verify_node: bool = False,
         inherited: bool = False,
     ) -> None:
@@ -742,7 +740,7 @@ class _LocalBranchCache(_BaseBranchCache):
             self.write(repo)
 
 
-def branch_cache_from_file(repo) -> Optional[_LocalBranchCache]:
+def branch_cache_from_file(repo) -> _LocalBranchCache | None:
     """Build a branch cache from on-disk data if possible
 
     Return a branch cache of the right format depending of the repository.
@@ -1078,9 +1076,9 @@ class remotebranchcache(_BaseBranchCache):
     def __init__(
         self,
         repo: localrepo.localrepository,
-        entries: Union[
-            dict[bytes, list[bytes]], Iterable[tuple[bytes, list[bytes]]]
-        ] = (),
-        closednodes: Optional[set[bytes]] = None,
+        entries: (
+            dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
+        ) = (),
+        closednodes: set[bytes] | None = None,
     ) -> None:
         super().__init__(repo=repo, entries=entries, closed_nodes=closednodes)

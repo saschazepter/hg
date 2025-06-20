@@ -706,7 +706,7 @@ class VolatileManager:
             self._flush_some_on_disk()
         self._keep_one(src)
 
-    def try_keep(self, src: bytes) -> Optional[int]:
+    def try_keep(self, src: bytes) -> int | None:
         """record a volatile file and returns it size
 
         return None if the file does not exists.
@@ -1422,7 +1422,7 @@ class _FileChunker:
         data_len: int,
         progress: scmutil.progress,
         report: V2Report,
-        mark_used: Optional[Callable[[int], None]] = None,
+        mark_used: Callable[[int], None] | None = None,
     ):
         self.report = report
         self.progress = progress
@@ -1451,7 +1451,7 @@ class _ThreadSafeFileChunker(_FileChunker):
         data_len: int,
         progress: scmutil.progress,
         report: V2Report,
-        mark_used: Optional[Callable[[int], None]] = None,
+        mark_used: Callable[[int], None] | None = None,
     ):
         super().__init__(fp, data_len, progress, report)
         self._fp = fp
@@ -1485,7 +1485,7 @@ class _ThreadSafeFileChunker(_FileChunker):
 
 def _trivial_file(
     chunk: bytes,
-    mark_used: Optional[Callable[[int], None]],
+    mark_used: Callable[[int], None] | None,
     offset: int,
 ) -> FileChunksT:
     """used for single chunk file,"""
@@ -1502,7 +1502,7 @@ def _v2_parse_files(
     progress: scmutil.progress,
     report: V2Report,
     file_chunker: type[_FileChunker] = _FileChunker,
-    mark_used: Optional[Callable[[int], None]] = None,
+    mark_used: Callable[[int], None] | None = None,
 ) -> Iterator[FileInfoT]:
     """do the "stream-parsing" part of stream v2
 

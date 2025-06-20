@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 from . import (
     configitems,
     error,
@@ -554,8 +554,8 @@ class verify_check(_funcregistrarbase):
         self,
         name,
         func,
-        alias: Optional[bytes] = None,
-        options: Optional[list[tuple[bytes, Any, bytes]]] = None,
+        alias: bytes | None = None,
+        options: list[tuple[bytes, Any, bytes]] | None = None,
     ):
         func.alias = alias
         func.options = options

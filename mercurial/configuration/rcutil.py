@@ -9,10 +9,6 @@ from __future__ import annotations
 
 import os
 
-from typing import (
-    Optional,
-)
-
 from .. import (
     configuration as conf_mod,
     encoding,
@@ -51,7 +47,7 @@ def _expandrcpath(path: bytes) -> list[FileRCT]:
     return [p]
 
 
-def envrcitems(env: Optional[dict[bytes, bytes]] = None) -> list[ConfigItemT]:
+def envrcitems(env: dict[bytes, bytes] | None = None) -> list[ConfigItemT]:
     """Return [(section, name, value, source)] config items.
 
     The config items are extracted from environment variables specified by env,
@@ -170,7 +166,7 @@ def repo_components(repo_path: bytes) -> list[ComponentT]:
     return components
 
 
-def all_rc_components(repo_path: Optional[bytes]):
+def all_rc_components(repo_path: bytes | None):
     components = []
     components.extend(rccomponents(use_hgrcpath=False))
     if repo_path is not None:

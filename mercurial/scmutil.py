@@ -21,7 +21,6 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    Optional,
 )
 
 from .i18n import _
@@ -469,7 +468,7 @@ def _hash_revs(revs: Iterable[int]) -> bytes:
 def walkrepos(
     path,
     followsym: bool = False,
-    seen_dirs: Optional[list[bytes]] = None,
+    seen_dirs: list[bytes] | None = None,
     recurse: bool = False,
 ) -> Iterable[bytes]:
     """yield every hg repository under path, always recursively.
@@ -927,7 +926,7 @@ def meaningfulparents(repo, ctx):
 def getuipathfn(
     repo,
     legacyrelativevalue: bool = False,
-    forcerelativevalue: Optional[bool] = None,
+    forcerelativevalue: bool | None = None,
 ) -> typelib.UiPathFn:
     """Return a function that produced paths for presenting to the user.
 
@@ -1585,7 +1584,7 @@ def dirstatecopy(
     src,
     dst,
     dryrun: bool = False,
-    cwd: Optional[bytes] = None,
+    cwd: bytes | None = None,
 ) -> None:
     """Update the dirstate to reflect the intent of copying src to dst. For
     different reasons it might not end with dst being marked as copied from src.
@@ -1714,7 +1713,7 @@ def writerequires(opener, requirements, maywrite=True) -> None:
 
 
 class filecachesubentry:
-    _cacheable: Optional[bool] = None
+    _cacheable: bool | None = None
 
     def __init__(self, path, stat: bool):
         self.path = path
@@ -1763,7 +1762,7 @@ class filecachesubentry:
             return False
 
     @staticmethod
-    def stat(path: bytes) -> Optional[int_misc.ICacheStat]:
+    def stat(path: bytes) -> int_misc.ICacheStat | None:
         # TODO have a cleaner approach on httpstaticrepo side
         if path.startswith(b'https://') or path.startswith(b'http://'):
             return util.uncacheable_cachestat()
@@ -1956,10 +1955,10 @@ def extdatasource(repo, source: bytes):
 
 class progress:
     ui: uimod.ui
-    pos: Optional[int]  # None once complete
+    pos: int | None  # None once complete
     topic: bytes
     unit: bytes
-    total: Optional[int]
+    total: int | None
     debug: bool
 
     def __init__(
@@ -1968,7 +1967,7 @@ class progress:
         updatebar,
         topic: bytes,
         unit: bytes = b"",
-        total: Optional[int] = None,
+        total: int | None = None,
     ) -> None:
         self.ui = ui
         self.pos = 0
@@ -1985,7 +1984,7 @@ class progress:
         self.complete()
 
     def update(
-        self, pos: int, item: bytes = b"", total: Optional[int] = None
+        self, pos: int, item: bytes = b"", total: int | None = None
     ) -> None:
         assert pos is not None
         if total:
@@ -1996,7 +1995,7 @@ class progress:
             self._printdebug(item)
 
     def increment(
-        self, step: int = 1, item: bytes = b"", total: Optional[int] = None
+        self, step: int = 1, item: bytes = b"", total: int | None = None
     ) -> None:
         self.update(self.pos + step, item, total)
 
@@ -2093,7 +2092,7 @@ class simplekeyvaluefile:
             raise error.CorruptedState(stringutil.forcebytestr(e))
         return d
 
-    def write(self, data, firstline: Optional[bytes] = None) -> None:
+    def write(self, data, firstline: bytes | None = None) -> None:
         """Write key=>value mapping to a file
         data is a dict. Keys must be alphanumerical and start with a letter.
         Values must not contain newline characters.
@@ -2341,7 +2340,7 @@ def registersummarycallback(
             repo.ui.status(msg % len(published))
 
 
-def getinstabilitymessage(delta: int, instability: bytes) -> Optional[bytes]:
+def getinstabilitymessage(delta: int, instability: bytes) -> bytes | None:
     """function to return the message to show warning about new instabilities
 
     exists as a separate function so that extension can wrap to show more
@@ -2515,9 +2514,7 @@ RESOURCE_MAPPING: dict[bytes, int] = {
 DEFAULT_RESOURCE: int = RESOURCE_MEDIUM
 
 
-def get_resource_profile(
-    ui: uimod.ui, dimension: Optional[bytes] = None
-) -> int:
+def get_resource_profile(ui: uimod.ui, dimension: bytes | None = None) -> int:
     """return the resource profile for a dimension
 
     If no dimension is specified, the generic value is returned"""

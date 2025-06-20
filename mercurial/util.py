@@ -44,7 +44,6 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    Optional,
     TypeVar,
 )
 
@@ -81,7 +80,6 @@ from .utils import (
 assert [
     Iterable,
     Iterator,
-    Optional,
 ]
 
 if typing.TYPE_CHECKING:
@@ -522,7 +520,7 @@ def mmapread(fp, size=None, pre_populate=True):
 
 
 class uncacheable_cachestat(int_misc.ICacheStat):
-    stat: Optional[os.stat_result]
+    stat: os.stat_result | None
 
     def __init__(self) -> None:
         self.stat = None
@@ -2149,7 +2147,7 @@ _winreservednames = {
 _winreservedchars = b':*?"<>|'
 
 
-def checkwinfilename(path: bytes) -> Optional[bytes]:
+def checkwinfilename(path: bytes) -> bytes | None:
     r"""Check that the base-relative path is a valid filename on Windows.
     Returns None if the path is ok, or a UI string describing the problem.
 
@@ -2484,7 +2482,7 @@ def splitpath(path: bytes) -> list[bytes]:
 def mktempcopy(
     name: bytes,
     emptyok: bool = False,
-    createmode: Optional[int] = None,
+    createmode: int | None = None,
     enforcewritable: bool = False,
 ) -> bytes:
     """Create a temporary file with the same contents from name
@@ -2537,7 +2535,7 @@ class filestat:
     'exists()' examination on client side of this class.
     """
 
-    def __init__(self, stat: Optional[os.stat_result]) -> None:
+    def __init__(self, stat: os.stat_result | None) -> None:
         self.stat = stat
 
     @classmethod
@@ -2739,7 +2737,7 @@ def tryunlink(f: bytes) -> bool:
 
 
 def makedirs(
-    name: bytes, mode: Optional[int] = None, notindexed: bool = False
+    name: bytes, mode: int | None = None, notindexed: bool = False
 ) -> None:
     """recursive directory creation with parent mode inheritance
 
@@ -3422,7 +3420,7 @@ def with_lc_ctype():
         yield
 
 
-def _estimatememory() -> Optional[int]:
+def _estimatememory() -> int | None:
     """Provide an estimate for the available system memory in Bytes.
 
     If no estimate can be provided on the platform, returns None.

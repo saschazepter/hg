@@ -9,7 +9,6 @@ import typing
 
 from typing import (
     Callable,
-    Optional,
     Protocol,
 )
 
@@ -46,7 +45,7 @@ class BDiff(Protocol):
     def fixws(self, text: bytes, allws: bool) -> bytes:
         ...
 
-    xdiffblocks: Optional[BDiffBlocksFnc]
+    xdiffblocks: BDiffBlocksFnc | None
     """This method is currently only available in the ``cext`` module."""
 
 

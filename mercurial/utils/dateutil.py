@@ -14,8 +14,6 @@ import time
 from typing import (
     Callable,
     Iterable,
-    Optional,
-    Union,
 )
 
 from ..i18n import _
@@ -29,8 +27,6 @@ from .. import (
 assert [
     Callable,
     Iterable,
-    Optional,
-    Union,
 ]
 
 hgdate = tuple[float, int]  # (unixtime, offset)
@@ -78,7 +74,7 @@ extendeddateformats = defaultdateformats + (
 )
 
 
-def makedate(timestamp: Optional[float] = None) -> hgdate:
+def makedate(timestamp: float | None = None) -> hgdate:
     """Return a unix timestamp (or the current time) as a (unixtime,
     offset) tuple based off the local timezone.
 
@@ -130,7 +126,7 @@ def makedate(timestamp: Optional[float] = None) -> hgdate:
 
 
 def datestr(
-    date: Optional[hgdate] = None,
+    date: hgdate | None = None,
     format: bytes = b'%a %b %d %H:%M:%S %Y %1%2',
 ) -> bytes:
     """represent a (unixtime, offset) tuple as a localized time.
@@ -169,12 +165,12 @@ def datestr(
     return s
 
 
-def shortdate(date: Optional[hgdate] = None) -> bytes:
+def shortdate(date: hgdate | None = None) -> bytes:
     """turn (timestamp, tzoff) tuple into iso 8631 date."""
     return datestr(date, format=b'%Y-%m-%d')
 
 
-def parsetimezone(s: bytes) -> tuple[Optional[int], bytes]:
+def parsetimezone(s: bytes) -> tuple[int | None, bytes]:
     """find a trailing timezone, if any, in string, and return a
     (offset, remainder) pair"""
     s = pycompat.bytestr(s)
@@ -212,7 +208,7 @@ def parsetimezone(s: bytes) -> tuple[Optional[int], bytes]:
 def strdate(
     string: bytes,
     format: bytes,
-    defaults: Optional[dict[bytes, tuple[bytes, bytes]]] = None,
+    defaults: dict[bytes, tuple[bytes, bytes]] | None = None,
 ) -> hgdate:
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
@@ -256,9 +252,9 @@ def strdate(
 
 
 def parsedate(
-    date: Union[bytes, hgdate],
-    formats: Optional[Iterable[bytes]] = None,
-    bias: Optional[dict[bytes, bytes]] = None,
+    date: bytes | hgdate,
+    formats: Iterable[bytes] | None = None,
+    bias: dict[bytes, bytes] | None = None,
 ) -> hgdate:
     """parse a localized date/time and return a (unixtime, offset) tuple.
 

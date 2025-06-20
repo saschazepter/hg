@@ -17,7 +17,6 @@ import subprocess
 
 from typing import (
     NoReturn,
-    Optional,
 )
 
 from . import (
@@ -527,7 +526,7 @@ def executablepath() -> bytes:
     return buf.value
 
 
-def getvolumename(path: bytes) -> Optional[bytes]:
+def getvolumename(path: bytes) -> bytes | None:
     """Get the mount point of the filesystem from a directory or file
     (best-effort)
 
@@ -548,7 +547,7 @@ def getvolumename(path: bytes) -> Optional[bytes]:
     return buf.value
 
 
-def getfstype(path: bytes) -> Optional[bytes]:
+def getfstype(path: bytes) -> bytes | None:
     """Get the filesystem type name from a directory or file (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.

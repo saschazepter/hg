@@ -14,7 +14,6 @@ import textwrap
 from typing import (
     Callable,
     Iterable,
-    Optional,
     Union,
     cast,
 )
@@ -183,7 +182,7 @@ def extshelp(ui: uimod.ui) -> bytes:
     return doc
 
 
-def parsedefaultmarker(text: bytes) -> Optional[tuple[bytes, list[bytes]]]:
+def parsedefaultmarker(text: bytes) -> tuple[bytes, list[bytes]] | None:
     """given a text 'abc (DEFAULT: def.ghi)',
     returns (b'abc', (b'def', b'ghi')). Otherwise return None"""
     if text[-1:] == b')':
@@ -251,7 +250,7 @@ def optrst(header: bytes, options, verbose: bool, ui: uimod.ui) -> bytes:
 
 
 def indicateomitted(
-    rst: list[bytes], omitted: bytes, notomitted: Optional[bytes] = None
+    rst: list[bytes], omitted: bytes, notomitted: bytes | None = None
 ) -> None:
     rst.append(b'\n\n.. container:: omitted\n\n    %s\n\n' % omitted)
     if notomitted:
@@ -360,7 +359,7 @@ def topicmatch(
     return results
 
 
-def loaddoc(topic: bytes, subdir: Optional[bytes] = None) -> _DocLoader:
+def loaddoc(topic: bytes, subdir: bytes | None = None) -> _DocLoader:
     """Return a delayed loader for help/topic.txt."""
 
     def loader(ui: uimod.ui) -> bytes:
@@ -741,7 +740,7 @@ def sub_config_item_help(ui: uimod.ui, doc: bytes) -> bytes:
 
 
 def _getcategorizedhelpcmds(
-    ui: uimod.ui, cmdtable, name: bytes, select: Optional[_SelectFn] = None
+    ui: uimod.ui, cmdtable, name: bytes, select: _SelectFn | None = None
 ) -> tuple[dict[bytes, list[bytes]], dict[bytes, bytes], _SynonymTable]:
     # Category -> list of commands
     cats = {}
@@ -800,8 +799,8 @@ def help_(
     name: bytes,
     unknowncmd: bool = False,
     full: bool = True,
-    subtopic: Optional[bytes] = None,
-    fullname: Optional[bytes] = None,
+    subtopic: bytes | None = None,
+    fullname: bytes | None = None,
     **opts,
 ) -> bytes:
     """
@@ -811,7 +810,7 @@ def help_(
 
     opts = pycompat.byteskwargs(opts)
 
-    def helpcmd(name: bytes, subtopic: Optional[bytes]) -> list[bytes]:
+    def helpcmd(name: bytes, subtopic: bytes | None) -> list[bytes]:
         try:
             aliases, entry = cmdutil.findcmd(
                 name, commands.table, strict=unknowncmd
@@ -913,7 +912,7 @@ def help_(
 
         return rst
 
-    def helplist(select: Optional[_SelectFn] = None, **opts) -> list[bytes]:
+    def helplist(select: _SelectFn | None = None, **opts) -> list[bytes]:
         cats, h, syns = _getcategorizedhelpcmds(
             ui, commands.table, name, select
         )
@@ -1042,7 +1041,7 @@ def help_(
                 )
         return rst
 
-    def helptopic(name: bytes, subtopic: Optional[bytes] = None) -> list[bytes]:
+    def helptopic(name: bytes, subtopic: bytes | None = None) -> list[bytes]:
         # Look for sub-topic entry first.
         header, doc = None, None
         if subtopic and name in subtopics:
@@ -1085,7 +1084,7 @@ def help_(
             pass
         return rst
 
-    def helpext(name: bytes, subtopic: Optional[bytes] = None) -> list[bytes]:
+    def helpext(name: bytes, subtopic: bytes | None = None) -> list[bytes]:
         try:
             mod = extensions.find(name)
             doc = ext_help(ui, mod)
@@ -1130,9 +1129,7 @@ def help_(
             )
         return rst
 
-    def helpextcmd(
-        name: bytes, subtopic: Optional[bytes] = None
-    ) -> list[bytes]:
+    def helpextcmd(name: bytes, subtopic: bytes | None = None) -> list[bytes]:
         cmd, ext, doc = extensions.disabledcmd(
             ui, name, ui.configbool(b'ui', b'strict')
         )
@@ -1221,8 +1218,8 @@ def help_(
 def formattedhelp(
     ui: uimod.ui,
     commands,
-    fullname: Optional[bytes],
-    keep: Optional[Iterable[bytes]] = None,
+    fullname: bytes | None,
+    keep: Iterable[bytes] | None = None,
     unknowncmd: bool = False,
     full: bool = True,
     **opts,

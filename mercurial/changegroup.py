@@ -11,7 +11,7 @@ import os
 import struct
 import weakref
 
-from typing import Iterator, Optional
+from typing import Iterator
 
 from .i18n import _
 from .node import (
@@ -361,9 +361,7 @@ class cg1unpacker:
         protocol_flags = 0
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
-    def deltachunk(
-        self, prevnode: bytes
-    ) -> Optional[revlogutils.InboundRevision]:
+    def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
         l = self._chunklength()
         if not l:
             return None
@@ -900,9 +898,7 @@ class cg5unpacker(cg3unpacker):
         protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
         return node, p1, p2, deltabase, cs, flags, protocol_flags
 
-    def deltachunk(
-        self, prevnode: bytes
-    ) -> Optional[revlogutils.InboundRevision]:
+    def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
         res = super().deltachunk(prevnode)
         if res is None:
             return res

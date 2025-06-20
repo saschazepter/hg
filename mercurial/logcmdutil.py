@@ -15,7 +15,6 @@ import typing
 from typing import (
     Any,
     Callable,
-    Optional,
     Sequence,
 )
 
@@ -579,7 +578,7 @@ class changesettemplater(changesetprinter):
     """
 
     _tresources: formatter.templateresources
-    lastheader: Optional[bytes]
+    lastheader: bytes | None
     t: templater.templater
 
     # Arguments before "buffered" used to be positional. Consider not
@@ -1087,7 +1086,7 @@ def _initialrevs(repo, wopts):
 def makewalker(
     repo: Any,
     wopts: walkopts,
-) -> tuple[smartset.abstractsmartset, Optional[Callable[[Any], MatcherT]]]:
+) -> tuple[smartset.abstractsmartset, Callable[[Any], MatcherT] | None]:
     """Build (revs, makefilematcher) to scan revision/file history
 
     - revs is the smartset to be traversed.
@@ -1142,7 +1141,7 @@ def makewalker(
 def getrevs(
     repo: Any,
     wopts: walkopts,
-) -> tuple[smartset.abstractsmartset, Optional[changesetdiffer]]:
+) -> tuple[smartset.abstractsmartset, changesetdiffer | None]:
     """Return (revs, differ) where revs is a smartset
 
     differ is a changesetdiffer with pre-configured file matcher.

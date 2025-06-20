@@ -17,7 +17,6 @@ from typing import (
     Iterable,
     Iterator,
     Mapping,
-    Optional,
     Protocol,
 )
 
@@ -150,7 +149,7 @@ class _ipeerconnection(Protocol):
     ui: Ui
     """ui.ui instance"""
 
-    path: Optional[misc.IPath]
+    path: misc.IPath | None
     """a urlutil.path instance or None"""
 
     @abc.abstractmethod

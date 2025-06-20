@@ -899,7 +899,7 @@ _booleans = {
 }
 
 
-def parsebool(s: bytes) -> Optional[bool]:
+def parsebool(s: bytes) -> bool | None:
     """Parse s into a boolean.
 
     If s is not a valid boolean, returns None.
@@ -908,7 +908,7 @@ def parsebool(s: bytes) -> Optional[bool]:
 
 
 # TODO: make arg mandatory (and fix code below?)
-def parselist(value: Optional[bytes]):
+def parselist(value: bytes | None):
     """parse a configuration value as a list of comma/space separated strings
 
     >>> parselist(b'this,is "a small" ,test')

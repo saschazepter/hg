@@ -25,7 +25,6 @@ from typing import (
     Any,
     Callable,
     NoReturn,
-    Optional,
     TypeVar,
     Union,
     cast,
@@ -226,7 +225,7 @@ _reqexithandlers: list = []
 
 
 class ui:
-    def __init__(self, src: Optional[ui] = None) -> None:
+    def __init__(self, src: ui | None = None) -> None:
         """Create a fresh new ui object if no src given
 
         Use uimod.ui.load() to create a ui which knows global and user configs.
@@ -1034,7 +1033,7 @@ class ui:
             for name, value in self.configitems(section, untrusted):
                 yield section, name, value
 
-    def plain(self, feature: Optional[bytes] = None) -> bool:
+    def plain(self, feature: bytes | None = None) -> bool:
         """is plain mode active?
 
         Plain mode means that all configuration variables which affect
@@ -1719,7 +1718,7 @@ class ui:
     def _readline(
         self,
         prompt: bytes = b' ',
-        promptopts: Optional[dict[str, _MsgOpts]] = None,
+        promptopts: dict[str, _MsgOpts] | None = None,
     ) -> bytes:
         # Replacing stdin/stdout temporarily is a hard problem on Python 3
         # because they have to be text streams with *no buffering*. Instead,
@@ -1787,7 +1786,7 @@ class ui:
             pass
 
         @overload
-        def prompt(self, msg: bytes, default: None) -> Optional[bytes]:
+        def prompt(self, msg: bytes, default: None) -> bytes | None:
             pass
 
     def prompt(self, msg, default=b"y"):
@@ -1807,7 +1806,7 @@ class ui:
         @overload
         def _prompt(
             self, msg: bytes, default: None, **opts: _MsgOpts
-        ) -> Optional[bytes]:
+        ) -> bytes | None:
             pass
 
     def _prompt(self, msg, default=b'y', **opts):
@@ -1884,8 +1883,8 @@ class ui:
             self._writemsg(self._fmsgout, _(b"unrecognized response\n"))
 
     def getpass(
-        self, prompt: Optional[bytes] = None, default: Optional[bytes] = None
-    ) -> Optional[bytes]:
+        self, prompt: bytes | None = None, default: bytes | None = None
+    ) -> bytes | None:
         if not self.interactive():
             return default
         try:
@@ -1957,11 +1956,11 @@ class ui:
         self,
         text: bytes,
         user: bytes,
-        extra: Optional[dict[bytes, Any]] = None,  # TODO: value type of bytes?
+        extra: dict[bytes, Any] | None = None,  # TODO: value type of bytes?
         editform=None,
         pending=None,
-        repopath: Optional[bytes] = None,
-        action: Optional[bytes] = None,
+        repopath: bytes | None = None,
+        action: bytes | None = None,
     ) -> bytes:
         if action is None:
             self.develwarn(
@@ -2032,10 +2031,10 @@ class ui:
         self,
         cmd: bytes,
         environ=None,
-        cwd: Optional[bytes] = None,
-        onerr: Optional[Callable[[bytes], Exception]] = None,
-        errprefix: Optional[bytes] = None,
-        blockedtag: Optional[bytes] = None,
+        cwd: bytes | None = None,
+        onerr: Callable[[bytes], Exception] | None = None,
+        errprefix: bytes | None = None,
+        blockedtag: bytes | None = None,
     ) -> int:
         """execute shell command with appropriate output stream. command
         output will be redirected if fout is not stdout.
@@ -2063,7 +2062,7 @@ class ui:
             raise onerr(errmsg)
         return rc
 
-    def _runsystem(self, cmd: bytes, environ, cwd: Optional[bytes], out) -> int:
+    def _runsystem(self, cmd: bytes, environ, cwd: bytes | None, out) -> int:
         """actually execute the given shell command (can be overridden by
         extensions like chg)"""
         return procutil.system(cmd, environ=environ, cwd=cwd, out=out)
@@ -2117,7 +2116,7 @@ class ui:
         )
 
     @util.propertycache
-    def _progbar(self) -> Optional[progress.progbar]:
+    def _progbar(self) -> progress.progbar | None:
         """setup the progbar singleton to the ui object"""
         if (
             self.quiet
@@ -2136,7 +2135,7 @@ class ui:
             self._progbar.clear()
 
     def makeprogress(
-        self, topic: bytes, unit: bytes = b"", total: Optional[int] = None
+        self, topic: bytes, unit: bytes = b"", total: int | None = None
     ) -> scmutil.progress:
         """Create a progress helper for the specified topic"""
         if getattr(self._fmsgerr, 'structured', False):
@@ -2219,7 +2218,7 @@ class ui:
         return msg
 
     def develwarn(
-        self, msg: bytes, stacklevel: int = 1, config: Optional[bytes] = None
+        self, msg: bytes, stacklevel: int = 1, config: bytes | None = None
     ) -> None:
         """issue a developer warning message
 
@@ -2299,7 +2298,7 @@ class ui:
             if (b'ui', b'quiet') in overrides:
                 self.fixconfig(section=b'ui')
 
-    def estimatememory(self) -> Optional[int]:
+    def estimatememory(self) -> int | None:
         """Provide an estimate for the available system memory in Bytes.
 
         This can be overriden via ui.available-memory. It returns None, if
@@ -2318,7 +2317,7 @@ class ui:
 
 # we instantiate one globally shared progress bar to avoid
 # competing progress bars when multiple UI objects get created
-_progresssingleton: Optional[progress.progbar] = None
+_progresssingleton: progress.progbar | None = None
 
 
 def getprogbar(ui: ui) -> progress.progbar:

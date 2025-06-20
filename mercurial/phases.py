@@ -112,7 +112,6 @@ from typing import (
     Callable,
     Collection,
     Iterable,
-    Optional,
     overload,
 )
 
@@ -200,7 +199,7 @@ def supportarchived(repo: localrepo.localrepository) -> bool:
 
 def _readroots(
     repo: localrepo.localrepository,
-    phasedefaults: Optional[Phasedefaults] = None,
+    phasedefaults: Phasedefaults | None = None,
 ) -> tuple[Phaseroots, bool]:
     """Read phase roots from disk
 
@@ -393,7 +392,7 @@ class phasecache:
         def __init__(
             self,
             repo: localrepo.localrepository,
-            phasedefaults: Optional[Phasedefaults],
+            phasedefaults: Phasedefaults | None,
             _load: bool = True,
         ) -> None:
             pass
@@ -410,7 +409,7 @@ class phasecache:
             self._phaseroots: Phaseroots = loaded[0]
             self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
-            self._phasesets: Optional[PhaseSets] = None
+            self._phasesets: PhaseSets | None = None
 
     def hasnonpublicphases(self, repo: localrepo.localrepository) -> bool:
         """detect if there are revisions with non-public phase"""
@@ -460,7 +459,7 @@ class phasecache:
         self,
         repo: localrepo.localrepository,
         phases: Iterable[int],
-        subset: Optional[Any] = None,
+        subset: Any | None = None,
     ) -> Any:
         # TODO: finish typing this
         """return a smartset for the given phases"""
@@ -1268,8 +1267,8 @@ def hassecret(repo: localrepo.localrepository) -> bool:
 
 def preparehookargs(
     node: bytes,
-    old: Optional[int],
-    new: Optional[int],
+    old: int | None,
+    new: int | None,
 ) -> dict[bytes, bytes]:
     if old is None:
         old = b''

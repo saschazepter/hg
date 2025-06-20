@@ -89,9 +89,6 @@ import shutil
 import stat
 import subprocess
 import typing
-from typing import (
-    Optional,
-)
 
 from mercurial.i18n import _
 from mercurial.node import (
@@ -165,7 +162,7 @@ def snapshot(
     ui: uimod.ui,
     repo: localrepo.localrepository,
     files,
-    node: Optional[bytes],
+    node: bytes | None,
     tmproot: bytes,
     listsubrepos: bool,
 ) -> tuple[bytes, list[tuple[bytes, bytes, os.stat_result]]]:

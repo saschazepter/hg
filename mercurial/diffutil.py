@@ -13,7 +13,6 @@ import typing
 
 from typing import (
     Any,
-    Optional,
 )
 
 from .i18n import _
@@ -33,7 +32,7 @@ _Opts = dict[bytes, Any]
 
 def diffallopts(
     ui: uimod.ui,
-    opts: Optional[_Opts] = None,
+    opts: _Opts | None = None,
     untrusted: bool = False,
     section: bytes = b'diff',
     configprefix: bytes = b'',
@@ -53,7 +52,7 @@ def diffallopts(
 
 def difffeatureopts(
     ui: uimod.ui,
-    opts: Optional[_Opts] = None,
+    opts: _Opts | None = None,
     untrusted: bool = False,
     section: bytes = b'diff',
     git: bool = False,
@@ -72,9 +71,9 @@ def difffeatureopts(
 
     def get(
         key: bytes,
-        name: Optional[bytes] = None,
+        name: bytes | None = None,
         getter=ui.configbool,
-        forceplain: Optional[bool] = None,
+        forceplain: bool | None = None,
     ) -> Any:
         if opts:
             v = opts.get(key)

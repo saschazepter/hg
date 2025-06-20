@@ -10,10 +10,6 @@ from __future__ import annotations
 import struct
 import typing
 
-from typing import (
-    Optional,
-)
-
 from ..pure.bdiff import *
 
 from ..interfaces import (
@@ -99,4 +95,4 @@ def bdiff(sa: bytes, sb: bytes) -> bytes:
 # implementation of the module protocol.  Callers are responsible for
 # checking that the implementation is available before using them.
 if typing.TYPE_CHECKING:
-    xdiffblocks: Optional[intmod.BDiffBlocksFnc] = None
+    xdiffblocks: intmod.BDiffBlocksFnc | None = None

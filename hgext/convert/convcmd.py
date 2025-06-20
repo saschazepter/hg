@@ -16,8 +16,6 @@ import typing
 from typing import (
     AnyStr,
     Mapping,
-    Optional,
-    Union,
 )
 
 from mercurial.i18n import _
@@ -178,7 +176,7 @@ def convertsource(ui: uimod.ui, path: bytes, type: bytes, revs):
 
 def convertsink(
     ui: uimod.ui, path: bytes, type: bytes
-) -> Union[hgconvert.mercurial_sink, subversion.svn_sink]:
+) -> hgconvert.mercurial_sink | subversion.svn_sink:
     if type and type not in [s[0] for s in sink_converters]:
         raise error.Abort(_(b'%s: invalid destination repository type') % type)
     for name, sink in sink_converters:
@@ -193,7 +191,7 @@ def convertsink(
 
 
 class progresssource:
-    def __init__(self, ui: uimod.ui, source, filecount: Optional[int]) -> None:
+    def __init__(self, ui: uimod.ui, source, filecount: int | None) -> None:
         self.ui = ui
         self.source = source
         self.progress = ui.makeprogress(
@@ -650,7 +648,7 @@ class converter:
 
 
 def convert(
-    ui: uimod.ui, src, dest: Optional[bytes] = None, revmapfile=None, **opts
+    ui: uimod.ui, src, dest: bytes | None = None, revmapfile=None, **opts
 ) -> None:
     opts = pycompat.byteskwargs(opts)
     global orig_encoding

@@ -72,7 +72,6 @@ import os
 
 from typing import (
     IO,
-    Optional,
 )
 
 from .i18n import _
@@ -1128,7 +1127,7 @@ def templatedir():
 
 
 def open_template(
-    name: bytes, templatepath: Optional[bytes] = None
+    name: bytes, templatepath: bytes | None = None
 ) -> tuple[bytes, IO[bytes]]:
     """returns a file-like object for the given template, and its full path
 
@@ -1165,8 +1164,8 @@ def open_template(
 
 
 def try_open_template(
-    name: bytes, templatepath: Optional[bytes] = None
-) -> tuple[Optional[bytes], Optional[IO[bytes]]]:
+    name: bytes, templatepath: bytes | None = None
+) -> tuple[bytes | None, IO[bytes] | None]:
     try:
         return open_template(name, templatepath)
     except (OSError, ImportError):

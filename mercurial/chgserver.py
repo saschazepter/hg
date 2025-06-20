@@ -49,10 +49,6 @@ import stat
 import struct
 import time
 
-from typing import (
-    Optional,
-)
-
 from .i18n import _
 from .node import hex
 
@@ -634,9 +630,9 @@ class chgunixservicehandler:
 
     pollinterval = 1  # [sec]
 
-    _hashstate: Optional[hashstate]
-    _baseaddress: Optional[bytes]
-    _realaddress: Optional[bytes]
+    _hashstate: hashstate | None
+    _baseaddress: bytes | None
+    _realaddress: bytes | None
 
     def __init__(self, ui):
         self.ui = ui

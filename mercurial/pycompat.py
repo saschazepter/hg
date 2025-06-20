@@ -38,7 +38,6 @@ from typing import (
     Iterator,
     Mapping,
     NoReturn,
-    Optional,
     Sequence,
     TypeVar,
     cast,
@@ -122,7 +121,7 @@ osname: bytes = os.name.encode('ascii')
 ospathsep: bytes = os.pathsep.encode('ascii')
 ospardir: bytes = os.pardir.encode('ascii')
 ossep: bytes = os.sep.encode('ascii')
-osaltsep: Optional[bytes] = os.altsep.encode('ascii') if os.altsep else None
+osaltsep: bytes | None = os.altsep.encode('ascii') if os.altsep else None
 osdevnull: bytes = os.devnull.encode('ascii')
 
 sysplatform: bytes = sys.platform.encode('ascii')
@@ -376,7 +375,7 @@ def cleandoc(doc):
     return '\n'.join(lines)
 
 
-def getdoc(obj: object) -> Optional[bytes]:
+def getdoc(obj: object) -> bytes | None:
     """Get docstring as bytes; may be None so gettext() won't confuse it
     with _('')"""
     doc = builtins.getattr(obj, '__doc__', None)
@@ -402,7 +401,7 @@ def open(
     name,
     mode: AnyStr = b'r',
     buffering: int = -1,
-    encoding: Optional[str] = None,
+    encoding: str | None = None,
 ) -> Any:
     # TODO: assert binary mode, and cast result to BinaryIO?
     return builtins.open(name, sysstr(mode), buffering, encoding)
@@ -487,21 +486,21 @@ def gnugetoptb(
 
 
 def mkdtemp(
-    suffix: bytes = b'', prefix: bytes = b'tmp', dir: Optional[bytes] = None
+    suffix: bytes = b'', prefix: bytes = b'tmp', dir: bytes | None = None
 ) -> bytes:
     return tempfile.mkdtemp(suffix, prefix, dir)
 
 
 # text=True is not supported; use util.from/tonativeeol() instead
 def mkstemp(
-    suffix: bytes = b'', prefix: bytes = b'tmp', dir: Optional[bytes] = None
+    suffix: bytes = b'', prefix: bytes = b'tmp', dir: bytes | None = None
 ) -> tuple[int, bytes]:
     return tempfile.mkstemp(suffix, prefix, dir)
 
 
 # TemporaryFile does not support an "encoding=" argument on python2.
 # This wrapper file are always open in byte mode.
-def unnamedtempfile(mode: Optional[bytes] = None, *args, **kwargs) -> BinaryIO:
+def unnamedtempfile(mode: bytes | None = None, *args, **kwargs) -> BinaryIO:
     if mode is None:
         mode = 'w+b'
     else:
@@ -517,7 +516,7 @@ def namedtempfile(
     bufsize: int = -1,
     suffix: bytes = b'',
     prefix: bytes = b'tmp',
-    dir: Optional[bytes] = None,
+    dir: bytes | None = None,
     delete: bool = True,
 ):
     mode = sysstr(mode)
