@@ -71,7 +71,7 @@ def run_pyoxidizer(
     source_dir: pathlib.Path,
     build_dir: pathlib.Path,
     target_triple: str,
-    build_vars: typing.Optional[typing.Dict[str, str]] = None,
+    build_vars: typing.Optional[dict[str, str]] = None,
     target: typing.Optional[str] = None,
 ) -> pathlib.Path:
     """Run `pyoxidizer` in an environment with access to build dependencies.

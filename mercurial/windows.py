@@ -24,13 +24,11 @@ from typing import (
     BinaryIO,
     Iterable,
     Iterator,
-    List,
     Mapping,
     NoReturn,
     Optional,
     Pattern,
     Sequence,
-    Tuple,
     Union,
 )
 
@@ -66,7 +64,7 @@ unlink = win32.unlink
 
 if typing.TYPE_CHECKING:
 
-    def split(p: bytes) -> Tuple[bytes, bytes]:
+    def split(p: bytes) -> tuple[bytes, bytes]:
         raise NotImplementedError
 
 
@@ -533,7 +531,7 @@ def _unquote(s: bytes) -> bytes:
     return s
 
 
-def shellsplit(s: bytes) -> List[bytes]:
+def shellsplit(s: bytes) -> list[bytes]:
     """Parse a command string in cmd.exe way (best-effort)"""
     return pycompat.maplist(_unquote, pycompat.shlexsplit(s, posix=False))
 
@@ -665,11 +663,11 @@ def rename(src: bytes, dst: bytes) -> None:
         os.rename(src, dst)
 
 
-def gethgcmd() -> List[bytes]:
+def gethgcmd() -> list[bytes]:
     return [encoding.strtolocal(arg) for arg in [sys.executable] + sys.argv[:1]]
 
 
-def groupmembers(name: bytes) -> List[bytes]:
+def groupmembers(name: bytes) -> list[bytes]:
     # Don't support groups on Windows for now
     raise KeyError
 
@@ -763,7 +761,7 @@ def statisexec(st: Optional[os.stat_result]) -> bool:
     return False
 
 
-def poll(fds) -> List:
+def poll(fds) -> list:
     # see posix.py for description
     raise NotImplementedError()
 

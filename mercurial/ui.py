@@ -24,12 +24,8 @@ import typing
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
     NoReturn,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -62,12 +58,12 @@ from .utils import (
     urlutil,
 )
 
-_ConfigItems = Dict[Tuple[bytes, bytes], object]  # {(section, name) : value}
+_ConfigItems = dict[tuple[bytes, bytes], object]  # {(section, name) : value}
 # The **opts args of the various write() methods can be basically anything, but
 # there's no way to express it as "anything but str".  So type it to be the
 # handful of known types that are used.
-_MsgOpts = Union[bytes, bool, List["_PromptChoice"]]
-_PromptChoice = Tuple[bytes, bytes]
+_MsgOpts = Union[bytes, bool, list["_PromptChoice"]]
+_PromptChoice = tuple[bytes, bytes]
 _Tui = TypeVar('_Tui', bound="ui")
 
 urlreq = util.urlreq
@@ -105,7 +101,7 @@ showfunc = 1
 word-diff = 1
 """
 
-samplehgrcs: Dict[bytes, bytes] = {
+samplehgrcs: dict[bytes, bytes] = {
     b'user': b"""# example user config (see 'hg help config' for more info)
 [ui]
 # name and email, e.g.
@@ -226,7 +222,7 @@ def _catchterm(*args) -> NoReturn:
 _unset = object()
 
 # _reqexithandlers: callbacks run at the end of a request
-_reqexithandlers: List = []
+_reqexithandlers: list = []
 
 
 class ui:
@@ -333,7 +329,7 @@ class ui:
         self._ucfg.new_source()
 
     @classmethod
-    def load(cls: Type[_Tui]) -> _Tui:
+    def load(cls: type[_Tui]) -> _Tui:
         """Create a ui and load global and user configs"""
         u = cls()
         # we always trust global config files and environment variables
@@ -1723,7 +1719,7 @@ class ui:
     def _readline(
         self,
         prompt: bytes = b' ',
-        promptopts: Optional[Dict[str, _MsgOpts]] = None,
+        promptopts: Optional[dict[str, _MsgOpts]] = None,
     ) -> bytes:
         # Replacing stdin/stdout temporarily is a hard problem on Python 3
         # because they have to be text streams with *no buffering*. Instead,
@@ -1835,7 +1831,7 @@ class ui:
             raise error.ResponseExpected()
 
     @staticmethod
-    def extractchoices(prompt: bytes) -> Tuple[bytes, List[_PromptChoice]]:
+    def extractchoices(prompt: bytes) -> tuple[bytes, list[_PromptChoice]]:
         """Extract prompt message and list of choices from specified prompt.
 
         This returns tuple "(message, choices)", and "choices" is the
@@ -1961,7 +1957,7 @@ class ui:
         self,
         text: bytes,
         user: bytes,
-        extra: Optional[Dict[bytes, Any]] = None,  # TODO: value type of bytes?
+        extra: Optional[dict[bytes, Any]] = None,  # TODO: value type of bytes?
         editform=None,
         pending=None,
         repopath: Optional[bytes] = None,

@@ -19,13 +19,9 @@ import weakref
 
 from typing import (
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Optional,
-    Set,
-    Tuple,
 )
 
 from .i18n import _
@@ -99,15 +95,15 @@ class status(istatus.Status):
     relevant to the working copy.
     """
 
-    modified = attr.ib(default=attr.Factory(list), type=List[bytes])
-    added = attr.ib(default=attr.Factory(list), type=List[bytes])
-    removed = attr.ib(default=attr.Factory(list), type=List[bytes])
-    deleted = attr.ib(default=attr.Factory(list), type=List[bytes])
-    unknown = attr.ib(default=attr.Factory(list), type=List[bytes])
-    ignored = attr.ib(default=attr.Factory(list), type=List[bytes])
-    clean = attr.ib(default=attr.Factory(list), type=List[bytes])
+    modified = attr.ib(default=attr.Factory(list), type=list[bytes])
+    added = attr.ib(default=attr.Factory(list), type=list[bytes])
+    removed = attr.ib(default=attr.Factory(list), type=list[bytes])
+    deleted = attr.ib(default=attr.Factory(list), type=list[bytes])
+    unknown = attr.ib(default=attr.Factory(list), type=list[bytes])
+    ignored = attr.ib(default=attr.Factory(list), type=list[bytes])
+    clean = attr.ib(default=attr.Factory(list), type=list[bytes])
 
-    def __iter__(self) -> Iterator[List[bytes]]:
+    def __iter__(self) -> Iterator[list[bytes]]:
         yield self.modified
         yield self.added
         yield self.removed
@@ -339,7 +335,7 @@ def checkportable(ui: uimod.ui, f: bytes) -> None:
             ui.warn(_(b"warning: %s\n") % msg)
 
 
-def checkportabilityalert(ui: uimod.ui) -> Tuple[bool, bool]:
+def checkportabilityalert(ui: uimod.ui) -> tuple[bool, bool]:
     """check if the user's config requests nothing, a warning, or abort for
     non-portable filenames"""
     val = ui.config(b'ui', b'portablefilenames')
@@ -473,7 +469,7 @@ def _hash_revs(revs: Iterable[int]) -> bytes:
 def walkrepos(
     path,
     followsym: bool = False,
-    seen_dirs: Optional[List[bytes]] = None,
+    seen_dirs: Optional[list[bytes]] = None,
     recurse: bool = False,
 ) -> Iterable[bytes]:
     """yield every hg repository under path, always recursively.
@@ -988,7 +984,7 @@ def anypats(pats, opts) -> bool:
     return bool(pats or opts.get(b'include') or opts.get(b'exclude'))
 
 
-def expandpats(pats: Iterable[bytes]) -> List[bytes]:
+def expandpats(pats: Iterable[bytes]) -> list[bytes]:
     """Expand bare globs when running on windows.
     On posix we assume it already has already been done by sh."""
     if not util.expandglobs:
@@ -1438,7 +1434,7 @@ def marktouched(repo, files, similarity: float = 0.0) -> int:
 
 def _interestingfiles(
     repo, matcher
-) -> Tuple[List[bytes], List[bytes], List[bytes], List[bytes], List[bytes]]:
+) -> tuple[list[bytes], list[bytes], list[bytes], list[bytes], list[bytes]]:
     """Walk dirstate with matcher, looking for files that addremove would care
     about.
 
@@ -1476,7 +1472,7 @@ def _interestingfiles(
 
 def _findrenames(
     repo, matcher, added, removed, similarity, uipathfn: typelib.UiPathFn
-) -> Dict[bytes, bytes]:
+) -> dict[bytes, bytes]:
     '''Find renames from removed files to added ones.'''
     renames = {}
     if similarity > 0:
@@ -1821,7 +1817,7 @@ class filecache:
     remove the ``filecacheentry``.
     """
 
-    paths: Tuple[bytes, ...]
+    paths: tuple[bytes, ...]
 
     def __init__(self, *paths: bytes) -> None:
         self.paths = paths
@@ -2126,7 +2122,7 @@ class simplekeyvaluefile:
             fp.write(b''.join(lines))
 
 
-_reportobsoletedsource: List[bytes] = [
+_reportobsoletedsource: list[bytes] = [
     b'debugobsolete',
     b'pull',
     b'push',
@@ -2134,7 +2130,7 @@ _reportobsoletedsource: List[bytes] = [
     b'unbundle',
 ]
 
-_reportnewcssource: List[bytes] = [
+_reportnewcssource: list[bytes] = [
     b'pull',
     b'unbundle',
 ]
@@ -2439,7 +2435,7 @@ def unhidehashlikerevs(repo, specs, hiddentype: bytes):
     return repo.filtered(b'visible-hidden', revs)
 
 
-def _getrevsfromsymbols(repo, symbols) -> Set[int]:
+def _getrevsfromsymbols(repo, symbols) -> set[int]:
     """parse the list of symbols and returns a set of revision numbers of hidden
     changesets present in symbols"""
     revs = set()
@@ -2496,7 +2492,7 @@ def format_bookmark_revspec(mark: bytes) -> bytes:
     )
 
 
-def ismember(ui: uimod.ui, username: bytes, userlist: List[bytes]) -> bool:
+def ismember(ui: uimod.ui, username: bytes, userlist: list[bytes]) -> bool:
     """Check if username is a member of userlist.
 
     If userlist has a single '*' member, all users are considered members.
@@ -2510,7 +2506,7 @@ RESOURCE_HIGH: int = 3
 RESOURCE_MEDIUM: int = 2
 RESOURCE_LOW: int = 1
 
-RESOURCE_MAPPING: Dict[bytes, int] = {
+RESOURCE_MAPPING: dict[bytes, int] = {
     b'low': RESOURCE_LOW,
     b'medium': RESOURCE_MEDIUM,
     b'high': RESOURCE_HIGH,

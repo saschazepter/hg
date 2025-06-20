@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 from .interfaces.types import (
     HgPathT,
     RepoT,
@@ -17,7 +15,7 @@ from .interfaces.types import (
 from .utils import repoviewutil
 
 
-def cachetocopy(srcrepo: RepoT) -> List[HgPathT]:
+def cachetocopy(srcrepo: RepoT) -> list[HgPathT]:
     """return the list of cache file valuable to copy during a clone"""
     # In local clones we're copying all nodes, not just served
     # ones. Therefore copy all branch caches over.

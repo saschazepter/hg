@@ -13,9 +13,7 @@ import socket
 
 from typing import (
     Callable,
-    Dict,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -40,7 +38,7 @@ from ..revlogutils import (
 )
 
 # keeps pyflakes happy
-assert [Callable, Dict, Tuple, Union]
+assert [Callable, Union]
 
 urlreq = urllibcompat.urlreq
 
@@ -663,7 +661,7 @@ class paths(dict):
             self[name] = new_paths
 
 
-_pathsuboptions: Dict[bytes, Tuple[str, Callable]] = {}
+_pathsuboptions: dict[bytes, tuple[str, Callable]] = {}
 # a dictionnary of methods that can be used to format a sub-option value
 path_suboptions_display = {}
 
@@ -966,7 +964,7 @@ class path(int_misc.IPath):
             return False
 
     @property
-    def suboptions(self) -> Dict[bytes, bytes]:
+    def suboptions(self) -> dict[bytes, bytes]:
         """Return sub-options and their values for this path.
 
         This is intended to be used for presentation purposes.

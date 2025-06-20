@@ -14,8 +14,6 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
-    Set,
-    Tuple,
     overload,
 )
 
@@ -34,7 +32,7 @@ if typing.TYPE_CHECKING:
 SKIPREV = common.SKIPREV
 
 
-def rpairs(path: bytes) -> Iterator[Tuple[bytes, bytes]]:
+def rpairs(path: bytes) -> Iterator[tuple[bytes, bytes]]:
     """Yield tuples with path split at '/', starting with the full path.
     No leading, trailing or double '/', please.
     >>> for x in rpairs(b'foo/bar/baz'): print(x)
@@ -75,7 +73,7 @@ class filemapper:
     repository)."""
 
     rename: MutableMapping[bytes, bytes]
-    targetprefixes: Optional[Set[bytes]]
+    targetprefixes: Optional[set[bytes]]
 
     def __init__(self, ui: uimod.ui, path: Optional[bytes] = None) -> None:
         self.ui = ui
@@ -143,7 +141,7 @@ class filemapper:
 
     def lookup(
         self, name: bytes, mapping: Mapping[bytes, bytes]
-    ) -> Tuple[bytes, bytes, bytes]:
+    ) -> tuple[bytes, bytes, bytes]:
         name = normalize(name)
         for pre, suf in rpairs(name):
             try:

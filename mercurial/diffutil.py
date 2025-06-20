@@ -13,7 +13,6 @@ import typing
 
 from typing import (
     Any,
-    Dict,
     Optional,
 )
 
@@ -29,7 +28,7 @@ if typing.TYPE_CHECKING:
     from . import ui as uimod
 
 # TODO: narrow the value after the config module is typed
-_Opts = Dict[bytes, Any]
+_Opts = dict[bytes, Any]
 
 
 def diffallopts(

@@ -37,8 +37,10 @@ from ..revlogutils import constants as revlog_constants
 if typing.TYPE_CHECKING:
     from typing import (
         Any,
-        ByteString,  # TODO: Change to Buffer for 3.14+ support
     )
+
+    # TODO: Change to Buffer for 3.14+ support
+    from collections.abc import ByteString
 
 stringio = io.BytesIO
 

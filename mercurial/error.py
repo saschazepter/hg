@@ -18,7 +18,6 @@ import difflib
 from typing import (
     AnyStr,
     Iterable,
-    List,
     Optional,
     Sequence,
     Union,
@@ -170,7 +169,7 @@ class UnknownCommand(Exception):
     def __init__(
         self,
         command: bytes,
-        all_commands: Optional[List[bytes]] = None,
+        all_commands: Optional[list[bytes]] = None,
     ) -> None:
         self.command = command
         self.all_commands = all_commands
@@ -182,7 +181,7 @@ class UnknownCommand(Exception):
 class AmbiguousCommand(Exception):
     """Exception raised if command shortcut matches more than one command."""
 
-    def __init__(self, prefix: bytes, matches: List[bytes]) -> None:
+    def __init__(self, prefix: bytes, matches: list[bytes]) -> None:
         self.prefix = prefix
         self.matches = matches
         super().__init__()
@@ -402,14 +401,14 @@ class PatchApplicationError(PatchError):
     __bytes__ = _tobytes
 
 
-def getsimilar(symbols: Iterable[bytes], value: bytes) -> List[bytes]:
+def getsimilar(symbols: Iterable[bytes], value: bytes) -> list[bytes]:
     sim = lambda x: difflib.SequenceMatcher(None, value, x).ratio()
     # The cutoff for similarity here is pretty arbitrary. It should
     # probably be investigated and tweaked.
     return [s for s in symbols if sim(s) > 0.6]
 
 
-def similarity_hint(similar: List[bytes]) -> Optional[bytes]:
+def similarity_hint(similar: list[bytes]) -> Optional[bytes]:
     from .i18n import _
 
     if len(similar) == 1:

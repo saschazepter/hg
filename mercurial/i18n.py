@@ -12,11 +12,6 @@ import locale
 import os
 import sys
 
-from typing import (
-    Dict,
-    List,
-)
-
 from .utils import resourceutil
 from . import (
     encoding,
@@ -63,8 +58,8 @@ except AttributeError:
     _ugettext = t.gettext
 
 
-_msgcache: Dict[
-    bytes, Dict[bytes, bytes]
+_msgcache: dict[
+    bytes, dict[bytes, bytes]
 ] = {}  # encoding: {message: translation}
 
 
@@ -86,7 +81,7 @@ def gettext(message: bytes) -> bytes:
     if message not in cache:
         if type(message) is str:
             # goofy unicode docstrings in test
-            paragraphs: List[str] = message.split('\n\n')
+            paragraphs: list[str] = message.split('\n\n')
         else:
             # should be ascii, but we have unicode docstrings in test, which
             # are converted to utf-8 bytes on Python 3.

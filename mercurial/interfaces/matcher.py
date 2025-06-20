@@ -9,10 +9,8 @@ import abc
 
 from typing import (
     Callable,
-    List,
     Optional,
     Protocol,
-    Set,
     Union,
 )
 
@@ -50,16 +48,16 @@ class IMatcher(Protocol):
 
     @property
     @abc.abstractmethod
-    def _files(self) -> List[HgPathT]:
+    def _files(self) -> list[HgPathT]:
         ...
 
     @abc.abstractmethod
-    def files(self) -> List[HgPathT]:
+    def files(self) -> list[HgPathT]:
         ...
 
     @property
     @abc.abstractmethod
-    def _fileset(self) -> Set[HgPathT]:
+    def _fileset(self) -> set[HgPathT]:
         ...
 
     @abc.abstractmethod
@@ -82,7 +80,7 @@ class IMatcher(Protocol):
         """
 
     @abc.abstractmethod
-    def visitchildrenset(self, dir: HgPathT) -> Union[Set[HgPathT], bytes]:
+    def visitchildrenset(self, dir: HgPathT) -> Union[set[HgPathT], bytes]:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories, and
         potentially lists which subdirectories of that directory should be

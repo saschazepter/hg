@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .. import error
 
@@ -18,7 +18,7 @@ from .. import error
 # * X - Y is as small as possible.
 # This create and ordering used for branchmap purpose.
 # the ordering may be partial
-subsettable: Dict[Optional[bytes], bytes] = {
+subsettable: dict[Optional[bytes], bytes] = {
     None: b'visible',
     b'visible-hidden': b'visible',
     b'visible': b'served',
@@ -28,7 +28,7 @@ subsettable: Dict[Optional[bytes], bytes] = {
 }
 
 
-def get_ordered_subset() -> List[Optional[bytes]]:
+def get_ordered_subset() -> list[Optional[bytes]]:
     """return a list of subset name from dependencies to dependents
 
     Unfiltered is represented using `None` as the subset "name" value.

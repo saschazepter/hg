@@ -15,12 +15,9 @@ import uuid
 
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Optional,
-    Tuple,
 )
 
 from .i18n import _
@@ -622,12 +619,12 @@ class dirstate(intdirstate.idirstate):
     def __iter__(self) -> Iterator[bytes]:
         return iter(sorted(self._map))
 
-    def items(self) -> Iterator[Tuple[bytes, intdirstate.DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, intdirstate.DirstateItemT]]:
         return self._map.items()
 
     iteritems = items
 
-    def parents(self) -> List[bytes]:
+    def parents(self) -> list[bytes]:
         return [self._validate(p) for p in self._pl]
 
     def p1(self) -> bytes:
@@ -735,7 +732,7 @@ class dirstate(intdirstate.idirstate):
     def copied(self, file: bytes) -> Optional[bytes]:
         return self._map.copymap.get(file, None)
 
-    def copies(self) -> Dict[bytes, bytes]:
+    def copies(self) -> dict[bytes, bytes]:
         return self._map.copymap
 
     @requires_changing_files
@@ -1192,7 +1189,7 @@ class dirstate(intdirstate.idirstate):
                 return True
         return False
 
-    def _ignorefiles(self) -> List[bytes]:
+    def _ignorefiles(self) -> list[bytes]:
         files = []
         if os.path.exists(self._join(b'.hgignore')):
             files.append(self._join(b'.hgignore'))

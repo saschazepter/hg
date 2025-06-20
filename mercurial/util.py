@@ -44,10 +44,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
 )
 
@@ -84,9 +81,7 @@ from .utils import (
 assert [
     Iterable,
     Iterator,
-    List,
     Optional,
-    Tuple,
 ]
 
 if typing.TYPE_CHECKING:
@@ -2477,7 +2472,7 @@ def endswithsep(path: bytes) -> bool:
     )
 
 
-def splitpath(path: bytes) -> List[bytes]:
+def splitpath(path: bytes) -> list[bytes]:
     """Split path by os.sep.
     Note that this function does not use os.altsep because this is
     an alternative of simple "xxx.split(os.sep)".
@@ -2546,7 +2541,7 @@ class filestat:
         self.stat = stat
 
     @classmethod
-    def frompath(cls: Type[_Tfilestat], path: bytes) -> _Tfilestat:
+    def frompath(cls: type[_Tfilestat], path: bytes) -> _Tfilestat:
         try:
             stat = os.stat(path)
         except FileNotFoundError:
@@ -2554,7 +2549,7 @@ class filestat:
         return cls(stat)
 
     @classmethod
-    def fromfp(cls: Type[_Tfilestat], fp: BinaryIO) -> _Tfilestat:
+    def fromfp(cls: type[_Tfilestat], fp: BinaryIO) -> _Tfilestat:
         stat = os.fstat(fp.fileno())
         return cls(stat)
 
@@ -2971,7 +2966,7 @@ def unitcountfn(*unittable):
     return go
 
 
-def processlinerange(fromline: int, toline: int) -> Tuple[int, int]:
+def processlinerange(fromline: int, toline: int) -> tuple[int, int]:
     """Check that linerange <fromline>:<toline> makes sense and return a
     0-based range.
 
@@ -3236,7 +3231,7 @@ class hooks(int_misc.IHooks):
     def add(self, source: bytes, hook: Callable) -> None:
         self._hooks.append((source, hook))
 
-    def __call__(self, *args) -> List:
+    def __call__(self, *args) -> list:
         self._hooks.sort(key=lambda x: x[0])
         results = []
         for source, hook in self._hooks:

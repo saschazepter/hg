@@ -27,12 +27,10 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
     Match,
     NoReturn,
     Optional,
     Sequence,
-    Tuple,
     Union,
 )
 
@@ -101,7 +99,7 @@ os.umask(umask)
 posixfile = pycompat.open
 
 
-def split(p: bytes) -> Tuple[bytes, bytes]:
+def split(p: bytes) -> tuple[bytes, bytes]:
     """Same as posixpath.split, but faster
 
     >>> import posixpath
@@ -569,7 +567,7 @@ def shellquote(s: bytes) -> bytes:
         return b"'%s'" % s.replace(b"'", b"'\\''")
 
 
-def shellsplit(s: bytes) -> List[bytes]:
+def shellsplit(s: bytes) -> list[bytes]:
     """Parse a command string in POSIX shell way (best-effort)"""
     return pycompat.shlexsplit(s, posix=True)
 
@@ -670,7 +668,7 @@ def groupname(gid: Optional[int] = None) -> Optional[bytes]:
         return pycompat.bytestr(gid)
 
 
-def groupmembers(name: bytes) -> List[bytes]:
+def groupmembers(name: bytes) -> list[bytes]:
     """Return the list of members of the group with the given
     name, KeyError if the group does not exist.
     """
@@ -678,7 +676,7 @@ def groupmembers(name: bytes) -> List[bytes]:
     return pycompat.rapply(pycompat.fsencode, list(grp.getgrnam(name).gr_mem))
 
 
-def spawndetached(args: List[bytes]) -> int:
+def spawndetached(args: list[bytes]) -> int:
     return os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0), args[0], args)
 
 

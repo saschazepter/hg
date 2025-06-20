@@ -10,7 +10,6 @@ import stat
 from typing import (
     Optional,
     TYPE_CHECKING,
-    Tuple,
 )
 
 from .i18n import _
@@ -175,7 +174,7 @@ class _dirstatemapcommon:
     def _readdirstatefile(
         self,
         size: int = -1,
-    ) -> Tuple[Optional[int_misc.ICacheStat], bytes]:
+    ) -> tuple[Optional[int_misc.ICacheStat], bytes]:
         """read the content of the file used as "entry point" for the dirstate
 
         Return a (identity, data) tuple. The identity can be used for cache

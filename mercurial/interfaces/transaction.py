@@ -18,10 +18,8 @@ import abc
 from typing import (
     Callable,
     Collection,
-    List,
     Optional,
     Protocol,
-    Tuple,
     Union,
 )
 
@@ -31,7 +29,7 @@ from ._basetypes import (
     VfsKeyT,
 )
 
-JournalEntryT = Tuple[HgPathT, int]
+JournalEntryT = tuple[HgPathT, int]
 
 
 class ITransaction(Protocol):
@@ -132,7 +130,7 @@ class ITransaction(Protocol):
         ...
 
     @abc.abstractmethod
-    def readjournal(self) -> List[JournalEntryT]:
+    def readjournal(self) -> list[JournalEntryT]:
         ...
 
     @abc.abstractmethod

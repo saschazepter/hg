@@ -9,11 +9,6 @@ from __future__ import annotations
 
 import random
 
-from typing import (
-    List,
-    Type,
-)
-
 from ..i18n import _
 from .. import (
     error,
@@ -25,11 +20,6 @@ from .. import (
 
 from ..utils import compression
 
-# keeps pyflakes happy
-assert [
-    List,
-    Type,
-]
 
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {
@@ -110,7 +100,7 @@ class improvement:
     compatible_with_share = False
 
 
-allformatvariant: List[Type[formatvariant]] = []
+allformatvariant: list[type[formatvariant]] = []
 
 
 def registerformatvariant(cls):

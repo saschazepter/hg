@@ -11,9 +11,7 @@ import struct
 import typing
 
 from typing import (
-    List,
     Optional,
-    Tuple,
 )
 
 from ..pure.bdiff import *
@@ -28,7 +26,7 @@ ffi = _bdiff.ffi
 lib = _bdiff.lib
 
 
-def blocks(sa: bytes, sb: bytes) -> List[Tuple[int, int, int, int]]:
+def blocks(sa: bytes, sb: bytes) -> list[tuple[int, int, int, int]]:
     a = ffi.new("struct bdiff_line**")
     b = ffi.new("struct bdiff_line**")
     ac = ffi.new("char[]", bytes(sa))

@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 from ..pure.mpatch import *
 from ..pure.mpatch import mpatchError  # silence pyflakes
 from . import _mpatch  # pytype: disable=import-error
@@ -29,7 +27,7 @@ def cffi_get_next_item(arg, pos):
     return container[0]
 
 
-def patches(text: bytes, bins: List[bytes]) -> bytes:
+def patches(text: bytes, bins: list[bytes]) -> bytes:
     lgt = len(bins)
     all = []
     if not lgt:

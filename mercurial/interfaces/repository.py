@@ -19,7 +19,6 @@ from typing import (
     Mapping,
     Optional,
     Protocol,
-    Set,
 )
 
 from ..i18n import _
@@ -30,7 +29,7 @@ if typing.TYPE_CHECKING:
     # class, so its set() method doesn't hide the primitive.
     import builtins
 
-    from typing import (
+    from collections.abc import (
         ByteString,  # TODO: change to Buffer for 3.14
     )
 
@@ -204,7 +203,7 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
-    def capabilities(self) -> Set[bytes]:
+    def capabilities(self) -> set[bytes]:
         """Obtain capabilities of the peer.
 
         Returns a set of string capabilities.

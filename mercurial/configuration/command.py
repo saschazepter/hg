@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from typing import Any, Collection, Dict, Optional
+from typing import Any, Collection, Optional
 
 from ..i18n import _
 
@@ -32,7 +32,7 @@ EDIT_FLAG = 'edit'
 def find_edit_level(
     ui: uimod.ui,
     repo,
-    opts: Dict[str, Any],
+    opts: dict[str, Any],
 ) -> Optional[ConfigLevelT]:
     """return the level we should edit, if any.
 

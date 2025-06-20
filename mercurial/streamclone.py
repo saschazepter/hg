@@ -19,9 +19,6 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
-    Set,
-    Tuple,
-    Type,
 )
 
 from .i18n import _
@@ -67,7 +64,7 @@ DEFAULT_MEMORY_TARGET = {
 def new_stream_clone_requirements(
     default_requirements: Iterable[bytes],
     streamed_requirements: Iterable[bytes],
-) -> Set[bytes]:
+) -> set[bytes]:
     """determine the final set of requirement for a new stream clone
 
     this method combine the "default" requirements that a new repository would
@@ -80,7 +77,7 @@ def new_stream_clone_requirements(
     return requirements
 
 
-def streamed_requirements(repo) -> Set[bytes]:
+def streamed_requirements(repo) -> set[bytes]:
     """the set of requirement the new clone will have to support
 
     This is used for advertising the stream options and to generate the actual
@@ -388,7 +385,7 @@ def generatev1wireproto(repo) -> Iterator[bytes]:
 
 def generatebundlev1(
     repo, compression: bytes = b'UN'
-) -> tuple[Set[bytes], Iterator[bytes]]:
+) -> tuple[set[bytes], Iterator[bytes]]:
     """Emit content for version 1 of a stream clone bundle.
 
     The first 4 bytes of the output ("HGS1") denote this as stream clone
@@ -522,7 +519,7 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
         _report_transferred(repo, start, total_file_count, bytecount)
 
 
-def readbundle1header(fp) -> tuple[int, int, Set[bytes]]:
+def readbundle1header(fp) -> tuple[int, int, set[bytes]]:
     compression = fp.read(2)
     if compression != b'UN':
         raise error.Abort(
@@ -1217,7 +1214,7 @@ def consumev2(repo, fp, filecount: int, filesize: int) -> None:
 # iterator of chunk of bytes that constitute a file content.
 FileChunksT = Iterator[bytes]
 # Contains the information necessary to write stream file on disk
-FileInfoT = Tuple[
+FileInfoT = tuple[
     bytes,  # real fs path
     Optional[int],  # permission to give to chmod
     FileChunksT,  # content
@@ -1504,7 +1501,7 @@ def _v2_parse_files(
     file_count: int,
     progress: scmutil.progress,
     report: V2Report,
-    file_chunker: Type[_FileChunker] = _FileChunker,
+    file_chunker: type[_FileChunker] = _FileChunker,
     mark_used: Optional[Callable[[int], None]] = None,
 ) -> Iterator[FileInfoT]:
     """do the "stream-parsing" part of stream v2

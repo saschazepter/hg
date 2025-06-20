@@ -15,8 +15,6 @@ import typing
 
 from typing import (
     AnyStr,
-    Dict,
-    List,
     Mapping,
     Optional,
     Union,
@@ -296,7 +294,7 @@ class converter:
         self.splicemap = self.parsesplicemap(opts.get(b'splicemap'))
         self.branchmap = mapfile(ui, opts.get(b'branchmap'))
 
-    def parsesplicemap(self, path: bytes) -> Dict[bytes, List[bytes]]:
+    def parsesplicemap(self, path: bytes) -> dict[bytes, list[bytes]]:
         """check and validate the splicemap format and
         return a child/parents dictionary.
         Format checking has two parts.

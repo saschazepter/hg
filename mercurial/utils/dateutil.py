@@ -13,10 +13,8 @@ import time
 
 from typing import (
     Callable,
-    Dict,
     Iterable,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -30,14 +28,12 @@ from .. import (
 # keeps pyflakes happy
 assert [
     Callable,
-    Dict,
     Iterable,
     Optional,
-    Tuple,
     Union,
 ]
 
-hgdate = Tuple[float, int]  # (unixtime, offset)
+hgdate = tuple[float, int]  # (unixtime, offset)
 
 # used by parsedate
 defaultdateformats = (
@@ -178,7 +174,7 @@ def shortdate(date: Optional[hgdate] = None) -> bytes:
     return datestr(date, format=b'%Y-%m-%d')
 
 
-def parsetimezone(s: bytes) -> Tuple[Optional[int], bytes]:
+def parsetimezone(s: bytes) -> tuple[Optional[int], bytes]:
     """find a trailing timezone, if any, in string, and return a
     (offset, remainder) pair"""
     s = pycompat.bytestr(s)
@@ -216,7 +212,7 @@ def parsetimezone(s: bytes) -> Tuple[Optional[int], bytes]:
 def strdate(
     string: bytes,
     format: bytes,
-    defaults: Optional[Dict[bytes, Tuple[bytes, bytes]]] = None,
+    defaults: Optional[dict[bytes, tuple[bytes, bytes]]] = None,
 ) -> hgdate:
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
@@ -262,7 +258,7 @@ def strdate(
 def parsedate(
     date: Union[bytes, hgdate],
     formats: Optional[Iterable[bytes]] = None,
-    bias: Optional[Dict[bytes, bytes]] = None,
+    bias: Optional[dict[bytes, bytes]] = None,
 ) -> hgdate:
     """parse a localized date/time and return a (unixtime, offset) tuple.
 

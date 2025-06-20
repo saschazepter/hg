@@ -9,7 +9,7 @@ import functools
 import os
 import stat
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 from .. import error
 
@@ -142,7 +142,7 @@ def make_mtime_reliable(
 FS_TICK_WAIT_TIMEOUT = 0.1  # 100 milliseconds
 
 
-def wait_until_fs_tick(vfs) -> Optional[Tuple[timestamp, bool]]:
+def wait_until_fs_tick(vfs) -> Optional[tuple[timestamp, bool]]:
     """Wait until the next update from the filesystem time by writing in a loop
     a new temporary file inside the working directory and checking if its time
     differs from the first one observed.

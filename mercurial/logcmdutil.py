@@ -15,10 +15,8 @@ import typing
 from typing import (
     Any,
     Callable,
-    Dict,
     Optional,
     Sequence,
-    Tuple,
 )
 
 from .i18n import _
@@ -793,7 +791,7 @@ class walkopts:
 def parseopts(
     ui: Any,
     pats: Sequence[bytes],
-    opts: Dict[bytes, Any],
+    opts: dict[bytes, Any],
 ) -> walkopts:
     """Parse log command options into walkopts
 
@@ -1089,7 +1087,7 @@ def _initialrevs(repo, wopts):
 def makewalker(
     repo: Any,
     wopts: walkopts,
-) -> Tuple[smartset.abstractsmartset, Optional[Callable[[Any], MatcherT]]]:
+) -> tuple[smartset.abstractsmartset, Optional[Callable[[Any], MatcherT]]]:
     """Build (revs, makefilematcher) to scan revision/file history
 
     - revs is the smartset to be traversed.
@@ -1144,7 +1142,7 @@ def makewalker(
 def getrevs(
     repo: Any,
     wopts: walkopts,
-) -> Tuple[smartset.abstractsmartset, Optional[changesetdiffer]]:
+) -> tuple[smartset.abstractsmartset, Optional[changesetdiffer]]:
     """Return (revs, differ) where revs is a smartset
 
     differ is a changesetdiffer with pre-configured file matcher.

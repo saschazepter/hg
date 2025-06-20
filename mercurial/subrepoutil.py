@@ -14,11 +14,7 @@ import typing
 
 from typing import (
     Any,
-    Dict,
-    List,
     Optional,
-    Set,
-    Tuple,
 )
 
 from .i18n import _
@@ -38,11 +34,7 @@ from .utils import (
 # keeps pyflakes happy
 assert [
     Any,
-    Dict,
-    List,
     Optional,
-    Set,
-    Tuple,
 ]
 
 nullstate = (b'', b'', b'empty')
@@ -70,7 +62,7 @@ if typing.TYPE_CHECKING:
         uimod,
     ]
 
-Substate = Dict[bytes, Tuple[bytes, bytes, bytes]]
+Substate = dict[bytes, tuple[bytes, bytes, bytes]]
 
 
 def state(ctx: context.changectx, ui: uimod.ui) -> Substate:
@@ -340,7 +332,7 @@ def precommit(
     status: istatus.Status,
     match: MatcherT,
     force: bool = False,
-) -> Tuple[List[bytes], Set[bytes], Substate]:
+) -> tuple[list[bytes], set[bytes], Substate]:
     """Calculate .hgsubstate changes that should be applied before committing
 
     Returns (subs, commitsubs, newstate) where

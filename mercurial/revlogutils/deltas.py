@@ -18,14 +18,10 @@ import typing
 
 from typing import (
     Callable,
-    Dict,
     Generator,
     Iterator,
-    List,
     Optional,
     Sequence,
-    Set,
-    Tuple,
 )
 
 # import stuff from node for others to import from revlog
@@ -614,7 +610,7 @@ def _textfromdelta(
 class _deltainfo:
     distance = attr.ib(type=int)
     deltalen = attr.ib(type=int)
-    data = attr.ib(type=Tuple[bytes, bytes])
+    data = attr.ib(type=tuple[bytes, bytes])
     base = attr.ib(type=RevnumT)
     chainbase = attr.ib(type=RevnumT)
     chainlen = attr.ib(type=int)
@@ -676,7 +672,7 @@ class _BaseDeltaSearch(abc.ABC):
         revinfo: RevisionInfoT,
         p1: RevnumT,
         p2: RevnumT,
-        cachedelta: Optional[Tuple[RevnumT, bytes, int]],
+        cachedelta: Optional[tuple[RevnumT, bytes, int]],
         excluded_bases: Optional[Sequence[RevnumT]] = None,
         target_rev: Optional[RevnumT] = None,
         snapshot_cache: Optional[SnapshotCache] = None,
@@ -694,7 +690,7 @@ class _BaseDeltaSearch(abc.ABC):
         self.textlen: int = revinfo.textlen
         self.p1: RevnumT = p1
         self.p2: RevnumT = p2
-        self.cachedelta: Optional[Tuple[RevnumT, bytes, int]] = cachedelta
+        self.cachedelta: Optional[tuple[RevnumT, bytes, int]] = cachedelta
         self.excluded_bases: Optional[Sequence[RevnumT]] = excluded_bases
         if target_rev is None:
             self.target_rev: int = len(self.revlog)
@@ -705,7 +701,7 @@ class _BaseDeltaSearch(abc.ABC):
             snapshot_cache = SnapshotCache()
         self.snapshot_cache: SnapshotCache = snapshot_cache
 
-        self.tested: Set[RevnumT] = {nullrev}
+        self.tested: set[RevnumT] = {nullrev}
 
         self.current_stage: _STAGE = _STAGE.UNSPECIFIED
         self.current_group: Optional[Sequence[RevnumT]] = None
@@ -1340,7 +1336,7 @@ class SnapshotCache:
     __slots__ = ('snapshots', '_start_rev', '_end_rev')
 
     def __init__(self):
-        self.snapshots: Dict[int, Set[RevnumT]] = collections.defaultdict(set)
+        self.snapshots: dict[int, set[RevnumT]] = collections.defaultdict(set)
         self._start_rev: Optional[int] = None
         self._end_rev: Optional[int] = None
 
@@ -1408,7 +1404,7 @@ class deltacomputer:
         revlog,
         write_debug: Optional[Callable[[bytes], None]] = None,
         debug_search: bool = False,
-        debug_info: Optional[List[Dict]] = None,
+        debug_info: Optional[list[dict]] = None,
     ):
         self.revlog = revlog
         self._write_debug = write_debug
@@ -1895,7 +1891,7 @@ class deltacomputer:
             self._dbg_process_data(dbg)
         return deltainfo
 
-    def _one_dbg_data(self) -> Dict:
+    def _one_dbg_data(self) -> dict:
         dbg = {
             'duration': None,
             'revision': None,
@@ -1925,7 +1921,7 @@ class deltacomputer:
         dbg['target-revlog'] = target_revlog
         return dbg
 
-    def _dbg_process_data(self, dbg: Dict) -> None:
+    def _dbg_process_data(self, dbg: dict) -> None:
         if self._debug_info is not None:
             self._debug_info.append(dbg)
 
@@ -1964,7 +1960,7 @@ class deltacomputer:
 def delta_compression(
     default_compression_header: bytes,
     deltainfo: _deltainfo,
-) -> Tuple[int, _deltainfo]:
+) -> tuple[int, _deltainfo]:
     """return (COMPRESSION_MODE, deltainfo)
 
     used by revlog v2+ format to dispatch between PLAIN and DEFAULT

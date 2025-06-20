@@ -27,7 +27,6 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
-    Tuple,
 )
 
 # import stuff from node for others to import from revlog
@@ -493,7 +492,7 @@ class _InnerRevlog:
                 )
         return compressor
 
-    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
+    def compress(self, data: bytes) -> tuple[bytes, bytes]:
         """Generate a possibly-compressed representation of data."""
         if not data:
             return b'', data
@@ -3142,7 +3141,7 @@ class revlog:
                 sidedata=sidedata,
             )
 
-    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
+    def compress(self, data: bytes) -> tuple[bytes, bytes]:
         return self._inner.compress(data)
 
     def decompress(self, data):

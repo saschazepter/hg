@@ -17,7 +17,6 @@ import typing
 from typing import (
     Generator,
     Iterator,
-    List,
     Optional,
 )
 
@@ -507,7 +506,7 @@ class BaseStoreEntry:
 
     maybe_volatile = True
 
-    def files(self) -> List[StoreFile]:
+    def files(self) -> list[StoreFile]:
         raise NotImplementedError
 
     def get_streams(
@@ -561,7 +560,7 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._files = None
         self.maybe_volatile = is_volatile
 
-    def files(self) -> List[StoreFile]:
+    def files(self) -> list[StoreFile]:
         if self._files is None:
             self._files = [
                 StoreFile(
@@ -623,7 +622,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         """unencoded path of the main revlog file"""
         return self._path_prefix + b'.i'
 
-    def files(self) -> List[StoreFile]:
+    def files(self) -> list[StoreFile]:
         if self._files is None:
             self._files = []
             for ext in sorted(self._details, key=_ext_key):

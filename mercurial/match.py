@@ -17,8 +17,6 @@ import typing
 from typing import (
     Any,
     Callable,
-    List,
-    Tuple,
     Union,
     overload,
 )
@@ -1688,7 +1686,7 @@ if typing.TYPE_CHECKING:
     @overload
     def readpatternfile(
         filepath: bytes, warn: Callable[[bytes], Any], sourceinfo: Literal[True]
-    ) -> List[Tuple[bytes, int, bytes]]:
+    ) -> list[tuple[bytes, int, bytes]]:
         ...
 
     @overload
@@ -1696,7 +1694,7 @@ if typing.TYPE_CHECKING:
         filepath: bytes,
         warn: Callable[[bytes], Any],
         sourceinfo: Literal[False],
-    ) -> List[bytes]:
+    ) -> list[bytes]:
         ...
 
     @overload
@@ -1704,7 +1702,7 @@ if typing.TYPE_CHECKING:
         filepath: bytes,
         warn: Callable[[bytes], Any],
         sourceinfo: bool = False,
-    ) -> List[Union[Tuple[bytes, int, bytes], bytes]]:
+    ) -> list[Union[tuple[bytes, int, bytes], bytes]]:
         ...
 
 

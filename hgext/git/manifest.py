@@ -7,7 +7,6 @@ from typing import (
     Collection,
     Iterable,
     Iterator,
-    Set,
 )
 
 from mercurial.node import sha1nodeconstants
@@ -30,7 +29,7 @@ if typing.TYPE_CHECKING:
     # class, so its set() method doesn't hide the primitive.
     import builtins
 
-    from typing import (
+    from collections.abc import (
         ByteString,  # TODO: change to Buffer for 3.14
     )
 

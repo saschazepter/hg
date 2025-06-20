@@ -15,10 +15,8 @@ import zlib
 from typing import (
     Iterable,
     Iterator,
-    List,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -49,18 +47,18 @@ textdiff = bdiff.bdiff
 splitnewlines = bdiff.splitnewlines
 
 if typing.TYPE_CHECKING:
-    HunkLines = List[bytes]
+    HunkLines = list[bytes]
     """Lines of a hunk- a header, followed by line additions and deletions."""
 
-    HunkRange = Tuple[int, int, int, int]
+    HunkRange = tuple[int, int, int, int]
     """HunkRange represents the range information of a hunk.
 
     The tuple (s1, l1, s2, l2) forms the header '@@ -s1,l1 +s2,l2 @@'."""
 
-    Range = Tuple[int, int]
+    Range = tuple[int, int]
     """A (lowerbound, upperbound) range tuple."""
 
-    TypedBlock = Tuple[intmod.BDiffBlock, bytes]
+    TypedBlock = tuple[intmod.BDiffBlock, bytes]
     """A bdiff block with its type."""
 
 
@@ -178,7 +176,7 @@ def splitblock(
         s2 = i2
 
 
-def hunkinrange(hunk: Tuple[int, int], linerange: Range) -> bool:
+def hunkinrange(hunk: tuple[int, int], linerange: Range) -> bool:
     """Return True if `hunk` defined as (start, length) is in `linerange`
     defined as (lowerbound, upperbound).
 
@@ -206,7 +204,7 @@ def hunkinrange(hunk: Tuple[int, int], linerange: Range) -> bool:
 
 def blocksinrange(
     blocks: Iterable[TypedBlock], rangeb: Range
-) -> Tuple[List[TypedBlock], Range]:
+) -> tuple[list[TypedBlock], Range]:
     """filter `blocks` like (a1, a2, b1, b2) from items outside line range
     `rangeb` from ``(b1, b2)`` point of view.
 
@@ -314,7 +312,7 @@ def unidiff(
     fn2: bytes,
     binary: bool,
     opts: diffopts = defaultopts,
-) -> Tuple[List[bytes], Iterable[Tuple[Optional[HunkRange], HunkLines]]]:
+) -> tuple[list[bytes], Iterable[tuple[Optional[HunkRange], HunkLines]]]:
     """Return a unified diff as a (headers, hunks) tuple.
 
     If the diff is not null, `headers` is a list with unified diff header
@@ -397,13 +395,13 @@ def unidiff(
     # The possible bool is consumed from the iterator above in the `next()`
     # call.
     return headerlines, cast(
-        "Iterable[Tuple[Optional[HunkRange], HunkLines]]", hunks
+        "Iterable[tuple[Optional[HunkRange], HunkLines]]", hunks
     )
 
 
 def _unidiff(
     t1: bytes, t2: bytes, opts: diffopts = defaultopts
-) -> Iterator[Union[bool, Tuple[HunkRange, HunkLines]]]:
+) -> Iterator[Union[bool, tuple[HunkRange, HunkLines]]]:
     """Yield hunks of a headerless unified diff from t1 and t2 texts.
 
     Each hunk consists of a (hunkrange, hunklines) tuple where `hunkrange` is a
@@ -432,8 +430,8 @@ def _unidiff(
     lastfunc = [0, b'']
 
     def yieldhunk(
-        hunk: Tuple[int, int, int, int, List[bytes]]
-    ) -> Iterable[Tuple[HunkRange, HunkLines]]:
+        hunk: tuple[int, int, int, int, list[bytes]]
+    ) -> Iterable[tuple[HunkRange, HunkLines]]:
         (astart, a2, bstart, b2, delta) = hunk
         aend = contextend(a2, len(l1))
         alen = aend - astart
@@ -607,7 +605,7 @@ def patch(a, bin):
 
 
 # similar to difflib.SequenceMatcher.get_matching_blocks
-def get_matching_blocks(a: bytes, b: bytes) -> List[Tuple[int, int, int]]:
+def get_matching_blocks(a: bytes, b: bytes) -> list[tuple[int, int, int]]:
     return [(d[0], d[2], d[1] - d[0]) for d in bdiff.blocks(a, b)]
 
 

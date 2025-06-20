@@ -13,9 +13,7 @@ import struct
 import typing
 
 from typing import (
-    List,
     Optional,
-    Tuple,
 )
 
 from ..interfaces import (
@@ -23,7 +21,7 @@ from ..interfaces import (
 )
 
 
-def splitnewlines(text: bytes) -> List[bytes]:
+def splitnewlines(text: bytes) -> list[bytes]:
     '''like str.splitlines, but only split on newlines.'''
     lines = [l + b'\n' for l in text.split(b'\n')]
     if lines:
@@ -35,8 +33,8 @@ def splitnewlines(text: bytes) -> List[bytes]:
 
 
 def _normalizeblocks(
-    a: List[bytes], b: List[bytes], blocks
-) -> List[Tuple[int, int, int]]:
+    a: list[bytes], b: list[bytes], blocks
+) -> list[tuple[int, int, int]]:
     prev = None
     r = []
     for curr in blocks:
@@ -98,7 +96,7 @@ def bdiff(a: bytes, b: bytes) -> bytes:
     return b"".join(bin)
 
 
-def blocks(a: bytes, b: bytes) -> List[Tuple[int, int, int, int]]:
+def blocks(a: bytes, b: bytes) -> list[tuple[int, int, int, int]]:
     an = splitnewlines(a)
     bn = splitnewlines(b)
     d = difflib.SequenceMatcher(None, an, bn).get_matching_blocks()

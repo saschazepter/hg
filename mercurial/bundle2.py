@@ -185,15 +185,12 @@ from .interfaces import repository
 
 if typing.TYPE_CHECKING:
     from typing import (
-        Dict,
         Iterator,
-        List,
         Optional,
-        Tuple,
         Union,
     )
 
-    Capabilities = Dict[bytes, Union[List[bytes], Tuple[bytes, ...]]]
+    Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 
 urlerr = util.urlerr
 urlreq = util.urlreq

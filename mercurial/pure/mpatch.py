@@ -10,11 +10,6 @@ from __future__ import annotations
 import io
 import struct
 
-from typing import (
-    List,
-    Tuple,
-)
-
 
 stringio = io.BytesIO
 
@@ -35,7 +30,7 @@ class mpatchError(Exception):
 
 
 def _pull(
-    dst: List[Tuple[int, int]], src: List[Tuple[int, int]], l: int
+    dst: list[tuple[int, int]], src: list[tuple[int, int]], l: int
 ) -> None:  # pull l bytes from src
     while l:
         f = src.pop()
@@ -59,8 +54,8 @@ def _move(m: stringio, dest: int, src: int, count: int) -> None:
 
 
 def _collect(
-    m: stringio, buf: int, list: List[Tuple[int, int]]
-) -> Tuple[int, int]:
+    m: stringio, buf: int, list: list[tuple[int, int]]
+) -> tuple[int, int]:
     start = buf
     for l, p in reversed(list):
         _move(m, buf, p, l)
@@ -68,7 +63,7 @@ def _collect(
     return (buf - start, start)
 
 
-def patches(a: bytes, bins: List[bytes]) -> bytes:
+def patches(a: bytes, bins: list[bytes]) -> bytes:
     if not bins:
         return a
 

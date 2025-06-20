@@ -5,12 +5,9 @@ import os
 
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Optional,
-    Tuple,
 )
 
 from mercurial.interfaces.types import (
@@ -137,14 +134,14 @@ class gitdirstate(intdirstate.idirstate):
     def branch(self) -> bytes:
         return b'default'
 
-    def parents(self) -> List[bytes]:
+    def parents(self) -> list[bytes]:
         # TODO how on earth do we find p2 if a merge is in flight?
         return [self.p1(), sha1nodeconstants.nullid]
 
     def __iter__(self) -> Iterator[bytes]:
         return (pycompat.fsencode(f.path) for f in self.git.index)
 
-    def items(self) -> Iterator[Tuple[bytes, intdirstate.DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, intdirstate.DirstateItemT]]:
         for ie in self.git.index:
             yield ie.path, None  # value should be a DirstateItem
 
@@ -290,7 +287,7 @@ class gitdirstate(intdirstate.idirstate):
     def copy(self, source: Optional[bytes], dest: bytes) -> None:
         raise NotImplementedError
 
-    def copies(self) -> Dict[bytes, bytes]:
+    def copies(self) -> dict[bytes, bytes]:
         # TODO support copies?
         return {}
 

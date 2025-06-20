@@ -9,12 +9,9 @@ import os
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     Optional,
     Protocol,
-    Tuple,
 )
 
 
@@ -28,7 +25,7 @@ class IHooks(Protocol):
         ...
 
     @abc.abstractmethod
-    def __call__(self, *args) -> List:
+    def __call__(self, *args) -> list:
         ...
 
 
@@ -72,12 +69,12 @@ class ICacheStat(Protocol):
         ...
 
 
-AuthInfoT = Tuple[
+AuthInfoT = tuple[
     bytes,
     Optional[
-        Tuple[
+        tuple[
             None,
-            Tuple[bytes, bytes],
+            tuple[bytes, bytes],
             bytes,
             bytes,
         ]
@@ -164,7 +161,7 @@ class IPath(Protocol):
 
     @property
     @abc.abstractmethod
-    def suboptions(self) -> Dict[bytes, bytes]:
+    def suboptions(self) -> dict[bytes, bytes]:
         """Return sub-options and their values for this path.
 
         This is intended to be used for presentation purposes.

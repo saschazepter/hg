@@ -9,17 +9,15 @@ import typing
 
 from typing import (
     Callable,
-    List,
     Optional,
     Protocol,
-    Tuple,
 )
 
 if typing.TYPE_CHECKING:
-    BDiffBlock = Tuple[int, int, int, int]
+    BDiffBlock = tuple[int, int, int, int]
     """An entry in the list returned by bdiff.{xdiff,}blocks()."""
 
-    BDiffBlocksFnc = Callable[[bytes, bytes], List[BDiffBlock]]
+    BDiffBlocksFnc = Callable[[bytes, bytes], list[BDiffBlock]]
     """The signature of `bdiff.blocks()` and `bdiff.xdiffblocks()`."""
 
 
@@ -36,13 +34,13 @@ class Base85(Protocol):
 class BDiff(Protocol):
     """A Protocol class for the various bdiff module implementations."""
 
-    def splitnewlines(self, text: bytes) -> List[bytes]:
+    def splitnewlines(self, text: bytes) -> list[bytes]:
         """like str.splitlines, but only split on newlines."""
 
     def bdiff(self, a: bytes, b: bytes) -> bytes:
         ...
 
-    def blocks(self, a: bytes, b: bytes) -> List[BDiffBlock]:
+    def blocks(self, a: bytes, b: bytes) -> list[BDiffBlock]:
         ...
 
     def fixws(self, text: bytes, allws: bool) -> bytes:
@@ -78,7 +76,7 @@ class CharEncoding(Protocol):
 class MPatch(Protocol):
     """A protocol class for the various mpatch module implementations."""
 
-    def patches(self, a: bytes, bins: List[bytes]) -> bytes:
+    def patches(self, a: bytes, bins: list[bytes]) -> bytes:
         ...
 
     def patchedsize(self, orig: int, delta: bytes) -> int:

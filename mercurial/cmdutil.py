@@ -18,7 +18,6 @@ from typing import (
     Any,
     AnyStr,
     BinaryIO,
-    Dict,
     Iterable,
     Literal,
     Optional,
@@ -287,7 +286,7 @@ _linebelow = b"^HG: ------------------------ >8 ------------------------$"
 
 
 def check_at_most_one_arg(
-    opts: Dict[AnyStr, Any],
+    opts: dict[AnyStr, Any],
     *args: AnyStr,
 ) -> Optional[AnyStr]:
     """abort if more than one of the arguments are in opts
@@ -311,7 +310,7 @@ def check_at_most_one_arg(
 
 
 def check_incompatible_arguments(
-    opts: Dict[AnyStr, Any],
+    opts: dict[AnyStr, Any],
     first: AnyStr,
     others: Iterable[AnyStr],
 ) -> None:
@@ -324,7 +323,7 @@ def check_incompatible_arguments(
         check_at_most_one_arg(opts, first, other)
 
 
-def resolve_commit_options(ui: uimod.ui, opts: Dict[str, Any]) -> bool:
+def resolve_commit_options(ui: uimod.ui, opts: dict[str, Any]) -> bool:
     """modify commit options dict to handle related options
 
     The return value indicates that ``rewrite.update-timestamp`` is the reason
@@ -351,7 +350,7 @@ def resolve_commit_options(ui: uimod.ui, opts: Dict[str, Any]) -> bool:
     return datemaydiffer
 
 
-def check_note_size(opts: Dict[str, Any]) -> None:
+def check_note_size(opts: dict[str, Any]) -> None:
     """make sure note is of valid format"""
 
     note = opts.get('note')
@@ -1147,7 +1146,7 @@ def bailifchanged(repo, merge=True, hint=None):
         ctx.sub(s).bailifchanged(hint=hint)
 
 
-def logmessage(ui: uimod.ui, opts: Dict[bytes, Any]) -> Optional[bytes]:
+def logmessage(ui: uimod.ui, opts: dict[bytes, Any]) -> Optional[bytes]:
     """get the log message according to -m and -l option"""
 
     check_at_most_one_arg(opts, b'message', b'logfile')
@@ -1499,7 +1498,7 @@ def openrevlog(repo, cmd, file_, opts):
     return openstorage(repo, cmd, file_, opts, returnrevlog=True)
 
 
-def copy(ui, repo, pats, opts: Dict[bytes, Any], rename=False):
+def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
     check_incompatible_arguments(opts, b'forget', [b'dry_run'])
 
     # called with the repo lock held
@@ -2978,7 +2977,7 @@ def samefile(f, ctx1, ctx2):
         return f not in ctx2.manifest()
 
 
-def amend(ui, repo, old, extra, pats, opts: Dict[str, Any]):
+def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
     # avoid cycle context -> subrepo -> cmdutil
     from . import context
 
@@ -4133,7 +4132,7 @@ def abortgraft(ui, repo, graftstate):
 def readgraftstate(
     repo: Any,
     graftstate: statemod.cmdstate,
-) -> Dict[bytes, Any]:
+) -> dict[bytes, Any]:
     """read the graft state file and return a dict of the data stored in it"""
     try:
         return graftstate.read()

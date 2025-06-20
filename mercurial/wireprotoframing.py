@@ -18,7 +18,6 @@ import typing
 
 from typing import (
     Protocol,
-    Type,
 )
 
 from .i18n import _
@@ -838,8 +837,8 @@ class zstd8mbdecoder(zstdbasedecoder):
 # TypeVar('EncoderT', bound=Encoder) was flagged as "not in scope" when used
 # on the STREAM_ENCODERS dict below.
 if typing.TYPE_CHECKING:
-    EncoderT = Type[identityencoder | zlibencoder | zstd8mbencoder]
-    DecoderT = Type[identitydecoder | zlibdecoder | zstd8mbdecoder]
+    EncoderT = type[identityencoder | zlibencoder | zstd8mbencoder]
+    DecoderT = type[identitydecoder | zlibdecoder | zstd8mbdecoder]
 
 # We lazily populate this to avoid excessive module imports when importing
 # this module.

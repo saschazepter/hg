@@ -111,12 +111,8 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Dict,
     Iterable,
-    List,
     Optional,
-    Set,
-    Tuple,
     overload,
 )
 
@@ -136,8 +132,8 @@ from . import (
     util,
 )
 
-Phaseroots = Dict[int, Set[int]]
-PhaseSets = Dict[int, Set[int]]
+Phaseroots = dict[int, set[int]]
+PhaseSets = dict[int, set[int]]
 
 if typing.TYPE_CHECKING:
     from typing_extensions import (
@@ -151,7 +147,7 @@ if typing.TYPE_CHECKING:
     # keeps pyflakes happy
     assert [uimod]
 
-    Phasedefaults = List[
+    Phasedefaults = list[
         Callable[[localrepo.localrepository, Phaseroots], Phaseroots]
     ]
 
@@ -205,7 +201,7 @@ def supportarchived(repo: localrepo.localrepository) -> bool:
 def _readroots(
     repo: localrepo.localrepository,
     phasedefaults: Optional[Phasedefaults] = None,
-) -> Tuple[Phaseroots, bool]:
+) -> tuple[Phaseroots, bool]:
     """Read phase roots from disk
 
     phasedefaults is a list of fn(repo, roots) callable, which are
@@ -244,7 +240,7 @@ def _readroots(
     return roots, dirty
 
 
-def binaryencode(phasemapping: Dict[int, List[bytes]]) -> bytes:
+def binaryencode(phasemapping: dict[int, list[bytes]]) -> bytes:
     """encode a 'phase -> nodes' mapping into a binary stream
 
     The revision lists are encoded as (phase, root) pairs.
@@ -256,7 +252,7 @@ def binaryencode(phasemapping: Dict[int, List[bytes]]) -> bytes:
     return b''.join(binarydata)
 
 
-def binarydecode(stream) -> Dict[int, List[bytes]]:
+def binarydecode(stream) -> dict[int, list[bytes]]:
     """decode a binary stream into a 'phase -> nodes' mapping
 
     The (phase, root) pairs are turned back into a dictionary with
@@ -423,7 +419,7 @@ class phasecache:
             revs for phase, revs in self._phaseroots.items() if phase != public
         )
 
-    def nonpublicphaseroots(self, repo: localrepo.localrepository) -> Set[int]:
+    def nonpublicphaseroots(self, repo: localrepo.localrepository) -> set[int]:
         """returns the roots of all non-public phases
 
         The roots are not minimized, so if the secret revisions are
@@ -443,7 +439,7 @@ class phasecache:
         self,
         repo: localrepo.localrepository,
         phase: int,
-    ) -> Set[int]:
+    ) -> set[int]:
         """return the set of revision in that phase
 
         The returned set is not filtered and might contains revision filtered
@@ -1056,7 +1052,7 @@ def registernew(repo, tr, targetphase, revs):
     repo._phasecache.replace(phcache)
 
 
-def listphases(repo: localrepo.localrepository) -> Dict[bytes, bytes]:
+def listphases(repo: localrepo.localrepository) -> dict[bytes, bytes]:
     """List phases root for serialization over pushkey"""
     # Use ordered dictionary so behavior is deterministic.
     keys = util.sortdict()
@@ -1143,8 +1139,8 @@ def updatephases(repo, trgetter, headsbyphase):
 def analyze_remote_phases(
     repo,
     subset: Collection[int],
-    roots: Dict[bytes, bytes],
-) -> Tuple[Collection[int], Collection[int]]:
+    roots: dict[bytes, bytes],
+) -> tuple[Collection[int], Collection[int]]:
     """Compute phases heads and root in a subset of node from root dict
 
     * subset is heads of the subset
@@ -1190,10 +1186,10 @@ class RemotePhasesSummary:
         self,
         repo,
         remote_subset: Collection[int],
-        remote_roots: Dict[bytes, bytes],
+        remote_roots: dict[bytes, bytes],
     ):
         unfi = repo.unfiltered()
-        self._allremoteroots: Dict[bytes, bytes] = remote_roots
+        self._allremoteroots: dict[bytes, bytes] = remote_roots
 
         self.publishing: bool = bool(remote_roots.get(b'publishing', False))
 
@@ -1274,7 +1270,7 @@ def preparehookargs(
     node: bytes,
     old: Optional[int],
     new: Optional[int],
-) -> Dict[bytes, bytes]:
+) -> dict[bytes, bytes]:
     if old is None:
         old = b''
     else:

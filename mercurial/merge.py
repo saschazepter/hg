@@ -11,7 +11,7 @@ import collections
 import os
 import struct
 import typing
-from typing import Dict, Iterable, Iterator, Optional, Tuple
+from typing import Iterable, Iterator, Optional
 
 from .i18n import _
 from .node import nullrev
@@ -2311,7 +2311,7 @@ def _update(
 
 
 # filename -> (mode, size, timestamp)
-FileData = Dict[bytes, Optional[Tuple[int, int, Optional[timestamp.timestamp]]]]
+FileData = dict[bytes, Optional[tuple[int, int, Optional[timestamp.timestamp]]]]
 
 
 def filter_ambiguous_files(repo, file_data: FileData) -> FileData:

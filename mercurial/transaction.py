@@ -19,7 +19,6 @@ import os
 from typing import (
     Callable,
     Collection,
-    List,
     Optional,
     Union,
 )
@@ -572,7 +571,7 @@ class transaction(util.transactional, itxn.ITransaction):
         return self._offsetmap.get(file)
 
     @active
-    def readjournal(self) -> List[itxn.JournalEntryT]:
+    def readjournal(self) -> list[itxn.JournalEntryT]:
         self._file.seek(0)
         entries = []
         for l in self._file.readlines():
