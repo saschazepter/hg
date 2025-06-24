@@ -635,8 +635,8 @@ class ui:
         self.fixconfig(section=section)
         self._maybetweakdefaults()
 
-    def _data(self, untrusted):
-        return untrusted and self._ucfg or self._tcfg
+    def _data(self, untrusted: bool) -> config.config:
+        return self._ucfg if untrusted else self._tcfg
 
     def configsource(self, section, name, untrusted=False):
         return self._data(untrusted).source(section, name)
