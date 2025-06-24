@@ -801,3 +801,10 @@ Test debugshell
 
   $ hg debugshell -c 'ui.write(b"%s\n" % ui.username())'
   test
+
+  $ hg debugshell -c 'raise m.error.Abort("error should cause non-zero status")'
+  Traceback (most recent call last):
+    File "<input>", line 1, in <module>
+  mercurial.error.Abort: error should cause non-zero status
+
+^^ BUG: no non-zero exit status ^^
