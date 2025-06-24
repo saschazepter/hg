@@ -97,7 +97,7 @@ def commitctx(repo, ctx, error=False, origctx=None):
         if oldtip != repo.changelog.tiprev():
             repo.register_changeset(rev, repo.changelog.changelogrevision(rev))
 
-        xp1, xp2 = p1.hex(), p2 and p2.hex() or b''
+        xp1, xp2 = p1.hex(), p2.hex() if p2 else b''
         repo.hook(
             b'pretxncommit',
             throw=True,
