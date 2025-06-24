@@ -3413,7 +3413,7 @@ class localrepository(_localrepo_base_classes):
                 subrepoutil.writestate(self, newstate)
 
             p1, p2 = self.dirstate.parents()
-            hookp1, hookp2 = hex(p1), (p2 != self.nullid and hex(p2) or b'')
+            hookp1, hookp2 = hex(p1), (hex(p2) if p2 != self.nullid else b'')
             try:
                 self.hook(
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
