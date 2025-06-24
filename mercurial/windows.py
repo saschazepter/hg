@@ -277,8 +277,8 @@ def sshargs(
     sshcmd: bytes, host: bytes, user: bytes | None, port: bytes | None
 ) -> bytes:
     '''Build argument list for ssh or Plink'''
-    pflag = b'plink' in sshcmd.lower() and b'-P' or b'-p'
-    args = user and (b"%s@%s" % (user, host)) or host
+    pflag = b'-P' if b'plink' in sshcmd.lower() else b'-p'
+    args = (b"%s@%s" % (user, host)) if user else host
     if args.startswith(b'-') or args.startswith(b'/'):
         raise error.Abort(
             _(b'illegal ssh hostname or username starting with - or /: %s')
