@@ -146,7 +146,7 @@ def sshargs(
     sshcmd: bytes, host: bytes, user: bytes | None, port: bytes | None
 ) -> bytes:
     '''Build argument list for ssh'''
-    args = user and (b"%s@%s" % (user, host)) or host
+    args = (b"%s@%s" % (user, host)) if user else host
     if b'-' in args[:1]:
         raise error.Abort(
             _(b'illegal ssh hostname or username starting with -: %s') % args
