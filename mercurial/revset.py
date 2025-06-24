@@ -1877,7 +1877,7 @@ def outgoing(repo, subset, x):
     l = getargs(x, 0, 1, _(b"outgoing takes one or no arguments"))
     # i18n: "outgoing" is a keyword
     dest = (
-        l and getstring(l[0], _(b"outgoing requires a repository path")) or b''
+        getstring(l[0], _(b"outgoing requires a repository path")) if l else b''
     )
     if dest:
         dests = [dest]
