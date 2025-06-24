@@ -381,7 +381,7 @@ class abstractsubrepo:
         archiver = None
         for name in files:
             flags = self.fileflags(name)
-            mode = b'x' in flags and 0o755 or 0o644
+            mode = 0o755 if b'x' in flags else 0o644
             symlink = b'l' in flags
             if archiver is None:
                 archiver = opener()
