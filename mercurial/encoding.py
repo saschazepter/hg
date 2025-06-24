@@ -401,7 +401,7 @@ def ucolwidth(d: str) -> int:
     """Find the column width of a Unicode string for display"""
     eaw = getattr(unicodedata, 'east_asian_width', None)
     if eaw is not None:
-        return sum([eaw(c) in _wide and 2 or 1 for c in d])
+        return sum([2 if eaw(c) in _wide else 1 for c in d])
     return len(d)
 
 
