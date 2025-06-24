@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import binascii
+import code
 import codecs
 import collections
 import contextlib
@@ -3829,8 +3830,6 @@ def debugshell(ui, repo, **opts):
     If `ui.debugger` is configured to be `ipdb`, an IPython shell will be used
     instead of the standard Python shell.
     """
-    import code
-
     imported_objects = {
         'ui': ui,
         # Import some useful utilities.
@@ -3887,7 +3886,12 @@ def debugshell(ui, repo, **opts):
     command = opts.get('command')
     if command:
         compiled = code.compile_command(encoding.strfromlocal(command))
-        code.InteractiveInterpreter(locals=imported_objects).runcode(compiled)
+        interpreter = InteractiveInterpreterWithErrorTracking(
+            locals=imported_objects
+        )
+        interpreter.runcode(compiled)
+        if interpreter.mercurial_seen_error:
+            return 1
         return
 
     reporoot = (
@@ -3932,6 +3936,16 @@ def debugshell(ui, repo, **opts):
             )
 
     code.interact(bannermsg, local=imported_objects)
+
+
+class InteractiveInterpreterWithErrorTracking(code.InteractiveInterpreter):
+    def __init__(self, locals=None):
+        self.mercurial_seen_error = False
+        super().__init__(locals=locals)
+
+    def showtraceback(self, *args, **kwargs):
+        self.mercurial_seen_error = True
+        return super().showtraceback(*args, **kwargs)
 
 
 @command(
