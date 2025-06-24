@@ -277,7 +277,7 @@ def _loadnewui(srcui, args, cdebug):
 
     # load wd and repo config, copied from dispatch.py
     cwd = options[b'cwd']
-    cwd = cwd and os.path.realpath(cwd) or None
+    cwd = os.path.realpath(cwd) if cwd else None
     rpath = options[b'repository']
     path, newlui = dispatch._getlocal(newui, rpath, wd=cwd)
 
