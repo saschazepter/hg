@@ -143,7 +143,7 @@ def statprofile(ui, fp):
         ui.warn(_(b"invalid sampling frequency '%s' - ignoring\n") % freq)
 
     track = ui.config(
-        b'profiling', b'time-track', pycompat.iswindows and b'cpu' or b'real'
+        b'profiling', b'time-track', b'cpu' if pycompat.iswindows else b'real'
     )
     statprof.start(mechanism=b'thread', track=track)
 
