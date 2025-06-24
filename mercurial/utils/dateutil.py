@@ -146,7 +146,7 @@ def datestr(
     """
     t, tz = date or makedate()
     if b"%1" in format or b"%2" in format or b"%z" in format:
-        sign = (tz > 0) and b"-" or b"+"
+        sign = b"-" if (tz > 0) else b"+"
         minutes = abs(tz) // 60
         q, r = divmod(minutes, 60)
         format = format.replace(b"%z", b"%1%2")
@@ -180,7 +180,7 @@ def parsetimezone(s: bytes) -> tuple[int | None, bytes]:
 
     # Unix-style timezones [+-]hhmm
     if len(s) >= 5 and s[-5] in b"+-" and s[-4:].isdigit():
-        sign = (s[-5] == b"+") and 1 or -1
+        sign = 1 if (s[-5] == b"+") else -1
         hours = int(s[-4:-2])
         minutes = int(s[-2:])
         return -sign * (hours * 60 + minutes) * 60, s[:-5].rstrip()
@@ -197,7 +197,7 @@ def parsetimezone(s: bytes) -> tuple[int | None, bytes]:
         and s[-5:-3].isdigit()
         and s[-2:].isdigit()
     ):
-        sign = (s[-6] == b"+") and 1 or -1
+        sign = 1 if (s[-6] == b"+") else -1
         hours = int(s[-5:-3])
         minutes = int(s[-2:])
         return -sign * (hours * 60 + minutes) * 60, s[:-6]
