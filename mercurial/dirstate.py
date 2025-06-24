@@ -1470,10 +1470,10 @@ class dirstate(intdirstate.idirstate):
                         # interested in comparing it to files currently in the
                         # dmap -- therefore normalizefile is enough
                         nf = normalizefile(
-                            nd and (nd + b"/" + f) or f, True, True
+                            (nd + b"/" + f) if nd else f, True, True
                         )
                     else:
-                        nf = nd and (nd + b"/" + f) or f
+                        nf = (nd + b"/" + f) if nd else f
                     if nf not in results:
                         if kind == dirkind:
                             if not ignore(nf):
