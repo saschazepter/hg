@@ -1037,7 +1037,7 @@ def help_(
                         b"\n(use 'hg help -v%s' to show built-in aliases "
                         b"and global options)\n"
                     )
-                    % (name and b" " + name or b"")
+                    % (b" " + name if name else b"")
                 )
         return rst
 
