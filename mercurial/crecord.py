@@ -1303,7 +1303,7 @@ class curseschunkselector:
         return checkbox
 
     def printheader(
-        self, header, selected=False, towin=True, ignorefolding=False
+        self, header, selected: bool = False, towin=True, ignorefolding=False
     ):
         """
         print the header to the pad.  if countlines is True, don't print
@@ -1321,7 +1321,8 @@ class curseschunkselector:
             )
         # select color-pair based on if the header is selected
         colorpair = self.getcolorpair(
-            name=selected and b"selected" or b"normal", attrlist=[curses.A_BOLD]
+            name=b"selected" if selected else b"normal",
+            attrlist=[curses.A_BOLD],
         )
 
         # print out each line of the chunk, expanding it to screen width
@@ -1348,7 +1349,7 @@ class curseschunkselector:
         return outstr
 
     def printhunklinesbefore(
-        self, hunk, selected=False, towin=True, ignorefolding=False
+        self, hunk, selected: bool = False, towin=True, ignorefolding=False
     ):
         """includes start/end line indicator"""
         outstr = b""
@@ -1362,7 +1363,8 @@ class curseschunkselector:
             )
 
         colorpair = self.getcolorpair(
-            name=selected and b"selected" or b"normal", attrlist=[curses.A_BOLD]
+            name=b"selected" if selected else b"normal",
+            attrlist=[curses.A_BOLD],
         )
 
         # print out from-to line with checkbox
