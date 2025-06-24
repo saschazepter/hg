@@ -543,7 +543,7 @@ class wirepeer(
             d = self._call(b"between", pairs=n)
             try:
                 r.extend(
-                    l and wireprototypes.decodelist(l) or []
+                    wireprototypes.decodelist(l) if l else []
                     for l in d.splitlines()
                 )
             except ValueError:
