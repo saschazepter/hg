@@ -94,6 +94,19 @@ from .revlogutils import (
     constants as revlogconst,
 )
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        TypeVar,
+        overload,
+    )
+
+    from .interfaces.types import (
+        NodeIdT,
+    )
+
+    _IdentityCtxT = TypeVar("_IdentityCtxT", bound=context.basectx)
+
+
 release = lockmod.release
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -1972,6 +1985,39 @@ class localrepository(_localrepo_base_classes):
         if self.filtername in repoview.filter_has_wc:
             return self._quick_access_changeid_wc
         return self._quick_access_changeid_null
+
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __getitem__(self, changeid: None) -> context.workingctx:
+            ...
+
+        @overload
+        def __getitem__(
+            self, changeid: slice
+        ) -> list[context.changectx | context.workingctx]:
+            ...
+
+        @overload
+        def __getitem__(
+            self, changeid: int
+        ) -> context.changectx | context.workingctx:
+            ...
+
+        # Accepts special tags (e.g. ``b'.'``), binary node IDs, and ascii node
+        # values.
+        @overload
+        def __getitem__(
+            self, changeid: bytes | NodeIdT
+        ) -> context.changectx | context.workingctx:
+            ...
+
+        # Last, because pytype tends to bind ``slice`` to this, even though it
+        # has a bound that is not ``slice``.  That makes it appear that the
+        # caller is getting a slice back, instead of a list of ctxs.
+        @overload
+        def __getitem__(self, changeid: _IdentityCtxT) -> _IdentityCtxT:
+            ...
 
     def __getitem__(self, changeid):
         # dealing with special cases
