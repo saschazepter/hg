@@ -1723,18 +1723,18 @@ def debugfsinfo(ui, path=b"."):
     ui.writenoi18n(
         b'mounted on: %s\n' % (util.getfsmountpoint(path) or b'(unknown)')
     )
-    ui.writenoi18n(b'exec: %s\n' % (util.checkexec(path) and b'yes' or b'no'))
+    ui.writenoi18n(b'exec: %s\n' % (b'yes' if util.checkexec(path) else b'no'))
     ui.writenoi18n(b'fstype: %s\n' % (util.getfstype(path) or b'(unknown)'))
     ui.writenoi18n(
-        b'symlink: %s\n' % (util.checklink(path) and b'yes' or b'no')
+        b'symlink: %s\n' % (b'yes' if util.checklink(path) else b'no')
     )
     ui.writenoi18n(
-        b'hardlink: %s\n' % (util.checknlink(path) and b'yes' or b'no')
+        b'hardlink: %s\n' % (b'yes' if util.checknlink(path) else b'no')
     )
     casesensitive = b'(unknown)'
     try:
         with pycompat.namedtempfile(prefix=b'.debugfsinfo', dir=path) as f:
-            casesensitive = util.fscasesensitive(f.name) and b'yes' or b'no'
+            casesensitive = b'yes' if util.fscasesensitive(f.name) else b'no'
     except OSError:
         pass
     ui.writenoi18n(b'case-sensitive: %s\n' % casesensitive)
@@ -2201,7 +2201,7 @@ def debugknown(ui, repopath, *ids, **opts):
     if not repo.capable(b'known'):
         raise error.Abort(b"known() not supported by target repository")
     flags = repo.known([bin(s) for s in ids])
-    ui.write(b"%s\n" % (b"".join([f and b"1" or b"0" for f in flags])))
+    ui.write(b"%s\n" % (b"".join([b"1" if f else b"0" for f in flags])))
 
 
 @command(b'debuglabelcomplete', [], _(b'LABEL...'))
@@ -4240,7 +4240,7 @@ def debugwalk(ui, repo, *pats, **opts):
         line = fmt % (
             abs,
             f(repo.pathto(abs)),
-            m.exact(abs) and b'exact' or b'',
+            b'exact' if m.exact(abs) else b'',
         )
         ui.write(b"%s\n" % line.rstrip())
 
