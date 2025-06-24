@@ -182,7 +182,7 @@ def splitparagraphs(blocks):
         item (but only if singleline is True).
         """
         line1 = lines[i]
-        line2 = i + 1 < len(lines) and lines[i + 1] or b''
+        line2 = lines[i + 1] if i + 1 < len(lines) else b''
         if not itemre.match(line1):
             return False
         if singleline:
@@ -261,7 +261,7 @@ def updateoptionlists(blocks):
                 noshortop = b'   '
 
             opt = b"%s%s" % (
-                shortoption and b"-%s " % shortoption or b'',
+                b"-%s " % shortoption if shortoption else b'',
                 b"%s--%s %s" % (noshortop, longoption, longoptionarg),
             )
             opt = opt.rstrip()
