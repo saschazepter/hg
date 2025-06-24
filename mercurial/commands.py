@@ -268,7 +268,7 @@ def add(ui, repo, *pats, **opts):
         m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
         uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
         rejected = cmdutil.add(ui, repo, m, b"", uipathfn, False, **opts)
-        return rejected and 1 or 0
+        return 1 if rejected else 0
 
 
 @command(
@@ -2998,7 +2998,7 @@ def forget(ui, repo, *pats, **opts):
             dryrun=dryrun,
             interactive=interactive,
         )[0]
-    return rejected and 1 or 0
+    return 1 if rejected else 0
 
 
 @command(
@@ -6732,7 +6732,7 @@ def status(ui, repo, *pats, **opts):
     states = b'modified added removed deleted unknown ignored clean'.split()
     show = [k for k in states if opts.get(k)]
     if opts.get(b'all'):
-        show += ui.quiet and (states[:4] + [b'clean']) or states
+        show += (states[:4] + [b'clean']) if ui.quiet else states
 
     if not show:
         if ui.quiet:
