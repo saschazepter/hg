@@ -515,7 +515,7 @@ class hgwebdir:
                 b"sort_%s" % column,
                 b"%s%s"
                 % (
-                    (not descending and column == sortcolumn) and b"-" or b"",
+                    b"-" if (not descending and column == sortcolumn) else b"",
                     column,
                 ),
             )

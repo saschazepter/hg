@@ -707,9 +707,11 @@ def diffs(web, ctx, basectx, files, style, linerange=None, lineidprefix=b''):
     )
 
 
-def _compline(type, leftlineno, leftline, rightlineno, rightline):
-    lineid = leftlineno and (b"l%d" % leftlineno) or b''
-    lineid += rightlineno and (b"r%d" % rightlineno) or b''
+def _compline(
+    type, leftlineno: int | None, leftline, rightlineno: int | None, rightline
+):
+    lineid = (b"l%d" % leftlineno) if leftlineno else b''
+    lineid += (b"r%d" % rightlineno) if rightlineno else b''
     llno = b'%d' % leftlineno if leftlineno else b''
     rlno = b'%d' % rightlineno if rightlineno else b''
     return {
