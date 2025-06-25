@@ -2072,7 +2072,7 @@ class ilocalrepositorymain(Protocol):
         """Write data to a file in the wvfs, using data filters."""
 
     @abc.abstractmethod
-    def wwritedata(self, filename, data):
+    def wwritedata(self, filename: bytes, data: bytes) -> bytes:
         """Resolve data for writing to the wvfs, using data filters."""
 
     @abc.abstractmethod
