@@ -2455,7 +2455,7 @@ class localrepository(_localrepo_base_classes):
         filename: bytes,
         data: bytes,
         flags: bytes,
-        backgroundclose=False,
+        backgroundclose: bool = False,
         **kwargs,
     ) -> int:
         """write ``data`` into ``filename`` in the working directory

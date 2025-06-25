@@ -2061,7 +2061,14 @@ class ilocalrepositorymain(Protocol):
         """Read a file from wvfs, using data filters."""
 
     @abc.abstractmethod
-    def wwrite(self, filename, data, flags, backgroundclose=False, **kwargs):
+    def wwrite(
+        self,
+        filename: bytes,
+        data: bytes,
+        flags: bytes,
+        backgroundclose: bool = False,
+        **kwargs,
+    ) -> int:
         """Write data to a file in the wvfs, using data filters."""
 
     @abc.abstractmethod
