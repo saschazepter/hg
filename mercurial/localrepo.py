@@ -100,8 +100,11 @@ if typing.TYPE_CHECKING:
         overload,
     )
 
+    import _weakref
+
     from .interfaces.types import (
         NodeIdT,
+        TransactionT,
     )
 
     _IdentityCtxT = TypeVar("_IdentityCtxT", bound=context.basectx)
@@ -1344,6 +1347,8 @@ class localrepository(_localrepo_base_classes):
     used.
     """
 
+    _transref: _weakref.ReferenceType[TransactionT] | None
+
     _basesupported = {
         requirementsmod.ARCHIVED_PHASE_REQUIREMENT,
         requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT,
@@ -2478,7 +2483,7 @@ class localrepository(_localrepo_base_classes):
     def wwritedata(self, filename: bytes, data: bytes) -> bytes:
         return self._filter(self._decodefilterpats, filename, data)
 
-    def currenttransaction(self):
+    def currenttransaction(self) -> TransactionT | None:
         """return the current transaction or None if non exists"""
         if self._transref:
             tr = self._transref()
@@ -2489,7 +2494,7 @@ class localrepository(_localrepo_base_classes):
             return tr
         return None
 
-    def transaction(self, desc, report=None):
+    def transaction(self, desc: bytes, report=None) -> TransactionT:
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
         ):

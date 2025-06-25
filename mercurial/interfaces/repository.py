@@ -41,6 +41,7 @@ if typing.TYPE_CHECKING:
         dirstate as intdirstate,
         matcher,
         misc,
+        transaction as inttxn,
     )
 
     # TODO: make a protocol class for this
@@ -2076,11 +2077,11 @@ class ilocalrepositorymain(Protocol):
         """Resolve data for writing to the wvfs, using data filters."""
 
     @abc.abstractmethod
-    def currenttransaction(self):
+    def currenttransaction(self) -> inttxn.ITransaction | None:
         """Obtain the current transaction instance or None."""
 
     @abc.abstractmethod
-    def transaction(self, desc, report=None):
+    def transaction(self, desc: bytes, report=None) -> inttxn.ITransaction:
         """Open a new transaction to write to the repository."""
 
     @abc.abstractmethod
