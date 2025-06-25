@@ -2033,7 +2033,7 @@ class ilocalrepositorymain(Protocol):
         """The type of shared repository or None."""
 
     @abc.abstractmethod
-    def wjoin(self, f, *insidef):
+    def wjoin(self, f: bytes, *insidef: bytes) -> bytes:
         """Calls self.vfs.reljoin(self.root, f, *insidef)"""
 
     @abc.abstractmethod
