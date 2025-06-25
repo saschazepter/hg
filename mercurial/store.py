@@ -828,7 +828,7 @@ def _ext_key(ext):
 class basicstore:
     '''base class for local repository stores'''
 
-    def __init__(self, path, vfstype):
+    def __init__(self, path: bytes, vfstype) -> None:
         vfs = vfstype(path)
         self.path = vfs.base
         self.createmode = _calcmode(vfs)
@@ -837,7 +837,7 @@ class basicstore:
         self.vfs = vfsmod.filtervfs(vfs, encodedir)
         self.opener = self.vfs
 
-    def join(self, f):
+    def join(self, f: bytes) -> bytes:
         return self.path + b'/' + encodedir(f)
 
     def _walk(self, relpath, recurse, undecodable=None):
@@ -990,7 +990,7 @@ class basicstore:
 
 
 class encodedstore(basicstore):
-    def __init__(self, path, vfstype):
+    def __init__(self, path: bytes, vfstype) -> None:
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
         self.createmode = _calcmode(vfs)
@@ -1023,7 +1023,7 @@ class encodedstore(basicstore):
             if _match_tracked_entry(entry, matcher):
                 yield entry
 
-    def join(self, f):
+    def join(self, f: bytes) -> bytes:
         return self.path + b'/' + encodefilename(f)
 
     def copylist(self):
@@ -1224,7 +1224,7 @@ class fncachestore(basicstore):
         self.vfs = _fncachevfs(vfs, fnc, encode)
         self.opener = self.vfs
 
-    def join(self, f):
+    def join(self, f: bytes) -> bytes:
         return self.pathsep + self.encode(f)
 
     def getsize(self, path):

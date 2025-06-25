@@ -1844,7 +1844,7 @@ class ilocalrepositorymain(Protocol):
     spath: bytes
     """Path to the store."""
 
-    sjoin: Callable  # TODO: add type hints
+    sjoin: Callable[[bytes], bytes]
     """Alias to self.store.join."""
 
     cachevfs: Vfs
