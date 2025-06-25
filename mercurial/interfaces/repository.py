@@ -2049,7 +2049,7 @@ class ilocalrepositorymain(Protocol):
         """Obtain the current working directory from the dirstate."""
 
     @abc.abstractmethod
-    def pathto(self, f, cwd=None):
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         """Obtain the relative path to a file."""
 
     @abc.abstractmethod
