@@ -18,6 +18,7 @@ import abc
 from typing import (
     Callable,
     Collection,
+    ContextManager,
     Protocol,
 )
 
@@ -30,7 +31,7 @@ from ._basetypes import (
 JournalEntryT = tuple[HgPathT, int]
 
 
-class ITransaction(Protocol):
+class ITransaction(ContextManager, Protocol):
     @property
     @abc.abstractmethod
     def finalized(self) -> bool:
