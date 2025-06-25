@@ -851,7 +851,7 @@ def reposetup(ui, repo):
                 f = f[1:]
             return kwfilelog(self.svfs, kwt, f)
 
-        def wread(self, filename):
+        def wread(self, filename: bytes) -> bytes:
             data = super().wread(filename)
             return kwt.wread(filename, data)
 

@@ -2057,7 +2057,7 @@ class ilocalrepositorymain(Protocol):
         pass
 
     @abc.abstractmethod
-    def wread(self, filename):
+    def wread(self, filename: bytes) -> bytes:
         """Read a file from wvfs, using data filters."""
 
     @abc.abstractmethod
