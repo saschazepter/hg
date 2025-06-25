@@ -824,9 +824,11 @@ impl<'revlog> RevlogEntry<'revlog> {
             Ok(())
         })?;
         if self.is_censored() {
-            return Err(
-                HgError::CensoredNodeError(HgBacktrace::capture()).into()
-            );
+            return Err(HgError::CensoredNodeError(
+                *self.node(),
+                HgBacktrace::capture(),
+            )
+            .into());
         }
         self.check_data(data.finish().into())
     }

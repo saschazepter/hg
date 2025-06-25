@@ -114,9 +114,9 @@ impl From<HgError> for CommandError {
             HgError::UnsupportedFeature(message, backtrace) => {
                 CommandError::unsupported(format!("{}{}", backtrace, message))
             }
-            HgError::CensoredNodeError(backtrace) => CommandError::unsupported(
-                format!("{}Encountered a censored node", backtrace),
-            ),
+            e @ HgError::CensoredNodeError(_, _) => {
+                CommandError::unsupported(format!("abort: {}", e))
+            }
             HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
                 CommandError::abort_with_exit_code_and_hint(
                     message,

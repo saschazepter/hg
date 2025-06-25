@@ -7,6 +7,7 @@ use crate::config::ConfigValueParseError;
 use crate::exit_codes;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
+use crate::Node;
 
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]
@@ -53,7 +54,7 @@ pub enum HgError {
     ConfigValueParseError(ConfigValueParseError),
 
     /// Censored revision data.
-    CensoredNodeError(HgBacktrace),
+    CensoredNodeError(Node, HgBacktrace),
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
@@ -135,8 +136,14 @@ impl fmt::Display for HgError {
             HgError::UnsupportedFeature(explanation, backtrace) => {
                 write!(f, "{}unsupported feature: {}", backtrace, explanation)
             }
-            HgError::CensoredNodeError(backtrace) => {
-                write!(f, "{}encountered a censored node", backtrace)
+            HgError::CensoredNodeError(node, backtrace) => {
+                write!(
+                    f,
+                    "{}censored node: {:x}\n\
+                    (set censor.policy to ignore errors)",
+                    backtrace,
+                    node.short()
+                )
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
             HgError::RaceDetected(context) => {
