@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import copy
+import typing
 
 from mercurial.i18n import _
 
@@ -29,6 +30,12 @@ from . import (
     lfcommands,
     lfutil,
 )
+
+if typing.TYPE_CHECKING:
+    from mercurial.interfaces.types import (
+        MatcherT,
+        StatusT,
+    )
 
 
 def reposetup(ui, repo):
@@ -104,12 +111,12 @@ def reposetup(ui, repo):
             self,
             node1=b'.',
             node2=None,
-            match=None,
-            ignored=False,
-            clean=False,
-            unknown=False,
-            listsubrepos=False,
-        ):
+            match: MatcherT | None = None,
+            ignored: bool = False,
+            clean: bool = False,
+            unknown: bool = False,
+            listsubrepos: bool = False,
+        ) -> StatusT:
             listignored, listclean, listunknown = ignored, clean, unknown
             orig = super().status
             if not self.lfstatus:

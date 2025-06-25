@@ -27,8 +27,10 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 
 from . import (
     matcher,
+    status,
     transaction,
 )
 
 MatcherT = matcher.IMatcher
+StatusT = status.Status
 TransactionT = transaction.ITransaction

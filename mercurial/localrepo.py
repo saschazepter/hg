@@ -103,7 +103,9 @@ if typing.TYPE_CHECKING:
     import _weakref
 
     from .interfaces.types import (
+        MatcherT,
         NodeIdT,
+        StatusT,
         TransactionT,
     )
 
@@ -3501,12 +3503,12 @@ class localrepository(_localrepo_base_classes):
         self,
         node1=b'.',
         node2=None,
-        match=None,
-        ignored=False,
-        clean=False,
-        unknown=False,
-        listsubrepos=False,
-    ):
+        match: MatcherT | None = None,
+        ignored: bool = False,
+        clean: bool = False,
+        unknown: bool = False,
+        listsubrepos: bool = False,
+    ) -> StatusT:
         '''a convenience method that calls node1.status(node2)'''
         return self[node1].status(
             node2, match, ignored, clean, unknown, listsubrepos

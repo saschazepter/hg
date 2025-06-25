@@ -41,6 +41,7 @@ if typing.TYPE_CHECKING:
         dirstate as intdirstate,
         matcher,
         misc,
+        status as istatus,
         transaction as inttxn,
     )
 
@@ -2193,12 +2194,12 @@ class ilocalrepositorymain(Protocol):
         self,
         node1=b'.',
         node2=None,
-        match=None,
-        ignored=False,
-        clean=False,
-        unknown=False,
-        listsubrepos=False,
-    ):
+        match: matcher.IMatcher | None = None,
+        ignored: bool = False,
+        clean: bool = False,
+        unknown: bool = False,
+        listsubrepos: bool = False,
+    ) -> istatus.Status:
         """Convenience method to call repo[x].status()."""
 
     @abc.abstractmethod
