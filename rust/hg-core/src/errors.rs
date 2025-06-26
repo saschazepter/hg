@@ -4,6 +4,7 @@ use std::fmt;
 use std::fmt::Write;
 
 use crate::config::ConfigValueParseError;
+use crate::dirstate::DirstateError;
 use crate::exit_codes;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
@@ -272,6 +273,17 @@ impl From<RevlogError> for HgError {
                 r
             )),
             RevlogError::Other(error) => error,
+        }
+    }
+}
+
+impl From<DirstateError> for HgError {
+    fn from(value: DirstateError) -> Self {
+        match value {
+            DirstateError::Map(err) => {
+                HgError::abort_simple(format!("dirstate error: {err}"))
+            }
+            DirstateError::Common(err) => err,
         }
     }
 }

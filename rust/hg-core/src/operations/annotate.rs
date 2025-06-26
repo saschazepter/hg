@@ -7,7 +7,6 @@ use self_cell::self_cell;
 use crate::bdiff::Lines;
 use crate::bdiff::{self};
 use crate::dirstate::owning::OwningDirstateMap;
-use crate::dirstate::DirstateError;
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::changelog::Changelog;
@@ -123,8 +122,7 @@ impl<'a> RepoState<'a> {
             let crate::DirstateParents { p1, p2 } = repo.dirstate_parents()?;
             let p1 = changelog.rev_from_node(p1.into())?;
             let p2 = changelog.rev_from_node(p2.into())?;
-            let dirstate_map =
-                repo.dirstate_map().map_err(from_dirstate_error)?;
+            let dirstate_map = repo.dirstate_map()?;
             (Some([p1, p2]), Some(dirstate_map))
         } else {
             (None, None)
@@ -696,14 +694,4 @@ fn adjust_link_revision(
 /// Converts a [`GraphError`] to an [`HgError`].
 fn from_graph_error(err: GraphError) -> HgError {
     HgError::corrupted(err.to_string())
-}
-
-/// Converts a [`DirstateError`] to an [`HgError`].
-fn from_dirstate_error(err: DirstateError) -> HgError {
-    match err {
-        DirstateError::Map(err) => {
-            HgError::abort_simple(format!("dirstate error: {err}"))
-        }
-        DirstateError::Common(err) => err,
-    }
 }
