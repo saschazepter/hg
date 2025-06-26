@@ -1603,25 +1603,8 @@ class dirstate(intdirstate.idirstate):
                 matcher.traversedir(dir)
 
         if self._ui.warn:
-            for item in warnings:
-                if isinstance(item, tuple):
-                    file_path, syntax = item
-                    msg = _(b"%s: ignoring invalid syntax '%s'\n") % (
-                        file_path,
-                        syntax,
-                    )
-                    self._ui.warn(msg)
-                else:
-                    msg = _(b"skipping unreadable pattern file '%s': %s\n")
-                    self._ui.warn(
-                        msg
-                        % (
-                            pathutil.canonpath(
-                                self._rootdir, self._rootdir, item
-                            ),
-                            b"No such file or directory",
-                        )
-                    )
+            for warning in warnings:
+                self._ui.warn(warning)
 
         for fn, message in sorted(bad):
             matcher.bad(fn, encoding.strtolocal(message))

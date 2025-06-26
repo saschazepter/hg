@@ -11,7 +11,6 @@ use crate::exit_codes::STATE_ERROR;
 use crate::filepatterns::parse_pattern_file_contents;
 use crate::filepatterns::IgnorePattern;
 use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternFileWarning;
 use crate::filepatterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
@@ -24,6 +23,7 @@ use crate::repo::Repo;
 use crate::requirements::SPARSE_REQUIREMENT;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
+use crate::warnings::HgWarningSender;
 use crate::Revision;
 use crate::NULL_REVISION;
 
@@ -57,13 +57,11 @@ impl Display for SparseConfigContext {
 
 /// Possible warnings when reading sparse configuration
 #[derive(Debug, derive_more::From)]
-pub enum SparseWarning {
+pub enum SparseNarrowWarning {
     /// Warns about improper paths that start with "/"
     RootWarning { context: SparseConfigContext, line: Vec<u8> },
     /// Warns about a profile missing from the given changelog revision
     ProfileNotFound { profile: Vec<u8>, rev: Revision },
-    #[from]
-    Pattern(PatternFileWarning),
 }
 
 /// Parsed sparse config
@@ -74,7 +72,6 @@ pub struct SparseConfig {
     // Line-separated
     pub(crate) excludes: Vec<u8>,
     pub(crate) profiles: HashSet<Vec<u8>>,
-    pub(crate) warnings: Vec<SparseWarning>,
 }
 
 /// All possible errors when reading sparse/narrow config
@@ -171,11 +168,11 @@ impl From<SparseConfigError> for HgError {
 pub(crate) fn parse_config(
     raw: &[u8],
     context: SparseConfigContext,
+    warnings: &HgWarningSender,
 ) -> Result<SparseConfig, SparseConfigError> {
     let mut includes = vec![];
     let mut excludes = vec![];
     let mut profiles = HashSet::new();
-    let mut warnings = vec![];
 
     #[derive(PartialEq, Eq)]
     enum Current {
@@ -218,7 +215,7 @@ pub(crate) fn parse_config(
                 });
             }
             if line.trim().starts_with(b"/") {
-                warnings.push(SparseWarning::RootWarning {
+                warnings.send(SparseNarrowWarning::RootWarning {
                     context,
                     line: line.into(),
                 });
@@ -238,7 +235,7 @@ pub(crate) fn parse_config(
         }
     }
 
-    Ok(SparseConfig { includes, excludes, profiles, warnings })
+    Ok(SparseConfig { includes, excludes, profiles })
 }
 
 fn read_temporary_includes(
@@ -255,6 +252,7 @@ fn read_temporary_includes(
 fn patterns_for_rev(
     repo: &Repo,
     rev: Revision,
+    warnings: &HgWarningSender,
 ) -> Result<Option<SparseConfig>, SparseConfigError> {
     if !repo.has_sparse() {
         return Ok(None);
@@ -265,7 +263,7 @@ fn patterns_for_rev(
         return Ok(None);
     }
 
-    let mut config = parse_config(&raw, SparseConfigContext::Sparse)?;
+    let mut config = parse_config(&raw, SparseConfigContext::Sparse, warnings)?;
 
     if !config.profiles.is_empty() {
         let mut profiles: Vec<Vec<u8>> = config.profiles.into_iter().collect();
@@ -286,7 +284,7 @@ fn patterns_for_rev(
                         )
                     })?;
             if output.results.is_empty() {
-                config.warnings.push(SparseWarning::ProfileNotFound {
+                warnings.send(SparseNarrowWarning::ProfileNotFound {
                     profile: profile.to_owned(),
                     rev,
                 });
@@ -296,6 +294,7 @@ fn patterns_for_rev(
             let subconfig = parse_config(
                 &output.results[0].1,
                 SparseConfigContext::Sparse,
+                warnings,
             )?;
             if !subconfig.includes.is_empty() {
                 config.includes.push(b'\n');
@@ -305,7 +304,6 @@ fn patterns_for_rev(
                 config.includes.push(b'\n');
                 config.excludes.extend(&subconfig.excludes);
             }
-            config.warnings.extend(subconfig.warnings.into_iter());
             profiles.extend(subconfig.profiles.into_iter());
         }
 
@@ -322,10 +320,10 @@ fn patterns_for_rev(
 /// Obtain a matcher for sparse working directories.
 pub fn matcher(
     repo: &Repo,
-) -> Result<(Box<dyn Matcher + Send>, Vec<SparseWarning>), SparseConfigError> {
-    let mut warnings = vec![];
+    warnings: &HgWarningSender,
+) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
     if !repo.requirements().contains(SPARSE_REQUIREMENT) {
-        return Ok((Box::new(AlwaysMatcher), warnings));
+        return Ok(Box::new(AlwaysMatcher));
     }
 
     let parents = repo.dirstate_parents()?;
@@ -351,30 +349,29 @@ pub fn matcher(
     let mut matchers = vec![];
 
     for rev in revs.iter() {
-        let config = patterns_for_rev(repo, *rev);
+        let config = patterns_for_rev(repo, *rev, warnings);
         if let Ok(Some(config)) = config {
-            warnings.extend(config.warnings);
             let mut m: Box<dyn Matcher + Send> = Box::new(AlwaysMatcher);
             if !config.includes.is_empty() {
-                let (patterns, subwarnings) = parse_pattern_file_contents(
+                let patterns = parse_pattern_file_contents(
                     &config.includes,
                     Path::new(""),
                     Some(PatternSyntax::Glob),
                     false,
                     false,
+                    warnings,
                 )?;
-                warnings.extend(subwarnings.into_iter().map(From::from));
                 m = Box::new(IncludeMatcher::new(patterns)?);
             }
             if !config.excludes.is_empty() {
-                let (patterns, subwarnings) = parse_pattern_file_contents(
+                let patterns = parse_pattern_file_contents(
                     &config.excludes,
                     Path::new(""),
                     Some(PatternSyntax::Glob),
                     false,
                     false,
+                    warnings,
                 )?;
-                warnings.extend(subwarnings.into_iter().map(From::from));
                 m = Box::new(DifferenceMatcher::new(
                     m,
                     Box::new(IncludeMatcher::new(patterns)?),
@@ -391,7 +388,7 @@ pub fn matcher(
 
     let matcher =
         force_include_matcher(result, &read_temporary_includes(repo)?)?;
-    Ok((matcher, warnings))
+    Ok(matcher)
 }
 
 /// Returns a matcher that returns true for any of the forced includes before

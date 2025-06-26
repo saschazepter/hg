@@ -30,7 +30,6 @@ use crate::dirstate::dirstate_map::NodeRef;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternFileWarning;
 use crate::matchers::get_ignore_function;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
@@ -41,6 +40,7 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathError;
+use crate::warnings::HgWarningSender;
 
 /// Wrong type of file from a `BadMatch`
 /// Note: a lot of those don't exist on all platforms.
@@ -186,26 +186,28 @@ pub fn status<'dirstate>(
     root_dir: PathBuf,
     ignore_files: Vec<PathBuf>,
     options: StatusOptions,
-) -> Result<(DirstateStatus<'dirstate>, Vec<PatternFileWarning>), StatusError> {
+    warnings: &HgWarningSender,
+) -> Result<DirstateStatus<'dirstate>, StatusError> {
     // Also cap for a Python caller of this function, but don't complain if
     // the global threadpool has already been set since this code path is also
     // being used by `rhg`, which calls this early.
     let _ = crate::utils::cap_default_rayon_threads();
 
-    let (ignore_fn, warnings, patterns_changed): (IgnoreFnType, _, _) =
+    let (ignore_fn, patterns_changed): (IgnoreFnType, _) =
         if options.list_ignored || options.list_unknown {
-            let (ignore_fn, warnings, changed) = match dmap.dirstate_version {
+            let (ignore_fn, changed) = match dmap.dirstate_version {
                 DirstateVersion::V1 => {
-                    let (ignore_fn, warnings) = get_ignore_function(
+                    let ignore_fn = get_ignore_function(
                         ignore_files,
                         &root_dir,
                         &mut |_source, _pattern_bytes| {},
+                        warnings,
                     )?;
-                    (ignore_fn, warnings, None)
+                    (ignore_fn, None)
                 }
                 DirstateVersion::V2 => {
                     let mut hasher = Sha1::new();
-                    let (ignore_fn, warnings) = get_ignore_function(
+                    let ignore_fn = get_ignore_function(
                         ignore_files,
                         &root_dir,
                         &mut |source, pattern_bytes| {
@@ -226,16 +228,17 @@ pub fn status<'dirstate>(
                             hasher.update(patterns_hash);
                             hasher.update(b"\n");
                         },
+                        warnings,
                     )?;
                     let new_hash = *hasher.finalize().as_ref();
                     let changed = new_hash != dmap.ignore_patterns_hash;
                     dmap.ignore_patterns_hash = new_hash;
-                    (ignore_fn, warnings, Some(changed))
+                    (ignore_fn, Some(changed))
                 }
             };
-            (ignore_fn, warnings, changed)
+            (ignore_fn, changed)
         } else {
-            (Box::new(|&_| true), vec![], None)
+            (Box::new(|&_| true), None)
         };
 
     let filesystem_time_at_status_start =
@@ -325,7 +328,7 @@ pub fn status<'dirstate>(
         dmap.set_cached_mtime(path, *mtime)?;
     }
 
-    Ok((outcome, warnings))
+    Ok(outcome)
 }
 
 /// Bag of random things needed by various parts of the algorithm. Reduces the

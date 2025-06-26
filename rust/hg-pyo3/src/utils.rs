@@ -1,6 +1,10 @@
+use std::path::Path;
+
 use hg::errors::HgError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
+use hg::warnings::format::write_warning;
+use hg::warnings::HgWarningContext;
 use pyo3::buffer::Element;
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyIOError;
@@ -10,6 +14,7 @@ use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
+use pyo3::types::PyList;
 use pyo3_sharedref::SharedByPyObject;
 use stable_deref_trait::StableDeref;
 
@@ -428,4 +433,32 @@ pub fn with_sigint_wrapper<R>(
             .call_method1(intern!(py, "raise_signal"), (sigint_py_const,))?;
     }
     Ok(res)
+}
+
+/// Transform hg-core warnings to Python bytes
+pub fn hg_warnings_to_py_warnings(
+    py: Python<'_>,
+    warnings: HgWarningContext,
+    root_dir: &Path,
+) -> Result<Py<PyList>, PyErr> {
+    let py_warnings = PyList::empty(py);
+    warnings.finish(|w| {
+        let mut buf = vec![];
+        write_warning(&w, &mut buf, root_dir)?;
+        py_warnings.append(PyBytes::new(py, &buf))
+    })?;
+    Ok(py_warnings.unbind())
+}
+
+/// Call the warnings callback from Python with translated warnings
+pub fn handle_warnings(
+    py: Python<'_>,
+    warning_context: HgWarningContext,
+    working_directory: &Path,
+    on_warnings: PyObject,
+) -> PyResult<()> {
+    let py_warnings =
+        hg_warnings_to_py_warnings(py, warning_context, working_directory)?;
+    on_warnings.call1(py, (py_warnings,))?;
+    Ok(())
 }

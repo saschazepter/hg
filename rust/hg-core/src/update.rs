@@ -39,6 +39,7 @@ use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::path_auditor::PathAuditor;
 use crate::vfs::is_on_nfs_mount;
 use crate::vfs::VfsImpl;
+use crate::warnings::HgWarningSender;
 use crate::DirstateParents;
 use crate::UncheckedRevision;
 use crate::INTERRUPT_RECEIVED;
@@ -61,10 +62,9 @@ pub fn update_from_null(
     to: UncheckedRevision,
     progress: &dyn Progress,
     workers: Option<usize>,
+    warnings: &HgWarningSender,
 ) -> Result<usize, HgError> {
-    // Ignore the warnings, they've been displayed by Python already
-    // TODO non-Python clients: display narrow warnings
-    let (narrow_matcher, _) = narrow::matcher(repo)?;
+    let narrow_matcher = narrow::matcher(repo, warnings)?;
 
     let files_for_rev = list_rev_tracked_files(repo, to, narrow_matcher)
         .map_err(handle_revlog_error)?;
@@ -77,9 +77,7 @@ pub fn update_from_null(
     let tracked_files: Result<Vec<_>, _> = if !repo.has_sparse() {
         files_for_rev.iter().collect()
     } else {
-        // Ignore the warnings, they've been displayed by Python already
-        // TODO non-Python clients: display sparse warnings
-        let (sparse_matcher, _) = sparse::matcher(repo)?;
+        let sparse_matcher = sparse::matcher(repo, warnings)?;
         files_for_rev
             .iter()
             .filter(|f| {

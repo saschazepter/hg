@@ -4,9 +4,10 @@ use hg::filepatterns::RegexCompleteness;
 use hg::matchers::get_ignore_matcher_pre;
 use hg::matchers::ReSyntax;
 use hg::repo::Repo;
-use tracing::warn;
+use hg::warnings::HgWarningContext;
 
 use crate::error::CommandError;
+use crate::ui::print_warnings;
 use crate::ui::Ui;
 
 pub const HELP_TEXT: &str = "
@@ -42,12 +43,17 @@ pub fn work(
     let ignore_file = repo.working_directory_vfs().join(".hgignore"); // TODO hardcoded
     let all_patterns = matches!(which, WhichPatterns::All);
 
-    let (ignore_matcher, warnings) = get_ignore_matcher_pre(
+    let warning_context = HgWarningContext::new();
+
+    let ignore_matcher = get_ignore_matcher_pre(
         vec![ignore_file],
         repo.working_directory_path(),
         &mut |_source, _pattern_bytes| (),
+        warning_context.sender(),
     )
     .map_err(StatusError::from)?;
+
+    print_warnings(ui, warning_context, repo.working_directory_path());
 
     let regex_config = if all_patterns {
         RegexCompleteness::Complete
@@ -57,10 +63,6 @@ pub fn work(
     let ignore_matcher = ignore_matcher
         .build_debug_matcher(regex_config)
         .map_err(StatusError::from)?;
-
-    if !warnings.is_empty() {
-        warn!("Pattern warnings: {:?}", &warnings);
-    }
 
     let patterns = ignore_matcher.debug_get_patterns(syntax);
     ui.write_stdout(&patterns)?;

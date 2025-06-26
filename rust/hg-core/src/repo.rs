@@ -46,6 +46,7 @@ use crate::vfs::is_dir;
 use crate::vfs::is_file;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
+use crate::warnings::HgWarningSender;
 use crate::NodePrefix;
 use crate::UncheckedRevision;
 
@@ -836,17 +837,19 @@ impl Repo {
             .and_then(|c| c.node_from_unchecked_rev(rev).copied())
     }
 
-    pub fn get_ignore_function(&self) -> Result<IgnoreFnType, HgError> {
-        // XXX warnings
-        Ok(get_ignore_function(
+    pub fn get_ignore_function(
+        &self,
+        warnings: &HgWarningSender,
+    ) -> Result<IgnoreFnType, HgError> {
+        get_ignore_function(
             get_ignore_files(self),
             self.working_directory_path(),
             &mut |_, _| (),
+            warnings,
         )
         .map_err(|e| {
             HgError::abort(e.to_string(), exit_codes::CONFIG_ERROR_ABORT, None)
-        })?
-        .0)
+        })
     }
 
     /// Change the current working directory parents cached in the repo.

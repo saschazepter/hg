@@ -11,8 +11,8 @@ use crate::matchers::NeverMatcher;
 use crate::repo::Repo;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::sparse::SparseConfigError;
-use crate::sparse::SparseWarning;
 use crate::sparse::{self};
+use crate::warnings::HgWarningSender;
 
 /// The file in .hg/store/ that indicates which paths exit in the store
 const FILENAME: &str = "narrowspec";
@@ -31,10 +31,10 @@ pub const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
 /// warnings to display.
 pub fn matcher(
     repo: &Repo,
-) -> Result<(Box<dyn Matcher + Send>, Vec<SparseWarning>), SparseConfigError> {
-    let mut warnings = vec![];
+    warnings: &HgWarningSender,
+) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
     if !repo.requirements().contains(NARROW_REQUIREMENT) {
-        return Ok((Box::new(AlwaysMatcher), warnings));
+        return Ok(Box::new(AlwaysMatcher));
     }
     // Treat "narrowspec does not exist" the same as "narrowspec file exists
     // and is empty".
@@ -50,10 +50,11 @@ pub fn matcher(
         .into());
     }
 
-    let config =
-        sparse::parse_config(&store_spec, sparse::SparseConfigContext::Narrow)?;
-
-    warnings.extend(config.warnings);
+    let config = sparse::parse_config(
+        &store_spec,
+        sparse::SparseConfigContext::Narrow,
+        warnings,
+    )?;
 
     if !config.profiles.is_empty() {
         // TODO (from Python impl) maybe do something with profiles?
@@ -63,35 +64,36 @@ pub fn matcher(
     validate_patterns(&config.excludes)?;
 
     if config.includes.is_empty() {
-        return Ok((Box::new(NeverMatcher), warnings));
+        return Ok(Box::new(NeverMatcher));
     }
 
-    let (patterns, subwarnings) = parse_pattern_file_contents(
+    let patterns = parse_pattern_file_contents(
         &config.includes,
         Path::new(""),
         None,
         false,
         true,
+        warnings,
     )?;
-    warnings.extend(subwarnings.into_iter().map(From::from));
 
     let mut m: Box<dyn Matcher + Send> =
         Box::new(IncludeMatcher::new(patterns)?);
 
-    let (patterns, subwarnings) = parse_pattern_file_contents(
+    let patterns = parse_pattern_file_contents(
         &config.excludes,
         Path::new(""),
         None,
         false,
         true,
+        warnings,
     )?;
+
     if !patterns.is_empty() {
-        warnings.extend(subwarnings.into_iter().map(From::from));
         let exclude_matcher = Box::new(IncludeMatcher::new(patterns)?);
         m = Box::new(DifferenceMatcher::new(m, exclude_matcher));
     }
 
-    Ok((m, warnings))
+    Ok(m)
 }
 
 fn is_whitespace(b: &u8) -> bool {

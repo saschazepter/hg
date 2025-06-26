@@ -3,9 +3,11 @@ use std::ffi::OsString;
 use std::os::unix::prelude::OsStrExt;
 
 use hg::utils::hg_path::HgPath;
+use hg::warnings::HgWarningContext;
 use hg::{self};
 
 use crate::error::CommandError;
+use crate::ui::print_warnings;
 
 pub const HELP_TEXT: &str = "";
 
@@ -25,7 +27,14 @@ pub fn args() -> clap::Command {
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
 
-    let (matcher, _warnings) = hg::sparse::matcher(repo).unwrap();
+    let warning_context = HgWarningContext::new();
+    let matcher = hg::sparse::matcher(repo, warning_context.sender()).unwrap();
+
+    print_warnings(
+        invocation.ui,
+        warning_context,
+        repo.working_directory_path(),
+    );
     let files = invocation.subcommand_args.get_many::<OsString>("files");
     if let Some(files) = files {
         let files: Vec<&OsStr> =

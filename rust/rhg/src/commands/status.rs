@@ -19,7 +19,6 @@ use hg::dirstate::status::StatusPath;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::filepatterns::parse_pattern_args;
-use hg::filepatterns::PatternFileWarning;
 use hg::lock::LockError;
 use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;
@@ -36,14 +35,14 @@ use hg::sparse;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::hg_path::hg_path_to_path_buf;
+use hg::warnings::HgWarningContext;
 use hg::Revision;
 use hg::{self};
 use rayon::prelude::*;
 use tracing::info;
 
 use crate::error::CommandError;
-use crate::ui::format_pattern_file_warning;
-use crate::ui::print_narrow_sparse_warnings;
+use crate::ui::print_warnings;
 use crate::ui::relative_paths;
 use crate::ui::RelativePaths;
 use crate::ui::Ui;
@@ -342,8 +341,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         collect_traversed_dirs: false,
     };
 
-    type StatusResult<'a> =
-        Result<(DirstateStatus<'a>, Vec<PatternFileWarning>), StatusError>;
+    type StatusResult<'a> = Result<DirstateStatus<'a>, StatusError>;
 
     let relative_status = config
         .get_option(b"commands", b"status.relative")?
@@ -369,11 +367,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         print0,
     };
 
-    let after_status = |res: StatusResult| -> Result<_, CommandError> {
-        let (mut ds_status, pattern_warnings) = res?;
-        for warning in pattern_warnings {
-            ui.write_stderr(&format_pattern_file_warning(&warning, repo))?;
-        }
+    let after_status = |res: StatusResult,
+                        warnings|
+     -> Result<_, CommandError> {
+        print_warnings(ui, warnings, repo.working_directory_path());
+
+        let mut ds_status = res?;
 
         for (path, error) in take(&mut ds_status.bad) {
             let error = match error {
@@ -470,8 +469,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         Ok((fixup, dirstate_write_needed, filesystem_time_at_status_start))
     };
 
-    let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
-    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
+    let warning_context = HgWarningContext::new();
+    let warnings_sender = warning_context.sender();
+
+    let narrow_matcher = narrow::matcher(repo, warnings_sender)?;
+    let sparse_matcher = sparse::matcher(repo, warnings_sender)?;
     // Sparse is only applicable for the working copy, not history.
     let sparse_is_applicable = revpair.is_none() && change.is_none();
     let matcher =
@@ -504,7 +506,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };
-    print_narrow_sparse_warnings(&narrow_warnings, &sparse_warnings, ui, repo)?;
+
+    // Displayed in two steps to we get the warnings from narrow/sparse before
+    // actually starting the status, which could be long if the repo is huge
+    // and/or the disk is slow.
+    print_warnings(ui, warning_context, repo.working_directory_path());
 
     if revpair.is_some() || change.is_some() {
         let mut ds_status = DirstateStatus::default();

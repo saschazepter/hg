@@ -7,10 +7,11 @@ use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
+use hg::warnings::format::write_warning;
+use hg::warnings::HgWarningContext;
 use rayon::prelude::*;
 
 use crate::error::CommandError;
-use crate::ui::print_narrow_sparse_warnings;
 use crate::ui::relative_paths;
 use crate::ui::RelativePaths;
 use crate::ui::Ui;
@@ -77,8 +78,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ));
     }
 
-    let (matcher, narrow_warnings) = narrow::matcher(repo)?;
-    print_narrow_sparse_warnings(&narrow_warnings, &[], invocation.ui, repo)?;
+    let warning_context = HgWarningContext::new();
+    let matcher = narrow::matcher(repo, warning_context.sender())?;
+
+    let mut stderr = invocation.ui.stderr_locked();
+    // Can't really do anything if writing to stderr failed
+    let _ = warning_context.finish(|warning| {
+        write_warning(&warning, &mut stderr, repo.working_directory_path())
+    });
+
     let matcher = match args.get_many::<std::ffi::OsString>("file") {
         None => matcher,
         Some(files) => {

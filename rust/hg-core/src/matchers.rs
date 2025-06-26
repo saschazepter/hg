@@ -33,7 +33,6 @@ use crate::filepatterns::normalize_path_bytes;
 use crate::filepatterns::GlobSuffix;
 use crate::filepatterns::IgnorePattern;
 use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternFileWarning;
 use crate::filepatterns::PatternResult;
 use crate::filepatterns::PatternSyntax;
 use crate::filepatterns::RegexCompleteness;
@@ -46,6 +45,7 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::strings::Escaped;
+use crate::warnings::HgWarningSender;
 use crate::FastHashMap;
 
 #[derive(Debug, PartialEq)]
@@ -1150,9 +1150,9 @@ pub fn get_ignore_matcher_pre(
     mut all_pattern_files: Vec<PathBuf>,
     root_dir: &Path,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
-) -> PatternResult<(IncludeMatcherPre, Vec<PatternFileWarning>)> {
+    warnings: &HgWarningSender,
+) -> PatternResult<IncludeMatcherPre> {
     let mut all_patterns = vec![];
-    let mut all_warnings = vec![];
 
     // Sort to make the ordering of calls to `inspect_pattern_bytes`
     // deterministic even if the ordering of `all_pattern_files` is not (such
@@ -1162,30 +1162,32 @@ pub fn get_ignore_matcher_pre(
     all_pattern_files.sort_unstable_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
 
     for pattern_file in &all_pattern_files {
-        let (patterns, warnings) = get_patterns_from_file(
+        let patterns = get_patterns_from_file(
             pattern_file,
             root_dir,
             inspect_pattern_bytes,
+            warnings,
         )?;
 
         all_patterns.extend(patterns.to_owned());
-        all_warnings.extend(warnings);
     }
     let matcher = IncludeMatcherPre::new(all_patterns);
-    Ok((matcher, all_warnings))
+    Ok(matcher)
 }
 
 pub fn get_ignore_matcher<'a>(
     all_pattern_files: Vec<PathBuf>,
     root_dir: &Path,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
-) -> PatternResult<(IncludeMatcher<'a>, Vec<PatternFileWarning>)> {
-    let (pre_matcher, warnings) = get_ignore_matcher_pre(
+    warnings: &HgWarningSender,
+) -> PatternResult<IncludeMatcher<'a>> {
+    let pre_matcher = get_ignore_matcher_pre(
         all_pattern_files,
         root_dir,
         inspect_pattern_bytes,
+        warnings,
     )?;
-    Ok((pre_matcher.build_matcher()?, warnings))
+    pre_matcher.build_matcher()
 }
 
 /// Parses all "ignore" files with their recursive includes and returns a
@@ -1195,14 +1197,19 @@ pub fn get_ignore_function<'a>(
     all_pattern_files: Vec<PathBuf>,
     root_dir: &Path,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
-) -> PatternResult<(IgnoreFnType<'a>, Vec<PatternFileWarning>)> {
-    let res =
-        get_ignore_matcher(all_pattern_files, root_dir, inspect_pattern_bytes);
-    res.map(|(matcher, all_warnings)| {
+    warnings: &HgWarningSender,
+) -> PatternResult<IgnoreFnType<'a>> {
+    let res = get_ignore_matcher(
+        all_pattern_files,
+        root_dir,
+        inspect_pattern_bytes,
+        warnings,
+    );
+    res.map(|matcher| {
         let res: IgnoreFnType<'a> =
             Box::new(move |path: &HgPath| matcher.matches(path));
 
-        (res, all_warnings)
+        res
     })
 }
 

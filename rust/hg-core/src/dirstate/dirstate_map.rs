@@ -23,11 +23,11 @@ use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
 use crate::dirstate::CopyMapIter;
 use crate::dirstate::StateMapIter;
-use crate::filepatterns::PatternFileWarning;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
+use crate::warnings::HgWarningContext;
 use crate::DirstateParents;
 use crate::FastHashbrownMap as FastHashMap;
 
@@ -1368,24 +1368,33 @@ impl OwningDirstateMap {
     /// results of the status. This is needed to do so efficiently (i.e.
     /// without cloning the `DirstateStatus` object with its paths) because
     /// we need to borrow from `Self`.
-    pub fn with_status<R>(
+    pub fn with_status<R, C>(
         &mut self,
         matcher: &impl Matcher,
         root_dir: PathBuf,
         ignore_files: Vec<PathBuf>,
         options: StatusOptions,
-        callback: impl for<'r> FnOnce(
-            Result<(DirstateStatus<'r>, Vec<PatternFileWarning>), StatusError>,
+        callback: C,
+    ) -> R
+    where
+        C: for<'r> FnOnce(
+            Result<DirstateStatus<'r>, StatusError>,
+            HgWarningContext,
         ) -> R,
-    ) -> R {
+    {
         self.with_dmap_mut(|map| {
-            callback(super::status::status(
-                map,
-                matcher,
-                root_dir,
-                ignore_files,
-                options,
-            ))
+            let warnings = HgWarningContext::new();
+            callback(
+                super::status::status(
+                    map,
+                    matcher,
+                    root_dir,
+                    ignore_files,
+                    options,
+                    warnings.sender(),
+                ),
+                warnings,
+            )
         })
     }
 

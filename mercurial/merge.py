@@ -2092,13 +2092,13 @@ def _update(
                 except StopIteration:
                     update_from_null = True
 
+        def on_rust_warnings(warnings: Iterator[bytes]):
+            """It is faster to loop in Python in cases with many items than
+            to call back from Rust in a loop."""
+            for warning in warnings:
+                repo.ui.warn(warning)
+
         if update_from_null:
-            # Check the narrowspec and sparsespec here to display warnings
-            # more easily.
-            # TODO figure out of a way of bubbling up warnings to Python
-            # while not polluting the Rust code (probably a channel)
-            repo.narrowmatch()
-            sparse.matcher(repo, [p2.rev()])
             repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write(b'updatestate', p2.hex())
@@ -2107,9 +2107,10 @@ def _update(
                 if repo.ui.configbool(b"worker", b"enabled")
                 else 1
             )
+
             try:
                 updated_count = rust_update_mod.update_from_null(
-                    repo.root, p2.rev(), num_cpus
+                    repo.root, p2.rev(), num_cpus, on_rust_warnings
                 )
             except rust_update_mod.FallbackError:
                 update_from_null_fallback = True
