@@ -966,16 +966,16 @@ class basefilectx:
     def renamed(self):
         return self._copied
 
-    def copysource(self):
+    def copysource(self) -> bytes | None:
         return self._copied and self._copied[0]
 
-    def repo(self):
+    def repo(self) -> LocalRepoCompleteT:
         return self._repo
 
     def size(self):
         return len(self.data())
 
-    def path(self):
+    def path(self) -> bytes:
         return self._path
 
     def isbinary(self):
@@ -1272,7 +1272,7 @@ class basefilectx:
             c = visit.pop(max(visit))
             yield c
 
-    def decodeddata(self):
+    def decodeddata(self) -> bytes:
         """Returns `data()` after running repository decoding filters.
 
         This is often equivalent to how the data would be expressed on disk.
@@ -1357,7 +1357,7 @@ class filectx(basefilectx):
         """low-level revlog flags"""
         return self._filelog.flags(self._filerev)
 
-    def data(self):
+    def data(self) -> bytes:
         try:
             return self._filelog.read(self._filenode)
         except error.CensoredNodeError:
@@ -2195,17 +2195,23 @@ class workingfilectx(committablefilectx):
     """A workingfilectx object makes access to data related to a particular
     file in the working directory convenient."""
 
-    def __init__(self, repo, path, filelog=None, workingctx=None):
+    def __init__(
+        self,
+        repo: LocalRepoCompleteT,
+        path: bytes,
+        filelog=None,
+        workingctx=None,
+    ) -> None:
         super().__init__(repo, path, filelog, workingctx)
 
     @propertycache
     def _changectx(self):
         return workingctx(self._repo)
 
-    def data(self):
+    def data(self) -> bytes:
         return self._repo.wread(self._path)
 
-    def copysource(self):
+    def copysource(self) -> bytes | None:
         return self._repo.dirstate.copied(self._path)
 
     def size(self):
@@ -2246,13 +2252,19 @@ class workingfilectx(committablefilectx):
             self._path, ignoremissing=ignoremissing, rmdir=rmdir
         )
 
-    def write(self, data, flags, backgroundclose=False, **kwargs):
+    def write(
+        self,
+        data: bytes,
+        flags: bytes,
+        backgroundclose: bool = False,
+        **kwargs,
+    ) -> int:
         """wraps repo.wwrite"""
         return self._repo.wwrite(
             self._path, data, flags, backgroundclose=backgroundclose, **kwargs
         )
 
-    def markcopied(self, src):
+    def markcopied(self, src: bytes) -> None:
         """marks this file a copy of `src`"""
         self._repo.dirstate.copy(src, self._path)
 
@@ -2709,7 +2721,13 @@ class overlayworkingfilectx(committablefilectx):
     """Wrap a ``workingfilectx`` but intercepts all writes into an in-memory
     cache, which can be flushed through later by calling ``flush()``."""
 
-    def __init__(self, repo, path, filelog=None, parent=None):
+    def __init__(
+        self,
+        repo: LocalRepoCompleteT,
+        path: bytes,
+        filelog=None,
+        parent=None,
+    ) -> None:
         super().__init__(repo, path, filelog, parent)
         self._repo = repo
         self._parent = parent
@@ -2721,7 +2739,7 @@ class overlayworkingfilectx(committablefilectx):
     def changectx(self):
         return self._parent
 
-    def data(self):
+    def data(self) -> bytes:
         return self._parent.data(self._path)
 
     def date(self):
@@ -2733,13 +2751,13 @@ class overlayworkingfilectx(committablefilectx):
     def lexists(self):
         return self._parent.exists(self._path)
 
-    def copysource(self):
+    def copysource(self) -> bytes | None:
         return self._parent.copydata(self._path)
 
     def size(self):
         return self._parent.size(self._path)
 
-    def markcopied(self, origin):
+    def markcopied(self, origin: bytes) -> None:
         self._parent.markcopied(self._path, origin)
 
     def audit(self):
@@ -2751,7 +2769,13 @@ class overlayworkingfilectx(committablefilectx):
     def setflags(self, islink, isexec):
         return self._parent.setflags(self._path, islink, isexec)
 
-    def write(self, data, flags, backgroundclose=False, **kwargs):
+    def write(
+        self,
+        data: bytes,
+        flags: bytes,
+        backgroundclose: bool = False,
+        **kwargs,
+    ) -> int:
         return self._parent.write(self._path, data, flags, **kwargs)
 
     def remove(self, ignoremissing=False):
@@ -3017,13 +3041,13 @@ class memfilectx(committablefilectx):
 
     def __init__(
         self,
-        repo,
+        repo: LocalRepoCompleteT,
         changectx,
-        path,
-        data,
+        path: bytes,
+        data: bytes,
         islink=False,
         isexec=False,
-        copysource=None,
+        copysource: bytes | None = None,
     ):
         """
         path is the normalized file path relative to repository root.
@@ -3042,13 +3066,13 @@ class memfilectx(committablefilectx):
             self._flags = b''
         self._copysource = copysource
 
-    def copysource(self):
+    def copysource(self) -> bytes | None:
         return self._copysource
 
     def cmp(self, fctx):
         return self.data() != fctx.data()
 
-    def data(self):
+    def data(self) -> bytes:
         return self._data
 
     def remove(self, ignoremissing=False):
@@ -3176,7 +3200,11 @@ class arbitraryfilectx:
     location on disk, possibly not in the working directory.
     """
 
-    def __init__(self, path, repo=None):
+    def __init__(
+        self,
+        path: bytes,
+        repo: LocalRepoCompleteT | None = None,
+    ) -> None:
         # Repo is optional because contrib/simplemerge uses this class.
         self._repo = repo
         self._path = path
@@ -3192,16 +3220,16 @@ class arbitraryfilectx:
             return not filecmp.cmp(self.path(), self._repo.wjoin(fctx.path()))
         return self.data() != fctx.data()
 
-    def path(self):
+    def path(self) -> bytes:
         return self._path
 
     def flags(self):
         return b''
 
-    def data(self):
+    def data(self) -> bytes:
         return util.readfile(self._path)
 
-    def decodeddata(self):
+    def decodeddata(self) -> bytes:
         return util.readfile(self._path)
 
     def remove(self):
