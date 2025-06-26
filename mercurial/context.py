@@ -57,7 +57,7 @@ if typing.TYPE_CHECKING:
 propertycache = util.propertycache
 
 
-class basectx:
+class basectx(abc.ABC):
     """A basectx object represents the common logic for its children:
     changectx: read-only context that is already present in the repo,
     workingctx: a context that represents the working directory and can
@@ -67,6 +67,26 @@ class basectx:
 
     def __init__(self, repo):
         self._repo = repo
+
+    @abc.abstractmethod
+    def branch(self) -> bytes:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def closesbranch(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def files(self) -> list[bytes]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def phase(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def filectx(self, path: bytes, filelog=None):
+        raise NotImplementedError
 
     def __bytes__(self):
         return short(self.node())
