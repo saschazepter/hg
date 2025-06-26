@@ -48,6 +48,7 @@ from .dirstateutils import (
 
 if typing.TYPE_CHECKING:
     from .interfaces.types import (
+        MatcherT,
         StatusT,
     )
 
@@ -91,7 +92,7 @@ class basectx:
     def __iter__(self):
         return iter(self._manifest)
 
-    def _buildstatusmanifest(self, status):
+    def _buildstatusmanifest(self, status: StatusT):
         """Builds a manifest that includes the given status results, if this is
         a working copy context. For non-working copy contexts, it just returns
         the normal manifest."""
@@ -104,7 +105,13 @@ class basectx:
         return match
 
     def _buildstatus(
-        self, other, s, match, listignored, listclean, listunknown
+        self,
+        other,
+        s: StatusT,
+        match,
+        listignored: bool,
+        listclean: bool,
+        listunknown: bool,
     ) -> StatusT:
         """build a status with respect to another context"""
         # Load earliest manifest first for caching reasons. More specifically,
@@ -389,11 +396,11 @@ class basectx:
     def status(
         self,
         other=None,
-        match=None,
-        listignored=False,
-        listclean=False,
-        listunknown=False,
-        listsubrepos=False,
+        match: MatcherT | None = None,
+        listignored: bool = False,
+        listclean: bool = False,
+        listunknown: bool = False,
+        listsubrepos: bool = False,
     ) -> StatusT:
         """return status of files between two nodes or node and working
         directory.
@@ -1398,12 +1405,12 @@ class committablectx(basectx):
     def __init__(
         self,
         repo,
-        text=b"",
-        user=None,
+        text: bytes = b"",
+        user: bytes | None = None,
         date=None,
         extra=None,
-        changes=None,
-        branch=None,
+        changes: StatusT | None = None,
+        branch: bytes | None = None,
     ):
         super().__init__(repo)
         self._rev = None
@@ -1438,7 +1445,7 @@ class committablectx(basectx):
     __bool__ = __nonzero__
 
     @propertycache
-    def _status(self):
+    def _status(self) -> StatusT:
         return self._repo.status()
 
     @propertycache
@@ -1570,7 +1577,13 @@ class workingctx(committablectx):
     """
 
     def __init__(
-        self, repo, text=b"", user=None, date=None, extra=None, changes=None
+        self,
+        repo,
+        text: bytes = b"",
+        user: bytes | None = None,
+        date=None,
+        extra=None,
+        changes: StatusT | None = None,
     ):
         branch = None
         if not extra or b'branch' not in extra:
@@ -1867,7 +1880,7 @@ class workingctx(committablectx):
 
         return modified, deleted, clean, fixup
 
-    def _poststatusfixup(self, status, fixup):
+    def _poststatusfixup(self, status: StatusT, fixup) -> None:
         """update dirstate for files that are actually clean"""
         testing.wait_on_cfg(self._repo.ui, b'status.pre-dirstate-write-file')
         dirstate = self._repo.dirstate
@@ -1911,7 +1924,11 @@ class workingctx(committablectx):
                 self._repo.clearpostdsstatus()
 
     def _dirstatestatus(
-        self, match, ignored=False, clean=False, unknown=False
+        self,
+        match,
+        ignored: bool = False,
+        clean: bool = False,
+        unknown: bool = False,
     ) -> StatusT:
         '''Gets the status from the dirstate -- internal use only.'''
         subrepos = []
@@ -1980,7 +1997,7 @@ class workingctx(committablectx):
         """
         return self._buildstatusmanifest(self._status)
 
-    def _buildstatusmanifest(self, status):
+    def _buildstatusmanifest(self, status: StatusT):
         """Builds a manifest that includes the given status results."""
         parents = self.parents()
 
@@ -2005,8 +2022,14 @@ class workingctx(committablectx):
         return man
 
     def _buildstatus(
-        self, other, s, match, listignored, listclean, listunknown
-    ):
+        self,
+        other,
+        s: StatusT,
+        match,
+        listignored: bool,
+        listclean: bool,
+        listunknown: bool,
+    ) -> StatusT:
         """build a status with respect to another context
 
         This includes logic for maintaining the fast path of status when
@@ -2733,12 +2756,22 @@ class workingcommitctx(workingctx):
     """
 
     def __init__(
-        self, repo, changes, text=b"", user=None, date=None, extra=None
+        self,
+        repo,
+        changes: StatusT,
+        text: bytes = b"",
+        user: bytes | None = None,
+        date=None,
+        extra=None,
     ):
         super().__init__(repo, text, user, date, extra, changes)
 
     def _dirstatestatus(
-        self, match, ignored=False, clean=False, unknown=False
+        self,
+        match,
+        ignored: bool = False,
+        clean: bool = False,
+        unknown: bool = False,
     ) -> StatusT:
         """Return matched files only in ``self._status``
 
