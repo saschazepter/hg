@@ -82,8 +82,8 @@ from .revlogutils import (
 )
 
 if TYPE_CHECKING:
-    from .interfaces import (
-        status as istatus,
+    from .interfaces.types import (
+        StatusT,
     )
     from . import (
         ui as uimod,
@@ -798,7 +798,7 @@ class dirnode:
             yield from dirobj.tersewalk(terseargs)
 
 
-def tersedir(statuslist: istatus.Status, terseargs) -> istatus.Status:
+def tersedir(statuslist: StatusT, terseargs) -> StatusT:
     """
     Terse the status if all the files in a directory shares the same status.
 
