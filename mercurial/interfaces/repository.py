@@ -2161,7 +2161,13 @@ class ilocalrepositorymain(Protocol):
         """Return the wlock if it's held or None."""
 
     @abc.abstractmethod
-    def checkcommitpatterns(self, wctx, match, status, fail):
+    def checkcommitpatterns(
+        self,
+        wctx,
+        match: matcher.IMatcher,
+        status: istatus.Status,
+        fail: Callable[[bytes], bytes],
+    ) -> None:
         pass
 
     @abc.abstractmethod

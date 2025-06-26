@@ -96,6 +96,7 @@ from .revlogutils import (
 
 if typing.TYPE_CHECKING:
     from typing import (
+        Callable,
         TypeVar,
         overload,
     )
@@ -3300,7 +3301,13 @@ class localrepository(_localrepo_base_classes):
         """Returns the lock if it's held, or None if it's not."""
         return self._currentlock(self._lockref)
 
-    def checkcommitpatterns(self, wctx, match, status, fail):
+    def checkcommitpatterns(
+        self,
+        wctx,
+        match: MatcherT,
+        status: StatusT,
+        fail: Callable[[bytes], bytes],
+    ) -> None:
         """check for commit arguments that aren't committable"""
         if match.isexact() or match.prefix():
             matched = set(status.modified + status.added + status.removed)
