@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import abc
 import filecmp
 import os
 import stat
@@ -813,7 +814,7 @@ class changectx(basectx):
         return self.walk(match)
 
 
-class basefilectx:
+class basefilectx(abc.ABC):
     """A filecontext object represents the common logic for its children:
     filectx: read-only access to a filerevision that is already present
              in the repo,
@@ -828,6 +829,10 @@ class basefilectx:
     # local repo ops.
     _repo: LocalRepoCompleteT
     _path: bytes
+
+    @abc.abstractmethod
+    def data(self) -> bytes:
+        raise NotImplementedError
 
     @propertycache
     def _filelog(self):
