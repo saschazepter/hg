@@ -3080,9 +3080,10 @@ class memfilectx(committablefilectx):
         # need to figure out what to do here
         del self._changectx[self._path]
 
-    def write(self, data, flags, **kwargs):
+    def write(self, data: bytes, flags: bytes, **kwargs) -> int:
         """wraps repo.wwrite"""
         self._data = data
+        return len(data)
 
 
 class metadataonlyctx(committablectx):
@@ -3235,6 +3236,9 @@ class arbitraryfilectx:
     def remove(self):
         util.unlink(self._path)
 
-    def write(self, data, flags, **kwargs):
+    def write(
+        self, data: bytes, flags: bytes, backgroundclose: bool = False, **kwargs
+    ) -> int:
         assert not flags
         util.writefile(self._path, data)
+        return len(data)
