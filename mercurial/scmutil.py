@@ -79,6 +79,9 @@ if typing.TYPE_CHECKING:
     from . import (
         ui as uimod,
     )
+    from .interfaces.types import (
+        MatcherT,
+    )
 
 parsers = policy.importmod('parsers')
 rustrevlog = policy.importrust('revlog')
@@ -1058,7 +1061,7 @@ def matchall(repo):
     return matchmod.always()
 
 
-def matchfiles(repo, files, badfn=None) -> matchmod.exactmatcher:
+def matchfiles(repo, files, badfn=None) -> MatcherT:
     '''Return a matcher that will efficiently match exactly these files.'''
     return matchmod.exact(files, badfn=badfn)
 

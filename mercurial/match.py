@@ -36,11 +36,22 @@ from .interfaces import (
 )
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        Iterable,
+        Pattern,
+    )
     from .interfaces.types import (
         HgPathT,
+        MatcherBadFuncT,
+        MatcherKindPatT,
         MatcherT,
         UserMsgT,
     )
+
+    # Shorten names up a bit by dropping redundancy
+    _BadFuncT = MatcherBadFuncT
+    _KindPatT = MatcherKindPatT
+    _MatcherT = int_matcher.IMatcher
 
 rustmod = policy.importrust('dirstate')
 
@@ -65,7 +76,7 @@ cwdrelativepatternkinds = (b'relpath', b'glob')
 propertycache = util.propertycache
 
 
-def _rematcher(regex):
+def _rematcher(regex: bytes) -> Callable[[bytes], typing.Match[bytes]]:
     """compile the regexp with the best available regexp engine and return a
     matcher function"""
     m = util.re.compile(regex)
@@ -76,10 +87,16 @@ def _rematcher(regex):
         return m.match
 
 
-def _expandsets(cwd, kindpats, ctx=None, listsubrepos=False, badfn=None):
+def _expandsets(
+    cwd,
+    kindpats: Iterable[_KindPatT],
+    ctx=None,
+    listsubrepos: bool = False,
+    badfn: _BadFuncT | None = None,
+):
     '''Returns the kindpats list with the 'set' patterns expanded to matchers'''
     matchers = []
-    other = []
+    other: list[_KindPatT] = []
 
     for kind, pat, source in kindpats:
         if kind == b'set':
@@ -100,11 +117,11 @@ def _expandsets(cwd, kindpats, ctx=None, listsubrepos=False, badfn=None):
     return matchers, other
 
 
-def _expandsubinclude(kindpats, root):
+def _expandsubinclude(kindpats: Iterable[_KindPatT], root: HgPathT):
     """Returns the list of subinclude matcher args and the kindpats without the
     subincludes in it."""
     relmatchers = []
-    other = []
+    other: list[_KindPatT] = []
 
     for kind, pat, source in kindpats:
         if kind == b'subinclude':
@@ -125,7 +142,7 @@ def _expandsubinclude(kindpats, root):
     return relmatchers, other
 
 
-def _kindpatsalwaysmatch(kindpats):
+def _kindpatsalwaysmatch(kindpats: Iterable[_KindPatT]) -> bool:
     """Checks whether the kindspats match everything, as e.g.
     'relpath:.' does.
     """
@@ -137,12 +154,12 @@ def _kindpatsalwaysmatch(kindpats):
 
 def _buildkindpatsmatcher(
     matchercls,
-    root,
+    root: HgPathT,
     cwd,
-    kindpats,
+    kindpats: Iterable[_KindPatT],
     ctx=None,
-    listsubrepos=False,
-    badfn=None,
+    listsubrepos: bool = False,
+    badfn: _BadFuncT | None = None,
 ):
     matchers = []
     fms, kindpats = _expandsets(
@@ -165,18 +182,18 @@ def _buildkindpatsmatcher(
 
 
 def match(
-    root,
+    root: HgPathT,
     cwd,
     patterns=None,
     include=None,
     exclude=None,
-    default=b'glob',
+    default: bytes = b'glob',
     auditor=None,
     ctx=None,
-    listsubrepos=False,
+    listsubrepos: bool = False,
     warn=None,
-    badfn=None,
-    icasefs=False,
+    badfn: _BadFuncT | None = None,
+    icasefs: bool = False,
 ):
     r"""build an object to match a set of file patterns
 
@@ -271,9 +288,16 @@ def match(
         dirstate = ctx.repo().dirstate
         dsnormalize = dirstate.normalize
 
-        def normalize(patterns, default, root, cwd, auditor, warn):
+        def normalize(
+            patterns,
+            default,
+            root,
+            cwd,
+            auditor,
+            warn,
+        ) -> list[_KindPatT]:
             kp = _donormalize(patterns, default, root, cwd, auditor, warn)
-            kindpats = []
+            kindpats: list[_KindPatT] = []
             for kind, pats, source in kp:
                 if kind not in (b're', b'relre'):  # regex can't be normalized
                     p = pats
@@ -332,19 +356,21 @@ def match(
     return m
 
 
-def exact(files, badfn=None):
+def exact(
+    files: Iterable[HgPathT], badfn: _BadFuncT | None = None
+) -> _MatcherT:
     return exactmatcher(files, badfn=badfn)
 
 
-def always(badfn=None):
+def always(badfn: _BadFuncT | None = None) -> _MatcherT:
     return alwaysmatcher(badfn)
 
 
-def never(badfn=None):
+def never(badfn: _BadFuncT | None = None) -> _MatcherT:
     return nevermatcher(badfn)
 
 
-def badmatch(match, badfn):
+def badmatch(match: _MatcherT, badfn: _BadFuncT) -> _MatcherT:
     """Make a copy of the given matcher, replacing its bad method with the given
     one.
     """
@@ -353,7 +379,14 @@ def badmatch(match, badfn):
     return m
 
 
-def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
+def _donormalize(
+    patterns: Iterable[bytes],
+    default: bytes,
+    root: HgPathT,
+    cwd,
+    auditor=None,
+    warn=None,
+) -> list[_KindPatT]:
     """Convert 'kind:pat' from the patterns list to tuples with kind and
     normalized and rooted patterns and with listfiles expanded."""
     kindpats = []
@@ -414,7 +447,7 @@ def _donormalize(patterns, default, root, cwd, auditor=None, warn=None):
 
 
 class basematcher(int_matcher.IMatcher):
-    def __init__(self, badfn=None):
+    def __init__(self, badfn: _BadFuncT | None = None) -> None:
         self._was_tampered_with = False
         if badfn is not None:
             self.bad = badfn
@@ -441,7 +474,7 @@ class basematcher(int_matcher.IMatcher):
     traversedir: Callable[[HgPathT], None] | None = None
 
     @propertycache
-    def _files(self):
+    def _files(self) -> list[HgPathT]:
         return []
 
     def files(self) -> list[HgPathT]:
@@ -541,7 +574,7 @@ class basematcher(int_matcher.IMatcher):
 class alwaysmatcher(basematcher):
     '''Matches everything.'''
 
-    def __init__(self, badfn=None):
+    def __init__(self, badfn: _BadFuncT | None = None) -> None:
         super().__init__(badfn)
 
     def always(self) -> bool:
@@ -556,14 +589,14 @@ class alwaysmatcher(basematcher):
     def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         return b'all'
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return r'<alwaysmatcher>'
 
 
 class nevermatcher(basematcher):
     '''Matches nothing.'''
 
-    def __init__(self, badfn=None):
+    def __init__(self, badfn: _BadFuncT | None = None) -> None:
         super().__init__(badfn)
 
     # It's a little weird to say that the nevermatcher is an exact matcher
@@ -583,14 +616,19 @@ class nevermatcher(basematcher):
     def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         return set()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return r'<nevermatcher>'
 
 
 class predicatematcher(basematcher):
     """A matcher adapter for a simple boolean function"""
 
-    def __init__(self, predfn, predrepr=None, badfn=None):
+    def __init__(
+        self,
+        predfn,
+        predrepr=None,
+        badfn: _BadFuncT | None = None,
+    ) -> None:
         super().__init__(badfn)
         self.matchfn = predfn
         self._predrepr = predrepr
@@ -603,7 +641,7 @@ class predicatematcher(basematcher):
         return b'<predicatenmatcher pred=%s>' % s
 
 
-def path_or_parents_in_set(path, prefix_set):
+def path_or_parents_in_set(path: HgPathT, prefix_set: set[HgPathT]) -> bool:
     """Returns True if `path` (or any parent of `path`) is in `prefix_set`."""
     l = len(prefix_set)
     if l == 0:
@@ -663,7 +701,12 @@ class patternmatcher(basematcher):
     False
     """
 
-    def __init__(self, root, kindpats, badfn=None):
+    def __init__(
+        self,
+        root: HgPathT,
+        kindpats: list[_KindPatT],
+        badfn: _BadFuncT | None = None,
+    ) -> None:
         super().__init__(badfn)
         kindpats.sort()
 
@@ -714,14 +757,14 @@ class patternmatcher(basematcher):
 # children instead of just a count of them, plus a small optional optimization
 # to avoid some directories we don't need.
 class _dirchildren:
-    def __init__(self, paths, onlyinclude=None):
+    def __init__(self, paths: Iterable[HgPathT], onlyinclude=None) -> None:
         self._dirs = {}
         self._onlyinclude = onlyinclude or []
         addpath = self.addpath
         for f in paths:
             addpath(f)
 
-    def addpath(self, path):
+    def addpath(self, path: HgPathT) -> None:
         if path == b'':
             return
         dirs = self._dirs
@@ -732,7 +775,7 @@ class _dirchildren:
             dirs.setdefault(d, set()).add(b)
 
     @staticmethod
-    def _findsplitdirs(path):
+    def _findsplitdirs(path: HgPathT) -> Iterable[tuple[HgPathT, HgPathT]]:
         # yields (dirname, basename) tuples, walking back to the root.  This is
         # very similar to pathutil.finddirs, except:
         #  - produces a (dirname, basename) tuple, not just 'dirname'
@@ -746,12 +789,17 @@ class _dirchildren:
             pos = path.rfind(b'/', 0, pos)
         yield b'', path[:oldpos]
 
-    def get(self, path):
+    def get(self, path: HgPathT):
         return self._dirs.get(path, set())
 
 
 class includematcher(basematcher):
-    def __init__(self, root, kindpats, badfn=None):
+    def __init__(
+        self,
+        root: HgPathT,
+        kindpats: Iterable[_KindPatT],
+        badfn: _BadFuncT | None = None,
+    ) -> None:
         super().__init__(badfn)
         if rustmod is not None:
             # We need to pass the patterns to Rust because they can contain
@@ -832,7 +880,11 @@ class exactmatcher(basematcher):
     True
     """
 
-    def __init__(self, files, badfn=None):
+    def __init__(
+        self,
+        files: Iterable[HgPathT],
+        badfn: _BadFuncT | None = None,
+    ) -> None:
         super().__init__(badfn)
 
         if isinstance(files, list):
@@ -907,7 +959,7 @@ class differencematcher(basematcher):
     The second matcher's non-matching-attributes (bad, traversedir) are ignored.
     """
 
-    def __init__(self, m1, m2):
+    def __init__(self, m1: _MatcherT, m2: _MatcherT) -> None:
         super().__init__()
         self._m1 = m1
         self._m2 = m2
@@ -925,7 +977,7 @@ class differencematcher(basematcher):
         return self._m1(f) and not self._m2(f)
 
     @propertycache
-    def _files(self):
+    def _files(self) -> list[HgPathT]:
         if self.isexact():
             return [f for f in self._m1.files() if self(f)]
         # If m1 is not an exact matcher, we can't easily figure out the set of
@@ -976,7 +1028,7 @@ class differencematcher(basematcher):
         return b'<differencematcher m1=%r, m2=%r>' % (self._m1, self._m2)
 
 
-def intersectmatchers(m1, m2):
+def intersectmatchers(m1: _MatcherT, m2: _MatcherT) -> _MatcherT:
     """Composes two matchers by matching if both of them match.
 
     The second matcher's non-matching-attributes (bad, traversedir) are ignored.
@@ -997,7 +1049,7 @@ def intersectmatchers(m1, m2):
 
 
 class intersectionmatcher(basematcher):
-    def __init__(self, m1, m2):
+    def __init__(self, m1: _MatcherT, m2: _MatcherT) -> None:
         super().__init__()
         self._m1 = m1
         self._m2 = m2
@@ -1012,7 +1064,7 @@ class intersectionmatcher(basematcher):
         )
 
     @propertycache
-    def _files(self):
+    def _files(self) -> list[HgPathT]:
         if self.isexact():
             m1, m2 = self._m1, self._m2
             if not m1.isexact():
@@ -1183,7 +1235,12 @@ class prefixdirmatcher(basematcher):
     False
     """
 
-    def __init__(self, path, matcher, badfn=None):
+    def __init__(
+        self,
+        path: HgPathT,
+        matcher: _MatcherT,
+        badfn: _BadFuncT | None = None,
+    ) -> None:
         super().__init__(badfn)
         if not path:
             raise error.ProgrammingError(b'prefix path must not be empty')
@@ -1192,7 +1249,7 @@ class prefixdirmatcher(basematcher):
         self._matcher = matcher
 
     @propertycache
-    def _files(self):
+    def _files(self) -> list[HgPathT]:
         return [self._pathprefix + f for f in self._matcher._files]
 
     def matchfn(self, f: HgPathT) -> bool:
@@ -1241,7 +1298,7 @@ class unionmatcher(basematcher):
     matcher.
     """
 
-    def __init__(self, matchers):
+    def __init__(self, matchers: list[_MatcherT]) -> None:
         m1 = matchers[0]
         super().__init__()
         self.traversedir = m1.traversedir
@@ -1291,7 +1348,7 @@ class unionmatcher(basematcher):
         return b'<unionmatcher matchers=%r>' % self._matchers
 
 
-def patkind(pattern, default=None):
+def patkind(pattern: bytes, default: bytes | None = None) -> bytes:
     r"""If pattern is 'kind:pat' with a known kind, return kind.
 
     >>> patkind(br're:.*\.c$')
@@ -1307,7 +1364,9 @@ def patkind(pattern, default=None):
     return _patsplit(pattern, default)[0]
 
 
-def _patsplit(pattern, default):
+def _patsplit(
+    pattern: bytes, default: bytes | None
+) -> tuple[bytes | None, bytes]:
     """Split a string into the optional pattern kind prefix and the actual
     pattern."""
     if b':' in pattern:
@@ -1317,7 +1376,7 @@ def _patsplit(pattern, default):
     return default, pattern
 
 
-def _globre(pat):
+def _globre(pat: bytes):
     r"""Convert an extended glob string to a regexp string.
 
     >>> from . import pycompat
@@ -1401,10 +1460,10 @@ def _globre(pat):
     return res
 
 
-FLAG_RE = util.re.compile(br'^\(\?([aiLmsux]+)\)(.*)')
+FLAG_RE: Pattern[bytes] = util.re.compile(br'^\(\?([aiLmsux]+)\)(.*)')
 
 
-def _regex(kind, pat, globsuffix):
+def _regex(kind: bytes, pat: bytes, globsuffix: bytes) -> bytes:
     """Convert a (normalized) pattern of any kind into a
     regular expression.
     globsuffix is appended to the regexp of globs."""
@@ -1450,7 +1509,9 @@ def _regex(kind, pat, globsuffix):
     raise error.ProgrammingError(b'not a regex pattern: %s:%s' % (kind, pat))
 
 
-def _buildmatch(kindpats, globsuffix, root):
+def _buildmatch(
+    kindpats: Iterable[_KindPatT], globsuffix: bytes, root: HgPathT
+):
     """Return regexp string and a matcher function for kindpats.
     globsuffix is appended to the regexp of globs."""
     matchfuncs = []
@@ -1501,12 +1562,12 @@ def _buildmatch(kindpats, globsuffix, root):
 MAX_RE_SIZE = 20000
 
 
-def _joinregexes(regexps):
+def _joinregexes(regexps: Iterable[bytes]) -> bytes:
     """gather multiple regular expressions into a single one"""
     return b'|'.join(regexps)
 
 
-def _buildregexmatch(kindpats, globsuffix):
+def _buildregexmatch(kindpats: Iterable[_KindPatT], globsuffix: bytes):
     """Build a match function from a list of kinds and kindpats,
     return regexp string and a matcher function.
 
@@ -1578,7 +1639,9 @@ def _buildregexmatch(kindpats, globsuffix):
         raise error.Abort(_(b"invalid pattern"))
 
 
-def _patternrootsanddirs(kindpats):
+def _patternrootsanddirs(
+    kindpats: Iterable[_KindPatT],
+) -> tuple[list[HgPathT], list[bytes]]:
     """Returns roots and directories corresponding to each pattern.
 
     This calculates the roots and directories exactly matching the patterns and
@@ -1609,13 +1672,13 @@ def _patternrootsanddirs(kindpats):
     return r, d
 
 
-def _roots(kindpats):
+def _roots(kindpats: Iterable[_KindPatT]) -> list[HgPathT]:
     '''Returns root directories to match recursively from the given patterns.'''
     roots, dirs = _patternrootsanddirs(kindpats)
     return roots
 
 
-def _rootsdirsandparents(kindpats):
+def _rootsdirsandparents(kindpats: Iterable[_KindPatT]):
     """Returns roots and exact directories from patterns.
 
     `roots` are directories to match recursively, `dirs` should
@@ -1646,7 +1709,7 @@ def _rootsdirsandparents(kindpats):
     """
     r, d = _patternrootsanddirs(kindpats)
 
-    p = set()
+    p: set[bytes] = set()
     # Add the parents as non-recursive/exact directories, since they must be
     # scanned to get to either the roots or the other exact directories.
     p.update(pathutil.dirs(d))
@@ -1659,7 +1722,7 @@ def _rootsdirsandparents(kindpats):
     return r, d, p
 
 
-def _explicitfiles(kindpats):
+def _explicitfiles(kindpats: Iterable[_KindPatT]) -> list[HgPathT]:
     """Returns the potential explicit filenames from the patterns.
 
     >>> _explicitfiles([(b'path', b'foo/bar', b'')])
@@ -1673,7 +1736,7 @@ def _explicitfiles(kindpats):
     return _roots(filable)
 
 
-def _prefix(kindpats):
+def _prefix(kindpats: Iterable[_KindPatT]) -> bool:
     '''Whether all the patterns match a prefix (i.e. recursively)'''
     for kind, pat, source in kindpats:
         if kind not in (b'path', b'relpath'):
@@ -1681,7 +1744,7 @@ def _prefix(kindpats):
     return True
 
 
-_commentre = None
+_commentre: Pattern[bytes] | None = None
 
 if typing.TYPE_CHECKING:
     from typing_extensions import (
