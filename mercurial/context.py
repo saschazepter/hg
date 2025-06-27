@@ -48,6 +48,7 @@ from .dirstateutils import (
 
 if typing.TYPE_CHECKING:
     from .interfaces.types import (
+        LocalRepoCompleteT,
         MatcherT,
         StatusT,
     )
@@ -821,6 +822,13 @@ class basefilectx:
     memfilectx: a filecontext that represents files in-memory,
     """
 
+    # TODO: add a proper constructor to force the supplying of _repo and _path.
+    #
+    # Needs complete repo type, since it accesses file storage in addition to
+    # local repo ops.
+    _repo: LocalRepoCompleteT
+    _path: bytes
+
     @propertycache
     def _filelog(self):
         return self._repo.file(self._path)
@@ -1278,13 +1286,13 @@ class filectx(basefilectx):
 
     def __init__(
         self,
-        repo,
-        path,
+        repo: LocalRepoCompleteT,
+        path: bytes,
         changeid=None,
         fileid=None,
         filelog=None,
         changectx=None,
-    ):
+    ) -> None:
         """changeid must be a revision number, if specified.
         fileid can be a file revision or node."""
         self._repo = repo
@@ -2117,7 +2125,13 @@ class committablefilectx(basefilectx):
     """A committablefilectx provides common functionality for a file context
     that wants the ability to commit, e.g. workingfilectx or memfilectx."""
 
-    def __init__(self, repo, path, filelog=None, ctx=None):
+    def __init__(
+        self,
+        repo: LocalRepoCompleteT,
+        path: bytes,
+        filelog=None,
+        ctx=None,
+    ) -> None:
         self._repo = repo
         self._path = path
         self._changeid = None

@@ -27,9 +27,15 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 
 from . import (
     matcher,
+    repository,
     status,
     transaction,
 )
+
+# The names for repository types are shifted a bit in order to be able to group
+# them together while alphabetizing.
+LocalRepoCompleteT = repository.completelocalrepository
+LocalRepoMainT = repository.ilocalrepositorymain
 
 MatcherT = matcher.IMatcher
 StatusT = status.Status
