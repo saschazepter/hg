@@ -21,9 +21,6 @@ from typing import (
 )
 
 from .i18n import _
-from .interfaces.types import (
-    MatcherT,
-)
 from . import (
     encoding,
     error,
@@ -37,6 +34,13 @@ from .utils import stringutil
 from .interfaces import (
     matcher as int_matcher,
 )
+
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        HgPathT,
+        MatcherT,
+        UserMsgT,
+    )
 
 rustmod = policy.importrust('dirstate')
 
@@ -421,24 +425,24 @@ class basematcher(int_matcher.IMatcher):
     def was_tampered_with(self) -> bool:
         return self.was_tampered_with_nonrec()
 
-    def __call__(self, fn):
+    def __call__(self, fn: HgPathT) -> bool:
         return self.matchfn(fn)
 
     # Callbacks related to how the matcher is used by dirstate.walk.
     # Subscribers to these events must monkeypatch the matcher object.
-    def bad(self, f, msg):
+    def bad(self, f: HgPathT, msg: UserMsgT | None) -> None:
         """Callback from dirstate.walk for each explicit file that can't be
         found/accessed, with an error message."""
 
     # If an traversedir is set, it will be called when a directory discovered
     # by recursive traversal is visited.
-    traversedir = None
+    traversedir: Callable[[HgPathT], None] | None = None
 
     @propertycache
     def _files(self):
         return []
 
-    def files(self):
+    def files(self) -> list[HgPathT]:
         """Explicitly listed files or patterns or roots:
         if no patterns or .always(): empty list,
         if exact: list exact files,
@@ -450,14 +454,14 @@ class basematcher(int_matcher.IMatcher):
     def _fileset(self):
         return set(self._files)
 
-    def exact(self, f):
+    def exact(self, f: HgPathT) -> bool:
         '''Returns True if f is in .files().'''
         return f in self._fileset
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         return False
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories. This is
         based on the match's primary, included, and excluded patterns.
@@ -468,7 +472,7 @@ class basematcher(int_matcher.IMatcher):
         """
         return True
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories, and
         potentially lists which subdirectories of that directory should be
@@ -511,22 +515,22 @@ class basematcher(int_matcher.IMatcher):
         """
         return b'this'
 
-    def always(self):
+    def always(self) -> bool:
         """Matcher will match everything and .files() will be empty --
         optimization might be possible."""
         return False
 
-    def isexact(self):
+    def isexact(self) -> bool:
         """Matcher will match exactly the list of files in .files() --
         optimization might be possible."""
         return False
 
-    def prefix(self):
+    def prefix(self) -> bool:
         """Matcher will match the paths in .files() recursively --
         optimization might be possible."""
         return False
 
-    def anypats(self):
+    def anypats(self) -> bool:
         """None of .always(), .isexact(), and .prefix() is true --
         optimizations will be difficult."""
         return not self.always() and not self.isexact() and not self.prefix()
@@ -538,16 +542,16 @@ class alwaysmatcher(basematcher):
     def __init__(self, badfn=None):
         super().__init__(badfn)
 
-    def always(self):
+    def always(self) -> bool:
         return True
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         return True
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         return b'all'
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         return b'all'
 
     def __repr__(self):
@@ -565,16 +569,16 @@ class nevermatcher(basematcher):
     # fast paths based on either. There will be no exact matches, nor any
     # prefixes (files() returns []), so fast paths iterating over them should
     # be efficient (and correct).
-    def isexact(self):
+    def isexact(self) -> bool:
         return True
 
-    def prefix(self):
+    def prefix(self) -> bool:
         return True
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         return False
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         return set()
 
     def __repr__(self):
@@ -673,12 +677,12 @@ class patternmatcher(basematcher):
         self._prefix = _prefix(kindpats)
         self._pats, self._matchfn = _buildmatch(kindpats, b'$', root)
 
-    def matchfn(self, fn):
+    def matchfn(self, fn: HgPathT) -> bool:
         if fn in self._fileset:
             return True
         return self._matchfn(fn)
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         if self._prefix and dir in self._fileset:
             return b'all'
         return (
@@ -687,7 +691,7 @@ class patternmatcher(basematcher):
             or path_or_parents_in_set(dir, self._dirs_explicit)
         )
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         ret = self.visitdir(dir)
         if ret is True:
             return b'this'
@@ -696,7 +700,7 @@ class patternmatcher(basematcher):
         assert ret == b'all'
         return b'all'
 
-    def prefix(self):
+    def prefix(self) -> bool:
         return self._prefix
 
     @encoding.strmethod
@@ -762,7 +766,7 @@ class includematcher(basematcher):
         # they are needed to get to items in _dirs or _roots.
         self._parents = parents
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         if self._prefix and dir in self._roots:
             return b'all'
         return (
@@ -784,7 +788,7 @@ class includematcher(basematcher):
             onlyinclude=self._parents,
         )
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         if self._prefix and dir in self._roots:
             return b'all'
         # Note: this does *not* include the 'dir in self._parents' case from
@@ -840,7 +844,7 @@ class exactmatcher(basematcher):
     def _dirs(self):
         return set(pathutil.dirs(self._fileset))
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         return dir in self._dirs
 
     @propertycache
@@ -853,7 +857,7 @@ class exactmatcher(basematcher):
         """A memoized sorted list of candidates for visitchildrenset."""
         return sorted(self._visitchildrenset_candidates)
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         if not self._fileset or dir not in self._dirs:
             return set()
 
@@ -886,7 +890,7 @@ class exactmatcher(basematcher):
         assert ret
         return ret
 
-    def isexact(self):
+    def isexact(self) -> bool:
         return True
 
     @encoding.strmethod
@@ -915,7 +919,7 @@ class differencematcher(basematcher):
             or self._m2.was_tampered_with()
         )
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         return self._m1(f) and not self._m2(f)
 
     @propertycache
@@ -929,7 +933,7 @@ class differencematcher(basematcher):
         # because the "dir" in m1 may not be a file.
         return self._m1.files()
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         if self._m2.visitdir(dir) == b'all':
             return False
         elif not self._m2.visitdir(dir):
@@ -937,7 +941,7 @@ class differencematcher(basematcher):
             return self._m1.visitdir(dir)
         return bool(self._m1.visitdir(dir))
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         m2_set = self._m2.visitchildrenset(dir)
         if m2_set == b'all':
             return set()
@@ -962,7 +966,7 @@ class differencematcher(basematcher):
         #    return set(), which is *not* correct, we still need to visit 'dir'!
         return m1_set
 
-    def isexact(self):
+    def isexact(self) -> bool:
         return self._m1.isexact()
 
     @encoding.strmethod
@@ -1018,17 +1022,17 @@ class intersectionmatcher(basematcher):
         # "path:dir2", we don't want to remove "dir2" from the set.
         return self._m1.files() + self._m2.files()
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         return self._m1(f) and self._m2(f)
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         visit1 = self._m1.visitdir(dir)
         if visit1 == b'all':
             return self._m2.visitdir(dir)
         # bool() because visit1=True + visit2='all' should not be 'all'
         return bool(visit1 and self._m2.visitdir(dir))
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         m1_set = self._m1.visitchildrenset(dir)
         if not m1_set:
             return set()
@@ -1047,10 +1051,10 @@ class intersectionmatcher(basematcher):
         assert isinstance(m1_set, set) and isinstance(m2_set, set)
         return m1_set.intersection(m2_set)
 
-    def always(self):
+    def always(self) -> bool:
         return self._m1.always() and self._m2.always()
 
-    def isexact(self):
+    def isexact(self) -> bool:
         return self._m1.isexact() or self._m2.isexact()
 
     @encoding.strmethod
@@ -1107,34 +1111,34 @@ class subdirmatcher(basematcher):
             self.was_tampered_with_nonrec() or self._matcher.was_tampered_with()
         )
 
-    def bad(self, f, msg):
+    def bad(self, f: HgPathT, msg: UserMsgT | None) -> None:
         self._matcher.bad(self._path + b"/" + f, msg)
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         # Some information is lost in the superclass's constructor, so we
         # can not accurately create the matching function for the subdirectory
         # from the inputs. Instead, we override matchfn() and visitdir() to
         # call the original matcher with the subdirectory path prepended.
         return self._matcher.matchfn(self._path + b"/" + f)
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         if dir == b'':
             dir = self._path
         else:
             dir = self._path + b"/" + dir
         return self._matcher.visitdir(dir)
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         if dir == b'':
             dir = self._path
         else:
             dir = self._path + b"/" + dir
         return self._matcher.visitchildrenset(dir)
 
-    def always(self):
+    def always(self) -> bool:
         return self._always
 
-    def prefix(self):
+    def prefix(self) -> bool:
         return self._matcher.prefix() and not self._always
 
     @encoding.strmethod
@@ -1189,7 +1193,7 @@ class prefixdirmatcher(basematcher):
     def _files(self):
         return [self._pathprefix + f for f in self._matcher._files]
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         if not f.startswith(self._pathprefix):
             return False
         return self._matcher.matchfn(f[len(self._pathprefix) :])
@@ -1198,14 +1202,14 @@ class prefixdirmatcher(basematcher):
     def _pathdirs(self):
         return set(pathutil.finddirs(self._path))
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         if dir == self._path:
             return self._matcher.visitdir(b'')
         if dir.startswith(self._pathprefix):
             return self._matcher.visitdir(dir[len(self._pathprefix) :])
         return dir in self._pathdirs
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         if dir == self._path:
             return self._matcher.visitchildrenset(b'')
         if dir.startswith(self._pathprefix):
@@ -1214,10 +1218,10 @@ class prefixdirmatcher(basematcher):
             return b'this'
         return set()
 
-    def isexact(self):
+    def isexact(self) -> bool:
         return self._matcher.isexact()
 
-    def prefix(self):
+    def prefix(self) -> bool:
         return self._matcher.prefix()
 
     @encoding.strmethod
@@ -1246,13 +1250,13 @@ class unionmatcher(basematcher):
             map(lambda m: m.was_tampered_with(), self._matchers)
         )
 
-    def matchfn(self, f):
+    def matchfn(self, f: HgPathT) -> bool:
         for match in self._matchers:
             if match(f):
                 return True
         return False
 
-    def visitdir(self, dir):
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         r = False
         for m in self._matchers:
             v = m.visitdir(dir)
@@ -1261,7 +1265,7 @@ class unionmatcher(basematcher):
             r |= v
         return r
 
-    def visitchildrenset(self, dir):
+    def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
         r = set()
         this = False
         for m in self._matchers:
