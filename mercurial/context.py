@@ -48,6 +48,9 @@ from .dirstateutils import (
 )
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        Iterable,
+    )
     from .interfaces.types import (
         LocalRepoCompleteT,
         MatcherT,
@@ -88,27 +91,27 @@ class basectx(abc.ABC):
     def filectx(self, path: bytes, filelog=None):
         raise NotImplementedError
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return short(self.node())
 
     __str__ = encoding.strmethod(__bytes__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s %s>" % (type(self).__name__, str(self))
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         try:
             return type(self) == type(other) and self._rev == other._rev
         except AttributeError:
             return False
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not (self == other)
 
-    def __contains__(self, key):
+    def __contains__(self, key: bytes) -> bool:
         return key in self._manifest
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: bytes):
         return self.filectx(key)
 
     def __iter__(self):
@@ -202,16 +205,16 @@ class basectx(abc.ABC):
     def substate(self):
         return subrepoutil.state(self, self._repo.ui)
 
-    def subrev(self, subpath):
+    def subrev(self, subpath: bytes):
         return self.substate[subpath][1]
 
-    def rev(self):
+    def rev(self) -> int:
         return self._rev
 
     def node(self):
         return self._node
 
-    def hex(self):
+    def hex(self) -> bytes:
         return hex(self.node())
 
     def manifest(self):
@@ -223,47 +226,47 @@ class basectx(abc.ABC):
     def repo(self):
         return self._repo
 
-    def phasestr(self):
+    def phasestr(self) -> bytes:
         return phases.phasenames[self.phase()]
 
-    def mutable(self):
+    def mutable(self) -> bool:
         return self.phase() > phases.public
 
-    def matchfileset(self, cwd, expr, badfn=None):
+    def matchfileset(self, cwd: bytes, expr, badfn=None):
         return fileset.match(self, cwd, expr, badfn=badfn)
 
-    def obsolete(self):
+    def obsolete(self) -> bool:
         """True if the changeset is obsolete"""
         return self.rev() in obsmod.getrevs(self._repo, b'obsolete')
 
-    def extinct(self):
+    def extinct(self) -> bool:
         """True if the changeset is extinct"""
         return self.rev() in obsmod.getrevs(self._repo, b'extinct')
 
-    def orphan(self):
+    def orphan(self) -> bool:
         """True if the changeset is not obsolete, but its ancestor is"""
         return self.rev() in obsmod.getrevs(self._repo, b'orphan')
 
-    def phasedivergent(self):
+    def phasedivergent(self) -> bool:
         """True if the changeset tries to be a successor of a public changeset
 
         Only non-public and non-obsolete changesets may be phase-divergent.
         """
         return self.rev() in obsmod.getrevs(self._repo, b'phasedivergent')
 
-    def contentdivergent(self):
+    def contentdivergent(self) -> bool:
         """Is a successor of a changeset with multiple possible successor sets
 
         Only non-public and non-obsolete changesets may be content-divergent.
         """
         return self.rev() in obsmod.getrevs(self._repo, b'contentdivergent')
 
-    def isunstable(self):
+    def isunstable(self) -> bool:
         """True if the changeset is either orphan, phase-divergent or
         content-divergent"""
         return self.orphan() or self.phasedivergent() or self.contentdivergent()
 
-    def instabilities(self):
+    def instabilities(self) -> list[bytes]:
         """return the list of instabilities affecting this changeset.
 
         Instabilities are returned as strings. possible values are:
@@ -293,7 +296,7 @@ class basectx(abc.ABC):
             return parents[1]
         return self._repo[nullrev]
 
-    def _fileinfo(self, path):
+    def _fileinfo(self, path: bytes):
         if '_manifest' in self.__dict__:
             try:
                 return self._manifest.find(path)
@@ -320,10 +323,10 @@ class basectx(abc.ABC):
 
         return node, flag
 
-    def filenode(self, path):
+    def filenode(self, path: bytes):
         return self._fileinfo(path)[0]
 
-    def flags(self, path):
+    def flags(self, path: bytes) -> bytes:
         try:
             return self._fileinfo(path)[1]
         except error.LookupError:
@@ -339,14 +342,14 @@ class basectx(abc.ABC):
     def p2copies(self):
         return self._copies[1]
 
-    def sub(self, path, allowcreate=True):
+    def sub(self, path: bytes, allowcreate: bool = True):
         '''return a subrepo for the stored revision of path, never wdir()'''
         return subrepo.subrepo(self, path, allowcreate=allowcreate)
 
-    def nullsub(self, path, pctx):
+    def nullsub(self, path: bytes, pctx):
         return subrepo.nullsubrepo(self, path, pctx)
 
-    def workingsub(self, path):
+    def workingsub(self, path: bytes):
         """return a subrepo for the stored revision, or wdir if this is a wdir
         context.
         """
@@ -357,10 +360,10 @@ class basectx(abc.ABC):
         pats=None,
         include=None,
         exclude=None,
-        default=b'glob',
-        listsubrepos=False,
+        default: bytes = b'glob',
+        listsubrepos: bool = False,
         badfn=None,
-        cwd=None,
+        cwd: bytes | None = None,
     ):
         r = self._repo
         if not cwd:
@@ -412,7 +415,7 @@ class basectx(abc.ABC):
     def dirs(self):
         return self._manifest.dirs()
 
-    def hasdir(self, dir):
+    def hasdir(self, dir: bytes) -> bool:
         return self._manifest.hasdir(dir)
 
     def status(
@@ -516,13 +519,13 @@ class basectx(abc.ABC):
 
         return r
 
-    def mergestate(self, clean=False):
+    def mergestate(self, clean: bool = False):
         """Get a mergestate object for this context."""
         raise NotImplementedError(
             '%s does not implement mergestate()' % self.__class__
         )
 
-    def isempty(self):
+    def isempty(self) -> bool:
         return not (
             len(self.parents()) > 1
             or self.branch() != self.p1().branch()
@@ -536,7 +539,13 @@ class changectx(basectx):
     changeset convenient. It represents a read-only context already present in
     the repo."""
 
-    def __init__(self, repo, rev, node, maybe_filtered=True):
+    def __init__(
+        self,
+        repo,
+        rev: int,
+        node,
+        maybe_filtered: bool = True,
+    ) -> None:
         super().__init__(repo)
         self._rev = rev
         self._node = node
@@ -548,13 +557,13 @@ class changectx(basectx):
         # unfiltered changelog might be used in some case.
         self._maybe_filtered = maybe_filtered
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         try:
             return hash(self._rev)
         except AttributeError:
             return id(self)
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         return self._rev != nullrev
 
     __bool__ = __nonzero__
@@ -612,7 +621,7 @@ class changectx(basectx):
     def manifestnode(self):
         return self._changeset.manifest
 
-    def user(self):
+    def user(self) -> bytes:
         return self._changeset.user
 
     def date(self):
@@ -621,13 +630,13 @@ class changectx(basectx):
     def files(self):
         return self._changeset.files
 
-    def filesmodified(self):
+    def filesmodified(self) -> list[bytes]:
         modified = set(self.files())
         modified.difference_update(self.filesadded())
         modified.difference_update(self.filesremoved())
         return sorted(modified)
 
-    def filesadded(self):
+    def filesadded(self) -> list[bytes]:
         filesadded = self._changeset.filesadded
         compute_on_none = True
         if self._repo.filecopiesmode == b'changeset-sidedata':
@@ -646,7 +655,7 @@ class changectx(basectx):
                 filesadded = []
         return filesadded
 
-    def filesremoved(self):
+    def filesremoved(self) -> list[bytes]:
         filesremoved = self._changeset.filesremoved
         compute_on_none = True
         if self._repo.filecopiesmode == b'changeset-sidedata':
@@ -700,24 +709,24 @@ class changectx(basectx):
             p2copies = {}
         return p1copies, p2copies
 
-    def description(self):
+    def description(self) -> bytes:
         return self._changeset.description
 
-    def branch(self):
+    def branch(self) -> bytes:
         return encoding.tolocal(self._changeset.extra.get(b"branch"))
 
-    def closesbranch(self):
+    def closesbranch(self) -> bool:
         return b'close' in self._changeset.extra
 
     def extra(self):
         """Return a dict of extra information."""
         return self._changeset.extra
 
-    def tags(self):
+    def tags(self) -> list[bytes]:
         """Return a list of byte tag names"""
         return self._repo.nodetags(self._node)
 
-    def bookmarks(self):
+    def bookmarks(self) -> list[bytes]:
         """Return a list of byte bookmark names."""
         return self._repo.nodebookmarks(self._node)
 
@@ -729,13 +738,13 @@ class changectx(basectx):
             cl = repo.unfiltered().changelog
         return cl.fast_rank(self._rev)
 
-    def phase(self):
+    def phase(self) -> int:
         return self._repo._phasecache.phase(self._repo, self._rev)
 
-    def hidden(self):
+    def hidden(self) -> bool:
         return self._rev in repoview.filterrevs(self._repo, b'visible')
 
-    def isinmemory(self):
+    def isinmemory(self) -> bool:
         return False
 
     def children(self):
@@ -759,7 +768,7 @@ class changectx(basectx):
         for d in self._repo.changelog.descendants([self._rev]):
             yield self._repo[d]
 
-    def filectx(self, path, fileid=None, filelog=None):
+    def filectx(self, path: bytes, fileid=None, filelog=None):
         """get a file context from this changeset"""
         if fileid is None:
             fileid = self.filenode(path)
@@ -767,7 +776,7 @@ class changectx(basectx):
             self._repo, path, fileid=fileid, changectx=self, filelog=filelog
         )
 
-    def ancestor(self, c2, warn=False):
+    def ancestor(self, c2, warn: bool = False):
         """return the "best" ancestor context of self and c2
 
         If there are multiple candidates, it will show a message and check
@@ -812,7 +821,7 @@ class changectx(basectx):
                 )
         return self._repo[anc]
 
-    def isancestorof(self, other):
+    def isancestorof(self, other) -> bool:
         """True if this changeset is an ancestor of other"""
         return self._repo.changelog.isancestorrev(self._rev, other._rev)
 
@@ -881,10 +890,10 @@ class basefilectx(abc.ABC):
         return self._filelog.rev(self._filenode)
 
     @propertycache
-    def _repopath(self):
+    def _repopath(self) -> bytes:
         return self._path
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         try:
             self._filenode
             return True
@@ -894,7 +903,7 @@ class basefilectx(abc.ABC):
 
     __bool__ = __nonzero__
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         try:
             return b"%s@%s" % (self.path(), self._changectx)
         except error.LookupError:
@@ -902,16 +911,16 @@ class basefilectx(abc.ABC):
 
     __str__ = encoding.strmethod(__bytes__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s %s>" % (type(self).__name__, str(self))
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         try:
             return hash((self._path, self._filenode))
         except AttributeError:
             return id(self)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         try:
             return (
                 type(self) == type(other)
@@ -921,7 +930,7 @@ class basefilectx(abc.ABC):
         except AttributeError:
             return False
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not (self == other)
 
     def filerev(self):
@@ -949,37 +958,37 @@ class basefilectx(abc.ABC):
     def node(self):
         return self._changectx.node()
 
-    def hex(self):
+    def hex(self) -> bytes:
         return self._changectx.hex()
 
-    def user(self):
+    def user(self) -> bytes:
         return self._changectx.user()
 
     def date(self):
         return self._changectx.date()
 
-    def files(self):
+    def files(self) -> list[bytes]:
         return self._changectx.files()
 
-    def description(self):
+    def description(self) -> bytes:
         return self._changectx.description()
 
-    def branch(self):
+    def branch(self) -> bytes:
         return self._changectx.branch()
 
     def extra(self):
         return self._changectx.extra()
 
-    def phase(self):
+    def phase(self) -> int:
         return self._changectx.phase()
 
-    def phasestr(self):
+    def phasestr(self) -> bytes:
         return self._changectx.phasestr()
 
-    def obsolete(self):
+    def obsolete(self) -> bool:
         return self._changectx.obsolete()
 
-    def instabilities(self):
+    def instabilities(self) -> list[bytes]:
         return self._changectx.instabilities()
 
     def manifest(self):
@@ -997,25 +1006,25 @@ class basefilectx(abc.ABC):
     def repo(self) -> LocalRepoCompleteT:
         return self._repo
 
-    def size(self):
+    def size(self) -> int:
         return len(self.data())
 
     def path(self) -> bytes:
         return self._path
 
-    def isbinary(self):
+    def isbinary(self) -> bool:
         try:
             return stringutil.binary(self.data())
         except OSError:
             return False
 
-    def isexec(self):
+    def isexec(self) -> bool:
         return b'x' in self.flags()
 
-    def islink(self):
+    def islink(self) -> bool:
         return b'l' in self.flags()
 
-    def isabsent(self):
+    def isabsent(self) -> bool:
         """whether this filectx represents a file not in self._changectx
 
         This is mainly for merge code to detect change/delete conflicts. This is
@@ -1024,7 +1033,7 @@ class basefilectx(abc.ABC):
 
     _customcmp = False
 
-    def cmp(self, fctx):
+    def cmp(self, fctx) -> bool:
         """compare with other file context
 
         returns True if different than fctx.
@@ -1123,7 +1132,7 @@ class basefilectx(abc.ABC):
             # result is crash somewhere else at to some point.
         return lkr
 
-    def isintroducedafter(self, changelogrev):
+    def isintroducedafter(self, changelogrev) -> bool:
         """True if a filectx has been introduced after a given floor revision"""
         if self.linkrev() >= changelogrev:
             return True
@@ -1180,7 +1189,7 @@ class basefilectx(abc.ABC):
             return self
         return self.filectx(self.filenode(), changeid=introrev)
 
-    def _parentfilectx(self, path, fileid, filelog):
+    def _parentfilectx(self, path: bytes, fileid, filelog):
         """create parent filectx keeping ancestry info for _adjustlinkrev()"""
         fctx = filectx(self._repo, path, fileid=fileid, filelog=filelog)
         if '_changeid' in vars(self) or '_changectx' in vars(self):
@@ -1229,7 +1238,7 @@ class basefilectx(abc.ABC):
             return p[1]
         return filectx(self._repo, self._path, fileid=-1, filelog=self._filelog)
 
-    def annotate(self, follow=False, skiprevs=None, diffopts=None):
+    def annotate(self, follow: bool = False, skiprevs=None, diffopts=None):
         """Returns a list of annotateline objects for each line in the file
 
         - line.fctx is the filectx of the node where that line was last changed
@@ -1281,7 +1290,7 @@ class basefilectx(abc.ABC):
             base, parents, skiprevs=skiprevs, diffopts=diffopts
         )
 
-    def ancestors(self, followfirst=False):
+    def ancestors(self, followfirst: bool = False):
         visit = {}
         c = self
         if followfirst:
@@ -1375,7 +1384,7 @@ class filectx(basefilectx):
             changeid=changeid,
         )
 
-    def rawdata(self):
+    def rawdata(self) -> bytes:
         return self._filelog.rawdata(self._filenode)
 
     def rawflags(self):
@@ -1393,7 +1402,7 @@ class filectx(basefilectx):
                 hint=_(b"set censor.policy to ignore errors"),
             )
 
-    def size(self):
+    def size(self) -> int:
         return self._filelog.size(self._filerev)
 
     @propertycache
@@ -1464,7 +1473,7 @@ class committablectx(basectx):
         if not self._extra.get(b'branch'):
             self._extra[b'branch'] = b'default'
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes(self._parents[0]) + b"+"
 
     def hex(self):
@@ -1472,7 +1481,7 @@ class committablectx(basectx):
 
     __str__ = encoding.strmethod(__bytes__)
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         return True
 
     __bool__ = __nonzero__
@@ -1482,7 +1491,7 @@ class committablectx(basectx):
         return self._repo.status()
 
     @propertycache
-    def _user(self):
+    def _user(self) -> bytes:
         return self._repo.ui.username()
 
     @propertycache
@@ -1493,52 +1502,53 @@ class committablectx(basectx):
             date = dateutil.makedate()
         return date
 
-    def subrev(self, subpath):
+    def subrev(self, subpath: bytes):
         return None
 
     def manifestnode(self):
         return None
 
-    def user(self):
+    def user(self) -> bytes:
+        # TODO: if None is passed to ctor, self._user isn't set
         return self._user or self._repo.ui.username()
 
     def date(self):
         return self._date
 
-    def description(self):
+    def description(self) -> bytes:
         return self._text
 
-    def files(self):
+    def files(self) -> list[bytes]:
         return sorted(
             self._status.modified + self._status.added + self._status.removed
         )
 
-    def modified(self):
+    def modified(self) -> list[bytes]:
         return self._status.modified
 
-    def added(self):
+    def added(self) -> list[bytes]:
         return self._status.added
 
-    def removed(self):
+    def removed(self) -> list[bytes]:
         return self._status.removed
 
-    def deleted(self):
+    def deleted(self) -> list[bytes]:
         return self._status.deleted
 
     filesmodified = modified
     filesadded = added
     filesremoved = removed
 
-    def branch(self):
+    def branch(self) -> bytes:
         return encoding.tolocal(self._extra[b'branch'])
 
-    def closesbranch(self):
+    def closesbranch(self) -> bool:
         return b'close' in self._extra
 
     def extra(self):
         return self._extra
 
-    def isinmemory(self):
+    def isinmemory(self) -> bool:
         return False
 
     def tags(self):
@@ -1550,19 +1560,19 @@ class committablectx(basectx):
             b.extend(p.bookmarks())
         return b
 
-    def phase(self):
+    def phase(self) -> int:
         phase = phases.newcommitphase(self._repo.ui)
         for p in self.parents():
             phase = max(phase, p.phase())
         return phase
 
-    def hidden(self):
+    def hidden(self) -> bool:
         return False
 
     def children(self):
         return []
 
-    def flags(self, path):
+    def flags(self, path: bytes) -> bytes:
         if '_manifest' in self.__dict__:
             try:
                 return self._manifest.flags(path)
@@ -1595,7 +1605,12 @@ class committablectx(basectx):
 
         """
 
-    def dirty(self, missing=False, merge=True, branch=True):
+    def dirty(
+        self,
+        missing: bool = False,
+        merge: bool = True,
+        branch: bool = True,
+    ) -> bool:
         return False
 
 
@@ -1626,16 +1641,16 @@ class workingctx(committablectx):
                 raise error.Abort(_(b'branch name not in UTF-8!'))
         super().__init__(repo, text, user, date, extra, changes, branch=branch)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[bytes]:
         d = self._repo.dirstate
         for f in d:
             if d.get_entry(f).tracked:
                 yield f
 
-    def __contains__(self, key):
+    def __contains__(self, key: bytes) -> bool:
         return self._repo.dirstate.get_entry(key).tracked
 
-    def hex(self):
+    def hex(self) -> bytes:
         return self._repo.nodeconstants.wdirhex
 
     @propertycache
@@ -1671,7 +1686,7 @@ class workingctx(committablectx):
                     if f not in pctx and s not in pctx:
                         dirstate.copy(None, f)
 
-    def _fileinfo(self, path):
+    def _fileinfo(self, path: bytes):
         # populate __dict__['_manifest'] as workingctx has no _manifestdelta
         self._manifest
         return super()._fileinfo(path)
@@ -1714,19 +1729,24 @@ class workingctx(committablectx):
     def _flagfunc(self):
         return self._repo.dirstate.flagfunc(self._buildflagfunc)
 
-    def flags(self, path):
+    def flags(self, path: bytes) -> bytes:
         try:
             return self._flagfunc(path)
         except OSError:
             return b''
 
-    def filectx(self, path, filelog=None):
+    def filectx(self, path: bytes, filelog=None):
         """get a file context from the working directory"""
         return workingfilectx(
             self._repo, path, workingctx=self, filelog=filelog
         )
 
-    def dirty(self, missing=False, merge=True, branch=True):
+    def dirty(
+        self,
+        missing: bool = False,
+        merge: bool = True,
+        branch: bool = True,
+    ) -> bool:
         """check whether a working directory is modified"""
         # check subrepos first
         for s in sorted(self.substate):
@@ -1742,7 +1762,7 @@ class workingctx(committablectx):
             or (missing and self.deleted())
         )
 
-    def add(self, list, prefix=b""):
+    def add(self, list, prefix: bytes = b""):
         with self._repo.wlock():
             ui, ds = self._repo.ui, self._repo.dirstate
             uipath = lambda f: ds.pathto(pathutil.join(prefix, f))
@@ -1783,7 +1803,7 @@ class workingctx(committablectx):
                     ui.warn(_(b"%s already tracked!\n") % uipath(f))
             return rejected
 
-    def forget(self, files, prefix=b""):
+    def forget(self, files: Iterable[bytes], prefix: bytes = b""):
         with self._repo.wlock():
             ds = self._repo.dirstate
             uipath = lambda f: ds.pathto(pathutil.join(prefix, f))
@@ -1794,7 +1814,7 @@ class workingctx(committablectx):
                     rejected.append(f)
             return rejected
 
-    def copy(self, source, dest):
+    def copy(self, source: bytes, dest: bytes) -> None:
         try:
             st = self._repo.wvfs.lstat(dest)
         except FileNotFoundError:
@@ -1818,11 +1838,11 @@ class workingctx(committablectx):
         pats=None,
         include=None,
         exclude=None,
-        default=b'glob',
-        listsubrepos=False,
+        default: bytes = b'glob',
+        listsubrepos: bool = False,
         badfn=None,
-        cwd=None,
-    ):
+        cwd: bytes = None,
+    ) -> MatcherT:
         r = self._repo
         if not cwd:
             cwd = r.getcwd()
@@ -1844,7 +1864,7 @@ class workingctx(committablectx):
             icasefs=icasefs,
         )
 
-    def _filtersuspectsymlink(self, files):
+    def _filtersuspectsymlink(self, files: list[bytes]) -> list[bytes]:
         if not files or self._repo.dirstate._checklink:
             return files
 
@@ -1869,7 +1889,7 @@ class workingctx(committablectx):
             sane.append(f)
         return sane
 
-    def _checklookup(self, files, mtime_boundary):
+    def _checklookup(self, files: list[bytes], mtime_boundary):
         # check for any possibly clean files
         if not files:
             return [], [], [], []
@@ -1958,7 +1978,7 @@ class workingctx(committablectx):
 
     def _dirstatestatus(
         self,
-        match,
+        match: MatcherT,
         ignored: bool = False,
         clean: bool = False,
         unknown: bool = False,
@@ -2002,7 +2022,7 @@ class workingctx(committablectx):
         return s
 
     @propertycache
-    def _copies(self):
+    def _copies(self) -> tuple[dict[bytes, bytes], dict[bytes, bytes]]:
         p1copies = {}
         p2copies = {}
         parents = self._repo.dirstate.parents()
@@ -2058,7 +2078,7 @@ class workingctx(committablectx):
         self,
         other,
         s: StatusT,
-        match,
+        match: MatcherT,
         listignored: bool,
         listclean: bool,
         listunknown: bool,
@@ -2081,7 +2101,7 @@ class workingctx(committablectx):
             )
         return s
 
-    def _matchstatus(self, other, match):
+    def _matchstatus(self, other, match: MatcherT) -> MatcherT:
         """override the match method with a filter for directory patterns
 
         We use inheritance to customize the match.bad method only in cases of
@@ -2120,7 +2140,7 @@ class workingctx(committablectx):
         ds = self._repo.dirstate
         return sorted(f for f in ds.matches(match) if ds.get_entry(f).tracked)
 
-    def markcommitted(self, node):
+    def markcommitted(self, node) -> None:
         with self._repo.dirstate.changing_parents(self._repo):
             for f in self.modified() + self.added():
                 self._repo.dirstate.update_file(
@@ -2140,7 +2160,7 @@ class workingctx(committablectx):
         # from immediately doing so for subsequent changing files
         self._repo.dirstate.write(self._repo.currenttransaction())
 
-    def mergestate(self, clean=False):
+    def mergestate(self, clean: bool = False):
         if clean:
             return mergestatemod.mergestate.clean(self._repo)
         return mergestatemod.mergestate.read(self._repo)
@@ -2167,7 +2187,7 @@ class committablefilectx(basefilectx):
         if ctx:
             self._changectx = ctx
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         return True
 
     __bool__ = __nonzero__
@@ -2239,7 +2259,7 @@ class workingfilectx(committablefilectx):
     def copysource(self) -> bytes | None:
         return self._repo.dirstate.copied(self._path)
 
-    def size(self):
+    def size(self) -> int:
         return self._repo.wvfs.lstat(self._path).st_size
 
     def lstat(self):
@@ -2252,16 +2272,16 @@ class workingfilectx(committablefilectx):
         except FileNotFoundError:
             return (t, tz)
 
-    def exists(self):
+    def exists(self) -> bool:
         return self._repo.wvfs.exists(self._path)
 
-    def lexists(self):
+    def lexists(self) -> bool:
         return self._repo.wvfs.lexists(self._path)
 
     def audit(self):
         return self._repo.wvfs.audit(self._path)
 
-    def cmp(self, fctx):
+    def cmp(self, fctx) -> bool:
         """compare with other file context
 
         returns True if different than fctx.
@@ -2270,7 +2290,7 @@ class workingfilectx(committablefilectx):
         # invert comparison to reuse the same code path
         return fctx.cmp(self)
 
-    def remove(self, ignoremissing=False):
+    def remove(self, ignoremissing: bool = False) -> None:
         """wraps unlink for a repo's working directory"""
         rmdir = self._repo.ui.configbool(b'experimental', b'removeemptydirs')
         self._repo.wvfs.unlinkpath(
@@ -2293,7 +2313,7 @@ class workingfilectx(committablefilectx):
         """marks this file a copy of `src`"""
         self._repo.dirstate.copy(src, self._path)
 
-    def clearunknown(self):
+    def clearunknown(self) -> None:
         """Removes conflicting items in the working directory so that
         ``write()`` can be called successfully.
         """
@@ -2316,7 +2336,7 @@ class workingfilectx(committablefilectx):
             if wvfs.isdir(f) and not wvfs.islink(f):
                 wvfs.removedirs(f)
 
-    def setflags(self, l, x):
+    def setflags(self, l: bool, x: bool) -> None:
         self._repo.wvfs.setflags(self._path, l, x)
 
 
@@ -2335,11 +2355,11 @@ class overlayworkingctx(committablectx):
     is `False`, the file was deleted.
     """
 
-    def __init__(self, repo):
+    def __init__(self, repo) -> None:
         super().__init__(repo)
         self.clean()
 
-    def setbase(self, wrappedctx):
+    def setbase(self, wrappedctx) -> None:
         self._wrappedctx = wrappedctx
         self._parents = [wrappedctx]
         # Drop old manifest cache as it is now out of date.
@@ -2347,13 +2367,13 @@ class overlayworkingctx(committablectx):
         # ``overlayworkingctx`` (e.g. with --collapse).
         util.clearcachedproperty(self, b'_manifest')
 
-    def setparents(self, p1node, p2node=None):
+    def setparents(self, p1node, p2node=None) -> None:
         if p2node is None:
             p2node = self._repo.nodeconstants.nullid
         assert p1node == self._wrappedctx.node()
         self._parents = [self._wrappedctx, self._repo.unfiltered()[p2node]]
 
-    def data(self, path):
+    def data(self, path: bytes) -> bytes:
         if self.isdirty(path):
             if self._cache[path][b'exists']:
                 if self._cache[path][b'data'] is not None:
@@ -2386,29 +2406,29 @@ class overlayworkingctx(committablectx):
 
     @propertycache
     def _flagfunc(self):
-        def f(path):
+        def f(path: bytes):
             return self._cache[path][b'flags']
 
         return f
 
-    def files(self):
+    def files(self) -> list[bytes]:
         return sorted(self.added() + self.modified() + self.removed())
 
-    def modified(self):
+    def modified(self) -> list[bytes]:
         return [
             f
             for f in self._cache.keys()
             if self._cache[f][b'exists'] and self._existsinparent(f)
         ]
 
-    def added(self):
+    def added(self) -> list[bytes]:
         return [
             f
             for f in self._cache.keys()
             if self._cache[f][b'exists'] and not self._existsinparent(f)
         ]
 
-    def removed(self):
+    def removed(self) -> list[bytes]:
         return [
             f
             for f in self._cache.keys()
@@ -2439,16 +2459,16 @@ class overlayworkingctx(committablectx):
                 copies[f] = source
         return copies
 
-    def isinmemory(self):
+    def isinmemory(self) -> bool:
         return True
 
-    def filedate(self, path):
+    def filedate(self, path: bytes):
         if self.isdirty(path):
             return self._cache[path][b'date']
         else:
             return self._wrappedctx[path].date()
 
-    def markcopied(self, path, origin):
+    def markcopied(self, path: bytes, origin) -> None:
         self._markdirty(
             path,
             exists=True,
@@ -2457,13 +2477,13 @@ class overlayworkingctx(committablectx):
             copied=origin,
         )
 
-    def copydata(self, path):
+    def copydata(self, path: bytes):
         if self.isdirty(path):
             return self._cache[path][b'copied']
         else:
             return None
 
-    def flags(self, path):
+    def flags(self, path: bytes) -> bytes:
         if self.isdirty(path):
             if self._cache[path][b'exists']:
                 return self._cache[path][b'flags']
@@ -2474,12 +2494,12 @@ class overlayworkingctx(committablectx):
         else:
             return self._wrappedctx[path].flags()
 
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         if key in self._cache:
             return self._cache[key][b'exists']
         return key in self.p1()
 
-    def _existsinparent(self, path):
+    def _existsinparent(self, path: bytes) -> bool:
         try:
             # ``commitctx` raises a ``ManifestLookupError`` if a path does not
             # exist, unlike ``workingctx``, which returns a ``workingfilectx``
@@ -2489,7 +2509,7 @@ class overlayworkingctx(committablectx):
         except error.ManifestLookupError:
             return False
 
-    def _auditconflicts(self, path):
+    def _auditconflicts(self, path: bytes) -> None:
         """Replicates conflict checks done by wvfs.write().
 
         Since we never write to the filesystem and never call `applyupdates` in
@@ -2537,7 +2557,9 @@ class overlayworkingctx(committablectx):
                 % (path, path, self.p1(), len(mfiles), b', '.join(mfiles))
             )
 
-    def write(self, path, data, flags=b'', **kwargs):
+    def write(
+        self, path: bytes, data: bytes, flags: bytes = b'', **kwargs
+    ) -> None:
         if data is None:
             raise error.ProgrammingError(b"data must be non-None")
         self._auditconflicts(path)
@@ -2545,7 +2567,7 @@ class overlayworkingctx(committablectx):
             path, exists=True, data=data, date=dateutil.makedate(), flags=flags
         )
 
-    def setflags(self, path, l, x):
+    def setflags(self, path: bytes, l: bool, x: bool) -> None:
         flag = b''
         if l:
             flag = b'l'
@@ -2553,10 +2575,10 @@ class overlayworkingctx(committablectx):
             flag = b'x'
         self._markdirty(path, exists=True, date=dateutil.makedate(), flags=flag)
 
-    def remove(self, path):
+    def remove(self, path: bytes) -> None:
         self._markdirty(path, exists=False)
 
-    def exists(self, path):
+    def exists(self, path: bytes) -> bool:
         """exists behaves like `lexists`, but needs to follow symlinks and
         return False if they are broken.
         """
@@ -2573,14 +2595,14 @@ class overlayworkingctx(committablectx):
 
         return self._existsinparent(path)
 
-    def lexists(self, path):
+    def lexists(self, path: bytes) -> bool:
         """lexists returns True if the path exists"""
         if self.isdirty(path):
             return self._cache[path][b'exists']
 
         return self._existsinparent(path)
 
-    def size(self, path):
+    def size(self, path: bytes) -> int:
         if self.isdirty(path):
             if self._cache[path][b'exists']:
                 return len(self._cache[path][b'data'])
@@ -2592,12 +2614,12 @@ class overlayworkingctx(committablectx):
 
     def tomemctx(
         self,
-        text,
-        branch=None,
+        text: bytes,
+        branch: bytes | None = None,
         extra=None,
         date=None,
         parents=None,
-        user=None,
+        user: bytes | None = None,
         editor=None,
     ):
         """Converts this ``overlayworkingctx`` into a ``memctx`` ready to be
@@ -2666,14 +2688,14 @@ class overlayworkingctx(committablectx):
             user=precursor.user(),
         )
 
-    def isdirty(self, path):
+    def isdirty(self, path: bytes) -> bool:
         return path in self._cache
 
-    def clean(self):
+    def clean(self) -> None:
         self._mergestate = None
         self._cache = {}
 
-    def _compact(self):
+    def _compact(self) -> list[bytes]:
         """Removes keys from the cache that are actually clean, by comparing
         them with the underlying context.
 
@@ -2711,8 +2733,14 @@ class overlayworkingctx(committablectx):
         return keys
 
     def _markdirty(
-        self, path, exists, data=None, date=None, flags=b'', copied=None
-    ):
+        self,
+        path: bytes,
+        exists: bool,
+        data: bytes = None,
+        date=None,
+        flags: bytes = b'',
+        copied=None,
+    ) -> None:
         # data not provided, let's see if we already have some; if not, let's
         # grab it from our underlying context, so that we always have data if
         # the file is marked as existing.
@@ -2731,12 +2759,12 @@ class overlayworkingctx(committablectx):
         }
         util.clearcachedproperty(self, b'_manifest')
 
-    def filectx(self, path, filelog=None):
+    def filectx(self, path: bytes, filelog=None):
         return overlayworkingfilectx(
             self._repo, path, parent=self, filelog=filelog
         )
 
-    def mergestate(self, clean=False):
+    def mergestate(self, clean: bool = False):
         if clean or self._mergestate is None:
             self._mergestate = mergestatemod.memmergestate(self._repo)
         return self._mergestate
@@ -2758,7 +2786,7 @@ class overlayworkingfilectx(committablefilectx):
         self._parent = parent
         self._path = path
 
-    def cmp(self, fctx):
+    def cmp(self, fctx) -> bool:
         return self.data() != fctx.data()
 
     def changectx(self):
@@ -2770,16 +2798,16 @@ class overlayworkingfilectx(committablefilectx):
     def date(self):
         return self._parent.filedate(self._path)
 
-    def exists(self):
+    def exists(self) -> bool:
         return self.lexists()
 
-    def lexists(self):
+    def lexists(self) -> bool:
         return self._parent.exists(self._path)
 
     def copysource(self) -> bytes | None:
         return self._parent.copydata(self._path)
 
-    def size(self):
+    def size(self) -> int:
         return self._parent.size(self._path)
 
     def markcopied(self, origin: bytes) -> None:
@@ -2788,10 +2816,10 @@ class overlayworkingfilectx(committablefilectx):
     def audit(self):
         pass
 
-    def flags(self):
+    def flags(self) -> bytes:
         return self._parent.flags(self._path)
 
-    def setflags(self, islink, isexec):
+    def setflags(self, islink: bool, isexec: bool):
         return self._parent.setflags(self._path, islink, isexec)
 
     def write(
@@ -2803,7 +2831,7 @@ class overlayworkingfilectx(committablefilectx):
     ) -> int:
         return self._parent.write(self._path, data, flags, **kwargs)
 
-    def remove(self, ignoremissing=False):
+    def remove(self, ignoremissing: bool = False):
         return self._parent.remove(self._path)
 
     def clearunknown(self):
@@ -2826,12 +2854,12 @@ class workingcommitctx(workingctx):
         user: bytes | None = None,
         date=None,
         extra=None,
-    ):
+    ) -> None:
         super().__init__(repo, text, user, date, extra, changes)
 
     def _dirstatestatus(
         self,
-        match,
+        match: MatcherT,
         ignored: bool = False,
         clean: bool = False,
         unknown: bool = False,
@@ -2856,7 +2884,7 @@ class workingcommitctx(workingctx):
         )
 
     @propertycache
-    def _changedset(self):
+    def _changedset(self) -> set[bytes]:
         """Return the set of files changed in this context"""
         changed = set(self._status.modified)
         changed.update(self._status.added)
@@ -2873,7 +2901,7 @@ def makecachingfilectxfn(func):
     """
     cache = {}
 
-    def getfilectx(repo, memctx, path):
+    def getfilectx(repo, memctx, path: bytes):
         if path not in cache:
             cache[path] = func(repo, memctx, path)
         return cache[path]
@@ -2888,7 +2916,7 @@ def memfilefromctx(ctx):
     context.
     """
 
-    def getfilectx(repo, memctx, path):
+    def getfilectx(repo, memctx, path: bytes):
         fctx = ctx[path]
         copysource = fctx.copysource()
         return memfilectx(
@@ -2910,7 +2938,7 @@ def memfilefrompatch(patchstore):
     This is a convenience method for building a memctx based on a patchstore.
     """
 
-    def getfilectx(repo, memctx, path):
+    def getfilectx(repo, memctx, path: bytes):
         data, mode, copysource = patchstore.getfile(path)
         if data is None:
             return None
@@ -2965,15 +2993,15 @@ class memctx(committablectx):
         self,
         repo,
         parents,
-        text,
+        text: bytes,
         files,
         filectxfn,
-        user=None,
+        user: bytes | None = None,
         date=None,
         extra=None,
-        branch=None,
+        branch: bytes | None = None,
         editor=None,
-    ):
+    ) -> None:
         super().__init__(repo, text, user, date, extra, branch=branch)
         self._rev = None
         self._node = None
@@ -2997,7 +3025,7 @@ class memctx(committablectx):
             self._text = editor(self._repo, self, [])
             self._repo.savecommitmessage(self._text)
 
-    def filectx(self, path, filelog=None):
+    def filectx(self, path: bytes, filelog=None):
         """get a file context from the working directory
 
         Returns None if file doesn't exist and should be removed."""
@@ -3064,16 +3092,18 @@ class memfilectx(committablefilectx):
     See memctx and committablefilectx for more details.
     """
 
+    _flags: bytes
+
     def __init__(
         self,
         repo: LocalRepoCompleteT,
         changectx,
         path: bytes,
         data: bytes,
-        islink=False,
-        isexec=False,
+        islink: bool = False,
+        isexec: bool = False,
         copysource: bytes | None = None,
-    ):
+    ) -> None:
         """
         path is the normalized file path relative to repository root.
         data is the file content as a string.
@@ -3094,13 +3124,13 @@ class memfilectx(committablefilectx):
     def copysource(self) -> bytes | None:
         return self._copysource
 
-    def cmp(self, fctx):
+    def cmp(self, fctx) -> bool:
         return self.data() != fctx.data()
 
     def data(self) -> bytes:
         return self._data
 
-    def remove(self, ignoremissing=False):
+    def remove(self, ignoremissing: bool = False) -> None:
         """wraps unlink for a repo's working directory"""
         # need to figure out what to do here
         del self._changectx[self._path]
@@ -3133,11 +3163,11 @@ class metadataonlyctx(committablectx):
         originalctx,
         parents=None,
         text=None,
-        user=None,
+        user: bytes | None = None,
         date=None,
         extra=None,
         editor=None,
-    ):
+    ) -> None:
         if text is None:
             text = originalctx.description()
         super().__init__(repo, text, user, date, extra)
@@ -3182,7 +3212,7 @@ class metadataonlyctx(committablectx):
     def _manifestctx(self):
         return self._repo.manifestlog[self._manifestnode]
 
-    def filectx(self, path, filelog=None):
+    def filectx(self, path: bytes, filelog=None):
         return self._originalctx.filectx(path, filelog=filelog)
 
     def commit(self):
@@ -3235,7 +3265,7 @@ class arbitraryfilectx:
         self._repo = repo
         self._path = path
 
-    def cmp(self, fctx):
+    def cmp(self, fctx) -> bool:
         # filecmp follows symlinks whereas `cmp` should not, so skip the fast
         # path if either side is a symlink.
         symlinks = b'l' in self.flags() or b'l' in fctx.flags()
@@ -3249,7 +3279,7 @@ class arbitraryfilectx:
     def path(self) -> bytes:
         return self._path
 
-    def flags(self):
+    def flags(self) -> bytes:
         return b''
 
     def data(self) -> bytes:
@@ -3258,7 +3288,7 @@ class arbitraryfilectx:
     def decodeddata(self) -> bytes:
         return util.readfile(self._path)
 
-    def remove(self):
+    def remove(self) -> None:
         util.unlink(self._path)
 
     def write(
