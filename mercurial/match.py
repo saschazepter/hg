@@ -266,6 +266,8 @@ def match(
     cwd = os.path.join(root, util.localpath(cwd))
     normalize = _donormalize
     if icasefs:
+        if ctx is None:  # help pytype
+            raise error.ProgrammingError("icasefs requires a ctx")
         dirstate = ctx.repo().dirstate
         dsnormalize = dirstate.normalize
 
