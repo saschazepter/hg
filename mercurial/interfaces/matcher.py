@@ -18,6 +18,32 @@ from ._basetypes import (
 )
 
 
+class BadFuncT(Protocol):
+    """The type for a bad match callback that can be supplied by matcher user"""
+
+    def __call__(self, file: HgPathT, msg: UserMsgT | None) -> None:
+        # TODO: a message should probably always be provided (it is not from
+        #  manifest.py)
+        raise NotImplementedError
+
+
+KindPatT = tuple[bytes, bytes, bytes]
+"""A parsed ``kind:pattern`` type.
+
+The first entry is the kind of pattern, the second is the pattern, and the third
+is the source of the pattern (or an empty string).
+"""
+
+MatchFuncT = Callable[[HgPathT], bool]
+"""The signature of a matcher compatible matching function.
+
+Given the path of a file, the method returns True to indicate a match.
+"""
+
+TraverseDirFuncT = Callable[[HgPathT], None]
+"""The callback type that provides the directory being traversed."""
+
+
 class IMatcher(Protocol):
     """A protocol class that defines the common interface for all file matching
     classes."""

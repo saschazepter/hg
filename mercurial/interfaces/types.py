@@ -37,6 +37,11 @@ from . import (
 LocalRepoCompleteT = repository.completelocalrepository
 LocalRepoMainT = repository.ilocalrepositorymain
 
+MatcherBadFuncT = matcher.BadFuncT
+MatcherKindPatT = matcher.KindPatT
+MatcherMatchFuncT = matcher.MatchFuncT
 MatcherT = matcher.IMatcher
+MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
+
 StatusT = status.Status
 TransactionT = transaction.ITransaction
