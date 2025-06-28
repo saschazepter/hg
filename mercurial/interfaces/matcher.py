@@ -68,7 +68,7 @@ class IMatcher(Protocol):
 
     # If traversedir is set, it will be called when a directory discovered
     # by recursive traversal is visited.
-    traversedir: Callable[[HgPathT], None] | None = None
+    traversedir: TraverseDirFuncT | None = None
 
     @property
     @abc.abstractmethod

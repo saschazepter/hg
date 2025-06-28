@@ -45,6 +45,7 @@ if typing.TYPE_CHECKING:
         MatcherBadFuncT,
         MatcherKindPatT,
         MatcherT,
+        MatcherTraverseDirFuncT,
         UserMsgT,
     )
 
@@ -52,6 +53,7 @@ if typing.TYPE_CHECKING:
     _BadFuncT = MatcherBadFuncT
     _KindPatT = MatcherKindPatT
     _MatcherT = int_matcher.IMatcher
+    _TraverseDirFuncT = MatcherTraverseDirFuncT
 
 rustmod = policy.importrust('dirstate')
 
@@ -468,10 +470,6 @@ class basematcher(int_matcher.IMatcher):
     def bad(self, f: HgPathT, msg: UserMsgT | None) -> None:
         """Callback from dirstate.walk for each explicit file that can't be
         found/accessed, with an error message."""
-
-    # If an traversedir is set, it will be called when a directory discovered
-    # by recursive traversal is visited.
-    traversedir: Callable[[HgPathT], None] | None = None
 
     @propertycache
     def _files(self) -> list[HgPathT]:
@@ -959,6 +957,8 @@ class differencematcher(basematcher):
     The second matcher's non-matching-attributes (bad, traversedir) are ignored.
     """
 
+    traversedir: _TraverseDirFuncT | None
+
     def __init__(self, m1: _MatcherT, m2: _MatcherT) -> None:
         super().__init__()
         self._m1 = m1
@@ -1049,6 +1049,8 @@ def intersectmatchers(m1: _MatcherT, m2: _MatcherT) -> _MatcherT:
 
 
 class intersectionmatcher(basematcher):
+    traversedir: _TraverseDirFuncT | None
+
     def __init__(self, m1: _MatcherT, m2: _MatcherT) -> None:
         super().__init__()
         self._m1 = m1
@@ -1297,6 +1299,8 @@ class unionmatcher(basematcher):
     The non-matching-attributes (bad, traversedir) are taken from the first
     matcher.
     """
+
+    traversedir: _TraverseDirFuncT | None
 
     def __init__(self, matchers: list[_MatcherT]) -> None:
         m1 = matchers[0]
