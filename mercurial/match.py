@@ -38,6 +38,7 @@ from .interfaces import (
 if typing.TYPE_CHECKING:
     from typing import (
         Iterable,
+        Literal,
         Pattern,
     )
     from .interfaces.types import (
@@ -1751,9 +1752,6 @@ def _prefix(kindpats: Iterable[_KindPatT]) -> bool:
 _commentre: Pattern[bytes] | None = None
 
 if typing.TYPE_CHECKING:
-    from typing_extensions import (
-        Literal,
-    )
 
     @overload
     def readpatternfile(

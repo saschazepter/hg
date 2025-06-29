@@ -112,6 +112,7 @@ from typing import (
     Callable,
     Collection,
     Iterable,
+    Literal,
     overload,
 )
 
@@ -135,9 +136,6 @@ Phaseroots = dict[int, set[int]]
 PhaseSets = dict[int, set[int]]
 
 if typing.TYPE_CHECKING:
-    from typing_extensions import (
-        Literal,  # py3.8+
-    )
     from . import (
         localrepo,
         ui as uimod,
