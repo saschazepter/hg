@@ -2161,7 +2161,7 @@ class localrepository(_localrepo_base_classes):
         for r in self.revs(expr, *args):
             yield self[r]
 
-    def anyrevs(self, specs: bytes, user=False, localalias=None):
+    def anyrevs(self, specs: list[bytes], user=False, localalias=None):
         """Find revisions matching one of the given revsets.
 
         Revset aliases from the configuration are not expanded by default. To

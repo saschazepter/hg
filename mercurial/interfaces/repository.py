@@ -1950,7 +1950,7 @@ class ilocalrepositorymain(Protocol):
         """
 
     @abc.abstractmethod
-    def anyrevs(self, specs, user=False, localalias=None):
+    def anyrevs(self, specs: list[bytes], user=False, localalias=None):
         """Find revisions matching one of the given revsets."""
 
     @abc.abstractmethod
