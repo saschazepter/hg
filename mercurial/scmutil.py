@@ -77,12 +77,18 @@ else:
     from . import scmposix as scmplatform
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
     from .interfaces.types import (
         LocalRepoMainT,
         MatcherT,
         RevsetAliasesT,
         UiT,
     )
+
+    _C = TypeVar('_C', bound=Callable)
 
 parsers = policy.importmod('parsers')
 rustrevlog = policy.importrust('revlog')
@@ -2031,7 +2037,7 @@ def registersummarycallback(
 
     categories = []
 
-    def reportsummary(func):
+    def reportsummary(func: _C) -> _C:
         """decorator for report callbacks."""
         # The repoview life cycle is shorter than the one of the actual
         # underlying repository. So the filtered object can die before the
