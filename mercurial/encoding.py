@@ -28,6 +28,13 @@ from . import (
 from .interfaces import modules as intmod
 from .pure import charencode as charencodepure
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        ParamSpec,
+    )
+
+    _P = ParamSpec("_P")
+
 _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
 charencode: intmod.CharEncoding = policy.importmod('charencode')
@@ -256,7 +263,7 @@ def unifromlocal(s: bytes) -> str:
     return fromlocal(s).decode('utf-8')
 
 
-def unimethod(bytesfunc: Callable[[Any], bytes]) -> Callable[[Any], str]:
+def unimethod(bytesfunc: Callable[_P, bytes]) -> Callable[_P, str]:
     """Create a proxy method that forwards __unicode__() and __str__() of
     Python 3 to __bytes__()"""
 
