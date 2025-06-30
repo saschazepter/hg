@@ -1954,9 +1954,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
 
         if not self.showsearch(self.regex, forward=forward):
             win = curses.newwin(1, self.xscreensize, self.yscreensize - 1, 0)
-            self.printstring(win, failuremsg, pairname=b"legend", align=False)
-            while win.getkey() not in ["\n", "KEY_ENTER"]:
-                pass
+            self.errorpopup(failuremsg, win)
             del win
 
             self.stdscr.clear()
