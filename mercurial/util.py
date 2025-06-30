@@ -3167,7 +3167,7 @@ def timedcm(whencefmt, *whenceargs):
 timedcm._nested = 0
 
 
-def timed(func):
+def timed(func: Callable[_P, _R]) -> Callable[_P, _R]:
     """Report the execution time of a function call to stderr.
 
     During development, use as a decorator when you need to measure
@@ -3178,6 +3178,7 @@ def timed(func):
         pass
     """
 
+    # TODO: type with _P.args, _P.kwargs when pytype supports it
     def wrapper(*args, **kwargs):
         with timedcm(pycompat.bytestr(func.__name__)) as time_stats:
             result = func(*args, **kwargs)
