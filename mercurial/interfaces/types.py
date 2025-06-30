@@ -39,6 +39,7 @@ FileStorageT = repository.ifilestorage
 # them together while alphabetizing.
 LocalRepoCompleteT = repository.completelocalrepository
 LocalRepoMainT = repository.ilocalrepositorymain
+LocalRepoFileStorageT = repository.ilocalrepositoryfilestorage
 
 MatcherBadFuncT = matcher.BadFuncT
 MatcherKindPatT = matcher.KindPatT
