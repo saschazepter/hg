@@ -55,9 +55,15 @@ from .utils import (
 )
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
     from .interfaces.types import (
         StatusT,
     )
+
+    _C = TypeVar('_C', bound=Callable)
 
 
 def init():
@@ -98,7 +104,7 @@ class SubrepoAbort(error.Abort):
         error.Abort.__init__(self, *args, **kw)
 
 
-def annotatesubrepoerror(func):
+def annotatesubrepoerror(func: _C) -> _C:
     def decoratedmethod(self, *args, **kargs):
         try:
             res = func(self, *args, **kargs)
