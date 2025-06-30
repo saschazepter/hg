@@ -33,6 +33,7 @@ if typing.TYPE_CHECKING:
     )
 
     from ._basetypes import (
+        HgPathT,
         RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
@@ -1744,7 +1745,7 @@ class ilocalrepositoryfilestorage(Protocol):
     """
 
     @abc.abstractmethod
-    def file(self, f, writable=False):
+    def file(self, f: HgPathT, writable: bool = False) -> ifilestorage:
         """Obtain a filelog for a tracked path.
 
         The returned type conforms to the ``ifilestorage`` interface.

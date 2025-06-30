@@ -104,6 +104,8 @@ if typing.TYPE_CHECKING:
     import _weakref
 
     from .interfaces.types import (
+        FileStorageT,
+        HgPathT,
         MatcherT,
         NodeIdT,
         RevsetAliasesT,
@@ -1278,7 +1280,7 @@ def makemain(**kwargs):
 class revlogfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs."""
 
-    def file(self, path, writable=False):
+    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
         if path.startswith(b'/'):
             path = path[1:]
 
@@ -1295,7 +1297,7 @@ class revlogfilestorage(repository.ilocalrepositoryfilestorage):
 class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs and narrow files."""
 
-    def file(self, path, writable=False):
+    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
         if path.startswith(b'/'):
             path = path[1:]
 

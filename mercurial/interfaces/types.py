@@ -33,6 +33,8 @@ from . import (
     transaction,
 )
 
+FileStorageT = repository.ifilestorage
+
 # The names for repository types are shifted a bit in order to be able to group
 # them together while alphabetizing.
 LocalRepoCompleteT = repository.completelocalrepository
