@@ -83,11 +83,19 @@ assert [
 ]
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        ParamSpec,
+    )
     from typing_extensions import (
         Self,
     )
 
     _Tcow = TypeVar('_Tcow', bound="cow")
+    _P = ParamSpec('_P')
+    """An unconstrained type for a Callable ParamSpec."""
+
+    _R = TypeVar('_R')
+    """An unconstrained type for a Callable return value."""
 
 _KT = TypeVar("_KT")
 """An unconstrained key type for container classes (see typing.KT)."""
@@ -1799,7 +1807,7 @@ class lrucachedict:
             n = n.prev
 
 
-def lrucachefunc(func):
+def lrucachefunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
     '''cache most recent results of function calls'''
     cache = {}
     order = collections.deque()
@@ -1816,7 +1824,7 @@ def lrucachefunc(func):
             return cache[arg]
 
     else:
-
+        # TODO: type with _P.args when pytype supports it
         def f(*args):
             if args not in cache:
                 if len(cache) > 20:
