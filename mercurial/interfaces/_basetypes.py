@@ -40,6 +40,10 @@ RevlogT = Any
 RevnumT = int
 """a revision number"""
 
+# See revset.matchany()
+RevsetAliasesT = dict[bytes, bytes]
+"""A mapping of a revset alias name to its (string) definition."""
+
 # TODO: create a Protocol class,
 UiT = Any
 

@@ -19,6 +19,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     RepoT,
     RevlogT,
     RevnumT,
+    RevsetAliasesT,
     UiT,
     UserMsgT,
     VfsKeyT,

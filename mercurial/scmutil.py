@@ -80,7 +80,9 @@ if typing.TYPE_CHECKING:
         ui as uimod,
     )
     from .interfaces.types import (
+        LocalRepoMainT,
         MatcherT,
+        RevsetAliasesT,
     )
 
 parsers = policy.importmod('parsers')
@@ -783,9 +785,16 @@ def _filterederror(repo, changeid: bytes) -> error.FilteredRepoLookupError:
     return error.FilteredRepoLookupError(msg)
 
 
-def revsingle(repo, revspec, default=b'.', localalias=None):
+def revsingle(
+    repo: LocalRepoMainT,
+    revspec: bytes | int | None,
+    default: bytes | None = b'.',
+    localalias: RevsetAliasesT | None = None,
+):
     if not revspec and revspec != 0:
         return repo[default]
+
+    assert revspec is not None  # help pytype
 
     l = revrange(repo, [revspec], localalias=localalias)
     if not l:
@@ -829,7 +838,11 @@ def revpair(repo, revs):
     return repo[first], repo[second]
 
 
-def revrange(repo, specs, localalias=None):
+def revrange(
+    repo: LocalRepoMainT,
+    specs: Iterable[bytes | int],
+    localalias: RevsetAliasesT | None = None,
+):
     """Execute 1 to many revsets and return the union.
 
     This is the preferred mechanism for executing revsets using user-specified

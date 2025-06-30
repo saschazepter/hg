@@ -33,6 +33,7 @@ if typing.TYPE_CHECKING:
     )
 
     from ._basetypes import (
+        RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
     )
@@ -1950,7 +1951,12 @@ class ilocalrepositorymain(Protocol):
         """
 
     @abc.abstractmethod
-    def anyrevs(self, specs: list[bytes], user=False, localalias=None):
+    def anyrevs(
+        self,
+        specs: list[bytes],
+        user: bool = False,
+        localalias: RevsetAliasesT | None = None,
+    ):
         """Find revisions matching one of the given revsets."""
 
     @abc.abstractmethod
