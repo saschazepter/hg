@@ -1888,6 +1888,16 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
                 return False
         return True
 
+    def errorpopup(self, msg, win):
+        self.printstring(
+            win,
+            msg,
+            pairname=b"legend",
+            align=False,
+        )
+        while win.getkey() not in ["\n", "KEY_ENTER"]:
+            pass
+
     def handlesearch(self):
         win = curses.newwin(1, self.xscreensize, self.yscreensize - 1, 0)
         win.echochar("/")
