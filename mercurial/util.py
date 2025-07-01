@@ -238,7 +238,7 @@ if _dowarn:
     )
 
 
-def nouideprecwarn(msg, version, stacklevel=1):
+def nouideprecwarn(msg: bytes, version: bytes, stacklevel: int = 1) -> None:
     """Issue an python native deprecation warning
 
     This is a noop outside of tests, use 'ui.deprecwarn' when possible.
