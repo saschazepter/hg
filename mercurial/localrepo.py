@@ -1277,7 +1277,7 @@ def makemain(**kwargs):
 class revlogfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs."""
 
-    def file(self, path):
+    def file(self, path, writable=None):
         if path.startswith(b'/'):
             path = path[1:]
 
@@ -1286,13 +1286,15 @@ class revlogfilestorage(repository.ilocalrepositoryfilestorage):
             or txnutil.mayhavepending(self.root)
         )
 
-        return filelog.filelog(self.svfs, path, try_split=try_split)
+        return filelog.filelog(
+            self.svfs, path, writable=writable, try_split=try_split
+        )
 
 
 class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs and narrow files."""
 
-    def file(self, path):
+    def file(self, path, writable=None):
         if path.startswith(b'/'):
             path = path[1:]
 
@@ -1301,7 +1303,11 @@ class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
             or txnutil.mayhavepending(self.root)
         )
         return filelog.narrowfilelog(
-            self.svfs, path, self._storenarrowmatch, try_split=try_split
+            self.svfs,
+            path,
+            self._storenarrowmatch,
+            writable=writable,
+            try_split=try_split,
         )
 
 

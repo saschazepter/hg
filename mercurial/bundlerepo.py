@@ -494,7 +494,7 @@ class bundlerepository(_bundle_repo_baseclass):
     def url(self):
         return self._url
 
-    def file(self, f):
+    def file(self, f, writable=None):
         if not self._cgfilespos:
             self._cgunpacker.seek(self.filestart)
             self._cgfilespos = _getfilestarts(self._cgunpacker)
@@ -504,7 +504,7 @@ class bundlerepository(_bundle_repo_baseclass):
             linkmapper = self.unfiltered().changelog.rev
             return bundlefilelog(self.svfs, f, self._cgunpacker, linkmapper)
         else:
-            return super().file(f)
+            return super().file(f, writable=writable)
 
     def close(self):
         """Close assigned bundle file immediately."""

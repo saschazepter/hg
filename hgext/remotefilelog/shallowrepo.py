@@ -176,14 +176,14 @@ def wraprepo(repo):
                 return None
             return ret
 
-        def file(self, f):
+        def file(self, f, writable=None):
             if f[0] == b'/':
                 f = f[1:]
 
             if self.shallowmatch(f):
                 return remotefilelog.remotefilelog(self.svfs, f, self)
             else:
-                return super().file(f)
+                return super().file(f, writable=writable)
 
         def filectx(self, path, *args, **kwargs):
             if self.shallowmatch(path):

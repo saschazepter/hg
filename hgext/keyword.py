@@ -846,10 +846,10 @@ def reposetup(ui, repo):
     kwt = kwtemplater(ui, repo, inc, exc)
 
     class kwrepo(repo.__class__):
-        def file(self, f):
+        def file(self, f, writable=None):
             if f[0] == b'/':
                 f = f[1:]
-            return kwfilelog(self.svfs, kwt, f)
+            return kwfilelog(self.svfs, kwt, f, writable=writable)
 
         def wread(self, filename: bytes) -> bytes:
             data = super().wread(filename)

@@ -1743,7 +1743,7 @@ class ilocalrepositoryfilestorage(Protocol):
     """
 
     @abc.abstractmethod
-    def file(self, f):
+    def file(self, f, writable=None):
         """Obtain a filelog for a tracked path.
 
         The returned type conforms to the ``ifilestorage`` interface.
