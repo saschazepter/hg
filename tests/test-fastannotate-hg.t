@@ -486,7 +486,7 @@ and its ancestor by overriding "repo._filecommit".
   >                 linkrev, tr, includecopymeta, ms):
   >     fname = fctx.path()
   >     text = fctx.data()
-  >     flog = repo.file(fname)
+  >     flog = repo.file(fname, writable=True)
   >     fparent1 = manifest1.get(fname, repo.nullid)
   >     fparent2 = manifest2.get(fname, repo.nullid)
   >     meta = {}
