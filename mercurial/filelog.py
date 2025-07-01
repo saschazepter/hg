@@ -36,7 +36,7 @@ class filelog(repository.ifilestorage):
     nullid: bytes
     _fix_issue6528: bool
 
-    def __init__(self, opener, path, try_split=False):
+    def __init__(self, opener, path, *, try_split=False):
         self._revlog = revlog.revlog(
             opener,
             # XXX should use the unencoded path
