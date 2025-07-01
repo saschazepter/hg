@@ -22,6 +22,7 @@ from . import (
 )
 from .interfaces import (
     repository,
+    types,
 )
 from .utils import storageutil
 from .revlogutils import (
@@ -36,7 +37,13 @@ class filelog(repository.ifilestorage):
     nullid: bytes
     _fix_issue6528: bool
 
-    def __init__(self, opener, path, *, try_split=False):
+    def __init__(
+        self,
+        opener: types.VfsT,
+        path: types.HgPathT,
+        *,
+        try_split: bool = False,
+    ):
         self._revlog = revlog.revlog(
             opener,
             # XXX should use the unencoded path
