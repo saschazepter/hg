@@ -212,7 +212,7 @@ def addchangegroupfiles(
         progress.increment()
 
         if not repo.shallowmatch(f):
-            fl = repo.file(f)
+            fl = repo.file(f, writable=True)
             deltas = source.deltaiter()
             fl.addgroup(deltas, revmap, trp)
             continue
