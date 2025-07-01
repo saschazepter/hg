@@ -3741,22 +3741,23 @@ class revlog:
         ):
             deltamode = repository.CG_DELTAMODE_FULL
 
-        return storageutil.emitrevisions(
-            self,
-            nodes,
-            nodesorder,
-            revlogrevisiondelta,
-            deltaparentfn=self.deltaparent,
-            candeltafn=self._candelta,
-            rawsizefn=self.rawsize,
-            revdifffn=self.revdiff,
-            flagsfn=self.flags,
-            deltamode=deltamode,
-            revisiondata=revisiondata,
-            assumehaveparentrevisions=assumehaveparentrevisions,
-            sidedata_helpers=sidedata_helpers,
-            debug_info=debug_info,
-        )
+        with self.reading():
+            return storageutil.emitrevisions(
+                self,
+                nodes,
+                nodesorder,
+                revlogrevisiondelta,
+                deltaparentfn=self.deltaparent,
+                candeltafn=self._candelta,
+                rawsizefn=self.rawsize,
+                revdifffn=self.revdiff,
+                flagsfn=self.flags,
+                deltamode=deltamode,
+                revisiondata=revisiondata,
+                assumehaveparentrevisions=assumehaveparentrevisions,
+                sidedata_helpers=sidedata_helpers,
+                debug_info=debug_info,
+            )
 
     DELTAREUSEALWAYS = b'always'
     DELTAREUSESAMEREVS = b'samerevs'
