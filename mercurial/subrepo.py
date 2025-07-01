@@ -561,7 +561,7 @@ class hgsubrepo(abstractsubrepo):
             return self._repo[rev]
 
     @annotatesubrepoerror
-    def _initrepo(self, parentrepo, source, create):
+    def _initrepo(self, parentrepo, source, create: bool = False) -> None:
         self._repo._subparent = parentrepo
         self._repo._subsource = source
 
