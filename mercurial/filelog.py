@@ -435,8 +435,10 @@ class filelog(repository.ifilestorage):
 class narrowfilelog(filelog):
     """Filelog variation to be used with narrow stores."""
 
-    def __init__(self, opener, path, narrowmatch, try_split=False):
-        super().__init__(opener, path, try_split=try_split)
+    def __init__(
+        self, opener, path, narrowmatch, writable=None, *, try_split=False
+    ):
+        super().__init__(opener, path, writable=writable, try_split=try_split)
         self._narrowmatch = narrowmatch
 
     def renamed(self, node):
