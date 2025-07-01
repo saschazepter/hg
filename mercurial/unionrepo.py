@@ -237,8 +237,8 @@ class unionfilelog(filelog.filelog):
     revlog2: revlog.revlog
 
     def __init__(self, opener, path, opener2, linkmapper, repo):
-        filelog.filelog.__init__(self, opener, path)
-        filelog2 = filelog.filelog(opener2, path)
+        filelog.filelog.__init__(self, opener, path, writable=False)
+        filelog2 = filelog.filelog(opener2, path, writable=False)
         self._revlog = unionrevlog(
             opener, self._revlog.radix, filelog2._revlog, linkmapper
         )
