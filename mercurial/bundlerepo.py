@@ -494,7 +494,7 @@ class bundlerepository(_bundle_repo_baseclass):
     def url(self):
         return self._url
 
-    def file(self, f, writable=None):
+    def file(self, f, writable=False):
         if not self._cgfilespos:
             self._cgunpacker.seek(self.filestart)
             self._cgfilespos = _getfilestarts(self._cgunpacker)

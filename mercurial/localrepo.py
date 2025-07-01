@@ -1277,7 +1277,7 @@ def makemain(**kwargs):
 class revlogfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs."""
 
-    def file(self, path, writable=None):
+    def file(self, path, writable=False):
         if path.startswith(b'/'):
             path = path[1:]
 
@@ -1294,7 +1294,7 @@ class revlogfilestorage(repository.ilocalrepositoryfilestorage):
 class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs and narrow files."""
 
-    def file(self, path, writable=None):
+    def file(self, path, writable=False):
         if path.startswith(b'/'):
             path = path[1:]
 

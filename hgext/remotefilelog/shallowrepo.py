@@ -176,7 +176,7 @@ def wraprepo(repo):
                 return None
             return ret
 
-        def file(self, f, writable=None):
+        def file(self, f, writable=False):
             if f[0] == b'/':
                 f = f[1:]
 
