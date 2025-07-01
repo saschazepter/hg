@@ -768,7 +768,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         )
         return stream
 
-    def get_revlog_instance(self, repo):
+    def get_revlog_instance(self, repo, writable=False):
         """Obtain a revlog instance from this store entry
 
         An instance of the appropriate class is returned.
@@ -781,7 +781,7 @@ class RevlogStoreEntry(BaseStoreEntry):
                 repo.nodeconstants, repo.svfs, tree=mandir
             )
         else:
-            return filelog.filelog(repo.svfs, self.target_id)
+            return filelog.filelog(repo.svfs, self.target_id, writable=writable)
 
 
 def _gather_revlog(files_data):

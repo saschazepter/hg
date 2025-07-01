@@ -127,7 +127,7 @@ def _perform_clone(
             _(b'cloning %d revisions from %s\n')
             % (len(old_revlog), revlog_path)
         )
-        newrl = entry.get_revlog_instance(dstrepo)
+        newrl = entry.get_revlog_instance(dstrepo, writable=True)
         old_revlog.clone(
             tr,
             newrl,
