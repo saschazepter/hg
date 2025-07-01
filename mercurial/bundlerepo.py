@@ -252,7 +252,7 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
 
 class bundlefilelog(filelog.filelog):
     def __init__(self, opener, path, cgunpacker, linkmapper):
-        filelog.filelog.__init__(self, opener, path)
+        filelog.filelog.__init__(self, opener, path, writable=False)
         self._revlog = bundlerevlog(
             opener,
             # XXX should use the unencoded path
