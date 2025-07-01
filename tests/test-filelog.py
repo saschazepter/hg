@@ -12,7 +12,7 @@ from mercurial import (
 myui = uimod.ui.load()
 repo = hg.repository(myui, path=b'.', create=True)
 
-fl = repo.file(b'foobar')
+fl = repo.file(b'foobar', writable=True)
 
 
 def addrev(text, renamed=False):
