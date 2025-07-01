@@ -41,7 +41,7 @@ class filelog(repository.ifilestorage):
         self,
         opener: types.VfsT,
         path: types.HgPathT,
-        writable: bool = None,  # TODO, make this a mandatory argument soon
+        writable: bool,
         *,
         try_split: bool = False,
     ):
@@ -435,9 +435,7 @@ class filelog(repository.ifilestorage):
 class narrowfilelog(filelog):
     """Filelog variation to be used with narrow stores."""
 
-    def __init__(
-        self, opener, path, narrowmatch, writable=None, *, try_split=False
-    ):
+    def __init__(self, opener, path, narrowmatch, writable, *, try_split=False):
         super().__init__(opener, path, writable=writable, try_split=try_split)
         self._narrowmatch = narrowmatch
 
