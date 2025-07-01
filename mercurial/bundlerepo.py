@@ -256,8 +256,8 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
 
 
 class bundlefilelog(filelog.filelog):
-    def __init__(self, opener, path, cgunpacker, linkmapper):
-        filelog.filelog.__init__(self, opener, path, writable=False)
+    def __init__(self, opener, path, radix, cgunpacker, linkmapper):
+        filelog.filelog.__init__(self, opener, path, radix, writable=False)
         self._revlog = bundlerevlog(
             opener,
             # XXX should use the unencoded path
@@ -507,6 +507,8 @@ class bundlerepository(_bundle_repo_baseclass):
         return self._url
 
     def file(self, f, writable=False):
+        assert not writable, "bundlerepository is read-only"
+
         if not self._cgfilespos:
             self._cgunpacker.seek(self.filestart)
             self._cgfilespos = _getfilestarts(self._cgunpacker)
@@ -514,7 +516,14 @@ class bundlerepository(_bundle_repo_baseclass):
         if f in self._cgfilespos:
             self._cgunpacker.seek(self._cgfilespos[f])
             linkmapper = self.unfiltered().changelog.rev
-            return bundlefilelog(self.svfs, f, self._cgunpacker, linkmapper)
+            radix = self.store.filelog_radix_for_reading(f)
+            return bundlefilelog(
+                self.svfs,
+                f,
+                radix,
+                self._cgunpacker,
+                linkmapper,
+            )
         else:
             return super().file(f, writable=writable)
 

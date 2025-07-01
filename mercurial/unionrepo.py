@@ -236,9 +236,10 @@ class unionfilelog(filelog.filelog):
     repotiprev: int
     revlog2: revlog.revlog
 
-    def __init__(self, opener, path, opener2, linkmapper, repo):
-        filelog.filelog.__init__(self, opener, path, writable=False)
-        filelog2 = filelog.filelog(opener2, path, writable=False)
+    def __init__(self, opener, path, radix, opener2, linkmapper, repo):
+        filelog.filelog.__init__(self, opener, path, radix, writable=False)
+        # XXX reusing the same radix here will be a problem
+        filelog2 = filelog.filelog(opener2, path, radix, writable=False)
         self._revlog = unionrevlog(
             opener, self._revlog.radix, filelog2._revlog, linkmapper
         )
@@ -304,8 +305,14 @@ class unionrepository(_union_repo_baseclass):
         return self._url
 
     def file(self, f):
+        radix = self.store.filelog_radix_for_reading(f)
         return unionfilelog(
-            self.svfs, f, self.repo2.svfs, self.unfiltered()._clrev, self
+            self.svfs,
+            f,
+            radix,
+            self.repo2.svfs,
+            self.unfiltered()._clrev,
+            self,
         )
 
     def close(self):

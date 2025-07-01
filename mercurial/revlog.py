@@ -1315,6 +1315,10 @@ class revlog:
     remove data, and can use some simple techniques to avoid the need
     for locking while reading.
 
+    The `radix` is used to derive paths for the index and data files
+    by appending extensions such as ".i". The store vfs is responsible for
+    converting these to concrete paths in the filesystem.
+
     If checkambig, indexfile is opened with checkambig=True at
     writing, to avoid file stat ambiguity.
 

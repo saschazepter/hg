@@ -1006,13 +1006,15 @@ class revlogfilestorage(repository.ilocalrepositoryfilestorage):
         if path.startswith(b'/'):
             path = path[1:]
 
-        try_split = (
-            self.currenttransaction() is not None
-            or txnutil.mayhavepending(self.root)
-        )
+        tr = self.currenttransaction()
+        try_split = tr is not None or txnutil.mayhavepending(self.root)
 
+        if writable:
+            radix = self.store.filelog_radix_for_writing(path, tr)
+        else:
+            radix = self.store.filelog_radix_for_reading(path)
         return filelog.filelog(
-            self.svfs, path, writable=writable, try_split=try_split
+            self.svfs, path, radix, writable=writable, try_split=try_split
         )
 
 
@@ -1023,13 +1025,17 @@ class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
         if path.startswith(b'/'):
             path = path[1:]
 
-        try_split = (
-            self.currenttransaction() is not None
-            or txnutil.mayhavepending(self.root)
-        )
+        tr = self.currenttransaction()
+        try_split = tr is not None or txnutil.mayhavepending(self.root)
+
+        if writable:
+            radix = self.store.filelog_radix_for_writing(path, tr)
+        else:
+            radix = self.store.filelog_radix_for_reading(path)
         return filelog.narrowfilelog(
             self.svfs,
             path,
+            radix,
             self._storenarrowmatch,
             writable=writable,
             try_split=try_split,

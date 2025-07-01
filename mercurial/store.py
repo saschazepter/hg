@@ -35,6 +35,7 @@ from .revlogutils.constants import (
     KIND_FILELOG,
     KIND_MANIFESTLOG,
 )
+from .interfaces.types import TransactionT
 from . import (
     changelog,
     error,
@@ -781,7 +782,17 @@ class RevlogStoreEntry(BaseStoreEntry):
                 repo.nodeconstants, repo.svfs, tree=mandir
             )
         else:
-            return filelog.filelog(repo.svfs, self.target_id, writable=writable)
+            if writable:
+                tr = repo.currenttransaction()
+                radix = repo.store.filelog_radix_for_writing(self.target_id, tr)
+            else:
+                radix = repo.store.filelog_radix_for_reading(self.target_id)
+            return filelog.filelog(
+                repo.svfs,
+                self.target_id,
+                radix=radix,
+                writable=writable,
+            )
 
 
 def _gather_revlog(files_data):
@@ -994,6 +1005,25 @@ class basicstore:
         if not path.endswith(b"/"):
             path = path + b"/"
         return self.vfs.exists(path)
+
+    def filelog_radix_for_reading(self, filename: bytes):
+        """Return the radix for reading an existing filelog."""
+        return b'/'.join((b'data', filename))
+
+    def filelog_radix_for_writing(self, filename: bytes, tr: TransactionT):
+        """Return the radix for writing to a (possibly new) filelog.
+
+        It is important to call this instead of filelog_radix_for_reading when
+        opening a writable filelog, because the store needs to be able to keep
+        track of when new filelogs are created.
+        """
+        if tr is None:
+            msg = (
+                b'tried to get radix for writable filelog without '
+                b'transaction: %s' % filename
+            )
+            raise error.ProgrammingError(msg)
+        return b'/'.join((b'data', filename))
 
 
 class encodedstore(basicstore):
