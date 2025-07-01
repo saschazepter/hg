@@ -77,6 +77,7 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
         delta_config=rl.delta_config,
         feature_config=rl.feature_config,
         may_inline=rl._inline,
+        writable=True,
     )
     # inline splitting will prepare some transaction work that will get
     # confused by the final file move. So if there is a risk of not being
