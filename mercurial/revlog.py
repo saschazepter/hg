@@ -1366,7 +1366,7 @@ class revlog:
         self.target = target
         if writable is None:
             if target[0] == KIND_FILELOG:
-                msg = "filelog need explicit value for `writable` parameter"
+                msg = b"filelog need explicit value for `writable` parameter"
                 util.nouideprecwarn(msg, b'7.1')
             self._writable = True
         else:
