@@ -1416,7 +1416,7 @@ class revlog:
         if writable is None:
             if target[0] == KIND_FILELOG:
                 msg = b"filelog need explicit value for `writable` parameter"
-                util.nouideprecwarn(msg, b'7.1')
+                raise error.ProgrammingError(msg)
             self._writable = True
         else:
             self._writable = bool(writable)
@@ -3107,7 +3107,7 @@ class revlog:
         if not self._writable:
             msg = b'try to write in a revlog marked as non-writable: %s'
             msg %= self.display_id
-            util.nouideprecwarn(msg, b'7.1')
+            raise error.ProgrammingError(msg)
         if self._trypending:
             msg = b'try to write in a `trypending` revlog: %s'
             msg %= self.display_id
