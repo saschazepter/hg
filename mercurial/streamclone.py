@@ -72,7 +72,9 @@ def new_stream_clone_requirements(
     configuration choice when possible.
     """
     requirements = set(default_requirements)
-    requirements & requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
+    requirements &= requirementsmod.STREAM_IGNORABLE_REQUIREMENTS | {
+        requirementsmod.NARROW_REQUIREMENT
+    }
     requirements.update(streamed_requirements)
     return requirements
 

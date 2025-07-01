@@ -1890,6 +1890,16 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
                 return False
         return True
 
+    def errorpopup(self, msg, win):
+        self.printstring(
+            win,
+            msg,
+            pairname=b"legend",
+            align=False,
+        )
+        while win.getkey() not in ["\n", "KEY_ENTER"]:
+            pass
+
     def handlesearch(self):
         win = curses.newwin(1, self.xscreensize, self.yscreensize - 1, 0)
         win.echochar("/")
@@ -1900,15 +1910,13 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         curses.noecho()
         curses.curs_set(0)
 
-        if not self.showsearch(self.regex):
-            self.printstring(
-                win,
-                _(b"Pattern not found (press ENTER)"),
-                pairname=b"legend",
-                align=False,
-            )
-            while win.getkey() not in ["\n", "KEY_ENTER"]:
-                pass
+        try:
+            if not self.showsearch(self.regex):
+                self.errorpopup(_(b"Pattern not found (press ENTER)"), win)
+        except re.error as err:
+            msg = _(b'Bad regex: %s (press ENTER)') % err.msg.encode()
+            self.errorpopup(msg, win)
+
         del win
 
         self.stdscr.clear()
@@ -1946,9 +1954,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
 
         if not self.showsearch(self.regex, forward=forward):
             win = curses.newwin(1, self.xscreensize, self.yscreensize - 1, 0)
-            self.printstring(win, failuremsg, pairname=b"legend", align=False)
-            while win.getkey() not in ["\n", "KEY_ENTER"]:
-                pass
+            self.errorpopup(failuremsg, win)
             del win
 
             self.stdscr.clear()

@@ -688,11 +688,17 @@ if pycompat.iswindows:
         stdin = None
 
         try:
-            if stdin_bytes is not None:
+            if stdin_bytes is None:
+                stdin = subprocess.DEVNULL
+            else:
                 stdin = pycompat.unnamedtempfile()
                 stdin.write(stdin_bytes)
                 stdin.flush()
                 stdin.seek(0)
+            if stdout is None:
+                stdout = subprocess.DEVNULL
+            if stderr is None:
+                stderr = subprocess.DEVNULL
 
             p = subprocess.Popen(
                 pycompat.rapply(tonativestr, script),
@@ -707,7 +713,8 @@ if pycompat.iswindows:
             if record_wait is not None:
                 record_wait(p.wait)
         finally:
-            if stdin is not None:
+            if stdin_bytes is not None and stdin is not None:
+                assert not isinstance(stdin, int)  # help pytype
                 stdin.close()
 
 else:

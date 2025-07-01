@@ -155,7 +155,10 @@ testpats = [
         (r'(?<!!)/bin/', "don't use explicit paths for tools"),
         (r'#!.*/bash', "don't use bash in shebang, use sh"),
         (r'[^\n]\Z', "no trailing newline"),
-        (r'export .*=', "don't export and assign at once"),
+        (
+            r'\bexport[ \t]+[_a-zA-Z][_a-zA-Z0-9]*=',
+            "don't export and assign at once",
+        ),
         (r'^source\b', "don't use 'source', use '.'"),
         (r'touch -d', "don't use 'touch -d', use 'touch -t' instead"),
         (r'\bls +[^|\n-]+ +-', "options to 'ls' must come before filenames"),

@@ -1476,8 +1476,8 @@ class committablectx(basectx):
     def __bytes__(self) -> bytes:
         return bytes(self._parents[0]) + b"+"
 
-    def hex(self):
-        self._repo.nodeconstants.wdirhex
+    def hex(self) -> bytes:
+        return self._repo.nodeconstants.wdirhex
 
     __str__ = encoding.strmethod(__bytes__)
 

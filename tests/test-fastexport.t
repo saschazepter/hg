@@ -894,3 +894,16 @@ test symlink conversion
   
 
 #endif
+
+Test error message in case that UTC offset is not a multiple of minutes
+
+  $ cd ..
+
+  $ hg init test_invalid_date
+  $ cd test_invalid_date
+  $ echo a > a
+  $ hg add a
+  $ hg commit -m test_invalid_date --date '0 1'
+  $ hg fastexport --color=never >/dev/null
+  abort: UTC offset in (0.0, 1) is not an integer number of minutes
+  [255]

@@ -869,7 +869,7 @@ recovery from invalid cache file with partial last record
   resetting content of cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v2: size=160
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
 
 recovery from invalid cache file with missing record - no truncation
   $ mv .hg/cache/rbc-revs-v2 .
@@ -878,18 +878,18 @@ recovery from invalid cache file with missing record - no truncation
   5
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v2: size=160
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
 
 recovery from invalid cache file with some bad records
   $ mv .hg/cache/rbc-revs-v2 .
   $ f -qDB 8 rbc-revs-v2 > .hg/cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v2: size=8
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
   $ f -qDB 112 rbc-revs-v2 >> .hg/cache/rbc-revs-v2
   $ f --size .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v2: size=120
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
   $ hg log -r 'branch(.)' -T '{rev} ' --debug
   history modification detected - truncating revision branch cache to revision * (glob)
   history modification detected - truncating revision branch cache to revision 1
@@ -900,8 +900,8 @@ recovery from invalid cache file with some bad records
   $ f --size --hexdump --bytes=16 .hg/cache/rbc-revs*
   .hg/cache/rbc-revs-v2: size=160
   0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
-  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....| (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
+  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....| (known-bad-output mmap windows10 !)
 
 Smoothly reuse "v1" format if no v2 exists
 ------------------------------------------
@@ -924,7 +924,7 @@ read only operation with valid data
   .hg/cache/rbc-names-v2: size=92
   .hg/cache/rbc-revs-v1: size=160
   .hg/cache/rbc-revs-v2: size=160
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
 
 
 Write operation write a full v2 files
@@ -934,7 +934,7 @@ Write operation write a full v2 files
   $ f --size .hg/cache/rbc-*
   .hg/cache/rbc-names-v1: size=92
   .hg/cache/rbc-revs-v1: size=160
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
   $ hg branch not-here-for-long
   marked working directory as branch not-here-for-long
   $ hg ci -m not-long --debug
@@ -947,7 +947,7 @@ Write operation write a full v2 files
   .hg/cache/rbc-names-v2: size=110
   .hg/cache/rbc-revs-v1: size=160
   .hg/cache/rbc-revs-v2: size=168
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
 
 So does explicit cache upgrade
   $ mv .hg/cache/rbc-names-v2 .hg/cache/rbc-names-v1
@@ -955,14 +955,14 @@ So does explicit cache upgrade
   $ f --size .hg/cache/rbc-*
   .hg/cache/rbc-names-v1: size=110
   .hg/cache/rbc-revs-v1: size=168
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
   $ hg debugupdatecache
   $ f --size .hg/cache/rbc-*
   .hg/cache/rbc-names-v1: size=110
   .hg/cache/rbc-names-v2: size=110
   .hg/cache/rbc-revs-v1: size=168
   .hg/cache/rbc-revs-v2: size=168
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
 
 With invalid v1 data, we rewrite it too (as v2)
 
@@ -979,7 +979,7 @@ With invalid v1 data, we rewrite it too (as v2)
   .hg/cache/rbc-names-v2: size=110
   .hg/cache/rbc-revs-v1: size=110
   .hg/cache/rbc-revs-v2: size=168
-  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows !)
+  .hg/cache/rbc-revs-v2-*: size=119 (glob) (known-bad-output mmap windows10 !)
 
 cleanup
 

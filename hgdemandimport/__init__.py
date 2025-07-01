@@ -60,6 +60,7 @@ IGNORES = {
     'setuptools',
     '_distutils_hack.override',
     # threading is locally imported by importlib.util.LazyLoader.exec_module
+    '_contextvars',
     '_weakrefset',
     'warnings',
     'threading',

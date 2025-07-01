@@ -1048,6 +1048,7 @@ def changebranch(ui, repo, revs, label, **opts):
                 _(b"cannot change branch in middle of a stack")
             )
 
+        n_branch_changes = 0
         replacements = {}
         # avoid import cycle mercurial.cmdutil -> mercurial.context ->
         # mercurial.subrepo -> mercurial.cmdutil
@@ -1058,6 +1059,24 @@ def changebranch(ui, repo, revs, label, **opts):
             oldbranch = ctx.branch()
             # check if ctx has same branch
             if oldbranch == label:
+                maybe_skip = True
+            else:
+                n_branch_changes += 1
+                maybe_skip = False
+
+            # While changing branch of set of linear commits, make sure that
+            # we base our commits on new parent rather than old parent which
+            # was obsoleted while changing the branch
+            p1 = ctx.p1().node()
+            p2 = ctx.p2().node()
+            if p1 in replacements:
+                p1 = replacements[p1][0]
+                maybe_skip = False
+            if p2 in replacements:
+                p2 = replacements[p2][0]
+                maybe_skip = False
+
+            if maybe_skip:
                 continue
 
             def filectxfn(repo, newctx, path):
@@ -1072,21 +1091,20 @@ def changebranch(ui, repo, revs, label, **opts):
             )
             extra = ctx.extra()
             extra[b'branch_change'] = hex(ctx.node())
-            # While changing branch of set of linear commits, make sure that
-            # we base our commits on new parent rather than old parent which
-            # was obsoleted while changing the branch
-            p1 = ctx.p1().node()
-            p2 = ctx.p2().node()
-            if p1 in replacements:
-                p1 = replacements[p1][0]
-            if p2 in replacements:
-                p2 = replacements[p2][0]
+
+            if len(ctx.parents()) > 1:
+                # ctx.files() isn't reliable for merges, so fall back to the
+                # slower repo.status() method
+                st = ctx.p1().status(ctx)
+                files = set(st.modified) | set(st.added) | set(st.removed)
+            else:
+                files = set(ctx.files())
 
             mc = context.memctx(
                 repo,
                 (p1, p2),
                 ctx.description(),
-                ctx.files(),
+                files,
                 filectxfn,
                 user=ctx.user(),
                 date=ctx.date(),
@@ -1115,7 +1133,7 @@ def changebranch(ui, repo, revs, label, **opts):
 
                 hg.update(repo, newid[0], quietempty=True)
 
-        ui.status(_(b"changed branch on %d changesets\n") % len(replacements))
+        ui.status(_(b"changed branch on %d changesets\n") % n_branch_changes)
 
 
 def findrepo(p: bytes) -> bytes | None:

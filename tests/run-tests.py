@@ -3331,6 +3331,7 @@ class TestRunner:
                 "-m",
                 "venv",
                 "--system-site-packages",
+                "--without-pip",
                 self._installdir,
             ]
             subprocess.run(command_create_venv, check=True)
@@ -4014,6 +4015,19 @@ class TestRunner:
             sys.stderr.write(err)
             sys.exit(3)
 
+    @staticmethod
+    def _get_debuginstall_env():
+        """return the environment to run ``hg debuginstall`` safely"""
+        # The debuginstall command checks a bunch of things, and exits with the
+        # number of errors encountered, even if -T is passed and the template
+        # didn't ask for things related to the error(s).  Supply a fallback so
+        # that running tests without --local doesn't hinge on Mercurial being
+        # configured on the current system.
+        env = os.environ.copy()
+        env["HGUSER"] = "test_gremlin"
+        env["HGEDITOR"] = sys.executable  # The executable must exist
+        return env
+
     def _get_hg_module_policy(self):
         """return the module policy as seen by the "hg" binary"""
         cmd = [
@@ -4027,6 +4041,7 @@ class TestRunner:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=True,
+            env=self._get_debuginstall_env(),
         )
         out, err = p.communicate()
         if p.returncode != 0:
@@ -4053,6 +4068,7 @@ class TestRunner:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=True,
+            env=self._get_debuginstall_env(),
         )
         out, err = p.communicate()
         if p.returncode != 0:
@@ -4172,7 +4188,12 @@ class TestRunner:
             sys.exit(1)
 
         cmd = _bytes2sys(b"%s debuginstall -Tjson" % self._hgcommand)
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            shell=True,
+            env=self._get_debuginstall_env(),
+        )
         out, err = p.communicate()
 
         props = json.loads(out)[0]

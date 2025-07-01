@@ -609,3 +609,26 @@ Cloning a repo with an empty manifestlog doesn't give some weird error
   $ (cd empty-repo; touch x; hg commit -Am empty; hg debugstrip -r 0) > /dev/null
   $ hg clone -q --stream ssh://user@dummy/empty-repo empty-repo3
   $ hg --cwd empty-repo3 verify -q
+
+Compression requirements are preserved across a stream clone
+------------------------------------------------------------
+
+  $ hg init zlib-repo --config format.revlog-compression=zlib
+  $ hg clone -q --stream ssh://user@dummy/zlib-repo zlib-clone
+
+  $ hg -R zlib-repo/ debugrequires | grep compression
+  [1]
+  $ hg -R zlib-clone debugrequires | grep compression
+  [1]
+
+#if zstd
+
+  $ hg init zstd-repo --config format.revlog-compression=zstd
+  $ hg clone -q --stream ssh://user@dummy/zstd-repo zstd-clone
+
+  $ hg -R zstd-repo debugrequires | grep compression
+  revlog-compression-zstd
+  $ hg -R zstd-clone debugrequires | grep compression
+  revlog-compression-zstd
+
+#endif

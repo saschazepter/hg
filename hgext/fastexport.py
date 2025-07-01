@@ -57,7 +57,7 @@ def convert_to_git_date(date):
     tzsign = b"+" if utcoff <= 0 else b"-"
     if utcoff % 60 != 0:
         raise error.Abort(
-            _(b"UTC offset in %b is not an integer number of seconds") % (date,)
+            _(b"UTC offset in %r is not an integer number of minutes") % (date,)
         )
     utcoff = abs(utcoff) // 60
     tzh = utcoff // 60

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shutil
 import socket
@@ -723,6 +724,21 @@ def has_tls1_3():
 @check("windows", "Windows")
 def has_windows():
     return os.name == 'nt'
+
+
+@check("windows10", "Windows 10")
+def has_windows10():
+    # platform.win32_ver()[0] == '10' would be a better check, but doesn't
+    # return 11 on Windows 11 until Python 3.12(.7?).
+    if os.name != 'nt':
+        return False
+
+    vers = platform.win32_ver()[1].split('.')
+    if len(vers) == 3:
+        # Windows 11 build numbers start at 22000
+        return int(vers[2]) < 22000
+
+    return False
 
 
 @check("system-sh", "system() uses sh")

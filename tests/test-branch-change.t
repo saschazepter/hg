@@ -349,7 +349,6 @@ Changing branch of a merge commit
   ~
 
   $ hg branch -r . ghi
-  0 files updated, 0 files merged, 4 files removed, 0 files unresolved
   changed branch on 1 changesets
   $ hg branch -r . jkl
   changed branch on 1 changesets
@@ -362,17 +361,108 @@ Changing branch of a merge commit
   $ hg branch -r . stable --force
   changed branch on 1 changesets
   $ hg branches
-  stable                        34:d1c2addda4a2
+  stable                        34:606538977fa6
   jkl                           29:6bc1c6c2c9da (inactive)
   ghi                           28:2f1019bd29d2 (inactive)
+
+Changesets already having the requested branch name must still be recreated on
+top of changed ancestors. In the following example, the tip already has the
+"stable" branch name, while its parents have a different branch name. The other
+changesets also have the "stable" branch name. When the branch name of all
+changesets is requested to be "stable", the two parents of the tip need to be
+recreated with the "stable" branch name and the tip needs to be recreated with
+the changed parents. The other changesets stay untouched.
+
+  $ hg log -r '(not branch("stable"))' -T '{node}\n' > ../not-stable.nodes
+  $ hg glog -r 'nodefromfile("../not-stable.nodes")::'
+  @    34:606538977fa6 Merge commit
+  |\   stable ()
+  | o  29:6bc1c6c2c9da Added g
+  | |  jkl ()
+  | ~
+  o  28:2f1019bd29d2 Added f
+  |  ghi (b1)
+  ~
+  $ hg branch -r 'all()' stable --force
+  changed branch on 2 changesets
+  $ hg log -r 'not branch("stable")'
+  $ hg log --hidden -T '{node}\n' \
+  >   -r 'successors(nodefromfile("../not-stable.nodes")) - hidden()' \
+  >   > ../now-stable.nodes
+  $ hg glog -r 'nodefromfile("../now-stable.nodes")::'
+  @    37:7a416ed90703 Merge commit
+  |\   stable ()
+  | o  36:b44a3dbb5c89 Added g
+  | |  stable ()
+  | ~
+  o  35:966c5d002f56 Added f
+  |  stable (b1)
+  ~
 
 Changing branch on public changeset
 
   $ hg phase -r . -p
   $ hg branch -r . def
-  abort: cannot change branch of public changesets: d1c2addda4a2
+  abort: cannot change branch of public changesets: 7a416ed90703
   (see 'hg help phases' for details)
   [10]
+
+The previous series of branch-changing commands should keep the contents unchanged
+
+  $ hg status --hidden --rev . --rev 4d56e6b1eb6b
+  $ hg status --hidden --change 4d56e6b1eb6b
+  A a.orig
+  A bar
+  A e
+  A f
+  $ hg status --change .
+  A a.orig
+  A bar
+  A e
+  A f
+  $ hg diff --hidden --from 4d56e6b1eb6b --to .
+  $ hg diff --hidden --change 4d56e6b1eb6b
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b a.orig
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/a.orig	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +bar
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b bar
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/bar	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b e
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/e	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r 6bc1c6c2c9da -r 4d56e6b1eb6b f
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/f	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +f
+  $ hg diff --change .
+  diff -r b44a3dbb5c89 -r 7a416ed90703 a.orig
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/a.orig	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +bar
+  diff -r b44a3dbb5c89 -r 7a416ed90703 bar
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/bar	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r b44a3dbb5c89 -r 7a416ed90703 e
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/e	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo
+  diff -r b44a3dbb5c89 -r 7a416ed90703 f
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/f	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +f
 
 Merge commit with conflicts, with evolution and without
 
