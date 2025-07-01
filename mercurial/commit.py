@@ -333,7 +333,7 @@ def _filecommit(
                 touched = 'modified'
             return node, touched
 
-    flog = repo.file(fname)
+    flog = repo.file(fname, writable=True)
     meta = {}
     cfname = fctx.copysource()
     fnode = None
