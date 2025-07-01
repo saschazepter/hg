@@ -1327,6 +1327,9 @@ class revlog:
         delta_config=None,
         feature_config=None,
         may_inline=True,  # may inline new revlog
+        writable: Optional[
+            bool
+        ] = None,  # None is "unspecified" and allow writing
     ):
         """
         create a revlog object
@@ -1361,6 +1364,10 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
+        if writable is None:
+            self._writable = True
+        else:
+            self._writable = bool(writable)
         if feature_config is not None:
             self.feature_config = feature_config.copy()
         elif b'feature-config' in self.opener.options:
@@ -3031,6 +3038,10 @@ class revlog:
 
     @contextlib.contextmanager
     def _writing(self, transaction):
+        if not self._writable:
+            msg = b'try to write in a revlog marked as non-writable: %s'
+            msg %= self.display_id
+            util.nouideprecwarn(msg, b'7.1')
         if self._trypending:
             msg = b'try to write in a `trypending` revlog: %s'
             msg %= self.display_id
