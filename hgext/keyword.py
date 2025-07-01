@@ -397,8 +397,8 @@ class kwfilelog(filelog.filelog):
     Keywords are "stored" unexpanded, and processed on reading.
     """
 
-    def __init__(self, opener, kwt, path):
-        super().__init__(opener, path)
+    def __init__(self, opener, kwt, path, writable=None):
+        super().__init__(opener, path, writable=writable)
         self.kwt = kwt
         self.path = path
 
