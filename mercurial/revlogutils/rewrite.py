@@ -722,7 +722,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
             if not line:
                 continue
             filenodes, filename = line.split(b' ', 1)
-            fl = repo.file(filename)
+            fl = repo.file(filename, writable=True)
             to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
             }
@@ -835,7 +835,7 @@ def repair_issue6528(
         for entry in files:
             progress.increment()
             filename = entry.target_id
-            fl = repo.file(entry.target_id)
+            fl = repo.file(entry.target_id, writable=not dry_run)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
