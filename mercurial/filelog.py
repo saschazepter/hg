@@ -41,6 +41,7 @@ class filelog(repository.ifilestorage):
         self,
         opener: types.VfsT,
         path: types.HgPathT,
+        writable: bool = None,  # TODO, make this a mandatory argument soon
         *,
         try_split: bool = False,
     ):
@@ -52,6 +53,7 @@ class filelog(repository.ifilestorage):
             censorable=True,
             canonical_parent_order=False,  # see comment in revlog.py
             try_split=try_split,
+            writable=writable,
         )
         # Full name of the user visible file, relative to the repository root.
         # Used by LFS.
