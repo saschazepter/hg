@@ -109,7 +109,7 @@ def makewrappedfile(obj):
 
 def reposetup(ui, repo):
     class wrappingflagprocessorrepo(repo.__class__):
-        def file(self, f, writable=None):
+        def file(self, f, writable=False):
             orig = super().file(f, writable=writable)
             makewrappedfile(orig)
             return orig
