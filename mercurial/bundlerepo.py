@@ -68,7 +68,13 @@ class bundlerevlog(revlog.revlog):
         # To differentiate a rev in the bundle from a rev in the revlog, we
         # check revision against repotiprev.
         opener = vfsmod.readonlyvfs(opener)
-        revlog.revlog.__init__(self, opener, target=target, radix=radix)
+        revlog.revlog.__init__(
+            self,
+            opener,
+            target=target,
+            radix=radix,
+            writable=False,
+        )
         self.bundle = cgunpacker
         n = len(self)
         self.repotiprev = n - 1
