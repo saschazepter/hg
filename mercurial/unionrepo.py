@@ -57,7 +57,13 @@ class unionrevlog(revlog.revlog):
 
             # a revlog wrapper, eg: the manifestlog that is not an actual revlog
             target = revlog2._revlog.target
-        revlog.revlog.__init__(self, opener, target=target, radix=radix)
+        revlog.revlog.__init__(
+            self,
+            opener,
+            target=target,
+            radix=radix,
+            writable=False,
+        )
         self.revlog2 = revlog2
 
         n = len(self)
