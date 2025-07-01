@@ -2463,7 +2463,7 @@ def _addchangegroupfiles(
         f = chunkdata[b"filename"]
         repo.ui.debug(b"adding %s revisions\n" % f)
         progress.increment()
-        fl = repo.file(f)
+        fl = repo.file(f, writable=True)
         o = len(fl)
         try:
             deltas = source.deltaiter()
