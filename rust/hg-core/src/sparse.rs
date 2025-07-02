@@ -320,32 +320,18 @@ fn patterns_for_rev(
 /// Obtain a matcher for sparse working directories.
 pub fn matcher(
     repo: &Repo,
+    revs: Option<Vec<Revision>>,
     warnings: &HgWarningSender,
 ) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
     if !repo.requirements().contains(SPARSE_REQUIREMENT) {
         return Ok(Box::new(AlwaysMatcher));
     }
 
-    let parents = repo.dirstate_parents()?;
-    let mut revs = vec![];
-    let p1_rev =
-        repo.changelog()?.rev_from_node(parents.p1.into()).map_err(|_| {
-            HgError::corrupted(
-                "dirstate points to non-existent parent node".to_string(),
-            )
-        })?;
-    if p1_rev != NULL_REVISION {
-        revs.push(p1_rev)
-    }
-    let p2_rev =
-        repo.changelog()?.rev_from_node(parents.p2.into()).map_err(|_| {
-            HgError::corrupted(
-                "dirstate points to non-existent parent node".to_string(),
-            )
-        })?;
-    if p2_rev != NULL_REVISION {
-        revs.push(p2_rev)
-    }
+    let revs = if let Some(revs) = revs {
+        revs
+    } else {
+        dirstate_parent_revs(repo)?
+    };
     let mut matchers = vec![];
 
     for rev in revs.iter() {
@@ -389,6 +375,47 @@ pub fn matcher(
     let matcher =
         force_include_matcher(result, &read_temporary_includes(repo)?)?;
     Ok(matcher)
+}
+
+/// Return the revs for non-null dirstate parents
+fn dirstate_parent_revs(
+    repo: &Repo,
+) -> Result<Vec<Revision>, SparseConfigError> {
+    let parents = repo.dirstate_parents()?;
+    let mut revs = vec![];
+    let p1_rev =
+        repo.changelog()?.rev_from_node(parents.p1.into()).map_err(|_| {
+            HgError::corrupted(
+                "dirstate points to non-existent parent node".to_string(),
+            )
+        })?;
+    if p1_rev != NULL_REVISION {
+        revs.push(p1_rev)
+    }
+    let p2_rev =
+        repo.changelog()?.rev_from_node(parents.p2.into()).map_err(|_| {
+            HgError::corrupted(
+                "dirstate points to non-existent parent node".to_string(),
+            )
+        })?;
+    if p2_rev != NULL_REVISION {
+        revs.push(p2_rev)
+    }
+    Ok(revs)
+}
+
+pub fn active_profiles(
+    repo: &Repo,
+    warnings: &HgWarningSender,
+) -> Result<HashSet<Vec<u8>>, HgError> {
+    let revs = dirstate_parent_revs(repo)?;
+    let mut profiles = HashSet::new();
+    for rev in revs {
+        if let Some(config) = patterns_for_rev(repo, rev, warnings)? {
+            profiles.extend(config.profiles.into_iter());
+        }
+    }
+    Ok(profiles)
 }
 
 /// Returns a matcher that returns true for any of the forced includes before

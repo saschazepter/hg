@@ -28,7 +28,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
 
     let warning_context = HgWarningContext::new();
-    let matcher = hg::sparse::matcher(repo, warning_context.sender()).unwrap();
+    let matcher =
+        hg::sparse::matcher(repo, None, warning_context.sender()).unwrap();
 
     print_warnings(
         invocation.ui,

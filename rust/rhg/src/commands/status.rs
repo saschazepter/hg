@@ -473,7 +473,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let warnings_sender = warning_context.sender();
 
     let narrow_matcher = narrow::matcher(repo, warnings_sender)?;
-    let sparse_matcher = sparse::matcher(repo, warnings_sender)?;
+    let sparse_matcher = sparse::matcher(repo, None, warnings_sender)?;
     // Sparse is only applicable for the working copy, not history.
     let sparse_is_applicable = revpair.is_none() && change.is_none();
     let matcher =

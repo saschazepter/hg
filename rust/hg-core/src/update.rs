@@ -77,7 +77,7 @@ pub fn update_from_null(
     let tracked_files: Result<Vec<_>, _> = if !repo.has_sparse() {
         files_for_rev.iter().collect()
     } else {
-        let sparse_matcher = sparse::matcher(repo, warnings)?;
+        let sparse_matcher = sparse::matcher(repo, None, warnings)?;
         files_for_rev
             .iter()
             .filter(|f| {
