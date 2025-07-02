@@ -1133,10 +1133,10 @@ impl OwningDirstateMap {
     pub fn reset_state(
         &mut self,
         reset: DirstateEntryReset,
-    ) -> Result<(), DirstateError> {
+    ) -> Result<bool, DirstateError> {
         if !(reset.p1_tracked || reset.p2_info || reset.wc_tracked) {
             self.drop_entry_and_copy_source(reset.filename)?;
-            return Ok(());
+            return Ok(false);
         }
         if !reset.from_empty {
             self.copy_map_remove(reset.filename)?;
@@ -1157,7 +1157,8 @@ impl OwningDirstateMap {
                 reset.p2_info,
                 reset.has_meaningful_mtime,
                 reset.parent_file_data_opt,
-            )
+            )?;
+            Ok(old_entry_opt.is_none())
         })
     }
 

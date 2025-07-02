@@ -243,7 +243,8 @@ impl DirstateMap {
         };
 
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.reset_state(reset).map_err(dirstate_error)
+            inner.reset_state(reset).map_err(dirstate_error)?;
+            Ok(())
         })
     }
 
