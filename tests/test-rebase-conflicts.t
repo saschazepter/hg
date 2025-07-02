@@ -280,13 +280,13 @@ Check that the right ancestors is used while rebasing a merge (issue4041)
   rebase status stored
   rebase merging completed
   update back to initial working directory parent
-  resolving manifests
-   branchmerge: False, force: False, partial: False
-   ancestor: c1ffa3b5274e, local: c1ffa3b5274e+, remote: d79e2059b5c0
-   f1.txt: other deleted -> r
-  removing f1.txt
-   f2.txt: remote created -> g
-  getting f2.txt
+  resolving manifests (no-rust !)
+   branchmerge: False, force: False, partial: False (no-rust !)
+   ancestor: c1ffa3b5274e, local: c1ffa3b5274e+, remote: d79e2059b5c0 (no-rust !)
+   f1.txt: other deleted -> r (no-rust !)
+  removing f1.txt (no-rust !)
+   f2.txt: remote created -> g (no-rust !)
+  getting f2.txt (no-rust !)
   2 changesets found
   list of changesets:
   e31216eec445e44352c5f01588856059466a24c9

@@ -52,7 +52,7 @@ struct FileNotFound(std::io::Error, PathBuf);
 /// Store the umask for the whole process since it's expensive to get.
 static UMASK: OnceLock<u32> = OnceLock::new();
 
-fn get_umask() -> u32 {
+pub fn get_umask() -> u32 {
     *UMASK.get_or_init(|| unsafe {
         // TODO is there any way of getting the umask without temporarily
         // setting it? Doesn't this affect all threads in this tiny window?
@@ -692,6 +692,8 @@ impl Vfs for VfsImpl {
             // Creating the file with the right permission (with `.mode()`)
             // may not work since umask takes effect for file creation.
             // So we need to fix the permission after creating the file.
+            // TODO figure out a performant way of doing this, as this
+            // introduces contention and a lot of folders are in common.
             fix_directory_permissions(&self.base, &path, mode)?;
             let perm = std::fs::Permissions::from_mode(mode & 0o666);
             std::fs::set_permissions(&path, perm).when_writing_file(&path)?;

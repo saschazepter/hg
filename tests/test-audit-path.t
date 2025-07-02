@@ -212,9 +212,15 @@ Test symlink traversal on update:
 try linear update where symlink already exists:
 
   $ hg up -qC 0
+#if rust
+  $ hg up 1
+  abort: path 'a/b' traverses symbolic link 'a'
+  [10]
+#else
   $ hg up 1
   abort: path 'a/b' traverses symbolic link 'a'
   [255]
+#endif
 
 try linear update including symlinked directory and its content: paths are
 audited first by calculateupdates(), where no symlink is created so both
@@ -225,9 +231,7 @@ audited first by calculateupdates(), where no symlink is created so both
   $ hg up 1
   abort: path 'a/?' traverses symbolic link 'a' (glob)
   [10]
-#endif
-
-#if no-rust
+#else
   $ hg up 1
   abort: path 'a/b' traverses symbolic link 'a'
   [255]
@@ -241,9 +245,15 @@ a symlink.
   $ rm -rf a
   $ hg up -qC 2
 
+#if rust
+  $ hg up 1
+  abort: path 'a/?' traverses symbolic link 'a' (glob)
+  [10]
+#else
   $ hg up 1
   abort: path 'a/?' traverses symbolic link 'a' (glob)
   [255]
+#endif
   $ ls ../update-symlink-out
 
   $ cd ..

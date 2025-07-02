@@ -27,11 +27,11 @@ Peform an update that causes b/c to be backed up
   $ mkdir -p b
   $ echo c2 > b/c
   $ hg up --verbose c1
-  resolving manifests
+  resolving manifests (no-rust !)
   b/c: replacing untracked file
-  getting b/c
-  creating directory: $TESTTMP/repo/.hg/origbackups/b
-  getting d
+  getting b/c (no-rust !)
+  creating directory: $TESTTMP/repo/.hg/origbackups/b (no-rust !)
+  getting d (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark c1)
   $ test -f .hg/origbackups/b/c
@@ -51,11 +51,11 @@ Perform an update that causes b to be backed up - it should replace the backup b
   $ hg up -q 0
   $ echo b2 > b
   $ hg up --verbose b1
-  resolving manifests
+  resolving manifests (no-rust !)
   b: replacing untracked file
-  getting b
-  removing conflicting directory: $TESTTMP/repo/.hg/origbackups/b
-  getting d
+  getting b (no-rust !)
+  removing conflicting directory: $TESTTMP/repo/.hg/origbackups/b (no-rust !)
+  getting d (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark b1)
   $ test -f .hg/origbackups/b
@@ -66,12 +66,12 @@ Perform an update the causes b/c to be backed up again - it should replace the b
   $ mkdir b
   $ echo c3 > b/c
   $ hg up --verbose c1
-  resolving manifests
+  resolving manifests (no-rust !)
   b/c: replacing untracked file
-  getting b/c
-  creating directory: $TESTTMP/repo/.hg/origbackups/b
-  removing conflicting file: $TESTTMP/repo/.hg/origbackups/b
-  getting d
+  getting b/c (no-rust !)
+  creating directory: $TESTTMP/repo/.hg/origbackups/b (no-rust !)
+  removing conflicting file: $TESTTMP/repo/.hg/origbackups/b (no-rust !)
+  getting d (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark c1)
   $ test -d .hg/origbackups/b
@@ -103,13 +103,13 @@ Perform an update that causes b/c and d to be backed up again - b/c should not g
   $ echo c4 > b/c
   $ echo d3 > d
   $ hg up --verbose c1
-  resolving manifests
+  resolving manifests (no-rust !)
   b/c: replacing untracked file
   d: replacing untracked file
-  getting b/c
-  creating directory: $TESTTMP/repo/.hg/origbackups/b
-  removing conflicting file: $TESTTMP/repo/.hg/origbackups/b
-  getting d
+  getting b/c (no-rust !)
+  creating directory: $TESTTMP/repo/.hg/origbackups/b (no-rust !)
+  removing conflicting file: $TESTTMP/repo/.hg/origbackups/b (no-rust !)
+  getting d (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark c1)
   $ cat .hg/origbackups/b/c
@@ -125,12 +125,12 @@ Incorrectly configure origbackuppath to be under a file
   $ mkdir b
   $ echo c5 > b/c
   $ hg up --verbose c1 --config ui.origbackuppath=.hg/badorigbackups
-  resolving manifests
+  resolving manifests (no-rust !)
   b/c: replacing untracked file
-  getting b/c
-  creating directory: $TESTTMP/repo/.hg/badorigbackups/b
-  removing conflicting file: $TESTTMP/repo/.hg/badorigbackups
-  getting d
+  getting b/c (no-rust !)
+  creating directory: $TESTTMP/repo/.hg/badorigbackups/b (no-rust !)
+  removing conflicting file: $TESTTMP/repo/.hg/badorigbackups (no-rust !)
+  getting d (no-rust !)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark c1)
   $ ls .hg/badorigbackups/b

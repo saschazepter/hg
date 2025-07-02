@@ -359,6 +359,7 @@ impl<'a> FilelogRevisionMetadata<'a> {
 }
 
 /// Outcome of checking if a file has changed since the last commit
+#[derive(Debug, PartialEq, Eq)]
 pub enum FileCompOutcome {
     /// The file is actually clean
     Clean,

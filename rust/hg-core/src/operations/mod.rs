@@ -19,6 +19,7 @@ pub use list_tracked_files::list_rev_tracked_files;
 pub use list_tracked_files::list_revset_tracked_files;
 pub use list_tracked_files::ExpandedManifestEntry;
 pub use list_tracked_files::FilesForRev;
+pub use list_tracked_files::FilesForRevBorrowed;
 pub use status_rev_rev::status_change;
 pub use status_rev_rev::status_rev_rev_no_copies;
 pub use status_rev_rev::DiffStatus;

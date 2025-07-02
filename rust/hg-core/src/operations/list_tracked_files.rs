@@ -67,6 +67,11 @@ pub struct FilesForRev<M> {
     narrow_matcher: M,
 }
 
+pub struct FilesForRevBorrowed<'a> {
+    manifest: &'a Manifest,
+    narrow_matcher: &'a dyn Matcher,
+}
+
 /// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
 /// already checked.
 pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, ManifestFlags);
@@ -75,6 +80,27 @@ impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ExpandedManifestEntry, HgError>> {
+        filter_map_results(self.manifest.iter(), |entry| {
+            let path = entry.path;
+            Ok(if self.narrow_matcher.matches(path) {
+                Some((path, entry.node_id()?, entry.flags))
+            } else {
+                None
+            })
+        })
+    }
+}
+
+impl<'a> FilesForRevBorrowed<'a> {
+    pub fn new(
+        manifest: &'a Manifest,
+        narrow_matcher: &'a impl Matcher,
+    ) -> Self {
+        Self { manifest, narrow_matcher }
+    }
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'a>, HgError>> {
         filter_map_results(self.manifest.iter(), |entry| {
             let path = entry.path;
             Ok(if self.narrow_matcher.matches(path) {

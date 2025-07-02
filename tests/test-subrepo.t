@@ -282,11 +282,11 @@ merge tests
   subrepo merge f0d2028bf86d+ 1831e14459c4 1f14a2e2d3ec
     subrepo t: other changed, get t:6747d179aa9a688023c4b0cad32e4c92bb7f34ad:hg
   getting subrepo t
-  resolving manifests
-   branchmerge: False, force: False, partial: False
-   ancestor: 60ca1237c194, local: 60ca1237c194+, remote: 6747d179aa9a
-   t: remote is newer -> g
-  getting t
+  resolving manifests (no-rust !)
+   branchmerge: False, force: False, partial: False (no-rust !)
+   ancestor: 60ca1237c194, local: 60ca1237c194+, remote: 6747d179aa9a (no-rust !)
+   t: remote is newer -> g (no-rust !)
+  getting t (no-rust !)
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg debugsub

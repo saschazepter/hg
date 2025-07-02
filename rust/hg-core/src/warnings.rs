@@ -6,12 +6,14 @@ use crossbeam_channel::Sender;
 
 use crate::filepatterns::PatternFileWarning;
 use crate::sparse::SparseNarrowWarning;
+use crate::update::UpdateWarning;
 
 /// A warning in any Mercurial logic
 #[derive(Debug, derive_more::From)]
 pub enum HgWarning {
     SparseNarrow(SparseNarrowWarning),
     PatternFile(PatternFileWarning),
+    Update(UpdateWarning),
 }
 
 /// A simple convenience wrapper around a [`Sender<HgWarning>`].
@@ -110,6 +112,9 @@ pub mod format {
             HgWarning::PatternFile(w) => {
                 write_pattern_file_warning(w, output, working_directory)
             }
+            HgWarning::Update(w) => {
+                write_update_warning(w, output, working_directory)
+            }
         }
     }
 
@@ -166,6 +171,45 @@ pub mod format {
                     b"skipping unreadable pattern file '{}': \
                         No such file or directory\n",
                     get_bytes_from_path(path),
+                )
+            }
+        }
+    }
+
+    fn write_update_warning(
+        warning: &UpdateWarning,
+        output: &mut dyn std::io::Write,
+        working_directory: &Path,
+    ) -> std::io::Result<()> {
+        match warning {
+            UpdateWarning::UnlinkFailure(path, err) => {
+                write_bytes!(
+                    output,
+                    b"update failed to remove {}: \"{}\"!\n",
+                    get_bytes_from_path(path),
+                    err.to_string().as_bytes(),
+                )
+            }
+            UpdateWarning::CwdRemoved => {
+                write_bytes!(
+                    output,
+                    b"current directory was removed\n\
+                    (consider changing to repo root: {})\n",
+                    get_bytes_from_path(working_directory),
+                )
+            }
+            UpdateWarning::UntrackedConflict(path) => {
+                write_bytes!(
+                    output,
+                    b"{}: untracked file differs\n",
+                    path.as_bytes(),
+                )
+            }
+            UpdateWarning::ReplacingUntracked(path) => {
+                write_bytes!(
+                    output,
+                    b"{}: replacing untracked file\n",
+                    path.as_bytes(),
                 )
             }
         }

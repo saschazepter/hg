@@ -31,6 +31,9 @@ pub const STORED_NODE_ID_BYTES: usize = 32;
 /// Used to indicate the absence of node.
 pub const NULL_NODE_ID: [u8; NODE_BYTES_LENGTH] = [0u8; NODE_BYTES_LENGTH];
 
+/// Temporary node id to refer to an added (uncommitted) id
+pub const ADDED_NODE_ID: [u8; NODE_BYTES_LENGTH] = *b"000000000000000added";
+
 /// The length in bytes of a `Node`
 ///
 /// see also `NODES_BYTES_LENGTH` about it being private.

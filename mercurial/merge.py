@@ -2071,15 +2071,22 @@ def _update(
         if not branchmerge and not is_dirty:
             followcopies = False
 
-        (update_from_null_fallback, res) = _update_rust_fast_path(
+        (update_from_rust_fallback, res) = _update_rust_fast_path(
             repo=repo,
             wc=wc,
             p1=p1,
             p2=p2,
+            pas=pas,
+            pl=pl,
             branchmerge=branchmerge,
             matcher=matcher,
+            is_dirty=is_dirty,
+            force=force,
+            mergeancestor=mergeancestor,
+            followcopies=followcopies,
+            mergeforce=mergeforce,
         )
-        if not update_from_null_fallback and res is not None:
+        if not update_from_rust_fallback and res is not None:
             return res
 
         ### calculate phase
@@ -2206,7 +2213,7 @@ def _update(
         always = matcher is None or matcher.always()
         updatedirstate = updatedirstate and always and not wc.isinmemory()
         # If we're in the fallback case, we've already done this
-        if updatedirstate and not update_from_null_fallback:
+        if updatedirstate and not update_from_rust_fallback:
             repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write(b'updatestate', p2.hex())
@@ -2386,9 +2393,30 @@ def filter_ambiguous_files(repo, file_data: FileData) -> FileData:
     return file_data
 
 
-def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
+def _update_rust_fast_path(
+    repo,
+    wc,
+    p1,
+    p2,
+    pas,
+    pl,
+    branchmerge,
+    matcher,
+    is_dirty,
+    force,
+    mergeancestor,
+    followcopies,
+    mergeforce,
+):
     # avoid same cycle as in `_update`
-    from . import sparse
+    from . import bundlerepo, sparse
+
+    is_bundlerepo = isinstance(repo, bundlerepo.bundlerepository)
+    update_from_clean = (
+        MAYBE_USE_RUST_UPDATE
+        and not is_dirty
+        and repo.ui.configbool(b"rust", b"update-from-clean")
+    )
 
     fp2, xp1, xp2 = p2.node(), bytes(p1), bytes(p2)
 
@@ -2400,6 +2428,7 @@ def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
     update_from_null = False
     if (
         MAYBE_USE_RUST_UPDATE
+        and not is_bundlerepo
         and repo.ui.configbool(b"rust", b"update-from-null")
         and rust_update_mod is not None
         and p1.rev() == nullrev
@@ -2421,6 +2450,10 @@ def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
             except StopIteration:
                 update_from_null = True
 
+    devel_abort_dirstate = repo.ui.configbool(
+        b"devel", b"update.abort-on-dirstate-change"
+    )
+
     def on_rust_warnings(warnings: Iterator[bytes]):
         """It is faster to loop in Python in cases with many items than
         to call back from Rust in a loop."""
@@ -2439,7 +2472,11 @@ def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
 
         try:
             updated_count = rust_update_mod.update_from_null(
-                repo.root, p2.rev(), num_cpus, on_rust_warnings
+                repo.root,
+                p2.rev(),
+                num_cpus,
+                on_rust_warnings,
+                devel_abort_dirstate,
             )
         except rust_update_mod.FallbackError:
             return (True, None)
@@ -2456,6 +2493,93 @@ def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
             # update completed, clear state
             util.unlink(repo.vfs.join(b'updatestate'))
             return (False, updateresult(updated_count, 0, 0, 0))
+    elif update_from_clean:
+        if (
+            rust_update_mod is not None
+            and MAYBE_USE_RUST_UPDATE
+            and not is_bundlerepo
+            and not branchmerge
+            and not force  # TODO support force?
+            and not mergeancestor
+            and not followcopies
+            and not mergeforce
+            and matcher is None
+            and not scmutil.istreemanifest(repo)
+            and len(pas) == 1
+            and pas[0] in [wc, p2] + wc.parents()
+            # TODO it's probably not too hard to pass down the transaction
+            # and respect the write patterns from Rust, but since it
+            # doesn't affect an update from clean, then it doesn't
+            # matter yet.
+            and repo.currenttransaction() is None
+            and not repo.ui.configbool(
+                b'experimental', b'merge.checkpathconflicts'
+            )
+            and util.fscasesensitive(repo.path)
+            and not wc.mergestate().active()
+            and never_had_subrepos
+        ):
+            repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
+            # note that we're in the middle of an update
+            repo.vfs.write(b'updatestate', p2.hex())
+
+            # TODO make the config object a Rust-based one so we can just
+            # reuse it transparently and not worry about CLI arguments
+            # not being caught by Rust
+            num_cpus = (
+                repo.ui.configint(b"worker", b"numcpus", None)
+                if repo.ui.configbool(b"worker", b"enabled")
+                else 1
+            )
+            remove_empty_dirs = repo.ui.configbool(
+                b"experimental", b"removeemptydirs"
+            )
+            orig_backup_path = repo.ui.config(b"ui", b"origbackuppath")
+            atomic_file = repo.ui.configbool(
+                b"experimental", b"update.atomic-file"
+            )
+
+            try:
+                with util.rust_tracing_span("update from clean python"):
+                    p1_manifest = pl[0]._manifest._lm
+                    p2_manifest = p2._manifest._lm
+                    update_stats = rust_update_mod.update_from_clean(
+                        repo_path=repo.root,
+                        wc_manifest_bytes=p1_manifest.text(),
+                        target_node=p2.node(),
+                        target_rev=p2.rev(),
+                        target_manifest_bytes=p2_manifest.text(),
+                        num_cpus=num_cpus,
+                        remove_empty_dirs=remove_empty_dirs,
+                        devel_abort_dirstate=devel_abort_dirstate,
+                        orig_backup_path=orig_backup_path,
+                        atomic_file=atomic_file,
+                        on_warnings=on_rust_warnings,
+                    )
+            except rust_update_mod.FallbackError:
+                return (True, None)
+            else:
+                # We've changed the dirstate from Rust, we need to
+                # tell Python
+                repo.dirstate.invalidate()
+                # This includes setting the parents, since they are not
+                # read again on invalidation
+                with repo.dirstate.changing_parents(repo):
+                    repo.setparents(fp2)
+                repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
+                sparse.prunetemporaryincludes(repo)
+                repo.hook(b'update', parent1=xp2, parent2=b'', error=0)
+                # update completed, clear state
+                util.unlink(repo.vfs.join(b'updatestate'))
+
+                result = updateresult(
+                    update_stats[0],
+                    update_stats[1],
+                    update_stats[2],
+                    update_stats[3],
+                )
+
+                return (False, result)
 
     return (False, None)
 
