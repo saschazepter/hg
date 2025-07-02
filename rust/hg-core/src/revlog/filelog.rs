@@ -379,7 +379,11 @@ pub fn is_file_modified(
 ) -> Result<FileCompOutcome, HgError> {
     let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
-    let fs_metadata = vfs.symlink_metadata(&fs_path)?;
+    let fs_metadata = if let Ok(it) = vfs.symlink_metadata(&fs_path) {
+        it
+    } else {
+        return Ok(FileCompOutcome::Deleted);
+    };
     let is_symlink = fs_metadata.file_type().is_symlink();
 
     let entry =
