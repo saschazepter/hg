@@ -2392,6 +2392,11 @@ def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
 
     fp2, xp1, xp2 = p2.node(), bytes(p1), bytes(p2)
 
+    # Checking for subrepos is quite expensive as it requires multiple
+    # manifest lookups. Here, we cheat by looking directly in the store
+    # for the `.hgsub` filelog path.
+    never_had_subrepos = not repo.svfs.exists(b"data/.hgsub.i")
+
     update_from_null = False
     if (
         MAYBE_USE_RUST_UPDATE
@@ -2405,7 +2410,7 @@ def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
         and repo.currenttransaction() is None
         and matcher is None
         and not wc.mergestate().active()
-        and b'.hgsubstate' not in p2
+        and never_had_subrepos
     ):
         working_dir_iter = os.scandir(repo.root)
         maybe_hg_folder = next(working_dir_iter)

@@ -99,7 +99,7 @@ share shouldn't have a full cache dir, original repo should
   checkisexec (execbit !)
   checklink (symlink no-rust !)
   checklink-target (symlink no-rust !)
-  manifestfulltextcache
+  manifestfulltextcache (no-rust !)
   $ ls -1 ../repo1/.hg/cache
   branch2-served
   rbc-names-v2

@@ -294,6 +294,7 @@ creating some history
   total cache data size 1.76 KB, on-disk 1.76 KB
   $ hg -R share-source update 1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#if no-rust
   $ hg debugmanifestfulltextcache -R share-source
   cache contains 4 manifest entries, in order of most to least recent:
   id: fffc37b38c401b1ab4f8b99da4b72325e31b985f, size 90 bytes
@@ -301,6 +302,7 @@ creating some history
   id: c6e7b359cbbb5469e98f35acd73ac4757989c4d8, size 450 bytes
   id: 8de636143b0acc5236cb47ca914bd482d82e6f35, size 405 bytes
   total cache data size 1.50 KB, on-disk 1.50 KB
+#endif
 
 making a share out of it. It should have its manifest cache updated
 
@@ -309,10 +311,15 @@ making a share out of it. It should have its manifest cache updated
   11 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg log --debug -r . -R share-dest | grep 'manifest:'
   manifest:    10:b264454d7033405774b9f353b9b37a082c1a8fba
+#if rust
+  $ hg debugmanifestfulltextcache -R share-dest
+  cache empty
+#else
   $ hg debugmanifestfulltextcache -R share-dest
   cache contains 1 manifest entries, in order of most to least recent:
   id: b264454d7033405774b9f353b9b37a082c1a8fba, size 496 bytes
   total cache data size 520 bytes, on-disk 520 bytes
+#endif
 
 update on various side should only affect the target share
 
@@ -320,6 +327,7 @@ update on various side should only affect the target share
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ hg log --debug -r . -R share-dest | grep 'manifest:'
   manifest:    4:d45ead487afec2588272fcec88a25413c0ec7dc8
+#if no-rust
   $ hg debugmanifestfulltextcache -R share-dest
   cache contains 2 manifest entries, in order of most to least recent:
   id: d45ead487afec2588272fcec88a25413c0ec7dc8, size 225 bytes
@@ -332,6 +340,7 @@ update on various side should only affect the target share
   id: c6e7b359cbbb5469e98f35acd73ac4757989c4d8, size 450 bytes
   id: 8de636143b0acc5236cb47ca914bd482d82e6f35, size 405 bytes
   total cache data size 1.50 KB, on-disk 1.50 KB
+#endif
   $ hg update -R share-source 7
   6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg log --debug -r . -R share-source | grep 'manifest:'
@@ -352,12 +361,20 @@ update on various side should only affect the target share
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg log --debug -r . -R share-dest | grep 'manifest:'
   manifest:    8:8de636143b0acc5236cb47ca914bd482d82e6f35
+#if rust
+  $ hg debugmanifestfulltextcache -R share-dest | tail -4 | sort
+  id: 8de636143b0acc5236cb47ca914bd482d82e6f35, size 405 bytes
+  id: b264454d7033405774b9f353b9b37a082c1a8fba, size 496 bytes
+  id: d45ead487afec2588272fcec88a25413c0ec7dc8, size 225 bytes
+  total cache data size 1.17 KB, on-disk 1.17 KB
+#else
   $ hg debugmanifestfulltextcache -R share-dest
   cache contains 3 manifest entries, in order of most to least recent:
   id: 8de636143b0acc5236cb47ca914bd482d82e6f35, size 405 bytes
   id: d45ead487afec2588272fcec88a25413c0ec7dc8, size 225 bytes
   id: b264454d7033405774b9f353b9b37a082c1a8fba, size 496 bytes
   total cache data size 1.17 KB, on-disk 1.17 KB
+#endif
   $ hg debugmanifestfulltextcache -R share-source
   cache contains 4 manifest entries, in order of most to least recent:
   id: 7d32499319983d90f97ca02a6c2057a1030bebbb, size 360 bytes
