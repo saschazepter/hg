@@ -209,7 +209,72 @@ impl Manifest {
             Ok(None)
         }
     }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn diff<'m1: 'm_any, 'm2: 'm_any, 'm_any>(
+        &'m1 self,
+        other: &'m2 Manifest,
+    ) -> Result<ManifestDiff<'m_any>, HgError> {
+        let mut res = Vec::new();
+        let mut left = self.iter().peekable();
+        let mut right = other.iter().peekable();
+
+        loop {
+            match (left.peek(), right.peek()) {
+                (None, None) => break,
+                (Some(Ok(left_entry)), Some(Ok(right_entry))) => {
+                    // Since manifests are sorted, we can determine which
+                    // entry is missing
+                    match left_entry.path.cmp(right_entry.path) {
+                        std::cmp::Ordering::Less => {
+                            // Path missing on the right
+                            res.push((Some(left.next().unwrap()?), None));
+                        }
+                        std::cmp::Ordering::Equal => {
+                            // Same path in both, don't compare the paths again
+                            if left_entry.flags != right_entry.flags
+                                || left_entry.hex_node_id
+                                    != right_entry.hex_node_id
+                            {
+                                res.push((
+                                    Some(left.next().unwrap()?),
+                                    Some(right.next().unwrap()?),
+                                ));
+                            } else {
+                                left.next();
+                                right.next();
+                            }
+                        }
+                        std::cmp::Ordering::Greater => {
+                            // Path missing on the left
+                            res.push((None, Some(right.next().unwrap()?)));
+                        }
+                    }
+                }
+                (Some(Ok(_)), None) => {
+                    // Right manifest is done, the rest are adds
+                    for entry in left {
+                        res.push((Some(entry?), None));
+                    }
+                    break;
+                }
+                (None, Some(Ok(_))) => {
+                    // Left manifest is done, the rest are adds
+                    for entry in right {
+                        res.push((None, Some(entry?)));
+                    }
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(res)
+    }
 }
+
+pub type ManifestDiff<'a> =
+    Vec<(Option<ManifestEntry<'a>>, Option<ManifestEntry<'a>>)>;
 
 /// Represents the flags of a given [`ManifestEntry`].
 #[derive(Copy, Clone, Debug, PartialEq)]
