@@ -1,4 +1,5 @@
 use std::num::NonZeroU8;
+use std::ops::Deref;
 
 use super::RevlogType;
 use crate::errors::HgError;
@@ -70,13 +71,13 @@ impl Manifestlog {
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data_for_unchecked_rev(rev)?.into_owned();
-        Ok(Manifest { bytes })
+        Ok(Manifest { bytes: Box::new(bytes) })
     }
 
     /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
     pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data(rev)?.into_owned();
-        Ok(Manifest { bytes })
+        Ok(Manifest { bytes: Box::new(bytes) })
     }
 
     /// Returns a manifest containing entries for `rev` that are not in its
@@ -97,12 +98,11 @@ impl Manifestlog {
         for chunk in self.revlog.get_data_incr(rev)?.as_patch_list()?.chunks {
             bytes.extend_from_slice(chunk.data);
         }
-        Ok(Manifest { bytes })
+        Ok(Manifest { bytes: Box::new(bytes) })
     }
 }
 
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
-#[derive(Debug)]
 pub struct Manifest {
     /// Format for a manifest: flat sequence of variable-size entries,
     /// sorted by path, each as:
@@ -113,13 +113,19 @@ pub struct Manifest {
     ///
     /// The last entry is also terminated by a newline character.
     /// Flags is one of `b""` (the empty string), `b"x"`, `b"l"`, or `b"t"`.
-    bytes: Vec<u8>,
+    bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
 }
 
 impl Manifest {
     /// Return a new empty manifest
     pub fn empty() -> Self {
-        Self { bytes: vec![] }
+        Self { bytes: Box::new(vec![]) }
+    }
+
+    pub fn from_bytes(
+        bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+    ) -> Self {
+        Self { bytes }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
@@ -138,7 +144,7 @@ impl Manifest {
         let path = path.as_bytes();
         // Both boundaries of this `&[u8]` slice are always at the boundary of
         // an entry
-        let mut bytes = &*self.bytes;
+        let mut bytes: &[u8] = &self.bytes;
 
         // Binary search algorithm derived from `[T]::binary_search_by`
         // <https://github.com/rust-lang/rust/blob/1.57.0/library/core/src/slice/mod.rs#L2221>
