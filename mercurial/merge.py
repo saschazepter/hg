@@ -2067,66 +2067,16 @@ def _update(
         if not branchmerge and not wc.dirty(missing=True):
             followcopies = False
 
-        update_from_null = False
-        update_from_null_fallback = False
-        if (
-            MAYBE_USE_RUST_UPDATE
-            and repo.ui.configbool(b"rust", b"update-from-null")
-            and rust_update_mod is not None
-            and p1.rev() == nullrev
-            and not branchmerge
-            # TODO it's probably not too hard to pass down the transaction and
-            # respect the write patterns from Rust. But since it doesn't affect
-            # a simple update from null, then it doesn't matter yet.
-            and repo.currenttransaction() is None
-            and matcher is None
-            and not wc.mergestate().active()
-            and b'.hgsubstate' not in p2
-        ):
-            working_dir_iter = os.scandir(repo.root)
-            maybe_hg_folder = next(working_dir_iter)
-            assert maybe_hg_folder is not None
-            if maybe_hg_folder.name == b".hg":
-                try:
-                    next(working_dir_iter)
-                except StopIteration:
-                    update_from_null = True
-
-        def on_rust_warnings(warnings: Iterator[bytes]):
-            """It is faster to loop in Python in cases with many items than
-            to call back from Rust in a loop."""
-            for warning in warnings:
-                repo.ui.warn(warning)
-
-        if update_from_null:
-            repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
-            # note that we're in the middle of an update
-            repo.vfs.write(b'updatestate', p2.hex())
-            num_cpus = (
-                repo.ui.configint(b"worker", b"numcpus", None)
-                if repo.ui.configbool(b"worker", b"enabled")
-                else 1
-            )
-
-            try:
-                updated_count = rust_update_mod.update_from_null(
-                    repo.root, p2.rev(), num_cpus, on_rust_warnings
-                )
-            except rust_update_mod.FallbackError:
-                update_from_null_fallback = True
-            else:
-                # We've changed the dirstate from Rust, we need to tell Python
-                repo.dirstate.invalidate()
-                # This includes setting the parents, since they are not read
-                # again on invalidation
-                with repo.dirstate.changing_parents(repo):
-                    repo.dirstate.setparents(fp2)
-                repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
-                sparse.prunetemporaryincludes(repo)
-                repo.hook(b'update', parent1=xp1, parent2=xp2, error=0)
-                # update completed, clear state
-                util.unlink(repo.vfs.join(b'updatestate'))
-                return updateresult(updated_count, 0, 0, 0)
+        (update_from_null_fallback, res) = _update_rust_fast_path(
+            repo=repo,
+            wc=wc,
+            p1=p1,
+            p2=p2,
+            branchmerge=branchmerge,
+            matcher=matcher,
+        )
+        if not update_from_null_fallback and res is not None:
+            return res
 
         ### calculate phase
         mresult = calculateupdates(
@@ -2430,6 +2380,75 @@ def filter_ambiguous_files(repo, file_data: FileData) -> FileData:
         for f, m in ambiguous_mtime.items():
             file_data[f] = m
     return file_data
+
+
+def _update_rust_fast_path(repo, wc, p1, p2, branchmerge, matcher):
+    # avoid same cycle as in `_update`
+    from . import sparse
+
+    fp2, xp1, xp2 = p2.node(), bytes(p1), bytes(p2)
+
+    update_from_null = False
+    if (
+        MAYBE_USE_RUST_UPDATE
+        and repo.ui.configbool(b"rust", b"update-from-null")
+        and rust_update_mod is not None
+        and p1.rev() == nullrev
+        and not branchmerge
+        # TODO it's probably not too hard to pass down the transaction and
+        # respect the write patterns from Rust. But since it doesn't affect
+        # a simple update from null, then it doesn't matter yet.
+        and repo.currenttransaction() is None
+        and matcher is None
+        and not wc.mergestate().active()
+        and b'.hgsubstate' not in p2
+    ):
+        working_dir_iter = os.scandir(repo.root)
+        maybe_hg_folder = next(working_dir_iter)
+        assert maybe_hg_folder is not None
+        if maybe_hg_folder.name == b".hg":
+            try:
+                next(working_dir_iter)
+            except StopIteration:
+                update_from_null = True
+
+    def on_rust_warnings(warnings: Iterator[bytes]):
+        """It is faster to loop in Python in cases with many items than
+        to call back from Rust in a loop."""
+        for warning in warnings:
+            repo.ui.warn(warning)
+
+    if update_from_null:
+        repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
+        # note that we're in the middle of an update
+        repo.vfs.write(b'updatestate', p2.hex())
+        num_cpus = (
+            repo.ui.configint(b"worker", b"numcpus", None)
+            if repo.ui.configbool(b"worker", b"enabled")
+            else 1
+        )
+
+        try:
+            updated_count = rust_update_mod.update_from_null(
+                repo.root, p2.rev(), num_cpus, on_rust_warnings
+            )
+        except rust_update_mod.FallbackError:
+            return (True, None)
+        else:
+            # We've changed the dirstate from Rust, we need to tell Python
+            repo.dirstate.invalidate()
+            # This includes setting the parents, since they are not read
+            # again on invalidation
+            with repo.dirstate.changing_parents(repo):
+                repo.dirstate.setparents(fp2)
+            repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
+            sparse.prunetemporaryincludes(repo)
+            repo.hook(b'update', parent1=xp1, parent2=xp2, error=0)
+            # update completed, clear state
+            util.unlink(repo.vfs.join(b'updatestate'))
+            return (False, updateresult(updated_count, 0, 0, 0))
+
+    return (False, None)
 
 
 def merge(ctx, labels=None, force=False, wc=None):
