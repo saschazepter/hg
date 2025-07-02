@@ -403,7 +403,7 @@ where
 /// in multithreaded operations.
 pub fn with_sigint_wrapper<R>(
     py: Python,
-    func: impl Fn() -> Result<R, HgError>,
+    func: impl FnOnce() -> Result<R, HgError>,
 ) -> PyResult<Result<R, HgError>> {
     let threading_py_mod = py.import(intern!(py, "threading"))?;
     let current_py_thread =
