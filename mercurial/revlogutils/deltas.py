@@ -1453,7 +1453,8 @@ class deltacomputer:
             header = mdiff.replacediffheader(revlog.rawsize(base), len(t))
             delta = header + t
         else:
-            ptext = revlog.rawdata(base)
+            validate = self.revlog.delta_config.validate_base
+            ptext = revlog.rawdata(base, validate=validate)
             delta = mdiff.textdiff(ptext, t)
 
         return delta

@@ -1269,6 +1269,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if ui.configbool(b'devel', b'persistent-nodemap'):
         options[b'devel-force-nodemap'] = True
 
+    delta_config.validate_base = ui.configbool(
+        b'storage', b'revlog.validate-delta-base'
+    )
+
     return options
 
 

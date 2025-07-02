@@ -2361,6 +2361,17 @@ documentation = """This option is true unless `format.generaldelta` is set."""
 
 [[items]]
 section = "storage"
+name = "revlog.validate-delta-base"
+default = false
+documentation = """Validate the integrity of bases when computing deltas.
+
+Since the base of reused deltas is not validated either, we recommend using the
+`server.validate` option if you want to guarantee the integrity of inbound
+content."""
+experimental = true
+
+[[items]]
+section = "storage"
 name = "revlog.zlib.level"
 
 [[items]]
