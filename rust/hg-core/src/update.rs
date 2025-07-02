@@ -28,7 +28,6 @@ use crate::revlog::filelog::Filelog;
 use crate::revlog::node::NULL_NODE;
 use crate::revlog::options::default_revlog_options;
 use crate::revlog::options::RevlogOpenOptions;
-use crate::revlog::RevlogError;
 use crate::sparse;
 use crate::utils::cap_default_rayon_threads;
 use crate::utils::files::filesystem_now;
@@ -66,8 +65,7 @@ pub fn update_from_null(
 ) -> Result<usize, HgError> {
     let narrow_matcher = narrow::matcher(repo, warnings)?;
 
-    let files_for_rev = list_rev_tracked_files(repo, to, narrow_matcher)
-        .map_err(handle_revlog_error)?;
+    let files_for_rev = list_rev_tracked_files(repo, to, narrow_matcher)?;
     repo.manually_set_parents(DirstateParents {
         p1: repo.node(to).expect("update target should exist"),
         p2: NULL_NODE,
@@ -159,17 +157,6 @@ pub fn update_from_null(
     write_dirstate(repo)?;
 
     Ok(total)
-}
-
-fn handle_revlog_error(e: RevlogError) -> HgError {
-    match e {
-        crate::revlog::RevlogError::Other(hg_error) => hg_error,
-        e => HgError::abort(
-            format!("revlog error: {}", e),
-            exit_codes::ABORT,
-            None,
-        ),
-    }
 }
 
 /// Preallocated size of Vec holding directory contents. This aims at
@@ -304,8 +291,7 @@ fn working_copy_worker<'a: 'b, 'b>(
         assert!(!flags.is_tree());
 
         let filelog = Filelog::open_vfs(store_vfs, file, options)?;
-        let filelog_revision_data =
-            &filelog.data_for_node(file_node).map_err(handle_revlog_error)?;
+        let filelog_revision_data = &filelog.data_for_node(file_node)?;
         let file_data = filelog_revision_data.file_data()?;
 
         if flags.is_link() {
