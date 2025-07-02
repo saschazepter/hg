@@ -1,4 +1,5 @@
 use std::fs;
+use std::fs::Metadata;
 use std::io;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
@@ -6,10 +7,13 @@ use std::path::Path;
 
 const EXECFLAGS: u32 = 0o111;
 
-fn is_executable(path: impl AsRef<Path>) -> Result<bool, io::Error> {
+pub fn is_executable(metadata: &Metadata) -> bool {
+    metadata.mode() & EXECFLAGS != 0
+}
+
+fn is_path_executable(path: impl AsRef<Path>) -> Result<bool, io::Error> {
     let metadata = fs::metadata(path)?;
-    let mode = metadata.mode();
-    Ok(mode & EXECFLAGS != 0)
+    Ok(is_executable(&metadata))
 }
 
 fn make_executable(path: impl AsRef<Path>) -> Result<(), io::Error> {
@@ -68,15 +72,16 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
         // Check if both files already exist in cache and have correct
         // permissions. if so, we assume that permissions work.
         // If not, we delete the files and try again.
-        match is_executable(&checkisexec) {
+        match is_path_executable(&checkisexec) {
             Err(e) if e.kind() == io::ErrorKind::NotFound => (),
             Err(e) => return Err(e),
             Ok(is_exec) => {
                 if is_exec {
-                    let noexec_is_exec = match is_executable(&checknoexec) {
+                    let noexec_is_exec = match is_path_executable(&checknoexec)
+                    {
                         Err(e) if e.kind() == io::ErrorKind::NotFound => {
                             fs::write(&checknoexec, "")?;
-                            is_executable(&checknoexec)?
+                            is_path_executable(&checknoexec)?
                         }
                         Err(e) => return Err(e),
                         Ok(exec) => exec,
@@ -103,9 +108,9 @@ fn check_exec_impl(path: impl AsRef<Path>) -> Result<bool, io::Error> {
         .permissions(std::fs::Permissions::from_mode(0o666))
         .tempfile_in(checkdir)?;
 
-    if !is_executable(tmp_file.path())? {
+    if !is_path_executable(tmp_file.path())? {
         make_executable(tmp_file.path())?;
-        if is_executable(tmp_file.path())? {
+        if is_path_executable(tmp_file.path())? {
             if leave_file {
                 tmp_file.persist(checkisexec).ok();
             }
