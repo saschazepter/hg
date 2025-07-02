@@ -503,6 +503,13 @@ but before spawning the parallel worker."""
 
 [[items]]
 section = "devel"
+name = "update.abort-on-dirstate-change"
+default = false
+documentation = """If true, then the dirstate state changes during an update \
+ will abort."""
+
+[[items]]
+section = "devel"
 name = "debug.copies"
 default = false
 
