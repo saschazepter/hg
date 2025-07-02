@@ -673,6 +673,12 @@ impl Vfs for VfsImpl {
         let path = self.base.join(filename);
         let parent = path.parent().expect("file at root");
         std::fs::create_dir_all(parent).when_writing_file(parent)?;
+        // This avoids permission errors if the file somehow already exists
+        // Let it fail: either it didn't exist (good), or we really don't have
+        // the rights to do anything about this file, let `open` fail.
+        std::fs::remove_file(&path)
+            .when_writing_file(&path)
+            .io_not_found_as_none()?;
 
         let file = OpenOptions::new()
             .create(true)
