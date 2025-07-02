@@ -158,7 +158,7 @@ class unionrevlog(revlog.revlog):
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def _revisiondata(self, nodeorrev, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False, validate=True):
         if isinstance(nodeorrev, int):
             rev = nodeorrev
             node = self.node(rev)

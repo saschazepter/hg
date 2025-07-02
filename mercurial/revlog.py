@@ -2832,7 +2832,7 @@ class revlog:
         text = self._inner.raw_text(node, rev)
         return (rev, text, False)
 
-    def _revisiondata(self, nodeorrev, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False, validate=True):
         # deal with <nodeorrev> argument type
         if isinstance(nodeorrev, int):
             rev = nodeorrev
@@ -2869,7 +2869,7 @@ class revlog:
         else:
             r = flagutil.processflagsread(self, rawtext, flags)
             text, validatehash = r
-        if validatehash:
+        if validate and validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
             self._inner._revisioncache = (node, rev, rawtext)
@@ -2885,9 +2885,14 @@ class revlog:
             sidedata_end = self._docket.sidedata_end
         return self._inner.sidedata(rev, sidedata_end)
 
-    def rawdata(self, nodeorrev):
-        """return an uncompressed raw data of a given node or revision number."""
-        return self._revisiondata(nodeorrev, raw=True)
+    def rawdata(self, nodeorrev, validate=True):
+        """return an uncompressed raw data of a given node or revision number.
+
+        The restored content will be typically have its content checked for
+        integrity.  If `validate` is set to False, this won't be the case
+        anymore.
+        """
+        return self._revisiondata(nodeorrev, raw=True, validate=validate)
 
     def hash(self, text, p1, p2):
         """Compute a node hash.
