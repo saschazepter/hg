@@ -130,6 +130,27 @@ pub fn find_dirs(path: &HgPath) -> Ancestors {
     dirs
 }
 
+/// Returns an iterator yielding ancestor directories of the given repository
+/// path from (but excluding) the root.
+///
+/// The path is separated by '/', and must not start with '/'.
+///
+/// The path itself isn't included.
+pub fn find_dirs_recursive_no_root<'a>(
+    path: &'a HgPath,
+) -> std::iter::FromFn<impl FnMut() -> Option<&'a HgPath>> {
+    let mut positions =
+        path.bytes().enumerate().filter(|(_, &c)| c == b'/').map(|(i, _)| i);
+    std::iter::from_fn(move || {
+        let p = positions.next().unwrap_or(path.len());
+        if p == path.len() {
+            None
+        } else {
+            Some(HgPath::new(&path.as_bytes()[..p]))
+        }
+    })
+}
+
 pub fn dir_ancestors(path: &HgPath) -> Ancestors {
     Ancestors { next: Some(path) }
 }
@@ -355,6 +376,22 @@ mod tests {
         assert_eq!(dirs.next(), Some(HgPath::new(b"foo/bar")));
         assert_eq!(dirs.next(), Some(HgPath::new(b"foo")));
         assert_eq!(dirs.next(), Some(HgPath::new(b"")));
+        assert_eq!(dirs.next(), None);
+        assert_eq!(dirs.next(), None);
+    }
+    #[test]
+    fn find_dirs_recursive_no_root_some() {
+        let mut dirs =
+            super::find_dirs_recursive_no_root(HgPath::new(b"foo/bar/baz"));
+        assert_eq!(dirs.next(), Some(HgPath::new(b"foo")));
+        assert_eq!(dirs.next(), Some(HgPath::new(b"foo/bar")));
+        assert_eq!(dirs.next(), None);
+        assert_eq!(dirs.next(), None);
+    }
+
+    #[test]
+    fn find_dirs_recursive_no_root_empty() {
+        let mut dirs = super::find_dirs_recursive_no_root(HgPath::new(b""));
         assert_eq!(dirs.next(), None);
         assert_eq!(dirs.next(), None);
     }
