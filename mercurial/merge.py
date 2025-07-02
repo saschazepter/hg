@@ -2000,6 +2000,8 @@ def _update(
         fp1, fp2, xp1, xp2 = p1.node(), p2.node(), bytes(p1), bytes(p2)
 
         overwrite = force and not branchmerge
+        # If not none, whether the (optional) first status was clean or dirty
+        is_dirty = None
         ### check phase
         if not overwrite:
             if len(pl) > 1:
@@ -2037,8 +2039,8 @@ def _update(
                 [p1],
                 [p2],
             ):  # nonlinear
-                dirty = wc.dirty(missing=True)
-                if dirty:
+                is_dirty = wc.dirty(missing=True)
+                if is_dirty:
                     # Branching is a bit strange to ensure we do the minimal
                     # amount of call to obsutil.foreground.
                     foreground = obsutil.foreground(repo, [p1.node()])
@@ -2064,7 +2066,9 @@ def _update(
             followcopies = False
         elif not pas[0]:
             followcopies = False
-        if not branchmerge and not wc.dirty(missing=True):
+        if is_dirty is None:
+            is_dirty = bool(wc.dirty(missing=True))
+        if not branchmerge and not is_dirty:
             followcopies = False
 
         (update_from_null_fallback, res) = _update_rust_fast_path(
