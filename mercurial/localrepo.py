@@ -1199,6 +1199,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if requirementsmod.NARROW_REQUIREMENT in requirements:
         feature_config.enable_ellipsis = True
 
+    if ui.config(b"censor", b"policy") == b"ignore":
+        feature_config.ignore_filelog_censored_revisions = True
+
     if ui.configbool(b'experimental', b'rust.index'):
         options[b'rust.index'] = True
     if requirementsmod.NODEMAP_REQUIREMENT in requirements:

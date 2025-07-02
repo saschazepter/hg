@@ -355,6 +355,8 @@ pub struct RevlogFeatureConfig {
     pub compression_engine: CompressionConfig,
     /// Can we use censor on this revlog
     pub censorable: bool,
+    /// Should censored filelog revisions be ignored and return an empty string
+    pub ignore_filelog_censored_revisions: bool,
     /// Does this revlog use the "side data" feature
     pub has_side_data: bool,
     /// Might remove this configuration once the rank computation has no
@@ -376,11 +378,16 @@ impl RevlogFeatureConfig {
     pub fn new(
         config: &Config,
         requirements: &HashSet<String>,
+        revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
+        let ignore_filelog_censored_revisions = revlog_type
+            == RevlogType::Filelog
+            && config.get_str(b"censor", b"policy")? == Some("ignore");
         Ok(Self {
             compression_engine: CompressionConfig::new(config, requirements)?,
             enable_ellipsis: requirements.contains(NARROW_REQUIREMENT),
             hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            ignore_filelog_censored_revisions,
             ..Default::default()
         })
     }
@@ -422,6 +429,10 @@ pub fn default_revlog_options(
             revlog_type,
         )?,
         data_config: RevlogDataConfig::new(config, requirements)?,
-        feature_config: RevlogFeatureConfig::new(config, requirements)?,
+        feature_config: RevlogFeatureConfig::new(
+            config,
+            requirements,
+            revlog_type,
+        )?,
     })
 }

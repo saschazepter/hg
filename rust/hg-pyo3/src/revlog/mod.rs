@@ -307,6 +307,7 @@ impl InnerRevlog {
             data_config,
             delta_config,
             feature_config,
+            revlog_type,
         );
         Ok(Self {
             irl: core.into(),

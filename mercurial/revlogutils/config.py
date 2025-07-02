@@ -39,6 +39,8 @@ class FeatureConfig(_Config):
 
     # can we use censor on this revlog
     censorable = attr.ib(default=False, type=bool)
+    # do we ignore filelog censored revisions and return an empty string
+    ignore_filelog_censored_revisions = attr.ib(default=False)
     # does this revlog use the "side data" feature
     has_side_data = attr.ib(default=False, type=bool)
     # might remove rank configuration once the computation has no impact

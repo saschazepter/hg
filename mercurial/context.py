@@ -1395,7 +1395,9 @@ class filectx(basefilectx):
         try:
             return self._filelog.read(self._filenode)
         except error.CensoredNodeError:
-            if self._repo.ui.config(b"censor", b"policy") == b"ignore":
+            feature_config = self._filelog._revlog.feature_config
+            ignore_censored = feature_config.ignore_filelog_censored_revisions
+            if ignore_censored:
                 return b""
             raise error.Abort(
                 _(b"censored node: %s") % short(self._filenode),

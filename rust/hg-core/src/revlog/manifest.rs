@@ -1,5 +1,6 @@
 use std::num::NonZeroU8;
 
+use super::RevlogType;
 use crate::errors::HgError;
 use crate::revlog::options::RevlogOpenOptions;
 use crate::revlog::Node;
@@ -33,7 +34,13 @@ impl Manifestlog {
         store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        let revlog = Revlog::open(store_vfs, "00manifest.i", None, options)?;
+        let revlog = Revlog::open(
+            store_vfs,
+            "00manifest.i",
+            None,
+            options,
+            RevlogType::Manifestlog,
+        )?;
         Ok(Self { revlog })
     }
 

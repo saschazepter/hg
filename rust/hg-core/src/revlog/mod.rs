@@ -327,8 +327,16 @@ impl Revlog {
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
+        revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
-        Self::open_gen(store_vfs, index_path, data_path, options, None)
+        Self::open_gen(
+            store_vfs,
+            index_path,
+            data_path,
+            options,
+            None,
+            revlog_type,
+        )
     }
 
     fn index(&self) -> &Index {
@@ -342,6 +350,7 @@ impl Revlog {
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
         nodemap_for_test: Option<nodemap::NodeTree>,
+        revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
         let index_path = index_path.as_ref();
         let index = open_index(store_vfs, index_path, options)?;
@@ -366,6 +375,7 @@ impl Revlog {
                 options.data_config,
                 options.delta_config,
                 options.feature_config,
+                revlog_type,
             ),
             nodemap,
         })
@@ -852,9 +862,14 @@ mod tests {
         );
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
-                .unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::default(),
+            RevlogType::Changelog,
+        )
+        .unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
         assert!(revlog.get_entry_for_unchecked_rev(0.into()).is_err());
@@ -902,9 +917,14 @@ mod tests {
             .flatten()
             .collect_vec();
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
-                .unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::default(),
+            RevlogType::Changelog,
+        )
+        .unwrap();
 
         let entry0 = revlog.get_entry_for_unchecked_rev(0.into()).ok().unwrap();
         assert_eq!(entry0.revision(), Revision(0));
@@ -981,6 +1001,7 @@ mod tests {
             None,
             RevlogOpenOptions::default(),
             Some(idx.nt),
+            RevlogType::Changelog,
         )
         .unwrap();
 

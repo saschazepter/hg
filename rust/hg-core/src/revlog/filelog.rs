@@ -5,8 +5,8 @@ use super::options::RevlogOpenOptions;
 use super::path_encode::PathEncoding;
 use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgError;
-use crate::exit_codes;
 use crate::repo::Repo;
+use crate::revlog::inner_revlog::InnerRevlog;
 use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::path_encode::path_encode;
 use crate::revlog::NodePrefix;
@@ -14,6 +14,7 @@ use crate::revlog::Revision;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
 use crate::revlog::REVISION_FLAG_HASMETA;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_path_from_bytes;
@@ -46,8 +47,13 @@ impl Filelog {
     ) -> Result<Self, HgError> {
         let index_path = store_path(file_path, b".i", store_vfs.encoding);
         let data_path = store_path(file_path, b".d", store_vfs.encoding);
-        let revlog =
-            Revlog::open(store_vfs, index_path, Some(&data_path), options)?;
+        let revlog = Revlog::open(
+            store_vfs,
+            index_path,
+            Some(&data_path),
+            options,
+            RevlogType::Filelog,
+        )?;
         Ok(Self { revlog })
     }
 
@@ -75,9 +81,8 @@ impl Filelog {
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogRevisionData, RevlogError> {
-        let data: Vec<u8> =
-            self.revlog.get_data_for_unchecked_rev(file_rev)?.into_owned();
-        Ok(FilelogRevisionData(data))
+        let data = self.revlog.get_data_for_unchecked_rev(file_rev);
+        maybe_ignore_censored_revision(&self.revlog.inner, data)
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a
@@ -105,6 +110,29 @@ impl Filelog {
         file_rev: Revision,
     ) -> Result<FilelogEntry, RevlogError> {
         Ok(FilelogEntry(self.revlog.get_entry(file_rev)?))
+    }
+}
+
+/// Given a [`Result`] of fetching filelog revision data, catch the eventual
+/// censored node error and either forward it or ignore it according to config.
+fn maybe_ignore_censored_revision(
+    irl: &InnerRevlog,
+    data_result: Result<std::borrow::Cow<'_, [u8]>, RevlogError>,
+) -> Result<FilelogRevisionData, RevlogError> {
+    match data_result {
+        Ok(data) => Ok(FilelogRevisionData(data.into_owned())),
+        // Errors other than `HgError` should not happen at this point
+        Err(e) => match &e {
+            RevlogError::Other(hg_error) => match hg_error {
+                HgError::CensoredNodeError(_, _)
+                    if irl.ignore_filelog_censored_revisions() =>
+                {
+                    Ok(FilelogRevisionData(vec![]))
+                }
+                _ => Err(e),
+            },
+            _ => Err(e),
+        },
     }
 }
 
@@ -208,18 +236,11 @@ impl FilelogEntry<'_> {
 
     pub fn data(&self) -> Result<FilelogRevisionData, HgError> {
         let data = self.0.data();
-        match data {
-            Ok(data) => Ok(FilelogRevisionData(data.into_owned())),
-            // Errors other than `HgError` should not happen at this point
-            Err(e) => match e {
-                RevlogError::Other(hg_error) => Err(hg_error),
-                revlog_error => Err(HgError::abort(
-                    revlog_error.to_string(),
-                    exit_codes::ABORT,
-                    None,
-                )),
-            },
-        }
+        maybe_ignore_censored_revision(self.0.revlog, data).map_err(|e| match e
+        {
+            RevlogError::Other(hg_error) => hg_error,
+            revlog_error => HgError::abort_simple(revlog_error.to_string()),
+        })
     }
 }
 

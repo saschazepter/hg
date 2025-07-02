@@ -230,6 +230,10 @@ pub fn extract_feature_config(
             )?,
             enable_ellipsis: extract_attr!(conf, "enable_ellipsis")?,
             hasmeta_flag: extract_attr!(conf, "hasmeta_flag")?,
+            ignore_filelog_censored_revisions: extract_attr!(
+                conf,
+                "ignore_filelog_censored_revisions"
+            )?,
         })
     })
 }

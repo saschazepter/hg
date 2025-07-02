@@ -21,6 +21,7 @@ use crate::revlog::Revision;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
 use crate::utils::hg_path::HgPath;
 use crate::vfs::VfsImpl;
 use crate::Graph;
@@ -39,7 +40,13 @@ impl Changelog {
         store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        let revlog = Revlog::open(store_vfs, "00changelog.i", None, options)?;
+        let revlog = Revlog::open(
+            store_vfs,
+            "00changelog.i",
+            None,
+            options,
+            RevlogType::Changelog,
+        )?;
         Ok(Self { revlog })
     }
 
@@ -567,9 +574,14 @@ message",
         let vfs =
             VfsImpl::new(temp.path().to_owned(), false, PathEncoding::None);
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
-                .unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::default(),
+            RevlogType::Changelog,
+        )
+        .unwrap();
 
         let changelog = Changelog { revlog };
         assert_eq!(

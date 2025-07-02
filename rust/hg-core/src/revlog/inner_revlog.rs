@@ -48,6 +48,7 @@ use super::NULL_REVLOG_ENTRY_FLAGS;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
+use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
 use crate::vfs::Vfs;
 
@@ -71,7 +72,6 @@ pub struct InnerRevlog {
     /// Delta config that applies to this revlog
     delta_config: RevlogDeltaConfig,
     /// Feature config that applies to this revlog
-    #[allow(unused)]
     feature_config: RevlogFeatureConfig,
     /// A view into this revlog's data file
     segment_file: RandomAccessFile,
@@ -95,9 +95,11 @@ pub struct InnerRevlog {
     /// This does not mean that this revlog uses this compressor for reading
     /// data, as different revisions may have different compression modes.
     compressor: Mutex<Box<dyn Compressor>>,
+    revlog_type: RevlogType,
 }
 
 impl InnerRevlog {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         vfs: Box<dyn Vfs>,
         index: Index,
@@ -106,6 +108,7 @@ impl InnerRevlog {
         data_config: RevlogDataConfig,
         delta_config: RevlogDeltaConfig,
         feature_config: RevlogFeatureConfig,
+        revlog_type: RevlogType,
     ) -> Self {
         assert!(index_file.is_relative());
         assert!(data_file.is_relative());
@@ -150,6 +153,7 @@ impl InnerRevlog {
                 }
                 CompressionConfig::None => Box::new(NoneCompressor),
             }),
+            revlog_type,
         }
     }
 
@@ -1287,6 +1291,16 @@ impl InnerRevlog {
     #[doc(hidden)]
     pub fn shared_index(&self) -> &Index {
         &self.index
+    }
+
+    /// Whether we can ignore censored revisions **in filelogs only**
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`Self::revlog_type`] != [`RevlogType::Filelog`]
+    pub fn ignore_filelog_censored_revisions(&self) -> bool {
+        assert!(self.revlog_type == RevlogType::Filelog);
+        self.feature_config.ignore_filelog_censored_revisions
     }
 }
 
