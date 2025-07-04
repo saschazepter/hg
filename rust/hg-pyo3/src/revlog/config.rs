@@ -94,14 +94,13 @@ fn with_filelog_config_cache<T: Copy>(
     if revlog_type == RevlogType::Filelog {
         if let Some((cached_py_config, rust_config)) = cache.get() {
             was_cached = true;
-            // it's not impossible that some extensions
-            // do some magic with configs or that this code will be used
-            // for longer-running processes. So compare the source
-            // `PyObject` in case the source changed, at
-            // the cost of some overhead. We can't use
-            // `py_config.eq(cached_py_config)` because all config
-            // objects are different in Python and `a is b` is false.
-            if py_config.compare(cached_py_config)?.is_eq() {
+            // it's not impossible that some extensions do some magic with
+            // configs, or that this code will be used for
+            // longer-running processes, ot that we open multiple
+            // repositories in the process. So compare the source `PyObject` in
+            // case the source changed, at the cost of some
+            // overhead.
+            if py_config.eq(cached_py_config)? {
                 return Ok(*rust_config);
             }
         }
