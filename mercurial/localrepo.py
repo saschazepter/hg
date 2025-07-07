@@ -1186,6 +1186,8 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     )
     if use_folding == b"always":
         delta_config.delta_fold_estimate = True
+    if use_folding == b"when-fast":
+        delta_config.delta_fold_estimate = policy.has_rust()
     elif use_folding == b"never":
         delta_config.delta_fold_estimate = False
 

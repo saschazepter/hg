@@ -47,6 +47,7 @@ To update the md5, invoke the script without --validate
   > revlog.optimize-delta-parent-choice = yes
   > revlog.reuse-external-delta-parent = no
   > revlog.reuse-external-delta = no
+  > delta-fold-estimate = always
   > EOF
   $ hg init sparse-repo
   $ cd sparse-repo

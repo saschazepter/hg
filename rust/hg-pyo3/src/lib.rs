@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 mod ancestors;
 mod copy_tracing;
 mod dagops;
+mod deltas;
 mod dirstate;
 mod discovery;
 mod exceptions;
@@ -34,6 +35,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&revlog::init_module(py, &dotted_name)?)?;
     m.add_submodule(&update::init_module(py, &dotted_name)?)?;
     m.add_submodule(&pytracing::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&deltas::init_module(py, &dotted_name)?)?;
     m.add("GraphError", py.get_type::<exceptions::GraphError>())?;
     Ok(())
 }

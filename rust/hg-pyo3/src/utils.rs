@@ -206,6 +206,74 @@ where
     }
 }
 
+/// Safe abstraction over a `PyBuffer` together with the `&[u8]` slice
+/// that borrows it. Implements `Deref<Target = [u8]>`.
+///
+/// Calling `PyBuffer::data` requires a GIL marker but we want to access the
+/// data in a thread that (ideally) does not need to acquire the GIL.
+/// This type allows separating the call an the use.
+///
+/// It also enables using a (wrapped) `PyBuffer` in GIL-unaware generic code.
+pub struct PyBufferDeref {
+    #[allow(unused)]
+    keep_alive: PyBuffer<u8>,
+
+    /// Borrows the buffer inside `self.keep_alive`,
+    /// but the borrow-checker cannot express self-referential structs.
+    data: *const [u8],
+}
+
+#[deny(unsafe_op_in_unsafe_fn)]
+/// Only safe if the buffers are read-only on the Pytho side
+/// Marking this unsafe so we can think about it
+unsafe fn get_buffer(buf: &PyBuffer<u8>) -> PyResult<*const [u8]> {
+    let len = buf.item_count();
+
+    // Build a slice from the mmap'ed buffer data
+    let cbuf = buf.buf_ptr();
+    let bytes = if std::mem::size_of::<u8>() == buf.item_size()
+        && buf.readonly()
+        && buf.is_c_contiguous()
+        && u8::is_compatible_format(buf.format())
+    {
+        unsafe { std::slice::from_raw_parts(cbuf as *const u8, len) }
+    } else {
+        return Err(PyValueError::new_err(
+            "Chunk buffer has an invalid memory representation",
+        ));
+    };
+    Ok(bytes)
+}
+
+impl PyBufferDeref {
+    pub fn new(buf: PyBuffer<u8>) -> Self {
+        Self { data: unsafe { get_buffer(&buf).unwrap() }, keep_alive: buf }
+    }
+}
+
+impl std::ops::Deref for PyBufferDeref {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        // Safety: the raw pointer is valid as long as the PyBuffer is still
+        // alive, and the returned slice borrows `self`.
+        unsafe { &*self.data }
+    }
+}
+
+unsafe impl StableDeref for PyBufferDeref {}
+
+#[allow(unused)]
+fn static_assert_pybuffer_is_send() {
+    #[allow(clippy::no_effect)]
+    require_send::<PyBuffer<u8>>;
+}
+
+// Safety: PyBuffer is Send. Raw pointers are not by default,
+// but here sending one to another thread is fine since we ensure it stays
+// valid.
+unsafe impl Send for PyBufferDeref {}
+
 /// Safe abstraction over a `PyBytes` together with the `&[u8]` slice
 /// that borrows it. Implements `Deref<Target = [u8]>`.
 ///

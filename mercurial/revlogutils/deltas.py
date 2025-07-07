@@ -46,7 +46,6 @@ from ..interfaces.types import (
     RevnumT,
 )
 
-from ..pure import deltas as delta_fold
 
 from ..thirdparty import attr
 
@@ -58,12 +57,19 @@ if typing.TYPE_CHECKING:
 from .. import (
     error,
     mdiff,
+    policy,
     util,
 )
 
 from ..utils import storageutil
 
 from . import config, flagutil, revisioninfo as RevisionInfoT
+
+
+delta_fold = policy.importrust('deltas')
+if delta_fold is None:
+    from ..pure import deltas as delta_fold
+
 
 # maximum <delta-chain-data>/<revision-text-length> ratio
 LIMIT_DELTA2TEXT = 2
@@ -1475,7 +1481,7 @@ class deltacomputer:
         self,
         target_base: RevnumT,
         higher_base: RevnumT,
-    ) -> Optional[List[RevnumT]]:
+    ) -> Optional[list[RevnumT]]:
         """Return usable fold information or None
 
         Usable fold information will be a list of revision stored as delta and
