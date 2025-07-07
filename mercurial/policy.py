@@ -125,6 +125,11 @@ def _isrustpermissive() -> bool:
     return policy.endswith(b'-allow')
 
 
+def has_rust() -> bool:
+    """Returns whether the policy contains Rust in any fashion"""
+    return b"rust" in policy
+
+
 def importrust(modname: str, member: str | None = None, default=None):
     """Import Rust module according to policy and availability.
 

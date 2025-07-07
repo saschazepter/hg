@@ -393,6 +393,11 @@ def enable_rust_backtrace():
     Cannot be done through the config because we run some Rust code without a
     config, and the first time any backtrace is captured, this environment
     variable (and RUST_LIB_BACKTRACE) is cached, so do it early."""
+    if not policy.has_rust():
+        # Don't pollute the environment otherwise. Also, Windows expects
+        # different types for environ manipulation, so let's cross that bridge
+        # when we get to it.
+        return
     # sometimes environ is copied, so let's make sure we change both the
     # actual environment and the one in this module
     environ[b"RUST_BACKTRACE"] = b"1"
