@@ -63,7 +63,7 @@ nomem:
 	return rl ? rl : PyErr_NoMemory();
 }
 
-static PyObject *bdiff(PyObject *self, PyObject *args)
+static PyObject *_inner_bdiff(PyObject *self, PyObject *args, bool prune_suffix)
 {
 	Py_buffer ba, bb;
 	char *rb, *ia, *ib;
@@ -71,7 +71,8 @@ static PyObject *bdiff(PyObject *self, PyObject *args)
 	struct bdiff_line *al = NULL, *bl = NULL;
 	struct bdiff_hunk l, *h;
 	int an, bn, count;
-	Py_ssize_t len = 0, la, lb, li = 0, lcommon = 0, lmax;
+	Py_ssize_t len = 0, la, lb, li = 0;
+	Py_ssize_t lcommon_prefix = 0, lcommon_suffix = 0, lmax;
 	PyThreadState *_save = NULL;
 
 	l.next = NULL;
@@ -104,13 +105,26 @@ static PyObject *bdiff(PyObject *self, PyObject *args)
 	for (ia = ba.buf, ib = bb.buf; li < lmax && *ia == *ib;
 	     ++li, ++ia, ++ib) {
 		if (*ia == '\n') {
-			lcommon = li + 1;
+			lcommon_prefix = li + 1;
 		}
 	}
-	/* we can almost add: if (li == lmax) lcommon = li; */
 
-	an = bdiff_splitlines((char *)ba.buf + lcommon, la - lcommon, &al);
-	bn = bdiff_splitlines((char *)bb.buf + lcommon, lb - lcommon, &bl);
+	if (prune_suffix) {
+		li = 0;
+		for (ia = ba.buf + la - 1, ib = bb.buf + lb - 1;
+		     li < lmax - lcommon_prefix && *ia == *ib;
+		     ++li, --ia, --ib) {
+			if (*ia == '\n') {
+				lcommon_suffix = li;
+			}
+		}
+	}
+
+	/* we can almost add: if (li == lmax) lcommon_prefix = li; */
+	an = bdiff_splitlines((char *)ba.buf + lcommon_prefix,
+	                      la - lcommon_prefix - lcommon_suffix, &al);
+	bn = bdiff_splitlines((char *)bb.buf + lcommon_prefix,
+	                      lb - lcommon_prefix - lcommon_suffix, &bl);
 	if (!al || !bl) {
 		PyErr_NoMemory();
 		goto cleanup;
@@ -147,9 +161,11 @@ static PyObject *bdiff(PyObject *self, PyObject *args)
 	for (h = l.next; h; h = h->next) {
 		if (h->a1 != la || h->b1 != lb) {
 			len = bl[h->b1].l - bl[lb].l;
-			putbe32((uint32_t)(al[la].l + lcommon - al->l), rb);
-			putbe32((uint32_t)(al[h->a1].l + lcommon - al->l),
-			        rb + 4);
+			putbe32((uint32_t)(al[la].l + lcommon_prefix - al->l),
+			        rb);
+			putbe32(
+			    (uint32_t)(al[h->a1].l + lcommon_prefix - al->l),
+			    rb + 4);
 			putbe32((uint32_t)len, rb + 8);
 			memcpy(rb + 12, bl[lb].l, len);
 			rb += 12 + len;
@@ -322,8 +338,20 @@ static PyObject *xdiffblocks(PyObject *self, PyObject *args)
 
 static char mdiff_doc[] = "Efficient binary diff.";
 
+static PyObject *bdiff(PyObject *self, PyObject *args)
+{
+	return _inner_bdiff(self, args, false);
+}
+
+static PyObject *storage_diff(PyObject *self, PyObject *args)
+{
+	return _inner_bdiff(self, args, true);
+}
+
 static PyMethodDef methods[] = {
     {"bdiff", bdiff, METH_VARARGS, "calculate a binary diff\n"},
+    {"storage_diff", storage_diff, METH_VARARGS,
+     "calculate a binary diff optimized for stored and exchanged deltas\n"},
     {"blocks", blocks, METH_VARARGS, "find a list of matching lines\n"},
     {"fixws", fixws, METH_VARARGS, "normalize diff whitespaces\n"},
     {"splitnewlines", splitnewlines, METH_VARARGS,

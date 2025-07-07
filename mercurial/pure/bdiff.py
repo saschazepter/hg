@@ -66,6 +66,7 @@ def _normalizeblocks(
 
 
 def bdiff(a: bytes, b: bytes) -> bytes:
+    "calculate a binary diff"
     a = bytes(a).splitlines(True)
     b = bytes(b).splitlines(True)
 
@@ -107,6 +108,11 @@ def fixws(text: bytes, allws: bool) -> bytes:
         text = re.sub(b'[ \t\r]+', b' ', text)
         text = text.replace(b' \n', b'\n')
     return text
+
+
+def storage_diff(old: bytes, new: bytes) -> bytes:
+    "calculate a binary diff optimized for stored and exchanged deltas"
+    return bdiff(old, new)
 
 
 # In order to adhere to the module protocol, these functions must be visible to
