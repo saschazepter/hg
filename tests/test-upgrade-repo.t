@@ -1564,7 +1564,8 @@ Check upgrading a sparse-revlog repository
   store
 
 Check that we can add the sparse-revlog format requirement
-  $ hg --config format.sparse-revlog=yes debugupgraderepo --run --quiet
+  $ hg debugupgraderepo --run --quiet \
+  >    --config format.sparse-revlog=yes
   upgrade will perform the following actions:
   
   requirements
