@@ -2098,7 +2098,7 @@ def _update(
             # TODO figure out of a way of bubbling up warnings to Python
             # while not polluting the Rust code (probably a channel)
             repo.narrowmatch()
-            sparse.matcher(repo, [nullrev, p2.rev()])
+            sparse.matcher(repo, [p2.rev()])
             repo.hook(b'preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write(b'updatestate', p2.hex())
