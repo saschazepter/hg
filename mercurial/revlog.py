@@ -213,33 +213,61 @@ class revlogproblem(repository.iverifyproblem):
     node = attr.ib(default=None, type=Optional[bytes])
 
 
-def parse_index_v1(data, inline, uses_generaldelta):
-    # call the C implementation to parse the index data
-    index, cache = parsers.parse_index2(data, inline, uses_generaldelta)
-    return index, cache
-
-
-def parse_index_v2(data, inline, uses_generaldelta):
+def parse_index_v1(
+    data,
+    inline,
+    uses_generaldelta,
+):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
-        data, inline, uses_generaldelta, format=REVLOGV2
+        data,
+        inline,
+        uses_generaldelta,
     )
     return index, cache
 
 
-def parse_index_cl_v2(data, inline, uses_generaldelta):
+def parse_index_v2(
+    data,
+    inline,
+    uses_generaldelta,
+):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
-        data, inline, uses_generaldelta, format=CHANGELOGV2
+        data,
+        inline,
+        uses_generaldelta,
+        format=REVLOGV2,
+    )
+    return index, cache
+
+
+def parse_index_cl_v2(
+    data,
+    inline,
+    uses_generaldelta,
+):
+    # call the C implementation to parse the index data
+    index, cache = parsers.parse_index2(
+        data,
+        inline,
+        uses_generaldelta,
+        format=CHANGELOGV2,
     )
     return index, cache
 
 
 if hasattr(parsers, 'parse_index_devel_nodemap'):
 
-    def parse_index_v1_nodemap(data, inline, uses_generaldelta):
+    def parse_index_v1_nodemap(
+        data,
+        inline,
+        uses_generaldelta,
+    ):
         index, cache = parsers.parse_index_devel_nodemap(
-            data, inline, uses_generaldelta
+            data,
+            inline,
+            uses_generaldelta,
         )
         return index, cache
 
@@ -1770,7 +1798,9 @@ class revlog:
         else:
             try:
                 d = self._parse_index(
-                    index_data, self._inline, self.delta_config.general_delta
+                    index_data,
+                    self._inline,
+                    self.delta_config.general_delta,
                 )
                 index, chunkcache = d
                 self._register_nodemap_info(index)
