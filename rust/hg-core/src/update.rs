@@ -526,6 +526,8 @@ fn apply_actions<'a: 'b, 'b>(
 
     let cwd_exists = std::env::current_dir().is_ok();
 
+    let removing_span =
+        tracing::span!(tracing::Level::TRACE, "removing files").entered();
     maybe_parallel(
         "update",
         chunk_tracked_files(actions.remove, false).1,
@@ -533,6 +535,7 @@ fn apply_actions<'a: 'b, 'b>(
         update_config.workers,
         errors,
     );
+    removing_span.exit();
 
     if cwd_exists && std::env::current_dir().is_err() {
         // cwd was removed in the course of removing files; print a helpful
@@ -1123,6 +1126,8 @@ fn create_working_copy<'a: 'b, 'b>(
     //
     // This needs to be fixed in `commit`, but regardless will always exist in
     // the wild, so catch it here.
+    let symlinks_span =
+        tracing::span!(tracing::Level::TRACE, "adding symlinks").entered();
     for (dir_path, chunk) in symlinks {
         if let Err(e) = working_copy_worker(
             dir_path,
@@ -1141,7 +1146,10 @@ fn create_working_copy<'a: 'b, 'b>(
                 .expect("channel should not be disconnected")
         };
     }
+    symlinks_span.exit();
 
+    let files_span =
+        tracing::span!(tracing::Level::TRACE, "adding files").entered();
     // Then take care of the normal files
     let work_closure = |(dir_path, chunk)| -> Result<(), HgError> {
         if let Err(e) = working_copy_worker(
@@ -1169,6 +1177,7 @@ fn create_working_copy<'a: 'b, 'b>(
         update_config.workers,
         error_sender,
     );
+    files_span.exit();
 }
 
 /// Returns the backup path for `path`, relative to the `working_copy_vfs`'s
