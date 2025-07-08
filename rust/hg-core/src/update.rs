@@ -663,6 +663,9 @@ pub fn compute_actions<
         // Don't `sort_unstable` since we're in the special case of
         // concatenating two sorted sequences.
         actions.get.sort_by_key(|e| e.entry.0);
+        // All creates have been transformed into gets, free some memory and
+        // make the total correct again.
+        std::mem::take(&mut actions.create);
     }
     if repo.has_sparse() {
         filter_sparse_actions(
