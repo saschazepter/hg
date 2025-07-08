@@ -289,7 +289,8 @@ fn patterns_for_rev(
                 config.warnings.push(SparseWarning::ProfileNotFound {
                     profile: profile.to_owned(),
                     rev,
-                })
+                });
+                continue;
             }
 
             let subconfig = parse_config(
