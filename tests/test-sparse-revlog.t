@@ -225,7 +225,8 @@ sanity check the change pattern
 
   $ f -s .hg/store/data/*.d
   .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-  $ hg debugrevlog *
+  $ hg debugrevlog * > ../revlog-stats-reference.txt
+  $ cat ../revlog-stats-reference.txt
   format : 1
   flags  : generaldelta (flagless !)
   flags  : generaldelta, delta-info (delta-info-flags !)
