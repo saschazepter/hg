@@ -18,10 +18,10 @@ use rayon::prelude::*;
 use crate::checkexec::check_exec;
 use crate::checkexec::is_executable;
 use crate::dirstate::dirstate_map::DirstateEntryReset;
+use crate::dirstate::dirstate_map::DirstateMap;
 use crate::dirstate::entry::ParentFileData;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::on_disk::write_tracked_key;
-use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
@@ -737,33 +737,46 @@ fn check_unknown_files<'a>(
     p2_manifest: &Manifest,
     warnings: &HgWarningSender,
 ) -> Result<Vec<&'a HgPath>, HgError> {
-    let dirstate = repo.dirstate_map()?;
+    let owning_dirstate_map = repo.dirstate_map()?;
+    let dirstate = owning_dirstate_map.get_map();
     let check_exec = check_exec(repo.working_directory_path());
     let filelog_options = default_revlog_options(
         repo.config(),
         repo.requirements(),
         RevlogType::Filelog,
     )?;
-    let mut unknown_conflicts: Vec<&HgPath> = vec![];
-    let mut ignored_conflicts: Vec<&HgPath> = vec![];
+    let (unknown_sender, unknown_receiver) = crossbeam_channel::unbounded();
+    let (ignored_sender, ignored_receiver) = crossbeam_channel::unbounded();
     let ignore_func = repo.get_ignore_function(warnings)?;
-    for (path, _, _) in &merge_result.create {
-        if is_conflicting_unknown_file(
-            path,
-            &dirstate,
-            p2_manifest,
-            check_exec,
-            filelog_options,
-            &repo.working_directory_vfs(),
-            &repo.store_vfs(),
-        )? {
-            if ignore_func(path) {
-                ignored_conflicts.push(path);
-            } else {
-                unknown_conflicts.push(path);
+    let working_directory_vfs = repo.working_directory_vfs();
+    let store_vfs = repo.store_vfs();
+    merge_result.create.par_iter().try_for_each(
+        |(path, _, _)| -> Result<(), HgError> {
+            if is_conflicting_unknown_file(
+                path,
+                dirstate,
+                p2_manifest,
+                check_exec,
+                filelog_options,
+                &working_directory_vfs,
+                &store_vfs,
+            )? {
+                if ignore_func(path) {
+                    ignored_sender.send(*path).expect("channel must be open");
+                } else {
+                    unknown_sender.send(*path).expect("channel must be open");
+                }
             }
-        }
-    }
+            Ok(())
+        },
+    )?;
+    drop(ignored_sender);
+    drop(unknown_sender);
+    let mut ignored_conflicts: Vec<&HgPath> =
+        ignored_receiver.into_iter().collect();
+    let unknown_conflicts: Vec<&HgPath> =
+        unknown_receiver.into_iter().collect();
+
     let ignored_conflict_config =
         repo.config().get_str(b"merge", b"checkignored")?;
     let on_ignored_conflict =
@@ -845,14 +858,14 @@ fn check_unknown_files<'a>(
 /// Whether this path is unknown (or ignored) and conflicts with the update
 fn is_conflicting_unknown_file(
     path: &HgPath,
-    dirstate: &OwningDirstateMap,
+    dirstate: &DirstateMap,
     p2_manifest: &Manifest,
     check_exec: bool,
     filelog_open_options: RevlogOpenOptions,
     wc_vfs: &VfsImpl,
     store_vfs: &VfsImpl,
 ) -> Result<bool, HgError> {
-    Ok(!dirstate.contains_key(path)?
+    Ok(!dirstate.has_node(path)?
         && is_file_or_link_check_dirs(path, wc_vfs).unwrap_or(false)
         // TODO write is_entry_modified to re-use the entry we've already
         // resolved during the diff
