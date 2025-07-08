@@ -689,7 +689,7 @@ class _BaseDeltaSearch(abc.ABC):
         revinfo: RevisionInfoT,
         p1: RevnumT,
         p2: RevnumT,
-        cachedelta: tuple[RevnumT, bytes, int] | None,
+        cachedelta: tuple[RevnumT, bytes, int, int | None] | None,
         excluded_bases: Sequence[RevnumT] | None = None,
         target_rev: RevnumT | None = None,
         snapshot_cache: SnapshotCache | None = None,
@@ -707,7 +707,9 @@ class _BaseDeltaSearch(abc.ABC):
         self.textlen: int = revinfo.textlen
         self.p1: RevnumT = p1
         self.p2: RevnumT = p2
-        self.cachedelta: tuple[RevnumT, bytes, int] | None = cachedelta
+        self.cachedelta: tuple[
+            RevnumT, bytes, int, int | None
+        ] | None = cachedelta
         self.excluded_bases: Sequence[RevnumT] | None = excluded_bases
         if target_rev is None:
             self.target_rev: int = len(self.revlog)
@@ -1543,7 +1545,7 @@ class deltacomputer:
         if revlog.delta_config.sparse_revlog and deltabase == nullrev:
             snapshotdepth = 0
         elif revlog.delta_config.sparse_revlog and as_snapshot:
-            assert revlog.issnapshot(deltabase)
+            assert revlog.issnapshot(deltabase), (target_rev, deltabase)
             # A delta chain should always be one full snapshot,
             # zero or more semi-snapshots, and zero or more deltas
             p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
@@ -1945,11 +1947,28 @@ class deltacomputer:
 
                 if self._debug_search:
                     delta_start = util.timer()
+
+                as_snapshot = False
+                if search.current_stage == _STAGE.SNAPSHOT:
+                    as_snapshot = True
+                if (
+                    search.current_stage == _STAGE.CACHED
+                    and revinfo.cachedelta is not None
+                    and self.revlog.delta_config.delta_info
+                    and revinfo.cachedelta[0] == candidaterev
+                    and revinfo.cachedelta[3] is not None
+                    and revinfo.cachedelta[3] > 0
+                    and self.revlog.issnapshot(candidaterev)
+                    and self.revlog.snapshotdepth(candidaterev)
+                    <= revinfo.cachedelta[3]
+                ):
+                    as_snapshot = True
+
                 candidatedelta = self._builddeltainfo(
                     revinfo,
                     candidaterev,
                     target_rev=target_rev,
-                    as_snapshot=search.current_stage == _STAGE.SNAPSHOT,
+                    as_snapshot=as_snapshot,
                     known_delta=deltainfo,
                 )
                 if self._debug_search:

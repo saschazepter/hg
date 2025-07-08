@@ -3347,7 +3347,7 @@ class revlog:
                 delta_base_reuse = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse = DELTA_BASE_REUSE_NO
-            cachedelta = (cachedelta[0], cachedelta[1], delta_base_reuse)
+            cachedelta = (cachedelta[0], cachedelta[1], delta_base_reuse, None)
 
         revinfo = revlogutils.revisioninfo(
             node,
@@ -3631,7 +3631,7 @@ class revlog:
                         data.p1,
                         data.p2,
                         flags,
-                        (baserev, data.delta, delta_base_reuse_policy),
+                        (baserev, data.delta, delta_base_reuse_policy, None),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
                         sidedata=data.sidedata,
@@ -3975,6 +3975,13 @@ class revlog:
                     if p1 == nullrev and p2 != nullrev:
                         p1, p2 = p2, p1
 
+            # We will let the encoding decide what is a snapshot
+            #
+            # The cached delta hold information about it being a snapshot, so
+            # that information will be preserved if the a cached delta for a
+            # snapshot is reused.
+            flags &= ~REVIDX_DELTA_IS_SNAPSHOT
+
             # (Possibly) reuse the delta from the revlog if allowed and
             # the revlog chunk is a delta.
             cachedelta = None
@@ -4003,9 +4010,26 @@ class revlog:
                 )
             else:
                 if destrevlog.delta_config.lazy_delta:
+                    if (
+                        self.delta_config.general_delta
+                        and self.delta_config.lazy_delta_base
+                    ):
+                        delta_base_reuse = DELTA_BASE_REUSE_TRY
+                    else:
+                        delta_base_reuse = DELTA_BASE_REUSE_NO
+
+                    if self.issnapshot(rev):
+                        snapshotdepth = self.snapshotdepth(rev)
+                    else:
+                        snapshotdepth = -1
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
-                        cachedelta = (dp, bytes(self._inner._chunk(rev)))
+                        cachedelta = (
+                            dp,
+                            bytes(self._inner._chunk(rev)),
+                            delta_base_reuse,
+                            snapshotdepth,
+                        )
 
                 sidedata = None
                 if not cachedelta:
