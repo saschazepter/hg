@@ -1270,6 +1270,22 @@ experimental = true
 [[items]]
 section = "format"
 name = "exp-use-hasmeta-flag"
+default = false
+experimental = true
+
+# Experimental TODOs:
+#
+# * code for fast upgrade
+# * changegroup 04 support
+# * more flag around delta quality (maybe)
+# * rust support
+# * c support
+# * use delta folding during computation
+# * updated delta strategie if relevant
+[[items]]
+section = "format"
+name = "exp-use-delta-info-flags"
+default = false
 experimental = true
 
 # Experimental TODOs:

@@ -123,6 +123,7 @@ pub fn extract_delta_config(
         let revlog_delta_config = RevlogDeltaConfig {
             general_delta: extract_attr!(conf, "general_delta")?,
             sparse_revlog: extract_attr!(conf, "sparse_revlog")?,
+            delta_info: extract_attr!(conf, "delta_info")?,
             max_chain_len: extract_attr!(conf, "max_chain_len")?,
             max_deltachain_span: if max_deltachain_span < 0 {
                 None
@@ -168,6 +169,7 @@ pub fn extract_data_config(
             sr_density_threshold: extract_attr!(conf, "sr_density_threshold")?,
             sr_min_gap_size: extract_attr!(conf, "sr_min_gap_size")?,
             general_delta: extract_attr!(conf, "generaldelta")?,
+            delta_info: extract_attr!(conf, "delta_info")?,
         })
     })
 }

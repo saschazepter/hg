@@ -288,14 +288,22 @@ def debug_revlog(ui, revlog):
     v = r._format_flags
     flags = []
     gdelta = False
+
     if v & constants.FLAG_INLINE_DATA:
         flags.append(b'inline')
+
     if v & constants.FLAG_GENERALDELTA:
         gdelta = True
         flags.append(b'generaldelta')
+
     if v & constants.FLAG_FILELOG_META:
         gdelta = True
         flags.append(b'hasmeta')
+
+    if v & constants.FLAG_DELTA_INFO:
+        gdelta = True
+        flags.append(b'delta-info')
+
     if not flags:
         flags = [b'(none)']
 

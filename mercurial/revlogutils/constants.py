@@ -143,11 +143,16 @@ FLAG_GENERALDELTA = 1 << 17
 # This filelog use a flag to signal metadata presence in a file revision
 FLAG_FILELOG_META = 1 << 18
 
+# snapshot delta should be explicitly marked as such
+FLAG_DELTA_INFO = 1 << 19
+
 REVLOG_DEFAULT_FLAGS = FLAG_INLINE_DATA
 REVLOG_DEFAULT_FORMAT = REVLOGV1
 REVLOG_DEFAULT_VERSION = REVLOG_DEFAULT_FORMAT | REVLOG_DEFAULT_FLAGS
 REVLOGV0_FLAGS = 0
-REVLOGV1_FLAGS = FLAG_INLINE_DATA | FLAG_GENERALDELTA | FLAG_FILELOG_META
+REVLOGV1_FLAGS = (
+    FLAG_INLINE_DATA | FLAG_GENERALDELTA | FLAG_FILELOG_META | FLAG_DELTA_INFO
+)
 REVLOGV2_FLAGS = FLAG_INLINE_DATA
 CHANGELOGV2_FLAGS = 0
 
@@ -234,6 +239,9 @@ REVIDX_HASCOPIESINFO = repository.REVISION_FLAG_HASCOPIESINFO
 # filelog revision has metadata
 REVIDX_HASMETA = repository.FILEREVISION_FLAG_HASMETA
 
+# revision is stored as a snapshot-delta
+REVIDX_DELTA_IS_SNAPSHOT = repository.REVISION_FLAG_DELTA_IS_SNAPSHOT
+
 REVIDX_DEFAULT_FLAGS = 0
 # stable order in which flags need to be processed and their processors applied
 REVIDX_FLAGS_ORDER = [
@@ -242,6 +250,7 @@ REVIDX_FLAGS_ORDER = [
     REVIDX_EXTSTORED,
     REVIDX_HASCOPIESINFO,
     REVIDX_HASMETA,
+    REVIDX_DELTA_IS_SNAPSHOT,
 ]
 
 # bitmark for flags that could cause rawdata content change
@@ -293,6 +302,7 @@ if typing.TYPE_CHECKING:
         hasmeta_flag: _FromFlagsFnc
         sidedata: bool
         docket: bool
+        delta_info: _FromFlagsFnc
 
 
 FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
@@ -300,6 +310,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'inline': _no,
         'generaldelta': _no,
         'hasmeta_flag': _no,
+        'delta_info': _no,
         'sidedata': False,
         'docket': False,
     },
@@ -307,6 +318,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'inline': _from_flag(FLAG_INLINE_DATA),
         'generaldelta': _from_flag(FLAG_GENERALDELTA),
         'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
+        'delta_info': _from_flag(FLAG_DELTA_INFO),
         'sidedata': False,
         'docket': False,
     },
@@ -317,6 +329,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'inline': _no,
         'generaldelta': _yes,
         'hasmeta_flag': _no,  # Should become yes at some point
+        'delta_info': _no,  # XXX we should make that True at some point
         'sidedata': True,
         'docket': True,
     },
@@ -325,6 +338,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         # General delta is useless for changelog since we don't do any delta
         'generaldelta': _no,
         'hasmeta_flag': _no,  # Should become yes at some point
+        'delta_info': _no,
         'sidedata': True,
         'docket': True,
     },

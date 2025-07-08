@@ -12,6 +12,7 @@ from ..i18n import _
 
 from .constants import (
     REVIDX_DEFAULT_FLAGS,
+    REVIDX_DELTA_IS_SNAPSHOT,
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
     REVIDX_FLAGS_ORDER,
@@ -26,6 +27,7 @@ from .. import error, util
 # blanked usage of all the name to prevent pyflakes constraints
 # We need these name available in the module for extensions.
 REVIDX_DEFAULT_FLAGS
+REVIDX_DELTA_IS_SNAPSHOT
 REVIDX_ELLIPSIS
 REVIDX_EXTSTORED
 REVIDX_FLAGS_ORDER
@@ -39,6 +41,7 @@ REVIDX_KNOWN_FLAGS = util.bitsfrom(REVIDX_FLAGS_ORDER)
 
 # Store flag processors (cf. 'addflagprocessor()' to register)
 flagprocessors = {
+    REVIDX_DELTA_IS_SNAPSHOT: None,
     REVIDX_ISCENSORED: None,
     REVIDX_HASCOPIESINFO: None,
     REVIDX_HASMETA: None,

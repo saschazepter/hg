@@ -98,6 +98,12 @@ class DataConfig(_Config):
     # are delta encoded against arbitrary bases.
     generaldelta = attr.ib(default=False, type=bool)
 
+    # index contains extra delta information
+    #
+    # (It is useful to have it here in addition to the one in DeltaConfig when
+    # we need to exchange related information)
+    delta_info = attr.ib(default=False)
+
 
 @attr.s()
 class DeltaConfig(_Config):
@@ -111,6 +117,8 @@ class DeltaConfig(_Config):
     general_delta = attr.ib(default=False, type=bool)
     # Allow sparse writing of the revlog data
     sparse_revlog = attr.ib(default=False, type=bool)
+    # index contains extra delta information
+    delta_info = attr.ib(default=False)
     # maximum length of a delta chain
     max_chain_len = attr.ib(default=None, type=Optional[int])
     # Maximum distance between delta chain base start and end

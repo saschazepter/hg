@@ -135,7 +135,13 @@ data_non_inlined = (
 
 
 def parse_index2(data, inline, format=constants.REVLOGV1):
-    index, chunkcache = parsers.parse_index2(data, inline, False, format=format)
+    index, chunkcache = parsers.parse_index2(
+        data,
+        inlined=inline,
+        uses_generaldelta=False,
+        uses_delta_info=False,
+        format=format,
+    )
     return list(index), chunkcache
 
 
@@ -241,7 +247,12 @@ class parseindex2tests(unittest.TestCase):
         got = parse_index2(data_non_inlined, False)
         self.assertEqual(want, got)  # no inline data
 
-        ix = parsers.parse_index2(data_inlined, True, False)[0]
+        ix = parsers.parse_index2(
+            data_inlined,
+            inlined=True,
+            uses_generaldelta=False,
+            uses_delta_info=False,
+        )[0]
         for i, r in enumerate(ix):
             if r[7] == sha1nodeconstants.nullid:
                 i = -1
@@ -271,16 +282,31 @@ class parseindex2tests(unittest.TestCase):
             constants.COMP_MODE_INLINE,
             constants.RANK_UNKNOWN,
         )
-        index, junk = parsers.parse_index2(data_inlined, True, False)
+        index, junk = parsers.parse_index2(
+            data_inlined,
+            inlined=True,
+            uses_generaldelta=False,
+            uses_delta_info=False,
+        )
         got = index[-1]
         self.assertEqual(want, got)  # inline data
 
-        index, junk = parsers.parse_index2(data_non_inlined, False, False)
+        index, junk = parsers.parse_index2(
+            data_non_inlined,
+            inlined=False,
+            uses_generaldelta=False,
+            uses_delta_info=False,
+        )
         got = index[-1]
         self.assertEqual(want, got)  # no inline data
 
     def testdelitemwithoutnodetree(self):
-        index, _junk = parsers.parse_index2(data_non_inlined, False, False)
+        index, _junk = parsers.parse_index2(
+            data_non_inlined,
+            inlined=False,
+            uses_generaldelta=False,
+            uses_delta_info=False,
+        )
 
         def hexrev(rev):
             if rev == nullrev:

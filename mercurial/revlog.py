@@ -51,6 +51,7 @@ from .revlogutils.constants import (
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
     FILELOG_HASMETA_UPGRADE as HM_UP,
+    FLAG_DELTA_INFO,
     FLAG_FILELOG_META,
     FLAG_GENERALDELTA,
     FLAG_INLINE_DATA,
@@ -70,6 +71,7 @@ from .revlogutils.constants import (
 )
 from .revlogutils.flagutil import (
     REVIDX_DEFAULT_FLAGS,
+    REVIDX_DELTA_IS_SNAPSHOT,
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
     REVIDX_FLAGS_ORDER,
@@ -217,12 +219,14 @@ def parse_index_v1(
     data,
     inline,
     uses_generaldelta,
+    uses_delta_info,
 ):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
         data,
         inline,
         uses_generaldelta,
+        uses_delta_info,
     )
     return index, cache
 
@@ -231,12 +235,14 @@ def parse_index_v2(
     data,
     inline,
     uses_generaldelta,
+    uses_delta_info,
 ):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
         data,
         inline,
         uses_generaldelta,
+        uses_delta_info,
         format=REVLOGV2,
     )
     return index, cache
@@ -246,12 +252,14 @@ def parse_index_cl_v2(
     data,
     inline,
     uses_generaldelta,
+    uses_delta_info,
 ):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
         data,
         inline,
         uses_generaldelta,
+        uses_delta_info,
         format=CHANGELOGV2,
     )
     return index, cache
@@ -263,11 +271,13 @@ if hasattr(parsers, 'parse_index_devel_nodemap'):
         data,
         inline,
         uses_generaldelta,
+        uses_delta_info,
     ):
         index, cache = parsers.parse_index_devel_nodemap(
             data,
             inline,
             uses_generaldelta,
+            uses_delta_info,
         )
         return index, cache
 
@@ -421,6 +431,9 @@ class _InnerRevlog:
             # directly assign the method to cache the testing and access
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)
+        elif self.data_config.delta_info:
+            flags = self.index[rev][0] & 0xFFFF
+            return flags & REVIDX_DELTA_IS_SNAPSHOT
         if rev == nullrev:
             return True
         entry = self.index[rev]
@@ -1474,6 +1487,8 @@ class revlog:
                 new_header |= FLAG_INLINE_DATA
             if b'generaldelta' in opts:
                 new_header |= FLAG_GENERALDELTA
+                if opts.get(b'delta-info-flags'):
+                    new_header |= FLAG_DELTA_INFO
             if (
                 self.revlog_kind == KIND_FILELOG
                 and b'filelog_hasmeta_flag' in opts
@@ -1686,7 +1701,11 @@ class revlog:
             self.delta_config.general_delta = features['generaldelta'](
                 self._format_flags
             )
+            self.delta_config.delta_info = features['delta_info'](
+                self._format_flags
+            )
             self.data_config.generaldelta = self.delta_config.general_delta
+            self.data_config.delta_info = self.delta_config.delta_info
             self.feature_config.has_side_data = features['sidedata']
             self.feature_config.hasmeta_flag = features['hasmeta_flag'](
                 self._format_flags
@@ -1801,6 +1820,7 @@ class revlog:
                     index_data,
                     self._inline,
                     self.delta_config.general_delta,
+                    self.delta_config.delta_info,
                 )
                 index, chunkcache = d
                 self._register_nodemap_info(index)
@@ -3374,6 +3394,11 @@ class revlog:
             # we can easily detect empty sidedata and they will be no different
             # than ones we manually add.
             sidedata_offset = 0
+
+        # drop previouly existing flags
+        flags &= ~REVIDX_DELTA_IS_SNAPSHOT
+        if self.delta_config.delta_info and deltainfo.snapshotdepth is not None:
+            flags |= REVIDX_DELTA_IS_SNAPSHOT
 
         rank = RANK_UNKNOWN
         if self.feature_config.compute_rank:

@@ -66,6 +66,10 @@ SPARSEREVLOG_REQUIREMENT = b'sparserevlog'
 # contains metadata.
 FILELOG_METAFLAG_REQUIREMENT = b'exp-filelog-metaflag'
 
+# revlogs holds information about their delta. Especially, snapshot are
+# explicitly flag as such.
+DELTA_INFO_REQUIREMENT = b'exp-delta-info-revlog'
+
 # A repository with the the copies-sidedata-changeset requirement will store
 # copies related information in changeset's sidedata.
 COPIESSDC_REQUIREMENT = b'exp-copies-sidedata-changeset'

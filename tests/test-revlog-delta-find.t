@@ -2,6 +2,7 @@
 Test various things around delta computation within revlog
 ==========================================================
 
+#testcases delta-info-flags flagless
 
 basic setup
 -----------
@@ -10,6 +11,22 @@ basic setup
   > [debug]
   > revlog.debug-delta=yes
   > EOF
+
+#if delta-info-flags
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-delta-info-flags=yes
+  > EOF
+
+#else
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-delta-info-flags=no
+  > EOF
+
+#endif
 
   $ hg init base-repo
   $ cd base-repo
@@ -333,6 +350,7 @@ Even if requested to be used, some of the delta in the revlog cannot be stored o
   $ hg init \
   >    --config format.usegeneraldelta=no \
   >    --config format.sparse-revlog=no \
+  >    --config format.exp-use-delta-info-flags=no \
   >    local-forced-full-p1-no-gd
   $ hg debugformat -R local-forced-full-p1-no-gd generaldelta
   format-variant                 repo

@@ -130,7 +130,7 @@ class revlogoldindex(list):
         return [r for r, val in enumerate(ishead) if val]
 
 
-def parse_index_v0(data, inline, uses_generaldelta):
+def parse_index_v0(data, inline, uses_generaldelta, uses_delta_info):
     s = INDEX_ENTRY_V0.size
     index = []
     nodemap = nodemaputil.NodeMap({node.nullid: node.nullrev})

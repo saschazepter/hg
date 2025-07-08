@@ -16,6 +16,7 @@ use super::NodePrefix;
 use super::RevlogError;
 use super::RevlogIndex;
 use super::REVIDX_KNOWN_FLAGS;
+use super::REVISION_FLAG_DELTA_IS_SNAPSHOT;
 use crate::dagops;
 use crate::errors::HgError;
 use crate::revlog::node::Node;
@@ -48,6 +49,7 @@ pub struct IndexHeaderFlags {
 pub const FLAG_INLINE_DATA: u16 = 1;
 pub const FLAG_GENERALDELTA: u16 = 1 << 1;
 pub const FLAG_FILELOG_META: u16 = 1 << 2;
+pub const FLAG_DELTA_INFO: u16 = 1 << 3;
 
 /// Corresponds to the high bits of `_format_flags` in python
 impl IndexHeaderFlags {
@@ -59,6 +61,9 @@ impl IndexHeaderFlags {
     }
     pub fn uses_filelog_meta(self) -> bool {
         self.flags & FLAG_FILELOG_META != 0
+    }
+    pub fn uses_delta_info(self) -> bool {
+        self.flags & FLAG_DELTA_INFO != 0
     }
 }
 
@@ -280,6 +285,7 @@ pub struct Index {
     offsets: RwLock<Option<Vec<usize>>>,
     uses_generaldelta: bool,
     uses_filelog_meta: bool,
+    uses_delta_info: bool,
     is_inline: bool,
     /// Cache of (head_revisions, filtered_revisions)
     ///
@@ -367,6 +373,7 @@ impl Index {
 
         let uses_generaldelta = header.format_flags().uses_generaldelta();
         let uses_filelog_meta = header.format_flags().uses_filelog_meta();
+        let uses_delta_info = header.format_flags().uses_delta_info();
 
         if header.format_flags().is_inline() {
             let mut offset: usize = 0;
@@ -386,6 +393,7 @@ impl Index {
                     offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
                     uses_filelog_meta,
+                    uses_delta_info,
                     is_inline: true,
                     head_revs: RwLock::new((vec![], HashSet::new())),
                 })
@@ -398,6 +406,7 @@ impl Index {
                 offsets: RwLock::new(None),
                 uses_generaldelta,
                 uses_filelog_meta,
+                uses_delta_info,
                 is_inline: false,
                 head_revs: RwLock::new((vec![], HashSet::new())),
             })
@@ -410,6 +419,10 @@ impl Index {
 
     pub fn uses_filelog_meta(&self) -> bool {
         self.uses_filelog_meta
+    }
+
+    pub fn uses_delta_info(&self) -> bool {
+        self.uses_delta_info
     }
 
     /// Value of the inline flag.
@@ -875,7 +888,12 @@ impl Index {
         &self,
         mut rev: Revision,
     ) -> Result<bool, RevlogError> {
-        {
+        if rev == NULL_REVISION {
+            Ok(true)
+        } else if self.uses_delta_info() {
+            let entry = self.get_entry(rev).unwrap();
+            Ok((entry.flags() & REVISION_FLAG_DELTA_IS_SNAPSHOT) != 0)
+        } else {
             while rev.0 >= 0 {
                 let entry = self.get_entry(rev).unwrap();
                 let mut base = entry.base_revision_or_base_of_delta_chain().0;

@@ -3320,6 +3320,14 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
         parse_index_v1 = functools.partial(
             parse_index_v1, uses_generaldelta=False
         )
+    uses_delta_info = "uses_delta_info" in getargspec(parse_index_v1).args
+    if uses_delta_info is not None:
+        # Mercurial 7.1 and above
+        # This test isn't affected by delta_info at all, so just pass `False`
+        parse_index_v1 = functools.partial(
+            parse_index_v1,
+            uses_delta_info=False,
+        )
 
     rllen = len(rl)
 

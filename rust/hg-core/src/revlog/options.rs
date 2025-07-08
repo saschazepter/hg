@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use super::compression::CompressionConfig;
+use super::index::FLAG_DELTA_INFO;
 use super::index::FLAG_FILELOG_META;
 use super::index::FLAG_GENERALDELTA;
 use super::index::FLAG_INLINE_DATA;
@@ -11,6 +12,7 @@ use crate::config::Config;
 use crate::config::ResourceProfileValue;
 use crate::errors::HgError;
 use crate::requirements::CHANGELOGV2_REQUIREMENT;
+use crate::requirements::DELTA_INFO_REQUIREMENT;
 use crate::requirements::FILELOG_METAFLAG_REQUIREMENT;
 use crate::requirements::GENERALDELTA_REQUIREMENT;
 use crate::requirements::NARROW_REQUIREMENT;
@@ -27,9 +29,16 @@ const DEFAULT_SPARSE_READ_MIN_GAP_SIZE: u64 = 262144;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RevlogVersionOptions {
     V0,
-    V1 { general_delta: bool, hasmeta_flag: bool, inline: bool },
+    V1 {
+        general_delta: bool,
+        hasmeta_flag: bool,
+        delta_info: bool,
+        inline: bool,
+    },
     V2,
-    ChangelogV2 { compute_rank: bool },
+    ChangelogV2 {
+        compute_rank: bool,
+    },
 }
 
 /// Options to govern how a revlog should be opened, usually from the
@@ -53,6 +62,7 @@ impl Default for RevlogOpenOptions {
                 general_delta: true,
                 inline: false,
                 hasmeta_flag: false,
+                delta_info: false,
             },
             use_nodemap: true,
             data_config: Default::default(),
@@ -72,6 +82,7 @@ impl RevlogOpenOptions {
         Self {
             version: RevlogVersionOptions::V1 {
                 general_delta: data_config.general_delta,
+                delta_info: delta_config.delta_info,
                 hasmeta_flag: feature_config.hasmeta_flag,
                 inline,
             },
@@ -89,11 +100,13 @@ impl RevlogOpenOptions {
                 RevlogVersionOptions::V1 {
                     general_delta,
                     hasmeta_flag,
+                    delta_info,
                     inline,
                 } => [
                     0,
                     ((if general_delta { FLAG_GENERALDELTA } else { 0 })
                         | (if hasmeta_flag { FLAG_FILELOG_META } else { 0 })
+                        | (if delta_info { FLAG_DELTA_INFO } else { 0 })
                         | (if inline { FLAG_INLINE_DATA } else { 0 }))
                         as u8,
                     0,
@@ -151,6 +164,8 @@ pub struct RevlogDataConfig {
     pub sr_min_gap_size: u64,
     /// Whether deltas are encoded against arbitrary bases
     pub general_delta: bool,
+    /// Whether extra information about delta are stored in the index
+    pub delta_info: bool,
 }
 
 impl RevlogDataConfig {
@@ -224,6 +239,7 @@ impl Default for RevlogDataConfig {
             uncompressed_cache_count: Default::default(),
             with_sparse_read: Default::default(),
             general_delta: Default::default(),
+            delta_info: Default::default(),
         }
     }
 }
@@ -238,6 +254,9 @@ pub struct RevlogDeltaConfig {
     pub general_delta: bool,
     /// Allow sparse writing of the revlog data
     pub sparse_revlog: bool,
+    /// Store additionnal information about delta in the index
+    /// (and adjust delta computation to leverage it)
+    pub delta_info: bool,
     /// Maximum length of a delta chain
     pub max_chain_len: Option<u64>,
     /// Maximum distance between a delta chain's start and end
@@ -328,6 +347,11 @@ impl RevlogDeltaConfig {
         delta_config.sparse_revlog = delta_config.general_delta
             && requirements.contains(SPARSEREVLOG_REQUIREMENT);
 
+        // we should not rely on richer delta information if the revlog does
+        // not suport general delta.
+        delta_config.delta_info = delta_config.general_delta
+            && requirements.contains(DELTA_INFO_REQUIREMENT);
+
         delta_config.max_chain_len =
             config.get_byte_size_no_default(b"format", b"maxchainlen")?;
 
@@ -355,6 +379,7 @@ impl Default for RevlogDeltaConfig {
             lazy_delta: true,
             general_delta: Default::default(),
             sparse_revlog: Default::default(),
+            delta_info: Default::default(),
             max_chain_len: Default::default(),
             max_deltachain_span: Default::default(),
             upper_bound_comp: Default::default(),
@@ -431,6 +456,7 @@ pub fn default_revlog_options(
         RevlogVersionOptions::V1 {
             general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
             hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            delta_info: requirements.contains(DELTA_INFO_REQUIREMENT),
             inline: !is_changelog,
         }
     } else {

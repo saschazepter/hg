@@ -2,6 +2,8 @@
 Test delta choice with sparse revlog
 ====================================
 
+#testcases delta-info-flags flagless
+
 Sparse-revlog usually shows the most gain on Manifest. However, it is simpler
 to general an appropriate file, so we test with a single file instead. The
 goal is to observe intermediate snapshot being created.
@@ -49,6 +51,23 @@ To update the md5, invoke the script without --validate
   > revlog.reuse-external-delta = no
   > delta-fold-estimate = always
   > EOF
+
+#if delta-info-flags
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-delta-info-flags=yes
+  > EOF
+
+#else
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-delta-info-flags=no
+  > EOF
+
+#endif
+
   $ hg init sparse-repo
   $ cd sparse-repo
   $ hg unbundle $bundlepath
@@ -208,7 +227,8 @@ sanity check the change pattern
   .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
   $ hg debugrevlog *
   format : 1
-  flags  : generaldelta
+  flags  : generaldelta (flagless !)
+  flags  : generaldelta, delta-info (delta-info-flags !)
   
   revisions     :     5001
       merges    :      625 (12.50%)

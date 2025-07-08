@@ -109,6 +109,7 @@ const SUPPORTED: &[&str] = &[
     SHARED_REQUIREMENT,
     SHARESAFE_REQUIREMENT,
     SPARSEREVLOG_REQUIREMENT,
+    DELTA_INFO_REQUIREMENT,
     RELATIVE_SHARED_REQUIREMENT,
     REVLOG_COMPRESSION_ZSTD,
     DIRSTATE_V2_REQUIREMENT,
@@ -194,6 +195,10 @@ pub const SPARSEREVLOG_REQUIREMENT: &str = "sparserevlog";
 /// The filelog uses explicit flag in the index to mark file revision that
 /// contains metadata.
 pub const FILELOG_METAFLAG_REQUIREMENT: &str = "exp-filelog-metaflag";
+
+/// Revlog stores extra information about delta
+#[allow(unused)]
+pub const DELTA_INFO_REQUIREMENT: &str = "exp-delta-info-revlog";
 
 /// A repository with the the copies-sidedata-changeset requirement will store
 /// copies related information in changeset's sidedata.

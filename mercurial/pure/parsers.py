@@ -738,7 +738,9 @@ class BaseIndexObject:
 
 
 class IndexObject(BaseIndexObject):
-    def __init__(self, data: ByteString, uses_generaldelta=False):
+    def __init__(
+        self, data: ByteString, uses_generaldelta=False, uses_delta_info=False
+    ):
         assert len(data) % self.entry_size == 0, (
             len(data),
             self.entry_size,
@@ -815,7 +817,9 @@ class PersistentNodeMapIndexObject(IndexObject):
 
 
 class InlinedIndexObject(BaseIndexObject):
-    def __init__(self, data, inline=0, uses_generaldelta=False):
+    def __init__(
+        self, data, inline=0, uses_generaldelta=False, uses_delta_info=False
+    ):
         self._data = data
         self._lgt = self._inline_scan(None)
         self._inline_scan(self._lgt)
@@ -861,6 +865,7 @@ def parse_index2(
     data: ByteString,
     inlined,
     uses_generaldelta,
+    uses_delta_info,
     format=revlog_constants.REVLOGV1,
 ) -> tuple[IndexObject | InlinedIndexObject, tuple[int, ByteString] | None]:
     if format == revlog_constants.CHANGELOGV2:
@@ -870,9 +875,9 @@ def parse_index2(
             cls = IndexObject2
         else:
             cls = IndexObject
-        return cls(data, uses_generaldelta), None
+        return cls(data, uses_generaldelta, uses_delta_info), None
     cls = InlinedIndexObject
-    return cls(data, inlined, uses_generaldelta), (0, data)
+    return cls(data, inlined, uses_generaldelta, uses_delta_info), (0, data)
 
 
 def parse_index_cl_v2(data):
@@ -991,9 +996,12 @@ class IndexChangelogV2(IndexObject2):
         return self.index_format.pack(*data)
 
 
-def parse_index_devel_nodemap(data, inline, uses_generaldelta):
+def parse_index_devel_nodemap(data, inline, uses_generaldelta, uses_delta_info):
     """like parse_index2, but always return a PersistentNodeMapIndexObject"""
-    return PersistentNodeMapIndexObject(data, uses_generaldelta), None
+    return (
+        PersistentNodeMapIndexObject(data, uses_generaldelta, uses_delta_info),
+        None,
+    )
 
 
 def parse_dirstate(dmap, copymap, st):

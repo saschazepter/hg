@@ -1105,6 +1105,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if requirementsmod.FILELOG_METAFLAG_REQUIREMENT in requirements:
         options[b'filelog_hasmeta_flag'] = True
 
+    if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
+        options[b'delta-info-flags'] = True
+
     # experimental config: format.chunkcachesize
     chunkcachesize = ui.configint(b'format', b'chunkcachesize')
     if chunkcachesize is not None:
@@ -1390,6 +1393,7 @@ class localrepository(_localrepo_base_classes):
         requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT,
         requirementsmod.CHANGELOGV2_REQUIREMENT,
         requirementsmod.COPIESSDC_REQUIREMENT,
+        requirementsmod.DELTA_INFO_REQUIREMENT,
         requirementsmod.DIRSTATE_TRACKED_HINT_V1,
         requirementsmod.DIRSTATE_V2_REQUIREMENT,
         requirementsmod.DOTENCODE_REQUIREMENT,
@@ -3912,6 +3916,10 @@ def newreporequirements(ui, createopts):
     if ui.configbool(b'format', b'exp-use-hasmeta-flag'):
         requirements.add(requirementsmod.FILELOG_METAFLAG_REQUIREMENT)
 
+    # experimental config: format.exp-use-hasmeta-flag
+    if ui.configbool(b'format', b'exp-use-delta-info-flags'):
+        requirements.add(requirementsmod.DELTA_INFO_REQUIREMENT)
+
     # enforce requirement dependencies
     #
     # note: In practice this mean we don't need to explicitly use the
@@ -3921,6 +3929,8 @@ def newreporequirements(ui, createopts):
     # In practice this has been the case for a while and older clients might
     # rely on it. The redundancy does not hurt for now, but we could consider
     # using such implicit approach for newly introduced requirements.
+    if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
+        requirements.add(requirementsmod.SPARSEREVLOG_REQUIREMENT)
     if requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements:
         requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
 
