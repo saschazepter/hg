@@ -1142,6 +1142,7 @@ fn create_working_copy<'a: 'b, 'b>(
     let symlinks_span =
         tracing::span!(tracing::Level::TRACE, "adding symlinks").entered();
     for (dir_path, chunk) in symlinks {
+        let progress_incr = chunk.len() as u64;
         if let Err(e) = working_copy_worker(
             dir_path,
             chunk,
@@ -1149,7 +1150,6 @@ fn create_working_copy<'a: 'b, 'b>(
             store_vfs,
             options,
             files_sender,
-            progress,
             &auditor,
             update_config,
         ) {
@@ -1158,13 +1158,15 @@ fn create_working_copy<'a: 'b, 'b>(
                 .send(e)
                 .expect("channel should not be disconnected")
         };
+        progress.increment(progress_incr, None);
     }
     symlinks_span.exit();
 
     let files_span =
         tracing::span!(tracing::Level::TRACE, "adding files").entered();
     // Then take care of the normal files
-    let work_closure = |(dir_path, chunk)| -> Result<(), HgError> {
+    let work_closure = |(dir_path, chunk): (_, Vec<_>)| -> Result<(), HgError> {
+        let progress_incr = chunk.len() as u64;
         if let Err(e) = working_copy_worker(
             dir_path,
             chunk,
@@ -1172,7 +1174,6 @@ fn create_working_copy<'a: 'b, 'b>(
             store_vfs,
             options,
             files_sender,
-            progress,
             &auditor,
             update_config,
         ) {
@@ -1181,6 +1182,7 @@ fn create_working_copy<'a: 'b, 'b>(
                 .send(e)
                 .expect("channel should not be disconnected")
         }
+        progress.increment(progress_incr, None);
         Ok(())
     };
     maybe_parallel(
@@ -1265,7 +1267,6 @@ fn working_copy_worker<'a: 'b, 'b>(
     store_vfs: &VfsImpl,
     options: RevlogOpenOptions,
     files_sender: &Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
-    progress: &dyn Progress,
     auditor: &PathAuditor,
     update_config: &UpdateConfig,
 ) -> Result<(), HgError> {
@@ -1414,7 +1415,6 @@ fn working_copy_worker<'a: 'b, 'b>(
                     .when_reading_file(&path)?,
             ))
             .expect("channel should not be closed");
-        progress.increment(1, None);
     }
     Ok(())
 }
