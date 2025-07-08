@@ -1117,6 +1117,27 @@ fn create_working_copy<'a: 'b, 'b>(
 ) {
     let auditor = PathAuditor::new(working_copy_vfs.base());
 
+    let work_closure = |(dir_path, chunk): (_, Vec<_>)| -> Result<(), HgError> {
+        let progress_incr = chunk.len() as u64;
+        if let Err(e) = working_copy_worker(
+            dir_path,
+            chunk,
+            working_copy_vfs,
+            store_vfs,
+            options,
+            files_sender,
+            &auditor,
+            update_config,
+        ) {
+            error_sender
+                .clone()
+                .send(e)
+                .expect("channel should not be disconnected")
+        }
+        progress.increment(progress_incr, None);
+        Ok(())
+    };
+
     // First, create all the symlinks sequentially.
     // We need to make sure that no two threads will race:
     //     - A: successfully audit file a/b
@@ -1139,52 +1160,21 @@ fn create_working_copy<'a: 'b, 'b>(
     //
     // This needs to be fixed in `commit`, but regardless will always exist in
     // the wild, so catch it here.
+
     let symlinks_span =
         tracing::span!(tracing::Level::TRACE, "adding symlinks").entered();
-    for (dir_path, chunk) in symlinks {
-        let progress_incr = chunk.len() as u64;
-        if let Err(e) = working_copy_worker(
-            dir_path,
-            chunk,
-            working_copy_vfs,
-            store_vfs,
-            options,
-            files_sender,
-            &auditor,
-            update_config,
-        ) {
-            error_sender
-                .clone()
-                .send(e)
-                .expect("channel should not be disconnected")
-        };
-        progress.increment(progress_incr, None);
-    }
+    maybe_parallel(
+        "update",
+        symlinks,
+        work_closure,
+        update_config.workers,
+        error_sender,
+    );
     symlinks_span.exit();
 
     let files_span =
         tracing::span!(tracing::Level::TRACE, "adding files").entered();
     // Then take care of the normal files
-    let work_closure = |(dir_path, chunk): (_, Vec<_>)| -> Result<(), HgError> {
-        let progress_incr = chunk.len() as u64;
-        if let Err(e) = working_copy_worker(
-            dir_path,
-            chunk,
-            working_copy_vfs,
-            store_vfs,
-            options,
-            files_sender,
-            &auditor,
-            update_config,
-        ) {
-            error_sender
-                .clone()
-                .send(e)
-                .expect("channel should not be disconnected")
-        }
-        progress.increment(progress_incr, None);
-        Ok(())
-    };
     maybe_parallel(
         "update",
         chunks,
