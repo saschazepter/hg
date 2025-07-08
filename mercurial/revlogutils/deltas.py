@@ -1471,6 +1471,19 @@ class deltacomputer:
 
         return delta
 
+    def _fold_chain(
+        self,
+        target_base: RevnumT,
+        higher_base: RevnumT,
+    ) -> Optional[List[RevnumT]]:
+        """Return usable fold information or None
+
+        Usable fold information will be a list of revision stored as delta and
+        creating foldable path from target_base to higher_base."""
+        if target_base == self.revlog.deltaparent(higher_base):
+            return [higher_base]
+        return None
+
     def _builddeltainfo(
         self,
         revinfo: RevisionInfoT,
@@ -1562,13 +1575,13 @@ class deltacomputer:
             #   (we could do it more broadly if our target base is in the
             #   "known_delta" delta chain. It "just" requires folding more
             #   deltas)
-            and self.revlog.deltaparent(known_delta.base) == base
+            and (fold_chain := self._fold_chain(base, known_delta.base))
+            is not None
         ):
-            delta_to_base = self.revlog.revdiff(base, known_delta.base)
-            delta_size = delta_fold.estimate_combined_delta_size(
-                delta_to_base,
-                known_delta.u_data,
-            )
+            rl = revlog
+            fold_data = [rl.revdiff(rl.deltaparent(r), r) for r in fold_chain]
+            fold_data.append(known_delta.u_data)
+            delta_size = delta_fold.estimate_combined_deltas_size(fold_data)
         else:
             delta = self._builddeltadiff(base, revinfo)
             delta_size = len(delta)

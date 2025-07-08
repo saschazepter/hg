@@ -17,6 +17,10 @@ from __future__ import annotations
 import struct
 import typing
 
+from typing import (
+    Sequence,
+)
+
 from ..thirdparty import attr
 
 if typing.TYPE_CHECKING:
@@ -567,8 +571,16 @@ class Delta:
         return Delta(new_patches)
 
 
-def estimate_combined_delta_size(delta_low: bytes, delta_high: bytes):
+def estimate_combined_deltas_size(deltas: Sequence[bytes]) -> int:
     """estimate an upper bound of the size of combiner delta_low with delta_high"""
-    low = Delta.from_bytes(delta_low)
-    high = Delta.from_bytes(delta_high)
-    return low.combine(high).storage_size
+    # filter empty deltas
+    deltas = [d for d in deltas if d]
+    if not deltas:
+        return 0
+    high = Delta.from_bytes(deltas[-1])
+    for low_data in deltas[-2::-1]:
+        if not low_data:
+            continue
+        low = Delta.from_bytes(low_data)
+        high = low.combine(high)
+    return high.storage_size
