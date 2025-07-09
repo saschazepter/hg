@@ -17,6 +17,9 @@ if typing.TYPE_CHECKING:
     import attr
 
 from ..interfaces import repository
+from ..interfaces.types import (
+    NodeIdT,
+)
 
 # See mercurial.revlogutils.constants for doc
 COMP_MODE_INLINE = 2
@@ -82,13 +85,13 @@ class revisioninfo:
     One of btext[0] or cachedelta must be set.
     """
 
-    node = attr.ib()
-    p1 = attr.ib()
-    p2 = attr.ib()
-    btext = attr.ib()
-    textlen = attr.ib()
+    node = attr.ib(type=NodeIdT)
+    p1 = attr.ib(type=NodeIdT)
+    p2 = attr.ib(type=NodeIdT)
+    btext = attr.ib(type=list[bytes | None])
+    textlen = attr.ib(type=int)
     cachedelta = attr.ib()
-    flags = attr.ib()
+    flags = attr.ib(type=int)
 
 
 @attr.s(slots=True)
