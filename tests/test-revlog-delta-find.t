@@ -103,7 +103,8 @@ The delta base is the "large" revision as it produce a smaller delta.
 
   $ hg -R test-no-parents commit -m "merge from small change" \
   > --config storage.revlog.optimize-delta-parent-choice=no
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 is-cached=0 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=1 p2-chain-length=1 - duration=*.?????? (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 is-cached=0 - search-rounds=1 try-count=1 - delta-type=delta  snap-depth=-1 - p1-chain-length=1 p2-chain-length=1 - duration=*.?????? (glob) (delta-info-flags !)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: CHANGELOG: * (glob)
 
@@ -135,7 +136,8 @@ strusting in-bundle delta is faster to apply.
   DBG-DELTAS: FILELOG:my-file.txt: rev=0: delta-base=0 * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=1: delta-base=0 * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=2: delta-base=0 * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
 
 (confirm the file revision are in the same order, 2 should be smaller than 1)
 
@@ -164,7 +166,8 @@ strusting in-bundle delta is faster to apply.
   DBG-DELTAS: FILELOG:my-file.txt: rev=0: delta-base=0 * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=1: delta-base=0 * (glob)
   DBG-DELTAS: FILELOG:my-file.txt: rev=2: delta-base=0 * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
 
 (confirm the file revision are in the same order, 2 should be smaller than 1)
 
@@ -236,7 +239,8 @@ default is to reuse the (bad) delta
   $ hg -R local-no-value pull --quiet
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
 
 Pull with explicitly the default
 --------------------------------
@@ -247,7 +251,8 @@ default is to reuse the (bad) delta
   $ hg -R local-default pull --quiet --config 'paths.default:pulled-delta-reuse-policy=default'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
 
 Pull with no-reuse
 ------------------
@@ -269,7 +274,8 @@ We requested to use the (bad) delta
   $ hg -R local-try-base pull --quiet --config 'paths.default:pulled-delta-reuse-policy=try-base'
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
 
 Case where we force a "bad" delta to be applied
 ===============================================
@@ -303,7 +309,8 @@ snapshot again.
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
   DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 * (glob)
 
 Check that "forced" behavior do not challenge the delta, even if it is full.
@@ -318,7 +325,8 @@ A full bundle should be accepted as full bundle without recomputation
   DBG-DELTAS: CHANGELOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
   DBG-DELTAS: MANIFESTLOG: * (glob)
-  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=2 * (glob) (flagless !)
+  DBG-DELTAS: FILELOG:my-file.txt: rev=3: delta-base=0 * (glob) (delta-info-flags !)
   DBG-DELTAS: FILELOG:my-file.txt: rev=4: delta-base=4 is-cached=1 - search-rounds=0 try-count=0 - delta-type=full   snap-depth=0 - * (glob)
 
 Check that "forced" behavior do not challenge the delta, even if it is bad.

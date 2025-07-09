@@ -1506,6 +1506,17 @@ class deltacomputer:
                 break
         return None
 
+    def _iter_fold_candidates(
+        self, base: RevnumT
+    ) -> Iterator[tuple[RevnumT, bytes]]:
+        """return a iterator over delta to try folding with"""
+        rl = self.revlog
+        while base != nullrev:
+            next_base = rl.deltaparent(base)
+            chunk = rl.revdiff(next_base, base)
+            yield next_base, chunk
+            base = next_base
+
     def _builddeltainfo(
         self,
         revinfo: RevisionInfoT,
@@ -1513,6 +1524,7 @@ class deltacomputer:
         target_rev: RevnumT | None = None,
         as_snapshot: bool = False,
         known_delta: Optional[_DeltaInfo] = None,
+        optimize_by_folding: float | None = None,
     ) -> _DeltaInfo | None:
         """return a new _DeltaInfo based on <base> or None
 
@@ -1569,6 +1581,14 @@ class deltacomputer:
                 currentbase = self.revlog.deltaparent(currentbase)
             if self.revlog.delta_config.lazy_delta and currentbase == base:
                 delta = revinfo.cachedelta[1]
+                if revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE:
+                    # The instruction is to forcibly reuse the delta base, so
+                    # let's ignore foldin there.
+                    #
+                    # It might be a good idea to revisite this in the future,
+                    # folding the incoming delta should only produce better
+                    # chain, so the risk is probably slow.
+                    optimize_by_folding = None
 
         # Can we use a size estimate for something ?
         #
@@ -1653,6 +1673,36 @@ class deltacomputer:
                 msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
                 msg %= len(delta)
                 self._write_debug(msg)
+
+        if optimize_by_folding is not None:
+            new_delta_base = delta_fold.optimize_base(
+                delta,
+                self._iter_fold_candidates(deltabase),
+                int(len(delta) * optimize_by_folding),
+            )
+
+            if new_delta_base == nullrev:
+                # we collapsed the full stack, lets do a full snapshot
+                if self._debug_search:
+                    msg = b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
+                    msg %= deltabase
+                    self._write_debug(msg)
+                return self._fullsnapshotinfo(
+                    revinfo,
+                    target_rev,
+                )
+            elif new_delta_base is not None:
+                delta = self._builddeltadiff(new_delta_base, revinfo)
+                base = deltabase = new_delta_base
+                if snapshotdepth is not None:
+                    snapshotdepth = len(revlog._deltachain(base)[0])
+                if self._debug_search:
+                    msg = b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
+                    msg %= deltabase
+                    self._write_debug(msg)
+                    msg = b"DBG-DELTAS-SEARCH:       delta-size=%d\n"
+                    msg %= len(delta)
+                    self._write_debug(msg)
 
         # try to compress the delta
         header, data = revlog._inner.compress(delta)
@@ -1967,12 +2017,25 @@ class deltacomputer:
                 ):
                     as_snapshot = True
 
+                fold_tolerance = None
+                if (
+                    self.revlog.delta_config.delta_info
+                    # currently only optimize during parent search and
+                    # cache reuse. Consider also using this during the
+                    # snapshot phase.
+                    and search.current_stage in (_STAGE.PARENTS, _STAGE.CACHED)
+                ):
+                    fold_tolerance = (
+                        self.revlog.delta_config.delta_fold_tolerance
+                    )
+
                 candidatedelta = self._builddeltainfo(
                     revinfo,
                     candidaterev,
                     target_rev=target_rev,
                     as_snapshot=as_snapshot,
                     known_delta=deltainfo,
+                    optimize_by_folding=fold_tolerance,
                 )
                 if self._debug_search:
                     delta_end = util.timer()

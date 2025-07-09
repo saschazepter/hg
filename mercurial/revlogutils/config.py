@@ -145,3 +145,7 @@ class DeltaConfig(_Config):
     # Use delta folding to estimate the size of a delta before actually
     # computing it.
     delta_fold_estimate = attr.ib(default=True, type=bool)
+    # the maximal ratio between the original delta and a new delta optimized by folding.
+    #
+    # a value of None means the feature is disabled.
+    delta_fold_tolerance = attr.ib(default=True, type=float | None)

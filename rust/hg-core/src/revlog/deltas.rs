@@ -1,5 +1,7 @@
 //! This module contains code to understand and process deltas used by Mercurial
 
+use crate::Revision;
+
 /// Size of a patch header piece
 const HP_SIZE: usize = size_of::<i32>();
 /// Size of a patch header (start, old_end, size)
@@ -68,6 +70,48 @@ pub fn estimate_combined_deltas_size(deltas: Vec<&[u8]>) -> usize {
         std::mem::swap(&mut high_delta, &mut folded_delta);
     }
     combined_size
+}
+
+/// Search for an base down the delta chain that would produce a better delta
+///
+/// This use delta folding to estimate the effect using a delta base further
+/// down the chain and keep going down as long as the resulting estimate are
+/// better than the target size.
+pub fn optimize_base(
+    delta: &[u8],
+    next_deltas: &mut impl Iterator<
+        Item = (Revision, impl std::ops::Deref<Target = [u8]>),
+    >,
+    max_size: usize,
+) -> Option<Revision> {
+    if delta.is_empty() {
+        // if the delta is empty, we won't do better unless the rest of the
+        // chain is also empty, and those should have already be optimized by
+        // the search strategy
+        return None;
+    }
+    let mut high_delta = vec![];
+    let mut low_delta = vec![];
+    let mut folded_delta = vec![];
+    let mut best_base: Option<Revision> = None;
+    chunk_to_delta(&mut high_delta, delta);
+
+    for (base, data) in next_deltas {
+        let delta_data = data.deref();
+        if !delta_data.is_empty() {
+            low_delta.clear();
+            folded_delta.clear();
+            chunk_to_delta(&mut low_delta, delta_data);
+            let folded_size =
+                fold_deltas(&low_delta, &high_delta, &mut folded_delta);
+            if folded_size > max_size {
+                break;
+            }
+            std::mem::swap(&mut high_delta, &mut folded_delta);
+        }
+        best_base = Some(base);
+    }
+    best_base
 }
 
 /// Combine two delta into a new delta

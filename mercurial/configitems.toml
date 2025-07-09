@@ -1280,7 +1280,6 @@ experimental = true
 # * more flag around delta quality (maybe)
 # * rust support
 # * c support
-# * use delta folding during computation
 # * updated delta strategie if relevant
 [[items]]
 section = "format"
@@ -2308,6 +2307,19 @@ Acceptable value:
 - always: always use
 - when-fast: use only if a fast implementation is available (default)
 - never: never use
+"""
+
+[[items]]
+section = "storage"
+name = "delta-fold-tolerance-percentage"
+default = 5
+experimental = true
+documentation = """The maximum extra size allowed when using folding. The value
+is expressed in percentage (5 means up to 105% of the original size, 50 means
+150% of the original size.)
+
+Negative value disable the use of delta folding.
+(the delta folding usage is only used for revlog using te delta-info-flags feature).
 """
 
 [[items]]

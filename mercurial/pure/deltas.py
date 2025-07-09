@@ -18,7 +18,9 @@ import struct
 import typing
 
 from typing import (
+    Iterator,
     Sequence,
+    Tuple,
 )
 
 from ..thirdparty import attr
@@ -584,3 +586,28 @@ def estimate_combined_deltas_size(deltas: Sequence[bytes]) -> int:
         low = Delta.from_bytes(low_data)
         high = low.combine(high)
     return high.storage_size
+
+
+def optimize_base(
+    delta: bytes,
+    next_deltas: Iterator[Tuple[int, bytes]],
+    max_size: int,
+) -> int | None:
+    """Try to find a better base than the existing delta
+
+    This function starts from <delta>, fold with other candidates from
+    <next_deltas> until the estimated size gets over <max_size>.
+    """
+    if not delta:
+        # if the delta is empty, we won't do better unless the rest of the
+        # chain is also empty, and those should have already be optimized by
+        # the search strategy
+        return None
+    current_delta = Delta.from_bytes(delta)
+    best_base = None
+    for base, data in next_deltas:
+        current_delta = Delta.from_bytes(data).combine(current_delta)
+        if current_delta.storage_size > max_size:
+            break
+        best_base = base
+    return best_base

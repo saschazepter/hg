@@ -1194,6 +1194,15 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     elif use_folding == b"never":
         delta_config.delta_fold_estimate = False
 
+    fold_tolerance = ui.configint(
+        b'storage',
+        b'delta-fold-tolerance-percentage',
+    )
+    if fold_tolerance < 0:
+        delta_config.delta_fold_tolerance = None
+    else:
+        delta_config.delta_fold_tolerance = float((100 + fold_tolerance) / 100)
+
     for r in requirements:
         # we allow multiple compression engine requirement to co-exist because
         # strickly speaking, revlog seems to support mixed compression style.
