@@ -24,6 +24,7 @@ use crate::requirements::SPARSE_REQUIREMENT;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
+use crate::Node;
 use crate::Revision;
 use crate::NULL_REVISION;
 
@@ -61,7 +62,7 @@ pub enum SparseNarrowWarning {
     /// Warns about improper paths that start with "/"
     RootWarning { context: SparseConfigContext, line: Vec<u8> },
     /// Warns about a profile missing from the given changelog revision
-    ProfileNotFound { profile: Vec<u8>, rev: Revision },
+    ProfileNotFound { profile: Vec<u8>, node: Option<Node> },
 }
 
 /// Parsed sparse config
@@ -286,7 +287,7 @@ fn patterns_for_rev(
             if output.results.is_empty() {
                 warnings.send(SparseNarrowWarning::ProfileNotFound {
                     profile: profile.to_owned(),
-                    rev,
+                    node: repo.node(rev.into()),
                 });
                 continue;
             }

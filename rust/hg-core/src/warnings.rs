@@ -125,13 +125,15 @@ pub mod format {
                 context,
                 line
             ),
-            SparseNarrowWarning::ProfileNotFound { profile, rev } => {
+            SparseNarrowWarning::ProfileNotFound { profile, node } => {
                 write_bytes!(
                     output,
                     b"warning: sparse profile '{}' not found \
                     in rev {} - ignoring it\n",
                     profile,
-                    rev
+                    node.map(|n| format!("{:x}", n.short()))
+                        .unwrap_or_else(|| String::from("unknown"))
+                        .as_bytes()
                 )
             }
         }
