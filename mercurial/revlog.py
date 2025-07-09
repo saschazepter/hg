@@ -3902,6 +3902,10 @@ class revlog:
         # lazydelta and lazydeltabase controls whether to reuse a cached delta,
         # if possible.
         old_delta_config = destrevlog.delta_config
+        # XXX Changing the deltaconfig of the revlog will not change the config
+        # XXX of the inner revlog and even less the config used by Rust, so this
+        # XXX overwrite will create problem as soon as the delta computation
+        # XXX move at a lower level.
         destrevlog.delta_config = destrevlog.delta_config.copy()
 
         try:
