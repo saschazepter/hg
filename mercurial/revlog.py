@@ -104,6 +104,11 @@ from . import (
 from .interfaces import (
     repository,
 )
+
+from .interfaces.types import (
+    NodeIdT,
+)
+
 from .revlogutils import (
     deltas as deltautil,
     docket as docketutil,
@@ -2141,7 +2146,7 @@ class revlog:
     def end(self, rev):
         return self.start(rev) + self.length(rev)
 
-    def parents(self, node):
+    def parents(self, node: NodeIdT) -> tuple[NodeIdT, NodeIdT]:
         i = self.index
         d = i[self.rev(node)]
         # inline node() to avoid function call overhead
