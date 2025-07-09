@@ -87,7 +87,7 @@ fi
 # This is not expected to be a problem as the file structure is very simple and
 # very seldomly changes. (Hi, to anyone reading that comment because this
 # eventually created problem)
-touch --no-create --date '1970-01-01 00:00:00' mercurial/__version__.py
+touch --no-create --date '2005-05-03 13:16:10' mercurial/__version__.py
 
 pytype --keep-going --jobs auto \
     doc/check-seclevel.py hgdemandimport hgext mercurial \
