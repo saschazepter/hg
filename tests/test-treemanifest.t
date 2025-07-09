@@ -983,6 +983,7 @@ Test debug-revlog-reencode
   full revision size (min/max/avg)     : 3 / 3 / 3
   inter-snapshot size (min/max/avg)    : 0 / 0 / 0
   delta size (min/max/avg)             : 0 / 0 / 0
+  duration: * (glob)
   cleaning up * (glob)
     done
   $ hg debug::revlog-reencoded-delta-info --dir dir/
@@ -1034,6 +1035,7 @@ Test debug-revlog-reencode
   deltas against p2    : 0 ( 0.00%)
   deltas against ancs  : 0 ( 0.00%)
   deltas against other : 0 ( 0.00%)
+  duration: * (glob)
   cleaning up * (glob)
     done
   $ hg debug::revlog-reencoded-delta-info -m
@@ -1085,6 +1087,7 @@ Test debug-revlog-reencode
   deltas against p2    : 0 ( 0.00%)
   deltas against ancs  : 0 ( 0.00%)
   deltas against other : 0 ( 0.00%)
+  duration: * (glob)
   cleaning up * (glob)
     done
   $ hg debug::revlog-reencoded-delta-info -c
@@ -1124,5 +1127,6 @@ Test debug-revlog-reencode
   full revision size (min/max/avg)     : 68 / 222 / 109
   inter-snapshot size (min/max/avg)    : 0 / 0 / 0
   delta size (min/max/avg)             : 0 / 0 / 0
+  duration: * (glob)
   cleaning up * (glob)
     done

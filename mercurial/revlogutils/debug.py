@@ -13,6 +13,7 @@ import os
 import shutil
 import string
 import tempfile
+import time
 
 from .. import (
     error,
@@ -994,6 +995,9 @@ def reencoded_info(
         end_rev = int(stop_rev)
     tmpdir = tempfile.mkdtemp(prefix='tmp-hgperf-').encode('ascii')
     ui.writenoi18n(b"working in: %s\n" % tmpdir)
+    rev = None
+
+    start = time.monotonic()
     try:
         if truncaterev != 0:
             # copy the data file in a temporary directory
@@ -1081,8 +1085,13 @@ def reencoded_info(
                     cachedelta=cachedelta,
                 )
                 p.update(rev)
+        rev = None
         debug_revlog(ui, dest)
     finally:
+        end = time.time()
+        if rev is not None:
+            ui.writenoi18n(b"/!\\ interrupted while processing %d\n" % rev)
+        ui.writenoi18n(b"duration: %f\n" % (end - start))
         if delete:
             ui.writenoi18n(b"cleaning up %s\n" % tmpdir)
             shutil.rmtree(tmpdir, True)
