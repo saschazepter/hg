@@ -89,6 +89,10 @@ if typing.TYPE_CHECKING:
     import attr
     from .pure.parsers import BaseIndexObject
 
+    from .interfaces.types import (
+        NodeIdT,
+    )
+
 from . import (
     ancestor,
     dagop,
@@ -103,10 +107,6 @@ from . import (
 )
 from .interfaces import (
     repository,
-)
-
-from .interfaces.types import (
-    NodeIdT,
 )
 
 from .revlogutils import (
@@ -3146,7 +3146,7 @@ class revlog:
         link,
         p1,
         p2,
-        cachedelta=None,
+        cachedelta: revlogutils.CachedDelta | None = None,
         node=None,
         flags=REVIDX_DEFAULT_FLAGS,
         deltacomputer=None,
@@ -3226,7 +3226,7 @@ class revlog:
         p2,
         node,
         flags,
-        cachedelta=None,
+        cachedelta: revlogutils.CachedDelta | None = None,
         deltacomputer=None,
         sidedata=None,
     ):
@@ -3263,7 +3263,7 @@ class revlog:
         p1,
         p2,
         flags,
-        cachedelta,
+        cachedelta: revlogutils.CachedDelta | None,
         alwayscache=False,
         deltacomputer=None,
         sidedata=None,
@@ -3322,11 +3322,12 @@ class revlog:
         # full versions are inserted when the needed deltas
         # become comparable to the uncompressed text
         if rawtext is None:
+            assert cachedelta is not None
             # need rawtext size, before changed by flag processors, which is
             # the non-raw size. use revlog explicitly to avoid filelog's extra
             # logic that might remove metadata size.
             textlen = mdiff.patchedsize(
-                revlog.size(self, cachedelta[0]), cachedelta[1]
+                revlog.size(self, cachedelta.base), cachedelta.delta
             )
         else:
             textlen = len(rawtext)
@@ -3339,7 +3340,7 @@ class revlog:
                 self, write_debug=write_debug
             )
 
-        if cachedelta is not None and len(cachedelta) == 2:
+        if cachedelta is not None and cachedelta.reuse_policy is None:
             # If the cached delta has no information about how it should be
             # reused, add the default reuse instruction according to the
             # revlog's configuration.
@@ -3350,7 +3351,7 @@ class revlog:
                 delta_base_reuse = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse = DELTA_BASE_REUSE_NO
-            cachedelta = (cachedelta[0], cachedelta[1], delta_base_reuse, None)
+            cachedelta.reuse_policy = delta_base_reuse
 
         revinfo = revlogutils.revisioninfo(
             node,
@@ -3632,7 +3633,11 @@ class revlog:
                         data.p1,
                         data.p2,
                         flags,
-                        (baserev, data.delta, delta_base_reuse_policy, None),
+                        revlogutils.CachedDelta(
+                            baserev,
+                            data.delta,
+                            delta_base_reuse_policy,
+                        ),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
                         sidedata=data.sidedata,
@@ -4029,7 +4034,7 @@ class revlog:
                         snapshotdepth = -1
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
-                        cachedelta = (
+                        cachedelta = revlogutils.CachedDelta(
                             dp,
                             bytes(self._inner._chunk(rev)),
                             delta_base_reuse,
@@ -4037,7 +4042,7 @@ class revlog:
                         )
 
                 sidedata = None
-                if not cachedelta:
+                if cachedelta is None:
                     try:
                         rawtext = self._revisiondata(rev, validate=False)
                     except error.CensoredNodeError as censored:

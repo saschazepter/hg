@@ -1004,8 +1004,15 @@ class ifiledatatests(basetestcase):
 
         with self._maketransactionfn() as tr:
             delta = mdiff.textdiff(fulltext1, fulltext2)
+            cached_delta = revlogutils.CachedDelta(1, delta)
             self._addrawrevisionfn(
-                f, tr, node2, node1, f.nullid, 2, delta=(1, delta)
+                f,
+                tr,
+                node2,
+                node1,
+                f.nullid,
+                2,
+                delta=cached_delta,
             )
 
         self.assertEqual(len(f), 3)

@@ -781,7 +781,7 @@ def filter_delta_issue6528(revlog, deltas_iter):
                     d.p2,
                     None,
                     textlen,
-                    (base_rev, d.delta),
+                    revlogutils.CachedDelta(base_rev, d.delta),
                     d.flags,
                 )
                 d.raw_text = deltacomputer.buildtext(revinfo)

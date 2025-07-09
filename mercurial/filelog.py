@@ -302,7 +302,7 @@ class filelog(repository.ifilestorage):
                     d.p2,
                     None,
                     textlen,
-                    (delta_base_rev, d.delta),
+                    revlogutils.CachedDelta(delta_base_rev, d.delta),
                     d.flags,
                 )
                 d.raw_text = deltacomputer.buildtext(revinfo)

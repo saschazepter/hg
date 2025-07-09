@@ -16,10 +16,11 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
-from ..interfaces import repository
 from ..interfaces.types import (
     NodeIdT,
+    RevnumT,
 )
+from ..interfaces import repository
 
 # See mercurial.revlogutils.constants for doc
 COMP_MODE_INLINE = 2
@@ -74,11 +75,19 @@ def entry(
 
 
 @attr.s(slots=True)
+class CachedDelta:
+    base = attr.ib(type=RevnumT)
+    delta = attr.ib(type=bytes)
+    reuse_policy = attr.ib(type=int | None, default=None)
+    snapshot_level = attr.ib(type=None | int, default=None)
+
+
+@attr.s(slots=True)
 class revisioninfo:
     """Information about a revision that allows building its fulltext
     node:       expected hash of the revision
     p1, p2:     parent revs of the revision (as node)
-    btext:      built text cache 
+    btext:      built text cache
     cachedelta: (baserev, uncompressed_delta, usage_mode) or None
     flags:      flags associated to the revision storage
 
@@ -90,7 +99,7 @@ class revisioninfo:
     p2 = attr.ib(type=NodeIdT)
     btext = attr.ib(type=bytes | None)
     textlen = attr.ib(type=int)
-    cachedelta = attr.ib()
+    cachedelta = attr.ib(type=CachedDelta | None)
     flags = attr.ib(type=int)
 
 

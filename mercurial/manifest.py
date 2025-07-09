@@ -40,6 +40,7 @@ from . import (
     policy,
     pycompat,
     revlog,
+    revlogutils,
     util,
 )
 from .interfaces import (
@@ -1837,7 +1838,10 @@ class manifestrevlog(repository.imanifeststorage):
             )
 
             arraytext, deltatext = m.fastdelta(self.fulltextcache[p1], work)
-            cachedelta = self._revlog.rev(p1), deltatext
+            cachedelta = revlogutils.CachedDelta(
+                self._revlog.rev(p1),
+                deltatext,
+            )
             text = util.buffer(arraytext)
             rev = self._revlog.addrevision(
                 text, transaction, link, p1, p2, cachedelta

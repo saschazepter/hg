@@ -667,7 +667,7 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
         snapshotdepth = -1
         if revlog.issnapshot(rev):
             snapshotdepth = revlog.snapshotdepth(rev)
-        cachedelta = (
+        cachedelta = revlogutils.CachedDelta(
             base_rev,
             delta,
             constants.DELTA_BASE_REUSE_TRY,
@@ -1083,7 +1083,7 @@ def reencoded_info(
                     delta = orig_revlog._inner._chunk(rev)
                     if hasattr(delta, "tobytes"):
                         delta = delta.tobytes()
-                    cachedelta = (
+                    cachedelta = revlogutils.CachedDelta(
                         delta_parent,
                         delta,
                         constants.DELTA_BASE_REUSE_NO,

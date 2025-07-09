@@ -211,7 +211,10 @@ def lowlevelcopy(rlog, tr, destname=b'_destrevlog'):
                 ]
             )
             text = None
-            cachedelta = (deltaparent, rlog.revdiff(deltaparent, r))
+            cachedelta = revlogutils.CachedDelta(
+                deltaparent,
+                rlog.revdiff(deltaparent, r),
+            )
         flags = rlog.flags(r)
         with dlog._writing(_NoTransaction()):
             dlog._addrevision(

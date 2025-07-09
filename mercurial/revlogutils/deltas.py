@@ -63,7 +63,12 @@ from .. import (
 
 from ..utils import storageutil
 
-from . import config, flagutil, revisioninfo as RevisionInfoT
+from . import (
+    CachedDelta as CachedDeltaT,
+    config,
+    flagutil,
+    revisioninfo as RevisionInfoT,
+)
 
 
 delta_fold = policy.importrust('deltas')
@@ -689,7 +694,7 @@ class _BaseDeltaSearch(abc.ABC):
         revinfo: RevisionInfoT,
         p1: RevnumT,
         p2: RevnumT,
-        cachedelta: tuple[RevnumT, bytes, int, int | None] | None,
+        cachedelta: CachedDeltaT | None,
         excluded_bases: Sequence[RevnumT] | None = None,
         target_rev: RevnumT | None = None,
         snapshot_cache: SnapshotCache | None = None,
@@ -699,7 +704,7 @@ class _BaseDeltaSearch(abc.ABC):
         # a safe-guard to detect anything that would be fishy in this regard.
         assert (
             cachedelta is None
-            or cachedelta[2] != DELTA_BASE_REUSE_FORCE
+            or cachedelta.reuse_policy != DELTA_BASE_REUSE_FORCE
             or not revlog.delta_config.general_delta
         )
         self.revlog: RevlogT = revlog
@@ -707,9 +712,7 @@ class _BaseDeltaSearch(abc.ABC):
         self.textlen: int = revinfo.textlen
         self.p1: RevnumT = p1
         self.p2: RevnumT = p2
-        self.cachedelta: tuple[
-            RevnumT, bytes, int, int | None
-        ] | None = cachedelta
+        self.cachedelta: CachedDeltaT | None = cachedelta
         self.excluded_bases: Sequence[RevnumT] | None = excluded_bases
         if target_rev is None:
             self.target_rev: int = len(self.revlog)
@@ -754,7 +757,7 @@ class _BaseDeltaSearch(abc.ABC):
         # a safe-guard to detect anything that would be fishy in this regard.
         assert (
             self.revinfo.cachedelta is None
-            or self.revinfo.cachedelta[2] != DELTA_BASE_REUSE_FORCE
+            or self.revinfo.cachedelta.reuse_policy != DELTA_BASE_REUSE_FORCE
             or not self.revlog.delta_config.general_delta
         )
 
@@ -892,8 +895,8 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         self._last_good = None
         if (
             self.cachedelta is not None
-            and self.cachedelta[2] > DELTA_BASE_REUSE_NO
-            and self._pre_filter_rev(self.cachedelta[0])
+            and self.cachedelta.reuse_policy > DELTA_BASE_REUSE_NO
+            and self._pre_filter_rev(self.cachedelta.base)
         ):
             # First we try to reuse a the delta contained in the bundle.  (or from
             # the source revlog)
@@ -902,7 +905,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             # disabled through configuration. Disabling reuse source delta is
             # useful when we want to make sure we recomputed "optimal" deltas.
             self.current_stage = _STAGE.CACHED
-            self._internal_group = (self.cachedelta[0],)
+            self._internal_group = (self.cachedelta.base,)
             self._internal_idx = 0
             self.current_group = self._internal_group
             self.tested.update(self.current_group)
@@ -1451,8 +1454,8 @@ class deltacomputer:
 
         revlog = self.revlog
         cachedelta = revinfo.cachedelta
-        baserev = cachedelta[0]
-        delta = cachedelta[1]
+        baserev = cachedelta.base
+        delta = cachedelta.delta
 
         fulltext = revinfo.btext = _textfromdelta(
             revlog,
@@ -1569,7 +1572,7 @@ class deltacomputer:
         # can we use the cached delta?
         delta = None
         if revinfo.cachedelta:
-            cachebase = revinfo.cachedelta[0]
+            cachebase = revinfo.cachedelta.base
             # check if the diff still apply
             currentbase = cachebase
             while (
@@ -1579,8 +1582,8 @@ class deltacomputer:
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
             if self.revlog.delta_config.lazy_delta and currentbase == base:
-                delta = revinfo.cachedelta[1]
-                if revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE:
+                delta = revinfo.cachedelta.delta
+                if revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
                     # let's ignore foldin there.
                     #
@@ -1825,16 +1828,16 @@ class deltacomputer:
         if (
             revlog.delta_config.general_delta
             and revinfo.cachedelta is not None
-            and revinfo.cachedelta[2] == DELTA_BASE_REUSE_FORCE
+            and revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE
         ):
-            base = revinfo.cachedelta[0]
+            base = revinfo.cachedelta.base
             if base == nullrev:
                 dbg_type = b"full"
                 deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
-                delta = revinfo.cachedelta[1]
+                delta = revinfo.cachedelta.delta
                 header, data = revlog.compress(delta)
                 deltalen = len(header) + len(data)
                 if gather_debug:
@@ -1902,7 +1905,7 @@ class deltacomputer:
             msg = b"DBG-DELTAS-SEARCH: SEARCH rev=%d"
             msg %= target_rev
             if cachedelta is not None:
-                msg += b" (cached=%d)" % cachedelta[0]
+                msg += b" (cached=%d)" % cachedelta.base
             msg += b'\n'
             self._write_debug(msg)
 
@@ -2007,12 +2010,12 @@ class deltacomputer:
                     search.current_stage == _STAGE.CACHED
                     and revinfo.cachedelta is not None
                     and self.revlog.delta_config.delta_info
-                    and revinfo.cachedelta[0] == candidaterev
-                    and revinfo.cachedelta[3] is not None
-                    and revinfo.cachedelta[3] > 0
+                    and revinfo.cachedelta.base == candidaterev
+                    and revinfo.cachedelta.snapshot_level is not None
+                    and revinfo.cachedelta.snapshot_level > 0
                     and self.revlog.issnapshot(candidaterev)
                     and self.revlog.snapshotdepth(candidaterev)
-                    <= revinfo.cachedelta[3]
+                    <= revinfo.cachedelta.snapshot_level
                 ):
                     as_snapshot = True
 
@@ -2081,14 +2084,14 @@ class deltacomputer:
                     cachedelta is not None
                     and dbg_try_rounds == 0
                     and dbg_try_count == 0
-                    and cachedelta[0] == nullrev
+                    and cachedelta.base == nullrev
                 )
             else:
                 used_cached = (
                     cachedelta is not None
                     and dbg_try_rounds == 1
                     and dbg_try_count == 1
-                    and deltainfo.base == cachedelta[0]
+                    and deltainfo.base == cachedelta.base
                 )
             dbg['duration'] = end - start
             dbg[
