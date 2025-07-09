@@ -3955,7 +3955,7 @@ class revlog:
                 sidedata = None
                 if not cachedelta:
                     try:
-                        rawtext = self._revisiondata(rev)
+                        rawtext = self._revisiondata(rev, validate=False)
                     except error.CensoredNodeError as censored:
                         assert flags & REVIDX_ISCENSORED
                         rawtext = censored.tombstone
