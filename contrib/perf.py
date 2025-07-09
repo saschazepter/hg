@@ -1118,7 +1118,7 @@ def perf_delta_find(ui, repo, arg_1, arg_2=None, **opts):
         node,
         p1,
         p2,
-        [full_text],  # btext
+        full_text,
         textlen,
         cachedelta,
         flags,

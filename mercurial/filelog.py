@@ -300,7 +300,7 @@ class filelog(repository.ifilestorage):
                     d.node,
                     d.p1,
                     d.p2,
-                    [None],
+                    None,
                     textlen,
                     (delta_base_rev, d.delta),
                     d.flags,

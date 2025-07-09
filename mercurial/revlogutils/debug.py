@@ -655,9 +655,8 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
     p1r, p2r = revlog.parentrevs(rev)
     p1 = revlog.node(p1r)
     p2 = revlog.node(p2r)
-    full_text = revlog.revision(rev)
-    btext = [full_text]
-    textlen = len(btext[0])
+    btext = full_text = revlog.revision(rev)
+    textlen = len(full_text)
     cachedelta = None
     flags = revlog.flags(rev)
 
@@ -674,7 +673,7 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
             constants.DELTA_BASE_REUSE_TRY,
             snapshotdepth,
         )
-        btext = [None]
+        btext = None
 
     revinfo = revlogutils.revisioninfo(
         node,

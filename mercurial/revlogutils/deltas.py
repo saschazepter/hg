@@ -1446,16 +1446,15 @@ class deltacomputer:
 
         revinfo: revisioninfo instance that contains all needed info
         """
-        btext = revinfo.btext
-        if btext[0] is not None:
-            return btext[0]
+        if revinfo.btext is not None:
+            return revinfo.btext
 
         revlog = self.revlog
         cachedelta = revinfo.cachedelta
         baserev = cachedelta[0]
         delta = cachedelta[1]
 
-        fulltext = btext[0] = _textfromdelta(
+        fulltext = revinfo.btext = _textfromdelta(
             revlog,
             baserev,
             delta,

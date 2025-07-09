@@ -3296,8 +3296,6 @@ class revlog:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
 
-        btext = [rawtext]
-
         curr = len(self)
         prev = curr - 1
 
@@ -3358,7 +3356,7 @@ class revlog:
             node,
             p1,
             p2,
-            btext,
+            rawtext,
             textlen,
             cachedelta,
             flags,
@@ -3454,12 +3452,10 @@ class revlog:
             sidedata_offset,
         )
 
-        rawtext = btext[0]
-
-        if alwayscache and rawtext is None:
+        if alwayscache and revinfo.btext is None:
             rawtext = deltacomputer.buildtext(revinfo)
 
-        if type(rawtext) == bytes:  # only accept immutable objects
+        if type(rawtext) is bytes:  # only accept immutable objects
             self._inner._revisioncache = (node, curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
         return curr

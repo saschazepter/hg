@@ -73,22 +73,22 @@ def entry(
     )
 
 
-@attr.s(slots=True, frozen=True)
+@attr.s(slots=True)
 class revisioninfo:
     """Information about a revision that allows building its fulltext
     node:       expected hash of the revision
     p1, p2:     parent revs of the revision (as node)
-    btext:      built text cache consisting of a one-element list
+    btext:      built text cache 
     cachedelta: (baserev, uncompressed_delta, usage_mode) or None
     flags:      flags associated to the revision storage
 
-    One of btext[0] or cachedelta must be set.
+    One of btext or cachedelta must be set.
     """
 
     node = attr.ib(type=NodeIdT)
     p1 = attr.ib(type=NodeIdT)
     p2 = attr.ib(type=NodeIdT)
-    btext = attr.ib(type=list[bytes | None])
+    btext = attr.ib(type=bytes | None)
     textlen = attr.ib(type=int)
     cachedelta = attr.ib()
     flags = attr.ib(type=int)
