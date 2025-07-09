@@ -42,6 +42,7 @@ pub use revlog::WORKING_DIRECTORY_HEX;
 pub use revlog::WORKING_DIRECTORY_REVISION;
 pub mod checkexec;
 pub mod config;
+pub mod dyn_bytes;
 pub mod lock;
 pub mod logging;
 pub mod operations;

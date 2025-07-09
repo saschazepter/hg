@@ -45,6 +45,7 @@ use super::RevlogIndex;
 use super::UncheckedRevision;
 use super::NULL_REVISION;
 use super::NULL_REVLOG_ENTRY_FLAGS;
+use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
@@ -1023,7 +1024,7 @@ impl InnerRevlog {
             .when_writing_file(&self.index_file)?;
         // Replace the index with a new one because the buffer contains inline
         // data
-        self.index = Index::new(Box::new(new_data), header)?;
+        self.index = Index::new(DynBytes::new(Box::new(new_data)), header)?;
         self.inline = false;
 
         self.segment_file = RandomAccessFile::new(

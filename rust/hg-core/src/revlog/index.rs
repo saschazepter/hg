@@ -18,6 +18,8 @@ use super::RevlogIndex;
 use super::REVIDX_KNOWN_FLAGS;
 use super::REVISION_FLAG_DELTA_IS_SNAPSHOT;
 use crate::dagops;
+use crate::dyn_bytes::ByteStoreTrunc;
+use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
 use crate::revlog::node::Node;
 use crate::revlog::node::NODE_BYTES_LENGTH;
@@ -105,33 +107,26 @@ impl IndexHeader {
 /// Abstracts the access to the index bytes since they can be spread between
 /// the immutable (bytes) part and the mutable (added) part if any appends
 /// happened. This makes it transparent for the callers.
-struct IndexData {
+struct IndexData<B> {
     /// Immutable bytes, most likely taken from disk
-    bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
-    /// Used when stripping index contents, keeps track of the start of the
-    /// first stripped revision, which is used to give a slice of the
-    /// `bytes` field.
-    truncation: Option<usize>,
+    bytes: B,
     /// Bytes that were added after reading the index
     added: Vec<u8>,
     first_entry: [u8; INDEX_ENTRY_SIZE],
 }
 
-impl IndexData {
-    pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>) -> Self {
+impl<B: ByteStoreTrunc> IndexData<B> {
+    pub fn new(bytes: B) -> Self {
         let mut first_entry = [0; INDEX_ENTRY_SIZE];
         if bytes.len() >= INDEX_ENTRY_SIZE {
             first_entry[INDEX_HEADER_SIZE..]
                 .copy_from_slice(&bytes[INDEX_HEADER_SIZE..INDEX_ENTRY_SIZE])
         }
-        Self { bytes, truncation: None, added: vec![], first_entry }
+        Self { bytes, added: vec![], first_entry }
     }
 
     pub fn len(&self) -> usize {
-        match self.truncation {
-            Some(truncation) => truncation + self.added.len(),
-            None => self.bytes.len() + self.added.len(),
-        }
+        self.bytes.len() + self.added.len()
     }
 
     fn remove(
@@ -146,7 +141,7 @@ impl IndexData {
             rev * INDEX_ENTRY_SIZE
         };
         if truncation < self.bytes.len() {
-            self.truncation = Some(truncation);
+            self.bytes.truncate(truncation);
             self.added.clear();
         } else {
             self.added.truncate(truncation - self.bytes.len());
@@ -159,16 +154,15 @@ impl IndexData {
     }
 }
 
-impl std::ops::Index<std::ops::Range<usize>> for IndexData {
+impl<B: Deref<Target = [u8]>> std::ops::Index<std::ops::Range<usize>>
+    for IndexData<B>
+{
     type Output = [u8];
 
     fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
         let start = index.start;
         let end = index.end;
-        let immutable_len = match self.truncation {
-            Some(truncation) => truncation,
-            None => self.bytes.len(),
-        };
+        let immutable_len = self.bytes.len();
         if start < immutable_len {
             if end > immutable_len {
                 panic!("index data cannot span existing and added ranges");
@@ -279,7 +273,7 @@ impl RevisionDataParams {
 
 /// A Revlog index
 pub struct Index {
-    bytes: IndexData,
+    bytes: IndexData<DynBytes<'static>>,
     /// Offsets of starts of index blocks.
     /// Only needed when the index is interleaved with data.
     offsets: RwLock<Option<Vec<usize>>>,
@@ -356,7 +350,7 @@ impl Index {
     /// Create an index from bytes.
     /// Calculate the start of each entry when is_inline is true.
     pub fn new(
-        bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+        bytes: DynBytes<'static>,
         default_header: IndexHeader,
     ) -> Result<Self, HgError> {
         let header = if bytes.len() < INDEX_ENTRY_SIZE {

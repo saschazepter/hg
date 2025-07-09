@@ -34,10 +34,10 @@ pub mod patch;
 use std::borrow::Cow;
 use std::io::ErrorKind;
 use std::io::Read;
-use std::ops::Deref;
 use std::path::Path;
 
 use self::nodemap_docket::NodeMapDocket;
+use crate::dyn_bytes::DynBytes;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
@@ -562,8 +562,6 @@ impl RawdataBuf {
     }
 }
 
-type IndexData = Box<dyn Deref<Target = [u8]> + Send + Sync>;
-
 /// TODO We should check for version 5.14+ at runtime, but we either should
 /// add the `nix` dependency to get it efficiently, or vendor the code to read
 /// both of which are overkill for such a feature. If we need this dependency
@@ -616,7 +614,7 @@ pub fn open_index(
     index_path: &Path,
     options: RevlogOpenOptions,
 ) -> Result<Index, HgError> {
-    let buf: IndexData = match store_vfs.open(index_path) {
+    let buf: DynBytes = match store_vfs.open(index_path) {
         Ok(mut file) => {
             let mut buf = if let Some(threshold) =
                 options.data_config.mmap_index_threshold
@@ -645,7 +643,7 @@ pub fn open_index(
                         advise_populate_read_mmap(&mmap);
                     }
 
-                    Some(Box::new(mmap) as IndexData)
+                    Some(DynBytes::new(Box::new(mmap)))
                 } else {
                     None
                 }
@@ -656,14 +654,14 @@ pub fn open_index(
             if buf.is_none() {
                 let mut data = vec![];
                 file.read_to_end(&mut data).when_reading_file(index_path)?;
-                buf = Some(Box::new(data) as IndexData);
+                buf = Some(DynBytes::new(Box::new(data)));
             }
             buf.unwrap()
         }
         Err(err) => match err {
             HgError::IoError { error, context, backtrace } => {
                 match error.kind() {
-                    ErrorKind::NotFound => Box::<Vec<u8>>::default(),
+                    ErrorKind::NotFound => DynBytes::default(),
                     _ => {
                         return Err(HgError::IoError {
                             error,

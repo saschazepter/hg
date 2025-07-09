@@ -16,6 +16,7 @@ use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+use hg::dyn_bytes::DynBytes;
 use hg::errors::HgError;
 use hg::revlog::index::Index;
 use hg::revlog::index::IndexHeader;
@@ -286,7 +287,7 @@ impl InnerRevlog {
         // Safety: we keep the buffer around inside the returned instance as
         // `index_mmap`
         let (buf, bytes) = unsafe { take_buffer_with_slice(index_data)? };
-        let index = Index::new(bytes, options.index_header())
+        let index = Index::new(DynBytes::new(bytes), options.index_header())
             .map_err(revlog_error_from_msg)?;
 
         let base = get_path_from_bytes(vfs_base.as_bytes()).to_owned();
