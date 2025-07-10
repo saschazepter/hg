@@ -893,13 +893,18 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         assert self.revlog.delta_config.general_delta
         self._candidates_iterator = self._iter_groups()
         self._last_good = None
+        self._init_cached()
+        if self.current_stage != _STAGE.CACHED:
+            self._next_internal_group()
+
+    def _init_cached(self):
         if (
             self.cachedelta is not None
             and self.cachedelta.reuse_policy > DELTA_BASE_REUSE_NO
             and self._pre_filter_rev(self.cachedelta.base)
         ):
-            # First we try to reuse a the delta contained in the bundle.  (or from
-            # the source revlog)
+            # First we try to reuse a the delta contained in the bundle.  (or
+            # from the source revlog)
             #
             # This logic only applies to general delta repositories and can be
             # disabled through configuration. Disabling reuse source delta is
@@ -909,8 +914,6 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
             self._internal_idx = 0
             self.current_group = self._internal_group
             self.tested.update(self.current_group)
-        else:
-            self._next_internal_group()
 
     def _next_internal_group(self) -> None:
         # self._internal_group can be larger than self.current_group
