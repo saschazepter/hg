@@ -1411,6 +1411,12 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         elif self.revlog.issnapshot(cachedelta.base):
             # otherwise, if this apply to something that is a snapshot
             self.current_group_is_snapshot = True
+        elif self.revlog.delta_config.filter_suspicious_delta:
+            # We don't really know what this delta is about,
+            #
+            # Tet's not use it if the config said so.
+            self.current_group_is_snapshot = False
+            return False
         else:
             # In doubt, lets declare it is not a snapshot.
             self.current_group_is_snapshot = False

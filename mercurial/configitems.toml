@@ -2421,6 +2421,18 @@ section = "storage"
 name = "revlog.reuse-external-delta-parent"
 documentation = """This option is true unless `format.generaldelta` is set."""
 
+
+[[items]]
+section = "storage"
+name = "revlog.reuse-external-suspicious-delta-parent"
+default = false
+# This should likely be merged into `paths.*:pulled-delta-reuse-policy` instead
+# of existing on its own.
+experimental = true
+documentation = """When false, ignored suggested delta-parent if it does not
+seems to match an optimal base or a snapshot. Only apply to repository
+supporting sparse-revlog"""
+
 [[items]]
 section = "storage"
 name = "revlog.validate-delta-base"
