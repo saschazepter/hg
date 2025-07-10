@@ -314,6 +314,8 @@ def up_to_date_target(target):
 def run(target, validate=False):
     tmpdir = tempfile.mkdtemp(prefix='tmp-hg-test-big-file-bundle-')
     cwd = os.getcwd()
+
+    tmp_name = "%s-%d" % (target, os.getpid())
     try:
         os.chdir(tmpdir)
         hg(
@@ -322,7 +324,8 @@ def run(target, validate=False):
             'format.maxchainlen=%d' % NB_CHANGESET,
         )
         write_repo(tmpdir)
-        hg('bundle', '--all', target, '--config', 'devel.bundle.delta=p1')
+        hg('bundle', '--all', tmp_name, '--config', 'devel.bundle.delta=p1')
+        os.rename(tmp_name, target)
         digest = compute_md5(target)
         if not validate:
             write_md5(target, digest)
@@ -338,6 +341,8 @@ def run(target, validate=False):
         # Windows does not let you remove the current working directory
         os.chdir(cwd)
         shutil.rmtree(tmpdir)
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
     return 0
 
 
@@ -346,6 +351,7 @@ if __name__ == '__main__':
     target = os.path.join(orig, os.pardir, 'cache', BUNDLE_NAME)
     lazy = '--lazy' in sys.argv[1:]
     validate = '--validate' in sys.argv[1:]
+
     if lazy and up_to_date_target(target):
         sys.exit(0)
     sys.exit(run(target, validate=validate))
