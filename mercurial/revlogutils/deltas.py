@@ -1371,8 +1371,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             assert cachedelta is not None
             # is this cached delta a snapshot ?
             if (
-                self.revlog.delta_config.delta_info
-                and cachedelta.snapshot_level is not None
+                cachedelta.snapshot_level is not None
                 and cachedelta.snapshot_level >= 0
             ):
                 self.current_group_is_snapshot = True
