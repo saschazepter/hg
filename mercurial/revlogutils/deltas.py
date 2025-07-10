@@ -895,27 +895,32 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         assert self.revlog.delta_config.general_delta
         self._candidates_iterator = self._iter_groups()
         self._last_good = None
-        self._init_cached()
-        if self.current_stage != _STAGE.CACHED:
+        if not self._init_cached():
             self._next_internal_group()
 
-    def _init_cached(self):
+    def _init_cached(self) -> bool:
+        """initialize a group from the cached delta
+
+        Return True if the cache can be used, False otherwise.
+        """
         if (
-            self.cachedelta is not None
-            and self.cachedelta.reuse_policy > DELTA_BASE_REUSE_NO
-            and self._pre_filter_rev(self.cachedelta.base)
+            self.cachedelta is None
+            or self.cachedelta.reuse_policy <= DELTA_BASE_REUSE_NO
+            or not self._pre_filter_rev(self.cachedelta.base)
         ):
-            # First we try to reuse a the delta contained in the bundle.  (or
-            # from the source revlog)
-            #
-            # This logic only applies to general delta repositories and can be
-            # disabled through configuration. Disabling reuse source delta is
-            # useful when we want to make sure we recomputed "optimal" deltas.
-            self.current_stage = _STAGE.CACHED
-            self._internal_group = (self.cachedelta.base,)
-            self._internal_idx = 0
-            self.current_group = self._internal_group
-            self.tested.update(self.current_group)
+            return False
+        # First we try to reuse a the delta contained in the bundle.  (or
+        # from the source revlog)
+        #
+        # This logic only applies to general delta repositories and can be
+        # disabled through configuration. Disabling reuse source delta is
+        # useful when we want to make sure we recomputed "optimal" deltas.
+        self.current_stage = _STAGE.CACHED
+        self._internal_group = (self.cachedelta.base,)
+        self._internal_idx = 0
+        self.current_group = self._internal_group
+        self.tested.update(self.current_group)
+        return True
 
     def _next_internal_group(self) -> None:
         # self._internal_group can be larger than self.current_group
@@ -1364,17 +1369,52 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             self.current_group_is_snapshot = False
         yield None
 
-    def _init_cached(self):
-        super()._init_cached()
-        if self.current_stage == _STAGE.CACHED:
-            cachedelta = self.revinfo.cachedelta
-            assert cachedelta is not None
-            # is this cached delta a snapshot ?
-            if (
-                cachedelta.snapshot_level is not None
-                and cachedelta.snapshot_level >= 0
-            ):
-                self.current_group_is_snapshot = True
+    def _parents_and_sames(self):
+        """yield the parent and any part of the tip of the delta chain that is
+        identical if any.
+
+        If the delta size is 0, it means the revision is identical to its base.
+        Sparse-revlog do basic optimization in such case by skipping these
+        empty delta when building chain (some kind of primitive folding one
+        could say).
+
+        So do detect if a delta is computed against one's parent, we need to
+        check not only for the parents, but also for other identical changesets
+        in the delta chain.
+        """
+        if self.p1 is not nullrev:
+            yield self.p1
+            p = self.p1
+            while self.revlog.length(p) == 0:
+                p = self.revlog.deltaparent(p)
+                yield p
+        if self.p2 is not nullrev:
+            yield self.p2
+            p = self.p2
+            while self.revlog.length(p) == 0:
+                p = self.revlog.deltaparent(p)
+                yield p
+
+    def _init_cached(self) -> bool:
+        if not super()._init_cached():
+            return False
+        cachedelta = self.revinfo.cachedelta
+        assert cachedelta is not None
+        # is this cached delta a snapshot ?
+        if cachedelta.snapshot_level is not None:
+            self.current_group_is_snapshot = cachedelta.snapshot_level >= 0
+        elif cachedelta.base == nullrev:
+            self.current_group_is_snapshot = True
+        elif any(cachedelta.base == x for x in self._parents_and_sames()):
+            # if this is a delta against a parent, this isn't a snapshot
+            self.current_group_is_snapshot = False
+        elif self.revlog.issnapshot(cachedelta.base):
+            # otherwise, if this apply to something that is a snapshot
+            self.current_group_is_snapshot = True
+        else:
+            # In doubt, lets declare it is not a snapshot.
+            self.current_group_is_snapshot = False
+        return True
 
 
 class SnapshotCache:
