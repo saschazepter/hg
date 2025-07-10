@@ -19,6 +19,9 @@ from .node import (
     nullrev,
     short,
 )
+from .interfaces.types import (
+    RevisionDeltaT,
+)
 
 from . import (
     error,
@@ -39,7 +42,10 @@ from .utils import storageutil
 
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
+# node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
+# node p1node p2node basenode linknode flags snapshot_level
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHb")
 _CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
@@ -359,7 +365,7 @@ class cg1unpacker:
             deltabase = prevnode
         flags = 0
         protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
     def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
         l = self._chunklength()
@@ -369,7 +375,7 @@ class cg1unpacker:
         header = self.deltaheader.unpack(headerdata)
         delta = readexactly(self._stream, l - self.deltaheadersize)
         header = self._deltaheader(header, prevnode)
-        node, p1, p2, deltabase, cs, flags, protocol_flags = header
+        node, p1, p2, deltabase, cs, flags, protocol_flags, snap_lvl = header
         return revlogutils.InboundRevision(
             node,
             p1,
@@ -380,6 +386,7 @@ class cg1unpacker:
             flags,
             {},
             protocol_flags,
+            snapshot_level=snap_lvl,
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
         )
@@ -818,7 +825,7 @@ class cg2unpacker(cg1unpacker):
         node, p1, p2, deltabase, cs = headertuple
         flags = 0
         protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
 
 class cg3unpacker(cg2unpacker):
@@ -839,7 +846,7 @@ class cg3unpacker(cg2unpacker):
     def _deltaheader(self, headertuple, prevnode):
         node, p1, p2, deltabase, cs, flags = headertuple
         protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
     def _unpackmanifests(
         self,
@@ -882,7 +889,27 @@ class cg4unpacker(cg3unpacker):
     - "hasmeta" flag for filelog
     """
 
+    deltaheader = _CHANGEGROUPV4_DELTA_HEADER
+    deltaheadersize = deltaheader.size
+    version = b'04'
+
     has_filelog_hasmeta_flag = True
+
+    def _deltaheader(self, headertuple, prevnode):
+        node, p1, p2, deltabase, cs, flags, snapshot_level = headertuple
+        protocol_flags = 0
+        if snapshot_level < -1:
+            snapshot_level = None
+        return (
+            node,
+            p1,
+            p2,
+            deltabase,
+            cs,
+            flags,
+            protocol_flags,
+            snapshot_level,
+        )
 
 
 class cg5unpacker(cg3unpacker):
@@ -897,7 +924,7 @@ class cg5unpacker(cg3unpacker):
 
     def _deltaheader(self, headertuple, prevnode):
         protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
     def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
         res = super().deltachunk(prevnode)
@@ -2146,9 +2173,18 @@ def _makecg3packer(
     )
 
 
-def _cg4_delta_header(d):
-    return _CHANGEGROUPV3_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.basenode, d.linknode, d.flags
+def _cg4_delta_header(d: RevisionDeltaT):
+    snap_lvl = -2  # means no-info
+    if d.snapshot_level is not None:
+        snap_lvl = d.snapshot_level
+    return _CHANGEGROUPV4_DELTA_HEADER.pack(
+        d.node,
+        d.p1node,
+        d.p2node,
+        d.basenode,
+        d.linknode,
+        d.flags,
+        snap_lvl,
     )
 
 

@@ -291,6 +291,7 @@ def emitrevisions(
     assumehaveparentrevisions=False,
     sidedata_helpers=None,
     debug_info=None,
+    snap_lvl_fn=None,
 ) -> Iterator[RevisionDeltaT]:
     """Generic implementation of ifiledata.emitrevisions().
 
@@ -587,6 +588,16 @@ def emitrevisions(
             # Computers and removers can return flags to add and/or remove
             flags = flags | sidedata_flags[0] & ~sidedata_flags[1]
 
+        snap_lvl = None
+        if baserev == nullrev:
+            snap_lvl = 0
+        elif snap_lvl is not None:
+            if baserev == deltaparentrev:
+                snap_lvl = snap_lvl_fn(rev)
+            else:
+                # we recomputed it, so it is not a snapshot
+                snap_lvl = -1
+
         yield resultcls(
             node=node,
             p1node=fnode(p1rev),
@@ -598,6 +609,7 @@ def emitrevisions(
             delta=delta,
             sidedata=serialized_sidedata,
             protocol_flags=protocol_flags,
+            snapshot_level=snap_lvl,
         )
 
         prevrev = rev

@@ -3638,6 +3638,7 @@ class revlog:
                             baserev,
                             data.delta,
                             delta_base_reuse_policy,
+                            data.snapshot_level,
                         ),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
@@ -3808,6 +3809,8 @@ class revlog:
         ):
             deltamode = repository.CG_DELTAMODE_FULL
 
+        snaplvl = lambda r: self.snapshotdepth(r) if self.issnapshot(r) else -1
+
         with self.reading():
             return storageutil.emitrevisions(
                 self,
@@ -3824,6 +3827,7 @@ class revlog:
                 assumehaveparentrevisions=assumehaveparentrevisions,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
+                snap_lvl_fn=snaplvl,
             )
 
     DELTAREUSEALWAYS = b'always'
