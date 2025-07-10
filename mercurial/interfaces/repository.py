@@ -584,6 +584,13 @@ class irevisiondelta(Protocol):
     This is a bitwise composition of the ``storageutil.CG_FLAG*`` constants.
     """
 
+    snapshot_level: int | None
+    """If we are sending a delta from a snapshot, this is set to the snapshot
+    level. If the delta sent is not from a snapshot, set it to -1.
+
+    Set to None if no information is available about snapshot level.
+    """
+
 
 class ifilerevisionssequence(Protocol):
     """Contains index data for all revisions of a file.
