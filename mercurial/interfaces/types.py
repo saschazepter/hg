@@ -47,5 +47,7 @@ MatcherMatchFuncT = matcher.MatchFuncT
 MatcherT = matcher.IMatcher
 MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
 
+RevisionDeltaT = repository.irevisiondelta
+
 StatusT = status.Status
 TransactionT = transaction.ITransaction

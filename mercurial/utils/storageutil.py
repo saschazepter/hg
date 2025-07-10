@@ -10,12 +10,21 @@ from __future__ import annotations
 import re
 import struct
 
+from typing import (
+    Iterator,
+)
+
 from ..i18n import _
 from ..node import (
     bin,
     nullrev,
     sha1nodeconstants,
 )
+from ..interfaces.types import (
+    RevisionDeltaT,
+)
+
+
 from .. import (
     dagop,
     error,
@@ -282,7 +291,7 @@ def emitrevisions(
     assumehaveparentrevisions=False,
     sidedata_helpers=None,
     debug_info=None,
-):
+) -> Iterator[RevisionDeltaT]:
     """Generic implementation of ifiledata.emitrevisions().
 
     Emitting revision data is subtly complex. This function attempts to
