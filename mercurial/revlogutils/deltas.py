@@ -727,6 +727,8 @@ class _BaseDeltaSearch(abc.ABC):
 
         self.current_stage: _STAGE = _STAGE.UNSPECIFIED
         self.current_group: Sequence[RevnumT] | None = None
+        # Not ideal, but will do for now
+        self.current_group_is_snapshot: bool = False
         self._init_group()
 
     def is_good_delta_info(self, deltainfo: _DeltaInfo) -> bool:
@@ -1078,6 +1080,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         parents = [p for p in (self.p1, self.p2) if p != nullrev]
 
         self.current_stage = _STAGE.PARENTS
+        self.current_group_is_snapshot = False
         if (
             not self.revlog.delta_config.delta_both_parents
             and len(parents) == 2
@@ -1310,6 +1313,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
     def _iter_snapshots(self) -> Iterator[Sequence[RevnumT] | None]:
         assert self.revlog.delta_config.sparse_revlog
         self.current_stage = _STAGE.SNAPSHOT
+        self.current_group_is_snapshot = True
         good = None
         groups = self._iter_snapshots_base()
         for candidates in groups:
@@ -1357,7 +1361,21 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             while group is not None:
                 good = yield group
                 group = iter_snap.send(good)
+            self.current_group_is_snapshot = False
         yield None
+
+    def _init_cached(self):
+        super()._init_cached()
+        if self.current_stage == _STAGE.CACHED:
+            cachedelta = self.revinfo.cachedelta
+            assert cachedelta is not None
+            # is this cached delta a snapshot ?
+            if (
+                self.revlog.delta_config.delta_info
+                and cachedelta.snapshot_level is not None
+                and cachedelta.snapshot_level >= 0
+            ):
+                self.current_group_is_snapshot = True
 
 
 class SnapshotCache:
@@ -2006,22 +2024,6 @@ class deltacomputer:
                 if self._debug_search:
                     delta_start = util.timer()
 
-                as_snapshot = False
-                if search.current_stage == _STAGE.SNAPSHOT:
-                    as_snapshot = True
-                if (
-                    search.current_stage == _STAGE.CACHED
-                    and revinfo.cachedelta is not None
-                    and self.revlog.delta_config.delta_info
-                    and revinfo.cachedelta.base == candidaterev
-                    and revinfo.cachedelta.snapshot_level is not None
-                    and revinfo.cachedelta.snapshot_level > 0
-                    and self.revlog.issnapshot(candidaterev)
-                    and self.revlog.snapshotdepth(candidaterev)
-                    <= revinfo.cachedelta.snapshot_level
-                ):
-                    as_snapshot = True
-
                 fold_tolerance = None
                 if (
                     self.revlog.delta_config.delta_info
@@ -2038,7 +2040,7 @@ class deltacomputer:
                     revinfo,
                     candidaterev,
                     target_rev=target_rev,
-                    as_snapshot=as_snapshot,
+                    as_snapshot=search.current_group_is_snapshot,
                     known_delta=deltainfo,
                     optimize_by_folding=fold_tolerance,
                 )
