@@ -2323,9 +2323,9 @@ def _docommit(ui, repo, *pats, **opts):
             b'',
             b'shared',
             None,
-            _(b'edit shared source repository config (EXPERIMENTAL)'),
+            _(b'edit shared source repository config'),
         ),
-        (b'', b'non-shared', None, _(b'edit non shared config (EXPERIMENTAL)')),
+        (b'', b'non-shared', None, _(b'edit non shared config')),
         (b'g', b'global', None, _(b'edit global config')),
     ]
     + formatteropts,
