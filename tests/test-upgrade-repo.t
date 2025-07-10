@@ -223,6 +223,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   share-safe:                     yes
   hasmeta_flag:                    no
   sparserevlog:                   yes
+  delta-info-flags:                no
   persistent-nodemap:              no (no-rust !)
   persistent-nodemap:             yes (rust !)
   copies-sdc:                      no
@@ -242,6 +243,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
   copies-sdc:                      no     no      no
@@ -262,6 +264,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
   copies-sdc:                      no     no      no
@@ -282,6 +285,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   [formatvariant.name.uptodate|share-safe:                    ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|sparserevlog:                  ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|delta-info-flags:              ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|persistent-nodemap:            ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
   [formatvariant.name.mismatchdefault|persistent-nodemap:            ][formatvariant.repo.mismatchdefault| yes][formatvariant.config.special|    yes][formatvariant.default|      no] (rust !)
   [formatvariant.name.uptodate|copies-sdc:                    ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
@@ -346,6 +350,12 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "sparserevlog",
     "repo": true
+   },
+   {
+    "config": false,
+    "default": false,
+    "name": "delta-info-flags",
+    "repo": false
    },
    {
     "config": false, (no-rust !)
@@ -542,6 +552,7 @@ Various sub-optimal detections work
   share-safe:                      no
   hasmeta_flag:                    no
   sparserevlog:                    no
+  delta-info-flags:                no
   persistent-nodemap:              no
   copies-sdc:                      no
   revlog-v2:                       no
@@ -560,6 +571,7 @@ Various sub-optimal detections work
   share-safe:                      no    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                    no    yes     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:              no    yes      no (rust !)
   copies-sdc:                      no     no      no
@@ -580,6 +592,7 @@ Various sub-optimal detections work
   share-safe:                      no    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                    no     no     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:              no    yes      no (rust !)
   copies-sdc:                      no     no      no
@@ -600,6 +613,7 @@ Various sub-optimal detections work
   [formatvariant.name.mismatchconfig|share-safe:                    ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|sparserevlog:                  ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|delta-info-flags:              ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|persistent-nodemap:            ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
   [formatvariant.name.mismatchconfig|persistent-nodemap:            ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.special|    yes][formatvariant.default|      no] (rust !)
   [formatvariant.name.uptodate|copies-sdc:                    ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
@@ -1565,7 +1579,8 @@ Check upgrading a sparse-revlog repository
 
 Check that we can add the sparse-revlog format requirement
   $ hg debugupgraderepo --run --quiet \
-  >    --config format.sparse-revlog=yes
+  >    --config format.sparse-revlog=yes \
+  >    --config format.exp-use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
@@ -1589,7 +1604,9 @@ Check that we can add the sparse-revlog format requirement
   store
 
 Check that we can remove the sparse-revlog format requirement
-  $ hg --config format.sparse-revlog=no debugupgraderepo --run --quiet
+  $ hg  debugupgraderepo --run --quiet \
+  >    --config format.sparse-revlog=no \
+  >    --config format.exp-use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
@@ -1611,6 +1628,116 @@ Check that we can remove the sparse-revlog format requirement
   share-safe
   store
 
+Check upgrading/downgrading delta-info-flag
+-------------------------------------------
+
+upgrade
+
+  $ hg debugrequires
+  dotencode
+  fncache
+  generaldelta
+  persistent-nodemap (rust !)
+  revlogv1
+  share-safe
+  store
+  $ hg debugrevlog -c | grep -E 'flags|format'
+  format : 1
+  flags  : (none)
+  $ hg debugrevlog -m | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta
+  $ hg debugrevlog foo | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta
+  $ hg debugupgraderepo --run --quiet \
+  >    --config format.sparse-revlog=yes \
+  >    --config format.exp-use-delta-info-flags=yes
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: dotencode, fncache, generaldelta,( persistent-nodemap,)? revlogv1, share-safe, store (re)
+     added: exp-delta-info-revlog, sparserevlog
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  $ hg debugrequires
+  dotencode
+  exp-delta-info-revlog
+  fncache
+  generaldelta
+  persistent-nodemap (rust !)
+  revlogv1
+  share-safe
+  sparserevlog
+  store
+  $ hg debugrevlog -c | grep -E 'flags|format'
+  format : 1
+  flags  : (none)
+  $ hg debugrevlog -m | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta, delta-info
+  $ hg debugrevlog foo | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta, delta-info
+
+downgrade
+
+  $ hg debugrequires
+  dotencode
+  exp-delta-info-revlog
+  fncache
+  generaldelta
+  persistent-nodemap (rust !)
+  revlogv1
+  share-safe
+  sparserevlog
+  store
+  $ hg debugrevlog -c | grep -E 'flags|format'
+  format : 1
+  flags  : (none)
+  $ hg debugrevlog -m | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta, delta-info
+  $ hg debugrevlog foo | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta, delta-info
+  $ hg debugupgraderepo --run --quiet \
+  >    --config format.sparse-revlog=yes \
+  >    --config format.exp-use-delta-info-flags=no
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: dotencode, fncache, generaldelta,( persistent-nodemap,)? revlogv1, share-safe, sparserevlog, store (re)
+     removed: exp-delta-info-revlog
+  
+  processed revlogs:
+    - all-filelogs
+    - manifest
+  
+  $ hg debugrequires
+  dotencode
+  fncache
+  generaldelta
+  persistent-nodemap (rust !)
+  revlogv1
+  share-safe
+  sparserevlog
+  store
+  $ hg debugrevlog -c | grep -E 'flags|format'
+  format : 1
+  flags  : (none)
+  $ hg debugrevlog -m | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta
+  $ hg debugrevlog foo | grep -E 'flags|format'
+  format : 1
+  flags  : inline, generaldelta
+
+
 #if zstd
 
 Check upgrading to a zstd revlog
@@ -1622,9 +1749,9 @@ upgrade
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, revlogv1, share-safe, store (no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlogv1, share-safe, store (rust !)
-     added: revlog-compression-zstd, sparserevlog
+     preserved: dotencode, fncache, generaldelta, revlogv1, share-safe, sparserevlog, store (no-rust !)
+     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlogv1, share-safe, sparserevlog, store (rust !)
+     added: revlog-compression-zstd
   
   processed revlogs:
     - all-filelogs
@@ -1724,12 +1851,11 @@ upgrade
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, store (no-zstd !)
+     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
      preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
      preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
      removed: revlogv1
-     added: exp-revlogv2.2 (zstd !)
-     added: exp-revlogv2.2, sparserevlog (no-zstd !)
+     added: exp-revlogv2.2
   
   processed revlogs:
     - all-filelogs
@@ -1747,6 +1873,7 @@ upgrade
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
   copies-sdc:                      no     no      no
@@ -1799,6 +1926,7 @@ downgrade
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
   copies-sdc:                      no     no      no
@@ -1852,6 +1980,7 @@ upgrade from hgrc
   share-safe:                     yes    yes     yes
   hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
+  delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
   copies-sdc:                      no     no      no

@@ -577,4 +577,49 @@ Test `debug-delta-find`
   > revlog.reuse-external-delta = no
   > EOF
 
+Upgrading to/from delta-info-flags
+==================================
+
+#if delta-info-flags
+  $ UPGRADE_TO=no
+#else
+  $ UPGRADE_TO=yes
+#endif
+
+  $ hg debugrevlog * > ../revlog-stats-pre-upgrade.txt
+  $ hg debugupgraderepo --quiet --run \
+  >   --optimize re-delta-all \
+  >   --config format.exp-use-delta-info-flags=$UPGRADE_TO
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: exp-delta-info-revlog (delta-info-flags !)
+     added: exp-delta-info-revlog (flagless !)
+  
+  optimisations: re-delta-all
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  $ hg verify --quiet
+  $ hg debugrevlog * > ../revlog-stats-post-upgrade.txt
+
+  $ cmp ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt | diff -u ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt
+  $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
+  --- ../revlog-stats-pre-upgrade.txt* (glob)
+  +++ ../revlog-stats-post-upgrade.txt* (glob)
+  @@ -1,5 +1,5 @@
+   format : 1
+  -flags  : generaldelta (flagless !)
+  +flags  : generaldelta, delta-info (flagless !)
+  -flags  : generaldelta, delta-info (delta-info-flags !)
+  +flags  : generaldelta (delta-info-flags !)
+   
+   revisions     :     5001
+       merges    :      625 (12.50%)
+  [1]
+
   $ cd ..

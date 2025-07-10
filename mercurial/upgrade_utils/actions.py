@@ -24,6 +24,7 @@ from ..utils import compression
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {
     requirements.CHANGELOGV2_REQUIREMENT,
+    requirements.DELTA_INFO_REQUIREMENT,
     requirements.GENERALDELTA_REQUIREMENT,
     requirements.REVLOGV2_REQUIREMENT,
     requirements.SPARSEREVLOG_REQUIREMENT,
@@ -346,7 +347,7 @@ class hasmeta_filelog(requirementformatvariant):
         b'A dedicated index flag marks file revisions with copy information.'
     )
 
-    # upgrade only needs to change the requirements
+    # upgrade only needs to process the filelogs
     touches_filelogs = True
     touches_manifests = False
     touches_changelog = False
@@ -376,6 +377,30 @@ class sparserevlog(requirementformatvariant):
         b'time. This allows for better delta chains, making a '
         b'better compression and faster exchange with server.'
     )
+
+
+@registerformatvariant
+class delta_info_flags(requirementformatvariant):
+    name = b'delta-info-flags'
+
+    _requirement = requirements.DELTA_INFO_REQUIREMENT
+
+    default = False
+
+    description = _(
+        b'Store information about stored delta in the index to help optimize '
+        b'local and remote delta chain.'
+    )
+
+    upgrademessage = _(
+        b'Using this format will improve local storage, speedup '
+        b'local operation and help to preserve storage quality and '
+        b'performace during exchanges with other peer'
+    )
+
+    touches_filelogs = True
+    touches_manifests = True
+    touches_changelog = False
 
 
 @registerformatvariant
@@ -1062,6 +1087,7 @@ def supportremovedrequirements(repo):
     supported = {
         requirements.CHANGELOGV2_REQUIREMENT,
         requirements.COPIESSDC_REQUIREMENT,
+        requirements.DELTA_INFO_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
@@ -1093,6 +1119,7 @@ def supporteddestrequirements(repo):
     supported = {
         requirements.CHANGELOGV2_REQUIREMENT,
         requirements.COPIESSDC_REQUIREMENT,
+        requirements.DELTA_INFO_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
@@ -1132,6 +1159,7 @@ def allowednewrequirements(repo):
     supported = {
         requirements.CHANGELOGV2_REQUIREMENT,
         requirements.COPIESSDC_REQUIREMENT,
+        requirements.DELTA_INFO_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
