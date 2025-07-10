@@ -1631,23 +1631,8 @@ upgrade
     - changelog
     - manifest
   
-  $ hg debugformat -v
+  $ hg debugformat -v compression compression-level
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
-  dirstate-v2:                     no     no      no
-  tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
-  fragile-plain-encode:            no     no      no
-  generaldelta:                   yes    yes     yes
-  share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
-  sparserevlog:                   yes    yes     yes
-  persistent-nodemap:              no     no      no (no-rust !)
-  persistent-nodemap:             yes    yes      no (rust !)
-  copies-sdc:                      no     no      no
-  revlog-v2:                       no     no      no
-  changelog-v2:                    no     no      no
-  plain-cl-delta:                 yes    yes     yes
   compression:                    zlib   zlib    zlib (no-zstd !)
   compression:                    zstd   zlib    zstd (zstd !)
   compression-level:              default default default
@@ -1677,23 +1662,8 @@ downgrade
     - changelog
     - manifest
   
-  $ hg debugformat -v
+  $ hg debugformat -v compression compression-level
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
-  dirstate-v2:                     no     no      no
-  tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
-  fragile-plain-encode:            no     no      no
-  generaldelta:                   yes    yes     yes
-  share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
-  sparserevlog:                   yes    yes     yes
-  persistent-nodemap:              no     no      no (no-rust !)
-  persistent-nodemap:             yes    yes      no (rust !)
-  copies-sdc:                      no     no      no
-  revlog-v2:                       no     no      no
-  changelog-v2:                    no     no      no
-  plain-cl-delta:                 yes    yes     yes
   compression:                    zlib   zlib    zlib (no-zstd !)
   compression:                    zlib   zlib    zstd (zstd !)
   compression-level:              default default default
@@ -1726,23 +1696,8 @@ upgrade from hgrc
     - changelog
     - manifest
   
-  $ hg debugformat -v
+  $ hg debugformat -v compression compression-level
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
-  dirstate-v2:                     no     no      no
-  tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
-  fragile-plain-encode:            no     no      no
-  generaldelta:                   yes    yes     yes
-  share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
-  sparserevlog:                   yes    yes     yes
-  persistent-nodemap:              no     no      no (no-rust !)
-  persistent-nodemap:             yes    yes      no (rust !)
-  copies-sdc:                      no     no      no
-  revlog-v2:                       no     no      no
-  changelog-v2:                    no     no      no
-  plain-cl-delta:                 yes    yes     yes
   compression:                    zlib   zlib    zlib (no-zstd !)
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
