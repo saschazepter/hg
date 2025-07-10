@@ -2471,23 +2471,28 @@ def _update_rust_fast_path(
         )
 
         try:
-            updated_count = rust_update_mod.update_from_null(
-                repo.root,
-                p2.rev(),
-                num_cpus,
-                on_rust_warnings,
-                devel_abort_dirstate,
-            )
+            dirstate = repo.dirstate
+            with dirstate.changing_parents(repo):
+                repo.setparents(fp2)
+                tr = repo.currenttransaction()
+                dirstate.setbranch(p2.branch(), tr)
+                updated_count = rust_update_mod.update_from_null(
+                    repo_path=repo.root,
+                    to=p2.rev(),
+                    dirstate=dirstate._map._map,
+                    num_cpus=num_cpus,
+                    on_warnings=on_rust_warnings,
+                    devel_abort_dirstate=devel_abort_dirstate,
+                )
+                dirstate._dirty = True
+                # In the narrow (pun intended) case of a narrowed repo whose
+                # target revision from null has an empty working copy, this
+                # is technically not true, but we still stay on the safe side
+                # by setting the tracked set to dirty.
+                dirstate._dirty_tracked_set = True
         except rust_update_mod.FallbackError:
             return (True, None)
         else:
-            # We've changed the dirstate from Rust, we need to tell Python
-            repo.dirstate.invalidate()
-            # This includes setting the parents, since they are not read
-            # again on invalidation
-            with repo.dirstate.changing_parents(repo):
-                repo.dirstate.setparents(fp2)
-            repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
             sparse.prunetemporaryincludes(repo)
             repo.hook(b'update', parent1=xp1, parent2=xp2, error=0)
             # update completed, clear state
@@ -2543,40 +2548,41 @@ def _update_rust_fast_path(
                 with util.rust_tracing_span("update from clean python"):
                     p1_manifest = pl[0]._manifest._lm
                     p2_manifest = p2._manifest._lm
-                    update_stats = rust_update_mod.update_from_clean(
-                        repo_path=repo.root,
-                        wc_manifest_bytes=p1_manifest.text(),
-                        target_node=p2.node(),
-                        target_rev=p2.rev(),
-                        target_manifest_bytes=p2_manifest.text(),
-                        num_cpus=num_cpus,
-                        remove_empty_dirs=remove_empty_dirs,
-                        devel_abort_dirstate=devel_abort_dirstate,
-                        orig_backup_path=orig_backup_path,
-                        atomic_file=atomic_file,
-                        on_warnings=on_rust_warnings,
-                    )
+                    dirstate = repo.dirstate
+                    with dirstate.changing_parents(repo):
+                        repo.setparents(fp2)
+                        tr = repo.currenttransaction()
+                        dirstate.setbranch(p2.branch(), tr)
+                        update_stats = rust_update_mod.update_from_clean(
+                            repo_path=repo.root,
+                            dirstate=dirstate._map._map,
+                            wc_manifest_bytes=p1_manifest.text(),
+                            target_rev=p2.rev(),
+                            target_manifest_bytes=p2_manifest.text(),
+                            num_cpus=num_cpus,
+                            remove_empty_dirs=remove_empty_dirs,
+                            devel_abort_dirstate=devel_abort_dirstate,
+                            orig_backup_path=orig_backup_path,
+                            atomic_file=atomic_file,
+                            on_warnings=on_rust_warnings,
+                        )
+                        dirstate._dirty = True
+                        # added or removed
+                        if update_stats[0] or update_stats[3]:
+                            dirstate._dirty_tracked_set = True
             except rust_update_mod.FallbackError:
                 return (True, None)
             else:
-                # We've changed the dirstate from Rust, we need to
-                # tell Python
-                repo.dirstate.invalidate()
-                # This includes setting the parents, since they are not
-                # read again on invalidation
-                with repo.dirstate.changing_parents(repo):
-                    repo.setparents(fp2)
-                repo.dirstate.setbranch(p2.branch(), repo.currenttransaction())
                 sparse.prunetemporaryincludes(repo)
                 repo.hook(b'update', parent1=xp2, parent2=b'', error=0)
                 # update completed, clear state
                 util.unlink(repo.vfs.join(b'updatestate'))
 
                 result = updateresult(
-                    update_stats[0],
                     update_stats[1],
                     update_stats[2],
                     update_stats[3],
+                    update_stats[4],
                 )
 
                 return (False, result)

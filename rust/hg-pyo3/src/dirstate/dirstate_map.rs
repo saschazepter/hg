@@ -494,7 +494,7 @@ impl DirstateMap {
         f(&self_ref, guard)
     }
 
-    pub(super) fn with_inner_write<'py, T>(
+    pub fn with_inner_write<'py, T>(
         slf: &Bound<'py, Self>,
         f: impl FnOnce(
             &PyRef<'py, Self>,

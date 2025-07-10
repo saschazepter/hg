@@ -21,7 +21,7 @@ use crate::dirstate::dirstate_map::DirstateEntryReset;
 use crate::dirstate::dirstate_map::DirstateMap;
 use crate::dirstate::entry::ParentFileData;
 use crate::dirstate::entry::TruncatedTimestamp;
-use crate::dirstate::on_disk::write_tracked_key;
+use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
@@ -38,7 +38,6 @@ use crate::revlog::filelog::FileCompOutcome;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestFlags;
-use crate::revlog::node::NULL_NODE;
 use crate::revlog::options::default_revlog_options;
 use crate::revlog::options::RevlogOpenOptions;
 use crate::revlog::path_encode::PathEncoding;
@@ -60,21 +59,10 @@ use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 use crate::warnings::HgWarningSender;
 use crate::DirstateParents;
-use crate::Node;
 use crate::Revision;
 use crate::UncheckedRevision;
 use crate::INTERRUPT_RECEIVED;
-
-/// Write the dirstate to disk and update the tracked key if needed
-fn write_dirstate(repo: &Repo, tracked_change: bool) -> Result<(), HgError> {
-    repo.write_dirstate()
-        .map_err(|e| HgError::abort(e.to_string(), exit_codes::ABORT, None))?;
-    if tracked_change {
-        write_tracked_key(repo)
-    } else {
-        Ok(())
-    }
-}
+use crate::NULL_NODE;
 
 /// What kind of update we're doing
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,7 +93,7 @@ pub struct UpdateConfig {
 }
 
 /// Update the current working copy of `repo` to the given revision `to`, from
-/// the null revision and set + write out the dirstate to reflect that.
+/// the null revision and update the dirstate without writing it to disk.
 ///
 /// Do not call this outside of a Python context. This does *not* handle any
 /// of the checks, hooks, lock taking needed to setup and get out of this
@@ -114,6 +102,7 @@ pub struct UpdateConfig {
 pub fn update_from_null(
     repo: &Repo,
     to: UncheckedRevision,
+    dirstate: &mut OwningDirstateMap,
     progress: &dyn Progress,
     update_config: &UpdateConfig,
     warnings: &HgWarningSender,
@@ -148,13 +137,6 @@ pub fn update_from_null(
     let tracked_files = tracked_files?;
 
     if tracked_files.is_empty() {
-        // Still write the dirstate because we might not be in the null
-        // revision.
-        // This can happen in narrow repos where all paths are excluded in
-        // this revision.
-        // We stay on the safe side and pass in `tracked_change=true`, because
-        // this is exceptionally niche.
-        write_dirstate(repo, true)?;
         return Ok(UpdateStats::default());
     }
     let store_vfs = &repo.store_vfs();
@@ -217,20 +199,19 @@ pub fn update_from_null(
     // still writing out the working copy to see if that improves performance.
     let total = update_dirstate(
         repo,
+        dirstate,
         files_receiver,
         None,
         update_config.devel_abort_dirstate,
         UpdateKind::FromNull,
     )?;
 
-    write_dirstate(repo, true)?;
-
     Ok(total)
 }
 
 /// Update the current working copy of `repo` to the given revision `to`, from
-/// an arbitrary revision with clean tracked files, and set + write out the
-/// dirstate to reflect that.
+/// an arbitrary revision with clean tracked files, and update the dirstate
+/// without writing it to disk.
 ///
 /// Do not call this outside of a Python context. This does *not* handle any
 /// of the checks, hooks, lock taking needed to setup and get out of this
@@ -239,8 +220,8 @@ pub fn update_from_null(
 #[tracing::instrument(level = "debug", skip_all)]
 pub fn update_from_clean(
     repo: &Repo,
+    dirstate: &mut OwningDirstateMap,
     wc_manifest_bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
-    target_node: Node,
     target_rev: Revision,
     target_manifest_bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
     progress: &dyn Progress,
@@ -259,6 +240,7 @@ pub fn update_from_clean(
     let narrow_matcher = narrow_matcher.as_ref();
     let actions = compute_actions(
         repo,
+        dirstate.get_map(),
         &wc_manifest,
         &target_manifest,
         &narrow_matcher,
@@ -268,7 +250,7 @@ pub fn update_from_clean(
 
     progress.update(0, Some(actions.len() as u64));
     repo.manually_set_parents(DirstateParents {
-        p1: target_node,
+        p1: repo.node(target_rev.into()).expect("target node should exist"),
         p2: NULL_NODE,
     })?;
 
@@ -305,14 +287,12 @@ pub fn update_from_clean(
     // still writing out the working copy to see if that improves performance.
     let stats = update_dirstate(
         repo,
+        dirstate,
         file_updates_receiver,
         Some(removals_receiver),
         update_config.devel_abort_dirstate,
         UpdateKind::FromClean,
     )?;
-
-    let changed_tracked_set = stats.removed > 0 || stats.added > 0;
-    write_dirstate(repo, changed_tracked_set)?;
 
     Ok(stats)
 }
@@ -626,6 +606,7 @@ pub fn compute_actions<
     'ma: 'manifests,
 >(
     repo: &Repo,
+    dirstate: &DirstateMap,
     wc_manifest: &'m1 Manifest,
     target_manifest: &'m2 Manifest,
     narrow_matcher: &'m1 impl Matcher,
@@ -636,8 +617,13 @@ pub fn compute_actions<
         manifest_actions(wc_manifest, target_manifest, narrow_matcher)?;
     if !actions.create.is_empty() {
         let mut old_gets = std::mem::take(&mut actions.get);
-        let file_conflicts =
-            check_unknown_files(repo, &actions, target_manifest, warnings)?;
+        let file_conflicts = check_unknown_files(
+            repo,
+            dirstate,
+            &actions,
+            target_manifest,
+            warnings,
+        )?;
 
         if file_conflicts.len() >= 100 {
             // There will be few conflicts most of the time, and they are
@@ -736,12 +722,11 @@ fn filter_sparse_actions<'a>(
 /// warn or ignore them depending on the config, and returns that list.
 fn check_unknown_files<'a>(
     repo: &Repo,
+    dirstate: &DirstateMap,
     merge_result: &'a MergeActions,
     p2_manifest: &Manifest,
     warnings: &HgWarningSender,
 ) -> Result<Vec<&'a HgPath>, HgError> {
-    let owning_dirstate_map = repo.dirstate_map()?;
-    let dirstate = owning_dirstate_map.get_map();
     let check_exec = check_exec(repo.working_directory_path());
     let filelog_options = default_revlog_options(
         repo.config(),
@@ -1416,6 +1401,7 @@ fn working_copy_worker<'a: 'b, 'b>(
 #[tracing::instrument(level = "debug", skip_all)]
 fn update_dirstate(
     repo: &Repo,
+    dirstate: &mut OwningDirstateMap,
     files_receiver: Receiver<(&HgPath, u32, usize, TruncatedTimestamp)>,
     removals_receiver: Option<Receiver<&HgPath>>,
     devel_abort: bool,
@@ -1425,10 +1411,6 @@ fn update_dirstate(
         let msg = "simulated error while recording dirstate updates";
         return Err(HgError::abort_simple(msg));
     }
-    let mut dirstate = repo
-        .dirstate_map_mut()
-        .map_err(|e| HgError::abort(e.to_string(), exit_codes::ABORT, None))?;
-
     let mut removed = 0;
 
     if let Some(removals) = removals_receiver {

@@ -16,11 +16,11 @@ use hg::update::update_from_null as core_update_from_null;
 use hg::update::UpdateConfig;
 use hg::warnings::HgWarningContext;
 use hg::BaseRevision;
-use hg::Node;
 use hg::Revision;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+use crate::dirstate::DirstateMap;
 use crate::exceptions::FallbackError;
 use crate::repo::repo_from_path;
 use crate::utils::handle_warnings;
@@ -31,12 +31,18 @@ use crate::utils::PyBytesDeref;
 
 /// See [`core_update_from_null`].
 #[pyfunction]
-#[pyo3(
-    signature = (repo_path, to, num_cpus, on_warnings, devel_abort_dirstate)
-)]
+#[pyo3(signature = (
+    repo_path,
+    to,
+    dirstate,
+    num_cpus,
+    on_warnings,
+    devel_abort_dirstate,
+))]
 pub fn update_from_null(
     repo_path: &Bound<'_, PyBytes>,
     to: BaseRevision,
+    dirstate: &Bound<'_, DirstateMap>,
     num_cpus: Option<usize>,
     on_warnings: PyObject,
     devel_abort_dirstate: bool,
@@ -54,35 +60,38 @@ pub fn update_from_null(
     };
 
     let warning_context = HgWarningContext::new();
-    let res = with_sigint_wrapper(repo_path.py(), || {
-        core_update_from_null(
-            &repo,
-            to.into(),
-            progress,
-            &update_config,
-            warning_context.sender(),
-        )
-        .map(|stats| stats.updated)
-    });
-    // Handle warnings even in case of an error
-    handle_warnings(
-        repo_path.py(),
-        warning_context,
-        repo.working_directory_path(),
-        on_warnings,
-    )?;
+    DirstateMap::with_inner_write(dirstate, |_inner, mut dirstate| {
+        let res = with_sigint_wrapper(repo_path.py(), || {
+            core_update_from_null(
+                &repo,
+                to.into(),
+                &mut dirstate,
+                progress,
+                &update_config,
+                warning_context.sender(),
+            )
+            .map(|stats| stats.updated)
+        });
+        // Handle warnings even in case of an error
+        handle_warnings(
+            repo_path.py(),
+            warning_context,
+            repo.working_directory_path(),
+            on_warnings,
+        )?;
 
-    let updated = res?.into_pyerr(repo_path.py())?;
+        let updated = res?.into_pyerr(repo_path.py())?;
 
-    Ok(updated)
+        Ok(updated)
+    })
 }
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(signature = (
     repo_path,
+    dirstate,
     wc_manifest_bytes,
-    target_node,
     target_rev,
     target_manifest_bytes,
     num_cpus,
@@ -94,8 +103,8 @@ pub fn update_from_null(
 ))]
 pub fn update_from_clean(
     repo_path: &Bound<'_, PyBytes>,
+    dirstate: &Bound<'_, DirstateMap>,
     wc_manifest_bytes: Py<PyBytes>,
-    target_node: &[u8],
     target_rev: BaseRevision,
     target_manifest_bytes: Py<PyBytes>,
     num_cpus: Option<usize>,
@@ -104,7 +113,7 @@ pub fn update_from_clean(
     orig_backup_path: Option<&[u8]>,
     atomic_file: bool,
     on_warnings: PyObject,
-) -> PyResult<(usize, usize, usize, usize)> {
+) -> PyResult<(usize, usize, usize, usize, usize)> {
     tracing::debug!("Using update from clean fastpath");
     let repo = repo_from_path(repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
@@ -118,35 +127,38 @@ pub fn update_from_clean(
     };
     let warning_context = HgWarningContext::new();
 
-    let res = with_sigint_wrapper(py, || {
-        core_update_from_clean(
-            &repo,
-            Box::new(PyBytesDeref::new(py, wc_manifest_bytes)),
-            Node::try_from(target_node).expect("invalid node"),
-            // We assume that Python doesn't give the wrong revision
-            Revision(target_rev),
-            Box::new(PyBytesDeref::new(py, target_manifest_bytes)),
-            progress,
-            &update_config,
-            warning_context.sender(),
-        )
-    });
-    // Handle warnings even in case of an error
-    handle_warnings(
-        py,
-        warning_context,
-        repo.working_directory_path(),
-        on_warnings,
-    )?;
+    DirstateMap::with_inner_write(dirstate, |_inner, mut dirstate| {
+        let res = with_sigint_wrapper(py, || {
+            core_update_from_clean(
+                &repo,
+                &mut dirstate,
+                Box::new(PyBytesDeref::new(py, wc_manifest_bytes)),
+                // We assume that Python doesn't give the wrong revision
+                Revision(target_rev),
+                Box::new(PyBytesDeref::new(py, target_manifest_bytes)),
+                progress,
+                &update_config,
+                warning_context.sender(),
+            )
+        });
+        // Handle warnings even in case of an error
+        handle_warnings(
+            py,
+            warning_context,
+            repo.working_directory_path(),
+            on_warnings,
+        )?;
 
-    let merge_stats = res?.into_pyerr(repo_path.py())?;
+        let merge_stats = res?.into_pyerr(repo_path.py())?;
 
-    Ok((
-        merge_stats.updated,
-        merge_stats.merged,
-        merge_stats.removed,
-        merge_stats.unresolved,
-    ))
+        Ok((
+            merge_stats.added,
+            merge_stats.updated,
+            merge_stats.merged,
+            merge_stats.removed,
+            merge_stats.unresolved,
+        ))
+    })
 }
 
 pub fn init_module<'py>(

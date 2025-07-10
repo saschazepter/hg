@@ -18,7 +18,7 @@ mod item;
 use item::DirstateItem;
 mod dirstate_map;
 use dirstate_map::DirstateIdentity;
-use dirstate_map::DirstateMap;
+pub use dirstate_map::DirstateMap;
 use dirstate_map::DirstateMapItemsIterator;
 use dirstate_map::DirstateMapKeysIterator;
 mod copy_map;
