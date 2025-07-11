@@ -7,12 +7,15 @@
 
 from __future__ import annotations
 
-import typing
+from typing import (
+    Optional,
+    TYPE_CHECKING,
+)
 
 from ..thirdparty import attr
 
 # Force pytype to use the non-vendored package
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
@@ -78,8 +81,8 @@ def entry(
 class CachedDelta:
     base = attr.ib(type=RevnumT)
     delta = attr.ib(type=bytes)
-    reuse_policy = attr.ib(type=int | None, default=None)
-    snapshot_level = attr.ib(type=None | int, default=None)
+    reuse_policy = attr.ib(type=Optional[int], default=None)
+    snapshot_level = attr.ib(type=Optional[int], default=None)
 
 
 @attr.s(slots=True)
@@ -97,9 +100,9 @@ class revisioninfo:
     node = attr.ib(type=NodeIdT)
     p1 = attr.ib(type=NodeIdT)
     p2 = attr.ib(type=NodeIdT)
-    btext = attr.ib(type=bytes | None)
+    btext = attr.ib(type=Optional[bytes])
     textlen = attr.ib(type=int)
-    cachedelta = attr.ib(type=CachedDelta | None)
+    cachedelta = attr.ib(type=Optional[CachedDelta])
     flags = attr.ib(type=int)
 
 
