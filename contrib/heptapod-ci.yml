@@ -42,7 +42,7 @@ variables:
     RE_TOPIC: '/^topic/.+/.+$/'
     PYTHON: python
     HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
-    HG_CI_IMAGE_TAG: "v3.2"
+    HG_CI_IMAGE_TAG: "v3.3"
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.

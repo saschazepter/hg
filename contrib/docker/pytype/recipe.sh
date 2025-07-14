@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 : ${HG_CI_REG:=registry.heptapod.net/mercurial/ci-images}
-: ${HG_CI_IMAGE_TAG:=v3.2}
+: ${HG_CI_IMAGE_TAG:=v3.3}
 
 
 # find repo-root without calling hg as this might be run with sudo
