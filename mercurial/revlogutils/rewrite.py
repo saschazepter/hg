@@ -520,6 +520,37 @@ def _write_swapped_parents(repo, rl, rev, offset, fp):
     fp.write(packed)
 
 
+### Constant used for `delta_has_meta` function
+#
+# Can't know if the revision has meta from this delta
+HM_UNKNOWN = -2
+# We know the revision is similar to the delta parent
+HM_INHERIT = -1
+# We know the revision  does not have meta
+HM_NO_META = 0
+# we know the revision has meta information
+HM_META = 1
+
+
+def delta_has_meta(delta: bytes, has_base: bool = True) -> int:
+    """determine if a revision has metadata from its delta"""
+    if not has_base:
+        if delta[:META_MARKER_SIZE] == META_MARKER:
+            return HM_META
+        else:
+            return HM_NO_META
+    before, local_bytes, after = mdiff.first_bytes(delta, META_MARKER_SIZE)
+    if before + after == META_MARKER_SIZE:
+        return HM_INHERIT
+    elif len(local_bytes) == META_MARKER_SIZE:
+        if local_bytes == META_MARKER:
+            return HM_META
+        else:
+            return HM_NO_META
+    else:
+        return HM_UNKNOWN
+
+
 def _reorder_filelog_parents(repo, fl, to_fix):
     """
     Swaps p1 and p2 for all `to_fix` revisions of filelog `fl` and writes the

@@ -3971,6 +3971,8 @@ class revlog:
         )
         index = self.index
 
+        has_meta_cache = {}
+
         for rev in self:
             entry = index[rev]
 
@@ -3986,11 +3988,40 @@ class revlog:
                 p1, p2 = p2, p1
                 flags &= ~REVIDX_HASMETA
             if hasmeta_change == HM_UP:
-                # XXX very slow but correct
-                if bytes(self.rawdata(rev)[:META_MARKER_SIZE]) == META_MARKER:
+                delta = self._inner._chunk(rev)
+
+                delta_parent = self.deltaparent(rev)
+
+                has_base = delta_parent >= 0
+
+                hm = rewrite.delta_has_meta(delta, has_base)
+                if hm == rewrite.HM_META:
+                    rev_has_meta = True
+                elif hm == rewrite.HM_NO_META:
+                    rev_has_meta = False
+                elif (
+                    hm == rewrite.HM_INHERIT and delta_parent in has_meta_cache
+                ):
+                    rev_has_meta = has_meta_cache[delta_parent]
+                else:
+                    rev_has_meta = (
+                        self._revisiondata(
+                            rev,
+                            validate=False,
+                        )[:META_MARKER_SIZE]
+                        == META_MARKER
+                    )
+
+                has_meta_cache[rev] = rev_has_meta
+                if rev_has_meta:
                     flags |= REVIDX_HASMETA
-                    if p1 == nullrev and p2 != nullrev:
-                        p1, p2 = p2, p1
+                else:
+                    flags &= ~REVIDX_HASMETA
+
+                # We no longer use parent ordering as a trick, so order them
+                # back to something less surprising.
+                if p1 == nullrev and p2 != nullrev:
+                    p1, p2 = p2, p1
 
             # We will let the encoding decide what is a snapshot
             #

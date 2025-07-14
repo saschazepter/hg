@@ -641,3 +641,27 @@ def full_text_from_delta(
         basetext = base_func()
         fulltext = patch(basetext, delta)
     return fulltext
+
+
+def first_bytes(
+    delta: bytes,
+    size: int,
+    has_base: bool = True,
+) -> tuple[int, bytes, int]:
+    """
+    inherited-bytes, new-bytes, inherited-bytes
+    """
+    if len(delta) == 0:
+        if has_base:
+            return (size, b'', 0)
+        else:
+            return (0, b'', 0)
+    elif len(delta) < DIFF_HEADER.size:
+        return (0, delta[:size], 0)
+    o = DIFF_HEADER.size
+    start, old_size, new_size = DIFF_HEADER.unpack(delta[:o])
+    if start >= size:
+        return (size, b'', 0)
+    else:
+        cap_size = min(size - start, new_size - start)
+        return (start, delta[o : o + cap_size], size - start - cap_size)
