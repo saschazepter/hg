@@ -5022,3 +5022,28 @@ def debug_reencoder_revlog(
         delete=delete,
         reuse_delta=reuse_stored_delta,
     )
+
+
+@command(
+    b'debug::fast-upgrade',
+    [],
+    b'',
+)
+def fast_upgrade(ui, repo, *patterns, **opts):
+    count = 0
+    with repo.wlock(), repo.lock():
+        new_requirements = repo.requirements
+        new_requirements.add(requirements.FILELOG_METAFLAG_REQUIREMENT)
+        scmutil.writereporequirements(repo, new_requirements)
+        all_revlog = [e for e in repo.store.walk() if e.is_filelog]
+        with ui.makeprogress(
+            b"upgrade", unit=_(b'revlog'), total=len(all_revlog)
+        ) as p:
+            for entry in all_revlog:
+                if not entry.is_filelog:
+                    continue
+                fl = entry.get_revlog_instance(repo)
+                rewrite.quick_upgrade(fl)
+                count += 1
+                p.increment()
+    ui.statusnoi18n(b"upgraded %d filelog\n" % count)

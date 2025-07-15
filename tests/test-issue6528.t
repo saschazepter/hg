@@ -767,4 +767,60 @@ Downgrading does not regress
   flags  : generaldelta
   $ hg status
 
+
+upgrading with fast upgrade
+
+  $ hg debugrequires | grep flag
+  [1]
+  $ hg debugrevlog a.txt | grep flags
+  flags  : generaldelta
+  $ hg debugrevlog b.txt | grep flags
+  flags  : generaldelta
+  $ hg debugrevlog C.txt | grep flags
+  flags  : generaldelta
+  $ hg debugrevlog D.txt | grep flags
+  flags  : generaldelta
+
+  $ hg debug::fast-upgrade
+  upgraded 4 filelog
+
+  $ hg debugrequires | grep flag
+  exp-filelog-metaflag
+  $ hg debugrevlog a.txt | grep flags
+  flags  : generaldelta, hasmeta
+  $ hg debugrevlog b.txt | grep flags
+  flags  : generaldelta, hasmeta
+  $ hg debugrevlog C.txt | grep flags
+  flags  : generaldelta, hasmeta
+  $ hg debugrevlog D.txt | grep flags
+  flags  : generaldelta, hasmeta
+
+  $ hg debugrevlogindex a.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      0     -1     -1 38ecb501c5f4
+       1 0000       14      1      0     -1 dd95142cd79c
+       2 0800       82      4     -1     -1 24eaeb9b60a2
+       3 0000       19      5      2     -1 359eaa70a265
+  $ hg debugrevlogindex b.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0800       80      2     -1     -1 05b806ebe5ea
+       1 0800       82      3      0     -1 a58b36ad6b65
+       2 0800       82      6     -1     -1 216a5fe8b8ed
+       3 0800       85      7      2     -1 ea4f2f2463cc
+  $ hg debugrevlogindex C.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0000       12      4     -1     -1 38ecb501c5f4
+       1 0000       14      5      0     -1 dd95142cd79c
+
+  $ hg debugrevlogindex D.txt --format 1
+     rev flag     size   link     p1     p2       nodeid
+       0 0800       80      6     -1     -1 2a8d3833f2fb
+       1 0800       82      7      0     -1 2a80419dfc31
+
+  $ hg status --rev 0 --rev tip --copies
+  A D.txt
+  A b.txt
+    a.txt
+  R a.txt
+
   $ cd ..

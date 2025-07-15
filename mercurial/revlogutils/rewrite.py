@@ -909,3 +909,119 @@ def repair_issue6528(
                     f.write(b"%s %s\n" % (b",".join(to_fix), path))
 
         progress.complete()
+
+
+def _find_all_revs_with_meta(filelog):
+    meta = {}
+    rl = filelog._revlog
+    for filerev in rl:
+        if rl.iscensored(filerev):
+            continue
+        delta_parent = rl.deltaparent(filerev)
+        has_base = delta_parent >= 0
+
+        delta = rl._inner._chunk(filerev)
+
+        hm = delta_has_meta(delta, has_base)
+        if hm == HM_META:
+            meta[filerev] = True
+        elif hm == HM_NO_META:
+            meta[filerev] = False
+        elif hm == HM_INHERIT and delta_parent in meta:
+            meta[filerev] = meta[delta_parent]
+        else:
+            meta[filerev] = (
+                rl._rawtext(None, filerev)[:META_MARKER_SIZE] == META_MARKER
+            )
+
+    return {k for k, v in meta.items() if v}
+
+
+def quick_upgrade(filelog):
+    rl = filelog._revlog
+
+    if rl._format_flags & constants.FLAG_FILELOG_META:
+        return
+
+    assert rl._format_flags & constants.FLAG_GENERALDELTA
+
+    revs_with_meta = _find_all_revs_with_meta(filelog)
+
+    if not revs_with_meta:
+        # We just need to write the header flag
+        # XXX do we need to sort the parent anyway?
+        with rl.opener(rl._indexfile, b'br+') as n:
+            n.seek(0)
+            first_entry = rl.index.entry_binary(0)
+            header = rl._format_flags
+            header |= rl._format_version
+            header |= constants.FLAG_FILELOG_META
+            header = rl.index.pack_header(header)
+            first_entry = header + first_entry
+            n.write(first_entry)
+        return
+
+    index = rl.index
+    new_index = rl._parse_index(
+        b'',
+        False,
+        True,
+        rl.delta_config.delta_info,
+    )[0]
+
+    for filerev in rl:
+        (
+            data_offset_and_flag,
+            data_compressed_length,
+            data_uncompressed_length,
+            delta_base,
+            link_rev,
+            parent_1,
+            parent_2,
+            node_id,
+            side_data_offset,
+            side_data_compressed_length,
+            data_compression_mode,
+            sidedata_compression_mode,
+            rank,
+        ) = index[filerev]
+        flags = data_offset_and_flag & 0xFFFF
+        dataoffset = int(data_offset_and_flag >> 16)
+
+        if parent_1 == nullrev and parent_2 != nullrev:
+            parent_1, parent_2 = parent_2, parent_1
+
+        if filerev in revs_with_meta:
+            flags |= constants.REVIDX_HASMETA
+
+        e = revlogutils.entry(
+            flags=flags,
+            data_offset=dataoffset,
+            data_compressed_length=data_compressed_length,
+            data_uncompressed_length=data_uncompressed_length,
+            data_compression_mode=data_compression_mode,
+            data_delta_base=delta_base,
+            link_rev=link_rev,
+            parent_rev_1=parent_1,
+            parent_rev_2=parent_2,
+            node_id=node_id,
+            sidedata_offset=side_data_offset,
+            sidedata_compressed_length=side_data_compressed_length,
+            sidedata_compression_mode=sidedata_compression_mode,
+            rank=rank,
+        )
+        new_index.append(e)
+
+    # write data
+    with rl.opener(rl._indexfile, b'bw', atomictemp=True) as n:
+        for rev in range(len(new_index)):
+            idx = new_index.entry_binary(rev)
+            if rev == 0:
+                header = rl._format_flags
+                header |= rl._format_version
+                header |= constants.FLAG_FILELOG_META
+                header = new_index.pack_header(header)
+                idx = header + idx
+            n.write(idx)
+            if rl._inline:
+                n.write(rl._inner.get_segment_for_revs(rev, rev)[1])
