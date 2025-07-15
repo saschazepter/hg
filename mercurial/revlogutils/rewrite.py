@@ -11,7 +11,6 @@ from __future__ import annotations
 import binascii
 import contextlib
 import os
-import struct
 
 from ..node import (
     nullrev,
@@ -708,29 +707,24 @@ def _is_revision_affected_fast_inner(
         return False
 
     delta_parent = delta_base()
-    if delta_parent < 0 or delta_parent == filerev:
-        touch_start = True
+    if delta_parent >= 0:
+        d_meta = delta_has_meta(delta())
     else:
-        parent_has_metadata = metadata_cache.get(delta_parent)
-        if parent_has_metadata is not None:
-            metadata_cache[filerev] = parent_has_metadata
-            chunk = delta()
-            if not len(chunk):
-                touch_start = False
-            else:
-                header_length = 12
-                if len(chunk) < header_length:
-                    raise error.Abort(_(b"patch cannot be decoded"))
-
-                start, _end, _length = struct.unpack(
-                    b">lll",
-                    chunk[:header_length],
-                )
-                touch_start = start < META_MARKER_SIZE
-
-    if touch_start:
-        # This delta does *something* to the metadata marker (if any).  Check
-        # it the slow way
+        # the content of `delta()` can still be a delta against nullrev when
+        # filtering incoming delta, so we keep things simple and explicitly
+        # rely on the code path using `full_text`.
+        d_meta = HM_UNKNOWN
+    if d_meta == HM_NO_META:
+        metadata_cache[filerev] = False
+    elif d_meta == HM_META:
+        metadata_cache[filerev] = True
+    elif d_meta == HM_INHERIT and delta_parent in metadata_cache:
+        # The diff did not remove or add the metadata header, it's then in the
+        # same situation as its parent
+        metadata_cache[filerev] = metadata_cache[delta_parent]
+    else:
+        # This delta does *something* to the metadata marker (if any).
+        # Check it the slow way
         return _is_revision_affected_inner(
             full_text,
             parent_revs,
@@ -738,8 +732,6 @@ def _is_revision_affected_fast_inner(
             metadata_cache,
         )
 
-    # The diff did not remove or add the metadata header, it's then in the same
-    # situation as its parent
     return _has_bad_parents(metadata_cache[filerev], *parent_revs())
 
 
