@@ -969,17 +969,23 @@ def ensurerequirementscompatible(ui, requirements):
             )
         )
 
+    if (
+        requirementsmod.DOTENCODE_REQUIREMENT in requirements
+        and requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements
+    ):
+        raise error.RepoError(
+            _(
+                b'bad requirements, cannot use both "dotencode" '
+                b'and "plain encoding"'
+            )
+        )
+
 
 def makestore(requirements, path, vfstype):
     """Construct a storage object for a repository."""
     if requirementsmod.STORE_REQUIREMENT in requirements:
         if requirementsmod.FNCACHE_REQUIREMENT in requirements:
             if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
-                if requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
-                    msg = _(
-                        b'bad requirements, cannot use both "dotencode" and "plain encoding"'
-                    )
-                    raise error.RepoError(msg)
                 encoding = storemod.Encoding.DOTENCODE
             elif requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
                 encoding = storemod.Encoding.PLAIN
