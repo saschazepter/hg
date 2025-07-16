@@ -145,7 +145,6 @@ pub fn update_from_null(
         repo.requirements(),
         crate::revlog::RevlogType::Filelog,
     )?;
-    let (errors_sender, errors_receiver) = crossbeam_channel::unbounded();
     let (files_sender, files_receiver) = crossbeam_channel::unbounded();
 
     let files_count = tracked_files.len();
@@ -168,10 +167,9 @@ pub fn update_from_null(
         store_vfs,
         options,
         &files_sender,
-        &errors_sender,
         progress,
         update_config,
-    );
+    )?;
     drop(files_sender);
 
     // Reset the global interrupt now that we're done
@@ -179,20 +177,6 @@ pub fn update_from_null(
         tracing::warn!("Interrupt received, aborting the update");
         // The threads have all exited early, let's re-raise
         return Err(HgError::InterruptReceived);
-    }
-
-    drop(errors_sender);
-    let errors: Vec<HgError> = errors_receiver.iter().collect();
-    if !errors.is_empty() {
-        tracing::debug!(
-            "{} errors during update (see trace logs)",
-            errors.len()
-        );
-        for error in errors.iter() {
-            tracing::trace!("{}", error);
-        }
-        // Best we can do is raise the first error (in order of the channel)
-        return Err(errors.into_iter().next().expect("can never be empty"));
     }
 
     // TODO try to run this concurrently to update the dirstate while we're
@@ -235,8 +219,6 @@ pub fn update_from_clean(
     let sparse_matcher =
         sparse::matcher(repo, Some(vec![target_rev]), warnings)?;
 
-    let (errors_sender, errors_receiver) = crossbeam_channel::unbounded();
-
     let narrow_matcher = narrow_matcher.as_ref();
     let actions = compute_actions(
         repo,
@@ -264,24 +246,9 @@ pub fn update_from_clean(
         progress,
         file_updates_sender,
         removals_sender,
-        &errors_sender,
         warnings,
         update_config,
     )?;
-
-    drop(errors_sender);
-    let errors: Vec<HgError> = errors_receiver.iter().collect();
-    if !errors.is_empty() {
-        tracing::debug!(
-            "{} errors during update (see trace logs)",
-            errors.len()
-        );
-        for error in errors.iter() {
-            tracing::trace!("{}", error);
-        }
-        // Best we can do is raise the first error (in order of the channel)
-        return Err(errors.into_iter().next().expect("can never be empty"));
-    }
 
     // TODO try to run this concurrently to update the dirstate while we're
     // still writing out the working copy to see if that improves performance.
@@ -471,7 +438,6 @@ fn apply_actions<'a: 'b, 'b>(
     progress: &dyn Progress,
     file_updates: Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
     file_removals: Sender<&'b HgPath>,
-    errors: &Sender<HgError>,
     warnings: &HgWarningSender,
     update_config: &UpdateConfig,
 ) -> Result<(), HgError> {
@@ -513,8 +479,7 @@ fn apply_actions<'a: 'b, 'b>(
         chunk_tracked_files(actions.remove, false).1,
         work_closure,
         update_config.workers,
-        errors,
-    );
+    )?;
     removing_span.exit();
 
     if cwd_exists && std::env::current_dir().is_err() {
@@ -531,10 +496,9 @@ fn apply_actions<'a: 'b, 'b>(
         &repo.store_vfs(),
         options,
         &file_updates,
-        errors,
         progress,
         update_config,
-    );
+    )?;
 
     // Change flags on any files that only need their flags changed
     for (path, flags) in actions.flags {
@@ -1043,8 +1007,7 @@ pub fn maybe_parallel<T: Send>(
     work_arg: Vec<T>,
     work_closure: impl Fn(T) -> Result<(), HgError> + Sync + Send,
     mut workers: Option<usize>,
-    error_sender: &Sender<HgError>,
-) {
+) -> Result<(), HgError> {
     if work_arg.len() < 10 {
         workers = Some(1);
     }
@@ -1052,13 +1015,11 @@ pub fn maybe_parallel<T: Send>(
         if workers > 1 {
             // Work in parallel, potentially restricting the number of threads
             match rayon::ThreadPoolBuilder::new().num_threads(workers).build() {
-                Err(error) => error_sender
-                    .send(HgError::abort(
-                        error.to_string(),
-                        exit_codes::ABORT,
-                        None,
-                    ))
-                    .expect("channel should not be disconnected"),
+                Err(error) => Err(HgError::abort(
+                    error.to_string(),
+                    exit_codes::ABORT,
+                    None,
+                )),
                 Ok(pool) => {
                     tracing::debug!(
                         "restricting {} to {} threads",
@@ -1066,22 +1027,18 @@ pub fn maybe_parallel<T: Send>(
                         workers
                     );
                     pool.install(|| {
-                        let _ =
-                            work_arg.into_par_iter().try_for_each(work_closure);
-                    });
+                        work_arg.into_par_iter().try_for_each(work_closure)
+                    })
                 }
             }
         } else {
             // Work sequentially, don't even invoke rayon
-            let _ = work_arg.into_iter().try_for_each(work_closure);
+            work_arg.into_iter().try_for_each(work_closure)
         }
     } else {
         // Work in parallel by default in the global threadpool
         let _ = cap_default_rayon_threads();
-        let _ = work_arg
-            .into_par_iter()
-            .with_min_len(10)
-            .try_for_each(work_closure);
+        work_arg.into_par_iter().with_min_len(10).try_for_each(work_closure)
     }
 }
 
@@ -1099,15 +1056,14 @@ fn create_working_copy<'a: 'b, 'b>(
     store_vfs: &VfsImpl,
     options: RevlogOpenOptions,
     files_sender: &Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
-    error_sender: &Sender<HgError>,
     progress: &dyn Progress,
     update_config: &UpdateConfig,
-) {
+) -> Result<(), HgError> {
     let auditor = PathAuditor::new(working_copy_vfs.base());
 
     let work_closure = |(dir_path, chunk): (_, Vec<_>)| -> Result<(), HgError> {
         let progress_incr = chunk.len() as u64;
-        if let Err(e) = working_copy_worker(
+        working_copy_worker(
             dir_path,
             chunk,
             working_copy_vfs,
@@ -1116,12 +1072,7 @@ fn create_working_copy<'a: 'b, 'b>(
             files_sender,
             &auditor,
             update_config,
-        ) {
-            error_sender
-                .clone()
-                .send(e)
-                .expect("channel should not be disconnected")
-        }
+        )?;
         progress.increment(progress_incr, None);
         Ok(())
     };
@@ -1151,26 +1102,16 @@ fn create_working_copy<'a: 'b, 'b>(
 
     let symlinks_span =
         tracing::span!(tracing::Level::TRACE, "adding symlinks").entered();
-    maybe_parallel(
-        "update",
-        symlinks,
-        work_closure,
-        update_config.workers,
-        error_sender,
-    );
+    maybe_parallel("update", symlinks, work_closure, update_config.workers)?;
     symlinks_span.exit();
 
     let files_span =
         tracing::span!(tracing::Level::TRACE, "adding files").entered();
     // Then take care of the normal files
-    maybe_parallel(
-        "update",
-        chunks,
-        work_closure,
-        update_config.workers,
-        error_sender,
-    );
+    let res =
+        maybe_parallel("update", chunks, work_closure, update_config.workers);
     files_span.exit();
+    res
 }
 
 /// Returns the backup path for `path`, relative to the `working_copy_vfs`'s
