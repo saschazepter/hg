@@ -40,9 +40,13 @@ pub enum PreRegex {
 
 mod to_hir {
     use itertools::Itertools;
-    use regex_syntax::hir::{
-        Class, ClassBytes, ClassBytesRange, Dot, Hir, Look, Repetition,
-    };
+    use regex_syntax::hir::Class;
+    use regex_syntax::hir::ClassBytes;
+    use regex_syntax::hir::ClassBytesRange;
+    use regex_syntax::hir::Dot;
+    use regex_syntax::hir::Hir;
+    use regex_syntax::hir::Look;
+    use regex_syntax::hir::Repetition;
 
     use super::PreRegex;
 
@@ -67,8 +71,7 @@ mod to_hir {
     }
 
     fn hir_byte(b: u8) -> Hir {
-        let class =
-            Class::Bytes(ClassBytes::new([ClassBytesRange::new(b, b)]));
+        let class = Class::Bytes(ClassBytes::new([ClassBytesRange::new(b, b)]));
         Hir::class(class)
     }
 

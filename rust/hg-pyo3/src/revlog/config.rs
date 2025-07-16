@@ -5,20 +5,20 @@
 //
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
+use std::sync::OnceLock;
+
+use hg::revlog::compression::CompressionConfig;
+use hg::revlog::options::RevlogDataConfig;
+use hg::revlog::options::RevlogDeltaConfig;
+use hg::revlog::options::RevlogFeatureConfig;
+use hg::revlog::RevlogType;
 use pyo3::conversion::FromPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;
-
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyDictMethods};
-
-use std::sync::OnceLock;
-
-use hg::revlog::{
-    compression::CompressionConfig,
-    options::{RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig},
-    RevlogType,
-};
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
+use pyo3::types::PyDictMethods;
 
 /// Helper trait for configuration dicts
 ///
@@ -59,8 +59,7 @@ where
 /// compiler: "returns a value referencing data owned by the current function"
 macro_rules! extract_attr {
     ($obj: expr, $attr: expr) => {
-        $obj.getattr(intern!($obj.py(), $attr))
-            .and_then(|a| a.extract())
+        $obj.getattr(intern!($obj.py(), $attr)).and_then(|a| a.extract())
     };
 }
 
@@ -95,14 +94,13 @@ fn with_filelog_config_cache<T: Copy>(
     if revlog_type == RevlogType::Filelog {
         if let Some((cached_py_config, rust_config)) = cache.get() {
             was_cached = true;
-            // it's not impossible that some extensions
-            // do some magic with configs or that this code will be used
-            // for longer-running processes. So compare the source
-            // `PyObject` in case the source changed, at
-            // the cost of some overhead. We can't use
-            // `py_config.eq(cached_py_config)` because all config
-            // objects are different in Python and `a is b` is false.
-            if py_config.compare(cached_py_config)?.is_eq() {
+            // it's not impossible that some extensions do some magic with
+            // configs, or that this code will be used for
+            // longer-running processes, ot that we open multiple
+            // repositories in the process. So compare the source `PyObject` in
+            // case the source changed, at the cost of some
+            // overhead.
+            if py_config.eq(cached_py_config)? {
                 return Ok(*rust_config);
             }
         }
@@ -125,6 +123,7 @@ pub fn extract_delta_config(
         let revlog_delta_config = RevlogDeltaConfig {
             general_delta: extract_attr!(conf, "general_delta")?,
             sparse_revlog: extract_attr!(conf, "sparse_revlog")?,
+            delta_info: extract_attr!(conf, "delta_info")?,
             max_chain_len: extract_attr!(conf, "max_chain_len")?,
             max_deltachain_span: if max_deltachain_span < 0 {
                 None
@@ -140,6 +139,7 @@ pub fn extract_delta_config(
             debug_delta: extract_attr!(conf, "debug_delta")?,
             lazy_delta: extract_attr!(conf, "lazy_delta")?,
             lazy_delta_base: extract_attr!(conf, "lazy_delta_base")?,
+            file_max_comp_ratio: extract_attr!(conf, "file_max_comp_ratio")?,
         };
         Ok(revlog_delta_config)
     })
@@ -169,6 +169,7 @@ pub fn extract_data_config(
             sr_density_threshold: extract_attr!(conf, "sr_density_threshold")?,
             sr_min_gap_size: extract_attr!(conf, "sr_min_gap_size")?,
             general_delta: extract_attr!(conf, "generaldelta")?,
+            delta_info: extract_attr!(conf, "delta_info")?,
         })
     })
 }
@@ -194,8 +195,7 @@ fn extract_compression_config(
             engine
         }
         b"zstd" => {
-            let zstd_level =
-                compression_options.extract_item(b"zstd.level")?;
+            let zstd_level = compression_options.extract_item(b"zstd.level")?;
             let level = if let Some(level) = zstd_level {
                 Some(level)
             } else {
@@ -231,6 +231,11 @@ pub fn extract_feature_config(
                 "canonical_parent_order"
             )?,
             enable_ellipsis: extract_attr!(conf, "enable_ellipsis")?,
+            hasmeta_flag: extract_attr!(conf, "hasmeta_flag")?,
+            ignore_filelog_censored_revisions: extract_attr!(
+                conf,
+                "ignore_filelog_censored_revisions"
+            )?,
         })
     })
 }

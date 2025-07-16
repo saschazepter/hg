@@ -15,10 +15,7 @@ import typing
 from typing import (
     Any,
     Callable,
-    Dict,
-    Optional,
     Sequence,
-    Tuple,
 )
 
 from .i18n import _
@@ -54,6 +51,7 @@ from . import (
     util,
 )
 from .utils import (
+    dag_util,
     dateutil,
     stringutil,
 )
@@ -580,7 +578,7 @@ class changesettemplater(changesetprinter):
     """
 
     _tresources: formatter.templateresources
-    lastheader: Optional[bytes]
+    lastheader: bytes | None
     t: templater.templater
 
     # Arguments before "buffered" used to be positional. Consider not
@@ -792,7 +790,7 @@ class walkopts:
 def parseopts(
     ui: Any,
     pats: Sequence[bytes],
-    opts: Dict[bytes, Any],
+    opts: dict[bytes, Any],
 ) -> walkopts:
     """Parse log command options into walkopts
 
@@ -949,7 +947,9 @@ def _fileancestors(repo, revs, match, followfirst):
         return scmutil.matchfiles(repo, fcache.get(scmutil.intrev(ctx), []))
 
     def revgen():
-        for rev, cs in dagop.filectxancestors(fctxs, followfirst=followfirst):
+        for rev, cs in dag_util.filectxancestors(
+            fctxs, followfirst=followfirst
+        ):
             fcache[rev] = [c.path() for c in cs]
             yield rev
 
@@ -1086,7 +1086,7 @@ def _initialrevs(repo, wopts):
 def makewalker(
     repo: Any,
     wopts: walkopts,
-) -> Tuple[smartset.abstractsmartset, Optional[Callable[[Any], MatcherT]]]:
+) -> tuple[smartset.abstractsmartset, Callable[[Any], MatcherT] | None]:
     """Build (revs, makefilematcher) to scan revision/file history
 
     - revs is the smartset to be traversed.
@@ -1102,7 +1102,9 @@ def makewalker(
     filematcher = None
     if wopts.follow:
         if slowpath or match.always():
-            revs = dagop.revancestors(repo, revs, followfirst=wopts.follow == 1)
+            revs = dag_util.revancestors(
+                repo, revs, followfirst=wopts.follow == 1
+            )
         else:
             assert not wopts.force_changelog_traversal
             revs, filematcher = _fileancestors(
@@ -1139,7 +1141,7 @@ def makewalker(
 def getrevs(
     repo: Any,
     wopts: walkopts,
-) -> Tuple[smartset.abstractsmartset, Optional[changesetdiffer]]:
+) -> tuple[smartset.abstractsmartset, changesetdiffer | None]:
     """Return (revs, differ) where revs is a smartset
 
     differ is a changesetdiffer with pre-configured file matcher.
@@ -1195,7 +1197,7 @@ def getlinerangerevs(repo, userrevs, opts):
                 _(b'cannot follow file not in parent revision: "%s"') % fname
             )
         fctx = wctx.filectx(fname)
-        for fctx, linerange in dagop.blockancestors(fctx, fromline, toline):
+        for fctx, linerange in dag_util.blockancestors(fctx, fromline, toline):
             rev = fctx.introrev()
             if rev is None:
                 rev = wdirrev

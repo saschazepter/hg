@@ -1,17 +1,18 @@
 use std::path::Path;
 
-use crate::{
-    errors::HgError,
-    exit_codes,
-    filepatterns::parse_pattern_file_contents,
-    matchers::{
-        AlwaysMatcher, DifferenceMatcher, IncludeMatcher, Matcher,
-        NeverMatcher,
-    },
-    repo::Repo,
-    requirements::NARROW_REQUIREMENT,
-    sparse::{self, SparseConfigError, SparseWarning},
-};
+use crate::errors::HgError;
+use crate::exit_codes;
+use crate::filepatterns::parse_pattern_file_contents;
+use crate::matchers::AlwaysMatcher;
+use crate::matchers::DifferenceMatcher;
+use crate::matchers::IncludeMatcher;
+use crate::matchers::Matcher;
+use crate::matchers::NeverMatcher;
+use crate::repo::Repo;
+use crate::requirements::NARROW_REQUIREMENT;
+use crate::sparse::SparseConfigError;
+use crate::sparse::{self};
+use crate::warnings::HgWarningSender;
 
 /// The file in .hg/store/ that indicates which paths exit in the store
 const FILENAME: &str = "narrowspec";
@@ -30,18 +31,16 @@ pub const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
 /// warnings to display.
 pub fn matcher(
     repo: &Repo,
-) -> Result<(Box<dyn Matcher + Sync>, Vec<SparseWarning>), SparseConfigError> {
-    let mut warnings = vec![];
+    warnings: &HgWarningSender,
+) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
     if !repo.requirements().contains(NARROW_REQUIREMENT) {
-        return Ok((Box::new(AlwaysMatcher), warnings));
+        return Ok(Box::new(AlwaysMatcher));
     }
     // Treat "narrowspec does not exist" the same as "narrowspec file exists
     // and is empty".
     let store_spec = repo.store_vfs().try_read(FILENAME)?.unwrap_or_default();
-    let working_copy_spec = repo
-        .hg_vfs()
-        .try_read(DIRSTATE_FILENAME)?
-        .unwrap_or_default();
+    let working_copy_spec =
+        repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or_default();
     if store_spec != working_copy_spec {
         return Err(HgError::abort(
             "abort: working copy's narrowspec is stale",
@@ -54,9 +53,8 @@ pub fn matcher(
     let config = sparse::parse_config(
         &store_spec,
         sparse::SparseConfigContext::Narrow,
+        warnings,
     )?;
-
-    warnings.extend(config.warnings);
 
     if !config.profiles.is_empty() {
         // TODO (from Python impl) maybe do something with profiles?
@@ -66,35 +64,36 @@ pub fn matcher(
     validate_patterns(&config.excludes)?;
 
     if config.includes.is_empty() {
-        return Ok((Box::new(NeverMatcher), warnings));
+        return Ok(Box::new(NeverMatcher));
     }
 
-    let (patterns, subwarnings) = parse_pattern_file_contents(
+    let patterns = parse_pattern_file_contents(
         &config.includes,
         Path::new(""),
         None,
         false,
         true,
+        warnings,
     )?;
-    warnings.extend(subwarnings.into_iter().map(From::from));
 
-    let mut m: Box<dyn Matcher + Sync> =
+    let mut m: Box<dyn Matcher + Send> =
         Box::new(IncludeMatcher::new(patterns)?);
 
-    let (patterns, subwarnings) = parse_pattern_file_contents(
+    let patterns = parse_pattern_file_contents(
         &config.excludes,
         Path::new(""),
         None,
         false,
         true,
+        warnings,
     )?;
+
     if !patterns.is_empty() {
-        warnings.extend(subwarnings.into_iter().map(From::from));
         let exclude_matcher = Box::new(IncludeMatcher::new(patterns)?);
         m = Box::new(DifferenceMatcher::new(m, exclude_matcher));
     }
 
-    Ok((m, warnings))
+    Ok(m)
 }
 
 fn is_whitespace(b: &u8) -> bool {

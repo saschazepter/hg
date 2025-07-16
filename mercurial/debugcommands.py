@@ -8,12 +8,14 @@
 from __future__ import annotations
 
 import binascii
+import code
 import codecs
 import collections
 import contextlib
 import difflib
 import errno
 import glob
+import itertools
 import operator
 import os
 import platform
@@ -34,6 +36,7 @@ from .node import (
     short,
 )
 from . import (
+    ancestor,
     bundle2,
     bundlerepo,
     changegroup,
@@ -42,6 +45,7 @@ from . import (
     context,
     copies,
     dagparser,
+    demandimport,
     dirstateutils,
     encoding,
     error,
@@ -59,6 +63,7 @@ from . import (
     manifest,
     mergestate as mergestatemod,
     metadata,
+    node as nodemod,
     obsolete,
     obsutil,
     pathutil,
@@ -367,17 +372,16 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
         def showchunks(named):
             ui.write(b"\n%s%s\n" % (indent_string, named))
             for deltadata in gen.deltaiter():
-                node, p1, p2, cs, deltabase, delta, flags, sidedata = deltadata
                 ui.write(
                     b"%s%s %s %s %s %s %d\n"
                     % (
                         indent_string,
-                        hex(node),
-                        hex(p1),
-                        hex(p2),
-                        hex(cs),
-                        hex(deltabase),
-                        len(delta),
+                        hex(deltadata.node),
+                        hex(deltadata.p1),
+                        hex(deltadata.p2),
+                        hex(deltadata.link_node),
+                        hex(deltadata.delta_base),
+                        len(deltadata.delta),
                     )
                 )
 
@@ -393,8 +397,7 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
             raise error.Abort(_(b'use debugbundle2 for this file'))
         gen.changelogheader()
         for deltadata in gen.deltaiter():
-            node, p1, p2, cs, deltabase, delta, flags, sidedata = deltadata
-            ui.write(b"%s%s\n" % (indent_string, hex(node)))
+            ui.write(b"%s%s\n" % (indent_string, hex(deltadata.node)))
 
 
 def _debugobsmarkers(ui, part, indent=0, **opts):
@@ -1642,7 +1645,9 @@ def debugformat(ui, repo, *patterns, **opts):
     pattern will be displayed.
     """
     maxvariantlength = max(len(fv.name) for fv in upgrade.allformatvariant)
-    maxvariantlength = max(len(b'format-variant'), maxvariantlength)
+    # introducing longer name bump all output, so lets pick a largish value so
+    # that we don't have thproblem for a while.
+    maxvariantlength = max(30, maxvariantlength)
 
     def makeformatname(name):
         return b'%s:' + (b' ' * (maxvariantlength - len(name)))
@@ -1721,18 +1726,18 @@ def debugfsinfo(ui, path=b"."):
     ui.writenoi18n(
         b'mounted on: %s\n' % (util.getfsmountpoint(path) or b'(unknown)')
     )
-    ui.writenoi18n(b'exec: %s\n' % (util.checkexec(path) and b'yes' or b'no'))
+    ui.writenoi18n(b'exec: %s\n' % (b'yes' if util.checkexec(path) else b'no'))
     ui.writenoi18n(b'fstype: %s\n' % (util.getfstype(path) or b'(unknown)'))
     ui.writenoi18n(
-        b'symlink: %s\n' % (util.checklink(path) and b'yes' or b'no')
+        b'symlink: %s\n' % (b'yes' if util.checklink(path) else b'no')
     )
     ui.writenoi18n(
-        b'hardlink: %s\n' % (util.checknlink(path) and b'yes' or b'no')
+        b'hardlink: %s\n' % (b'yes' if util.checknlink(path) else b'no')
     )
     casesensitive = b'(unknown)'
     try:
         with pycompat.namedtempfile(prefix=b'.debugfsinfo', dir=path) as f:
-            casesensitive = util.fscasesensitive(f.name) and b'yes' or b'no'
+            casesensitive = b'yes' if util.fscasesensitive(f.name) else b'no'
     except OSError:
         pass
     ui.writenoi18n(b'case-sensitive: %s\n' % casesensitive)
@@ -1858,24 +1863,101 @@ def debugindex(ui, repo, file_=None, **opts):
     )
 
 
+def _commonancestorclosure(r, revs):
+    """Compute the closure of 'revs' under r.ancestor for revlog 'r'."""
+    revs = set(revs)
+    seen = set()
+    while True:
+        new = set()
+        for pair in itertools.combinations(revs, 2):
+            if pair in seen:
+                continue
+            seen.add(pair)
+            anc = r.rev(r.ancestor(r.node(pair[0]), r.node(pair[1])))
+            if anc != nodemod.nullrev and anc not in revs:
+                new.add(anc)
+        if not new:
+            break
+        revs.update(new)
+    return revs
+
+
 @command(
     b'debugindexdot',
-    cmdutil.debugrevlogopts,
+    cmdutil.debugrevlogopts
+    + [
+        (b'i', b'include', [], _(b'arbitrary graphviz statement to include')),
+        (b'T', b'template', b'{rev}', _(b'label template'), _(b'TEMPLATE')),
+        (b'r', b'rev', [], _(b'only show these revisions'), b'REV'),
+        (b'', b'common', False, _(b'also show common ancestors'), b'REV'),
+    ],
     _(b'-c|-m|FILE'),
     optionalrepo=True,
 )
 def debugindexdot(ui, repo, file_=None, **opts):
-    """dump an index DAG as a graphviz dot file"""
+    """dump an index DAG as a graphviz dot file
+
+    With -r/--rev, it dumps a graph that includes only those revs, with solid
+    edges for parent->child and dashed edges for ancestor->descendant paths.
+    """
     r = cmdutil.openstorage(
-        repo, b'debugindexdot', file_, pycompat.byteskwargs(opts)
+        repo,
+        b'debugindexdot',
+        file_,
+        pycompat.byteskwargs(opts),
+        returnrevlog=True,
     )
+    displayer = None
+    if opts['template'] != b'{rev}':
+        if not opts['changelog']:
+            raise error.Abort(
+                _(b'-T/--template is only supported for -c/--changelog')
+            )
+        displayer = logcmdutil.maketemplater(ui, repo, opts['template'])
+
+    revs = original_revs = set(r.rev(r.lookup(rev)) for rev in opts['rev'])
+    if opts['common']:
+        if not opts['rev']:
+            raise error.Abort(_(b'--common has no effect without -r/--rev'))
+        revs = _commonancestorclosure(r, revs)
+
     ui.writenoi18n(b"digraph G {\n")
-    for i in r:
-        node = r.node(i)
-        pp = r.parents(node)
-        ui.write(b"\t%d -> %d\n" % (r.rev(pp[0]), i))
-        if pp[1] != repo.nullid:
-            ui.write(b"\t%d -> %d\n" % (r.rev(pp[1]), i))
+    for statement in opts['include']:
+        ui.write(b"\t%s\n" % statement)
+
+    if displayer or revs:
+        for i in revs or r:
+            attrs = []
+            if displayer:
+                ui.pushbuffer()
+                displayer.show(repo[i])
+                label = ui.popbuffer().replace(b'"', b'\\"')
+                attrs.append(b"label=\"%s\"" % label)
+            if revs and i not in original_revs:
+                attrs.append(b"style=filled")
+            extra = b" [%s]" % b",".join(attrs) if attrs else b""
+            ui.write(b"\t%d%s\n" % (i, extra))
+
+    null = nodemod.nullrev
+    if revs:
+        # Pretend revs have no parents so that in A -> B -> C, we don't draw
+        # a dashed edge from A to C unless it's reachable by a different path.
+        pfunc = lambda i: [null] * 2 if i in revs else r.parentrevs(i)
+        stoprev = min(revs)
+        for i in revs:
+            parents = set(r.parentrevs(i)) - {null}
+            for p in parents:
+                if p in revs:
+                    ui.write(b"\t%d -> %d\n" % (p, i))
+            for a in ancestor.lazyancestors(pfunc, parents, stoprev):
+                if a in revs:
+                    ui.writenoi18n(b"\t%d -> %d [style=dashed]\n" % (a, i))
+    else:
+        for i in r:
+            p1, p2 = r.parentrevs(i)
+            ui.write(b"\t%d -> %d\n" % (p1, i))
+            if p2 != null:
+                ui.write(b"\t%d -> %d\n" % (p2, i))
     ui.write(b"}\n")
 
 
@@ -1945,11 +2027,11 @@ def debuginstall(ui, **opts):
     )
 
     try:
-        from . import rustext  # pytype: disable=import-error
+        from . import pyo3_rustext  # pytype: disable=import-error
 
-        rustext.__doc__  # trigger lazy import
+        pyo3_rustext.__doc__  # trigger lazy import
     except ImportError:
-        rustext = None
+        pyo3_rustext = None
 
     security = set(sslutil.supportedprotocols)
     if sslutil.hassni:
@@ -1981,7 +2063,7 @@ def debuginstall(ui, **opts):
     fm.plain(
         _(
             b"checking Rust extensions (%s)\n"
-            % (b'missing' if rustext is None else b'installed')
+            % (b'missing' if pyo3_rustext is None else b'installed')
         ),
     )
 
@@ -2015,9 +2097,9 @@ def debuginstall(ui, **opts):
     )
 
     rustandc = policy.policy in (b'rust+c', b'rust+c-allow')
-    rustext = rustandc  # for now, that's the only case
+    pyo3_rustext = rustandc  # for now, that's the only case
     cext = policy.policy in (b'c', b'allow') or rustandc
-    nopure = cext or rustext
+    nopure = cext or pyo3_rustext
     if nopure:
         err = None
         try:
@@ -2031,8 +2113,8 @@ def debuginstall(ui, **opts):
 
                 # quiet pyflakes
                 dir(bdiff), dir(mpatch), dir(base85), dir(osutil)
-            if rustext:
-                from .rustext import (  # pytype: disable=import-error
+            if pyo3_rustext:
+                from .pyo3_rustext import (  # pytype: disable=import-error
                     ancestor,
                     dirstate,
                 )
@@ -2199,7 +2281,7 @@ def debugknown(ui, repopath, *ids, **opts):
     if not repo.capable(b'known'):
         raise error.Abort(b"known() not supported by target repository")
     flags = repo.known([bin(s) for s in ids])
-    ui.write(b"%s\n" % (b"".join([f and b"1" or b"0" for f in flags])))
+    ui.write(b"%s\n" % (b"".join([b"1" if f else b"0" for f in flags])))
 
 
 @command(b'debuglabelcomplete', [], _(b'LABEL...'))
@@ -2615,6 +2697,9 @@ def debugnodemap(ui, repo, file_=None, **opts):
             ui.write((b"data-unused: %d\n") % docket.data_unused)
             unused_perc = docket.data_unused * 100.0 / docket.data_length
             ui.write((b"data-unused: %2.3f%%\n") % unused_perc)
+    else:
+        ui.warnnoi18n(b'no action specified\n')
+        return 1
 
 
 @command(
@@ -3819,15 +3904,49 @@ def debugsub(ui, repo, rev=None):
 def debugshell(ui, repo, **opts):
     """run an interactive Python interpreter
 
-    The local namespace is provided with a reference to the ui and
-    the repo instance (if available).
-    """
-    import code
+    The local namespace is provided with a reference to the ui and the repo
+    instance (if available).
 
+    If `ui.debugger` is configured to be `ipdb`, an IPython shell will be used
+    instead of the standard Python shell.
+    """
     imported_objects = {
         'ui': ui,
-        'repo': repo,
+        # Import some useful utilities.
+        'hex': hex,
+        'bin': bin,
     }
+
+    if repo:
+        imported_objects['repo'] = repo
+        imported_objects['cl'] = repo.changelog
+        imported_objects['mf'] = repo.manifestlog
+
+    # Import the `mercurial` module.
+    srcpath = "(unknown)"
+    if __package__:
+        mercurial = __import__(__package__)
+        imported_objects['m'] = mercurial
+        if mercurial.__path__:
+            srcpath = mercurial.__path__[0]
+
+    # Import native extensions (if available).
+    try:
+        from . import cext
+
+        imported_objects['cext'] = cext
+    except ImportError:
+        cext = None
+    try:
+        from . import pyo3_rustext as rustext
+
+        imported_objects['rustext'] = rustext
+    except ImportError:
+        rustext = None
+
+    # Import a few handy standard library modules.
+    for name in ['os', 'sys', 'subprocess', 're']:
+        imported_objects[name] = __import__(name)
 
     # py2exe disables initialization of the site module, which is responsible
     # for arranging for ``quit()`` to exit the interpreter.  Manually initialize
@@ -3847,10 +3966,66 @@ def debugshell(ui, repo, **opts):
     command = opts.get('command')
     if command:
         compiled = code.compile_command(encoding.strfromlocal(command))
-        code.InteractiveInterpreter(locals=imported_objects).runcode(compiled)
+        interpreter = InteractiveInterpreterWithErrorTracking(
+            locals=imported_objects
+        )
+        interpreter.runcode(compiled)
+        if interpreter.mercurial_seen_error:
+            return 1
         return
 
-    code.interact(local=imported_objects)
+    reporoot = (
+        encoding.strfromlocal(repo.root) if repo and repo.root else "(none)"
+    )
+    bannermsg = (
+        f"Loaded repo: {reporoot}\n"
+        f"Using source: {srcpath}\n"
+        "\nModules:\n"
+        "  m: the mercurial module\n"
+    )
+    if cext:
+        bannermsg += "  cext: native C extensions\n"
+    if rustext:
+        bannermsg += "  rustext: native Rust extensions\n"
+    bannermsg += "\nObjects:\n  ui: the ui object\n"
+    if repo:
+        bannermsg += (
+            "  repo: the repo object\n"
+            "  cl: repo.changelog\n"
+            "  mf: repo.manifestlog\n"
+        )
+    bannermsg += (
+        "\nUtilities:\n"
+        "  hex: binascii.hexlify\n"
+        "  bin: binascii.unhexlify\n"
+    )
+
+    if ui.config(b"ui", b"debugger") == b"ipdb":
+        try:
+            # IPython is incompatible with demandimport.
+            with demandimport.deactivated():
+                import IPython
+
+            globals().update(imported_objects)
+            IPython.embed(header=bannermsg)
+            return
+        except ImportError:
+            ui.warnnoi18n(
+                b"IPython module not found, "
+                b"falling back to standard Python shell\n\n"
+            )
+
+    code.interact(bannermsg, local=imported_objects)
+
+
+class InteractiveInterpreterWithErrorTracking(code.InteractiveInterpreter):
+    def __init__(self, locals=None):
+        self.mercurial_seen_error = False
+        super().__init__(locals=locals)
+
+    def showtraceback(self, *args, **kwargs):
+        self.mercurial_seen_error = True
+        return super().showtraceback(*args, **kwargs)
 
 
 @command(
@@ -4145,7 +4320,7 @@ def debugwalk(ui, repo, *pats, **opts):
         line = fmt % (
             abs,
             f(repo.pathto(abs)),
-            m.exact(abs) and b'exact' or b'',
+            b'exact' if m.exact(abs) else b'',
         )
         ui.write(b"%s\n" % line.rstrip())
 
@@ -4797,3 +4972,105 @@ def debugwireproto(ui, repo, path=None, **opts):
 
     if proc:
         proc.kill()
+
+
+@command(
+    b'debug::revlog-reencoded-delta-info',
+    cmdutil.debugrevlogopts
+    + [
+        (b'', b'start-rev', b"", _(b'start at rev')),
+        (b'', b'stop-rev', b"", _(b'stop at rev')),
+        (b'', b'delete', True, _(b'delete the result')),
+        (
+            b'',
+            b'reuse-stored-delta',
+            True,
+            _(b'reuse stored delta when using the same base'),
+        ),
+    ],
+    _(b'-c|-m|FILE'),
+    optionalrepo=True,
+)
+def debug_reencoder_revlog(
+    ui,
+    repo,
+    file_=None,
+    start_rev=None,
+    stop_rev=None,
+    delete=True,
+    reuse_stored_delta=True,
+    **opts,
+):
+    """show revlog statistic if delta where to be reencoded
+
+    The reencoded delta are NOT persisted to the storage. This is not a command
+    to upgrade the on disk storage.
+    """
+    orig = cmdutil.openrevlog(
+        repo,
+        b'debugrevlog',
+        file_,
+        pycompat.byteskwargs(opts),
+    )
+    return revlog_debug.reencoded_info(
+        ui,
+        repo,
+        revlog.revlog,
+        orig,
+        start_rev=start_rev,
+        stop_rev=stop_rev,
+        delete=delete,
+        reuse_delta=reuse_stored_delta,
+    )
+
+
+@command(
+    b'debug::fast-upgrade',
+    [],
+    b'',
+)
+def fast_upgrade(ui, repo, *patterns, **opts):
+    count = 0
+    with repo.wlock(), repo.lock():
+        new_requirements = repo.requirements
+
+        if requirements.FILELOG_METAFLAG_REQUIREMENT not in new_requirements:
+            new_requirements.add(requirements.FILELOG_METAFLAG_REQUIREMENT)
+            upgrade_meta = True
+        else:
+            upgrade_meta = False
+
+        if requirements.DELTA_INFO_REQUIREMENT not in new_requirements:
+            new_requirements.add(requirements.DELTA_INFO_REQUIREMENT)
+            upgrade_delta_info = True
+        else:
+            upgrade_delta_info = False
+
+        if not (upgrade_meta or upgrade_delta_info):
+            ui.warnnoi18n(b"nothing to do")
+            return 0
+
+        assert upgrade_meta or upgrade_delta_info
+        if upgrade_meta:
+            ui.statusnoi18n(b"adding has-meta flag filelogs\n")
+        if upgrade_delta_info:
+            msg = b"adding delta-info flag to filelogs and manifests\n"
+            ui.statusnoi18n(msg)
+
+        scmutil.writereporequirements(repo, new_requirements)
+        all_revlog = [
+            e
+            for e in repo.store.walk()
+            if e.is_revlog
+            and (upgrade_delta_info or e.is_filelog)
+            and not e.is_changelog
+        ]
+        with ui.makeprogress(
+            b"upgrade", unit=_(b'revlog'), total=len(all_revlog)
+        ) as p:
+            for entry in all_revlog:
+                rl = entry.get_revlog_instance(repo)._revlog
+                rewrite.quick_upgrade(rl, upgrade_meta, upgrade_delta_info)
+                count += 1
+                p.increment()
+    ui.statusnoi18n(b"upgraded %d filelog\n" % count)

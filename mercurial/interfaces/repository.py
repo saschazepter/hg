@@ -17,20 +17,24 @@ from typing import (
     Iterable,
     Iterator,
     Mapping,
-    Optional,
     Protocol,
-    Set,
 )
 
 from ..i18n import _
 from .. import error
 
 if typing.TYPE_CHECKING:
-    from typing import (
+    # We need to fully qualify the set primitive when typing the imanifestdict
+    # class, so its set() method doesn't hide the primitive.
+    import builtins
+
+    from collections.abc import (
         ByteString,  # TODO: change to Buffer for 3.14
     )
 
     from ._basetypes import (
+        HgPathT,
+        RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
     )
@@ -39,6 +43,8 @@ if typing.TYPE_CHECKING:
         dirstate as intdirstate,
         matcher,
         misc,
+        status as istatus,
+        transaction as inttxn,
     )
 
     # TODO: make a protocol class for this
@@ -63,13 +69,18 @@ REPO_FEATURE_SHALLOW_FILE_STORAGE = b'shallowfilestorage'
 REVISION_FLAG_CENSORED = 1 << 15
 REVISION_FLAG_ELLIPSIS = 1 << 14
 REVISION_FLAG_EXTSTORED = 1 << 13
-REVISION_FLAG_HASCOPIESINFO = 1 << 12
+REVISION_FLAG_HASCOPIESINFO = 1 << 12  # used only by changelog
+FILEREVISION_FLAG_HASMETA = 1 << 11  # used only by filelog
+# XXX the two above could be combined in one
+REVISION_FLAG_DELTA_IS_SNAPSHOT = 1 << 10
 
 REVISION_FLAGS_KNOWN = (
     REVISION_FLAG_CENSORED
     | REVISION_FLAG_ELLIPSIS
     | REVISION_FLAG_EXTSTORED
     | REVISION_FLAG_HASCOPIESINFO
+    | FILEREVISION_FLAG_HASMETA
+    | REVISION_FLAG_DELTA_IS_SNAPSHOT
 )
 
 CG_DELTAMODE_STD = b'default'
@@ -144,7 +155,7 @@ class _ipeerconnection(Protocol):
     ui: Ui
     """ui.ui instance"""
 
-    path: Optional[misc.IPath]
+    path: misc.IPath | None
     """a urlutil.path instance or None"""
 
     @abc.abstractmethod
@@ -197,7 +208,7 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
-    def capabilities(self) -> Set[bytes]:
+    def capabilities(self) -> set[bytes]:
         """Obtain capabilities of the peer.
 
         Returns a set of string capabilities.
@@ -571,6 +582,13 @@ class irevisiondelta(Protocol):
     """Single byte of integer flags that can influence the protocol.
 
     This is a bitwise composition of the ``storageutil.CG_FLAG*`` constants.
+    """
+
+    snapshot_level: int | None
+    """If we are sending a delta from a snapshot, this is set to the snapshot
+    level. If the delta sent is not from a snapshot, set it to -1.
+
+    Set to None if no information is available about snapshot level.
     """
 
 
@@ -1159,7 +1177,7 @@ class imanifestdict(Protocol):
         """Obtain a list of paths in the manifest."""
 
     @abc.abstractmethod
-    def filesnotin(self, other, match=None) -> Set[bytes]:
+    def filesnotin(self, other, match=None) -> builtins.set[bytes]:
         """Obtain the set of paths in this manifest but not in another.
 
         ``match`` is an optional matcher function to be applied to both
@@ -1736,7 +1754,7 @@ class ilocalrepositoryfilestorage(Protocol):
     """
 
     @abc.abstractmethod
-    def file(self, f):
+    def file(self, f: HgPathT, writable: bool = False) -> ifilestorage:
         """Obtain a filelog for a tracked path.
 
         The returned type conforms to the ``ifilestorage`` interface.
@@ -1839,7 +1857,7 @@ class ilocalrepositorymain(Protocol):
     spath: bytes
     """Path to the store."""
 
-    sjoin: Callable  # TODO: add type hints
+    sjoin: Callable[[bytes], bytes]
     """Alias to self.store.join."""
 
     cachevfs: Vfs
@@ -1943,7 +1961,12 @@ class ilocalrepositorymain(Protocol):
         """
 
     @abc.abstractmethod
-    def anyrevs(self, specs, user=False, localalias=None):
+    def anyrevs(
+        self,
+        specs: list[bytes],
+        user: bool = False,
+        localalias: RevsetAliasesT | None = None,
+    ):
         """Find revisions matching one of the given revsets."""
 
     @abc.abstractmethod
@@ -2028,7 +2051,7 @@ class ilocalrepositorymain(Protocol):
         """The type of shared repository or None."""
 
     @abc.abstractmethod
-    def wjoin(self, f, *insidef):
+    def wjoin(self, f: bytes, *insidef: bytes) -> bytes:
         """Calls self.vfs.reljoin(self.root, f, *insidef)"""
 
     @abc.abstractmethod
@@ -2044,7 +2067,7 @@ class ilocalrepositorymain(Protocol):
         """Obtain the current working directory from the dirstate."""
 
     @abc.abstractmethod
-    def pathto(self, f, cwd=None):
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         """Obtain the relative path to a file."""
 
     @abc.abstractmethod
@@ -2052,23 +2075,30 @@ class ilocalrepositorymain(Protocol):
         pass
 
     @abc.abstractmethod
-    def wread(self, filename):
+    def wread(self, filename: bytes) -> bytes:
         """Read a file from wvfs, using data filters."""
 
     @abc.abstractmethod
-    def wwrite(self, filename, data, flags, backgroundclose=False, **kwargs):
+    def wwrite(
+        self,
+        filename: bytes,
+        data: bytes,
+        flags: bytes,
+        backgroundclose: bool = False,
+        **kwargs,
+    ) -> int:
         """Write data to a file in the wvfs, using data filters."""
 
     @abc.abstractmethod
-    def wwritedata(self, filename, data):
+    def wwritedata(self, filename: bytes, data: bytes) -> bytes:
         """Resolve data for writing to the wvfs, using data filters."""
 
     @abc.abstractmethod
-    def currenttransaction(self):
+    def currenttransaction(self) -> inttxn.ITransaction | None:
         """Obtain the current transaction instance or None."""
 
     @abc.abstractmethod
-    def transaction(self, desc, report=None):
+    def transaction(self, desc: bytes, report=None) -> inttxn.ITransaction:
         """Open a new transaction to write to the repository."""
 
     @abc.abstractmethod
@@ -2147,7 +2177,13 @@ class ilocalrepositorymain(Protocol):
         """Return the wlock if it's held or None."""
 
     @abc.abstractmethod
-    def checkcommitpatterns(self, wctx, match, status, fail):
+    def checkcommitpatterns(
+        self,
+        wctx,
+        match: matcher.IMatcher,
+        status: istatus.Status,
+        fail: Callable[[bytes], bytes],
+    ) -> None:
         pass
 
     @abc.abstractmethod
@@ -2180,12 +2216,12 @@ class ilocalrepositorymain(Protocol):
         self,
         node1=b'.',
         node2=None,
-        match=None,
-        ignored=False,
-        clean=False,
-        unknown=False,
-        listsubrepos=False,
-    ):
+        match: matcher.IMatcher | None = None,
+        ignored: bool = False,
+        clean: bool = False,
+        unknown: bool = False,
+        listsubrepos: bool = False,
+    ) -> istatus.Status:
         """Convenience method to call repo[x].status()."""
 
     @abc.abstractmethod
@@ -2256,169 +2292,3 @@ class completelocalrepository(
     Protocol,
 ):
     """Complete interface for a local repository."""
-
-
-class iwireprotocolcommandcacher(Protocol):
-    """Represents a caching backend for wire protocol commands.
-
-    Wire protocol version 2 supports transparent caching of many commands.
-    To leverage this caching, servers can activate objects that cache
-    command responses. Objects handle both cache writing and reading.
-    This interface defines how that response caching mechanism works.
-
-    Wire protocol version 2 commands emit a series of objects that are
-    serialized and sent to the client. The caching layer exists between
-    the invocation of the command function and the sending of its output
-    objects to an output layer.
-
-    Instances of this interface represent a binding to a cache that
-    can serve a response (in place of calling a command function) and/or
-    write responses to a cache for subsequent use.
-
-    When a command request arrives, the following happens with regards
-    to this interface:
-
-    1. The server determines whether the command request is cacheable.
-    2. If it is, an instance of this interface is spawned.
-    3. The cacher is activated in a context manager (``__enter__`` is called).
-    4. A cache *key* for that request is derived. This will call the
-       instance's ``adjustcachekeystate()`` method so the derivation
-       can be influenced.
-    5. The cacher is informed of the derived cache key via a call to
-       ``setcachekey()``.
-    6. The cacher's ``lookup()`` method is called to test for presence of
-       the derived key in the cache.
-    7. If ``lookup()`` returns a hit, that cached result is used in place
-       of invoking the command function. ``__exit__`` is called and the instance
-       is discarded.
-    8. The command function is invoked.
-    9. ``onobject()`` is called for each object emitted by the command
-       function.
-    10. After the final object is seen, ``onfinished()`` is called.
-    11. ``__exit__`` is called to signal the end of use of the instance.
-
-    Cache *key* derivation can be influenced by the instance.
-
-    Cache keys are initially derived by a deterministic representation of
-    the command request. This includes the command name, arguments, protocol
-    version, etc. This initial key derivation is performed by CBOR-encoding a
-    data structure and feeding that output into a hasher.
-
-    Instances of this interface can influence this initial key derivation
-    via ``adjustcachekeystate()``.
-
-    The instance is informed of the derived cache key via a call to
-    ``setcachekey()``. The instance must store the key locally so it can
-    be consulted on subsequent operations that may require it.
-
-    When constructed, the instance has access to a callable that can be used
-    for encoding response objects. This callable receives as its single
-    argument an object emitted by a command function. It returns an iterable
-    of bytes chunks representing the encoded object. Unless the cacher is
-    caching native Python objects in memory or has a way of reconstructing
-    the original Python objects, implementations typically call this function
-    to produce bytes from the output objects and then store those bytes in
-    the cache. When it comes time to re-emit those bytes, they are wrapped
-    in a ``wireprototypes.encodedresponse`` instance to tell the output
-    layer that they are pre-encoded.
-
-    When receiving the objects emitted by the command function, instances
-    can choose what to do with those objects. The simplest thing to do is
-    re-emit the original objects. They will be forwarded to the output
-    layer and will be processed as if the cacher did not exist.
-
-    Implementations could also choose to not emit objects - instead locally
-    buffering objects or their encoded representation. They could then emit
-    a single "coalesced" object when ``onfinished()`` is called. In
-    this way, the implementation would function as a filtering layer of
-    sorts.
-
-    When caching objects, typically the encoded form of the object will
-    be stored. Keep in mind that if the original object is forwarded to
-    the output layer, it will need to be encoded there as well. For large
-    output, this redundant encoding could add overhead. Implementations
-    could wrap the encoded object data in ``wireprototypes.encodedresponse``
-    instances to avoid this overhead.
-    """
-
-    @abc.abstractmethod
-    def __enter__(self):
-        """Marks the instance as active.
-
-        Should return self.
-        """
-
-    @abc.abstractmethod
-    def __exit__(self, exctype, excvalue, exctb):
-        """Called when cacher is no longer used.
-
-        This can be used by implementations to perform cleanup actions (e.g.
-        disconnecting network sockets, aborting a partially cached response.
-        """
-
-    @abc.abstractmethod
-    def adjustcachekeystate(self, state):
-        """Influences cache key derivation by adjusting state to derive key.
-
-        A dict defining the state used to derive the cache key is passed.
-
-        Implementations can modify this dict to record additional state that
-        is wanted to influence key derivation.
-
-        Implementations are *highly* encouraged to not modify or delete
-        existing keys.
-        """
-
-    @abc.abstractmethod
-    def setcachekey(self, key):
-        """Record the derived cache key for this request.
-
-        Instances may mutate the key for internal usage, as desired. e.g.
-        instances may wish to prepend the repo name, introduce path
-        components for filesystem or URL addressing, etc. Behavior is up to
-        the cache.
-
-        Returns a bool indicating if the request is cacheable by this
-        instance.
-        """
-
-    @abc.abstractmethod
-    def lookup(self):
-        """Attempt to resolve an entry in the cache.
-
-        The instance is instructed to look for the cache key that it was
-        informed about via the call to ``setcachekey()``.
-
-        If there's no cache hit or the cacher doesn't wish to use the cached
-        entry, ``None`` should be returned.
-
-        Else, a dict defining the cached result should be returned. The
-        dict may have the following keys:
-
-        objs
-           An iterable of objects that should be sent to the client. That
-           iterable of objects is expected to be what the command function
-           would return if invoked or an equivalent representation thereof.
-        """
-
-    @abc.abstractmethod
-    def onobject(self, obj):
-        """Called when a new object is emitted from the command function.
-
-        Receives as its argument the object that was emitted from the
-        command function.
-
-        This method returns an iterator of objects to forward to the output
-        layer. The easiest implementation is a generator that just
-        ``yield obj``.
-        """
-
-    @abc.abstractmethod
-    def onfinished(self):
-        """Called after all objects have been emitted from the command function.
-
-        Implementations should return an iterator of objects to forward to
-        the output layer.
-
-        This method can be a generator.
-        """

@@ -579,6 +579,8 @@ Test the textwidth config option
   
   options:
   
+      --share-source      print the share source
+                          root instead
    -T --template TEMPLATE display with template
   
   (some details hidden, use --verbose to show
@@ -1006,6 +1008,10 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::fast-upgrade
+                 (no help text available)
+   debug::revlog-reencoded-delta-info
+                 show revlog statistic if delta where to be reencoded
    debug::stable-tail-sort
                  display the stable-tail sort of the ancestors of a given node
    debug::stable-tail-sort-leaps

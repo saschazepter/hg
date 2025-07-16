@@ -31,7 +31,8 @@ STATE = {
 
 def makefilefn(self):
     """Factory for filelog instances."""
-    fl = filelog.filelog(STATE['vfs'], b'filelog-%d' % STATE['lastindex'])
+    radix = b'filelog-%d' % STATE['lastindex']
+    fl = filelog.filelog(STATE['vfs'], radix, writable=True)
     STATE['lastindex'] += 1
     return fl
 

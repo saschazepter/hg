@@ -15,7 +15,11 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     CallbackCategoryT,
     FsPathT,
     HgPathT,
+    NodeIdT,
     RepoT,
+    RevlogT,
+    RevnumT,
+    RevsetAliasesT,
     UiT,
     UserMsgT,
     VfsKeyT,
@@ -24,8 +28,26 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 
 from . import (
     matcher,
+    repository,
+    status,
     transaction,
 )
 
+FileStorageT = repository.ifilestorage
+
+# The names for repository types are shifted a bit in order to be able to group
+# them together while alphabetizing.
+LocalRepoCompleteT = repository.completelocalrepository
+LocalRepoMainT = repository.ilocalrepositorymain
+LocalRepoFileStorageT = repository.ilocalrepositoryfilestorage
+
+MatcherBadFuncT = matcher.BadFuncT
+MatcherKindPatT = matcher.KindPatT
+MatcherMatchFuncT = matcher.MatchFuncT
 MatcherT = matcher.IMatcher
+MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
+
+RevisionDeltaT = repository.irevisiondelta
+
+StatusT = status.Status
 TransactionT = transaction.ITransaction

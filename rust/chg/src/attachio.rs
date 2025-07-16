@@ -7,8 +7,10 @@
 
 use std::io;
 use std::os::unix::io::AsRawFd;
+
 use tokio_hglib::codec::ChannelMessage;
-use tokio_hglib::{Connection, Protocol};
+use tokio_hglib::Connection;
+use tokio_hglib::Protocol;
 
 use crate::message;
 use crate::procutil;

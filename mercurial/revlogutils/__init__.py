@@ -7,15 +7,22 @@
 
 from __future__ import annotations
 
-import typing
+from typing import (
+    Optional,
+    TYPE_CHECKING,
+)
 
 from ..thirdparty import attr
 
 # Force pytype to use the non-vendored package
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
+from ..interfaces.types import (
+    NodeIdT,
+    RevnumT,
+)
 from ..interfaces import repository
 
 # See mercurial.revlogutils.constants for doc
@@ -70,22 +77,58 @@ def entry(
     )
 
 
-@attr.s(slots=True, frozen=True)
+@attr.s(slots=True)
+class CachedDelta:
+    base = attr.ib(type=RevnumT)
+    delta = attr.ib(type=bytes)
+    reuse_policy = attr.ib(type=Optional[int], default=None)
+    snapshot_level = attr.ib(type=Optional[int], default=None)
+
+
+@attr.s(slots=True)
 class revisioninfo:
     """Information about a revision that allows building its fulltext
     node:       expected hash of the revision
     p1, p2:     parent revs of the revision (as node)
-    btext:      built text cache consisting of a one-element list
+    btext:      built text cache
     cachedelta: (baserev, uncompressed_delta, usage_mode) or None
     flags:      flags associated to the revision storage
 
-    One of btext[0] or cachedelta must be set.
+    One of btext or cachedelta must be set.
+    """
+
+    node = attr.ib(type=NodeIdT)
+    p1 = attr.ib(type=NodeIdT)
+    p2 = attr.ib(type=NodeIdT)
+    btext = attr.ib(type=Optional[bytes])
+    textlen = attr.ib(type=int)
+    cachedelta = attr.ib(type=Optional[CachedDelta])
+    flags = attr.ib(type=int)
+
+
+@attr.s(slots=True)
+class InboundRevision:
+    """Data retrieved for a changegroup like data (used in revlog.addgroup)
+    node:        the revision node
+    p1, p2:      the parents (as node)
+    linknode:    the linkrev information
+    delta_base:  the node to which apply the delta informaiton
+    data:        the data from the revision
+    flags:       revision flags
+    sidedata:    sidedata for the revision
+    proto_flags: protocol related flag affecting this revision
     """
 
     node = attr.ib()
     p1 = attr.ib()
     p2 = attr.ib()
-    btext = attr.ib()
-    textlen = attr.ib()
-    cachedelta = attr.ib()
+    link_node = attr.ib()
+    delta_base = attr.ib()
+    delta = attr.ib()
     flags = attr.ib()
+    sidedata = attr.ib()
+    protocol_flags = attr.ib(default=0)
+    snapshot_level = attr.ib(default=None, type=Optional[int])
+    raw_text = attr.ib(default=None)
+    has_censor_flag = attr.ib(default=False)
+    has_filelog_hasmeta_flag = attr.ib(default=False)

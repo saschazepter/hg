@@ -9,12 +9,6 @@ from __future__ import annotations
 
 import os
 
-from typing import (
-    Dict,
-    List,
-    Optional,
-)
-
 from .. import (
     configuration as conf_mod,
     encoding,
@@ -42,7 +36,7 @@ FileRCT = conf_mod.FileRCT
 ResourceIDT = conf_mod.ResourceIDT
 
 
-def _expandrcpath(path: bytes) -> List[FileRCT]:
+def _expandrcpath(path: bytes) -> list[FileRCT]:
     '''path could be a file or a directory. return a list of file paths'''
     p = util.expandpath(path)
     if os.path.isdir(p):
@@ -53,7 +47,7 @@ def _expandrcpath(path: bytes) -> List[FileRCT]:
     return [p]
 
 
-def envrcitems(env: Optional[Dict[bytes, bytes]] = None) -> List[ConfigItemT]:
+def envrcitems(env: dict[bytes, bytes] | None = None) -> list[ConfigItemT]:
     """Return [(section, name, value, source)] config items.
 
     The config items are extracted from environment variables specified by env,
@@ -76,7 +70,7 @@ def envrcitems(env: Optional[Dict[bytes, bytes]] = None) -> List[ConfigItemT]:
     return result
 
 
-def default_rc_resources() -> List[ResourceIDT]:
+def default_rc_resources() -> list[ResourceIDT]:
     """return rc resource IDs in defaultrc"""
     rsrcs = resourceutil.contents(b'mercurial.defaultrc')
     return [
@@ -87,7 +81,7 @@ def default_rc_resources() -> List[ResourceIDT]:
     ]
 
 
-def rccomponents(use_hgrcpath=True) -> List[ComponentT]:
+def rccomponents(use_hgrcpath=True) -> list[ComponentT]:
     """return an ordered [(type, obj)] about where to load configs.
 
     respect $HGRCPATH. if $HGRCPATH is empty, only .hg/hgrc of current repo is
@@ -127,7 +121,7 @@ def rccomponents(use_hgrcpath=True) -> List[ComponentT]:
     return _rccomponents
 
 
-def _shared_source_component(path: bytes) -> List[FileRCT]:
+def _shared_source_component(path: bytes) -> list[FileRCT]:
     """if the current repository is shared one, this tries to read
     .hg/hgrc of shared source if we are in share-safe mode
 
@@ -149,7 +143,7 @@ def _shared_source_component(path: bytes) -> List[FileRCT]:
     return []
 
 
-def repo_components(repo_path: bytes) -> List[ComponentT]:
+def repo_components(repo_path: bytes) -> list[ComponentT]:
     """return the list of config file to read for a repository"""
     components = []
     comp = components.append
@@ -172,7 +166,7 @@ def repo_components(repo_path: bytes) -> List[ComponentT]:
     return components
 
 
-def all_rc_components(repo_path: Optional[bytes]):
+def all_rc_components(repo_path: bytes | None):
     components = []
     components.extend(rccomponents(use_hgrcpath=False))
     if repo_path is not None:
@@ -180,7 +174,7 @@ def all_rc_components(repo_path: Optional[bytes]):
     return components
 
 
-def defaultpagerenv() -> Dict[bytes, bytes]:
+def defaultpagerenv() -> dict[bytes, bytes]:
     """return a dict of default environment variables and their values,
     intended to be set before starting a pager.
     """

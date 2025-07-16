@@ -25,10 +25,6 @@ import abc
 import struct
 import typing
 
-from typing import (
-    List,
-)
-
 from .thirdparty import attr
 
 # Force pytype to use the non-vendored package
@@ -58,7 +54,7 @@ class lineinfo:
 @attr.s
 class annotateresult:
     rev = attr.ib()
-    lines = attr.ib(type=List[lineinfo])
+    lines = attr.ib(type=list[lineinfo])
     _eof = attr.ib()
 
     def __iter__(self):
@@ -413,7 +409,7 @@ class linelog:
 
     def annotate(self, rev):
         pc = 1
-        lines: List[lineinfo] = []
+        lines: list[lineinfo] = []
         executed = 0
         # Sanity check: if instructions executed exceeds len(program), we
         # hit an infinite loop in the linelog program somehow and we

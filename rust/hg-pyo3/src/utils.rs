@@ -1,23 +1,44 @@
+use std::path::Path;
+
 use hg::errors::HgError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
-use pyo3::buffer::{Element, PyBuffer};
-use pyo3::exceptions::{
-    PyIOError, PyKeyboardInterrupt, PyRuntimeError, PyValueError,
-};
-use pyo3::types::{PyBytes, PyDict};
-use pyo3::{intern, prelude::*};
+use hg::warnings::format::write_warning;
+use hg::warnings::HgWarningContext;
+use pyo3::buffer::Element;
+use pyo3::buffer::PyBuffer;
+use pyo3::exceptions::PyIOError;
+use pyo3::exceptions::PyKeyboardInterrupt;
+use pyo3::exceptions::PyValueError;
+use pyo3::intern;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
+use pyo3::types::PyList;
 use pyo3_sharedref::SharedByPyObject;
 use stable_deref_trait::StableDeref;
 
 use crate::exceptions::FallbackError;
-use crate::revlog::{InnerRevlog, PySharedIndex};
+use crate::revlog::InnerRevlog;
+use crate::revlog::PySharedIndex;
+
+#[allow(unused)]
+pub fn print_python_trace(py: Python) -> PyResult<PyObject> {
+    eprintln!("===============================");
+    eprintln!("Printing Python stack from Rust");
+    eprintln!("===============================");
+    let traceback = py.import("traceback")?;
+    let sys = py.import("sys")?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("file", sys.getattr("stderr")?)?;
+    traceback.call_method("print_stack", (), Some(&kwargs)).map(|r| r.unbind())
+}
 
 /// Create the module, with `__package__` given from parent
 ///
 /// According to PyO3 documentation, which links to
-/// <https://github.com/PyO3/pyo3/issues/1517>, the same convoluted
-/// write to sys.modules has to be made as with the `cpython` crate.
+/// <https://github.com/PyO3/pyo3/issues/1517>, the convoluted write to
+/// `sys.modules` has to be made.
 pub(crate) fn new_submodule<'py>(
     py: Python<'py>,
     package_name: &str,
@@ -185,6 +206,74 @@ where
     }
 }
 
+/// Safe abstraction over a `PyBuffer` together with the `&[u8]` slice
+/// that borrows it. Implements `Deref<Target = [u8]>`.
+///
+/// Calling `PyBuffer::data` requires a GIL marker but we want to access the
+/// data in a thread that (ideally) does not need to acquire the GIL.
+/// This type allows separating the call an the use.
+///
+/// It also enables using a (wrapped) `PyBuffer` in GIL-unaware generic code.
+pub struct PyBufferDeref {
+    #[allow(unused)]
+    keep_alive: PyBuffer<u8>,
+
+    /// Borrows the buffer inside `self.keep_alive`,
+    /// but the borrow-checker cannot express self-referential structs.
+    data: *const [u8],
+}
+
+#[deny(unsafe_op_in_unsafe_fn)]
+/// Only safe if the buffers are read-only on the Pytho side
+/// Marking this unsafe so we can think about it
+unsafe fn get_buffer(buf: &PyBuffer<u8>) -> PyResult<*const [u8]> {
+    let len = buf.item_count();
+
+    // Build a slice from the mmap'ed buffer data
+    let cbuf = buf.buf_ptr();
+    let bytes = if std::mem::size_of::<u8>() == buf.item_size()
+        && buf.readonly()
+        && buf.is_c_contiguous()
+        && u8::is_compatible_format(buf.format())
+    {
+        unsafe { std::slice::from_raw_parts(cbuf as *const u8, len) }
+    } else {
+        return Err(PyValueError::new_err(
+            "Chunk buffer has an invalid memory representation",
+        ));
+    };
+    Ok(bytes)
+}
+
+impl PyBufferDeref {
+    pub fn new(buf: PyBuffer<u8>) -> Self {
+        Self { data: unsafe { get_buffer(&buf).unwrap() }, keep_alive: buf }
+    }
+}
+
+impl std::ops::Deref for PyBufferDeref {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        // Safety: the raw pointer is valid as long as the PyBuffer is still
+        // alive, and the returned slice borrows `self`.
+        unsafe { &*self.data }
+    }
+}
+
+unsafe impl StableDeref for PyBufferDeref {}
+
+#[allow(unused)]
+fn static_assert_pybuffer_is_send() {
+    #[allow(clippy::no_effect)]
+    require_send::<PyBuffer<u8>>;
+}
+
+// Safety: PyBuffer is Send. Raw pointers are not by default,
+// but here sending one to another thread is fine since we ensure it stays
+// valid.
+unsafe impl Send for PyBufferDeref {}
+
 /// Safe abstraction over a `PyBytes` together with the `&[u8]` slice
 /// that borrows it. Implements `Deref<Target = [u8]>`.
 ///
@@ -320,8 +409,8 @@ where
             err @ HgError::IoError { .. } => {
                 PyIOError::new_err(err.to_string())
             }
-            HgError::UnsupportedFeature(e) => {
-                FallbackError::new_err(e.to_string())
+            err @ HgError::UnsupportedFeature(..) => {
+                FallbackError::new_err(err.to_string())
             }
             HgError::RaceDetected(_) => {
                 unreachable!("must not surface to the user")
@@ -338,7 +427,35 @@ where
                 )
             }
             HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
-            e => PyRuntimeError::new_err(e.to_string()),
+            err @ HgError::Abort { detailed_exit_code, .. } => {
+                let cls = py
+                    .import(intern!(py, "mercurial.error"))
+                    .and_then(|m| match detailed_exit_code {
+                        hg::exit_codes::STATE_ERROR => {
+                            m.getattr(intern!(py, "StateError"))
+                        }
+                        hg::exit_codes::CONFIG_ERROR_ABORT => {
+                            m.getattr(intern!(py, "ConfigError"))
+                        }
+                        // TODO more errors
+                        _ => m.getattr(intern!(py, "Abort")),
+                    })
+                    .expect("failed to import error.Abort");
+                PyErr::from_value(
+                    cls.call1((err.to_string().as_bytes(),))
+                        .expect("initializing an error.Abort failed"),
+                )
+            }
+            e => {
+                let cls = py
+                    .import(intern!(py, "mercurial.error"))
+                    .and_then(|m| m.getattr(intern!(py, "Abort")))
+                    .expect("failed to import error.Abort");
+                PyErr::from_value(
+                    cls.call1((e.to_string().as_bytes(),))
+                        .expect("initializing an error.Abort failed"),
+                )
+            }
         })
     }
 }
@@ -354,7 +471,7 @@ where
 /// in multithreaded operations.
 pub fn with_sigint_wrapper<R>(
     py: Python,
-    func: impl Fn() -> Result<R, HgError>,
+    func: impl FnOnce() -> Result<R, HgError>,
 ) -> PyResult<Result<R, HgError>> {
     let threading_py_mod = py.import(intern!(py, "threading"))?;
     let current_py_thread =
@@ -362,7 +479,7 @@ pub fn with_sigint_wrapper<R>(
     let main_py_thread =
         threading_py_mod.call_method0(intern!(py, "main_thread"))?;
     if !current_py_thread.is(&main_py_thread) {
-        log::debug!(
+        tracing::debug!(
             "not running in the main Python thread, signal handling skipped"
         );
         return Ok(func());
@@ -384,4 +501,32 @@ pub fn with_sigint_wrapper<R>(
             .call_method1(intern!(py, "raise_signal"), (sigint_py_const,))?;
     }
     Ok(res)
+}
+
+/// Transform hg-core warnings to Python bytes
+pub fn hg_warnings_to_py_warnings(
+    py: Python<'_>,
+    warnings: HgWarningContext,
+    root_dir: &Path,
+) -> Result<Py<PyList>, PyErr> {
+    let py_warnings = PyList::empty(py);
+    warnings.finish(|w| {
+        let mut buf = vec![];
+        write_warning(&w, &mut buf, root_dir)?;
+        py_warnings.append(PyBytes::new(py, &buf))
+    })?;
+    Ok(py_warnings.unbind())
+}
+
+/// Call the warnings callback from Python with translated warnings
+pub fn handle_warnings(
+    py: Python<'_>,
+    warning_context: HgWarningContext,
+    working_directory: &Path,
+    on_warnings: PyObject,
+) -> PyResult<()> {
+    let py_warnings =
+        hg_warnings_to_py_warnings(py, warning_context, working_directory)?;
+    on_warnings.call1(py, (py_warnings,))?;
+    Ok(())
 }

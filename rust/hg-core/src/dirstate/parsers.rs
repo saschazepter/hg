@@ -3,12 +3,16 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::dirstate::entry::{DirstateEntry, EntryState};
+use byteorder::BigEndian;
+use byteorder::WriteBytesExt;
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
+
+use crate::dirstate::entry::DirstateEntry;
+use crate::dirstate::entry::EntryState;
 use crate::errors::HgError;
 use crate::utils::hg_path::HgPath;
 use crate::DirstateParents;
-use byteorder::{BigEndian, WriteBytesExt};
-use bytes_cast::{unaligned, BytesCast};
 
 /// Parents are stored in the dirstate as byte hashes.
 pub const PARENT_SIZE: usize = 20;
@@ -34,7 +38,7 @@ pub fn parse_dirstate_parents(
     Ok(parents)
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn parse_dirstate(contents: &[u8]) -> Result<ParseResult, HgError> {
     let mut copies = Vec::new();
     let mut entries = Vec::new();
@@ -129,8 +133,7 @@ pub fn packed_entry_size(
     filename: &HgPath,
     copy_source: Option<&HgPath>,
 ) -> usize {
-    MIN_ENTRY_SIZE
-        + packed_filename_and_copy_source_size(filename, copy_source)
+    MIN_ENTRY_SIZE + packed_filename_and_copy_source_size(filename, copy_source)
 }
 
 pub fn pack_entry(

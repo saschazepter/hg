@@ -23,7 +23,6 @@ import contextlib
 
 from typing import (
     Any,
-    Dict,
 )
 
 from .i18n import _
@@ -35,7 +34,7 @@ from . import (
 from .utils import cborutil
 
 # keeps pyflakes happy
-for t in (Any, Dict):
+for t in (Any,):
     assert t
 
 
@@ -60,7 +59,7 @@ class cmdstate:
         self._repo = repo
         self.fname = fname
 
-    def read(self) -> Dict[bytes, Any]:
+    def read(self) -> dict[bytes, Any]:
         """read the existing state file and return a dict of data stored"""
         return self._read()
 

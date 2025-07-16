@@ -1,7 +1,12 @@
-use crate::errors::{HgError, HgResultExt, IoErrorContext, IoResultExt};
-use crate::vfs::{Vfs, VfsImpl};
 use std::io::Write;
 use std::path::Path;
+
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
+use crate::errors::IoErrorContext;
+use crate::errors::IoResultExt;
+use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
 
 /// An utility to append to a log file with the given name, and optionally
 /// rotate it after it reaches a certain maximum size.
@@ -18,12 +23,7 @@ pub struct LogFile<'a> {
 
 impl<'a> LogFile<'a> {
     pub fn new(vfs: VfsImpl, name: &'a str) -> Self {
-        Self {
-            vfs,
-            name,
-            max_size: None,
-            max_files: 0,
-        }
+        Self { vfs, name, max_size: None, max_files: 0 }
     }
 
     /// Rotate before writing to a log file that was already larger than the
@@ -92,11 +92,11 @@ impl<'a> LogFile<'a> {
 
 #[test]
 fn test_rotation() {
+    use crate::revlog::path_encode::PathEncoding;
     let temp = tempfile::tempdir().unwrap();
-    let vfs = VfsImpl::new(temp.path().to_owned(), false);
-    let logger = LogFile::new(vfs.clone(), "log")
-        .max_size(Some(3))
-        .max_files(2);
+    let vfs = VfsImpl::new(temp.path().to_owned(), false, PathEncoding::None);
+    let logger =
+        LogFile::new(vfs.clone(), "log").max_size(Some(3)).max_files(2);
     logger.write(b"one\n").unwrap();
     logger.write(b"two\n").unwrap();
     logger.write(b"3\n").unwrap();

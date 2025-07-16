@@ -632,8 +632,8 @@ create an initial repository
   $ hg -R auto-upgrade update
   6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugformat -R auto-upgrade share-safe
-  format-variant     repo
-  share-safe:          no
+  format-variant                 repo
+  share-safe:                      no
 
 upgrade it to share-safe automatically
 
@@ -643,8 +643,8 @@ upgrade it to share-safe automatically
   automatically upgrading repository to the `share-safe` feature
   (see `hg help config.format.use-share-safe` for details)
   $ hg debugformat -R auto-upgrade share-safe
-  format-variant     repo
-  share-safe:         yes
+  format-variant                 repo
+  share-safe:                     yes
 
 downgrade it from share-safe automatically
 
@@ -654,5 +654,5 @@ downgrade it from share-safe automatically
   automatically downgrading repository from the `share-safe` feature
   (see `hg help config.format.use-share-safe` for details)
   $ hg debugformat -R auto-upgrade share-safe
-  format-variant     repo
-  share-safe:          no
+  format-variant                 repo
+  share-safe:                      no

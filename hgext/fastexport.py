@@ -31,6 +31,14 @@ testedwith = b"ships-with-hg-core"
 cmdtable = {}
 command = registrar.command(cmdtable)
 
+configtable = {}
+configitem = registrar.configitem(configtable)
+configitem(
+    b'fastexport',
+    b'on-pre-existing-gitmodules',
+    default=b'abort',
+)
+
 GIT_PERSON_PROHIBITED = re.compile(b'[<>\n"]')
 GIT_EMAIL_PROHIBITED = re.compile(b"[<> \n]")
 
@@ -77,7 +85,9 @@ def write_data(buf, data, add_newline=False):
         buf.append(b"\n")
 
 
-def export_commit(ui, repo, rev, marks, authormap):
+def export_commit(
+    ui, repo, rev, marks, authormap, emitted_unsupported_kind_warnings
+):
     ctx = repo[rev]
     revid = ctx.hex()
     if revid in marks:
@@ -95,7 +105,7 @@ def export_commit(ui, repo, rev, marks, authormap):
     # For all files modified by the commit, check if they have already
     # been exported and otherwise dump the blob with the new mark.
     for fname in ctx.files():
-        if fname not in ctx:
+        if fname not in ctx or fname == b'.gitmodules':
             continue
         filectx = ctx.filectx(fname)
         filerev = hex(filectx.filenode())
@@ -133,8 +143,34 @@ def export_commit(ui, repo, rev, marks, authormap):
     else:
         files = ctx.files()
     filebuf = []
+    subrepos_changed = False
     for fname in files:
-        if fname not in ctx:
+        if fname == b'.gitmodules':
+            existing_gitmodules_behavior = ui.config(
+                b'fastexport', b'on-pre-existing-gitmodules'
+            )
+            if existing_gitmodules_behavior == b'abort':
+                msg = _(b".gitmodules already present in source repository")
+                hint = _(
+                    b"to ignore this error, set config "
+                    b"fastexport.on-pre-existing-gitmodules=ignore"
+                )
+                raise error.Abort(msg, hint=hint)
+            elif existing_gitmodules_behavior == b'ignore':
+                msg = _(
+                    b"warning: ignoring change of .gitmodules in revision "
+                    b"%s\n"
+                )
+                msg %= revid
+                ui.warn(msg)
+                ui.warn(_(b"instead, .gitmodules is generated from .hgsub)\n"))
+                continue
+            else:
+                msg = _(b"fastexport.on-pre-existing-gitmodules not valid")
+                hint = _(b"should be 'abort' or 'ignore', but is '%s'")
+                hint %= existing_gitmodules_behavior
+                raise error.ConfigError(msg, hint=hint)
+        elif fname not in ctx:
             filebuf.append((fname, b"D %s\n" % fname))
         else:
             filectx = ctx.filectx(fname)
@@ -147,6 +183,57 @@ def export_commit(ui, repo, rev, marks, authormap):
                 fileperm = b"644"
             changed = b"M %s :%d %s\n" % (fileperm, marks[hex(filerev)], fname)
             filebuf.append((fname, changed))
+        if fname in (b".hgsub", b".hgsubstate"):
+            subrepos_changed = True
+
+    if subrepos_changed:
+        psubstate = ctx.p1().substate
+        substate = ctx.substate
+
+        # Create .gitmodules.
+        pgitmodules = [
+            (path, source)
+            for path, (source, rev, kind) in psubstate.items()
+            if kind == b"git"
+        ]
+        gitmodules = [
+            (path, source)
+            for path, (source, rev, kind) in substate.items()
+            if kind == b"git"
+        ]
+        if gitmodules == pgitmodules:
+            pass
+        elif not gitmodules:
+            filebuf.append((b".gitmodules", b"D .gitmodules\n"))
+        else:
+            gitmodules_file = b"".join(
+                b'[submodule "%s"]\n\tpath = %s\n\turl = %s\n'
+                % (path, path, source)
+                for path, source in gitmodules
+            )
+            gitmodules_buf = [b"M 644 inline .gitmodules\n"]
+            write_data(gitmodules_buf, gitmodules_file, True)
+            filebuf.append((b".gitmodules", b"".join(gitmodules_buf)))
+
+        # Handle deleted subrepositories.
+        for path in psubstate.keys() - substate.keys():
+            kind = psubstate[path][2]
+            if kind == b"git":
+                filebuf.append((path, b"D %s\n" % path))
+
+        # Handle added or changed subrepositories.
+        for path, (source, rev, kind) in substate.items() - psubstate.items():
+            if kind == b"git":
+                filebuf.append((path, b"M 160000 %s %s\n" % (rev, path)))
+            elif kind not in emitted_unsupported_kind_warnings:
+                emitted_unsupported_kind_warnings.add(kind)
+                ui.warn(
+                    _(
+                        b"warning: subrepositories of kind %s are not supported\n"
+                    )
+                    % (kind)
+                )
+
     filebuf.sort()
     buf.extend(changed for (fname, changed) in filebuf)
     del filebuf
@@ -206,11 +293,19 @@ def fastexport(ui, repo, *revs, **opts):
                 marks[line] = len(marks) + 1
 
     revs.sort()
+    emitted_unsupported_kind_warnings = set()
     with ui.makeprogress(
         _(b"exporting"), unit=_(b"revisions"), total=len(revs)
     ) as progress:
         for rev in revs:
-            export_commit(ui, repo, rev, marks, authormap)
+            export_commit(
+                ui,
+                repo,
+                rev,
+                marks,
+                authormap,
+                emitted_unsupported_kind_warnings,
+            )
             progress.increment()
 
     export_marks = opts.get("export_marks")

@@ -28,6 +28,13 @@ from . import (
 from .interfaces import modules as intmod
 from .pure import charencode as charencodepure
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        ParamSpec,
+    )
+
+    _P = ParamSpec("_P")
+
 _Tlocalstr = TypeVar('_Tlocalstr', bound='localstr')
 
 charencode: intmod.CharEncoding = policy.importmod('charencode')
@@ -256,7 +263,7 @@ def unifromlocal(s: bytes) -> str:
     return fromlocal(s).decode('utf-8')
 
 
-def unimethod(bytesfunc: Callable[[Any], bytes]) -> Callable[[Any], str]:
+def unimethod(bytesfunc: Callable[_P, bytes]) -> Callable[_P, str]:
     """Create a proxy method that forwards __unicode__() and __str__() of
     Python 3 to __bytes__()"""
 
@@ -380,6 +387,23 @@ _wide = _sysstr(
 )
 
 
+def enable_rust_backtrace():
+    """Enable traceback tracking in Rust code.
+
+    Cannot be done through the config because we run some Rust code without a
+    config, and the first time any backtrace is captured, this environment
+    variable (and RUST_LIB_BACKTRACE) is cached, so do it early."""
+    if not policy.has_rust():
+        # Don't pollute the environment otherwise. Also, Windows expects
+        # different types for environ manipulation, so let's cross that bridge
+        # when we get to it.
+        return
+    # sometimes environ is copied, so let's make sure we change both the
+    # actual environment and the one in this module
+    environ[b"RUST_BACKTRACE"] = b"1"
+    os.putenv(b"RUST_BACKTRACE", b"1")
+
+
 def colwidth(s: bytes) -> int:
     """Find the column width of a string for display in the local encoding"""
     return ucolwidth(s.decode(_sysstr(encoding), 'replace'))
@@ -389,7 +413,7 @@ def ucolwidth(d: str) -> int:
     """Find the column width of a Unicode string for display"""
     eaw = getattr(unicodedata, 'east_asian_width', None)
     if eaw is not None:
-        return sum([eaw(c) in _wide and 2 or 1 for c in d])
+        return sum([2 if eaw(c) in _wide else 1 for c in d])
     return len(d)
 
 

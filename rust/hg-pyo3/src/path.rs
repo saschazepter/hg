@@ -8,13 +8,14 @@
 //! Utilities about `HgPath` and related objects provided by the `hg-core`
 //! package.
 
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyList};
-
 use std::convert::Infallible;
 
 use hg::dirstate::on_disk::DirstateV2ParseError;
-use hg::utils::hg_path::{HgPath, HgPathBuf};
+use hg::utils::hg_path::HgPath;
+use hg::utils::hg_path::HgPathBuf;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use pyo3::types::PyList;
 
 use crate::exceptions::dirstate_v2_error;
 
@@ -66,10 +67,7 @@ impl<'py> IntoPyObject<'py> for PyHgPathDirstateV2Result<'_> {
         self,
         py: Python<'py>,
     ) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(
-            py,
-            self.0.map_err(dirstate_v2_error)?.as_bytes(),
-        ))
+        Ok(PyBytes::new(py, self.0.map_err(dirstate_v2_error)?.as_bytes()))
     }
 }
 
@@ -83,9 +81,7 @@ where
 {
     Ok(PyList::new(
         py,
-        paths
-            .into_iter()
-            .map(|p| PyBytes::new(py, p.as_ref().as_bytes())),
+        paths.into_iter().map(|p| PyBytes::new(py, p.as_ref().as_bytes())),
     )?
     .unbind())
 }
@@ -98,9 +94,7 @@ where
         .try_iter()?
         .map(|p| {
             let path = p?;
-            Ok(HgPathBuf::from_bytes(
-                path.downcast::<PyBytes>()?.as_bytes(),
-            ))
+            Ok(HgPathBuf::from_bytes(path.downcast::<PyBytes>()?.as_bytes()))
         })
         .collect()
 }

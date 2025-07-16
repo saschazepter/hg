@@ -10,12 +10,22 @@
 //! This is a Rust counterpart to the `partialdiscovery` class of
 //! `mercurial.setdiscovery`
 
-use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::{ancestors::MissingAncestors, dagops, FastHashMap};
+use std::cmp::max;
+use std::cmp::min;
+use std::collections::HashSet;
+use std::collections::VecDeque;
+
 use rand::seq::SliceRandom;
-use rand::{thread_rng, RngCore, SeedableRng};
-use std::cmp::{max, min};
-use std::collections::{HashSet, VecDeque};
+use rand::RngCore;
+use rand::SeedableRng;
+
+use super::Graph;
+use super::GraphError;
+use super::Revision;
+use super::NULL_REVISION;
+use crate::ancestors::MissingAncestors;
+use crate::dagops;
+use crate::FastHashMap;
 
 type Rng = rand_pcg::Pcg32;
 type Seed = [u8; 16];
@@ -105,10 +115,7 @@ impl ParentsIterator {
         graph: &impl Graph,
         r: Revision,
     ) -> Result<ParentsIterator, GraphError> {
-        Ok(ParentsIterator {
-            parents: graph.parents(r)?,
-            cur: 0,
-        })
+        Ok(ParentsIterator { parents: graph.parents(r)?, cur: 0 })
     }
 }
 
@@ -161,7 +168,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
     ) -> Self {
         let mut seed = [0; 16];
         if randomize {
-            thread_rng().fill_bytes(&mut seed);
+            rand::rng().fill_bytes(&mut seed);
         }
         Self::new_with_seed(graph, target_heads, seed, respect_size, randomize)
     }
@@ -284,7 +291,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
     /// Did we acquire full knowledge of our Revisions that the peer has?
     pub fn is_complete(&self) -> bool {
-        self.undecided.as_ref().map_or(false, HashSet::is_empty)
+        self.undecided.as_ref().is_some_and(HashSet::is_empty)
     }
 
     /// Return the heads of the currently known common set of revisions.
@@ -341,9 +348,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
     /// Provide statistics about the current state of the discovery process
     pub fn stats(&self) -> DiscoveryStats {
-        DiscoveryStats {
-            undecided: self.undecided.as_ref().map(HashSet::len),
-        }
+        DiscoveryStats { undecided: self.undecided.as_ref().map(HashSet::len) }
     }
 
     pub fn take_quick_sample(
@@ -525,8 +530,7 @@ mod tests {
     }
 
     fn sorted_missing(disco: &PartialDiscovery<SampleGraph>) -> Vec<Revision> {
-        let mut as_vec: Vec<Revision> =
-            disco.missing.iter().cloned().collect();
+        let mut as_vec: Vec<Revision> = disco.missing.iter().cloned().collect();
         as_vec.sort_unstable();
         as_vec
     }
@@ -606,7 +610,7 @@ mod tests {
     fn test_limit_sample_less_than_half() {
         assert_eq!(
             full_disco().limit_sample((1..6).map(Revision).collect(), 2),
-            vec![2, 5]
+            vec![3, 5]
         );
     }
 
@@ -614,7 +618,7 @@ mod tests {
     fn test_limit_sample_more_than_half() {
         assert_eq!(
             full_disco().limit_sample((1..4).map(Revision).collect(), 2),
-            vec![1, 2]
+            vec![1, 3]
         );
     }
 

@@ -1,20 +1,30 @@
 //! Discovery of common node sets
 use std::collections::HashSet;
 
-use hg::{discovery::PartialDiscovery as CorePartialDiscovery, Revision};
-use pyo3::{
-    intern, pyclass, pymethods,
-    types::{PyAnyMethods, PyDict, PyModule, PyModuleMethods, PyTuple},
-    Bound, Py, PyAny, PyObject, PyResult, Python,
-};
+use hg::discovery::PartialDiscovery as CorePartialDiscovery;
+use hg::Revision;
+use pyo3::intern;
+use pyo3::pyclass;
+use pyo3::pymethods;
+use pyo3::types::PyAnyMethods;
+use pyo3::types::PyDict;
+use pyo3::types::PyModule;
+use pyo3::types::PyModuleMethods;
+use pyo3::types::PyTuple;
+use pyo3::Bound;
+use pyo3::Py;
+use pyo3::PyAny;
+use pyo3::PyObject;
+use pyo3::PyResult;
+use pyo3::Python;
 use pyo3_sharedref::SharedByPyObject;
 
-use crate::{
-    exceptions::GraphError,
-    revision::{rev_pyiter_collect, PyRevision},
-    revlog::PySharedIndex,
-    utils::{new_submodule, py_rust_index_to_graph},
-};
+use crate::exceptions::GraphError;
+use crate::revision::rev_pyiter_collect;
+use crate::revision::PyRevision;
+use crate::revlog::PySharedIndex;
+use crate::utils::new_submodule;
+use crate::utils::py_rust_index_to_graph;
 
 #[pyclass]
 struct PartialDiscovery {
@@ -57,10 +67,7 @@ impl PartialDiscovery {
                 )
             })
         };
-        Ok(Self {
-            inner: lazy_disco,
-            idx: cloned_index,
-        })
+        Ok(Self { inner: lazy_disco, idx: cloned_index })
     }
 
     fn addcommons(
@@ -72,9 +79,7 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner
-            .add_common_revisions(commons)
-            .map_err(GraphError::from_hg)?;
+        inner.add_common_revisions(commons).map_err(GraphError::from_hg)?;
         Ok(py.None())
     }
 
@@ -87,9 +92,7 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner
-            .add_missing_revisions(missings)
-            .map_err(GraphError::from_hg)?;
+        inner.add_missing_revisions(missings).map_err(GraphError::from_hg)?;
         Ok(py.None())
     }
 
@@ -118,12 +121,8 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner
-            .add_common_revisions(common)
-            .map_err(GraphError::from_hg)?;
-        inner
-            .add_missing_revisions(missing)
-            .map_err(GraphError::from_hg)?;
+        inner.add_common_revisions(common).map_err(GraphError::from_hg)?;
+        inner.add_missing_revisions(missing).map_err(GraphError::from_hg)?;
         Ok(py.None())
     }
 
@@ -155,8 +154,7 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let inner = unsafe { self.inner.try_borrow(py)? };
-        let common_heads =
-            inner.common_heads().map_err(GraphError::from_hg)?;
+        let common_heads = inner.common_heads().map_err(GraphError::from_hg)?;
         Ok(common_heads.into_iter().map(Into::into).collect())
     }
 
@@ -185,9 +183,8 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        let sample = inner
-            .take_quick_sample(revs, size)
-            .map_err(GraphError::from_hg)?;
+        let sample =
+            inner.take_quick_sample(revs, size).map_err(GraphError::from_hg)?;
         let as_pyrevision = sample.into_iter().map(|rev| PyRevision(rev.0));
         Ok(PyTuple::new(py, as_pyrevision)?.unbind())
     }

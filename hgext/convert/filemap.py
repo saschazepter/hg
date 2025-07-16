@@ -13,9 +13,6 @@ from typing import (
     Iterator,
     Mapping,
     MutableMapping,
-    Optional,
-    Set,
-    Tuple,
     overload,
 )
 
@@ -34,7 +31,7 @@ if typing.TYPE_CHECKING:
 SKIPREV = common.SKIPREV
 
 
-def rpairs(path: bytes) -> Iterator[Tuple[bytes, bytes]]:
+def rpairs(path: bytes) -> Iterator[tuple[bytes, bytes]]:
     """Yield tuples with path split at '/', starting with the full path.
     No leading, trailing or double '/', please.
     >>> for x in rpairs(b'foo/bar/baz'): print(x)
@@ -75,9 +72,9 @@ class filemapper:
     repository)."""
 
     rename: MutableMapping[bytes, bytes]
-    targetprefixes: Optional[Set[bytes]]
+    targetprefixes: set[bytes] | None
 
-    def __init__(self, ui: uimod.ui, path: Optional[bytes] = None) -> None:
+    def __init__(self, ui: uimod.ui, path: bytes | None = None) -> None:
         self.ui = ui
         self.include = {}
         self.exclude = {}
@@ -87,7 +84,7 @@ class filemapper:
             if self.parse(path):
                 raise error.Abort(_(b'errors in filemap'))
 
-    def parse(self, path: Optional[bytes]) -> int:
+    def parse(self, path: bytes | None) -> int:
         errs = 0
 
         def check(name: bytes, mapping, listname: bytes):
@@ -143,7 +140,7 @@ class filemapper:
 
     def lookup(
         self, name: bytes, mapping: Mapping[bytes, bytes]
-    ) -> Tuple[bytes, bytes, bytes]:
+    ) -> tuple[bytes, bytes, bytes]:
         name = normalize(name)
         for pre, suf in rpairs(name):
             try:
@@ -176,7 +173,7 @@ class filemapper:
                 return True
         return False
 
-    def __call__(self, name: bytes) -> Optional[bytes]:
+    def __call__(self, name: bytes) -> bytes | None:
         if self.include:
             inc = self.lookup(name, self.include)[0]
         else:
@@ -219,7 +216,7 @@ class filemapper:
 
 class filemap_source(common.converter_source):
     def __init__(
-        self, ui: uimod.ui, baseconverter, filemap: Optional[bytes]
+        self, ui: uimod.ui, baseconverter, filemap: bytes | None
     ) -> None:
         super().__init__(ui, baseconverter.repotype)
         self.base = baseconverter

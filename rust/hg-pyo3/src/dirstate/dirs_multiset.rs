@@ -7,19 +7,22 @@
 // GNU General Public License version 2 or any later version.
 //! Bindings for `hg::dirstate::dirs_multiset` file provided by the
 //! `hg-core` package.
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dirstate::dirs_multiset::DirsMultiset;
+use hg::dirstate::dirs_multiset::DirsMultisetIter;
+use hg::utils::hg_path::HgPath;
+use hg::utils::hg_path::HgPathBuf;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
-use pyo3_sharedref::{py_shared_iterator, PyShareable};
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
+use pyo3_sharedref::py_shared_iterator;
+use pyo3_sharedref::PyShareable;
 
-use std::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-use hg::{
-    dirstate::dirs_multiset::{DirsMultiset, DirsMultisetIter},
-    utils::hg_path::{HgPath, HgPathBuf},
-};
-
-use crate::exceptions::{map_try_lock_error, to_string_value_error};
+use crate::exceptions::map_try_lock_error;
+use crate::exceptions::to_string_value_error;
 use crate::path::PyHgPathRef;
 
 #[pyclass(mapping)]

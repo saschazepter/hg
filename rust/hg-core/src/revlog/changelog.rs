@@ -1,22 +1,32 @@
 use std::ascii::escape_default;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Formatter};
-use std::{iter, str};
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::iter;
+use std::str;
 
-use chrono::{DateTime, FixedOffset, Utc};
-use itertools::{Either, Itertools};
-
-use crate::errors::HgError;
-use crate::revlog::Index;
-use crate::revlog::Revision;
-use crate::revlog::{Node, NodePrefix};
-use crate::revlog::{Revlog, RevlogEntry, RevlogError};
-use crate::utils::hg_path::HgPath;
-use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, UncheckedRevision};
+use chrono::DateTime;
+use chrono::FixedOffset;
+use chrono::Utc;
+use itertools::Either;
+use itertools::Itertools;
 
 use super::options::RevlogOpenOptions;
+use crate::errors::HgError;
+use crate::revlog::Index;
+use crate::revlog::Node;
+use crate::revlog::NodePrefix;
+use crate::revlog::Revision;
+use crate::revlog::Revlog;
+use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
+use crate::utils::hg_path::HgPath;
+use crate::vfs::VfsImpl;
+use crate::Graph;
+use crate::GraphError;
+use crate::UncheckedRevision;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -30,7 +40,13 @@ impl Changelog {
         store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        let revlog = Revlog::open(store_vfs, "00changelog.i", None, options)?;
+        let revlog = Revlog::open(
+            store_vfs,
+            "00changelog.i",
+            None,
+            options,
+            RevlogType::Changelog,
+        )?;
         Ok(Self { revlog })
     }
 
@@ -121,7 +137,7 @@ impl<'changelog> ChangelogEntry<'changelog> {
             Ok(ChangelogRevisionData::null())
         } else {
             Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
-                RevlogError::Other(HgError::CorruptedRepository(format!(
+                RevlogError::Other(HgError::corrupted(format!(
                     "Invalid changelog data for revision {}: {:?}",
                     self.revlog_entry.revision(),
                     err
@@ -172,10 +188,8 @@ pub struct ChangelogRevisionData<'changelog> {
 impl<'changelog> ChangelogRevisionData<'changelog> {
     fn new(bytes: Cow<'changelog, [u8]>) -> Result<Self, HgError> {
         let mut line_iter = bytes.split(|b| b == &b'\n');
-        let manifest_end = line_iter
-            .next()
-            .expect("Empty iterator from split()?")
-            .len();
+        let manifest_end =
+            line_iter.next().expect("Empty iterator from split()?").len();
         let user_slice = line_iter.next().ok_or_else(|| {
             HgError::corrupted("Changeset data truncated after manifest line")
         })?;
@@ -203,13 +217,7 @@ impl<'changelog> ChangelogRevisionData<'changelog> {
             files_end += line.len() + 1;
         }
 
-        Ok(Self {
-            bytes,
-            manifest_end,
-            user_end,
-            timestamp_end,
-            files_end,
-        })
+        Ok(Self { bytes, manifest_end, user_end, timestamp_end, files_end })
     }
 
     fn null() -> Self {
@@ -280,9 +288,7 @@ impl Debug for ChangelogRevisionData<'_> {
             .field("manifest", &debug_bytes(&self.bytes[..self.manifest_end]))
             .field(
                 "user",
-                &debug_bytes(
-                    &self.bytes[self.manifest_end + 1..self.user_end],
-                ),
+                &debug_bytes(&self.bytes[self.manifest_end + 1..self.user_end]),
             )
             .field(
                 "timestamp",
@@ -317,8 +323,8 @@ fn debug_bytes(bytes: &[u8]) -> String {
 /// implementation in `changelog.py`, the format of the timestamp line
 /// is `time tz extra\n` where:
 ///
-/// - `time` is an ASCII-encoded signed int or float denoting a UTC timestamp
-///   as seconds since the UNIX epoch.
+/// - `time` is an ASCII-encoded signed int or float denoting a UTC timestamp as
+///   seconds since the UNIX epoch.
 ///
 /// - `tz` is the timezone offset as an ASCII-encoded signed integer denoting
 ///   seconds WEST of UTC (so negative for timezones east of UTC, which is the
@@ -333,9 +339,8 @@ fn parse_timestamp(
 ) -> Result<DateTime<FixedOffset>, HgError> {
     let mut parts = timestamp_line.splitn(3, |c| *c == b' ');
 
-    let timestamp_bytes = parts
-        .next()
-        .ok_or_else(|| HgError::corrupted("missing timestamp"))?;
+    let timestamp_bytes =
+        parts.next().ok_or_else(|| HgError::corrupted("missing timestamp"))?;
     let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
         HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
     })?;
@@ -356,9 +361,8 @@ fn parse_timestamp(
         // used in practice, but the Python code supports them.
         .or_else(|_| parse_float_timestamp(timestamp_str))?;
 
-    let timezone_bytes = parts
-        .next()
-        .ok_or_else(|| HgError::corrupted("missing timezone"))?;
+    let timezone_bytes =
+        parts.next().ok_or_else(|| HgError::corrupted("missing timezone"))?;
     let timezone_secs: i32 = str::from_utf8(timezone_bytes)
         .map_err(|e| {
             HgError::corrupted(format!("timezone is not valid UTF-8: {e}"))
@@ -505,10 +509,12 @@ fn unescape_extra(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
+    use crate::revlog::path_encode::PathEncoding;
     use crate::vfs::VfsImpl;
     use crate::NULL_REVISION;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_create_changelogrevisiondata_invalid() {
@@ -550,8 +556,7 @@ message",
         .unwrap();
         assert_eq!(
             data.manifest_node().unwrap(),
-            Node::from_hex("0123456789abcdef0123456789abcdef01234567")
-                .unwrap()
+            Node::from_hex("0123456789abcdef0123456789abcdef01234567").unwrap()
         );
         assert_eq!(data.user(), b"Some One <someone@example.com>");
         assert_eq!(data.timestamp_line(), b"0 0");
@@ -566,11 +571,17 @@ message",
     fn test_data_from_rev_null() -> Result<(), RevlogError> {
         // an empty revlog will be enough for this case
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs =
+            VfsImpl::new(temp.path().to_owned(), false, PathEncoding::None);
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
-                .unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::default(),
+            RevlogType::Changelog,
+        )
+        .unwrap();
 
         let changelog = Changelog { revlog };
         assert_eq!(
@@ -579,9 +590,7 @@ message",
         );
         // same with the intermediate entry object
         assert_eq!(
-            changelog
-                .entry_for_unchecked_rev(NULL_REVISION.into())?
-                .data()?,
+            changelog.entry_for_unchecked_rev(NULL_REVISION.into())?.data()?,
             ChangelogRevisionData::null()
         );
         Ok(())
@@ -589,10 +598,7 @@ message",
 
     #[test]
     fn test_empty_files_list() {
-        assert!(ChangelogRevisionData::null()
-            .files()
-            .collect_vec()
-            .is_empty());
+        assert!(ChangelogRevisionData::null().files().collect_vec().is_empty());
     }
 
     #[test]

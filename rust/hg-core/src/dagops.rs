@@ -12,11 +12,17 @@
 //!   mean those revisions that have no children among the collection.
 //! - Similarly *relative roots* of a collection of `Revision`, we mean those
 //!   whose parents, if any, don't belong to the collection.
+use std::collections::BTreeSet;
+use std::collections::HashSet;
+
 use bitvec::slice::BitSlice;
 
-use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::{ancestors::AncestorsIterator, BaseRevision};
-use std::collections::{BTreeSet, HashSet};
+use super::Graph;
+use super::GraphError;
+use super::Revision;
+use super::NULL_REVISION;
+use crate::ancestors::AncestorsIterator;
+use crate::BaseRevision;
 
 fn remove_parents<S: std::hash::BuildHasher>(
     graph: &impl Graph,
@@ -136,7 +142,7 @@ pub fn roots<G: Graph, S: std::hash::BuildHasher>(
 ///
 /// Currently, the given `Graph` has to implement `Clone`, which means
 /// actually cloning just a reference-counted Python pointer if
-/// it's passed over through `rust-cpython`. This is due to the internal
+/// it's passed over through `rust-pyo3`. This is due to the internal
 /// use of `AncestorsIterator`
 ///
 /// # Algorithmic details
@@ -144,9 +150,9 @@ pub fn roots<G: Graph, S: std::hash::BuildHasher>(
 /// This is a two-pass swipe inspired from what `reachableroots2` from
 /// `mercurial.cext.parsers` does to obtain the same results.
 ///
-/// - first, we climb up the DAG from `heads` in topological order, keeping
-///   them in the vector `heads_ancestors` vector, and adding any element of
-///   `roots` we find among them to the resulting range.
+/// - first, we climb up the DAG from `heads` in topological order, keeping them
+///   in the vector `heads_ancestors` vector, and adding any element of `roots`
+///   we find among them to the resulting range.
 /// - Then, we iterate on that recorded vector so that a revision is always
 ///   emitted after its parents and add all revisions whose parents are already
 ///   in the range to the results.
@@ -199,7 +205,8 @@ pub fn range(
 mod tests {
 
     use super::*;
-    use crate::{testing::SampleGraph, BaseRevision};
+    use crate::testing::SampleGraph;
+    use crate::BaseRevision;
 
     /// Apply `retain_heads()` to the given slice and return as a sorted `Vec`
     fn retain_heads_sorted(
@@ -296,10 +303,7 @@ mod tests {
     #[test]
     fn test_range() -> Result<(), GraphError> {
         assert_eq!(range_vec(SampleGraph, &[0], &[4])?, vec![0, 1, 2, 4]);
-        assert_eq!(
-            range_vec(SampleGraph, &[0], &[8])?,
-            Vec::<Revision>::new()
-        );
+        assert_eq!(range_vec(SampleGraph, &[0], &[8])?, Vec::<Revision>::new());
         assert_eq!(
             range_vec(SampleGraph, &[5, 6], &[10, 11, 13])?,
             vec![5, 10]

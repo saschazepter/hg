@@ -153,6 +153,7 @@ expected_mods_tested = {
     ('mercurial.parser', '{}'),
     ('mercurial.patch', '{}'),
     ('mercurial.pathutil', '{}'),
+    ('mercurial.pure.deltas', '{}'),
     ('mercurial.pycompat', '{}'),
     ('mercurial.revlogutils.deltas', '{}'),
     ('mercurial.revset', '{}'),

@@ -77,7 +77,7 @@ build-chg:
 
 .PHONY: build-rhg
 build-rhg:
-	(cd rust/rhg; cargo build --release)
+	(cd rust/rhg; cargo build --release --features "$(HG_RUST_FEATURES)")
 
 .PHONY: wheel
 wheel:
@@ -100,7 +100,6 @@ cleanbutpackages:
 	$(MAKE) -C doc clean
 	$(MAKE) -C contrib/chg distclean
 	rm -rf rust/target
-	rm -f mercurial/rustext.so
 
 .PHONY: clean
 clean: cleanbutpackages
@@ -171,16 +170,35 @@ testpy-%:
 rust-tests:
 	cd $(HGROOT)/rust \
 		&& $(CARGO) test --quiet --all \
-		--features "$(HG_RUST_FEATURES)" --no-default-features
+		   --features "full-tracing" --no-default-features \
+		&&  $(CARGO) test --quiet --all --no-default-features
 
 .PHONY: cargo-clippy
 cargo-clippy:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) clippy --all --features "$(HG_RUST_FEATURES)" -- -D warnings
+		&& $(CARGO) clippy --all -- -D warnings \
+		&& $(CARGO) clippy --all --features "full-tracing" -- -D warnings
 
 .PHONY: check-code
 check-code:
 	hg manifest | xargs python contrib/check-code.py
+
+.PHONY: setup-format
+setup-format: .hg/dev-tools/fix-conf.rc
+
+# the format target exist as an entry point for new devs, but it is expected
+# that they run `hg fix` directly.
+.PHONY: format-wdir
+format-wdir: .hg/dev-tools/fix-conf.rc
+	hg --config extensions.fix= fix --working-dir
+
+# requires topic to have a stack in the first place.
+.PHONY: format-stack
+format-stack: .hg/dev-tools/fix-conf.rc
+	hg --config extensions.fix= fix --rev .#stack
+
+.hg/dev-tools/fix-conf.rc: contrib/fix-conf.rc contrib/setup-dev-tool.sh
+	./contrib/setup-dev-tool.sh
 
 .PHONY: format-c
 format-c:
@@ -299,3 +317,7 @@ pyoxidizer-macos-tests: pyoxidizer
 .PHONY: pytype-docker
 pytype-docker:
 	contrib/docker/pytype/recipe.sh
+
+.PHONY: pytype-graph-docker
+pytype-graph-docker:
+	contrib/docker/pytype/recipe.sh --import-graph

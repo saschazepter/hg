@@ -108,11 +108,18 @@ However, we can't prevent it from loading extensions and configs:
 Early options can't be specified in [aliases] and [defaults] because they are
 applied before the command name is resolved:
 
+(rhg doesn't combine multiple errors the way hg.py does)
+#if rhg
+  $ hg log -b '--config=alias.log=log --config=hooks.pre-log=false'
+  config error: error in definition for alias 'log': --config may only be given on the command line
+  [30]
+#else
   $ hg log -b '--config=alias.log=log --config=hooks.pre-log=false'
   hg log: option -b not recognized
   error in definition for alias 'log': --config may only be given on the command
   line
   [10]
+#endif
 
   $ hg log -b '--config=defaults.log=--config=hooks.pre-log=false'
   abort: option --config may not be abbreviated

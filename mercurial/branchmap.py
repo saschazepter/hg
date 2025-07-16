@@ -16,14 +16,8 @@ from .node import (
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterable,
-    List,
-    Optional,
-    Set,
     TYPE_CHECKING,
-    Tuple,
-    Union,
     cast,
 )
 
@@ -203,10 +197,10 @@ class _BaseBranchCache:
     def __init__(
         self,
         repo: localrepo.localrepository,
-        entries: Union[
-            Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
-        ] = (),
-        closed_nodes: Optional[Set[bytes]] = None,
+        entries: (
+            dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
+        ) = (),
+        closed_nodes: set[bytes] | None = None,
     ) -> None:
         """hasnode is a function which can be used to verify whether changelog
         has a given node or not. If it's not provided, we assume that every node
@@ -433,19 +427,19 @@ class _LocalBranchCache(_BaseBranchCache):
     """base class of branch-map info for a local repo or repoview"""
 
     _base_filename = None
-    _default_key_hashes: Tuple[bytes] = cast(Tuple[bytes], ())
+    _default_key_hashes: tuple[bytes] = cast(tuple[bytes], ())
 
     def __init__(
         self,
         repo: localrepo.localrepository,
-        entries: Union[
-            Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
-        ] = (),
-        tipnode: Optional[bytes] = None,
-        tiprev: Optional[int] = nullrev,
-        key_hashes: Optional[Tuple[bytes]] = None,
-        closednodes: Optional[Set[bytes]] = None,
-        hasnode: Optional[Callable[[bytes], bool]] = None,
+        entries: (
+            dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
+        ) = (),
+        tipnode: bytes | None = None,
+        tiprev: int | None = nullrev,
+        key_hashes: tuple[bytes] | None = None,
+        closednodes: set[bytes] | None = None,
+        hasnode: Callable[[bytes], bool] | None = None,
         verify_node: bool = False,
         inherited: bool = False,
     ) -> None:
@@ -479,7 +473,7 @@ class _LocalBranchCache(_BaseBranchCache):
         if self._verify_node:
             self._hasnode = repo.changelog.hasnode
 
-    def _compute_key_hashes(self, repo) -> Tuple[bytes]:
+    def _compute_key_hashes(self, repo) -> tuple[bytes]:
         raise NotImplementedError
 
     def _ensure_populated(self, repo):
@@ -711,6 +705,8 @@ class _LocalBranchCache(_BaseBranchCache):
             repo.filtername,
         )
         cl = repo.changelog
+        if self._hasnode is not None:
+            self._hasnode = cl.hasnode
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
@@ -744,7 +740,7 @@ class _LocalBranchCache(_BaseBranchCache):
             self.write(repo)
 
 
-def branch_cache_from_file(repo) -> Optional[_LocalBranchCache]:
+def branch_cache_from_file(repo) -> _LocalBranchCache | None:
     """Build a branch cache from on-disk data if possible
 
     Return a branch cache of the right format depending of the repository.
@@ -812,16 +808,16 @@ class BranchCacheV2(_LocalBranchCache):
             cachekey.append(hex(self.key_hashes[0]))
         fp.write(b" ".join(cachekey) + b'\n')
 
-    def _compute_key_hashes(self, repo) -> Tuple[bytes]:
+    def _compute_key_hashes(self, repo) -> tuple[bytes]:
         """return the cache key hashes that match this repoview state"""
         filtered_hash = scmutil.combined_filtered_and_obsolete_hash(
             repo,
             self.tiprev,
             needobsolete=True,
         )
-        keys: Tuple[bytes] = cast(Tuple[bytes], ())
+        keys: tuple[bytes] = cast(tuple[bytes], ())
         if filtered_hash is not None:
-            keys: Tuple[bytes] = (filtered_hash,)
+            keys: tuple[bytes] = (filtered_hash,)
         return keys
 
 
@@ -996,7 +992,7 @@ class BranchCacheV3(_LocalBranchCache):
         for branch in touched_branch:
             self._entries[branch].sort(key=to_rev)
 
-    def _compute_key_hashes(self, repo) -> Tuple[bytes]:
+    def _compute_key_hashes(self, repo) -> tuple[bytes]:
         """return the cache key hashes that match this repoview state"""
         return scmutil.filtered_and_obsolete_hash(
             repo,
@@ -1080,9 +1076,9 @@ class remotebranchcache(_BaseBranchCache):
     def __init__(
         self,
         repo: localrepo.localrepository,
-        entries: Union[
-            Dict[bytes, List[bytes]], Iterable[Tuple[bytes, List[bytes]]]
-        ] = (),
-        closednodes: Optional[Set[bytes]] = None,
+        entries: (
+            dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
+        ) = (),
+        closednodes: set[bytes] | None = None,
     ) -> None:
         super().__init__(repo=repo, entries=entries, closed_nodes=closednodes)

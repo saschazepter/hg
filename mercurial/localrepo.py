@@ -17,10 +17,6 @@ import typing
 import weakref
 
 from concurrent import futures
-from typing import (
-    Optional,
-    Set,
-)
 
 from .i18n import _
 from .node import (
@@ -51,6 +47,7 @@ from . import (
     match as matchmod,
     mergestate as mergestatemod,
     mergeutil,
+    metadata,
     namespaces,
     narrowspec,
     obsolete,
@@ -93,9 +90,31 @@ from .utils import (
 
 from .revlogutils import (
     concurrency_checker as revlogchecker,
+    config as revlog_config,
     constants as revlogconst,
-    sidedata as sidedatamod,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+        overload,
+    )
+
+    import _weakref
+
+    from .interfaces.types import (
+        FileStorageT,
+        HgPathT,
+        MatcherT,
+        NodeIdT,
+        RevsetAliasesT,
+        StatusT,
+        TransactionT,
+    )
+
+    _IdentityCtxT = TypeVar("_IdentityCtxT", bound=context.basectx)
+
 
 release = lockmod.release
 urlerr = util.urlerr
@@ -339,7 +358,7 @@ class localpeer(repository.peer, repository.ipeercommands):
 
     # Begin of ipeercapabilities interface.
 
-    def capabilities(self) -> Set[bytes]:
+    def capabilities(self) -> set[bytes]:
         return self._caps
 
     # End of ipeercapabilities interface.
@@ -849,7 +868,7 @@ def loadhgrc(
     wdirvfs: vfsmod.vfs,
     hgvfs: vfsmod.vfs,
     requirements,
-    sharedvfs: Optional[vfsmod.vfs] = None,
+    sharedvfs: vfsmod.vfs | None = None,
 ):
     """Load hgrc files/content into a ui instance.
 
@@ -1004,8 +1023,18 @@ def makestore(requirements, path, vfstype):
     """Construct a storage object for a repository."""
     if requirementsmod.STORE_REQUIREMENT in requirements:
         if requirementsmod.FNCACHE_REQUIREMENT in requirements:
-            dotencode = requirementsmod.DOTENCODE_REQUIREMENT in requirements
-            return storemod.fncachestore(path, vfstype, dotencode)
+            if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
+                if requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
+                    msg = _(
+                        b'bad requirements, cannot use both "dotencode" and "plain encoding"'
+                    )
+                    raise error.RepoError(msg)
+                encoding = storemod.Encoding.DOTENCODE
+            elif requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
+                encoding = storemod.Encoding.PLAIN
+            else:
+                encoding = storemod.Encoding.HYBRID
+            return storemod.fncachestore(path, vfstype, encoding)
 
         return storemod.encodedstore(path, vfstype)
 
@@ -1057,9 +1086,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     options = {}
     options[b'flagprocessors'] = {}
 
-    feature_config = options[b'feature-config'] = revlog.FeatureConfig()
-    data_config = options[b'data-config'] = revlog.DataConfig()
-    delta_config = options[b'delta-config'] = revlog.DeltaConfig()
+    feature_config = options[b'feature-config'] = revlog_config.FeatureConfig()
+    data_config = options[b'data-config'] = revlog_config.DataConfig()
+    delta_config = options[b'delta-config'] = revlog_config.DeltaConfig()
 
     if requirementsmod.REVLOGV1_REQUIREMENT in requirements:
         options[b'revlogv1'] = True
@@ -1072,6 +1101,12 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
 
     if requirementsmod.GENERALDELTA_REQUIREMENT in requirements:
         options[b'generaldelta'] = True
+
+    if requirementsmod.FILELOG_METAFLAG_REQUIREMENT in requirements:
+        options[b'filelog_hasmeta_flag'] = True
+
+    if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
+        options[b'delta-info-flags'] = True
 
     # experimental config: format.chunkcachesize
     chunkcachesize = ui.configint(b'format', b'chunkcachesize')
@@ -1107,6 +1142,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
             lazydeltabase = not scmutil.gddeltaconfig(ui)
     delta_config.lazy_delta = lazydelta
     delta_config.lazy_delta_base = lazydeltabase
+    delta_config.filter_suspicious_delta = not ui.configbool(
+        b'storage',
+        b'revlog.reuse-external-delta-parent',
+    )
 
     chainspan = ui.configbytes(b'experimental', b'maxdeltachainspan')
     if 0 <= chainspan:
@@ -1142,6 +1181,32 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if maxchainlen is not None:
         delta_config.max_chain_len = maxchainlen
 
+    file_comp_ratio = ui.configint(
+        b'storage', b'filelog.expected-max-compression-ratio'
+    )
+    if file_comp_ratio > 0:
+        delta_config.file_max_comp_ratio = file_comp_ratio
+
+    use_folding = ui.config(
+        b'storage',
+        b'delta-fold-estimate',
+    )
+    if use_folding == b"always":
+        delta_config.delta_fold_estimate = True
+    if use_folding == b"when-fast":
+        delta_config.delta_fold_estimate = policy.has_rust()
+    elif use_folding == b"never":
+        delta_config.delta_fold_estimate = False
+
+    fold_tolerance = ui.configint(
+        b'storage',
+        b'delta-fold-tolerance-percentage',
+    )
+    if fold_tolerance < 0:
+        delta_config.delta_fold_tolerance = None
+    else:
+        delta_config.delta_fold_tolerance = float((100 + fold_tolerance) / 100)
+
     for r in requirements:
         # we allow multiple compression engine requirement to co-exist because
         # strickly speaking, revlog seems to support mixed compression style.
@@ -1166,6 +1231,9 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
 
     if requirementsmod.NARROW_REQUIREMENT in requirements:
         feature_config.enable_ellipsis = True
+
+    if ui.config(b"censor", b"policy") == b"ignore":
+        feature_config.ignore_filelog_censored_revisions = True
 
     if ui.configbool(b'experimental', b'rust.index'):
         options[b'rust.index'] = True
@@ -1237,6 +1305,10 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
     if ui.configbool(b'devel', b'persistent-nodemap'):
         options[b'devel-force-nodemap'] = True
 
+    delta_config.validate_base = ui.configbool(
+        b'storage', b'revlog.validate-delta-base'
+    )
+
     return options
 
 
@@ -1248,7 +1320,7 @@ def makemain(**kwargs):
 class revlogfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs."""
 
-    def file(self, path):
+    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
         if path.startswith(b'/'):
             path = path[1:]
 
@@ -1257,13 +1329,15 @@ class revlogfilestorage(repository.ilocalrepositoryfilestorage):
             or txnutil.mayhavepending(self.root)
         )
 
-        return filelog.filelog(self.svfs, path, try_split=try_split)
+        return filelog.filelog(
+            self.svfs, path, writable=writable, try_split=try_split
+        )
 
 
 class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
     """File storage when using revlogs and narrow files."""
 
-    def file(self, path):
+    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
         if path.startswith(b'/'):
             path = path[1:]
 
@@ -1272,7 +1346,11 @@ class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
             or txnutil.mayhavepending(self.root)
         )
         return filelog.narrowfilelog(
-            self.svfs, path, self._storenarrowmatch, try_split=try_split
+            self.svfs,
+            path,
+            self._storenarrowmatch,
+            writable=writable,
+            try_split=try_split,
         )
 
 
@@ -1321,14 +1399,19 @@ class localrepository(_localrepo_base_classes):
     used.
     """
 
+    _transref: _weakref.ReferenceType[TransactionT] | None
+
     _basesupported = {
         requirementsmod.ARCHIVED_PHASE_REQUIREMENT,
         requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT,
         requirementsmod.CHANGELOGV2_REQUIREMENT,
         requirementsmod.COPIESSDC_REQUIREMENT,
+        requirementsmod.DELTA_INFO_REQUIREMENT,
         requirementsmod.DIRSTATE_TRACKED_HINT_V1,
         requirementsmod.DIRSTATE_V2_REQUIREMENT,
         requirementsmod.DOTENCODE_REQUIREMENT,
+        requirementsmod.PLAIN_ENCODE_REQUIREMENT,
+        requirementsmod.FILELOG_METAFLAG_REQUIREMENT,
         requirementsmod.FNCACHE_REQUIREMENT,
         requirementsmod.GENERALDELTA_REQUIREMENT,
         requirementsmod.INTERNAL_PHASE_REQUIREMENT,
@@ -1338,8 +1421,8 @@ class localrepository(_localrepo_base_classes):
         requirementsmod.REVLOGV2_REQUIREMENT,
         requirementsmod.SHARED_REQUIREMENT,
         requirementsmod.SHARESAFE_REQUIREMENT,
-        requirementsmod.SPARSE_REQUIREMENT,
         requirementsmod.SPARSEREVLOG_REQUIREMENT,
+        requirementsmod.SPARSE_REQUIREMENT,
         requirementsmod.STORE_REQUIREMENT,
         requirementsmod.TREEMANIFEST_REQUIREMENT,
     }
@@ -1519,7 +1602,7 @@ class localrepository(_localrepo_base_classes):
 
         self._wanted_sidedata = set()
         self._sidedata_computers = {}
-        sidedatamod.set_sidedata_spec_for_repo(self)
+        metadata.set_sidedata_spec_for_repo(self)
 
     def _getvfsward(self, origfunc):
         """build a ward for self.vfs"""
@@ -1961,6 +2044,39 @@ class localrepository(_localrepo_base_classes):
             return self._quick_access_changeid_wc
         return self._quick_access_changeid_null
 
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __getitem__(self, changeid: None) -> context.workingctx:
+            ...
+
+        @overload
+        def __getitem__(
+            self, changeid: slice
+        ) -> list[context.changectx | context.workingctx]:
+            ...
+
+        @overload
+        def __getitem__(
+            self, changeid: int
+        ) -> context.changectx | context.workingctx:
+            ...
+
+        # Accepts special tags (e.g. ``b'.'``), binary node IDs, and ascii node
+        # values.
+        @overload
+        def __getitem__(
+            self, changeid: bytes | NodeIdT
+        ) -> context.changectx | context.workingctx:
+            ...
+
+        # Last, because pytype tends to bind ``slice`` to this, even though it
+        # has a bound that is not ``slice``.  That makes it appear that the
+        # caller is getting a slice back, instead of a list of ctxs.
+        @overload
+        def __getitem__(self, changeid: _IdentityCtxT) -> _IdentityCtxT:
+            ...
+
     def __getitem__(self, changeid):
         # dealing with special cases
         if changeid is None:
@@ -2089,7 +2205,12 @@ class localrepository(_localrepo_base_classes):
         for r in self.revs(expr, *args):
             yield self[r]
 
-    def anyrevs(self, specs: bytes, user=False, localalias=None):
+    def anyrevs(
+        self,
+        specs: list[bytes],
+        user: bool = False,
+        localalias: RevsetAliasesT | None = None,
+    ):
         """Find revisions matching one of the given revsets.
 
         Revset aliases from the configuration are not expanded by default. To
@@ -2333,7 +2454,7 @@ class localrepository(_localrepo_base_classes):
     def getcwd(self) -> bytes:
         return self.dirstate.getcwd()
 
-    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         return self.dirstate.pathto(f, cwd)
 
     def _loadfilter(self, filter):
@@ -2397,7 +2518,7 @@ class localrepository(_localrepo_base_classes):
         filename: bytes,
         data: bytes,
         flags: bytes,
-        backgroundclose=False,
+        backgroundclose: bool = False,
         **kwargs,
     ) -> int:
         """write ``data`` into ``filename`` in the working directory
@@ -2420,7 +2541,7 @@ class localrepository(_localrepo_base_classes):
     def wwritedata(self, filename: bytes, data: bytes) -> bytes:
         return self._filter(self._decodefilterpats, filename, data)
 
-    def currenttransaction(self):
+    def currenttransaction(self) -> TransactionT | None:
         """return the current transaction or None if non exists"""
         if self._transref:
             tr = self._transref()
@@ -2431,7 +2552,7 @@ class localrepository(_localrepo_base_classes):
             return tr
         return None
 
-    def transaction(self, desc, report=None):
+    def transaction(self, desc: bytes, report=None) -> TransactionT:
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
         ):
@@ -3235,7 +3356,13 @@ class localrepository(_localrepo_base_classes):
         """Returns the lock if it's held, or None if it's not."""
         return self._currentlock(self._lockref)
 
-    def checkcommitpatterns(self, wctx, match, status, fail):
+    def checkcommitpatterns(
+        self,
+        wctx,
+        match: MatcherT,
+        status: StatusT,
+        fail: Callable[[bytes], bytes],
+    ) -> None:
         """check for commit arguments that aren't committable"""
         if match.isexact() or match.prefix():
             matched = set(status.modified + status.added + status.removed)
@@ -3355,7 +3482,7 @@ class localrepository(_localrepo_base_classes):
                 subrepoutil.writestate(self, newstate)
 
             p1, p2 = self.dirstate.parents()
-            hookp1, hookp2 = hex(p1), (p2 != self.nullid and hex(p2) or b'')
+            hookp1, hookp2 = hex(p1), (hex(p2) if p2 != self.nullid else b'')
             try:
                 self.hook(
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
@@ -3438,12 +3565,12 @@ class localrepository(_localrepo_base_classes):
         self,
         node1=b'.',
         node2=None,
-        match=None,
-        ignored=False,
-        clean=False,
-        unknown=False,
-        listsubrepos=False,
-    ):
+        match: MatcherT | None = None,
+        ignored: bool = False,
+        clean: bool = False,
+        unknown: bool = False,
+        listsubrepos: bool = False,
+    ) -> StatusT:
         '''a convenience method that calls node1.status(node2)'''
         return self[node1].status(
             node2, match, ignored, clean, unknown, listsubrepos
@@ -3736,6 +3863,24 @@ def newreporequirements(ui, createopts):
             if ui.configbool(b'format', b'dotencode'):
                 requirements.add(requirementsmod.DOTENCODE_REQUIREMENT)
 
+    if ui.configbool(
+        b'format',
+        b'exp-use-very-fragile-and-unsafe-plain-store-encoding',
+    ):
+        if requirementsmod.STORE_REQUIREMENT not in requirements:
+            msg = _(b'"plain encoding" requires using the store')
+            hint = _(b'set "format.usestore=yes"')
+            raise error.Abort(msg, hint=hint)
+        if requirementsmod.FNCACHE_REQUIREMENT not in requirements:
+            msg = _(b'"plain encoding" requires using the fncache')
+            hint = _(b'set "format.usefncache=yes"')
+            raise error.Abort(msg, hint=hint)
+        if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
+            msg = _(b'"plain encoding" is incompatible with dotencode')
+            hint = _(b'set "format.dotencode=no"')
+            raise error.Abort(msg, hint=hint)
+        requirements.add(requirementsmod.PLAIN_ENCODE_REQUIREMENT)
+
     compengines = ui.configlist(b'format', b'revlog-compression')
     for compengine in compengines:
         if compengine in util.compengines:
@@ -3761,15 +3906,46 @@ def newreporequirements(ui, createopts):
     elif compengine != b'zlib':
         requirements.add(b'exp-compression-%s' % compengine)
 
-    if scmutil.gdinitconfig(ui):
+    enabled_gd = scmutil.gdinitconfig(ui)
+    if enabled_gd:
         requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
-        if ui.configbool(b'format', b'sparse-revlog'):
+    if ui.configbool(b'format', b'sparse-revlog'):
+        explicit_gd = scmutil.explicit_gd_config(ui)
+        explicit_sr = ui.config_is_set(b'format', b'sparse-revlog')
+        # If sparse-revlog is implicitly added, but generaldelta is explicitly
+        # disabled, prioritize the explicit config and disable sparse-revlog
+        #
+        # If sparse-revlog is explicitly set, respect it enable sparse-revlog
+        # anyway (force enabling general delta in the process).
+        if explicit_sr or not explicit_gd or enabled_gd:
             requirements.add(requirementsmod.SPARSEREVLOG_REQUIREMENT)
 
     # experimental config: format.use-dirstate-v2
     # Keep this logic in sync with `has_dirstate_v2()` in `tests/hghave.py`
     if ui.configbool(b'format', b'use-dirstate-v2'):
         requirements.add(requirementsmod.DIRSTATE_V2_REQUIREMENT)
+
+    # experimental config: format.exp-use-hasmeta-flag
+    if ui.configbool(b'format', b'exp-use-hasmeta-flag'):
+        requirements.add(requirementsmod.FILELOG_METAFLAG_REQUIREMENT)
+
+    # experimental config: format.exp-use-hasmeta-flag
+    if ui.configbool(b'format', b'exp-use-delta-info-flags'):
+        requirements.add(requirementsmod.DELTA_INFO_REQUIREMENT)
+
+    # enforce requirement dependencies
+    #
+    # note: In practice this mean we don't need to explicitly use the
+    # "generaldelta" requirement for repository that already have the
+    # "sparserevlog" requirement, etc…
+    #
+    # In practice this has been the case for a while and older clients might
+    # rely on it. The redundancy does not hurt for now, but we could consider
+    # using such implicit approach for newly introduced requirements.
+    if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
+        requirements.add(requirementsmod.SPARSEREVLOG_REQUIREMENT)
+    if requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements:
+        requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
 
     # experimental config: format.exp-use-copies-side-data-changeset
     if ui.configbool(b'format', b'exp-use-copies-side-data-changeset'):
@@ -3804,9 +3980,7 @@ def newreporequirements(ui, createopts):
         requirements.add(requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT)
 
     # The feature is disabled unless a fast implementation is available.
-    persistent_nodemap_default = (
-        policy.importrust('revlog', pyo3=True) is not None
-    )
+    persistent_nodemap_default = policy.importrust('revlog') is not None
     if ui.configbool(
         b'format', b'use-persistent-nodemap', persistent_nodemap_default
     ):

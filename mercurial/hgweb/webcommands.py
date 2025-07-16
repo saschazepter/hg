@@ -26,7 +26,6 @@ from .common import (
 
 from .. import (
     archival,
-    dagop,
     encoding,
     error,
     graphmod,
@@ -38,7 +37,10 @@ from .. import (
     templateutil,
 )
 
-from ..utils import stringutil
+from ..utils import (
+    dag_util,
+    stringutil,
+)
 
 from . import webutil
 
@@ -902,7 +904,7 @@ def comparison(web):
         raise ErrorResponse(HTTP_NOT_FOUND, b'file not given')
     path = webutil.cleanpath(web.repo, web.req.qsparams[b'file'])
 
-    parsecontext = lambda v: v == b'full' and -1 or int(v)
+    parsecontext = lambda v: -1 if v == b'full' else int(v)
     if b'context' in web.req.qsparams:
         context = parsecontext(web.req.qsparams[b'context'])
     else:
@@ -1007,7 +1009,7 @@ def annotate(web):
                 or r'application/octet-stream'
             )
             lines = [
-                dagop.annotateline(
+                dag_util.annotateline(
                     fctx=fctx.filectx(fctx.filerev()),
                     lineno=1,
                     text=b'(binary:%s)' % mt,
@@ -1163,9 +1165,9 @@ def filelog(web):
         # would required a dedicated "revnav" class
         nav = templateutil.mappinglist([])
         if descend:
-            it = dagop.blockdescendants(fctx, *lrange)
+            it = dag_util.blockdescendants(fctx, *lrange)
         else:
-            it = dagop.blockancestors(fctx, *lrange)
+            it = dag_util.blockancestors(fctx, *lrange)
         for i, (c, lr) in enumerate(it, 1):
             diffs = None
             if patch:

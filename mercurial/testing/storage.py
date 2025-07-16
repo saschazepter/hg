@@ -16,6 +16,7 @@ from ..node import (
 from .. import (
     error,
     mdiff,
+    revlogutils,
 )
 from ..interfaces import repository
 from ..utils import storageutil
@@ -843,8 +844,7 @@ class ifiledatatests(basetestcase):
             node1 = f.add(fulltext1, meta1, tr, 1, node0, f.nullid)
             node2 = f.add(fulltext2, meta2, tr, 2, f.nullid, f.nullid)
 
-        # Metadata header isn't recognized when parent isn't f.nullid.
-        self.assertEqual(f.size(1), len(stored1))
+        self.assertEqual(f.size(1), len(fulltext1))
         self.assertEqual(f.size(2), len(fulltext2))
 
         self.assertEqual(f.revision(node1), stored1)
@@ -855,11 +855,10 @@ class ifiledatatests(basetestcase):
         self.assertEqual(f.read(node1), fulltext1)
         self.assertEqual(f.read(node2), fulltext2)
 
-        # Returns False when first parent is set.
-        self.assertFalse(f.renamed(node1))
+        self.assertEqual(f.renamed(node1), (b'source0', b'\xaa' * 20))
         self.assertEqual(f.renamed(node2), (b'source1', b'\xbb' * 20))
 
-        self.assertTrue(f.cmp(node1, fulltext1))
+        self.assertFalse(f.cmp(node1, fulltext1))
         self.assertTrue(f.cmp(node1, stored1))
         self.assertFalse(f.cmp(node2, fulltext2))
         self.assertTrue(f.cmp(node2, stored2))
@@ -887,8 +886,7 @@ class ifiledatatests(basetestcase):
             node0 = f.add(fulltext0, {}, tr, 0, f.nullid, f.nullid)
             node1 = f.add(fulltext1, meta1, tr, 1, f.nullid, f.nullid)
 
-        # TODO this is buggy.
-        self.assertEqual(f.size(0), len(fulltext0) + 4)
+        self.assertEqual(f.size(0), len(fulltext0))
 
         self.assertEqual(f.size(1), len(fulltext1))
 
@@ -1006,8 +1004,15 @@ class ifiledatatests(basetestcase):
 
         with self._maketransactionfn() as tr:
             delta = mdiff.textdiff(fulltext1, fulltext2)
+            cached_delta = revlogutils.CachedDelta(1, delta)
             self._addrawrevisionfn(
-                f, tr, node2, node1, f.nullid, 2, delta=(1, delta)
+                f,
+                tr,
+                node2,
+                node1,
+                f.nullid,
+                2,
+                delta=cached_delta,
             )
 
         self.assertEqual(len(f), 3)
@@ -1158,7 +1163,9 @@ class ifilemutationtests(basetestcase):
         f = self._makefilefn()
 
         deltas = [
-            (node0, f.nullid, f.nullid, f.nullid, f.nullid, delta0, 0, {}),
+            revlogutils.InboundRevision(
+                node0, f.nullid, f.nullid, f.nullid, f.nullid, delta0, 0, {}, 0
+            ),
         ]
 
         with self._maketransactionfn() as tr:
@@ -1215,7 +1222,16 @@ class ifilemutationtests(basetestcase):
             delta = mdiff.trivialdiffheader(len(fulltext)) + fulltext
 
             deltas.append(
-                (nodes[i], f.nullid, f.nullid, f.nullid, f.nullid, delta, 0, {})
+                revlogutils.InboundRevision(
+                    nodes[i],
+                    f.nullid,
+                    f.nullid,
+                    f.nullid,
+                    f.nullid,
+                    delta,
+                    0,
+                    {},
+                )
             )
 
         with self._maketransactionfn() as tr:
@@ -1265,7 +1281,17 @@ class ifilemutationtests(basetestcase):
 
         delta = mdiff.textdiff(b'bar\n' * 30, (b'bar\n' * 30) + b'baz\n')
         deltas = [
-            (b'\xcc' * 20, node1, f.nullid, b'\x01' * 20, node1, delta, 0, {})
+            revlogutils.InboundRevision(
+                b'\xcc' * 20,
+                node1,
+                f.nullid,
+                b'\x01' * 20,
+                node1,
+                delta,
+                0,
+                {},
+                0,
+            )
         ]
 
         with self._maketransactionfn() as tr:

@@ -10,9 +10,6 @@ from __future__ import annotations
 
 import os
 import re
-from typing import (
-    Tuple,
-)
 
 from mercurial.i18n import _
 from mercurial import (
@@ -125,7 +122,7 @@ class monotone_source(common.converter_source, common.commandline):
 
         return self.mtnstdioreadcommandoutput(command)
 
-    def mtnstdioreadpacket(self) -> Tuple[bytes, bytes, int, bytes]:
+    def mtnstdioreadpacket(self) -> tuple[bytes, bytes, int, bytes]:
         read = None
         commandnbr = b''
         while read != b':':

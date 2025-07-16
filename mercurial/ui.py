@@ -24,12 +24,7 @@ import typing
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
     NoReturn,
-    Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -62,12 +57,12 @@ from .utils import (
     urlutil,
 )
 
-_ConfigItems = Dict[Tuple[bytes, bytes], object]  # {(section, name) : value}
+_ConfigItems = dict[tuple[bytes, bytes], object]  # {(section, name) : value}
 # The **opts args of the various write() methods can be basically anything, but
 # there's no way to express it as "anything but str".  So type it to be the
 # handful of known types that are used.
-_MsgOpts = Union[bytes, bool, List["_PromptChoice"]]
-_PromptChoice = Tuple[bytes, bytes]
+_MsgOpts = Union[bytes, bool, list["_PromptChoice"]]
+_PromptChoice = tuple[bytes, bytes]
 _Tui = TypeVar('_Tui', bound="ui")
 
 urlreq = util.urlreq
@@ -105,7 +100,7 @@ showfunc = 1
 word-diff = 1
 """
 
-samplehgrcs: Dict[bytes, bytes] = {
+samplehgrcs: dict[bytes, bytes] = {
     b'user': b"""# example user config (see 'hg help config' for more info)
 [ui]
 # name and email, e.g.
@@ -226,11 +221,11 @@ def _catchterm(*args) -> NoReturn:
 _unset = object()
 
 # _reqexithandlers: callbacks run at the end of a request
-_reqexithandlers: List = []
+_reqexithandlers: list = []
 
 
 class ui:
-    def __init__(self, src: Optional[ui] = None) -> None:
+    def __init__(self, src: ui | None = None) -> None:
         """Create a fresh new ui object if no src given
 
         Use uimod.ui.load() to create a ui which knows global and user configs.
@@ -333,7 +328,7 @@ class ui:
         self._ucfg.new_source()
 
     @classmethod
-    def load(cls: Type[_Tui]) -> _Tui:
+    def load(cls: type[_Tui]) -> _Tui:
         """Create a ui and load global and user configs"""
         u = cls()
         # we always trust global config files and environment variables
@@ -640,8 +635,8 @@ class ui:
         self.fixconfig(section=section)
         self._maybetweakdefaults()
 
-    def _data(self, untrusted):
-        return untrusted and self._ucfg or self._tcfg
+    def _data(self, untrusted: bool) -> config.config:
+        return self._ucfg if untrusted else self._tcfg
 
     def configsource(self, section, name, untrusted=False):
         return self._data(untrusted).source(section, name)
@@ -655,62 +650,75 @@ class ui:
             return None
         return value
 
-    def _config(self, section, name, default=_unset, untrusted=False):
-        value = itemdefault = default
-        item = self._knownconfig.get(section, {}).get(name)
+    def config_is_set(
+        self,
+        section: bytes,
+        name: bytes,
+        untrusted: bool = False,
+    ) -> bool:
+        """return True if there is any value set for this item"""
         alternates = [(section, name)]
+        item = self._config_item(section, name)
+        if item is not None:
+            alternates.extend(item.alias)
+        config = self._data(untrusted)
+        for s, n in alternates:
+            if config.get(s, n, None) is not None:
+                return True
+        return False
 
+    def _config_item(self, section, name):
+        """return the config item associated with section.name if any"""
+        item = self._knownconfig.get(section, {}).get(name)
         if item is not None and item.in_core_extension is not None:
             # Only return the default for an in-core extension item if said
             # extension is enabled
             if item.in_core_extension in extensions.extensions(self):
                 item = None
+        return item
 
+    def _config(self, section, name, default=_unset, untrusted=False):
+        alternates = [(section, name)]
+
+        item = self._config_item(section, name)
         if item is not None:
             alternates.extend(item.alias)
-            if callable(item.default):
-                itemdefault = item.default()
-            else:
-                itemdefault = item.default
+            if default is _unset and item.default is configitems.dynamicdefault:
+                msg = b"config item requires an explicit default value: '%s.%s'"
+                msg %= (section, name)
+                self.develwarn(msg, 2, b'warn-config-default')
         else:
             msg = b"accessing unregistered config item: '%s.%s'"
             msg %= (section, name)
             self.develwarn(msg, 2, b'warn-config-unknown')
 
-        if default is _unset:
-            if item is None:
-                value = default
-            elif item.default is configitems.dynamicdefault:
-                value = None
-                msg = b"config item requires an explicit default value: '%s.%s'"
-                msg %= (section, name)
-                self.develwarn(msg, 2, b'warn-config-default')
-            else:
-                value = itemdefault
-        elif (
-            item is not None
-            and item.default is not configitems.dynamicdefault
-            and default != itemdefault
-        ):
-            msg = (
-                b"specifying a mismatched default value for a registered "
-                b"config item: '%s.%s' '%s'"
-            )
-            msg %= (section, name, pycompat.bytestr(default))
-            self.develwarn(msg, 2, b'warn-config-default')
-
-        candidates = []
+        value_level = -1
         config = self._data(untrusted)
         for s, n in alternates:
             candidate = config.get(s, n, None)
             if candidate is not None:
-                candidates.append((s, n, candidate))
-        if candidates:
+                level = config.level(s, n)
+                if level > value_level:
+                    value = candidate
+                    value_level = level
 
-            def level(x):
-                return config.level(x[0], x[1])
-
-            value = max(candidates, key=level)[2]
+        if default is not _unset or value_level < 0:
+            if not (item is None or item.default is configitems.dynamicdefault):
+                if callable(item.default):
+                    item_default = item.default()
+                else:
+                    item_default = item.default
+                if default is _unset:
+                    default = item_default
+                elif default != item_default:
+                    msg = (
+                        b"specifying a mismatched default value for a "
+                        b"registered config item: '%s.%s' '%s'"
+                    )
+                    msg %= (section, name, pycompat.bytestr(default))
+                    self.develwarn(msg, 2, b'warn-config-default')
+            if value_level < 0:
+                value = default
 
         if self.debugflag and not untrusted and self._reportuntrusted:
             for s, n in alternates:
@@ -1025,7 +1033,7 @@ class ui:
             for name, value in self.configitems(section, untrusted):
                 yield section, name, value
 
-    def plain(self, feature: Optional[bytes] = None) -> bool:
+    def plain(self, feature: bytes | None = None) -> bool:
         """is plain mode active?
 
         Plain mode means that all configuration variables which affect
@@ -1710,7 +1718,7 @@ class ui:
     def _readline(
         self,
         prompt: bytes = b' ',
-        promptopts: Optional[Dict[str, _MsgOpts]] = None,
+        promptopts: dict[str, _MsgOpts] | None = None,
     ) -> bytes:
         # Replacing stdin/stdout temporarily is a hard problem on Python 3
         # because they have to be text streams with *no buffering*. Instead,
@@ -1778,7 +1786,7 @@ class ui:
             pass
 
         @overload
-        def prompt(self, msg: bytes, default: None) -> Optional[bytes]:
+        def prompt(self, msg: bytes, default: None) -> bytes | None:
             pass
 
     def prompt(self, msg, default=b"y"):
@@ -1798,7 +1806,7 @@ class ui:
         @overload
         def _prompt(
             self, msg: bytes, default: None, **opts: _MsgOpts
-        ) -> Optional[bytes]:
+        ) -> bytes | None:
             pass
 
     def _prompt(self, msg, default=b'y', **opts):
@@ -1822,7 +1830,7 @@ class ui:
             raise error.ResponseExpected()
 
     @staticmethod
-    def extractchoices(prompt: bytes) -> Tuple[bytes, List[_PromptChoice]]:
+    def extractchoices(prompt: bytes) -> tuple[bytes, list[_PromptChoice]]:
         """Extract prompt message and list of choices from specified prompt.
 
         This returns tuple "(message, choices)", and "choices" is the
@@ -1875,8 +1883,8 @@ class ui:
             self._writemsg(self._fmsgout, _(b"unrecognized response\n"))
 
     def getpass(
-        self, prompt: Optional[bytes] = None, default: Optional[bytes] = None
-    ) -> Optional[bytes]:
+        self, prompt: bytes | None = None, default: bytes | None = None
+    ) -> bytes | None:
         if not self.interactive():
             return default
         try:
@@ -1948,11 +1956,11 @@ class ui:
         self,
         text: bytes,
         user: bytes,
-        extra: Optional[Dict[bytes, Any]] = None,  # TODO: value type of bytes?
+        extra: dict[bytes, Any] | None = None,  # TODO: value type of bytes?
         editform=None,
         pending=None,
-        repopath: Optional[bytes] = None,
-        action: Optional[bytes] = None,
+        repopath: bytes | None = None,
+        action: bytes | None = None,
     ) -> bytes:
         if action is None:
             self.develwarn(
@@ -2023,10 +2031,10 @@ class ui:
         self,
         cmd: bytes,
         environ=None,
-        cwd: Optional[bytes] = None,
-        onerr: Optional[Callable[[bytes], Exception]] = None,
-        errprefix: Optional[bytes] = None,
-        blockedtag: Optional[bytes] = None,
+        cwd: bytes | None = None,
+        onerr: Callable[[bytes], Exception] | None = None,
+        errprefix: bytes | None = None,
+        blockedtag: bytes | None = None,
     ) -> int:
         """execute shell command with appropriate output stream. command
         output will be redirected if fout is not stdout.
@@ -2054,7 +2062,7 @@ class ui:
             raise onerr(errmsg)
         return rc
 
-    def _runsystem(self, cmd: bytes, environ, cwd: Optional[bytes], out) -> int:
+    def _runsystem(self, cmd: bytes, environ, cwd: bytes | None, out) -> int:
         """actually execute the given shell command (can be overridden by
         extensions like chg)"""
         return procutil.system(cmd, environ=environ, cwd=cwd, out=out)
@@ -2108,7 +2116,7 @@ class ui:
         )
 
     @util.propertycache
-    def _progbar(self) -> Optional[progress.progbar]:
+    def _progbar(self) -> progress.progbar | None:
         """setup the progbar singleton to the ui object"""
         if (
             self.quiet
@@ -2127,7 +2135,7 @@ class ui:
             self._progbar.clear()
 
     def makeprogress(
-        self, topic: bytes, unit: bytes = b"", total: Optional[int] = None
+        self, topic: bytes, unit: bytes = b"", total: int | None = None
     ) -> scmutil.progress:
         """Create a progress helper for the specified topic"""
         if getattr(self._fmsgerr, 'structured', False):
@@ -2210,7 +2218,7 @@ class ui:
         return msg
 
     def develwarn(
-        self, msg: bytes, stacklevel: int = 1, config: Optional[bytes] = None
+        self, msg: bytes, stacklevel: int = 1, config: bytes | None = None
     ) -> None:
         """issue a developer warning message
 
@@ -2290,7 +2298,7 @@ class ui:
             if (b'ui', b'quiet') in overrides:
                 self.fixconfig(section=b'ui')
 
-    def estimatememory(self) -> Optional[int]:
+    def estimatememory(self) -> int | None:
         """Provide an estimate for the available system memory in Bytes.
 
         This can be overriden via ui.available-memory. It returns None, if
@@ -2309,7 +2317,7 @@ class ui:
 
 # we instantiate one globally shared progress bar to avoid
 # competing progress bars when multiple UI objects get created
-_progresssingleton: Optional[progress.progbar] = None
+_progresssingleton: progress.progbar | None = None
 
 
 def getprogbar(ui: ui) -> progress.progbar:

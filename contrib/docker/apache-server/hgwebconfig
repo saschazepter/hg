@@ -2,5 +2,6 @@
 / = /var/hg/repos/*
 
 [web]
-allow_push = *
+allow-push = *
 push_ssl = False
+staticurl = /static

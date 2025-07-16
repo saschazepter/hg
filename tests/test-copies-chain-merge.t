@@ -74,7 +74,7 @@ use git diff to see rename
   > [format]
   > exp-use-copies-side-data-changeset = no
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
 #endif
 
@@ -83,7 +83,7 @@ use git diff to see rename
   > [format]
   > exp-use-copies-side-data-changeset = no
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
 #endif
 
@@ -1650,10 +1650,10 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > exp-use-copies-side-data-changeset = yes
   > EOF
   $ hg debugformat -v changelog-v2 revlog-v2 copies-sdc
-  format-variant     repo config default
-  copies-sdc:          no    yes      no
-  revlog-v2:           no     no      no
-  changelog-v2:        no    yes      no
+  format-variant                 repo config default
+  copies-sdc:                      no    yes      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                    no    yes      no
   $ hg debugupgraderepo --run --quiet
   upgrade will perform the following actions:
   
@@ -1677,10 +1677,10 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > numcpus=8
   > EOF
   $ hg debugformat -v changelog-v2 revlog-v2 copies-sdc
-  format-variant     repo config default
-  copies-sdc:          no    yes      no
-  revlog-v2:           no     no      no
-  changelog-v2:        no    yes      no
+  format-variant                 repo config default
+  copies-sdc:                      no    yes      no
+  revlog-v2:                       no     no      no
+  changelog-v2:                    no    yes      no
   $ hg debugupgraderepo --run --quiet
   upgrade will perform the following actions:
   
@@ -1714,7 +1714,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
   $ cd ..
   $ mv repo-chain repo-source
@@ -1751,7 +1751,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   > [format]
   > exp-use-copies-side-data-changeset = yes
   > [experimental]
-  > changegroup4 = yes
+  > changegroup5 = yes
   > EOF
   $ cd ..
   $ mv repo-chain repo-source

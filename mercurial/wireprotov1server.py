@@ -619,7 +619,8 @@ def lookup(repo, proto, key):
 @wireprotocommand(b'known', b'nodes *', permission=b'pull')
 def known(repo, proto, nodes, others):
     v = b''.join(
-        b and b'1' or b'0' for b in repo.known(wireprototypes.decodelist(nodes))
+        b'1' if b else b'0'
+        for b in repo.known(wireprototypes.decodelist(nodes))
     )
     return wireprototypes.bytesresponse(v)
 

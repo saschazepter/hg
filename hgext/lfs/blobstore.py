@@ -14,10 +14,6 @@ import json
 import os
 import re
 
-from typing import (
-    Optional,
-)
-
 from mercurial.i18n import _
 from mercurial.node import hex
 
@@ -45,7 +41,7 @@ _lfsre = re.compile(br'\A[a-f0-9]{64}\Z')
 
 
 class lfsvfs(vfsmod.vfs):
-    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         """split the path at first two characters, like: XX/XXXXX..."""
         if not _lfsre.match(path):
             raise error.ProgrammingError(b'unexpected lfs path: %s' % path)
@@ -80,7 +76,7 @@ class nullvfs(lfsvfs):
     def __init__(self):
         pass
 
-    def exists(self, path: Optional[bytes] = None) -> bool:
+    def exists(self, path: bytes | None = None) -> bool:
         return False
 
     def read(self, oid):

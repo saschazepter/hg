@@ -87,26 +87,31 @@ def warm_cache(repo):
     """ensure the cache is properly filled"""
     unfi = repo.unfiltered()
     fnodescache = hgtagsfnodescache(unfi)
-    validated_fnodes = set()
-    unknown_entries = set()
-    flog = None
 
-    entries = enumerate(repo.changelog.index)
-    node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
+    # no point to lazily load it, since we are doing a full iteration, the cost
+    # of reading the filelog index should be negligeble.
+    flog = repo.file(b'.hgtags')
 
-    for node, rev in node_revs:
-        fnode = fnodescache.getfnode(node=node, rev=rev)
-        if fnode != repo.nullid:
-            if fnode not in validated_fnodes:
-                if flog is None:
-                    flog = repo.file(b'.hgtags')
-                if flog.hasnode(fnode):
-                    validated_fnodes.add(fnode)
-                else:
-                    unknown_entries.add(node)
+    if not len(flog):
+        fnodescache._ensure_empty()
+    else:
+        validated_fnodes = set()
+        unknown_entries = set()
 
-    if unknown_entries:
-        fnodescache.refresh_invalid_nodes(unknown_entries)
+        entries = enumerate(repo.changelog.index)
+        node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
+
+        for node, rev in node_revs:
+            fnode = fnodescache.getfnode(node=node, rev=rev)
+            if fnode != repo.nullid:
+                if fnode not in validated_fnodes:
+                    if flog.hasnode(fnode):
+                        validated_fnodes.add(fnode)
+                    else:
+                        unknown_entries.add(node)
+
+        if unknown_entries:
+            fnodescache.refresh_invalid_nodes(unknown_entries)
 
     fnodescache.write()
 
@@ -799,6 +804,26 @@ class hgtagsfnodescache:
                 self._dirtyoffset = rawlen
             # TODO: zero fill entire record, because it's invalid not missing?
             self._raw.extend(b'\xff' * (wantedlen - rawlen))
+
+    def _ensure_empty(self):
+        """set all fnode entry to nullid
+
+        To be called only when know that you do not have any tag anywher ein
+        the history, typically because we do not have any file revision for
+        ".hgtags".
+        """
+        entries = enumerate(self._repo.changelog.index)
+        node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
+
+        nullid = self._repo.nullid
+        for node, rev in node_revs:
+            offset = rev * _fnodesrecsize
+            record = b'%s' % self._raw[offset : offset + _fnodesrecsize]
+            node_prefix = node[0:4]
+            record_prefix = record[0:4]
+            record_node = record[4:]
+            if node_prefix != record_prefix or record_node != nullid:
+                self._writeentry(offset, node_prefix, nullid)
 
     def getfnode(self, node, computemissing=True, rev=None):
         """Obtain the filenode of the .hgtags file at a specified revision.

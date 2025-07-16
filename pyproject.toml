@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "wheel",
-    "setuptools>=64",
+    "setuptools>=80.1.0",
     "setuptools-scm>=8.1.0",
     ]
 build-backend = "setuptools.build_meta"
@@ -14,14 +14,14 @@ authors = [
 ]
 description="Fast scalable distributed SCM (revision control, version control) system"
 readme = "README.rst"
-requires-python = ">=3.8"
-license={text = "GNU GPLv2 or any later version"}
+requires-python = ">=3.9"
+license = "GPL-2.0-or-later"
+license-files = ["COPYING"]
 classifiers=[
     "Development Status :: 6 - Mature",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: GNU General Public License (GPL)",
     "Natural Language :: Danish",
     "Natural Language :: English",
     "Natural Language :: German",
@@ -69,7 +69,7 @@ quiet = true
 
 
 [tool.cibuildwheel]
-build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 
 # Don't stockpile wheels in the pip cache directory when they get built, since
 # there's no mechanism to age old ones out.

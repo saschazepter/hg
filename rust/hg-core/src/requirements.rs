@@ -1,8 +1,9 @@
-use crate::errors::{HgError, HgResultExt};
-use crate::repo::Repo;
+use std::collections::HashSet;
+
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
 use crate::utils::strings::join_display;
 use crate::vfs::VfsImpl;
-use std::collections::HashSet;
 
 fn parse(bytes: &[u8]) -> Result<HashSet<String>, HgError> {
     // The Python code reading this file uses `str.splitlines`
@@ -45,13 +46,34 @@ pub(crate) fn load_if_exists(
     }
 }
 
-pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
-    let unknown: Vec<_> = repo
-        .requirements()
+pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
+    let mut repo_reqs = reqs.clone();
+
+    // Check mutually exclusive, but required pairs
+    let mut one_of_reqs_used = vec![];
+    for (left, right) in ONE_OF {
+        let has_left = repo_reqs.contains(*left);
+        let has_right = repo_reqs.contains(*right);
+        if !(has_left ^ has_right) {
+            return Err(HgError::unsupported(format!(
+                "bad requirements, need exactly one of {} or {}",
+                left, right
+            )));
+        }
+        if has_left {
+            repo_reqs.remove(*left);
+            one_of_reqs_used.push(left);
+        } else {
+            repo_reqs.remove(*right);
+            one_of_reqs_used.push(right);
+        }
+    }
+
+    let unknown: Vec<_> = repo_reqs
         .iter()
         .map(String::as_str)
-        // .filter(|feature| !ALL_SUPPORTED.contains(feature.as_str()))
         .filter(|feature| {
+            // `ONE_OF` has been checked and relevant reqs removed
             !REQUIRED.contains(feature) && !SUPPORTED.contains(feature)
         })
         .collect();
@@ -63,7 +85,10 @@ pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
     }
     let missing: Vec<_> = REQUIRED
         .iter()
-        .filter(|&&feature| !repo.requirements().contains(feature))
+        .filter(|feature| {
+            !one_of_reqs_used.contains(feature)
+                && !repo_reqs.contains(**feature)
+        })
         .collect();
     if !missing.is_empty() {
         return Err(HgError::unsupported(format!(
@@ -75,7 +100,8 @@ pub(crate) fn check(repo: &Repo) -> Result<(), HgError> {
 }
 
 /// rhg does not support repositories that are *missing* any of these features
-const REQUIRED: &[&str] = &["revlogv1", "store", "fncache", "dotencode"];
+const REQUIRED: &[&str] =
+    &[REVLOGV1_REQUIREMENT, STORE_REQUIREMENT, FNCACHE_REQUIRMENT];
 
 /// rhg supports repository with or without these
 const SUPPORTED: &[&str] = &[
@@ -83,6 +109,7 @@ const SUPPORTED: &[&str] = &[
     SHARED_REQUIREMENT,
     SHARESAFE_REQUIREMENT,
     SPARSEREVLOG_REQUIREMENT,
+    DELTA_INFO_REQUIREMENT,
     RELATIVE_SHARED_REQUIREMENT,
     REVLOG_COMPRESSION_ZSTD,
     DIRSTATE_V2_REQUIREMENT,
@@ -99,10 +126,19 @@ const SUPPORTED: &[&str] = &[
     BOOKMARKS_IN_STORE_REQUIREMENT,
 ];
 
+/// rhg supports repositories with exactly one within each pair
+const ONE_OF: &[(&str, &str)] =
+    &[(PLAIN_ENCODE_REQUIREMENT, DOTENCODE_REQUIREMENT)];
+
 // Copied from mercurial/requirements.py:
 
 pub const DIRSTATE_V2_REQUIREMENT: &str = "dirstate-v2";
 pub const GENERALDELTA_REQUIREMENT: &str = "generaldelta";
+pub const DOTENCODE_REQUIREMENT: &str = "dotencode";
+pub const STORE_REQUIREMENT: &str = "store";
+pub const FNCACHE_REQUIRMENT: &str = "fncache";
+pub const PLAIN_ENCODE_REQUIREMENT: &str =
+    "exp-very-fragile-and-unsafe-plain-store-encoding";
 
 /// A repository that uses the tracked hint dirstate file
 #[allow(unused)]
@@ -156,6 +192,14 @@ pub const CHANGELOGV2_REQUIREMENT: &str = "exp-changelog-v2";
 #[allow(unused)]
 pub const SPARSEREVLOG_REQUIREMENT: &str = "sparserevlog";
 
+/// The filelog uses explicit flag in the index to mark file revision that
+/// contains metadata.
+pub const FILELOG_METAFLAG_REQUIREMENT: &str = "exp-filelog-metaflag";
+
+/// Revlog stores extra information about delta
+#[allow(unused)]
+pub const DELTA_INFO_REQUIREMENT: &str = "exp-delta-info-revlog";
+
 /// A repository with the the copies-sidedata-changeset requirement will store
 /// copies related information in changeset's sidedata.
 #[allow(unused)]
@@ -183,3 +227,57 @@ pub const SHARESAFE_REQUIREMENT: &str = "share-safe";
 /// A repository that use zstd compression inside its revlog
 #[allow(unused)]
 pub const REVLOG_COMPRESSION_ZSTD: &str = "revlog-compression-zstd";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_reqs(reqs: &[&str]) -> HashSet<String> {
+        let mut set = create_reqs_no_defaults(reqs);
+        for req in REQUIRED {
+            set.insert(req.to_string());
+        }
+        set
+    }
+
+    fn create_reqs_no_defaults(reqs: &[&str]) -> HashSet<String> {
+        let mut set = HashSet::new();
+        for &req in reqs {
+            set.insert(req.to_string());
+        }
+        set
+    }
+
+    #[test]
+    fn test_check() {
+        // minimum reqs
+        assert!(check(&create_reqs(&[PLAIN_ENCODE_REQUIREMENT])).is_ok());
+        assert!(check(&create_reqs(&[DOTENCODE_REQUIREMENT])).is_ok());
+        // all supported reqs
+        let mut reqs = create_reqs(SUPPORTED);
+        reqs.insert(DOTENCODE_REQUIREMENT.to_string());
+        assert!(check(&reqs).is_ok());
+
+        // no mutually exclusive reqs
+        assert!(check(&create_reqs(&[
+            DOTENCODE_REQUIREMENT,
+            PLAIN_ENCODE_REQUIREMENT
+        ]))
+        .is_err());
+        // no reqs is invalid
+        assert!(check(&create_reqs_no_defaults(&[])).is_err());
+        // missing from mutually exclusive pairs
+        assert!(check(&create_reqs(&[])).is_err());
+        // no reqs + mutually exclusive item is also wrong
+        assert!(
+            check(&create_reqs_no_defaults(&[DOTENCODE_REQUIREMENT])).is_err()
+        );
+
+        // no unknown req
+        assert!(check(&create_reqs(&[
+            DOTENCODE_REQUIREMENT,
+            "thisdoesnotexist"
+        ]))
+        .is_err());
+    }
+}

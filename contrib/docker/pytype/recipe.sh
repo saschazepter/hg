@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+: ${HG_CI_REG:=registry.heptapod.net/mercurial/ci-images}
+: ${HG_CI_IMAGE_TAG:=v3.3}
+
 
 # find repo-root without calling hg as this might be run with sudo
 THIS="$(readlink -m "$0")"
@@ -19,8 +22,12 @@ else
 fi
 echo using user "$ACTUAL_UID:$ACTUAL_GID"
 if groups | egrep -q '\<(docker|root)\>' ; then
-    env DOCKER_BUILDKIT=1 docker build --tag mercurial-pytype-checker "$HERE"
-    docker run --rm -it --user "$ACTUAL_UID:$ACTUAL_GID" -v "$HG_ROOT:/tmp/mercurial-ci" mercurial-pytype-checker
+    docker run --rm -it \
+        --user "$ACTUAL_UID:$ACTUAL_GID" \
+        -v "$HG_ROOT:/tmp/mercurial-ci" \
+        -w "/tmp/mercurial-ci" \
+        "$HG_CI_REG/hg-core-pytype:$HG_CI_IMAGE_TAG" \
+        ./contrib/check-pytype.sh $1
 else
     echo "user not in the docker group" >&2
     echo "(consider running this with \`sudo\`)" >&2

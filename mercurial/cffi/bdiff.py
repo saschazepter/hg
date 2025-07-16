@@ -10,12 +10,6 @@ from __future__ import annotations
 import struct
 import typing
 
-from typing import (
-    List,
-    Optional,
-    Tuple,
-)
-
 from ..pure.bdiff import *
 
 from ..interfaces import (
@@ -28,7 +22,7 @@ ffi = _bdiff.ffi
 lib = _bdiff.lib
 
 
-def blocks(sa: bytes, sb: bytes) -> List[Tuple[int, int, int, int]]:
+def blocks(sa: bytes, sb: bytes) -> list[tuple[int, int, int, int]]:
     a = ffi.new("struct bdiff_line**")
     b = ffi.new("struct bdiff_line**")
     ac = ffi.new("char[]", bytes(sa))
@@ -101,4 +95,4 @@ def bdiff(sa: bytes, sb: bytes) -> bytes:
 # implementation of the module protocol.  Callers are responsible for
 # checking that the implementation is available before using them.
 if typing.TYPE_CHECKING:
-    xdiffblocks: Optional[intmod.BDiffBlocksFnc] = None
+    xdiffblocks: intmod.BDiffBlocksFnc | None = None

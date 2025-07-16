@@ -185,15 +185,11 @@ from .interfaces import repository
 
 if typing.TYPE_CHECKING:
     from typing import (
-        Dict,
         Iterator,
-        List,
-        Optional,
-        Tuple,
         Union,
     )
 
-    Capabilities = Dict[bytes, Union[List[bytes], Tuple[bytes, ...]]]
+    Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -676,7 +672,7 @@ class bundle20:
 
     _magicstring = b'HG20'
 
-    def __init__(self, ui, capabilities: Optional[Capabilities] = None):
+    def __init__(self, ui, capabilities: Capabilities | None = None):
         if capabilities is None:
             capabilities = {}
 
@@ -869,7 +865,9 @@ class unbundle20(unpackermixin):
             params = self._processallparams(params)
         return params
 
-    def _processallparams(self, paramsblock):
+    def _processallparams(
+        self, paramsblock: bytes
+    ) -> util.sortdict[bytes, bytes]:
         """ """
         params = util.sortdict()
         for p in paramsblock.split(b' '):

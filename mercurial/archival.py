@@ -16,10 +16,6 @@ import typing
 import zipfile
 import zlib
 
-from typing import (
-    Optional,
-)
-
 from .i18n import _
 from .node import nullrev
 
@@ -203,11 +199,11 @@ class zipit:
     """write archive to zip file or stream.  can write uncompressed,
     or compressed with deflate."""
 
-    def __init__(self, dest, mtime, compress=True):
+    def __init__(self, dest, mtime, compress: bool = True):
         if isinstance(dest, bytes):
             dest = pycompat.fsdecode(dest)
         self.z = zipfile.ZipFile(
-            dest, 'w', compress and zipfile.ZIP_DEFLATED or zipfile.ZIP_STORED
+            dest, 'w', zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED
         )
 
         # Python's zipfile module emits deprecation warnings if we try
@@ -289,7 +285,7 @@ def archive(
     decode: bool = True,
     match=None,
     prefix: bytes = b'',
-    mtime: Optional[float] = None,
+    mtime: float | None = None,
     subrepos: bool = False,
 ) -> int:
     """create archive of repo as it was at node.
@@ -373,7 +369,7 @@ def archive(
         progress.update(0)
         for f in files:
             ff = ctx.flags(f)
-            write(f, b'x' in ff and 0o755 or 0o644, b'l' in ff, ctx[f].data)
+            write(f, 0o755 if b'x' in ff else 0o644, b'l' in ff, ctx[f].data)
             progress.increment(item=f)
         progress.complete()
 

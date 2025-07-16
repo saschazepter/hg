@@ -16,7 +16,7 @@ from .. import error
 # * X - Y is as small as possible.
 # This create and ordering used for branchmap purpose.
 # the ordering may be partial
-subsettable = {
+subsettable: dict[bytes | None, bytes] = {
     None: b'visible',
     b'visible-hidden': b'visible',
     b'visible': b'served',
@@ -26,8 +26,11 @@ subsettable = {
 }
 
 
-def get_ordered_subset():
-    """return a list of subset name from dependencies to dependents"""
+def get_ordered_subset() -> list[bytes | None]:
+    """return a list of subset name from dependencies to dependents
+
+    Unfiltered is represented using `None` as the subset "name" value.
+    """
     _unfinalized = set(subsettable.values())
     ordered = []
 

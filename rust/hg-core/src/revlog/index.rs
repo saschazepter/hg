@@ -1,21 +1,37 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 
 use bitvec::prelude::*;
-use byteorder::{BigEndian, ByteOrder};
-use bytes_cast::{unaligned, BytesCast};
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
 
-use super::{NodePrefix, RevlogError, RevlogIndex, REVIDX_KNOWN_FLAGS};
+use super::NodePrefix;
+use super::RevlogError;
+use super::RevlogIndex;
+use super::REVIDX_KNOWN_FLAGS;
+use super::REVISION_FLAG_DELTA_IS_SNAPSHOT;
+use crate::dagops;
+use crate::dyn_bytes::ByteStoreTrunc;
+use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
-use crate::revlog::node::{
-    Node, NODE_BYTES_LENGTH, NULL_NODE, STORED_NODE_ID_BYTES,
-};
-use crate::revlog::{Revision, NULL_REVISION};
-use crate::{
-    dagops, BaseRevision, FastHashMap, Graph, GraphError, UncheckedRevision,
-};
+use crate::revlog::node::Node;
+use crate::revlog::node::NODE_BYTES_LENGTH;
+use crate::revlog::node::NULL_NODE;
+use crate::revlog::node::STORED_NODE_ID_BYTES;
+use crate::revlog::Revision;
+use crate::revlog::NULL_REVISION;
+use crate::BaseRevision;
+use crate::FastHashMap;
+use crate::Graph;
+use crate::GraphError;
+use crate::UncheckedRevision;
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const INDEX_HEADER_SIZE: usize = 4;
@@ -31,15 +47,25 @@ pub struct IndexHeaderFlags {
     flags: u16,
 }
 
+// Match Python constants
+pub const FLAG_INLINE_DATA: u16 = 1;
+pub const FLAG_GENERALDELTA: u16 = 1 << 1;
+pub const FLAG_FILELOG_META: u16 = 1 << 2;
+pub const FLAG_DELTA_INFO: u16 = 1 << 3;
+
 /// Corresponds to the high bits of `_format_flags` in python
 impl IndexHeaderFlags {
-    /// Corresponds to FLAG_INLINE_DATA in python
     pub fn is_inline(self) -> bool {
-        self.flags & 1 != 0
+        self.flags & FLAG_INLINE_DATA != 0
     }
-    /// Corresponds to FLAG_GENERALDELTA in python
     pub fn uses_generaldelta(self) -> bool {
-        self.flags & 2 != 0
+        self.flags & FLAG_GENERALDELTA != 0
+    }
+    pub fn uses_filelog_meta(self) -> bool {
+        self.flags & FLAG_FILELOG_META != 0
+    }
+    pub fn uses_delta_info(self) -> bool {
+        self.flags & FLAG_DELTA_INFO != 0
     }
 }
 
@@ -81,38 +107,26 @@ impl IndexHeader {
 /// Abstracts the access to the index bytes since they can be spread between
 /// the immutable (bytes) part and the mutable (added) part if any appends
 /// happened. This makes it transparent for the callers.
-struct IndexData {
+struct IndexData<B> {
     /// Immutable bytes, most likely taken from disk
-    bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
-    /// Used when stripping index contents, keeps track of the start of the
-    /// first stripped revision, which is used to give a slice of the
-    /// `bytes` field.
-    truncation: Option<usize>,
+    bytes: B,
     /// Bytes that were added after reading the index
     added: Vec<u8>,
     first_entry: [u8; INDEX_ENTRY_SIZE],
 }
 
-impl IndexData {
-    pub fn new(bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>) -> Self {
+impl<B: ByteStoreTrunc> IndexData<B> {
+    pub fn new(bytes: B) -> Self {
         let mut first_entry = [0; INDEX_ENTRY_SIZE];
         if bytes.len() >= INDEX_ENTRY_SIZE {
             first_entry[INDEX_HEADER_SIZE..]
                 .copy_from_slice(&bytes[INDEX_HEADER_SIZE..INDEX_ENTRY_SIZE])
         }
-        Self {
-            bytes,
-            truncation: None,
-            added: vec![],
-            first_entry,
-        }
+        Self { bytes, added: vec![], first_entry }
     }
 
     pub fn len(&self) -> usize {
-        match self.truncation {
-            Some(truncation) => truncation + self.added.len(),
-            None => self.bytes.len() + self.added.len(),
-        }
+        self.bytes.len() + self.added.len()
     }
 
     fn remove(
@@ -127,7 +141,7 @@ impl IndexData {
             rev * INDEX_ENTRY_SIZE
         };
         if truncation < self.bytes.len() {
-            self.truncation = Some(truncation);
+            self.bytes.truncate(truncation);
             self.added.clear();
         } else {
             self.added.truncate(truncation - self.bytes.len());
@@ -140,16 +154,15 @@ impl IndexData {
     }
 }
 
-impl std::ops::Index<std::ops::Range<usize>> for IndexData {
+impl<B: Deref<Target = [u8]>> std::ops::Index<std::ops::Range<usize>>
+    for IndexData<B>
+{
     type Output = [u8];
 
     fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
         let start = index.start;
         let end = index.end;
-        let immutable_len = match self.truncation {
-            Some(truncation) => truncation,
-            None => self.bytes.len(),
-        };
+        let immutable_len = self.bytes.len();
         if start < immutable_len {
             if end > immutable_len {
                 panic!("index data cannot span existing and added ranges");
@@ -242,7 +255,7 @@ impl RevisionDataParams {
     }
 
     pub fn into_v1(self) -> RevisionDataV1 {
-        let data_offset_or_flags = self.data_offset << 16 | self.flags as u64;
+        let data_offset_or_flags = (self.data_offset << 16) | self.flags as u64;
         let mut node_id = [0; STORED_NODE_ID_BYTES];
         node_id[..NODE_BYTES_LENGTH].copy_from_slice(&self.node_id);
         RevisionDataV1 {
@@ -260,11 +273,13 @@ impl RevisionDataParams {
 
 /// A Revlog index
 pub struct Index {
-    bytes: IndexData,
+    bytes: IndexData<DynBytes<'static>>,
     /// Offsets of starts of index blocks.
     /// Only needed when the index is interleaved with data.
     offsets: RwLock<Option<Vec<usize>>>,
     uses_generaldelta: bool,
+    uses_filelog_meta: bool,
+    uses_delta_info: bool,
     is_inline: bool,
     /// Cache of (head_revisions, filtered_revisions)
     ///
@@ -335,7 +350,7 @@ impl Index {
     /// Create an index from bytes.
     /// Calculate the start of each entry when is_inline is true.
     pub fn new(
-        bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+        bytes: DynBytes<'static>,
         default_header: IndexHeader,
     ) -> Result<Self, HgError> {
         let header = if bytes.len() < INDEX_ENTRY_SIZE {
@@ -351,6 +366,8 @@ impl Index {
         }
 
         let uses_generaldelta = header.format_flags().uses_generaldelta();
+        let uses_filelog_meta = header.format_flags().uses_filelog_meta();
+        let uses_delta_info = header.format_flags().uses_delta_info();
 
         if header.format_flags().is_inline() {
             let mut offset: usize = 0;
@@ -359,9 +376,7 @@ impl Index {
             while offset + INDEX_ENTRY_SIZE <= bytes.len() {
                 offsets.push(offset);
                 let end = offset + INDEX_ENTRY_SIZE;
-                let entry = IndexEntry {
-                    bytes: &bytes[offset..end],
-                };
+                let entry = IndexEntry { bytes: &bytes[offset..end] };
 
                 offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
             }
@@ -371,6 +386,8 @@ impl Index {
                     bytes: IndexData::new(bytes),
                     offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
+                    uses_filelog_meta,
+                    uses_delta_info,
                     is_inline: true,
                     head_revs: RwLock::new((vec![], HashSet::new())),
                 })
@@ -382,6 +399,8 @@ impl Index {
                 bytes: IndexData::new(bytes),
                 offsets: RwLock::new(None),
                 uses_generaldelta,
+                uses_filelog_meta,
+                uses_delta_info,
                 is_inline: false,
                 head_revs: RwLock::new((vec![], HashSet::new())),
             })
@@ -390,6 +409,14 @@ impl Index {
 
     pub fn uses_generaldelta(&self) -> bool {
         self.uses_generaldelta
+    }
+
+    pub fn uses_filelog_meta(&self) -> bool {
+        self.uses_filelog_meta
+    }
+
+    pub fn uses_delta_info(&self) -> bool {
+        self.uses_delta_info
     }
 
     /// Value of the inline flag.
@@ -496,9 +523,7 @@ impl Index {
             return None;
         }
         if rev.0 == 0 {
-            Some(IndexEntry {
-                bytes: &self.bytes.first_entry[..],
-            })
+            Some(IndexEntry { bytes: &self.bytes.first_entry[..] })
         } else {
             Some(if self.is_inline() {
                 self.get_entry_inline(rev)
@@ -577,9 +602,7 @@ impl Index {
     }
 
     fn null_entry(&self) -> IndexEntry {
-        IndexEntry {
-            bytes: &[0; INDEX_ENTRY_SIZE],
-        }
+        IndexEntry { bytes: &[0; INDEX_ENTRY_SIZE] }
     }
 
     /// Return the head revisions of this index
@@ -859,52 +882,59 @@ impl Index {
         &self,
         mut rev: Revision,
     ) -> Result<bool, RevlogError> {
-        while rev.0 >= 0 {
+        if rev == NULL_REVISION {
+            Ok(true)
+        } else if self.uses_delta_info() {
             let entry = self.get_entry(rev).unwrap();
-            let mut base = entry.base_revision_or_base_of_delta_chain().0;
-            if base == rev.0 {
-                base = NULL_REVISION.0;
-            }
-            if base == NULL_REVISION.0 {
-                return Ok(true);
-            }
-            let [mut p1, mut p2] = self
-                .parents(rev)
-                .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
-            while let Some(p1_entry) = self.get_entry(p1) {
-                if p1_entry.compressed_len() != 0 || p1.0 == 0 {
-                    break;
+            Ok((entry.flags() & REVISION_FLAG_DELTA_IS_SNAPSHOT) != 0)
+        } else {
+            while rev.0 >= 0 {
+                let entry = self.get_entry(rev).unwrap();
+                let mut base = entry.base_revision_or_base_of_delta_chain().0;
+                if base == rev.0 {
+                    base = NULL_REVISION.0;
                 }
-                let parent_base =
-                    p1_entry.base_revision_or_base_of_delta_chain();
-                if parent_base.0 == p1.0 {
-                    break;
+                if base == NULL_REVISION.0 {
+                    return Ok(true);
                 }
-                p1 = self.check_revision(parent_base).ok_or_else(|| {
-                    RevlogError::InvalidRevision(parent_base.to_string())
+                let [mut p1, mut p2] = self
+                    .parents(rev)
+                    .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
+                while let Some(p1_entry) = self.get_entry(p1) {
+                    if p1_entry.compressed_len() != 0 || p1.0 == 0 {
+                        break;
+                    }
+                    let parent_base =
+                        p1_entry.base_revision_or_base_of_delta_chain();
+                    if parent_base.0 == p1.0 {
+                        break;
+                    }
+                    p1 = self.check_revision(parent_base).ok_or_else(|| {
+                        RevlogError::InvalidRevision(parent_base.to_string())
+                    })?;
+                }
+                while let Some(p2_entry) = self.get_entry(p2) {
+                    if p2_entry.compressed_len() != 0 || p2.0 == 0 {
+                        break;
+                    }
+                    let parent_base =
+                        p2_entry.base_revision_or_base_of_delta_chain();
+                    if parent_base.0 == p2.0 {
+                        break;
+                    }
+                    p2 = self.check_revision(parent_base).ok_or_else(|| {
+                        RevlogError::InvalidRevision(parent_base.to_string())
+                    })?;
+                }
+                if base == p1.0 || base == p2.0 {
+                    return Ok(false);
+                }
+                rev = self.check_revision(base.into()).ok_or_else(|| {
+                    RevlogError::InvalidRevision(base.to_string())
                 })?;
             }
-            while let Some(p2_entry) = self.get_entry(p2) {
-                if p2_entry.compressed_len() != 0 || p2.0 == 0 {
-                    break;
-                }
-                let parent_base =
-                    p2_entry.base_revision_or_base_of_delta_chain();
-                if parent_base.0 == p2.0 {
-                    break;
-                }
-                p2 = self.check_revision(parent_base).ok_or_else(|| {
-                    RevlogError::InvalidRevision(parent_base.to_string())
-                })?;
-            }
-            if base == p1.0 || base == p2.0 {
-                return Ok(false);
-            }
-            rev = self.check_revision(base.into()).ok_or_else(|| {
-                RevlogError::InvalidRevision(base.to_string())
-            })?;
+            Ok(rev == NULL_REVISION)
         }
-        Ok(rev == NULL_REVISION)
     }
 
     /// Return whether the given revision is a snapshot. Returns an error if
@@ -1060,7 +1090,7 @@ impl Index {
         revs: &'a [(Revision, IndexEntry)],
         start: usize,
         mut end: usize,
-    ) -> &'a [(Revision, IndexEntry)] {
+    ) -> &'a [(Revision, IndexEntry<'a>)] {
         // Trim empty revs at the end, except the very first rev of a chain
         let last_rev = revs[end - 1].0;
         if last_rev.0 < self.len() as BaseRevision {
@@ -1197,7 +1227,7 @@ impl Index {
         revisions: &[Revision],
     ) -> Result<Vec<Revision>, GraphError> {
         // given that revisions is expected to be small, we find this shortcut
-        // potentially acceptable, especially given that `hg-cpython` could
+        // potentially acceptable, especially given that `hg-pyo3` could
         // very much bypass this, constructing a vector of unique values from
         // the onset.
         let as_set: HashSet<Revision> = revisions.iter().copied().collect();
@@ -1736,9 +1766,7 @@ fn inline_scan(bytes: &[u8]) -> (usize, Vec<usize>) {
     while offset + INDEX_ENTRY_SIZE <= bytes.len() {
         offsets.push(offset);
         let end = offset + INDEX_ENTRY_SIZE;
-        let entry = IndexEntry {
-            bytes: &bytes[offset..end],
-        };
+        let entry = IndexEntry { bytes: &bytes[offset..end] };
 
         offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
     }
@@ -2052,9 +2080,8 @@ mod tests {
 
     #[test]
     fn link_revision_test() {
-        let bytes = IndexEntryBuilder::new()
-            .with_link_revision(Revision(123))
-            .build();
+        let bytes =
+            IndexEntryBuilder::new().with_link_revision(Revision(123)).build();
 
         let entry = IndexEntry { bytes: &bytes };
 
@@ -2081,8 +2108,8 @@ mod tests {
 
     #[test]
     fn node_test() {
-        let node = Node::from_hex("0123456789012345678901234567890123456789")
-            .unwrap();
+        let node =
+            Node::from_hex("0123456789012345678901234567890123456789").unwrap();
         let bytes = IndexEntryBuilder::new().with_node(node).build();
 
         let entry = IndexEntry { bytes: &bytes };
@@ -2092,10 +2119,8 @@ mod tests {
 
     #[test]
     fn version_test() {
-        let bytes = IndexEntryBuilder::new()
-            .is_first(true)
-            .with_version(2)
-            .build();
+        let bytes =
+            IndexEntryBuilder::new().is_first(true).with_version(2).build();
 
         assert_eq!(get_version(&bytes), 2)
     }

@@ -1,9 +1,12 @@
-use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::errors::HgError;
-use bitflags::bitflags;
 use std::fs;
 use std::io;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+
+use bitflags::bitflags;
+
+use crate::dirstate::on_disk::DirstateV2ParseError;
+use crate::errors::HgError;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum EntryState {
@@ -25,6 +28,7 @@ pub struct DirstateEntry {
 }
 
 bitflags! {
+    #[derive(Debug, Copy, Clone)]
     pub(crate) struct Flags: u8 {
         const WDIR_TRACKED = 1 << 0;
         const P1_TRACKED = 1 << 1;
@@ -76,11 +80,7 @@ impl TruncatedTimestamp {
         if truncated_seconds & !RANGE_MASK_31BIT == 0
             && nanoseconds < NSEC_PER_SEC
         {
-            Ok(Self {
-                truncated_seconds,
-                nanoseconds,
-                second_ambiguous,
-            })
+            Ok(Self { truncated_seconds, nanoseconds, second_ambiguous })
         } else {
             Err(DirstateV2ParseError::new("when reading datetime"))
         }
@@ -131,8 +131,7 @@ impl TruncatedTimestamp {
         // mismatch between the current clock and previous file system
         // operation. So mtime more than one days in the future are considered
         // fine.
-        let reliable = if self.truncated_seconds == boundary.truncated_seconds
-        {
+        let reliable = if self.truncated_seconds == boundary.truncated_seconds {
             new.second_ambiguous = true;
             self.nanoseconds != 0
                 && boundary.nanoseconds != 0
@@ -297,11 +296,7 @@ impl DirstateEntry {
                 flags.insert(Flags::FALLBACK_SYMLINK);
             }
         }
-        Self {
-            flags,
-            mode_size,
-            mtime,
-        }
+        Self { flags, mode_size, mtime }
     }
 
     pub fn from_v1_data(
@@ -386,10 +381,7 @@ impl DirstateEntry {
     }
 
     pub fn new_tracked() -> Self {
-        let data = DirstateV2Data {
-            wc_tracked: true,
-            ..Default::default()
-        };
+        let data = DirstateV2Data { wc_tracked: true, ..Default::default() };
         Self::from_v2_data(data)
     }
 
@@ -699,7 +691,7 @@ impl TryFrom<u8> for EntryState {
             b'a' => Ok(EntryState::Added),
             b'r' => Ok(EntryState::Removed),
             b'm' => Ok(EntryState::Merged),
-            _ => Err(HgError::CorruptedRepository(format!(
+            _ => Err(HgError::corrupted(format!(
                 "Incorrect dirstate entry state {}",
                 value
             ))),

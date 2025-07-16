@@ -5,39 +5,48 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::error::CommandError;
-use crate::ui::{
-    format_pattern_file_warning, print_narrow_sparse_warnings, relative_paths,
-    RelativePaths, Ui,
-};
-use crate::utils::path_utils::RelativizePaths;
-use clap::Arg;
-use format_bytes::format_bytes;
-use hg::config::Config;
-use hg::dirstate::entry::{has_exec_bit, TruncatedTimestamp};
-use hg::dirstate::status::{
-    BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
-};
-use hg::errors::{HgError, IoResultExt};
-use hg::filepatterns::{parse_pattern_args, PatternFileWarning};
-use hg::lock::LockError;
-use hg::matchers::{AlwaysMatcher, IntersectionMatcher};
-use hg::repo::Repo;
-use hg::revlog::manifest::Manifest;
-use hg::revlog::options::{default_revlog_options, RevlogOpenOptions};
-use hg::revlog::RevlogType;
-use hg::utils::debug::debug_wait_for_file;
-use hg::utils::files::{
-    get_bytes_from_os_str, get_bytes_from_os_string, get_path_from_bytes,
-};
-use hg::utils::hg_path::{hg_path_to_path_buf, HgPath};
-use hg::Revision;
-use hg::{self, narrow, sparse};
-use log::info;
-use rayon::prelude::*;
 use std::io;
 use std::mem::take;
-use std::path::PathBuf;
+
+use clap::Arg;
+use format_bytes::format_bytes;
+use hg::dirstate::entry::TruncatedTimestamp;
+use hg::dirstate::status::BadMatch;
+use hg::dirstate::status::DirstateStatus;
+use hg::dirstate::status::StatusError;
+use hg::dirstate::status::StatusOptions;
+use hg::dirstate::status::StatusPath;
+use hg::errors::HgError;
+use hg::errors::IoResultExt;
+use hg::filepatterns::parse_pattern_args;
+use hg::lock::LockError;
+use hg::matchers::get_ignore_files;
+use hg::matchers::AlwaysMatcher;
+use hg::matchers::IntersectionMatcher;
+use hg::narrow;
+use hg::repo::Repo;
+use hg::revlog::filelog::is_file_modified;
+use hg::revlog::filelog::FileCompOutcome;
+use hg::revlog::options::default_revlog_options;
+use hg::revlog::RevisionOrWdir;
+use hg::revlog::RevlogError;
+use hg::revlog::RevlogType;
+use hg::sparse;
+use hg::utils::debug::debug_wait_for_file;
+use hg::utils::files::get_bytes_from_os_str;
+use hg::utils::hg_path::hg_path_to_path_buf;
+use hg::warnings::HgWarningContext;
+use hg::Revision;
+use hg::{self};
+use rayon::prelude::*;
+use tracing::info;
+
+use crate::error::CommandError;
+use crate::ui::print_warnings;
+use crate::ui::relative_paths;
+use crate::ui::RelativePaths;
+use crate::ui::Ui;
+use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "
 Show changed files in the working directory
@@ -171,12 +180,14 @@ fn parse_revpair(
     let Some(revs) = revs else {
         return Ok(None);
     };
+    let resolve =
+        |input| match hg::revset::resolve_single(input, repo)?.exclude_wdir() {
+            Some(rev) => Ok(rev),
+            None => Err(RevlogError::WDirUnsupported),
+        };
     match revs.as_slice() {
         [] => Ok(None),
-        [rev1, rev2] => Ok(Some((
-            hg::revset::resolve_single(rev1, repo)?,
-            hg::revset::resolve_single(rev2, repo)?,
-        ))),
+        [rev1, rev2] => Ok(Some((resolve(rev1)?, resolve(rev2)?))),
         _ => Err(CommandError::unsupported("expected 0 or 2 --rev flags")),
     }
 }
@@ -252,13 +263,10 @@ fn has_unfinished_state(repo: &Repo) -> Result<bool, CommandError> {
     Ok(false)
 }
 
+#[tracing::instrument(level = "debug", skip_all, name = "rhg status")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     // TODO: lift these limitations
-    if invocation
-        .config
-        .get(b"commands", b"status.terse")
-        .is_some()
-    {
+    if invocation.config.get(b"commands", b"status.terse").is_some() {
         return Err(CommandError::unsupported(
             "status.terse is not yet supported with rhg status",
         ));
@@ -309,9 +317,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let repo = invocation.repo?;
     let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
-    let change = change
-        .map(|rev| hg::revset::resolve_single(rev, repo))
-        .transpose()?;
+    let change =
+        change.map(|rev| hg::revset::resolve_single(rev, repo)).transpose()?;
+    // Treat `rhg status --change wdir()` the same as `rhg status`.
+    let change = change.and_then(RevisionOrWdir::exclude_wdir);
 
     if verbose && has_unfinished_state(repo)? {
         return Err(CommandError::unsupported(
@@ -332,8 +341,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         collect_traversed_dirs: false,
     };
 
-    type StatusResult<'a> =
-        Result<(DirstateStatus<'a>, Vec<PatternFileWarning>), StatusError>;
+    type StatusResult<'a> = Result<DirstateStatus<'a>, StatusError>;
 
     let relative_status = config
         .get_option(b"commands", b"status.relative")?
@@ -359,11 +367,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         print0,
     };
 
-    let after_status = |res: StatusResult| -> Result<_, CommandError> {
-        let (mut ds_status, pattern_warnings) = res?;
-        for warning in pattern_warnings {
-            ui.write_stderr(&format_pattern_file_warning(&warning, repo))?;
-        }
+    let after_status = |res: StatusResult,
+                        warnings|
+     -> Result<_, CommandError> {
+        print_warnings(ui, warnings, repo.working_directory_path());
+
+        let mut ds_status = res?;
 
         for (path, error) in take(&mut ds_status.bad) {
             let error = match error {
@@ -406,7 +415,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // inference when using a parallel iterator + map
                     // + map_err + collect, so let's just inline some of the
                     // logic.
-                    match unsure_is_modified(
+
+                    // Check we are unsure if the file has changed because
+                    // our filesystem is not precise enough and the rest of
+                    // the metadata was ambiguous, so check the data for real.
+                    match is_file_modified(
                         &working_directory_vfs,
                         &store_vfs,
                         check_exec,
@@ -418,7 +431,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                             // IO errors most likely stem from the file being
                             // deleted even though we know it's in the
                             // dirstate.
-                            Ok((to_check, UnsureOutcome::Deleted))
+                            Ok((to_check, FileCompOutcome::Deleted))
                         }
                         Ok(outcome) => Ok((to_check, outcome)),
                         Err(e) => Err(e),
@@ -427,18 +440,18 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 .collect::<Result<_, _>>()?;
             for (status_path, outcome) in res.into_iter() {
                 match outcome {
-                    UnsureOutcome::Clean => {
+                    FileCompOutcome::Clean => {
                         if display_states.clean {
                             ds_status.clean.push(status_path.clone());
                         }
                         fixup.push(status_path.path.into_owned())
                     }
-                    UnsureOutcome::Modified => {
+                    FileCompOutcome::Modified => {
                         if display_states.modified {
                             ds_status.modified.push(status_path);
                         }
                     }
-                    UnsureOutcome::Deleted => {
+                    FileCompOutcome::Deleted => {
                         if display_states.deleted {
                             ds_status.deleted.push(status_path);
                         }
@@ -453,15 +466,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
         output.output(display_states, ds_status)?;
 
-        Ok((
-            fixup,
-            dirstate_write_needed,
-            filesystem_time_at_status_start,
-        ))
+        Ok((fixup, dirstate_write_needed, filesystem_time_at_status_start))
     };
 
-    let (narrow_matcher, narrow_warnings) = narrow::matcher(repo)?;
-    let (sparse_matcher, sparse_warnings) = sparse::matcher(repo)?;
+    let warning_context = HgWarningContext::new();
+    let warnings_sender = warning_context.sender();
+
+    let narrow_matcher = narrow::matcher(repo, warnings_sender)?;
+    let sparse_matcher = sparse::matcher(repo, None, warnings_sender)?;
     // Sparse is only applicable for the working copy, not history.
     let sparse_is_applicable = revpair.is_none() && change.is_none();
     let matcher =
@@ -491,18 +503,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
                 hg::matchers::PatternMatcher::new(ignore_patterns)?;
-            Box::new(IntersectionMatcher::new(
-                Box::new(files_matcher),
-                matcher,
-            ))
+            Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };
-    print_narrow_sparse_warnings(
-        &narrow_warnings,
-        &sparse_warnings,
-        ui,
-        repo,
-    )?;
+
+    // Displayed in two steps to we get the warnings from narrow/sparse before
+    // actually starting the status, which could be long if the repo is huge
+    // and/or the disk is slow.
+    print_warnings(ui, warning_context, repo.working_directory_path());
 
     if revpair.is_some() || change.is_some() {
         let mut ds_status = DirstateStatus::default();
@@ -521,9 +529,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     "status --rev --rev with copy information is not implemented yet",
                 ));
             }
-            hg::operations::status_rev_rev_no_copies(
-                repo, rev1, rev2, matcher,
-            )?
+            hg::operations::status_rev_rev_no_copies(repo, rev1, rev2, matcher)?
         } else if let Some(rev) = change {
             hg::operations::status_change(repo, rev, matcher, list_copies)?
         } else {
@@ -560,9 +566,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
         dmap.with_status(
-            matcher.as_ref(),
+            &matcher,
             repo.working_directory_path().to_owned(),
-            ignore_files(repo, config),
+            get_ignore_files(repo),
             options,
             after_status,
         )?;
@@ -593,9 +599,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // `unsure_is_clean` which was needed before reading
                     // contents. Here we access metadata again after reading
                     // content, in case it changed in the meantime.
-                    let metadata_res = repo
-                        .working_directory_vfs()
-                        .symlink_metadata(&fs_path);
+                    let metadata_res =
+                        repo.working_directory_vfs().symlink_metadata(&fs_path);
                     let fs_metadata = match metadata_res {
                         Ok(meta) => meta,
                         Err(err) => match err {
@@ -634,7 +639,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             // Not updating the dirstate is not ideal but not critical:
             // don’t keep our caller waiting until some other Mercurial
             // process releases the lock.
-            log::info!("not writing dirstate from `status`: lock is held")
+            tracing::info!("not writing dirstate from `status`: lock is held")
         }
         Err(LockError::Other(HgError::IoError { error, .. }))
             if error.kind() == io::ErrorKind::PermissionDenied
@@ -651,27 +656,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
     }
     Ok(())
-}
-
-fn ignore_files(repo: &Repo, config: &Config) -> Vec<PathBuf> {
-    let mut ignore_files = Vec::new();
-    let repo_ignore = repo.working_directory_vfs().join(".hgignore");
-    if repo_ignore.exists() {
-        ignore_files.push(repo_ignore)
-    }
-    for (key, value) in config.iter_section(b"ui") {
-        if key == b"ignore" || key.starts_with(b"ignore.") {
-            let path = get_path_from_bytes(value);
-            let path = shellexpand::path::full_with_context_no_errors(
-                path,
-                home::home_dir,
-                |s| std::env::var(s).ok(),
-            );
-            let joined = repo.working_directory_path().join(path);
-            ignore_files.push(joined);
-        }
-    }
-    ignore_files
 }
 
 struct DisplayStatusPaths<'a> {
@@ -695,8 +679,7 @@ impl DisplayStatusPaths<'_> {
         for StatusPath { path, copy_source } in paths {
             let relative_path;
             let relative_source;
-            let (path, copy_source) = if let Some(relativize) =
-                &self.relativize
+            let (path, copy_source) = if let Some(relativize) = &self.relativize
             {
                 relative_path = relativize.relativize(&path);
                 relative_source =
@@ -757,96 +740,4 @@ impl DisplayStatusPaths<'_> {
         }
         Ok(())
     }
-}
-
-/// Outcome of the additional check for an ambiguous tracked file
-enum UnsureOutcome {
-    /// The file is actually clean
-    Clean,
-    /// The file has been modified
-    Modified,
-    /// The file was deleted on disk (or became another type of fs entry)
-    Deleted,
-}
-
-/// Check if a file is modified by comparing actual repo store and file system.
-///
-/// This meant to be used for those that the dirstate cannot resolve, due
-/// to time resolution limits.
-fn unsure_is_modified(
-    working_directory_vfs: &hg::vfs::VfsImpl,
-    store_vfs: &hg::vfs::VfsImpl,
-    check_exec: bool,
-    manifest: &Manifest,
-    hg_path: &HgPath,
-    revlog_open_options: RevlogOpenOptions,
-) -> Result<UnsureOutcome, HgError> {
-    let vfs = working_directory_vfs;
-    let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
-    let fs_metadata = vfs.symlink_metadata(&fs_path)?;
-    let is_symlink = fs_metadata.file_type().is_symlink();
-
-    let entry = manifest
-        .find_by_path(hg_path)?
-        .expect("ambgious file not in p1");
-
-    // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
-    // dirstate
-    let fs_flags = if is_symlink {
-        Some(b'l')
-    } else if check_exec && has_exec_bit(&fs_metadata) {
-        Some(b'x')
-    } else {
-        None
-    };
-
-    let entry_flags = if check_exec {
-        entry.flags
-    } else if entry.flags.map(|f| f.into()) == Some(b'x') {
-        None
-    } else {
-        entry.flags
-    };
-
-    if entry_flags.map(|f| f.into()) != fs_flags {
-        return Ok(UnsureOutcome::Modified);
-    }
-    let filelog = hg::revlog::filelog::Filelog::open_vfs(
-        store_vfs,
-        hg_path,
-        revlog_open_options,
-    )?;
-    let fs_len = fs_metadata.len();
-    let file_node = entry.node_id()?;
-    let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
-        HgError::corrupted(format!(
-            "filelog {:?} missing node {:?} from manifest",
-            hg_path, file_node
-        ))
-    })?;
-    if filelog_entry.file_data_len_not_equal_to(fs_len) {
-        // No need to read file contents:
-        // it cannot be equal if it has a different length.
-        return Ok(UnsureOutcome::Modified);
-    }
-
-    let p1_filelog_data = filelog_entry.data()?;
-    let p1_contents = p1_filelog_data.file_data()?;
-    if p1_contents.len() as u64 != fs_len {
-        // No need to read file contents:
-        // it cannot be equal if it has a different length.
-        return Ok(UnsureOutcome::Modified);
-    }
-
-    let fs_contents = if is_symlink {
-        get_bytes_from_os_string(vfs.read_link(fs_path)?.into_os_string())
-    } else {
-        vfs.read(fs_path)?
-    };
-
-    Ok(if p1_contents != &*fs_contents {
-        UnsureOutcome::Modified
-    } else {
-        UnsureOutcome::Clean
-    })
 }

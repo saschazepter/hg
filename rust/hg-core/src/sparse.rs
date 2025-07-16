@@ -1,25 +1,32 @@
-use std::{collections::HashSet, fmt::Display, path::Path};
+use std::collections::HashSet;
+use std::fmt::Display;
+use std::path::Path;
 
-use format_bytes::{format_bytes, write_bytes, DisplayBytes};
+use format_bytes::format_bytes;
+use format_bytes::write_bytes;
+use format_bytes::DisplayBytes;
 
-use crate::{
-    errors::HgError,
-    exit_codes::STATE_ERROR,
-    filepatterns::{
-        parse_pattern_file_contents, IgnorePattern, PatternError,
-        PatternFileWarning, PatternSyntax,
-    },
-    matchers::{
-        AlwaysMatcher, DifferenceMatcher, IncludeMatcher, Matcher,
-        UnionMatcher,
-    },
-    narrow::VALID_PREFIXES,
-    operations::cat,
-    repo::Repo,
-    requirements::SPARSE_REQUIREMENT,
-    utils::{hg_path::HgPath, strings::SliceExt},
-    Revision, NULL_REVISION,
-};
+use crate::errors::HgError;
+use crate::exit_codes::STATE_ERROR;
+use crate::filepatterns::parse_pattern_file_contents;
+use crate::filepatterns::IgnorePattern;
+use crate::filepatterns::PatternError;
+use crate::filepatterns::PatternSyntax;
+use crate::matchers::AlwaysMatcher;
+use crate::matchers::DifferenceMatcher;
+use crate::matchers::IncludeMatcher;
+use crate::matchers::Matcher;
+use crate::matchers::UnionMatcher;
+use crate::narrow::VALID_PREFIXES;
+use crate::operations::cat;
+use crate::repo::Repo;
+use crate::requirements::SPARSE_REQUIREMENT;
+use crate::utils::hg_path::HgPath;
+use crate::utils::strings::SliceExt;
+use crate::warnings::HgWarningSender;
+use crate::Node;
+use crate::Revision;
+use crate::NULL_REVISION;
 
 /// Command which is triggering the config read
 #[derive(Copy, Clone, Debug)]
@@ -51,16 +58,11 @@ impl Display for SparseConfigContext {
 
 /// Possible warnings when reading sparse configuration
 #[derive(Debug, derive_more::From)]
-pub enum SparseWarning {
+pub enum SparseNarrowWarning {
     /// Warns about improper paths that start with "/"
-    RootWarning {
-        context: SparseConfigContext,
-        line: Vec<u8>,
-    },
+    RootWarning { context: SparseConfigContext, line: Vec<u8> },
     /// Warns about a profile missing from the given changelog revision
-    ProfileNotFound { profile: Vec<u8>, rev: Revision },
-    #[from]
-    Pattern(PatternFileWarning),
+    ProfileNotFound { profile: Vec<u8>, node: Option<Node> },
 }
 
 /// Parsed sparse config
@@ -71,7 +73,6 @@ pub struct SparseConfig {
     // Line-separated
     pub(crate) excludes: Vec<u8>,
     pub(crate) profiles: HashSet<Vec<u8>>,
-    pub(crate) warnings: Vec<SparseWarning>,
 }
 
 /// All possible errors when reading sparse/narrow config
@@ -103,65 +104,63 @@ impl From<SparseConfigError> for HgError {
     fn from(value: SparseConfigError) -> Self {
         match value {
             SparseConfigError::IncludesAfterExcludes { context } => {
-                HgError::Abort {
-                    message: format!(
+                HgError::abort(
+                    format!(
                         "{} config cannot have includes after excludes",
                         context,
                     ),
-                    detailed_exit_code: STATE_ERROR,
-                    hint: None,
-                }
+                    STATE_ERROR,
+                    None,
+                )
             }
             SparseConfigError::EntryOutsideSection { context, line } => {
-                HgError::Abort {
-                    message: format!(
+                HgError::abort(
+                    format!(
                         "{} config entry outside of section: {}",
                         context,
                         String::from_utf8_lossy(&line)
                     ),
-                    detailed_exit_code: STATE_ERROR,
-                    hint: None,
-                }
+                    STATE_ERROR,
+                    None,
+                )
             }
-            SparseConfigError::IncludesInNarrow => HgError::Abort {
-                message: "including other spec files using '%include' is not \
+            SparseConfigError::IncludesInNarrow => HgError::abort(
+                "including other spec files using '%include' is not \
                 supported in narrowspec"
                     .to_string(),
-                detailed_exit_code: STATE_ERROR,
-                hint: None,
-            },
-            SparseConfigError::InvalidNarrowPrefix(vec) => HgError::Abort {
-                message: String::from_utf8_lossy(&format_bytes!(
+                STATE_ERROR,
+                None,
+            ),
+            SparseConfigError::InvalidNarrowPrefix(vec) => HgError::abort(
+                String::from_utf8_lossy(&format_bytes!(
                     b"invalid prefix on narrow pattern: {}",
                     vec
                 ))
                 .to_string(),
-                detailed_exit_code: STATE_ERROR,
-                hint: Some(format!(
+                STATE_ERROR,
+                Some(format!(
                     "narrow patterns must begin with one of the following: {}",
                     VALID_PREFIXES.join(", ")
                 )),
-            },
+            ),
             SparseConfigError::WhitespaceAtEdgeOfPattern(vec) => {
-                HgError::Abort {
-                    message: String::from_utf8_lossy(&format_bytes!(
+                HgError::abort(
+                    String::from_utf8_lossy(&format_bytes!(
                         b"narrow pattern with whitespace at the edge: {}",
                         vec
                     ))
                     .to_string(),
-                    detailed_exit_code: STATE_ERROR,
-                    hint: Some(
+                    STATE_ERROR,
+                    Some(
                         "narrow patterns can't begin or end in whitespace"
                             .to_string(),
                     ),
-                }
+                )
             }
             SparseConfigError::HgError(hg_error) => hg_error,
-            SparseConfigError::PatternError(pattern_error) => HgError::Abort {
-                message: pattern_error.to_string(),
-                detailed_exit_code: STATE_ERROR,
-                hint: None,
-            },
+            SparseConfigError::PatternError(pattern_error) => {
+                HgError::abort(pattern_error.to_string(), STATE_ERROR, None)
+            }
         }
     }
 }
@@ -170,11 +169,11 @@ impl From<SparseConfigError> for HgError {
 pub(crate) fn parse_config(
     raw: &[u8],
     context: SparseConfigContext,
+    warnings: &HgWarningSender,
 ) -> Result<SparseConfig, SparseConfigError> {
     let mut includes = vec![];
     let mut excludes = vec![];
     let mut profiles = HashSet::new();
-    let mut warnings = vec![];
 
     #[derive(PartialEq, Eq)]
     enum Current {
@@ -217,7 +216,7 @@ pub(crate) fn parse_config(
                 });
             }
             if line.trim().starts_with(b"/") {
-                warnings.push(SparseWarning::RootWarning {
+                warnings.send(SparseNarrowWarning::RootWarning {
                     context,
                     line: line.into(),
                 });
@@ -237,12 +236,7 @@ pub(crate) fn parse_config(
         }
     }
 
-    Ok(SparseConfig {
-        includes,
-        excludes,
-        profiles,
-        warnings,
-    })
+    Ok(SparseConfig { includes, excludes, profiles })
 }
 
 fn read_temporary_includes(
@@ -259,6 +253,7 @@ fn read_temporary_includes(
 fn patterns_for_rev(
     repo: &Repo,
     rev: Revision,
+    warnings: &HgWarningSender,
 ) -> Result<Option<SparseConfig>, SparseConfigError> {
     if !repo.has_sparse() {
         return Ok(None);
@@ -269,7 +264,7 @@ fn patterns_for_rev(
         return Ok(None);
     }
 
-    let mut config = parse_config(&raw, SparseConfigContext::Sparse)?;
+    let mut config = parse_config(&raw, SparseConfigContext::Sparse, warnings)?;
 
     if !config.profiles.is_empty() {
         let mut profiles: Vec<Vec<u8>> = config.profiles.into_iter().collect();
@@ -290,15 +285,17 @@ fn patterns_for_rev(
                         )
                     })?;
             if output.results.is_empty() {
-                config.warnings.push(SparseWarning::ProfileNotFound {
+                warnings.send(SparseNarrowWarning::ProfileNotFound {
                     profile: profile.to_owned(),
-                    rev,
-                })
+                    node: repo.node(rev.into()),
+                });
+                continue;
             }
 
             let subconfig = parse_config(
                 &output.results[0].1,
                 SparseConfigContext::Sparse,
+                warnings,
             )?;
             if !subconfig.includes.is_empty() {
                 config.includes.push(b'\n');
@@ -308,7 +305,6 @@ fn patterns_for_rev(
                 config.includes.push(b'\n');
                 config.excludes.extend(&subconfig.excludes);
             }
-            config.warnings.extend(subconfig.warnings.into_iter());
             profiles.extend(subconfig.profiles.into_iter());
         }
 
@@ -325,63 +321,44 @@ fn patterns_for_rev(
 /// Obtain a matcher for sparse working directories.
 pub fn matcher(
     repo: &Repo,
-) -> Result<(Box<dyn Matcher + Sync>, Vec<SparseWarning>), SparseConfigError> {
-    let mut warnings = vec![];
+    revs: Option<Vec<Revision>>,
+    warnings: &HgWarningSender,
+) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
     if !repo.requirements().contains(SPARSE_REQUIREMENT) {
-        return Ok((Box::new(AlwaysMatcher), warnings));
+        return Ok(Box::new(AlwaysMatcher));
     }
 
-    let parents = repo.dirstate_parents()?;
-    let mut revs = vec![];
-    let p1_rev =
-        repo.changelog()?
-            .rev_from_node(parents.p1.into())
-            .map_err(|_| {
-                HgError::corrupted(
-                    "dirstate points to non-existent parent node".to_string(),
-                )
-            })?;
-    if p1_rev != NULL_REVISION {
-        revs.push(p1_rev)
-    }
-    let p2_rev =
-        repo.changelog()?
-            .rev_from_node(parents.p2.into())
-            .map_err(|_| {
-                HgError::corrupted(
-                    "dirstate points to non-existent parent node".to_string(),
-                )
-            })?;
-    if p2_rev != NULL_REVISION {
-        revs.push(p2_rev)
-    }
+    let revs = if let Some(revs) = revs {
+        revs
+    } else {
+        dirstate_parent_revs(repo)?
+    };
     let mut matchers = vec![];
 
     for rev in revs.iter() {
-        let config = patterns_for_rev(repo, *rev);
+        let config = patterns_for_rev(repo, *rev, warnings);
         if let Ok(Some(config)) = config {
-            warnings.extend(config.warnings);
-            let mut m: Box<dyn Matcher + Sync> = Box::new(AlwaysMatcher);
+            let mut m: Box<dyn Matcher + Send> = Box::new(AlwaysMatcher);
             if !config.includes.is_empty() {
-                let (patterns, subwarnings) = parse_pattern_file_contents(
+                let patterns = parse_pattern_file_contents(
                     &config.includes,
                     Path::new(""),
                     Some(PatternSyntax::Glob),
                     false,
                     false,
+                    warnings,
                 )?;
-                warnings.extend(subwarnings.into_iter().map(From::from));
                 m = Box::new(IncludeMatcher::new(patterns)?);
             }
             if !config.excludes.is_empty() {
-                let (patterns, subwarnings) = parse_pattern_file_contents(
+                let patterns = parse_pattern_file_contents(
                     &config.excludes,
                     Path::new(""),
                     Some(PatternSyntax::Glob),
                     false,
                     false,
+                    warnings,
                 )?;
-                warnings.extend(subwarnings.into_iter().map(From::from));
                 m = Box::new(DifferenceMatcher::new(
                     m,
                     Box::new(IncludeMatcher::new(patterns)?),
@@ -390,7 +367,7 @@ pub fn matcher(
             matchers.push(m);
         }
     }
-    let result: Box<dyn Matcher + Sync> = match matchers.len() {
+    let result: Box<dyn Matcher + Send> = match matchers.len() {
         0 => Box::new(AlwaysMatcher),
         1 => matchers.pop().expect("1 is equal to 0"),
         _ => Box::new(UnionMatcher::new(matchers)),
@@ -398,15 +375,56 @@ pub fn matcher(
 
     let matcher =
         force_include_matcher(result, &read_temporary_includes(repo)?)?;
-    Ok((matcher, warnings))
+    Ok(matcher)
+}
+
+/// Return the revs for non-null dirstate parents
+fn dirstate_parent_revs(
+    repo: &Repo,
+) -> Result<Vec<Revision>, SparseConfigError> {
+    let parents = repo.dirstate_parents()?;
+    let mut revs = vec![];
+    let p1_rev =
+        repo.changelog()?.rev_from_node(parents.p1.into()).map_err(|_| {
+            HgError::corrupted(
+                "dirstate points to non-existent parent node".to_string(),
+            )
+        })?;
+    if p1_rev != NULL_REVISION {
+        revs.push(p1_rev)
+    }
+    let p2_rev =
+        repo.changelog()?.rev_from_node(parents.p2.into()).map_err(|_| {
+            HgError::corrupted(
+                "dirstate points to non-existent parent node".to_string(),
+            )
+        })?;
+    if p2_rev != NULL_REVISION {
+        revs.push(p2_rev)
+    }
+    Ok(revs)
+}
+
+pub fn active_profiles(
+    repo: &Repo,
+    warnings: &HgWarningSender,
+) -> Result<HashSet<Vec<u8>>, HgError> {
+    let revs = dirstate_parent_revs(repo)?;
+    let mut profiles = HashSet::new();
+    for rev in revs {
+        if let Some(config) = patterns_for_rev(repo, rev, warnings)? {
+            profiles.extend(config.profiles.into_iter());
+        }
+    }
+    Ok(profiles)
 }
 
 /// Returns a matcher that returns true for any of the forced includes before
 /// testing against the actual matcher
 fn force_include_matcher(
-    result: Box<dyn Matcher + Sync>,
+    result: Box<dyn Matcher + Send>,
     temp_includes: &[Vec<u8>],
-) -> Result<Box<dyn Matcher + Sync>, PatternError> {
+) -> Result<Box<dyn Matcher + Send>, PatternError> {
     if temp_includes.is_empty() {
         return Ok(result);
     }

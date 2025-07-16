@@ -1,29 +1,54 @@
-use crate::config::{Config, ConfigError, ConfigParseError};
-use crate::dirstate::dirstate_map::{DirstateIdentity, DirstateMapWriteMode};
-use crate::dirstate::on_disk::Docket as DirstateDocket;
-use crate::dirstate::owning::OwningDirstateMap;
-use crate::dirstate::{DirstateError, DirstateParents};
-use crate::errors::HgResultExt;
-use crate::errors::{HgError, IoResultExt};
-use crate::lock::{try_with_lock_no_wait, LockError};
-use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
-use crate::revlog::changelog::Changelog;
-use crate::revlog::filelog::Filelog;
-use crate::revlog::manifest::{Manifest, Manifestlog};
-use crate::revlog::options::default_revlog_options;
-use crate::revlog::{RevlogError, RevlogType};
-use crate::utils::debug::debug_wait_for_file_or_print;
-use crate::utils::files::get_path_from_bytes;
-use crate::utils::hg_path::HgPath;
-use crate::utils::strings::SliceExt;
-use crate::vfs::{is_dir, is_file, Vfs, VfsImpl};
-use crate::{exit_codes, requirements, NodePrefix, UncheckedRevision};
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::cell::RefMut;
 use std::collections::HashSet;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write as IoWrite;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
+
+use crate::config::Config;
+use crate::config::ConfigError;
+use crate::config::ConfigParseError;
+use crate::dirstate::dirstate_map::DirstateIdentity;
+use crate::dirstate::dirstate_map::DirstateMapWriteMode;
+use crate::dirstate::on_disk::Docket as DirstateDocket;
+use crate::dirstate::owning::OwningDirstateMap;
+use crate::dirstate::status::IgnoreFnType;
+use crate::dirstate::DirstateError;
+use crate::dirstate::DirstateParents;
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
+use crate::errors::IoResultExt;
+use crate::exit_codes;
+use crate::lock::try_with_lock_no_wait;
+use crate::lock::LockError;
+use crate::matchers::get_ignore_files;
+use crate::matchers::get_ignore_function;
+use crate::requirements;
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
+use crate::requirements::DOTENCODE_REQUIREMENT;
+use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
+use crate::revlog::changelog::Changelog;
+use crate::revlog::filelog::Filelog;
+use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::Manifestlog;
+use crate::revlog::options::default_revlog_options;
+use crate::revlog::path_encode::PathEncoding;
+use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
+use crate::utils::debug::debug_wait_for_file_or_print;
+use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::HgPath;
+use crate::utils::strings::SliceExt;
+use crate::vfs::is_dir;
+use crate::vfs::is_file;
+use crate::vfs::Vfs;
+use crate::vfs::VfsImpl;
+use crate::warnings::HgWarningSender;
+use crate::NodePrefix;
+use crate::UncheckedRevision;
 
 const V2_MAX_READ_ATTEMPTS: usize = 5;
 
@@ -75,14 +100,9 @@ impl From<RepoError> for HgError {
                 None,
             ),
             RepoError::ConfigParseError(config_parse_error) => {
-                HgError::Abort {
-                    message: String::from_utf8_lossy(
-                        &config_parse_error.message,
-                    )
-                    .to_string(),
-                    detailed_exit_code: exit_codes::CONFIG_PARSE_ERROR_ABORT,
-                    hint: None,
-                }
+                HgError::abort_simple(String::from_utf8_lossy(
+                    &config_parse_error.message,
+                ))
             }
             RepoError::Other(hg_error) => hg_error,
         }
@@ -94,16 +114,19 @@ impl Repo {
     /// its ancestors
     pub fn find_repo_root() -> Result<PathBuf, RepoError> {
         let current_directory = crate::utils::current_dir()?;
-        // ancestors() is inclusive: it first yields `current_directory`
+        Repo::find_repo_root_from(&current_directory)
+    }
+
+    /// tries to find nearest repository root from a given path
+    pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, RepoError> {
+        // ancestors() is inclusive: it first yields `patn`
         // as-is.
-        for ancestor in current_directory.ancestors() {
+        for ancestor in path.ancestors() {
             if is_dir(ancestor.join(".hg"))? {
                 return Ok(ancestor.to_path_buf());
             }
         }
-        Err(RepoError::NotFound {
-            at: current_directory,
-        })
+        Err(RepoError::NotFound { at: path.to_path_buf() })
     }
 
     /// Find a repository, either at the given path (which must contain a `.hg`
@@ -142,10 +165,9 @@ impl Repo {
         let mut repo_config_files =
             vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
 
-        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false);
+        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false, PathEncoding::None);
         let mut reqs = requirements::load_if_exists(&hg_vfs)?;
-        let relative =
-            reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
+        let relative = reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
         let shared =
             reqs.contains(requirements::SHARED_REQUIREMENT) || relative;
 
@@ -187,6 +209,7 @@ impl Repo {
             let source_is_share_safe = requirements::load(VfsImpl::new(
                 shared_path.to_owned(),
                 true,
+                PathEncoding::None,
             ))?
             .contains(requirements::SHARESAFE_REQUIREMENT);
 
@@ -202,6 +225,7 @@ impl Repo {
             reqs.extend(requirements::load(VfsImpl::new(
                 store_path.to_owned(),
                 true,
+                PathEncoding::None,
             ))?);
         }
 
@@ -223,13 +247,18 @@ impl Repo {
             manifestlog: LazyCell::new(),
         };
 
-        requirements::check(&repo)?;
+        requirements::check(repo.requirements())?;
 
         Ok(repo)
     }
 
     pub fn working_directory_path(&self) -> &Path {
         &self.working_directory
+    }
+
+    /// the path to the store directory
+    pub fn store_path(&self) -> &Path {
+        &self.store
     }
 
     pub fn requirements(&self) -> &HashSet<String> {
@@ -243,17 +272,32 @@ impl Repo {
     /// For accessing repository files (in `.hg`), except for the store
     /// (`.hg/store`).
     pub fn hg_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.dot_hg.to_owned(), false)
+        VfsImpl::new(self.dot_hg.to_owned(), false, PathEncoding::None)
     }
 
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.store.to_owned(), false)
+        let repo_reqs = self.requirements();
+        let plain_encoding = repo_reqs.contains(PLAIN_ENCODE_REQUIREMENT);
+        let encoding = if repo_reqs.contains(DOTENCODE_REQUIREMENT) {
+            // checked before but doesn't hurt too much to check
+            assert!(!plain_encoding);
+            PathEncoding::DotEncode
+        } else if plain_encoding {
+            PathEncoding::Plain
+        } else {
+            unreachable!("invalid store encoding")
+        };
+        VfsImpl::new(self.store.to_owned(), false, encoding)
     }
 
     /// For accessing the working copy
     pub fn working_directory_vfs(&self) -> VfsImpl {
-        VfsImpl::new(self.working_directory.to_owned(), false)
+        VfsImpl::new(
+            self.working_directory.to_owned(),
+            false,
+            PathEncoding::None,
+        )
     }
 
     pub fn try_with_wlock_no_wait<R>(
@@ -274,8 +318,7 @@ impl Repo {
     /// for the required feature, but not that that feature is actually used
     /// in all occasions.
     pub fn use_dirstate_v2(&self) -> bool {
-        self.requirements
-            .contains(requirements::DIRSTATE_V2_REQUIREMENT)
+        self.requirements.contains(requirements::DIRSTATE_V2_REQUIREMENT)
     }
 
     pub fn has_sparse(&self) -> bool {
@@ -287,8 +330,7 @@ impl Repo {
     }
 
     pub fn has_nodemap(&self) -> bool {
-        self.requirements
-            .contains(requirements::NODEMAP_REQUIREMENT)
+        self.requirements.contains(requirements::NODEMAP_REQUIREMENT)
     }
 
     fn dirstate_file_contents(&self) -> Result<Vec<u8>, HgError> {
@@ -322,7 +364,7 @@ impl Repo {
             match docket_res {
                 Ok(docket) => docket.parents(),
                 Err(_) => {
-                    log::info!(
+                    tracing::info!(
                         "Parsing dirstate docket failed, \
                         falling back to dirstate-v1"
                     );
@@ -368,7 +410,7 @@ impl Repo {
                     ))
                 }
                 Err(_) => {
-                    log::info!(
+                    tracing::info!(
                         "Parsing dirstate docket failed, \
                         falling back to dirstate-v1"
                     );
@@ -403,7 +445,7 @@ impl Repo {
                         DirstateError::Common(HgError::RaceDetected(
                             context,
                         )) => {
-                            log::info!(
+                            tracing::info!(
                                 "dirstate read race detected {} (retry {}/{})",
                                 context,
                                 tries,
@@ -412,7 +454,7 @@ impl Repo {
                             continue;
                         }
                         _ => {
-                            log::info!(
+                            tracing::info!(
                                 "Reading dirstate v2 failed, \
                                 falling back to v1"
                             );
@@ -478,7 +520,7 @@ impl Repo {
             let contents = self.hg_vfs().read(docket.data_filename());
             let contents = match contents {
                 Ok(c) => c,
-                Err(HgError::IoError { error, context }) => {
+                Err(HgError::IoError { error, context, backtrace }) => {
                     match error.raw_os_error().expect("real os error") {
                         // 2 = ENOENT, No such file or directory
                         // 116 = ESTALE, Stale NFS file handle
@@ -491,9 +533,12 @@ impl Repo {
                             return Err(race_error.into());
                         }
                         _ => {
-                            return Err(
-                                HgError::IoError { error, context }.into()
-                            )
+                            return Err(HgError::IoError {
+                                error,
+                                context,
+                                backtrace,
+                            }
+                            .into())
                         }
                     }
                 }
@@ -552,11 +597,12 @@ impl Repo {
     pub fn dirstate_map_mut(
         &self,
     ) -> Result<RefMut<OwningDirstateMap>, DirstateError> {
-        self.dirstate_map
-            .get_mut_or_init(|| self.new_dirstate_map())
+        self.dirstate_map.get_mut_or_init(|| self.new_dirstate_map())
     }
 
     fn new_changelog(&self) -> Result<Changelog, HgError> {
+        // load dirstate before changelog to avoid race see issue6303
+        self.dirstate_parents()?;
         Changelog::open(
             &self.store_vfs(),
             default_revlog_options(
@@ -669,7 +715,7 @@ impl Repo {
                 // TODO complain loudly if we've changed anything important
                 // without taking the lock.
                 // (see `hg help config.format.use-dirstate-tracked-hint`)
-                log::debug!(
+                tracing::debug!(
                     "dirstate has changed since last read, not updating."
                 );
                 return Ok(());
@@ -713,22 +759,21 @@ impl Repo {
             //
             // - O_APPEND makes it trickier to deal with garbage at the end of
             //   the file, left by a previous uncommitted transaction. By
-            //   starting the write at [old_data_size] we make sure we erase
-            //   all such garbage.
+            //   starting the write at [old_data_size] we make sure we erase all
+            //   such garbage.
             //
             // - O_APPEND requires to special-case 0-byte writes, whereas we
             //   don't need that.
             //
-            // - Some OSes have bugs in implementation O_APPEND:
-            //   revlog.py talks about a Solaris bug, but we also saw some ZFS
-            //   bug: https://github.com/openzfs/zfs/pull/3124,
+            // - Some OSes have bugs in implementation O_APPEND: revlog.py talks
+            //   about a Solaris bug, but we also saw some ZFS bug: https://github.com/openzfs/zfs/pull/3124,
             //   https://github.com/openzfs/zfs/issues/13370
             //
             if !append {
-                log::trace!("creating a new dirstate data file");
+                tracing::debug!("creating a new dirstate data file");
                 options.create_new(true);
             } else {
-                log::trace!("appending to the dirstate data file");
+                tracing::debug!("appending to the dirstate data file");
             }
 
             let data_size = (|| {
@@ -768,7 +813,7 @@ impl Repo {
                 // TODO complain loudly if we've changed anything important
                 // without taking the lock.
                 // (see `hg help config.format.use-dirstate-tracked-hint`)
-                log::debug!(
+                tracing::debug!(
                     "dirstate has changed since last read, not updating."
                 );
                 return Ok(());
@@ -790,6 +835,21 @@ impl Repo {
         self.changelog()
             .ok()
             .and_then(|c| c.node_from_unchecked_rev(rev).copied())
+    }
+
+    pub fn get_ignore_function(
+        &self,
+        warnings: &HgWarningSender,
+    ) -> Result<IgnoreFnType, HgError> {
+        get_ignore_function(
+            get_ignore_files(self),
+            self.working_directory_path(),
+            &mut |_, _| (),
+            warnings,
+        )
+        .map_err(|e| {
+            HgError::abort(e.to_string(), exit_codes::CONFIG_ERROR_ABORT, None)
+        })
     }
 
     /// Change the current working directory parents cached in the repo.
@@ -823,9 +883,7 @@ struct LazyCell<T> {
 
 impl<T> LazyCell<T> {
     fn new() -> Self {
-        Self {
-            value: RefCell::new(None),
-        }
+        Self { value: RefCell::new(None) }
     }
 
     fn set(&self, value: T) {

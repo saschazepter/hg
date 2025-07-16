@@ -8,34 +8,41 @@
 //! Bindings for the `hg::status` module provided by the
 //! `hg-core` crate. From Python, this will be seen as the
 //! `pyo3_rustext.dirstate.status` function.
+use std::path::Path;
+
+use hg::dirstate::status::BadMatch;
+use hg::dirstate::status::DirstateStatus;
+use hg::dirstate::status::StatusError;
+use hg::dirstate::status::StatusOptions;
+use hg::dirstate::status::StatusPath;
+use hg::filepatterns::parse_pattern_syntax_kind;
+use hg::filepatterns::IgnorePattern;
+use hg::filepatterns::PatternError;
+use hg::matchers::AlwaysMatcher;
+use hg::matchers::DifferenceMatcher;
+use hg::matchers::FileMatcher;
+use hg::matchers::IncludeMatcher;
+use hg::matchers::IntersectionMatcher;
+use hg::matchers::Matcher;
+use hg::matchers::NeverMatcher;
+use hg::matchers::PatternMatcher;
+use hg::matchers::UnionMatcher;
+use hg::utils::files::get_path_from_bytes;
+use hg::utils::hg_path::HgPath;
+use hg::warnings::HgWarningContext;
 use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyList, PyTuple};
-
-use hg::{
-    dirstate::status::{
-        BadMatch, DirstateStatus, StatusError, StatusOptions, StatusPath,
-    },
-    filepatterns::{
-        parse_pattern_syntax_kind, IgnorePattern, PatternError,
-        PatternFileWarning,
-    },
-    matchers::{
-        AlwaysMatcher, DifferenceMatcher, FileMatcher, IncludeMatcher,
-        IntersectionMatcher, Matcher, NeverMatcher, PatternMatcher,
-        UnionMatcher,
-    },
-    utils::{
-        files::{get_bytes_from_path, get_path_from_bytes},
-        hg_path::HgPath,
-    },
-};
+use pyo3::types::PyBytes;
+use pyo3::types::PyList;
+use pyo3::types::PyTuple;
 
 use super::dirstate_map::DirstateMap;
-use crate::{
-    exceptions::{to_string_value_error, FallbackError},
-    path::{paths_py_list, paths_pyiter_collect, PyHgPathRef},
-};
+use crate::exceptions::to_string_value_error;
+use crate::exceptions::FallbackError;
+use crate::path::paths_py_list;
+use crate::path::paths_pyiter_collect;
+use crate::path::PyHgPathRef;
+use crate::utils::hg_warnings_to_py_warnings;
 
 fn status_path_py_list(
     py: Python,
@@ -49,7 +56,7 @@ fn collect_bad_matches(
     collection: &[(impl AsRef<HgPath>, BadMatch)],
 ) -> PyResult<Py<PyList>> {
     let get_error_message = |code: i32| -> String {
-        // hg-cpython here calling the Python interpreter
+        // hg-pyo3 here calling the Python interpreter
         // using `os.strerror`. This seems to be equivalent and infallible
         std::io::Error::from_raw_os_error(code).to_string()
     };
@@ -97,7 +104,7 @@ fn collect_kindpats(
 
 fn extract_matcher(
     matcher: &Bound<'_, PyAny>,
-) -> PyResult<Box<dyn Matcher + Sync>> {
+) -> PyResult<Box<dyn Matcher + Send>> {
     let py = matcher.py();
     let tampered = matcher
         .call_method0(intern!(py, "was_tampered_with_nonrec"))?
@@ -165,7 +172,8 @@ fn handle_fallback(err: StatusError) -> PyErr {
     match err {
         StatusError::Pattern(e) => {
             let as_string = e.to_string();
-            log::trace!("Rust status fallback, `{}`", &as_string);
+            tracing::debug!("Rust status fallback, see trace-level logs");
+            tracing::trace!("{}", as_string);
             FallbackError::new_err(as_string)
         }
         e => to_string_value_error(e),
@@ -200,15 +208,17 @@ pub(super) fn status(
     // The caller may call `copymap.items()` separately
     let list_copies = false;
 
-    let after_status = |res: Result<(DirstateStatus<'_>, _), StatusError>| {
-        let (status_res, warnings) = res.map_err(handle_fallback)?;
-        build_response(py, status_res, warnings)
+    let after_status = |res: Result<DirstateStatus<'_>, StatusError>,
+                        warnings| {
+        let status_res = res.map_err(handle_fallback)?;
+        build_response(py, status_res, warnings, root_dir)
     };
 
     let matcher = extract_matcher(matcher)?;
+
     DirstateMap::with_inner_write(dmap, |_dm_ref, mut inner| {
         inner.with_status(
-            &*matcher,
+            &matcher,
             root_dir.to_path_buf(),
             ignore_files,
             StatusOptions {
@@ -227,7 +237,8 @@ pub(super) fn status(
 fn build_response(
     py: Python,
     status_res: DirstateStatus,
-    warnings: Vec<PatternFileWarning>,
+    warnings: HgWarningContext,
+    root_dir: &Path,
 ) -> PyResult<Py<PyTuple>> {
     let modified = status_path_py_list(py, &status_res.modified)?;
     let added = status_path_py_list(py, &status_res.added)?;
@@ -239,36 +250,21 @@ fn build_response(
     let unsure = status_path_py_list(py, &status_res.unsure)?;
     let bad = collect_bad_matches(py, &status_res.bad)?;
     let traversed = paths_py_list(py, status_res.traversed.iter())?;
-    let py_warnings = PyList::empty(py);
-    for warning in warnings.iter() {
-        // We use duck-typing on the Python side for dispatch, good enough for
-        // now.
-        match warning {
-            PatternFileWarning::InvalidSyntax(file, syn) => {
-                py_warnings.append((
-                    PyBytes::new(py, &get_bytes_from_path(file)),
-                    PyBytes::new(py, syn),
-                ))?;
-            }
-            PatternFileWarning::NoSuchFile(file) => py_warnings
-                .append(PyBytes::new(py, &get_bytes_from_path(file)))?,
-        }
-    }
+    let py_warnings = hg_warnings_to_py_warnings(py, warnings, root_dir)?;
 
-    Ok((
-        unsure.into_pyobject(py)?,
-        modified.into_pyobject(py)?,
-        added.into_pyobject(py)?,
-        removed.into_pyobject(py)?,
-        deleted.into_pyobject(py)?,
-        clean.into_pyobject(py)?,
-        ignored.into_pyobject(py)?,
-        unknown.into_pyobject(py)?,
-        py_warnings.into_pyobject(py)?,
-        bad.into_pyobject(py)?,
-        traversed.into_pyobject(py)?,
-        status_res.dirty.into_pyobject(py)?,
-    )
-        .into_pyobject(py)?
-        .into())
+    let response = (
+        unsure,
+        modified,
+        added,
+        removed,
+        deleted,
+        clean,
+        ignored,
+        unknown,
+        py_warnings,
+        bad,
+        traversed,
+        status_res.dirty,
+    );
+    Ok(response.into_pyobject(py)?.into())
 }

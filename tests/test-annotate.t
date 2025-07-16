@@ -516,9 +516,9 @@ annotate after ABA with follow
 
 missing file
 
-  $ hg ann nosuchfile
+  $ hg annotate nosuchfile
   abort: nosuchfile: no such file in rev e9e6b4fa872f
-  [10]
+  [255]
 
 annotate file without '\n' on last line
 
@@ -546,7 +546,7 @@ and its ancestor by overriding "repo._filecommit".
   >                 linkrev, tr, includecopymeta, ms):
   >     fname = fctx.path()
   >     text = fctx.data()
-  >     flog = repo.file(fname)
+  >     flog = repo.file(fname, writable=True)
   >     fparent1 = manifest1.get(fname, repo.nullid)
   >     fparent2 = manifest2.get(fname, repo.nullid)
   >     meta = {}
@@ -693,8 +693,9 @@ annotate missing file
   $ rm baz
 
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo/baz: $ENOENT$ (windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
+  abort: baz: $ENOENT$ (rhg !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
   [255]
 
 annotate removed file
@@ -702,8 +703,15 @@ annotate removed file
   $ hg rm baz
 
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo/baz: $ENOENT$ (windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-windows !)
+  abort: baz: $ENOENT$ (rhg !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
+  [255]
+
+annotate file neither in repo nor working copy
+
+  $ hg annotate -ncr "wdir()" never_existed
+  abort: never_existed: $ENOENT$
   [255]
 
   $ hg revert --all --no-backup --quiet
@@ -1052,6 +1060,20 @@ Test empty annotate output
    }
   ]
 
+Test non-UTF8 (should use U+FFFD replacement character)
+TODO: fix Python which instead emits invalid JSON
+
+  $ "$PYTHON" -c 'open("latin1", "wb").write(b"\xc9")'
+  $ hg ci -qAm 'add latin1 file'
+  $ hg annotate -Tjson latin1
+  [
+   {
+    "lines": [{"line": "\xed\xb3\x89", "rev": 35}], (esc) (no-rhg known-bad-output !)
+    "lines": [{"line": "\xef\xbf\xbd", "rev": 35}], (esc) (rhg !)
+    "path": "latin1"
+   }
+  ]
+
 Test annotate with whitespace options
 
   $ cd ..
@@ -1274,6 +1296,45 @@ from 4 (starting revision), not from 3 (most recent change to the file).
   1: B
   3: C
   5: D
+
+  $ cd ..
+
+When scanning the changelog to adjust linkrevs, it should start from a known descendant
+rather than from the top. Either result would be correct, but it's better for performance
+to start from a descendant, so we should consistently do that.
+
+  $ hg init repo-descendant-behavior
+  $ cd repo-descendant-behavior
+  $ hg commit --config ui.allowemptycommit=True -m "initial"
+  $ echo A > file
+  $ hg commit -qAm "linkrev"
+  $ hg up 0 -q
+  $ echo A > file
+  $ hg commit -qAm "annotation if scanning from descendant"
+  $ echo B >> file
+  $ hg commit -m "descendant"
+  $ hg up 0 -q
+  $ echo A > file
+  $ hg commit -qAm "annotation if scanning from merge"
+  $ hg merge -r 'desc("descendant")' --tool :local
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit -m "merge"
+  $ hg log -G --template '{rev}: {desc}'
+  @    5: merge
+  |\
+  | o  4: annotation if scanning from merge
+  | |
+  o |  3: descendant
+  | |
+  o |  2: annotation if scanning from descendant
+  |/
+  | o  1: linkrev
+  |/
+  o  0: initial
+  
+  $ hg annotate file
+  2: A
 
   $ cd ..
 

@@ -18,11 +18,8 @@ import abc
 from typing import (
     Callable,
     Collection,
-    List,
-    Optional,
+    ContextManager,
     Protocol,
-    Tuple,
-    Union,
 )
 
 from ._basetypes import (
@@ -31,10 +28,10 @@ from ._basetypes import (
     VfsKeyT,
 )
 
-JournalEntryT = Tuple[HgPathT, int]
+JournalEntryT = tuple[HgPathT, int]
 
 
-class ITransaction(Protocol):
+class ITransaction(ContextManager, Protocol):
     @property
     @abc.abstractmethod
     def finalized(self) -> bool:
@@ -64,7 +61,7 @@ class ITransaction(Protocol):
         file: HgPathT,
         hardlink: bool = True,
         location: VfsKeyT = b'',
-        for_offset: Union[bool, int] = False,
+        for_offset: bool | int = False,
     ) -> None:
         """Adds a backup of the file to the transaction
 
@@ -128,11 +125,11 @@ class ITransaction(Protocol):
         """reverse of addfilegenerator, remove a file generator function"""
 
     @abc.abstractmethod
-    def findoffset(self, file: HgPathT) -> Optional[int]:
+    def findoffset(self, file: HgPathT) -> int | None:
         ...
 
     @abc.abstractmethod
-    def readjournal(self) -> List[JournalEntryT]:
+    def readjournal(self) -> list[JournalEntryT]:
         ...
 
     @abc.abstractmethod
@@ -209,7 +206,7 @@ class ITransaction(Protocol):
     @abc.abstractmethod
     def getpostclose(
         self, category: CallbackCategoryT
-    ) -> Optional[Callable[[ITransaction], None]]:
+    ) -> Callable[[ITransaction], None] | None:
         """return a postclose callback added before, or None"""
 
     @abc.abstractmethod

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from typing import Any, Collection, Dict, Optional
+from typing import Any, Collection
 
 from ..i18n import _
 
@@ -32,8 +32,8 @@ EDIT_FLAG = 'edit'
 def find_edit_level(
     ui: uimod.ui,
     repo,
-    opts: Dict[str, Any],
-) -> Optional[ConfigLevelT]:
+    opts: dict[str, Any],
+) -> ConfigLevelT | None:
     """return the level we should edit, if any.
 
     Parse the command option to detect when an edit is requested, and if so the

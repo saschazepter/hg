@@ -780,6 +780,8 @@ class memmergestate(_mergestate_base):
 
 def recordupdates(repo, actions, branchmerge, getfiledata):
     """record merge actions to the dirstate"""
+    if repo.ui.configbool(b"devel", b"update.abort-on-dirstate-change"):
+        raise error.Abort(b"simulated error while recording dirstate updates")
     dirstate = repo.dirstate
     update_file = dirstate.update_file
 

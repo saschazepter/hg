@@ -18,7 +18,6 @@ import typing
 from typing import (
     Any,
     AnyStr,
-    Optional,
 )
 
 from mercurial.i18n import _
@@ -85,9 +84,9 @@ class _shlexpy3proxy:
 
 def shlexer(
     data=None,
-    filepath: Optional[bytes] = None,
-    wordchars: Optional[bytes] = None,
-    whitespace: Optional[bytes] = None,
+    filepath: bytes | None = None,
+    wordchars: bytes | None = None,
+    whitespace: bytes | None = None,
 ):
     if data is None:
         data = open(filepath, encoding='latin1')
@@ -127,7 +126,7 @@ class MissingTool(Exception):
 
 
 def checktool(
-    exe: bytes, name: Optional[bytes] = None, abort: bool = True
+    exe: bytes, name: bytes | None = None, abort: bool = True
 ) -> None:
     name = name or exe
     if not procutil.findexe(exe):
@@ -152,7 +151,7 @@ class commit:
         date: bytes,
         desc: bytes,
         parents,
-        branch: Optional[bytes] = None,
+        branch: bytes | None = None,
         rev=None,
         extra=None,
         sortkey=None,
@@ -182,7 +181,7 @@ class converter_source:
         self,
         ui: uimod.ui,
         repotype: bytes,
-        path: Optional[bytes] = None,
+        path: bytes | None = None,
         revs=None,
     ) -> None:
         """Initialize conversion source (or raise NoRepo("message")
@@ -268,7 +267,7 @@ class converter_source:
         """
         raise NotImplementedError
 
-    def recode(self, s: AnyStr, encoding: Optional[bytes] = None) -> bytes:
+    def recode(self, s: AnyStr, encoding: bytes | None = None) -> bytes:
         if not encoding:
             encoding = self.encoding or b'utf-8'
 

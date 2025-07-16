@@ -214,6 +214,20 @@ def filelogrenamed(orig, self, node):
 
 
 # Wrapping may also be applied by remotefilelog
+def filelog_has_meta(orig, self, node):
+    if _islfs(self._revlog, node):
+        rawtext = self._revlog.rawdata(node)
+        if not rawtext:
+            return False
+        metadata = pointer.deserialize(rawtext)
+        for k in metadata:
+            if k.startswith(b'x-hg-'):
+                return True
+        return False
+    return orig(self, node)
+
+
+# Wrapping may also be applied by remotefilelog
 def filelogsize(orig, self, rev):
     if _islfs(self._revlog, rev=rev):
         # fast path: use lfs metadata to answer size

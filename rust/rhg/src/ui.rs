@@ -1,21 +1,23 @@
-use crate::color::ColorConfig;
-use crate::color::Effect;
-use crate::error::CommandError;
+use std::io;
+use std::io::BufWriter;
+use std::io::ErrorKind;
+use std::io::IsTerminal;
+use std::io::StderrLock;
+use std::io::StdoutLock;
+use std::io::Write;
+use std::path::Path;
+
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use hg::config::Config;
 use hg::config::PlainInfo;
 use hg::encoding::Encoder;
 use hg::errors::HgError;
-use hg::filepatterns::PatternFileWarning;
-use hg::repo::Repo;
-use hg::sparse;
-use hg::utils::files::get_bytes_from_path;
-use std::io;
-use std::io::BufWriter;
-use std::io::IsTerminal;
-use std::io::StdoutLock;
-use std::io::{ErrorKind, Write};
+use hg::warnings::format::write_warning;
+use hg::warnings::HgWarningContext;
+
+use crate::color::ColorConfig;
+use crate::color::Effect;
 
 pub struct Ui {
     stdout: std::io::Stdout,
@@ -86,6 +88,11 @@ impl Ui {
         stderr.flush().or_else(handle_stderr_error)
     }
 
+    /// Return a lock to stderr
+    pub fn stderr_locked(&self) -> StderrLock {
+        self.stderr.lock()
+    }
+
     pub fn encoder(&self) -> &Encoder {
         &self.encoder
     }
@@ -97,7 +104,7 @@ pub struct StdoutBuffer<'a, W> {
     stdout: W,
 }
 
-impl<'a, W: Write> StdoutBuffer<'a, W> {
+impl<W: Write> StdoutBuffer<'_, W> {
     /// Write bytes to stdout with the given label
     ///
     /// Like the optional `label` parameter in `mercurial/ui.py`,
@@ -184,10 +191,7 @@ fn handle_stdout_error(error: io::Error) -> Result<(), UiError> {
     let mut stderr = io::stderr();
 
     stderr
-        .write_all(&format_bytes!(
-            b"abort: {}\n",
-            error.to_string().as_bytes()
-        ))
+        .write_all(&format_bytes!(b"abort: {}\n", error.to_string().as_bytes()))
         .map_err(UiError::StderrError)?;
 
     stderr.flush().map_err(UiError::StderrError)?;
@@ -237,67 +241,8 @@ fn isatty(config: &Config) -> Result<bool, HgError> {
     })
 }
 
-/// Return the formatted bytestring corresponding to a pattern file warning,
-/// as expected by the CLI.
-pub(crate) fn format_pattern_file_warning(
-    warning: &PatternFileWarning,
-    repo: &Repo,
-) -> Vec<u8> {
-    match warning {
-        PatternFileWarning::InvalidSyntax(path, syntax) => format_bytes!(
-            b"{}: ignoring invalid syntax '{}'\n",
-            get_bytes_from_path(path),
-            syntax
-        ),
-        PatternFileWarning::NoSuchFile(path) => {
-            let path = if let Ok(relative) =
-                path.strip_prefix(repo.working_directory_path())
-            {
-                relative
-            } else {
-                path
-            };
-            format_bytes!(
-                b"skipping unreadable pattern file '{}': \
-                    No such file or directory\n",
-                get_bytes_from_path(path),
-            )
-        }
-    }
-}
-
-/// Print with `Ui` the formatted bytestring corresponding to a
-/// sparse/narrow warning, as expected by the CLI.
-pub(crate) fn print_narrow_sparse_warnings(
-    narrow_warnings: &[sparse::SparseWarning],
-    sparse_warnings: &[sparse::SparseWarning],
-    ui: &Ui,
-    repo: &Repo,
-) -> Result<(), CommandError> {
-    for warning in narrow_warnings.iter().chain(sparse_warnings) {
-        match &warning {
-            sparse::SparseWarning::RootWarning { context, line } => {
-                let msg = format_bytes!(
-                    b"warning: {} profile cannot use paths \"
-                starting with /, ignoring {}\n",
-                    context,
-                    line
-                );
-                ui.write_stderr(&msg)?;
-            }
-            sparse::SparseWarning::ProfileNotFound { profile, rev } => {
-                let msg = format_bytes!(
-                    b"warning: sparse profile '{}' not found \"
-                in rev {} - ignoring it\n",
-                    profile,
-                    rev
-                );
-                ui.write_stderr(&msg)?;
-            }
-            sparse::SparseWarning::Pattern(e) => {
-                ui.write_stderr(&format_pattern_file_warning(e, repo))?;
-            }
-        }
-    }
-    Ok(())
+pub fn print_warnings(ui: &Ui, warnings: HgWarningContext, working_dir: &Path) {
+    let mut stderr = ui.stderr_locked();
+    // Can't really do anything if writing to stderr failed
+    let _ = warnings.finish(|w| write_warning(&w, &mut stderr, working_dir));
 }

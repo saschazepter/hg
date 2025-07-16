@@ -16,13 +16,8 @@ import weakref
 from typing import (
     Callable,
     Collection,
-    Dict,
     Iterable,
     Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
     Union,
     cast,
 )
@@ -45,6 +40,7 @@ from . import (
     policy,
     pycompat,
     revlog,
+    revlogutils,
     util,
 )
 from .interfaces import (
@@ -55,7 +51,11 @@ from .revlogutils import (
 )
 
 if typing.TYPE_CHECKING:
-    from typing import (
+    # We need to fully qualify the set primitive when typing the imanifestdict
+    # class, so its set() method doesn't hide the primitive.
+    import builtins
+
+    from collections.abc import (
         ByteString,
     )
 
@@ -140,7 +140,7 @@ class lazymanifestiterentries:
     def __iter__(self) -> lazymanifestiterentries:
         return self
 
-    def next(self) -> Tuple[bytes, bytes, bytes]:
+    def next(self) -> tuple[bytes, bytes, bytes]:
         try:
             data, pos = self.lm._get(self.pos)
         except IndexError:
@@ -226,7 +226,7 @@ class _LazyManifest:
             self.data = data
             self.hasremovals = hasremovals
 
-    def findlines(self, data: bytes) -> List[int]:
+    def findlines(self, data: bytes) -> list[int]:
         if not data:
             return []
         pos = data.find(b"\n")
@@ -245,7 +245,7 @@ class _LazyManifest:
 
     def _get(
         self, index: int
-    ) -> Tuple[Union[bytes, Tuple[bytes, bytes, bytes]], int]:
+    ) -> tuple[bytes | tuple[bytes, bytes, bytes], int]:
         # get the position encoded in pos:
         #   positive number is an index in 'data'
         #   negative number is in extrapieces
@@ -277,7 +277,7 @@ class _LazyManifest:
                     first = midpoint + 1
         return -1
 
-    def bsearch2(self, key: bytes) -> Tuple[int, bool]:
+    def bsearch2(self, key: bytes) -> tuple[int, bool]:
         # same as the above, but will always return the position
         # done for performance reasons
         first = 0
@@ -300,7 +300,7 @@ class _LazyManifest:
     def __contains__(self, key: bytes) -> bool:
         return self.bsearch(key) != -1
 
-    def __getitem__(self, key: bytes) -> Tuple[bytes, bytes]:
+    def __getitem__(self, key: bytes) -> tuple[bytes, bytes]:
         if not isinstance(key, bytes):
             raise TypeError(b"getitem: manifest keys must be a bytes.")
         needle = self.bsearch(key)
@@ -342,7 +342,7 @@ class _LazyManifest:
             self.data = self.data[:cur] + b'\x00' + self.data[cur + 1 :]
             self.hasremovals = True
 
-    def __setitem__(self, key: bytes, value: Tuple[bytes, bytes]):
+    def __setitem__(self, key: bytes, value: tuple[bytes, bytes]):
         if not isinstance(key, bytes):
             raise TypeError(b"setitem: manifest keys must be a byte string.")
         if not isinstance(value, tuple) or len(value) != 2:
@@ -447,7 +447,7 @@ class _LazyManifest:
         self.hasremovals = False
         self.extradata = []
 
-    def _pack(self, d: Tuple[bytes, bytes, bytes]) -> bytes:
+    def _pack(self, d: tuple[bytes, bytes, bytes]) -> bytes:
         n = d[1]
         assert len(n) in (20, 32)
         return d[0] + b'\x00' + hex(n) + d[2] + b'\n'
@@ -458,11 +458,9 @@ class _LazyManifest:
 
     def diff(
         self, m2: _LazyManifest, clean: bool = False
-    ) -> Dict[
+    ) -> dict[
         bytes,
-        Optional[
-            Tuple[Tuple[Optional[bytes], bytes], Tuple[Optional[bytes], bytes]]
-        ],
+        None | (tuple[tuple[bytes | None, bytes], tuple[bytes | None, bytes]]),
     ]:
         '''Finds changes between the current manifest and m2.'''
         # XXX think whether efficiency matters here
@@ -519,7 +517,7 @@ class manifestdict(repository.imanifestdict):
     def __getitem__(self, key: bytes) -> bytes:
         return self._lm[key][0]
 
-    def find(self, key: bytes) -> Tuple[bytes, bytes]:
+    def find(self, key: bytes) -> tuple[bytes, bytes]:
         return self._lm[key]
 
     def __len__(self) -> int:
@@ -552,10 +550,10 @@ class manifestdict(repository.imanifestdict):
     def iterkeys(self) -> Iterator[bytes]:
         return self._lm.iterkeys()
 
-    def keys(self) -> List[bytes]:
+    def keys(self) -> list[bytes]:
         return list(self.iterkeys())
 
-    def filesnotin(self, m2, match=None) -> Set[bytes]:
+    def filesnotin(self, m2, match=None) -> builtins.set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match is not None:
             match = matchmod.badmatch(match, lambda path, msg: None)
@@ -638,13 +636,11 @@ class manifestdict(repository.imanifestdict):
     def diff(
         self,
         m2: manifestdict,
-        match: Optional[MatcherT] = None,
+        match: MatcherT | None = None,
         clean: bool = False,
-    ) -> Dict[
+    ) -> dict[
         bytes,
-        Optional[
-            Tuple[Tuple[Optional[bytes], bytes], Tuple[Optional[bytes], bytes]]
-        ],
+        None | (tuple[tuple[bytes | None, bytes], tuple[bytes | None, bytes]]),
     ]:
         """Finds changes between the current manifest and m2.
 
@@ -671,7 +667,7 @@ class manifestdict(repository.imanifestdict):
             raise TypeError(b"Invalid manifest flag set.")
         self._lm[key] = self[key], flag
 
-    def get(self, key: bytes, default=None) -> Optional[bytes]:
+    def get(self, key: bytes, default=None) -> bytes | None:
         try:
             return self._lm[key][0]
         except KeyError:
@@ -688,13 +684,13 @@ class manifestdict(repository.imanifestdict):
         c._lm = self._lm.copy()
         return c
 
-    def items(self) -> Iterator[Tuple[bytes, bytes]]:
+    def items(self) -> Iterator[tuple[bytes, bytes]]:
         return (x[:2] for x in self._lm.iterentries())
 
-    def iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
+    def iteritems(self) -> Iterator[tuple[bytes, bytes]]:
         return (x[:2] for x in self._lm.iterentries())
 
-    def iterentries(self) -> Iterator[Tuple[bytes, bytes, bytes]]:
+    def iterentries(self) -> Iterator[tuple[bytes, bytes, bytes]]:
         return self._lm.iterentries()
 
     def text(self) -> ByteString:
@@ -702,8 +698,8 @@ class manifestdict(repository.imanifestdict):
         return self._lm.text()
 
     def fastdelta(
-        self, base: ByteString, changes: Iterable[Tuple[bytes, bool]]
-    ) -> Tuple[ByteString, ByteString]:
+        self, base: ByteString, changes: Iterable[tuple[bytes, bool]]
+    ) -> tuple[ByteString, ByteString]:
         """Given a base manifest text as a bytearray and a list of changes
         relative to that text, compute a delta that can be used by revlog.
         """
@@ -760,8 +756,8 @@ class manifestdict(repository.imanifestdict):
 
 
 def _msearch(
-    m: ByteString, s: bytes, lo: int = 0, hi: Optional[int] = None
-) -> Tuple[int, int]:
+    m: ByteString, s: bytes, lo: int = 0, hi: int | None = None
+) -> tuple[int, int]:
     """return a tuple (start, end) that says where to find s within m.
 
     If the string is found m[start:end] are the line containing
@@ -816,8 +812,8 @@ def _checkforbidden(l: Iterable[bytes]) -> None:
 # return a delta suitable for addrevision
 def _addlistdelta(
     addlist: ByteString,
-    x: Iterable[Tuple[int, int, bytes]],
-) -> Tuple[bytes, ByteString]:
+    x: Iterable[tuple[int, int, bytes]],
+) -> tuple[bytes, ByteString]:
     # for large addlist arrays, building a new array is cheaper
     # than repeatedly modifying the existing one
     currentposition = 0
@@ -839,7 +835,7 @@ def _addlistdelta(
     return deltatext, newaddlist
 
 
-def _splittopdir(f: bytes) -> Tuple[bytes, bytes]:
+def _splittopdir(f: bytes) -> tuple[bytes, bytes]:
     if b'/' in f:
         dir, subpath = f.split(b'/', 1)
         return dir + b'/', subpath
@@ -852,10 +848,10 @@ _noop = lambda s: None
 
 class treemanifest(repository.imanifestdict):
     _dir: bytes
-    _dirs: Dict[bytes, treemanifest]
+    _dirs: dict[bytes, treemanifest]
     _dirty: bool
-    _files: Dict[bytes, bytes]
-    _flags: Dict[bytes, bytes]
+    _files: dict[bytes, bytes]
+    _flags: dict[bytes, bytes]
 
     def __init__(self, nodeconstants, dir: bytes = b'', text: bytes = b''):
         self._dir = dir
@@ -866,9 +862,9 @@ class treemanifest(repository.imanifestdict):
         self._copyfunc = _noop
         self._dirty = False
         self._dirs = {}
-        self._lazydirs: Dict[
+        self._lazydirs: dict[
             bytes,
-            Tuple[bytes, Callable[[bytes, bytes], treemanifest], bool],
+            tuple[bytes, Callable[[bytes, bytes], treemanifest], bool],
         ] = {}
         # Using _lazymanifest here is a little slower than plain old dicts
         self._files = {}
@@ -907,15 +903,15 @@ class treemanifest(repository.imanifestdict):
             del self._lazydirs[d]
 
     def _loadchildrensetlazy(
-        self, visit: Union[Set[bytes], bytes]
-    ) -> Optional[Set[bytes]]:
+        self, visit: set[bytes] | bytes
+    ) -> set[bytes] | None:
         if not visit:
             return None
         if visit == b'all' or visit == b'this':
             self._loadalllazy()
             return None
 
-        visit = cast(Set[bytes], visit)
+        visit = cast(set[bytes], visit)
 
         loadlazy = self._loadlazy
         for k in visit:
@@ -999,7 +995,7 @@ class treemanifest(repository.imanifestdict):
 
     def iterentries(
         self,
-    ) -> Iterator[Tuple[bytes, Union[bytes, treemanifest], bytes]]:
+    ) -> Iterator[tuple[bytes, bytes | treemanifest, bytes]]:
         self._load()
         self._loadalllazy()
         for p, n in sorted(
@@ -1010,7 +1006,7 @@ class treemanifest(repository.imanifestdict):
             else:
                 yield from n.iterentries()
 
-    def items(self) -> Iterator[Tuple[bytes, Union[bytes, treemanifest]]]:
+    def items(self) -> Iterator[tuple[bytes, bytes | treemanifest]]:
         self._load()
         self._loadalllazy()
         for p, n in sorted(
@@ -1032,7 +1028,7 @@ class treemanifest(repository.imanifestdict):
             else:
                 yield from self._dirs[p]
 
-    def keys(self) -> List[bytes]:
+    def keys(self) -> list[bytes]:
         return list(self.iterkeys())
 
     def __iter__(self) -> Iterator[bytes]:
@@ -1053,7 +1049,7 @@ class treemanifest(repository.imanifestdict):
         else:
             return f in self._files
 
-    def get(self, f: bytes, default: Optional[bytes] = None) -> Optional[bytes]:
+    def get(self, f: bytes, default: bytes | None = None) -> bytes | None:
         self._load()
         dir, subpath = _splittopdir(f)
         if dir:
@@ -1089,7 +1085,7 @@ class treemanifest(repository.imanifestdict):
                 return b''
             return self._flags.get(f, b'')
 
-    def find(self, f: bytes) -> Tuple[bytes, bytes]:
+    def find(self, f: bytes) -> tuple[bytes, bytes]:
         self._load()
         dir, subpath = _splittopdir(f)
         if dir:
@@ -1205,8 +1201,8 @@ class treemanifest(repository.imanifestdict):
         return copy
 
     def filesnotin(
-        self, m2: treemanifest, match: Optional[MatcherT] = None
-    ) -> Set[bytes]:
+        self, m2: treemanifest, match: MatcherT | None = None
+    ) -> builtins.set[bytes]:
         '''Set of files in this manifest that are not in the other'''
         if match and not match.always():
             m1 = self._matches(match)
@@ -1344,20 +1340,18 @@ class treemanifest(repository.imanifestdict):
         return ret
 
     def fastdelta(
-        self, base: ByteString, changes: Iterable[Tuple[bytes, bool]]
+        self, base: ByteString, changes: Iterable[tuple[bytes, bool]]
     ) -> tuple[ByteString, ByteString]:
         raise FastdeltaUnavailable()
 
     def diff(
         self,
         m2: treemanifest,
-        match: Optional[MatcherT] = None,
+        match: MatcherT | None = None,
         clean: bool = False,
-    ) -> Dict[
+    ) -> dict[
         bytes,
-        Optional[
-            Tuple[Tuple[Optional[bytes], bytes], Tuple[Optional[bytes], bytes]]
-        ],
+        None | (tuple[tuple[bytes | None, bytes], tuple[bytes | None, bytes]]),
     ]:
         """Finds changes between the current manifest and m2.
 
@@ -1519,7 +1513,7 @@ class treemanifest(repository.imanifestdict):
             writesubtree(subm, subp1, subp2, match)
 
     def walksubtrees(
-        self, matcher: Optional[MatcherT] = None
+        self, matcher: MatcherT | None = None
     ) -> Iterator[treemanifest]:
         """Returns an iterator of the subtrees of this manifest, including this
         manifest itself.
@@ -1844,7 +1838,10 @@ class manifestrevlog(repository.imanifeststorage):
             )
 
             arraytext, deltatext = m.fastdelta(self.fulltextcache[p1], work)
-            cachedelta = self._revlog.rev(p1), deltatext
+            cachedelta = revlogutils.CachedDelta(
+                self._revlog.rev(p1),
+                deltatext,
+            )
             text = util.buffer(arraytext)
             rev = self._revlog.addrevision(
                 text, transaction, link, p1, p2, cachedelta
@@ -2191,7 +2188,7 @@ class manifestctx(repository.imanifestrevisionstored):
     contents, its parent revs, and its linkrev.
     """
 
-    _data: Optional[manifestdict]
+    _data: manifestdict | None
 
     def __init__(self, manifestlog, node):
         self._manifestlog = manifestlog
@@ -2218,7 +2215,7 @@ class manifestctx(repository.imanifestrevisionstored):
         return memmf
 
     @propertycache
-    def parents(self) -> Tuple[bytes, bytes]:
+    def parents(self) -> tuple[bytes, bytes]:
         return self._storage().parents(self._node)
 
     def read(self) -> manifestdict:
@@ -2275,10 +2272,10 @@ class manifestctx(repository.imanifestrevisionstored):
 
     def read_any_fast_delta(
         self,
-        valid_bases: Optional[Collection[int]] = None,
+        valid_bases: Collection[int] | None = None,
         *,
         shallow: bool = False,
-    ) -> Tuple[Optional[int], manifestdict]:
+    ) -> tuple[int | None, manifestdict]:
         """see `imanifestrevisionstored` documentation"""
         store = self._storage()
         r = store.rev(self._node)
@@ -2342,7 +2339,7 @@ class manifestctx(repository.imanifestrevisionstored):
         d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
         return manifestdict(store.nodeconstants.nodelen, d)
 
-    def find(self, key: bytes) -> Tuple[bytes, bytes]:
+    def find(self, key: bytes) -> tuple[bytes, bytes]:
         return self.read().find(key)
 
 
@@ -2383,7 +2380,7 @@ class memtreemanifestctx(repository.imanifestrevisionwritable):
 
 
 class treemanifestctx(repository.imanifestrevisionstored):
-    _data: Optional[treemanifest]
+    _data: treemanifest | None
 
     def __init__(self, manifestlog, dir, node):
         self._manifestlog = manifestlog
@@ -2450,7 +2447,7 @@ class treemanifestctx(repository.imanifestrevisionstored):
         return memmf
 
     @propertycache
-    def parents(self) -> Tuple[bytes, bytes]:
+    def parents(self) -> tuple[bytes, bytes]:
         return self._storage().parents(self._node)
 
     def readdelta(self, shallow: bool = False) -> AnyManifestDict:
@@ -2480,10 +2477,10 @@ class treemanifestctx(repository.imanifestrevisionstored):
 
     def read_any_fast_delta(
         self,
-        valid_bases: Optional[Collection[int]] = None,
+        valid_bases: Collection[int] | None = None,
         *,
         shallow: bool = False,
-    ) -> Tuple[Optional[int], AnyManifestDict]:
+    ) -> tuple[int | None, AnyManifestDict]:
         """see `imanifestrevisionstored` documentation"""
         store = self._storage()
         r = store.rev(self._node)
@@ -2643,7 +2640,7 @@ class treemanifestctx(repository.imanifestrevisionstored):
         else:
             return self.read()
 
-    def find(self, key: bytes) -> Tuple[bytes, bytes]:
+    def find(self, key: bytes) -> tuple[bytes, bytes]:
         return self.read().find(key)
 
 
@@ -2659,8 +2656,8 @@ class excludeddir(treemanifest):
     whose contents are unknown.
     """
 
-    _files: Dict[bytes, bytes]
-    _flags: Dict[bytes, bytes]
+    _files: dict[bytes, bytes]
+    _flags: dict[bytes, bytes]
 
     def __init__(self, nodeconstants, dir, node):
         super().__init__(nodeconstants, dir)

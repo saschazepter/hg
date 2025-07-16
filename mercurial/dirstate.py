@@ -15,12 +15,8 @@ import uuid
 
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
-    List,
-    Optional,
-    Tuple,
 )
 
 from .i18n import _
@@ -54,7 +50,7 @@ from .interfaces import (
 )
 
 parsers = policy.importmod('parsers')
-rustmod = policy.importrust('dirstate', pyo3=True)
+rustmod = policy.importrust('dirstate')
 
 HAS_FAST_DIRSTATE_V2 = rustmod is not None
 
@@ -601,7 +597,7 @@ class dirstate(intdirstate.idirstate):
             # we're outside the repo. return an absolute path.
             return cwd
 
-    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         if cwd is None:
             cwd = self.getcwd()
         path = util.pathto(self._root, cwd, f)
@@ -622,12 +618,12 @@ class dirstate(intdirstate.idirstate):
     def __iter__(self) -> Iterator[bytes]:
         return iter(sorted(self._map))
 
-    def items(self) -> Iterator[Tuple[bytes, intdirstate.DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, intdirstate.DirstateItemT]]:
         return self._map.items()
 
     iteritems = items
 
-    def parents(self) -> List[bytes]:
+    def parents(self) -> list[bytes]:
         return [self._validate(p) for p in self._pl]
 
     def p1(self) -> bytes:
@@ -645,7 +641,7 @@ class dirstate(intdirstate.idirstate):
         return encoding.tolocal(self._branch)
 
     @requires_changing_parents
-    def setparents(self, p1: bytes, p2: Optional[bytes] = None):
+    def setparents(self, p1: bytes, p2: bytes | None = None):
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a
@@ -672,7 +668,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.setparents(p1, p2, fold_p2=fold_p2)
 
     def setbranch(
-        self, branch: bytes, transaction: Optional[TransactionT]
+        self, branch: bytes, transaction: TransactionT | None
     ) -> None:
         self.__class__._branch.set(self, encoding.fromlocal(branch))
         if transaction is not None:
@@ -721,7 +717,7 @@ class dirstate(intdirstate.idirstate):
         self._origpl = None
 
     @requires_changing_any
-    def copy(self, source: Optional[bytes], dest: bytes) -> None:
+    def copy(self, source: bytes | None, dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""
         if source == dest:
             return
@@ -732,10 +728,10 @@ class dirstate(intdirstate.idirstate):
         else:
             self._map.copymap.pop(dest, None)
 
-    def copied(self, file: bytes) -> Optional[bytes]:
+    def copied(self, file: bytes) -> bytes | None:
         return self._map.copymap.get(file, None)
 
-    def copies(self) -> Dict[bytes, bytes]:
+    def copies(self) -> dict[bytes, bytes]:
         return self._map.copymap
 
     @requires_changing_files
@@ -1038,7 +1034,7 @@ class dirstate(intdirstate.idirstate):
         self,
         parent: bytes,
         allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Optional[Iterable[bytes]] = None,
+        changedfiles: Iterable[bytes] | None = None,
     ) -> None:
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():
@@ -1105,7 +1101,7 @@ class dirstate(intdirstate.idirstate):
             on_abort,
         )
 
-    def write(self, tr: Optional[TransactionT]) -> None:
+    def write(self, tr: TransactionT | None) -> None:
         if not self._dirty:
             return
         # make sure we don't request a write of invalidated content
@@ -1192,7 +1188,7 @@ class dirstate(intdirstate.idirstate):
                 return True
         return False
 
-    def _ignorefiles(self) -> List[bytes]:
+    def _ignorefiles(self) -> list[bytes]:
         files = []
         if os.path.exists(self._join(b'.hgignore')):
             files.append(self._join(b'.hgignore'))
@@ -1474,10 +1470,10 @@ class dirstate(intdirstate.idirstate):
                         # interested in comparing it to files currently in the
                         # dmap -- therefore normalizefile is enough
                         nf = normalizefile(
-                            nd and (nd + b"/" + f) or f, True, True
+                            (nd + b"/" + f) if nd else f, True, True
                         )
                     else:
-                        nf = nd and (nd + b"/" + f) or f
+                        nf = (nd + b"/" + f) if nd else f
                     if nf not in results:
                         if kind == dirkind:
                             if not ignore(nf):
@@ -1607,25 +1603,8 @@ class dirstate(intdirstate.idirstate):
                 matcher.traversedir(dir)
 
         if self._ui.warn:
-            for item in warnings:
-                if isinstance(item, tuple):
-                    file_path, syntax = item
-                    msg = _(b"%s: ignoring invalid syntax '%s'\n") % (
-                        file_path,
-                        syntax,
-                    )
-                    self._ui.warn(msg)
-                else:
-                    msg = _(b"skipping unreadable pattern file '%s': %s\n")
-                    self._ui.warn(
-                        msg
-                        % (
-                            pathutil.canonpath(
-                                self._rootdir, self._rootdir, item
-                            ),
-                            b"No such file or directory",
-                        )
-                    )
+            for warning in warnings:
+                self._ui.warn(warning)
 
         for fn, message in sorted(bad):
             matcher.bad(fn, encoding.strtolocal(message))
@@ -1834,7 +1813,7 @@ class dirstate(intdirstate.idirstate):
         return tuple(files)
 
     def verify(
-        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+        self, m1, m2, p1: bytes, narrow_matcher: Any | None = None
     ) -> Iterator[bytes]:
         """
         check the dirstate contents against the parent manifest and yield errors

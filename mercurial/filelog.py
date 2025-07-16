@@ -13,17 +13,21 @@ from typing import (
 )
 
 from .i18n import _
-from .node import nullrev
+from .node import bin, nullrev
 from . import (
     error,
+    mdiff,
     revlog,
+    revlogutils,
 )
 from .interfaces import (
     repository,
+    types,
 )
 from .utils import storageutil
 from .revlogutils import (
     constants as revlog_constants,
+    deltas,
     rewrite,
 )
 
@@ -33,15 +37,28 @@ class filelog(repository.ifilestorage):
     nullid: bytes
     _fix_issue6528: bool
 
-    def __init__(self, opener, path, try_split=False):
+    def __init__(
+        self,
+        opener: types.VfsT,
+        path: types.HgPathT,
+        writable: bool,
+        *,
+        try_split: bool = False,
+    ):
+        upper_bound_comp = None
+        delta_config = opener.options.get(b'delta-config')
+        if delta_config is not None and delta_config.file_max_comp_ratio > 0:
+            upper_bound_comp = delta_config.file_max_comp_ratio
         self._revlog = revlog.revlog(
             opener,
             # XXX should use the unencoded path
             target=(revlog_constants.KIND_FILELOG, path),
             radix=b'/'.join((b'data', path)),
             censorable=True,
+            upperboundcomp=upper_bound_comp,
             canonical_parent_order=False,  # see comment in revlog.py
             try_split=try_split,
+            writable=writable,
         )
         # Full name of the user visible file, relative to the repository root.
         # Used by LFS.
@@ -101,7 +118,7 @@ class filelog(repository.ifilestorage):
     def commonancestorsheads(self, node1, node2):
         return self._revlog.commonancestorsheads(node1, node2)
 
-    # Used by dagop.blockdescendants().
+    # Used by dag_util.blockdescendants().
     def descendants(self, revs):
         return self._revlog.descendants(revs)
 
@@ -130,8 +147,9 @@ class filelog(repository.ifilestorage):
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
         debug_info=None,
+        use_hasmeta_flag=False,
     ):
-        return self._revlog.emitrevisions(
+        all_revision_data = self._revlog.emitrevisions(
             nodes,
             nodesorder=nodesorder,
             revisiondata=revisiondata,
@@ -140,6 +158,30 @@ class filelog(repository.ifilestorage):
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
         )
+        revlog_hasmeta_flag = (
+            self._revlog._format_flags & revlog.FLAG_FILELOG_META
+        )
+        if use_hasmeta_flag and not revlog_hasmeta_flag:
+            for d in all_revision_data:
+                # XXX this is going to be very slow, but this get the format
+                # rolling, it need to be taken care of before getting out of
+                # experimental.
+                #
+                # XXX we should use "rev" for faster lookup
+                # (or better have emit revision yield the right data)
+                if self.has_meta(d.node):
+                    if d.p1node == self.nullid and d.p2node != self.nullid:
+                        d.p1node, d.p2node = d.p2node, d.p1node
+                    d.flags |= revlog_constants.REVIDX_HASMETA
+                yield d
+        elif (not use_hasmeta_flag) and revlog_hasmeta_flag:
+            for d in all_revision_data:
+                if d.flags & revlog_constants.REVIDX_HASMETA:
+                    d.p1node, d.p2node = d.p2node, d.p1node
+                    d.flags &= ~revlog_constants.REVIDX_HASMETA
+                yield d
+        else:
+            yield from all_revision_data
 
     def addrevision(
         self,
@@ -149,9 +191,17 @@ class filelog(repository.ifilestorage):
         p1,
         p2,
         node=None,
-        flags=revlog.REVIDX_DEFAULT_FLAGS,
+        flags=revlog_constants.REVIDX_DEFAULT_FLAGS,
         cachedelta=None,
     ):
+        if (
+            revlog_constants.REVIDX_HASMETA & flags
+            and not self._revlog._format_flags & revlog.FLAG_FILELOG_META
+        ):
+            assert p2 == self.nullid
+            p1, p2 = self.nullid, p1
+            flags &= ~revlog_constants.REVIDX_HASMETA
+
         return self._revlog.addrevision(
             revisiondata,
             transaction,
@@ -173,6 +223,7 @@ class filelog(repository.ifilestorage):
         maybemissingparents=False,
         debug_info=None,
         delta_base_reuse_policy=None,
+        use_hasmeta_flag=True,
     ):
         if maybemissingparents:
             raise error.Abort(
@@ -183,8 +234,19 @@ class filelog(repository.ifilestorage):
             )
 
         with self._revlog._writing(transaction):
-            if self._fix_issue6528:
-                deltas = rewrite.filter_delta_issue6528(self._revlog, deltas)
+            revlog_hasmeta_flag = (
+                self._revlog._format_flags & revlog.FLAG_FILELOG_META
+            )
+            if use_hasmeta_flag:
+                if not revlog_hasmeta_flag:
+                    deltas = self._hasmeta_group_to_old_format(deltas)
+            else:
+                if revlog_hasmeta_flag:
+                    deltas = self._oldformat_to_hasmeta_group(deltas)
+                elif self._fix_issue6528:
+                    deltas = rewrite.filter_delta_issue6528(
+                        self._revlog, deltas
+                    )
 
             return self._revlog.addgroup(
                 deltas,
@@ -195,6 +257,64 @@ class filelog(repository.ifilestorage):
                 debug_info=debug_info,
                 delta_base_reuse_policy=delta_base_reuse_policy,
             )
+
+    def _hasmeta_group_to_old_format(self, deltas_iter):
+        """translate a group of delta with "hasmeta" information to old format
+
+        If the format does not support the "REVIDX_HASMETA" flag, we need to
+        store them differently.
+
+        This direction is fairly easy, we just need to drop the flag and use
+        "nullid" for p1 when relevant.
+        (And mark the delta as not using the flag).
+        """
+        for d in deltas_iter:
+            if d.flags & revlog_constants.REVIDX_HASMETA:
+                d.flags &= ~revlog_constants.REVIDX_HASMETA
+                if d.p1 == self.nullid and d.p2 != self.nullid:
+                    d.p1, d.p2 = d.p2, d.p1
+            d.has_filelog_hasmeta_flag = False
+            yield d
+
+    def _oldformat_to_hasmeta_group(self, deltas_iter):
+        """translate a delta group without "hasmeta" information to new format
+
+        If the inbound group does not support carry the "REVIDX_HASMETA" flag,
+        but the destination storage do, we need to store them differently.
+        store them differently.
+
+        This direction is harder as we have to check for metadata present in
+        the bundle.  We currently do it in a very slow way, but faster solution
+        are available.
+        """
+        deltacomputer = deltas.deltacomputer(self._revlog)
+        for d in deltas_iter:
+            # XXX there are multiple option to speed this up as we can rely on
+            # previous revision, and we only need to check the start of the
+            # delta. However, we keep things simple for now.
+            if d.raw_text is None:
+                delta_base_rev = self._revlog.rev(d.delta_base)
+                base_size = self._revlog.size(delta_base_rev)
+                textlen = mdiff.patchedsize(base_size, d.delta)
+                revinfo = revlogutils.revisioninfo(
+                    d.node,
+                    d.p1,
+                    d.p2,
+                    None,
+                    textlen,
+                    revlogutils.CachedDelta(delta_base_rev, d.delta),
+                    d.flags,
+                )
+                d.raw_text = deltacomputer.buildtext(revinfo)
+            if (
+                d.raw_text[: revlog_constants.META_MARKER_SIZE]
+                == revlog_constants.META_MARKER
+            ):
+                d.flags |= revlog_constants.REVIDX_HASMETA
+            if d.p1 == self.nullid and d.p2 != self.nullid:
+                d.p1, d.p2 = d.p2, d.p1
+            d.has_filelog_hasmeta_flag = True
+            yield d
 
     def getstrippoint(self, minlink):
         return self._revlog.getstrippoint(minlink)
@@ -212,13 +332,53 @@ class filelog(repository.ifilestorage):
         return storageutil.filtermetadata(self.revision(node))
 
     def add(self, text, meta, transaction, link, p1=None, p2=None):
+        flags = revlog_constants.REVIDX_DEFAULT_FLAGS
         if meta or text.startswith(b'\1\n'):
             text = storageutil.packmeta(meta, text)
-        rev = self.addrevision(text, transaction, link, p1, p2)
+            flags |= revlog_constants.REVIDX_HASMETA
+        rev = self.addrevision(text, transaction, link, p1, p2, flags=flags)
         return self.node(rev)
 
+    def has_meta(self, node):
+        rev = self._revlog.rev(node)
+        if self._revlog._format_flags & revlog.FLAG_FILELOG_META:
+            return self._revlog.flags(rev) & revlog_constants.REVIDX_HASMETA
+        else:
+            if self.parentrevs(rev)[0] != nullrev:
+                return False
+            return self._revlog.rawdata(rev)[:2] == b'\x01\n'
+
     def renamed(self, node):
-        return storageutil.filerevisioncopied(self, node)
+        """Resolve file revision copy metadata.
+
+        Returns ``None`` if the file has no copy metadata. Otherwise a
+        2-tuple of the source filename and node.
+        """
+        rev = self.rev(node)
+        if (
+            self._revlog._format_flags & revlog.FLAG_FILELOG_META
+            and not self.has_meta(node)
+        ):
+            return None
+        elif self.parentrevs(rev)[0] != nullrev:
+            # When creating a copy or move we set filelog parents to null,
+            # because contents are probably unrelated and making a delta
+            # would not be useful.
+            # Conversely, if filelog p1 is non-null we know
+            # there is no copy metadata.
+            # In the presence of merges, this reasoning becomes invalid
+            # if we reorder parents. See tests/test-issue6528.t.
+            return None
+
+        meta = storageutil.parsemeta(self.revision(rev))[0]
+
+        # copy and copyrev occur in pairs. In rare cases due to old bugs,
+        # one can occur without the other. So ensure both are present to flag
+        # as a copy.
+        if meta and b'copy' in meta and b'copyrev' in meta:
+            return meta[b'copy'], bin(meta[b'copyrev'])
+
+        return None
 
     def size(self, rev):
         """return the size of a given revision"""
@@ -227,7 +387,7 @@ class filelog(repository.ifilestorage):
         node = self.node(rev)
         if self.iscensored(rev):
             return 0
-        if self.renamed(node):
+        if self.has_meta(node):
             return len(self.read(node))
 
         # XXX if self.read(node).startswith("\1\n"), this returns (size+4)
@@ -267,14 +427,24 @@ class filelog(repository.ifilestorage):
             msg %= destrevlog
             raise error.ProgrammingError(msg)
 
+        src_meta = bool(self._revlog._format_flags & revlog.FLAG_FILELOG_META)
+        dst_meta = bool(
+            destrevlog._revlog._format_flags & revlog.FLAG_FILELOG_META
+        )
+        kw = kwargs
+        if src_meta and not dst_meta:
+            kw['hasmeta_change'] = revlog_constants.FILELOG_HASMETA_DOWNGRADE
+        elif dst_meta and not src_meta:
+            kw['hasmeta_change'] = revlog_constants.FILELOG_HASMETA_UPGRADE
+
         return self._revlog.clone(tr, destrevlog._revlog, **kwargs)
 
 
 class narrowfilelog(filelog):
     """Filelog variation to be used with narrow stores."""
 
-    def __init__(self, opener, path, narrowmatch, try_split=False):
-        super().__init__(opener, path, try_split=try_split)
+    def __init__(self, opener, path, narrowmatch, writable, *, try_split=False):
+        super().__init__(opener, path, writable=writable, try_split=try_split)
         self._narrowmatch = narrowmatch
 
     def renamed(self, node):

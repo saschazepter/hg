@@ -13,6 +13,7 @@
 use hg::copy_tracing::ChangedFiles;
 use hg::copy_tracing::CombineChangesetCopies;
 use hg::Revision;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
@@ -21,8 +22,6 @@ use pyo3::types::PyTuple;
 use crate::revision::PyRevision;
 use crate::utils::new_submodule;
 use crate::utils::PyBytesDeref;
-
-use pyo3::prelude::*;
 
 /// Combines copies information contained into revision `revs` to build a copy
 /// map.
@@ -91,8 +90,7 @@ pub fn combine_changeset_copies_wrapper(
         // If they were both bounded, there might potentially be deadlocks
         // where both channels are full and both threads are waiting on each
         // other.
-        let (pybytes_sender, pybytes_receiver) =
-            crossbeam_channel::unbounded();
+        let (pybytes_sender, pybytes_receiver) = crossbeam_channel::unbounded();
 
         // Start a thread that does CPU-heavy processing in parallel with the
         // loop below.

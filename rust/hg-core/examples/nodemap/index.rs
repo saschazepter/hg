@@ -4,13 +4,14 @@
 // GNU General Public License version 2 or any later version.
 
 //! Minimal `RevlogIndex`, readable from standard Mercurial file format
-use hg::revlog::RevlogIndex;
-use hg::*;
-use memmap2::*;
 use std::fs::File;
 use std::ops::Deref;
 use std::path::Path;
 use std::slice;
+
+use hg::revlog::RevlogIndex;
+use hg::*;
+use memmap2::*;
 
 pub struct Index {
     data: Box<dyn Deref<Target = [IndexEntry]> + Send>,
@@ -84,8 +85,6 @@ impl Index {
         let file = File::open(path).unwrap();
         let msg = "Index file is missing, or missing permission";
         let mmap = unsafe { MmapOptions::new().map(&file) }.expect(msg);
-        Self {
-            data: Box::new(IndexMmap(mmap)),
-        }
+        Self { data: Box::new(IndexMmap(mmap)) }
     }
 }

@@ -1,8 +1,9 @@
-use crate::error::CommandError;
 use clap::Arg;
 use clap::ArgGroup;
 use hg::operations::debug_data;
 use hg::revlog::RevlogType;
+
+use crate::error::CommandError;
 
 pub const HELP_TEXT: &str = "
 Dump the contents of a data file revision
@@ -27,16 +28,11 @@ pub fn args() -> clap::Command {
                 .args(["changelog", "manifest"])
                 .required(true),
         )
-        .arg(
-            Arg::new("rev")
-                .help("revision")
-                .required(true)
-                .value_name("REV"),
-        )
+        .arg(Arg::new("rev").help("revision").required(true).value_name("REV"))
         .about(HELP_TEXT)
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all, name = "rhg debugdata")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
     let rev = args

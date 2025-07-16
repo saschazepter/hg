@@ -25,8 +25,10 @@ debugignore with no hgignore should be deterministic:
   > }
   $ rhg_debugignore
   debugignorerhg:
+  skipping unreadable pattern file '.hgignore': $ENOENT$
   (?:)
   script::hgignore --print-re:
+  skipping unreadable pattern file '.hgignore': $ENOENT$
   
 #endif
 

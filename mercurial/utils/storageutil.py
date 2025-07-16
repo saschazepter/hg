@@ -10,12 +10,25 @@ from __future__ import annotations
 import re
 import struct
 
+from typing import (
+    Iterator,
+)
+
 from ..i18n import _
 from ..node import (
     bin,
     nullrev,
     sha1nodeconstants,
 )
+from ..interfaces.types import (
+    RevisionDeltaT,
+)
+
+from ..revlogutils.constants import (
+    META_MARKER,
+    META_MARKER_SIZE,
+)
+
 from .. import (
     dagop,
     error,
@@ -58,7 +71,7 @@ def hashrevisionsha1(text, p1, p2):
     return s.digest()
 
 
-METADATA_RE = re.compile(b'\x01\n')
+METADATA_RE = re.compile(META_MARKER)
 
 
 def parsemeta(text):
@@ -68,22 +81,25 @@ def parsemeta(text):
     is no metadata.
     """
     # text can be buffer, so we can't use .startswith or .index
-    if text[:2] != b'\x01\n':
+    if text[:META_MARKER_SIZE] != META_MARKER:
         return None, None
-    s = METADATA_RE.search(text, 2).start()
-    mtext = text[2:s]
+    s = METADATA_RE.search(text, META_MARKER_SIZE).start()
+    mtext = text[META_MARKER_SIZE:s]
     meta = {}
     for l in mtext.splitlines():
         k, v = l.split(b': ', 1)
         meta[k] = v
-    return meta, s + 2
+    return meta, s + META_MARKER_SIZE
 
 
 def packmeta(meta, text):
     """Add metadata to fulltext to produce revision text."""
     keys = sorted(meta)
-    metatext = b''.join(b'%s: %s\n' % (k, meta[k]) for k in keys)
-    return b'\x01\n%s\x01\n%s' % (metatext, text)
+    pieces = [META_MARKER]
+    pieces.extend(b'%s: %s\n' % (k, meta[k]) for k in keys)
+    pieces.append(META_MARKER)
+    pieces.append(text)
+    return b''.join(pieces)
 
 
 def iscensoredtext(text):
@@ -97,38 +113,11 @@ def filtermetadata(text):
     Returns ``text`` unless it has a metadata header, in which case we return
     a new buffer without hte metadata.
     """
-    if not text.startswith(b'\x01\n'):
+    if not text.startswith(META_MARKER):
         return text
 
-    offset = text.index(b'\x01\n', 2)
-    return text[offset + 2 :]
-
-
-def filerevisioncopied(store, node):
-    """Resolve file revision copy metadata.
-
-    Returns ``False`` if the file has no copy metadata. Otherwise a
-    2-tuple of the source filename and node.
-    """
-    if store.parents(node)[0] != sha1nodeconstants.nullid:
-        # When creating a copy or move we set filelog parents to null,
-        # because contents are probably unrelated and making a delta
-        # would not be useful.
-        # Conversely, if filelog p1 is non-null we know
-        # there is no copy metadata.
-        # In the presence of merges, this reasoning becomes invalid
-        # if we reorder parents. See tests/test-issue6528.t.
-        return False
-
-    meta = parsemeta(store.revision(node))[0]
-
-    # copy and copyrev occur in pairs. In rare cases due to old bugs,
-    # one can occur without the other. So ensure both are present to flag
-    # as a copy.
-    if meta and b'copy' in meta and b'copyrev' in meta:
-        return meta[b'copy'], bin(meta[b'copyrev'])
-
-    return False
+    offset = text.index(META_MARKER, 2)
+    return text[offset + META_MARKER_SIZE :]
 
 
 def filedataequivalent(store, node, filedata):
@@ -144,8 +133,8 @@ def filedataequivalent(store, node, filedata):
     of the compare.
     """
 
-    if filedata.startswith(b'\x01\n'):
-        revisiontext = b'\x01\n\x01\n' + filedata
+    if filedata.startswith(META_MARKER):
+        revisiontext = META_MARKER + META_MARKER + filedata
     else:
         revisiontext = filedata
 
@@ -160,9 +149,11 @@ def filedataequivalent(store, node, filedata):
     if store.iscensored(store.rev(node)):
         return filedata == b''
 
-    # Renaming a file produces a different hash, even if the data
-    # remains unchanged. Check if that's the case.
-    if store.renamed(node):
+    # metadata (like renaming) alter the hash, so we need to compare the actual
+    # content.
+    #
+    # XXX when checking metadata is cheap we could skip computing the hash
+    if store.has_meta(node):
         return store.read(node) == filedata
 
     return False
@@ -307,7 +298,8 @@ def emitrevisions(
     assumehaveparentrevisions=False,
     sidedata_helpers=None,
     debug_info=None,
-):
+    snap_lvl_fn=None,
+) -> Iterator[RevisionDeltaT]:
     """Generic implementation of ifiledata.emitrevisions().
 
     Emitting revision data is subtly complex. This function attempts to
@@ -603,6 +595,16 @@ def emitrevisions(
             # Computers and removers can return flags to add and/or remove
             flags = flags | sidedata_flags[0] & ~sidedata_flags[1]
 
+        snap_lvl = None
+        if baserev == nullrev:
+            snap_lvl = 0
+        elif snap_lvl is not None:
+            if baserev == deltaparentrev:
+                snap_lvl = snap_lvl_fn(rev)
+            else:
+                # we recomputed it, so it is not a snapshot
+                snap_lvl = -1
+
         yield resultcls(
             node=node,
             p1node=fnode(p1rev),
@@ -614,6 +616,7 @@ def emitrevisions(
             delta=delta,
             sidedata=serialized_sidedata,
             protocol_flags=protocol_flags,
+            snapshot_level=snap_lvl,
         )
 
         prevrev = rev

@@ -8,10 +8,9 @@
 from __future__ import annotations
 
 import re
-import typing
 import uuid
 
-from typing import Callable, Optional
+from typing import Callable
 
 from .i18n import _
 from . import (
@@ -27,11 +26,6 @@ from .utils import (
     stringutil,
     urlutil,
 )
-
-if typing.TYPE_CHECKING:
-    from typing import (
-        Set,
-    )
 
 
 def _serverquote(s):
@@ -56,9 +50,9 @@ def _forwardoutput(ui, pipe, warn=False):
 
 
 def _write_all(
-    write_once: Callable[[bytes], Optional[int]],
+    write_once: Callable[[bytes], int | None],
     data: bytes,
-) -> Optional[int]:
+) -> int | None:
     """write data with a non blocking function
 
     In case not all data were written, keep writing until everything is
@@ -124,11 +118,11 @@ class doublepipe:
             act = fds
         return (self._main.fileno() in act, self._side.fileno() in act)
 
-    def _write_once(self, data: bytes) -> Optional[int]:
+    def _write_once(self, data: bytes) -> int | None:
         """Write as much data as possible in a non blocking way"""
         return self._call(b'write', data)
 
-    def write(self, data: bytes) -> Optional[int]:
+    def write(self, data: bytes) -> int | None:
         """write all data in a blocking way"""
         return _write_all(self._write_once, data)
 
@@ -481,7 +475,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
 
     # Begin of ipeercapabilities interface.
 
-    def capabilities(self) -> Set[bytes]:
+    def capabilities(self) -> set[bytes]:
         return self._caps
 
     # End of ipeercapabilities interface.

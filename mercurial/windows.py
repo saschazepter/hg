@@ -24,17 +24,15 @@ from typing import (
     BinaryIO,
     Iterable,
     Iterator,
-    List,
     Mapping,
     NoReturn,
-    Optional,
     Pattern,
     Sequence,
-    Tuple,
-    Union,
 )
 
 from .i18n import _
+from .interfaces import misc as int_misc
+
 from . import (
     encoding,
     error,
@@ -64,7 +62,7 @@ unlink = win32.unlink
 
 if typing.TYPE_CHECKING:
 
-    def split(p: bytes) -> Tuple[bytes, bytes]:
+    def split(p: bytes) -> tuple[bytes, bytes]:
         raise NotImplementedError
 
 
@@ -276,11 +274,11 @@ def parsepatchoutput(output_line: bytes) -> bytes:
 
 
 def sshargs(
-    sshcmd: bytes, host: bytes, user: Optional[bytes], port: Optional[bytes]
+    sshcmd: bytes, host: bytes, user: bytes | None, port: bytes | None
 ) -> bytes:
     '''Build argument list for ssh or Plink'''
-    pflag = b'plink' in sshcmd.lower() and b'-P' or b'-p'
-    args = user and (b"%s@%s" % (user, host)) or host
+    pflag = b'-P' if b'plink' in sshcmd.lower() else b'-p'
+    args = (b"%s@%s" % (user, host)) if user else host
     if args.startswith(b'-') or args.startswith(b'/'):
         raise error.Abort(
             _(b'illegal ssh hostname or username starting with - or /: %s')
@@ -299,7 +297,7 @@ def setflags(f: bytes, l: bool, x: bool) -> None:
 def copymode(
     src: bytes,
     dst: bytes,
-    mode: Optional[int] = None,
+    mode: int | None = None,
     enforcewritable: bool = False,
 ) -> None:
     pass
@@ -491,7 +489,7 @@ def shelltocmdexe(path: bytes, env: Mapping[bytes, bytes]) -> bytes:
 # the number of backslashes that precede double quotes and add another
 # backslash before every double quote (being careful with the double
 # quote we've appended to the end)
-_quotere: Optional[Pattern[bytes]] = None
+_quotere: Pattern[bytes] | None = None
 _needsshellquote = None
 
 
@@ -531,7 +529,7 @@ def _unquote(s: bytes) -> bytes:
     return s
 
 
-def shellsplit(s: bytes) -> List[bytes]:
+def shellsplit(s: bytes) -> list[bytes]:
     """Parse a command string in cmd.exe way (best-effort)"""
     return pycompat.maplist(_unquote, pycompat.shlexsplit(s, posix=False))
 
@@ -542,7 +540,7 @@ def isowner(st: os.stat_result) -> bool:
     return True
 
 
-def findexe(command: bytes) -> Optional[bytes]:
+def findexe(command: bytes) -> bytes | None:
     """Find executable for command searching like cmd.exe does.
     If command is a basename then PATH is searched for command.
     PATH isn't searched if command is an absolute or relative path.
@@ -553,7 +551,7 @@ def findexe(command: bytes) -> Optional[bytes]:
     if os.path.splitext(command)[1].lower() in pathexts:
         pathexts = [b'']
 
-    def findexisting(pathcommand: bytes) -> Optional[bytes]:
+    def findexisting(pathcommand: bytes) -> bytes | None:
         """Will append extension (if needed) and return existing file"""
         for ext in pathexts:
             executable = pathcommand + ext
@@ -574,7 +572,7 @@ def findexe(command: bytes) -> Optional[bytes]:
 _wantedkinds = {stat.S_IFREG, stat.S_IFLNK}
 
 
-def statfiles(files: Sequence[bytes]) -> Iterator[Optional[os.stat_result]]:
+def statfiles(files: Sequence[bytes]) -> Iterator[os.stat_result | None]:
     """Stat each file in files. Yield each stat, or None if a file
     does not exist or has a type we don't care about.
 
@@ -600,7 +598,7 @@ def statfiles(files: Sequence[bytes]) -> Iterator[Optional[os.stat_result]]:
         yield cache.get(base, None)
 
 
-def username(uid: Optional[int] = None) -> Optional[bytes]:
+def username(uid: int | None = None) -> bytes | None:
     """Return the name of the user with the given uid.
 
     If uid is None, return the name of the current user."""
@@ -615,7 +613,7 @@ def username(uid: Optional[int] = None) -> Optional[bytes]:
     return None
 
 
-def groupname(gid: Optional[int] = None) -> Optional[bytes]:
+def groupname(gid: int | None = None) -> bytes | None:
     """Return the name of the group with the given gid.
 
     If gid is None, return the name of the current group."""
@@ -663,11 +661,11 @@ def rename(src: bytes, dst: bytes) -> None:
         os.rename(src, dst)
 
 
-def gethgcmd() -> List[bytes]:
+def gethgcmd() -> list[bytes]:
     return [encoding.strtolocal(arg) for arg in [sys.executable] + sys.argv[:1]]
 
 
-def groupmembers(name: bytes) -> List[bytes]:
+def groupmembers(name: bytes) -> list[bytes]:
     # Don't support groups on Windows for now
     raise KeyError
 
@@ -676,7 +674,7 @@ def isexec(f: bytes) -> bool:
     return False
 
 
-class cachestat:
+class cachestat(int_misc.ICacheStat):
     stat: os.stat_result
 
     def __init__(self, path: bytes) -> None:
@@ -713,9 +711,9 @@ class cachestat:
 
 def lookupreg(
     key: bytes,
-    valname: Optional[bytes] = None,
-    scope: Optional[Union[int, Iterable[int]]] = None,
-) -> Optional[bytes]:
+    valname: bytes | None = None,
+    scope: int | Iterable[int] | None = None,
+) -> bytes | None:
     """Look up a key/value name in the Windows registry.
 
     valname: value name. If unspecified, the default value for the key
@@ -751,17 +749,17 @@ def lookupreg(
 expandglobs: bool = True
 
 
-def statislink(st: Optional[os.stat_result]) -> bool:
+def statislink(st: os.stat_result | None) -> bool:
     '''check whether a stat result is a symlink'''
     return False
 
 
-def statisexec(st: Optional[os.stat_result]) -> bool:
+def statisexec(st: os.stat_result | None) -> bool:
     '''check whether a stat result is an executable file'''
     return False
 
 
-def poll(fds) -> List:
+def poll(fds) -> list:
     # see posix.py for description
     raise NotImplementedError()
 

@@ -9,11 +9,6 @@ from __future__ import annotations
 
 import random
 
-from typing import (
-    List,
-    Type,
-)
-
 from ..i18n import _
 from .. import (
     error,
@@ -25,25 +20,21 @@ from .. import (
 
 from ..utils import compression
 
-# keeps pyflakes happy
-assert [
-    List,
-    Type,
-]
 
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {
-    requirements.GENERALDELTA_REQUIREMENT,
-    requirements.SPARSEREVLOG_REQUIREMENT,
-    requirements.REVLOGV2_REQUIREMENT,
     requirements.CHANGELOGV2_REQUIREMENT,
+    requirements.DELTA_INFO_REQUIREMENT,
+    requirements.GENERALDELTA_REQUIREMENT,
+    requirements.REVLOGV2_REQUIREMENT,
+    requirements.SPARSEREVLOG_REQUIREMENT,
 }
 
 
 def preservedrequirements(repo):
     preserved = {
-        requirements.SHARED_REQUIREMENT,
         requirements.NARROW_REQUIREMENT,
+        requirements.SHARED_REQUIREMENT,
     }
     return preserved & repo.requirements
 
@@ -110,7 +101,7 @@ class improvement:
     compatible_with_share = False
 
 
-allformatvariant: List[Type[formatvariant]] = []
+allformatvariant: list[type[formatvariant]] = []
 
 
 def registerformatvariant(cls):
@@ -246,6 +237,32 @@ class dotencode(requirementformatvariant):
         b'beginning with a space or period'
     )
 
+    touches_filelogs = True
+    touches_manifests = False
+    touches_changelog = False
+    touches_requirements = True
+    touches_dirstate = False
+    compatible_with_share = True
+
+
+@registerformatvariant
+class plain_encode(requirementformatvariant):
+    name = b'fragile-plain-encode'
+
+    _requirement = requirements.PLAIN_ENCODE_REQUIREMENT
+
+    default = False
+
+    description = _(b'using this option is dangerous and not recommended')
+
+    upgrademessage = _(b'you will move to this dangerous format, are you sure?')
+    touches_filelogs = True
+    touches_manifests = False
+    touches_changelog = False
+    touches_requirements = True
+    touches_dirstate = False
+    compatible_with_share = True
+
 
 @registerformatvariant
 class generaldelta(requirementformatvariant):
@@ -313,6 +330,30 @@ class sharesafe(requirementformatvariant):
 
 
 @registerformatvariant
+class hasmeta_filelog(requirementformatvariant):
+    name = b'hasmeta_flag'
+
+    _requirement = requirements.FILELOG_METAFLAG_REQUIREMENT
+
+    default = False
+
+    description = _(
+        b'copy metadata in filelog uses a fragile marking and some cases '
+        b'require unpacking file content to determine if copy information '
+        b'exists.'
+    )
+
+    upgrademessage = _(
+        b'A dedicated index flag marks file revisions with copy information.'
+    )
+
+    # upgrade only needs to process the filelogs
+    touches_filelogs = True
+    touches_manifests = False
+    touches_changelog = False
+
+
+@registerformatvariant
 class sparserevlog(requirementformatvariant):
     name = b'sparserevlog'
 
@@ -336,6 +377,30 @@ class sparserevlog(requirementformatvariant):
         b'time. This allows for better delta chains, making a '
         b'better compression and faster exchange with server.'
     )
+
+
+@registerformatvariant
+class delta_info_flags(requirementformatvariant):
+    name = b'delta-info-flags'
+
+    _requirement = requirements.DELTA_INFO_REQUIREMENT
+
+    default = False
+
+    description = _(
+        b'Store information about stored delta in the index to help optimize '
+        b'local and remote delta chain.'
+    )
+
+    upgrademessage = _(
+        b'Using this format will improve local storage, speedup '
+        b'local operation and help to preserve storage quality and '
+        b'performace during exchanges with other peer'
+    )
+
+    touches_filelogs = True
+    touches_manifests = True
+    touches_changelog = False
 
 
 @registerformatvariant
@@ -1020,15 +1085,19 @@ def supportremovedrequirements(repo):
     to be allowed.
     """
     supported = {
-        requirements.SPARSEREVLOG_REQUIREMENT,
-        requirements.COPIESSDC_REQUIREMENT,
-        requirements.NODEMAP_REQUIREMENT,
-        requirements.SHARESAFE_REQUIREMENT,
-        requirements.REVLOGV2_REQUIREMENT,
         requirements.CHANGELOGV2_REQUIREMENT,
-        requirements.REVLOGV1_REQUIREMENT,
+        requirements.COPIESSDC_REQUIREMENT,
+        requirements.DELTA_INFO_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
+        requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILELOG_METAFLAG_REQUIREMENT,
+        requirements.NODEMAP_REQUIREMENT,
+        requirements.PLAIN_ENCODE_REQUIREMENT,
+        requirements.REVLOGV1_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
+        requirements.SHARESAFE_REQUIREMENT,
+        requirements.SPARSEREVLOG_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -1050,12 +1119,16 @@ def supporteddestrequirements(repo):
     supported = {
         requirements.CHANGELOGV2_REQUIREMENT,
         requirements.COPIESSDC_REQUIREMENT,
+        requirements.DELTA_INFO_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
+        requirements.NARROW_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
+        requirements.PLAIN_ENCODE_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,  # allowed in case of downgrade
         requirements.REVLOGV2_REQUIREMENT,
         requirements.SHARED_REQUIREMENT,
@@ -1063,7 +1136,6 @@ def supporteddestrequirements(repo):
         requirements.SPARSEREVLOG_REQUIREMENT,
         requirements.STORE_REQUIREMENT,
         requirements.TREEMANIFEST_REQUIREMENT,
-        requirements.NARROW_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -1085,18 +1157,21 @@ def allowednewrequirements(repo):
     future, unknown requirements from accidentally being added.
     """
     supported = {
-        requirements.DOTENCODE_REQUIREMENT,
-        requirements.FNCACHE_REQUIREMENT,
-        requirements.GENERALDELTA_REQUIREMENT,
-        requirements.SPARSEREVLOG_REQUIREMENT,
-        requirements.COPIESSDC_REQUIREMENT,
-        requirements.NODEMAP_REQUIREMENT,
-        requirements.SHARESAFE_REQUIREMENT,
-        requirements.REVLOGV1_REQUIREMENT,
-        requirements.REVLOGV2_REQUIREMENT,
         requirements.CHANGELOGV2_REQUIREMENT,
+        requirements.COPIESSDC_REQUIREMENT,
+        requirements.DELTA_INFO_REQUIREMENT,
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
+        requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILELOG_METAFLAG_REQUIREMENT,
+        requirements.FNCACHE_REQUIREMENT,
+        requirements.GENERALDELTA_REQUIREMENT,
+        requirements.NODEMAP_REQUIREMENT,
+        requirements.PLAIN_ENCODE_REQUIREMENT,
+        requirements.REVLOGV1_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
+        requirements.SHARESAFE_REQUIREMENT,
+        requirements.SPARSEREVLOG_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]

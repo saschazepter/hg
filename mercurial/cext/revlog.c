@@ -91,6 +91,7 @@ struct indexObjectStruct {
 	int ntmisses;           /* # lookups that miss the cache */
 	int inlined;
 	int uses_generaldelta; /* whether this index uses generaldelta */
+	int uses_delta_info;   /* whether this index uses delta-info-flags */
 	long entry_size; /* size of index headers. Differs in v1 v.s. v2 format
 	                  */
 	long rust_ext_compat; /* compatibility with being used in rust
@@ -170,6 +171,8 @@ static const long entry_cl2_offset_rank = 69;
 
 static const char comp_mode_inline = 2;
 static const int rank_unknown = -1;
+
+static const int revidx_delta_is_snapshot = 1 << 10;
 
 static void raise_revlog_error(void)
 {
@@ -358,6 +361,35 @@ static inline int index_get_length(indexObject *self, Py_ssize_t rev)
 	return tmp;
 }
 
+/**
+ * Return the flags of a revision
+ *
+ * Callers must ensure that rev is in a valid range.
+ *
+ * return -1 on error (with a Python exception set)
+ */
+static inline int index_get_flags(indexObject *self, Py_ssize_t rev)
+{
+
+	int offset_flags;
+	const char *data;
+
+	data = index_deref(self, rev);
+	if (data == NULL)
+		return -1;
+	if (self->format_version == format_v1) {
+		offset_flags = getbe32(data + entry_v1_offset_offset_flags);
+	} else if (self->format_version == format_v2) {
+		offset_flags = getbe32(data + entry_v2_offset_offset_flags);
+	} else if (self->format_version == format_cl2) {
+		offset_flags = getbe32(data + entry_cl2_offset_offset_flags);
+	} else {
+		raise_revlog_error();
+		return -1;
+	}
+	return offset_flags & 0xFFFF;
+}
+
 /*
  * RevlogNG format (all in big endian, data may be inlined):
  *    6 bytes: offset
@@ -485,6 +517,7 @@ static PyObject *index_get(indexObject *self, Py_ssize_t pos)
 	                     self->nodelen, sidedata_offset, sidedata_comp_len,
 	                     data_comp_mode, sidedata_comp_mode, rank);
 }
+
 /*
  * Pack header information in binary
  */
@@ -1646,7 +1679,16 @@ static PyObject *index_issnapshot(indexObject *self, PyObject *value)
 		             rev);
 		return NULL;
 	};
-	issnap = index_issnapshotrev(self, (Py_ssize_t)rev);
+	if (self->uses_delta_info) {
+		int flags;
+		flags = index_get_flags(self, (Py_ssize_t)rev);
+		if (flags == -1) {
+			return NULL;
+		}
+		issnap = flags & revidx_delta_is_snapshot;
+	} else {
+		issnap = index_issnapshotrev(self, (Py_ssize_t)rev);
+	}
 	if (issnap < 0) {
 		return NULL;
 	};
@@ -1677,9 +1719,20 @@ static PyObject *index_findsnapshots(indexObject *self, PyObject *args)
 	for (rev = start_rev; rev < end_rev; rev++) {
 		int issnap;
 		PyObject *allvalues = NULL;
-		issnap = index_issnapshotrev(self, rev);
-		if (issnap < 0) {
-			goto bail;
+
+		if (self->uses_delta_info) {
+			int flags;
+			flags = index_get_flags(self, (Py_ssize_t)rev);
+			if (flags == -1) {
+				goto bail;
+				;
+			}
+			issnap = flags & revidx_delta_is_snapshot;
+		} else {
+			issnap = index_issnapshotrev(self, rev);
+			if (issnap < 0) {
+				goto bail;
+			}
 		}
 		if (issnap == 0) {
 			continue;
@@ -3207,11 +3260,13 @@ static Py_ssize_t inline_scan(indexObject *self, const char **offsets)
 
 static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 {
-	PyObject *data_obj, *inlined_obj, *generaldelta_obj;
+	PyObject *data_obj, *inlined_obj, *delta_info_obj, *generaldelta_obj;
 	Py_ssize_t size;
 
-	static char *kwlist[] = {"data", "inlined", "uses_generaldelta",
-	                         "format", NULL};
+	static char *kwlist[] = {
+	    "data",   "inlined", "uses_generaldelta", "uses_delta_info",
+	    "format", NULL,
+	};
 
 	/* Initialize before argument-checking to avoid index_dealloc() crash.
 	 */
@@ -3228,12 +3283,13 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	self->nodelen = 20;
 	self->nullentry = NULL;
 	self->uses_generaldelta = 0;
+	self->uses_delta_info = 0;
 	self->rust_ext_compat = 0;
 	self->format_version = format_v1;
 
 	if (!PyArg_ParseTupleAndKeywords(
-	        args, kwargs, "OOO|l", kwlist, &data_obj, &inlined_obj,
-	        &generaldelta_obj, &(self->format_version)))
+	        args, kwargs, "OOOO|l", kwlist, &data_obj, &inlined_obj,
+	        &generaldelta_obj, &delta_info_obj, &(self->format_version)))
 		return -1;
 	if (!PyObject_CheckBuffer(data_obj)) {
 		PyErr_SetString(PyExc_TypeError,
@@ -3268,6 +3324,8 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	self->inlined = inlined_obj && PyObject_IsTrue(inlined_obj);
 	self->uses_generaldelta =
 	    generaldelta_obj && PyObject_IsTrue(generaldelta_obj);
+	self->uses_delta_info =
+	    delta_info_obj && PyObject_IsTrue(delta_info_obj);
 	self->data = data_obj;
 
 	self->ntlookups = self->ntmisses = 0;

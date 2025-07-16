@@ -24,9 +24,9 @@ def build_installer_pyoxidizer(
     target_triple: str,
     msi_name='mercurial',
     version=None,
-    extra_wxs: typing.Optional[typing.Dict[str, str]] = None,
-    extra_features: typing.Optional[typing.List[str]] = None,
-    signing_info: typing.Optional[typing.Dict[str, str]] = None,
+    extra_wxs: typing.Optional[dict[str, str]] = None,
+    extra_features: typing.Optional[list[str]] = None,
+    signing_info: typing.Optional[dict[str, str]] = None,
     extra_pyoxidizer_vars=None,
 ):
     """Build a WiX MSI installer using PyOxidizer."""

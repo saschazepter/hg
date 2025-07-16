@@ -5,10 +5,15 @@
 
 //! Low-level utility for signal and process handling.
 
-use libc::{self, c_int, pid_t, size_t, ssize_t};
 use std::io;
 use std::os::unix::io::RawFd;
 use std::sync;
+
+use libc::c_int;
+use libc::pid_t;
+use libc::size_t;
+use libc::ssize_t;
+use libc::{self};
 
 #[link(name = "procutil", kind = "static")]
 extern "C" {

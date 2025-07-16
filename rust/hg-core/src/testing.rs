@@ -5,7 +5,10 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::{Graph, GraphError, Revision, NULL_REVISION};
+use crate::Graph;
+use crate::GraphError;
+use crate::Revision;
+use crate::NULL_REVISION;
 
 /// A stub `Graph`, same as the one from `test-ancestor.py`
 ///

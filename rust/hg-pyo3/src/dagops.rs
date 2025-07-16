@@ -9,15 +9,17 @@
 //! `hg-core` package.
 //!
 //! From Python, this will be seen as `mercurial.pyo3_rustext.dagop`
-use pyo3::prelude::*;
-
 use std::collections::HashSet;
 
-use hg::{dagops, Revision};
+use hg::dagops;
+use hg::Revision;
+use pyo3::prelude::*;
 
 use crate::exceptions::GraphError;
-use crate::revision::{rev_pyiter_collect, PyRevision};
-use crate::utils::{new_submodule, proxy_index_extract};
+use crate::revision::rev_pyiter_collect;
+use crate::revision::PyRevision;
+use crate::utils::new_submodule;
+use crate::utils::proxy_index_extract;
 
 /// Using the the `index_proxy`, return heads out of any Python iterable of
 /// Revisions

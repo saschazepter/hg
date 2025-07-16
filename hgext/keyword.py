@@ -397,8 +397,8 @@ class kwfilelog(filelog.filelog):
     Keywords are "stored" unexpanded, and processed on reading.
     """
 
-    def __init__(self, opener, kwt, path):
-        super().__init__(opener, path)
+    def __init__(self, opener, kwt, path, writable=False):
+        super().__init__(opener, path, writable=writable)
         self.kwt = kwt
         self.path = path
 
@@ -846,12 +846,12 @@ def reposetup(ui, repo):
     kwt = kwtemplater(ui, repo, inc, exc)
 
     class kwrepo(repo.__class__):
-        def file(self, f):
+        def file(self, f, writable=False):
             if f[0] == b'/':
                 f = f[1:]
-            return kwfilelog(self.svfs, kwt, f)
+            return kwfilelog(self.svfs, kwt, f, writable=writable)
 
-        def wread(self, filename):
+        def wread(self, filename: bytes) -> bytes:
             data = super().wread(filename)
             return kwt.wread(filename, data)
 

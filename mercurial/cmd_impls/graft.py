@@ -6,7 +6,6 @@ import typing
 
 from typing import (
     Any,
-    Tuple,
 )
 
 from ..i18n import _
@@ -49,7 +48,7 @@ def cmd_graft(ui, repo, *revs, **opts) -> int:
 
 def _process_args(
     ui, repo, *revs, **opts
-) -> Tuple[_ActionT, statemod.cmdstate | None, _CmdArgsT | None]:
+) -> tuple[_ActionT, statemod.cmdstate | None, _CmdArgsT | None]:
     """process the graft command argument to figure out what to do
 
     This also filter the selected revision to skip the one that cannot be graft

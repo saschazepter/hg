@@ -1,19 +1,41 @@
-extern crate log;
-use crate::error::CommandError;
-use crate::ui::Ui;
-use clap::{command, Arg, ArgMatches};
-use format_bytes::{format_bytes, join};
-use hg::config::{Config, ConfigSource, PlainInfo};
-use hg::repo::{Repo, RepoError};
-use hg::utils::files::{get_bytes_from_os_str, get_path_from_bytes};
-use hg::utils::strings::SliceExt;
-use hg::{exit_codes, requirements};
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::OsString;
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::OsStringExt;
 use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
+
+use clap::command;
+use clap::Arg;
+use clap::ArgMatches;
+use format_bytes::format_bytes;
+use format_bytes::join;
+use hg::config::Config;
+use hg::config::ConfigSource;
+use hg::config::PlainInfo;
+use hg::exit_codes;
+use hg::repo::Repo;
+use hg::repo::RepoError;
+use hg::requirements;
+use hg::utils::files::get_path_from_bytes;
+use hg::utils::strings::join_display;
+use hg::utils::strings::SliceExt;
+use tracing::span;
+use tracing::Level;
+#[cfg(feature = "full-tracing")]
+use tracing_chrome::ChromeLayerBuilder;
+#[cfg(feature = "full-tracing")]
+use tracing_chrome::FlushGuard;
+#[cfg(not(feature = "full-tracing"))]
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::EnvFilter;
+
+use crate::error::CommandError;
+use crate::ui::Ui;
 
 mod blackbox;
 mod color;
@@ -23,6 +45,109 @@ pub mod utils {
     pub mod path_utils;
 }
 
+fn expand_aliases(
+    app: &clap::Command,
+    subcommands: &Subcommands,
+    mut alias_definitions: Vec<(&[u8], &[u8])>,
+    argv: &[OsString],
+) -> Result<Vec<OsString>, CommandError> {
+    let mut expand_alias =
+        |alias: &str| -> Result<Option<Vec<OsString>>, CommandError> {
+            let Some(index) = alias_definitions
+                .iter()
+                .rposition(|(name, _)| *name == alias.as_bytes())
+            else {
+                return Ok(None);
+            };
+            let (_, definition) = alias_definitions[index];
+            // Aliases can only refer to other aliases defined earlier.
+            alias_definitions.truncate(index);
+            tracing::debug!(
+                "resolved alias '{}' to '{}'",
+                alias,
+                String::from_utf8_lossy(definition)
+            );
+            if subcommands.run_fn(alias).is_some() {
+                tracing::warn!("alias '{alias}' shadows a subcommand");
+            }
+            if definition.starts_with(b"!") {
+                return Err(CommandError::unsupported("shell alias"));
+            }
+            if definition.contains(&b'$') {
+                return Err(CommandError::unsupported("alias interpolation"));
+            }
+            let mut iter = shlex::bytes::Shlex::new(definition);
+            let args: Vec<_> = iter.by_ref().map(OsString::from_vec).collect();
+            if iter.had_error {
+                let message = format!(
+                    "config error: error in definition for alias '{alias}': \
+            invalid quotation or escape"
+                );
+                return Err(CommandError::abort_with_exit_code(
+                    message,
+                    exit_codes::CONFIG_ERROR_ABORT,
+                ));
+            };
+            let early_flags = EarlyArgs::parse_flags(&args);
+            if !early_flags.is_empty() {
+                let message = format!(
+                    "config error: error in definition for alias '{alias}': \
+            {} may only be given on the command line",
+                    join_display(early_flags, "/")
+                );
+                return Err(CommandError::abort_with_exit_code(
+                    message,
+                    exit_codes::CONFIG_ERROR_ABORT,
+                ));
+            }
+            Ok(Some(args))
+        };
+
+    // First, parse "external" (i.e. unknown) subcommands so that we can try to
+    // resolve aliases, including ones that shadow normal subcommands.
+    let matches = app
+        .clone()
+        .allow_external_subcommands(true)
+        .try_get_matches_from(argv.iter())?;
+    let (alias, alias_matches) =
+        matches.subcommand().expect("subcommand required");
+
+    // `trailing_args` only includes arguments *after* the alias,
+    // so something like `hg -R repo cat repo/x` will drop the `-R` flag.
+    // This is OK because at this point these arguments won't make a
+    // difference:
+    // - we've already parsed any valid early args with EarlyArgs
+    // - we've already validated that there are no unexpected flags
+    // (otherwise `try_get_matches_from` above return an error)
+    let trailing_args = alias_matches
+        .get_many::<OsString>("")
+        .expect("allow_external_subcommands always sets the empty string");
+
+    let expanded_argv = match expand_alias(alias)? {
+        None => argv.to_vec(),
+        Some(mut args) => {
+            let binary_name = argv[0].clone();
+
+            // To expand further aliases, just use the first argument instead
+            // of re-parsing the whole thing. This matches Python behavior. It
+            // means `hg -q alias` is allowed (where -q is an example global
+            // option), but `[alias] alias = -q otheralias` is not allowed.
+            while let Some(alias) = args.first().and_then(|s| s.to_str()) {
+                let Some(expansion) = expand_alias(alias)? else {
+                    break;
+                };
+                args.splice(0..1, expansion);
+            }
+            let mut expanded_argv = vec![binary_name];
+            expanded_argv.extend_from_slice(&args);
+            expanded_argv.extend(trailing_args.cloned());
+            expanded_argv
+        }
+    };
+    Ok(expanded_argv)
+}
+
+#[tracing::instrument(level = "debug", skip_all)]
 fn main_with_result(
     argv: Vec<OsString>,
     process_start_time: &blackbox::ProcessStartTime,
@@ -30,6 +155,7 @@ fn main_with_result(
     repo: Result<&Repo, &NoRepoInCwdError>,
     config: &Config,
 ) -> Result<(), CommandError> {
+    let setup_span = span!(Level::DEBUG, "CLI and command setup").entered();
     check_unsupported(config, repo)?;
 
     let app = command!()
@@ -61,19 +187,33 @@ fn main_with_result(
         )
         .arg(
             Arg::new("color")
-                .help("when to colorize (boolean, always, auto, never, or debug)")
+                .help(
+                    "when to colorize (boolean, always, auto, never, or debug)",
+                )
                 .value_name("TYPE")
                 .long("color")
                 .global(true),
         )
         .version("0.0.1");
+
     let subcommands = subcommands();
-    let app = subcommands.add_args(app);
 
-    let matches = app.try_get_matches_from(argv.iter())?;
+    let alias_definitions: Vec<(&[u8], &[u8])> =
+        config.iter_section(b"alias").collect();
 
+    let expanded_argv =
+        expand_aliases(&app, &subcommands, alias_definitions, &argv)?;
+
+    // Second, parse the expanded argv with subcommand parsers enabled.
+    let matches =
+        subcommands.add_args(app).try_get_matches_from(expanded_argv)?;
     let (subcommand_name, subcommand_args) =
         matches.subcommand().expect("subcommand required");
+    let Some(run) = subcommands.run_fn(subcommand_name) else {
+        return Err(CommandError::unsupported(format!(
+            "unsuppported subcommand: {subcommand_name}"
+        )));
+    };
 
     // Mercurial allows users to define "defaults" for commands, fallback
     // if a default is detected for the current command
@@ -99,15 +239,8 @@ fn main_with_result(
             return Err(CommandError::unsupported(msg));
         }
     }
-    let run = subcommands.run_fn(subcommand_name)
-        .expect("unknown subcommand name from clap despite Command::subcommand_required");
 
-    let invocation = CliInvocation {
-        ui,
-        subcommand_args,
-        config,
-        repo,
-    };
+    let invocation = CliInvocation { ui, subcommand_args, config, repo };
 
     if let Ok(repo) = repo {
         // We don't support subrepos, fallback if the subrepos file is present
@@ -118,23 +251,27 @@ fn main_with_result(
     }
 
     if config.is_extension_enabled(b"blackbox") {
+        let blackbox_span = span!(Level::DEBUG, "blackbox").entered();
         let blackbox =
             blackbox::Blackbox::new(&invocation, process_start_time)?;
         blackbox.log_command_start(argv.iter());
+        blackbox_span.exit();
+        setup_span.exit();
         let result = run(&invocation);
+        let blackbox_span = span!(Level::DEBUG, "blackbox").entered();
         blackbox.log_command_end(
             argv.iter(),
             exit_code(
                 &result,
                 // TODO: show a warning or combine with original error if
                 // `get_bool` returns an error
-                config
-                    .get_bool(b"ui", b"detailed-exit-code")
-                    .unwrap_or(false),
+                config.get_bool(b"ui", b"detailed-exit-code").unwrap_or(false),
             ),
         );
+        blackbox_span.exit();
         result
     } else {
+        setup_span.exit();
         run(&invocation)
     }
 }
@@ -145,7 +282,10 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     // measurements. Reading config files can be slow if they’re on NFS.
     let process_start_time = blackbox::ProcessStartTime::now();
 
-    env_logger::init();
+    #[cfg(feature = "full-tracing")]
+    let chrome_layer_guard = setup_tracing();
+    #[cfg(not(feature = "full-tracing"))]
+    setup_tracing();
 
     // Make sure nothing in a future version of `rhg` sets the global
     // threadpool before we can cap default threads. (This is also called
@@ -156,8 +296,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
 
     let early_args = EarlyArgs::parse(&argv);
 
-    let initial_current_dir = early_args.cwd.map(|cwd| {
-        let cwd = get_path_from_bytes(&cwd);
+    let initial_current_dir = early_args.cwd.as_ref().map(|cwd| {
+        let cwd = get_path_from_bytes(cwd);
         std::env::current_dir()
             .and_then(|initial| {
                 std::env::set_current_dir(cwd)?;
@@ -179,29 +319,149 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
             })
     });
 
-    let mut non_repo_config =
-        Config::load_non_repo().unwrap_or_else(|error| {
-            // Normally this is decided based on config, but we don’t have that
-            // available. As of this writing config loading never returns an
-            // "unsupported" error but that is not enforced by the type system.
-            let on_unsupported = OnUnsupported::Abort;
+    let (non_repo_config, repo_path) =
+        config_setup(&argv, early_args, &initial_current_dir);
 
+    let repo_span = span!(Level::DEBUG, "repo setup").entered();
+
+    let simple_exit =
+        |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
             exit(
                 &argv,
                 &initial_current_dir,
-                &Ui::new_infallible(&Config::empty()),
-                on_unsupported,
-                Err(error.into()),
-                false,
+                ui,
+                OnUnsupported::from_config(config),
+                result,
+                // TODO: show a warning or combine with original error if
+                // `get_bool` returns an error
+                non_repo_config
+                    .get_bool(b"ui", b"detailed-exit-code")
+                    .unwrap_or(false),
             )
-        });
+        };
+    let early_exit = |config: &Config, error: CommandError| -> ! {
+        simple_exit(&Ui::new_infallible(config), config, Err(error))
+    };
+    let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned()) {
+        Ok(repo) => Ok(repo),
+        Err(RepoError::NotFound { at }) if repo_path.is_none() => {
+            // Not finding a repo is not fatal yet, if `-R` was not given
+            Err(NoRepoInCwdError { cwd: at })
+        }
+        Err(error) => early_exit(&non_repo_config, error.into()),
+    };
+
+    let config = if let Ok(repo) = &repo_result {
+        repo.config()
+    } else {
+        &non_repo_config
+    };
+
+    let mut config_cow = Cow::Borrowed(config);
+    config_cow.to_mut().apply_plain(PlainInfo::from_env());
+    if !ui::plain(Some("tweakdefaults"))
+        && config_cow
+            .as_ref()
+            .get_bool(b"ui", b"tweakdefaults")
+            .unwrap_or_else(|error| early_exit(config, error.into()))
+    {
+        config_cow.to_mut().tweakdefaults()
+    };
+    let config = config_cow.as_ref();
+    let ui = Ui::new(config)
+        .unwrap_or_else(|error| early_exit(config, error.into()));
+
+    if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
+        exit(
+            &argv,
+            &initial_current_dir,
+            &ui,
+            OnUnsupported::fallback(config),
+            Err(CommandError::unsupported(
+                "`rhg.fallback-immediately is true`",
+            )),
+            false,
+        )
+    }
+
+    repo_span.exit();
+    let result = main_with_result(
+        argv.iter().map(|s| s.to_owned()).collect(),
+        &process_start_time,
+        &ui,
+        repo_result.as_ref(),
+        config,
+    );
+
+    #[cfg(feature = "full-tracing")]
+    // The `Drop` implementation doesn't flush, probably because it would be
+    // too expensive in the general case? Not sure, but we want it.
+    chrome_layer_guard.flush();
+    #[cfg(feature = "full-tracing")]
+    // Explicitly run `drop` here to wait for the writing thread to join
+    // because `drop` may not be called when `std::process::exit` is called.
+    drop(chrome_layer_guard);
+    simple_exit(&ui, config, result)
+}
+
+#[cfg(feature = "full-tracing")]
+/// Enable an env-filtered chrome-trace logger to a file.
+/// Defaults to writing to `./trace-{unix epoch in micros}.json`, but can
+/// be overridden via the `HG_TRACE_PATH` environment variable.
+fn setup_tracing() -> FlushGuard {
+    let mut chrome_layer_builder = ChromeLayerBuilder::new();
+    // /!\ Keep in sync with hg-pyo3
+    if let Ok(path) = std::env::var("HG_TRACE_PATH") {
+        chrome_layer_builder = chrome_layer_builder.file(path);
+    }
+    let (chrome_layer, chrome_layer_guard) = chrome_layer_builder.build();
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(chrome_layer)
+        .init();
+    chrome_layer_guard
+}
+
+#[cfg(not(feature = "full-tracing"))]
+/// Enable an env-filtered logger to stderr
+fn setup_tracing() {
+    let registry = tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(EnvFilter::from_default_env());
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stderr)
+        .with_span_events(FmtSpan::CLOSE);
+    registry.with(fmt_layer).init()
+}
+
+#[tracing::instrument(level = "debug", skip_all)]
+fn config_setup(
+    argv: &[OsString],
+    early_args: EarlyArgs,
+    initial_current_dir: &Option<PathBuf>,
+) -> (Config, Option<PathBuf>) {
+    let mut non_repo_config = Config::load_non_repo().unwrap_or_else(|error| {
+        // Normally this is decided based on config, but we don’t have that
+        // available. As of this writing config loading never returns an
+        // "unsupported" error but that is not enforced by the type system.
+        let on_unsupported = OnUnsupported::Abort;
+
+        exit(
+            argv,
+            initial_current_dir,
+            &Ui::new_infallible(&Config::empty()),
+            on_unsupported,
+            Err(error.into()),
+            false,
+        )
+    });
 
     non_repo_config
         .load_cli_args(early_args.config, early_args.color)
         .unwrap_or_else(|error| {
             exit(
-                &argv,
-                &initial_current_dir,
+                argv,
+                initial_current_dir,
                 &Ui::new_infallible(&non_repo_config),
                 OnUnsupported::from_config(&non_repo_config),
                 Err(error.into()),
@@ -219,8 +479,8 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         }
         if SCHEME_RE.is_match(repo_path_bytes) {
             exit(
-                &argv,
-                &initial_current_dir,
+                argv,
+                initial_current_dir,
                 &Ui::new_infallible(&non_repo_config),
                 OnUnsupported::from_config(&non_repo_config),
                 Err(CommandError::UnsupportedFeature {
@@ -302,76 +562,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
                 .or_else(|| Some(get_path_from_bytes(&repo_arg).to_path_buf()))
         }
     };
-
-    let simple_exit =
-        |ui: &Ui, config: &Config, result: Result<(), CommandError>| -> ! {
-            exit(
-                &argv,
-                &initial_current_dir,
-                ui,
-                OnUnsupported::from_config(config),
-                result,
-                // TODO: show a warning or combine with original error if
-                // `get_bool` returns an error
-                non_repo_config
-                    .get_bool(b"ui", b"detailed-exit-code")
-                    .unwrap_or(false),
-            )
-        };
-    let early_exit = |config: &Config, error: CommandError| -> ! {
-        simple_exit(&Ui::new_infallible(config), config, Err(error))
-    };
-    let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned())
-    {
-        Ok(repo) => Ok(repo),
-        Err(RepoError::NotFound { at }) if repo_path.is_none() => {
-            // Not finding a repo is not fatal yet, if `-R` was not given
-            Err(NoRepoInCwdError { cwd: at })
-        }
-        Err(error) => early_exit(&non_repo_config, error.into()),
-    };
-
-    let config = if let Ok(repo) = &repo_result {
-        repo.config()
-    } else {
-        &non_repo_config
-    };
-
-    let mut config_cow = Cow::Borrowed(config);
-    config_cow.to_mut().apply_plain(PlainInfo::from_env());
-    if !ui::plain(Some("tweakdefaults"))
-        && config_cow
-            .as_ref()
-            .get_bool(b"ui", b"tweakdefaults")
-            .unwrap_or_else(|error| early_exit(config, error.into()))
-    {
-        config_cow.to_mut().tweakdefaults()
-    };
-    let config = config_cow.as_ref();
-    let ui = Ui::new(config)
-        .unwrap_or_else(|error| early_exit(config, error.into()));
-
-    if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
-        exit(
-            &argv,
-            &initial_current_dir,
-            &ui,
-            OnUnsupported::fallback(config),
-            Err(CommandError::unsupported(
-                "`rhg.fallback-immediately is true`",
-            )),
-            false,
-        )
-    }
-
-    let result = main_with_result(
-        argv.iter().map(|s| s.to_owned()).collect(),
-        &process_start_time,
-        &ui,
-        repo_result.as_ref(),
-        config,
-    );
-    simple_exit(&ui, config, result)
+    (non_repo_config, repo_path)
 }
 
 fn main() -> ! {
@@ -384,9 +575,7 @@ fn exit_code(
 ) -> i32 {
     match result {
         Ok(()) => exit_codes::OK,
-        Err(CommandError::Abort {
-            detailed_exit_code, ..
-        }) => {
+        Err(CommandError::Abort { detailed_exit_code, .. }) => {
             if use_detailed_exit_code {
                 *detailed_exit_code
             } else {
@@ -445,8 +634,8 @@ fn exit(
             ));
             on_unsupported = OnUnsupported::Abort
         } else {
-            log::debug!("falling back (see trace-level log)");
-            log::trace!("{}", String::from_utf8_lossy(message));
+            tracing::debug!("falling back (see trace-level log)");
+            tracing::trace!("{}", String::from_utf8_lossy(message));
             if let Err(err) = which::which(executable_path) {
                 exit_no_fallback(
                     ui,
@@ -475,9 +664,7 @@ fn exit(
             // (see its documentation), so only try to forward the error code
             // when exiting.
             let err = command.exec();
-            std::process::exit(
-                err.raw_os_error().unwrap_or(exit_codes::ABORT),
-            );
+            std::process::exit(err.raw_os_error().unwrap_or(exit_codes::ABORT));
         }
     }
     exit_no_fallback(ui, on_unsupported, result, use_detailed_exit_code)
@@ -572,10 +759,7 @@ struct Subcommands {
 /// `Subcommands` construction
 impl Subcommands {
     pub fn new() -> Self {
-        Self {
-            commands: vec![],
-            run: HashMap::new(),
-        }
+        Self { commands: vec![], run: HashMap::new() }
     }
 
     pub fn add(&mut self, subcommand: SubCommand) {
@@ -649,6 +833,7 @@ struct NoRepoInCwdError {
 ///
 /// These arguments are still declared when we do use Clap later, so that Clap
 /// does not return an error for their presence.
+#[derive(Default)]
 struct EarlyArgs {
     /// Values of all `--config` arguments. (Possibly none)
     config: Vec<Vec<u8>>,
@@ -660,56 +845,99 @@ struct EarlyArgs {
     cwd: Option<Vec<u8>>,
 }
 
+#[derive(Copy, Clone)]
+enum EarlyFlag {
+    Config,
+    Color,
+    Cwd,
+    Repository,
+    Repo,
+    R,
+}
+
+impl EarlyFlag {
+    const fn all() -> &'static [EarlyFlag] {
+        use EarlyFlag::*;
+        &[Config, Color, Cwd, Repository, Repo, R]
+    }
+
+    const fn as_str(&self) -> &'static str {
+        match self {
+            EarlyFlag::Config => "--config",
+            EarlyFlag::Color => "--color",
+            EarlyFlag::Cwd => "--cwd",
+            EarlyFlag::Repository => "--repository",
+            EarlyFlag::Repo => "--repo",
+            EarlyFlag::R => "-R",
+        }
+    }
+
+    const fn value_sep(&self) -> &'static [u8] {
+        match self {
+            EarlyFlag::R => b"",
+            _ => b"=",
+        }
+    }
+}
+
+impl std::fmt::Display for EarlyFlag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
+}
+
 impl EarlyArgs {
-    fn parse<'a>(args: impl IntoIterator<Item = &'a OsString>) -> Self {
-        let mut args = args.into_iter().map(get_bytes_from_os_str);
-        let mut config = Vec::new();
-        let mut color = None;
-        let mut repo = None;
-        let mut cwd = None;
-        // Use `while let` instead of `for` so that we can also call
-        // `args.next()` inside the loop.
+    fn parse_one<'a>(
+        arg: &'a OsString,
+        mut next: impl FnMut() -> Option<&'a OsString>,
+    ) -> Option<(EarlyFlag, &'a [u8])> {
+        let arg = arg.as_bytes();
+        for &flag in EarlyFlag::all() {
+            let flag_str = flag.as_str().as_bytes();
+            if arg == flag_str {
+                if let Some(value) = next() {
+                    return Some((flag, value.as_bytes()));
+                }
+            }
+            if let Some(rest) = arg.drop_prefix(flag_str) {
+                if let Some(value) = rest.drop_prefix(flag.value_sep()) {
+                    return Some((flag, value));
+                }
+            }
+        }
+        None
+    }
+
+    fn parse_flags<'a>(
+        args: impl IntoIterator<Item = &'a OsString>,
+    ) -> Vec<EarlyFlag> {
+        let mut args = args.into_iter();
+        let mut flags = Vec::new();
         while let Some(arg) = args.next() {
-            if arg == b"--config" {
-                if let Some(value) = args.next() {
-                    config.push(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--config=") {
-                config.push(value.to_owned())
-            }
-
-            if arg == b"--color" {
-                if let Some(value) = args.next() {
-                    color = Some(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--color=") {
-                color = Some(value.to_owned())
-            }
-
-            if arg == b"--cwd" {
-                if let Some(value) = args.next() {
-                    cwd = Some(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--cwd=") {
-                cwd = Some(value.to_owned())
-            }
-
-            if arg == b"--repository" || arg == b"-R" {
-                if let Some(value) = args.next() {
-                    repo = Some(value)
-                }
-            } else if let Some(value) = arg.drop_prefix(b"--repository=") {
-                repo = Some(value.to_owned())
-            } else if let Some(value) = arg.drop_prefix(b"-R") {
-                repo = Some(value.to_owned())
+            if let Some((flag, _)) = Self::parse_one(arg, || args.next()) {
+                flags.push(flag);
             }
         }
-        Self {
-            config,
-            color,
-            repo,
-            cwd,
+        flags
+    }
+
+    fn parse<'a>(args: impl IntoIterator<Item = &'a OsString>) -> Self {
+        let mut args = args.into_iter();
+        let mut this = Self::default();
+        while let Some(arg) = args.next() {
+            if let Some((flag, value)) = Self::parse_one(arg, || args.next()) {
+                let value = value.to_owned();
+                match flag {
+                    EarlyFlag::Config => this.config.push(value),
+                    EarlyFlag::Color => this.color = Some(value),
+                    EarlyFlag::Cwd => this.cwd = Some(value),
+                    EarlyFlag::Repository | EarlyFlag::Repo | EarlyFlag::R => {
+                        this.repo = Some(value);
+                    }
+                }
+            }
         }
+        this
     }
 }
 
@@ -730,9 +958,7 @@ impl OnUnsupported {
     const DEFAULT: Self = OnUnsupported::Abort;
 
     fn fallback_executable(config: &Config) -> Option<Vec<u8>> {
-        config
-            .get(b"rhg", b"fallback-executable")
-            .map(|x| x.to_owned())
+        config.get(b"rhg", b"fallback-executable").map(|x| x.to_owned())
     }
 
     fn fallback(config: &Config) -> Self {
@@ -762,15 +988,8 @@ impl OnUnsupported {
 /// The `*` extension is an edge-case for config sub-options that apply to all
 /// extensions. For now, only `:required` exists, but that may change in the
 /// future.
-const SUPPORTED_EXTENSIONS: &[&[u8]] = &[
-    b"blackbox",
-    b"share",
-    b"sparse",
-    b"narrow",
-    b"*",
-    b"strip",
-    b"rebase",
-];
+const SUPPORTED_EXTENSIONS: &[&[u8]] =
+    &[b"blackbox", b"share", b"sparse", b"narrow", b"*", b"strip", b"rebase"];
 
 fn check_extensions(config: &Config) -> Result<(), CommandError> {
     if let Some(b"*") = config.get(b"rhg", b"ignored-extensions") {
@@ -799,8 +1018,7 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
         unsupported.remove(supported);
     }
 
-    if let Some(ignored_list) = config.get_list(b"rhg", b"ignored-extensions")
-    {
+    if let Some(ignored_list) = config.get_list(b"rhg", b"ignored-extensions") {
         for ignored in ignored_list {
             unsupported.remove(ignored.as_slice());
         }

@@ -12,6 +12,7 @@ import copy
 import difflib
 import os
 import re
+import typing
 
 from ..i18n import _
 from ..node import hex, short
@@ -43,7 +44,16 @@ from .. import (
 
 from ..utils import stringutil
 
-archivespecs = util.sortdict(
+if typing.TYPE_CHECKING:
+    from typing import (
+        Optional,
+    )
+
+    ArchiveSpecT = tuple[bytes, bytes, bytes, Optional[bytes]]
+    """Tuple of (mime-type, archive-type, file extension, encoding)"""
+
+
+archivespecs: util.sortdict[bytes, ArchiveSpecT] = util.sortdict(
     (
         (b'zip', (b'application/zip', b'zip', b'.zip', None)),
         (b'gz', (b'application/x-gzip', b'tgz', b'.tar.gz', None)),
@@ -697,9 +707,11 @@ def diffs(web, ctx, basectx, files, style, linerange=None, lineidprefix=b''):
     )
 
 
-def _compline(type, leftlineno, leftline, rightlineno, rightline):
-    lineid = leftlineno and (b"l%d" % leftlineno) or b''
-    lineid += rightlineno and (b"r%d" % rightlineno) or b''
+def _compline(
+    type, leftlineno: int | None, leftline, rightlineno: int | None, rightline
+):
+    lineid = (b"l%d" % leftlineno) if leftlineno else b''
+    lineid += (b"r%d" % rightlineno) if rightlineno else b''
     llno = b'%d' % leftlineno if leftlineno else b''
     rlno = b'%d' % rightlineno if rightlineno else b''
     return {

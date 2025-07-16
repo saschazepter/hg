@@ -11,7 +11,8 @@ pub mod encoding;
 pub mod errors;
 pub mod narrow;
 pub mod sparse;
-pub use ancestors::{AncestorsIterator, MissingAncestors};
+pub use ancestors::AncestorsIterator;
+pub use ancestors::MissingAncestors;
 pub mod dirstate;
 pub mod discovery;
 pub mod exit_codes;
@@ -27,13 +28,21 @@ pub mod matchers;
 pub mod repo;
 pub mod revlog;
 // Export very common types to make discovery easier
-pub use revlog::{
-    BaseRevision, Graph, GraphError, Node, NodePrefix, Revision,
-    UncheckedRevision, NULL_NODE, NULL_NODE_ID, NULL_REVISION,
-    WORKING_DIRECTORY_HEX, WORKING_DIRECTORY_REVISION,
-};
+pub use revlog::BaseRevision;
+pub use revlog::Graph;
+pub use revlog::GraphError;
+pub use revlog::Node;
+pub use revlog::NodePrefix;
+pub use revlog::Revision;
+pub use revlog::UncheckedRevision;
+pub use revlog::NULL_NODE;
+pub use revlog::NULL_NODE_ID;
+pub use revlog::NULL_REVISION;
+pub use revlog::WORKING_DIRECTORY_HEX;
+pub use revlog::WORKING_DIRECTORY_REVISION;
 pub mod checkexec;
 pub mod config;
+pub mod dyn_bytes;
 pub mod lock;
 pub mod logging;
 pub mod operations;
@@ -44,8 +53,11 @@ pub mod transaction;
 pub mod update;
 pub mod utils;
 pub mod vfs;
-use std::{collections::HashMap, sync::atomic::AtomicBool};
-use twox_hash::RandomXxHashBuilder64;
+pub mod warnings;
+use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
+
+use twox_hash::xxhash64::RandomState;
 
 /// Used to communicate with threads spawned from code within this crate that
 /// they should stop their work (SIGINT was received).
@@ -56,9 +68,8 @@ pub type LineNumber = usize;
 /// Rust's default hasher is too slow because it tries to prevent collision
 /// attacks. We are not concerned about those: if an ill-minded person has
 /// write access to your repository, you have other issues.
-pub type FastHashMap<K, V> = HashMap<K, V, RandomXxHashBuilder64>;
+pub type FastHashMap<K, V> = HashMap<K, V, RandomState>;
 
 // TODO: should this be the default `FastHashMap` for all of hg-core, not just
 // dirstate? How does XxHash compare with AHash, hashbrown’s default?
-pub type FastHashbrownMap<K, V> =
-    hashbrown::HashMap<K, V, RandomXxHashBuilder64>;
+pub type FastHashbrownMap<K, V> = hashbrown::HashMap<K, V, RandomState>;

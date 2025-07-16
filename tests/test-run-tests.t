@@ -2,20 +2,27 @@ This file tests the behavior of run-tests.py itself.
 
 Avoid interference from actual test env:
 
+  $ . "$TESTDIR/helpers-testrepo.sh"
   $ . "$TESTDIR/helper-runtests.sh"
 
 Smoke test with install
 ============
-  $ "$PYTHON" $TESTDIR/run-tests.py $HGTEST_RUN_TESTS_PURE -l
+
+  $ (testrepohgenv; "$PYTHON" $TESTDIR/run-tests.py --pure)
+  installed Mercurial in * seconds  (glob)
   running 0 tests using 0 parallel processes 
   
   # Ran 0 tests, 0 skipped, 0 failed.
+
 
 Define a helper to avoid the install step
 =============
   $ rt()
   > {
-  >     "$PYTHON" $TESTDIR/run-tests.py --with-hg=$HGTEST_REAL_HG -j1 "$@"
+  >     "$PYTHON" $TESTDIR/run-tests.py \
+  >         $HGTEST_RUN_TESTS_PURE \
+  >         --with-hg=$HGTEST_REAL_HG \
+  >         --jobs 1 "$@"
   > }
 
 error paths
@@ -1486,7 +1493,7 @@ test support for --allow-slow-tests
   s
   Skipped test-very-slow-test.t: missing feature: allow slow tests (use --allow-slow-tests)
   # Ran 0 tests, 1 skipped, 0 failed.
-  $ rt $HGTEST_RUN_TESTS_PURE --allow-slow-tests test-very-slow-test.t
+  $ rt --allow-slow-tests test-very-slow-test.t
   running 1 tests using 1 parallel processes 
   .
   # Ran 1 tests, 0 skipped, 0 failed.

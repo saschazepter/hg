@@ -8,9 +8,11 @@
 //! In Mercurial code base, it is customary to call "a node" the binary SHA
 //! of a revision.
 
-use crate::errors::HgError;
-use bytes_cast::BytesCast;
 use std::fmt;
+
+use bytes_cast::BytesCast;
+
+use crate::errors::HgError;
 
 /// The length in bytes of a `Node`
 ///
@@ -28,6 +30,9 @@ pub const STORED_NODE_ID_BYTES: usize = 32;
 ///
 /// Used to indicate the absence of node.
 pub const NULL_NODE_ID: [u8; NODE_BYTES_LENGTH] = [0u8; NODE_BYTES_LENGTH];
+
+/// Temporary node id to refer to an added (uncommitted) id
+pub const ADDED_NODE_ID: [u8; NODE_BYTES_LENGTH] = *b"000000000000000added";
 
 /// The length in bytes of a `Node`
 ///
@@ -72,9 +77,7 @@ impl fmt::Debug for Node {
 }
 
 /// The node value for NULL_REVISION
-pub const NULL_NODE: Node = Node {
-    data: [0; NODE_BYTES_LENGTH],
-};
+pub const NULL_NODE: Node = Node { data: [0; NODE_BYTES_LENGTH] };
 
 /// Return an error if the slice has an unexpected length
 impl<'a> TryFrom<&'a [u8]> for &'a Node {
@@ -165,7 +168,7 @@ impl Node {
     /// An error is treated as repository corruption.
     pub fn from_hex_for_repo(hex: impl AsRef<[u8]>) -> Result<Node, HgError> {
         Self::from_hex(hex.as_ref()).map_err(|FromHexError| {
-            HgError::CorruptedRepository(format!(
+            HgError::corrupted(format!(
                 "Expected a full hexadecimal node ID, found {}",
                 String::from_utf8_lossy(hex.as_ref())
             ))
@@ -299,20 +302,14 @@ impl fmt::LowerHex for NodePrefix {
 /// A shortcut for full `Node` references
 impl From<&'_ Node> for NodePrefix {
     fn from(node: &'_ Node) -> Self {
-        NodePrefix {
-            nybbles_len: node.nybbles_len() as _,
-            data: node.data,
-        }
+        NodePrefix { nybbles_len: node.nybbles_len() as _, data: node.data }
     }
 }
 
 /// A shortcut for full `Node` references
 impl From<Node> for NodePrefix {
     fn from(node: Node) -> Self {
-        NodePrefix {
-            nybbles_len: node.nybbles_len() as _,
-            data: node.data,
-        }
+        NodePrefix { nybbles_len: node.nybbles_len() as _, data: node.data }
     }
 }
 

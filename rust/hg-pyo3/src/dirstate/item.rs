@@ -7,13 +7,16 @@
 // GNU General Public License version 2 or any later version.
 //! Bindings for the `hg::dirstate::entry` module of the `hg-core` package.
 
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dirstate::entry::DirstateEntry;
+use hg::dirstate::entry::DirstateV2Data;
+use hg::dirstate::entry::TruncatedTimestamp;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-
-use hg::dirstate::entry::{DirstateEntry, DirstateV2Data, TruncatedTimestamp};
 
 use crate::exceptions::map_lock_error;
 
@@ -181,10 +184,7 @@ impl DirstateItem {
         Ok(self.read()?.any_tracked())
     }
 
-    fn mtime_likely_equal_to(
-        &self,
-        other: (u32, u32, bool),
-    ) -> PyResult<bool> {
+    fn mtime_likely_equal_to(&self, other: (u32, u32, bool)) -> PyResult<bool> {
         if let Some(mtime) = self.read()?.truncated_mtime() {
             Ok(mtime.likely_equal(timestamp(other)?))
         } else {
@@ -225,11 +225,7 @@ impl DirstateItem {
 
 impl DirstateItem {
     pub fn new_as_py(py: Python, entry: DirstateEntry) -> PyResult<Py<Self>> {
-        Ok(Self {
-            entry: entry.into(),
-        }
-        .into_pyobject(py)?
-        .unbind())
+        Ok(Self { entry: entry.into() }.into_pyobject(py)?.unbind())
     }
 
     fn read(&self) -> PyResult<RwLockReadGuard<DirstateEntry>> {
@@ -244,8 +240,7 @@ impl DirstateItem {
 pub(crate) fn timestamp(
     (s, ns, second_ambiguous): (u32, u32, bool),
 ) -> PyResult<TruncatedTimestamp> {
-    TruncatedTimestamp::from_already_truncated(s, ns, second_ambiguous)
-        .map_err(|_| {
-            PyValueError::new_err("expected mtime truncated to 31 bits")
-        })
+    TruncatedTimestamp::from_already_truncated(s, ns, second_ambiguous).map_err(
+        |_| PyValueError::new_err("expected mtime truncated to 31 bits"),
+    )
 }

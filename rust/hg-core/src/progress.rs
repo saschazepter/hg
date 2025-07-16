@@ -1,11 +1,12 @@
 //! Progress-bar related things
 
-use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::ProgressBar;
+use indicatif::ProgressDrawTarget;
+use indicatif::ProgressStyle;
 
 /// A generic determinate progress bar trait
 pub trait Progress: Send + Sync + 'static {
@@ -39,17 +40,13 @@ impl HgProgressBar {
         // Hide the progress bar and only show it if we've elapsed more
         // than a second
         progress_bar.set_draw_target(ProgressDrawTarget::hidden());
-        Self {
-            progress: progress_bar,
-            has_been_shown: false.into(),
-        }
+        Self { progress: progress_bar, has_been_shown: false.into() }
     }
 
     /// Called whenever the progress changes to determine whether to start
     /// showing the progress bar
     fn maybe_show(&self) {
-        if self.progress.is_hidden()
-            && self.progress.elapsed() > PROGRESS_DELAY
+        if self.progress.is_hidden() && self.progress.elapsed() > PROGRESS_DELAY
         {
             // Catch a race condition whereby we check if it's hidden, then
             // set the draw target from another thread, then do it again from

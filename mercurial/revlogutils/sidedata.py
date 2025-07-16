@@ -35,8 +35,7 @@ from __future__ import annotations
 import collections
 import struct
 
-from .. import error, requirements as requirementsmod
-from ..revlogutils import constants, flagutil
+from .. import error
 from ..utils import hashutil
 
 ## sidedata type constant
@@ -158,18 +157,3 @@ def run_sidedata_helpers(store, sidedata_helpers, sidedata, rev):
             sidedata.pop(key, None)
         flags_to_remove |= flags
     return sidedata, (flags_to_add, flags_to_remove)
-
-
-def set_sidedata_spec_for_repo(repo):
-    # prevent cycle metadata -> revlogutils.sidedata -> metadata
-    from .. import metadata
-
-    if requirementsmod.COPIESSDC_REQUIREMENT in repo.requirements:
-        repo.register_wanted_sidedata(SD_FILES)
-    repo.register_sidedata_computer(
-        constants.KIND_CHANGELOG,
-        SD_FILES,
-        (SD_FILES,),
-        metadata.copies_sidedata_computer,
-        flagutil.REVIDX_HASCOPIESINFO,
-    )

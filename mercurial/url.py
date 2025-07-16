@@ -109,9 +109,11 @@ class passwordmgr:
         self._writedebug(user, passwd)
         return (pycompat.strurl(user), pycompat.strurl(passwd))
 
-    def _writedebug(self, user, passwd):
+    def _writedebug(self, user: bytes, passwd: bytes) -> None:
         msg = _(b'http auth: user %s, password %s\n')
-        self.ui.debug(msg % (user, passwd and b'*' * len(passwd) or b'not set'))
+        self.ui.debug(
+            msg % (user, b'*' * len(passwd) if passwd else b'not set')
+        )
 
     def find_stored_password(self, authuri):
         return self.passwddb.find_user_password(None, authuri)
@@ -632,7 +634,7 @@ def opener(
             passmgr.add_password(realm, uris, user, passwd)
         ui.debug(
             b'http auth: user %s, password %s\n'
-            % (user, passwd and b'*' * len(passwd) or b'not set')
+            % (user, b'*' * len(passwd) if passwd else b'not set')
         )
 
     handlers.extend(

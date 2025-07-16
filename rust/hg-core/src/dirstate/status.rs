@@ -9,6 +9,19 @@
 //! It is currently missing a lot of functionality compared to the Python one
 //! and will only be triggered in narrow cases.
 
+use std::borrow::Cow;
+use std::fmt;
+use std::io;
+use std::os::unix::prelude::FileTypeExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use once_cell::sync::OnceCell;
+use rayon::prelude::*;
+use sha1::Digest;
+use sha1::Sha1;
+
 use crate::dirstate::dirstate_map::BorrowedPath;
 use crate::dirstate::dirstate_map::ChildNodesRef;
 use crate::dirstate::dirstate_map::DirstateMap;
@@ -17,9 +30,9 @@ use crate::dirstate::dirstate_map::NodeRef;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternFileWarning;
 use crate::matchers::get_ignore_function;
-use crate::matchers::{Matcher, VisitChildrenSet};
+use crate::matchers::Matcher;
+use crate::matchers::VisitChildrenSet;
 use crate::utils::files::filesystem_now;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_bytes_from_path;
@@ -27,16 +40,7 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathError;
-use once_cell::sync::OnceCell;
-use rayon::prelude::*;
-use sha1::{Digest, Sha1};
-use std::io;
-use std::os::unix::prelude::FileTypeExt;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Mutex;
-
-use std::{borrow::Cow, fmt};
+use crate::warnings::HgWarningSender;
 
 /// Wrong type of file from a `BadMatch`
 /// Note: a lot of those don't exist on all platforms.
@@ -73,7 +77,7 @@ pub enum BadMatch {
 /// `Box<dyn Trait>` is syntactic sugar for `Box<dyn Trait + 'static>`, so add
 /// an explicit lifetime here to not fight `'static` bounds "out of nowhere".
 pub type IgnoreFnType<'a> =
-    Box<dyn for<'r> Fn(&'r HgPath) -> bool + Sync + 'a>;
+    Box<dyn for<'r> Fn(&'r HgPath) -> bool + Sync + Send + 'a>;
 
 /// We have a good mix of owned (from directory traversal) and borrowed (from
 /// the dirstate/explicit) paths, this comes up a lot.
@@ -161,9 +165,7 @@ impl fmt::Display for StatusError {
         match self {
             StatusError::Path(error) => error.fmt(f),
             StatusError::Pattern(error) => error.fmt(f),
-            StatusError::DirstateV2ParseError(_) => {
-                f.write_str("dirstate-v2 parse error")
-            }
+            StatusError::DirstateV2ParseError(error) => error.fmt(f),
         }
     }
 }
@@ -177,34 +179,35 @@ impl fmt::Display for StatusError {
 /// and its use of `itertools::merge_join_by`. When reaching a path that only
 /// exists in one of the two trees, depending on information requested by
 /// `options` we may need to traverse the remaining subtree.
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn status<'dirstate>(
     dmap: &'dirstate mut DirstateMap,
-    matcher: &(dyn Matcher + Sync),
+    matcher: &impl Matcher,
     root_dir: PathBuf,
     ignore_files: Vec<PathBuf>,
     options: StatusOptions,
-) -> Result<(DirstateStatus<'dirstate>, Vec<PatternFileWarning>), StatusError>
-{
+    warnings: &HgWarningSender,
+) -> Result<DirstateStatus<'dirstate>, StatusError> {
     // Also cap for a Python caller of this function, but don't complain if
     // the global threadpool has already been set since this code path is also
     // being used by `rhg`, which calls this early.
     let _ = crate::utils::cap_default_rayon_threads();
 
-    let (ignore_fn, warnings, patterns_changed): (IgnoreFnType, _, _) =
+    let (ignore_fn, patterns_changed): (IgnoreFnType, _) =
         if options.list_ignored || options.list_unknown {
-            let (ignore_fn, warnings, changed) = match dmap.dirstate_version {
+            let (ignore_fn, changed) = match dmap.dirstate_version {
                 DirstateVersion::V1 => {
-                    let (ignore_fn, warnings) = get_ignore_function(
+                    let ignore_fn = get_ignore_function(
                         ignore_files,
                         &root_dir,
                         &mut |_source, _pattern_bytes| {},
+                        warnings,
                     )?;
-                    (ignore_fn, warnings, None)
+                    (ignore_fn, None)
                 }
                 DirstateVersion::V2 => {
                     let mut hasher = Sha1::new();
-                    let (ignore_fn, warnings) = get_ignore_function(
+                    let ignore_fn = get_ignore_function(
                         ignore_files,
                         &root_dir,
                         &mut |source, pattern_bytes| {
@@ -225,16 +228,17 @@ pub fn status<'dirstate>(
                             hasher.update(patterns_hash);
                             hasher.update(b"\n");
                         },
+                        warnings,
                     )?;
                     let new_hash = *hasher.finalize().as_ref();
                     let changed = new_hash != dmap.ignore_patterns_hash;
                     dmap.ignore_patterns_hash = new_hash;
-                    (ignore_fn, warnings, Some(changed))
+                    (ignore_fn, Some(changed))
                 }
             };
-            (ignore_fn, warnings, changed)
+            (ignore_fn, changed)
         } else {
-            (Box::new(|&_| true), vec![], None)
+            (Box::new(|&_| true), None)
         };
 
     let filesystem_time_at_status_start =
@@ -324,7 +328,7 @@ pub fn status<'dirstate>(
         dmap.set_cached_mtime(path, *mtime)?;
     }
 
-    Ok((outcome, warnings))
+    Ok(outcome)
 }
 
 /// Bag of random things needed by various parts of the algorithm. Reduces the
@@ -332,7 +336,7 @@ pub fn status<'dirstate>(
 struct StatusCommon<'a, 'tree, 'on_disk: 'tree> {
     dmap: &'tree DirstateMap<'on_disk>,
     options: StatusOptions,
-    matcher: &'a (dyn Matcher + Sync),
+    matcher: &'a dyn Matcher,
     ignore_fn: IgnoreFnType<'a>,
     outcome: Mutex<DirstateStatus<'on_disk>>,
     /// New timestamps of directories to be used for caching their readdirs
@@ -378,11 +382,7 @@ impl<'a> HasIgnoredAncestor<'a> {
         parent: Option<&'a HasIgnoredAncestor<'a>>,
         path: &'a HgPath,
     ) -> HasIgnoredAncestor<'a> {
-        Self {
-            path,
-            parent,
-            cache: OnceCell::new(),
-        }
+        Self { path, parent, cache: OnceCell::new() }
     }
 
     fn force(&self, ignore_fn: &IgnoreFnType<'_>) -> bool {
@@ -397,7 +397,7 @@ impl<'a> HasIgnoredAncestor<'a> {
     }
 }
 
-impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
+impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     fn push_outcome(
         &self,
         which: Outcome,
@@ -530,6 +530,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 
     /// Returns whether all child entries of the filesystem directory have a
     /// corresponding dirstate node or are ignored.
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     fn traverse_fs_directory_and_dirstate<'ancestor>(
         &self,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
@@ -551,10 +555,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     let basename =
                         dirstate_node.base_name(self.dmap.on_disk)?.as_bytes();
                     let fs_path = fs_path.join(get_path_from_bytes(basename));
-                    if !Self::should_visit(
-                        &children_set,
-                        HgPath::new(basename),
-                    ) {
+                    if !Self::should_visit(&children_set, HgPath::new(basename))
+                    {
                         return Ok(());
                     }
                     match std::fs::symlink_metadata(&fs_path) {
@@ -673,6 +675,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         .map(|res| res && readdir_succeeded)
     }
 
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     fn traverse_fs_and_dirstate<'ancestor>(
         &self,
         fs_entry: &DirEntry,
@@ -692,10 +698,11 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         if let Some(bad_type) = fs_entry.is_bad() {
             if self.matcher.exact_match(hg_path) {
                 let path = dirstate_node.full_path(self.dmap.on_disk)?;
-                self.outcome.lock().unwrap().bad.push((
-                    path.to_owned().into(),
-                    BadMatch::BadType(bad_type),
-                ))
+                self.outcome
+                    .lock()
+                    .unwrap()
+                    .bad
+                    .push((path.to_owned().into(), BadMatch::BadType(bad_type)))
             }
         }
         if fs_entry.is_dir() {
@@ -706,10 +713,8 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                     .traversed
                     .push(hg_path.detach_from_tree())
             }
-            let is_ignored = HasIgnoredAncestor::create(
-                Some(has_ignored_ancestor),
-                hg_path,
-            );
+            let is_ignored =
+                HasIgnoredAncestor::create(Some(has_ignored_ancestor), hg_path);
             let is_at_repo_root = false;
             let children_all_have_dirstate_node_or_are_ignored = self
                 .traverse_fs_directory_and_dirstate(
@@ -785,13 +790,12 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
 
         // TODO: use let-else here and below when available:
         // https://github.com/rust-lang/rust/issues/87335
-        let status_start = if let Some(status_start) =
-            &self.filesystem_time_at_status_start
-        {
-            status_start
-        } else {
-            return Ok(());
-        };
+        let status_start =
+            if let Some(status_start) = &self.filesystem_time_at_status_start {
+                status_start
+            } else {
+                return Ok(());
+            };
 
         // Although the Rust standard library’s `SystemTime` type
         // has nanosecond precision, the times reported for a
@@ -814,13 +818,12 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
                 // don’t cache its `read_dir` results.
                 //
                 // 1. A change to this directory (direct child was added or
-                //    removed) cause its mtime to be set (possibly truncated)
-                //    to `directory_mtime`
+                //    removed) cause its mtime to be set (possibly truncated) to
+                //    `directory_mtime`
                 // 2. This `status` algorithm calls `read_dir`
                 // 3. An other change is made to the same directory is made so
-                //    that calling `read_dir` agin would give different
-                //    results, but soon enough after 1. that the mtime stays
-                //    the same
+                //    that calling `read_dir` agin would give different results,
+                //    but soon enough after 1. that the mtime stays the same
                 //
                 // On a system where the time resolution poor, this
                 // scenario is not unlikely if all three steps are caused
@@ -922,6 +925,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     /// A node in the dirstate tree has no corresponding filesystem entry
     fn traverse_dirstate_only(
         &self,
@@ -962,6 +969,10 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "full-tracing",
+        tracing::instrument(level = "trace", skip_all)
+    )]
     /// Something in the filesystem has no corresponding dirstate node
     ///
     /// Returns whether that path is ignored
@@ -974,8 +985,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         let hg_path = directory_hg_path.join(&fs_entry.hg_path);
         let file_or_symlink = fs_entry.is_file() || fs_entry.is_symlink();
         if fs_entry.is_dir() {
-            let is_ignored =
-                has_ignored_ancestor || (self.ignore_fn)(&hg_path);
+            let is_ignored = has_ignored_ancestor || (self.ignore_fn)(&hg_path);
             let traverse_children = if is_ignored {
                 // Descendants of an ignored directory are all ignored
                 self.options.list_ignored
@@ -1032,10 +1042,7 @@ impl<'a, 'tree, 'on_disk> StatusCommon<'a, 'tree, 'on_disk> {
         let is_ignored = has_ignored_ancestor || (self.ignore_fn)(hg_path);
         if is_ignored {
             if self.options.list_ignored {
-                self.push_outcome_without_copy_source(
-                    Outcome::Ignored,
-                    hg_path,
-                )
+                self.push_outcome_without_copy_source(Outcome::Ignored, hg_path)
             }
         } else if self.options.list_unknown {
             self.push_outcome_without_copy_source(Outcome::Unknown, hg_path)
@@ -1087,7 +1094,7 @@ struct DirEntry<'a> {
     file_type: FakeFileType,
 }
 
-impl<'a> DirEntry<'a> {
+impl DirEntry<'_> {
     /// Returns **unsorted** entries in the given directory, with name,
     /// metadata and file type.
     ///

@@ -2,30 +2,36 @@
 //!
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
-use crate::dirstate::dirstate_map::DirstateVersion;
-use crate::dirstate::dirstate_map::{
-    self, DirstateMap, DirstateMapWriteMode, NodeRef,
-};
-use crate::dirstate::entry::{
-    DirstateEntry, DirstateV2Data, TruncatedTimestamp,
-};
-use crate::dirstate::path_with_basename::WithBasename;
-use crate::errors::{HgError, IoResultExt};
-use crate::repo::Repo;
-use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
-use crate::utils::hg_path::HgPath;
-use crate::DirstateParents;
+use std::borrow::Cow;
+use std::fmt::Display;
+use std::fmt::Write;
+
 use bitflags::bitflags;
-use bytes_cast::unaligned::{U16Be, U32Be};
+use bytes_cast::unaligned::U16Be;
+use bytes_cast::unaligned::U32Be;
 use bytes_cast::BytesCast;
 use format_bytes::format_bytes;
 use rand::Rng;
-use std::borrow::Cow;
-use std::fmt::Write;
 use uuid::Uuid;
 
 use super::dirstate_map::DirstateIdentity;
 use super::DirstateError;
+use crate::dirstate::dirstate_map::DirstateMap;
+use crate::dirstate::dirstate_map::DirstateMapWriteMode;
+use crate::dirstate::dirstate_map::DirstateVersion;
+use crate::dirstate::dirstate_map::NodeRef;
+use crate::dirstate::dirstate_map::{self};
+use crate::dirstate::entry::DirstateEntry;
+use crate::dirstate::entry::DirstateV2Data;
+use crate::dirstate::entry::TruncatedTimestamp;
+use crate::dirstate::path_with_basename::WithBasename;
+use crate::errors::HgBacktrace;
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::repo::Repo;
+use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
+use crate::utils::hg_path::HgPath;
+use crate::DirstateParents;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
@@ -184,19 +190,27 @@ type OptPathSlice = PathSlice;
 #[derive(Debug)]
 pub struct DirstateV2ParseError {
     message: String,
+    backtrace: HgBacktrace,
 }
 
 impl DirstateV2ParseError {
     pub fn new<S: Into<String>>(message: S) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self { message: message.into(), backtrace: HgBacktrace::capture() }
     }
 }
 
 impl From<DirstateV2ParseError> for HgError {
     fn from(e: DirstateV2ParseError) -> Self {
-        HgError::corrupted(format!("dirstate-v2 parse error: {}", e.message))
+        HgError::CorruptedRepository(
+            format!("dirstate-v2 parse error: {}", e.message),
+            e.backtrace,
+        )
+    }
+}
+
+impl Display for DirstateV2ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}dirstate-v2 parse error: {}", self.backtrace, self.message)
     }
 }
 
@@ -212,7 +226,7 @@ impl TreeMetadata {
     }
 }
 
-impl<'on_disk> Docket<'on_disk> {
+impl Docket<'_> {
     /// Generate the identifier for a new data file
     ///
     /// TODO: support the `HGTEST_UUIDFILE` environment variable.
@@ -220,12 +234,12 @@ impl<'on_disk> Docket<'on_disk> {
     pub fn new_uid() -> String {
         const ID_LENGTH: usize = 8;
         let mut id = String::with_capacity(ID_LENGTH);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..ID_LENGTH {
             // One random hexadecimal digit.
             // `unwrap` never panics because `impl Write for String`
             // never returns an error.
-            write!(&mut id, "{:x}", rng.gen_range(0..16)).unwrap();
+            write!(&mut id, "{:x}", rng.random_range(0..16)).unwrap();
         }
         id
     }
@@ -274,9 +288,7 @@ impl<'on_disk> Docket<'on_disk> {
     }
 }
 
-pub fn read_docket(
-    on_disk: &[u8],
-) -> Result<Docket<'_>, DirstateV2ParseError> {
+pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateV2ParseError> {
     let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
         DirstateV2ParseError::new(format!("when reading docket, {}", e))
     })?;
@@ -284,9 +296,7 @@ pub fn read_docket(
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError::new(
-            "invalid format marker or uuid size",
-        ))
+        Err(DirstateV2ParseError::new("invalid format marker or uuid size"))
     }
 }
 
@@ -464,8 +474,7 @@ impl Node {
         } else {
             None
         };
-        let fallback_exec = if self.flags().contains(Flags::HAS_FALLBACK_EXEC)
-        {
+        let fallback_exec = if self.flags().contains(Flags::HAS_FALLBACK_EXEC) {
             Some(self.flags().contains(Flags::FALLBACK_EXEC))
         } else {
             None
@@ -509,9 +518,7 @@ impl Node {
         on_disk: &'on_disk [u8],
     ) -> Result<dirstate_map::Node<'on_disk>, DirstateV2ParseError> {
         Ok(dirstate_map::Node {
-            children: dirstate_map::ChildNodes::OnDisk(
-                self.children(on_disk)?,
-            ),
+            children: dirstate_map::ChildNodes::OnDisk(self.children(on_disk)?),
             copy_source: self.copy_source(on_disk)?.map(Cow::Borrowed),
             data: self.node_data()?,
             descendants_with_entry_count: self
@@ -605,9 +612,7 @@ where
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
-            return Err(DirstateV2ParseError::new(
-                "not enough bytes from disk",
-            ))
+            return Err(DirstateV2ParseError::new("not enough bytes from disk"))
         }
     };
     T::slice_from_bytes(bytes, len)
@@ -631,9 +636,9 @@ pub(super) fn write(
         DirstateMapWriteMode::ForceAppend => true,
     };
     if append {
-        log::trace!("appending to the dirstate data file");
+        tracing::debug!("appending to the dirstate data file");
     } else {
-        log::trace!("creating new dirstate data file");
+        tracing::debug!("creating new dirstate data file");
     }
 
     // This ignores the space for paths, and for nodes without an entry.
@@ -641,11 +646,8 @@ pub(super) fn write(
     let size_guess = std::mem::size_of::<Node>()
         * dirstate_map.nodes_with_entry_count as usize;
 
-    let mut writer = Writer {
-        dirstate_map,
-        append,
-        out: Vec::with_capacity(size_guess),
-    };
+    let mut writer =
+        Writer { dirstate_map, append, out: Vec::with_capacity(size_guess) };
 
     let root_nodes = dirstate_map.root.as_ref();
     for node in root_nodes.iter() {
@@ -722,10 +724,7 @@ impl Writer<'_, '_> {
             {
                 self.write_path(source.as_bytes())
             } else {
-                PathSlice {
-                    start: 0.into(),
-                    len: 0.into(),
-                }
+                PathSlice { start: 0.into(), len: 0.into() }
             };
             on_disk_nodes.push(match node {
                 NodeRef::InMemory(path, node) => {
@@ -777,12 +776,9 @@ impl Writer<'_, '_> {
                         mtime,
                     }
                 }
-                NodeRef::OnDisk(node) => Node {
-                    children,
-                    copy_source,
-                    full_path,
-                    ..*node
-                },
+                NodeRef::OnDisk(node) => {
+                    Node { children, copy_source, full_path, ..*node }
+                }
             })
         }
         // … so we can write them contiguously, after writing everything else
@@ -800,8 +796,7 @@ impl Writer<'_, '_> {
         full_path: &HgPath,
     ) -> Result<(), DirstateError> {
         for child in children.iter() {
-            let child_full_path =
-                child.full_path(self.dirstate_map.on_disk)?;
+            let child_full_path = child.full_path(self.dirstate_map.on_disk)?;
 
             let prefix_length = child_full_path.len()
                 // remove the filename
@@ -914,10 +909,7 @@ impl TryFrom<PackedTruncatedTimestamp> for TruncatedTimestamp {
 }
 impl PackedTruncatedTimestamp {
     fn null() -> Self {
-        Self {
-            truncated_seconds: 0.into(),
-            nanoseconds: 0.into(),
-        }
+        Self { truncated_seconds: 0.into(), nanoseconds: 0.into() }
     }
 }
 
@@ -934,8 +926,6 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
         return Ok(());
     }
     // TODO use `hg_vfs` once the `InnerRevlog` is in.
-    let path = repo
-        .working_directory_path()
-        .join(".hg/dirstate-tracked-hint");
+    let path = repo.working_directory_path().join(".hg/dirstate-tracked-hint");
     std::fs::write(&path, Uuid::new_v4().as_bytes()).when_writing_file(&path)
 }

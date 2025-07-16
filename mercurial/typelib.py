@@ -27,28 +27,18 @@ TYPE_CHECKING = typing.TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import (
         BinaryIO,
-        Union,
     )
 
     from . import (
         node,
-        posix,
-        util,
-        windows,
     )
 
     BinaryIO_Proxy = BinaryIO
-    CacheStat = Union[
-        posix.cachestat,
-        windows.cachestat,
-        util.uncacheable_cachestat,
-    ]
     NodeConstants = node.sha1nodeconstants
 else:
     from typing import Any
 
     BinaryIO_Proxy = object
-    CacheStat = Any
     NodeConstants = Any
 
 # scmutil.getuipathfn() related callback.

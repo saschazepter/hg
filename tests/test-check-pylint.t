@@ -11,13 +11,17 @@ Current checks:
 - C0321: only one statement on a single line
 
   $ touch $TESTTMP/fakerc
+
+#if windows
+  $ PYTHONPATH="`dirname $TESTDIR`;$PYTHONPATH"
+#else
+  $ PYTHONPATH="`dirname $TESTDIR`:$PYTHONPATH"
+#endif
+
+  $ export PYTHONPATH
   $ pylint --rcfile=$TESTTMP/fakerc --disable=all \
   >   --enable=W0102,C0321 \
   >   --reports=no \
   >   --ignore=thirdparty \
+  >   --score=no \
   >   mercurial hgdemandimport hgext | sed 's/\r$//'
-  Using config file *fakerc (glob) (?)
-   (?)
-  ------------------------------------* (glob) (?)
-  Your code has been rated at 10.00/10* (glob) (?)
-   (?)

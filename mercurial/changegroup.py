@@ -11,11 +11,16 @@ import os
 import struct
 import weakref
 
+from typing import Iterator
+
 from .i18n import _
 from .node import (
     hex,
     nullrev,
     short,
+)
+from .interfaces.types import (
+    RevisionDeltaT,
 )
 
 from . import (
@@ -25,6 +30,7 @@ from . import (
     phases,
     pycompat,
     requirements,
+    revlogutils,
     scmutil,
     util,
 )
@@ -36,8 +42,11 @@ from .utils import storageutil
 
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
+# node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
+# node p1node p2node basenode linknode flags snapshot_level
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHb")
+_CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
 
@@ -287,6 +296,9 @@ class cg1unpacker:
     version = b'01'
     _grouplistcount = 1  # One list of files after the manifests
 
+    has_censor_flag = False
+    has_filelog_hasmeta_flag = False
+
     def __init__(self, fh, alg, extras=None):
         if alg is None:
             alg = b'UN'
@@ -353,19 +365,31 @@ class cg1unpacker:
             deltabase = prevnode
         flags = 0
         protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
-    def deltachunk(self, prevnode):
-        # Chunkdata: (node, p1, p2, cs, deltabase, delta, flags, sidedata, proto_flags)
+    def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
         l = self._chunklength()
         if not l:
-            return {}
+            return None
         headerdata = readexactly(self._stream, self.deltaheadersize)
         header = self.deltaheader.unpack(headerdata)
         delta = readexactly(self._stream, l - self.deltaheadersize)
         header = self._deltaheader(header, prevnode)
-        node, p1, p2, deltabase, cs, flags, protocol_flags = header
-        return node, p1, p2, cs, deltabase, delta, flags, {}, protocol_flags
+        node, p1, p2, deltabase, cs, flags, protocol_flags, snap_lvl = header
+        return revlogutils.InboundRevision(
+            node,
+            p1,
+            p2,
+            cs,
+            deltabase,
+            delta,
+            flags,
+            {},
+            protocol_flags,
+            snapshot_level=snap_lvl,
+            has_censor_flag=self.has_censor_flag,
+            has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
+        )
 
     def getchunks(self):
         """returns all the chunks contains in the bundle
@@ -484,7 +508,7 @@ class cg1unpacker:
                 requirements.REVLOGV2_REQUIREMENT in repo.requirements
                 or requirements.CHANGELOGV2_REQUIREMENT in repo.requirements
             )
-            and self.version == b'04'
+            and self.version == b'05'
             and srctype == b'pull'
         )
         if adding_sidedata:
@@ -640,6 +664,10 @@ class cg1unpacker:
                 addrevisioncb=on_filelog_rev,
                 debug_info=debug_info,
                 delta_base_reuse_policy=delta_base_reuse_policy,
+                # this is useful to pass it to the addchangegroupfiles
+                # explicitly to help the filelog to decide weither or not to
+                # pre-process the data.
+                use_hasmeta_flag=self.has_filelog_hasmeta_flag,
             )
 
             if sidedata_helpers:
@@ -676,9 +704,10 @@ class cg1unpacker:
             newrevcount = len(cl)
             heads_removed, heads_added = cl.diffheads(oldrevcount, newrevcount)
             deltaheads += len(heads_added) - len(heads_removed)
-            for h in heads_added:
-                if repo[h].closesbranch():
-                    deltaheads -= 1
+            with cl.reading():
+                for h in heads_added:
+                    if repo[h].closesbranch():
+                        deltaheads -= 1
 
             # see previous comment about checking ui.quiet
             if not repo.ui.quiet:
@@ -768,17 +797,16 @@ class cg1unpacker:
             ret = deltaheads + 1
         return ret
 
-    def deltaiter(self):
+    def deltaiter(self) -> Iterator[revlogutils.InboundRevision]:
         """
         returns an iterator of the deltas in this changegroup
 
         Useful for passing to the underlying storage system to be stored.
         """
         chain = None
-        for chunkdata in iter(lambda: self.deltachunk(chain), {}):
-            # Chunkdata: (node, p1, p2, cs, deltabase, delta, flags, sidedata, proto_flags)
-            yield chunkdata[:8]
-            chain = chunkdata[0]
+        for chunkdata in iter(lambda: self.deltachunk(chain), None):
+            yield chunkdata
+            chain = chunkdata.node
 
 
 class cg2unpacker(cg1unpacker):
@@ -797,7 +825,7 @@ class cg2unpacker(cg1unpacker):
         node, p1, p2, deltabase, cs = headertuple
         flags = 0
         protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
 
 class cg3unpacker(cg2unpacker):
@@ -813,10 +841,12 @@ class cg3unpacker(cg2unpacker):
     version = b'03'
     _grouplistcount = 2  # One list of manifests and one list of files
 
+    has_censor_flag = True
+
     def _deltaheader(self, headertuple, prevnode):
         node, p1, p2, deltabase, cs, flags = headertuple
         protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
 
     def _unpackmanifests(
         self,
@@ -854,53 +884,58 @@ class cg3unpacker(cg2unpacker):
 
 
 class cg4unpacker(cg3unpacker):
-    """Unpacker for cg4 streams.
+    """Changegroup 4 support more advanced flag for each delta.
 
-    cg4 streams add support for exchanging sidedata.
+    - "hasmeta" flag for filelog
     """
 
     deltaheader = _CHANGEGROUPV4_DELTA_HEADER
     deltaheadersize = deltaheader.size
     version = b'04'
 
+    has_filelog_hasmeta_flag = True
+
     def _deltaheader(self, headertuple, prevnode):
-        protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
-        return node, p1, p2, deltabase, cs, flags, protocol_flags
-
-    def deltachunk(self, prevnode):
-        res = super().deltachunk(prevnode)
-        if not res:
-            return res
-
-        (
-            node,
-            p1,
-            p2,
-            cs,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-            protocol_flags,
-        ) = res
-        assert not sidedata
-
-        sidedata = {}
-        if protocol_flags & storageutil.CG_FLAG_SIDEDATA:
-            sidedata_raw = getchunk(self._stream)
-            sidedata = sidedatamod.deserialize_sidedata(sidedata_raw)
-
+        node, p1, p2, deltabase, cs, flags, snapshot_level = headertuple
+        protocol_flags = 0
+        if snapshot_level < -1:
+            snapshot_level = None
         return (
             node,
             p1,
             p2,
-            cs,
             deltabase,
-            delta,
+            cs,
             flags,
-            sidedata,
             protocol_flags,
+            snapshot_level,
         )
+
+
+class cg5unpacker(cg3unpacker):
+    """Unpacker for cg5 streams.
+
+    cg5 streams add support for exchanging sidedata.
+    """
+
+    deltaheader = _CHANGEGROUPV5_DELTA_HEADER
+    deltaheadersize = deltaheader.size
+    version = b'05'
+
+    def _deltaheader(self, headertuple, prevnode):
+        protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
+        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+
+    def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
+        res = super().deltachunk(prevnode)
+        if res is None:
+            return res
+        assert not res.sidedata
+
+        if res.protocol_flags & storageutil.CG_FLAG_SIDEDATA:
+            sidedata_raw = getchunk(self._stream)
+            res.sidedata = sidedatamod.deserialize_sidedata(sidedata_raw)
+        return res
 
 
 class headerlessfixup:
@@ -1082,6 +1117,7 @@ def deltagroup(
     precomputedellipsis=None,
     sidedata_helpers=None,
     debug_info=None,
+    filelog_hasmeta=False,
 ):
     """Calculate deltas for a set of revisions.
 
@@ -1092,6 +1128,8 @@ def deltagroup(
 
     See `revlogutil.sidedata.get_sidedata_helpers` for the doc on
     `sidedata_helpers`.
+
+    if filelog_hasmeta is set, rely of the REVIDX_HASMETA flag to indicate metadata.
     """
     if not nodes:
         return
@@ -1184,6 +1222,10 @@ def deltagroup(
     elif configtarget == b'full':
         deltamode = repository.CG_DELTAMODE_FULL
 
+    kwargs = {}
+    if filelog_hasmeta:
+        kwargs["use_hasmeta_flag"] = True
+
     revisions = store.emitrevisions(
         nodes,
         nodesorder=nodesorder,
@@ -1192,6 +1234,7 @@ def deltagroup(
         deltamode=deltamode,
         sidedata_helpers=sidedata_helpers,
         debug_info=debug_info,
+        **kwargs,
     )
 
     for i, revision in enumerate(revisions):
@@ -1414,6 +1457,7 @@ class cgpacker:
         ellipsisroots=None,
         fullnodes=None,
         remote_sidedata=None,
+        filelog_hasmeta=False,
     ):
         """Given a source repo, construct a bundler.
 
@@ -1448,6 +1492,9 @@ class cgpacker:
         significantly smaller.
 
         remote_sidedata is the set of sidedata categories wanted by the remote.
+
+        filelog_hasmeta: when true, set the has_meta flag when appropriate
+        (instead of relying on parent order).
         """
         assert oldmatcher
         assert matcher
@@ -1459,6 +1506,7 @@ class cgpacker:
         self._builddeltaheader = builddeltaheader
         self._manifestsend = manifestsend
         self._ellipses = ellipses
+        self._filelog_hasmeta = filelog_hasmeta
 
         # Set of capabilities we can use to build the bundle.
         if bundlecaps is None:
@@ -1502,7 +1550,7 @@ class cgpacker:
         size = 0
 
         sidedata_helpers = None
-        if self.version == b'04':
+        if self.version == b'05':
             remote_sidedata = self._remote_sidedata
             if source == b'strip':
                 # We're our own remote when stripping, get the no-op helpers
@@ -1587,7 +1635,7 @@ class cgpacker:
 
         for tree, deltas in it:
             if tree:
-                assert self.version in (b'03', b'04')
+                assert self.version in (b'03', b'05')
                 chunk = _fileheader(tree)
                 size += len(chunk)
                 yield chunk
@@ -2026,6 +2074,7 @@ class cgpacker:
                 precomputedellipsis=self._precomputedellipsis,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
+                filelog_hasmeta=self._filelog_hasmeta,
             )
 
             yield fname, deltas
@@ -2124,7 +2173,53 @@ def _makecg3packer(
     )
 
 
+def _cg4_delta_header(d: RevisionDeltaT):
+    snap_lvl = -2  # means no-info
+    if d.snapshot_level is not None:
+        snap_lvl = d.snapshot_level
+    return _CHANGEGROUPV4_DELTA_HEADER.pack(
+        d.node,
+        d.p1node,
+        d.p2node,
+        d.basenode,
+        d.linknode,
+        d.flags,
+        snap_lvl,
+    )
+
+
 def _makecg4packer(
+    repo,
+    oldmatcher,
+    matcher,
+    bundlecaps,
+    ellipses=False,
+    shallow=False,
+    ellipsisroots=None,
+    fullnodes=None,
+    remote_sidedata=None,
+):
+    """Changegroup 4 support more advanced flag for each delta.
+
+    see documentation of cg4unpacker for details.
+    """
+    return cgpacker(
+        repo,
+        oldmatcher,
+        matcher,
+        b'04',
+        builddeltaheader=_cg4_delta_header,
+        manifestsend=closechunk(),
+        bundlecaps=bundlecaps,
+        ellipses=ellipses,
+        shallow=shallow,
+        ellipsisroots=ellipsisroots,
+        fullnodes=fullnodes,
+        filelog_hasmeta=True,
+    )
+
+
+def _makecg5packer(
     repo,
     oldmatcher,
     matcher,
@@ -2138,7 +2233,7 @@ def _makecg4packer(
     # Sidedata is in a separate chunk from the delta to differentiate
     # "raw delta" and sidedata.
     def builddeltaheader(d):
-        return _CHANGEGROUPV4_DELTA_HEADER.pack(
+        return _CHANGEGROUPV5_DELTA_HEADER.pack(
             d.protocol_flags,
             d.node,
             d.p1node,
@@ -2152,7 +2247,7 @@ def _makecg4packer(
         repo,
         oldmatcher,
         matcher,
-        b'04',
+        b'05',
         builddeltaheader=builddeltaheader,
         manifestsend=closechunk(),
         bundlecaps=bundlecaps,
@@ -2170,8 +2265,10 @@ _packermap = {
     b'02': (_makecg2packer, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
     b'03': (_makecg3packer, cg3unpacker),
-    # ch4 adds support for exchanging sidedata
+    # cg4 adds support for exchanging more advances flags
     b'04': (_makecg4packer, cg4unpacker),
+    # ch5 adds support for exchanging sidedata
+    b'05': (_makecg5packer, cg5unpacker),
 }
 
 
@@ -2193,13 +2290,16 @@ def allsupportedversions(repo):
         needv03 = True
     if not needv03:
         versions.discard(b'03')
-    want_v4 = (
-        repo.ui.configbool(b'experimental', b'changegroup4')
+    want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    if not want_v4:
+        versions.discard(b'04')
+    want_v5 = (
+        repo.ui.configbool(b'experimental', b'changegroup5')
         or requirements.REVLOGV2_REQUIREMENT in repo.requirements
         or requirements.CHANGELOGV2_REQUIREMENT in repo.requirements
     )
-    if not want_v4:
-        versions.discard(b'04')
+    if not want_v5:
+        versions.discard(b'05')
     return versions
 
 
@@ -2388,6 +2488,7 @@ def _addchangegroupfiles(
     addrevisioncb=None,
     debug_info=None,
     delta_base_reuse_policy=None,
+    use_hasmeta_flag=False,
 ):
     revisions = 0
     files = 0
@@ -2399,7 +2500,7 @@ def _addchangegroupfiles(
         f = chunkdata[b"filename"]
         repo.ui.debug(b"adding %s revisions\n" % f)
         progress.increment()
-        fl = repo.file(f)
+        fl = repo.file(f, writable=True)
         o = len(fl)
         try:
             deltas = source.deltaiter()
@@ -2410,6 +2511,7 @@ def _addchangegroupfiles(
                 addrevisioncb=addrevisioncb,
                 debug_info=debug_info,
                 delta_base_reuse_policy=delta_base_reuse_policy,
+                use_hasmeta_flag=use_hasmeta_flag,
             )
             if not added:
                 raise error.Abort(_(b"received file revlog group is empty"))

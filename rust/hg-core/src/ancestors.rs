@@ -7,11 +7,17 @@
 
 //! Rust versions of generic DAG ancestors algorithms for Mercurial
 
-use super::{Graph, GraphError, Revision, NULL_REVISION};
-use crate::dagops;
-use bit_set::BitSet;
 use std::cmp::max;
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::BinaryHeap;
+use std::collections::HashSet;
+
+use bit_set::BitSet;
+
+use super::Graph;
+use super::GraphError;
+use super::Revision;
+use super::NULL_REVISION;
+use crate::dagops;
 
 /// A set of revisions backed by a bitset, optimized for descending insertion.
 struct DescendingRevisionSet {
@@ -27,11 +33,7 @@ struct DescendingRevisionSet {
 impl DescendingRevisionSet {
     /// Creates a new empty set that can store revisions up to `ceiling`.
     fn new(ceiling: Revision) -> Self {
-        Self {
-            set: BitSet::new(),
-            ceiling: ceiling.0,
-            len: 0,
-        }
+        Self { set: BitSet::new(), ceiling: ceiling.0, len: 0 }
     }
 
     /// Returns the number of revisions in the set.
@@ -115,9 +117,7 @@ impl<G: Graph> AncestorsIterator<G> {
             stoprev,
             graph,
         };
-        this.seen
-            .insert(NULL_REVISION)
-            .expect("null is the smallest revision");
+        this.seen.insert(NULL_REVISION).expect("null is the smallest revision");
         for rev in filtered_initrevs {
             for parent in this.graph.parents(rev)?.iter().cloned() {
                 this.conditionally_push_rev(parent)?;
@@ -259,9 +259,7 @@ impl<G: Graph> MissingAncestors<G> {
     }
 
     /// Consumes the object and returns the relative heads of its bases.
-    pub fn into_bases_heads(
-        mut self,
-    ) -> Result<HashSet<Revision>, GraphError> {
+    pub fn into_bases_heads(mut self) -> Result<HashSet<Revision>, GraphError> {
         dagops::retain_heads(&self.graph, &mut self.bases)?;
         Ok(self.bases)
     }
@@ -269,20 +267,16 @@ impl<G: Graph> MissingAncestors<G> {
     /// Add some revisions to `self.bases`
     ///
     /// Takes care of keeping `self.max_base` up to date.
-    pub fn add_bases(
-        &mut self,
-        new_bases: impl IntoIterator<Item = Revision>,
-    ) {
+    pub fn add_bases(&mut self, new_bases: impl IntoIterator<Item = Revision>) {
         let mut max_base = self.max_base;
         self.bases.extend(
-            new_bases
-                .into_iter()
-                .filter(|&rev| rev != NULL_REVISION)
-                .inspect(|&r| {
+            new_bases.into_iter().filter(|&rev| rev != NULL_REVISION).inspect(
+                |&r| {
                     if r > max_base {
                         max_base = r;
                     }
-                }),
+                },
+            ),
         );
         self.max_base = max_base;
     }
@@ -355,10 +349,8 @@ impl<G: Graph> MissingAncestors<G> {
     ) -> Result<Vec<Revision>, GraphError> {
         // just for convenience and comparison with Python version
         let bases_visit = &mut self.bases;
-        let mut revs: HashSet<Revision> = revs
-            .into_iter()
-            .filter(|r| !bases_visit.contains(r))
-            .collect();
+        let mut revs: HashSet<Revision> =
+            revs.into_iter().filter(|r| !bases_visit.contains(r)).collect();
         let revs_visit = &mut revs;
         let mut both_visit: HashSet<Revision> =
             revs_visit.intersection(bases_visit).cloned().collect();
@@ -429,10 +421,9 @@ impl<G: Graph> MissingAncestors<G> {
 mod tests {
 
     use super::*;
-    use crate::{
-        testing::{SampleGraph, VecGraph},
-        BaseRevision,
-    };
+    use crate::testing::SampleGraph;
+    use crate::testing::VecGraph;
+    use crate::BaseRevision;
 
     impl From<BaseRevision> for Revision {
         fn from(value: BaseRevision) -> Self {
@@ -758,9 +749,7 @@ mod tests {
         );
         let mut revset: HashSet<Revision> =
             revs.iter().map(|r| Revision(*r)).collect();
-        missing_ancestors
-            .remove_ancestors_from(&mut revset)
-            .unwrap();
+        missing_ancestors.remove_ancestors_from(&mut revset).unwrap();
         let mut as_vec: Vec<Revision> = revset.into_iter().collect();
         as_vec.sort_unstable();
         assert_eq!(as_vec.as_slice(), expected);

@@ -1,8 +1,3 @@
-use crate::error::CommandError;
-use crate::ui::{
-    print_narrow_sparse_warnings, relative_paths, RelativePaths, Ui,
-};
-use crate::utils::path_utils::RelativizePaths;
 use clap::Arg;
 use hg::filepatterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
@@ -12,7 +7,15 @@ use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
+use hg::warnings::format::write_warning;
+use hg::warnings::HgWarningContext;
 use rayon::prelude::*;
+
+use crate::error::CommandError;
+use crate::ui::relative_paths;
+use crate::ui::RelativePaths;
+use crate::ui::Ui;
+use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "
 List tracked files.
@@ -35,9 +38,18 @@ pub fn args() -> clap::Command {
                 .help("show only these files")
                 .action(clap::ArgAction::Append),
         )
+        .arg(
+            Arg::new("print0")
+                .required(false)
+                .short('0')
+                .long("print0")
+                .action(clap::ArgAction::SetTrue)
+                .help("end filenames with NUL, for use with xargs"),
+        )
         .about(HELP_TEXT)
 }
 
+#[tracing::instrument(level = "debug", skip_all, name = "rhg files")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let relative_paths = match relative_paths(invocation.config)? {
         RelativePaths::Legacy => true,
@@ -46,6 +58,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let args = invocation.subcommand_args;
     let rev = args.get_one::<String>("rev");
+    let delimiter = if args.get_flag("print0") {
+        b"\0"
+    } else {
+        b"\n"
+    };
 
     let repo = invocation.repo?;
 
@@ -61,8 +78,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         ));
     }
 
-    let (matcher, narrow_warnings) = narrow::matcher(repo)?;
-    print_narrow_sparse_warnings(&narrow_warnings, &[], invocation.ui, repo)?;
+    let warning_context = HgWarningContext::new();
+    let matcher = narrow::matcher(repo, warning_context.sender())?;
+
+    let mut stderr = invocation.ui.stderr_locked();
+    // Can't really do anything if writing to stderr failed
+    let _ = warning_context.finish(|warning| {
+        write_warning(&warning, &mut stderr, repo.working_directory_path())
+    });
+
     let matcher = match args.get_many::<std::ffi::OsString>("file") {
         None => matcher,
         Some(files) => {
@@ -80,10 +104,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
                 hg::matchers::PatternMatcher::new(ignore_patterns)?;
-            Box::new(IntersectionMatcher::new(
-                Box::new(files_matcher),
-                matcher,
-            ))
+            Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };
 
@@ -93,6 +114,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             invocation.ui,
             repo,
             relative_paths,
+            delimiter,
             files.iter().map::<Result<_, CommandError>, _>(|f| {
                 let (f, _, _) = f?;
                 Ok(f)
@@ -118,6 +140,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             invocation.ui,
             repo,
             relative_paths,
+            delimiter,
             files.into_iter().map::<Result<_, CommandError>, _>(Ok),
         )
     }
@@ -127,6 +150,7 @@ fn display_files<'a, E>(
     ui: &Ui,
     repo: &Repo,
     relative_paths: bool,
+    delimiter: &[u8],
     files: impl IntoIterator<Item = Result<&'a HgPath, E>>,
 ) -> Result<(), CommandError>
 where
@@ -143,7 +167,7 @@ where
         } else {
             stdout.write_all(path.as_bytes())?;
         }
-        stdout.write_all(b"\n")?;
+        stdout.write_all(delimiter)?;
         any = true;
     }
 

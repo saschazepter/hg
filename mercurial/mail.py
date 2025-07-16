@@ -21,10 +21,6 @@ import time
 
 from typing import (
     Any,
-    List,
-    Optional,
-    Tuple,
-    Union,
 )
 
 from .i18n import _
@@ -332,7 +328,7 @@ def mimetextqp(
     return msg
 
 
-def _charsets(ui: Any) -> List[str]:
+def _charsets(ui: Any) -> list[str]:
     '''Obtains charsets to send mail parts not containing patches.'''
     charsets = [
         pycompat.sysstr(cs.lower())
@@ -349,7 +345,7 @@ def _charsets(ui: Any) -> List[str]:
     return [cs for cs in charsets if not cs.endswith('ascii')]
 
 
-def _encode(ui: Any, s: bytes, charsets: List[str]) -> Tuple[bytes, str]:
+def _encode(ui: Any, s: bytes, charsets: list[str]) -> tuple[bytes, str]:
     """Returns (converted) string, charset tuple.
     Finds out best charset by cycling through sendcharsets in descending
     order. Tries both encoding and fallbackencoding for input. Only as
@@ -401,8 +397,8 @@ def _encode(ui: Any, s: bytes, charsets: List[str]) -> Tuple[bytes, str]:
 
 def headencode(
     ui: Any,
-    s: Union[bytes, str],
-    charsets: Optional[List[str]] = None,
+    s: bytes | str,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> str:
     '''Returns RFC-2047 compliant header from given string.'''
@@ -414,7 +410,7 @@ def headencode(
 
 
 def _addressencode(
-    ui: Any, name: str, addr: str, charsets: Optional[List[str]] = None
+    ui: Any, name: str, addr: str, charsets: list[str] | None = None
 ) -> str:
     addr = encoding.strtolocal(addr)
     name = headencode(ui, name, charsets)
@@ -437,7 +433,7 @@ def _addressencode(
 def addressencode(
     ui: Any,
     address: bytes,
-    charsets: Optional[List[str]] = None,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> str:
     '''Turns address into RFC-2047 compliant header.'''
@@ -449,10 +445,10 @@ def addressencode(
 
 def addrlistencode(
     ui: Any,
-    addrs: List[bytes],
-    charsets: Optional[List[str]] = None,
+    addrs: list[bytes],
+    charsets: list[str] | None = None,
     display: bool = False,
-) -> List[str]:
+) -> list[str]:
     """Turns a list of addresses into a list of RFC-2047 compliant headers.
     A single element of input list may contain multiple addresses, but output
     always has one address per item"""
@@ -474,7 +470,7 @@ def addrlistencode(
 def mimeencode(
     ui: Any,
     s: bytes,
-    charsets: Optional[List[str]] = None,
+    charsets: list[str] | None = None,
     display: bool = False,
 ) -> email.message.Message:
     """creates mime text object, encodes it if needed, and sets
@@ -507,7 +503,7 @@ def parsebytes(data: bytes) -> email.message.Message:
     return ep.parsebytes(data)
 
 
-def headdecode(s: Union[email.header.Header, bytes]) -> bytes:
+def headdecode(s: email.header.Header | bytes) -> bytes:
     '''Decodes RFC-2047 header'''
     uparts = []
     for part, charset in email.header.decode_header(s):

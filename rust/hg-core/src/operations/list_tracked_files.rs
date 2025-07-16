@@ -5,33 +5,38 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use std::num::NonZeroU8;
-
 use crate::errors::HgError;
-use crate::matchers::{Matcher, VisitChildrenSet};
+use crate::matchers::Matcher;
+use crate::matchers::VisitChildrenSet;
 use crate::repo::Repo;
 use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::RevlogError;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
-use crate::{Node, UncheckedRevision};
+use crate::Node;
+use crate::UncheckedRevision;
 
 /// List files under Mercurial control at a given revset.
-pub fn list_revset_tracked_files(
+pub fn list_revset_tracked_files<M: Matcher>(
     repo: &Repo,
     revset: &str,
-    narrow_matcher: Box<dyn Matcher + Sync>,
-) -> Result<FilesForRev, RevlogError> {
-    let rev = crate::revset::resolve_single(revset, repo)?;
-    list_rev_tracked_files(repo, rev.into(), narrow_matcher)
+    narrow_matcher: M,
+) -> Result<FilesForRev<M>, RevlogError> {
+    match crate::revset::resolve_single(revset, repo)?.exclude_wdir() {
+        Some(rev) => list_rev_tracked_files(repo, rev.into(), narrow_matcher),
+        None => {
+            Err(HgError::unsupported("list wdir files not implemented").into())
+        }
+    }
 }
 
 /// List files under Mercurial control at a given revision.
-pub fn list_rev_tracked_files(
+pub fn list_rev_tracked_files<M: Matcher>(
     repo: &Repo,
     rev: UncheckedRevision,
-    narrow_matcher: Box<dyn Matcher + Sync>,
-) -> Result<FilesForRev, RevlogError> {
+    narrow_matcher: M,
+) -> Result<FilesForRev<M>, RevlogError> {
     // TODO move this to the repo itself
     // This implies storing the narrow matcher in the repo, bubbling up the
     // errors and warnings, so it's a bit of churn. In the meantime, the repo
@@ -54,25 +59,48 @@ pub fn list_rev_tracked_files(
             _ => return Err(e),
         },
     };
-    Ok(FilesForRev {
-        manifest,
-        narrow_matcher,
-    })
+    Ok(FilesForRev { manifest, narrow_matcher })
 }
 
-pub struct FilesForRev {
+pub struct FilesForRev<M> {
     manifest: Manifest,
-    narrow_matcher: Box<dyn Matcher + Sync>,
+    narrow_matcher: M,
+}
+
+pub struct FilesForRevBorrowed<'a> {
+    manifest: &'a Manifest,
+    narrow_matcher: &'a dyn Matcher,
 }
 
 /// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
 /// already checked.
-pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, Option<NonZeroU8>);
+pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, ManifestFlags);
 
-impl FilesForRev {
+impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ExpandedManifestEntry, HgError>> {
+        filter_map_results(self.manifest.iter(), |entry| {
+            let path = entry.path;
+            Ok(if self.narrow_matcher.matches(path) {
+                Some((path, entry.node_id()?, entry.flags))
+            } else {
+                None
+            })
+        })
+    }
+}
+
+impl<'a> FilesForRevBorrowed<'a> {
+    pub fn new(
+        manifest: &'a Manifest,
+        narrow_matcher: &'a impl Matcher,
+    ) -> Self {
+        Self { manifest, narrow_matcher }
+    }
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'a>, HgError>> {
         filter_map_results(self.manifest.iter(), |entry| {
             let path = entry.path;
             Ok(if self.narrow_matcher.matches(path) {

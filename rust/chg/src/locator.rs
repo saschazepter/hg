@@ -5,30 +5,34 @@
 
 //! Utility for locating command-server process.
 
-use log::debug;
 use std::env;
-use std::ffi::{OsStr, OsString};
-use std::fs::{self, DirBuilder};
+use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::fs::DirBuilder;
+use std::fs::{self};
 use std::io;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
-use std::os::unix::fs::{DirBuilderExt, MetadataExt};
-use std::path::{Path, PathBuf};
-use std::process::{self, Child, Command};
-use std::time::{Duration, Instant};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::OsStringExt;
+use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::MetadataExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Child;
+use std::process::Command;
+use std::process::{self};
+use std::time::Duration;
+use std::time::Instant;
+
+use log::debug;
 use tokio::time;
 
 use crate::clientext::ChgClient;
-use crate::message::{Instruction, ServerSpec};
+use crate::message::Instruction;
+use crate::message::ServerSpec;
 use crate::procutil;
 
-const REQUIRED_SERVER_CAPABILITIES: &[&str] = &[
-    "attachio",
-    "chdir",
-    "runcommand",
-    "setenv",
-    "setumask2",
-    "validate",
-];
+const REQUIRED_SERVER_CAPABILITIES: &[&str] =
+    &["attachio", "chdir", "runcommand", "setenv", "setumask2", "validate"];
 
 /// Helper to connect to and spawn a server process.
 #[derive(Clone, Debug)]
@@ -188,9 +192,7 @@ impl Locator {
                 .await?;
         }
         client.set_current_dir(&self.current_dir).await?;
-        client
-            .set_env_vars_os(self.env_vars.iter().cloned())
-            .await?;
+        client.set_env_vars_os(self.env_vars.iter().cloned()).await?;
         Ok(client)
     }
 
@@ -304,10 +306,8 @@ pub fn default_hg_command() -> OsString {
 }
 
 fn default_timeout() -> Duration {
-    let secs = env::var("CHGTIMEOUT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(60);
+    let secs =
+        env::var("CHGTIMEOUT").ok().and_then(|s| s.parse().ok()).unwrap_or(60);
     Duration::from_secs(secs)
 }
 
@@ -315,16 +315,13 @@ fn default_timeout() -> Duration {
 ///
 /// If the directory already exists, tests its permission.
 fn create_secure_dir(path: impl AsRef<Path>) -> io::Result<()> {
-    DirBuilder::new()
-        .mode(0o700)
-        .create(path.as_ref())
-        .or_else(|err| {
-            if err.kind() == io::ErrorKind::AlreadyExists {
-                check_secure_dir(path).map(|_| ())
-            } else {
-                Err(err)
-            }
-        })
+    DirBuilder::new().mode(0o700).create(path.as_ref()).or_else(|err| {
+        if err.kind() == io::ErrorKind::AlreadyExists {
+            check_secure_dir(path).map(|_| ())
+        } else {
+            Err(err)
+        }
+    })
 }
 
 fn check_secure_dir<P>(path: P) -> io::Result<P>

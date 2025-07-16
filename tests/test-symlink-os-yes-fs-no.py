@@ -4,6 +4,7 @@ import time
 from mercurial import (
     commands,
     hg,
+    policy,
     pycompat,
     ui as uimod,
     util,
@@ -11,10 +12,16 @@ from mercurial import (
 
 TESTDIR = os.environ["TESTDIR"]
 BUNDLEPATH = os.path.join(TESTDIR, 'bundles', 'test-no-symlinks.hg')
+SKIPPED_RETURN_CODE = 80  # SKIPPED_STATUS defined in run-tests.py
+
+if policy.importrust('revlog') is not None:
+    # Rust cannot be monkey-patched and has no support for systems without
+    # symlinks yet.
+    sys.exit(SKIPPED_RETURN_CODE)
 
 # only makes sense to test on os which supports symlinks
 if not getattr(os, "symlink", False):
-    sys.exit(80)  # SKIPPED_STATUS defined in run-tests.py
+    sys.exit(SKIPPED_RETURN_CODE)
 
 u = uimod.ui.load()
 # hide outer repo

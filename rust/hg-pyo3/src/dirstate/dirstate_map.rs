@@ -8,40 +8,45 @@
 //! Bindings for the `hg::dirstate::dirstate_map` file provided by the
 //! `hg-core` package.
 
-use pyo3::exceptions::{PyKeyError, PyOSError};
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dirstate::dirstate_map::DirstateEntryReset;
+use hg::dirstate::dirstate_map::DirstateIdentity as CoreDirstateIdentity;
+use hg::dirstate::dirstate_map::DirstateMapWriteMode;
+use hg::dirstate::entry::DirstateEntry;
+use hg::dirstate::entry::ParentFileData;
+use hg::dirstate::entry::TruncatedTimestamp;
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::owning::OwningDirstateMap;
+use hg::dirstate::StateMapIter;
+use hg::utils::files::normalize_case;
+use hg::utils::hg_path::HgPath;
+use hg::DirstateParents;
+use pyo3::exceptions::PyKeyError;
+use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-use pyo3::types::{
-    PyBytes, PyBytesMethods, PyDict, PyDictMethods, PyList, PyTuple,
-};
-use pyo3_sharedref::{py_shared_iterator, PyShareable};
+use pyo3::types::PyBytes;
+use pyo3::types::PyBytesMethods;
+use pyo3::types::PyDict;
+use pyo3::types::PyDictMethods;
+use pyo3::types::PyList;
+use pyo3::types::PyTuple;
+use pyo3_sharedref::py_shared_iterator;
+use pyo3_sharedref::PyShareable;
 
-use std::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-use hg::{
-    dirstate::{
-        dirstate_map::{
-            DirstateEntryReset, DirstateIdentity as CoreDirstateIdentity,
-            DirstateMapWriteMode,
-        },
-        entry::{DirstateEntry, ParentFileData, TruncatedTimestamp},
-        on_disk::DirstateV2ParseError,
-        owning::OwningDirstateMap,
-        StateMapIter,
-    },
-    utils::{files::normalize_case, hg_path::HgPath},
-    DirstateParents,
-};
-
-use super::{copy_map::CopyMap, item::DirstateItem};
-use crate::{
-    exceptions::{
-        dirstate_error, dirstate_v2_error, map_try_lock_error,
-        to_string_value_error,
-    },
-    node::{node_from_py_bytes, PyNode},
-    path::{PyHgPathBuf, PyHgPathDirstateV2Result, PyHgPathRef},
-    utils::PyBytesDeref,
-};
+use super::copy_map::CopyMap;
+use super::item::DirstateItem;
+use crate::exceptions::dirstate_error;
+use crate::exceptions::dirstate_v2_error;
+use crate::exceptions::map_try_lock_error;
+use crate::exceptions::to_string_value_error;
+use crate::node::node_from_py_bytes;
+use crate::node::PyNode;
+use crate::path::PyHgPathBuf;
+use crate::path::PyHgPathDirstateV2Result;
+use crate::path::PyHgPathRef;
+use crate::utils::PyBytesDeref;
 
 /// Type alias to satisfy Clippy in `DirstateMap::reset_state)`
 ///
@@ -104,9 +109,7 @@ impl DirstateMap {
 
     #[staticmethod]
     fn new_empty() -> PyResult<Self> {
-        Ok(Self {
-            inner: OwningDirstateMap::new_empty(vec![], None).into(),
-        })
+        Ok(Self { inner: OwningDirstateMap::new_empty(vec![], None).into() })
     }
 
     fn clear(slf: &Bound<'_, Self>) -> PyResult<()> {
@@ -225,10 +228,7 @@ impl DirstateMap {
                     has_meaningful_mtime = false;
                     None
                 };
-                Some(ParentFileData {
-                    mode_size: Some((mode, size)),
-                    mtime,
-                })
+                Some(ParentFileData { mode_size: Some((mode, size)), mtime })
             }
         };
 
@@ -243,7 +243,8 @@ impl DirstateMap {
         };
 
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.reset_state(reset).map_err(dirstate_error)
+            inner.reset_state(reset).map_err(dirstate_error)?;
+            Ok(())
         })
     }
 
@@ -258,10 +259,7 @@ impl DirstateMap {
         })
     }
 
-    fn hasdir(
-        slf: &Bound<'_, Self>,
-        d: &Bound<'_, PyBytes>,
-    ) -> PyResult<bool> {
+    fn hasdir(slf: &Bound<'_, Self>, d: &Bound<'_, PyBytes>) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner
                 .has_dir(HgPath::new(d.as_bytes()))
@@ -389,10 +387,7 @@ impl DirstateMap {
         CopyMap::new(slf).and_then(|cm| Py::new(slf.py(), cm))
     }
 
-    fn tracked_dirs(
-        slf: &Bound<'_, Self>,
-        py: Python,
-    ) -> PyResult<Py<PyList>> {
+    fn tracked_dirs(slf: &Bound<'_, Self>, py: Python) -> PyResult<Py<PyList>> {
         // core iterator is not exact sized, we cannot use `PyList::new`
         let dirs = PyList::empty(py);
         Self::with_inner_write(slf, |_self_ref, mut inner| {
@@ -499,7 +494,7 @@ impl DirstateMap {
         f(&self_ref, guard)
     }
 
-    pub(super) fn with_inner_write<'py, T>(
+    pub fn with_inner_write<'py, T>(
         slf: &Bound<'py, Self>,
         f: impl FnOnce(
             &PyRef<'py, Self>,

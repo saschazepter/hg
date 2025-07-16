@@ -3,16 +3,18 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use std::fs::File;
+use std::io;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use std::time::Instant;
+
 use hg::revlog::node::*;
 use hg::revlog::nodemap::*;
 use hg::revlog::*;
 use memmap2::MmapOptions;
 use rand::Rng;
-use std::fs::File;
-use std::io;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::time::Instant;
 
 mod index;
 use index::Index;
@@ -53,11 +55,11 @@ fn query(index: &Index, nm: &NodeTree, prefix: &str) {
 
 fn bench(index: &Index, nm: &NodeTree, queries: usize) {
     let len = index.len() as u32;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let nodes: Vec<Node> = (0..queries)
         .map(|_| {
             *index
-                .node(Revision((rng.gen::<u32>() % len) as BaseRevision))
+                .node(Revision((rng.random::<u32>() % len) as BaseRevision))
                 .unwrap()
         })
         .collect();
@@ -83,7 +85,8 @@ fn bench(index: &Index, nm: &NodeTree, queries: usize) {
 }
 
 fn main() {
-    use clap::{Parser, Subcommand};
+    use clap::Parser;
+    use clap::Subcommand;
 
     #[derive(Parser)]
     #[command()]

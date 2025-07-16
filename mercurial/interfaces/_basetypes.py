@@ -24,8 +24,25 @@ HgPathT = bytes
 FsPathT = bytes
 """A path on disk (after vfs encoding)."""
 
+# I doubt we will be able to any anything more precise cheaply, however this is
+# useful to richer annotations.
+NodeIdT = bytes
+"""a nodeid identifier"""
+
 # TODO: create a Protocol class,
 RepoT = Any
+
+# TODO: create a Protocol class,
+RevlogT = Any
+
+# I doubt we will be able to any anything more precise cheaply, however this is
+# useful to richer annotations.
+RevnumT = int
+"""a revision number"""
+
+# See revset.matchany()
+RevsetAliasesT = dict[bytes, bytes]
+"""A mapping of a revset alias name to its (string) definition."""
 
 # TODO: create a Protocol class,
 UiT = Any

@@ -1,9 +1,11 @@
-use crate::error::CommandError;
-use crate::utils::path_utils::resolve_file_args;
+use std::ffi::OsString;
+
 use clap::Arg;
 use format_bytes::format_bytes;
 use hg::operations::cat;
-use std::ffi::OsString;
+
+use crate::error::CommandError;
+use crate::utils::path_utils::resolve_file_args;
 
 pub const HELP_TEXT: &str = "
 Output the current or given revision of files
@@ -29,7 +31,7 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
-#[logging_timer::time("trace")]
+#[tracing::instrument(level = "debug", skip_all, name = "rhg cat")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let cat_enabled = invocation.config.get_bool(b"rhg", b"cat")?;
     if !cat_enabled {
@@ -42,8 +44,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
 
     let rev = invocation.subcommand_args.get_one::<String>("rev");
-    let files = match invocation.subcommand_args.get_many::<OsString>("files")
-    {
+    let files = match invocation.subcommand_args.get_many::<OsString>("files") {
         None => vec![],
         Some(files) => resolve_file_args(repo, files)?,
     };

@@ -13,6 +13,7 @@ from __future__ import annotations
 import builtins
 import codecs  # noqa: F401 (ignore imported but not used)
 import concurrent.futures as futures  # noqa: F401 (ignore imported but not used)
+import datetime
 import getopt
 import http.client as httplib  # noqa: F401 (ignore imported but not used)
 import http.cookiejar as cookielib  # noqa: F401 (ignore imported but not used)
@@ -33,16 +34,11 @@ from typing import (
     AnyStr,
     BinaryIO,
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Mapping,
     NoReturn,
-    Optional,
     Sequence,
-    Tuple,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -57,7 +53,7 @@ if not globals():  # hide this from non-pytype users
 
     TYPE_CHECKING = typing.TYPE_CHECKING
 
-_GetOptResult = Tuple[List[Tuple[bytes, bytes]], List[bytes]]
+_GetOptResult = tuple[list[tuple[bytes, bytes]], list[bytes]]
 _T0 = TypeVar('_T0')
 _T1 = TypeVar('_T1')
 _S = TypeVar('_S')
@@ -125,7 +121,7 @@ osname: bytes = os.name.encode('ascii')
 ospathsep: bytes = os.pathsep.encode('ascii')
 ospardir: bytes = os.pardir.encode('ascii')
 ossep: bytes = os.sep.encode('ascii')
-osaltsep: Optional[bytes] = os.altsep.encode('ascii') if os.altsep else None
+osaltsep: bytes | None = os.altsep.encode('ascii') if os.altsep else None
 osdevnull: bytes = os.devnull.encode('ascii')
 
 sysplatform: bytes = sys.platform.encode('ascii')
@@ -135,13 +131,13 @@ sysexecutable: bytes = os.fsencode(sys.executable) if sys.executable else b''
 if TYPE_CHECKING:
 
     @overload
-    def maplist(f: Callable[[_T0], _S], arg: Iterable[_T0]) -> List[_S]:
+    def maplist(f: Callable[[_T0], _S], arg: Iterable[_T0]) -> list[_S]:
         ...
 
     @overload
     def maplist(
         f: Callable[[_T0, _T1], _S], arg1: Iterable[_T0], arg2: Iterable[_T1]
-    ) -> List[_S]:
+    ) -> list[_S]:
         ...
 
 
@@ -149,7 +145,7 @@ def maplist(f, *args):
     return list(map(f, *args))
 
 
-def rangelist(*args) -> List[int]:
+def rangelist(*args) -> list[int]:
     return list(range(*args))
 
 
@@ -177,7 +173,7 @@ if builtins.getattr(sys, 'argv', None) is not None:
     # (this is how Python 2 worked). To get that, we encode with the mbcs
     # encoding, which will pass CP_ACP to the underlying Windows API to
     # produce bytes.
-    sysargv: List[bytes] = []
+    sysargv: list[bytes] = []
     if os.name == r'nt':
         sysargv = [a.encode("mbcs", "ignore") for a in sys.argv]
     else:
@@ -256,7 +252,7 @@ class bytestr(bytes):
         def __init__(self, s: object = b'') -> None:
             pass
 
-    def __new__(cls: Type[_Tbytestr], s: object = b'') -> _Tbytestr:
+    def __new__(cls: type[_Tbytestr], s: object = b'') -> _Tbytestr:
         if isinstance(s, bytestr):
             return s
         if not isinstance(s, (bytes, bytearray)) and (
@@ -379,7 +375,7 @@ def cleandoc(doc):
     return '\n'.join(lines)
 
 
-def getdoc(obj: object) -> Optional[bytes]:
+def getdoc(obj: object) -> bytes | None:
     """Get docstring as bytes; may be None so gettext() won't confuse it
     with _('')"""
     doc = builtins.getattr(obj, '__doc__', None)
@@ -405,7 +401,7 @@ def open(
     name,
     mode: AnyStr = b'r',
     buffering: int = -1,
-    encoding: Optional[str] = None,
+    encoding: str | None = None,
 ) -> Any:
     # TODO: assert binary mode, and cast result to BinaryIO?
     return builtins.open(name, sysstr(mode), buffering, encoding)
@@ -432,7 +428,7 @@ def _getoptbwrapper(
     return opts, args
 
 
-def strkwargs(dic: Mapping[bytes, _T0]) -> Dict[str, _T0]:
+def strkwargs(dic: Mapping[bytes, _T0]) -> dict[str, _T0]:
     """
     Converts the keys of a python dictonary to str i.e. unicodes so that
     they can be passed as keyword arguments as dictionaries with bytes keys
@@ -442,7 +438,7 @@ def strkwargs(dic: Mapping[bytes, _T0]) -> Dict[str, _T0]:
     return dic
 
 
-def byteskwargs(dic: Mapping[str, _T0]) -> Dict[bytes, _T0]:
+def byteskwargs(dic: Mapping[str, _T0]) -> dict[bytes, _T0]:
     """
     Converts keys of python dictionaries to bytes as they were converted to
     str to pass that dictonary as a keyword argument on Python 3.
@@ -454,7 +450,7 @@ def byteskwargs(dic: Mapping[str, _T0]) -> Dict[bytes, _T0]:
 # TODO: handle shlex.shlex().
 def shlexsplit(
     s: bytes, comments: bool = False, posix: bool = True
-) -> List[bytes]:
+) -> list[bytes]:
     """
     Takes bytes argument, convert it to str i.e. unicodes, pass that into
     shlex.split(), convert the returned value to bytes and return that for
@@ -490,21 +486,21 @@ def gnugetoptb(
 
 
 def mkdtemp(
-    suffix: bytes = b'', prefix: bytes = b'tmp', dir: Optional[bytes] = None
+    suffix: bytes = b'', prefix: bytes = b'tmp', dir: bytes | None = None
 ) -> bytes:
     return tempfile.mkdtemp(suffix, prefix, dir)
 
 
 # text=True is not supported; use util.from/tonativeeol() instead
 def mkstemp(
-    suffix: bytes = b'', prefix: bytes = b'tmp', dir: Optional[bytes] = None
-) -> Tuple[int, bytes]:
+    suffix: bytes = b'', prefix: bytes = b'tmp', dir: bytes | None = None
+) -> tuple[int, bytes]:
     return tempfile.mkstemp(suffix, prefix, dir)
 
 
 # TemporaryFile does not support an "encoding=" argument on python2.
 # This wrapper file are always open in byte mode.
-def unnamedtempfile(mode: Optional[bytes] = None, *args, **kwargs) -> BinaryIO:
+def unnamedtempfile(mode: bytes | None = None, *args, **kwargs) -> BinaryIO:
     if mode is None:
         mode = 'w+b'
     else:
@@ -520,7 +516,7 @@ def namedtempfile(
     bufsize: int = -1,
     suffix: bytes = b'',
     prefix: bytes = b'tmp',
-    dir: Optional[bytes] = None,
+    dir: bytes | None = None,
     delete: bool = True,
 ):
     mode = sysstr(mode)
@@ -528,3 +524,15 @@ def namedtempfile(
     return tempfile.NamedTemporaryFile(
         mode, bufsize, suffix=suffix, prefix=prefix, dir=dir, delete=delete
     )
+
+
+# datetime.datetime.utcnow is deprecated in Python3.12, but the replacement is
+# introduced in Python3.11
+try:
+    datetime.UTC  # Python >= 3.11
+except AttributeError:  # Python <= 3.10
+    utcnow = datetime.datetime.utcnow  # pytype: disable=attribute-error
+else:
+
+    def utcnow():
+        return datetime.datetime.now(datetime.UTC)

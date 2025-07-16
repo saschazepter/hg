@@ -268,7 +268,7 @@ def add(ui, repo, *pats, **opts):
         m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
         uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
         rejected = cmdutil.add(ui, repo, m, b"", uipathfn, False, **opts)
-        return rejected and 1 or 0
+        return 1 if rejected else 0
 
 
 @command(
@@ -571,7 +571,7 @@ def annotate(ui, repo, *pats, **opts):
     )
 
     def bad(x, y):
-        raise error.InputError(b"%s: %s" % (x, y))
+        raise error.Abort(b"%s: %s" % (x, y))
 
     m = scmutil.match(ctx, pats, opts, badfn=bad)
 
@@ -2998,7 +2998,7 @@ def forget(ui, repo, *pats, **opts):
             dryrun=dryrun,
             interactive=interactive,
         )[0]
-    return rejected and 1 or 0
+    return 1 if rejected else 0
 
 
 @command(
@@ -6224,7 +6224,10 @@ def rollback(ui, repo, **opts):
 
 @command(
     b'root',
-    [] + formatteropts,
+    [
+        (b'', b'share-source', None, _(b'print the share source root instead')),
+    ]
+    + formatteropts,
     intents={INTENT_READONLY},
     helpcategory=command.CATEGORY_WORKING_DIRECTORY,
 )
@@ -6245,11 +6248,22 @@ def root(ui, repo, **opts):
 
     Returns 0 on success.
     """
+    use_share_source = bool(opts['share_source'])
+
+    w_path = repo.root
+    r_path = repo.path
+    s_path = repo.spath
+    if use_share_source:
+        # building a full repositry seems overkill and might have side effect,
+        # so we just do path manipulation instead.
+        w_path = cmdutil.findrepo(repo.spath)
+        r_path = os.path.join(cmdutil.findrepo(repo.spath), b'.hg/')
+
     opts = pycompat.byteskwargs(opts)
     with ui.formatter(b'root', opts) as fm:
         fm.startitem()
-        fm.write(b'reporoot', b'%s\n', repo.root)
-        fm.data(hgpath=repo.path, storepath=repo.spath)
+        fm.write(b'reporoot', b'%s\n', w_path)
+        fm.data(hgpath=r_path, storepath=s_path)
 
 
 @command(
@@ -6718,7 +6732,7 @@ def status(ui, repo, *pats, **opts):
     states = b'modified added removed deleted unknown ignored clean'.split()
     show = [k for k in states if opts.get(k)]
     if opts.get(b'all'):
-        show += ui.quiet and (states[:4] + [b'clean']) or states
+        show += (states[:4] + [b'clean']) if ui.quiet else states
 
     if not show:
         if ui.quiet:

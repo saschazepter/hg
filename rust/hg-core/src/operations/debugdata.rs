@@ -9,7 +9,9 @@ use crate::errors::HgError;
 use crate::exit_codes;
 use crate::repo::Repo;
 use crate::revlog::options::default_revlog_options;
-use crate::revlog::{Revlog, RevlogError, RevlogType};
+use crate::revlog::Revlog;
+use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
 
 /// Dump the contents data of a revision.
 pub fn debug_data(
@@ -32,14 +34,10 @@ pub fn debug_data(
         &repo.store_vfs(),
         index_file,
         None,
-        default_revlog_options(
-            repo.config(),
-            repo.requirements(),
-            RevlogType::Changelog,
-        )?,
+        default_revlog_options(repo.config(), repo.requirements(), kind)?,
+        kind,
     )?;
-    let rev =
-        crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
+    let rev = crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
     let data = revlog.get_data(rev)?;
     Ok(data.into_owned())
 }

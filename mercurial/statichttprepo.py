@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import errno
+import typing
 
 from .i18n import _
 from .node import sha1nodeconstants
@@ -30,6 +31,11 @@ from . import (
 from .utils import (
     urlutil,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+    )
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -68,7 +74,7 @@ class httprangereader:
             data = f.read()
             code = f.code
         except urlerr.httperror as inst:
-            num = inst.code == 404 and errno.ENOENT or None
+            num = errno.ENOENT if inst.code == 404 else None
             # Explicitly convert the exception to str as Py3 will try
             # convert it to local encoding and with as the HTTPResponse
             # instance doesn't support encode.
@@ -170,6 +176,7 @@ class statichttprepository(
     supported = localrepo.localrepository._basesupported
 
     manifestlog: manifest.manifestlog
+    sjoin: Callable[[bytes], bytes]
 
     def __init__(self, ui, path):
         self._url = path

@@ -7,14 +7,22 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::errors::HgError;
-use crate::exit_codes::{CONFIG_ERROR_ABORT, CONFIG_PARSE_ERROR_ABORT};
-use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
-use format_bytes::{format_bytes, write_bytes, DisplayBytes};
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+
+use format_bytes::format_bytes;
+use format_bytes::write_bytes;
+use format_bytes::DisplayBytes;
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+
+use crate::errors::HgError;
+use crate::exit_codes::CONFIG_ERROR_ABORT;
+use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
+use crate::utils::files::get_bytes_from_path;
+use crate::utils::files::get_path_from_bytes;
 
 lazy_static! {
     static ref SECTION_RE: Regex = make_regex(r"^\[([^\[]+)\]");
@@ -61,11 +69,7 @@ impl ConfigLayer {
 
             let (section_and_item, value) = arg.split_2(b'=')?;
             let (section, item) = section_and_item.trim().split_2(b'.')?;
-            Some((
-                section.to_owned(),
-                item.to_owned(),
-                value.trim().to_owned(),
-            ))
+            Some((section.to_owned(), item.to_owned(), value.trim().to_owned()))
         }
 
         let mut layer = Self::new(ConfigOrigin::CommandLine);
@@ -124,7 +128,8 @@ impl ConfigLayer {
             .flat_map(|section| section.keys().map(|vec| &**vec))
     }
 
-    /// Returns the (key, value) pairs defined in the given section
+    /// Returns the (key, value) pairs defined in the given section from
+    /// lowest to highest precedence.
     pub fn iter_section<'layer>(
         &'layer self,
         section: &[u8],
@@ -137,9 +142,7 @@ impl ConfigLayer {
 
     /// Returns whether any key is defined in the given section
     pub fn has_non_empty_section(&self, section: &[u8]) -> bool {
-        self.sections
-            .get(section)
-            .map_or(false, |section| !section.is_empty())
+        self.sections.get(section).is_some_and(|section| !section.is_empty())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -161,8 +164,7 @@ impl ConfigLayer {
         // TODO check if it's trusted
         let mut current_layer = Self::new(ConfigOrigin::File(src.to_owned()));
 
-        let mut lines_iter =
-            data.split(|b| *b == b'\n').enumerate().peekable();
+        let mut lines_iter = data.split(|b| *b == b'\n').enumerate().peekable();
         let mut section = b"".to_vec();
 
         while let Some((index, bytes)) = lines_iter.next() {
@@ -226,7 +228,7 @@ impl ConfigLayer {
                 current_layer.add(section.clone(), item, value, line);
             } else if let Some(m) = UNSET_RE.captures(bytes) {
                 if let Some(map) = current_layer.sections.get_mut(&section) {
-                    map.remove(&m[1]);
+                    map.shift_remove(&m[1]);
                 }
             } else {
                 let message = if bytes.starts_with(b" ") {
@@ -283,7 +285,8 @@ impl DisplayBytes for ConfigLayer {
 /// paginate=no
 /// ```
 /// "paginate" is the section item and "no" the value.
-pub type ConfigItem = HashMap<Vec<u8>, ConfigValue>;
+/// Uses [`IndexMap`] to preserve insertion order.
+pub type ConfigItem = IndexMap<Vec<u8>, ConfigValue>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigValue {
@@ -339,27 +342,23 @@ pub struct ConfigParseError {
 
 impl From<ConfigParseError> for HgError {
     fn from(error: ConfigParseError) -> Self {
-        let ConfigParseError {
-            origin,
-            line,
-            message,
-        } = error;
+        let ConfigParseError { origin, line, message } = error;
         let line_message = if let Some(line_number) = line {
             format_bytes!(b":{}", line_number.to_string().into_bytes())
         } else {
             Vec::new()
         };
-        HgError::Abort {
-            message: String::from_utf8_lossy(&format_bytes!(
+        HgError::abort(
+            String::from_utf8_lossy(&format_bytes!(
                 b"config error at {}{}: {}",
                 origin,
                 line_message,
                 message
             ))
             .to_string(),
-            detailed_exit_code: CONFIG_ERROR_ABORT,
-            hint: None,
-        }
+            CONFIG_ERROR_ABORT,
+            None,
+        )
     }
 }
 

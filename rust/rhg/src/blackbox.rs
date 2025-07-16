@@ -1,11 +1,14 @@
 //! Logging for repository events, including commands run in the repository.
 
-use crate::CliInvocation;
+use std::ffi::OsString;
+
 use format_bytes::format_bytes;
 use hg::errors::HgError;
 use hg::repo::Repo;
-use hg::utils::{files::get_bytes_from_os_str, strings::shell_quote};
-use std::ffi::OsString;
+use hg::utils::files::get_bytes_from_os_str;
+use hg::utils::strings::shell_quote;
+
+use crate::CliInvocation;
 
 // Python does not support %.3f, only %f
 const DEFAULT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f";
@@ -55,9 +58,7 @@ impl<'a> Blackbox<'a> {
                     max_size: invocation
                         .config
                         .get_byte_size(b"blackbox", b"maxsize")?
-                        .expect(
-                            "blackbox.maxsize should have a default value",
-                        ),
+                        .expect("blackbox.maxsize should have a default value"),
                     max_files: invocation
                         .config
                         .get_u32(b"blackbox", b"maxfiles")?
@@ -67,13 +68,15 @@ impl<'a> Blackbox<'a> {
                     date_format: invocation
                         .config
                         .get_str(b"blackbox", b"date-format")?
-                        .map(|f| {
-                            if f.is_empty() {
-                                DEFAULT_DATE_FORMAT
-                            } else {
-                                f
-                            }
-                        })
+                        .map(
+                            |f| {
+                                if f.is_empty() {
+                                    DEFAULT_DATE_FORMAT
+                                } else {
+                                    f
+                                }
+                            },
+                        )
                         .expect(
                             "blackbox.date-format should have a default value",
                         ),
@@ -84,10 +87,7 @@ impl<'a> Blackbox<'a> {
             // write to.
             None
         };
-        Ok(Self {
-            process_start_time,
-            configured,
-        })
+        Ok(Self { process_start_time, configured })
     }
 
     pub fn log_command_start<'arg>(
@@ -107,11 +107,8 @@ impl<'a> Blackbox<'a> {
     ) {
         if let Some(configured) = &self.configured {
             let now = chrono::Local::now();
-            let duration = self
-                .process_start_time
-                .monotonic_clock
-                .elapsed()
-                .as_secs_f64();
+            let duration =
+                self.process_start_time.monotonic_clock.elapsed().as_secs_f64();
             let message = format_bytes!(
                 b"(rust) {} exited {} after {} seconds",
                 format_cli_args(argv),

@@ -14,11 +14,6 @@ import typing
 
 from typing import (
     Any,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
 )
 
 from .i18n import _
@@ -38,11 +33,6 @@ from .utils import (
 # keeps pyflakes happy
 assert [
     Any,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
 ]
 
 nullstate = (b'', b'', b'empty')
@@ -70,7 +60,7 @@ if typing.TYPE_CHECKING:
         uimod,
     ]
 
-Substate = Dict[bytes, Tuple[bytes, bytes, bytes]]
+Substate = dict[bytes, tuple[bytes, bytes, bytes]]
 
 
 def state(ctx: context.changectx, ui: uimod.ui) -> Substate:
@@ -193,7 +183,7 @@ def submerge(
     mctx: context.changectx,
     actx: context.changectx,
     overwrite: bool,
-    labels: Optional[Any] = None,
+    labels: Any | None = None,
 ) -> Substate:
     # TODO: type the `labels` arg
     """delegated from merge.applyupdates: merging of .hgsubstate file
@@ -340,7 +330,7 @@ def precommit(
     status: istatus.Status,
     match: MatcherT,
     force: bool = False,
-) -> Tuple[List[bytes], Set[bytes], Substate]:
+) -> tuple[list[bytes], set[bytes], Substate]:
     """Calculate .hgsubstate changes that should be applied before committing
 
     Returns (subs, commitsubs, newstate) where
@@ -456,7 +446,7 @@ def _abssource(
     repo: localrepo.localrepository,
     push: bool = False,
     abort: bool = True,
-) -> Optional[bytes]:
+) -> bytes | None:
     """return pull/push path of repo - either based on parent repo .hgsub info
     or on the top repo config. Abort or return None if no source found."""
     if hasattr(repo, '_subparent'):

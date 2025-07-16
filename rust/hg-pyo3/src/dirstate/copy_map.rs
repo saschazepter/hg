@@ -8,25 +8,24 @@
 //! Bindings for `hg::dirstate::dirstate_map::CopyMap` provided by the
 //! `hg-core` package.
 
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::owning::OwningDirstateMap;
+use hg::dirstate::CopyMapIter;
+use hg::utils::hg_path::HgPath;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyTuple};
+use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
+use pyo3::types::PyTuple;
 use pyo3_sharedref::py_shared_iterator;
 
-use std::sync::{RwLockReadGuard, RwLockWriteGuard};
-
-use hg::{
-    dirstate::{
-        on_disk::DirstateV2ParseError, owning::OwningDirstateMap, CopyMapIter,
-    },
-    utils::hg_path::HgPath,
-};
-
 use super::dirstate_map::DirstateMap;
-use crate::{
-    exceptions::dirstate_v2_error,
-    path::{PyHgPathBuf, PyHgPathRef},
-};
+use crate::exceptions::dirstate_v2_error;
+use crate::path::PyHgPathBuf;
+use crate::path::PyHgPathRef;
 
 #[pyclass(mapping)]
 pub struct CopyMap {
@@ -37,9 +36,7 @@ pub struct CopyMap {
 impl CopyMap {
     #[new]
     pub fn new(dsm: &Bound<'_, DirstateMap>) -> PyResult<Self> {
-        Ok(Self {
-            dirstate_map: dsm.clone().unbind(),
-        })
+        Ok(Self { dirstate_map: dsm.clone().unbind() })
     }
 
     fn __getitem__(
@@ -64,9 +61,10 @@ impl CopyMap {
     }
 
     fn __len__(&self, py: Python) -> PyResult<usize> {
-        self.with_dirstate_map_read(py, |inner_dsm| {
-            Ok(inner_dsm.copy_map_len())
-        })
+        self.with_dirstate_map_read(
+            py,
+            |inner_dsm| Ok(inner_dsm.copy_map_len()),
+        )
     }
 
     fn __contains__(
@@ -142,9 +140,7 @@ impl CopyMap {
         let key = HgPath::new(key.as_bytes());
         let value = HgPath::new(value.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
-            inner_dsm
-                .copy_map_insert(key, value)
-                .map_err(dirstate_v2_error)
+            inner_dsm.copy_map_insert(key, value).map_err(dirstate_v2_error)
         })?;
         Ok(())
     }
@@ -199,9 +195,7 @@ impl CopyMap {
     ) -> PyResult<Option<Py<PyTuple>>> {
         let (key, value) = res.map_err(dirstate_v2_error)?;
         Ok(Some(
-            (PyHgPathRef(key), PyHgPathRef(value))
-                .into_pyobject(py)?
-                .unbind(),
+            (PyHgPathRef(key), PyHgPathRef(value)).into_pyobject(py)?.unbind(),
         ))
     }
 

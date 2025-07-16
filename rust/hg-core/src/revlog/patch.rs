@@ -1,8 +1,8 @@
-use byteorder::{BigEndian, ByteOrder};
-
-use crate::revlog::RevlogError;
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
 
 use super::inner_revlog::RevisionBuffer;
+use crate::revlog::RevlogError;
 
 /// A chunk of data to insert, delete or replace in a patch
 ///
@@ -87,13 +87,7 @@ impl<'a> PatchList<'a> {
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
     pub fn full_snapshot(data: &'a [u8]) -> Self {
-        Self {
-            chunks: vec![Chunk {
-                start: 0,
-                end: 0,
-                data,
-            }],
-        }
+        Self { chunks: vec![Chunk { start: 0, end: 0, data }] }
     }
 
     /// Apply the patch to some data.
@@ -240,9 +234,8 @@ pub fn fold_patch_lists<'a>(lists: &[PatchList<'a>]) -> PatchList<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::revlog::inner_revlog::CoreRevisionBuffer;
-
     use super::*;
+    use crate::revlog::inner_revlog::CoreRevisionBuffer;
 
     struct PatchDataBuilder {
         data: Vec<u8>,

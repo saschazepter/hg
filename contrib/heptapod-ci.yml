@@ -29,7 +29,7 @@ stages:
   - upload
 
 
-image: registry.heptapod.net/mercurial/ci-images/mercurial-core:$HG_CI_IMAGE_TAG
+image: "$HG_CI_REG/each-job-should-set-this:$HG_CI_IMAGE_TAG"
 
 variables:
     # to debug use:
@@ -41,7 +41,8 @@ variables:
     RE_BRANCH: '/^branch/.+$/'
     RE_TOPIC: '/^topic/.+/.+$/'
     PYTHON: python
-    HG_CI_IMAGE_TAG: "v2.1"
+    HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
+    HG_CI_IMAGE_TAG: "v3.3"
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
@@ -92,12 +93,21 @@ trigger-nightly-build:
 
 .build-wheel:
   extends: .all
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-c:v3.0"
+  image: "$HG_CI_REG/core-wheel-$ARCH-$WHEEL_TYPE:$HG_CI_IMAGE_TAG"
   stage: build
   variables:
+    ARCH: "x86_64"
     WHEEL_TYPE: ""
     FLAVOR: ""
     CI_CLEVER_CLOUD_FLAVOR: "XS"
+  parallel:
+    matrix:
+      - BUILD_PY_ID:
+          - cp39-cp39
+          - cp311-cp311
+          - cp310-cp310
+          - cp312-cp312
+          - cp313-cp313
   script:
     - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
     - echo $WHEEL_TYPE
@@ -110,29 +120,6 @@ trigger-nightly-build:
       - wheels/
     expire_in: 1 week
 
-
-# build linux wheel for amd64
-build-c-wheel:
-  extends: .build-wheel
-  variables:
-    WHEEL_TYPE: "c"
-  parallel:
-    matrix:
-      - BUILD_PY_ID:
-          - cp311-cp311
-          - cp38-cp38
-          - cp39-cp39
-          - cp310-cp310
-          - cp312-cp312
-          - cp313-cp313
-
-build-rust-wheel:
-  image: "registry.heptapod.net:443/mercurial/ci-images/core-wheel-x86_64-rust:v3.0"
-  extends: build-c-wheel
-  variables:
-    WHEEL_TYPE: "rust"
-    CI_CLEVER_CLOUD_FLAVOR: "M"
-
 .wheel-trigger:
   extends: .trigger
   stage: build
@@ -143,52 +130,71 @@ build-rust-wheel:
     when: manual
     allow_failure: true
 
-.extra-c-wheel:
-  extends: build-c-wheel
+
+trigger-wheel-linux:
+  extends: .wheel-trigger
+
+.extra-wheel:
+  extends: .build-wheel
   rules:
   - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
     needs:
       - trigger-nightly-build
   - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
     needs:
-      - "trigger-wheel-musl"
+      - "trigger-wheel-linux"
 
-trigger-wheel-musl:
-  extends: .wheel-trigger
+# build linux wheel for amd64
+build-c-wheel-libc:
+  extends: .build-wheel
+  variables:
+    ARCH: "x86_64"
+    WHEEL_TYPE: "c"
+
+build-rust-wheel-libc:
+  extends: .build-wheel
+  variables:
+    ARCH: "x86_64"
+    WHEEL_TYPE: "rust"
+    CI_CLEVER_CLOUD_FLAVOR: "M"
 
 build-c-wheel-musl:
-  extends: .extra-c-wheel
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-x86_64-musl-c:v3.0"
+  extends: .extra-wheel
+  variables:
+    ARCH: "x86_64-musl"
+    WHEEL_TYPE: "c"
 
-trigger-wheel-i686:
-  extends: .wheel-trigger
+build-rust-wheel-musl:
+  extends: .extra-wheel
+  variables:
+    ARCH: "x86_64-musl"
+    WHEEL_TYPE: "rust"
 
-build-c-wheel-i686:
-  extends: .extra-c-wheel
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-c:v3.0"
-
-trigger-wheel-i686-musl:
-  extends: .wheel-trigger
+build-c-wheel-i686-libc:
+  extends: .extra-wheel
+  variables:
+    ARCH: "i686"
+    WHEEL_TYPE: "c"
 
 build-c-wheel-i686-musl:
-  extends: .extra-c-wheel
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-i686-musl-c:v3.0"
+  extends: .extra-wheel
+  variables:
+    ARCH: "i686-musl"
+    WHEEL_TYPE: "c"
 
-trigger-wheel-arm64:
-  extends: .wheel-trigger
-
-build-c-wheel-arm64:
-  extends: .extra-c-wheel
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-c:v3.0"
+build-c-wheel-arm64-libc:
+  extends: .extra-wheel
+  variables:
+    ARCH: "arm64"
+    WHEEL_TYPE: "c"
   tags:
     - arm64
 
-trigger-wheel-arm64-musl:
-  extends: .wheel-trigger
-
 build-c-wheel-arm64-musl:
-  extends: .extra-c-wheel
-  image: "registry.heptapod.net/mercurial/ci-images/core-wheel-arm64-musl-c:v3.0"
+  extends: .extra-wheel
+  variables:
+    ARCH: "arm64-musl"
+    WHEEL_TYPE: "c"
   tags:
     - arm64
 
@@ -259,21 +265,24 @@ build-c-wheel-arm64-musl:
 
 checks:
     extends: .runtests
+    image: "$HG_CI_REG/hg-core-checks:$HG_CI_IMAGE_TAG"
     stage: checks
     variables:
         SHOW_VERSION_OF: "$PYTHON black clang-format"
-        RUNTEST_ARGS: "--time"
+        RUNTEST_ARGS: "--time --pure"
         FILTER: "--test-list ${TMP_WORK_DIR}/check-tests.txt"
         CI_CLEVER_CLOUD_FLAVOR: S
 
 rust-cargo-test:
     extends: .all
+    image: "$HG_CI_REG/hg-core-rust-test:$HG_CI_IMAGE_TAG"
     stage: checks
     script:
         - make rust-tests
         - make cargo-clippy
     variables:
         CI_CLEVER_CLOUD_FLAVOR: S
+        CARGO_TERM_COLOR: "always"
 
 .runtests-no-check:
   extends: .runtests
@@ -288,8 +297,9 @@ rust-cargo-test:
 
 test-c:
     extends: .test-c
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     needs:
-      - job: build-c-wheel
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp311-cp311"
@@ -298,6 +308,7 @@ test-c:
 
 test-pure:
     extends: .runtests-no-check
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     variables:
         FLAVOR: "--pure"
 
@@ -306,14 +317,16 @@ test-pure:
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
+        WHEEL_TYPE: "rust"
 
 test-rust:
     extends: .test-rust
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
     needs:
-      - job: build-rust-wheel
+      - job: build-rust-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp311-cp311"
@@ -322,12 +335,14 @@ test-rust:
 
 test-rhg:
     extends: .runtests-no-check
+    image: "$HG_CI_REG/hg-core-test-py-dev-rust-dev:$HG_CI_IMAGE_TAG"
     variables:
         HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust --rhg"
 
 test-chg:
     extends: .runtests-no-check
+    image: "$HG_CI_REG/hg-core-test-py-dev:$HG_CI_IMAGE_TAG"
     variables:
         FLAVOR: "--chg"
 
@@ -350,76 +365,152 @@ trigger-pycompat:
     variables:
         WHEEL_TYPE: "c"
 
-# note: we should probably get a full matrix for flavor × py-version, but this
-# is a simple start to be able to check if we break the lowest supported
-# version (and 3.12 have been giving us various troubles)
-test-3.8-c:
+.test-rust-pycompat:
+    extends: .test-rust
+    stage: py-version-compat
+
+test-3.9-c:
     extends: .test-c-pycompat
+    image: "$HG_CI_REG/hg-core-test-py39:$HG_CI_IMAGE_TAG"
     variables:
-        PYTHON: python3.8
+        PYTHON: python3.9
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel
+      - job: build-c-wheel-libc
         parallel:
           matrix:
-            - BUILD_PY_ID: "cp38-cp38"
+            - BUILD_PY_ID: "cp39-cp39"
+
+test-3.9-rust:
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py39:$HG_CI_IMAGE_TAG"
+    needs:
+      - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp39-cp39"
+    variables:
+        PYTHON: python3.9
+
+test-3.10-c:
+    extends: .test-c-pycompat
+    image: "$HG_CI_REG/hg-core-test-py310:$HG_CI_IMAGE_TAG"
+    variables:
+        PYTHON: python3.10
+    needs:
+      - job: trigger-pycompat
+      - job: build-c-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp310-cp310"
+
+test-3.10-rust:
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py310:$HG_CI_IMAGE_TAG"
+    needs:
+      - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp310-cp310"
+    variables:
+        PYTHON: python3.10
+
+test-3.11-c:
+    extends: .test-c-pycompat
+    image: "$HG_CI_REG/hg-core-test-py311:$HG_CI_IMAGE_TAG"
+    variables:
+        PYTHON: python3.11
+    needs:
+      - job: trigger-pycompat
+      - job: build-c-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+
+test-3.11-rust:
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py311:$HG_CI_IMAGE_TAG"
+    needs:
+      - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
+    variables:
+        PYTHON: python3.11
 
 test-3.12-c:
     extends: .test-c-pycompat
+    image: "$HG_CI_REG/hg-core-test-py312:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.12
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp312-cp312"
 
 test-3.12-rust:
-    extends: .test-rust
-    stage: py-version-compat
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py312:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp312-cp312"
     variables:
         PYTHON: python3.12
 
 test-3.13-c:
     extends: .test-c-pycompat
+    image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.13
     needs:
       - job: trigger-pycompat
-      - job: build-c-wheel
+      - job: build-c-wheel-libc
         parallel:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
 
 test-3.13-rust:
-    extends: .test-rust
-    stage: py-version-compat
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
     needs:
       - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp313-cp313"
     variables:
         PYTHON: python3.13
 
 check-pytype:
-    extends: .test-rust
+    extends: .all
     stage: checks
+    image: "$HG_CI_REG/hg-core-pytype:$HG_CI_IMAGE_TAG"
+    cache:
+      key: pytype-cache
+      # the runner is too old to support VARIABLE policy
+      policy: pull-push
+      paths:
+        - pytype-cache
     before_script:
-      - export PATH="/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/shims:/home/ci-runner/vendor/pyenv/pyenv-2.4.7-adf3c2bccf09cdb81febcfd15b186711a33ac7a8/bin:$PATH"
-      - echo "PATH, $PATH"
-      - rm -rf "${TMP_WORK_DIR}"/mercurial-ci/  # Clean slate if not using containers
-      - hg clone . "${TMP_WORK_DIR}"/mercurial-ci/ --noupdate --config phases.publish=no
-      - hg -R "${TMP_WORK_DIR}"/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
-      - cd "${TMP_WORK_DIR}"/mercurial-ci/
-      - echo $HGWITHRUSTEXT
-      # We need to unset HGWITHRUSTEXT since editable install is broken with Rust
-      - unset HGWITHRUSTEXT
-      - make local PYTHON=$PYTHON
-      - ./contrib/setup-pytype.sh
+      - rm -rf .pytype
+      # make sure the directory exist, its easier
+      - mkdir -p pytype-cache
+      - cp -r pytype-cache/ .pytype
     script:
-      - echo "Entering script section"
+      - bash contrib/adjust-pytype-cache.sh
+      - bash contrib/check-pytype.sh --import-graph
       - bash contrib/check-pytype.sh
+      - hg log -r . -T "{node}" > .pytype/CACHE_COMMIT
+      # to work around the lack of VARIABLE support in cache policy
+      - if  [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then rm -rf pytype-cache; mv .pytype pytype-cache; fi
 
 # `sh.exe --login` sets a couple of extra environment variables that are defined
 # in the MinGW shell, but switches CWD to /home/$username.  The previous value
@@ -479,7 +570,6 @@ build-c-wheel-windows:
         # "cp39" is first as it unlock the tests
         - CIBW_BUILD:
           - "cp39-*"
-          - "cp38-*"
           - "cp310-*"
           - "cp311-*"
           - "cp312-*"
@@ -653,7 +743,9 @@ test-result-linux:
   extends: .sink
   needs:
     - test-c
-    - test-3.8-c
+    - test-3.9-c
+    - test-3.10-c
+    - test-3.11-c
     - test-3.12-c
     - test-3.13-c
 
@@ -670,11 +762,11 @@ test-result-windows:
 wheel-result-linux:
   extends: .sink
   needs:
-    - build-c-wheel
+    - build-c-wheel-libc
     - build-c-wheel-musl
-    - build-c-wheel-i686
+    - build-c-wheel-i686-libc
     - build-c-wheel-i686-musl
-    - build-c-wheel-arm64
+    - build-c-wheel-arm64-libc
     - build-c-wheel-arm64-musl
   artifacts:
       paths:
@@ -701,7 +793,7 @@ wheel-result-windows:
 # credential accessible only from protected branches.
 upload-wheel-nightly:
   extends: .nightly_build_step
-  image: "registry.heptapod.net/mercurial/ci-images/twine:v3.0"
+  image: "$HG_CI_REG/twine:$HG_CI_IMAGE_TAG"
   # because we don't want to upload only half of a wheel
   interruptible: false
   needs:

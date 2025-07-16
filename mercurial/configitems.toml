@@ -503,6 +503,13 @@ but before spawning the parallel worker."""
 
 [[items]]
 section = "devel"
+name = "update.abort-on-dirstate-change"
+default = false
+documentation = """If true, then the dirstate state changes during an update \
+ will abort."""
+
+[[items]]
+section = "devel"
 name = "debug.copies"
 default = false
 
@@ -816,6 +823,11 @@ default = true
 [[items]]
 section = "experimental"
 name = "changegroup4"
+default = false
+
+[[items]]
+section = "experimental"
+name = "changegroup5"
 default = false
 
 # might remove rank configuration once the computation has no impact
@@ -1247,6 +1259,53 @@ section = "format"
 name = "exp-use-copies-side-data-changeset"
 default = false
 experimental = true
+
+# Experimental TODOs:
+#
+# * code for fast upgrade,
+# * fast old<>new conversion for changegroup generation and consumption
+# * finalize changegroup v4,
+# * wait for potential other flags to had in a the same batch.
+# * finalize name
+[[items]]
+section = "format"
+name = "exp-use-hasmeta-flag"
+default = false
+experimental = true
+
+# Experimental TODOs:
+#
+# * code for fast upgrade
+# * changegroup 04 support
+# * more flag around delta quality (maybe)
+# * rust support
+# * c support
+# * updated delta strategie if relevant
+[[items]]
+section = "format"
+name = "exp-use-delta-info-flags"
+default = false
+experimental = true
+
+# Experimental TODOs:
+# * actually checks if nothing -unexpected- break
+# * teach the native code (especially rust) about it.
+[[items]]
+section = "format"
+name = "exp-use-very-fragile-and-unsafe-plain-store-encoding"
+experimental = true
+documentation = """Switch to an extremely simplified version of the store encoding used for filelogs.
+
+It only ensures that directories and filenames cannot collide. Any other filename
+weirdness is preserved as-is. This should not be used outside of specific
+server setups and it is very unlikely that you need it at all. If you think you
+should use it, please contact the Mercurial core developers.
+
+This feature currently implies the use of `store` and `fncache`. It is
+incompatible with the use of `dotencode`, so make sure you set `format.dotencode=no`.
+
+This is an experimental feature and its support might be removed in the future.
+"""
 
 [[items]]
 section = "format"
@@ -1810,6 +1869,21 @@ name = "output"
 
 [[items]]
 section = "profiling"
+name = "output-dir"
+documentation = """Directory in which profiling data or report should \
+be saved. The data will be written to a file with the naming scheme \
+"hg-profile-{TIMESTAMP}-{PID}.prof". If both ``output`` and ``output-dir`` \
+are specified, ``output`` will take precedence.
+"""
+
+[[items]]
+section = "profiling"
+name = "output-dir:create"
+default = false
+documentation = "Create output-dir if it doesn't already exist."
+
+[[items]]
+section = "profiling"
 name = "showmax"
 default = 0.999
 
@@ -1996,6 +2070,18 @@ default = true
 experimental = true
 documentation = """Whether to use the Rust fast-path when an update from null
 is detected. This config item is here to help users disable the fastpath in
+case one of their extensions is interfering with the update code. If you are
+one of these people, please reach out.
+"""
+
+[[items]]
+section = "rust"
+name = "update-from-clean"
+default = true
+experimental = true
+documentation = """Whether to use the Rust fast-path when an update from clean
+is detected. An update is "from clean" if no tracked files are affected.
+This config item is here to help users disable the fastpath in
 case one of their extensions is interfering with the update code. If you are
 one of these people, please reach out.
 """
@@ -2220,6 +2306,34 @@ See the individual "storage.*.slow-path" configs for details. These options can
 override the default.
 """
 
+
+[[items]]
+section = "storage"
+name = "delta-fold-estimate"
+default = "when-fast"
+experimental = true
+documentation = """Whenever possible use delta folding to estimate the size of
+a delta before computing it.
+
+Acceptable value:
+- always: always use
+- when-fast: use only if a fast implementation is available (default)
+- never: never use
+"""
+
+[[items]]
+section = "storage"
+name = "delta-fold-tolerance-percentage"
+default = 5
+experimental = true
+documentation = """The maximum extra size allowed when using folding. The value
+is expressed in percentage (5 means up to 105% of the original size, 50 means
+150% of the original size.)
+
+Negative value disable the use of delta folding.
+(the delta folding usage is only used for revlog using te delta-info-flags feature).
+"""
+
 [[items]]
 section = "storage"
 name = "dirstate-v2.slow-path"
@@ -2306,6 +2420,42 @@ default = true
 section = "storage"
 name = "revlog.reuse-external-delta-parent"
 documentation = """This option is true unless `format.generaldelta` is set."""
+
+
+[[items]]
+section = "storage"
+name = "revlog.reuse-external-suspicious-delta-parent"
+default = false
+# This should likely be merged into `paths.*:pulled-delta-reuse-policy` instead
+# of existing on its own.
+experimental = true
+documentation = """When false, ignored suggested delta-parent if it does not
+seems to match an optimal base or a snapshot. Only apply to repository
+supporting sparse-revlog"""
+
+[[items]]
+section = "storage"
+name = "revlog.validate-delta-base"
+default = false
+documentation = """Validate the integrity of bases when computing deltas.
+
+Since the base of reused deltas is not validated either, we recommend using the
+`server.validate` option if you want to guarantee the integrity of inbound
+content."""
+experimental = true
+
+[[items]]
+section = "storage"
+name = "filelog.expected-max-compression-ratio"
+# Arbitrary value picked to help the delta searching algorithme, there might be
+# some data where compression works better, but 10 seems like a reasonably high
+# value that will help filter some cases.
+default = 10
+documentation = """the expected maximum compression ratio expected for a
+filelog. This is used to estimate the size of a delta before compressing it.
+
+Setting this to 0 will disable the use of such estimate."""
+experimental = true
 
 [[items]]
 section = "storage"

@@ -1,12 +1,13 @@
 //! Filesystem-based locks for local repositories
 
+use std::io;
+use std::io::ErrorKind;
+use std::path::Path;
+
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
-use std::io;
-use std::io::ErrorKind;
-use std::path::Path;
 
 #[derive(derive_more::From)]
 pub enum LockError {
@@ -87,8 +88,7 @@ fn read_lock(
     hg_vfs: &VfsImpl,
     lock_filename: &str,
 ) -> Result<Option<String>, HgError> {
-    let link_target =
-        hg_vfs.read_link(lock_filename).io_not_found_as_none()?;
+    let link_target = hg_vfs.read_link(lock_filename).io_not_found_as_none()?;
     if let Some(target) = link_target {
         let data = target
             .into_os_string()

@@ -143,7 +143,7 @@ def statprofile(ui, fp):
         ui.warn(_(b"invalid sampling frequency '%s' - ignoring\n") % freq)
 
     track = ui.config(
-        b'profiling', b'time-track', pycompat.iswindows and b'cpu' or b'real'
+        b'profiling', b'time-track', b'cpu' if pycompat.iswindows else b'real'
     )
     statprof.start(mechanism=b'thread', track=track)
 
@@ -289,6 +289,26 @@ class profile:
                 profiler = b'stat'
 
         self._output = self._ui.config(b'profiling', b'output')
+
+        if not self._output:
+            output_dir = self._ui.config(b'profiling', b'output-dir')
+            if output_dir:
+                if not os.path.isdir(output_dir):
+                    if self._ui.configbool(b'profiling', b'output-dir:create'):
+                        util.makedirs(output_dir)
+                    else:
+                        msg = _(
+                            b"profiling output directory does not exist: %s\n"
+                        )
+                        msg %= output_dir
+                        self._ui.warn(msg)
+                        return
+                pid = os.getpid()
+                timestamp = encoding.strtolocal(
+                    pycompat.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+                )
+                filename = b"hg-profile-%s-%d.prof" % (timestamp, pid)
+                self._output = os.path.join(output_dir, filename)
 
         try:
             if self._output == b'blackbox':

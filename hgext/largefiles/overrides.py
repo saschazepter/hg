@@ -13,9 +13,6 @@ from __future__ import annotations
 import contextlib
 import copy
 import os
-from typing import (
-    Optional,
-)
 
 from mercurial.i18n import _
 
@@ -1234,7 +1231,7 @@ def overridearchive(
     node,
     kind,
     decode=True,
-    match: Optional[MatcherT] = None,
+    match: MatcherT | None = None,
     prefix=b'',
     mtime=None,
     subrepos=None,

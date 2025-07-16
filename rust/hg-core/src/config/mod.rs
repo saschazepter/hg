@@ -13,7 +13,18 @@ pub mod config_items;
 mod layer;
 mod plain_info;
 mod values;
-pub use layer::{ConfigError, ConfigOrigin, ConfigParseError};
+use std::collections::HashSet;
+use std::env;
+use std::fmt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::str;
+
+use format_bytes::write_bytes;
+use format_bytes::DisplayBytes;
+pub use layer::ConfigError;
+pub use layer::ConfigOrigin;
+pub use layer::ConfigParseError;
 use lazy_static::lazy_static;
 pub use plain_info::PlainInfo;
 
@@ -21,15 +32,12 @@ use self::config_items::DefaultConfig;
 use self::config_items::DefaultConfigItem;
 use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::errors::{HgResultExt, IoResultExt};
+use crate::errors::HgResultExt;
+use crate::errors::IoResultExt;
+use crate::exit_codes;
 use crate::utils::files::get_bytes_from_os_str;
-use format_bytes::{write_bytes, DisplayBytes};
-use std::collections::HashSet;
-use std::env;
-use std::fmt;
-use std::path::{Path, PathBuf};
-use std::str;
 
 lazy_static! {
     static ref DEFAULT_CONFIG: Result<DefaultConfig, HgError> = {
@@ -84,6 +92,7 @@ pub struct ConfigValueParseErrorDetails {
     pub item: Vec<u8>,
     pub value: Vec<u8>,
     pub expected_type: &'static str,
+    pub backtrace: HgBacktrace,
 }
 
 // boxed to avoid very large Result types
@@ -142,10 +151,7 @@ fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
 impl Config {
     /// The configuration to use when printing configuration-loading errors
     pub fn empty() -> Self {
-        Self {
-            layers: Vec::new(),
-            plain: PlainInfo::empty(),
-        }
+        Self { layers: Vec::new(), plain: PlainInfo::empty() }
     }
 
     /// Load system and user configuration from various files.
@@ -325,10 +331,7 @@ impl Config {
             }
         }
 
-        Ok(Config {
-            layers,
-            plain: PlainInfo::empty(),
-        })
+        Ok(Config { layers, plain: PlainInfo::empty() })
     }
 
     /// Loads the per-repository config into a new `Config` which is combined
@@ -343,10 +346,8 @@ impl Config {
             .cloned()
             .partition(ConfigLayer::is_from_command_line);
 
-        let mut repo_config = Self {
-            layers: other_layers,
-            plain: PlainInfo::empty(),
-        };
+        let mut repo_config =
+            Self { layers: other_layers, plain: PlainInfo::empty() };
         for path in repo_config_files {
             // TODO: check if this file should be trusted:
             // `mercurial/ui.py:427`
@@ -414,6 +415,7 @@ impl Config {
                     section: section.to_owned(),
                     item: item.to_owned(),
                     expected_type,
+                    backtrace: HgBacktrace::capture(),
                 })
                 .into()),
             },
@@ -674,8 +676,7 @@ impl Config {
 
     /// Returns the raw value bytes of the first one found, or `None`.
     pub fn get(&self, section: &[u8], item: &[u8]) -> Option<&[u8]> {
-        self.get_inner(section, item)
-            .map(|(_, value)| value.bytes.as_ref())
+        self.get_inner(section, item).map(|(_, value)| value.bytes.as_ref())
     }
 
     /// Returns the raw value bytes of the first one found, or `None`.
@@ -709,8 +710,7 @@ impl Config {
             // In practice the tweak-default layer is only added when it is
             // relevant, so we can safely always take it into
             // account here.
-            if should_ignore && !(layer.origin == ConfigOrigin::Tweakdefaults)
-            {
+            if should_ignore && !(layer.origin == ConfigOrigin::Tweakdefaults) {
                 continue;
             }
             if let Some(v) = layer.get(section, item) {
@@ -722,24 +722,20 @@ impl Config {
 
     /// Return all keys defined for the given section
     pub fn get_section_keys(&self, section: &[u8]) -> HashSet<&[u8]> {
-        self.layers
-            .iter()
-            .flat_map(|layer| layer.iter_keys(section))
-            .collect()
+        self.layers.iter().flat_map(|layer| layer.iter_keys(section)).collect()
     }
 
     /// Returns whether any key is defined in the given section
     pub fn has_non_empty_section(&self, section: &[u8]) -> bool {
-        self.layers
-            .iter()
-            .any(|layer| layer.has_non_empty_section(section))
+        self.layers.iter().any(|layer| layer.has_non_empty_section(section))
     }
 
-    /// Yields (key, value) pairs for everything in the given section
+    /// Yields (key, value) pairs for everything in the given section from
+    /// lowest to highest precedence.
     pub fn iter_section<'a>(
         &'a self,
         section: &'a [u8],
-    ) -> impl Iterator<Item = (&[u8], &[u8])> + 'a {
+    ) -> impl Iterator<Item = (&'a [u8], &'a [u8])> + 'a {
         // Deduplicate keys redefined in multiple layers
         let mut keys_already_seen = HashSet::new();
         let mut key_is_new =
@@ -752,7 +748,6 @@ impl Config {
         let mut layer_iters = self
             .layers
             .iter()
-            .rev()
             .map(move |layer| layer.iter_section(section))
             .peekable();
         std::iter::from_fn(move || loop {
@@ -841,6 +836,32 @@ impl Config {
             _ => None,
         }
     }
+
+    /// Returns the default username to be used in commits. Like ui.username()
+    /// in Python with acceptempty=False, but aborts rather than prompting for
+    /// input or falling back to the OS username and hostname.
+    pub fn username(&self) -> Result<Vec<u8>, HgError> {
+        if let Some(value) = env::var_os("HGUSER") {
+            if !value.is_empty() {
+                return Ok(value.into_encoded_bytes());
+            }
+        }
+        if let Some(value) = self.get_str(b"ui", b"username")? {
+            if !value.is_empty() {
+                return Ok(value.as_bytes().to_vec());
+            }
+        }
+        if let Some(value) = env::var_os("EMAIL") {
+            if !value.is_empty() {
+                return Ok(value.into_encoded_bytes());
+            }
+        }
+        Err(HgError::abort(
+            "no username supplied",
+            exit_codes::ABORT,
+            Some("use 'hg config --edit' to set your username".to_string()),
+        ))
+    }
 }
 
 /// Corresponds to `usage.resources[.<dimension>]`.
@@ -862,10 +883,12 @@ pub enum ResourceProfileValue {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
     use std::fs::File;
     use std::io::Write;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_include_layer_ordering() {
@@ -889,10 +912,7 @@ mod tests {
         let (_, value) = config.get_inner(b"section", b"item").unwrap();
         assert_eq!(
             value,
-            &ConfigValue {
-                bytes: b"value2".to_vec(),
-                line: Some(4)
-            }
+            &ConfigValue { bytes: b"value2".to_vec(), line: Some(4) }
         );
 
         let value = config.get(b"section", b"item").unwrap();

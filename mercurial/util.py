@@ -44,10 +44,6 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
-    Optional,
-    Tuple,
-    Type,
     TypeVar,
 )
 
@@ -84,17 +80,28 @@ from .utils import (
 assert [
     Iterable,
     Iterator,
-    List,
-    Optional,
-    Tuple,
 ]
 
 if typing.TYPE_CHECKING:
+    from typing import (
+        ParamSpec,
+    )
     from typing_extensions import (
         Self,
     )
 
     _Tcow = TypeVar('_Tcow', bound="cow")
+    _P = ParamSpec('_P')
+    """An unconstrained type for a Callable ParamSpec."""
+
+    _R = TypeVar('_R')
+    """An unconstrained type for a Callable return value."""
+
+_KT = TypeVar("_KT")
+"""An unconstrained key type for container classes (see typing.KT)."""
+
+_VT = TypeVar("_VT")
+"""An unconstrained value type for container classes (see typing.VT)."""
 
 base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
@@ -231,7 +238,7 @@ if _dowarn:
     )
 
 
-def nouideprecwarn(msg, version, stacklevel=1):
+def nouideprecwarn(msg: bytes, version: bytes, stacklevel: int = 1) -> None:
     """Issue an python native deprecation warning
 
     This is a noop outside of tests, use 'ui.deprecwarn' when possible.
@@ -520,14 +527,22 @@ def mmapread(fp, size=None, pre_populate=True):
         raise
 
 
-class uncacheable_cachestat:
-    stat: Optional[os.stat_result]
+class uncacheable_cachestat(int_misc.ICacheStat):
+    stat: os.stat_result | None
 
     def __init__(self) -> None:
         self.stat = None
 
     def cacheable(self) -> bool:
         return False
+
+    __hash__ = object.__hash__
+
+    def __eq__(self, other: Any) -> bool:
+        return False
+
+    def __ne__(self, other: Any) -> bool:
+        return True
 
 
 class fileobjectproxy:
@@ -1201,7 +1216,7 @@ def makeloggingsocket(
     return socketproxy(fh, observer)
 
 
-def version():
+def version() -> bytes:
     """Return version information if available."""
     try:
         from . import __version__  # pytype: disable=import-error
@@ -1352,7 +1367,7 @@ class cow:
         return self
 
 
-class sortdict(collections.OrderedDict):
+class sortdict(collections.OrderedDict[_KT, _VT]):
     """a simple sorted dictionary
 
     >>> d1 = sortdict([(b'a', 0), (b'b', 1)])
@@ -1367,7 +1382,7 @@ class sortdict(collections.OrderedDict):
     [('a', 0), ('a.5', 0.5), ('b', 1)]
     """
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: _KT, value: _VT) -> None:
         if key in self:
             del self[key]
         super().__setitem__(key, value)
@@ -1382,7 +1397,7 @@ class sortdict(collections.OrderedDict):
             for k in f:
                 self[k] = f[k]
 
-    def insert(self, position, key, value):
+    def insert(self, position: int, key: _KT, value: _VT):
         for i, (k, v) in enumerate(list(self.items())):
             if i == position:
                 self[key] = value
@@ -1418,7 +1433,7 @@ class cowdict(cow, dict):
     """
 
 
-class cowsortdict(cow, sortdict):
+class cowsortdict(cow, sortdict[_KT, _VT]):
     """copy-on-write sortdict
 
     Be sure to call d = d.preparewrite() before writing to d.
@@ -1792,7 +1807,7 @@ class lrucachedict:
             n = n.prev
 
 
-def lrucachefunc(func):
+def lrucachefunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
     '''cache most recent results of function calls'''
     cache = {}
     order = collections.deque()
@@ -1809,7 +1824,7 @@ def lrucachefunc(func):
             return cache[arg]
 
     else:
-
+        # TODO: type with _P.args when pytype supports it
         def f(*args):
             if args not in cache:
                 if len(cache) > 20:
@@ -2140,7 +2155,7 @@ _winreservednames = {
 _winreservedchars = b':*?"<>|'
 
 
-def checkwinfilename(path: bytes) -> Optional[bytes]:
+def checkwinfilename(path: bytes) -> bytes | None:
     r"""Check that the base-relative path is a valid filename on Windows.
     Returns None if the path is ok, or a UI string describing the problem.
 
@@ -2463,7 +2478,7 @@ def endswithsep(path: bytes) -> bool:
     )
 
 
-def splitpath(path: bytes) -> List[bytes]:
+def splitpath(path: bytes) -> list[bytes]:
     """Split path by os.sep.
     Note that this function does not use os.altsep because this is
     an alternative of simple "xxx.split(os.sep)".
@@ -2475,7 +2490,7 @@ def splitpath(path: bytes) -> List[bytes]:
 def mktempcopy(
     name: bytes,
     emptyok: bool = False,
-    createmode: Optional[int] = None,
+    createmode: int | None = None,
     enforcewritable: bool = False,
 ) -> bytes:
     """Create a temporary file with the same contents from name
@@ -2528,11 +2543,11 @@ class filestat:
     'exists()' examination on client side of this class.
     """
 
-    def __init__(self, stat: Optional[os.stat_result]) -> None:
+    def __init__(self, stat: os.stat_result | None) -> None:
         self.stat = stat
 
     @classmethod
-    def frompath(cls: Type[_Tfilestat], path: bytes) -> _Tfilestat:
+    def frompath(cls: type[_Tfilestat], path: bytes) -> _Tfilestat:
         try:
             stat = os.stat(path)
         except FileNotFoundError:
@@ -2540,7 +2555,7 @@ class filestat:
         return cls(stat)
 
     @classmethod
-    def fromfp(cls: Type[_Tfilestat], fp: BinaryIO) -> _Tfilestat:
+    def fromfp(cls: type[_Tfilestat], fp: BinaryIO) -> _Tfilestat:
         stat = os.fstat(fp.fileno())
         return cls(stat)
 
@@ -2730,7 +2745,7 @@ def tryunlink(f: bytes) -> bool:
 
 
 def makedirs(
-    name: bytes, mode: Optional[int] = None, notindexed: bool = False
+    name: bytes, mode: int | None = None, notindexed: bool = False
 ) -> None:
     """recursive directory creation with parent mode inheritance
 
@@ -2957,7 +2972,7 @@ def unitcountfn(*unittable):
     return go
 
 
-def processlinerange(fromline: int, toline: int) -> Tuple[int, int]:
+def processlinerange(fromline: int, toline: int) -> tuple[int, int]:
     """Check that linerange <fromline>:<toline> makes sense and return a
     0-based range.
 
@@ -3152,7 +3167,7 @@ def timedcm(whencefmt, *whenceargs):
 timedcm._nested = 0
 
 
-def timed(func):
+def timed(func: Callable[_P, _R]) -> Callable[_P, _R]:
     """Report the execution time of a function call to stderr.
 
     During development, use as a decorator when you need to measure
@@ -3163,6 +3178,7 @@ def timed(func):
         pass
     """
 
+    # TODO: type with _P.args, _P.kwargs when pytype supports it
     def wrapper(*args, **kwargs):
         with timedcm(pycompat.bytestr(func.__name__)) as time_stats:
             result = func(*args, **kwargs)
@@ -3222,7 +3238,7 @@ class hooks(int_misc.IHooks):
     def add(self, source: bytes, hook: Callable) -> None:
         self._hooks.append((source, hook))
 
-    def __call__(self, *args) -> List:
+    def __call__(self, *args) -> list:
         self._hooks.sort(key=lambda x: x[0])
         results = []
         for source, hook in self._hooks:
@@ -3413,7 +3429,7 @@ def with_lc_ctype():
         yield
 
 
-def _estimatememory() -> Optional[int]:
+def _estimatememory() -> int | None:
     """Provide an estimate for the available system memory in Bytes.
 
     If no estimate can be provided on the platform, returns None.
@@ -3458,3 +3474,31 @@ def _estimatememory() -> Optional[int]:
         pass
     except KeyError:  # unknown parameter
         pass
+
+
+def rust_tracing_span(name: str):
+    """Maybe¹ returns a context manager that calls into the Rust extensions's
+    tracing system to register a span, creating it on `__enter__` and closing
+    it on `__exit__`.
+
+    See "Profiling and tracing" in `rust/README.rst` for more information.
+
+    [1] The context manager does nothing if the Rust extensions are unavailable
+    or have not been compiled with the `full-tracing` feature.
+    """
+    try:
+        tracer = policy.importrust("tracing", member="tracer", default=None)
+    except ImportError:
+        tracer = None
+
+    if tracer is None:
+        import contextlib
+
+        @contextlib.contextmanager
+        def trace_span(name: str):
+            yield
+
+    else:
+        trace_span = tracer.span
+
+    return trace_span(name)

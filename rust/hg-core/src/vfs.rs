@@ -1,22 +1,39 @@
-use crate::errors::{HgError, HgResultExt, IoErrorContext, IoResultExt};
-use crate::exit_codes;
-use crate::fncache::FnCache;
-use crate::revlog::path_encode::path_encode;
-use crate::utils::files::{get_bytes_from_path, get_path_from_bytes};
-use dyn_clone::DynClone;
-use format_bytes::format_bytes;
-use memmap2::{Mmap, MmapOptions};
-use rand::distributions::{Alphanumeric, DistString};
-use std::fs::{File, Metadata, OpenOptions};
-use std::io::{ErrorKind, Read, Seek, Write};
+use std::fs::File;
+use std::fs::Metadata;
+use std::fs::OpenOptions;
+use std::io::ErrorKind;
+use std::io::Read;
+use std::io::Seek;
+use std::io::Write;
 use std::os::fd::AsRawFd;
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::{Path, PathBuf};
+use std::os::unix::fs::FileExt;
+use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+use std::path::PathBuf;
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
 #[cfg(test)]
 use std::sync::atomic::Ordering;
 use std::sync::OnceLock;
+
+use dyn_clone::DynClone;
+use format_bytes::format_bytes;
+use memmap2::Mmap;
+use memmap2::MmapOptions;
+use rand::distr::Alphanumeric;
+use rand::distr::SampleString;
+
+use crate::errors::HgError;
+use crate::errors::HgResultExt;
+use crate::errors::IoErrorContext;
+use crate::errors::IoResultExt;
+use crate::exit_codes;
+use crate::fncache::FnCache;
+use crate::revlog::path_encode::path_encode;
+use crate::revlog::path_encode::PathEncoding;
+use crate::utils::files::get_bytes_from_path;
+use crate::utils::files::get_path_from_bytes;
 
 /// Filesystem access abstraction for the contents of a given "base" diretory
 #[derive(Clone)]
@@ -24,6 +41,10 @@ pub struct VfsImpl {
     pub(crate) base: PathBuf,
     pub readonly: bool,
     pub mode: Option<u32>,
+    /// XXX This encoding is only used to inform FnCacheVfs of its encoding
+    /// This is bad and will need to be reworked before or upon introduction
+    /// of the fileindex.
+    pub encoding: PathEncoding,
 }
 
 struct FileNotFound(std::io::Error, PathBuf);
@@ -31,7 +52,7 @@ struct FileNotFound(std::io::Error, PathBuf);
 /// Store the umask for the whole process since it's expensive to get.
 static UMASK: OnceLock<u32> = OnceLock::new();
 
-fn get_umask() -> u32 {
+pub fn get_umask() -> u32 {
     *UMASK.get_or_init(|| unsafe {
         // TODO is there any way of getting the umask without temporarily
         // setting it? Doesn't this affect all threads in this tiny window?
@@ -60,13 +81,9 @@ fn get_mode(base: impl AsRef<Path>) -> Option<u32> {
 }
 
 impl VfsImpl {
-    pub fn new(base: PathBuf, readonly: bool) -> Self {
+    pub fn new(base: PathBuf, readonly: bool, encoding: PathEncoding) -> Self {
         let mode = get_mode(&base);
-        Self {
-            base,
-            readonly,
-            mode,
-        }
+        Self { base, readonly, mode, encoding }
     }
 
     // XXX these methods are probably redundant with VFS trait?
@@ -186,9 +203,7 @@ impl VfsImpl {
             .and_then(|()| tmp.flush())
             .when_writing_file(tmp.path())?;
         let path = self.join(relative_path);
-        tmp.persist(&path)
-            .map_err(|e| e.error)
-            .when_writing_file(&path)?;
+        tmp.persist(&path).map_err(|e| e.error).when_writing_file(&path)?;
         Ok(())
     }
 }
@@ -227,11 +242,7 @@ pub enum VfsFile {
 
 impl VfsFile {
     pub fn normal(file: File, path: PathBuf) -> Self {
-        Self::Normal {
-            file,
-            check_ambig: None,
-            path,
-        }
+        Self::Normal { file, check_ambig: None, path }
     }
     pub fn normal_check_ambig(
         file: File,
@@ -243,6 +254,7 @@ impl VfsFile {
             path,
         })
     }
+
     pub fn try_clone(&self) -> Result<VfsFile, HgError> {
         Ok(match self {
             VfsFile::Atomic(AtomicFile {
@@ -258,11 +270,7 @@ impl VfsFile {
                 target_name: target_name.clone(),
                 is_open: *is_open,
             }),
-            VfsFile::Normal {
-                file,
-                check_ambig,
-                path,
-            } => Self::Normal {
+            VfsFile::Normal { file, check_ambig, path } => Self::Normal {
                 file: file.try_clone().when_reading_file(path)?,
                 check_ambig: check_ambig.clone(),
                 path: path.to_owned(),
@@ -280,6 +288,24 @@ impl VfsFile {
         match self {
             VfsFile::Atomic(atomic_file) => atomic_file.fp.metadata(),
             VfsFile::Normal { file, .. } => file.metadata(),
+        }
+    }
+}
+
+impl FileExt for VfsFile {
+    fn read_at(&self, buf: &mut [u8], offset: u64) -> std::io::Result<usize> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.fp.read_at(buf, offset),
+            VfsFile::Normal { file, .. } => file.read_at(buf, offset),
+        }
+    }
+
+    fn write_at(&self, buf: &[u8], offset: u64) -> std::io::Result<usize> {
+        match self {
+            VfsFile::Atomic(atomic_file) => {
+                atomic_file.fp.write_at(buf, offset)
+            }
+            VfsFile::Normal { file, .. } => file.write_at(buf, offset),
         }
     }
 }
@@ -329,12 +355,7 @@ impl Write for VfsFile {
 
 impl Drop for VfsFile {
     fn drop(&mut self) {
-        if let VfsFile::Normal {
-            path,
-            check_ambig: Some(old),
-            ..
-        } = self
-        {
+        if let VfsFile::Normal { path, check_ambig: Some(old), .. } = self {
             avoid_timestamp_ambiguity(path, old)
         }
     }
@@ -423,10 +444,8 @@ impl AtomicFile {
     ) -> Result<Self, HgError> {
         let target_path = target_path.as_ref().to_owned();
 
-        let random_id =
-            Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-        let filename =
-            target_path.file_name().expect("target has no filename");
+        let random_id = Alphanumeric.sample_string(&mut rand::rng(), 12);
+        let filename = target_path.file_name().expect("target has no filename");
         let filename = get_bytes_from_path(filename);
         let temp_filename =
             format_bytes!(b".{}-{}~", filename, random_id.as_bytes());
@@ -654,6 +673,12 @@ impl Vfs for VfsImpl {
         let path = self.base.join(filename);
         let parent = path.parent().expect("file at root");
         std::fs::create_dir_all(parent).when_writing_file(parent)?;
+        // This avoids permission errors if the file somehow already exists
+        // Let it fail: either it didn't exist (good), or we really don't have
+        // the rights to do anything about this file, let `open` fail.
+        std::fs::remove_file(&path)
+            .when_writing_file(&path)
+            .io_not_found_as_none()?;
 
         let file = OpenOptions::new()
             .create(true)
@@ -667,6 +692,8 @@ impl Vfs for VfsImpl {
             // Creating the file with the right permission (with `.mode()`)
             // may not work since umask takes effect for file creation.
             // So we need to fix the permission after creating the file.
+            // TODO figure out a performant way of doing this, as this
+            // introduces contention and a lot of folders are in common.
             fix_directory_permissions(&self.base, &path, mode)?;
             let perm = std::fs::Permissions::from_mode(mode & 0o666);
             std::fs::set_permissions(&path, perm).when_writing_file(&path)?;
@@ -746,10 +773,7 @@ impl Vfs for VfsImpl {
         let from = self.base.join(from);
         let to = self.base.join(to);
         std::fs::rename(&from, &to).with_context(|| {
-            IoErrorContext::RenamingFile {
-                from,
-                to: to.to_owned(),
-            }
+            IoErrorContext::RenamingFile { from, to: to.to_owned() }
         })?;
         if let Some(Some(old)) = old_stat {
             avoid_timestamp_ambiguity(&to, &old);
@@ -783,8 +807,7 @@ fn fix_directory_permissions(
             break;
         }
         let perm = std::fs::Permissions::from_mode(mode);
-        std::fs::set_permissions(ancestor, perm)
-            .when_writing_file(ancestor)?;
+        std::fs::set_permissions(ancestor, perm).when_writing_file(ancestor)?;
     }
     Ok(())
 }
@@ -811,8 +834,9 @@ impl FnCacheVfs {
         base: PathBuf,
         readonly: bool,
         fncache: Box<dyn FnCache>,
+        encoding: PathEncoding,
     ) -> Self {
-        let inner = VfsImpl::new(base, readonly);
+        let inner = VfsImpl::new(base, readonly, encoding);
         Self { inner, fncache }
     }
 
@@ -844,20 +868,23 @@ impl FnCacheVfs {
 
 impl Vfs for FnCacheVfs {
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.open(filename)
     }
 
     fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
         self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.open_write(encoded_path)
     }
 
     fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.open_check_ambig(filename)
     }
@@ -867,7 +894,8 @@ impl Vfs for FnCacheVfs {
         filename: &Path,
         check_ambig: bool,
     ) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
         self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.create(encoded_path, check_ambig)
@@ -878,7 +906,8 @@ impl Vfs for FnCacheVfs {
         filename: &Path,
         check_ambig: bool,
     ) -> Result<VfsFile, HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.create_atomic(filename, check_ambig)
     }
@@ -888,13 +917,15 @@ impl Vfs for FnCacheVfs {
     }
 
     fn exists(&self, filename: &Path) -> bool {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.exists(filename)
     }
 
     fn unlink(&self, filename: &Path) -> Result<(), HgError> {
-        let encoded = path_encode(&get_bytes_from_path(filename));
+        let encoded =
+            path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.unlink(filename)
     }
@@ -905,17 +936,21 @@ impl Vfs for FnCacheVfs {
         to: &Path,
         check_ambig: bool,
     ) -> Result<(), HgError> {
-        let encoded = path_encode(&get_bytes_from_path(from));
+        let encoded =
+            path_encode(&get_bytes_from_path(from), self.inner.encoding);
         let from = get_path_from_bytes(&encoded);
-        let encoded = path_encode(&get_bytes_from_path(to));
+        let encoded =
+            path_encode(&get_bytes_from_path(to), self.inner.encoding);
         let to = get_path_from_bytes(&encoded);
         self.inner.rename(from, to, check_ambig)
     }
 
     fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
-        let encoded = path_encode(&get_bytes_from_path(from));
+        let encoded =
+            path_encode(&get_bytes_from_path(from), self.inner.encoding);
         let from = get_path_from_bytes(&encoded);
-        let encoded = path_encode(&get_bytes_from_path(to));
+        let encoded =
+            path_encode(&get_bytes_from_path(to), self.inner.encoding);
         let to = get_path_from_bytes(&encoded);
         self.inner.copy(from, to)
     }
@@ -932,7 +967,7 @@ fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
     if metadata.nlink() > 1 {
         // If it's hardlinked, copy it and rename it back before changing it.
         let tmpdir = path.parent().expect("file at root");
-        let name = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        let name = Alphanumeric.sample_string(&mut rand::rng(), 16);
         let tmpfile = tmpdir.join(name);
         std::fs::create_dir_all(tmpfile.parent().expect("file at root"))
             .with_context(|| IoErrorContext::CopyingFile {
@@ -946,10 +981,7 @@ fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
             }
         })?;
         std::fs::rename(&tmpfile, path).with_context(|| {
-            IoErrorContext::RenamingFile {
-                from: tmpfile,
-                to: path.to_owned(),
-            }
+            IoErrorContext::RenamingFile { from: tmpfile, to: path.to_owned() }
         })?;
     }
     Ok(())
@@ -966,11 +998,11 @@ pub fn is_revlog_file(path: impl AsRef<Path>) -> bool {
 }
 
 pub(crate) fn is_dir(path: impl AsRef<Path>) -> Result<bool, HgError> {
-    Ok(fs_metadata(path)?.map_or(false, |meta| meta.is_dir()))
+    Ok(fs_metadata(path)?.is_some_and(|meta| meta.is_dir()))
 }
 
 pub(crate) fn is_file(path: impl AsRef<Path>) -> Result<bool, HgError> {
-    Ok(fs_metadata(path)?.map_or(false, |meta| meta.is_file()))
+    Ok(fs_metadata(path)?.is_some_and(|meta| meta.is_file()))
 }
 
 /// Returns whether the given `path` is on a network file system.
@@ -1030,26 +1062,17 @@ mod tests {
         std::fs::write(&target_path, "version 1").unwrap();
         let mut file = AtomicFile::new(&target_path, false, false).unwrap();
         file.write_all(b"version 2!").unwrap();
-        assert_eq!(
-            std::fs::read(&target_path).unwrap(),
-            b"version 1".to_vec()
-        );
+        assert_eq!(std::fs::read(&target_path).unwrap(), b"version 1".to_vec());
         let temp_path = file.temp_path.to_owned();
         // test that dropping the file should discard the temp file and not
         // affect the target path.
         drop(file);
-        assert_eq!(
-            std::fs::read(&target_path).unwrap(),
-            b"version 1".to_vec()
-        );
+        assert_eq!(std::fs::read(&target_path).unwrap(), b"version 1".to_vec());
         assert!(!temp_path.exists());
 
         let mut file = AtomicFile::new(&target_path, false, false).unwrap();
         file.write_all(b"version 2!").unwrap();
-        assert_eq!(
-            std::fs::read(&target_path).unwrap(),
-            b"version 1".to_vec()
-        );
+        assert_eq!(std::fs::read(&target_path).unwrap(), b"version 1".to_vec());
         file.close().unwrap();
         assert_eq!(
             std::fs::read(&target_path).unwrap(),

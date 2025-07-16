@@ -212,8 +212,8 @@ create an initial repository
   $ hg -R auto-upgrade update
   6 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugformat -R auto-upgrade tracked-hint
-  format-variant     repo
-  tracked-hint:        no
+  format-variant                 repo
+  tracked-hint:                    no
 
 upgrade it to dirstate-tracked-hint automatically
 
@@ -223,8 +223,8 @@ upgrade it to dirstate-tracked-hint automatically
   automatically upgrading repository to the `tracked-hint` feature
   (see `hg help config.format.use-dirstate-tracked-hint` for details)
   $ hg debugformat -R auto-upgrade tracked-hint
-  format-variant     repo
-  tracked-hint:       yes
+  format-variant                 repo
+  tracked-hint:                   yes
 
 rhg supports this feature
 
@@ -239,5 +239,5 @@ downgrade it from dirstate-tracked-hint automatically
   automatically downgrading repository from the `tracked-hint` feature
   (see `hg help config.format.use-dirstate-tracked-hint` for details)
   $ hg debugformat -R auto-upgrade tracked
-  format-variant     repo
-  tracked-hint:        no
+  format-variant                 repo
+  tracked-hint:                    no

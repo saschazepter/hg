@@ -18,10 +18,7 @@ import difflib
 from typing import (
     AnyStr,
     Iterable,
-    List,
-    Optional,
     Sequence,
-    Union,
 )
 
 # Do not import anything but pycompat here, please
@@ -45,7 +42,7 @@ class Hint:
     """
 
     def __init__(self, *args, **kw):
-        self.hint: Optional[bytes] = kw.pop('hint', None)
+        self.hint: bytes | None = kw.pop('hint', None)
         super().__init__(*args, **kw)
 
 
@@ -55,7 +52,16 @@ class Error(Hint, Exception):
     coarse_exit_code = None
     detailed_exit_code = None
 
-    def __init__(self, message: bytes, hint: Optional[bytes] = None) -> None:
+    def __init__(
+        self,
+        message: bytes | str,
+        hint: bytes | None = None,
+    ) -> None:
+        # Ideally we would only accept "bytes" here, however the C code set
+        # error message as `str`, so we need to handle them on the fly or we
+        # will crash later down the road.
+        if isinstance(message, str):
+            message = pycompat.sysbytes(message)
         self.message = message
         self.hint = hint
         # Pass the message into the Exception constructor to help extensions
@@ -147,7 +153,7 @@ class ManifestLookupError(LookupError):
 class CommandError(Exception):
     """Exception raised on errors in parsing the command line."""
 
-    def __init__(self, command: Optional[bytes], message: bytes) -> None:
+    def __init__(self, command: bytes | None, message: bytes) -> None:
         self.command = command
         self.message = message
         super().__init__()
@@ -161,7 +167,7 @@ class UnknownCommand(Exception):
     def __init__(
         self,
         command: bytes,
-        all_commands: Optional[List[bytes]] = None,
+        all_commands: list[bytes] | None = None,
     ) -> None:
         self.command = command
         self.all_commands = all_commands
@@ -173,7 +179,7 @@ class UnknownCommand(Exception):
 class AmbiguousCommand(Exception):
     """Exception raised if command shortcut matches more than one command."""
 
-    def __init__(self, prefix: bytes, matches: List[bytes]) -> None:
+    def __init__(self, prefix: bytes, matches: list[bytes]) -> None:
         self.prefix = prefix
         self.matches = matches
         super().__init__()
@@ -282,8 +288,8 @@ class ConfigError(Abort):
     def __init__(
         self,
         message: bytes,
-        location: Optional[bytes] = None,
-        hint: Optional[bytes] = None,
+        location: bytes | None = None,
+        hint: bytes | None = None,
     ) -> None:
         super().__init__(message, hint=hint)
         self.location = location
@@ -339,8 +345,8 @@ class OutOfBandError(RemoteError):
 
     def __init__(
         self,
-        message: Optional[bytes] = None,
-        hint: Optional[bytes] = None,
+        message: bytes | None = None,
+        hint: bytes | None = None,
     ):
         from .i18n import _
 
@@ -360,8 +366,8 @@ class ParseError(Abort):
     def __init__(
         self,
         message: bytes,
-        location: Optional[Union[bytes, int]] = None,
-        hint: Optional[bytes] = None,
+        location: bytes | int | None = None,
+        hint: bytes | None = None,
     ):
         super().__init__(message, hint=hint)
         self.location = location
@@ -393,14 +399,14 @@ class PatchApplicationError(PatchError):
     __bytes__ = _tobytes
 
 
-def getsimilar(symbols: Iterable[bytes], value: bytes) -> List[bytes]:
+def getsimilar(symbols: Iterable[bytes], value: bytes) -> list[bytes]:
     sim = lambda x: difflib.SequenceMatcher(None, value, x).ratio()
     # The cutoff for similarity here is pretty arbitrary. It should
     # probably be investigated and tweaked.
     return [s for s in symbols if sim(s) > 0.6]
 
 
-def similarity_hint(similar: List[bytes]) -> Optional[bytes]:
+def similarity_hint(similar: list[bytes]) -> bytes | None:
     from .i18n import _
 
     if len(similar) == 1:
@@ -477,8 +483,8 @@ class UnknownVersion(Abort):
     def __init__(
         self,
         msg: bytes,
-        hint: Optional[bytes] = None,
-        version: Optional[bytes] = None,
+        hint: bytes | None = None,
+        version: bytes | None = None,
     ) -> None:
         self.version = version
         super().__init__(msg, hint=hint)
@@ -490,7 +496,7 @@ class LockError(IOError):
         errno: int,
         strerror: str,
         filename: bytes,
-        desc: Optional[bytes],
+        desc: bytes | None,
     ) -> None:
         IOError.__init__(self, errno, strerror, filename)
         self.desc = desc
@@ -503,7 +509,7 @@ class LockHeld(LockError):
         self,
         errno: int,
         filename: bytes,
-        desc: Optional[bytes],
+        desc: bytes | None,
         locker,
     ):
         LockError.__init__(self, errno, 'Lock held', filename, desc)
@@ -686,7 +692,7 @@ class WireprotoCommandError(Exception):
     def __init__(
         self,
         message: bytes,
-        args: Optional[Sequence[bytes]] = None,
+        args: Sequence[bytes] | None = None,
     ) -> None:
         self.message = message
         self.messageargs = args

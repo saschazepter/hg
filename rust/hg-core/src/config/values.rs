@@ -42,16 +42,15 @@ pub(super) fn parse_byte_size(value: &[u8]) -> Option<u64> {
     value.parse().ok()
 }
 
-/// Parse a config value as a list of sub-values.
-///
-/// Ported from `parselist` in `mercurial/utils/stringutil.py`
-
 // Note: keep behavior in sync with the Python one.
-
 // Note: this could return `Vec<Cow<[u8]>>` instead and borrow `input` when
 // possible (when there’s no backslash-escapes) but this is probably not worth
 // the complexity as config is presumably not accessed inside
-// preformance-sensitive loops.
+// performance-sensitive loops.
+
+/// Parse a config value as a list of sub-values.
+///
+/// Ported from `parselist` in `mercurial/utils/stringutil.py`
 pub(super) fn parse_list(input: &[u8]) -> Vec<Vec<u8>> {
     // Port of Python’s `value.lstrip(b' ,\n')`
     // TODO: is this really what we want?

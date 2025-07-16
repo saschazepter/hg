@@ -321,10 +321,20 @@ class changelog(revlog.revlog):
 
         if self._initempty and (self._format_version == revlog.REVLOGV1):
             # changelogs don't benefit from generaldelta.
+            # (sparse-revlog has no flag, it is just a repository requirements)
 
-            self._format_flags &= ~revlog.FLAG_GENERALDELTA
+            self._format_flags &= ~(
+                revlog.FLAG_GENERALDELTA | revlog.FLAG_DELTA_INFO
+            )
             self.delta_config.general_delta = False
+            self.delta_config.sparse_revlog = False
+            self.delta_config.delta_info = False
             self.data_config.generaldelta = False
+            # stricly speaking we could still use sparse reading even if the
+            # delta are not stored as such, however this would not yield any
+            # benefit here either so we disable it for simplicity.
+            self.data_config.sparse_revlog = False
+            self.data_config.delta_info = False
 
         # Delta chains for changelogs tend to be very small because entries
         # tend to be small and don't delta well with each. So disable delta

@@ -20,8 +20,8 @@ Create a modern server with an older clone
 
   $ hg clone --quiet --pull server client --config format.usegeneraldelta=no
   $ hg debugformat -R client generaldelta
-  format-variant     repo
-  generaldelta:        no
+  format-variant                 repo
+  generaldelta:                    no
 
 Create some complexe history
 

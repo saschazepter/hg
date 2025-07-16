@@ -2083,7 +2083,7 @@ def iterhunks(fp):
             hunknum += 1
             if emitfile:
                 emitfile = False
-                yield b'file', (afile, bfile, h, gp and gp.copy() or None)
+                yield b'file', (afile, bfile, h, gp.copy() if gp else None)
             yield b'hunk', h
         elif x.startswith(b'diff --git a/'):
             m = gitre.match(x.rstrip(b'\r\n'))

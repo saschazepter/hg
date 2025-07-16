@@ -111,12 +111,8 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Dict,
     Iterable,
-    List,
-    Optional,
-    Set,
-    Tuple,
+    Literal,
     overload,
 )
 
@@ -136,13 +132,10 @@ from . import (
     util,
 )
 
-Phaseroots = Dict[int, Set[int]]
-PhaseSets = Dict[int, Set[int]]
+Phaseroots = dict[int, set[int]]
+PhaseSets = dict[int, set[int]]
 
 if typing.TYPE_CHECKING:
-    from typing_extensions import (
-        Literal,  # py3.8+
-    )
     from . import (
         localrepo,
         ui as uimod,
@@ -151,7 +144,7 @@ if typing.TYPE_CHECKING:
     # keeps pyflakes happy
     assert [uimod]
 
-    Phasedefaults = List[
+    Phasedefaults = list[
         Callable[[localrepo.localrepository, Phaseroots], Phaseroots]
     ]
 
@@ -204,8 +197,8 @@ def supportarchived(repo: localrepo.localrepository) -> bool:
 
 def _readroots(
     repo: localrepo.localrepository,
-    phasedefaults: Optional[Phasedefaults] = None,
-) -> Tuple[Phaseroots, bool]:
+    phasedefaults: Phasedefaults | None = None,
+) -> tuple[Phaseroots, bool]:
     """Read phase roots from disk
 
     phasedefaults is a list of fn(repo, roots) callable, which are
@@ -244,7 +237,7 @@ def _readroots(
     return roots, dirty
 
 
-def binaryencode(phasemapping: Dict[int, List[bytes]]) -> bytes:
+def binaryencode(phasemapping: dict[int, list[bytes]]) -> bytes:
     """encode a 'phase -> nodes' mapping into a binary stream
 
     The revision lists are encoded as (phase, root) pairs.
@@ -256,7 +249,7 @@ def binaryencode(phasemapping: Dict[int, List[bytes]]) -> bytes:
     return b''.join(binarydata)
 
 
-def binarydecode(stream) -> Dict[int, List[bytes]]:
+def binarydecode(stream) -> dict[int, list[bytes]]:
     """decode a binary stream into a 'phase -> nodes' mapping
 
     The (phase, root) pairs are turned back into a dictionary with
@@ -397,7 +390,7 @@ class phasecache:
         def __init__(
             self,
             repo: localrepo.localrepository,
-            phasedefaults: Optional[Phasedefaults],
+            phasedefaults: Phasedefaults | None,
             _load: bool = True,
         ) -> None:
             pass
@@ -414,7 +407,7 @@ class phasecache:
             self._phaseroots: Phaseroots = loaded[0]
             self.dirty: bool = loaded[1]
             self._loadedrevslen = 0
-            self._phasesets: Optional[PhaseSets] = None
+            self._phasesets: PhaseSets | None = None
 
     def hasnonpublicphases(self, repo: localrepo.localrepository) -> bool:
         """detect if there are revisions with non-public phase"""
@@ -423,7 +416,7 @@ class phasecache:
             revs for phase, revs in self._phaseroots.items() if phase != public
         )
 
-    def nonpublicphaseroots(self, repo: localrepo.localrepository) -> Set[int]:
+    def nonpublicphaseroots(self, repo: localrepo.localrepository) -> set[int]:
         """returns the roots of all non-public phases
 
         The roots are not minimized, so if the secret revisions are
@@ -443,7 +436,7 @@ class phasecache:
         self,
         repo: localrepo.localrepository,
         phase: int,
-    ) -> Set[int]:
+    ) -> set[int]:
         """return the set of revision in that phase
 
         The returned set is not filtered and might contains revision filtered
@@ -464,7 +457,7 @@ class phasecache:
         self,
         repo: localrepo.localrepository,
         phases: Iterable[int],
-        subset: Optional[Any] = None,
+        subset: Any | None = None,
     ) -> Any:
         # TODO: finish typing this
         """return a smartset for the given phases"""
@@ -1056,7 +1049,7 @@ def registernew(repo, tr, targetphase, revs):
     repo._phasecache.replace(phcache)
 
 
-def listphases(repo: localrepo.localrepository) -> Dict[bytes, bytes]:
+def listphases(repo: localrepo.localrepository) -> dict[bytes, bytes]:
     """List phases root for serialization over pushkey"""
     # Use ordered dictionary so behavior is deterministic.
     keys = util.sortdict()
@@ -1143,8 +1136,8 @@ def updatephases(repo, trgetter, headsbyphase):
 def analyze_remote_phases(
     repo,
     subset: Collection[int],
-    roots: Dict[bytes, bytes],
-) -> Tuple[Collection[int], Collection[int]]:
+    roots: dict[bytes, bytes],
+) -> tuple[Collection[int], Collection[int]]:
     """Compute phases heads and root in a subset of node from root dict
 
     * subset is heads of the subset
@@ -1190,10 +1183,10 @@ class RemotePhasesSummary:
         self,
         repo,
         remote_subset: Collection[int],
-        remote_roots: Dict[bytes, bytes],
+        remote_roots: dict[bytes, bytes],
     ):
         unfi = repo.unfiltered()
-        self._allremoteroots: Dict[bytes, bytes] = remote_roots
+        self._allremoteroots: dict[bytes, bytes] = remote_roots
 
         self.publishing: bool = bool(remote_roots.get(b'publishing', False))
 
@@ -1214,9 +1207,6 @@ def new_heads(
 
     * `heads`: define the first subset
     * `roots`: define the second we subtract from the first"""
-    # prevent an import cycle
-    # phases > dagop > patch > copies > scmutil > obsolete > obsutil > phases
-    from . import dagop
 
     if not roots:
         return heads
@@ -1237,11 +1227,15 @@ def new_heads(
         b"parents(%ld + (%ld and merge())) and not null", roots, affected_zone
     )
     candidates -= affected_zone
-    if new_heads or candidates:
+    if candidates:
         # remove candidate that are ancestors of other heads
         new_heads.update(candidates)
         prunestart = repo.revs(b"parents(%ld) and not null", new_heads)
-        pruned = dagop.reachableroots(repo, candidates, prunestart)
+        pruned = repo.changelog.reachableroots(
+            candidates.min(),
+            list(candidates),
+            list(prunestart),
+        )
         new_heads.difference_update(pruned)
 
     # PERF-XXX: do we actually need a sorted list here? Could we simply return
@@ -1271,9 +1265,9 @@ def hassecret(repo: localrepo.localrepository) -> bool:
 
 def preparehookargs(
     node: bytes,
-    old: Optional[int],
-    new: Optional[int],
-) -> Dict[bytes, bytes]:
+    old: int | None,
+    new: int | None,
+) -> dict[bytes, bytes]:
     if old is None:
         old = b''
     else:

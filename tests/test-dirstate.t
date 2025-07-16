@@ -85,27 +85,10 @@ Test modulo storage/comparison of absurd dates:
 Verify that exceptions during a dirstate change leave the dirstate
 coherent (issue4353)
 
-  $ cat > ../dirstateexception.py <<EOF
-  > from mercurial import (
-  >   error,
-  >   extensions,
-  >   mergestate as mergestatemod,
-  > )
-  > 
-  > def wraprecordupdates(*args):
-  >     raise error.Abort(b"simulated error while recording dirstateupdates")
-  > 
-  > def reposetup(ui, repo):
-  >     extensions.wrapfunction(mergestatemod, 'recordupdates',
-  >                             wraprecordupdates)
-  > EOF
-
   $ hg rm a
   $ hg commit -m 'rm a'
-  $ echo "[extensions]" >> .hg/hgrc
-  $ echo "dirstateex=../dirstateexception.py" >> .hg/hgrc
-  $ hg up 0
-  abort: simulated error while recording dirstateupdates
+  $ hg up 0 --config devel.update.abort-on-dirstate-change=yes
+  abort: simulated error while recording dirstate updates
   [255]
   $ hg log -r . -T '{rev}\n'
   1

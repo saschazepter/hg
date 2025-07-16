@@ -166,6 +166,7 @@ _errors = {
     br'$EADDRINUSE$': (
         # strerror()
         br'Address already in use',
+        br'Address in use',
         # FormatMessage(WSAEADDRINUSE)
         br'Only one usage of each socket address'
         br' \(protocol/network address/port\) is normally permitted',

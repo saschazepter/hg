@@ -1,12 +1,16 @@
-use clap::{ArgGroup, Parser};
-use itertools::Itertools;
-use regex::bytes::Regex;
-use similar::ChangeTag;
-use std::cmp::{max, min, Ordering};
+use std::cmp::max;
+use std::cmp::min;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::ops::Range;
 use std::path::PathBuf;
+
+use clap::ArgGroup;
+use clap::Parser;
+use itertools::Itertools;
+use regex::bytes::Regex;
+use similar::ChangeTag;
 
 fn find_unchanged_ranges(
     old_bytes: &[u8],
@@ -116,10 +120,7 @@ fn resolve(
     let mut new_base_bytes: Vec<u8> = vec![];
     let mut new_local_bytes: Vec<u8> = vec![];
     let mut new_other_bytes: Vec<u8> = vec![];
-    let mut previous = UnchangedRange {
-        base_range: 0..0,
-        offsets: vec![0, 0],
-    };
+    let mut previous = UnchangedRange { base_range: 0..0, offsets: vec![0, 0] };
     for current in unchanged_ranges {
         let base_slice =
             &base_bytes[previous.base_range.end..current.base_range.start];
@@ -211,8 +212,7 @@ fn main() {
 
 fn checked_add(base: usize, offset: isize) -> usize {
     if offset < 0 {
-        base.checked_sub(offset.checked_abs().unwrap() as usize)
-            .unwrap()
+        base.checked_sub(offset.checked_abs().unwrap() as usize).unwrap()
     } else {
         base.checked_add(offset as usize).unwrap()
     }
@@ -263,10 +263,8 @@ fn intersect_regions(
     let mut current_ranges_iter = current_ranges.into_iter().peekable();
     for (new_base_range, other_range) in new_unchanged_ranges.iter() {
         assert_eq!(new_base_range.len(), other_range.len());
-        while let Some(UnchangedRange {
-            base_range,
-            offsets,
-        }) = current_ranges_iter.peek()
+        while let Some(UnchangedRange { base_range, offsets }) =
+            current_ranges_iter.peek()
         {
             // No need to look further if we're past the new range.
             if base_range.start >= new_base_range.end {

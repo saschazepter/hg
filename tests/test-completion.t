@@ -82,6 +82,8 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::fast-upgrade
+  debug::revlog-reencoded-delta-info
   debug::stable-tail-sort
   debug::stable-tail-sort-leaps
   debug::unbundle
@@ -284,6 +286,8 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::fast-upgrade: 
+  debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, reuse-stored-delta
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific
   debug::unbundle: 
@@ -314,7 +318,7 @@ Show all commands + options
   debugfsinfo: 
   debuggetbundle: head, common, type
   debugignore: 
-  debugindexdot: changelog, manifest, dir
+  debugindexdot: changelog, manifest, dir, include, template, rev, common
   debugindexstats: 
   debuginstall: template
   debugknown: 
@@ -387,7 +391,7 @@ Show all commands + options
   resolve: all, list, mark, unmark, no-status, re-merge, tool, include, exclude, template
   revert: all, date, rev, no-backup, interactive, include, exclude, dry-run
   rollback: dry-run, force
-  root: template
+  root: share-source, template
   serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate, print-url, subrepos
   shelve: addremove, unknown, cleanup, date, delete, edit, keep, list, message, name, patch, interactive, stat, include, exclude
   status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, terse, copies, print0, rev, change, include, exclude, subrepos, template

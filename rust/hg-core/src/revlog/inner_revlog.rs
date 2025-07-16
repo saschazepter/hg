@@ -1,35 +1,57 @@
 //! A layer of lower-level revlog functionality to encapsulate most of the
 //! IO work and expensive operations.
-use std::{
-    borrow::Cow,
-    io::{ErrorKind, Seek, SeekFrom, Write},
-    ops::Deref,
-    path::PathBuf,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::borrow::Cow;
+use std::io::ErrorKind;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
+use std::ops::Deref;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::RwLock;
 
-use schnellru::{ByMemoryUsage, LruMap};
-use sha1::{Digest, Sha1};
+use schnellru::ByMemoryUsage;
+use schnellru::LruMap;
+use sha1::Digest;
+use sha1::Sha1;
 
-use crate::{
-    errors::{HgError, IoResultExt},
-    exit_codes,
-    transaction::Transaction,
-    vfs::Vfs,
-};
-
-use super::{
-    compression::{
-        uncompressed_zstd_data, CompressionConfig, Compressor, NoneCompressor,
-        ZlibCompressor, ZstdCompressor, ZLIB_BYTE, ZSTD_BYTE,
-    },
-    file_io::{DelayedBuffer, FileHandle, RandomAccessFile, WriteHandles},
-    index::{Index, IndexHeader, INDEX_ENTRY_SIZE},
-    node::{NODE_BYTES_LENGTH, NULL_NODE},
-    options::{RevlogDataConfig, RevlogDeltaConfig, RevlogFeatureConfig},
-    BaseRevision, Node, Revision, RevlogEntry, RevlogError, RevlogIndex,
-    UncheckedRevision, NULL_REVISION, NULL_REVLOG_ENTRY_FLAGS,
-};
+use super::compression::uncompressed_zstd_data;
+use super::compression::CompressionConfig;
+use super::compression::Compressor;
+use super::compression::NoneCompressor;
+use super::compression::ZlibCompressor;
+use super::compression::ZstdCompressor;
+use super::compression::ZLIB_BYTE;
+use super::compression::ZSTD_BYTE;
+use super::file_io::DelayedBuffer;
+use super::file_io::FileHandle;
+use super::file_io::RandomAccessFile;
+use super::file_io::WriteHandles;
+use super::index::Index;
+use super::index::IndexHeader;
+use super::index::INDEX_ENTRY_SIZE;
+use super::node::NODE_BYTES_LENGTH;
+use super::node::NULL_NODE;
+use super::options::RevlogDataConfig;
+use super::options::RevlogDeltaConfig;
+use super::options::RevlogFeatureConfig;
+use super::BaseRevision;
+use super::Node;
+use super::Revision;
+use super::RevlogEntry;
+use super::RevlogError;
+use super::RevlogIndex;
+use super::UncheckedRevision;
+use super::NULL_REVISION;
+use super::NULL_REVLOG_ENTRY_FLAGS;
+use crate::dyn_bytes::DynBytes;
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::exit_codes;
+use crate::revlog::RevlogType;
+use crate::transaction::Transaction;
+use crate::vfs::Vfs;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
 /// boundary to incrementally rewrite higher-level revlog functionality in
@@ -51,7 +73,6 @@ pub struct InnerRevlog {
     /// Delta config that applies to this revlog
     delta_config: RevlogDeltaConfig,
     /// Feature config that applies to this revlog
-    #[allow(unused)]
     feature_config: RevlogFeatureConfig,
     /// A view into this revlog's data file
     segment_file: RandomAccessFile,
@@ -75,9 +96,11 @@ pub struct InnerRevlog {
     /// This does not mean that this revlog uses this compressor for reading
     /// data, as different revisions may have different compression modes.
     compressor: Mutex<Box<dyn Compressor>>,
+    revlog_type: RevlogType,
 }
 
 impl InnerRevlog {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         vfs: Box<dyn Vfs>,
         index: Index,
@@ -86,6 +109,7 @@ impl InnerRevlog {
         data_config: RevlogDataConfig,
         delta_config: RevlogDeltaConfig,
         feature_config: RevlogFeatureConfig,
+        revlog_type: RevlogType,
     ) -> Self {
         assert!(index_file.is_relative());
         assert!(data_file.is_relative());
@@ -130,6 +154,7 @@ impl InnerRevlog {
                 }
                 CompressionConfig::None => Box::new(NoneCompressor),
             }),
+            revlog_type,
         }
     }
 
@@ -173,10 +198,7 @@ impl InnerRevlog {
     }
 
     /// Return the [`RevlogEntry`] for a [`Revision`] that is known to exist
-    pub fn get_entry(
-        &self,
-        rev: Revision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
         if rev == NULL_REVISION {
             return Ok(self.make_null_entry());
         }
@@ -186,17 +208,11 @@ impl InnerRevlog {
             .ok_or_else(|| RevlogError::InvalidRevision(rev.to_string()))?;
         let p1 =
             self.index.check_revision(index_entry.p1()).ok_or_else(|| {
-                RevlogError::corrupted(format!(
-                    "p1 for rev {} is invalid",
-                    rev
-                ))
+                RevlogError::corrupted(format!("p1 for rev {} is invalid", rev))
             })?;
         let p2 =
             self.index.check_revision(index_entry.p2()).ok_or_else(|| {
-                RevlogError::corrupted(format!(
-                    "p2 for rev {} is invalid",
-                    rev
-                ))
+                RevlogError::corrupted(format!("p2 for rev {} is invalid", rev))
             })?;
         let entry = RevlogEntry {
             revlog: self,
@@ -323,7 +339,7 @@ impl InnerRevlog {
     pub fn decompress<'a>(
         &'a self,
         data: &'a [u8],
-    ) -> Result<Cow<[u8]>, RevlogError> {
+    ) -> Result<Cow<'a, [u8]>, RevlogError> {
         if data.is_empty() {
             return Ok(data.into());
         }
@@ -337,12 +353,10 @@ impl InnerRevlog {
             // Settings don't matter as they only affect compression
             ZLIB_BYTE => Ok(ZlibCompressor::new(0).decompress(data)?.into()),
             // Settings don't matter as they only affect compression
-            ZSTD_BYTE => {
-                Ok(ZstdCompressor::new(0, 0).decompress(data)?.into())
-            }
+            ZSTD_BYTE => Ok(ZstdCompressor::new(0, 0).decompress(data)?.into()),
             b'\0' => Ok(data.into()),
             b'u' => Ok((&data[1..]).into()),
-            other => Err(HgError::UnsupportedFeature(format!(
+            other => Err(HgError::unsupported(format!(
                 "unknown compression header '{}'",
                 other
             ))
@@ -368,16 +382,12 @@ impl InnerRevlog {
         let start = if start_rev == NULL_REVISION {
             0
         } else {
-            let start_entry = self
-                .index
-                .get_entry(start_rev)
-                .expect("null revision segment");
+            let start_entry =
+                self.index.get_entry(start_rev).expect("null revision segment");
             self.index.start(start_rev, &start_entry)
         };
-        let end_entry = self
-            .index
-            .get_entry(end_rev)
-            .expect("null revision segment");
+        let end_entry =
+            self.index.get_entry(end_rev).expect("null revision segment");
         let end = self.index.start(end_rev, &end_entry)
             + self.data_compressed_length(end_rev);
 
@@ -390,10 +400,8 @@ impl InnerRevlog {
 
     /// Return the uncompressed raw data for `rev`
     pub fn chunk_for_rev(&self, rev: Revision) -> Result<Arc<[u8]>, HgError> {
-        if let Some(Ok(mut cache)) = self
-            .uncompressed_chunk_cache
-            .as_ref()
-            .map(|c| c.try_write())
+        if let Some(Ok(mut cache)) =
+            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
         {
             if let Some(chunk) = cache.get(&rev) {
                 return Ok(chunk.clone());
@@ -409,10 +417,8 @@ impl InnerRevlog {
             )
         })?;
         let uncompressed: Arc<[u8]> = Arc::from(uncompressed.into_owned());
-        if let Some(Ok(mut cache)) = self
-            .uncompressed_chunk_cache
-            .as_ref()
-            .map(|c| c.try_write())
+        if let Some(Ok(mut cache)) =
+            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
         {
             cache.insert(rev, uncompressed.clone());
         }
@@ -425,13 +431,16 @@ impl InnerRevlog {
         &self,
         func: impl FnOnce() -> Result<R, RevlogError>,
     ) -> Result<R, RevlogError> {
+        let exit_context = !self.is_open();
         self.enter_reading_context()?;
         let res = func();
-        self.exit_reading_context();
-        res.map_err(Into::into)
+        if exit_context {
+            self.exit_reading_context();
+        }
+        res
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn enter_reading_context(&self) -> Result<(), HgError> {
         if self.is_empty() {
@@ -449,7 +458,7 @@ impl InnerRevlog {
         Ok(())
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn exit_reading_context(&self) {
         self.segment_file.exit_reading_context()
@@ -473,10 +482,8 @@ impl InnerRevlog {
     {
         let entry = &self.get_entry(rev)?;
         let raw_size = entry.uncompressed_len();
-        let mut mutex_guard = self
-            .last_revision_cache
-            .lock()
-            .expect("lock should not be held");
+        let mut mutex_guard =
+            self.last_revision_cache.lock().expect("lock should not be held");
         let cached_rev = if let Some((_node, rev, data)) = &*mutex_guard {
             Some((*rev, data.deref().as_ref()))
         } else {
@@ -484,9 +491,7 @@ impl InnerRevlog {
         };
         if let (Some(size), Some(Ok(mut cache))) = (
             raw_size,
-            self.uncompressed_chunk_cache
-                .as_ref()
-                .map(|c| c.try_write()),
+            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write()),
         ) {
             // Dynamically update the uncompressed_chunk_cache size to the
             // largest revision we've seen in this revlog.
@@ -512,7 +517,7 @@ impl InnerRevlog {
         Ok(())
     }
 
-    /// Only `pub` for `hg-cpython`.
+    /// Only `pub` for `hg-pyo3`.
     /// Obtain decompressed raw data for the specified revisions that are
     /// assumed to be in ascending order.
     ///
@@ -600,10 +605,8 @@ impl InnerRevlog {
             Ok(())
         })?;
 
-        if let Some(Ok(mut cache)) = self
-            .uncompressed_chunk_cache
-            .as_ref()
-            .map(|c| c.try_write())
+        if let Some(Ok(mut cache)) =
+            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
         {
             for (rev, chunk) in chunks.iter().skip(already_cached) {
                 cache.insert(*rev, chunk.clone());
@@ -676,9 +679,8 @@ impl InnerRevlog {
         let end_data = self.data_end(revs[revs.len() - 1]);
         let full_span = end_data - start_data;
 
-        let nothing_to_do = target_size
-            .map(|size| full_span <= size as usize)
-            .unwrap_or(true);
+        let nothing_to_do =
+            target_size.map(|size| full_span <= size as usize).unwrap_or(true);
 
         if nothing_to_do {
             return Ok(vec![revs]);
@@ -732,8 +734,7 @@ impl InnerRevlog {
                 local_end_data = self.data_end(revs[end_rev_idx - 1]);
                 span = local_end_data - start_data;
             }
-            let chunk =
-                self.trim_chunk(revs, start_rev_idx, Some(end_rev_idx));
+            let chunk = self.trim_chunk(revs, start_rev_idx, Some(end_rev_idx));
             if !chunk.is_empty() {
                 chunks.push(chunk);
             }
@@ -812,16 +813,17 @@ impl InnerRevlog {
         if self.is_writing() {
             return Ok(func());
         }
-        self.enter_writing_context(data_end, transaction)
-            .inspect_err(|_| {
+        self.enter_writing_context(data_end, transaction).inspect_err(
+            |_| {
                 self.exit_writing_context();
-            })?;
+            },
+        )?;
         let res = func();
         self.exit_writing_context();
         Ok(res)
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn exit_writing_context(&mut self) {
         self.writing_handles.take();
@@ -829,13 +831,13 @@ impl InnerRevlog {
         self.segment_file.reading_handle.get().map(|h| h.take());
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn python_writing_handles(&self) -> Option<&WriteHandles> {
         self.writing_handles.as_ref()
     }
 
-    /// `pub` only for use in hg-cpython
+    /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
     pub fn enter_writing_context(
         &mut self,
@@ -847,7 +849,7 @@ impl InnerRevlog {
         } else {
             self.data_end(Revision((self.len() - 1) as BaseRevision))
         };
-        let data_handle = if !self.is_inline() {
+        let mut data_handle = if !self.is_inline() {
             let data_handle = match self.vfs.open_write(&self.data_file) {
                 Ok(mut f) => {
                     if let Some(end) = data_end {
@@ -860,9 +862,13 @@ impl InnerRevlog {
                     f
                 }
                 Err(e) => match e {
-                    HgError::IoError { error, context } => {
+                    HgError::IoError { error, context, backtrace } => {
                         if error.kind() != ErrorKind::NotFound {
-                            return Err(HgError::IoError { error, context });
+                            return Err(HgError::IoError {
+                                error,
+                                context,
+                                backtrace,
+                            });
                         }
                         self.vfs.create(&self.data_file, true)?
                     }
@@ -886,18 +892,19 @@ impl InnerRevlog {
             transaction.add(&self.index_file, index_size);
         }
         self.writing_handles = Some(WriteHandles {
-            index_handle: index_handle.clone(),
-            data_handle: data_handle.clone(),
+            index_handle: index_handle.try_clone()?,
+            data_handle: if let Some(d) = data_handle.as_mut() {
+                Some(d.try_clone()?)
+            } else {
+                None
+            },
         });
-        *self
-            .segment_file
-            .reading_handle
-            .get_or_default()
-            .borrow_mut() = if self.is_inline() {
-            Some(index_handle)
-        } else {
-            data_handle
-        };
+        *self.segment_file.reading_handle.get_or_default().borrow_mut() =
+            if self.is_inline() {
+                Some(index_handle)
+            } else {
+                data_handle
+            };
         Ok(())
     }
 
@@ -917,31 +924,31 @@ impl InnerRevlog {
                 handle
                     .seek(SeekFrom::End(0))
                     .when_reading_file(&self.index_file)?;
-                Ok(
-                    if let Some(delayed_buffer) = self.delayed_buffer.as_ref()
-                    {
-                        FileHandle::from_file_delayed(
-                            handle,
-                            dyn_clone::clone_box(&*self.vfs),
-                            &self.index_file,
-                            delayed_buffer.clone(),
-                        )?
-                    } else {
-                        FileHandle::from_file(
-                            handle,
-                            dyn_clone::clone_box(&*self.vfs),
-                            &self.index_file,
-                        )
-                    },
-                )
+                Ok(if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
+                    FileHandle::from_file_delayed(
+                        handle,
+                        dyn_clone::clone_box(&*self.vfs),
+                        &self.index_file,
+                        delayed_buffer.clone(),
+                    )?
+                } else {
+                    FileHandle::from_file(
+                        handle,
+                        dyn_clone::clone_box(&*self.vfs),
+                        &self.index_file,
+                    )
+                })
             }
             Err(e) => match e {
-                HgError::IoError { error, context } => {
+                HgError::IoError { error, context, backtrace } => {
                     if error.kind() != ErrorKind::NotFound {
-                        return Err(HgError::IoError { error, context });
+                        return Err(HgError::IoError {
+                            error,
+                            context,
+                            backtrace,
+                        });
                     };
-                    if let Some(delayed_buffer) = self.delayed_buffer.as_ref()
-                    {
+                    if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
                         FileHandle::new_delayed(
                             dyn_clone::clone_box(&*self.vfs),
                             &self.index_file,
@@ -978,9 +985,7 @@ impl InnerRevlog {
         let mut new_data_file_handle =
             self.vfs.create(&self.data_file, true)?;
         // Drop any potential data, possibly redundant with the VFS impl.
-        new_data_file_handle
-            .set_len(0)
-            .when_writing_file(&self.data_file)?;
+        new_data_file_handle.set_len(0).when_writing_file(&self.data_file)?;
 
         self.with_read(|| -> Result<(), RevlogError> {
             for r in 0..self.index.len() {
@@ -990,9 +995,7 @@ impl InnerRevlog {
                     .write_all(&rev_segment)
                     .when_writing_file(&self.data_file)?;
             }
-            new_data_file_handle
-                .flush()
-                .when_writing_file(&self.data_file)?;
+            new_data_file_handle.flush().when_writing_file(&self.data_file)?;
             Ok(())
         })?;
 
@@ -1021,7 +1024,7 @@ impl InnerRevlog {
             .when_writing_file(&self.index_file)?;
         // Replace the index with a new one because the buffer contains inline
         // data
-        self.index = Index::new(Box::new(new_data), header)?;
+        self.index = Index::new(DynBytes::new(Box::new(new_data)), header)?;
         self.inline = false;
 
         self.segment_file = RandomAccessFile::new(
@@ -1030,20 +1033,21 @@ impl InnerRevlog {
         );
         if existing_handles {
             // Switched from inline to conventional, reopen the index
-            let new_data_handle = Some(FileHandle::from_file(
+            let mut new_data_handle = Some(FileHandle::from_file(
                 new_data_file_handle,
                 dyn_clone::clone_box(&*self.vfs),
                 &self.data_file,
             ));
             self.writing_handles = Some(WriteHandles {
                 index_handle: self.index_write_handle()?,
-                data_handle: new_data_handle.clone(),
+                data_handle: if let Some(d) = new_data_handle.as_mut() {
+                    Some(d.try_clone()?)
+                } else {
+                    None
+                },
             });
-            *self
-                .segment_file
-                .writing_handle
-                .get_or_default()
-                .borrow_mut() = new_data_handle;
+            *self.segment_file.writing_handle.get_or_default().borrow_mut() =
+                new_data_handle;
         }
 
         Ok(self.index_file.to_owned())
@@ -1175,8 +1179,7 @@ impl InnerRevlog {
                 None,
             ));
         }
-        if self.delayed_buffer.is_some() || self.original_index_file.is_some()
-        {
+        if self.delayed_buffer.is_some() || self.original_index_file.is_some() {
             // Delay or divert already happening
             return Ok(None);
         }
@@ -1246,10 +1249,8 @@ impl InnerRevlog {
                 None,
             ));
         }
-        match (
-            self.delayed_buffer.as_ref(),
-            self.original_index_file.as_ref(),
-        ) {
+        match (self.delayed_buffer.as_ref(), self.original_index_file.as_ref())
+        {
             (None, None) => {
                 return Err(HgError::abort(
                     "neither delay nor divert found on this revlog",
@@ -1285,12 +1286,22 @@ impl InnerRevlog {
         Ok(self.canonical_index_file())
     }
 
-    /// `pub` only for `hg-cpython`. This is made a different method than
+    /// `pub` only for `hg-pyo3`. This is made a different method than
     /// [`Revlog::index`] in case there is a different invariant that pops up
     /// later.
     #[doc(hidden)]
     pub fn shared_index(&self) -> &Index {
         &self.index
+    }
+
+    /// Whether we can ignore censored revisions **in filelogs only**
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`Self::revlog_type`] != [`RevlogType::Filelog`]
+    pub fn ignore_filelog_censored_revisions(&self) -> bool {
+        assert!(self.revlog_type == RevlogType::Filelog);
+        self.feature_config.ignore_filelog_censored_revisions
     }
 }
 

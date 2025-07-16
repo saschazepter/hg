@@ -1,9 +1,5 @@
 import sys
 
-from typing import (
-    Set,
-)
-
 from mercurial import (
     error,
     pycompat,
@@ -59,7 +55,7 @@ class clientpeer(wireprotov1peer.wirepeer):
     def close(self):
         pass
 
-    def capabilities(self) -> Set[bytes]:
+    def capabilities(self) -> set[bytes]:
         return {b'batch'}
 
     def _call(self, cmd, **args):

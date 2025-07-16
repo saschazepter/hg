@@ -7,15 +7,17 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 //! Utilities for dealing with the index at the Python boundary
-use hg::{BaseRevision, Graph};
+use hg::revlog::index::Index;
+use hg::revlog::index::RevisionDataParams;
+use hg::revlog::Node;
+use hg::revlog::Revision;
+use hg::revlog::RevlogIndex;
+use hg::BaseRevision;
+use hg::Graph;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyTuple};
+use pyo3::types::PyBytes;
+use pyo3::types::PyTuple;
 use vcsgraph::graph::Graph as VCSGraph;
-
-use hg::revlog::{
-    index::{Index, RevisionDataParams},
-    Node, Revision, RevlogIndex,
-};
 
 #[derive(derive_more::From, Clone)]
 pub struct PySharedIndex {
@@ -57,8 +59,7 @@ impl VCSGraph for PySharedIndex {
     fn parents(
         &self,
         rev: BaseRevision,
-    ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError>
-    {
+    ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError> {
         // FIXME This trait should be reworked to decide between Revision
         // and UncheckedRevision, get better errors names, etc.
         match Graph::parents(self, Revision(rev)) {
@@ -112,25 +113,16 @@ pub fn revision_data_params_to_py_tuple(
         &[
             params.data_offset.into_pyobject(py)?.into_any(),
             params.data_compressed_length.into_pyobject(py)?.into_any(),
-            params
-                .data_uncompressed_length
-                .into_pyobject(py)?
-                .into_any(),
+            params.data_uncompressed_length.into_pyobject(py)?.into_any(),
             params.data_delta_base.into_pyobject(py)?.into_any(),
             params.link_rev.into_pyobject(py)?.into_any(),
             params.parent_rev_1.into_pyobject(py)?.into_any(),
             params.parent_rev_2.into_pyobject(py)?.into_any(),
             PyBytes::new(py, &params.node_id).into_any().into_any(),
             params._sidedata_offset.into_pyobject(py)?.into_any(),
-            params
-                ._sidedata_compressed_length
-                .into_pyobject(py)?
-                .into_any(),
+            params._sidedata_compressed_length.into_pyobject(py)?.into_any(),
             params.data_compression_mode.into_pyobject(py)?.into_any(),
-            params
-                ._sidedata_compression_mode
-                .into_pyobject(py)?
-                .into_any(),
+            params._sidedata_compression_mode.into_pyobject(py)?.into_any(),
             params._rank.into_pyobject(py)?.into_any(),
         ],
     )

@@ -2,17 +2,24 @@
 
 use std::collections::HashSet;
 
-use crate::{
-    config::{Config, ResourceProfileValue},
-    errors::HgError,
-    requirements::{
-        CHANGELOGV2_REQUIREMENT, GENERALDELTA_REQUIREMENT, NARROW_REQUIREMENT,
-        NODEMAP_REQUIREMENT, REVLOGV1_REQUIREMENT, REVLOGV2_REQUIREMENT,
-        SPARSEREVLOG_REQUIREMENT,
-    },
-};
-
-use super::{compression::CompressionConfig, RevlogType};
+use super::compression::CompressionConfig;
+use super::index::FLAG_DELTA_INFO;
+use super::index::FLAG_FILELOG_META;
+use super::index::FLAG_GENERALDELTA;
+use super::index::FLAG_INLINE_DATA;
+use super::RevlogType;
+use crate::config::Config;
+use crate::config::ResourceProfileValue;
+use crate::errors::HgError;
+use crate::requirements::CHANGELOGV2_REQUIREMENT;
+use crate::requirements::DELTA_INFO_REQUIREMENT;
+use crate::requirements::FILELOG_METAFLAG_REQUIREMENT;
+use crate::requirements::GENERALDELTA_REQUIREMENT;
+use crate::requirements::NARROW_REQUIREMENT;
+use crate::requirements::NODEMAP_REQUIREMENT;
+use crate::requirements::REVLOGV1_REQUIREMENT;
+use crate::requirements::REVLOGV2_REQUIREMENT;
+use crate::requirements::SPARSEREVLOG_REQUIREMENT;
 
 const DEFAULT_CHUNK_CACHE_SIZE: u64 = 65536;
 const DEFAULT_SPARSE_READ_DENSITY_THRESHOLD: f64 = 0.50;
@@ -22,9 +29,16 @@ const DEFAULT_SPARSE_READ_MIN_GAP_SIZE: u64 = 262144;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RevlogVersionOptions {
     V0,
-    V1 { general_delta: bool, inline: bool },
+    V1 {
+        general_delta: bool,
+        hasmeta_flag: bool,
+        delta_info: bool,
+        inline: bool,
+    },
     V2,
-    ChangelogV2 { compute_rank: bool },
+    ChangelogV2 {
+        compute_rank: bool,
+    },
 }
 
 /// Options to govern how a revlog should be opened, usually from the
@@ -47,6 +61,8 @@ impl Default for RevlogOpenOptions {
             version: RevlogVersionOptions::V1 {
                 general_delta: true,
                 inline: false,
+                hasmeta_flag: false,
+                delta_info: false,
             },
             use_nodemap: true,
             data_config: Default::default(),
@@ -66,6 +82,8 @@ impl RevlogOpenOptions {
         Self {
             version: RevlogVersionOptions::V1 {
                 general_delta: data_config.general_delta,
+                delta_info: delta_config.delta_info,
+                hasmeta_flag: feature_config.hasmeta_flag,
                 inline,
             },
             use_nodemap: false,
@@ -81,16 +99,16 @@ impl RevlogOpenOptions {
                 RevlogVersionOptions::V0 => [0, 0, 0, 0],
                 RevlogVersionOptions::V1 {
                     general_delta,
+                    hasmeta_flag,
+                    delta_info,
                     inline,
                 } => [
                     0,
-                    if general_delta && inline {
-                        3
-                    } else if general_delta {
-                        2
-                    } else {
-                        u8::from(inline)
-                    },
+                    ((if general_delta { FLAG_GENERALDELTA } else { 0 })
+                        | (if hasmeta_flag { FLAG_FILELOG_META } else { 0 })
+                        | (if delta_info { FLAG_DELTA_INFO } else { 0 })
+                        | (if inline { FLAG_INLINE_DATA } else { 0 }))
+                        as u8,
                     0,
                     1,
                 ],
@@ -146,6 +164,8 @@ pub struct RevlogDataConfig {
     pub sr_min_gap_size: u64,
     /// Whether deltas are encoded against arbitrary bases
     pub general_delta: bool,
+    /// Whether extra information about delta are stored in the index
+    pub delta_info: bool,
 }
 
 impl RevlogDataConfig {
@@ -185,8 +205,8 @@ impl RevlogDataConfig {
 
         let with_sparse_read =
             config.get_bool(b"experimental", b"sparse-read")?;
-        if let Some(sr_density_threshold) = config
-            .get_f64(b"experimental", b"sparse-read.density-threshold")?
+        if let Some(sr_density_threshold) =
+            config.get_f64(b"experimental", b"sparse-read.density-threshold")?
         {
             data_config.sr_density_threshold = sr_density_threshold;
         }
@@ -219,6 +239,7 @@ impl Default for RevlogDataConfig {
             uncompressed_cache_count: Default::default(),
             with_sparse_read: Default::default(),
             general_delta: Default::default(),
+            delta_info: Default::default(),
         }
     }
 }
@@ -233,6 +254,9 @@ pub struct RevlogDeltaConfig {
     pub general_delta: bool,
     /// Allow sparse writing of the revlog data
     pub sparse_revlog: bool,
+    /// Store additionnal information about delta in the index
+    /// (and adjust delta computation to leverage it)
+    pub delta_info: bool,
     /// Maximum length of a delta chain
     pub max_chain_len: Option<u64>,
     /// Maximum distance between a delta chain's start and end
@@ -250,6 +274,10 @@ pub struct RevlogDeltaConfig {
     pub lazy_delta: bool,
     /// Trust the base of incoming deltas by default
     pub lazy_delta_base: bool,
+    /// A theoretical maximum compression ratio for file content
+    /// Used to estimate delta size before compression. value <= 0 disable such
+    /// estimate.
+    pub file_max_comp_ratio: u64,
 }
 
 impl RevlogDeltaConfig {
@@ -314,11 +342,31 @@ impl RevlogDeltaConfig {
                 None => None,
             };
 
-        delta_config.sparse_revlog =
-            requirements.contains(SPARSEREVLOG_REQUIREMENT);
+        // we should not create delta that rely on sparse logic if the revlog
+        // does not suport general delta.
+        delta_config.sparse_revlog = delta_config.general_delta
+            && requirements.contains(SPARSEREVLOG_REQUIREMENT);
+
+        // we should not rely on richer delta information if the revlog does
+        // not suport general delta.
+        delta_config.delta_info = delta_config.general_delta
+            && requirements.contains(DELTA_INFO_REQUIREMENT);
 
         delta_config.max_chain_len =
             config.get_byte_size_no_default(b"format", b"maxchainlen")?;
+
+        delta_config.file_max_comp_ratio = match config
+            .get_i64(b"storage", b"filelog.expected-max-compression-ratio")?
+        {
+            Some(ratio) => {
+                if ratio < 0 {
+                    0
+                } else {
+                    ratio as u64
+                }
+            }
+            None => 10,
+        };
 
         Ok(delta_config)
     }
@@ -331,12 +379,14 @@ impl Default for RevlogDeltaConfig {
             lazy_delta: true,
             general_delta: Default::default(),
             sparse_revlog: Default::default(),
+            delta_info: Default::default(),
             max_chain_len: Default::default(),
             max_deltachain_span: Default::default(),
             upper_bound_comp: Default::default(),
             candidate_group_chunk_size: Default::default(),
             debug_delta: Default::default(),
             lazy_delta_base: Default::default(),
+            file_max_comp_ratio: 10,
         }
     }
 }
@@ -348,6 +398,8 @@ pub struct RevlogFeatureConfig {
     pub compression_engine: CompressionConfig,
     /// Can we use censor on this revlog
     pub censorable: bool,
+    /// Should censored filelog revisions be ignored and return an empty string
+    pub ignore_filelog_censored_revisions: bool,
     /// Does this revlog use the "side data" feature
     pub has_side_data: bool,
     /// Might remove this configuration once the rank computation has no
@@ -361,16 +413,24 @@ pub struct RevlogFeatureConfig {
     pub canonical_parent_order: bool,
     /// Can ellipsis commit be used
     pub enable_ellipsis: bool,
+    /// use a flag to signal that a filerevision constains metadata
+    pub hasmeta_flag: bool,
 }
 
 impl RevlogFeatureConfig {
     pub fn new(
         config: &Config,
         requirements: &HashSet<String>,
+        revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
+        let ignore_filelog_censored_revisions = revlog_type
+            == RevlogType::Filelog
+            && config.get_str(b"censor", b"policy")? == Some("ignore");
         Ok(Self {
             compression_engine: CompressionConfig::new(config, requirements)?,
             enable_ellipsis: requirements.contains(NARROW_REQUIREMENT),
+            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            ignore_filelog_censored_revisions,
             ..Default::default()
         })
     }
@@ -384,21 +444,24 @@ pub fn default_revlog_options(
     revlog_type: RevlogType,
 ) -> Result<RevlogOpenOptions, HgError> {
     let is_changelog = revlog_type == RevlogType::Changelog;
-    let version =
-        if is_changelog && requirements.contains(CHANGELOGV2_REQUIREMENT) {
-            let compute_rank = config
-                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
-            RevlogVersionOptions::ChangelogV2 { compute_rank }
-        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
-            RevlogVersionOptions::V2
-        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
-            RevlogVersionOptions::V1 {
-                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
-                inline: !is_changelog,
-            }
-        } else {
-            RevlogVersionOptions::V0
-        };
+    let version = if is_changelog
+        && requirements.contains(CHANGELOGV2_REQUIREMENT)
+    {
+        let compute_rank =
+            config.get_bool(b"experimental", b"changelog-v2.compute-rank")?;
+        RevlogVersionOptions::ChangelogV2 { compute_rank }
+    } else if requirements.contains(REVLOGV2_REQUIREMENT) {
+        RevlogVersionOptions::V2
+    } else if requirements.contains(REVLOGV1_REQUIREMENT) {
+        RevlogVersionOptions::V1 {
+            general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
+            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            delta_info: requirements.contains(DELTA_INFO_REQUIREMENT),
+            inline: !is_changelog,
+        }
+    } else {
+        RevlogVersionOptions::V0
+    };
     Ok(RevlogOpenOptions {
         version,
         // We don't need to dance around the slow path like in the Python
@@ -410,6 +473,10 @@ pub fn default_revlog_options(
             revlog_type,
         )?,
         data_config: RevlogDataConfig::new(config, requirements)?,
-        feature_config: RevlogFeatureConfig::new(config, requirements)?,
+        feature_config: RevlogFeatureConfig::new(
+            config,
+            requirements,
+            revlog_type,
+        )?,
     })
 }

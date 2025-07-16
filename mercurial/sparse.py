@@ -16,6 +16,7 @@ from . import (
     match as matchmod,
     merge as mergemod,
     mergestate as mergestatemod,
+    node,
     pathutil,
     pycompat,
     requirements,
@@ -381,7 +382,9 @@ def filterupdatesactions(repo, wctx, mctx, branchmerge, mresult):
     if not use_sparse(repo):
         return
 
-    oldrevs = [pctx.rev() for pctx in wctx.parents()]
+    oldrevs = [
+        pctx.rev() for pctx in wctx.parents() if pctx.rev() != node.nullrev
+    ]
     oldsparsematch = matcher(repo, oldrevs)
 
     if oldsparsematch.always():

@@ -1,21 +1,31 @@
+use std::path::PathBuf;
+
+use super::manifest::Manifest;
+use super::options::RevlogOpenOptions;
+use super::path_encode::PathEncoding;
+use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgError;
-use crate::exit_codes;
 use crate::repo::Repo;
+use crate::revlog::inner_revlog::InnerRevlog;
+use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::path_encode::path_encode;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
+use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
-use crate::revlog::{Revlog, RevlogError};
+use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
+use crate::revlog::REVISION_FLAG_HASMETA;
+use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
+use crate::vfs::VfsImpl;
 use crate::Graph;
 use crate::GraphError;
 use crate::Node;
 use crate::UncheckedRevision;
-use std::path::PathBuf;
-
-use super::options::RevlogOpenOptions;
 
 /// A specialized `Revlog` to work with file data logs.
 pub struct Filelog {
@@ -35,10 +45,15 @@ impl Filelog {
         file_path: &HgPath,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        let index_path = store_path(file_path, b".i");
-        let data_path = store_path(file_path, b".d");
-        let revlog =
-            Revlog::open(store_vfs, index_path, Some(&data_path), options)?;
+        let index_path = store_path(file_path, b".i", store_vfs.encoding);
+        let data_path = store_path(file_path, b".d", store_vfs.encoding);
+        let revlog = Revlog::open(
+            store_vfs,
+            index_path,
+            Some(&data_path),
+            options,
+            RevlogType::Filelog,
+        )?;
         Ok(Self { revlog })
     }
 
@@ -66,11 +81,8 @@ impl Filelog {
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogRevisionData, RevlogError> {
-        let data: Vec<u8> = self
-            .revlog
-            .get_data_for_unchecked_rev(file_rev)?
-            .into_owned();
-        Ok(FilelogRevisionData(data))
+        let data = self.revlog.get_data_for_unchecked_rev(file_rev);
+        maybe_ignore_censored_revision(&self.revlog.inner, data)
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a
@@ -89,9 +101,7 @@ impl Filelog {
         &self,
         file_rev: UncheckedRevision,
     ) -> Result<FilelogEntry, RevlogError> {
-        Ok(FilelogEntry(
-            self.revlog.get_entry_for_unchecked_rev(file_rev)?,
-        ))
+        Ok(FilelogEntry(self.revlog.get_entry_for_unchecked_rev(file_rev)?))
     }
 
     /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision.
@@ -103,9 +113,36 @@ impl Filelog {
     }
 }
 
-fn store_path(hg_path: &HgPath, suffix: &[u8]) -> PathBuf {
+/// Given a [`Result`] of fetching filelog revision data, catch the eventual
+/// censored node error and either forward it or ignore it according to config.
+fn maybe_ignore_censored_revision(
+    irl: &InnerRevlog,
+    data_result: Result<std::borrow::Cow<'_, [u8]>, RevlogError>,
+) -> Result<FilelogRevisionData, RevlogError> {
+    match data_result {
+        Ok(data) => Ok(FilelogRevisionData(data.into_owned())),
+        // Errors other than `HgError` should not happen at this point
+        Err(e) => match &e {
+            RevlogError::Other(hg_error) => match hg_error {
+                HgError::CensoredNodeError(_, _)
+                    if irl.ignore_filelog_censored_revisions() =>
+                {
+                    Ok(FilelogRevisionData(vec![]))
+                }
+                _ => Err(e),
+            },
+            _ => Err(e),
+        },
+    }
+}
+
+fn store_path(
+    hg_path: &HgPath,
+    suffix: &[u8],
+    encoding: PathEncoding,
+) -> PathBuf {
     let encoded_bytes =
-        path_encode(&[b"data/", hg_path.as_bytes(), suffix].concat());
+        path_encode(&[b"data/", hg_path.as_bytes(), suffix].concat(), encoding);
     get_path_from_bytes(&encoded_bytes).into()
 }
 
@@ -123,7 +160,7 @@ impl FilelogEntry<'_> {
     /// * Returns `false` if available information is inconclusive.
     pub fn file_data_len_not_equal_to(&self, other_len: u64) -> bool {
         // Relevant code that implement this behavior in Python code:
-        // basefilectx.cmp, filelog.size, storageutil.filerevisioncopied,
+        // basefilectx.cmp, filelog.size, filelog.renamed,
         // revlog.size, revlog.rawsize
 
         // Let’s call `file_data_len` what would be returned by
@@ -169,7 +206,9 @@ impl FilelogEntry<'_> {
             return false;
         }
 
-        if !self.0.has_p1() {
+        if self.0.revlog.index.uses_filelog_meta() {
+            return (self.0.flags & REVISION_FLAG_HASMETA) != 0;
+        } else if !self.0.has_p1() {
             // There may or may not be copy metadata, so we can’t deduce more
             // about `file_data_len` without computing file data.
             return false;
@@ -197,18 +236,11 @@ impl FilelogEntry<'_> {
 
     pub fn data(&self) -> Result<FilelogRevisionData, HgError> {
         let data = self.0.data();
-        match data {
-            Ok(data) => Ok(FilelogRevisionData(data.into_owned())),
-            // Errors other than `HgError` should not happen at this point
-            Err(e) => match e {
-                RevlogError::Other(hg_error) => Err(hg_error),
-                revlog_error => Err(HgError::abort(
-                    revlog_error.to_string(),
-                    exit_codes::ABORT,
-                    None,
-                )),
-            },
-        }
+        maybe_ignore_censored_revision(self.0.revlog, data).map_err(|e| match e
+        {
+            RevlogError::Other(hg_error) => hg_error,
+            revlog_error => HgError::abort_simple(revlog_error.to_string()),
+        })
     }
 }
 
@@ -326,10 +358,100 @@ impl<'a> FilelogRevisionMetadata<'a> {
     }
 }
 
+/// Outcome of checking if a file has changed since the last commit
+#[derive(Debug, PartialEq, Eq)]
+pub enum FileCompOutcome {
+    /// The file is actually clean
+    Clean,
+    /// The file has been modified
+    Modified,
+    /// The file was deleted on disk (or became another type of fs entry)
+    Deleted,
+}
+
+/// Check if a file is modified by comparing actual repo store and file system.
+pub fn is_file_modified(
+    working_directory_vfs: &VfsImpl,
+    store_vfs: &VfsImpl,
+    check_exec: bool,
+    manifest: &Manifest,
+    hg_path: &HgPath,
+    revlog_open_options: RevlogOpenOptions,
+) -> Result<FileCompOutcome, HgError> {
+    let vfs = working_directory_vfs;
+    let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
+    let fs_metadata = if let Ok(it) = vfs.symlink_metadata(&fs_path) {
+        it
+    } else {
+        return Ok(FileCompOutcome::Deleted);
+    };
+    let is_symlink = fs_metadata.file_type().is_symlink();
+
+    let entry =
+        manifest.find_by_path(hg_path)?.expect("ambgious file not in p1");
+
+    // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
+    // dirstate
+    let fs_flags = if is_symlink {
+        ManifestFlags::new_link()
+    } else if check_exec && has_exec_bit(&fs_metadata) {
+        ManifestFlags::new_exec()
+    } else {
+        ManifestFlags::new_empty()
+    };
+
+    let entry_flags = if check_exec {
+        entry.flags
+    } else if entry.flags.is_exec() {
+        ManifestFlags::new_empty()
+    } else {
+        entry.flags
+    };
+
+    if entry_flags != fs_flags {
+        return Ok(FileCompOutcome::Modified);
+    }
+    let filelog = Filelog::open_vfs(store_vfs, hg_path, revlog_open_options)?;
+    let fs_len = fs_metadata.len();
+    let file_node = entry.node_id()?;
+    let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
+        HgError::corrupted(format!(
+            "filelog {:?} missing node {:?} from manifest",
+            hg_path, file_node
+        ))
+    })?;
+    if filelog_entry.file_data_len_not_equal_to(fs_len) {
+        // No need to read file contents:
+        // it cannot be equal if it has a different length.
+        return Ok(FileCompOutcome::Modified);
+    }
+
+    let p1_filelog_data = filelog_entry.data()?;
+    let p1_contents = p1_filelog_data.file_data()?;
+    if p1_contents.len() as u64 != fs_len {
+        // No need to read file contents:
+        // it cannot be equal if it has a different length.
+        return Ok(FileCompOutcome::Modified);
+    }
+
+    let fs_contents = if is_symlink {
+        get_bytes_from_os_string(vfs.read_link(fs_path)?.into_os_string())
+    } else {
+        vfs.read(fs_path)?
+    };
+
+    Ok(if p1_contents != &*fs_contents {
+        FileCompOutcome::Modified
+    } else {
+        FileCompOutcome::Clean
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
     use format_bytes::format_bytes;
+
+    use super::*;
 
     #[test]
     fn test_parse_no_metadata() {
@@ -347,8 +469,7 @@ mod tests {
 
     #[test]
     fn test_parse_one_field() {
-        let data =
-            FilelogRevisionData(b"\x01\ncopy: foo\n\x01\ndata".to_vec());
+        let data = FilelogRevisionData(b"\x01\ncopy: foo\n\x01\ndata".to_vec());
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(
             fields,

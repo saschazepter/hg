@@ -1,16 +1,16 @@
+from __future__ import annotations
+
 import os
 import platform
 import re
+import shutil
 import socket
 import stat
 import subprocess
 import sys
 import tempfile
 
-try:
-    from setuptools.extern.packaging.version import Version
-except ImportError:
-    from distutils.version import StrictVersion as Version
+from packaging.version import Version
 
 tempprefix = 'hg-hghave-'
 
@@ -43,6 +43,11 @@ def _bytes2sys(p):
     if p is None:
         return p
     return p.decode('utf-8')
+
+
+def has_cmd(cmd: str) -> bool:
+    """return True if there is an executable `cmd` in the PATH"""
+    return shutil.which(cmd, os.X_OK) is not None
 
 
 def check(name, desc):
@@ -437,13 +442,7 @@ def has_pygit2():
 # https://github.com/git-lfs/lfs-test-server
 @check("lfs-test-server", "git-lfs test server")
 def has_lfsserver():
-    exe = 'lfs-test-server'
-    if has_windows():
-        exe = 'lfs-test-server.exe'
-    return any(
-        os.access(os.path.join(path, exe), os.X_OK)
-        for path in os.environ["PATH"].split(os.pathsep)
-    )
+    return has_cmd('lfs-test-server')
 
 
 @checkvers("git", "git client (with ext::sh support) version >= %s", ('1.9',))
@@ -802,14 +801,12 @@ def has_curses():
 
 @check("tic", "terminfo compiler")
 def has_tic():
-    return matchoutput('test -x "`which tic`"', br'')
+    return has_cmd('tic')
 
 
 @check("xz", "xz compression utility")
 def has_xz():
-    # When Windows invokes a subprocess in shell mode, it uses `cmd.exe`, which
-    # only knows `where`, not `which`.  So invoke MSYS shell explicitly.
-    return matchoutput("sh -c 'test -x \"`which xz`\"'", b'')
+    return has_cmd('xz')
 
 
 @check("msys", "Windows with MSYS")
@@ -926,7 +923,7 @@ def has_python3exe():
     py = 'python3'
     if os.name == 'nt':
         py = 'py -3'
-    return matchoutput('%s -V' % py, br'^Python 3.(6|7|8|9|10|11)')
+    return matchoutput('%s -V' % py, br'^Python 3.(6|7|8|9|1\d)')
 
 
 @check("pure", "running with pure Python code")
@@ -1087,7 +1084,9 @@ def has_emacs():
     # Our emacs lisp uses `with-eval-after-load` which is new in emacs
     # 24.4, so we allow emacs 24.4, 24.5, and 25+ (24.5 was the last
     # 24 release)
-    return matchoutput('emacs --version', b'GNU Emacs 2(4.4|4.5|5|6|7|8|9)')
+    return matchoutput(
+        'emacs --version', br'GNU Emacs (3\d|2(4.4|4.5|5|6|7|8|9))'
+    )
 
 
 @check(
@@ -1159,3 +1158,13 @@ def has_bash():
 @check("bigendian", "big-endian CPU")
 def has_bigendian():
     return sys.byteorder == 'big'
+
+
+@check("python-local-coerce", "Python use local coercion")
+def python_coercion():
+    return matchoutput(
+        "unset LC_ALL; unset LANG; LC_CTYPE= ;"
+        " $PYTHON -c \"import os; print(os.environ.get('LC_CTYPE',"
+        " '__NO_COERCES__'))\"",
+        b'^C.UTF-8$',
+    )

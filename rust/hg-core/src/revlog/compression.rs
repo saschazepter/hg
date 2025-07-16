@@ -7,12 +7,11 @@ use std::io::Read;
 use flate2::bufread::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 
+use super::corrupted;
+use super::RevlogError;
 use crate::config::Config;
 use crate::errors::HgError;
 use crate::exit_codes;
-
-use super::corrupted;
-use super::RevlogError;
 
 /// Header byte used to identify ZSTD-compressed data
 pub const ZSTD_BYTE: u8 = b'\x28';
@@ -65,7 +64,7 @@ impl CompressionConfig {
                 new = match split.next().unwrap() {
                     "zstd" => CompressionConfig::zstd(zstd_level)?,
                     e => {
-                        return Err(HgError::UnsupportedFeature(format!(
+                        return Err(HgError::unsupported(format!(
                             "Unsupported compression engine '{e}'"
                         )))
                     }
@@ -117,13 +116,9 @@ impl CompressionConfig {
     }
 
     /// Return a ZSTD compression config
-    pub fn zstd(
-        zstd_level: Option<u32>,
-    ) -> Result<CompressionConfig, HgError> {
-        let mut engine = CompressionConfig::Zstd {
-            level: ZSTD_DEFAULT_LEVEL,
-            threads: 0,
-        };
+    pub fn zstd(zstd_level: Option<u32>) -> Result<CompressionConfig, HgError> {
+        let mut engine =
+            CompressionConfig::Zstd { level: ZSTD_DEFAULT_LEVEL, threads: 0 };
         if let Some(level) = zstd_level {
             engine.set_level(level as usize)?;
         }
@@ -133,9 +128,7 @@ impl CompressionConfig {
 
 impl Default for CompressionConfig {
     fn default() -> Self {
-        Self::Zlib {
-            level: ZLIB_DEFAULT_LEVEL,
-        }
+        Self::Zlib { level: ZLIB_DEFAULT_LEVEL }
     }
 }
 
@@ -144,10 +137,8 @@ impl Default for CompressionConfig {
 pub trait Compressor: Send {
     /// Returns a new [`Vec`] with the compressed data.
     /// Should return `Ok(None)` if compression does not apply (e.g. too small)
-    fn compress(
-        &mut self,
-        data: &[u8],
-    ) -> Result<Option<Vec<u8>>, RevlogError>;
+    fn compress(&mut self, data: &[u8])
+        -> Result<Option<Vec<u8>>, RevlogError>;
     /// Returns a new [`Vec`] with the decompressed data.
     fn decompress(&self, data: &[u8]) -> Result<Vec<u8>, RevlogError>;
 }
@@ -212,9 +203,9 @@ impl Compressor for ZstdCompressor {
                 None
             })
         } else {
-            Ok(Some(zstd::stream::encode_all(data, level).map_err(
-                |e| corrupted(format!("revlog compress error: {}", e)),
-            )?))
+            Ok(Some(zstd::stream::encode_all(data, level).map_err(|e| {
+                corrupted(format!("revlog compress error: {}", e))
+            })?))
         }
     }
 
@@ -233,9 +224,7 @@ pub struct ZlibCompressor {
 
 impl ZlibCompressor {
     pub fn new(level: u8) -> Self {
-        Self {
-            level: flate2::Compression::new(level.into()),
-        }
+        Self { level: flate2::Compression::new(level.into()) }
     }
 }
 

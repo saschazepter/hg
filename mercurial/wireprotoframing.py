@@ -18,7 +18,6 @@ import typing
 
 from typing import (
     Protocol,
-    Type,
 )
 
 from .i18n import _
@@ -32,9 +31,7 @@ if typing.TYPE_CHECKING:
 from . import (
     encoding,
     error,
-    pycompat,
     util,
-    wireprototypes,
 )
 from .utils import (
     cborutil,
@@ -483,47 +480,6 @@ def createcommandresponseeosframes(
             break
 
 
-def createalternatelocationresponseframe(
-    stream: outputstream, requestid: int, location
-) -> bytearray:
-    data = {
-        b'status': b'redirect',
-        b'location': {
-            b'url': location.url,
-            b'mediatype': location.mediatype,
-        },
-    }
-
-    for a in (
-        'size',
-        'fullhashes',
-        'fullhashseed',
-        'serverdercerts',
-        'servercadercerts',
-    ):
-        value = getattr(location, a)
-        if value is not None:
-            # pytype: disable=unsupported-operands
-            data[b'location'][pycompat.bytestr(a)] = value
-            # pytype: enable=unsupported-operands
-
-    payload = b''.join(cborutil.streamencode(data))
-
-    if stream.streamsettingssent:
-        payload = stream.encode(payload)
-        encoded = True
-    else:
-        encoded = False
-
-    return stream.makeframe(
-        requestid=requestid,
-        typeid=FRAME_TYPE_COMMAND_RESPONSE,
-        flags=FLAG_COMMAND_RESPONSE_CONTINUATION,
-        payload=payload,
-        encoded=encoded,
-    )
-
-
 def createcommanderrorresponse(
     stream: stream, requestid: int, message: bytes, args=None
 ) -> Iterator[bytearray]:
@@ -881,8 +837,8 @@ class zstd8mbdecoder(zstdbasedecoder):
 # TypeVar('EncoderT', bound=Encoder) was flagged as "not in scope" when used
 # on the STREAM_ENCODERS dict below.
 if typing.TYPE_CHECKING:
-    EncoderT = Type[identityencoder | zlibencoder | zstd8mbencoder]
-    DecoderT = Type[identitydecoder | zlibdecoder | zstd8mbdecoder]
+    EncoderT = type[identityencoder | zlibencoder | zstd8mbencoder]
+    DecoderT = type[identitydecoder | zlibdecoder | zstd8mbdecoder]
 
 # We lazily populate this to avoid excessive module imports when importing
 # this module.
@@ -1265,7 +1221,6 @@ class serverreactor:
 
         def sendframes():
             emitted = False
-            alternatelocationsent = False
             emitter = bufferingcommandresponseemitter(stream, requestid)
             while True:
                 try:
@@ -1300,32 +1255,6 @@ class serverreactor:
                     break
 
                 try:
-                    # Alternate location responses can only be the first and
-                    # only object in the output stream.
-                    if isinstance(o, wireprototypes.alternatelocationresponse):
-                        if emitted:
-                            raise error.ProgrammingError(
-                                b'alternatelocationresponse seen after initial '
-                                b'output object'
-                            )
-
-                        frame = stream.makestreamsettingsframe(requestid)
-                        if frame:
-                            yield frame
-
-                        yield createalternatelocationresponseframe(
-                            stream, requestid, o
-                        )
-
-                        alternatelocationsent = True
-                        emitted = True
-                        continue
-
-                    if alternatelocationsent:
-                        raise error.ProgrammingError(
-                            b'object follows alternatelocationresponse'
-                        )
-
                     if not emitted:
                         # Frame is optional.
                         frame = stream.makestreamsettingsframe(requestid)
@@ -1344,25 +1273,10 @@ class serverreactor:
                     # TODO consider extracting the content normalization to a
                     # standalone function, as it may be useful for e.g. cachers.
 
-                    # A pre-encoded object is sent directly to the emitter.
-                    if isinstance(o, wireprototypes.encodedresponse):
-                        for frame in emitter.send(o.data):
-                            yield frame
-
-                    elif isinstance(
-                        o, wireprototypes.indefinitebytestringresponse
-                    ):
-                        for chunk in cborutil.streamencodebytestringfromiter(
-                            o.chunks
-                        ):
-                            for frame in emitter.send(chunk):
-                                yield frame
-
                     # A regular object is CBOR encoded.
-                    else:
-                        for chunk in cborutil.streamencode(o):
-                            for frame in emitter.send(chunk):
-                                yield frame
+                    for chunk in cborutil.streamencode(o):
+                        for frame in emitter.send(chunk):
+                            yield frame
 
                 except Exception as e:
                     for frame in createerrorframe(

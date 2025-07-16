@@ -15,6 +15,7 @@ from __future__ import annotations
 
 GENERALDELTA_REQUIREMENT = b'generaldelta'
 DOTENCODE_REQUIREMENT = b'dotencode'
+PLAIN_ENCODE_REQUIREMENT = b"exp-very-fragile-and-unsafe-plain-store-encoding"
 STORE_REQUIREMENT = b'store'
 FNCACHE_REQUIREMENT = b'fncache'
 
@@ -60,6 +61,14 @@ REVLOGV2_REQUIREMENT = b'exp-revlogv2.2'
 # including all the intermediate revisions that aren't pertinent for the chain.
 # This is why once a repository has enabled sparse-read, it becomes required.
 SPARSEREVLOG_REQUIREMENT = b'sparserevlog'
+
+# The filelog uses explicit flag in the index to mark file revision that
+# contains metadata.
+FILELOG_METAFLAG_REQUIREMENT = b'exp-filelog-metaflag'
+
+# revlogs holds information about their delta. Especially, snapshot are
+# explicitly flag as such.
+DELTA_INFO_REQUIREMENT = b'exp-delta-info-revlog'
 
 # A repository with the the copies-sidedata-changeset requirement will store
 # copies related information in changeset's sidedata.
@@ -111,6 +120,7 @@ WORKING_DIR_REQUIREMENTS = {
 # requirements in this list can be safely altered during stream-clone.
 STREAM_IGNORABLE_REQUIREMENTS = WORKING_DIR_REQUIREMENTS | {
     DOTENCODE_REQUIREMENT,  # abstracted by the vfs layer
+    PLAIN_ENCODE_REQUIREMENT,  # abstracted by the vfs layer
     FNCACHE_REQUIREMENT,  # abstracted by the vfs layer
     STORE_REQUIREMENT,  # abstracted by the vfs layer
     NODEMAP_REQUIREMENT,  # Have some special logic to handle that case

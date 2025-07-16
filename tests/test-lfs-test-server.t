@@ -477,6 +477,7 @@ The corrupted blob is not added to the usercache or local store
   $ cp blob $TESTTMP/lfs-content/d1/1e/1a642b60813aee592094109b406089b8dff4cb157157f753418ec7857998
 #else
   $ cp blob $TESTTMP/server/.hg/store/lfs/objects/d1/1e1a642b60813aee592094109b406089b8dff4cb157157f753418ec7857998
+  $ rm -rf $TESTTMP/servercache/?*
 #endif
 
 Test a corrupted file upload

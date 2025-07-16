@@ -30,6 +30,8 @@ from .constants import (
     ENTRY_SIDEDATA_COMPRESSED_LENGTH,
     ENTRY_SIDEDATA_COMPRESSION_MODE,
     ENTRY_SIDEDATA_OFFSET,
+    META_MARKER,
+    META_MARKER_SIZE,
     REVIDX_ISCENSORED,
     REVLOGV0,
     REVLOGV1,
@@ -77,6 +79,7 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
         delta_config=rl.delta_config,
         feature_config=rl.feature_config,
         may_inline=rl._inline,
+        writable=True,
     )
     # inline splitting will prepare some transaction work that will get
     # confused by the final file move. So if there is a risk of not being
@@ -264,7 +267,7 @@ def _precompute_rewritten_delta(
                     node=entry[ENTRY_NODE_ID],
                     p1=revlog.node(entry[ENTRY_PARENT_1]),
                     p2=revlog.node(entry[ENTRY_PARENT_2]),
-                    btext=[text],
+                    btext=text,
                     textlen=len(text),
                     cachedelta=None,
                     flags=entry[ENTRY_DATA_OFFSET] & 0xFFFF,
@@ -499,15 +502,6 @@ def _get_filename_from_filelog_index(path):
     return path_part[1]
 
 
-def _filelog_from_filename(repo, path):
-    """Returns the filelog for the given `path`. Stolen from `engine.py`"""
-
-    from .. import filelog  # avoid cycle
-
-    fl = filelog.filelog(repo.svfs, path)
-    return fl
-
-
 def _write_swapped_parents(repo, rl, rev, offset, fp):
     """Swaps p1 and p2 and overwrites the revlog entry for `rev` in `fp`"""
     from ..pure import parsers  # avoid cycle
@@ -524,6 +518,37 @@ def _write_swapped_parents(repo, rl, rev, offset, fp):
     packed = index_format.pack(*new_entry[:8])
     fp.seek(offset)
     fp.write(packed)
+
+
+### Constant used for `delta_has_meta` function
+#
+# Can't know if the revision has meta from this delta
+HM_UNKNOWN = -2
+# We know the revision is similar to the delta parent
+HM_INHERIT = -1
+# We know the revision  does not have meta
+HM_NO_META = 0
+# we know the revision has meta information
+HM_META = 1
+
+
+def delta_has_meta(delta: bytes, has_base: bool = True) -> int:
+    """determine if a revision has metadata from its delta"""
+    if not has_base:
+        if delta[:META_MARKER_SIZE] == META_MARKER:
+            return HM_META
+        else:
+            return HM_NO_META
+    before, local_bytes, after = mdiff.first_bytes(delta, META_MARKER_SIZE)
+    if before + after == META_MARKER_SIZE:
+        return HM_INHERIT
+    elif len(local_bytes) == META_MARKER_SIZE:
+        if local_bytes == META_MARKER:
+            return HM_META
+        else:
+            return HM_NO_META
+    else:
+        return HM_UNKNOWN
 
 
 def _reorder_filelog_parents(repo, fl, to_fix):
@@ -602,7 +627,7 @@ def _is_revision_affected_inner(
         return False
 
     # raw text can be a `memoryview`, which doesn't implement `startswith`
-    has_meta = bytes(raw_text[:2]) == b'\x01\n'
+    has_meta = bytes(raw_text[:META_MARKER_SIZE]) == META_MARKER
     if metadata_cache is not None:
         metadata_cache[filerev] = has_meta
     if has_meta:
@@ -698,7 +723,7 @@ def _is_revision_affected_fast_inner(
 
     start, _end, _length = struct.unpack(b">lll", chunk[:header_length])
 
-    if start < 2:  # len(b'\x01\n') == 2
+    if start < META_MARKER_SIZE:
         # This delta does *something* to the metadata marker (if any).
         # Check it the slow way
         is_affected = _is_revision_affected_inner(
@@ -730,7 +755,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
             if not line:
                 continue
             filenodes, filename = line.split(b' ', 1)
-            fl = _filelog_from_filename(repo, filename)
+            fl = repo.file(filename, writable=True)
             to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
             }
@@ -762,56 +787,43 @@ def filter_delta_issue6528(revlog, deltas_iter):
     deltacomputer = deltas.deltacomputer(revlog)
 
     for rev, d in enumerate(deltas_iter, len(revlog)):
-        (
-            node,
-            p1_node,
-            p2_node,
-            linknode,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-        ) = d
-
-        if not revlog.index.has_node(deltabase):
+        if not revlog.index.has_node(d.delta_base):
             raise error.LookupError(
-                deltabase, revlog.radix, _(b'unknown parent')
+                d.delta_base, revlog.radix, _(b'unknown parent')
             )
-        base_rev = revlog.rev(deltabase)
-        if not revlog.index.has_node(p1_node):
-            raise error.LookupError(p1_node, revlog.radix, _(b'unknown parent'))
-        p1_rev = revlog.rev(p1_node)
-        if not revlog.index.has_node(p2_node):
-            raise error.LookupError(p2_node, revlog.radix, _(b'unknown parent'))
-        p2_rev = revlog.rev(p2_node)
+        base_rev = revlog.rev(d.delta_base)
+        if not revlog.index.has_node(d.p1):
+            raise error.LookupError(d.p1, revlog.radix, _(b'unknown parent'))
+        p1_rev = revlog.rev(d.p1)
+        if not revlog.index.has_node(d.p2):
+            raise error.LookupError(d.p2, revlog.radix, _(b'unknown parent'))
+        p2_rev = revlog.rev(d.p2)
 
-        is_censored = lambda: bool(flags & REVIDX_ISCENSORED)
+        is_censored = lambda: bool(d.flags & REVIDX_ISCENSORED)
         delta_base = lambda: base_rev
         parent_revs = lambda: (p1_rev, p2_rev)
         deltabase_parentrevs = lambda: revlog.parentrevs(base_rev)
 
         def full_text():
-            # note: being able to reuse the full text computation in the
-            # underlying addrevision would be useful however this is a bit too
-            # intrusive the for the "quick" issue6528 we are writing before the
-            # 5.8 release
-            textlen = mdiff.patchedsize(revlog.size(base_rev), delta)
+            if d.raw_text is None:
+                textlen = mdiff.patchedsize(revlog.size(base_rev), d.delta)
 
-            revinfo = revlogutils.revisioninfo(
-                node,
-                p1_node,
-                p2_node,
-                [None],
-                textlen,
-                (base_rev, delta),
-                flags,
-            )
-            return deltacomputer.buildtext(revinfo)
+                revinfo = revlogutils.revisioninfo(
+                    d.node,
+                    d.p1,
+                    d.p2,
+                    None,
+                    textlen,
+                    revlogutils.CachedDelta(base_rev, d.delta),
+                    d.flags,
+                )
+                d.raw_text = deltacomputer.buildtext(revinfo)
+            return d.raw_text
 
         is_affected = _is_revision_affected_fast_inner(
             is_censored,
             delta_base,
-            lambda: delta,
+            lambda: d.delta,
             full_text,
             parent_revs,
             deltabase_parentrevs,
@@ -819,16 +831,7 @@ def filter_delta_issue6528(revlog, deltas_iter):
             metadata_cache,
         )
         if is_affected:
-            d = (
-                node,
-                p2_node,
-                p1_node,
-                linknode,
-                deltabase,
-                delta,
-                flags,
-                sidedata,
-            )
+            d.p2, d.p1 = d.p1, d.p2
         yield d
 
 
@@ -865,7 +868,7 @@ def repair_issue6528(
         for entry in files:
             progress.increment()
             filename = entry.target_id
-            fl = _filelog_from_filename(repo, entry.target_id)
+            fl = repo.file(entry.target_id, writable=not dry_run)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
@@ -906,3 +909,158 @@ def repair_issue6528(
                     f.write(b"%s %s\n" % (b",".join(to_fix), path))
 
         progress.complete()
+
+
+def _find_all_revs_with_meta(rl):
+    meta = {}
+    for filerev in rl:
+        if rl.iscensored(filerev):
+            continue
+        delta_parent = rl.deltaparent(filerev)
+        has_base = delta_parent >= 0
+
+        delta = rl._inner._chunk(filerev)
+
+        hm = delta_has_meta(delta, has_base)
+        if hm == HM_META:
+            meta[filerev] = True
+        elif hm == HM_NO_META:
+            meta[filerev] = False
+        elif hm == HM_INHERIT and delta_parent in meta:
+            meta[filerev] = meta[delta_parent]
+        else:
+            meta[filerev] = (
+                rl._rawtext(None, filerev)[:META_MARKER_SIZE] == META_MARKER
+            )
+
+    return {k for k, v in meta.items() if v}
+
+
+def _find_all_snapshots(rl):
+    snapshots = set()
+    if hasattr(rl.index, 'findsnapshots'):
+        cache: dict[int, set[int]] = {}
+        rl.index.findsnapshots(cache, 0, len(rl))
+        for b, c in cache.items():
+            snapshots.add(b)
+            snapshots.update(c)
+    else:
+        for rev in rl:
+            if rl.issnapshot(rev):
+                snapshots.add(rev)
+    return snapshots
+
+
+def quick_upgrade(rl, upgrade_meta, upgrade_delta_info):
+    assert rl._format_flags & constants.FLAG_GENERALDELTA
+
+    if rl.target[0] != constants.KIND_FILELOG:
+        upgrade_meta = False
+
+    if upgrade_meta and rl._format_flags & constants.FLAG_FILELOG_META:
+        upgrade_meta = False
+
+    if rl.target[0] not in (constants.KIND_FILELOG, constants.KIND_MANIFESTLOG):
+        upgrade_delta_info = False
+
+    if upgrade_delta_info and rl._format_flags & constants.FLAG_DELTA_INFO:
+        upgrade_delta_info = False
+
+    if not (upgrade_meta or upgrade_delta_info):
+        return
+
+    new_flags = 0
+
+    if upgrade_meta:
+        revs_with_meta = _find_all_revs_with_meta(rl)
+        new_flags |= constants.FLAG_FILELOG_META
+    else:
+        revs_with_meta = set()
+
+    if upgrade_delta_info:
+        revs_with_snapshot = _find_all_snapshots(rl)
+        new_flags |= constants.FLAG_DELTA_INFO
+    else:
+        revs_with_snapshot = set()
+
+    if not (revs_with_meta or revs_with_snapshot):
+        # We just need to write the header flag
+        # XXX do we need to sort the parent anyway?
+        with rl.opener(rl._indexfile, b'br+') as n:
+            n.seek(0)
+            first_entry = rl.index.entry_binary(0)
+            header = rl._format_flags
+            header |= rl._format_version
+            header |= new_flags
+            header = rl.index.pack_header(header)
+            first_entry = header + first_entry
+            n.write(first_entry)
+        return
+
+    index = rl.index
+    new_index = rl._parse_index(
+        b'',
+        False,
+        True,
+        True,
+    )[0]
+
+    for filerev in rl:
+        (
+            data_offset_and_flag,
+            data_compressed_length,
+            data_uncompressed_length,
+            delta_base,
+            link_rev,
+            parent_1,
+            parent_2,
+            node_id,
+            side_data_offset,
+            side_data_compressed_length,
+            data_compression_mode,
+            sidedata_compression_mode,
+            rank,
+        ) = index[filerev]
+        flags = data_offset_and_flag & 0xFFFF
+        dataoffset = int(data_offset_and_flag >> 16)
+
+        if parent_1 == nullrev and parent_2 != nullrev:
+            parent_1, parent_2 = parent_2, parent_1
+
+        if filerev in revs_with_meta:
+            flags |= constants.REVIDX_HASMETA
+
+        if filerev in revs_with_snapshot:
+            flags |= constants.REVIDX_DELTA_IS_SNAPSHOT
+
+        e = revlogutils.entry(
+            flags=flags,
+            data_offset=dataoffset,
+            data_compressed_length=data_compressed_length,
+            data_uncompressed_length=data_uncompressed_length,
+            data_compression_mode=data_compression_mode,
+            data_delta_base=delta_base,
+            link_rev=link_rev,
+            parent_rev_1=parent_1,
+            parent_rev_2=parent_2,
+            node_id=node_id,
+            sidedata_offset=side_data_offset,
+            sidedata_compressed_length=side_data_compressed_length,
+            sidedata_compression_mode=sidedata_compression_mode,
+            rank=rank,
+        )
+        new_index.append(e)
+
+    # write data
+    with rl.opener(rl._indexfile, b'bw', atomictemp=True) as n:
+        for rev in range(len(new_index)):
+            idx = new_index.entry_binary(rev)
+            if rev == 0:
+                header = rl._format_flags
+                header |= rl._format_version
+                header |= new_flags
+                header = new_index.pack_header(header)
+                idx = header + idx
+            n.write(idx)
+            if rl._inline:
+                n.write(rl._inner.get_segment_for_revs(rev, rev)[1])

@@ -134,7 +134,10 @@ testpats = [
         (r'sed.*-i', "don't use 'sed -i', use a temporary file"),
         (r'\becho\b.*\\n', "don't use 'echo \\n', use printf"),
         (r'echo -n', "don't use 'echo -n', use printf"),
-        (r'(^|\|\s*)\bwc\b[^|]*$\n(?!.*\(re\))', "filter wc output"),
+        (
+            r'(^|\|\s*)\bwc\b[^|]*$\n(?!.*\(re\))',
+            r'filter wc output (use "\s*42 (re)")',
+        ),
         (r'head -c', "don't use 'head -c', use 'dd'"),
         (r'tail -n', "don't use the '-n' option to tail, just use '-<num>'"),
         (r'sha1sum', "don't use sha1sum, use $TESTDIR/md5sum.py"),
@@ -657,7 +660,6 @@ py3pats = [
         (r'sys\.platform', "use pycompat.sysplatform instead (py3)"),
         (r'getopt\.getopt', "use pycompat.getoptb instead (py3)"),
         (r'os\.getenv', "use encoding.environ.get instead"),
-        (r'os\.setenv', "modifying the environ dict is not preferred"),
         (r'(?<!pycompat\.)xrange', "use pycompat.xrange instead (py3)"),
     ],
     # warnings

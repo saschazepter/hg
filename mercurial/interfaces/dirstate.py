@@ -8,13 +8,10 @@ import typing
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Optional,
     Protocol,
-    Tuple,
 )
 
 if typing.TYPE_CHECKING:
@@ -28,7 +25,7 @@ if typing.TYPE_CHECKING:
 
     # TODO: finish adding type hints
     AddParentChangeCallbackT = Callable[
-        ["idirstate", Tuple[Any, Any], Tuple[Any, Any]], Any
+        ["idirstate", tuple[Any, Any], tuple[Any, Any]], Any
     ]
     """The callback type for dirstate.addparentchangecallback()."""
 
@@ -37,7 +34,7 @@ if typing.TYPE_CHECKING:
     #  git.dirstate needs to yield non-None from ``items()``.)
     DirstateItemT = Any  # dirstatemap.DirstateItem
 
-    IgnoreFileAndLineT = Tuple[Optional[bytes], int, bytes]
+    IgnoreFileAndLineT = tuple[Optional[bytes], int, bytes]
     """The return type of dirstate._ignorefileandline(), which holds
     ``(file, lineno, originalline)``.
     """
@@ -49,7 +46,7 @@ if typing.TYPE_CHECKING:
     """The return type of dirstate.flagfunc()."""
 
     # TODO: verify and complete this- it came from a pytype *.pyi file
-    StatusReturnT = Tuple[Any, istatus.Status, Any]
+    StatusReturnT = tuple[Any, istatus.Status, Any]
     """The return type of dirstate.status()."""
 
     TransactionT = transaction.ITransaction
@@ -60,7 +57,7 @@ if typing.TYPE_CHECKING:
     """
 
     # TODO: The value can also be mercurial.osutil.stat
-    WalkReturnT = Dict[bytes, Optional[os.stat_result]]
+    WalkReturnT = dict[bytes, Optional[os.stat_result]]
     """The return type of dirstate.walk().
 
     The matched files are keyed in the dictionary, mapped to a stat-like object
@@ -173,7 +170,7 @@ class idirstate(Protocol):
         """
 
     @abc.abstractmethod
-    def pathto(self, f: bytes, cwd: Optional[bytes] = None) -> bytes:
+    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         pass
 
     @abc.abstractmethod
@@ -189,7 +186,7 @@ class idirstate(Protocol):
         """Iterate the dirstate's contained filenames as bytestrings."""
 
     @abc.abstractmethod
-    def items(self) -> Iterator[Tuple[bytes, DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, DirstateItemT]]:
         """Iterate the dirstate's entries as (filename, DirstateItem.
 
         As usual, filename is a bytestring.
@@ -198,7 +195,7 @@ class idirstate(Protocol):
     iteritems = items
 
     @abc.abstractmethod
-    def parents(self) -> List[bytes]:
+    def parents(self) -> list[bytes]:
         pass
 
     @abc.abstractmethod
@@ -215,7 +212,7 @@ class idirstate(Protocol):
 
     # TODO: typehint the return.  It's a copies Map of some sort.
     @abc.abstractmethod
-    def setparents(self, p1: bytes, p2: Optional[bytes] = None):
+    def setparents(self, p1: bytes, p2: bytes | None = None):
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a
@@ -227,7 +224,7 @@ class idirstate(Protocol):
 
     @abc.abstractmethod
     def setbranch(
-        self, branch: bytes, transaction: Optional[TransactionT]
+        self, branch: bytes, transaction: TransactionT | None
     ) -> None:
         pass
 
@@ -240,15 +237,15 @@ class idirstate(Protocol):
         check whether the dirstate has changed before rereading it."""
 
     @abc.abstractmethod
-    def copy(self, source: Optional[bytes], dest: bytes) -> None:
+    def copy(self, source: bytes | None, dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""
 
     @abc.abstractmethod
-    def copied(self, file: bytes) -> Optional[bytes]:
+    def copied(self, file: bytes) -> bytes | None:
         pass
 
     @abc.abstractmethod
-    def copies(self) -> Dict[bytes, bytes]:
+    def copies(self) -> dict[bytes, bytes]:
         pass
 
     @abc.abstractmethod
@@ -281,12 +278,12 @@ class idirstate(Protocol):
         self,
         parent: bytes,
         allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Optional[Iterable[bytes]] = None,
+        changedfiles: Iterable[bytes] | None = None,
     ) -> None:
         pass
 
     @abc.abstractmethod
-    def write(self, tr: Optional[TransactionT]) -> None:
+    def write(self, tr: TransactionT | None) -> None:
         pass
 
     @abc.abstractmethod
@@ -359,7 +356,7 @@ class idirstate(Protocol):
 
     @abc.abstractmethod
     def verify(
-        self, m1, m2, p1: bytes, narrow_matcher: Optional[Any] = None
+        self, m1, m2, p1: bytes, narrow_matcher: Any | None = None
     ) -> Iterator[bytes]:
         """
         check the dirstate contents against the parent manifest and yield errors

@@ -9,23 +9,28 @@
 
 //! Functions for fiddling with files.
 
-use crate::utils::{
-    hg_path::{path_to_hg_path_buf, HgPath, HgPathBuf, HgPathError},
-    path_auditor::PathAuditor,
-    strings::replace_slice,
-};
-use lazy_static::lazy_static;
-use same_file::is_same_file;
-use std::ffi::{OsStr, OsString};
+use std::borrow::Cow;
+use std::borrow::ToOwned;
+use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::io;
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-use std::{
-    borrow::{Cow, ToOwned},
-    io,
-    time::SystemTime,
-};
+use std::path::Path;
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+use lazy_static::lazy_static;
+use same_file::is_same_file;
+
+use super::strings::replace_slice_exact;
+use crate::utils::hg_path::path_to_hg_path_buf;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::path_auditor::PathAuditor;
 
 pub fn get_os_str_from_bytes(bytes: &[u8]) -> &OsStr {
     let os_str;
@@ -86,7 +91,7 @@ impl<'a> Iterator for Ancestors<'a> {
     }
 }
 
-impl<'a> FusedIterator for Ancestors<'a> {}
+impl FusedIterator for Ancestors<'_> {}
 
 /// An iterator over repository path yielding itself and its ancestors.
 #[derive(Copy, Clone, Debug)]
@@ -108,7 +113,7 @@ impl<'a> Iterator for AncestorsWithBase<'a> {
     }
 }
 
-impl<'a> FusedIterator for AncestorsWithBase<'a> {}
+impl FusedIterator for AncestorsWithBase<'_> {}
 
 /// Returns an iterator yielding ancestor directories of the given repository
 /// path.
@@ -125,6 +130,27 @@ pub fn find_dirs(path: &HgPath) -> Ancestors {
     dirs
 }
 
+/// Returns an iterator yielding ancestor directories of the given repository
+/// path from (but excluding) the root.
+///
+/// The path is separated by '/', and must not start with '/'.
+///
+/// The path itself isn't included.
+pub fn find_dirs_recursive_no_root<'a>(
+    path: &'a HgPath,
+) -> std::iter::FromFn<impl FnMut() -> Option<&'a HgPath>> {
+    let mut positions =
+        path.bytes().enumerate().filter(|(_, &c)| c == b'/').map(|(i, _)| i);
+    std::iter::from_fn(move || {
+        let p = positions.next().unwrap_or(path.len());
+        if p == path.len() {
+            None
+        } else {
+            Some(HgPath::new(&path.as_bytes()[..p]))
+        }
+    })
+}
+
 pub fn dir_ancestors(path: &HgPath) -> Ancestors {
     Ancestors { next: Some(path) }
 }
@@ -137,9 +163,7 @@ pub fn dir_ancestors(path: &HgPath) -> Ancestors {
 /// The path itself isn't included unless it is b"" (meaning the root
 /// directory.)
 pub(crate) fn find_dirs_with_base(path: &HgPath) -> AncestorsWithBase {
-    let mut dirs = AncestorsWithBase {
-        next: Some((path, HgPath::new(b""))),
-    };
+    let mut dirs = AncestorsWithBase { next: Some((path, HgPath::new(b""))) };
     if !path.is_empty() {
         dirs.next(); // skip itself
     }
@@ -177,7 +201,7 @@ fn hfs_ignore_clean(bytes: &[u8]) -> Vec<u8> {
     let needs_escaping = bytes.iter().any(|b| *b == b'\xe2' || *b == b'\xef');
     if needs_escaping {
         for forbidden in IGNORED_CHARS.iter() {
-            replace_slice(&mut buf, forbidden, &[])
+            replace_slice_exact(&mut buf, forbidden, &[])
         }
         buf
     } else {
@@ -238,10 +262,11 @@ pub fn canonical_path(
         }
         // TODO hint to the user about using --cwd
         // Bubble up the responsibility to Python for now
-        Err(HgPathError::NotUnderRoot {
+        Err(HgPathErrorKind::NotUnderRoot {
             path: original_name,
             root: root.to_owned(),
-        })
+        }
+        .into())
     }
 }
 
@@ -341,8 +366,9 @@ pub fn is_binary(content: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn find_dirs_some() {
@@ -350,6 +376,22 @@ mod tests {
         assert_eq!(dirs.next(), Some(HgPath::new(b"foo/bar")));
         assert_eq!(dirs.next(), Some(HgPath::new(b"foo")));
         assert_eq!(dirs.next(), Some(HgPath::new(b"")));
+        assert_eq!(dirs.next(), None);
+        assert_eq!(dirs.next(), None);
+    }
+    #[test]
+    fn find_dirs_recursive_no_root_some() {
+        let mut dirs =
+            super::find_dirs_recursive_no_root(HgPath::new(b"foo/bar/baz"));
+        assert_eq!(dirs.next(), Some(HgPath::new(b"foo")));
+        assert_eq!(dirs.next(), Some(HgPath::new(b"foo/bar")));
+        assert_eq!(dirs.next(), None);
+        assert_eq!(dirs.next(), None);
+    }
+
+    #[test]
+    fn find_dirs_recursive_no_root_empty() {
+        let mut dirs = super::find_dirs_recursive_no_root(HgPath::new(b""));
         assert_eq!(dirs.next(), None);
         assert_eq!(dirs.next(), None);
     }
@@ -394,10 +436,11 @@ mod tests {
         let name = Path::new("filename");
         assert_eq!(
             canonical_path(root, cwd, name),
-            Err(HgPathError::NotUnderRoot {
+            Err(HgPathErrorKind::NotUnderRoot {
                 path: PathBuf::from("/dir/filename"),
                 root: root.to_path_buf()
-            })
+            }
+            .into())
         );
 
         let root = Path::new("/repo");
@@ -405,10 +448,11 @@ mod tests {
         let name = Path::new("filename");
         assert_eq!(
             canonical_path(root, cwd, name),
-            Err(HgPathError::NotUnderRoot {
+            Err(HgPathErrorKind::NotUnderRoot {
                 path: PathBuf::from("/filename"),
                 root: root.to_path_buf()
-            })
+            }
+            .into())
         );
 
         let root = Path::new("/repo");
@@ -439,6 +483,7 @@ mod tests {
     #[test]
     fn test_canonical_path_not_rooted() {
         use std::fs::create_dir;
+
         use tempfile::tempdir;
 
         let base_dir = tempdir().unwrap();
@@ -460,10 +505,11 @@ mod tests {
         );
         assert_eq!(
             canonical_path(&root, Path::new(""), &beneath_repo),
-            Err(HgPathError::NotUnderRoot {
+            Err(HgPathErrorKind::NotUnderRoot {
                 path: beneath_repo,
                 root: root.to_owned()
-            })
+            }
+            .into())
         );
         assert_eq!(
             canonical_path(&root, Path::new(""), under_repo_symlink),

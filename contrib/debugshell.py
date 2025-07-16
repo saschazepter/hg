@@ -1,64 +1,16 @@
-# debugshell extension
-"""a python shell with repo, changelog & manifest objects"""
+"""a python shell with repo, changelog & manifest objects (DEPRECATED)
 
-import code
-import mercurial
-import sys
-from mercurial import (
-    demandimport,
-    pycompat,
-    registrar,
-)
+The functionality of this extension has been included in core Mercurial since
+version 7.1. Please use the core :hg:`debugshell` command instead.
+"""
 
-cmdtable = {}
-command = registrar.command(cmdtable)
+from __future__ import annotations
+
+from mercurial import cmdutil, commands
 
 
-def pdb(ui, repo, msg, **opts):
-    objects = {
-        'mercurial': mercurial,
-        'repo': repo,
-        'cl': repo.changelog,
-        'mf': repo.manifestlog,
-    }
+def uisetup(ui):
+    choice, _allcmds = cmdutil.findpossible(b'dbsh', commands.table)
 
-    code.interact(msg, local=objects)
-
-
-def ipdb(ui, repo, msg, **opts):
-    import IPython
-
-    cl = repo.changelog
-    mf = repo.manifestlog
-    cl, mf  # use variables to appease pyflakes
-
-    IPython.embed()
-
-
-@command(b'debugshell|dbsh', [])
-def debugshell(ui, repo, **opts):
-    bannermsg = "loaded repo : %s\n" "using source: %s" % (
-        pycompat.sysstr(repo.root),
-        mercurial.__path__[0],
-    )
-
-    pdbmap = {'pdb': 'code', 'ipdb': 'IPython'}
-
-    debugger = ui.config(b"ui", b"debugger")
-    if not debugger:
-        debugger = 'pdb'
-    else:
-        debugger = pycompat.sysstr(debugger)
-
-    # if IPython doesn't exist, fallback to code.interact
-    try:
-        with demandimport.deactivated():
-            __import__(pdbmap[debugger])
-    except ImportError:
-        ui.warnnoi18n(
-            b"%s debugger specified but %s module was not found\n"
-            % (debugger, pdbmap[debugger])
-        )
-        debugger = b'pdb'
-
-    getattr(sys.modules[__name__], debugger)(ui, repo, bannermsg, **opts)
+    if b'dbsh' not in choice and ui.config(b'alias', b'dbsh', None) is None:
+        ui.setconfig(b'alias', b'dbsh', b'debugshell', source=b'debugshell')

@@ -122,6 +122,15 @@ try:
 except ImportError:
     profiling = None
 
+
+try:
+    from mercurial.revlogutils import CachedDelta
+
+    btext = lambda x: x
+except ImportError:
+    CachedDelta = tuple
+    btext = lambda x: [x]
+
 try:
     from mercurial.revlogutils import constants as revlog_constants
 
@@ -1118,7 +1127,7 @@ def perf_delta_find(ui, repo, arg_1, arg_2=None, **opts):
         node,
         p1,
         p2,
-        [full_text],  # btext
+        btext(full_text),
         textlen,
         cachedelta,
         flags,
@@ -3320,6 +3329,14 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
         parse_index_v1 = functools.partial(
             parse_index_v1, uses_generaldelta=False
         )
+    uses_delta_info = "uses_delta_info" in getargspec(parse_index_v1).args
+    if uses_delta_info is not None:
+        # Mercurial 7.1 and above
+        # This test isn't affected by delta_info at all, so just pass `False`
+        parse_index_v1 = functools.partial(
+            parse_index_v1,
+            uses_delta_info=False,
+        )
 
     rllen = len(rl)
 
@@ -3697,13 +3714,13 @@ def _getrevisionseed(orig, rev, tr, source):
         text = orig.revision(rev)
     elif source == b'parent-1':
         baserev = orig.rev(p1)
-        cachedelta = (baserev, orig.revdiff(p1, rev))
+        cachedelta = CachedDelta(baserev, orig.revdiff(p1, rev))
     elif source == b'parent-2':
         parent = p2
         if p2 == nullid:
             parent = p1
         baserev = orig.rev(parent)
-        cachedelta = (baserev, orig.revdiff(parent, rev))
+        cachedelta = CachedDelta(baserev, orig.revdiff(parent, rev))
     elif source == b'parent-smallest':
         p1diff = orig.revdiff(p1, rev)
         parent = p1
@@ -3714,10 +3731,10 @@ def _getrevisionseed(orig, rev, tr, source):
                 parent = p2
                 diff = p2diff
         baserev = orig.rev(parent)
-        cachedelta = (baserev, diff)
+        cachedelta = CachedDelta(baserev, diff)
     elif source == b'storage':
         baserev = orig.deltaparent(rev)
-        cachedelta = (baserev, orig.revdiff(orig.node(baserev), rev))
+        cachedelta = CachedDelta(baserev, orig.revdiff(orig.node(baserev), rev))
 
     return (
         (text, tr, linkrev, p1, p2),

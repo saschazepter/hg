@@ -16,10 +16,7 @@ import random
 import subprocess
 
 from typing import (
-    List,
     NoReturn,
-    Optional,
-    Tuple,
 )
 
 from . import (
@@ -529,7 +526,7 @@ def executablepath() -> bytes:
     return buf.value
 
 
-def getvolumename(path: bytes) -> Optional[bytes]:
+def getvolumename(path: bytes) -> bytes | None:
     """Get the mount point of the filesystem from a directory or file
     (best-effort)
 
@@ -550,7 +547,7 @@ def getvolumename(path: bytes) -> Optional[bytes]:
     return buf.value
 
 
-def getfstype(path: bytes) -> Optional[bytes]:
+def getfstype(path: bytes) -> bytes | None:
     """Get the filesystem type name from a directory or file (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
@@ -590,7 +587,7 @@ def getuser() -> bytes:
     return buf.value
 
 
-_signalhandler: List[_SIGNAL_HANDLER] = []
+_signalhandler: list[_SIGNAL_HANDLER] = []
 
 
 def setsignalhandler() -> None:
@@ -623,7 +620,7 @@ def hidewindow() -> None:
     _user32.EnumWindows(_WNDENUMPROC(callback), pid)
 
 
-def termsize() -> Tuple[int, int]:
+def termsize() -> tuple[int, int]:
     # cmd.exe does not handle CR like a unix console, the CR is
     # counted in the line length. On 80 columns consoles, if 80
     # characters are written, the following CR won't apply on the
@@ -670,7 +667,7 @@ def enablevtmode() -> bool:
     return True
 
 
-def spawndetached(args: List[bytes]) -> int:
+def spawndetached(args: list[bytes]) -> int:
     # No standard library function really spawns a fully detached
     # process under win32 because they allocate pipes or other objects
     # to handle standard streams communications. Passing these objects

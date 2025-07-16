@@ -8,18 +8,21 @@
 //! A multiset of directory names.
 //!
 //! Used to counts the references to directories in a manifest or dirstate.
-use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::{
-    utils::{
-        files,
-        hg_path::{HgPath, HgPathBuf, HgPathError},
-    },
-    FastHashMap,
-};
-use std::collections::{hash_map, hash_map::Entry, HashMap, HashSet};
+use std::collections::hash_map;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use super::entry::DirstateEntry;
-use super::{DirstateError, DirstateMapError};
+use super::DirstateError;
+use super::DirstateMapError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
+use crate::utils::files;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
+use crate::FastHashMap;
 
 // could be encapsulated if we care API stability more seriously
 pub type DirsMultisetIter<'a> = hash_map::Keys<'a, HgPathBuf, u32>;
@@ -43,9 +46,7 @@ impl DirsMultiset {
         >,
         P: AsRef<HgPath>,
     {
-        let mut multiset = DirsMultiset {
-            inner: FastHashMap::default(),
-        };
+        let mut multiset = DirsMultiset { inner: FastHashMap::default() };
         for item in dirstate {
             let (filename, entry) = item?;
             let filename = filename.as_ref();
@@ -66,9 +67,7 @@ impl DirsMultiset {
     pub fn from_manifest(
         manifest: &[impl AsRef<HgPath>],
     ) -> Result<Self, HgPathError> {
-        let mut multiset = DirsMultiset {
-            inner: FastHashMap::default(),
-        };
+        let mut multiset = DirsMultiset { inner: FastHashMap::default() };
 
         for filename in manifest {
             multiset.add_path(filename.as_ref())?;
@@ -90,10 +89,11 @@ impl DirsMultiset {
                 // as the only entrypoint for path data
                 let second_slash_index = subpath.len() - 1;
 
-                return Err(HgPathError::ConsecutiveSlashes {
+                return Err(HgPathErrorKind::ConsecutiveSlashes {
                     bytes: path.as_ref().as_bytes().to_owned(),
                     second_slash_index,
-                });
+                }
+                .into());
             }
             if let Some(val) = self.inner.get_mut(subpath) {
                 *val += 1;
@@ -180,8 +180,7 @@ impl<'a> DirsChildrenMultiset<'a> {
         if path.as_ref().is_empty() {
             return;
         }
-        for (directory, basename) in files::find_dirs_with_base(path.as_ref())
-        {
+        for (directory, basename) in files::find_dirs_with_base(path.as_ref()) {
             if !self.is_dir_included(directory) {
                 continue;
             }
@@ -214,9 +213,8 @@ impl<'a> DirsChildrenMultiset<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::dirstate::entry::EntryState;
-
     use super::*;
+    use crate::dirstate::entry::EntryState;
 
     #[test]
     fn test_delete_path_path_not_found() {
@@ -231,8 +229,7 @@ mod tests {
 
     #[test]
     fn test_delete_path_empty_path() {
-        let mut map =
-            DirsMultiset::from_manifest(&[HgPathBuf::new()]).unwrap();
+        let mut map = DirsMultiset::from_manifest(&[HgPathBuf::new()]).unwrap();
         let path = HgPath::new(b"");
         assert_eq!(Ok(()), map.delete_path(path));
         assert_eq!(
@@ -255,9 +252,7 @@ mod tests {
         assert_eq!(Ok(()), map.delete_path(HgPath::new(b"a/b/")));
         eprintln!("{:?}", map);
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(
-                b"a/b/"
-            ))),
+            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(b"a/b/"))),
             map.delete_path(HgPath::new(b"a/b/"))
         );
 
@@ -269,9 +264,7 @@ mod tests {
 
         assert_eq!(Ok(()), map.delete_path(HgPath::new(b"a/c/")));
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(
-                b"a/c/"
-            ))),
+            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(b"a/c/"))),
             map.delete_path(HgPath::new(b"a/c/"))
         );
     }
@@ -336,9 +329,7 @@ mod tests {
     fn test_dirsmultiset_new_empty() {
         let manifest: Vec<HgPathBuf> = vec![];
         let new = DirsMultiset::from_manifest(&manifest).unwrap();
-        let expected = DirsMultiset {
-            inner: FastHashMap::default(),
-        };
+        let expected = DirsMultiset { inner: FastHashMap::default() };
         assert_eq!(expected, new);
 
         let new = DirsMultiset::from_dirstate::<_, HgPathBuf>(
@@ -346,9 +337,7 @@ mod tests {
             false,
         )
         .unwrap();
-        let expected = DirsMultiset {
-            inner: FastHashMap::default(),
-        };
+        let expected = DirsMultiset { inner: FastHashMap::default() };
         assert_eq!(expected, new);
     }
 
@@ -364,9 +353,7 @@ mod tests {
             .collect();
 
         let new = DirsMultiset::from_manifest(&input_vec).unwrap();
-        let expected = DirsMultiset {
-            inner: expected_inner,
-        };
+        let expected = DirsMultiset { inner: expected_inner };
         assert_eq!(expected, new);
 
         let input_map = ["b/x", "a/c", "a/d/x"].iter().map(|f| {
@@ -381,9 +368,7 @@ mod tests {
             .collect();
 
         let new = DirsMultiset::from_dirstate(input_map, false).unwrap();
-        let expected = DirsMultiset {
-            inner: expected_inner,
-        };
+        let expected = DirsMultiset { inner: expected_inner };
         assert_eq!(expected, new);
     }
 
@@ -410,9 +395,7 @@ mod tests {
             .collect();
 
         let new = DirsMultiset::from_dirstate(input_map, true).unwrap();
-        let expected = DirsMultiset {
-            inner: expected_inner,
-        };
+        let expected = DirsMultiset { inner: expected_inner };
         assert_eq!(expected, new);
     }
 }

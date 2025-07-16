@@ -9,17 +9,39 @@ import abc
 
 from typing import (
     Callable,
-    List,
-    Optional,
     Protocol,
-    Set,
-    Union,
 )
 
 from ._basetypes import (
     HgPathT,
     UserMsgT,
 )
+
+
+class BadFuncT(Protocol):
+    """The type for a bad match callback that can be supplied by matcher user"""
+
+    def __call__(self, file: HgPathT, msg: UserMsgT | None) -> None:
+        # TODO: a message should probably always be provided (it is not from
+        #  manifest.py)
+        raise NotImplementedError
+
+
+KindPatT = tuple[bytes, bytes, bytes]
+"""A parsed ``kind:pattern`` type.
+
+The first entry is the kind of pattern, the second is the pattern, and the third
+is the source of the pattern (or an empty string).
+"""
+
+MatchFuncT = Callable[[HgPathT], bool]
+"""The signature of a matcher compatible matching function.
+
+Given the path of a file, the method returns True to indicate a match.
+"""
+
+TraverseDirFuncT = Callable[[HgPathT], None]
+"""The callback type that provides the directory being traversed."""
 
 
 class IMatcher(Protocol):
@@ -41,25 +63,25 @@ class IMatcher(Protocol):
     # Callbacks related to how the matcher is used by dirstate.walk.
     # Subscribers to these events must monkeypatch the matcher object.
     @abc.abstractmethod
-    def bad(self, f: HgPathT, msg: Optional[UserMsgT]) -> None:
+    def bad(self, f: HgPathT, msg: UserMsgT | None) -> None:
         ...
 
     # If traversedir is set, it will be called when a directory discovered
     # by recursive traversal is visited.
-    traversedir: Optional[Callable[[HgPathT], None]] = None
+    traversedir: TraverseDirFuncT | None = None
 
     @property
     @abc.abstractmethod
-    def _files(self) -> List[HgPathT]:
+    def _files(self) -> list[HgPathT]:
         ...
 
     @abc.abstractmethod
-    def files(self) -> List[HgPathT]:
+    def files(self) -> list[HgPathT]:
         ...
 
     @property
     @abc.abstractmethod
-    def _fileset(self) -> Set[HgPathT]:
+    def _fileset(self) -> set[HgPathT]:
         ...
 
     @abc.abstractmethod
@@ -71,7 +93,7 @@ class IMatcher(Protocol):
         ...
 
     @abc.abstractmethod
-    def visitdir(self, dir: HgPathT) -> Union[bool, bytes]:
+    def visitdir(self, dir: HgPathT) -> bool | bytes:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories. This is
         based on the match's primary, included, and excluded patterns.
@@ -82,7 +104,7 @@ class IMatcher(Protocol):
         """
 
     @abc.abstractmethod
-    def visitchildrenset(self, dir: HgPathT) -> Union[Set[HgPathT], bytes]:
+    def visitchildrenset(self, dir: HgPathT) -> set[HgPathT] | bytes:
         """Decides whether a directory should be visited based on whether it
         has potential matches in it or one of its subdirectories, and
         potentially lists which subdirectories of that directory should be

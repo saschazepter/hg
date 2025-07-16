@@ -22,14 +22,18 @@
 
 //! Utility to share Rust reference across Python objects.
 
+use std::ops::Deref;
+use std::ops::DerefMut;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+use std::sync::TryLockError;
+use std::sync::TryLockResult;
+
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-
-use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{
-    RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult,
-};
 
 /// A mutable memory location shareable immutably across Python objects.
 ///
@@ -188,11 +192,7 @@ impl<T: 'static> PyShareable<T> {
         &'py self,
         owner: &'py Bound<'py, PyAny>,
     ) -> PyShareableRef<'py, T> {
-        PyShareableRef {
-            owner,
-            state: &self.state,
-            data: &self.data,
-        }
+        PyShareableRef { owner, state: &self.state, data: &self.data }
     }
 
     /// Share for other Python objects
@@ -249,10 +249,7 @@ impl<T: 'static> PyShareable<T> {
 
 impl<T> From<T> for PyShareable<T> {
     fn from(value: T) -> Self {
-        Self {
-            state: PySharedState::new(),
-            data: value.into(),
-        }
+        Self { state: PySharedState::new(), data: value.into() }
     }
 }
 
@@ -337,8 +334,7 @@ impl<'py, T: ?Sized> PyShareableRef<'py, T> {
     ///
     /// Panics if the value is currently mutably borrowed.
     pub fn share_immutable(&self) -> SharedByPyObject<&'static T> {
-        self.try_share_immutable()
-            .expect("already mutably borrowed")
+        self.try_share_immutable().expect("already mutably borrowed")
     }
 
     /// Creates an immutable reference which is not bound to lifetime,
@@ -451,7 +447,7 @@ impl<'a> BorrowPyShared<'a> {
     }
 }
 
-impl<'a> Drop for BorrowPyShared<'a> {
+impl Drop for BorrowPyShared<'_> {
     fn drop(&mut self) {
         self.state.decrease_borrow_count(self.py);
     }
@@ -719,7 +715,7 @@ pub struct SharedByPyObjectRef<'a, T: 'a + ?Sized> {
     data: &'a T,
 }
 
-impl<'a, T: ?Sized> Deref for SharedByPyObjectRef<'a, T> {
+impl<T: ?Sized> Deref for SharedByPyObjectRef<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -733,7 +729,7 @@ pub struct SharedByPyObjectRefMut<'a, T: 'a + ?Sized> {
     data: &'a mut T,
 }
 
-impl<'a, T: ?Sized> Deref for SharedByPyObjectRefMut<'a, T> {
+impl<T: ?Sized> Deref for SharedByPyObjectRefMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -741,7 +737,7 @@ impl<'a, T: ?Sized> Deref for SharedByPyObjectRefMut<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for SharedByPyObjectRefMut<'a, T> {
+impl<T: ?Sized> DerefMut for SharedByPyObjectRefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.data
     }
@@ -761,8 +757,8 @@ impl<'a, T: ?Sized> DerefMut for SharedByPyObjectRefMut<'a, T> {
 /// * `$owner_attr` is the name of the shareable attribute in `$owner_type`
 /// * `$shared_type` is the type wrapped in `SharedByPyObject`, typically
 ///   `SomeIter<'static>`
-/// * `$iter_func` is a function to obtain the Rust iterator from the content
-///   of the shareable attribute. It can be a closure.
+/// * `$iter_func` is a function to obtain the Rust iterator from the content of
+///   the shareable attribute. It can be a closure.
 /// * `$result_func` is a function for converting items returned by the Rust
 ///   iterator into `PyResult<Option<Py<$success_type>`.
 ///
@@ -857,8 +853,7 @@ macro_rules! py_shared_iterator {
             fn new(owner: &Bound<'_, $owner_type>) -> PyResult<Self> {
                 let inner = &owner.borrow().$owner_attr;
                 // Safety: the data is indeed owned by `owner`
-                let shared_iter =
-                    unsafe { inner.share_map(owner, $iter_func) };
+                let shared_iter = unsafe { inner.share_map(owner, $iter_func) };
                 Ok(Self { inner: shared_iter })
             }
 

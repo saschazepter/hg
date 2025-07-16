@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import abc
-import typing
 
 from typing import (
     Protocol,
@@ -17,12 +16,6 @@ from .node import (
     hex,
 )
 from .i18n import _
-from .thirdparty import attr
-
-# Force pytype to use the non-vendored package
-if typing.TYPE_CHECKING:
-    # noinspection PyPackageRequirements
-    import attr
 
 from . import (
     error,
@@ -421,47 +414,3 @@ def supportedcompengines(ui, role):
         )
 
     return compengines
-
-
-@attr.s
-class encodedresponse:
-    """Represents response data that is already content encoded.
-
-    Wire protocol version 2 only.
-
-    Commands typically emit Python objects that are encoded and sent over the
-    wire. If commands emit an object of this type, the encoding step is bypassed
-    and the content from this object is used instead.
-    """
-
-    data = attr.ib()
-
-
-@attr.s
-class alternatelocationresponse:
-    """Represents a response available at an alternate location.
-
-    Instances are sent in place of actual response objects when the server
-    is sending a "content redirect" response.
-
-    Only compatible with wire protocol version 2.
-    """
-
-    url = attr.ib()
-    mediatype = attr.ib()
-    size = attr.ib(default=None)
-    fullhashes = attr.ib(default=None)
-    fullhashseed = attr.ib(default=None)
-    serverdercerts = attr.ib(default=None)
-    servercadercerts = attr.ib(default=None)
-
-
-@attr.s
-class indefinitebytestringresponse:
-    """Represents an object to be encoded to an indefinite length bytestring.
-
-    Instances are initialized from an iterable of chunks, with each chunk being
-    a bytes instance.
-    """
-
-    chunks = attr.ib()

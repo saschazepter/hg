@@ -24,18 +24,14 @@ pub fn debug_wait_for_file(
     // defaults work out of the box, etc.
     let default_timeout = 2;
     let timeout_opt = format!("sync.{config_option}-timeout");
-    let timeout_seconds =
-        match config.get_u32(b"devel", timeout_opt.as_bytes()) {
-            Ok(Some(timeout)) => timeout,
-            Err(e) => {
-                log::debug!("{e}");
-                default_timeout
-            }
-            _ => default_timeout,
-        };
+    let timeout_seconds = match config.get_u32(b"devel", timeout_opt.as_bytes())
+    {
+        Ok(Some(timeout)) => timeout,
+        _ => default_timeout,
+    };
     let timeout_seconds = timeout_seconds as u64;
 
-    log::debug!(
+    tracing::debug!(
         "Config option `{config_option}` found, \
              waiting for file `{file_path}` to be created"
     );
@@ -62,7 +58,7 @@ pub fn debug_wait_for_file(
     let mut found = false;
     while start.elapsed() < timeout {
         if path.exists() {
-            log::debug!("File `{file_path}` was created");
+            tracing::debug!("File `{file_path}` was created");
             found = true;
             break;
         } else {

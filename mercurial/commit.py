@@ -97,7 +97,7 @@ def commitctx(repo, ctx, error=False, origctx=None):
         if oldtip != repo.changelog.tiprev():
             repo.register_changeset(rev, repo.changelog.changelogrevision(rev))
 
-        xp1, xp2 = p1.hex(), p2 and p2.hex() or b''
+        xp1, xp2 = p1.hex(), p2.hex() if p2 else b''
         repo.hook(
             b'pretxncommit',
             throw=True,
@@ -333,7 +333,7 @@ def _filecommit(
                 touched = 'modified'
             return node, touched
 
-    flog = repo.file(fname)
+    flog = repo.file(fname, writable=True)
     meta = {}
     cfname = fctx.copysource()
     fnode = None
@@ -341,9 +341,9 @@ def _filecommit(
     if cfname and cfname != fname:
         # Mark the new revision of this file as a copy of another
         # file.  This copy data will effectively act as a parent
-        # of this new revision.  If this is a merge, the first
-        # parent will be the nullid (meaning "look up the copy data")
-        # and the second one will be the other parent.  For example:
+        # of this new revision.
+        #
+        # For example:
         #
         # 0 --- 1 --- 3   rev1 changes file foo
         #   \       /     rev2 renames foo to bar and changes it
@@ -357,6 +357,10 @@ def _filecommit(
         #   \       /     merging rev3 and rev4 should use bar@rev2
         #    \- 2 --- 4        as the merge base
         #
+        # The copies metadata are stored at the filelog level. If the revlog
+        # does not use the "FILEREVISION_FLAG_HASMETA", this will result in
+        # "swapping" the parent, leaving parent 1 as nullid (meaning "look up
+        # the copy data").
 
         cnode = manifest1.get(cfname)
         newfparent = fparent2
@@ -383,7 +387,7 @@ def _filecommit(
             if includecopymeta:
                 meta[b"copy"] = cfname
                 meta[b"copyrev"] = hex(cnode)
-            fparent1, fparent2 = repo.nullid, newfparent
+            fparent1, fparent2 = newfparent, repo.nullid
         else:
             repo.ui.warn(
                 _(

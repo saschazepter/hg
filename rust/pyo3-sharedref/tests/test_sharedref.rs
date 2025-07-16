@@ -26,9 +26,7 @@ fn with_setup(
 
 /// "leak" in the sense of `SharedByPyObject` the `string` data field,
 /// taking care of all the boilerplate
-fn share_string(
-    owner: &Bound<'_, Owner>,
-) -> SharedByPyObject<&'static String> {
+fn share_string(owner: &Bound<'_, Owner>) -> SharedByPyObject<&'static String> {
     let shareable = &owner.borrow().string;
     unsafe { shareable.share(owner) }
 }
@@ -50,7 +48,7 @@ fn try_share_string(
 fn mutate_string<'py>(
     owner: &'py Bound<'py, Owner>,
     f: impl FnOnce(&mut String),
-) -> () {
+) {
     let shareable = &owner.borrow_mut().string;
     let shared_ref = unsafe { shareable.borrow_with_owner(owner) };
     f(&mut shared_ref.write());
@@ -71,8 +69,7 @@ fn test_shared_borrow_mut() -> PyResult<()> {
     with_setup(|py, owner| {
         let shared = share_string(owner);
         let mut shared_iter = unsafe { shared.map(py, |s| s.chars()) };
-        let mut shared_ref =
-            unsafe { shared_iter.try_borrow_mut(py) }.unwrap();
+        let mut shared_ref = unsafe { shared_iter.try_borrow_mut(py) }.unwrap();
         assert_eq!(shared_ref.next(), Some('n'));
         assert_eq!(shared_ref.next(), Some('e'));
         assert_eq!(shared_ref.next(), Some('w'));

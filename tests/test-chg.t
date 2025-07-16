@@ -468,9 +468,15 @@ Test that chg works (sets to the user's actual LC_CTYPE) even when python
   >             ui.write(b'%s=%s\n' % (k, encoding.environ[k]))
   > EOF
 (hg keeps python's modified LC_CTYPE, chg doesn't)
+
+#if python-local-coerce
+
   $ (unset LC_ALL; unset LANG; LC_CTYPE= "$CHGHG" \
   >    --config extensions.debugenv=$TESTTMP/debugenv.py debugenv)
   LC_CTYPE=C.UTF-8
+
+#endif
+
   $ (unset LC_ALL; unset LANG; LC_CTYPE= chg \
   >    --config extensions.debugenv=$TESTTMP/debugenv.py debugenv)
   LC_CTYPE=

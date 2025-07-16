@@ -1,11 +1,14 @@
-use crate::ui::UiError;
-use crate::NoRepoInCwdError;
+use std::convert::From;
+
 use format_bytes::format_bytes;
-use hg::config::{ConfigError, ConfigParseError, ConfigValueParseError};
+use hg::config::ConfigError;
+use hg::config::ConfigParseError;
+use hg::config::ConfigValueParseError;
 use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::DirstateError;
 use hg::dirstate::DirstateMapError;
+use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::exit_codes;
 use hg::filepatterns::PatternError;
@@ -14,7 +17,9 @@ use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
-use std::convert::From;
+
+use crate::ui::UiError;
+use crate::NoRepoInCwdError;
 
 /// The kind of command error
 #[derive(Debug)]
@@ -24,6 +29,7 @@ pub enum CommandError {
         message: Vec<u8>,
         detailed_exit_code: exit_codes::ExitCode,
         hint: Option<Vec<u8>>,
+        backtrace: HgBacktrace,
     },
 
     /// Exit with a failure exit code but no message.
@@ -55,18 +61,21 @@ impl CommandError {
             message: message.as_ref().as_bytes().to_owned(),
             detailed_exit_code,
             hint: None,
+            backtrace: HgBacktrace::capture(),
         }
     }
 
-    pub fn abort_with_exit_code_and_hint(
+    fn abort_with_exit_code_and_hint(
         message: impl AsRef<str>,
         detailed_exit_code: exit_codes::ExitCode,
         hint: Option<impl AsRef<str>>,
+        backtrace: HgBacktrace,
     ) -> Self {
         CommandError::Abort {
             message: message.as_ref().as_bytes().to_owned(),
             detailed_exit_code,
             hint: hint.map(|h| h.as_ref().as_bytes().to_owned()),
+            backtrace,
         }
     }
 
@@ -80,6 +89,7 @@ impl CommandError {
             message: message.as_ref().into(),
             detailed_exit_code,
             hint: None,
+            backtrace: HgBacktrace::capture(),
         }
     }
 
@@ -101,21 +111,20 @@ impl From<clap::Error> for CommandError {
 impl From<HgError> for CommandError {
     fn from(error: HgError) -> Self {
         match error {
-            HgError::UnsupportedFeature(message) => {
-                CommandError::unsupported(message)
+            HgError::UnsupportedFeature(message, backtrace) => {
+                CommandError::unsupported(format!("{}{}", backtrace, message))
             }
-            HgError::CensoredNodeError => {
-                CommandError::unsupported("Encountered a censored node")
+            e @ HgError::CensoredNodeError(_, _) => {
+                CommandError::unsupported(format!("abort: {}", e))
             }
-            HgError::Abort {
-                message,
-                detailed_exit_code,
-                hint,
-            } => CommandError::abort_with_exit_code_and_hint(
-                message,
-                detailed_exit_code,
-                hint,
-            ),
+            HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
+                CommandError::abort_with_exit_code_and_hint(
+                    message,
+                    detailed_exit_code,
+                    hint,
+                    backtrace,
+                )
+            }
             _ => CommandError::abort(error.to_string()),
         }
     }
@@ -181,11 +190,7 @@ impl From<ConfigError> for CommandError {
 
 impl From<ConfigParseError> for CommandError {
     fn from(error: ConfigParseError) -> Self {
-        let ConfigParseError {
-            origin,
-            line,
-            message,
-        } = error;
+        let ConfigParseError { origin, line, message } = error;
         let line_message = if let Some(line_number) = line {
             format_bytes!(b":{}", line_number.to_string().into_bytes())
         } else {

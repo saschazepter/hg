@@ -33,6 +33,24 @@ In alias
   $ prof --config profiling.output=../out st
   $ grep CallCount ../out > /dev/null || cat ../out
 
+  $ prof --config profiling.output-dir=../profiles st
+  profiling output directory does not exist: ../profiles
+
+  $ prof --config profiling.output=../out \
+  >   --config profiling.output-dir=../profiles st
+  $ grep CallCount ../out > /dev/null || cat ../out
+
+  $ prof --config profiling.output-dir=../profiles \
+  >   --config profiling.output-dir:create=true st
+  $ ls ../profiles/*.prof | wc -l
+  \s*1 (re)
+  $ grep CallCount ../profiles/*.prof > /dev/null \
+  >   || cat ../profiles/*.prof
+
+  $ prof --config profiling.output-dir=../profiles st
+  $ ls ../profiles/*.prof | wc -l
+  \s*2 (re)
+
   $ prof --config profiling.output=blackbox --config extensions.blackbox= st
   $ grep CallCount .hg/blackbox.log > /dev/null || cat .hg/blackbox.log
 

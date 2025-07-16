@@ -647,6 +647,7 @@ invalid arguments
   
   options:
   
+      --share-source      print the share source root instead
    -T --template TEMPLATE display with template
   
   (use 'hg rt -h' to show more help)

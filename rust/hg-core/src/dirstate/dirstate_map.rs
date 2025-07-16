@@ -1,26 +1,33 @@
-use bytes_cast::BytesCast;
 use std::borrow::Cow;
 use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
+use bytes_cast::BytesCast;
+
+use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
 use super::path_with_basename::WithBasename;
-use super::status::{DirstateStatus, StatusError, StatusOptions};
-use super::{on_disk, DirstateError, DirstateMapError};
-use crate::dirstate::entry::{
-    DirstateEntry, DirstateV2Data, ParentFileData, TruncatedTimestamp,
-};
+use super::status::DirstateStatus;
+use super::status::StatusError;
+use super::status::StatusOptions;
+use super::DirstateError;
+use super::DirstateMapError;
+use crate::dirstate::entry::DirstateEntry;
+use crate::dirstate::entry::DirstateV2Data;
+use crate::dirstate::entry::ParentFileData;
+use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
 use crate::dirstate::CopyMapIter;
 use crate::dirstate::StateMapIter;
-use crate::filepatterns::PatternFileWarning;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
-use crate::utils::hg_path::{HgPath, HgPathBuf};
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::warnings::HgWarningContext;
 use crate::DirstateParents;
 use crate::FastHashbrownMap as FastHashMap;
 
@@ -83,11 +90,9 @@ impl PartialEq for DirstateIdentity {
         // unlikely it is that we actually get exactly 0 nanos, and worst
         // case scenario, we don't write out the dirstate in a non-wlocked
         // situation like status.
-        let mtime_nanos_equal = (self.mtime_nsec == 0
-            || other.mtime_nsec == 0)
+        let mtime_nanos_equal = (self.mtime_nsec == 0 || other.mtime_nsec == 0)
             || self.mtime_nsec == other.mtime_nsec;
-        let ctime_nanos_equal = (self.ctime_nsec == 0
-            || other.ctime_nsec == 0)
+        let ctime_nanos_equal = (self.ctime_nsec == 0 || other.ctime_nsec == 0)
             || self.ctime_nsec == other.ctime_nsec;
 
         self.mode == other.mode
@@ -185,7 +190,7 @@ pub(super) enum NodeRef<'tree, 'on_disk> {
     OnDisk(&'on_disk on_disk::Node),
 }
 
-impl<'tree, 'on_disk> BorrowedPath<'tree, 'on_disk> {
+impl<'on_disk> BorrowedPath<'_, 'on_disk> {
     pub fn detach_from_tree(&self) -> Cow<'on_disk, HgPath> {
         match *self {
             BorrowedPath::InMemory(in_memory) => Cow::Owned(in_memory.clone()),
@@ -194,7 +199,7 @@ impl<'tree, 'on_disk> BorrowedPath<'tree, 'on_disk> {
     }
 }
 
-impl<'tree, 'on_disk> std::ops::Deref for BorrowedPath<'tree, 'on_disk> {
+impl std::ops::Deref for BorrowedPath<'_, '_> {
     type Target = HgPath;
 
     fn deref(&self) -> &HgPath {
@@ -212,9 +217,7 @@ impl Default for ChildNodes<'_> {
 }
 
 impl<'on_disk> ChildNodes<'on_disk> {
-    pub(super) fn as_ref<'tree>(
-        &'tree self,
-    ) -> ChildNodesRef<'tree, 'on_disk> {
+    pub(super) fn as_ref<'tree>(&'tree self) -> ChildNodesRef<'tree, 'on_disk> {
         match self {
             ChildNodes::InMemory(nodes) => ChildNodesRef::InMemory(nodes),
             ChildNodes::OnDisk(nodes) => ChildNodesRef::OnDisk(nodes),
@@ -436,9 +439,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
         &self,
     ) -> Result<Option<DirstateEntry>, DirstateV2ParseError> {
         match self {
-            NodeRef::InMemory(_path, node) => {
-                Ok(node.data.as_entry().copied())
-            }
+            NodeRef::InMemory(_path, node) => Ok(node.data.as_entry().copied()),
             NodeRef::OnDisk(node) => node.entry(),
         }
     }
@@ -457,9 +458,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 
     pub(super) fn descendants_with_entry_count(&self) -> u32 {
         match self {
-            NodeRef::InMemory(_path, node) => {
-                node.descendants_with_entry_count
-            }
+            NodeRef::InMemory(_path, node) => node.descendants_with_entry_count,
             NodeRef::OnDisk(node) => node.descendants_with_entry_count.get(),
         }
     }
@@ -537,7 +536,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn new_v2(
         on_disk: &'on_disk [u8],
         data_size: usize,
@@ -552,7 +551,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn new_v1(
         on_disk: &'on_disk [u8],
         identity: Option<DirstateIdentity>,
@@ -564,9 +563,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
             return Ok((map, None));
         }
 
-        let parents = parse_dirstate_entries(
-            map.on_disk,
-            |path, entry, copy_source| {
+        let parents =
+            parse_dirstate_entries(map.on_disk, |path, entry, copy_source| {
                 let tracked = entry.tracked();
                 let node = Self::get_or_insert_node_inner(
                     map.on_disk,
@@ -596,8 +594,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                     map.nodes_with_copy_source_count += 1
                 }
                 Ok(())
-            },
-        )?;
+            })?;
         let parents = Some(*parents);
 
         Ok((map, parents))
@@ -823,7 +820,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         filename: &HgPath,
         old_entry_opt: Option<DirstateEntry>,
     ) -> Result<bool, DirstateV2ParseError> {
-        let was_tracked = old_entry_opt.map_or(false, |e| e.tracked());
+        let was_tracked = old_entry_opt.is_some_and(|e| e.tracked());
         let had_entry = old_entry_opt.is_some();
         let tracked_count_increment = u32::from(!was_tracked);
         let mut new = false;
@@ -1136,10 +1133,10 @@ impl OwningDirstateMap {
     pub fn reset_state(
         &mut self,
         reset: DirstateEntryReset,
-    ) -> Result<(), DirstateError> {
+    ) -> Result<bool, DirstateError> {
         if !(reset.p1_tracked || reset.p2_info || reset.wc_tracked) {
             self.drop_entry_and_copy_source(reset.filename)?;
-            return Ok(());
+            return Ok(false);
         }
         if !reset.from_empty {
             self.copy_map_remove(reset.filename)?;
@@ -1160,7 +1157,8 @@ impl OwningDirstateMap {
                 reset.p2_info,
                 reset.has_meaningful_mtime,
                 reset.parent_file_data_opt,
-            )
+            )?;
+            Ok(old_entry_opt.is_none())
         })
     }
 
@@ -1168,7 +1166,7 @@ impl OwningDirstateMap {
         &mut self,
         filename: &HgPath,
     ) -> Result<(), DirstateError> {
-        let was_tracked = self.get(filename)?.map_or(false, |e| e.tracked());
+        let was_tracked = self.get(filename)?.is_some_and(|e| e.tracked());
         struct Dropped {
             was_tracked: bool,
             had_entry: bool,
@@ -1189,20 +1187,16 @@ impl OwningDirstateMap {
             let (first_path_component, rest_of_path) =
                 path.split_first_component();
             let nodes = nodes.make_mut(on_disk, unreachable_bytes)?;
-            let node = if let Some(node) = nodes.get_mut(first_path_component)
-            {
+            let node = if let Some(node) = nodes.get_mut(first_path_component) {
                 node
             } else {
                 return Ok(None);
             };
             let dropped;
             if let Some(rest) = rest_of_path {
-                if let Some((d, removed)) = recur(
-                    on_disk,
-                    unreachable_bytes,
-                    &mut node.children,
-                    rest,
-                )? {
+                if let Some((d, removed)) =
+                    recur(on_disk, unreachable_bytes, &mut node.children, rest)?
+                {
                     dropped = d;
                     if dropped.had_entry {
                         node.descendants_with_entry_count = node
@@ -1216,9 +1210,7 @@ impl OwningDirstateMap {
                         node.tracked_descendants_count = node
                             .tracked_descendants_count
                             .checked_sub(1)
-                            .expect(
-                                "tracked_descendants_count should be >= 0",
-                            );
+                            .expect("tracked_descendants_count should be >= 0");
                     }
 
                     // Directory caches must be invalidated when removing a
@@ -1233,7 +1225,7 @@ impl OwningDirstateMap {
                 }
             } else {
                 let entry = node.data.as_entry();
-                let was_tracked = entry.map_or(false, |entry| entry.tracked());
+                let was_tracked = entry.is_some_and(|entry| entry.tracked());
                 let had_entry = entry.is_some();
                 if had_entry {
                     node.data = NodeData::None
@@ -1247,11 +1239,7 @@ impl OwningDirstateMap {
                     had_copy_source = true;
                     node.copy_source = None
                 }
-                dropped = Dropped {
-                    was_tracked,
-                    had_entry,
-                    had_copy_source,
-                };
+                dropped = Dropped { was_tracked, had_entry, had_copy_source };
             }
             // After recursion, for both leaf (rest_of_path is None) nodes and
             // parent nodes, remove a node if it just became empty.
@@ -1327,7 +1315,7 @@ impl OwningDirstateMap {
         })
     }
 
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn pack_v1(
         &self,
         parents: DirstateParents,
@@ -1367,7 +1355,7 @@ impl OwningDirstateMap {
     /// appended to the existing data file whose content is at
     /// `map.on_disk` (true), instead of written to a new data file
     /// (false), and the previous size of data on disk.
-    #[logging_timer::time("trace")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn pack_v2(
         &self,
         write_mode: DirstateMapWriteMode,
@@ -1381,24 +1369,33 @@ impl OwningDirstateMap {
     /// results of the status. This is needed to do so efficiently (i.e.
     /// without cloning the `DirstateStatus` object with its paths) because
     /// we need to borrow from `Self`.
-    pub fn with_status<R>(
+    pub fn with_status<R, C>(
         &mut self,
-        matcher: &(dyn Matcher + Sync),
+        matcher: &impl Matcher,
         root_dir: PathBuf,
         ignore_files: Vec<PathBuf>,
         options: StatusOptions,
-        callback: impl for<'r> FnOnce(
-            Result<(DirstateStatus<'r>, Vec<PatternFileWarning>), StatusError>,
+        callback: C,
+    ) -> R
+    where
+        C: for<'r> FnOnce(
+            Result<DirstateStatus<'r>, StatusError>,
+            HgWarningContext,
         ) -> R,
-    ) -> R {
+    {
         self.with_dmap_mut(|map| {
-            callback(super::status::status(
-                map,
-                matcher,
-                root_dir,
-                ignore_files,
-                options,
-            ))
+            let warnings = HgWarningContext::new();
+            callback(
+                super::status::status(
+                    map,
+                    matcher,
+                    root_dir,
+                    ignore_files,
+                    options,
+                    warnings.sender(),
+                ),
+                warnings,
+            )
         })
     }
 
@@ -1542,16 +1539,13 @@ impl OwningDirstateMap {
     > {
         let map = self.get_map();
         let on_disk = map.on_disk;
-        Ok(Box::new(filter_map_results(
-            map.iter_nodes(),
-            move |node| {
-                Ok(if node.tracked_descendants_count() > 0 {
-                    Some(node.full_path(on_disk)?)
-                } else {
-                    None
-                })
-            },
-        )))
+        Ok(Box::new(filter_map_results(map.iter_nodes(), move |node| {
+            Ok(if node.tracked_descendants_count() > 0 {
+                Some(node.full_path(on_disk)?)
+            } else {
+                None
+            })
+        })))
     }
 
     /// Only public because it needs to be exposed to the Python layer.

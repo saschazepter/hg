@@ -346,6 +346,11 @@ class hgdist(Distribution):
                     msg = 'unknown HGWITHRUSTEXT value: %s' % hgrustext
                     print(msg, file=sys.stderr)
                 hgrustext = None
+            if hgrustext == "cpython":
+                logging.warning(
+                    "HGWITHRUSTEXT is deprecated and \
+                    will be removed in Mercurial 7.1"
+                )
             self.rust = hgrustext is not None
             self.no_rust = not self.rust
         return ret
@@ -1160,7 +1165,7 @@ class RustExtension(Extension):
 
             env['HOME'] = pwd.getpwuid(os.getuid()).pw_dir
 
-        # Wildy shooting in the dark to make sure rust-cpython use the right
+        # Wildy shooting in the dark to make sure rust-pyo3 use the right
         # python
         if not sys.executable:
             msg = "Cannot determine which Python to compile Rust for"
@@ -1286,11 +1291,6 @@ extmodules = [
 if os.name != 'nt':
     extmodules += [
         RustStandaloneExtension(
-            'mercurial.rustext',
-            'hg-cpython',
-            'librusthg',
-        ),
-        RustStandaloneExtension(
             'mercurial.pyo3_rustext',
             'hg-pyo3',
             'librusthgpyo3',
@@ -1346,6 +1346,10 @@ packagedata = {
         '*.txt',
     ],
     'mercurial.thirdparty.attr': [
+        '*.pyi',
+        'py.typed',
+    ],
+    'mercurial.cext': [
         '*.pyi',
         'py.typed',
     ],

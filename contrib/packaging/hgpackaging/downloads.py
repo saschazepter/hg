@@ -128,7 +128,7 @@ def download_to_path(url: str, path: pathlib.Path, size: int, sha256: str):
 
 def download_entry(
     name: str, dest_path: pathlib.Path, local_name=None
-) -> typing.Tuple[pathlib.Path, typing.Dict[str, typing.Union[str, int]]]:
+) -> tuple[pathlib.Path, dict[str, typing.Union[str, int]]]:
     entry = DOWNLOADS[name]
 
     url = entry['url']

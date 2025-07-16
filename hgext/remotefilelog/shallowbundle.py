@@ -212,7 +212,7 @@ def addchangegroupfiles(
         progress.increment()
 
         if not repo.shallowmatch(f):
-            fl = repo.file(f)
+            fl = repo.file(f, writable=True)
             deltas = source.deltaiter()
             fl.addgroup(deltas, revmap, trp)
             continue
@@ -234,7 +234,7 @@ def addchangegroupfiles(
             if not revisiondata:
                 break
 
-            chain = revisiondata[0]
+            chain = revisiondata.node
 
             revisiondatas[(f, chain)] = revisiondata
             queue.append((f, chain))
@@ -268,7 +268,7 @@ def addchangegroupfiles(
     for f, node in queue:
         revisiondata = revisiondatas[(f, node)]
         # revisiondata: (node, p1, p2, cs, deltabase, delta, flags, sdata, pfl)
-        dependents = [revisiondata[1], revisiondata[2], revisiondata[4]]
+        dependents = [revisiondata.p1, revisiondata.p2, revisiondata.delta_base]
 
         for dependent in dependents:
             if dependent == repo.nullid or (f, dependent) in revisiondatas:
@@ -290,25 +290,12 @@ def addchangegroupfiles(
 
         fl = repo.file(f)
 
-        revisiondata = revisiondatas[(f, node)]
-        # revisiondata: (node, p1, p2, cs, deltabase, delta, flags, sdata, pfl)
-        (
-            node,
-            p1,
-            p2,
-            linknode,
-            deltabase,
-            delta,
-            flags,
-            sidedata,
-            proto_flags,
-        ) = revisiondata
-
-        if not available(f, node, f, deltabase):
+        rdata = revisiondatas[(f, node)]
+        if not available(f, rdata.node, f, rdata.delta_base):
             continue
 
-        base = fl.rawdata(deltabase)
-        text = mdiff.patch(base, delta)
+        base = fl.rawdata(rdata.delta_base)
+        text = mdiff.patch(base, rdata.delta)
         if not isinstance(text, bytes):
             text = bytes(text)
 
@@ -316,16 +303,17 @@ def addchangegroupfiles(
         if b'copy' in meta:
             copyfrom = meta[b'copy']
             copynode = bin(meta[b'copyrev'])
-            if not available(f, node, copyfrom, copynode):
+            if not available(f, rdata.node, copyfrom, copynode):
                 continue
 
-        for p in [p1, p2]:
+        for p in [rdata.p1, rdata.p2]:
             if p != repo.nullid:
-                if not available(f, node, f, p):
+                if not available(f, rdata.node, f, p):
                     continue
 
-        fl.add(text, meta, trp, linknode, p1, p2)
-        processed.add((f, node))
+        # XXX why don't we use the flag field !
+        fl.add(text, meta, trp, rdata.link_node, rdata.p1, rdata.p2)
+        processed.add((f, rdata.node))
         skipcount = 0
 
     progress.complete()

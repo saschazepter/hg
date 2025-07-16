@@ -19,17 +19,11 @@ from typing import (
     Any,
     BinaryIO,
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    List,
     MutableMapping,
     Optional,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
-    Union,
 )
 
 from .i18n import _
@@ -102,7 +96,7 @@ class abstractvfs(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         ...
 
     def tryread(self, path: bytes) -> bytes:
@@ -113,7 +107,7 @@ class abstractvfs(abc.ABC):
             pass
         return b""
 
-    def tryreadlines(self, path: bytes, mode: bytes = b'rb') -> List[bytes]:
+    def tryreadlines(self, path: bytes, mode: bytes = b'rb') -> list[bytes]:
         '''gracefully return an empty array for missing files'''
         try:
             return self.readlines(path, mode=mode)
@@ -135,7 +129,7 @@ class abstractvfs(abc.ABC):
         with self(path, b'rb') as fp:
             return fp.read()
 
-    def readlines(self, path: bytes, mode: bytes = b'rb') -> List[bytes]:
+    def readlines(self, path: bytes, mode: bytes = b'rb') -> list[bytes]:
         with self(path, mode=mode) as fp:
             return fp.readlines()
 
@@ -174,22 +168,22 @@ class abstractvfs(abc.ABC):
         This exists to allow handling of strange encoding if needed."""
         return os.path.dirname(path)
 
-    def exists(self, path: Optional[bytes] = None) -> bool:
+    def exists(self, path: bytes | None = None) -> bool:
         return os.path.exists(self.join(path))
 
     def fstat(self, fp: BinaryIO) -> os.stat_result:
         return util.fstat(fp)
 
-    def isdir(self, path: Optional[bytes] = None) -> bool:
+    def isdir(self, path: bytes | None = None) -> bool:
         return os.path.isdir(self.join(path))
 
-    def isfile(self, path: Optional[bytes] = None) -> bool:
+    def isfile(self, path: bytes | None = None) -> bool:
         return os.path.isfile(self.join(path))
 
-    def islink(self, path: Optional[bytes] = None) -> bool:
+    def islink(self, path: bytes | None = None) -> bool:
         return os.path.islink(self.join(path))
 
-    def isfileorlink(self, path: Optional[bytes] = None) -> bool:
+    def isfileorlink(self, path: bytes | None = None) -> bool:
         """return whether path is a regular file or a symlink
 
         Unlike isfile, this doesn't follow symlinks."""
@@ -217,19 +211,19 @@ class abstractvfs(abc.ABC):
         to allow handling of strange encoding if needed."""
         return self._join(*paths)
 
-    def split(self, path: bytes) -> Tuple[bytes, bytes]:
+    def split(self, path: bytes) -> tuple[bytes, bytes]:
         """split top-most element of a path (as os.path.split would do)
 
         This exists to allow handling of strange encoding if needed."""
         return os.path.split(path)
 
-    def lexists(self, path: Optional[bytes] = None) -> bool:
+    def lexists(self, path: bytes | None = None) -> bool:
         return os.path.lexists(self.join(path))
 
-    def lstat(self, path: Optional[bytes] = None) -> os.stat_result:
+    def lstat(self, path: bytes | None = None) -> os.stat_result:
         return os.lstat(self.join(path))
 
-    def is_mmap_safe(self, path: Optional[bytes] = None) -> bool:
+    def is_mmap_safe(self, path: bytes | None = None) -> bool:
         """return True if it is safe to read a file content as mmap
 
         This focus on the file system aspect of such safety, the application
@@ -258,29 +252,29 @@ class abstractvfs(abc.ABC):
         fstype = util.getfstype(self.join(path))
         return fstype is not None and fstype != b'nfs'
 
-    def listdir(self, path: Optional[bytes] = None) -> List[bytes]:
+    def listdir(self, path: bytes | None = None) -> list[bytes]:
         return os.listdir(self.join(path))
 
-    def makedir(self, path: Optional[bytes] = None, notindexed=True) -> None:
+    def makedir(self, path: bytes | None = None, notindexed=True) -> None:
         return util.makedir(self.join(path), notindexed)
 
     def makedirs(
-        self, path: Optional[bytes] = None, mode: Optional[int] = None
+        self, path: bytes | None = None, mode: int | None = None
     ) -> None:
         return util.makedirs(self.join(path), mode)
 
     def makelock(self, info: bytes, path: bytes) -> None:
         return util.makelock(info, self.join(path))
 
-    def mkdir(self, path: Optional[bytes] = None) -> None:
+    def mkdir(self, path: bytes | None = None) -> None:
         return os.mkdir(self.join(path))
 
     def mkstemp(
         self,
         suffix: bytes = b'',
         prefix: bytes = b'tmp',
-        dir: Optional[bytes] = None,
-    ) -> Tuple[int, bytes]:
+        dir: bytes | None = None,
+    ) -> tuple[int, bytes]:
         fd, name = pycompat.mkstemp(
             suffix=suffix, prefix=prefix, dir=self.join(dir)
         )
@@ -296,9 +290,7 @@ class abstractvfs(abc.ABC):
     #  from cext.osutil.pyi:
     #
     #     path: bytes, st: bool, skip: Optional[bool]
-    def readdir(
-        self, path: Optional[bytes] = None, stat=None, skip=None
-    ) -> Any:
+    def readdir(self, path: bytes | None = None, stat=None, skip=None) -> Any:
         return util.listdir(self.join(path), stat, skip)
 
     def readlock(self, path: bytes) -> bytes:
@@ -329,17 +321,17 @@ class abstractvfs(abc.ABC):
     def readlink(self, path: bytes) -> bytes:
         return util.readlink(self.join(path))
 
-    def removedirs(self, path: Optional[bytes] = None) -> None:
+    def removedirs(self, path: bytes | None = None) -> None:
         """Remove a leaf directory and all empty intermediate ones"""
         return util.removedirs(self.join(path))
 
-    def rmdir(self, path: Optional[bytes] = None) -> None:
+    def rmdir(self, path: bytes | None = None) -> None:
         """Remove an empty directory."""
         return os.rmdir(self.join(path))
 
     def rmtree(
         self,
-        path: Optional[bytes] = None,
+        path: bytes | None = None,
         ignore_errors: bool = False,
         forcibly: bool = False,
     ) -> None:
@@ -382,19 +374,19 @@ class abstractvfs(abc.ABC):
     def setflags(self, path: bytes, l: bool, x: bool) -> None:
         return util.setflags(self.join(path), l, x)
 
-    def stat(self, path: Optional[bytes] = None) -> os.stat_result:
+    def stat(self, path: bytes | None = None) -> os.stat_result:
         return os.stat(self.join(path))
 
-    def unlink(self, path: Optional[bytes] = None) -> None:
+    def unlink(self, path: bytes | None = None) -> None:
         return util.unlink(self.join(path))
 
-    def tryunlink(self, path: Optional[bytes] = None) -> bool:
+    def tryunlink(self, path: bytes | None = None) -> bool:
         """Attempt to remove a file, ignoring missing file errors."""
         return util.tryunlink(self.join(path))
 
     def unlinkpath(
         self,
-        path: Optional[bytes] = None,
+        path: bytes | None = None,
         ignoremissing: bool = False,
         rmdir: bool = True,
     ) -> None:
@@ -404,13 +396,13 @@ class abstractvfs(abc.ABC):
 
     # TODO: could be Tuple[float, float] too.
     def utime(
-        self, path: Optional[bytes] = None, t: Optional[Tuple[int, int]] = None
+        self, path: bytes | None = None, t: tuple[int, int] | None = None
     ) -> None:
         return os.utime(self.join(path), t)
 
     def walk(
-        self, path: Optional[bytes] = None, onerror: Optional[_OnErrorFn] = None
-    ) -> Iterator[Tuple[bytes, List[bytes], List[bytes]]]:
+        self, path: bytes | None = None, onerror: _OnErrorFn | None = None
+    ) -> Iterator[tuple[bytes, list[bytes], list[bytes]]]:
         """Yield (dirpath, dirs, files) tuple for each directory under path
 
         ``dirpath`` is relative one from the root of this vfs. This
@@ -429,7 +421,7 @@ class abstractvfs(abc.ABC):
     @contextlib.contextmanager
     def backgroundclosing(
         self, ui: uimod.ui, expectedcount: int = -1
-    ) -> Iterator[Optional[backgroundfilecloser]]:
+    ) -> Iterator[backgroundfilecloser | None]:
         """Allow files to be closed asynchronously.
 
         When this context manager is active, ``backgroundclose`` can be passed
@@ -463,8 +455,8 @@ class abstractvfs(abc.ABC):
         """generic hook point to lets fncache steer its stew"""
 
     def prepare_streamed_file(
-        self, path: bytes, known_directories: Set[bytes]
-    ) -> Tuple[bytes, Optional[int]]:
+        self, path: bytes, known_directories: set[bytes]
+    ) -> tuple[bytes, int | None]:
         """make sure we are ready to write a file from a stream clone
 
         The "known_directories" variable is here to avoid trying to create the
@@ -500,12 +492,12 @@ class vfs(abstractvfs):
     See pathutil.pathauditor() for details.
     """
 
-    audit: Union[pathutil.pathauditor, Callable[[bytes, Optional[bytes]], Any]]
+    audit: pathutil.pathauditor | Callable[[bytes, bytes | None], Any]
     base: bytes
-    createmode: Optional[int]
-    options: Dict[bytes, Any]
+    createmode: int | None
+    options: dict[bytes, Any]
     _audit: bool
-    _trustnlink: Optional[bool]
+    _trustnlink: bool | None
 
     def __init__(
         self,
@@ -715,7 +707,7 @@ class vfs(abstractvfs):
         else:
             self.write(dst, src)
 
-    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         if path:
             parts = [self.base, path]
             parts.extend(insidef)
@@ -724,7 +716,7 @@ class vfs(abstractvfs):
             return self.base
 
 
-opener: Type[vfs] = vfs
+opener: type[vfs] = vfs
 
 
 class proxyvfs(abstractvfs, abc.ABC):
@@ -732,18 +724,18 @@ class proxyvfs(abstractvfs, abc.ABC):
         self.vfs = vfs
 
     @property
-    def createmode(self) -> Optional[int]:
+    def createmode(self) -> int | None:
         return self.vfs.createmode
 
     def _auditpath(self, path: bytes, mode: bytes) -> None:
         return self.vfs._auditpath(path, mode)
 
     @property
-    def options(self) -> Dict[bytes, Any]:
+    def options(self) -> dict[bytes, Any]:
         return self.vfs.options
 
     @options.setter
-    def options(self, value: Dict[bytes, Any]) -> None:
+    def options(self, value: dict[bytes, Any]) -> None:
         self.vfs.options = value
 
     @property
@@ -762,14 +754,14 @@ class filtervfs(proxyvfs, abstractvfs):
     def __call__(self, path: bytes, *args, **kwargs) -> Any:
         return self.vfs(self._filter(path), *args, **kwargs)
 
-    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         if path:
             return self.vfs.join(self._filter(self.vfs.reljoin(path, *insidef)))
         else:
             return self.vfs.join(path)
 
 
-filteropener: Type[filtervfs] = filtervfs
+filteropener: type[filtervfs] = filtervfs
 
 
 class readonlyvfs(proxyvfs):
@@ -784,7 +776,7 @@ class readonlyvfs(proxyvfs):
             raise error.Abort(_(b'this vfs is read only'))
         return self.vfs(path, mode, *args, **kw)
 
-    def join(self, path: Optional[bytes], *insidef: bytes) -> bytes:
+    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         return self.vfs.join(path, *insidef)
 
 

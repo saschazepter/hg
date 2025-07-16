@@ -22,7 +22,8 @@ Checking that experimental.atomic-file works.
   > from mercurial import pycompat
   > from mercurial.utils import stringutil
   > def uisetup(ui):
-  >   from mercurial import vfs
+  >   from mercurial import merge, vfs
+  >   merge.MAYBE_USE_RUST_UPDATE = False
   >   class newvfs(vfs.vfs):
   >     def __call__(self, *args, **kwargs):
   >       print(pycompat.sysstr(stringutil.pprint(

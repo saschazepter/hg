@@ -8,24 +8,22 @@
 //! Bindings for the `hg::ancestors` module provided by the
 //! `hg-core` crate. From Python, this will be seen as `pyo3_rustext.ancestor`
 //! and can be used as replacement for the the pure `ancestor` Python module.
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
-use pyo3_sharedref::SharedByPyObject;
-
 use std::collections::HashSet;
 
 use hg::MissingAncestors as CoreMissing;
-use vcsgraph::lazy_ancestors::{
-    AncestorsIterator as VCGAncestorsIterator,
-    LazyAncestors as VCGLazyAncestors,
-};
+use pyo3::prelude::*;
+use pyo3::types::PyTuple;
+use pyo3_sharedref::SharedByPyObject;
+use vcsgraph::lazy_ancestors::AncestorsIterator as VCGAncestorsIterator;
+use vcsgraph::lazy_ancestors::LazyAncestors as VCGLazyAncestors;
 
 use crate::exceptions::GraphError;
-use crate::revision::{rev_pyiter_collect_with_py_index, PyRevision};
+use crate::revision::rev_pyiter_collect_with_py_index;
+use crate::revision::PyRevision;
 use crate::revlog::PySharedIndex;
-use crate::utils::{
-    new_submodule, py_rust_index_to_graph, py_shared_or_map_err,
-};
+use crate::utils::new_submodule;
+use crate::utils::py_rust_index_to_graph;
+use crate::utils::py_shared_or_map_err;
 
 #[pyclass]
 struct AncestorsIterator {
@@ -176,10 +174,7 @@ impl MissingAncestors {
             shared_idx
                 .map(index_proxy.py(), |idx| CoreMissing::new(idx, bases_vec))
         };
-        Ok(Self {
-            inner,
-            proxy_index: cloned_proxy,
-        })
+        Ok(Self { inner, proxy_index: cloned_proxy })
     }
 
     fn hasbases(slf: PyRef<'_, Self>) -> PyResult<bool> {
@@ -228,7 +223,7 @@ impl MissingAncestors {
         mut slf: PyRefMut<'_, Self>,
         revs: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        // Original comment from hg-cpython:
+        // Original comment from the now extinct hg-cpython:
         //   this is very lame: we convert to a Rust set, update it in place
         //   and then convert back to Python, only to have Python remove the
         //   excess (thankfully, Python is happy with a list or even an
@@ -273,9 +268,8 @@ impl MissingAncestors {
         // `SharedByPyObject`
         let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
 
-        let missing_vec = inner
-            .missing_ancestors(revs_vec)
-            .map_err(GraphError::from_hg)?;
+        let missing_vec =
+            inner.missing_ancestors(revs_vec).map_err(GraphError::from_hg)?;
         Ok(missing_vec.iter().map(|r| PyRevision(r.0)).collect())
     }
 }

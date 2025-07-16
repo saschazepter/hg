@@ -1,12 +1,21 @@
 use std::num::NonZeroU8;
+use std::ops::Deref;
 
+use super::RevlogType;
 use crate::errors::HgError;
 use crate::revlog::options::RevlogOpenOptions;
-use crate::revlog::{Node, NodePrefix, Revlog, RevlogError};
+use crate::revlog::Node;
+use crate::revlog::NodePrefix;
+use crate::revlog::Revlog;
+use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::vfs::VfsImpl;
-use crate::{Graph, GraphError, Revision, UncheckedRevision, NULL_REVISION};
+use crate::Graph;
+use crate::GraphError;
+use crate::Revision;
+use crate::UncheckedRevision;
+use crate::NULL_REVISION;
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
@@ -26,7 +35,13 @@ impl Manifestlog {
         store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
     ) -> Result<Self, HgError> {
-        let revlog = Revlog::open(store_vfs, "00manifest.i", None, options)?;
+        let revlog = Revlog::open(
+            store_vfs,
+            "00manifest.i",
+            None,
+            options,
+            RevlogType::Manifestlog,
+        )?;
         Ok(Self { revlog })
     }
 
@@ -56,13 +71,13 @@ impl Manifestlog {
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data_for_unchecked_rev(rev)?.into_owned();
-        Ok(Manifest { bytes })
+        Ok(Manifest { bytes: Box::new(bytes) })
     }
 
     /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
     pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data(rev)?.into_owned();
-        Ok(Manifest { bytes })
+        Ok(Manifest { bytes: Box::new(bytes) })
     }
 
     /// Returns a manifest containing entries for `rev` that are not in its
@@ -83,12 +98,11 @@ impl Manifestlog {
         for chunk in self.revlog.get_data_incr(rev)?.as_patch_list()?.chunks {
             bytes.extend_from_slice(chunk.data);
         }
-        Ok(Manifest { bytes })
+        Ok(Manifest { bytes: Box::new(bytes) })
     }
 }
 
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
-#[derive(Debug)]
 pub struct Manifest {
     /// Format for a manifest: flat sequence of variable-size entries,
     /// sorted by path, each as:
@@ -99,18 +113,22 @@ pub struct Manifest {
     ///
     /// The last entry is also terminated by a newline character.
     /// Flags is one of `b""` (the empty string), `b"x"`, `b"l"`, or `b"t"`.
-    bytes: Vec<u8>,
+    bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
 }
 
 impl Manifest {
     /// Return a new empty manifest
     pub fn empty() -> Self {
-        Self { bytes: vec![] }
+        Self { bytes: Box::new(vec![]) }
     }
 
-    pub fn iter(
-        &self,
-    ) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
+    pub fn from_bytes(
+        bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+    ) -> Self {
+        Self { bytes }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
         self.bytes
             .split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())
@@ -126,7 +144,7 @@ impl Manifest {
         let path = path.as_bytes();
         // Both boundaries of this `&[u8]` slice are always at the boundary of
         // an entry
-        let mut bytes = &*self.bytes;
+        let mut bytes: &[u8] = &self.bytes;
 
         // Binary search algorithm derived from `[T]::binary_search_by`
         // <https://github.com/rust-lang/rust/blob/1.57.0/library/core/src/slice/mod.rs#L2221>
@@ -191,16 +209,132 @@ impl Manifest {
             Ok(None)
         }
     }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn diff<'m1: 'm_any, 'm2: 'm_any, 'm_any>(
+        &'m1 self,
+        other: &'m2 Manifest,
+    ) -> Result<ManifestDiff<'m_any>, HgError> {
+        let mut res = Vec::new();
+        let mut left = self.iter().peekable();
+        let mut right = other.iter().peekable();
+
+        loop {
+            match (left.peek(), right.peek()) {
+                (None, None) => break,
+                (Some(Ok(left_entry)), Some(Ok(right_entry))) => {
+                    // Since manifests are sorted, we can determine which
+                    // entry is missing
+                    match left_entry.path.cmp(right_entry.path) {
+                        std::cmp::Ordering::Less => {
+                            // Path missing on the right
+                            res.push((Some(left.next().unwrap()?), None));
+                        }
+                        std::cmp::Ordering::Equal => {
+                            // Same path in both, don't compare the paths again
+                            if left_entry.flags != right_entry.flags
+                                || left_entry.hex_node_id
+                                    != right_entry.hex_node_id
+                            {
+                                res.push((
+                                    Some(left.next().unwrap()?),
+                                    Some(right.next().unwrap()?),
+                                ));
+                            } else {
+                                left.next();
+                                right.next();
+                            }
+                        }
+                        std::cmp::Ordering::Greater => {
+                            // Path missing on the left
+                            res.push((None, Some(right.next().unwrap()?)));
+                        }
+                    }
+                }
+                (Some(Ok(_)), None) => {
+                    // Right manifest is done, the rest are adds
+                    for entry in left {
+                        res.push((Some(entry?), None));
+                    }
+                    break;
+                }
+                (None, Some(Ok(_))) => {
+                    // Left manifest is done, the rest are adds
+                    for entry in right {
+                        res.push((None, Some(entry?)));
+                    }
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(res)
+    }
+}
+
+pub type ManifestDiff<'a> =
+    Vec<(Option<ManifestEntry<'a>>, Option<ManifestEntry<'a>>)>;
+
+/// Represents the flags of a given [`ManifestEntry`].
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ManifestFlags(Option<NonZeroU8>);
+
+impl ManifestFlags {
+    pub fn new_empty() -> Self {
+        Self(None)
+    }
+
+    pub fn new_link() -> Self {
+        Self(Some(b'l'.try_into().unwrap()))
+    }
+
+    pub fn new_exec() -> Self {
+        Self(Some(b'x'.try_into().unwrap()))
+    }
+
+    pub fn new_tree() -> Self {
+        Self(Some(b't'.try_into().unwrap()))
+    }
+
+    /// Whether this path is a symlink
+    pub fn is_link(&self) -> bool {
+        self.is_flag(b'l')
+    }
+
+    /// Whether this path has the executable permission set
+    pub fn is_exec(&self) -> bool {
+        self.is_flag(b'x')
+    }
+
+    /// Whether this path is a tree in the context of treemanifest
+    pub fn is_tree(&self) -> bool {
+        self.is_flag(b't')
+    }
+
+    fn is_flag(&self, flag: u8) -> bool {
+        self.0.map(|f| f == NonZeroU8::new(flag).unwrap()).unwrap_or(false)
+    }
 }
 
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
-#[derive(Debug)]
+#[derive(PartialEq)]
 pub struct ManifestEntry<'manifest> {
     pub path: &'manifest HgPath,
     pub hex_node_id: &'manifest [u8],
+    pub flags: ManifestFlags,
+}
 
-    /// `Some` values are b'x', b'l', or 't'
-    pub flags: Option<NonZeroU8>,
+impl std::fmt::Debug for ManifestEntry<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ManifestEntry({:x}:{:?}:'{}')",
+            self.node_id().unwrap(),
+            &self.flags,
+            self.path,
+        )
+    }
 }
 
 impl<'a> ManifestEntry<'a> {
@@ -220,7 +354,9 @@ impl<'a> ManifestEntry<'a> {
         Self {
             path: HgPath::new(path),
             hex_node_id,
-            flags: flags.map(|f| f.try_into().expect("invalid flag")),
+            flags: ManifestFlags(
+                flags.map(|f| f.try_into().expect("invalid flag")),
+            ),
         }
     }
 

@@ -7,13 +7,16 @@
 
 use std::fmt;
 
+use bytes_cast::BytesCast;
+use entry::DirstateEntry;
+
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::errors;
 use crate::revlog::node::NULL_NODE;
 use crate::revlog::Node;
-use crate::utils::hg_path::{HgPath, HgPathBuf, HgPathError};
-use bytes_cast::BytesCast;
-use entry::DirstateEntry;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
 
 pub mod dirs_multiset;
 pub mod dirstate_map;
@@ -32,10 +35,7 @@ pub struct DirstateParents {
 }
 
 impl DirstateParents {
-    pub const NULL: Self = Self {
-        p1: NULL_NODE,
-        p2: NULL_NODE,
-    };
+    pub const NULL: Self = Self { p1: NULL_NODE, p2: NULL_NODE };
 
     pub fn is_merge(&self) -> bool {
         !(self.p2 == NULL_NODE)

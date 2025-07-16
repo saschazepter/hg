@@ -23,9 +23,11 @@ data_non_inlined = (
     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 )
 
+
 from ..revlogutils.constants import (
     KIND_CHANGELOG,
 )
+from ..revlogutils import config as revlog_config
 from .. import revlog
 
 
@@ -35,23 +37,13 @@ except ImportError:
     cparsers = None
 
 try:
-    from ..rustext import (  # pytype: disable=import-error
+    from ..pyo3_rustext import (  # pytype: disable=import-error
         revlog as rust_revlog,
     )
 
     rust_revlog.__name__  # force actual import
 except ImportError:
     rust_revlog = None
-
-
-try:
-    from ..pyo3_rustext import (  # pytype: disable=import-error
-        revlog as pyo3_revlog,
-    )
-
-    pyo3_revlog.__name__  # force actual import
-except ImportError:
-    pyo3_revlog = None
 
 
 @unittest.skipIf(
@@ -74,9 +66,9 @@ class RevlogBasedTestBase(unittest.TestCase):
 )
 class RustRevlogBasedTestBase(unittest.TestCase):
     # defaults
-    revlog_data_config = revlog.DataConfig()
-    revlog_delta_config = revlog.DeltaConfig()
-    revlog_feature_config = revlog.FeatureConfig()
+    revlog_data_config = revlog_config.DataConfig()
+    revlog_delta_config = revlog_config.DeltaConfig()
+    revlog_feature_config = revlog_config.FeatureConfig()
 
     @classmethod
     def irl_class(cls):
@@ -108,21 +100,8 @@ class RustRevlogBasedTestBase(unittest.TestCase):
             default_compression_header=None,
             revlog_type=kind,
             use_persistent_nodemap=False,  # until we cook one.
+            use_plain_encoding=False,
         )
 
     def parserustindex(self, data=None):
         return revlog.RustIndexProxy(self.make_inner_revlog(data=data))
-
-
-@unittest.skipIf(
-    pyo3_revlog is None,
-    'The Rust PyO3 revlog module is not available. It is needed for this test.',
-)
-class PyO3RevlogBasedTestBase(RustRevlogBasedTestBase):
-    @classmethod
-    def irl_class(cls):
-        return pyo3_revlog.InnerRevlog
-
-    @classmethod
-    def nodetree(cls, idx):
-        return pyo3_revlog.NodeTree(idx)

@@ -9,11 +9,13 @@ from __future__ import annotations
 
 from mercurial import (
     context as hgcontext,
-    dagop,
     extensions,
     hgweb,
     patch,
     util,
+)
+from mercurial.utils import (
+    dag_util,
 )
 
 from . import (
@@ -50,7 +52,7 @@ def _convertoutputs(repo, annotated, contents):
     # convert to what fctx.annotate returns: [annotateline]
     results = []
     fctxmap = {}
-    annotateline = dagop.annotateline
+    annotateline = dag_util.annotateline
     for i, (hsh, linenum, path) in enumerate(annotated):
         if (hsh, path) not in fctxmap:
             fctxmap[(hsh, path)] = _lazyfctx(repo, hsh, path)

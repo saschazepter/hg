@@ -30,12 +30,9 @@ import stat
 
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Sequence,
-    Tuple,
 )
 
 from .i18n import _
@@ -91,7 +88,7 @@ class ShelfDir:
     def get(self, name: bytes) -> Shelf:
         return Shelf(self.vfs, name)
 
-    def listshelves(self) -> List[Tuple[float, bytes]]:
+    def listshelves(self) -> list[tuple[float, bytes]]:
         """return all shelves in repo as list of (time, name)"""
         try:
             names = self.vfs.listdir()
@@ -301,15 +298,15 @@ class shelvedstate:
     name: bytes
     wctx: contextmod.workingctx
     pendingctx: contextmod.changectx
-    parents: List[bytes]
-    nodestoremove: List[bytes]
+    parents: list[bytes]
+    nodestoremove: list[bytes]
     branchtorestore: bytes
     keep: bool
     activebookmark: bytes
     interactive: bool
 
     @classmethod
-    def _verifyandtransform(cls, d: Dict[bytes, Any]) -> None:
+    def _verifyandtransform(cls, d: dict[bytes, Any]) -> None:
         """Some basic shelvestate syntactic verification and transformation"""
         try:
             d[b'originalwctx'] = bin(d[b'originalwctx'])
@@ -334,7 +331,7 @@ class shelvedstate:
         return version
 
     @classmethod
-    def _readold(cls, repo) -> Dict[bytes, Any]:
+    def _readold(cls, repo) -> dict[bytes, Any]:
         """Read the old position-based version of a shelvestate file"""
         # Order is important, because old shelvestate file uses it
         # to detemine values of fields (i.g. name is on the second line,
@@ -404,7 +401,7 @@ class shelvedstate:
         name: bytes,
         originalwctx: contextmod.workingctx,
         pendingctx: contextmod.changectx,
-        nodestoremove: List[bytes],
+        nodestoremove: list[bytes],
         branchtorestore: bytes,
         keep: bool = False,
         activebook: bytes = b'',
@@ -1010,7 +1007,7 @@ def _unshelverestorecommit(ui, repo, tr, basename: bytes):
 
 def _createunshelvectx(
     ui, repo, shelvectx, basename: bytes, interactive: bool, opts
-) -> Tuple[bytes, bool]:
+) -> tuple[bytes, bool]:
     """Handles the creation of unshelve commit and updates the shelve if it
     was partially unshelved.
 

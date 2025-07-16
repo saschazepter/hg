@@ -8,9 +8,7 @@
 from __future__ import annotations
 
 import os
-from typing import (
-    Set,
-)
+import typing
 
 from mercurial.i18n import _
 from mercurial import (
@@ -258,8 +256,10 @@ def fastannotate(ui, repo, *pats, **opts):
 
 
 _newopts = set()
-_knownopts: Set[bytes] = {
-    opt[1].replace(b'-', b'_')
+_knownopts: set[bytes] = {
+    # TODO: drop the cast when pytype stops munging the tuple elements into a
+    #  single Union.
+    typing.cast(bytes, opt[1]).replace(b'-', b'_')
     for opt in (fastannotatecommandargs['options'] + commands.globalopts)
 }
 

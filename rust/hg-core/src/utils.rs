@@ -7,12 +7,16 @@
 
 //! Contains useful functions, traits, structs, etc. for use in core.
 
-use crate::errors::{HgError, IoErrorContext};
+use std::cmp::Ordering;
+
 use im_rc::ordmap::DiffItem;
 use im_rc::ordmap::OrdMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
-use std::cmp::Ordering;
+
+use crate::errors::HgBacktrace;
+use crate::errors::HgError;
+use crate::errors::IoErrorContext;
 
 pub mod debug;
 pub mod files;
@@ -24,6 +28,7 @@ pub fn current_dir() -> Result<std::path::PathBuf, HgError> {
     std::env::current_dir().map_err(|error| HgError::IoError {
         error,
         context: IoErrorContext::CurrentDir,
+        backtrace: HgBacktrace::capture(),
     })
 }
 
@@ -31,6 +36,7 @@ pub fn current_exe() -> Result<std::path::PathBuf, HgError> {
     std::env::current_exe().map_err(|error| HgError::IoError {
         error,
         context: IoErrorContext::CurrentExe,
+        backtrace: HgBacktrace::capture(),
     })
 }
 
@@ -254,15 +260,15 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
     const THREAD_CAP: usize = 16;
 
     if std::env::var("RAYON_NUM_THREADS").is_err() {
-        let available_parallelism = std::thread::available_parallelism()
-            .map(usize::from)
-            .unwrap_or(1);
+        let available_parallelism =
+            std::thread::available_parallelism().map(usize::from).unwrap_or(1);
         let new_thread_count = THREAD_CAP.min(available_parallelism);
         let res = rayon::ThreadPoolBuilder::new()
             .num_threads(new_thread_count)
             .build_global();
         if res.is_ok() {
-            log::trace!(
+            tracing::debug!(
+                name: "threadpool capped",
                 "Capped the rayon threadpool to {new_thread_count} threads",
             );
         }

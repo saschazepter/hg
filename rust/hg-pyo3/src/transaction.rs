@@ -1,5 +1,9 @@
-use hg::{transaction::Transaction, utils::files::get_bytes_from_path};
-use pyo3::{intern, types::PyBytes, PyObject, Python};
+use hg::transaction::Transaction;
+use hg::utils::files::get_bytes_from_path;
+use pyo3::intern;
+use pyo3::types::PyBytes;
+use pyo3::PyObject;
+use pyo3::Python;
 
 /// Wrapper around a Python transaction object, to keep `hg-core` oblivious
 /// of the fact it's being called from Python.
@@ -15,9 +19,7 @@ impl PyTransaction {
 
 impl Clone for PyTransaction {
     fn clone(&self) -> Self {
-        Python::with_gil(|py| Self {
-            inner: self.inner.clone_ref(py),
-        })
+        Python::with_gil(|py| Self { inner: self.inner.clone_ref(py) })
     }
 }
 

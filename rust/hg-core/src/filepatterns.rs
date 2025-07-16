@@ -7,21 +7,27 @@
 
 //! Handling of Mercurial-specific patterns.
 
-use crate::{
-    pre_regex::PreRegex,
-    utils::{
-        files::{canonical_path, get_bytes_from_path, get_path_from_bytes},
-        hg_path::{path_to_hg_path_buf, HgPathBuf, HgPathError},
-        strings::SliceExt,
-    },
-    FastHashMap,
-};
-use lazy_static::lazy_static;
-use regex::bytes::{NoExpand, Regex};
+use std::fmt;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::ops::Deref;
+use std::path::Path;
+use std::path::PathBuf;
 use std::vec::Vec;
-use std::{fmt, ops::Deref};
+
+use lazy_static::lazy_static;
+use regex::bytes::NoExpand;
+use regex::bytes::Regex;
+
+use crate::pre_regex::PreRegex;
+use crate::utils::files::canonical_path;
+use crate::utils::files::get_bytes_from_path;
+use crate::utils::files::get_path_from_bytes;
+use crate::utils::hg_path::path_to_hg_path_buf;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::strings::SliceExt;
+use crate::warnings::HgWarningSender;
+use crate::FastHashMap;
 
 #[derive(Debug, derive_more::From)]
 pub enum PatternError {
@@ -175,8 +181,7 @@ impl GlobToRe {
             self.start
         };
 
-        let mut res: Vec<_> =
-            wildcard.into_iter().map(|x| x.to_re()).collect();
+        let mut res: Vec<_> = wildcard.into_iter().map(|x| x.to_re()).collect();
         res.extend(self.rest);
         PreRegex::Sequence(res)
     }
@@ -328,9 +333,7 @@ fn _build_single_regex(
     entry: &IgnorePattern,
     glob_suffix: GlobSuffix,
 ) -> PatternResult<PreRegex> {
-    let IgnorePattern {
-        syntax, pattern, ..
-    } = entry;
+    let IgnorePattern { syntax, pattern, .. } = entry;
     if pattern.is_empty() {
         return Ok(PreRegex::Empty);
     }
@@ -489,9 +492,7 @@ pub fn build_single_regex(
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
 ) -> Result<Option<PreRegex>, PatternError> {
-    let IgnorePattern {
-        pattern, syntax, ..
-    } = entry;
+    let IgnorePattern { pattern, syntax, .. } = entry;
     let pattern = match syntax {
         PatternSyntax::RootGlob
         | PatternSyntax::Path
@@ -576,11 +577,7 @@ pub fn parse_one_pattern(
         _ => pattern_bytes.to_vec(),
     };
 
-    IgnorePattern {
-        syntax,
-        pattern,
-        source: source.to_owned(),
-    }
+    IgnorePattern { syntax, pattern, source: source.to_owned() }
 }
 
 pub fn parse_pattern_file_contents(
@@ -589,13 +586,13 @@ pub fn parse_pattern_file_contents(
     default_syntax_override: Option<PatternSyntax>,
     warn: bool,
     relativize: bool,
-) -> Result<(Vec<IgnorePattern>, Vec<PatternFileWarning>), PatternError> {
+    warnings: &HgWarningSender,
+) -> Result<Vec<IgnorePattern>, PatternError> {
     let comment_regex = Regex::new(r"((?:^|[^\\])(?:\\\\)*)#.*").unwrap();
 
     #[allow(clippy::trivial_regex)]
     let comment_escape_regex = Regex::new(r"\\#").unwrap();
     let mut inputs: Vec<IgnorePattern> = vec![];
-    let mut warnings: Vec<PatternFileWarning> = vec![];
 
     let mut current_syntax =
         default_syntax_override.unwrap_or(PatternSyntax::RelRegexp);
@@ -624,7 +621,7 @@ pub fn parse_pattern_file_contents(
             {
                 current_syntax = parsed.clone();
             } else if warn {
-                warnings.push(PatternFileWarning::InvalidSyntax(
+                warnings.send(PatternFileWarning::InvalidSyntax(
                     file_path.to_owned(),
                     syntax.to_owned(),
                 ));
@@ -643,7 +640,7 @@ pub fn parse_pattern_file_contents(
             })
         }
     }
-    Ok((inputs, warnings))
+    Ok(inputs)
 }
 
 pub fn parse_pattern_args(
@@ -679,16 +676,19 @@ pub fn read_pattern_file(
     file_path: &Path,
     warn: bool,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
-) -> Result<(Vec<IgnorePattern>, Vec<PatternFileWarning>), PatternError> {
+    warnings: &HgWarningSender,
+) -> Result<Vec<IgnorePattern>, PatternError> {
     match std::fs::read(file_path) {
         Ok(contents) => {
             inspect_pattern_bytes(file_path, &contents);
-            parse_pattern_file_contents(&contents, file_path, None, warn, true)
+            parse_pattern_file_contents(
+                &contents, file_path, None, warn, true, warnings,
+            )
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((
-            vec![],
-            vec![PatternFileWarning::NoSuchFile(file_path.to_owned())],
-        )),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            warnings.send(PatternFileWarning::NoSuchFile(file_path.to_owned()));
+            Ok(vec![])
+        }
         Err(e) => Err(e.into()),
     }
 }
@@ -703,19 +703,11 @@ pub struct IgnorePattern {
 
 impl IgnorePattern {
     pub fn new(syntax: PatternSyntax, pattern: &[u8], source: &Path) -> Self {
-        Self {
-            syntax,
-            pattern: pattern.to_owned(),
-            source: source.to_owned(),
-        }
+        Self { syntax, pattern: pattern.to_owned(), source: source.to_owned() }
     }
 
     pub fn to_relative(self) -> Self {
-        let Self {
-            syntax,
-            pattern,
-            source,
-        } = self;
+        let Self { syntax, pattern, source } = self;
         Self {
             syntax: match syntax {
                 PatternSyntax::Regexp => PatternSyntax::RelRegexp,
@@ -739,9 +731,10 @@ pub fn get_patterns_from_file(
     pattern_file: &Path,
     root_dir: &Path,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
-) -> PatternResult<(Vec<IgnorePattern>, Vec<PatternFileWarning>)> {
-    let (patterns, mut warnings) =
-        read_pattern_file(pattern_file, true, inspect_pattern_bytes)?;
+    warnings: &HgWarningSender,
+) -> PatternResult<Vec<IgnorePattern>> {
+    let patterns =
+        read_pattern_file(pattern_file, true, inspect_pattern_bytes, warnings)?;
     let patterns = patterns
         .into_iter()
         .flat_map(|entry| -> PatternResult<_> {
@@ -749,13 +742,13 @@ pub fn get_patterns_from_file(
                 PatternSyntax::Include => {
                     let inner_include =
                         root_dir.join(get_path_from_bytes(&entry.pattern));
-                    let (inner_pats, inner_warnings) = get_patterns_from_file(
+
+                    get_patterns_from_file(
                         &inner_include,
                         root_dir,
                         inspect_pattern_bytes,
-                    )?;
-                    warnings.extend(inner_warnings);
-                    inner_pats
+                        warnings,
+                    )?
                 }
                 PatternSyntax::SubInclude => {
                     let mut sub_include = SubInclude::new(
@@ -763,14 +756,13 @@ pub fn get_patterns_from_file(
                         &entry.pattern,
                         &entry.source,
                     )?;
-                    let (inner_patterns, inner_warnings) =
-                        get_patterns_from_file(
-                            &sub_include.path,
-                            &sub_include.root,
-                            inspect_pattern_bytes,
-                        )?;
+                    let inner_patterns = get_patterns_from_file(
+                        &sub_include.path,
+                        &sub_include.root,
+                        inspect_pattern_bytes,
+                        warnings,
+                    )?;
                     sub_include.included_patterns = inner_patterns;
-                    warnings.extend(inner_warnings);
                     vec![IgnorePattern {
                         syntax: PatternSyntax::ExpandedSubInclude(Box::new(
                             sub_include,
@@ -784,7 +776,7 @@ pub fn get_patterns_from_file(
         .flatten()
         .collect();
 
-    Ok((patterns, warnings))
+    Ok(patterns)
 }
 
 /// Holds all the information needed to handle a `subinclude:` pattern.
@@ -842,8 +834,7 @@ pub fn filter_subincludes(
     let mut others = vec![];
 
     for pattern in ignore_patterns {
-        if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax
-        {
+        if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax {
             subincludes.push(*sub_include);
         } else {
             others.push(pattern)
@@ -854,14 +845,13 @@ pub fn filter_subincludes(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
 
+    use super::*;
+    use crate::warnings::HgWarningContext;
+
     fn escape_pattern(pattern: &[u8]) -> Vec<u8> {
-        pattern
-            .iter()
-            .flat_map(|c| RE_ESCAPE[*c as usize].clone())
-            .collect()
+        pattern.iter().flat_map(|c| RE_ESCAPE[*c as usize].clone()).collect()
     }
 
     #[test]
@@ -896,6 +886,8 @@ mod tests {
     fn test_parse_pattern_file_contents() {
         let lines = b"syntax: glob\n*.elc";
 
+        let warning_context = HgWarningContext::new();
+        let warning_sender = warning_context.sender();
         assert_eq!(
             parse_pattern_file_contents(
                 lines,
@@ -903,9 +895,9 @@ mod tests {
                 None,
                 false,
                 true,
+                warning_sender,
             )
-            .unwrap()
-            .0,
+            .unwrap(),
             vec![IgnorePattern::new(
                 PatternSyntax::RelGlob,
                 b"*.elc",
@@ -922,9 +914,9 @@ mod tests {
                 None,
                 false,
                 true,
+                warning_sender,
             )
-            .unwrap()
-            .0,
+            .unwrap(),
             vec![]
         );
         let lines = b"glob:**.o";
@@ -935,9 +927,9 @@ mod tests {
                 None,
                 false,
                 true,
+                warning_sender,
             )
-            .unwrap()
-            .0,
+            .unwrap(),
             vec![IgnorePattern::new(
                 PatternSyntax::RelGlob,
                 b"**.o",

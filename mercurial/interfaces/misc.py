@@ -4,15 +4,14 @@
 from __future__ import annotations
 
 import abc
+import os
 
 from typing import (
+    Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     Optional,
     Protocol,
-    Tuple,
 )
 
 
@@ -26,7 +25,7 @@ class IHooks(Protocol):
         ...
 
     @abc.abstractmethod
-    def __call__(self, *args) -> List:
+    def __call__(self, *args) -> list:
         ...
 
 
@@ -50,12 +49,32 @@ class IDirs(Protocol):
         ...
 
 
-AuthInfoT = Tuple[
+class ICacheStat(Protocol):
+    stat: os.stat_result
+
+    @abc.abstractmethod
+    def cacheable(self) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def __hash__(self) -> int:
+        ...
+
+    @abc.abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def __ne__(self, other: Any) -> bool:
+        ...
+
+
+AuthInfoT = tuple[
     bytes,
     Optional[
-        Tuple[
+        tuple[
             None,
-            Tuple[bytes, bytes],
+            tuple[bytes, bytes],
             bytes,
             bytes,
         ]
@@ -81,14 +100,14 @@ class IUrl(Protocol):
     See http://www.ietf.org/rfc/rfc2396.txt for more information.
     """
 
-    path: Optional[bytes]
-    scheme: Optional[bytes]
-    user: Optional[bytes]
-    passwd: Optional[bytes]
-    host: Optional[bytes]
-    port: Optional[bytes]
-    query: Optional[bytes]
-    fragment: Optional[bytes]
+    path: bytes | None
+    scheme: bytes | None
+    user: bytes | None
+    passwd: bytes | None
+    host: bytes | None
+    port: bytes | None
+    query: bytes | None
+    fragment: bytes | None
 
     @abc.abstractmethod
     def copy(self) -> IUrl:
@@ -115,7 +134,7 @@ class IPath(Protocol):
     """Represents an individual path and its configuration."""
 
     name: bytes
-    main_path: Optional[IPath]
+    main_path: IPath | None
     url: IUrl
     raw_url: IUrl
     branch: bytes
@@ -123,7 +142,7 @@ class IPath(Protocol):
     loc: bytes
 
     @abc.abstractmethod
-    def copy(self, new_raw_location: Optional[bytes] = None) -> IPath:
+    def copy(self, new_raw_location: bytes | None = None) -> IPath:
         ...
 
     @property
@@ -142,7 +161,7 @@ class IPath(Protocol):
 
     @property
     @abc.abstractmethod
-    def suboptions(self) -> Dict[bytes, bytes]:
+    def suboptions(self) -> dict[bytes, bytes]:
         """Return sub-options and their values for this path.
 
         This is intended to be used for presentation purposes.

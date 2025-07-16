@@ -1,16 +1,21 @@
 //! Helpers for revlog file reading and writing.
 
-use std::{
-    cell::RefCell,
-    io::{Read, Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
+use std::os::unix::fs::FileExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-use crate::{
-    errors::{HgError, IoResultExt},
-    vfs::{Vfs, VfsFile},
-};
+use crate::errors::HgError;
+use crate::errors::IoResultExt;
+use crate::vfs::Vfs;
+use crate::vfs::VfsFile;
 
 /// Wraps accessing arbitrary chunks of data within a file and reusing handles.
 /// This is currently useful for accessing a revlog's data file, only reading
@@ -57,26 +62,30 @@ impl RandomAccessFile {
         offset: usize,
         length: usize,
     ) -> Result<Vec<u8>, HgError> {
-        let mut handle = self.get_read_handle()?;
-        handle
-            .seek(SeekFrom::Start(offset as u64))
-            .when_reading_file(&self.filename)?;
-        handle.read_exact(length).when_reading_file(&self.filename)
+        let handle = self.get_read_handle()?;
+        handle.read_exact_at(length, offset).when_reading_file(&self.filename)
     }
 
-    /// `pub` only for hg-cpython
+    /// `pub` only for hg-pyo3
     #[doc(hidden)]
-    pub fn get_read_handle(&self) -> Result<FileHandle, HgError> {
-        if let Some(handle) = &*self.writing_handle.get_or_default().borrow() {
+    pub fn get_read_handle(&self) -> Result<Ref<FileHandle>, HgError> {
+        let write_handle = self.writing_handle.get_or_default().borrow();
+        if let Ok(handle) = Ref::filter_map(write_handle, Option::as_ref) {
             // Use a file handle being actively used for writes, if available.
             // There is some danger to doing this because reads will seek the
             // file.
             // However, [`Revlog::write_entry`] performs a `SeekFrom::End(0)`
             // before all writes, so we should be safe.
-            return Ok(handle.clone());
+            return Ok(handle);
         }
-        if let Some(handle) = &*self.reading_handle.get_or_default().borrow() {
-            return Ok(handle.clone());
+        let read_handle = self.reading_handle.get_or_default().borrow();
+        if let Ok(handle) = Ref::filter_map(read_handle, Option::as_ref) {
+            // Use a file handle being actively used for writes, if available.
+            // There is some danger to doing this because reads will seek the
+            // file.
+            // However, [`Revlog::write_entry`] performs a `SeekFrom::End(0)`
+            // before all writes, so we should be safe.
+            return Ok(handle);
         }
         // early returns done to work around borrowck being overzealous
         // See https://github.com/rust-lang/rust/issues/103108
@@ -86,12 +95,12 @@ impl RandomAccessFile {
             false,
             false,
         )?;
-        *self.reading_handle.get_or_default().borrow_mut() =
-            Some(new_handle.clone());
-        Ok(new_handle)
+        let read_handle = self.reading_handle.get_or_default();
+        *read_handle.borrow_mut() = Some(new_handle);
+        Ok(Ref::map(read_handle.borrow(), |h| h.as_ref().expect("just set")))
     }
 
-    /// `pub` only for hg-cpython
+    /// `pub` only for hg-pyo3
     #[doc(hidden)]
     pub fn exit_reading_context(&self) {
         self.reading_handle.get().map(|h| h.take());
@@ -143,6 +152,36 @@ pub struct FileHandle {
     delayed_buffer: Option<Arc<Mutex<DelayedBuffer>>>,
 }
 
+impl Seek for FileHandle {
+    /// Move the position of the handle to `pos`,
+    /// spanning the [`DelayedBuffer`] if defined. Will return an error if
+    /// an invalid seek position is asked, or for any standard io error.
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
+        if let Some(delay_buf) = &self.delayed_buffer {
+            let mut delay_buf = delay_buf.lock().unwrap();
+            // Virtual file offset spans real file and data
+            match pos {
+                SeekFrom::Start(offset) => delay_buf.offset = offset,
+                SeekFrom::End(offset) => {
+                    delay_buf.offset =
+                        delay_buf.len().saturating_add_signed(offset)
+                }
+                SeekFrom::Current(offset) => {
+                    delay_buf.offset =
+                        delay_buf.offset.saturating_add_signed(offset);
+                }
+            }
+            if delay_buf.offset < delay_buf.file_size {
+                self.file.seek(pos)
+            } else {
+                Ok(delay_buf.offset)
+            }
+        } else {
+            self.file.seek(pos)
+        }
+    }
+}
+
 impl std::fmt::Debug for FileHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FileHandle")
@@ -150,19 +189,6 @@ impl std::fmt::Debug for FileHandle {
             .field("delayed_buffer", &self.delayed_buffer)
             .field("file", &self.file)
             .finish()
-    }
-}
-
-impl Clone for FileHandle {
-    fn clone(&self) -> Self {
-        Self {
-            vfs: dyn_clone::clone_box(&*self.vfs),
-            filename: self.filename.clone(),
-            delayed_buffer: self.delayed_buffer.clone(),
-            // This can only fail if the OS doesn't have the file handle
-            // anymore, so we're not going to do anything useful anyway.
-            file: self.file.try_clone().expect("couldn't clone file handle"),
-        }
     }
 }
 
@@ -203,9 +229,8 @@ impl FileHandle {
             vfs.open_write(filename.as_ref())?
         };
         let size = vfs.file_size(&file)?;
-        let offset = file
-            .stream_position()
-            .when_reading_file(filename.as_ref())?;
+        let offset =
+            file.stream_position().when_reading_file(filename.as_ref())?;
 
         {
             let mut buf = delayed_buffer.lock().unwrap();
@@ -243,9 +268,8 @@ impl FileHandle {
         delayed_buffer: Arc<Mutex<DelayedBuffer>>,
     ) -> Result<Self, HgError> {
         let size = vfs.file_size(&file)?;
-        let offset = file
-            .stream_position()
-            .when_reading_file(filename.as_ref())?;
+        let offset =
+            file.stream_position().when_reading_file(filename.as_ref())?;
 
         {
             let mut buf = delayed_buffer.lock().unwrap();
@@ -261,59 +285,36 @@ impl FileHandle {
         })
     }
 
-    /// Move the position of the handle to `pos`,
-    /// spanning the [`DelayedBuffer`] if defined. Will return an error if
-    /// an invalid seek position is asked, or for any standard io error.
-    pub fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
-        if let Some(delay_buf) = &self.delayed_buffer {
-            let mut delay_buf = delay_buf.lock().unwrap();
-            // Virtual file offset spans real file and data
-            match pos {
-                SeekFrom::Start(offset) => delay_buf.offset = offset,
-                SeekFrom::End(offset) => {
-                    delay_buf.offset =
-                        delay_buf.len().saturating_add_signed(offset)
-                }
-                SeekFrom::Current(offset) => {
-                    delay_buf.offset =
-                        delay_buf.offset.saturating_add_signed(offset);
-                }
-            }
-            if delay_buf.offset < delay_buf.file_size {
-                self.file.seek(pos)
-            } else {
-                Ok(delay_buf.offset)
-            }
-        } else {
-            self.file.seek(pos)
-        }
-    }
-
-    /// Read exactly `length` bytes from the current position.
+    /// Read exactly `length` bytes from `offset`.
+    /// Does not affect the file position.
     /// Errors are the same as [`std::io::Read::read_exact`].
-    pub fn read_exact(
-        &mut self,
+    pub fn read_exact_at(
+        &self,
         length: usize,
+        offset: usize,
     ) -> Result<Vec<u8>, std::io::Error> {
-        if let Some(delay_buf) = self.delayed_buffer.as_mut() {
+        let offset: u64 = offset.try_into().expect("offset too large");
+        if let Some(delay_buf) = self.delayed_buffer.as_ref() {
             let mut delay_buf = delay_buf.lock().unwrap();
             let mut buf = vec![0; length];
-            let offset: isize =
-                delay_buf.offset.try_into().expect("buffer too large");
             let file_size: isize =
-                delay_buf.file_size.try_into().expect("file too large");
-            let span: isize = offset - file_size;
+                delay_buf.file_size.try_into().expect("file size too large");
+            let signed_offset: isize =
+                offset.try_into().expect("offset too large");
+            let span: isize = signed_offset - file_size;
             let length = length.try_into().expect("too large of a length");
             let absolute_span: u64 =
                 span.unsigned_abs().try_into().expect("length too large");
             if span < 0 {
                 if length <= absolute_span {
                     // We're only in the file
-                    self.file.read_exact(&mut buf)?;
+                    self.file.read_exact_at(&mut buf, offset)?;
                 } else {
                     // We're spanning file and buffer
-                    self.file
-                        .read_exact(&mut buf[..absolute_span as usize])?;
+                    self.file.read_exact_at(
+                        &mut buf[..absolute_span as usize],
+                        offset,
+                    )?;
                     delay_buf
                         .buffer
                         .take(length - absolute_span)
@@ -329,7 +330,7 @@ impl FileHandle {
             Ok(buf.to_owned())
         } else {
             let mut buf = vec![0; length];
-            self.file.read_exact(&mut buf)?;
+            self.file.read_exact_at(&mut buf, offset)?;
             Ok(buf)
         }
     }
@@ -342,9 +343,7 @@ impl FileHandle {
 
     /// Return the current position in the file
     pub fn position(&mut self) -> Result<u64, HgError> {
-        self.file
-            .stream_position()
-            .when_reading_file(&self.filename)
+        self.file.stream_position().when_reading_file(&self.filename)
     }
 
     /// Append `data` to the file, or to the [`DelayedBuffer`], if any.
@@ -356,11 +355,18 @@ impl FileHandle {
             delayed_buffer.offset += data.len() as u64;
             Ok(())
         } else {
-            self.file
-                .write_all(data)
-                .when_writing_file(&self.filename)?;
+            self.file.write_all(data).when_writing_file(&self.filename)?;
             Ok(())
         }
+    }
+
+    pub fn try_clone(&self) -> Result<Self, HgError> {
+        Ok(Self {
+            vfs: dyn_clone::clone_box(&*self.vfs),
+            filename: self.filename.clone(),
+            delayed_buffer: self.delayed_buffer.clone(),
+            file: self.file.try_clone()?,
+        })
     }
 }
 
@@ -377,9 +383,9 @@ pub struct WriteHandles {
 mod tests {
     use std::io::ErrorKind;
 
-    use crate::vfs::VfsImpl;
-
     use super::*;
+    use crate::revlog::path_encode::PathEncoding;
+    use crate::vfs::VfsImpl;
 
     #[test]
     fn test_random_access_file() {
@@ -387,7 +393,7 @@ mod tests {
         let filename = Path::new("a");
         let file_path = base.join(filename);
         let raf = RandomAccessFile::new(
-            Box::new(VfsImpl::new(base.clone(), true)),
+            Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
             filename.to_owned(),
         );
 
@@ -405,9 +411,12 @@ mod tests {
         std::fs::write(file_path, b"1234567890").unwrap();
 
         // Should be able to open an existing file
-        let mut handle = raf.get_read_handle().unwrap();
+        let handle = raf.get_read_handle().unwrap();
         assert!(raf.is_open());
-        assert_eq!(handle.read_exact(10).unwrap(), b"1234567890".to_vec());
+        assert_eq!(
+            handle.read_exact_at(10, 0).unwrap(),
+            b"1234567890".to_vec()
+        );
     }
 
     #[test]
@@ -416,7 +425,7 @@ mod tests {
         let filename = base.join("a");
         // No `create` should fail
         FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), false)),
+            Box::new(VfsImpl::new(base.clone(), false, PathEncoding::None)),
             &filename,
             false,
             false,
@@ -425,7 +434,7 @@ mod tests {
         std::fs::write(&filename, b"1234567890").unwrap();
 
         let mut read_handle = FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), true)),
+            Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
             &filename,
             false,
             false,
@@ -438,21 +447,23 @@ mod tests {
         read_handle.write_all(b"some data").unwrap_err();
 
         // reading exactly n bytes should work
-        assert_eq!(read_handle.read_exact(3).unwrap(), b"123".to_vec());
-        // and the position should be remembered
-        assert_eq!(read_handle.read_exact(2).unwrap(), b"45".to_vec());
+        assert_eq!(read_handle.read_exact_at(3, 0).unwrap(), b"123".to_vec());
+        // and the position shouldn't be remembered
+        assert_eq!(read_handle.read_exact_at(2, 0).unwrap(), b"12".to_vec());
+        // offset works
+        assert_eq!(read_handle.read_exact_at(2, 3).unwrap(), b"45".to_vec());
 
         // Seeking should work
         let position = read_handle.position().unwrap();
-        read_handle.seek(SeekFrom::Current(-2)).unwrap();
-        assert_eq!(position - 2, read_handle.position().unwrap());
+        read_handle.seek(SeekFrom::Current(2)).unwrap();
+        assert_eq!(position + 2, read_handle.position().unwrap());
 
         // Seeking too much data should fail
-        read_handle.read_exact(1000).unwrap_err();
+        read_handle.read_exact_at(1000, 0).unwrap_err();
 
         // Open a write handle
         let mut handle = FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), false)),
+            Box::new(VfsImpl::new(base.clone(), false, PathEncoding::None)),
             &filename,
             false,
             true,
@@ -464,10 +475,10 @@ mod tests {
         // Opening or writing does not seek, so we should be at the start
         assert_eq!(handle.position().unwrap(), 8);
         // We can still read
-        assert_eq!(handle.read_exact(2).unwrap(), b"90".to_vec());
+        assert_eq!(handle.read_exact_at(2, 8).unwrap(), b"90".to_vec());
 
         let mut read_handle = FileHandle::new(
-            Box::new(VfsImpl::new(base.clone(), true)),
+            Box::new(VfsImpl::new(base.clone(), true, PathEncoding::None)),
             &filename,
             false,
             false,
@@ -476,7 +487,7 @@ mod tests {
         read_handle.seek(SeekFrom::Start(0)).unwrap();
         // On-disk file contents should be changed
         assert_eq!(
-            &read_handle.read_exact(10).unwrap(),
+            &read_handle.read_exact_at(10, 0).unwrap(),
             &b"new data90".to_vec(),
         );
         // Flushing doesn't do anything unexpected
@@ -484,7 +495,7 @@ mod tests {
 
         let delayed_buffer = Arc::new(Mutex::new(DelayedBuffer::default()));
         let mut handle = FileHandle::new_delayed(
-            Box::new(VfsImpl::new(base.clone(), false)),
+            Box::new(VfsImpl::new(base.clone(), false, PathEncoding::None)),
             &filename,
             false,
             delayed_buffer,
@@ -492,59 +503,44 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            handle
-                .delayed_buffer
-                .as_ref()
-                .unwrap()
-                .lock()
-                .unwrap()
-                .file_size,
+            handle.delayed_buffer.as_ref().unwrap().lock().unwrap().file_size,
             10
         );
         handle.seek(SeekFrom::End(0)).unwrap();
         handle.write_all(b"should go to buffer").unwrap();
         assert_eq!(
-            handle
-                .delayed_buffer
-                .as_ref()
-                .unwrap()
-                .lock()
-                .unwrap()
-                .len(),
+            handle.delayed_buffer.as_ref().unwrap().lock().unwrap().len(),
             29
         );
         read_handle.seek(SeekFrom::Start(0)).unwrap();
         // On-disk file contents should be unchanged
         assert_eq!(
-            read_handle.read_exact(10).unwrap(),
+            read_handle.read_exact_at(10, 0).unwrap(),
             b"new data90".to_vec(),
         );
 
         assert_eq!(
-            read_handle.read_exact(1).unwrap_err().kind(),
+            read_handle.read_exact_at(1, 10).unwrap_err().kind(),
             ErrorKind::UnexpectedEof
         );
 
         handle.flush().unwrap();
         // On-disk file contents should still be unchanged after a flush
         assert_eq!(
-            read_handle.read_exact(1).unwrap_err().kind(),
+            read_handle.read_exact_at(1, 10).unwrap_err().kind(),
             ErrorKind::UnexpectedEof
         );
 
         // Read from the buffer only
-        handle.seek(SeekFrom::End(-1)).unwrap();
-        assert_eq!(handle.read_exact(1).unwrap(), b"r".to_vec());
+        assert_eq!(handle.read_exact_at(6, 23).unwrap(), b"buffer".to_vec());
 
         // Read from an overlapping section of file and buffer
-        handle.seek(SeekFrom::Start(6)).unwrap();
         assert_eq!(
-            handle.read_exact(20).unwrap(),
+            handle.read_exact_at(20, 6).unwrap(),
             b"ta90should go to buf".to_vec()
         );
 
         // Read from file only
-        handle.seek(SeekFrom::Start(0)).unwrap();
-        assert_eq!(handle.read_exact(8).unwrap(), b"new data".to_vec());
+        assert_eq!(handle.read_exact_at(8, 0).unwrap(), b"new data".to_vec());
     }
 }

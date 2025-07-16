@@ -5,17 +5,21 @@
 
 //! cHg extensions to command server client.
 
-use bytes::{BufMut, BytesMut};
 use std::ffi::OsStr;
 use std::io;
 use std::mem;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
+
+use bytes::BufMut;
+use bytes::BytesMut;
 use tokio_hglib::UnixClient;
 
 use crate::attachio;
-use crate::message::{self, Instruction, ServerSpec};
+use crate::message::Instruction;
+use crate::message::ServerSpec;
+use crate::message::{self};
 use crate::runcommand;
 use crate::uihandler::SystemHandler;
 

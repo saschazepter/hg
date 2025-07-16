@@ -19,9 +19,6 @@ import os
 from typing import (
     Callable,
     Collection,
-    List,
-    Optional,
-    Union,
 )
 
 from .i18n import _
@@ -411,7 +408,7 @@ class transaction(util.transactional, itxn.ITransaction):
         file: HgPathT,
         hardlink: bool = True,
         location: VfsKeyT = b'',
-        for_offset: Union[bool, int] = False,
+        for_offset: bool | int = False,
     ) -> None:
         """Adds a backup of the file to the transaction
 
@@ -566,13 +563,13 @@ class transaction(util.transactional, itxn.ITransaction):
         return any
 
     @active
-    def findoffset(self, file: HgPathT) -> Optional[int]:
+    def findoffset(self, file: HgPathT) -> int | None:
         if file in self._newfiles:
             return 0
         return self._offsetmap.get(file)
 
     @active
-    def readjournal(self) -> List[itxn.JournalEntryT]:
+    def readjournal(self) -> list[itxn.JournalEntryT]:
         self._file.seek(0)
         entries = []
         for l in self._file.readlines():
@@ -687,7 +684,7 @@ class transaction(util.transactional, itxn.ITransaction):
     def getpostclose(
         self,
         category: CallbackCategoryT,
-    ) -> Optional[Callable[[TransactionT], None]]:
+    ) -> Callable[[TransactionT], None] | None:
         """return a postclose callback added before, or None"""
         return self._postclosecallback.get(category, None)
 

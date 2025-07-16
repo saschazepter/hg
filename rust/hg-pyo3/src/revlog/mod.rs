@@ -7,64 +7,86 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 #![allow(non_snake_case)]
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::os::fd::AsRawFd;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
+
+use hg::dyn_bytes::DynBytes;
+use hg::errors::HgError;
+use hg::revlog::index::Index;
 use hg::revlog::index::IndexHeader;
+use hg::revlog::index::Phase;
+use hg::revlog::index::RevisionDataParams;
+use hg::revlog::index::SnapshotsCache;
+use hg::revlog::index::INDEX_ENTRY_SIZE;
+use hg::revlog::inner_revlog::InnerRevlog as CoreInnerRevlog;
 use hg::revlog::nodemap::Block;
+use hg::revlog::nodemap::NodeMap;
+use hg::revlog::nodemap::NodeMapError;
+use hg::revlog::nodemap::NodeTree as CoreNodeTree;
+use hg::revlog::options::RevlogOpenOptions;
+use hg::revlog::path_encode::PathEncoding;
+use hg::revlog::RevlogError;
+use hg::revlog::RevlogIndex;
+use hg::revlog::RevlogType;
 use hg::utils::files::get_bytes_from_path;
+use hg::utils::files::get_path_from_bytes;
+use hg::vfs::FnCacheVfs;
+use hg::BaseRevision;
+use hg::Revision;
+use hg::UncheckedRevision;
+use hg::NULL_REVISION;
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
-use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
-use pyo3::types::{
-    PyBool, PyBytes, PyBytesMethods, PyDict, PyList, PySet, PyTuple,
-};
-use pyo3::{prelude::*, IntoPyObjectExt};
-use pyo3_sharedref::{PyShareable, SharedByPyObject};
+use pyo3::exceptions::PyIndexError;
+use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::PyBool;
+use pyo3::types::PyBytes;
+use pyo3::types::PyBytesMethods;
+use pyo3::types::PyDict;
+use pyo3::types::PyList;
+use pyo3::types::PySet;
+use pyo3::types::PyTuple;
+use pyo3::IntoPyObjectExt;
+use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::SharedByPyObject;
 
-use std::collections::{HashMap, HashSet};
-use std::os::fd::AsRawFd;
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    RwLock, RwLockReadGuard, RwLockWriteGuard,
-};
-
-use hg::{
-    errors::HgError,
-    revlog::{
-        index::{
-            Index, Phase, RevisionDataParams, SnapshotsCache, INDEX_ENTRY_SIZE,
-        },
-        inner_revlog::InnerRevlog as CoreInnerRevlog,
-        nodemap::{NodeMap, NodeMapError, NodeTree as CoreNodeTree},
-        options::RevlogOpenOptions,
-        RevlogError, RevlogIndex, RevlogType,
-    },
-    utils::files::get_path_from_bytes,
-    vfs::FnCacheVfs,
-    BaseRevision, Revision, UncheckedRevision, NULL_REVISION,
-};
-
+use crate::exceptions::graph_error;
+use crate::exceptions::map_lock_error;
+use crate::exceptions::map_try_lock_error;
+use crate::exceptions::nodemap_error;
+use crate::exceptions::rev_not_in_index;
+use crate::exceptions::revlog_error_bare;
+use crate::exceptions::revlog_error_from_msg;
+use crate::node::node_from_py_bytes;
+use crate::node::node_prefix_from_py_bytes;
+use crate::node::py_node_for_rev;
+use crate::revision::check_revision;
+use crate::revision::rev_pyiter_collect;
+use crate::revision::rev_pyiter_collect_or_else;
+use crate::revision::revs_py_list;
+use crate::revision::revs_py_set;
+use crate::revision::PyRevision;
+use crate::store::PyFnCache;
+use crate::transaction::PyTransaction;
+use crate::utils::new_submodule;
+use crate::utils::take_buffer_with_slice;
+use crate::utils::with_pybytes_buffer;
 use crate::utils::PyBytesDeref;
-use crate::{
-    exceptions::{
-        graph_error, map_lock_error, map_try_lock_error, nodemap_error,
-        rev_not_in_index, revlog_error_bare, revlog_error_from_msg,
-    },
-    node::{node_from_py_bytes, node_prefix_from_py_bytes, py_node_for_rev},
-    revision::{
-        check_revision, rev_pyiter_collect, rev_pyiter_collect_or_else,
-        revs_py_list, revs_py_set, PyRevision,
-    },
-    store::PyFnCache,
-    transaction::PyTransaction,
-    utils::{new_submodule, take_buffer_with_slice, with_pybytes_buffer},
-};
 
 mod config;
 use config::*;
 mod index;
+use index::py_tuple_to_revision_data_params;
+use index::revision_data_params_to_py_tuple;
 pub use index::PySharedIndex;
-use index::{
-    py_tuple_to_revision_data_params, revision_data_params_to_py_tuple,
-};
 
 #[pyclass]
 struct ReadingContextManager {
@@ -140,7 +162,7 @@ impl WritingContextManager {
 
 struct PySnapshotsCache<'a, 'py: 'a>(&'a Bound<'py, PyDict>);
 
-impl<'a, 'py> PySnapshotsCache<'a, 'py> {
+impl PySnapshotsCache<'_, '_> {
     fn insert_for_with_py_result(
         &self,
         rev: BaseRevision,
@@ -156,7 +178,7 @@ impl<'a, 'py> PySnapshotsCache<'a, 'py> {
     }
 }
 
-impl<'a, 'py> SnapshotsCache for PySnapshotsCache<'a, 'py> {
+impl SnapshotsCache for PySnapshotsCache<'_, '_> {
     fn insert_for(
         &mut self,
         rev: BaseRevision,
@@ -239,6 +261,7 @@ impl InnerRevlog {
         default_compression_header: &Bound<'_, PyAny>,
         revlog_type: usize,
         use_persistent_nodemap: bool,
+        use_plain_encoding: bool,
     ) -> PyResult<Self> {
         // Let clippy accept the unused arguments. This is a bit better than
         // a blank `allow` directive
@@ -248,8 +271,8 @@ impl InnerRevlog {
 
         let index_file = get_path_from_bytes(index_file.as_bytes()).to_owned();
         let data_file = get_path_from_bytes(data_file.as_bytes()).to_owned();
-        let revlog_type = RevlogType::try_from(revlog_type)
-            .map_err(revlog_error_from_msg)?;
+        let revlog_type =
+            RevlogType::try_from(revlog_type).map_err(revlog_error_from_msg)?;
         let data_config = extract_data_config(data_config, revlog_type)?;
         let delta_config = extract_delta_config(delta_config, revlog_type)?;
         let feature_config =
@@ -264,7 +287,7 @@ impl InnerRevlog {
         // Safety: we keep the buffer around inside the returned instance as
         // `index_mmap`
         let (buf, bytes) = unsafe { take_buffer_with_slice(index_data)? };
-        let index = Index::new(bytes, options.index_header())
+        let index = Index::new(DynBytes::new(bytes), options.index_header())
             .map_err(revlog_error_from_msg)?;
 
         let base = get_path_from_bytes(vfs_base.as_bytes()).to_owned();
@@ -273,6 +296,11 @@ impl InnerRevlog {
                 base,
                 vfs_is_readonly,
                 Box::new(PyFnCache::new(fncache.clone().unbind())),
+                if use_plain_encoding {
+                    PathEncoding::Plain
+                } else {
+                    PathEncoding::DotEncode
+                },
             )),
             index,
             index_file,
@@ -280,6 +308,7 @@ impl InnerRevlog {
             data_config,
             delta_config,
             feature_config,
+            revlog_type,
         );
         Ok(Self {
             irl: core.into(),
@@ -620,8 +649,7 @@ impl InnerRevlog {
     ) -> PyResult<Option<Py<PyBytes>>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
             let path = irl.delay().map_err(revlog_error_from_msg)?;
-            Ok(path
-                .map(|p| PyBytes::new(py, &get_bytes_from_path(p)).unbind()))
+            Ok(path.map(|p| PyBytes::new(py, &get_bytes_from_path(p)).unbind()))
         })
     }
 
@@ -638,10 +666,8 @@ impl InnerRevlog {
                     .into_any(),
                 None => py.None(),
             };
-            Ok(
-                PyTuple::new(py, [maybe_path, any_pending.into_py_any(py)?])?
-                    .unbind(),
-            )
+            Ok(PyTuple::new(py, [maybe_path, any_pending.into_py_any(py)?])?
+                .unbind())
         })
     }
 
@@ -650,8 +676,7 @@ impl InnerRevlog {
         py: Python<'_>,
     ) -> PyResult<Py<PyBytes>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
-            let path =
-                irl.finalize_pending().map_err(revlog_error_from_msg)?;
+            let path = irl.finalize_pending().map_err(revlog_error_from_msg)?;
             Ok(PyBytes::new(py, &get_bytes_from_path(path)).unbind())
         })
     }
@@ -670,9 +695,7 @@ impl InnerRevlog {
     }
 
     fn reading(slf: &Bound<'_, Self>) -> PyResult<ReadingContextManager> {
-        Ok(ReadingContextManager {
-            inner_revlog: slf.clone().unbind(),
-        })
+        Ok(ReadingContextManager { inner_revlog: slf.clone().unbind() })
     }
 
     #[pyo3(signature = (transaction, data_end=None, sidedata_end=None))]
@@ -814,7 +837,7 @@ impl InnerRevlog {
             UncheckedRevision(rev)
         } else {
             // here we could downcast to `PySlice` and use `indices()`, *but*
-            // the rust-cpython based version could not do that, and
+            // the PyO3 based version could not do that, and
             // `indices()` does some resolving that makes it not equivalent,
             // e.g., `idx[-1::]` has `start=0`. As we are currently in
             // transition, we keep it the old way (hoping it was consistent
@@ -932,8 +955,7 @@ impl InnerRevlog {
                         Ok((phase, revs))
                     })
                     .collect();
-            idx.compute_phases_map_sets(extracted_roots?)
-                .map_err(graph_error)
+            idx.compute_phases_map_sets(extracted_roots?).map_err(graph_error)
         })?;
         // Ugly hack, but temporary (!)
         const IDX_TO_PHASE_NUM: [usize; 4] = [1, 2, 32, 96];
@@ -992,10 +1014,8 @@ impl InnerRevlog {
             2 => Ok((Some(args.get_item(0)?), Some(args.get_item(1)?))),
             _ => Err(PyTypeError::new_err("too many arguments")),
         }?;
-        let stop_rev = stop_rev
-            .map(|o| o.extract::<Option<i32>>())
-            .transpose()?
-            .flatten();
+        let stop_rev =
+            stop_rev.map(|o| o.extract::<Option<i32>>()).transpose()?.flatten();
         let filtered_revs = filtered_revs.filter(|o| !o.is_none());
 
         let (from_core, stop_rev) = Self::with_index_read(slf, |idx| {
@@ -1068,11 +1088,6 @@ impl InnerRevlog {
         })?;
 
         Self::cache_new_heads_py_list(slf, head_revs)?;
-        // TODO discussion with Alphare: in hg-cpython,
-        // `cache_new_heads_node_ids_py_list` reconverts `head_nodes`,
-        // to store it in the cache attr that is **not actually used**.
-        // Should we drop the idea of this cache definition or actually
-        // use it? Perhaps in a later move for perf assessment?
         Ok(head_nodes)
     }
 
@@ -1169,15 +1184,10 @@ impl InnerRevlog {
         target_density: f64,
         min_gap_size: usize,
     ) -> PyResult<PyObject> {
-        let as_nested_vec =
-            Self::with_index_read(slf, |idx| {
-                let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
-                Ok(idx.slice_chunk_to_density(
-                    &revs,
-                    target_density,
-                    min_gap_size,
-                ))
-            })?;
+        let as_nested_vec = Self::with_index_read(slf, |idx| {
+            let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
+            Ok(idx.slice_chunk_to_density(&revs, target_density, min_gap_size))
+        })?;
         let res_len = as_nested_vec.len();
 
         // cannot build the outer sequence from iterator, because
@@ -1439,10 +1449,8 @@ impl InnerRevlog {
     ) -> PyResult<T> {
         Self::with_core_write(slf, |self_ref, mut guard| {
             let idx = &mut guard.index;
-            let mut nt = self_ref
-                .get_nodetree(idx)?
-                .write()
-                .map_err(map_lock_error)?;
+            let mut nt =
+                self_ref.get_nodetree(idx)?.write().map_err(map_lock_error)?;
             let nt = nt.as_mut().expect("nodetree should be set");
             f(idx, nt)
         })
@@ -1526,10 +1534,7 @@ impl NodeTree {
         };
         let nt = CoreNodeTree::default(); // in-RAM, fully mutable
 
-        Ok(Self {
-            nt: nt.into(),
-            index,
-        })
+        Ok(Self { nt: nt.into(), index })
     }
 
     /// Tell whether the NodeTree is still valid
@@ -1594,10 +1599,7 @@ impl NodeTree {
         // Safety: we don't leak any reference derived from self.index
         // as returned type is Copy
         let idx = &*unsafe { self.index.try_borrow(py)? };
-        Ok(nt
-            .find_bin(idx, prefix)
-            .map_err(nodemap_error)?
-            .map(|r| r.into()))
+        Ok(nt.find_bin(idx, prefix).map_err(nodemap_error)?.map(|r| r.into()))
     }
 }
 

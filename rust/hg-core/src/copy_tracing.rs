@@ -5,18 +5,19 @@ mod tests_support;
 #[cfg(test)]
 mod tests;
 
-use crate::utils::hg_path::HgPath;
-use crate::utils::hg_path::HgPathBuf;
-use crate::Revision;
-use crate::NULL_REVISION;
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
-use bytes_cast::{unaligned, BytesCast};
+use bytes_cast::unaligned;
+use bytes_cast::BytesCast;
 use im_rc::ordmap::Entry;
 use im_rc::ordmap::OrdMap;
 use im_rc::OrdSet;
 
-use std::cmp::Ordering;
-use std::collections::HashMap;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::Revision;
+use crate::NULL_REVISION;
 
 pub type PathCopies = HashMap<HgPathBuf, HgPathBuf>;
 
@@ -39,11 +40,7 @@ impl CopySource {
     ///
     /// Use this when no previous copy source existed.
     fn new(rev: Revision, path: Option<PathToken>) -> Self {
-        Self {
-            rev,
-            path,
-            overwritten: OrdSet::new(),
-        }
+        Self { rev, path, overwritten: OrdSet::new() }
     }
 
     /// create a new CopySource from merging two others
@@ -56,11 +53,7 @@ impl CopySource {
         overwritten.extend(loser.overwritten.iter().copied());
         overwritten.insert(winner.rev);
         overwritten.insert(loser.rev);
-        Self {
-            rev,
-            path: winner.path,
-            overwritten,
-        }
+        Self { rev, path: winner.path, overwritten }
     }
 
     /// Update the value of a pre-existing CopySource
@@ -187,10 +180,7 @@ impl<'a> ChangedFiles<'a> {
     }
 
     pub fn new_empty() -> Self {
-        ChangedFiles {
-            index: &[],
-            paths: &[],
-        }
+        ChangedFiles { index: &[], paths: &[] }
     }
 
     /// Internal function to return the filename of the entry at a given index
@@ -477,12 +467,8 @@ fn chain_changes<'a>(
 
                 match (p1_entry, p2_entry) {
                     (None, None) => (),
-                    (Some(mut e), None) => {
-                        e.get_mut().mark_delete(current_rev)
-                    }
-                    (None, Some(mut e)) => {
-                        e.get_mut().mark_delete(current_rev)
-                    }
+                    (Some(mut e), None) => e.get_mut().mark_delete(current_rev),
+                    (None, Some(mut e)) => e.get_mut().mark_delete(current_rev),
                     (Some(mut e1), Some(mut e2)) => {
                         let cs1 = e1.get_mut();
                         let cs2 = e2.get();
@@ -548,7 +534,8 @@ fn merge_copies_dict(
     major: InternalPathCopies,
     get_merge_case: impl Fn(&HgPath) -> MergeCase + Copy,
 ) -> InternalPathCopies {
-    use crate::utils::{ordmap_union_with_merge, MergeResult};
+    use crate::utils::ordmap_union_with_merge;
+    use crate::utils::MergeResult;
 
     ordmap_union_with_merge(minor, major, |&dest, src_minor, src_major| {
         let (pick, overwrite) = compare_value(

@@ -6,14 +6,19 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::utils::{
-    files::lower_clean,
-    hg_path::{hg_path_to_path_buf, HgPath, HgPathBuf, HgPathError},
-    strings::find_slice_in_slice,
-};
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock};
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::sync::RwLock;
+
+use crate::utils::files::lower_clean;
+use crate::utils::hg_path::hg_path_to_path_buf;
+use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
+use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::strings::find_slice_in_slice;
 
 /// Ensures that a path is valid for use in the repository i.e. does not use
 /// any banned components, does not traverse a symlink, etc.
@@ -26,10 +31,7 @@ pub struct PathAuditor {
 
 impl PathAuditor {
     pub fn new(root: impl AsRef<Path>) -> Self {
-        Self {
-            root: root.as_ref().to_owned(),
-            ..Default::default()
-        }
+        Self { root: root.as_ref().to_owned(), ..Default::default() }
     }
     pub fn audit_path(
         &self,
@@ -47,7 +49,7 @@ impl PathAuditor {
         // AIX ignores "/" at end of path, others raise EISDIR.
         let last_byte = path.as_bytes()[path.len() - 1];
         if last_byte == b'/' || last_byte == b'\\' {
-            return Err(HgPathError::EndsWithSlash(path.to_owned()));
+            return Err(HgPathErrorKind::EndsWithSlash(path.to_owned()).into());
         }
         let parts: Vec<_> = path
             .as_bytes()
@@ -62,7 +64,7 @@ impl PathAuditor {
                 || first_component == b"")
             || parts.iter().any(|c| c == b"..")
         {
-            return Err(HgPathError::InsideDotHg(path.to_owned()));
+            return Err(HgPathErrorKind::InsideDotHg(path.to_owned()).into());
         }
 
         // Windows shortname aliases
@@ -75,9 +77,10 @@ impl PathAuditor {
                 if last.iter().all(u8::is_ascii_digit)
                     && (first == b"HG" || first == b"HG8B6C")
                 {
-                    return Err(HgPathError::ContainsIllegalComponent(
+                    return Err(HgPathErrorKind::ContainsIllegalComponent(
                         path.to_owned(),
-                    ));
+                    )
+                    .into());
                 }
             }
         }
@@ -97,10 +100,11 @@ impl PathAuditor {
                         .fold(HgPathBuf::new(), |acc, p| {
                             acc.join(HgPath::new(p))
                         });
-                    return Err(HgPathError::IsInsideNestedRepo {
+                    return Err(HgPathErrorKind::IsInsideNestedRepo {
                         path: path.to_owned(),
                         nested_repo: base,
-                    });
+                    }
+                    .into());
                 }
             }
         }
@@ -133,41 +137,11 @@ impl PathAuditor {
     ) -> Result<(), HgPathError> {
         let prefix = prefix.as_ref();
         let path = path.as_ref();
-        let current_path = self.root.join(
-            hg_path_to_path_buf(prefix)
-                .map_err(|_| HgPathError::NotFsCompliant(path.to_owned()))?,
-        );
-        match std::fs::symlink_metadata(&current_path) {
-            Err(e) => {
-                // EINVAL can be raised as invalid path syntax under win32.
-                if e.kind() != std::io::ErrorKind::NotFound
-                    && e.kind() != std::io::ErrorKind::InvalidInput
-                    && e.raw_os_error() != Some(20)
-                {
-                    // Rust does not yet have an `ErrorKind` for
-                    // `NotADirectory` (errno 20)
-                    // It happens if the dirstate contains `foo/bar` and
-                    // foo is not a directory
-                    return Err(HgPathError::NotFsCompliant(path.to_owned()));
-                }
-            }
-            Ok(meta) => {
-                if meta.file_type().is_symlink() {
-                    return Err(HgPathError::TraversesSymbolicLink {
-                        path: path.to_owned(),
-                        symlink: prefix.to_owned(),
-                    });
-                }
-                if meta.file_type().is_dir()
-                    && current_path.join(".hg").is_dir()
-                {
-                    return Err(HgPathError::IsInsideNestedRepo {
-                        path: path.to_owned(),
-                        nested_repo: prefix.to_owned(),
-                    });
-                }
-            }
-        };
+        let current_path =
+            self.root.join(hg_path_to_path_buf(prefix).map_err(|_| {
+                HgPathErrorKind::NotFsCompliant(path.to_owned())
+            })?);
+        check_filesystem_single(current_path, prefix, path)?;
 
         Ok(())
     }
@@ -177,11 +151,73 @@ impl PathAuditor {
     }
 }
 
+/// Check a single path for filesystem rules:
+///     - Is not a valid representation on this filesystem
+///     - Traverses a symlink
+///     - Is inside a nested repository
+///
+/// This is only useful in the context of checking ancestor directories of
+/// `full_path`.
+///
+/// # Arguments
+///
+/// Both `path` and `hg_path` are passed in for performance reasons.
+///
+/// * `ancestor`: The current ancestor of the filesystem path to check
+/// * `hg_ancestor`: The `HgPath` that corresponds to `ancestor`
+/// * `full_path`: The hg path that the overall logic wants to check
+pub fn check_filesystem_single(
+    ancestor: impl AsRef<Path>,
+    hg_ancestor: &HgPath,
+    full_path: &HgPath,
+) -> Result<(), HgPathError> {
+    let ancestor = ancestor.as_ref();
+    match std::fs::symlink_metadata(ancestor) {
+        Err(e) => {
+            // EINVAL can be raised as invalid path syntax under win32.
+            if e.kind() != std::io::ErrorKind::NotFound
+                && e.kind() != std::io::ErrorKind::InvalidInput
+                && e.raw_os_error() != Some(20)
+            {
+                // Rust does not yet have an `ErrorKind` for
+                // `NotADirectory` (errno 20)
+                // It happens if the dirstate contains `foo/bar` and
+                // foo is not a directory
+                return Err(HgPathErrorKind::NotFsCompliant(
+                    full_path.to_owned(),
+                )
+                .into());
+            }
+        }
+        Ok(meta) => {
+            if meta.file_type().is_symlink() {
+                return Err(HgPathErrorKind::TraversesSymbolicLink {
+                    path: full_path.to_owned(),
+                    symlink: hg_ancestor.to_owned(),
+                }
+                .into());
+            }
+            if meta.file_type().is_dir() && ancestor.join(".hg").is_dir() {
+                return Err(HgPathErrorKind::IsInsideNestedRepo {
+                    path: full_path.to_owned(),
+                    nested_repo: hg_ancestor.to_owned(),
+                }
+                .into());
+            }
+        }
+    };
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::fs::{create_dir, create_dir_all, File};
+    use std::fs::create_dir;
+    use std::fs::create_dir_all;
+    use std::fs::File;
+
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_path_auditor() {
@@ -192,25 +228,27 @@ mod tests {
         let path = HgPath::new(b".hg/00changelog.i");
         assert_eq!(
             auditor.audit_path(path),
-            Err(HgPathError::InsideDotHg(path.to_owned()))
+            Err(HgPathErrorKind::InsideDotHg(path.to_owned()).into())
         );
         let path = HgPath::new(b"this/is/nested/.hg/thing.txt");
         assert_eq!(
             auditor.audit_path(path),
-            Err(HgPathError::IsInsideNestedRepo {
+            Err(HgPathErrorKind::IsInsideNestedRepo {
                 path: path.to_owned(),
                 nested_repo: HgPathBuf::from_bytes(b"this/is/nested")
-            })
+            }
+            .into())
         );
 
         create_dir_all(base_dir_path.join("this/is/nested/.hg")).unwrap();
         let path = HgPath::new(b"this/is/nested/repo");
         assert_eq!(
             auditor.audit_path(path),
-            Err(HgPathError::IsInsideNestedRepo {
+            Err(HgPathErrorKind::IsInsideNestedRepo {
                 path: path.to_owned(),
                 nested_repo: HgPathBuf::from_bytes(b"this/is/nested")
-            })
+            }
+            .into())
         );
 
         create_dir(base_dir_path.join("realdir")).unwrap();
@@ -224,10 +262,11 @@ mod tests {
         let path = HgPath::new(b"symlink/realfile");
         assert_eq!(
             auditor.audit_path(path),
-            Err(HgPathError::TraversesSymbolicLink {
+            Err(HgPathErrorKind::TraversesSymbolicLink {
                 path: path.to_owned(),
                 symlink: HgPathBuf::from_bytes(b"symlink"),
-            })
+            }
+            .into())
         );
     }
 }

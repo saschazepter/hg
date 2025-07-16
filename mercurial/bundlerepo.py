@@ -68,48 +68,53 @@ class bundlerevlog(revlog.revlog):
         # To differentiate a rev in the bundle from a rev in the revlog, we
         # check revision against repotiprev.
         opener = vfsmod.readonlyvfs(opener)
-        revlog.revlog.__init__(self, opener, target=target, radix=radix)
+        revlog.revlog.__init__(
+            self,
+            opener,
+            target=target,
+            radix=radix,
+            writable=False,
+        )
         self.bundle = cgunpacker
         n = len(self)
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
         for deltadata in cgunpacker.deltaiter():
-            node, p1, p2, cs, deltabase, delta, flags, sidedata = deltadata
-
-            size = len(delta)
+            size = len(deltadata.delta)
             start = cgunpacker.tell() - size
 
-            if self.index.has_node(node):
+            if self.index.has_node(deltadata.node):
                 # this can happen if two branches make the same change
-                self.bundlerevs.add(self.index.rev(node))
+                self.bundlerevs.add(self.index.rev(deltadata.node))
                 continue
-            if cs == node:
+            if deltadata.link_node == deltadata.node:
                 linkrev = nullrev
             else:
-                linkrev = linkmapper(cs)
+                linkrev = linkmapper(deltadata.link_node)
 
-            for p in (p1, p2):
+            for p in (deltadata.p1, deltadata.p2):
                 if not self.index.has_node(p):
                     raise error.LookupError(
                         p, self.display_id, _(b"unknown parent")
                     )
 
-            if not self.index.has_node(deltabase):
+            if not self.index.has_node(deltadata.delta_base):
                 raise error.LookupError(
-                    deltabase, self.display_id, _(b'unknown delta base')
+                    deltadata.delta_base,
+                    self.display_id,
+                    _(b'unknown delta base'),
                 )
 
-            baserev = self.rev(deltabase)
-            # start, size, full unc. size, base (unused), link, p1, p2, node, sidedata_offset (unused), sidedata_size (unused)
+            baserev = self.rev(deltadata.delta_base)
             e = revlogutils.entry(
-                flags=flags,
+                flags=deltadata.flags,
                 data_offset=start,
                 data_compressed_length=size,
                 data_delta_base=baserev,
                 link_rev=linkrev,
-                parent_rev_1=self.rev(p1),
-                parent_rev_2=self.rev(p2),
-                node_id=node,
+                parent_rev_1=self.rev(deltadata.p1),
+                parent_rev_2=self.rev(deltadata.p2),
+                node_id=deltadata.node,
             )
             self.index.append(e)
             self.bundlerevs.add(n)
@@ -247,7 +252,7 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
 
 class bundlefilelog(filelog.filelog):
     def __init__(self, opener, path, cgunpacker, linkmapper):
-        filelog.filelog.__init__(self, opener, path)
+        filelog.filelog.__init__(self, opener, path, writable=False)
         self._revlog = bundlerevlog(
             opener,
             # XXX should use the unencoded path
@@ -287,7 +292,7 @@ def _getfilestarts(cgunpacker):
     for chunkdata in iter(cgunpacker.filelogheader, {}):
         fname = chunkdata[b'filename']
         filespos[fname] = cgunpacker.tell()
-        for chunk in iter(lambda: cgunpacker.deltachunk(None), {}):
+        for chunk in iter(lambda: cgunpacker.deltachunk(None), None):
             pass
     return filespos
 
@@ -489,7 +494,7 @@ class bundlerepository(_bundle_repo_baseclass):
     def url(self):
         return self._url
 
-    def file(self, f):
+    def file(self, f, writable=False):
         if not self._cgfilespos:
             self._cgunpacker.seek(self.filestart)
             self._cgfilespos = _getfilestarts(self._cgunpacker)
@@ -499,7 +504,7 @@ class bundlerepository(_bundle_repo_baseclass):
             linkmapper = self.unfiltered().changelog.rev
             return bundlefilelog(self.svfs, f, self._cgunpacker, linkmapper)
         else:
-            return super().file(f)
+            return super().file(f, writable=writable)
 
     def close(self):
         """Close assigned bundle file immediately."""

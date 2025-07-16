@@ -27,16 +27,13 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
     Match,
     NoReturn,
-    Optional,
     Sequence,
-    Tuple,
-    Union,
 )
 
 from .i18n import _
+from .interfaces import misc as int_misc
 from . import (
     encoding,
     error,
@@ -100,7 +97,7 @@ os.umask(umask)
 posixfile = pycompat.open
 
 
-def split(p: bytes) -> Tuple[bytes, bytes]:
+def split(p: bytes) -> tuple[bytes, bytes]:
     """Same as posixpath.split, but faster
 
     >>> import posixpath
@@ -146,10 +143,10 @@ def parsepatchoutput(output_line: bytes) -> bytes:
 
 
 def sshargs(
-    sshcmd: bytes, host: bytes, user: Optional[bytes], port: Optional[bytes]
+    sshcmd: bytes, host: bytes, user: bytes | None, port: bytes | None
 ) -> bytes:
     '''Build argument list for ssh'''
-    args = user and (b"%s@%s" % (user, host)) or host
+    args = (b"%s@%s" % (user, host)) if user else host
     if b'-' in args[:1]:
         raise error.Abort(
             _(b'illegal ssh hostname or username starting with -: %s') % args
@@ -212,7 +209,7 @@ def setflags(f: bytes, l: bool, x: bool) -> None:
 def copymode(
     src: bytes,
     dst: bytes,
-    mode: Optional[int] = None,
+    mode: int | None = None,
     enforcewritable: bool = False,
 ) -> None:
     """Copy the file mode from the file at path src to dst.
@@ -380,13 +377,13 @@ def checklink(path: bytes) -> bool:
             return False
 
 
-def checkosfilename(path: bytes) -> Optional[bytes]:
+def checkosfilename(path: bytes) -> bytes | None:
     """Check that the base-relative path is a valid filename on this platform.
     Returns None if the path is ok, or a UI string describing the problem."""
     return None  # on posix platforms, every path is ok
 
 
-def getfsmountpoint(path: bytes) -> Optional[bytes]:
+def getfsmountpoint(path: bytes) -> bytes | None:
     """Get the filesystem mount point from a directory (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
@@ -394,7 +391,7 @@ def getfsmountpoint(path: bytes) -> Optional[bytes]:
     return getattr(osutil, 'getfsmountpoint', lambda x: None)(path)
 
 
-def getfstype(path: bytes) -> Optional[bytes]:
+def getfstype(path: bytes) -> bytes | None:
     """Get the filesystem type name from a directory (best-effort)
 
     Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
@@ -552,7 +549,7 @@ if pycompat.sysplatform == b'OpenVMS':
         return False
 
 
-_needsshellquote: Optional[Callable[[bytes], Optional[Match[bytes]]]] = None
+_needsshellquote: Callable[[bytes], Match[bytes] | None] | None = None
 
 
 def shellquote(s: bytes) -> bytes:
@@ -568,7 +565,7 @@ def shellquote(s: bytes) -> bytes:
         return b"'%s'" % s.replace(b"'", b"'\\''")
 
 
-def shellsplit(s: bytes) -> List[bytes]:
+def shellsplit(s: bytes) -> list[bytes]:
     """Parse a command string in POSIX shell way (best-effort)"""
     return pycompat.shlexsplit(s, posix=True)
 
@@ -589,7 +586,7 @@ def isowner(st: os.stat_result) -> bool:
     return st.st_uid == os.getuid()
 
 
-def findexe(command: bytes) -> Optional[bytes]:
+def findexe(command: bytes) -> bytes | None:
     """Find executable for command searching like which does.
     If command is a basename then PATH is searched for command.
     PATH isn't searched if command is an absolute or relative path.
@@ -597,7 +594,7 @@ def findexe(command: bytes) -> Optional[bytes]:
     if pycompat.sysplatform == b'OpenVMS':
         return command
 
-    def findexisting(executable: bytes) -> Optional[bytes]:
+    def findexisting(executable: bytes) -> bytes | None:
         b'Will return executable if existing file'
         if os.path.isfile(executable) and os.access(executable, os.X_OK):
             return executable
@@ -623,7 +620,7 @@ def setsignalhandler() -> None:
 _wantedkinds = {stat.S_IFREG, stat.S_IFLNK}
 
 
-def statfiles(files: Sequence[bytes]) -> Iterator[Optional[os.stat_result]]:
+def statfiles(files: Sequence[bytes]) -> Iterator[os.stat_result | None]:
     """Stat each file in files. Yield each stat, or None if a file does not
     exist or has a type we don't care about."""
     lstat = os.lstat
@@ -643,7 +640,7 @@ def getuser() -> bytes:
     return pycompat.fsencode(getpass.getuser())
 
 
-def username(uid: Optional[int] = None) -> Optional[bytes]:
+def username(uid: int | None = None) -> bytes | None:
     """Return the name of the user with the given uid.
 
     If uid is None, return the name of the current user."""
@@ -656,7 +653,7 @@ def username(uid: Optional[int] = None) -> Optional[bytes]:
         return b'%d' % uid
 
 
-def groupname(gid: Optional[int] = None) -> Optional[bytes]:
+def groupname(gid: int | None = None) -> bytes | None:
     """Return the name of the group with the given gid.
 
     If gid is None, return the name of the current group."""
@@ -669,7 +666,7 @@ def groupname(gid: Optional[int] = None) -> Optional[bytes]:
         return pycompat.bytestr(gid)
 
 
-def groupmembers(name: bytes) -> List[bytes]:
+def groupmembers(name: bytes) -> list[bytes]:
     """Return the list of members of the group with the given
     name, KeyError if the group does not exist.
     """
@@ -677,7 +674,7 @@ def groupmembers(name: bytes) -> List[bytes]:
     return pycompat.rapply(pycompat.fsencode, list(grp.getgrnam(name).gr_mem))
 
 
-def spawndetached(args: List[bytes]) -> int:
+def spawndetached(args: list[bytes]) -> int:
     return os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0), args[0], args)
 
 
@@ -691,9 +688,9 @@ def makedir(path: bytes, notindexed: bool) -> None:
 
 def lookupreg(
     key: bytes,
-    valname: Optional[bytes] = None,
-    scope: Optional[Union[int, Iterable[int]]] = None,
-) -> Optional[bytes]:
+    valname: bytes | None = None,
+    scope: int | Iterable[int] | None = None,
+) -> bytes | None:
     return None
 
 
@@ -706,7 +703,7 @@ def hidewindow() -> None:
     pass
 
 
-class cachestat:
+class cachestat(int_misc.ICacheStat):
     stat: os.stat_result
 
     def __init__(self, path: bytes) -> None:
@@ -742,12 +739,12 @@ class cachestat:
         return not self == other
 
 
-def statislink(st: Optional[os.stat_result]) -> bool:
+def statislink(st: os.stat_result | None) -> bool:
     '''check whether a stat result is a symlink'''
     return stat.S_ISLNK(st.st_mode) if st else False
 
 
-def statisexec(st: Optional[os.stat_result]) -> bool:
+def statisexec(st: os.stat_result | None) -> bool:
     '''check whether a stat result is an executable file'''
     return (st.st_mode & 0o100 != 0) if st else False
 

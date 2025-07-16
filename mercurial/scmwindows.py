@@ -4,9 +4,7 @@ import os
 import winreg  # pytype: disable=import-error
 
 from typing import (
-    List,
     TYPE_CHECKING,
-    Tuple,
 )
 
 from . import (
@@ -23,7 +21,7 @@ if TYPE_CHECKING:
 fallbackpager = b'more'
 
 
-def systemrcpath() -> List[bytes]:
+def systemrcpath() -> list[bytes]:
     '''return default os-specific hgrc search path'''
     rcpath = []
     filename = win32.executablepath()
@@ -72,7 +70,7 @@ def systemrcpath() -> List[bytes]:
     return rcpath
 
 
-def userrcpath() -> List[bytes]:
+def userrcpath() -> list[bytes]:
     '''return os-specific hgrc search path to the user dir'''
     home = _legacy_expanduser(b'~')
     path = [os.path.join(home, b'mercurial.ini'), os.path.join(home, b'.hgrc')]
@@ -115,5 +113,5 @@ def _legacy_expanduser(path: bytes) -> bytes:
     return userhome + path[i:]
 
 
-def termsize(ui: uimod.ui) -> Tuple[int, int]:
+def termsize(ui: uimod.ui) -> tuple[int, int]:
     return win32.termsize()

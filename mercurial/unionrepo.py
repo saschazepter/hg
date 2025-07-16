@@ -57,7 +57,13 @@ class unionrevlog(revlog.revlog):
 
             # a revlog wrapper, eg: the manifestlog that is not an actual revlog
             target = revlog2._revlog.target
-        revlog.revlog.__init__(self, opener, target=target, radix=radix)
+        revlog.revlog.__init__(
+            self,
+            opener,
+            target=target,
+            radix=radix,
+            writable=False,
+        )
         self.revlog2 = revlog2
 
         n = len(self)
@@ -129,7 +135,7 @@ class unionrevlog(revlog.revlog):
         else:
             read_1 = util.nullcontextmanager
         if 0 < len(self.bundlerevs):
-            read_2 = self.revlog2.reading
+            read_2 = self.revlog2.get_revlog().reading
         else:
             read_2 = util.nullcontextmanager
         with read_1(), read_2():
@@ -152,7 +158,7 @@ class unionrevlog(revlog.revlog):
 
         return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
 
-    def _revisiondata(self, nodeorrev, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False, validate=True):
         if isinstance(nodeorrev, int):
             rev = nodeorrev
             node = self.node(rev)
@@ -231,8 +237,8 @@ class unionfilelog(filelog.filelog):
     revlog2: revlog.revlog
 
     def __init__(self, opener, path, opener2, linkmapper, repo):
-        filelog.filelog.__init__(self, opener, path)
-        filelog2 = filelog.filelog(opener2, path)
+        filelog.filelog.__init__(self, opener, path, writable=False)
+        filelog2 = filelog.filelog(opener2, path, writable=False)
         self._revlog = unionrevlog(
             opener, self._revlog.radix, filelog2._revlog, linkmapper
         )

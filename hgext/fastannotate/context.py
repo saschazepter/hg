@@ -10,6 +10,7 @@ from __future__ import annotations
 import collections
 import contextlib
 import os
+import typing
 
 from mercurial.i18n import _
 from mercurial.node import (
@@ -36,10 +37,16 @@ from . import (
     revmap as revmapmod,
 )
 
+if typing.TYPE_CHECKING:
+    from mercurial.interfaces.types import (
+        FileStorageT,
+        LocalRepoFileStorageT,
+    )
+
 
 # given path, get filelog, cached
 @util.lrucachefunc
-def _getflog(repo, path):
+def _getflog(repo: LocalRepoFileStorageT, path: bytes) -> FileStorageT:
     return repo.file(path)
 
 

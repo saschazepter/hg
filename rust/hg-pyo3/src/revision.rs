@@ -1,16 +1,19 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyList, PySet};
-
 use hg::revlog::RevlogIndex;
-use hg::{BaseRevision, Revision, UncheckedRevision};
+use hg::BaseRevision;
+use hg::Revision;
+use hg::UncheckedRevision;
+use pyo3::prelude::*;
+use pyo3::types::PyList;
+use pyo3::types::PySet;
 
-use crate::exceptions::{rev_not_in_index, GraphError};
+use crate::exceptions::rev_not_in_index;
+use crate::exceptions::GraphError;
 use crate::utils::proxy_index_extract;
 
 /// Revision as exposed to/from the Python layer.
 ///
 /// We need this indirection because of the orphan rule, meaning we can't
-/// implement a foreign trait (like [`cpython::ToPyObject`])
+/// implement a foreign trait (like [`pyo3::ToPyObject`])
 /// for a foreign type (like [`hg::UncheckedRevision`]).
 ///
 /// This also acts as a deterrent against blindly trusting Python to send
@@ -47,9 +50,7 @@ pub fn check_revision(
     rev: impl Into<UncheckedRevision>,
 ) -> PyResult<Revision> {
     let rev = rev.into();
-    index
-        .check_revision(rev)
-        .ok_or_else(|| rev_not_in_index(rev))
+    index.check_revision(rev).ok_or_else(|| rev_not_in_index(rev))
 }
 
 /// Utility function to convert a Python iterable into various collections

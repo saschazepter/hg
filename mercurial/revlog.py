@@ -27,7 +27,6 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
-    Tuple,
 )
 
 # import stuff from node for others to import from revlog
@@ -50,11 +49,17 @@ from .revlogutils.constants import (
     DELTA_BASE_REUSE_TRY,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
+    FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
+    FILELOG_HASMETA_UPGRADE as HM_UP,
+    FLAG_DELTA_INFO,
+    FLAG_FILELOG_META,
     FLAG_GENERALDELTA,
     FLAG_INLINE_DATA,
     INDEX_HEADER,
     KIND_CHANGELOG,
     KIND_FILELOG,
+    META_MARKER,
+    META_MARKER_SIZE,
     RANK_UNKNOWN,
     REVLOGV0,
     REVLOGV1,
@@ -68,20 +73,27 @@ from .revlogutils.constants import (
 )
 from .revlogutils.flagutil import (
     REVIDX_DEFAULT_FLAGS,
+    REVIDX_DELTA_IS_SNAPSHOT,
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
     REVIDX_FLAGS_ORDER,
     REVIDX_HASCOPIESINFO,
+    REVIDX_HASMETA,
     REVIDX_ISCENSORED,
     REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
 from .thirdparty import attr
+from .revlogutils import config as revlog_config
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
     from .pure.parsers import BaseIndexObject
+
+    from .interfaces.types import (
+        NodeIdT,
+    )
 
 from . import (
     ancestor,
@@ -98,6 +110,7 @@ from . import (
 from .interfaces import (
     repository,
 )
+
 from .revlogutils import (
     deltas as deltautil,
     docket as docketutil,
@@ -136,9 +149,9 @@ REVIDX_FLAGS_ORDER
 REVIDX_RAWTEXT_CHANGING_FLAGS
 
 parsers = policy.importmod('parsers')
-rustancestor = policy.importrust('ancestor', pyo3=True)
-rustdagop = policy.importrust('dagop', pyo3=True)
-rustrevlog = policy.importrust('revlog', pyo3=True)
+rustancestor = policy.importrust('ancestor')
+rustdagop = policy.importrust('dagop')
+rustrevlog = policy.importrust('revlog')
 
 # Aliased for performance.
 _zlibdecompress = zlib.decompress
@@ -200,6 +213,7 @@ class revlogrevisiondelta(repository.irevisiondelta):
     sidedata = attr.ib(type=Optional[bytes])
     protocol_flags = attr.ib(type=int)
     linknode = attr.ib(default=None, type=Optional[bytes])
+    snapshot_level = attr.ib(default=None, type=Optional[int])
 
 
 @attr.s(frozen=True)
@@ -209,33 +223,69 @@ class revlogproblem(repository.iverifyproblem):
     node = attr.ib(default=None, type=Optional[bytes])
 
 
-def parse_index_v1(data, inline, uses_generaldelta):
-    # call the C implementation to parse the index data
-    index, cache = parsers.parse_index2(data, inline, uses_generaldelta)
-    return index, cache
-
-
-def parse_index_v2(data, inline, uses_generaldelta):
+def parse_index_v1(
+    data,
+    inline,
+    uses_generaldelta,
+    uses_delta_info,
+):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
-        data, inline, uses_generaldelta, format=REVLOGV2
+        data,
+        inline,
+        uses_generaldelta,
+        uses_delta_info,
     )
     return index, cache
 
 
-def parse_index_cl_v2(data, inline, uses_generaldelta):
+def parse_index_v2(
+    data,
+    inline,
+    uses_generaldelta,
+    uses_delta_info,
+):
     # call the C implementation to parse the index data
     index, cache = parsers.parse_index2(
-        data, inline, uses_generaldelta, format=CHANGELOGV2
+        data,
+        inline,
+        uses_generaldelta,
+        uses_delta_info,
+        format=REVLOGV2,
+    )
+    return index, cache
+
+
+def parse_index_cl_v2(
+    data,
+    inline,
+    uses_generaldelta,
+    uses_delta_info,
+):
+    # call the C implementation to parse the index data
+    index, cache = parsers.parse_index2(
+        data,
+        inline,
+        uses_generaldelta,
+        uses_delta_info,
+        format=CHANGELOGV2,
     )
     return index, cache
 
 
 if hasattr(parsers, 'parse_index_devel_nodemap'):
 
-    def parse_index_v1_nodemap(data, inline, uses_generaldelta):
+    def parse_index_v1_nodemap(
+        data,
+        inline,
+        uses_generaldelta,
+        uses_delta_info,
+    ):
         index, cache = parsers.parse_index_devel_nodemap(
-            data, inline, uses_generaldelta
+            data,
+            inline,
+            uses_generaldelta,
+            uses_delta_info,
         )
         return index, cache
 
@@ -253,108 +303,6 @@ FILE_TOO_SHORT_MSG = _(
 )
 
 hexdigits = b'0123456789abcdefABCDEF'
-
-
-class _Config:
-    def copy(self):
-        return self.__class__(**self.__dict__)
-
-
-@attr.s()
-class FeatureConfig(_Config):
-    """Hold configuration values about the available revlog features"""
-
-    # the default compression engine
-    compression_engine = attr.ib(default=b'zlib')
-    # compression engines options
-    compression_engine_options = attr.ib(default=attr.Factory(dict))
-
-    # can we use censor on this revlog
-    censorable = attr.ib(default=False)
-    # does this revlog use the "side data" feature
-    has_side_data = attr.ib(default=False)
-    # might remove rank configuration once the computation has no impact
-    compute_rank = attr.ib(default=False)
-    # parent order is supposed to be semantically irrelevant, so we
-    # normally resort parents to ensure that the first parent is non-null,
-    # if there is a non-null parent at all.
-    # filelog abuses the parent order as flag to mark some instances of
-    # meta-encoded files, so allow it to disable this behavior.
-    canonical_parent_order = attr.ib(default=False)
-    # can ellipsis commit be used
-    enable_ellipsis = attr.ib(default=False)
-
-    def copy(self):
-        new = super().copy()
-        new.compression_engine_options = self.compression_engine_options.copy()
-        return new
-
-
-@attr.s()
-class DataConfig(_Config):
-    """Hold configuration value about how the revlog data are read"""
-
-    # should we try to open the "pending" version of the revlog
-    try_pending = attr.ib(default=False)
-    # should we try to open the "splitted" version of the revlog
-    try_split = attr.ib(default=False)
-    #  When True, indexfile should be opened with checkambig=True at writing,
-    #  to avoid file stat ambiguity.
-    check_ambig = attr.ib(default=False)
-
-    # If true, use mmap instead of reading to deal with large index
-    mmap_large_index = attr.ib(default=False)
-    # how much data is large
-    mmap_index_threshold = attr.ib(default=None)
-    # How much data to read and cache into the raw revlog data cache.
-    chunk_cache_size = attr.ib(default=65536)
-
-    # The size of the uncompressed cache compared to the largest revision seen.
-    uncompressed_cache_factor = attr.ib(default=None)
-
-    # The number of chunk cached
-    uncompressed_cache_count = attr.ib(default=None)
-
-    # Allow sparse reading of the revlog data
-    with_sparse_read = attr.ib(default=False)
-    # minimal density of a sparse read chunk
-    sr_density_threshold = attr.ib(default=0.50)
-    # minimal size of data we skip when performing sparse read
-    sr_min_gap_size = attr.ib(default=262144)
-
-    # are delta encoded against arbitrary bases.
-    generaldelta = attr.ib(default=False)
-
-
-@attr.s()
-class DeltaConfig(_Config):
-    """Hold configuration value about how new delta are computed
-
-    Some attributes are duplicated from DataConfig to help havign each object
-    self contained.
-    """
-
-    # can delta be encoded against arbitrary bases.
-    general_delta = attr.ib(default=False)
-    # Allow sparse writing of the revlog data
-    sparse_revlog = attr.ib(default=False)
-    # maximum length of a delta chain
-    max_chain_len = attr.ib(default=None)
-    # Maximum distance between delta chain base start and end
-    max_deltachain_span = attr.ib(default=-1)
-    # If `upper_bound_comp` is not None, this is the expected maximal gain from
-    # compression for the data content.
-    upper_bound_comp = attr.ib(default=None)
-    # Should we try a delta against both parent
-    delta_both_parents = attr.ib(default=True)
-    # Test delta base candidate group by chunk of this maximal size.
-    candidate_group_chunk_size = attr.ib(default=0)
-    # Should we display debug information about delta computation
-    debug_delta = attr.ib(default=False)
-    # trust incoming delta by default
-    lazy_delta = attr.ib(default=True)
-    # trust the base of incoming delta by default
-    lazy_delta_base = attr.ib(default=False)
 
 
 class _InnerRevlog:
@@ -491,6 +439,9 @@ class _InnerRevlog:
             # directly assign the method to cache the testing and access
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)
+        elif self.data_config.delta_info:
+            flags = self.index[rev][0] & 0xFFFF
+            return flags & REVIDX_DELTA_IS_SNAPSHOT
         if rev == nullrev:
             return True
         entry = self.index[rev]
@@ -590,7 +541,7 @@ class _InnerRevlog:
                 )
         return compressor
 
-    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
+    def compress(self, data: bytes) -> tuple[bytes, bytes]:
         """Generate a possibly-compressed representation of data."""
         if not data:
             return b'', data
@@ -1269,9 +1220,35 @@ class RustIndexProxy(ProxyBase):
         # Do not rename as it's being used to access the index from Rust
         self.inner = inner
 
-    # TODO possibly write all index methods manually to save on overhead?
-    def __getattr__(self, name):
-        return getattr(self.inner, f"_index_{name}")
+        # Direct reforwards since `__getattr__` is *expensive*
+        self.get_rev = self.inner._index_get_rev
+        self.rev = self.inner._index_rev
+        self.has_node = self.inner._index_has_node
+        self.shortest = self.inner._index_shortest
+        self.partialmatch = self.inner._index_partialmatch
+        self.append = self.inner._index_append
+        self.ancestors = self.inner._index_ancestors
+        self.commonancestorsheads = self.inner._index_commonancestorsheads
+        self.clearcaches = self.inner._index_clearcaches
+        self.entry_binary = self.inner._index_entry_binary
+        self.pack_header = self.inner._index_pack_header
+        self.computephasesmapsets = self.inner._index_computephasesmapsets
+        self.reachableroots2 = self.inner._index_reachableroots2
+        self.headrevs = self.inner._index_headrevs
+        self.head_node_ids = self.inner._index_head_node_ids
+        self.headrevsdiff = self.inner._index_headrevsdiff
+        self.issnapshot = self.inner._index_issnapshot
+        self.findsnapshots = self.inner._index_findsnapshots
+        self.deltachain = self.inner._index_deltachain
+        self.slicechunktodensity = self.inner._index_slicechunktodensity
+        self.nodemap_data_all = self.inner._index_nodemap_data_all
+        self.nodemap_data_incremental = (
+            self.inner._index_nodemap_data_incremental
+        )
+        self.update_nodemap_data = self.inner._index_update_nodemap_data
+        self.entry_size = self.inner._index_entry_size
+        self.rust_ext_compat = self.inner._index_rust_ext_compat
+        self._is_rust = self.inner._index_is_rust
 
     # Magic methods need to be defined explicitely
     def __len__(self):
@@ -1376,9 +1353,9 @@ class revlog:
         _format_version = header & 0xFFFF
 
         features = FEATURES_BY_VERSION[_format_version]
-        return features[b'inline'](_format_flags)
+        return features['inline'](_format_flags)
 
-    _docket_file: Optional[bytes]
+    _docket_file: bytes | None
 
     def __init__(
         self,
@@ -1399,6 +1376,9 @@ class revlog:
         delta_config=None,
         feature_config=None,
         may_inline=True,  # may inline new revlog
+        writable: Optional[
+            bool
+        ] = None,  # None is "unspecified" and allow writing
     ):
         """
         create a revlog object
@@ -1433,12 +1413,19 @@ class revlog:
         assert target[0] in ALL_KINDS
         assert len(target) == 2
         self.target = target
+        if writable is None:
+            if target[0] == KIND_FILELOG:
+                msg = b"filelog need explicit value for `writable` parameter"
+                util.nouideprecwarn(msg, b'7.1')
+            self._writable = True
+        else:
+            self._writable = bool(writable)
         if feature_config is not None:
             self.feature_config = feature_config.copy()
         elif b'feature-config' in self.opener.options:
             self.feature_config = self.opener.options[b'feature-config'].copy()
         else:
-            self.feature_config = FeatureConfig()
+            self.feature_config = revlog_config.FeatureConfig()
         self.feature_config.censorable = censorable
         self.feature_config.canonical_parent_order = canonical_parent_order
         if data_config is not None:
@@ -1446,7 +1433,7 @@ class revlog:
         elif b'data-config' in self.opener.options:
             self.data_config = self.opener.options[b'data-config'].copy()
         else:
-            self.data_config = DataConfig()
+            self.data_config = revlog_config.DataConfig()
         self.data_config.check_ambig = checkambig
         self.data_config.mmap_large_index = mmaplargeindex
         if delta_config is not None:
@@ -1454,13 +1441,13 @@ class revlog:
         elif b'delta-config' in self.opener.options:
             self.delta_config = self.opener.options[b'delta-config'].copy()
         else:
-            self.delta_config = DeltaConfig()
+            self.delta_config = revlog_config.DeltaConfig()
         self.delta_config.upper_bound_comp = upperboundcomp
 
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
 
-        self.index: Optional[BaseIndexObject] = None
+        self.index: BaseIndexObject | None = None
         self._docket = None
         self._nodemap_docket = None
         # Mapping of partial identifiers to full nodes.
@@ -1508,6 +1495,13 @@ class revlog:
                 new_header |= FLAG_INLINE_DATA
             if b'generaldelta' in opts:
                 new_header |= FLAG_GENERALDELTA
+                if opts.get(b'delta-info-flags'):
+                    new_header |= FLAG_DELTA_INFO
+            if (
+                self.revlog_kind == KIND_FILELOG
+                and b'filelog_hasmeta_flag' in opts
+            ):
+                new_header |= FLAG_FILELOG_META
         elif b'revlogv0' in self.opener.options:
             new_header = REVLOGV0
         else:
@@ -1711,14 +1705,21 @@ class revlog:
                 raise error.RevlogError(msg)
 
             features = FEATURES_BY_VERSION[self._format_version]
-            self._inline = features[b'inline'](self._format_flags)
-            self.delta_config.general_delta = features[b'generaldelta'](
+            self._inline = features['inline'](self._format_flags)
+            self.delta_config.general_delta = features['generaldelta'](
+                self._format_flags
+            )
+            self.delta_config.delta_info = features['delta_info'](
                 self._format_flags
             )
             self.data_config.generaldelta = self.delta_config.general_delta
-            self.feature_config.has_side_data = features[b'sidedata']
+            self.data_config.delta_info = self.delta_config.delta_info
+            self.feature_config.has_side_data = features['sidedata']
+            self.feature_config.hasmeta_flag = features['hasmeta_flag'](
+                self._format_flags
+            )
 
-            if not features[b'docket']:
+            if not features['docket']:
                 self._indexfile = entry_point
                 index_data = entry_data
             else:
@@ -1795,7 +1796,10 @@ class revlog:
 
         if hasattr(self.opener, "fncache"):
             vfs = self.opener.vfs
-            if not self.opener.uses_dotencode:
+            if (
+                not self.opener.uses_dotencode
+                and not self.opener.uses_plain_encode
+            ):
                 use_rust_index = False
             if not isinstance(vfs, vfsmod.vfs):
                 # Be cautious since we don't support other vfs
@@ -1821,7 +1825,10 @@ class revlog:
         else:
             try:
                 d = self._parse_index(
-                    index_data, self._inline, self.delta_config.general_delta
+                    index_data,
+                    self._inline,
+                    self.delta_config.general_delta,
+                    self.delta_config.delta_info,
                 )
                 index, chunkcache = d
                 self._register_nodemap_info(index)
@@ -1873,6 +1880,7 @@ class revlog:
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
                 use_persistent_nodemap=self._nodemap_file is not None,
+                use_plain_encoding=self.opener.uses_plain_encode,
             )
             self.index = RustIndexProxy(self._inner)
             self._register_nodemap_info(self.index)
@@ -2141,7 +2149,7 @@ class revlog:
     def end(self, rev):
         return self.start(rev) + self.length(rev)
 
-    def parents(self, node):
+    def parents(self, node: NodeIdT) -> tuple[NodeIdT, NodeIdT]:
         i = self.index
         d = i[self.rev(node)]
         # inline node() to avoid function call overhead
@@ -2882,7 +2890,7 @@ class revlog:
         text = self._inner.raw_text(node, rev)
         return (rev, text, False)
 
-    def _revisiondata(self, nodeorrev, raw=False):
+    def _revisiondata(self, nodeorrev, raw=False, validate=True):
         # deal with <nodeorrev> argument type
         if isinstance(nodeorrev, int):
             rev = nodeorrev
@@ -2919,7 +2927,7 @@ class revlog:
         else:
             r = flagutil.processflagsread(self, rawtext, flags)
             text, validatehash = r
-        if validatehash:
+        if validate and validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
             self._inner._revisioncache = (node, rev, rawtext)
@@ -2935,9 +2943,14 @@ class revlog:
             sidedata_end = self._docket.sidedata_end
         return self._inner.sidedata(rev, sidedata_end)
 
-    def rawdata(self, nodeorrev):
-        """return an uncompressed raw data of a given node or revision number."""
-        return self._revisiondata(nodeorrev, raw=True)
+    def rawdata(self, nodeorrev, validate=True):
+        """return an uncompressed raw data of a given node or revision number.
+
+        The restored content will be typically have its content checked for
+        integrity.  If `validate` is set to False, this won't be the case
+        anymore.
+        """
+        return self._revisiondata(nodeorrev, raw=True, validate=validate)
 
     def hash(self, text, p1, p2):
         """Compute a node hash.
@@ -3091,6 +3104,10 @@ class revlog:
 
     @contextlib.contextmanager
     def _writing(self, transaction):
+        if not self._writable:
+            msg = b'try to write in a revlog marked as non-writable: %s'
+            msg %= self.display_id
+            util.nouideprecwarn(msg, b'7.1')
         if self._trypending:
             msg = b'try to write in a `trypending` revlog: %s'
             msg %= self.display_id
@@ -3132,7 +3149,7 @@ class revlog:
         link,
         p1,
         p2,
-        cachedelta=None,
+        cachedelta: revlogutils.CachedDelta | None = None,
         node=None,
         flags=REVIDX_DEFAULT_FLAGS,
         deltacomputer=None,
@@ -3212,7 +3229,7 @@ class revlog:
         p2,
         node,
         flags,
-        cachedelta=None,
+        cachedelta: revlogutils.CachedDelta | None = None,
         deltacomputer=None,
         sidedata=None,
     ):
@@ -3234,7 +3251,7 @@ class revlog:
                 sidedata=sidedata,
             )
 
-    def compress(self, data: bytes) -> Tuple[bytes, bytes]:
+    def compress(self, data: bytes) -> tuple[bytes, bytes]:
         return self._inner.compress(data)
 
     def decompress(self, data):
@@ -3249,7 +3266,7 @@ class revlog:
         p1,
         p2,
         flags,
-        cachedelta,
+        cachedelta: revlogutils.CachedDelta | None,
         alwayscache=False,
         deltacomputer=None,
         sidedata=None,
@@ -3282,8 +3299,6 @@ class revlog:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
 
-        btext = [rawtext]
-
         curr = len(self)
         prev = curr - 1
 
@@ -3310,11 +3325,12 @@ class revlog:
         # full versions are inserted when the needed deltas
         # become comparable to the uncompressed text
         if rawtext is None:
+            assert cachedelta is not None
             # need rawtext size, before changed by flag processors, which is
             # the non-raw size. use revlog explicitly to avoid filelog's extra
             # logic that might remove metadata size.
             textlen = mdiff.patchedsize(
-                revlog.size(self, cachedelta[0]), cachedelta[1]
+                revlog.size(self, cachedelta.base), cachedelta.delta
             )
         else:
             textlen = len(rawtext)
@@ -3327,7 +3343,7 @@ class revlog:
                 self, write_debug=write_debug
             )
 
-        if cachedelta is not None and len(cachedelta) == 2:
+        if cachedelta is not None and cachedelta.reuse_policy is None:
             # If the cached delta has no information about how it should be
             # reused, add the default reuse instruction according to the
             # revlog's configuration.
@@ -3338,13 +3354,13 @@ class revlog:
                 delta_base_reuse = DELTA_BASE_REUSE_TRY
             else:
                 delta_base_reuse = DELTA_BASE_REUSE_NO
-            cachedelta = (cachedelta[0], cachedelta[1], delta_base_reuse)
+            cachedelta.reuse_policy = delta_base_reuse
 
         revinfo = revlogutils.revisioninfo(
             node,
             p1,
             p2,
-            btext,
+            rawtext,
             textlen,
             cachedelta,
             flags,
@@ -3385,6 +3401,11 @@ class revlog:
             # we can easily detect empty sidedata and they will be no different
             # than ones we manually add.
             sidedata_offset = 0
+
+        # drop previouly existing flags
+        flags &= ~REVIDX_DELTA_IS_SNAPSHOT
+        if self.delta_config.delta_info and deltainfo.snapshotdepth is not None:
+            flags |= REVIDX_DELTA_IS_SNAPSHOT
 
         rank = RANK_UNKNOWN
         if self.feature_config.compute_rank:
@@ -3435,12 +3456,10 @@ class revlog:
             sidedata_offset,
         )
 
-        rawtext = btext[0]
-
-        if alwayscache and rawtext is None:
+        if alwayscache and revinfo.btext is None:
             rawtext = deltacomputer.buildtext(revinfo)
 
-        if type(rawtext) == bytes:  # only accept immutable objects
+        if type(rawtext) is bytes:  # only accept immutable objects
             self._inner._revisioncache = (node, curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
         return curr
@@ -3509,7 +3528,7 @@ class revlog:
 
     def addgroup(
         self,
-        deltas,
+        deltas: Iterator[revlogutils.InboundRevision],
         linkmapper,
         transaction,
         alwayscache=False,
@@ -3557,20 +3576,7 @@ class revlog:
                 )
                 # loop through our set of deltas
                 for data in deltas:
-                    (
-                        node,
-                        p1,
-                        p2,
-                        linknode,
-                        deltabase,
-                        delta,
-                        flags,
-                        sidedata,
-                    ) = data
-                    link = linkmapper(linknode)
-                    flags = flags or REVIDX_DEFAULT_FLAGS
-
-                    rev = self.index.get_rev(node)
+                    rev = self.index.get_rev(data.node)
                     if rev is not None:
                         # this can happen if two branches make the same change
                         self._nodeduplicatecallback(transaction, rev)
@@ -3579,33 +3585,38 @@ class revlog:
                         empty = False
                         continue
 
-                    for p in (p1, p2):
+                    for p in (data.p1, data.p2):
                         if not self.index.has_node(p):
                             raise error.LookupError(
                                 p, self.radix, _(b'unknown parent')
                             )
 
-                    if not self.index.has_node(deltabase):
+                    if not self.index.has_node(data.delta_base):
                         raise error.LookupError(
-                            deltabase, self.display_id, _(b'unknown delta base')
+                            data.delta_base,
+                            self.display_id,
+                            _(b'unknown delta base'),
                         )
 
-                    baserev = self.rev(deltabase)
+                    baserev = self.rev(data.delta_base)
 
                     if baserev != nullrev and self.iscensored(baserev):
                         # if base is censored, delta must be full replacement in a
                         # single patch operation
                         hlen = struct.calcsize(b">lll")
                         oldlen = self.rawsize(baserev)
-                        newlen = len(delta) - hlen
-                        if delta[:hlen] != mdiff.replacediffheader(
+                        newlen = len(data.delta) - hlen
+                        if data.delta[:hlen] != mdiff.replacediffheader(
                             oldlen, newlen
                         ):
                             raise error.CensoredBaseError(
                                 self.display_id, self.node(baserev)
                             )
 
-                    if not flags and self._peek_iscensored(baserev, delta):
+                    flags = data.flags or REVIDX_DEFAULT_FLAGS
+                    if not data.has_censor_flag and self._peek_iscensored(
+                        baserev, data.delta
+                    ):
                         flags |= REVIDX_ISCENSORED
 
                     # We assume consumers of addrevisioncb will want to retrieve
@@ -3616,17 +3627,24 @@ class revlog:
                     # generation so the revision data can always be handled as raw
                     # by the flagprocessor.
                     rev = self._addrevision(
-                        node,
-                        None,
+                        data.node,
+                        # raw text is usually None, but it might have been set
+                        # by some pre-processing/checking code.
+                        data.raw_text,
                         transaction,
-                        link,
-                        p1,
-                        p2,
+                        linkmapper(data.link_node),
+                        data.p1,
+                        data.p2,
                         flags,
-                        (baserev, delta, delta_base_reuse_policy),
+                        revlogutils.CachedDelta(
+                            baserev,
+                            data.delta,
+                            delta_base_reuse_policy,
+                            data.snapshot_level,
+                        ),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
-                        sidedata=sidedata,
+                        sidedata=data.sidedata,
                     )
 
                     if addrevisioncb:
@@ -3793,22 +3811,26 @@ class revlog:
         ):
             deltamode = repository.CG_DELTAMODE_FULL
 
-        return storageutil.emitrevisions(
-            self,
-            nodes,
-            nodesorder,
-            revlogrevisiondelta,
-            deltaparentfn=self.deltaparent,
-            candeltafn=self._candelta,
-            rawsizefn=self.rawsize,
-            revdifffn=self.revdiff,
-            flagsfn=self.flags,
-            deltamode=deltamode,
-            revisiondata=revisiondata,
-            assumehaveparentrevisions=assumehaveparentrevisions,
-            sidedata_helpers=sidedata_helpers,
-            debug_info=debug_info,
-        )
+        snaplvl = lambda r: self.snapshotdepth(r) if self.issnapshot(r) else -1
+
+        with self.reading():
+            return storageutil.emitrevisions(
+                self,
+                nodes,
+                nodesorder,
+                revlogrevisiondelta,
+                deltaparentfn=self.deltaparent,
+                candeltafn=self._candelta,
+                rawsizefn=self.rawsize,
+                revdifffn=self.revdiff,
+                flagsfn=self.flags,
+                deltamode=deltamode,
+                revisiondata=revisiondata,
+                assumehaveparentrevisions=assumehaveparentrevisions,
+                sidedata_helpers=sidedata_helpers,
+                debug_info=debug_info,
+                snap_lvl_fn=snaplvl,
+            )
 
     DELTAREUSEALWAYS = b'always'
     DELTAREUSESAMEREVS = b'samerevs'
@@ -3826,12 +3848,18 @@ class revlog:
         deltareuse=DELTAREUSESAMEREVS,
         forcedeltabothparents=None,
         sidedata_helpers=None,
+        hasmeta_change=None,
     ):
         """Copy this revlog to another, possibly with format changes.
 
         The destination revlog will contain the same revisions and nodes.
         However, it may not be bit-for-bit identical due to e.g. delta encoding
         differences.
+
+        The ``hasmeta_change`` argument can be used by filelog to signal change in the "hasmeta" flag usage:
+        - None means no changes,
+        - FILELOG_HASMETA_UPGRADE means the flag must be added when needed
+        - FILELOG_HASMETA_DOWNGRADE means the flag must be dropped and parent adjusted
 
         The ``deltareuse`` argument control how deltas from the existing revlog
         are preserved in the destination revlog. The argument can have the
@@ -3887,6 +3915,10 @@ class revlog:
         # lazydelta and lazydeltabase controls whether to reuse a cached delta,
         # if possible.
         old_delta_config = destrevlog.delta_config
+        # XXX Changing the deltaconfig of the revlog will not change the config
+        # XXX of the inner revlog and even less the config used by Rust, so this
+        # XXX overwrite will create problem as soon as the delta computation
+        # XXX move at a lower level.
         destrevlog.delta_config = destrevlog.delta_config.copy()
 
         try:
@@ -3913,6 +3945,7 @@ class revlog:
                     deltareuse,
                     forcedeltabothparents,
                     sidedata_helpers,
+                    hasmeta_change=hasmeta_change,
                 )
 
         finally:
@@ -3926,6 +3959,7 @@ class revlog:
         deltareuse,
         forcedeltabothparents,
         sidedata_helpers,
+        hasmeta_change,
     ):
         """perform the core duty of `revlog.clone` after parameter processing"""
         write_debug = None
@@ -3936,6 +3970,9 @@ class revlog:
             write_debug=write_debug,
         )
         index = self.index
+
+        has_meta_cache = {}
+
         for rev in self:
             entry = index[rev]
 
@@ -3946,6 +3983,52 @@ class revlog:
             p1 = index[entry[5]][7]
             p2 = index[entry[6]][7]
             node = entry[7]
+
+            if hasmeta_change == HM_DOWN and flags & REVIDX_HASMETA:
+                p1, p2 = p2, p1
+                flags &= ~REVIDX_HASMETA
+            if hasmeta_change == HM_UP:
+                delta = self._inner._chunk(rev)
+
+                delta_parent = self.deltaparent(rev)
+
+                has_base = delta_parent >= 0
+
+                hm = rewrite.delta_has_meta(delta, has_base)
+                if hm == rewrite.HM_META:
+                    rev_has_meta = True
+                elif hm == rewrite.HM_NO_META:
+                    rev_has_meta = False
+                elif (
+                    hm == rewrite.HM_INHERIT and delta_parent in has_meta_cache
+                ):
+                    rev_has_meta = has_meta_cache[delta_parent]
+                else:
+                    rev_has_meta = (
+                        self._revisiondata(
+                            rev,
+                            validate=False,
+                        )[:META_MARKER_SIZE]
+                        == META_MARKER
+                    )
+
+                has_meta_cache[rev] = rev_has_meta
+                if rev_has_meta:
+                    flags |= REVIDX_HASMETA
+                else:
+                    flags &= ~REVIDX_HASMETA
+
+                # We no longer use parent ordering as a trick, so order them
+                # back to something less surprising.
+                if p1 == nullrev and p2 != nullrev:
+                    p1, p2 = p2, p1
+
+            # We will let the encoding decide what is a snapshot
+            #
+            # The cached delta hold information about it being a snapshot, so
+            # that information will be preserved if the a cached delta for a
+            # snapshot is reused.
+            flags &= ~REVIDX_DELTA_IS_SNAPSHOT
 
             # (Possibly) reuse the delta from the revlog if allowed and
             # the revlog chunk is a delta.
@@ -3975,14 +4058,31 @@ class revlog:
                 )
             else:
                 if destrevlog.delta_config.lazy_delta:
+                    if (
+                        self.delta_config.general_delta
+                        and self.delta_config.lazy_delta_base
+                    ):
+                        delta_base_reuse = DELTA_BASE_REUSE_TRY
+                    else:
+                        delta_base_reuse = DELTA_BASE_REUSE_NO
+
+                    if self.issnapshot(rev):
+                        snapshotdepth = self.snapshotdepth(rev)
+                    else:
+                        snapshotdepth = -1
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
-                        cachedelta = (dp, bytes(self._inner._chunk(rev)))
+                        cachedelta = revlogutils.CachedDelta(
+                            dp,
+                            bytes(self._inner._chunk(rev)),
+                            delta_base_reuse,
+                            snapshotdepth,
+                        )
 
                 sidedata = None
-                if not cachedelta:
+                if cachedelta is None:
                     try:
-                        rawtext = self._revisiondata(rev)
+                        rawtext = self._revisiondata(rev, validate=False)
                     except error.CensoredNodeError as censored:
                         assert flags & REVIDX_ISCENSORED
                         rawtext = censored.tombstone

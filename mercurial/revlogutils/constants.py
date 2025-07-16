@@ -10,6 +10,12 @@
 from __future__ import annotations
 
 import struct
+import typing
+
+from typing import (
+    Callable,
+    TypedDict,
+)
 
 from ..interfaces import repository
 from .. import revlogutils
@@ -133,11 +139,20 @@ CHANGELOGV2 = 0xD34D
 FLAG_INLINE_DATA = 1 << 16
 # Only used by v1, implied by v2.
 FLAG_GENERALDELTA = 1 << 17
+
+# This filelog use a flag to signal metadata presence in a file revision
+FLAG_FILELOG_META = 1 << 18
+
+# snapshot delta should be explicitly marked as such
+FLAG_DELTA_INFO = 1 << 19
+
 REVLOG_DEFAULT_FLAGS = FLAG_INLINE_DATA
 REVLOG_DEFAULT_FORMAT = REVLOGV1
 REVLOG_DEFAULT_VERSION = REVLOG_DEFAULT_FORMAT | REVLOG_DEFAULT_FLAGS
 REVLOGV0_FLAGS = 0
-REVLOGV1_FLAGS = FLAG_INLINE_DATA | FLAG_GENERALDELTA
+REVLOGV1_FLAGS = (
+    FLAG_INLINE_DATA | FLAG_GENERALDELTA | FLAG_FILELOG_META | FLAG_DELTA_INFO
+)
 REVLOGV2_FLAGS = FLAG_INLINE_DATA
 CHANGELOGV2_FLAGS = 0
 
@@ -218,8 +233,15 @@ REVIDX_ISCENSORED = repository.REVISION_FLAG_CENSORED
 REVIDX_ELLIPSIS = repository.REVISION_FLAG_ELLIPSIS
 # revision data is stored externally
 REVIDX_EXTSTORED = repository.REVISION_FLAG_EXTSTORED
-# revision changes files in a way that could affect copy tracing.
+# changelog revision changes files in a way that could affect copy tracing.
 REVIDX_HASCOPIESINFO = repository.REVISION_FLAG_HASCOPIESINFO
+
+# filelog revision has metadata
+REVIDX_HASMETA = repository.FILEREVISION_FLAG_HASMETA
+
+# revision is stored as a snapshot-delta
+REVIDX_DELTA_IS_SNAPSHOT = repository.REVISION_FLAG_DELTA_IS_SNAPSHOT
+
 REVIDX_DEFAULT_FLAGS = 0
 # stable order in which flags need to be processed and their processors applied
 REVIDX_FLAGS_ORDER = [
@@ -227,6 +249,8 @@ REVIDX_FLAGS_ORDER = [
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
     REVIDX_HASCOPIESINFO,
+    REVIDX_HASMETA,
+    REVIDX_DELTA_IS_SNAPSHOT,
 ]
 
 # bitmark for flags that could cause rawdata content change
@@ -269,34 +293,54 @@ def _from_flag(flag):
     return lambda flags: bool(flags & flag)
 
 
-FEATURES_BY_VERSION = {
+if typing.TYPE_CHECKING:
+    _FromFlagsFnc = Callable[[int], bool]
+
+    class RevlogFeatures(TypedDict):
+        inline: _FromFlagsFnc
+        generaldelta: _FromFlagsFnc
+        hasmeta_flag: _FromFlagsFnc
+        sidedata: bool
+        docket: bool
+        delta_info: _FromFlagsFnc
+
+
+FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
     REVLOGV0: {
-        b'inline': _no,
-        b'generaldelta': _no,
-        b'sidedata': False,
-        b'docket': False,
+        'inline': _no,
+        'generaldelta': _no,
+        'hasmeta_flag': _no,
+        'delta_info': _no,
+        'sidedata': False,
+        'docket': False,
     },
     REVLOGV1: {
-        b'inline': _from_flag(FLAG_INLINE_DATA),
-        b'generaldelta': _from_flag(FLAG_GENERALDELTA),
-        b'sidedata': False,
-        b'docket': False,
+        'inline': _from_flag(FLAG_INLINE_DATA),
+        'generaldelta': _from_flag(FLAG_GENERALDELTA),
+        'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
+        'delta_info': _from_flag(FLAG_DELTA_INFO),
+        'sidedata': False,
+        'docket': False,
     },
     REVLOGV2: {
         # The point of inline-revlog is to reduce the number of files used in
         # the store. Using a docket defeat this purpose. So we needs other
         # means to reduce the number of files for revlogv2.
-        b'inline': _no,
-        b'generaldelta': _yes,
-        b'sidedata': True,
-        b'docket': True,
+        'inline': _no,
+        'generaldelta': _yes,
+        'hasmeta_flag': _no,  # Should become yes at some point
+        'delta_info': _no,  # XXX we should make that True at some point
+        'sidedata': True,
+        'docket': True,
     },
     CHANGELOGV2: {
-        b'inline': _no,
+        'inline': _no,
         # General delta is useless for changelog since we don't do any delta
-        b'generaldelta': _no,
-        b'sidedata': True,
-        b'docket': True,
+        'generaldelta': _no,
+        'hasmeta_flag': _no,  # Should become yes at some point
+        'delta_info': _no,
+        'sidedata': True,
+        'docket': True,
     },
 }
 
@@ -317,3 +361,11 @@ DELTA_BASE_REUSE_NO = 0
 # used when possible.
 DELTA_BASE_REUSE_TRY = 1
 DELTA_BASE_REUSE_FORCE = 2
+
+FILELOG_HASMETA_UPGRADE = 1
+FILELOG_HASMETA_DOWNGRADE = 2
+
+# metadata marker in stored content
+# (not strickly revlog related, but used most for revlog)
+META_MARKER = b'\x01\n'
+META_MARKER_SIZE = len(META_MARKER)

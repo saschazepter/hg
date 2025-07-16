@@ -3,8 +3,10 @@
 use core::str;
 use std::borrow::Cow;
 
-use crate::{errors::HgError, utils::strings::Escaped};
 use unicode_width::UnicodeWidthStr as _;
+
+use crate::errors::HgError;
+use crate::utils::strings::Escaped;
 
 /// String encoder and decoder.
 #[derive(Copy, Clone, Debug)]
@@ -96,11 +98,7 @@ impl Encoder {
                 )))
             }
         };
-        Ok(Self {
-            local_encoding,
-            decoding_mode,
-            ambiguous_width,
-        })
+        Ok(Self { local_encoding, decoding_mode, ambiguous_width })
     }
 
     /// Decodes an internal UTF-8 string from bytes.
@@ -219,7 +217,7 @@ mod tests {
         assert_eq!(encoder.decode_internal(b"\xc3\xa9").unwrap(), "é");
         match encoder.decode_internal(b"A\xc3") {
             Ok(_) => panic!("expected an error"),
-            Err(HgError::CorruptedRepository(message)) => {
+            Err(HgError::CorruptedRepository(message, ..)) => {
                 assert_eq!(message, "invalid UTF-8 at offset 1: \"A\\xc3\"")
             }
             Err(_) => panic!("expected a CorruptedRepository error"),
@@ -249,10 +247,8 @@ mod tests {
 
     #[test]
     fn test_from_local_replace() {
-        let encoder = Encoder {
-            decoding_mode: Mode::Replace,
-            ..Default::default()
-        };
+        let encoder =
+            Encoder { decoding_mode: Mode::Replace, ..Default::default() };
         assert_eq!(encoder.from_local(b"A\xc3").unwrap(), "A\u{fffd}");
     }
 
@@ -268,16 +264,12 @@ mod tests {
 
     #[test]
     fn test_column_width_ambiguous() {
-        let narrow_encoder = Encoder {
-            ambiguous_width: Width::Narrow,
-            ..Default::default()
-        };
+        let narrow_encoder =
+            Encoder { ambiguous_width: Width::Narrow, ..Default::default() };
         assert_eq!(narrow_encoder.column_width("\u{2606}"), 1);
 
-        let wide_encoder = Encoder {
-            ambiguous_width: Width::Wide,
-            ..Default::default()
-        };
+        let wide_encoder =
+            Encoder { ambiguous_width: Width::Wide, ..Default::default() };
         assert_eq!(wide_encoder.column_width("\u{2606}"), 2);
     }
 

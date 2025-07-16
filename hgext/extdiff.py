@@ -89,11 +89,6 @@ import shutil
 import stat
 import subprocess
 import typing
-from typing import (
-    List,
-    Optional,
-    Tuple,
-)
 
 from mercurial.i18n import _
 from mercurial.node import (
@@ -167,10 +162,10 @@ def snapshot(
     ui: uimod.ui,
     repo: localrepo.localrepository,
     files,
-    node: Optional[bytes],
+    node: bytes | None,
     tmproot: bytes,
     listsubrepos: bool,
-) -> Tuple[bytes, List[Tuple[bytes, bytes, os.stat_result]]]:
+) -> tuple[bytes, list[tuple[bytes, bytes, os.stat_result]]]:
     """snapshot files as of some revision
     if not using snapshot, -I/-X does not work and recursive diff
     in tools like kdiff3 and meld displays too many files."""

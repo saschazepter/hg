@@ -195,6 +195,13 @@ Race with a `hg commit`
   $ cp -a reference-repo race-with-commit
   $ cd race-with-commit
 
+  $ hg status
+  A dir/o
+  R dir/nested/m
+  ? dir/n
+  ? p
+  ? q
+
 spin a `hg status with some cache to update
 
   $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
@@ -205,12 +212,6 @@ spin a `hg status with some cache to update
 
 Add a do a commit
 
-  $ hg status
-  A dir/o
-  R dir/nested/m
-  ? dir/n
-  ? p
-  ? q
   $ hg $d2args commit -m 'racing commit'
   $ touch $TESTTMP/status-race-lock
   $ wait
@@ -253,15 +254,6 @@ Race with a `hg update`
   $ cp -a reference-repo race-with-update
   $ cd race-with-update
 
-spin a `hg status` with some caches to update
-
-  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
-  > --config rhg.on-unsupported=abort \
-  > --config ${cfg}=$TESTTMP/status-race-lock \
-  > &
-  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
-do an update
-
   $ hg status
   A dir/o
   R dir/nested/m
@@ -279,6 +271,16 @@ do an update
 (update destination)
   $ hg log -T '{node|short}\n' --rev ".~1"
   4f23db756b09
+
+spin a `hg status` with some caches to update
+
+  $ hg st >$TESTTMP/status-race-lock.out 2>$TESTTMP/status-race-lock.log \
+  > --config rhg.on-unsupported=abort \
+  > --config ${cfg}=$TESTTMP/status-race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/status-race-lock.waiting
+do an update
+
   $ hg $d2args update --merge ".~1"
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
   $ touch $TESTTMP/status-race-lock

@@ -13,11 +13,7 @@ import time
 
 from typing import (
     Callable,
-    Dict,
     Iterable,
-    Optional,
-    Tuple,
-    Union,
 )
 
 from ..i18n import _
@@ -30,14 +26,10 @@ from .. import (
 # keeps pyflakes happy
 assert [
     Callable,
-    Dict,
     Iterable,
-    Optional,
-    Tuple,
-    Union,
 ]
 
-hgdate = Tuple[float, int]  # (unixtime, offset)
+hgdate = tuple[float, int]  # (unixtime, offset)
 
 # used by parsedate
 defaultdateformats = (
@@ -82,7 +74,7 @@ extendeddateformats = defaultdateformats + (
 )
 
 
-def makedate(timestamp: Optional[float] = None) -> hgdate:
+def makedate(timestamp: float | None = None) -> hgdate:
     """Return a unix timestamp (or the current time) as a (unixtime,
     offset) tuple based off the local timezone.
 
@@ -134,7 +126,7 @@ def makedate(timestamp: Optional[float] = None) -> hgdate:
 
 
 def datestr(
-    date: Optional[hgdate] = None,
+    date: hgdate | None = None,
     format: bytes = b'%a %b %d %H:%M:%S %Y %1%2',
 ) -> bytes:
     """represent a (unixtime, offset) tuple as a localized time.
@@ -154,7 +146,7 @@ def datestr(
     """
     t, tz = date or makedate()
     if b"%1" in format or b"%2" in format or b"%z" in format:
-        sign = (tz > 0) and b"-" or b"+"
+        sign = b"-" if (tz > 0) else b"+"
         minutes = abs(tz) // 60
         q, r = divmod(minutes, 60)
         format = format.replace(b"%z", b"%1%2")
@@ -173,12 +165,12 @@ def datestr(
     return s
 
 
-def shortdate(date: Optional[hgdate] = None) -> bytes:
+def shortdate(date: hgdate | None = None) -> bytes:
     """turn (timestamp, tzoff) tuple into iso 8631 date."""
     return datestr(date, format=b'%Y-%m-%d')
 
 
-def parsetimezone(s: bytes) -> Tuple[Optional[int], bytes]:
+def parsetimezone(s: bytes) -> tuple[int | None, bytes]:
     """find a trailing timezone, if any, in string, and return a
     (offset, remainder) pair"""
     s = pycompat.bytestr(s)
@@ -188,7 +180,7 @@ def parsetimezone(s: bytes) -> Tuple[Optional[int], bytes]:
 
     # Unix-style timezones [+-]hhmm
     if len(s) >= 5 and s[-5] in b"+-" and s[-4:].isdigit():
-        sign = (s[-5] == b"+") and 1 or -1
+        sign = 1 if (s[-5] == b"+") else -1
         hours = int(s[-4:-2])
         minutes = int(s[-2:])
         return -sign * (hours * 60 + minutes) * 60, s[:-5].rstrip()
@@ -205,7 +197,7 @@ def parsetimezone(s: bytes) -> Tuple[Optional[int], bytes]:
         and s[-5:-3].isdigit()
         and s[-2:].isdigit()
     ):
-        sign = (s[-6] == b"+") and 1 or -1
+        sign = 1 if (s[-6] == b"+") else -1
         hours = int(s[-5:-3])
         minutes = int(s[-2:])
         return -sign * (hours * 60 + minutes) * 60, s[:-6]
@@ -216,7 +208,7 @@ def parsetimezone(s: bytes) -> Tuple[Optional[int], bytes]:
 def strdate(
     string: bytes,
     format: bytes,
-    defaults: Optional[Dict[bytes, Tuple[bytes, bytes]]] = None,
+    defaults: dict[bytes, tuple[bytes, bytes]] | None = None,
 ) -> hgdate:
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
@@ -260,9 +252,9 @@ def strdate(
 
 
 def parsedate(
-    date: Union[bytes, hgdate],
-    formats: Optional[Iterable[bytes]] = None,
-    bias: Optional[Dict[bytes, bytes]] = None,
+    date: bytes | hgdate,
+    formats: Iterable[bytes] | None = None,
+    bias: dict[bytes, bytes] | None = None,
 ) -> hgdate:
     """parse a localized date/time and return a (unixtime, offset) tuple.
 

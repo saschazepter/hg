@@ -8,13 +8,13 @@ from __future__ import annotations
 import stat
 
 from typing import (
-    Optional,
     TYPE_CHECKING,
-    Tuple,
 )
 
 from .i18n import _
-
+from .interfaces import (
+    misc as int_misc,
+)
 from . import (
     error,
     pathutil,
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     )
 
 parsers = policy.importmod('parsers')
-rustmod = policy.importrust('dirstate', pyo3=True)
+rustmod = policy.importrust('dirstate')
 
 propertycache = util.propertycache
 
@@ -68,10 +68,10 @@ class _dirstatemapcommon:
     _filename: bytes
     _nodelen: int
     _dirtyparents: bool
-    _docket: Optional[docketmod.DirstateDocket]
+    _docket: docketmod.DirstateDocket | None
     _write_mode: int
-    _pendingmode: Optional[bool]
-    identity: Optional[typelib.CacheStat]
+    _pendingmode: bool | None
+    identity: int_misc.ICacheStat | None
 
     # please pytype
 
@@ -110,7 +110,7 @@ class _dirstatemapcommon:
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
 
-    def _get_current_identity(self) -> Optional[typelib.CacheStat]:
+    def _get_current_identity(self) -> int_misc.ICacheStat | None:
         # TODO have a cleaner approach on httpstaticrepo side
         path = self._opener.join(self._filename)
         if path.startswith(b'https://') or path.startswith(b'http://'):
@@ -173,7 +173,7 @@ class _dirstatemapcommon:
     def _readdirstatefile(
         self,
         size: int = -1,
-    ) -> Tuple[Optional[typelib.CacheStat], bytes]:
+    ) -> tuple[int_misc.ICacheStat | None, bytes]:
         """read the content of the file used as "entry point" for the dirstate
 
         Return a (identity, data) tuple. The identity can be used for cache
@@ -487,7 +487,7 @@ class dirstatemap(_dirstatemapcommon):
         self._dirtyparents = False
 
     @propertycache
-    def identity(self) -> Optional[typelib.CacheStat]:
+    def identity(self) -> int_misc.ICacheStat | None:
         """A cache identifier for the state of the file as data were read
 
         This must always be set with the object returned from

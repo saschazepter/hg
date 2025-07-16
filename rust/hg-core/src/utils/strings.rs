@@ -1,9 +1,11 @@
 //! Contains string-related utilities.
 
+use std::cell::Cell;
+use std::fmt;
+use std::io::Write as _;
+use std::ops::Deref as _;
+
 use crate::utils::hg_path::HgPath;
-use lazy_static::lazy_static;
-use regex::bytes::Regex;
-use std::{borrow::Cow, cell::Cell, fmt, io::Write as _, ops::Deref as _};
 
 /// Useful until rust/issues/56345 is stable
 ///
@@ -20,36 +22,94 @@ pub fn find_slice_in_slice<T>(slice: &[T], needle: &[T]) -> Option<usize>
 where
     for<'a> &'a [T]: PartialEq,
 {
-    slice
-        .windows(needle.len())
-        .position(|window| window == needle)
+    slice.windows(needle.len()).position(|window| window == needle)
 }
 
 /// Replaces the `from` slice with the `to` slice inside the `buf` slice.
+/// `from` and `to` need to be of the exact same length, otherwise use
+/// [`replace_slice`].
+///
+/// # Panics
+///
+/// Panics if `from` and `to` have different lengths.
 ///
 /// # Examples
 ///
 /// ```
-/// use hg::utils::strings::replace_slice;
+/// use hg::utils::strings::replace_slice_exact;
+///
 /// let mut line = b"I hate writing tests!".to_vec();
-/// replace_slice(&mut line, b"hate", b"love");
+/// replace_slice_exact(&mut line, b"hate", b"love");
+///
 /// assert_eq!(
 ///     line,
 ///     b"I love writing tests!".to_vec()
 /// );
 /// ```
-pub fn replace_slice<T>(buf: &mut [T], from: &[T], to: &[T])
+///
+/// ```should_panic
+/// use hg::utils::strings::replace_slice_exact;
+///
+/// let mut line = b"I hate writing tests!".to_vec();
+/// replace_slice_exact(&mut line, b"hate", b"enjoy");
+/// ```
+pub fn replace_slice_exact<T>(buf: &mut [T], from: &[T], to: &[T])
 where
     T: Clone + PartialEq,
 {
-    if buf.len() < from.len() || from.len() != to.len() {
-        return;
-    }
+    assert_eq!(from.len(), to.len());
     for i in 0..=buf.len() - from.len() {
         if buf[i..].starts_with(from) {
             buf[i..(i + from.len())].clone_from_slice(to);
         }
     }
+}
+
+/// Replaces every `from` slice with the `to` slice from `source` and returns
+/// a [`Vec`].
+/// For cases where `from` and `to` are the same length, use
+/// [`replace_slice_exact`] for better performance.
+///
+/// # Examples
+///
+/// ```
+/// use hg::utils::strings::replace_slice;
+///
+/// let line = b"I hate writing tests!".to_vec();
+/// assert_eq!(
+///     replace_slice(&line, b"hate", b"love"),
+///     b"I love writing tests!".to_vec()
+/// );
+/// let line = b"I hate writing tests!".to_vec();
+/// assert_eq!(
+///     replace_slice(&line, b"hate", b"enjoy"),
+///     b"I enjoy writing tests!".to_vec()
+/// );
+/// let line = b"I hate writing tests!".to_vec();
+/// assert_eq!(
+///     replace_slice(&line, b"hate", b"am"),
+///     b"I am writing tests!".to_vec()
+/// );
+/// ```
+pub fn replace_slice<T>(source: &[T], from: &[T], to: &[T]) -> Vec<T>
+where
+    T: Clone + PartialEq,
+{
+    let mut result = source.to_vec();
+    let from_len = from.len();
+    let to_len = to.len();
+
+    let mut i = 0;
+    while i + from_len <= result.len() {
+        if result[i..].starts_with(from) {
+            result.splice(i..i + from_len, to.iter().cloned());
+            i += to_len;
+        } else {
+            i += 1;
+        }
+    }
+
+    result
 }
 
 pub trait SliceExt {
@@ -159,7 +219,7 @@ impl Escaped for u8 {
     }
 }
 
-impl<'a, T: Escaped> Escaped for &'a [T] {
+impl<T: Escaped> Escaped for &[T] {
     fn escaped_bytes(&self) -> Vec<u8> {
         self.iter().flat_map(Escaped::escaped_bytes).collect()
     }
@@ -171,7 +231,7 @@ impl<T: Escaped> Escaped for Vec<T> {
     }
 }
 
-impl<'a> Escaped for &'a HgPath {
+impl Escaped for &HgPath {
     fn escaped_bytes(&self) -> Vec<u8> {
         self.as_bytes().escaped_bytes()
     }
@@ -252,10 +312,7 @@ pub fn join_display(
     iter: impl IntoIterator<Item = impl fmt::Display>,
     separator: impl fmt::Display,
 ) -> impl fmt::Display {
-    JoinDisplay {
-        iter: Cell::new(Some(iter.into_iter())),
-        separator,
-    }
+    JoinDisplay { iter: Cell::new(Some(iter.into_iter())), separator }
 }
 
 struct JoinDisplay<I, S> {
@@ -304,8 +361,6 @@ pub fn short_user(user: &[u8]) -> &[u8] {
 /// Options for [`clean_whitespace`].
 #[derive(Copy, Clone)]
 pub enum CleanWhitespace {
-    /// Do nothing.
-    None,
     /// Remove whitespace at ends of lines.
     AtEol,
     /// Collapse consecutive whitespace characters into a single space.
@@ -315,38 +370,62 @@ pub enum CleanWhitespace {
 }
 
 /// Normalizes whitespace in text so that it won't apppear in diffs.
-/// Returns `Cow::Borrowed(text)` if the result is unchanged.
-pub fn clean_whitespace(text: &[u8], how: CleanWhitespace) -> Cow<[u8]> {
-    lazy_static! {
-        // To match wsclean in mdiff.py, this includes "\f".
-        static ref AT_EOL: Regex =
-            Regex::new(r"(?m)[ \t\r\f]+$").expect("valid regex");
-        // To match fixws in cext/bdiff.c, this does *not* include "\f".
-        static ref MULTIPLE: Regex =
-            Regex::new(r"[ \t\r]+").expect("valid regex");
-    }
-    let replacement: &[u8] = match how {
-        CleanWhitespace::None => return Cow::Borrowed(text),
-        CleanWhitespace::AtEol => return AT_EOL.replace_all(text, b""),
-        CleanWhitespace::Collapse => b" ",
-        CleanWhitespace::All => b"",
-    };
-    let text = MULTIPLE.replace_all(text, replacement);
-    replace_all_cow(&AT_EOL, text, b"")
-}
-
-/// Helper to call [`Regex::replace_all`] with `Cow` as input and output.
-fn replace_all_cow<'a>(
-    regex: &Regex,
-    haystack: Cow<'a, [u8]>,
-    replacement: &[u8],
-) -> Cow<'a, [u8]> {
-    match haystack {
-        Cow::Borrowed(haystack) => regex.replace_all(haystack, replacement),
-        Cow::Owned(haystack) => {
-            Cow::Owned(regex.replace_all(&haystack, replacement).into_owned())
+pub fn clean_whitespace(text: &mut Vec<u8>, how: CleanWhitespace) {
+    // We copy text[i] to text[w], where w advances more slowly than i.
+    let mut w = 0;
+    match how {
+        // To match wsclean in mdiff.py, this removes "\f" (0xC).
+        CleanWhitespace::AtEol => {
+            let mut newline_dest = 0;
+            for i in 0..text.len() {
+                let char = text[i];
+                match char {
+                    b' ' | b'\t' | b'\r' | 0xC => {}
+                    _ => {
+                        if char == b'\n' {
+                            w = newline_dest;
+                        }
+                        newline_dest = w + 1;
+                    }
+                }
+                text[w] = char;
+                w += 1;
+            }
+        }
+        // To match fixws in cext/bdiff.c, CleanWhitespace::Collapse and
+        // CleanWhitespace::All do *not* remove "\f".
+        CleanWhitespace::Collapse => {
+            for i in 0..text.len() {
+                match text[i] {
+                    b' ' | b'\t' | b'\r' => {
+                        if w == 0 || text[w - 1] != b' ' {
+                            text[w] = b' ';
+                            w += 1;
+                        }
+                    }
+                    b'\n' if w > 0 && text[w - 1] == b' ' => {
+                        text[w - 1] = b'\n';
+                    }
+                    char => {
+                        text[w] = char;
+                        w += 1;
+                    }
+                }
+            }
+        }
+        CleanWhitespace::All => {
+            for i in 0..text.len() {
+                match text[i] {
+                    b' ' | b'\t' | b'\r' => {}
+                    char => {
+                        text[w] = char;
+                        w += 1;
+                    }
+                }
+            }
         }
     }
+    text.truncate(w);
 }
 
 #[cfg(test)]
@@ -377,5 +456,58 @@ mod tests {
         assert_eq!(short_user(b"First Last"), b"First");
         assert_eq!(short_user(b"First Last <user@example.com>"), b"user");
         assert_eq!(short_user(b"First Last <user.name@example.com>"), b"user");
+    }
+
+    fn clean_ws(text: &[u8], how: CleanWhitespace) -> Vec<u8> {
+        let mut vec = text.to_vec();
+        clean_whitespace(&mut vec, how);
+        vec
+    }
+
+    #[test]
+    fn test_clean_whitespace_at_eol() {
+        // To match wsclean in mdiff.py, CleanWhitespace::AtEol only removes
+        // the final line's trailing whitespace if it ends in \n.
+        use CleanWhitespace::AtEol;
+        assert_eq!(clean_ws(b"", AtEol), b"");
+        assert_eq!(clean_ws(b" ", AtEol), b" ");
+        assert_eq!(clean_ws(b"  ", AtEol), b"  ");
+        assert_eq!(clean_ws(b"A", AtEol), b"A");
+        assert_eq!(clean_ws(b"\n\n\n", AtEol), b"\n\n\n");
+        assert_eq!(clean_ws(b" \n", AtEol), b"\n");
+        assert_eq!(clean_ws(b"A \n", AtEol), b"A\n");
+        assert_eq!(clean_ws(b"A B  C\t\r\n", AtEol), b"A B  C\n");
+        assert_eq!(clean_ws(b"A \tB  C\r\nD  ", AtEol), b"A \tB  C\nD  ");
+        assert_eq!(clean_ws(b"A\x0CB\x0C\n", AtEol), b"A\x0CB\n");
+    }
+
+    #[test]
+    fn test_clean_whitespace_collapse() {
+        use CleanWhitespace::Collapse;
+        assert_eq!(clean_ws(b"", Collapse), b"");
+        assert_eq!(clean_ws(b" ", Collapse), b" ");
+        assert_eq!(clean_ws(b"  ", Collapse), b" ");
+        assert_eq!(clean_ws(b"A", Collapse), b"A");
+        assert_eq!(clean_ws(b"\n\n\n", Collapse), b"\n\n\n");
+        assert_eq!(clean_ws(b" \n", Collapse), b"\n");
+        assert_eq!(clean_ws(b"A \n", Collapse), b"A\n");
+        assert_eq!(clean_ws(b"A B  C\t\r\n", Collapse), b"A B C\n");
+        assert_eq!(clean_ws(b"A \tB  C\r\nD  ", Collapse), b"A B C\nD ");
+        assert_eq!(clean_ws(b"A\x0CB\x0C\n", Collapse), b"A\x0CB\x0C\n");
+    }
+
+    #[test]
+    fn test_clean_whitespace_all() {
+        use CleanWhitespace::All;
+        assert_eq!(clean_ws(b"", All), b"");
+        assert_eq!(clean_ws(b" ", All), b"");
+        assert_eq!(clean_ws(b"  ", All), b"");
+        assert_eq!(clean_ws(b"A", All), b"A");
+        assert_eq!(clean_ws(b"\n\n\n", All), b"\n\n\n");
+        assert_eq!(clean_ws(b" \n", All), b"\n");
+        assert_eq!(clean_ws(b"A \n", All), b"A\n");
+        assert_eq!(clean_ws(b"A B  C\t\r\n", All), b"ABC\n");
+        assert_eq!(clean_ws(b"A \tB  C\r\nD  ", All), b"ABC\nD");
+        assert_eq!(clean_ws(b"A\x0CB\x0C\n", All), b"A\x0CB\x0C\n");
     }
 }

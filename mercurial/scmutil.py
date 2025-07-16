@@ -19,13 +19,8 @@ import weakref
 
 from typing import (
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
 )
 
 from .i18n import _
@@ -64,7 +59,10 @@ from . import (
     vfs,
 )
 
-from .interfaces import status as istatus
+from .interfaces import (
+    misc as int_misc,
+    status as istatus,
+)
 
 from .utils import (
     hashutil,
@@ -81,9 +79,14 @@ if typing.TYPE_CHECKING:
     from . import (
         ui as uimod,
     )
+    from .interfaces.types import (
+        LocalRepoMainT,
+        MatcherT,
+        RevsetAliasesT,
+    )
 
 parsers = policy.importmod('parsers')
-rustrevlog = policy.importrust('revlog', pyo3=True)
+rustrevlog = policy.importrust('revlog')
 
 termsize = scmplatform.termsize
 
@@ -96,15 +99,15 @@ class status(istatus.Status):
     relevant to the working copy.
     """
 
-    modified = attr.ib(default=attr.Factory(list), type=List[bytes])
-    added = attr.ib(default=attr.Factory(list), type=List[bytes])
-    removed = attr.ib(default=attr.Factory(list), type=List[bytes])
-    deleted = attr.ib(default=attr.Factory(list), type=List[bytes])
-    unknown = attr.ib(default=attr.Factory(list), type=List[bytes])
-    ignored = attr.ib(default=attr.Factory(list), type=List[bytes])
-    clean = attr.ib(default=attr.Factory(list), type=List[bytes])
+    modified = attr.ib(default=attr.Factory(list), type=list[bytes])
+    added = attr.ib(default=attr.Factory(list), type=list[bytes])
+    removed = attr.ib(default=attr.Factory(list), type=list[bytes])
+    deleted = attr.ib(default=attr.Factory(list), type=list[bytes])
+    unknown = attr.ib(default=attr.Factory(list), type=list[bytes])
+    ignored = attr.ib(default=attr.Factory(list), type=list[bytes])
+    clean = attr.ib(default=attr.Factory(list), type=list[bytes])
 
-    def __iter__(self) -> Iterator[List[bytes]]:
+    def __iter__(self) -> Iterator[list[bytes]]:
         yield self.modified
         yield self.added
         yield self.removed
@@ -336,7 +339,7 @@ def checkportable(ui: uimod.ui, f: bytes) -> None:
             ui.warn(_(b"warning: %s\n") % msg)
 
 
-def checkportabilityalert(ui: uimod.ui) -> Tuple[bool, bool]:
+def checkportabilityalert(ui: uimod.ui) -> tuple[bool, bool]:
     """check if the user's config requests nothing, a warning, or abort for
     non-portable filenames"""
     val = ui.config(b'ui', b'portablefilenames')
@@ -470,7 +473,7 @@ def _hash_revs(revs: Iterable[int]) -> bytes:
 def walkrepos(
     path,
     followsym: bool = False,
-    seen_dirs: Optional[List[bytes]] = None,
+    seen_dirs: list[bytes] | None = None,
     recurse: bool = False,
 ) -> Iterable[bytes]:
     """yield every hg repository under path, always recursively.
@@ -782,9 +785,16 @@ def _filterederror(repo, changeid: bytes) -> error.FilteredRepoLookupError:
     return error.FilteredRepoLookupError(msg)
 
 
-def revsingle(repo, revspec, default=b'.', localalias=None):
+def revsingle(
+    repo: LocalRepoMainT,
+    revspec: bytes | int | None,
+    default: bytes | None = b'.',
+    localalias: RevsetAliasesT | None = None,
+):
     if not revspec and revspec != 0:
         return repo[default]
+
+    assert revspec is not None  # help pytype
 
     l = revrange(repo, [revspec], localalias=localalias)
     if not l:
@@ -828,7 +838,11 @@ def revpair(repo, revs):
     return repo[first], repo[second]
 
 
-def revrange(repo, specs, localalias=None):
+def revrange(
+    repo: LocalRepoMainT,
+    specs: Iterable[bytes | int],
+    localalias: RevsetAliasesT | None = None,
+):
     """Execute 1 to many revsets and return the union.
 
     This is the preferred mechanism for executing revsets using user-specified
@@ -928,7 +942,7 @@ def meaningfulparents(repo, ctx):
 def getuipathfn(
     repo,
     legacyrelativevalue: bool = False,
-    forcerelativevalue: Optional[bool] = None,
+    forcerelativevalue: bool | None = None,
 ) -> typelib.UiPathFn:
     """Return a function that produced paths for presenting to the user.
 
@@ -985,7 +999,7 @@ def anypats(pats, opts) -> bool:
     return bool(pats or opts.get(b'include') or opts.get(b'exclude'))
 
 
-def expandpats(pats: Iterable[bytes]) -> List[bytes]:
+def expandpats(pats: Iterable[bytes]) -> list[bytes]:
     """Expand bare globs when running on windows.
     On posix we assume it already has already been done by sh."""
     if not util.expandglobs:
@@ -1060,7 +1074,7 @@ def matchall(repo):
     return matchmod.always()
 
 
-def matchfiles(repo, files, badfn=None) -> matchmod.exactmatcher:
+def matchfiles(repo, files, badfn=None) -> MatcherT:
     '''Return a matcher that will efficiently match exactly these files.'''
     return matchmod.exact(files, badfn=badfn)
 
@@ -1435,7 +1449,7 @@ def marktouched(repo, files, similarity: float = 0.0) -> int:
 
 def _interestingfiles(
     repo, matcher
-) -> Tuple[List[bytes], List[bytes], List[bytes], List[bytes], List[bytes]]:
+) -> tuple[list[bytes], list[bytes], list[bytes], list[bytes], list[bytes]]:
     """Walk dirstate with matcher, looking for files that addremove would care
     about.
 
@@ -1473,7 +1487,7 @@ def _interestingfiles(
 
 def _findrenames(
     repo, matcher, added, removed, similarity, uipathfn: typelib.UiPathFn
-) -> Dict[bytes, bytes]:
+) -> dict[bytes, bytes]:
     '''Find renames from removed files to added ones.'''
     renames = {}
     if similarity > 0:
@@ -1586,7 +1600,7 @@ def dirstatecopy(
     src,
     dst,
     dryrun: bool = False,
-    cwd: Optional[bytes] = None,
+    cwd: bytes | None = None,
 ) -> None:
     """Update the dirstate to reflect the intent of copying src to dst. For
     different reasons it might not end with dst being marked as copied from src.
@@ -1715,7 +1729,7 @@ def writerequires(opener, requirements, maywrite=True) -> None:
 
 
 class filecachesubentry:
-    _cacheable: Optional[bool] = None
+    _cacheable: bool | None = None
 
     def __init__(self, path, stat: bool):
         self.path = path
@@ -1764,7 +1778,7 @@ class filecachesubentry:
             return False
 
     @staticmethod
-    def stat(path: bytes) -> Optional[typelib.CacheStat]:
+    def stat(path: bytes) -> int_misc.ICacheStat | None:
         # TODO have a cleaner approach on httpstaticrepo side
         if path.startswith(b'https://') or path.startswith(b'http://'):
             return util.uncacheable_cachestat()
@@ -1818,7 +1832,7 @@ class filecache:
     remove the ``filecacheentry``.
     """
 
-    paths: Tuple[bytes, ...]
+    paths: tuple[bytes, ...]
 
     def __init__(self, *paths: bytes) -> None:
         self.paths = paths
@@ -1957,10 +1971,10 @@ def extdatasource(repo, source: bytes):
 
 class progress:
     ui: uimod.ui
-    pos: Optional[int]  # None once complete
+    pos: int | None  # None once complete
     topic: bytes
     unit: bytes
-    total: Optional[int]
+    total: int | None
     debug: bool
 
     def __init__(
@@ -1969,7 +1983,7 @@ class progress:
         updatebar,
         topic: bytes,
         unit: bytes = b"",
-        total: Optional[int] = None,
+        total: int | None = None,
     ) -> None:
         self.ui = ui
         self.pos = 0
@@ -1986,7 +2000,7 @@ class progress:
         self.complete()
 
     def update(
-        self, pos: int, item: bytes = b"", total: Optional[int] = None
+        self, pos: int, item: bytes = b"", total: int | None = None
     ) -> None:
         assert pos is not None
         if total:
@@ -1997,7 +2011,7 @@ class progress:
             self._printdebug(item)
 
     def increment(
-        self, step: int = 1, item: bytes = b"", total: Optional[int] = None
+        self, step: int = 1, item: bytes = b"", total: int | None = None
     ) -> None:
         self.update(self.pos + step, item, total)
 
@@ -2029,6 +2043,14 @@ def gdinitconfig(ui: uimod.ui):
     # experimental config: format.generaldelta
     return ui.configbool(b'format', b'generaldelta') or ui.configbool(
         b'format', b'usegeneraldelta'
+    )
+
+
+def explicit_gd_config(ui: uimod.ui):
+    """return True if the general delta config is explicitly set"""
+    # experimental config: format.generaldelta
+    return (ui.config_is_set(b'format', b'generaldelta')) or (
+        ui.config_is_set(b'format', b'usegeneraldelta')
     )
 
 
@@ -2086,7 +2108,7 @@ class simplekeyvaluefile:
             raise error.CorruptedState(stringutil.forcebytestr(e))
         return d
 
-    def write(self, data, firstline: Optional[bytes] = None) -> None:
+    def write(self, data, firstline: bytes | None = None) -> None:
         """Write key=>value mapping to a file
         data is a dict. Keys must be alphanumerical and start with a letter.
         Values must not contain newline characters.
@@ -2115,7 +2137,7 @@ class simplekeyvaluefile:
             fp.write(b''.join(lines))
 
 
-_reportobsoletedsource: List[bytes] = [
+_reportobsoletedsource: list[bytes] = [
     b'debugobsolete',
     b'pull',
     b'push',
@@ -2123,7 +2145,7 @@ _reportobsoletedsource: List[bytes] = [
     b'unbundle',
 ]
 
-_reportnewcssource: List[bytes] = [
+_reportnewcssource: list[bytes] = [
     b'pull',
     b'unbundle',
 ]
@@ -2334,7 +2356,7 @@ def registersummarycallback(
             repo.ui.status(msg % len(published))
 
 
-def getinstabilitymessage(delta: int, instability: bytes) -> Optional[bytes]:
+def getinstabilitymessage(delta: int, instability: bytes) -> bytes | None:
     """function to return the message to show warning about new instabilities
 
     exists as a separate function so that extension can wrap to show more
@@ -2428,7 +2450,7 @@ def unhidehashlikerevs(repo, specs, hiddentype: bytes):
     return repo.filtered(b'visible-hidden', revs)
 
 
-def _getrevsfromsymbols(repo, symbols) -> Set[int]:
+def _getrevsfromsymbols(repo, symbols) -> set[int]:
     """parse the list of symbols and returns a set of revision numbers of hidden
     changesets present in symbols"""
     revs = set()
@@ -2485,7 +2507,7 @@ def format_bookmark_revspec(mark: bytes) -> bytes:
     )
 
 
-def ismember(ui: uimod.ui, username: bytes, userlist: List[bytes]) -> bool:
+def ismember(ui: uimod.ui, username: bytes, userlist: list[bytes]) -> bool:
     """Check if username is a member of userlist.
 
     If userlist has a single '*' member, all users are considered members.
@@ -2499,7 +2521,7 @@ RESOURCE_HIGH: int = 3
 RESOURCE_MEDIUM: int = 2
 RESOURCE_LOW: int = 1
 
-RESOURCE_MAPPING: Dict[bytes, int] = {
+RESOURCE_MAPPING: dict[bytes, int] = {
     b'low': RESOURCE_LOW,
     b'medium': RESOURCE_MEDIUM,
     b'high': RESOURCE_HIGH,
@@ -2508,9 +2530,7 @@ RESOURCE_MAPPING: Dict[bytes, int] = {
 DEFAULT_RESOURCE: int = RESOURCE_MEDIUM
 
 
-def get_resource_profile(
-    ui: uimod.ui, dimension: Optional[bytes] = None
-) -> int:
+def get_resource_profile(ui: uimod.ui, dimension: bytes | None = None) -> int:
     """return the resource profile for a dimension
 
     If no dimension is specified, the generic value is returned"""

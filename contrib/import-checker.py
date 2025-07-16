@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 import ast
 import collections
@@ -21,6 +22,7 @@ allowsymbolimports = (
     'breezy',
     'concurrent',
     'hgclient',
+    'packaging.version',
     'mercurial',
     'mercurial.hgweb.common',
     'mercurial.hgweb.request',
@@ -231,8 +233,6 @@ def list_stdlib_modules():
     yield from ['fcntl', 'grp', 'pwd', 'select', 'termios']
     yield from ['cPickle', 'datetime']
     yield from ['cffi']
-    yield 'distutils'  # in Python < 3.12
-    yield 'distutils.version'  # in Python < 3.12
     stdlib_prefixes = {sys.prefix, sys.exec_prefix}
     # We need to supplement the list of prefixes for the search to work
     # when run from within a virtualenv.

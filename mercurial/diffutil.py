@@ -13,8 +13,6 @@ import typing
 
 from typing import (
     Any,
-    Dict,
-    Optional,
 )
 
 from .i18n import _
@@ -29,12 +27,12 @@ if typing.TYPE_CHECKING:
     from . import ui as uimod
 
 # TODO: narrow the value after the config module is typed
-_Opts = Dict[bytes, Any]
+_Opts = dict[bytes, Any]
 
 
 def diffallopts(
     ui: uimod.ui,
-    opts: Optional[_Opts] = None,
+    opts: _Opts | None = None,
     untrusted: bool = False,
     section: bytes = b'diff',
     configprefix: bytes = b'',
@@ -54,7 +52,7 @@ def diffallopts(
 
 def difffeatureopts(
     ui: uimod.ui,
-    opts: Optional[_Opts] = None,
+    opts: _Opts | None = None,
     untrusted: bool = False,
     section: bytes = b'diff',
     git: bool = False,
@@ -73,9 +71,9 @@ def difffeatureopts(
 
     def get(
         key: bytes,
-        name: Optional[bytes] = None,
+        name: bytes | None = None,
         getter=ui.configbool,
-        forceplain: Optional[bool] = None,
+        forceplain: bool | None = None,
     ) -> Any:
         if opts:
             v = opts.get(key)

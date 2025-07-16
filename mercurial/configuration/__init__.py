@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from typing import (
-    List,
-    Tuple,
     Union,
 )
 
@@ -32,14 +30,14 @@ NO_REPO_EDIT_LEVELS = (
     LEVEL_GLOBAL,
 )
 
-ConfigItemT = Tuple[bytes, bytes, bytes, bytes]
-ResourceIDT = Tuple[bytes, bytes]
+ConfigItemT = tuple[bytes, bytes, bytes, bytes]
+ResourceIDT = tuple[bytes, bytes]
 FileRCT = bytes
-ComponentT = Tuple[
+ComponentT = tuple[
     ConfigLevelT,
     bytes,
     Union[
-        List[ConfigItemT],
+        list[ConfigItemT],
         FileRCT,
         ResourceIDT,
     ],

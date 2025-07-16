@@ -7,11 +7,6 @@ import os
 import sys
 import typing
 
-from typing import (
-    List,
-    Tuple,
-)
-
 from . import (
     encoding,
     pycompat,
@@ -28,7 +23,7 @@ if typing.TYPE_CHECKING:
 fallbackpager = b'less'
 
 
-def _rcfiles(path: bytes) -> List[bytes]:
+def _rcfiles(path: bytes) -> list[bytes]:
     rcs = [os.path.join(path, b'hgrc')]
     rcdir = os.path.join(path, b'hgrc.d')
     try:
@@ -44,7 +39,7 @@ def _rcfiles(path: bytes) -> List[bytes]:
     return rcs
 
 
-def systemrcpath() -> List[bytes]:
+def systemrcpath() -> list[bytes]:
     path = []
     if pycompat.sysplatform == b'plan9':
         root = b'lib/mercurial'
@@ -59,7 +54,7 @@ def systemrcpath() -> List[bytes]:
     return path
 
 
-def userrcpath() -> List[bytes]:
+def userrcpath() -> list[bytes]:
     if pycompat.sysplatform == b'plan9':
         return [encoding.environ[b'home'] + b'/lib/hgrc']
     else:
@@ -73,7 +68,7 @@ def userrcpath() -> List[bytes]:
         ]
 
 
-def termsize(ui: uimod.ui) -> Tuple[int, int]:
+def termsize(ui: uimod.ui) -> tuple[int, int]:
     try:
         import termios
 

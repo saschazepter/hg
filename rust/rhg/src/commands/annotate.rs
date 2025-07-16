@@ -1,18 +1,33 @@
 use core::str;
-use std::{collections::hash_map::Entry, ffi::OsString};
+use std::cell::Ref;
+use std::collections::hash_map::Entry;
+use std::ffi::OsString;
 
+use chrono::DateTime;
+use chrono::FixedOffset;
+use chrono::Local;
 use format_bytes::format_bytes;
-use hg::{
-    encoding::Encoder,
-    operations::{
-        annotate, AnnotateOptions, AnnotateOutput, ChangesetAnnotation,
-    },
-    revlog::changelog::Changelog,
-    utils::strings::CleanWhitespace,
-    FastHashMap, Revision,
-};
+use hg::encoding::Encoder;
+use hg::errors::HgError;
+use hg::errors::IoResultExt as _;
+use hg::operations::annotate;
+use hg::operations::AnnotateOptions;
+use hg::operations::AnnotateOutput;
+use hg::operations::ChangesetAnnotatedFile;
+use hg::repo::Repo;
+use hg::revlog::changelog::Changelog;
+use hg::revlog::RevisionOrWdir;
+use hg::utils::hg_path::HgPath;
+use hg::utils::strings::CleanWhitespace;
+use hg::FastHashMap;
+use hg::Node;
+use hg::Revision;
+use hg::WORKING_DIRECTORY_HEX;
+use hg::WORKING_DIRECTORY_REVISION;
 
-use crate::{error::CommandError, utils::path_utils::resolve_file_args};
+use crate::error::CommandError;
+use crate::ui::StdoutBuffer;
+use crate::utils::path_utils::resolve_file_args;
 
 pub const HELP_TEXT: &str = "
 show changeset information by line for each file
@@ -38,10 +53,19 @@ pub fn args() -> clap::Command {
                 .default_value("."),
         )
         .arg(
+            clap::Arg::new("follow")
+                .help(
+                    "follow copies/renames and list the filename (DEPRECATED)",
+                )
+                .long("follow")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
             clap::Arg::new("no-follow")
                 .help("don't follow copies and renames")
                 .long("no-follow")
-                .action(clap::ArgAction::SetTrue),
+                .action(clap::ArgAction::SetTrue)
+                .conflicts_with("follow"),
         )
         .arg(
             clap::Arg::new("text")
@@ -135,9 +159,16 @@ pub fn args() -> clap::Command {
                 .long("ignore-space-at-eol")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            clap::Arg::new("template")
+                .help("display with template")
+                .short('T')
+                .long("template"),
+        )
         .about(HELP_TEXT)
 }
 
+#[tracing::instrument(level = "debug", skip_all, name = "rhg annotate")]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let config = invocation.config;
     if config.has_non_empty_section(b"annotate") {
@@ -161,15 +192,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         treat_binary_as_text: args.get_flag("text"),
         follow_copies: !args.get_flag("no-follow"),
         whitespace: if args.get_flag("ignore-all-space") {
-            CleanWhitespace::All
+            Some(CleanWhitespace::All)
         } else if args.get_flag("ignore-space-change") {
-            CleanWhitespace::Collapse
+            Some(CleanWhitespace::Collapse)
         } else if args.get_flag("ignore-space-at-eol") {
-            CleanWhitespace::AtEol
+            Some(CleanWhitespace::AtEol)
         } else {
             // We ignore the --ignore-blank-lines flag (present for consistency
             // with other commands) since it has no effect on annotate.
-            CleanWhitespace::None
+            None
         },
     };
 
@@ -178,7 +209,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         number: args.get_flag("number"),
         changeset: args.get_flag("changeset"),
         date: args.get_flag("date"),
-        file: args.get_flag("file"),
+        file: args.get_flag("file") || args.get_flag("follow"),
         line_number: args.get_flag("line-number"),
     };
     if !(include.user || include.file || include.date || include.changeset) {
@@ -186,7 +217,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     }
     if include.line_number && !(include.number || include.changeset) {
         return Err(CommandError::abort(
-            "at least one of -n/-c is required for -l",
+            "abort: at least one of -n/-c is required for -l",
         ));
     }
 
@@ -197,57 +228,43 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         (true, true) => unreachable!(),
     };
 
-    let changelog = repo.changelog()?;
-    let mut formatter = Formatter::new(
-        &changelog,
-        invocation.ui.encoder(),
-        include,
-        verbosity,
-    );
-    let mut stdout = invocation.ui.stdout_buffer();
-    for path in files {
-        match annotate(repo, &path, rev, options)? {
-            AnnotateOutput::Text(text) => {
-                let annotations = formatter.format(text.annotations)?;
-                for (annotation, line) in annotations.iter().zip(&text.lines) {
-                    stdout.write_all(&format_bytes!(
-                        b"{}: {}", annotation, line
-                    ))?;
-                }
-                if let Some(line) = text.lines.last() {
-                    if !line.ends_with(b"\n") {
-                        stdout.write_all(b"\n")?;
-                    }
-                }
-            }
-            AnnotateOutput::Binary => {
-                stdout.write_all(&format_bytes!(
-                    b"{}: binary file\n",
-                    path.as_bytes()
-                ))?;
-            }
-            AnnotateOutput::NotFound => {
-                let short = changelog.node_from_rev(rev).short();
-                return Err(CommandError::abort(format!(
-                    "{path}: no such file in rev {short:x}",
-                )));
-            }
+    let template = match args.get_one::<String>("template") {
+        None => Template::Default,
+        Some(name) if name == "json" => Template::Json,
+        _ => {
+            return Err(CommandError::unsupported("only -Tjson is suppported"))
         }
-    }
-    stdout.flush()?;
+    };
 
-    Ok(())
+    let wdir_config = if rev.is_wdir() {
+        let user = config.username()?;
+        Some(WdirConfig { user })
+    } else {
+        None
+    };
+
+    let format_config =
+        FormatConfig { template, include, verbosity, wdir_config };
+
+    let file_results = files.iter().map(|path| -> FileResult {
+        (path.as_ref(), annotate(repo, path, rev, options))
+    });
+
+    print_output(repo, invocation.ui, &format_config, rev, file_results)
 }
 
-struct Formatter<'a> {
-    changelog: &'a Changelog,
-    encoder: &'a Encoder,
+struct FormatConfig {
+    template: Template,
     include: Include,
     verbosity: Verbosity,
-    cache: FastHashMap<Revision, ChangesetData>,
+    wdir_config: Option<WdirConfig>,
 }
 
-#[derive(Copy, Clone)]
+enum Template {
+    Default,
+    Json,
+}
+
 struct Include {
     user: bool,
     number: bool,
@@ -269,13 +286,19 @@ impl Include {
     }
 }
 
-#[derive(Copy, Clone)]
 enum Verbosity {
     Quiet,
     Default,
     Verbose,
 }
 
+/// Information to use for lines that changed in the working directory.
+struct WdirConfig {
+    user: Vec<u8>,
+}
+
+/// Information that we can cache per changeset.
+/// For [`Template::Json`], the values are JSON encoded.
 #[derive(Default)]
 struct ChangesetData {
     user: Option<Vec<u8>>,
@@ -283,124 +306,384 @@ struct ChangesetData {
     date: Option<Vec<u8>>,
 }
 
+/// Whether the "+" sigil calculation is for --number or --changeset.
+#[derive(PartialEq, Eq)]
+enum SigilFor {
+    Number,
+    Changeset,
+}
+
+type FileResult<'a> = (&'a HgPath, Result<AnnotateOutput, HgError>);
+
+fn print_output<'a>(
+    repo: &Repo,
+    ui: &crate::Ui,
+    config: &FormatConfig,
+    rev: RevisionOrWdir,
+    file_results: impl Iterator<Item = FileResult<'a>>,
+) -> Result<(), CommandError> {
+    let encoder = ui.encoder();
+    let stdout = &mut ui.stdout_buffer();
+    let dirstate_p1 =
+        repo.changelog()?.rev_from_node(repo.dirstate_parents()?.p1.into())?;
+    let mut cache = Cache::new(repo)?;
+    match config.template {
+        Template::Default => {
+            for (path, output) in file_results {
+                match output? {
+                    AnnotateOutput::Text(file) => {
+                        print_lines_default(
+                            file,
+                            config,
+                            stdout,
+                            encoder,
+                            cache.for_path(path),
+                            dirstate_p1,
+                        )?;
+                    }
+                    AnnotateOutput::Binary => {
+                        stdout.write_all(&format_bytes!(
+                            b"{}: binary file\n",
+                            path.as_bytes()
+                        ))?;
+                    }
+                    AnnotateOutput::NotFound => {
+                        return handle_not_found(repo, rev, path)
+                    }
+                }
+            }
+        }
+        Template::Json => {
+            stdout.write_all(b"[")?;
+            let mut file_sep: &[u8] = b"\n";
+            for (path, output) in file_results {
+                stdout.write_all(file_sep)?;
+                file_sep = b",\n";
+                stdout.write_all(b" {\n")?;
+                match output? {
+                    AnnotateOutput::Text(file) => {
+                        print_lines_json(
+                            file,
+                            config,
+                            stdout,
+                            cache.for_path(path),
+                        )?;
+                    }
+                    AnnotateOutput::Binary => {}
+                    AnnotateOutput::NotFound => {
+                        return handle_not_found(repo, rev, path)
+                    }
+                }
+                let path = json_string(path.as_bytes())?;
+                stdout
+                    .write_all(&format_bytes!(b"  \"path\": {}\n }", path))?;
+            }
+            stdout.write_all(b"\n]\n")?;
+        }
+    }
+    stdout.flush()?;
+    Ok(())
+}
+
+type Stdout<'a> = StdoutBuffer<'a, std::io::BufWriter<std::io::StdoutLock<'a>>>;
+
+fn print_lines_default(
+    file: ChangesetAnnotatedFile,
+    config: &FormatConfig,
+    stdout: &mut Stdout,
+    encoder: &Encoder,
+    mut cache: CacheForPath,
+    dirstate_p1: Revision,
+) -> Result<(), CommandError> {
+    // Serialize the annotation fields (revision, user, etc.) for each line
+    // and keep track of their maximum lengths so that we can align them.
+    let mut field_lists: Vec<Vec<Vec<u8>>> =
+        Vec::with_capacity(file.annotations.len());
+    let num_fields = config.include.count();
+    let mut widths = vec![0usize; num_fields];
+    for annotation in file.annotations {
+        let rev = annotation.revision;
+        let data = cache.get_data(rev, config)?;
+        let mut fields = Vec::with_capacity(num_fields);
+        if let Some(user) = &data.user {
+            fields.push(user.clone());
+        }
+        if config.include.number {
+            let number = rev.exclude_wdir().unwrap_or(dirstate_p1);
+            let sigil = fmt_sigil(config, rev, SigilFor::Number);
+            fields.push(format_bytes!(b"{}{}", number, sigil));
+        }
+        if let Some(changeset) = &data.changeset {
+            let sigil = fmt_sigil(config, rev, SigilFor::Changeset);
+            fields.push(format_bytes!(b"{}{}", changeset, sigil));
+        }
+        if let Some(date) = &data.date {
+            fields.push(date.clone());
+        }
+        if config.include.file {
+            fields.push(annotation.path.into_vec());
+        }
+        if config.include.line_number {
+            fields.push(format_bytes!(b"{}", annotation.line_number));
+        }
+        for (field, width) in fields.iter().zip(widths.iter_mut()) {
+            *width = std::cmp::max(*width, encoder.column_width_bytes(field));
+        }
+        field_lists.push(fields);
+    }
+    // Print each line of the file prefixed by aligned annotations.
+    let total_width = widths.iter().sum::<usize>() + num_fields - 1;
+    for (fields, line) in field_lists.iter().zip(file.lines.iter()) {
+        let mut annotation = Vec::with_capacity(total_width);
+        for (i, (field, width)) in fields.iter().zip(widths.iter()).enumerate()
+        {
+            if i > 0 {
+                let colon = config.include.line_number && i == num_fields - 1;
+                annotation.push(if colon { b':' } else { b' ' });
+            }
+            let padding = width - encoder.column_width_bytes(field);
+            annotation.resize(annotation.len() + padding, b' ');
+            annotation.extend_from_slice(field);
+        }
+        stdout.write_all(&format_bytes!(b"{}: {}", annotation, line))?;
+    }
+    if let Some(line) = file.lines.last() {
+        if !line.ends_with(b"\n") {
+            stdout.write_all(b"\n")?;
+        }
+    }
+    Ok(())
+}
+
+fn print_lines_json(
+    file: ChangesetAnnotatedFile,
+    config: &FormatConfig,
+    stdout: &mut Stdout,
+    mut cache: CacheForPath,
+) -> Result<(), CommandError> {
+    stdout.write_all(br#"  "lines": ["#)?;
+    let mut line_sep: &[u8] = b"";
+    for (annotation, line) in file.annotations.iter().zip(file.lines.iter()) {
+        stdout.write_all(line_sep)?;
+        line_sep = b", ";
+
+        let mut property_sep: &[u8] = b"";
+        let mut property = |key: &[u8], value: &[u8]| {
+            let res = format_bytes!(br#"{}"{}": {}"#, property_sep, key, value);
+            property_sep = b", ";
+            res
+        };
+
+        stdout.write_all(b"{")?;
+        let rev = annotation.revision;
+        let data = cache.get_data(rev, config)?;
+        if let Some(date_json) = &data.date {
+            stdout.write_all(&property(b"date", date_json))?;
+        }
+        stdout.write_all(&property(b"line", &json_string(line)?))?;
+        if config.include.line_number {
+            let lineno = annotation.line_number.to_string();
+            stdout.write_all(&property(b"lineno", lineno.as_bytes()))?;
+        }
+        if let Some(changeset_json) = &data.changeset {
+            stdout.write_all(&property(b"node", changeset_json))?;
+        }
+        if config.include.file {
+            let path = json_string(annotation.path.as_bytes())?;
+            stdout.write_all(&property(b"path", &path))?;
+        }
+        if config.include.number {
+            let number = match rev.exclude_wdir() {
+                Some(rev) => rev.0,
+                None => WORKING_DIRECTORY_REVISION.0,
+            };
+            stdout
+                .write_all(&property(b"rev", number.to_string().as_bytes()))?;
+        }
+        if let Some(user_json) = &data.user {
+            stdout.write_all(&property(b"user", user_json))?;
+        }
+        stdout.write_all(b"}")?;
+    }
+    stdout.write_all(b"],\n")?;
+    Ok(())
+}
+
+fn handle_not_found(
+    repo: &Repo,
+    rev: RevisionOrWdir,
+    path: &HgPath,
+) -> Result<(), CommandError> {
+    Err(CommandError::abort(match rev.exclude_wdir() {
+        Some(rev) => {
+            let short = repo.changelog()?.node_from_rev(rev).short();
+            format!("abort: {path}: no such file in rev {short:x}",)
+        }
+        None => {
+            format!("abort: {path}: No such file or directory")
+        }
+    }))
+}
+
+/// Returns the sigil to put after the revision number or changeset.
+fn fmt_sigil(
+    config: &FormatConfig,
+    rev: RevisionOrWdir,
+    which: SigilFor,
+) -> &'static [u8] {
+    // The "+" sigil is only used for '--rev wdir()'.
+    if config.wdir_config.is_none() {
+        return b"";
+    };
+    // With --number --changeset, put it after the changeset.
+    if which == SigilFor::Number && config.include.changeset {
+        return b"";
+    }
+    if rev.is_wdir() {
+        b"+"
+    } else {
+        b" "
+    }
+}
+
+/// A cache of [`ChangesetData`] for each changeset we've seen.
+struct Cache<'a> {
+    repo: &'a Repo,
+    changelog: Ref<'a, Changelog>,
+    map: FastHashMap<RevisionOrWdir, ChangesetData>,
+}
+
+impl<'a> Cache<'a> {
+    fn new(repo: &'a Repo) -> Result<Self, CommandError> {
+        Ok(Self { repo, changelog: repo.changelog()?, map: Default::default() })
+    }
+
+    fn for_path(&mut self, path: &'a HgPath) -> CacheForPath<'_, 'a> {
+        CacheForPath { cache: self, path }
+    }
+}
+
+/// [`Cache`] scoped to annotating a particular file.
+struct CacheForPath<'a, 'b> {
+    cache: &'a mut Cache<'b>,
+    path: &'a HgPath,
+}
+
+impl CacheForPath<'_, '_> {
+    fn get_data(
+        &mut self,
+        rev: RevisionOrWdir,
+        config: &FormatConfig,
+    ) -> Result<&ChangesetData, CommandError> {
+        Ok(match self.cache.map.entry(rev) {
+            Entry::Occupied(occupied) => occupied.into_mut(),
+            Entry::Vacant(vacant) => vacant.insert(ChangesetData::create(
+                rev,
+                self.path,
+                self.cache.repo,
+                &self.cache.changelog,
+                config,
+            )?),
+        })
+    }
+}
+
+impl Drop for CacheForPath<'_, '_> {
+    fn drop(&mut self) {
+        // Clear the wdir cache entry, otherwise `rhg annotate --date f1 f2`
+        // would use f1's mtime for lines in f2 attributed to wdir.
+        self.cache.map.remove(&RevisionOrWdir::wdir());
+    }
+}
+
 impl ChangesetData {
     fn create(
-        revision: Revision,
+        revision: RevisionOrWdir,
+        path: &HgPath,
+        repo: &Repo,
         changelog: &Changelog,
-        include: Include,
-        verbosity: Verbosity,
-    ) -> Result<ChangesetData, CommandError> {
-        let mut result = ChangesetData::default();
+        config: &FormatConfig,
+    ) -> Result<Self, CommandError> {
+        let include = &config.include;
         if !(include.user || include.changeset || include.date) {
-            return Ok(result);
+            return Ok(Self::default());
         }
-        let entry = changelog.entry(revision)?;
-        let data = entry.data()?;
-        if include.user {
-            let user = match verbosity {
-                Verbosity::Verbose => data.user(),
-                _ => hg::utils::strings::short_user(data.user()),
+        match revision.exclude_wdir() {
+            Some(revision) => {
+                let entry = changelog.entry(revision)?;
+                let data = entry.data()?;
+                let node = *entry.as_revlog_entry().node();
+                Self::new(data.user(), node, data.timestamp()?, config)
+            }
+            None => {
+                let node = match config.template {
+                    Template::Default => repo.dirstate_parents()?.p1,
+                    Template::Json => Node::from_hex(WORKING_DIRECTORY_HEX)
+                        .expect("wdir hex should parse"),
+                };
+                let fs_path = hg::utils::hg_path::hg_path_to_path_buf(path)?;
+                let meta =
+                    repo.working_directory_vfs().symlink_metadata(&fs_path)?;
+                let mtime = meta.modified().when_reading_file(&fs_path)?;
+                let mtime = DateTime::<Local>::from(mtime).fixed_offset();
+                let user =
+                    &config.wdir_config.as_ref().expect("should be set").user;
+                Self::new(user, node, mtime, config)
+            }
+        }
+    }
+
+    fn new(
+        user: &[u8],
+        changeset: Node,
+        date: DateTime<FixedOffset>,
+        config: &FormatConfig,
+    ) -> Result<Self, CommandError> {
+        let mut result = ChangesetData::default();
+        if config.include.user {
+            let user = match config.template {
+                Template::Default => match config.verbosity {
+                    Verbosity::Verbose => user.to_vec(),
+                    _ => hg::utils::strings::short_user(user).to_vec(),
+                },
+                Template::Json => json_string(user)?,
             };
             result.user = Some(user.to_vec());
         }
-        if include.changeset {
-            let changeset = entry.as_revlog_entry().node().short();
-            result.changeset = Some(format!("{:x}", changeset).into_bytes());
+        if config.include.changeset {
+            let hex = match config.template {
+                Template::Default => format!("{:x}", changeset.short()),
+                Template::Json => format!("\"{:x}\"", changeset),
+            };
+            result.changeset = Some(hex.into_bytes());
         }
-        if include.date {
-            let date = data.timestamp()?.format(match verbosity {
-                Verbosity::Quiet => "%Y-%m-%d",
-                _ => "%a %b %d %H:%M:%S %Y %z",
-            });
-            result.date = Some(format!("{}", date).into_bytes());
+        if config.include.date {
+            let date = match config.template {
+                Template::Default => {
+                    format!(
+                        "{}",
+                        date.format(match config.verbosity {
+                            Verbosity::Quiet => "%Y-%m-%d",
+                            _ => "%a %b %d %H:%M:%S %Y %z",
+                        })
+                    )
+                }
+                Template::Json => format!(
+                    "[{}.0, {}]",
+                    date.timestamp(),
+                    date.offset().utc_minus_local(),
+                ),
+            };
+            result.date = Some(date.into_bytes());
         }
         Ok(result)
     }
 }
 
-impl<'a> Formatter<'a> {
-    fn new(
-        changelog: &'a Changelog,
-        encoder: &'a Encoder,
-        include: Include,
-        verbosity: Verbosity,
-    ) -> Self {
-        let cache = FastHashMap::default();
-        Self {
-            changelog,
-            encoder,
-            include,
-            verbosity,
-            cache,
-        }
-    }
-
-    fn format(
-        &mut self,
-        annotations: Vec<ChangesetAnnotation>,
-    ) -> Result<Vec<Vec<u8>>, CommandError> {
-        let mut lines: Vec<Vec<Vec<u8>>> =
-            Vec::with_capacity(annotations.len());
-        let num_fields = self.include.count();
-        let mut widths = vec![0usize; num_fields];
-        for annotation in annotations {
-            let revision = annotation.revision;
-            let data = match self.cache.entry(revision) {
-                Entry::Occupied(occupied) => occupied.into_mut(),
-                Entry::Vacant(vacant) => vacant.insert(ChangesetData::create(
-                    revision,
-                    self.changelog,
-                    self.include,
-                    self.verbosity,
-                )?),
-            };
-            let mut fields = Vec::with_capacity(num_fields);
-            if let Some(user) = &data.user {
-                fields.push(user.clone());
-            }
-            if self.include.number {
-                fields.push(format_bytes!(b"{}", revision));
-            }
-            if let Some(changeset) = &data.changeset {
-                fields.push(changeset.clone());
-            }
-            if let Some(date) = &data.date {
-                fields.push(date.clone());
-            }
-            if self.include.file {
-                fields.push(annotation.path.into_vec());
-            }
-            if self.include.line_number {
-                fields.push(format_bytes!(b"{}", annotation.line_number));
-            }
-            for (field, width) in fields.iter().zip(widths.iter_mut()) {
-                *width = std::cmp::max(
-                    *width,
-                    self.encoder.column_width_bytes(field),
-                );
-            }
-            lines.push(fields);
-        }
-        let total_width = widths.iter().sum::<usize>() + num_fields - 1;
-        Ok(lines
-            .iter()
-            .map(|fields| {
-                let mut bytes = Vec::with_capacity(total_width);
-                for (i, (field, width)) in
-                    fields.iter().zip(widths.iter()).enumerate()
-                {
-                    if i > 0 {
-                        let colon =
-                            self.include.line_number && i == num_fields - 1;
-                        bytes.push(if colon { b':' } else { b' ' });
-                    }
-                    let padding =
-                        width - self.encoder.column_width_bytes(field);
-                    bytes.resize(bytes.len() + padding, b' ');
-                    bytes.extend_from_slice(field);
-                }
-                bytes
-            })
-            .collect())
-    }
+fn json_string(text: &[u8]) -> Result<Vec<u8>, CommandError> {
+    serde_json::to_vec(&String::from_utf8_lossy(text)).map_err(|err| {
+        CommandError::abort(format!(
+            "failed to serialize string to JSON: {err}"
+        ))
+    })
 }

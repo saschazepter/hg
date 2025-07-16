@@ -5,18 +5,18 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use crate::repo::Repo;
-use crate::revlog::Node;
-use crate::revlog::RevlogError;
+use std::cmp::Ordering;
 
-use crate::utils::hg_path::HgPath;
-
-use crate::errors::HgError;
-use crate::revlog::manifest::Manifest;
-use crate::revlog::manifest::ManifestEntry;
 use itertools::put_back;
 use itertools::PutBack;
-use std::cmp::Ordering;
+
+use crate::errors::HgError;
+use crate::repo::Repo;
+use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestEntry;
+use crate::revlog::Node;
+use crate::revlog::RevlogError;
+use crate::utils::hg_path::HgPath;
 
 pub struct CatOutput<'a> {
     /// Whether any file in the manifest matched the paths given as CLI
@@ -83,7 +83,10 @@ pub fn cat<'a>(
     revset: &str,
     mut files: Vec<&'a HgPath>,
 ) -> Result<CatOutput<'a>, RevlogError> {
-    let rev = crate::revset::resolve_single(revset, repo)?;
+    let Some(rev) = crate::revset::resolve_single(revset, repo)?.exclude_wdir()
+    else {
+        return Err(HgError::unsupported("cat wdir not implemented").into());
+    };
     let manifest = repo.manifest_for_rev(rev.into())?;
     let mut results: Vec<(&'a HgPath, Vec<u8>)> = vec![];
     let node = *repo.changelog()?.node_from_rev(rev);
@@ -103,10 +106,5 @@ pub fn cat<'a>(
         ));
     }
 
-    Ok(CatOutput {
-        found_any,
-        results,
-        missing,
-        node,
-    })
+    Ok(CatOutput { found_any, results, missing, node })
 }

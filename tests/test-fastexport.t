@@ -1,6 +1,8 @@
   $ cat >> $HGRCPATH << EOF
   > [extensions]
   > fastexport=
+  > [subrepos]
+  > git:allowed = true
   > EOF
 
   $ hg init test
@@ -907,3 +909,354 @@ Test error message in case that UTC offset is not a multiple of minutes
   $ hg fastexport --color=never >/dev/null
   abort: UTC offset in (0.0, 1) is not an integer number of minutes
   [255]
+
+  $ cd ..
+
+Mercurial subrepositories are currently not supported. Test that a warning is printed.
+
+  $ hg init test_hg_subrepo
+  $ cd test_hg_subrepo
+  $ echo 'subrepo1 = subrepo1' >> .hgsub
+  $ echo 'subrepo2 = subrepo2' >> .hgsub
+  $ hg add .hgsub
+  $ hg commit -m 'add subrepo'
+  $ hg fastexport
+  blob
+  mark :1
+  data 40
+  subrepo1 = subrepo1
+  subrepo2 = subrepo2
+  
+  blob
+  mark :2
+  data 100
+  0000000000000000000000000000000000000000 subrepo1
+  0000000000000000000000000000000000000000 subrepo2
+  
+  warning: subrepositories of kind hg are not supported
+  commit refs/heads/default
+  mark :3
+  committer "test" <test> 0 +0000
+  data 11
+  add subrepo
+  M 644 :1 .hgsub
+  M 644 :2 .hgsubstate
+  
+  $ cd ..
+
+#if git
+
+make git commits repeatable
+
+  $ echo "[core]" >> $HOME/.gitconfig
+  $ echo "autocrlf = false" >> $HOME/.gitconfig
+  $ GIT_AUTHOR_NAME='test'; export GIT_AUTHOR_NAME
+  $ GIT_AUTHOR_EMAIL='test@example.org'; export GIT_AUTHOR_EMAIL
+  $ GIT_AUTHOR_DATE='1234567891 +0000'; export GIT_AUTHOR_DATE
+  $ GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"; export GIT_COMMITTER_NAME
+  $ GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"; export GIT_COMMITTER_EMAIL
+  $ GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"; export GIT_COMMITTER_DATE
+  $ GIT_CONFIG_NOSYSTEM=1; export GIT_CONFIG_NOSYSTEM
+
+set default branch to value compatible with new and old git version
+
+  $ git config --global init.defaultBranch master
+
+Test that Git subrepositories are converted to gitlinks and .gitmodules.
+
+  $ hg init test_subrepos
+  $ cd test_subrepos
+
+  $ git init subrepo1_path --quiet
+  $ cd subrepo1_path
+  $ touch first
+  $ git add first
+  $ git commit -m first --quiet
+  $ cd ..
+  $ echo 'subrepo1_path = [git]subrepo1_source' > .hgsub
+  $ hg add .hgsub
+  $ hg commit -m 'add subrepo1'
+
+  $ cd subrepo1_path
+  $ touch second
+  $ git add second
+  $ git commit -m second --quiet
+  $ cd ..
+  $ hg commit -m 'change subrepo1'
+
+  $ git init subrepo2_path --quiet
+  $ cd subrepo2_path
+  $ touch first
+  $ git add first
+  $ git commit -m first --quiet
+  $ cd ..
+  $ echo 'subrepo2_path = [git]subrepo2_source' >> .hgsub
+  $ hg commit -m 'add subrepo2'
+
+  $ mv subrepo2_path subrepo3_path
+  $ sed -e 's/subrepo2/subrepo3/g' .hgsub > tmp
+  $ mv tmp .hgsub
+  $ hg commit -m 'rename subrepo2 -> subrepo3'
+
+  $ sed -e '/subrepo3/d' .hgsub > tmp
+  $ mv tmp .hgsub
+  $ hg commit -m 'remove subrepo3'
+
+  $ hg remove .hgsub
+  $ hg commit -m 'remove subrepo1'
+  $ hg fastexport
+  blob
+  mark :1
+  data 37
+  subrepo1_path = [git]subrepo1_source
+  
+  blob
+  mark :2
+  data 55
+  f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo1_path
+  
+  commit refs/heads/default
+  mark :3
+  committer "test" <test> 0 +0000
+  data 12
+  add subrepo1
+  M 644 inline .gitmodules
+  data 73
+  [submodule "subrepo1_path"]
+  	path = subrepo1_path
+  	url = subrepo1_source
+  
+  M 644 :1 .hgsub
+  M 644 :2 .hgsubstate
+  M 160000 f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo1_path
+  
+  blob
+  mark :4
+  data 55
+  eaacdbf2e355ca4095d0230d052a2f979783f181 subrepo1_path
+  
+  commit refs/heads/default
+  mark :5
+  committer "test" <test> 0 +0000
+  data 15
+  change subrepo1
+  from :3
+  M 644 :4 .hgsubstate
+  M 160000 eaacdbf2e355ca4095d0230d052a2f979783f181 subrepo1_path
+  
+  blob
+  mark :6
+  data 74
+  subrepo1_path = [git]subrepo1_source
+  subrepo2_path = [git]subrepo2_source
+  
+  blob
+  mark :7
+  data 110
+  eaacdbf2e355ca4095d0230d052a2f979783f181 subrepo1_path
+  f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo2_path
+  
+  commit refs/heads/default
+  mark :8
+  committer "test" <test> 0 +0000
+  data 12
+  add subrepo2
+  from :5
+  M 644 inline .gitmodules
+  data 146
+  [submodule "subrepo1_path"]
+  	path = subrepo1_path
+  	url = subrepo1_source
+  [submodule "subrepo2_path"]
+  	path = subrepo2_path
+  	url = subrepo2_source
+  
+  M 644 :6 .hgsub
+  M 644 :7 .hgsubstate
+  M 160000 f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo2_path
+  
+  blob
+  mark :9
+  data 74
+  subrepo1_path = [git]subrepo1_source
+  subrepo3_path = [git]subrepo3_source
+  
+  blob
+  mark :10
+  data 110
+  eaacdbf2e355ca4095d0230d052a2f979783f181 subrepo1_path
+  f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo3_path
+  
+  commit refs/heads/default
+  mark :11
+  committer "test" <test> 0 +0000
+  data 27
+  rename subrepo2 -> subrepo3
+  from :8
+  M 644 inline .gitmodules
+  data 146
+  [submodule "subrepo1_path"]
+  	path = subrepo1_path
+  	url = subrepo1_source
+  [submodule "subrepo3_path"]
+  	path = subrepo3_path
+  	url = subrepo3_source
+  
+  M 644 :9 .hgsub
+  M 644 :10 .hgsubstate
+  D subrepo2_path
+  M 160000 f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo3_path
+  
+  blob
+  mark :12
+  data 37
+  subrepo1_path = [git]subrepo1_source
+  
+  blob
+  mark :13
+  data 55
+  eaacdbf2e355ca4095d0230d052a2f979783f181 subrepo1_path
+  
+  commit refs/heads/default
+  mark :14
+  committer "test" <test> 0 +0000
+  data 15
+  remove subrepo3
+  from :11
+  M 644 inline .gitmodules
+  data 73
+  [submodule "subrepo1_path"]
+  	path = subrepo1_path
+  	url = subrepo1_source
+  
+  M 644 :12 .hgsub
+  M 644 :13 .hgsubstate
+  D subrepo3_path
+  
+  commit refs/heads/default
+  mark :15
+  committer "test" <test> 0 +0000
+  data 15
+  remove subrepo1
+  from :14
+  D .gitmodules
+  D .hgsub
+  D .hgsubstate
+  D subrepo1_path
+  
+
+  $ cd ..
+
+Test that the presence of .gitmodules in the source repository aborts by default.
+
+  $ hg init test_existing_gitmodules-abort
+  $ cd test_existing_gitmodules-abort
+
+  $ git init subrepo_path --quiet
+  $ cd subrepo_path
+  $ touch first
+  $ git add first
+  $ git commit -m first --quiet
+  $ cd ..
+  $ echo 'subrepo_path = [git]subrepo_source' > .hgsub
+  $ hg add .hgsub
+  $ cat >> .gitmodules << EOF
+  > [submodule "subrepo_path"]
+  > 	path = subrepo_path
+  > 	url = subrepo_source
+  > EOF
+  $ hg add .gitmodules
+  $ hg commit -m 'add subrepo'
+  $ hg fastexport > /dev/null
+  abort: .gitmodules already present in source repository
+  (to ignore this error, set config fastexport.on-pre-existing-gitmodules=ignore)
+  [255]
+
+  $ cd ..
+
+Test that it is possible to configure that .gitmodules in the source repository is ignored.
+
+  $ hg init test_existing_gitmodules-ignore
+  $ cd test_existing_gitmodules-ignore
+
+  $ cat >> .hg/hgrc << EOF
+  > [fastexport]
+  > on-pre-existing-gitmodules = ignore
+  > EOF
+  $ git init subrepo_path --quiet
+  $ cd subrepo_path
+  $ touch first
+  $ git add first
+  $ git commit -m first --quiet
+  $ cd ..
+  $ echo 'subrepo_path = [git]subrepo_source' > .hgsub
+  $ hg add .hgsub
+  $ cat >> .gitmodules << EOF
+  > [submodule "ignored"]
+  > 	path = subrepo_path
+  > 	url = subrepo_source
+  > EOF
+  $ hg add .gitmodules
+  $ hg commit -m 'add subrepo'
+  $ hg fastexport --export-marks fastexport.marks
+  blob
+  mark :1
+  data 35
+  subrepo_path = [git]subrepo_source
+  
+  blob
+  mark :2
+  data 54
+  f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo_path
+  
+  warning: ignoring change of .gitmodules in revision b55ff90e601e922957f29294f4eb98ebd2589618
+  instead, .gitmodules is generated from .hgsub)
+  commit refs/heads/default
+  mark :3
+  committer "test" <test> 0 +0000
+  data 11
+  add subrepo
+  M 644 inline .gitmodules
+  data 70
+  [submodule "subrepo_path"]
+  	path = subrepo_path
+  	url = subrepo_source
+  
+  M 644 :1 .hgsub
+  M 644 :2 .hgsubstate
+  M 160000 f85179a08dbd445ed4b79ad3452de978c54bf8f1 subrepo_path
+  
+
+Test that removing .gitmodules from the source repository does not remove the generated .gitmodules.
+
+  $ hg rm .gitmodules
+  $ hg commit -m 'remove .gitmodules'
+  $ hg fastexport --import-marks fastexport.marks
+  warning: ignoring change of .gitmodules in revision f592781e95d5fcb42218365b85ff9db1307aabd0
+  instead, .gitmodules is generated from .hgsub)
+  commit refs/heads/default
+  mark :4
+  committer "test" <test> 0 +0000
+  data 18
+  remove .gitmodules
+  from :3
+  
+
+  $ cd ..
+
+  $ hg init test_existing_gitmodules-invalid_config
+  $ cd test_existing_gitmodules-invalid_config
+
+  $ cat >> .hg/hgrc << EOF
+  > [fastexport]
+  > on-pre-existing-gitmodules = invalid
+  > EOF
+  $ touch .gitmodules
+  $ hg add .gitmodules
+  $ hg commit -m 'add .gitmodules'
+  $ hg fastexport > /dev/null
+  config error: fastexport.on-pre-existing-gitmodules not valid
+  (should be 'abort' or 'ignore', but is 'invalid')
+  [30]
+
+#endif git

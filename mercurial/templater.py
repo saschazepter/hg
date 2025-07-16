@@ -71,9 +71,7 @@ import abc
 import os
 
 from typing import (
-    BinaryIO,
-    Optional,
-    Tuple,
+    IO,
 )
 
 from .i18n import _
@@ -1129,8 +1127,8 @@ def templatedir():
 
 
 def open_template(
-    name: bytes, templatepath: Optional[bytes] = None
-) -> Tuple[bytes, BinaryIO]:
+    name: bytes, templatepath: bytes | None = None
+) -> tuple[bytes, IO[bytes]]:
     """returns a file-like object for the given template, and its full path
 
     If the name is a relative path and we're in a frozen binary, the template
@@ -1166,8 +1164,8 @@ def open_template(
 
 
 def try_open_template(
-    name: bytes, templatepath: Optional[bytes] = None
-) -> Tuple[Optional[bytes], Optional[BinaryIO]]:
+    name: bytes, templatepath: bytes | None = None
+) -> tuple[bytes | None, IO[bytes] | None]:
     try:
         return open_template(name, templatepath)
     except (OSError, ImportError):

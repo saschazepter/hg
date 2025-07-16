@@ -9,12 +9,18 @@
 from __future__ import annotations
 
 import collections
+import os
+import shutil
 import string
+import tempfile
+import time
 
 from .. import (
+    error,
     mdiff,
     node as nodemod,
     revlogutils,
+    vfs as vfsmod,
 )
 
 from . import (
@@ -282,11 +288,22 @@ def debug_revlog(ui, revlog):
     v = r._format_flags
     flags = []
     gdelta = False
+
     if v & constants.FLAG_INLINE_DATA:
         flags.append(b'inline')
+
     if v & constants.FLAG_GENERALDELTA:
         gdelta = True
         flags.append(b'generaldelta')
+
+    if v & constants.FLAG_FILELOG_META:
+        gdelta = True
+        flags.append(b'hasmeta')
+
+    if v & constants.FLAG_DELTA_INFO:
+        gdelta = True
+        flags.append(b'delta-info')
+
     if not flags:
         flags = [b'(none)']
 
@@ -638,9 +655,8 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
     p1r, p2r = revlog.parentrevs(rev)
     p1 = revlog.node(p1r)
     p2 = revlog.node(p2r)
-    full_text = revlog.revision(rev)
-    btext = [full_text]
-    textlen = len(btext[0])
+    btext = full_text = revlog.revision(rev)
+    textlen = len(full_text)
     cachedelta = None
     flags = revlog.flags(rev)
 
@@ -648,8 +664,16 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
         base_text = revlog.revision(base_rev)
         delta = mdiff.textdiff(base_text, full_text)
 
-        cachedelta = (base_rev, delta, constants.DELTA_BASE_REUSE_TRY)
-        btext = [None]
+        snapshotdepth = -1
+        if revlog.issnapshot(rev):
+            snapshotdepth = revlog.snapshotdepth(rev)
+        cachedelta = revlogutils.CachedDelta(
+            base_rev,
+            delta,
+            constants.DELTA_BASE_REUSE_TRY,
+            snapshotdepth,
+        )
+        btext = None
 
     revinfo = revlogutils.revisioninfo(
         node,
@@ -881,6 +905,7 @@ def debug_delta_chain(
                 chainratio = chainsize
 
         if dist_info:
+            chainsize = info['chain_size']
             if chainsize != 0:
                 extraratio = float(extradist) / float(chainsize)
             else:
@@ -941,3 +966,150 @@ def debug_delta_chain(
                 ]
             )
         yield entry
+
+
+def reencoded_info(
+    ui,
+    repo,
+    revlog_cls,
+    orig_revlog,
+    start_rev=None,
+    stop_rev=None,
+    delete=True,
+    reuse_delta=True,
+):
+    class _faketr:
+        def add(s, x, y, z=None):
+            return None
+
+        def _report(self, *args, **kwargs):
+            ui.write_err(*args, **kwargs)
+
+    is_inline = orig_revlog._inline
+
+    indexfile = getattr(orig_revlog, '_indexfile', None)
+    if indexfile is None:
+        # compatibility with <= hg-5.8
+        indexfile = getattr(orig_revlog, 'indexfile')
+    origindexpath = orig_revlog.opener.join(indexfile)
+
+    if not is_inline:
+        datafile = getattr(
+            orig_revlog,
+            '_datafile',
+            getattr(orig_revlog, 'datafile', None),
+        )
+        origdatapath = orig_revlog.opener.join(datafile)
+    radix = b'revlog'
+
+    truncaterev = 0
+    if start_rev:
+        truncaterev = int(start_rev)
+    end_rev = len(orig_revlog)
+    if stop_rev:
+        end_rev = int(stop_rev)
+    tmpdir = tempfile.mkdtemp(prefix='tmp-hgperf-').encode('ascii')
+    ui.writenoi18n(b"working in: %s\n" % tmpdir)
+    rev = None
+
+    start = time.monotonic()
+    try:
+        if truncaterev != 0:
+            # copy the data file in a temporary directory
+            ui.debug(b'copying data in %s\n' % tmpdir)
+            destindexpath = os.path.join(tmpdir, b'revlog.i')
+            shutil.copyfile(origindexpath, destindexpath)
+            if not is_inline:
+                destdatapath = os.path.join(tmpdir, b'revlog.d')
+                shutil.copyfile(origdatapath, destdatapath)
+
+            # remove the data we want to add again
+            ui.debug(b'truncating data to be rewritten\n')
+            with open(destindexpath, 'ab') as index:
+                total_size = index.tell()
+                entry_size = total_size // len(orig_revlog)
+                index.seek(0)
+                if is_inline:
+                    truncate_index = (
+                        truncaterev * entry_size
+                    ) + orig_revlog.start(truncaterev)
+                else:
+                    assert total_size % entry_size == 0
+                    truncate_index = truncaterev * entry_size
+                index.truncate(truncate_index)
+            if not is_inline:
+                with open(destdatapath, 'ab') as data:
+                    data.seek(0)
+                    data.truncate(orig_revlog.start(truncaterev))
+
+        # instantiate a new revlog from the temporary copy
+        ui.debug(b'adding new data\n')
+        vfs = vfsmod.vfs(tmpdir)
+        vfs.options = getattr(orig_revlog.opener, 'options', None)
+
+        dest = revlog_cls(
+            vfs,
+            target=orig_revlog.target,
+            radix=radix,
+            upperboundcomp=orig_revlog.delta_config.upper_bound_comp,
+            may_inline=False,
+            writable=True,
+        )
+        if dest._inline:
+            raise error.Abort(b'not supporting inline revlog (yet)')
+        # make sure internals are initialized
+        dest.revision(len(dest) - 1)
+
+        tr = _faketr()
+
+        # REWRITE STUFF
+        with ui.makeprogress(b"revs", total=end_rev) as p:
+            for rev in range(truncaterev, end_rev):
+                linkrev = orig_revlog.linkrev(rev)
+                node = orig_revlog.node(rev)
+                p1, p2 = orig_revlog.parents(node)
+                flags = orig_revlog.flags(rev)
+
+                delta_parent = orig_revlog.deltaparent(rev)
+                text = None
+                cachedelta = None
+                if (
+                    delta_parent == nodemod.nullrev
+                    or delta_parent == rev
+                    or not reuse_delta
+                ):
+                    text = orig_revlog.rawdata(rev, validate=False)
+                else:
+                    delta = orig_revlog._inner._chunk(rev)
+                    if hasattr(delta, "tobytes"):
+                        delta = delta.tobytes()
+                    cachedelta = revlogutils.CachedDelta(
+                        delta_parent,
+                        delta,
+                        constants.DELTA_BASE_REUSE_NO,
+                    )
+
+                dest.addrawrevision(
+                    text,
+                    tr,
+                    linkrev,
+                    p1,
+                    p2,
+                    node=node,
+                    flags=flags,
+                    cachedelta=cachedelta,
+                )
+                p.update(rev)
+        rev = None
+        debug_revlog(ui, dest)
+    finally:
+        end = time.time()
+        if rev is not None:
+            ui.writenoi18n(b"/!\\ interrupted while processing %d\n" % rev)
+        ui.writenoi18n(b"duration: %f\n" % (end - start))
+        if delete:
+            ui.writenoi18n(b"cleaning up %s\n" % tmpdir)
+            shutil.rmtree(tmpdir, True)
+            ui.writenoi18n(b"  done\n")
+        else:
+            ui.writenoi18n(b"result in: %s\n" % tmpdir)

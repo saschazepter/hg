@@ -5,6 +5,7 @@
 // GNU General Public License version 2 or any later version.
 //! Mercurial concepts for handling revision history
 
+pub mod deltas;
 pub mod node;
 pub mod nodemap;
 mod nodemap_docket;
@@ -13,7 +14,11 @@ use inner_revlog::CoreRevisionBuffer;
 use inner_revlog::InnerRevlog;
 use inner_revlog::RevisionBuffer;
 use memmap2::MmapOptions;
-pub use node::{FromHexError, Node, NodePrefix, NULL_NODE, NULL_NODE_ID};
+pub use node::FromHexError;
+pub use node::Node;
+pub use node::NodePrefix;
+pub use node::NULL_NODE;
+pub use node::NULL_NODE_ID;
 use nodemap::read_persistent_nodemap;
 use options::RevlogOpenOptions;
 pub mod changelog;
@@ -29,15 +34,17 @@ pub mod patch;
 use std::borrow::Cow;
 use std::io::ErrorKind;
 use std::io::Read;
-use std::ops::Deref;
 use std::path::Path;
 
 use self::nodemap_docket::NodeMapDocket;
+use crate::dyn_bytes::DynBytes;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
-use crate::revlog::nodemap::{NodeMap, NodeMapError};
+use crate::revlog::nodemap::NodeMap;
+use crate::revlog::nodemap::NodeMapError;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -127,6 +134,39 @@ pub const WORKING_DIRECTORY_REVISION: UncheckedRevision =
 pub const WORKING_DIRECTORY_HEX: &str =
     "ffffffffffffffffffffffffffffffffffffffff";
 
+/// Either a checked revision or the working directory.
+/// Note that [`Revision`] will never hold [`WORKING_DIRECTORY_REVISION`]
+/// because that is not a valid revision in any revlog.
+#[derive(Copy, Clone, Hash, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RevisionOrWdir(BaseRevision);
+
+impl From<Revision> for RevisionOrWdir {
+    fn from(value: Revision) -> Self {
+        RevisionOrWdir(value.0)
+    }
+}
+
+impl RevisionOrWdir {
+    /// Creates a [`RevisionOrWdir`] representing the working directory.
+    pub fn wdir() -> Self {
+        RevisionOrWdir(WORKING_DIRECTORY_REVISION.0)
+    }
+
+    /// Returns the revision, or `None` if this is the working directory.
+    pub fn exclude_wdir(self) -> Option<Revision> {
+        if self.0 == WORKING_DIRECTORY_REVISION.0 {
+            None
+        } else {
+            Some(Revision(self.0))
+        }
+    }
+
+    /// Returns true if this is the working directory.
+    pub fn is_wdir(&self) -> bool {
+        *self == Self::wdir()
+    }
+}
+
 /// The simplest expression of what we need of Mercurial DAGs.
 pub trait Graph {
     /// Return the two parents of the given `Revision`.
@@ -185,8 +225,7 @@ pub trait RevlogIndex {
     fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
         let rev = rev.0;
 
-        if rev == NULL_REVISION.0 || (rev >= 0 && (rev as usize) < self.len())
-        {
+        if rev == NULL_REVISION.0 || (rev >= 0 && (rev as usize) < self.len()) {
             Some(Revision(rev))
         } else {
             None
@@ -198,19 +237,23 @@ const REVISION_FLAG_CENSORED: u16 = 1 << 15;
 const REVISION_FLAG_ELLIPSIS: u16 = 1 << 14;
 const REVISION_FLAG_EXTSTORED: u16 = 1 << 13;
 const REVISION_FLAG_HASCOPIESINFO: u16 = 1 << 12;
+const REVISION_FLAG_HASMETA: u16 = 1 << 11;
+const REVISION_FLAG_DELTA_IS_SNAPSHOT: u16 = 1 << 10;
 
 // Keep this in sync with REVIDX_KNOWN_FLAGS in
 // mercurial/revlogutils/flagutil.py
 const REVIDX_KNOWN_FLAGS: u16 = REVISION_FLAG_CENSORED
     | REVISION_FLAG_ELLIPSIS
     | REVISION_FLAG_EXTSTORED
-    | REVISION_FLAG_HASCOPIESINFO;
+    | REVISION_FLAG_HASCOPIESINFO
+    | REVISION_FLAG_HASMETA
+    | REVISION_FLAG_DELTA_IS_SNAPSHOT;
 
 const NULL_REVLOG_ENTRY_FLAGS: u16 = 0;
 
 #[derive(Debug, derive_more::From, derive_more::Display)]
 pub enum RevlogError {
-    #[display(fmt = "invalid revision identifier: {}", "_0")]
+    #[display("invalid revision identifier: {}", "_0")]
     InvalidRevision(String),
     /// Working directory is not supported
     WDirUnsupported,
@@ -287,8 +330,16 @@ impl Revlog {
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
+        revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
-        Self::open_gen(store_vfs, index_path, data_path, options, None)
+        Self::open_gen(
+            store_vfs,
+            index_path,
+            data_path,
+            options,
+            None,
+            revlog_type,
+        )
     }
 
     fn index(&self) -> &Index {
@@ -302,6 +353,7 @@ impl Revlog {
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
         nodemap_for_test: Option<nodemap::NodeTree>,
+        revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
         let index_path = index_path.as_ref();
         let index = open_index(store_vfs, index_path, options)?;
@@ -326,6 +378,7 @@ impl Revlog {
                 options.data_config,
                 options.delta_config,
                 options.feature_config,
+                revlog_type,
             ),
             nodemap,
         })
@@ -381,10 +434,7 @@ impl Revlog {
         self.index().check_revision(rev).is_some()
     }
 
-    pub fn get_entry(
-        &self,
-        rev: Revision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
         self.inner.get_entry(rev)
     }
 
@@ -414,15 +464,14 @@ impl Revlog {
         let Some(entry) = self.index().get_entry(rev) else {
             return Ok(NULL_REVISION);
         };
-        linked_revlog
-            .index()
-            .check_revision(entry.link_revision())
-            .ok_or_else(|| {
+        linked_revlog.index().check_revision(entry.link_revision()).ok_or_else(
+            || {
                 RevlogError::corrupted(format!(
                     "linkrev for rev {} is invalid",
                     rev
                 ))
-            })
+            },
+        )
     }
 
     /// Return the full data associated to a revision.
@@ -490,10 +539,8 @@ impl Revlog {
             buffer.extend_from_slice(snapshot);
             return Ok(());
         }
-        let patches: Result<Vec<_>, _> = deltas
-            .iter()
-            .map(|d| patch::PatchList::new(d.as_ref()))
-            .collect();
+        let patches: Result<Vec<_>, _> =
+            deltas.iter().map(|d| patch::PatchList::new(d.as_ref())).collect();
         let patch = patch::fold_patch_lists(&patches?);
         patch.apply(buffer, snapshot);
         Ok(())
@@ -514,8 +561,6 @@ impl RawdataBuf {
         }
     }
 }
-
-type IndexData = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
 /// TODO We should check for version 5.14+ at runtime, but we either should
 /// add the `nix` dependency to get it efficiently, or vendor the code to read
@@ -569,7 +614,7 @@ pub fn open_index(
     index_path: &Path,
     options: RevlogOpenOptions,
 ) -> Result<Index, HgError> {
-    let buf: IndexData = match store_vfs.open(index_path) {
+    let buf: DynBytes = match store_vfs.open(index_path) {
         Ok(mut file) => {
             let mut buf = if let Some(threshold) =
                 options.data_config.mmap_index_threshold
@@ -598,7 +643,7 @@ pub fn open_index(
                         advise_populate_read_mmap(&mmap);
                     }
 
-                    Some(Box::new(mmap) as IndexData)
+                    Some(DynBytes::new(Box::new(mmap)))
                 } else {
                     None
                 }
@@ -609,15 +654,23 @@ pub fn open_index(
             if buf.is_none() {
                 let mut data = vec![];
                 file.read_to_end(&mut data).when_reading_file(index_path)?;
-                buf = Some(Box::new(data) as IndexData);
+                buf = Some(DynBytes::new(Box::new(data)));
             }
             buf.unwrap()
         }
         Err(err) => match err {
-            HgError::IoError { error, context } => match error.kind() {
-                ErrorKind::NotFound => Box::<Vec<u8>>::default(),
-                _ => return Err(HgError::IoError { error, context }),
-            },
+            HgError::IoError { error, context, backtrace } => {
+                match error.kind() {
+                    ErrorKind::NotFound => DynBytes::default(),
+                    _ => {
+                        return Err(HgError::IoError {
+                            error,
+                            context,
+                            backtrace,
+                        })
+                    }
+                }
+            }
             e => return Err(e),
         },
     };
@@ -750,12 +803,8 @@ impl<'revlog> RevlogEntry<'revlog> {
         &self,
         data: Cow<'revlog, [u8]>,
     ) -> Result<Cow<'revlog, [u8]>, RevlogError> {
-        if self.revlog.check_hash(
-            self.p1,
-            self.p2,
-            self.hash.as_bytes(),
-            &data,
-        ) {
+        if self.revlog.check_hash(self.p1, self.p2, self.hash.as_bytes(), &data)
+        {
             Ok(data)
         } else {
             if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
@@ -786,7 +835,11 @@ impl<'revlog> RevlogEntry<'revlog> {
             Ok(())
         })?;
         if self.is_censored() {
-            return Err(HgError::CensoredNodeError.into());
+            return Err(HgError::CensoredNodeError(
+                *self.node(),
+                HgBacktrace::capture(),
+            )
+            .into());
         }
         self.check_data(data.finish().into())
     }
@@ -794,19 +847,30 @@ impl<'revlog> RevlogEntry<'revlog> {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
     use crate::revlog::index::IndexEntryBuilder;
-    use itertools::Itertools;
+    use crate::revlog::path_encode::PathEncoding;
 
     #[test]
     fn test_empty() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs = VfsImpl::new(
+            temp.path().to_owned(),
+            false,
+            PathEncoding::DotEncode,
+        );
         std::fs::write(temp.path().join("foo.i"), b"").unwrap();
         std::fs::write(temp.path().join("foo.d"), b"").unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
-                .unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::default(),
+            RevlogType::Changelog,
+        )
+        .unwrap();
         assert!(revlog.is_empty());
         assert_eq!(revlog.len(), 0);
         assert!(revlog.get_entry_for_unchecked_rev(0.into()).is_err());
@@ -826,13 +890,17 @@ mod tests {
     #[test]
     fn test_inline() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
-        let node0 = Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd")
-            .unwrap();
-        let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
-            .unwrap();
-        let node2 = Node::from_hex("dd6ad206e907be60927b5a3117b97dffb2590582")
-            .unwrap();
+        let vfs = VfsImpl::new(
+            temp.path().to_owned(),
+            false,
+            PathEncoding::DotEncode,
+        );
+        let node0 =
+            Node::from_hex("2ed2a3912a0b24502043eae84ee4b279c18b90dd").unwrap();
+        let node1 =
+            Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12").unwrap();
+        let node2 =
+            Node::from_hex("dd6ad206e907be60927b5a3117b97dffb2590582").unwrap();
         let entry0_bytes = IndexEntryBuilder::new()
             .is_first(true)
             .with_version(1)
@@ -850,12 +918,16 @@ mod tests {
             .flatten()
             .collect_vec();
         std::fs::write(temp.path().join("foo.i"), contents).unwrap();
-        let revlog =
-            Revlog::open(&vfs, "foo.i", None, RevlogOpenOptions::default())
-                .unwrap();
+        let revlog = Revlog::open(
+            &vfs,
+            "foo.i",
+            None,
+            RevlogOpenOptions::default(),
+            RevlogType::Changelog,
+        )
+        .unwrap();
 
-        let entry0 =
-            revlog.get_entry_for_unchecked_rev(0.into()).ok().unwrap();
+        let entry0 = revlog.get_entry_for_unchecked_rev(0.into()).ok().unwrap();
         assert_eq!(entry0.revision(), Revision(0));
         assert_eq!(*entry0.node(), node0);
         assert!(!entry0.has_p1());
@@ -866,8 +938,7 @@ mod tests {
         let p2_entry = entry0.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry1 =
-            revlog.get_entry_for_unchecked_rev(1.into()).ok().unwrap();
+        let entry1 = revlog.get_entry_for_unchecked_rev(1.into()).ok().unwrap();
         assert_eq!(entry1.revision(), Revision(1));
         assert_eq!(*entry1.node(), node1);
         assert!(!entry1.has_p1());
@@ -878,8 +949,7 @@ mod tests {
         let p2_entry = entry1.p2_entry().unwrap();
         assert!(p2_entry.is_none());
 
-        let entry2 =
-            revlog.get_entry_for_unchecked_rev(2.into()).ok().unwrap();
+        let entry2 = revlog.get_entry_for_unchecked_rev(2.into()).ok().unwrap();
         assert_eq!(entry2.revision(), Revision(2));
         assert_eq!(*entry2.node(), node2);
         assert!(entry2.has_p1());
@@ -896,15 +966,19 @@ mod tests {
     #[test]
     fn test_nodemap() {
         let temp = tempfile::tempdir().unwrap();
-        let vfs = VfsImpl::new(temp.path().to_owned(), false);
+        let vfs = VfsImpl::new(
+            temp.path().to_owned(),
+            false,
+            PathEncoding::DotEncode,
+        );
 
         // building a revlog with a forced Node starting with zeros
         // This is a corruption, but it does not preclude using the nodemap
         // if we don't try and access the data
-        let node0 = Node::from_hex("00d2a3912a0b24502043eae84ee4b279c18b90dd")
-            .unwrap();
-        let node1 = Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12")
-            .unwrap();
+        let node0 =
+            Node::from_hex("00d2a3912a0b24502043eae84ee4b279c18b90dd").unwrap();
+        let node1 =
+            Node::from_hex("b004912a8510032a0350a74daa2803dadfb00e12").unwrap();
         let entry0_bytes = IndexEntryBuilder::new()
             .is_first(true)
             .with_version(1)
@@ -928,6 +1002,7 @@ mod tests {
             None,
             RevlogOpenOptions::default(),
             Some(idx.nt),
+            RevlogType::Changelog,
         )
         .unwrap();
 
@@ -945,15 +1020,11 @@ mod tests {
         assert_eq!(revlog.rev_from_node(node0.into()).unwrap(), Revision(0));
         assert_eq!(revlog.rev_from_node(node1.into()).unwrap(), Revision(1));
         assert_eq!(
-            revlog
-                .rev_from_node(NodePrefix::from_hex("000").unwrap())
-                .unwrap(),
+            revlog.rev_from_node(NodePrefix::from_hex("000").unwrap()).unwrap(),
             Revision(-1)
         );
         assert_eq!(
-            revlog
-                .rev_from_node(NodePrefix::from_hex("b00").unwrap())
-                .unwrap(),
+            revlog.rev_from_node(NodePrefix::from_hex("b00").unwrap()).unwrap(),
             Revision(1)
         );
         // RevlogError does not implement PartialEq
@@ -967,5 +1038,11 @@ mod tests {
                 panic!("Got another error than AmbiguousPrefix: {:?}", e);
             }
         };
+    }
+
+    #[test]
+    fn test_revision_or_wdir_ord() {
+        let highest: RevisionOrWdir = Revision(i32::MAX - 1).into();
+        assert!(highest < RevisionOrWdir::wdir());
     }
 }
