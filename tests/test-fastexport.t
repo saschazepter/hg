@@ -1167,7 +1167,7 @@ Test that the presence of .gitmodules in the source repository aborts by default
   > EOF
   $ hg add .gitmodules
   $ hg commit -m 'add subrepo'
-  $ hg fastexport > /dev/null
+  $ hg fastexport --color=never >/dev/null
   abort: .gitmodules already present in source repository
   (to ignore this error, set config fastexport.on-pre-existing-gitmodules=ignore)
   [255]
@@ -1254,7 +1254,7 @@ Test that removing .gitmodules from the source repository does not remove the ge
   $ touch .gitmodules
   $ hg add .gitmodules
   $ hg commit -m 'add .gitmodules'
-  $ hg fastexport > /dev/null
+  $ hg fastexport --color=never >/dev/null
   config error: fastexport.on-pre-existing-gitmodules not valid
   (should be 'abort' or 'ignore', but is 'invalid')
   [30]
