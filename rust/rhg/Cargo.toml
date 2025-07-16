@@ -25,7 +25,7 @@ regex = "1.11.1"
 format-bytes = "0.3.0"
 shellexpand = { version = "3.1", features = ["full"]}
 whoami = "1.6"
-which = "7.0.3"
+which = "8.0.0"
 rayon = "1.10.0"
 libc = "0.2.172"
 tracing = { version = "0.1.41", features = ["attributes"] }
