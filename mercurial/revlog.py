@@ -213,7 +213,7 @@ class revlogrevisiondelta(repository.irevisiondelta):
     sidedata = attr.ib(type=Optional[bytes])
     protocol_flags = attr.ib(type=int)
     linknode = attr.ib(default=None, type=Optional[bytes])
-    snapshot_level = attr.ib(default=None, type=int | None)
+    snapshot_level = attr.ib(default=None, type=Optional[int])
 
 
 @attr.s(frozen=True)
