@@ -1052,7 +1052,7 @@ def quick_upgrade(rl, upgrade_meta, upgrade_delta_info):
         new_index.append(e)
 
     # write data
-    with rl.opener(rl._indexfile, b'bw', atomictemp=True) as n:
+    with rl.opener(rl._indexfile, b'wb', atomictemp=True) as n:
         for rev in range(len(new_index)):
             idx = new_index.entry_binary(rev)
             if rev == 0:
