@@ -3284,18 +3284,6 @@ class TestRunner:
         self._custom_bin_dir = os.path.join(self._hgtmp, b'custom-bin')
         os.makedirs(self._custom_bin_dir)
 
-        # detect and enforce an alternative way to specify rust extension usage
-        if (
-            not (
-                self.options.wheel
-                or self.options.pure
-                or self.options.rust
-                or self.options.no_rust
-            )
-            and os.environ.get("HGWITHRUSTEXT") == "cpython"
-        ):
-            self.options.rust = True
-
         if self.options.with_hg:
             self._installdir = None
             whg = self.options.with_hg
@@ -3453,14 +3441,12 @@ class TestRunner:
         if self.options.pure:
             os.environ["HGTEST_RUN_TESTS_PURE"] = "--pure"
             os.environ["HGMODULEPOLICY"] = "py"
-            os.environ.pop("HGWITHRUSTEXT", None)
         if self.options.rust:
             os.environ["HGMODULEPOLICY"] = "rust+c"
         if self.options.no_rust:
             current_policy = os.environ.get("HGMODULEPOLICY", "")
             if current_policy.startswith("rust+"):
                 os.environ["HGMODULEPOLICY"] = current_policy[len("rust+") :]
-            os.environ.pop("HGWITHRUSTEXT", None)
 
         if self.options.allow_slow_tests:
             os.environ["HGTEST_SLOW"] = "slow"
@@ -3926,10 +3912,6 @@ class TestRunner:
             install_env["PYTHONUSERBASE"] = _bytes2sys(self._installdir)
 
         installerrs = os.path.join(self._hgtmp, b"install.err")
-        if self.options.pure:
-            install_env.pop('HGWITHRUSTEXT', None)
-        elif self.options.no_rust:
-            install_env.pop('HGWITHRUSTEXT', None)
 
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:

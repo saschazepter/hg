@@ -312,7 +312,6 @@ test-pure:
 .test-rust:
     extends: .runtests-no-check
     variables:
-        HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
         WHEEL_TYPE: "rust"
 
@@ -320,7 +319,6 @@ test-rust:
     extends: .test-rust
     image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
     variables:
-        HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust"
     needs:
       - job: build-rust-wheel-libc
@@ -334,7 +332,6 @@ test-rhg:
     extends: .runtests-no-check
     image: "$HG_CI_REG/hg-core-test-py-dev-rust-dev:$HG_CI_IMAGE_TAG"
     variables:
-        HGWITHRUSTEXT: "cpython"
         FLAVOR: "--rust --rhg"
 
 test-chg:
