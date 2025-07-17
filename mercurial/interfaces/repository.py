@@ -1399,13 +1399,6 @@ class imanifestrevisionstored(imanifestrevisionbase, Protocol):
         The returned object conforms to the ``imanifestdict`` interface."""
 
     @abc.abstractmethod
-    def readfast(self, shallow: bool = False):
-        """Calls either ``read()`` or ``readdelta()``.
-
-        The faster of the two options is called.
-        """
-
-    @abc.abstractmethod
     def find(self, key: bytes) -> tuple[bytes, bytes]:
         """Calls ``self.read().find(key)``.
 

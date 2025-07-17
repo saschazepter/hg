@@ -2234,25 +2234,6 @@ class manifestctx(repository.imanifestrevisionstored):
                 self._data = manifestdict(nc.nodelen, text)
         return self._data
 
-    def readfast(self, shallow: bool = False) -> manifestdict:
-        """Calls either readdelta or read, based on which would be less work.
-        readdelta is called if the delta is against the p1, and therefore can be
-        read quickly.
-
-        If `shallow` is True, nothing changes since this is a flat manifest.
-        """
-        util.nouideprecwarn(
-            b'"readfast" is deprecated use "read_any_fast_delta" or "read_delta_parents"',
-            b"6.9",
-            stacklevel=2,
-        )
-        store = self._storage()
-        r = store.rev(self._node)
-        deltaparent = store.deltaparent(r)
-        if deltaparent != nullrev and deltaparent in store.parentrevs(r):
-            return self.readdelta()
-        return self.read()
-
     def readdelta(self, shallow: bool = False) -> manifestdict:
         """Returns a manifest containing just the entries that are present
         in this manifest, but not in its p1 manifest. This is efficient to read
@@ -2614,32 +2595,6 @@ class treemanifestctx(repository.imanifestrevisionstored):
         bases = (store.deltaparent(r),)
         return self.read_any_fast_delta(bases, shallow=shallow)[1]
 
-    def readfast(self, shallow: bool = False) -> AnyManifestDict:
-        """Calls either readdelta or read, based on which would be less work.
-        readdelta is called if the delta is against the p1, and therefore can be
-        read quickly.
-
-        If `shallow` is True, it only returns the entries from this manifest,
-        and not any submanifests.
-        """
-        util.nouideprecwarn(
-            b'"readdelta" is deprecated use "read_any_fast_delta" or "read_delta_parents"',
-            b"6.9",
-            stacklevel=2,
-        )
-        store = self._storage()
-        r = store.rev(self._node)
-        deltaparent = store.deltaparent(r)
-        if deltaparent != nullrev and deltaparent in store.parentrevs(r):
-            return self.readdelta(shallow=shallow)
-
-        if shallow:
-            return manifestdict(
-                store.nodeconstants.nodelen, store.revision(self._node)
-            )
-        else:
-            return self.read()
-
     def find(self, key: bytes) -> tuple[bytes, bytes]:
         return self.read().find(key)
 
@@ -2686,10 +2641,6 @@ class excludeddirmanifestctx(treemanifestctx):
 
     def read(self):
         return excludeddir(self.nodeconstants, self._dir, self._node)
-
-    def readfast(self, shallow: bool = False):
-        # special version of readfast since we don't have underlying storage
-        return self.read()
 
     def write(self, *args):
         raise error.ProgrammingError(
