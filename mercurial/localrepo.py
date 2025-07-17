@@ -2832,7 +2832,7 @@ class localrepository(_localrepo_base_classes):
             # TODO: Changing contents of store outside transaction
             # causes inconsistency. We should make in-memory store
             # changes detectable, and abort if changed.
-            self.store.invalidatecaches()
+            self.store.invalidatecaches(clearfilecache=clearfilecache)
 
     def invalidateall(self):
         """Fully invalidates both store and non-store parts, causing the

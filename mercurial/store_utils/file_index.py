@@ -114,7 +114,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _add_file_generator(self, tr: TransactionT, force_vacuum=False):
         """Add a file generator for writing the file index."""
-        assert not self._written, "should only write file index once"
         tr.addfilegenerator(
             b"fileindex",
             (b"fileindex",),

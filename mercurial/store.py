@@ -43,7 +43,9 @@ from . import (
     manifest,
     policy,
     pycompat,
+    repo as repomod,
     revlog as revlogmod,
+    scmutil,
     util,
     vfs as vfsmod,
 )
@@ -54,8 +56,6 @@ parsers = policy.importmod('parsers')
 # how much bytes should be read from fncache in one read
 # It is done to prevent loading large fncache files into memory
 fncache_chunksize = 10**6
-
-propertycache = util.propertycache
 
 
 def _match_tracked_entry(entry: BaseStoreEntry, matcher):
@@ -993,7 +993,7 @@ class basicstore:
         subclass implementations for their specific writing pattern.
         """
 
-    def invalidatecaches(self):
+    def invalidatecaches(self, clearfilecache: bool):
         pass
 
     def markremoved(self, fn):
@@ -1329,7 +1329,7 @@ class fncachestore(basicstore):
         """
         tr.addfinalize(b'flush-fncache', self.fncache.write)
 
-    def invalidatecaches(self):
+    def invalidatecaches(self, clearfilecache: bool):
         self.fncache.entries = None
         self.fncache.addls = set()
 
@@ -1360,6 +1360,23 @@ class fncachestore(basicstore):
         return False
 
 
+class storecache(scmutil.filecache):
+    """A decorator for mtime-based caching of files in .hg/store.
+
+    Intended usage is @storecache(b"filename") for a method that reads from
+    .hg/store/filename. Similar to storecache in localrepo.py, but does not
+    assume the class is a localrepository.
+    """
+
+    def __init__(self, *paths):
+        super().__init__(*paths)
+        for path in paths:
+            repomod.cachedfiles.add((path, b''))
+
+    def join(self, obj, fname):
+        return obj.pathsep + fname
+
+
 class FileIndexStore(basicstore):
     """A store that keeps track of files in a file index.
 
@@ -1377,8 +1394,9 @@ class FileIndexStore(basicstore):
         self.rawvfs = vfs
         self.vfs = vfsmod.filtervfs(vfs, self.encode)
         self.opener = self.vfs
+        self._filecache = {}  # used by @storecache
 
-    @propertycache
+    @storecache(b'fileindex')
     def fileindex(self):
         percentage = self.vfs.options[b'fileindex-max-unused-percentage']
         return file_index_mod.FileIndex(
@@ -1400,8 +1418,11 @@ class FileIndexStore(basicstore):
     def copylist(self):
         raise NotImplementedError("file index copylist not implemented yet")
 
-    def invalidatecaches(self):
-        util.clearcachedproperty(self, b"fileindex")
+    def invalidatecaches(self, clearfilecache: bool):
+        if clearfilecache:
+            self._filecache.pop(b'fileindex', None)
+        if 'fileindex' in vars(self):
+            del self.fileindex
 
     def markremoved(self, fn):
         raise NotImplementedError("file index markremoved not implemented yet")
