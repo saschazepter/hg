@@ -119,7 +119,13 @@ pub fn update_from_null(
     let tracked_files: Result<Vec<_>, HgError> = if !repo.has_sparse() {
         files_for_rev
             .iter()
-            .map(|e| Ok(WorkingCopyFileUpdate { entry: e?, backup: false }))
+            .map(|e| {
+                Ok(WorkingCopyFileUpdate {
+                    entry: e?,
+                    backup: false,
+                    flags_differ: false,
+                })
+            })
             .collect()
     } else {
         let sparse_matcher = sparse::matcher(repo, None, warnings)?;
@@ -131,7 +137,13 @@ pub fn update_from_null(
                     Err(_) => true, // Errors stop the update, include them
                 }
             })
-            .map(|e| Ok(WorkingCopyFileUpdate { entry: e?, backup: false }))
+            .map(|e| {
+                Ok(WorkingCopyFileUpdate {
+                    entry: e?,
+                    backup: false,
+                    flags_differ: false,
+                })
+            })
             .collect()
     };
     let tracked_files = tracked_files?;
@@ -286,6 +298,9 @@ pub struct WorkingCopyFileUpdate<'a> {
     entry: ExpandedManifestEntry<'a>,
     /// Whether to backup this path before trying to update it
     backup: bool,
+    /// Whether the flags for this pre-existing file have changed. `false` if
+    /// the file doesn't exist in source.
+    flags_differ: bool,
 }
 
 /// Represents the actions to take on the working copy for an update
@@ -597,7 +612,7 @@ pub fn compute_actions<
                 file_conflicts.into_iter().collect();
             let new_gets = actions.create.iter().copied().map(|c| {
                 let backup = file_conflicts.contains(&c.0);
-                WorkingCopyFileUpdate { entry: c, backup }
+                WorkingCopyFileUpdate { entry: c, backup, flags_differ: false }
             });
             old_gets.extend(new_gets);
         } else {
@@ -605,7 +620,7 @@ pub fn compute_actions<
             // complexity to build a macro for this, so just copy.
             let new_gets = actions.create.iter().copied().map(|c| {
                 let backup = file_conflicts.contains(&c.0);
-                WorkingCopyFileUpdate { entry: c, backup }
+                WorkingCopyFileUpdate { entry: c, backup, flags_differ: false }
             });
             old_gets.extend(new_gets);
         }
@@ -671,6 +686,7 @@ fn filter_sparse_actions<'a>(
                 to_get.push(WorkingCopyFileUpdate {
                     entry: (path, node, flags),
                     backup: false,
+                    flags_differ: false,
                 });
             } else if old && !new {
                 to_remove.push(path);
@@ -873,6 +889,7 @@ fn manifest_actions<'manifests, 'm1: 'manifests, 'm2: 'manifests>(
                     actions.get.push(WorkingCopyFileUpdate {
                         entry: (filename, p2_node_id, p2_entry.flags),
                         backup: false,
+                        flags_differ,
                     });
                 }
             }
@@ -1199,7 +1216,7 @@ fn working_copy_worker<'a: 'b, 'b>(
         return Err(HgError::InterruptReceived);
     }
 
-    for WorkingCopyFileUpdate { entry, backup } in chunk {
+    for WorkingCopyFileUpdate { entry, backup, flags_differ } in chunk {
         let (file, file_node, flags) = entry;
         if backup {
             // If a file or directory exists with the same name, back that
@@ -1312,10 +1329,10 @@ fn working_copy_worker<'a: 'b, 'b>(
             f.write_all(file_data).when_writing_file(&path)?;
         }
 
-        if !flags.is_link() {
-            let mode = if flags.is_exec() { 0o755 } else { 0o666 };
+        if !flags.is_link() && (flags_differ || flags.is_exec()) {
             // Respect umask since this is an after-creation update
-            let mode = mode & !get_umask();
+            let mode =
+                if flags.is_exec() { 0o755 } else { 0o666 } & !get_umask();
             std::fs::set_permissions(&path, Permissions::from_mode(mode))
                 .when_writing_file(&path)?;
         }
@@ -1521,6 +1538,7 @@ mod test {
                         ManifestFlags::new_empty(),
                     ),
                     backup: false,
+                    flags_differ: false,
                 })
                 .collect()
         }
