@@ -2234,23 +2234,6 @@ class manifestctx(repository.imanifestrevisionstored):
                 self._data = manifestdict(nc.nodelen, text)
         return self._data
 
-    def readdelta(self, shallow: bool = False) -> manifestdict:
-        """Returns a manifest containing just the entries that are present
-        in this manifest, but not in its p1 manifest. This is efficient to read
-        if the revlog delta is already p1.
-
-        Changing the value of `shallow` has no effect on flat manifests.
-        """
-        util.nouideprecwarn(
-            b'"readfast" is deprecated use "read_any_fast_delta" or "read_delta_new_entries"',
-            b"6.9",
-            stacklevel=2,
-        )
-        store = self._storage()
-        r = store.rev(self._node)
-        d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
-        return manifestdict(store.nodeconstants.nodelen, d)
-
     def read_any_fast_delta(
         self,
         valid_bases: Collection[int] | None = None,
@@ -2430,31 +2413,6 @@ class treemanifestctx(repository.imanifestrevisionstored):
     @propertycache
     def parents(self) -> tuple[bytes, bytes]:
         return self._storage().parents(self._node)
-
-    def readdelta(self, shallow: bool = False) -> AnyManifestDict:
-        """see `imanifestrevisionstored` documentation"""
-        util.nouideprecwarn(
-            b'"readdelta" is deprecated use "read_any_fast_delta" or "read_delta_new_entries"',
-            b"6.9",
-            stacklevel=2,
-        )
-        store = self._storage()
-        if shallow:
-            r = store.rev(self._node)
-            d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
-            return manifestdict(store.nodeconstants.nodelen, d)
-        else:
-            # Need to perform a slow delta
-            r0 = store.deltaparent(store.rev(self._node))
-            m0 = self._manifestlog.get(self._dir, store.node(r0)).read()
-            m1 = self.read()
-            md = treemanifest(self._manifestlog.nodeconstants, dir=self._dir)
-            for f, ((n0, fl0), (n1, fl1)) in m0.diff(m1).items():
-                if n1:
-                    md[f] = n1
-                    if fl1:
-                        md.setflag(f, fl1)
-            return md
 
     def read_any_fast_delta(
         self,

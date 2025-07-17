@@ -321,9 +321,6 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
     def node(self) -> bytes:
         raise NotImplementedError
 
-    def readdelta(self, shallow: bool = False):
-        raise NotImplementedError
-
     def read_any_fast_delta(
         self,
         valid_bases: Collection[int] | None = None,

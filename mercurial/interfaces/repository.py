@@ -1323,22 +1323,6 @@ class imanifestrevisionstored(imanifestrevisionbase, Protocol):
     """List of binary nodes that are parents for this manifest revision."""
 
     @abc.abstractmethod
-    def readdelta(self, shallow: bool = False):
-        """Obtain the manifest data structure representing changes from parent.
-
-        This manifest is compared to its 1st parent. A new manifest
-        representing those differences is constructed.
-
-        If `shallow` is True, this will read the delta for this directory,
-        without recursively reading subdirectory manifests. Instead, any
-        subdirectory entry will be reported as it appears in the manifest, i.e.
-        the subdirectory will be reported among files and distinguished only by
-        its 't' flag. This only apply if the underlying manifest support it.
-
-        The returned object conforms to the ``imanifestdict`` interface.
-        """
-
-    @abc.abstractmethod
     def read_any_fast_delta(
         self,
         valid_bases: Collection[int] | None = None,
