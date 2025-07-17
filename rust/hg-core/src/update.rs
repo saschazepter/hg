@@ -1325,7 +1325,7 @@ fn working_copy_worker<'a: 'b, 'b>(
         } else if update_config.atomic_file {
             working_copy_vfs.atomic_write(relative_path, file_data)?;
         } else {
-            let mut f = working_copy_vfs.create(&relative_path, false)?;
+            let mut f = working_copy_vfs.create_working_copy(&relative_path)?;
             f.write_all(file_data).when_writing_file(&path)?;
         }
 
