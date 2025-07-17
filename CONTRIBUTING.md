@@ -34,7 +34,7 @@ commits you've made (for example, `python contrib/check-commit
 
 - `msgfmt` from the Debian package `gettext` (used to build the translations)
 
-- [Rust tools](https://www.rust-lang.org/tools/install) (see `rust/README.rst`)
+- [Rust tools](https://www.rust-lang.org/tools/install) (see `rust/README.md`)
 
 #### Note on installation
 

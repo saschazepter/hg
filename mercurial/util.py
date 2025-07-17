@@ -3481,7 +3481,7 @@ def rust_tracing_span(name: str):
     tracing system to register a span, creating it on `__enter__` and closing
     it on `__exit__`.
 
-    See "Profiling and tracing" in `rust/README.rst` for more information.
+    See "Profiling and tracing" in `rust/README.md` for more information.
 
     [1] The context manager does nothing if the Rust extensions are unavailable
     or have not been compiled with the `full-tracing` feature.
