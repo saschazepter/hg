@@ -20,6 +20,9 @@ There are currently four independent Rust projects:
   unsupported invocations. It reuses the logic ``hg-core`` but
   completely forgoes interaction with Python. See
   ``rust/rhg/README.md`` for more details.
+  .. warning::
+    rhg should not yet be packaged for distribution without a warning that
+    certain rough edges may be encountered, detailed in its README.
 
 Using Rust code
 ===============
