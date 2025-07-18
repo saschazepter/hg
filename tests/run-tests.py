@@ -435,6 +435,16 @@ def getparser():
     """Obtain the OptionParser used by the CLI."""
     parser = argparse.ArgumentParser(usage='%(prog)s [options] [tests]')
 
+    def validate_wheel_path(wheel):
+        """Validate the wheel path and convert to abspath early."""
+        if wheel:
+            wheel = os.path.realpath(wheel)
+            if not os.path.exists(wheel):
+                raise argparse.ArgumentTypeError(
+                    "wheel does not exist: %r" % wheel
+                )
+        return wheel
+
     selection = parser.add_argument_group('Test Selection')
     selection.add_argument(
         '--allow-slow-tests',
@@ -623,6 +633,7 @@ def getparser():
     hgconf.add_argument(
         "--hg-wheel",
         default=None,
+        type=validate_wheel_path,
         metavar="WHEEL_PATH",
         dest="wheel",
         help="install mercurial from the given wheel",
