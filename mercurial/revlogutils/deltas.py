@@ -1386,13 +1386,19 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             yield self.p1
             p = self.p1
             while self.revlog.length(p) == 0:
-                p = self.revlog.deltaparent(p)
+                next_p = self.revlog.deltaparent(p)
+                if next_p == p:
+                    break
+                p = next_p
                 yield p
         if self.p2 is not nullrev:
             yield self.p2
             p = self.p2
             while self.revlog.length(p) == 0:
-                p = self.revlog.deltaparent(p)
+                next_p = self.revlog.deltaparent(p)
+                if next_p == p:
+                    break
+                p = next_p
                 yield p
 
     def _init_cached(self) -> bool:
