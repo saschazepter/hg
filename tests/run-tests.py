@@ -3358,12 +3358,12 @@ class TestRunner:
         # anyway.
         #
         # We do not do it when using wheels and they do not install a .exe.
-        if (
-            WINDOWS
-            and not self.options.wheel
-            and not self._hgcommand.endswith(b'.exe')
-        ):
-            self._hgcommand += b'.exe'
+        if WINDOWS and not self.options.wheel:
+            # Currently no hg.exe without compiler
+            if self.options.pure:
+                self._hgcommand += b'.bat'
+            elif not self._hgcommand.endswith(b'.exe'):
+                self._hgcommand += b'.exe'
 
         self._real_hg = os.path.join(self._bindir, self._hgcommand)
         osenvironb[b'HGTEST_REAL_HG'] = self._real_hg
