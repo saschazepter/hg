@@ -183,7 +183,7 @@ pub trait Graph {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError>;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GraphError {
     /// Parent revision does not exist, i.e. below 0 or above max revision.
     ParentOutOfRange(Revision),

@@ -10,12 +10,12 @@
 //! and can be used as replacement for the the pure `ancestor` Python module.
 use std::collections::HashSet;
 
+use hg::ancestors::AncestorsIterator as HgAncestorsIterator;
 use hg::MissingAncestors as CoreMissing;
+use hg::Revision;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use pyo3_sharedref::SharedByPyObject;
-use vcsgraph::lazy_ancestors::AncestorsIterator as VCGAncestorsIterator;
-use vcsgraph::lazy_ancestors::LazyAncestors as VCGLazyAncestors;
 
 use crate::exceptions::GraphError;
 use crate::revision::PyRevision;
@@ -27,7 +27,7 @@ use crate::utils::py_shared_or_map_err;
 
 #[pyclass]
 struct AncestorsIterator {
-    inner: SharedByPyObject<VCGAncestorsIterator<PySharedIndex>>,
+    inner: SharedByPyObject<HgAncestorsIterator<PySharedIndex>>,
 }
 
 #[pymethods]
@@ -45,16 +45,15 @@ impl AncestorsIterator {
         let shared_idx = py_rust_index_to_graph(index_proxy)?;
         let res_ait = unsafe {
             shared_idx.map(py, |idx| {
-                VCGAncestorsIterator::new(
+                HgAncestorsIterator::new(
                     idx,
-                    initvec.into_iter().map(|r| r.0),
-                    stoprev.0,
+                    initvec.into_iter().map(|r| Revision(r.0)),
+                    hg::Revision(stoprev.0),
                     inclusive,
                 )
             })
         };
-        let inner =
-            py_shared_or_map_err(py, res_ait, GraphError::from_vcsgraph)?;
+        let inner = py_shared_or_map_err(py, res_ait, GraphError::from_hg)?;
         Ok(Self { inner })
     }
 
@@ -67,16 +66,16 @@ impl AncestorsIterator {
         // Safety: we don't leak the inner 'static ref out of SharedByPyObject
         let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
         match inner.next() {
-            Some(Err(e)) => Err(GraphError::from_vcsgraph(e)),
+            Some(Err(e)) => Err(GraphError::from_hg(e)),
             None => Ok(None),
-            Some(Ok(r)) => Ok(Some(PyRevision(r))),
+            Some(Ok(r)) => Ok(Some(PyRevision(r.0))),
         }
     }
 }
 
 #[pyclass(sequence)]
 struct LazyAncestors {
-    inner: SharedByPyObject<VCGLazyAncestors<PySharedIndex>>,
+    inner: SharedByPyObject<HgAncestorsIterator<PySharedIndex>>,
     proxy_index: Py<PyAny>,
     initrevs: Py<PyAny>,
     stoprev: PyRevision,
@@ -101,16 +100,15 @@ impl LazyAncestors {
         // `SharedByPyObject`
         let res_lazy = unsafe {
             shared_idx.map(py, |idx| {
-                VCGLazyAncestors::new(
+                HgAncestorsIterator::new(
                     idx,
-                    initvec.into_iter().map(|r| r.0),
-                    stoprev.0,
+                    initvec.into_iter().map(|r| Revision(r.0)),
+                    hg::Revision(stoprev.0),
                     inclusive,
                 )
             })
         };
-        let inner =
-            py_shared_or_map_err(py, res_lazy, GraphError::from_vcsgraph)?;
+        let inner = py_shared_or_map_err(py, res_lazy, GraphError::from_hg)?;
         Ok(Self {
             inner,
             proxy_index: cloned_proxy,
@@ -135,7 +133,7 @@ impl LazyAncestors {
             // Safety: we don't leak the "faked" reference out of
             // `SharedByPyObject`
             let mut inner = unsafe { slf.inner.try_borrow_mut(obj.py()) }?;
-            inner.contains(rev.0).map_err(GraphError::from_vcsgraph)
+            inner.contains(hg::Revision(rev.0)).map_err(GraphError::from_hg)
         })
     }
 
