@@ -1387,7 +1387,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             p = self.p1
             while self.revlog.length(p) == 0:
                 next_p = self.revlog.deltaparent(p)
-                if next_p == p:
+                if next_p == nullrev or next_p == p:
                     break
                 p = next_p
                 yield p
@@ -1396,7 +1396,7 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             p = self.p2
             while self.revlog.length(p) == 0:
                 next_p = self.revlog.deltaparent(p)
-                if next_p == p:
+                if next_p == nullrev or next_p == p:
                     break
                 p = next_p
                 yield p
