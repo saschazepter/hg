@@ -1210,12 +1210,12 @@ def deltagroup(
         )
 
     configtarget = repo.ui.config(b'devel', b'bundle.delta')
-    if configtarget not in (b'', b'p1', b'full'):
+    if configtarget not in (b'', b'p1', b'full', b'prev'):
         msg = _(b"""config "devel.bundle.delta" as unknown value: %s""")
         repo.ui.warn(msg % configtarget)
 
     deltamode = repository.CG_DELTAMODE_STD
-    if forcedeltaparentprev:
+    if forcedeltaparentprev or configtarget == b'prev':
         deltamode = repository.CG_DELTAMODE_PREV
     elif configtarget == b'p1':
         deltamode = repository.CG_DELTAMODE_P1
