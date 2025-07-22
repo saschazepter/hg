@@ -449,6 +449,34 @@ def substringregexp(pattern: bytes, flags: int = 0) -> Pattern[bytes]:
     raise error.ProgrammingError(b'unhandled pattern kind: %s' % kind)
 
 
+def common_prefix(s1: bytes, s2: bytes) -> bytes:
+    """Return the common prefix of two strings.
+
+    >>> common_prefix(b'', b'')
+    b''
+    >>> common_prefix(b'x', b'')
+    b''
+    >>> common_prefix(b'', b'x')
+    b''
+    >>> common_prefix(b'x', b'x')
+    b'x'
+    >>> common_prefix(b'x', b'y')
+    b''
+    >>> common_prefix(b'x', b'xy')
+    b'x'
+    >>> common_prefix(b'xy', b'x')
+    b'x'
+    >>> common_prefix(b'xy1', b'xy2')
+    b'xy'
+    """
+    n = 0
+    for c1, c2 in zip(s1, s2):
+        if c1 != c2:
+            break
+        n += 1
+    return s1[:n]
+
+
 def shortuser(user: bytes) -> bytes:
     """Return a short representation of a user name or email address."""
     f = user.find(b'@')
