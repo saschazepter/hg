@@ -43,8 +43,10 @@ blocks = bdiff.blocks
 fixws = bdiff.fixws
 patches = mpatch.patches
 patchedsize = mpatch.patchedsize
-textdiff = bdiff.bdiff
 splitnewlines = bdiff.splitnewlines
+# produce the historic generic diff
+textdiff = bdiff.bdiff
+text_diff = textdiff
 
 if typing.TYPE_CHECKING:
     HunkLines = list[bytes]
