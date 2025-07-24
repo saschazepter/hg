@@ -1,6 +1,5 @@
 [build-system]
 requires = [
-    "wheel",
     "setuptools>=80.1.0",
     "setuptools-scm>=8.1.0",
     ]
