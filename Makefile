@@ -195,7 +195,7 @@ format-wdir: .hg/dev-tools/fix-conf.rc
 # requires topic to have a stack in the first place.
 .PHONY: format-stack
 format-stack: .hg/dev-tools/fix-conf.rc
-	hg --config extensions.fix= fix --rev .#stack
+	hg --config extensions.fix= fix --rev ".#stack" --rev "wdir()"
 
 .hg/dev-tools/fix-conf.rc: contrib/fix-conf.rc contrib/setup-dev-tool.sh
 	./contrib/setup-dev-tool.sh
