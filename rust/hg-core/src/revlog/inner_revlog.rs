@@ -501,7 +501,8 @@ impl InnerRevlog {
                 .data_config
                 .uncompressed_cache_factor
                 .expect("cache should not exist without factor");
-            let candidate_size = (size as f64 * factor) as usize;
+            let size: usize = size.try_into().expect("16-bit computer?");
+            let candidate_size = size * factor;
             let limiter_mut = cache.limiter_mut();
             if candidate_size > limiter_mut.max_memory_usage() {
                 std::mem::swap(
