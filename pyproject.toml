@@ -91,7 +91,7 @@ test-skip = "*"
 # to also build "x86_64".  Further discussion here:
 #    https://github.com/pypa/cibuildwheel/issues/1333
 #    https://github.com/python-cffi/cffi/issues/133
-#  
+#
 # NOTE: this is overridden in heptapod-ci.yml because the current CI system
 # doesn't support arm64 builds.
 archs = ["universal2"]
