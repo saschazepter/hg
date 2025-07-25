@@ -61,7 +61,7 @@ help:
 	@echo '  make install PREFIX=/data/local PIP_PREFIX=/data PIP_OPTIONS_INSTALL='
 	@echo
 	@echo 'Example for a local installation (usable in this directory):'
-	@echo '  make local && ./hg version'
+	@echo '  make local && ./hg-local version'
 
 .PHONY: local
 local:
@@ -69,6 +69,7 @@ local:
 	.local-venv/$(PYBINDIRNAME)/python -m \
 	  pip install -e . -v $(PIP_OPTIONS_PURE)
 	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg version
+	test -e .local-venv/bin/hg && ln -s -f .local-venv/bin/hg hg-local
 
 .PHONY: build-chg
 build-chg:
@@ -92,6 +93,7 @@ cleanbutpackages:
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
 	rm -rf .local-venv
+	rm -f hg-local
 	rm -f hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi

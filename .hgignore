@@ -21,6 +21,7 @@ syntax: glob
 .\#*
 .venv*
 .local-venv
+hg-local
 result/
 tests/artifacts/cache/big-file-churn.hg
 tests/.coverage*
