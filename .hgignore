@@ -76,7 +76,7 @@ rust/*/target/
 wheelhouse/
 
 syntax: rootglob
-# See Profiling in rust/README.rst
+# See Profiling in rust/README.md
 .cargo/config
 
 syntax: regexp

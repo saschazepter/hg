@@ -8,6 +8,9 @@ Avoid interference from actual test env:
 Smoke test with install
 ============
 
+  $ PIP_NO_CACHE_DIR=1
+  $ export PIP_NO_CACHE_DIR
+
   $ (testrepohgenv; "$PYTHON" $TESTDIR/run-tests.py --pure)
   installed Mercurial in * seconds  (glob)
   running 0 tests using 0 parallel processes 

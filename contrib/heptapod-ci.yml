@@ -630,7 +630,6 @@ build-c-wheel-windows:
                $WHEEL_ARG
                $FLAVOR
                --port `expr 19051 + 1009 "*" $CI_CONCURRENT_ID`
-               --shard-index $CI_NODE_INDEX --shard-total $CI_NODE_TOTAL
                $FILTER
                $RUNTEST_ARGS;
           '

@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
-use schnellru::ByMemoryUsage;
 use schnellru::LruMap;
 use sha1::Digest;
 use sha1::Sha1;
@@ -51,6 +50,7 @@ use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
+use crate::utils::ByTotalChunksSize;
 use crate::vfs::Vfs;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
@@ -126,7 +126,15 @@ impl InnerRevlog {
             data_config.uncompressed_cache_factor.map(
                 // Arbitrary initial value
                 // TODO check if using a hasher specific to integers is useful
-                |_factor| RwLock::new(LruMap::with_memory_budget(65536)),
+                |_factor| {
+                    let resize_factor = data_config
+                        .uncompressed_cache_factor
+                        .expect("cache should not exist without factor");
+                    RwLock::new(LruMap::new(ByTotalChunksSize::new(
+                        65536,
+                        resize_factor,
+                    )))
+                },
             );
 
         let inline = index.is_inline();
@@ -497,18 +505,9 @@ impl InnerRevlog {
             // largest revision we've seen in this revlog.
             // Do it *before* restoration in case the current revision
             // is the largest.
-            let factor = self
-                .data_config
-                .uncompressed_cache_factor
-                .expect("cache should not exist without factor");
-            let candidate_size = (size as f64 * factor) as usize;
             let limiter_mut = cache.limiter_mut();
-            if candidate_size > limiter_mut.max_memory_usage() {
-                std::mem::swap(
-                    limiter_mut,
-                    &mut ByMemoryUsage::new(candidate_size),
-                );
-            }
+            let new_max = size.try_into().expect("16 bit computer?");
+            limiter_mut.maybe_grow_max(new_max);
         }
         entry.rawdata(cached_rev, get_buffer)?;
         // drop cache to save memory, the caller is expected to update
@@ -1306,7 +1305,7 @@ impl InnerRevlog {
 }
 
 type UncompressedChunkCache =
-    RwLock<LruMap<Revision, Arc<[u8]>, ByMemoryUsage>>;
+    RwLock<LruMap<Revision, Arc<[u8]>, ByTotalChunksSize>>;
 
 /// The node, revision and data for the last revision we've seen. Speeds up
 /// a lot of sequential operations of the revlog.

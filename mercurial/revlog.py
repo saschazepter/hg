@@ -4004,13 +4004,15 @@ class revlog:
                 ):
                     rev_has_meta = has_meta_cache[delta_parent]
                 else:
-                    rev_has_meta = (
-                        self._revisiondata(
+                    try:
+                        revdata = self._revisiondata(
                             rev,
                             validate=False,
-                        )[:META_MARKER_SIZE]
-                        == META_MARKER
-                    )
+                        )
+                    except error.CensoredNodeError:
+                        rev_has_meta = False
+                    else:
+                        rev_has_meta = revdata[:META_MARKER_SIZE] == META_MARKER
 
                 has_meta_cache[rev] = rev_has_meta
                 if rev_has_meta:

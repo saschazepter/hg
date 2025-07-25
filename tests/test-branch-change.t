@@ -373,8 +373,8 @@ changesets is requested to be "stable", the two parents of the tip need to be
 recreated with the "stable" branch name and the tip needs to be recreated with
 the changed parents. The other changesets stay untouched.
 
-  $ hg log -r '(not branch("stable"))' -T '{node}\n' > ../not-stable.nodes
-  $ hg glog -r 'nodefromfile("../not-stable.nodes")::'
+  $ hg log -r '(not branch("stable"))' -T '{node}\n' > not-stable.nodes
+  $ hg glog -r 'nodefromfile("not-stable.nodes")::'
   @    34:606538977fa6 Merge commit
   |\   stable ()
   | o  29:6bc1c6c2c9da Added g
@@ -387,9 +387,9 @@ the changed parents. The other changesets stay untouched.
   changed branch on 2 changesets
   $ hg log -r 'not branch("stable")'
   $ hg log --hidden -T '{node}\n' \
-  >   -r 'successors(nodefromfile("../not-stable.nodes")) - hidden()' \
-  >   > ../now-stable.nodes
-  $ hg glog -r 'nodefromfile("../now-stable.nodes")::'
+  >   -r 'successors(nodefromfile("not-stable.nodes")) - hidden()' \
+  >   > now-stable.nodes
+  $ hg glog -r 'nodefromfile("now-stable.nodes")::'
   @    37:7a416ed90703 Merge commit
   |\   stable ()
   | o  36:b44a3dbb5c89 Added g
@@ -398,6 +398,8 @@ the changed parents. The other changesets stay untouched.
   o  35:966c5d002f56 Added f
   |  stable (b1)
   ~
+
+  $ rm not-stable.nodes
 
 Changing branch on public changeset
 

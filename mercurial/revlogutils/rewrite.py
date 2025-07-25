@@ -929,9 +929,15 @@ def _find_all_revs_with_meta(rl):
         elif hm == HM_INHERIT and delta_parent in meta:
             meta[filerev] = meta[delta_parent]
         else:
-            meta[filerev] = (
-                rl._rawtext(None, filerev)[:META_MARKER_SIZE] == META_MARKER
-            )
+            try:
+                revdata = rl._revisiondata(
+                    filerev,
+                    validate=False,
+                )
+            except error.CensoredNodeError:
+                meta[filerev] = False
+            else:
+                meta[filerev] = revdata[:META_MARKER_SIZE] == META_MARKER
 
     return {k for k, v in meta.items() if v}
 
@@ -1052,7 +1058,7 @@ def quick_upgrade(rl, upgrade_meta, upgrade_delta_info):
         new_index.append(e)
 
     # write data
-    with rl.opener(rl._indexfile, b'bw', atomictemp=True) as n:
+    with rl.opener(rl._indexfile, b'wb', atomictemp=True) as n:
         for rev in range(len(new_index)):
             idx = new_index.entry_binary(rev)
             if rev == 0:

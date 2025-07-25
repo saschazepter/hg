@@ -2226,7 +2226,7 @@ Alias definitions for revsets. See :hg:`help revsets` for details.
 ``rhg``
 -------
 
-The pure Rust fast-path for Mercurial. See `rust/README.rst` in the Mercurial repository.
+The pure Rust fast-path for Mercurial. See `rust/README.md` in the Mercurial repository.
 
 ``fallback-executable``
     Path to the executable to run in a sub-process when falling back to

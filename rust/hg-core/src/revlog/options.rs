@@ -153,7 +153,7 @@ pub struct RevlogDataConfig {
     pub chunk_cache_size: u64,
     /// The size of the uncompressed cache compared to the largest revision
     /// seen
-    pub uncompressed_cache_factor: Option<f64>,
+    pub uncompressed_cache_factor: Option<usize>,
     /// The number of chunks cached
     pub uncompressed_cache_count: Option<u64>,
     /// Allow sparse reading of the revlog data
@@ -183,9 +183,9 @@ impl RevlogDataConfig {
         let memory_profile = config.get_resource_profile(Some("memory"));
         if memory_profile.value >= ResourceProfileValue::Medium {
             data_config.uncompressed_cache_count = Some(10_000);
-            data_config.uncompressed_cache_factor = Some(4.0);
+            data_config.uncompressed_cache_factor = Some(4);
             if memory_profile.value >= ResourceProfileValue::High {
-                data_config.uncompressed_cache_factor = Some(10.0)
+                data_config.uncompressed_cache_factor = Some(10)
             }
         }
 
