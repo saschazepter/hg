@@ -354,8 +354,7 @@ class server:
             self.cresult.write(struct.pack(b'>i', int(ret)))
         finally:
             # restore old cwd
-            if b'--cwd' in args:
-                os.chdir(self.cwd)
+            os.chdir(self.cwd)
 
     def getencoding(self):
         """writes the current encoding to the result channel"""
