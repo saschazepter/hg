@@ -26,7 +26,7 @@ fi
 #
 # TODO: use a more precise black version in the pyproject.toml
 # TODO: rewrite this script in Python as python3.11 has native toml support
-pipx install black==23.12.1 --force --quiet --quiet
+pipx install black==23.12.1 --force --quiet
 
 # TODO: install/ensure rustfmt and clangformat
 # (or at least adjust configuration accordingly)
