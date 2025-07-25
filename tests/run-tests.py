@@ -674,6 +674,11 @@ def getparser():
         help="test using specified hg script rather than a "
         "temporary installation",
     )
+    hgconf.add_argument(
+        "--offline",
+        action="store_true",
+        help="Disable network access (requires UV)",
+    )
 
     reporting = parser.add_argument_group('Results Reporting')
     reporting.add_argument(
@@ -3896,13 +3901,22 @@ class TestRunner:
 
         if installer == "uv":
             cmd = [b"uv", b"pip", b"install", b".", b"-p", self._pythonb]
+            if self.options.offline:
+                cmd.append(b"--offline")
         else:
+            if self.options.offline:
+                sys.stderr.write("fatal: --offline requires UV\n")
+                sys.exit(1)
             cmd = [self._pythonb, b"-m", b"pip", b"install", b"."]
 
         if setup_opts:
-            cmd.extend(
-                [b"--config-settings", b"--global-option=%s" % setup_opts]
-            )
+            if installer == "uv":
+                cmd.append(b"-C=--global-option=%s" % setup_opts)
+            else:
+                cmd.extend(
+                    [b"--config-settings", b"--global-option=%s" % setup_opts]
+                )
+
         return cmd
 
     def _installhg(self):
@@ -3919,6 +3933,9 @@ class TestRunner:
             install_env["PYTHONUSERBASE"] = _bytes2sys(self._installdir)
 
         installerrs = os.path.join(self._hgtmp, b"install.err")
+
+        if self.options.offline:
+            install_env["CARGO_NET_OFFLINE"] = "1"
 
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:
