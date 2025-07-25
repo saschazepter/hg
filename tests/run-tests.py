@@ -625,6 +625,12 @@ def getparser():
         "and --with-chg=<testdir>/../contrib/chg/chg if --chg is set",
     )
     hgconf.add_argument(
+        "--py-installer",
+        choices=["auto", "uv", "pip"],
+        default="auto",
+        help="Python installer: auto|uv|pip (default: auto)",
+    )
+    hgconf.add_argument(
         "--ipv6",
         action="store_true",
         help="prefer IPv6 to IPv4 for network related tests",
@@ -3879,7 +3885,20 @@ class TestRunner:
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
-        cmd = [self._pythonb, b"-m", b"pip", b"install", b"."]
+
+        if self.options.py_installer == "auto":
+            if shutil.which("uv") is None:
+                installer = "pip"
+            else:
+                installer = "uv"
+        else:
+            installer = self.options.py_installer
+
+        if installer == "uv":
+            cmd = [b"uv", b"pip", b"install", b".", b"-p", self._pythonb]
+        else:
+            cmd = [self._pythonb, b"-m", b"pip", b"install", b"."]
+
         if setup_opts:
             cmd.extend(
                 [b"--config-settings", b"--global-option=%s" % setup_opts]
