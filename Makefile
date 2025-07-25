@@ -30,6 +30,16 @@ PYOXIDIZER?=pyoxidizer
 $(eval HGROOT := $(shell pwd))
 HGPYTHONS ?= $(HGROOT)/build/pythons
 PURE=
+OFFLINE=
+
+ifeq ($(OFFLINE),1)
+OFFLINE_UV_OPTION=--offline
+CARGO_NET_OFFLINE?=1
+else
+OFFLINE_UV_OPTION=
+CARGO_NET_OFFLINE?=
+endif
+
 PIP_OPTIONS_PURE=--config-settings --global-option="$(PURE)"
 PIP_OPTIONS_INSTALL=--no-deps --ignore-installed --no-build-isolation
 PIP_PREFIX=$(PREFIX)
@@ -72,11 +82,14 @@ help:
 	@echo
 	@echo 'Example for a local installation (usable in this directory):'
 	@echo '  make local && ./hg-local version'
+	@echo
+	@echo 'Example for a local installation in offline mode:'
+	@echo '  make local OFFLINE=1
 
 .PHONY: local
 local:
 	uv venv -p $(PYTHON_FOR_UV) .local-venv --system-site-packages
-	uv pip install -e . \
+	env CARGO_NET_OFFLINE=$(CARGO_NET_OFFLINE) uv pip install -e . $(OFFLINE_UV_OPTION) \
 	  -p .local-venv/$(PYBINDIRNAME)/python -v \
 	  -C=--global-option="$(PURE)"
 	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg version
