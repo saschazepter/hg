@@ -31,7 +31,6 @@ export LC_ALL=C
 TESTFLAGS ?= $(shell echo $$HGTESTFLAGS)
 CARGO = cargo
 
-VENV_NAME=$(shell $(PYTHON) -c "import sys; v = sys.version_info; print(f'.venv_{sys.implementation.name}{v.major}.{v.minor}')")
 PYBINDIRNAME=$(shell $(PYTHON) -c "import os; print('Scripts' if os.name == 'nt' else 'bin')")
 
 .PHONY: help
@@ -66,10 +65,10 @@ help:
 
 .PHONY: local
 local:
-	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps --system-site-packages
-	$(VENV_NAME)/$(PYBINDIRNAME)/python -m \
+	$(PYTHON) -m venv .local-venv --clear --upgrade-deps --system-site-packages
+	.local-venv/$(PYBINDIRNAME)/python -m \
 	  pip install -e . -v $(PIP_OPTIONS_PURE)
-	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
+	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg version
 
 .PHONY: build-chg
 build-chg:
@@ -92,7 +91,7 @@ cleanbutpackages:
 	rm -rf mercurial.egg-info
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
-	rm -rf .venv_*
+	rm -rf .local-venv
 	rm -f hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi

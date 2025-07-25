@@ -54,7 +54,6 @@ import functools
 import json
 import multiprocessing
 import os
-import pathlib
 import platform
 import queue
 import random
@@ -764,12 +763,9 @@ def parseargs(args, parser):
             parser.error('--pyoxidized does not work with --local (yet)')
         testdir = os.path.dirname(_sys2bytes(canonpath(sys.argv[0])))
         reporootdir = os.path.dirname(testdir)
-        venv_local = b'.venv_%s%d.%d' % (
-            sys.implementation.name.encode(),
-            sys.version_info.major,
-            sys.version_info.minor,
+        path_local_hg = os.path.join(
+            reporootdir, b'.local-venv', BINDIRNAME, b"hg"
         )
-        path_local_hg = os.path.join(reporootdir, venv_local, BINDIRNAME, b"hg")
         if not os.path.exists(path_local_hg):
             if "HGTEST_REAL_HG" in os.environ:
                 # this file is run from a test (typically test-run-tests.t)
@@ -777,17 +773,9 @@ def parseargs(args, parser):
                 path_local_hg = os.path.join(reporootdir, b"hg")
             else:
                 message = (
-                    f"run-tests.py called with --local but {_bytes2sys(venv_local)} does not exist.\n"
+                    f"run-tests.py called with --local but .local-venv does not exist.\n"
                     f'To create it, run \nmake local PYTHON="{sys.executable}"'
                 )
-                paths_venv = sorted(
-                    pathlib.Path(_bytes2sys(reporootdir)).glob(".venv_*")
-                )
-                if paths_venv:
-                    message += (
-                        "\nAlternatively, call run-tests.py with a Python "
-                        f"corresponding to {[p.name for p in paths_venv]}."
-                    )
                 print(message, file=sys.stderr)
                 sys.exit(1)
 
