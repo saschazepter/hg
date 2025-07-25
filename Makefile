@@ -15,6 +15,16 @@ else
 PYTHON?=python3
 endif
 
+# to support PYTHON equal to "py -3", "py.exe -3", "3.13" and other strings
+ifneq (,$(findstring py ,$(PYTHON)))
+	PYTHON_FOR_UV=$(shell $(PYTHON) -c "import sys; print(sys.executable)")
+else
+	PYTHON_FOR_UV=$(PYTHON)
+endif
+ifneq (,$(findstring py.exe ,$(PYTHON)))
+	PYTHON_FOR_UV=$(shell $(PYTHON) -c "import sys; print(sys.executable)")
+endif
+
 PYOXIDIZER?=pyoxidizer
 
 $(eval HGROOT := $(shell pwd))
@@ -65,9 +75,10 @@ help:
 
 .PHONY: local
 local:
-	$(PYTHON) -m venv .local-venv --clear --upgrade-deps --system-site-packages
-	.local-venv/$(PYBINDIRNAME)/python -m \
-	  pip install -e . -v $(PIP_OPTIONS_PURE)
+	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
+	uv pip install -e . \
+	  -p .local-venv/$(PYBINDIRNAME)/python -v \
+	  -C=--global-option="$(PURE)"
 	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg version
 	test -e .local-venv/bin/hg && ln -s -f .local-venv/bin/hg hg-local
 

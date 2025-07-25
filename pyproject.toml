@@ -46,6 +46,13 @@ download_url = "https://mercurial-scm.org/release/"
 include-package-data = false
 
 
+[tool.uv]
+# Rebuild for each `make local` call and avoid wrong caching
+#
+# See https://github.com/astral-sh/uv/issues/2152
+reinstall-package = ["mercurial"]
+
+
 [tool.black]
 line-length = 80
 include = '\.py$'
