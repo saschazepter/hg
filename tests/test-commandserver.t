@@ -182,8 +182,22 @@ check that --cwd doesn't persist between requests:
   ...     readchannel(server)
   ...     runcommand(server, [b'--cwd', b'foo', b'st', b'bar'])
   ...     runcommand(server, [b'st', b'foo/bar'])
+  ...     runcommand(server, [b'--cwd=foo', b'st', b'bar'])
+  ...     runcommand(server, [b'st', b'foo/bar'])
+  ...     # run a second time to ensure the cwd from the first isn't preserved
+  ...     runcommand(server, [b'--cwd=foo', b'st', b'bar'])
+  ...     runcommand(server, [b'st', b'foo/bar'])
   *** runcommand --cwd foo st bar
   ? bar
+  *** runcommand st foo/bar
+  ? foo/bar
+  *** runcommand --cwd=foo st bar
+  ? bar
+  *** runcommand st foo/bar
+  ? foo/bar
+  *** runcommand --cwd=foo st bar
+  abort: $ENOENT$: 'foo'
+   [255]
   *** runcommand st foo/bar
   ? foo/bar
 
