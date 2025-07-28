@@ -999,19 +999,25 @@ def runcommand(lui, repo, cmd, fullargs, ui, options, d, cmdpats, cmdoptions):
     return ret
 
 
+def _get_cwd() -> bytes:
+    """return the path to the current working directory
+
+    raise an Abort error in case of error.
+    """
+    try:
+        return encoding.getcwd()
+    except OSError as e:
+        msg = _(b"error getting current working directory: %s")
+        msg %= encoding.strtolocal(e.strerror)
+        raise error.Abort(msg)
+
+
 def _getlocal(ui, rpath, wd=None):
     """Return (path, local ui object) for the given target path.
 
     Takes paths in [cwd]/.hg/hgrc into account."
     """
-    try:
-        cwd = encoding.getcwd()
-    except OSError as e:
-        raise error.Abort(
-            _(b"error getting current working directory: %s")
-            % encoding.strtolocal(e.strerror)
-        )
-
+    cwd = _get_cwd()
     # If using an alternate wd, temporarily switch to it so that relative
     # paths are resolved correctly during config loading.
     oldcwd = None
