@@ -315,7 +315,11 @@ class hgwebdir:
             # break some wsgi implementations.
             u.setconfig(b'progress', b'disable', b'true', b'hgweb')
 
-        if not isinstance(self.conf, (dict, list, tuple)):
+        if isinstance(self.conf, (list, tuple)):
+            paths = self.conf
+        elif isinstance(self.conf, dict):
+            paths = self.conf.items()
+        else:
             map = {b'paths': b'hgweb-paths'}
             if not os.path.exists(self.conf):
                 raise error.Abort(_(b'config file %s not found!') % self.conf)
@@ -324,10 +328,7 @@ class hgwebdir:
             for name, ignored in u.configitems(b'hgweb-paths'):
                 for path in u.configlist(b'hgweb-paths', name):
                     paths.append((name, path))
-        elif isinstance(self.conf, (list, tuple)):
-            paths = self.conf
-        elif isinstance(self.conf, dict):
-            paths = self.conf.items()
+
         extensions.populateui(u)
 
         repos = findrepos(paths)
