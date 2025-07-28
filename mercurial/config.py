@@ -21,6 +21,7 @@ from . import (
 if typing.TYPE_CHECKING:
     from .interfaces.types import (
         CfgRemapT,
+        CfgSectionsT,
     )
 
 
@@ -161,7 +162,7 @@ class config:
         self,
         src: bytes,
         data: bytes,
-        sections=None,
+        sections: CfgSectionsT | None = None,
         remap: CfgRemapT | None = None,
         include=None,
     ) -> None:
@@ -249,7 +250,7 @@ class config:
         self,
         path: bytes,
         fp=None,
-        sections=None,
+        sections: CfgSectionsT | None = None,
         remap: CfgRemapT | None = None,
     ) -> None:
         self.new_source()
@@ -264,7 +265,11 @@ class config:
 
         dir = os.path.dirname(path)
 
-        def include(rel: bytes, remap: CfgRemapT | None, sections) -> None:
+        def include(
+            rel: bytes,
+            remap: CfgRemapT | None,
+            sections: CfgSectionsT | None,
+        ) -> None:
             abs = os.path.normpath(os.path.join(dir, rel))
             self.read(abs, remap=remap, sections=sections)
             # anything after the include has a higher level

@@ -61,6 +61,7 @@ from .utils import (
 if typing.TYPE_CHECKING:
     from .interfaces.types import (
         CfgRemapT,
+        CfgSectionsT,
     )
 
 _ConfigItems = dict[tuple[bytes, bytes], object]  # {(section, name) : value}
@@ -467,7 +468,7 @@ class ui:
         name: tuple[bytes, bytes],
         root=None,
         trust: bool = False,
-        sections=None,
+        sections: CfgSectionsT | None = None,
         remap: CfgRemapT | None = None,
     ) -> None:
         try:
@@ -486,7 +487,7 @@ class ui:
         filename: bytes,
         root=None,
         trust: bool = False,
-        sections=None,
+        sections: CfgSectionsT | None = None,
         remap: CfgRemapT | None = None,
     ) -> None:
         try:
@@ -504,7 +505,7 @@ class ui:
         fp,
         root=None,
         trust: bool = False,
-        sections=None,
+        sections: CfgSectionsT | None = None,
         remap: CfgRemapT | None = None,
     ) -> None:
         with fp:

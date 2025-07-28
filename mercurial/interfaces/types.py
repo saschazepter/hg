@@ -46,6 +46,7 @@ Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 ChangeContextT = context.IChangeContext
 
 CfgRemapT = config.CfgRemapT
+CfgSectionsT = config.CfgSectionsT
 
 FileStorageT = repository.ifilestorage
 
