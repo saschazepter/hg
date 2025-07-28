@@ -194,12 +194,12 @@ check that --cwd doesn't persist between requests:
   *** runcommand --cwd=foo st bar
   ? bar
   *** runcommand st foo/bar
-  ? foo/bar
+  foo/bar: $ENOENT$
   *** runcommand --cwd=foo st bar
   abort: $ENOENT$: 'foo'
    [255]
   *** runcommand st foo/bar
-  ? foo/bar
+  foo/bar: $ENOENT$
 
   $ rm foo/bar
 

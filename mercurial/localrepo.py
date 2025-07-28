@@ -3128,6 +3128,7 @@ class localrepository(_localrepo_base_classes):
         known good state)."""
         unfi = self.unfiltered()
         if 'dirstate' in unfi.__dict__:
+            self.dirstate.invalidate_cwd()
             assert not self.dirstate.is_changing_any
             del unfi.__dict__['dirstate']
 
