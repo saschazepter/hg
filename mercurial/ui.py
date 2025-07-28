@@ -58,6 +58,11 @@ from .utils import (
     urlutil,
 )
 
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        CfgRemapT,
+    )
+
 _ConfigItems = dict[tuple[bytes, bytes], object]  # {(section, name) : value}
 # The **opts args of the various write() methods can be basically anything, but
 # there's no way to express it as "anything but str".  So type it to be the
@@ -458,7 +463,12 @@ class ui:
         return False
 
     def read_resource_config(
-        self, name, root=None, trust=False, sections=None, remap=None
+        self,
+        name: tuple[bytes, bytes],
+        root=None,
+        trust: bool = False,
+        sections=None,
+        remap: CfgRemapT | None = None,
     ) -> None:
         try:
             fp = resourceutil.open_resource(name[0], name[1])
@@ -472,7 +482,12 @@ class ui:
         )
 
     def readconfig(
-        self, filename, root=None, trust=False, sections=None, remap=None
+        self,
+        filename: bytes,
+        root=None,
+        trust: bool = False,
+        sections=None,
+        remap: CfgRemapT | None = None,
     ) -> None:
         try:
             fp = open(filename, 'rb')
@@ -484,7 +499,13 @@ class ui:
         self._readconfig(filename, fp, root, trust, sections, remap)
 
     def _readconfig(
-        self, filename, fp, root=None, trust=False, sections=None, remap=None
+        self,
+        filename: bytes,
+        fp,
+        root=None,
+        trust: bool = False,
+        sections=None,
+        remap: CfgRemapT | None = None,
     ) -> None:
         with fp:
             cfg = config.config()

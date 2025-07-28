@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import errno
 import os
+import typing
 
 from .i18n import _
 from . import (
@@ -16,6 +17,11 @@ from . import (
     error,
     util,
 )
+
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        CfgRemapT,
+    )
 
 
 class config:
@@ -151,7 +157,14 @@ class config:
             if section in self._data:
                 self._data[section].pop(item, None)
 
-    def parse(self, src, data, sections=None, remap=None, include=None):
+    def parse(
+        self,
+        src: bytes,
+        data: bytes,
+        sections=None,
+        remap: CfgRemapT | None = None,
+        include=None,
+    ) -> None:
         sectionre = util.re.compile(br'\[([^\[]+)\]')
         itemre = util.re.compile(br'([^=\s][^=]*?)\s*=\s*(.*\S|)')
         contre = util.re.compile(br'\s+(\S|\S.*\S)\s*$')
@@ -232,7 +245,13 @@ class config:
                 message = b"unexpected leading whitespace: %s" % message
             raise error.ConfigError(message, (b"%s:%d" % (src, line)))
 
-    def read(self, path, fp=None, sections=None, remap=None):
+    def read(
+        self,
+        path: bytes,
+        fp=None,
+        sections=None,
+        remap: CfgRemapT | None = None,
+    ) -> None:
         self.new_source()
         if not fp:
             fp = util.posixfile(path, b'rb')
@@ -245,7 +264,7 @@ class config:
 
         dir = os.path.dirname(path)
 
-        def include(rel, remap, sections):
+        def include(rel: bytes, remap: CfgRemapT | None, sections) -> None:
             abs = os.path.normpath(os.path.join(dir, rel))
             self.read(abs, remap=remap, sections=sections)
             # anything after the include has a higher level

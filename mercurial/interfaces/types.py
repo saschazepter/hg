@@ -32,6 +32,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 
 from . import (
     bundle,
+    config,
     context,
     matcher,
     misc,
@@ -43,6 +44,8 @@ from . import (
 
 Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 ChangeContextT = context.IChangeContext
+
+CfgRemapT = config.CfgRemapT
 
 FileStorageT = repository.ifilestorage
 
