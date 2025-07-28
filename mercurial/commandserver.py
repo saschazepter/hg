@@ -346,15 +346,11 @@ class server:
             prereposetups=self._prereposetups,
         )
 
-        try:
-            ret = self._dispatchcommand(req) & 255
-            # If shutdown-on-interrupt is off, it's important to write the
-            # result code *after* SIGINT handler removed. If the result code
-            # were lost, the client wouldn't be able to continue processing.
-            self.cresult.write(struct.pack(b'>i', int(ret)))
-        finally:
-            # restore old cwd
-            os.chdir(self.cwd)
+        ret = self._dispatchcommand(req) & 255
+        # If shutdown-on-interrupt is off, it's important to write the
+        # result code *after* SIGINT handler removed. If the result code
+        # were lost, the client wouldn't be able to continue processing.
+        self.cresult.write(struct.pack(b'>i', int(ret)))
 
     def getencoding(self):
         """writes the current encoding to the result channel"""
