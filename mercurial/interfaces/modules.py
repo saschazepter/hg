@@ -42,6 +42,9 @@ class BDiff(Protocol):
     def line_diff(self, a: bytes, b: bytes) -> bytes:
         ...
 
+    def manifest_diff(self, a: bytes, b: bytes) -> bytes:
+        ...
+
     def storage_diff(self, a: bytes, b: bytes) -> bytes:
         ...
 

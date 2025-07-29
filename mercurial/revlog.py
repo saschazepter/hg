@@ -1443,7 +1443,7 @@ class revlog:
             self._writable = bool(writable)
 
         if target[0] == KIND_MANIFESTLOG:
-            self._diff_fn = mdiff.line_diff
+            self._diff_fn = mdiff.manifest_diff
         else:
             self._diff_fn = mdiff.storage_diff
 

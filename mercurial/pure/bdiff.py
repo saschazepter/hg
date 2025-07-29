@@ -93,6 +93,15 @@ def bdiff(a: bytes, b: bytes) -> bytes:
     return b"".join(bin)
 
 
+def manifest_diff(a: bytes, b: bytes) -> bytes:
+    """compute a diff between two manifests
+
+    This function leverage the manifest structure to compute faster and smaller
+    delta.
+    """
+    return bdiff(a, b)
+
+
 def blocks(a: bytes, b: bytes) -> list[tuple[int, int, int, int]]:
     an = splitnewlines(a)
     bn = splitnewlines(b)

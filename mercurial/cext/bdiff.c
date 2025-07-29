@@ -357,6 +357,8 @@ static PyMethodDef methods[] = {
     {"line_diff", storage_diff, METH_VARARGS,
      "calculate a binary diff optimized for stored and exchanged deltas, lines "
      "aligned\n"},
+    {"manifest_diff", storage_diff, METH_VARARGS,
+     "calculate a binary diff for manifest\n"},
     {"blocks", blocks, METH_VARARGS, "find a list of matching lines\n"},
     {"fixws", fixws, METH_VARARGS, "normalize diff whitespaces\n"},
     {"splitnewlines", splitnewlines, METH_VARARGS,

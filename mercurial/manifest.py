@@ -748,7 +748,7 @@ class manifestdict(repository.imanifestdict):
             # For large changes, it's much cheaper to just build the text and
             # diff it.
             arraytext = bytearray(self.text())
-            deltatext = mdiff.textdiff(
+            deltatext = mdiff.manifest_diff(
                 util.buffer(base), util.buffer(arraytext)
             )
 
