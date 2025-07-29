@@ -1560,7 +1560,7 @@ class deltacomputer:
         else:
             validate = self.revlog.delta_config.validate_base
             ptext = revlog.rawdata(base, validate=validate)
-            delta = mdiff.textdiff(ptext, t)
+            delta = revlog._diff_fn(ptext, t)
 
         return delta
 

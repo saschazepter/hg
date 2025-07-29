@@ -39,6 +39,9 @@ class BDiff(Protocol):
     def bdiff(self, a: bytes, b: bytes) -> bytes:
         ...
 
+    def storage_diff(self, a: bytes, b: bytes) -> bytes:
+        ...
+
     def blocks(self, a: bytes, b: bytes) -> list[BDiffBlock]:
         ...
 

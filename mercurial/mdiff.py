@@ -47,6 +47,8 @@ splitnewlines = bdiff.splitnewlines
 # produce the historic generic diff
 textdiff = bdiff.bdiff
 text_diff = textdiff
+# diff algorithm optimized for storage purpose, might not be line aligned
+storage_diff = bdiff.bdiff
 
 if typing.TYPE_CHECKING:
     HunkLines = list[bytes]
