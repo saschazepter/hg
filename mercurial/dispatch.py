@@ -1090,13 +1090,28 @@ def _checkshellalias(lui, ui, args):
 
 
 def _dispatch(req):
+    # check for cwd
+    old_cwd = None
+    cwd = req.earlyoptions[b'cwd']
+    try:
+        if cwd:
+            try:
+                old_cwd = encoding.getcwd()
+            except OSError as e:
+                raise error.Abort(
+                    _(b"error getting current working directory: %s")
+                    % encoding.strtolocal(e.strerror)
+                )
+            os.chdir(cwd)
+        return _dispatch_post_cwd(req)
+    finally:
+        if old_cwd is not None:
+            os.chdir(old_cwd)
+
+
+def _dispatch_post_cwd(req):
     args = req.args
     ui = req.ui
-
-    # check for cwd
-    cwd = req.earlyoptions[b'cwd']
-    if cwd:
-        os.chdir(cwd)
 
     rpath = req.earlyoptions[b'repository']
     path, lui = _getlocal(ui, rpath)
@@ -1284,7 +1299,7 @@ def _dispatch(req):
         assert func is not None  # help out pytype
         if not func.norepo:
             # use the repo from the request only if we don't have -R
-            if not rpath and not cwd:
+            if not rpath and not req.earlyoptions[b'cwd']:
                 repo = req.repo
 
             if repo:
