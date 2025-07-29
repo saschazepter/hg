@@ -1730,6 +1730,7 @@ class manifestrevlog(repository.imanifeststorage):
             mmaplargeindex=True,
             upperboundcomp=MAXCOMPRESSION,
             persistentnodemap=persistentnodemap,
+            diff_fn=mdiff.line_diff,
         )
 
         self.index = self._revlog.index

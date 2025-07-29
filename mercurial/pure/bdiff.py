@@ -111,7 +111,17 @@ def fixws(text: bytes, allws: bool) -> bytes:
 
 
 def storage_diff(old: bytes, new: bytes) -> bytes:
-    "calculate a binary diff optimized for stored and exchanged deltas"
+    """calculate a binary diff optimized for stored and exchanged deltas
+
+    no lines alignement guarantees
+    """
+    return bdiff(old, new)
+
+
+def line_diff(old: bytes, new: bytes) -> bytes:
+    """calculate a binary diff optimized for stored and exchanged deltas
+
+    lines aligned"""
     return bdiff(old, new)
 
 

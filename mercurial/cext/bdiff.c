@@ -352,7 +352,11 @@ static PyObject *storage_diff(PyObject *self, PyObject *args)
 static PyMethodDef methods[] = {
     {"bdiff", bdiff, METH_VARARGS, "calculate a binary diff\n"},
     {"storage_diff", storage_diff, METH_VARARGS,
-     "calculate a binary diff optimized for stored and exchanged deltas\n"},
+     "calculate a binary diff optimized for stored and exchanged deltas, no "
+     "lines alignement guarantees\n"},
+    {"line_diff", storage_diff, METH_VARARGS,
+     "calculate a binary diff optimized for stored and exchanged deltas, lines "
+     "aligned\n"},
     {"blocks", blocks, METH_VARARGS, "find a list of matching lines\n"},
     {"fixws", fixws, METH_VARARGS, "normalize diff whitespaces\n"},
     {"splitnewlines", splitnewlines, METH_VARARGS,
