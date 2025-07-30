@@ -697,6 +697,11 @@ class dirstate(intdirstate.idirstate):
     def _write_branch(self, file_obj):
         file_obj.write(self._branch + b'\n')
 
+    def invalidate_cwd(self) -> None:
+        """invalidate the cached read of current working copy"""
+        if '_cwd' in self.__dict__:
+            del self._cwd
+
     def invalidate(self) -> None:
         """Causes the next access to reread the dirstate.
 

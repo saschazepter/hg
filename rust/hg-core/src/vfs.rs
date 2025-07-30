@@ -175,6 +175,38 @@ impl VfsImpl {
         }
     }
 
+    pub fn create_working_copy(
+        &self,
+        filename: &Path,
+    ) -> Result<VfsFile, HgError> {
+        if self.readonly {
+            return Err(HgError::abort(
+                "write access in a readonly vfs",
+                exit_codes::ABORT,
+                None,
+            ));
+        }
+        let path = self.base.join(filename);
+
+        // This avoids permission errors if the file somehow already exists
+        // Let it fail: either it didn't exist (good), or we really don't have
+        // the rights to do anything about this file, let `open` fail.
+        // This also removes hardlinks, takes care of non-fatal permissions.
+        std::fs::remove_file(&path)
+            .when_writing_file(&path)
+            .io_not_found_as_none()?;
+
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .read(true)
+            .open(&path)
+            .when_writing_file(&path)?;
+
+        Ok(VfsFile::Normal { file, check_ambig: None, path: path.to_owned() })
+    }
+
     #[cfg(unix)]
     pub fn create_symlink(
         &self,

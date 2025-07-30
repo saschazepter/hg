@@ -580,7 +580,7 @@ class ui:
                         continue
                     if b'%%' in p:
                         if s is None:
-                            s = 'none'
+                            s = b'none'
                         self.warn(
                             _(b"(deprecated '%%' in path %s=%s from %s)\n")
                             % (n, p, s)

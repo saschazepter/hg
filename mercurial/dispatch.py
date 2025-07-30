@@ -999,52 +999,59 @@ def runcommand(lui, repo, cmd, fullargs, ui, options, d, cmdpats, cmdoptions):
     return ret
 
 
+def _get_cwd() -> bytes:
+    """return the path to the current working directory
+
+    raise an Abort error in case of error.
+    """
+    try:
+        return encoding.getcwd()
+    except OSError as e:
+        msg = _(b"error getting current working directory: %s")
+        msg %= encoding.strtolocal(e.strerror)
+        raise error.Abort(msg)
+
+
 def _getlocal(ui, rpath, wd=None):
     """Return (path, local ui object) for the given target path.
 
     Takes paths in [cwd]/.hg/hgrc into account."
     """
-    try:
-        cwd = encoding.getcwd()
-    except OSError as e:
-        raise error.Abort(
-            _(b"error getting current working directory: %s")
-            % encoding.strtolocal(e.strerror)
-        )
-
+    cwd = _get_cwd()
     # If using an alternate wd, temporarily switch to it so that relative
     # paths are resolved correctly during config loading.
     oldcwd = None
-    if wd is None:
-        wd = cwd
-    else:
-        oldcwd = cwd
-        os.chdir(wd)
+    try:
+        if wd is None:
+            wd = cwd
+        else:
+            oldcwd = cwd
+            os.chdir(wd)
 
-    path = cmdutil.findrepo(wd) or b""
-    if not path:
-        lui = ui
-    else:
-        lui = ui.copy()
-        if rcutil.use_repo_hgrc():
-            for __, c_type, rc_path in rcutil.repo_components(path):
-                assert c_type == b'path'
-                lui.readconfig(rc_path, root=path)
+        path = cmdutil.findrepo(wd) or b""
+        if not path:
+            lui = ui
+        else:
+            lui = ui.copy()
+            if rcutil.use_repo_hgrc():
+                for __, c_type, rc_path in rcutil.repo_components(path):
+                    assert c_type == b'path'
+                    lui.readconfig(rc_path, root=path)
 
-    if rpath:
-        # the specified path, might be defined in the [paths] section of the
-        # local repository. So we had to read the local config first even if it
-        # get overriden here.
-        path_obj = urlutil.get_clone_path_obj(lui, rpath)
-        path = path_obj.rawloc
-        lui = ui.copy()
-        if rcutil.use_repo_hgrc():
-            for __, c_type, rc_path in rcutil.repo_components(path):
-                assert c_type == b'path'
-                lui.readconfig(rc_path, root=path)
-
-    if oldcwd:
-        os.chdir(oldcwd)
+        if rpath:
+            # the specified path, might be defined in the [paths] section of
+            # the local repository. So we had to read the local config first
+            # even if it get overriden here.
+            path_obj = urlutil.get_clone_path_obj(lui, rpath)
+            path = path_obj.rawloc
+            lui = ui.copy()
+            if rcutil.use_repo_hgrc():
+                for __, c_type, rc_path in rcutil.repo_components(path):
+                    assert c_type == b'path'
+                    lui.readconfig(rc_path, root=path)
+    finally:
+        if oldcwd:
+            os.chdir(oldcwd)
 
     return path, lui
 
@@ -1083,13 +1090,28 @@ def _checkshellalias(lui, ui, args):
 
 
 def _dispatch(req):
+    # check for cwd
+    old_cwd = None
+    cwd = req.earlyoptions[b'cwd']
+    try:
+        if cwd:
+            try:
+                old_cwd = encoding.getcwd()
+            except OSError as e:
+                raise error.Abort(
+                    _(b"error getting current working directory: %s")
+                    % encoding.strtolocal(e.strerror)
+                )
+            os.chdir(cwd)
+        return _dispatch_post_cwd(req)
+    finally:
+        if old_cwd is not None:
+            os.chdir(old_cwd)
+
+
+def _dispatch_post_cwd(req):
     args = req.args
     ui = req.ui
-
-    # check for cwd
-    cwd = req.earlyoptions[b'cwd']
-    if cwd:
-        os.chdir(cwd)
 
     rpath = req.earlyoptions[b'repository']
     path, lui = _getlocal(ui, rpath)
@@ -1277,7 +1299,7 @@ def _dispatch(req):
         assert func is not None  # help out pytype
         if not func.norepo:
             # use the repo from the request only if we don't have -R
-            if not rpath and not cwd:
+            if not rpath and not req.earlyoptions[b'cwd']:
                 repo = req.repo
 
             if repo:
