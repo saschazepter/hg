@@ -248,10 +248,12 @@ packaging_targets := \
   rhel7 \
   rhel8 \
   rhel9 \
+  rhel10 \
   deb \
   docker-rhel7 \
   docker-rhel8 \
   docker-rhel9 \
+  docker-rhel10 \
   docker-debian-bullseye \
   docker-debian-buster \
   docker-debian-stretch \
