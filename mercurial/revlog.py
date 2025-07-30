@@ -392,6 +392,16 @@ class _InnerRevlog:
         self._segmentfile.clear_cache()
         self._segmentfile_sidedata.clear_cache()
 
+    def seen_file_size(self, size):
+        """signal that we have seen a file this big
+
+        This might update the limit of underlying cache."""
+        if self._uncompressed_chunk_cache is not None:
+            factor = self.data_config.uncompressed_cache_factor
+            candidate_size = size * factor
+            if candidate_size > self._uncompressed_chunk_cache.maxcost:
+                self._uncompressed_chunk_cache.maxcost = candidate_size
+
     @property
     def canonical_index_file(self):
         if self._orig_index_file is not None:
@@ -986,13 +996,7 @@ class _InnerRevlog:
         if 0 <= rawsize:
             targetsize = 4 * rawsize
 
-        if self._uncompressed_chunk_cache is not None:
-            # dynamically update the uncompressed_chunk_cache size to the
-            # largest revision we saw in this revlog.
-            factor = self.data_config.uncompressed_cache_factor
-            candidate_size = rawsize * factor
-            if candidate_size > self._uncompressed_chunk_cache.maxcost:
-                self._uncompressed_chunk_cache.maxcost = candidate_size
+        self.seen_file_size(rawsize)
 
         bins = self._chunks(chain, targetsize=targetsize)
         if basetext is None:
@@ -3467,6 +3471,7 @@ class revlog:
         if type(rawtext) is bytes:  # only accept immutable objects
             self._inner._revisioncache = (node, curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
+        self._inner.seen_file_size(textlen)
         return curr
 
     def _get_data_offset(self, prev):

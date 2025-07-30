@@ -192,6 +192,23 @@ impl InnerRevlog {
         }
     }
 
+    /// Signal that we have seen a file this big
+    ///
+    /// This might update the limit of underlying cache.
+    pub fn seen_file_size(&self, size: usize) {
+        if let Some(Ok(mut cache)) =
+            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
+        {
+            // Dynamically update the uncompressed_chunk_cache size to the
+            // largest revision we've seen in this revlog.
+            // Do it *before* restoration in case the current revision
+            // is the largest.
+            let limiter_mut = cache.limiter_mut();
+            let new_max = size;
+            limiter_mut.maybe_grow_max(new_max);
+        }
+    }
+
     /// Return an entry for the null revision
     pub fn make_null_entry(&self) -> RevlogEntry {
         RevlogEntry {
@@ -497,17 +514,8 @@ impl InnerRevlog {
         } else {
             None
         };
-        if let (Some(size), Some(Ok(mut cache))) = (
-            raw_size,
-            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write()),
-        ) {
-            // Dynamically update the uncompressed_chunk_cache size to the
-            // largest revision we've seen in this revlog.
-            // Do it *before* restoration in case the current revision
-            // is the largest.
-            let limiter_mut = cache.limiter_mut();
-            let new_max = size.try_into().expect("16 bit computer?");
-            limiter_mut.maybe_grow_max(new_max);
+        if let Some(size) = raw_size {
+            self.seen_file_size(size.try_into().expect("16 bit computer?"));
         }
         entry.rawdata(cached_rev, get_buffer)?;
         // drop cache to save memory, the caller is expected to update
