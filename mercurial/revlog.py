@@ -402,6 +402,17 @@ class _InnerRevlog:
             if candidate_size > self._uncompressed_chunk_cache.maxcost:
                 self._uncompressed_chunk_cache.maxcost = candidate_size
 
+    def record_uncompressed_chunk(self, rev, u_data):
+        """Record the uncompressed raw chunk for rev
+
+        This is a noop if the cache is disabled."""
+        if self._uncompressed_chunk_cache is not None:
+            self._uncompressed_chunk_cache.insert(
+                rev,
+                u_data,
+                cost=len(u_data),
+            )
+
     @property
     def canonical_index_file(self):
         if self._orig_index_file is not None:
@@ -3472,6 +3483,8 @@ class revlog:
             self._inner._revisioncache = (node, curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
         self._inner.seen_file_size(textlen)
+        if deltainfo.u_data is not None:
+            self._inner.record_uncompressed_chunk(curr, deltainfo.u_data)
         return curr
 
     def _get_data_offset(self, prev):

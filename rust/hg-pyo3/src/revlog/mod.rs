@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use std::os::fd::AsRawFd;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
@@ -492,6 +493,21 @@ impl InnerRevlog {
     fn seen_file_size(slf: &Bound<'_, Self>, size: u64) -> PyResult<PyObject> {
         Self::with_core_read(slf, |_self_ref, irl| {
             irl.seen_file_size(size.try_into().expect("16 bit computer?"));
+            Ok(slf.py().None())
+        })
+    }
+
+    fn record_uncompressed_chunk(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+        data: &Bound<'_, PyAny>,
+    ) -> PyResult<PyObject> {
+        let data = PyBuffer::<u8>::get(data)?.to_vec(slf.py())?;
+        Self::with_core_read(slf, |_self_ref, irl| {
+            if let Some(rev) = irl.index.check_revision(rev.into()) {
+                let data: Arc<[u8]> = Arc::from(data.to_owned());
+                irl.record_uncompressed_chunk(rev, data);
+            };
             Ok(slf.py().None())
         })
     }

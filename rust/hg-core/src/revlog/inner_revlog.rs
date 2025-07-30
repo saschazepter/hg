@@ -209,6 +209,17 @@ impl InnerRevlog {
         }
     }
 
+    /// Record the uncompressed raw chunk for rev
+    ///
+    /// This is a noop if the cache is disabled.
+    pub fn record_uncompressed_chunk(&self, rev: Revision, data: Arc<[u8]>) {
+        if let Some(Ok(mut cache)) =
+            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
+        {
+            cache.insert(rev, data.clone());
+        }
+    }
+
     /// Return an entry for the null revision
     pub fn make_null_entry(&self) -> RevlogEntry {
         RevlogEntry {
@@ -442,11 +453,7 @@ impl InnerRevlog {
             )
         })?;
         let uncompressed: Arc<[u8]> = Arc::from(uncompressed.into_owned());
-        if let Some(Ok(mut cache)) =
-            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
-        {
-            cache.insert(rev, uncompressed.clone());
-        }
+        self.record_uncompressed_chunk(rev, uncompressed.clone());
         Ok(uncompressed)
     }
 
