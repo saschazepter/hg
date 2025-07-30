@@ -1634,11 +1634,13 @@ class deltacomputer:
         if revlog.delta_config.sparse_revlog and deltabase == nullrev:
             snapshotdepth = 0
         elif revlog.delta_config.sparse_revlog and as_snapshot:
-            assert revlog.issnapshot(deltabase), (target_rev, deltabase)
-            # A delta chain should always be one full snapshot,
-            # zero or more semi-snapshots, and zero or more deltas
+            # if the base is one of p1 or p2, why are we even here ? This
+            # doesn't look like a snapshot and we ignores it.
             p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
-            if deltabase not in (p1, p2) and revlog.issnapshot(deltabase):
+            if deltabase not in (p1, p2):
+                if not revlog.issnapshot(deltabase):
+                    # can't create a snapshot on a non-snapshot, abort.
+                    return None
                 snapshotdepth = len(revlog._deltachain(deltabase)[0])
 
         # can we use the cached delta?
