@@ -6292,8 +6292,9 @@ def root(ui, repo, **opts):
     helpcategory=command.CATEGORY_REMOTE_REPO_MANAGEMENT,
     helpbasic=True,
     optionalrepo=True,
+    need_dispatcher=True,
 )
-def serve(ui, repo, **opts):
+def serve(ui, repo, __dispatch__, **opts):
     """start stand-alone webserver
 
     Start a local HTTP repository browser and pull server. You can use
@@ -6350,7 +6351,7 @@ def serve(ui, repo, **opts):
         s.serve_forever()
         return
 
-    service = server.createservice(ui, repo, opts)
+    service = server.createservice(ui, repo, opts, dispatch=__dispatch__)
     return server.runservice(opts, initfn=service.init, runfn=service.run)
 
 

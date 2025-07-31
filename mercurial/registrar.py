@@ -170,6 +170,9 @@ class command(_funcregistrarbase):
     module), the command will be displayed under that category in the help's
     list of commands.
 
+    If `need_dispatcher` is True, the command will receive the
+    `dispatch.dispatch` function through a "__dispatch__" argument.
+
     The following intents are defined:
 
     readonly
@@ -219,6 +222,7 @@ class command(_funcregistrarbase):
         intents=None,
         helpcategory=None,
         helpbasic=False,
+        need_dispatcher=False,
     ):
         func.norepo = norepo
         func.optionalrepo = optionalrepo
@@ -226,6 +230,7 @@ class command(_funcregistrarbase):
         func.intents = intents or set()
         func.helpcategory = helpcategory
         func.helpbasic = helpbasic
+        func.need_dispatcher = need_dispatcher
         if synopsis:
             self._table[name] = func, list(options), synopsis
         else:

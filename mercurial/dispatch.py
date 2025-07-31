@@ -665,6 +665,7 @@ class cmdalias:
             'intents': set(),
             'optionalrepo': False,
             'inferrepo': False,
+            'need_dispatcher': False,
         }
         if name not in adefaults:
             raise AttributeError(name)
@@ -1164,6 +1165,8 @@ def _dispatch_post_cwd(req):
         msg = _formatargs(fullargs)
         ui.log(b"command", b'%s\n', msg)
         strcmdopt = pycompat.strkwargs(cmdoptions)
+        if func.need_dispatcher:
+            strcmdopt["__dispatch__"] = dispatch
         d = lambda: util.checksignature(func)(ui, *args, **strcmdopt)
         try:
             return runcommand(

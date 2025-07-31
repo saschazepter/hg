@@ -221,9 +221,11 @@ class server:
         repo: RepoT,
         fin: RawIOBase,
         fout: RawIOBase,
+        dispatch: Callable,
         prereposetups: list[Callable[[UiT, RepoT], None]] | None = None,
     ) -> None:
         self.cwd = encoding.getcwd()
+        self._dispatch = dispatch
 
         if repo:
             # the ui here is really the repo ui so take its baseui so we don't
@@ -305,15 +307,13 @@ class server:
             return []
 
     def _dispatchcommand(self, req):
-        from . import dispatch  # avoid cycle
-
         if self._shutdown_on_interrupt:
             # no need to restore SIGINT handler as it is unmodified.
-            return dispatch.dispatch(req)
+            return self._dispatch(req)
 
         try:
             signal.signal(signal.SIGINT, self._old_inthandler)
-            return dispatch.dispatch(req)
+            return self._dispatch(req)
         except error.SignalInterrupt:
             # propagate SIGBREAK, SIGHUP, or SIGTERM.
             raise
@@ -465,9 +465,11 @@ class pipeservice:
         ui: UiT,
         repo: RepoT,
         opts: dict[bytes, Any],
+        dispatch: Callable,
     ) -> None:
         self.ui = ui
         self.repo = repo
+        self._dispatch = dispatch
 
     def init(self):
         pass
@@ -477,7 +479,7 @@ class pipeservice:
         # redirect stdio to null device so that broken extensions or in-process
         # hooks will never cause corruption of channel protocol.
         with ui.protectedfinout() as (fin, fout):
-            sv = server(ui, self.repo, fin, fout)
+            sv = server(ui, self.repo, fin, fout, self._dispatch)
             try:
                 return sv.serve()
             finally:
@@ -546,8 +548,9 @@ class unixservicehandler:
 
     pollinterval = None
 
-    def __init__(self, ui: UiT) -> None:
+    def __init__(self, ui: UiT, dispatch: Callable) -> None:
         self.ui = ui
+        self._dispatch = dispatch
 
     def bindsocket(self, sock, address):
         util.bindunixsocket(sock, address)
@@ -575,7 +578,7 @@ class unixservicehandler:
     ):
         """Create new command server instance; called in the process that
         serves for the current connection"""
-        return server(self.ui, repo, fin, fout, prereposetups)
+        return server(self.ui, repo, fin, fout, self._dispatch, prereposetups)
 
 
 class unixforkingservice:
@@ -588,6 +591,7 @@ class unixforkingservice:
         ui: UiT,
         repo: RepoT,
         opts: dict[bytes, Any],
+        dispatch: Callable,
         handler=None,
     ) -> None:
         self.ui = ui
@@ -597,7 +601,7 @@ class unixforkingservice:
             raise error.Abort(_(b'unsupported platform'))
         if not self.address:
             raise error.Abort(_(b'no socket path specified with --address'))
-        self._servicehandler = handler or unixservicehandler(ui)
+        self._servicehandler = handler or unixservicehandler(ui, dispatch)
         self._sock = None
         self._mainipc = None
         self._workeripc = None

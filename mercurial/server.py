@@ -185,6 +185,7 @@ def _createcmdservice(
     ui: UiT,
     repo: RepoT,
     opts: dict[bytes, Any],
+    dispatch: Callable,
 ):
     mode = opts[b'cmdserver']
     try:
@@ -192,7 +193,7 @@ def _createcmdservice(
     except KeyError:
         raise error.Abort(_(b'unknown mode %s') % mode)
     commandserver.setuplogging(ui, repo)
-    return servicefn(ui, repo, opts)
+    return servicefn(ui, repo, opts, dispatch)
 
 
 def _createhgwebservice(ui: UiT, repo: RepoT, opts: dict[bytes, Any]):
@@ -246,8 +247,9 @@ def createservice(
     ui: UiT,
     repo: RepoT,
     opts: dict[bytes, Any],
+    dispatch: Callable,
 ):
     if opts[b"cmdserver"]:
-        return _createcmdservice(ui, repo, opts)
+        return _createcmdservice(ui, repo, opts, dispatch)
     else:
         return _createhgwebservice(ui, repo, opts)

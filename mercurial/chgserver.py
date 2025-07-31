@@ -375,6 +375,7 @@ class chgcmdserver(commandserver.server):
         fin: RawIOBase,
         fout: RawIOBase,
         sock: Socket,
+        dispatch: Callable,
         prereposetups: list[Callable[[UiT, RepoT], None]] | None,
         hashstate: hashstate,
         baseaddress: bytes,
@@ -384,6 +385,7 @@ class chgcmdserver(commandserver.server):
             repo,
             fin,
             fout,
+            dispatch,
             prereposetups,
         )
         self.clientsock = sock
@@ -657,8 +659,9 @@ class chgunixservicehandler:
     _baseaddress: bytes | None
     _realaddress: bytes | None
 
-    def __init__(self, ui: UiT):
+    def __init__(self, ui: UiT, dispatch: Callable):
         self.ui = ui
+        self._dispatch = dispatch
 
         self._hashstate = None
         self._baseaddress = None
@@ -757,6 +760,7 @@ class chgunixservicehandler:
             fin,
             fout,
             conn,
+            self._dispatch,
             prereposetups,
             self._hashstate,
             self._baseaddress,
@@ -767,6 +771,7 @@ def chgunixservice(
     ui: UiT,
     repo: RepoT | None,
     opts: dict[bytes, Any],
+    dispatch: Callable,
 ) -> commandserver.unixforkingservice:
     # CHGINTERNALMARK is set by chg client. It is an indication of things are
     # started by chg so other code can do things accordingly, like disabling
@@ -789,5 +794,11 @@ def chgunixservice(
     if repo:
         # one chgserver can serve multiple repos. drop repo information
         ui.setconfig(b'bundle', b'mainreporoot', b'', b'repo')
-    h = chgunixservicehandler(ui)
-    return commandserver.unixforkingservice(ui, repo=None, opts=opts, handler=h)
+    h = chgunixservicehandler(ui, dispatch)
+    return commandserver.unixforkingservice(
+        ui,
+        repo=None,
+        opts=opts,
+        handler=h,
+        dispatch=dispatch,
+    )
