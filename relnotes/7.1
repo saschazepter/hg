@@ -1,3 +1,33 @@
+= Mercurial 7.1rc1 =
+
+/!\ __These are notes for a release candidate version__. Anything and everything below is subject to change before the actual 7.1 release.
+
+ * revlogutils: reorder the open mode for `debug::fast-upgrade` to appease C code
+ * rust-dependencies: upgrade `which` dependency
+ * rhg: document known rough edges for the sake of users and packagers
+ * rust: move README from rst to md
+ * delta: fix a loop in the detection of incoming snapshot
+ * delta-search: read the right config option for suspicious delta
+ * metadata-flag: catch censored error while peeking for metadata
+ * rust-inner-revlog: actually limit the decompressed cache by heap memory
+ * fix-conf: document that the file in contrib contains real documentation
+ * fix: use the right rustfmt in our example config
+ * format-stack: also format the working copy when formatting the current stack
+ * delta-search: also exit on nullrev in `_parents_and_sames`
+ * rust-update: simplify error handling
+ * rust-update: only change permissions on files if flags have changed
+ * rust-update: replace the use of generic `create` with `create_working_copy`
+ * dirstate: properly purge the cwd cache between commands
+ * commandserver: always restore working directory (issue6992)
+ * dispatch: always chdir back in _getlocal
+ * dispatch: `chdir` back to original `cwd` in `_dispatch`
+ * revlog: ignore invalid snapshot delta request
+ * ui: avoid a str interpolation into bytes crash in `fixconfig()`
+ * contrib: add support for rhel10
+ * contrib-hgk: use plain ascii `(C)` instead of latin1 symbol"
+
+ ... and bunch of fixes for the test harness
+
 = Mercurial 7.1rc0 =
 
 /!\ __These are notes for a release candidate version__. Anything and everything below is subject to change before the actual 7.1 release.
