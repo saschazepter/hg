@@ -1100,13 +1100,7 @@ def _dispatch(req):
     cwd = req.earlyoptions[b'cwd']
     try:
         if cwd:
-            try:
-                old_cwd = encoding.getcwd()
-            except OSError as e:
-                raise error.Abort(
-                    _(b"error getting current working directory: %s")
-                    % encoding.strtolocal(e.strerror)
-                )
+            old_cwd = _get_cwd()
             os.chdir(cwd)
         return _dispatch_post_cwd(req)
     finally:
