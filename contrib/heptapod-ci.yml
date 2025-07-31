@@ -207,6 +207,7 @@ build-c-wheel-arm64-musl:
       FILTER: ""
       FLAVOR: ""
       RUNTEST_ARGS: ""
+      FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: true
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
