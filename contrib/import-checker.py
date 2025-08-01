@@ -7,6 +7,9 @@ import collections
 import os
 import sys
 
+import typing
+
+
 # Import a minimal set of stdlib modules needed for list_stdlib_modules()
 # to work when run from a virtualenv.  The modules were chosen empirically
 # so that the return value matches the return value without virtualenv.
@@ -15,6 +18,13 @@ if True:  # disable lexical sorting checks
     import zlib
 
 import testparseutil
+
+if typing.TYPE_CHECKING:
+    from typing import Iterator
+
+    ImportDictT = dict[str, list[str]]
+    # source code, modename, filename, line (embedded-only)
+    SourceT = tuple[bytes, str, str, int]
 
 # Allow list of modules that symbols can be directly imported from.
 allowsymbolimports = (
@@ -72,7 +82,7 @@ def walklocal(root):
         yield node, newscope
 
 
-def dotted_name_of_path(path):
+def dotted_name_of_path(path: str) -> str:
     """Given a relative path to a source file, return its dotted module name.
 
     >>> dotted_name_of_path('mercurial/error.py')
@@ -591,9 +601,9 @@ class CircularImport(Exception):
     pass
 
 
-def checkmod(mod, imports):
-    shortest = {}
-    visit = [[mod]]
+def checkmod(mod: str, imports: ImportDictT) -> None:
+    shortest: dict[str, int] = {}
+    visit: list[list[str]] = [[mod]]
     while visit:
         path = visit.pop(0)
         for i in sorted(imports.get(path[-1], [])):
@@ -606,7 +616,7 @@ def checkmod(mod, imports):
                 visit.append(path + [i])
 
 
-def rotatecycle(cycle):
+def rotatecycle(cycle: list[str]) -> list[str]:
     """arrange a cycle so that the lexicographically first module listed first
 
     >>> rotatecycle(['foo', 'bar'])
@@ -617,7 +627,7 @@ def rotatecycle(cycle):
     return cycle[idx:] + cycle[:idx] + [lowest]
 
 
-def find_cycles(imports):
+def find_cycles(imports: ImportDictT) -> set[str]:
     """Find cycles in an already-loaded import graph.
 
     All module names recorded in `imports` should be absolute one.
@@ -635,7 +645,7 @@ def find_cycles(imports):
         try:
             checkmod(mod, imports)
         except CircularImport as e:
-            cycle = e.args[0]
+            cycle: list[str] = e.args[0]
             cycles.add(" -> ".join(rotatecycle(cycle)))
     return cycles
 
@@ -644,7 +654,7 @@ def _cycle_sortkey(c):
     return len(c), c
 
 
-def embedded(f, modname, src):
+def embedded(f, modname, src) -> Iterator[SourceT]:
     """Extract embedded python code
 
     >>> def _forcestr(thing):
@@ -672,7 +682,7 @@ def embedded(f, modname, src):
     example[8] foo.py 7
     'from __future__ import print_function\\n'
     """
-    errors = []
+    errors: list[str] = []
     for name, starts, ends, code in testparseutil.pyembedded(f, src, errors):
         if not name:
             # use 'doctest.py', in order to make already existing
@@ -686,7 +696,7 @@ def embedded(f, modname, src):
         yield code, "%s[%d]" % (modname, starts), name, starts - 1
 
 
-def sources(f, modname):
+def sources(f: str, modname: str) -> Iterator[SourceT]:
     """Yields possibly multiple sources from a filepath
 
     input: filepath, modulename
@@ -710,7 +720,7 @@ def sources(f, modname):
             yield from embedded(f, modname, src)
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     if len(argv) < 2 or (argv[1] == '-' and len(argv) > 2):
         print('Usage: %s {-|file [file] [file] ...}')
         return 1
@@ -718,7 +728,7 @@ def main(argv):
         argv = argv[:1]
         argv.extend(l.rstrip() for l in sys.stdin.readlines())
     localmodpaths = {}
-    used_imports = {}
+    used_imports: ImportDictT = {}
     any_errors = False
     for source_path in argv[1:]:
         modname = dotted_name_of_path(source_path)
@@ -741,6 +751,7 @@ def main(argv):
                     any_errors = True
                     print('%s:%d: %s' % (source_path, lineno + line, error))
             except SyntaxError as e:
+                assert e.lineno is not None
                 print(
                     '%s:%d: SyntaxError: %s' % (source_path, e.lineno + line, e)
                 )
