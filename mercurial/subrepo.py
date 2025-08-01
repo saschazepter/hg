@@ -873,7 +873,7 @@ class hgsubrepo(abstractsubrepo):
                 self.ui.debug(
                     b'merging subrepository "%s"\n' % subrelpath(self)
                 )
-                hg.merge(dst, remind=False)
+                up_impl.merge(dst, remind=False)
 
         wctx = self._repo[None]
         if self.dirty():
