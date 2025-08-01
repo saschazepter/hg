@@ -721,10 +721,15 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def remove(self):
+        # avoid cycle
+        from .cmd_impls import (
+            update as up_impl,
+        )
+
         # we can't fully delete the repository as it may contain
         # local-only history
         self.ui.note(_(b'removing subrepo %s\n') % subrelpath(self))
-        hg.clean(self._repo, self._repo.nullid, False)
+        up_impl.clean(self._repo, self._repo.nullid, False)
 
     def _get(self, state):
         # avoid cycle

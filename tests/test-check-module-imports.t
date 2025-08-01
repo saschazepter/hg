@@ -79,6 +79,7 @@ will likely receive warnings about a direct import.
   mercurial/subrepo.py:*: function level import: mercurial.hg (glob)
   mercurial/subrepo.py:*: function level import: mercurial.hg (glob)
   mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.update (glob)
   mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.update (glob)
   mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
