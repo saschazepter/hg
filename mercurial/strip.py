@@ -13,12 +13,12 @@ from . import (
     registrar,
     repair,
     scmutil,
+    tables,
 )
 
 release = lockmod.release
 
-cmdtable = {}
-command = registrar.command(cmdtable)
+command = registrar.command(tables.command_table)
 
 
 def checklocalchanges(repo, force=False):

@@ -117,7 +117,8 @@ from .revlogutils import (
 
 release = lockmod.release
 
-tables.command_table.update(strip.command._table)
+# make sure the module is imported so it can register its commands
+strip.__doc__
 command = registrar.command(tables.command_table)
 
 
