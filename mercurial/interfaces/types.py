@@ -11,6 +11,10 @@
 
 from __future__ import annotations
 
+from typing import (
+    Union,
+)
+
 from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     CallbackCategoryT,
     FsPathT,
@@ -32,6 +36,9 @@ from . import (
     status,
     transaction,
 )
+
+
+Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 
 FileStorageT = repository.ifilestorage
 

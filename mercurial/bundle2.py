@@ -161,6 +161,9 @@ from .node import (
     hex,
     short,
 )
+from .interfaces.types import (
+    Capabilities,
+)
 from . import (
     bookmarks,
     changegroup,
@@ -186,10 +189,7 @@ from .interfaces import repository
 if typing.TYPE_CHECKING:
     from typing import (
         Iterator,
-        Union,
     )
-
-    Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 
 urlerr = util.urlerr
 urlreq = util.urlreq
