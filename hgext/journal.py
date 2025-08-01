@@ -79,7 +79,7 @@ def extsetup(ui):
         localrepo.localrepository, b'dirstate', wrapdirstate
     )
     extensions.wrapfunction(clone_impl, 'post_share', wrappostshare)
-    extensions.wrapfunction(hg, 'copystore', unsharejournal)
+    extensions.wrapfunction(clone_impl, 'copy_store', unsharejournal)
 
 
 def reposetup(ui, repo):

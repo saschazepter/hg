@@ -766,3 +766,113 @@ def _post_share_update(repo, update, checkout=None):
         except error.RepoLookupError:
             continue
     up_impl.update(repo, uprev)
+
+
+def unshare(ui, repo):
+    """convert a shared repository to a normal one
+
+    Copy the store data to the repo and remove the sharedpath data.
+
+    Returns a new repository object representing the unshared repository.
+
+    The passed repository object is not usable after this function is
+    called.
+    """
+
+    with repo.lock():
+        # we use locks here because if we race with commit, we
+        # can end up with extra data in the cloned revlogs that's
+        # not pointed to by changesets, thus causing verify to
+        # fail
+        destlock = copy_store(ui, repo, repo.path)
+        with destlock or util.nullcontextmanager():
+            if requirements.SHARESAFE_REQUIREMENT in repo.requirements:
+                # we were sharing .hg/hgrc of the share source with the current
+                # repo. We need to copy that while unsharing otherwise it can
+                # disable hooks and other checks
+                _prependsourcehgrc(repo)
+
+            sharefile = repo.vfs.join(b'sharedpath')
+            util.rename(sharefile, sharefile + b'.old')
+
+            repo.requirements.discard(requirements.SHARED_REQUIREMENT)
+            repo.requirements.discard(requirements.RELATIVE_SHARED_REQUIREMENT)
+            scmutil.writereporequirements(repo)
+
+    # Removing share changes some fundamental properties of the repo instance.
+    # So we instantiate a new repo object and operate on it rather than
+    # try to keep the existing repo usable.
+    newrepo = repo_factory.repository(repo.baseui, repo.root, create=False)
+
+    # TODO: figure out how to access subrepos that exist, but were previously
+    #       removed from .hgsub
+    c = newrepo[b'.']
+    subs = c.substate
+    for s in sorted(subs):
+        c.sub(s).unshare()
+
+    localrepo.poisonrepository(repo)
+
+    return newrepo
+
+
+def _prependsourcehgrc(repo):
+    """copies the source repo config and prepend it in current repo .hg/hgrc
+    on unshare. This is only done if the share was perfomed using share safe
+    method where we share config of source in shares"""
+    srcvfs = vfsmod.vfs(repo.sharedpath)
+    dstvfs = vfsmod.vfs(repo.path)
+
+    if not srcvfs.exists(b'hgrc'):
+        return
+
+    currentconfig = b''
+    if dstvfs.exists(b'hgrc'):
+        currentconfig = dstvfs.read(b'hgrc')
+
+    with dstvfs(b'hgrc', b'wb') as fp:
+        sourceconfig = srcvfs.read(b'hgrc')
+        fp.write(b"# Config copied from shared source\n")
+        fp.write(sourceconfig)
+        fp.write(b'\n')
+        fp.write(currentconfig)
+
+
+def copy_store(ui, srcrepo, destpath):
+    """copy files from store of srcrepo in destpath
+
+    returns destlock
+    """
+    destlock = None
+    try:
+        hardlink = None
+        topic = _(b'linking') if hardlink else _(b'copying')
+        with ui.makeprogress(topic, unit=_(b'files')) as progress:
+            num = 0
+            srcpublishing = srcrepo.publishing()
+            srcvfs = vfsmod.vfs(srcrepo.sharedpath)
+            dstvfs = vfsmod.vfs(destpath)
+            for f in srcrepo.store.copylist():
+                if srcpublishing and f.endswith(b'phaseroots'):
+                    continue
+                dstbase = os.path.dirname(f)
+                if dstbase and not dstvfs.exists(dstbase):
+                    dstvfs.mkdir(dstbase)
+                if srcvfs.exists(f):
+                    if f.endswith(b'data'):
+                        # 'dstbase' may be empty (e.g. revlog format 0)
+                        lockfile = os.path.join(dstbase, b"lock")
+                        # lock to avoid premature writing to the target
+                        destlock = lock.lock(dstvfs, lockfile)
+                    hardlink, n = util.copyfiles(
+                        srcvfs.join(f), dstvfs.join(f), hardlink, progress
+                    )
+                    num += n
+            if hardlink:
+                ui.debug(b"linked %d files\n" % num)
+            else:
+                ui.debug(b"copied %d files\n" % num)
+        return destlock
+    except:  # re-raises
+        lock.release(destlock)
+        raise
