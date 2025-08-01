@@ -733,6 +733,11 @@ class hgsubrepo(abstractsubrepo):
 
     def _get(self, state):
         # avoid cycle
+        from .cmd_impls import (
+            clone as clone_impl,
+        )
+
+        # avoid cycle
         from .repo import (
             factory as repo_factory,
         )
@@ -767,7 +772,7 @@ class hgsubrepo(abstractsubrepo):
                 )
                 peer = getpeer()
                 try:
-                    shared = hg.share(
+                    shared = clone_impl.share(
                         self._repo._subparent.baseui,
                         peer,
                         self._repo.root,
