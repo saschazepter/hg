@@ -992,7 +992,9 @@ def clean(repo, *args, **kwargs):
     return up_impl.clean(*args, **kwargs)
 
 
-def merge(*args, **kwargs):
+def merge(ctx, *args, **kwargs):
+    msg = b'``hg.merge(...)` moved to `cmd_impls.update.merge(...)`'
+    ctx.repo().ui.deprecwarn(msg, b'7.3')
     return up_impl.merge(*args, **kwargs)
 
 
