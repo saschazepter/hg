@@ -986,7 +986,9 @@ def updatetotally(ui, *args, **kwargs):
     return up_impl.update_totally(*args, **kwargs)
 
 
-def clean(*args, **kwargs):
+def clean(repo, *args, **kwargs):
+    msg = b'``hg.clean(...)` moved to `cmd_impls.update.clean(...)`'
+    repo.ui.deprecwarn(msg, b'7.3')
     return up_impl.clean(*args, **kwargs)
 
 
