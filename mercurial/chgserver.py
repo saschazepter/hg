@@ -75,7 +75,7 @@ def _hashlist(items):
 
 # sensitive config sections affecting confighash
 _configsections = [
-    b'alias',  # affects global state commands.table
+    b'alias',  # affects global state tables.command_table
     b'diff-tools',  # affects whether gui or not in extdiff's uisetup
     b'eol',  # uses setconfig('eol', ...)
     b'extdiff',  # uisetup will register new commands
