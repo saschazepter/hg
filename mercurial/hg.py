@@ -980,7 +980,9 @@ def update(repo, *args, **kwargs):
     return up_impl.update(*args, **kwargs)
 
 
-def updatetotally(*args, **kwargs):
+def updatetotally(ui, *args, **kwargs):
+    msg = b'``hg.updatetotally` moved to `cmd_impls.update.update_totally`'
+    ui.deprecwarn(msg, b'7.3')
     return up_impl.update_totally(*args, **kwargs)
 
 
