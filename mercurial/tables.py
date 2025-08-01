@@ -9,10 +9,27 @@
 This module allow multiple module to register items to the same table, and
 other code to access this table without having to import the registered code.
 
-This module doesn't import anything on purpose. Not importing anything means
+This module very few import very few on purpose. Not importing anything means
 this module will not be part of any import cycle.
 """
 
 from __future__ import annotations
 
+from .interfaces.types import (
+    UiT,
+)
+from .i18n import _
+
 command_table: dict = {}
+
+
+def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:
+    """Load command functions from specified cmdtable
+
+    Used by extensions to add new commands"""
+    overrides = [cmd for cmd in cmdtable if cmd in command_table]
+    if overrides:
+        msg = _(b"extension '%s' overrides commands: %s\n")
+        msg %= (name, b" ".join(overrides))
+        ui.warn(msg)
+    command_table.update(cmdtable)

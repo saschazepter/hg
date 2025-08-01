@@ -25,6 +25,7 @@ from . import (
     configitems,
     error,
     pycompat,
+    tables,
     util,
 )
 
@@ -411,10 +412,9 @@ def loadall(ui, whitelist=None):
     # entries could result in double execution. See issue4646.
     _aftercallbacks.clear()
 
-    # delay importing avoids cyclic dependency (especially commands)
+    # delay importing avoids cyclic dependency
     from . import (
         color,
-        commands,
         filemerge,
         fileset,
         revset,
@@ -431,7 +431,7 @@ def loadall(ui, whitelist=None):
     #   which takes (ui, extensionname, extraobj) arguments
     ui.log(b'extension', b'- loading extension registration objects\n')
     extraloaders = [
-        ('cmdtable', commands, 'loadcmdtable'),
+        ('cmdtable', tables, 'load_cmd_table'),
         ('colortable', color, 'loadcolortable'),
         ('filesetpredicate', fileset, 'loadpredicate'),
         ('internalmerge', filemerge, 'loadinternalmerge'),

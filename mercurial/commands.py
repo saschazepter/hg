@@ -7734,14 +7734,3 @@ def version_(ui, **opts):
                 fn.plain(b"\n")
     fn.end()
     fm.end()
-
-
-def loadcmdtable(ui, name, cmdtable):
-    """Load command functions from specified cmdtable"""
-    overrides = [cmd for cmd in cmdtable if cmd in table]
-    if overrides:
-        ui.warn(
-            _(b"extension '%s' overrides commands: %s\n")
-            % (name, b" ".join(overrides))
-        )
-    table.update(cmdtable)
