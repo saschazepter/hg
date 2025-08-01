@@ -92,8 +92,21 @@ if TYPE_CHECKING:
 stringio = util.stringio
 
 # command options common to all commands
-
-globalopts = [
+globalopts: list[
+    tuple[
+        bytes,
+        bytes,
+        bool | bytes | None | list,
+        bytes,
+    ]
+    | tuple[
+        bytes,
+        bytes,
+        bool | bytes | None | list,
+        bytes,
+        bytes,
+    ]
+] = [
     (
         b'R',
         b'repository',
