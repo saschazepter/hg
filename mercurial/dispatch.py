@@ -816,7 +816,7 @@ def _parse(ui, args):
     cmdoptions = {}
 
     try:
-        args = fancyopts.fancyopts(args, commands.globalopts, options)
+        args = fancyopts.fancyopts(args, cmdutil.globalopts, options)
     except getopt.GetoptError as inst:
         raise error.CommandError(None, stringutil.forcebytestr(inst))
 
@@ -845,7 +845,7 @@ def _parse(ui, args):
         return opt_name.replace(b'-', b'_')
 
     # combine global options into local
-    for o in commands.globalopts:
+    for o in cmdutil.globalopts:
         name = global_opt_to_fancy_opt(o[1])
 
         # The fancyopts name is needed for `options`, but the original name
@@ -859,7 +859,7 @@ def _parse(ui, args):
         raise error.CommandError(cmd, stringutil.forcebytestr(inst))
 
     # separate global options back out
-    for o in commands.globalopts:
+    for o in cmdutil.globalopts:
         n = global_opt_to_fancy_opt(o[1])
         options[n] = cmdoptions[n]
         del cmdoptions[n]
@@ -927,7 +927,7 @@ def _checkshellalias(lui, ui, args):
     options = {}
 
     try:
-        args = fancyopts.fancyopts(args, commands.globalopts, options)
+        args = fancyopts.fancyopts(args, cmdutil.globalopts, options)
     except getopt.GetoptError:
         return
 
@@ -1042,7 +1042,7 @@ def _dispatch_post_cwd(req):
                 if cause.opt and "config".startswith(cause.opt):
                     # pycompat._getoptbwrapper() decodes bytes with latin-1
                     opt = cause.opt.encode('latin-1')
-                    all_long = {o[1] for o in commands.globalopts}
+                    all_long = {o[1] for o in cmdutil.globalopts}
                     possible = [o for o in all_long if o.startswith(opt)]
 
                     if len(possible) != 1:
