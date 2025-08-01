@@ -16,9 +16,9 @@ from . import (
     transaction,
 )
 
-
+# make sure the module is imported so it can register its commands
+chainsaw.command.__doc__
 command = registrar.command(tables.command_table)
-tables.command_table.update(chainsaw.command._table)
 
 
 @command(

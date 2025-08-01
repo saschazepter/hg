@@ -35,8 +35,7 @@ from ..utils import (
     urlutil,
 )
 
-cmdtable = {}
-command = registrar.command(cmdtable)
+command = registrar.command(tables.command_table)
 
 
 @command(
