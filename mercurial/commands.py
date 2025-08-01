@@ -90,81 +90,11 @@ debugcommandsmod.__doc__
 
 INTENT_READONLY = registrar.INTENT_READONLY
 
-# common command options
 
-globalopts = [
-    (
-        b'R',
-        b'repository',
-        b'',
-        _(b'repository root directory or name of overlay bundle file'),
-        _(b'REPO'),
-    ),
-    (b'', b'cwd', b'', _(b'change working directory'), _(b'DIR')),
-    (
-        b'y',
-        b'noninteractive',
-        None,
-        _(
-            b'do not prompt, automatically pick the first choice for all prompts'
-        ),
-    ),
-    (b'q', b'quiet', None, _(b'suppress output')),
-    (b'v', b'verbose', None, _(b'enable additional output')),
-    (
-        b'',
-        b'color',
-        b'',
-        # i18n: 'always', 'auto', 'never', and 'debug' are keywords
-        # and should not be translated
-        _(b"when to colorize (boolean, always, auto, never, or debug)"),
-        _(b'TYPE'),
-    ),
-    (
-        b'',
-        b'config',
-        [],
-        _(b'set/override config option (use \'section.name=value\')'),
-        _(b'CONFIG'),
-    ),
-    (
-        b'',
-        b'config-file',
-        [],
-        _(b'load config file to set/override config options'),
-        _(b'HGRC'),
-    ),
-    (b'', b'debug', None, _(b'enable debugging output')),
-    (b'', b'debugger', None, _(b'start debugger')),
-    (
-        b'',
-        b'encoding',
-        encoding.encoding,
-        _(b'set the charset encoding'),
-        _(b'ENCODE'),
-    ),
-    (
-        b'',
-        b'encodingmode',
-        encoding.encodingmode,
-        _(b'set the charset encoding mode'),
-        _(b'MODE'),
-    ),
-    (b'', b'traceback', None, _(b'always print a traceback on exception')),
-    (b'', b'time', None, _(b'time how long the command takes')),
-    (b'', b'profile', None, _(b'print command execution profile')),
-    (b'', b'version', None, _(b'output version information and exit')),
-    (b'h', b'help', None, _(b'display help and exit')),
-    (b'', b'hidden', False, _(b'consider hidden changesets')),
-    (
-        b'',
-        b'pager',
-        b'auto',
-        _(b"when to paginate (boolean, always, auto, or never)"),
-        _(b'TYPE'),
-    ),
-]
+# options reused by all commands
+globalopts = cmdutil.globalopts
 
+# templates for common options pattern.
 dryrunopts = cmdutil.dryrunopts
 remoteopts = cmdutil.remoteopts
 walkopts = cmdutil.walkopts
@@ -2520,7 +2450,7 @@ def debugcomplete(ui, cmd=b'', **opts):
 
     if opts.get('options'):
         options = []
-        otables = [globalopts]
+        otables = [cmdutil.globalopts]
         if cmd:
             aliases, entry = cmdutil.findcmd(
                 cmd,
