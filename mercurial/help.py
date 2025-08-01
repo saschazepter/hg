@@ -40,7 +40,6 @@ from . import (
     templatekw,
     ui as uimod,
 )
-from .hgweb import webcommands
 from .utils import (
     compression,
     resourceutil,
@@ -688,7 +687,10 @@ addtopicsymbols(b'templates', b'.. keywordsmarker', templatekw.keywords)
 addtopicsymbols(b'templates', b'.. filtersmarker', templatefilters.filters)
 addtopicsymbols(b'templates', b'.. functionsmarker', templatefuncs.funcs)
 addtopicsymbols(
-    b'hgweb', b'.. webcommandsmarker', webcommands.commands, dedent=True
+    b'hgweb',
+    b'.. webcommandsmarker',
+    tables.webcommand_table,
+    dedent=True,
 )
 
 

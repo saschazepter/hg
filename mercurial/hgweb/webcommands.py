@@ -29,6 +29,7 @@ from .. import (
     encoding,
     error,
     graphmod,
+    help as helpmod,
     pycompat,
     revset,
     revsetlang,
@@ -46,7 +47,6 @@ from ..utils import (
 from . import webutil
 
 __all__ = []
-commands = {}
 
 
 class webcommand:
@@ -77,7 +77,7 @@ class webcommand:
 
     def __call__(self, func):
         __all__.append(pycompat.sysstr(self.name))
-        commands[self.name] = func
+        tables.webcommand_table[self.name] = func
         return func
 
 
@@ -1529,7 +1529,6 @@ def help(web):
     The ``help`` template will be rendered when requesting help for a topic.
     ``helptopics`` will be rendered for the index of help topics.
     """
-    from .. import help as helpmod  # avoid cycle
 
     topicname = web.req.qsparams.get(b'node')
     if not topicname:
@@ -1612,4 +1611,4 @@ def help(web):
 
 
 # tell hggettext to extract docstrings from these functions:
-i18nfunctions = commands.values()
+i18nfunctions = tables.webcommand_table.values()

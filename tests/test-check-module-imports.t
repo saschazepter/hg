@@ -75,7 +75,6 @@ will likely receive warnings about a direct import.
   mercurial/hgweb/request.py:*: function level import: mercurial.hgweb.wsgiheaders (glob)
   mercurial/hgweb/request.py:*: function level import: mercurial.hgweb.wsgiheaders (glob)
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
-  mercurial/hgweb/webcommands.py:*: function level import: mercurial.help (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
@@ -124,7 +123,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
   Import cycle: mercurial.bookmarks -> mercurial.scmutil -> mercurial.bookmarks
   Import cycle: mercurial.context -> mercurial.subrepoutil -> mercurial.context
-  Import cycle: mercurial.help -> mercurial.hgweb.webcommands -> mercurial.help
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.localrepo
   Import cycle: mercurial.subrepo -> mercurial.subrepoutil -> mercurial.subrepo
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd

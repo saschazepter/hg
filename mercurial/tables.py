@@ -21,6 +21,7 @@ from .interfaces.types import (
 from .i18n import _
 
 command_table: dict = {}
+webcommand_table: dict = {}
 
 
 def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:
