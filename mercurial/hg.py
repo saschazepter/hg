@@ -100,8 +100,11 @@ def openpath(ui, path, sendaccept=True):
         return url.open(ui, path, sendaccept=sendaccept)
 
 
-def peer(*args, **kwargs):
-    return repo_factory.peer(*args, **kwargs)
+def peer(uiorrepo, *args, **kwargs):
+    ui = getattr(uiorrepo, 'ui', uiorrepo)
+    msg = b'``hg.peer(...)` moved to `repo.factory.peer(...)`'
+    ui.deprecwarn(msg, b'7.3')
+    return repo_factory.peer(uiorrepo, *args, **kwargs)
 
 
 def repository(*args, **kwargs):
