@@ -974,7 +974,9 @@ def updaterepo(repo, node, overwrite, updatecheck=None):
     )
 
 
-def update(*args, **kwargs):
+def update(repo, *args, **kwargs):
+    msg = b'``hg.update(...)` moved to `cmd_impls.update.update(...)`'
+    repo.ui.deprecwarn(msg, b'7.3')
     return up_impl.update(*args, **kwargs)
 
 
