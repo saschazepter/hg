@@ -42,6 +42,7 @@ from . import (
     pycompat,
     registrar,
     scmutil,
+    tables,
     ui as uimod,
     util,
 )
@@ -347,7 +348,11 @@ def _runcatch(req):
                     req.args[:], commands.globalopts, {}
                 )
                 cmd = cmdargs[0]
-                aliases, entry = cmdutil.findcmd(cmd, commands.table, False)
+                aliases, entry = cmdutil.findcmd(
+                    cmd,
+                    tables.command_table,
+                    False,
+                )
                 realcmd = aliases[0]
             except (
                 error.UnknownCommand,
@@ -821,7 +826,7 @@ def _parse(ui, args):
     if args:
         cmd, args = args[0], args[1:]
         aliases, entry = cmdutil.findcmd(
-            cmd, commands.table, ui.configbool(b"ui", b"strict")
+            cmd, tables.command_table, ui.configbool(b"ui", b"strict")
         )
         cmd = aliases[0]
         args = aliasargs(entry[0], args)
@@ -1068,7 +1073,7 @@ def _checkshellalias(lui, ui, args):
     if not args:
         return
 
-    cmdtable = commands.table
+    cmdtable = tables.command_table
 
     cmd = args[0]
     try:
@@ -1157,7 +1162,7 @@ def _dispatch_post_cwd(req):
 
         # (reposetup is handled in hg.repository)
 
-        addaliases(lui, commands.table)
+        addaliases(lui, tables.command_table)
 
         # All aliases and commands are completely defined, now.
         # Check abbreviation/ambiguity of shell alias.
