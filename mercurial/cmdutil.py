@@ -1226,6 +1226,8 @@ def changebranch(ui, repo, revs, label, **opts):
 
 
 def findrepo(p: bytes) -> bytes | None:
+    msg = b'mercurial.cmdutil.findrepo moved to mercurial.repo.find_repo'
+    util.nouideprecwarn(msg, b'7.3')
     return repo_utils.find_repo(p)
 
 
