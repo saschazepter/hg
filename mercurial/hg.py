@@ -78,6 +78,8 @@ def islocal(repo: bytes) -> bool:
 
 
 def openpath(*args, **kwargs):
+    msg = b'`hg.openpath(...)` moved to scmutil.open_path(...)'
+    util.nouideprecwarn(msg, b'7.3')
     return scmutil.open_path(*args, **kwargs)
 
 
