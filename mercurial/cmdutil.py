@@ -59,6 +59,7 @@ from . import (
     phases,
     pycompat,
     repair,
+    repo as repo_utils,
     revlog,
     rewriteutil,
     scmutil,
@@ -1225,12 +1226,7 @@ def changebranch(ui, repo, revs, label, **opts):
 
 
 def findrepo(p: bytes) -> bytes | None:
-    while not os.path.isdir(os.path.join(p, b".hg")):
-        oldp, p = p, os.path.dirname(p)
-        if p == oldp:
-            return None
-
-    return p
+    return repo_utils.find_repo(p)
 
 
 def bailifchanged(repo, merge=True, hint=None):

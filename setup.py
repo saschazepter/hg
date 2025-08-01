@@ -1010,6 +1010,7 @@ packages = [
     'mercurial.thirdparty.tomli',
     'mercurial.upgrade_utils',
     'mercurial.utils',
+    'mercurial.repo',
     'mercurial.revlogutils',
     'mercurial.testing',
     'hgext',
