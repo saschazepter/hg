@@ -998,7 +998,9 @@ def merge(ctx, *args, **kwargs):
     return up_impl.merge(*args, **kwargs)
 
 
-def abortmerge(*args, **kwargs):
+def abortmerge(ui, *args, **kwargs):
+    msg = b'``hg.abortmerge(...)` moved to `cmd_impls.update.abortmerge(...)`'
+    ui.deprecwarn(msg, b'7.3')
     return up_impl.abort_merge(*args, **kwargs)
 
 
