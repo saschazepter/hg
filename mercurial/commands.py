@@ -84,7 +84,8 @@ command = registrar.command(tables.command_table)
 table = tables.command_table
 
 table.update(debugcommandsmod.command._table)
-table.update(admin_commands_mod.command._table)
+# make sure the module is imported so it can register its commands
+admin_commands_mod.__doc__
 
 
 INTENT_READONLY = registrar.INTENT_READONLY

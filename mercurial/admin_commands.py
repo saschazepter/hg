@@ -9,12 +9,16 @@ from __future__ import annotations
 
 from .i18n import _
 from .admin import chainsaw, verify
-from . import error, registrar, transaction
+from . import (
+    error,
+    registrar,
+    tables,
+    transaction,
+)
 
 
-table = {}
-table.update(chainsaw.command._table)
-command = registrar.command(table)
+command = registrar.command(tables.command_table)
+tables.command_table.update(chainsaw.command._table)
 
 
 @command(
