@@ -34,10 +34,10 @@ from mercurial import (
     dispatch,
     encoding,
     extensions,
-    hg,
     pycompat,
     ui as uimod,
 )
+from mercurial.cmd_impls import clone as clone_impl
 from mercurial.configuration import rcutil
 from mercurial.hgweb import server as servermod
 
@@ -217,7 +217,7 @@ def configsuboptions(orig, self, section, name, *args, **kwargs):
     return opt, sub
 
 
-def defaultdest(orig, source):
+def default_dest(orig, source):
     for name, path in getzcpaths():
         if path == source:
             return name.encode(encoding.encoding)
@@ -240,5 +240,5 @@ extensions.wrapfunction(dispatch, '_runcommand', cleanupafterdispatch)
 extensions.wrapfunction(uimod.ui, 'config', config)
 extensions.wrapfunction(uimod.ui, 'configitems', configitems)
 extensions.wrapfunction(uimod.ui, 'configsuboptions', configsuboptions)
-extensions.wrapfunction(hg, 'defaultdest', defaultdest)
+extensions.wrapfunction(clone_impl, 'default_dest', default_dest)
 extensions.wrapfunction(servermod, 'create_server', zc_create_server)

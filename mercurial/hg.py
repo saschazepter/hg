@@ -44,6 +44,7 @@ from . import (
     vfs as vfsmod,
 )
 from .cmd_impls import (
+    clone as clone_impl,
     update as up_impl,
 )
 from .interfaces import repository as repositorymod
@@ -100,25 +101,7 @@ def repository(uiorrepo, *args, **kwargs):
 
 
 def defaultdest(source):
-    """return default destination of clone if none is given
-
-    >>> defaultdest(b'foo')
-    'foo'
-    >>> defaultdest(b'/foo/bar')
-    'bar'
-    >>> defaultdest(b'/')
-    ''
-    >>> defaultdest(b'')
-    ''
-    >>> defaultdest(b'http://example.org/')
-    ''
-    >>> defaultdest(b'http://example.org/foo/')
-    'foo'
-    """
-    path = urlutil.url(source).path
-    if not path:
-        return b''
-    return os.path.basename(os.path.normpath(path))
+    return clone_impl.default_dest(source)
 
 
 def sharedreposource(repo):
