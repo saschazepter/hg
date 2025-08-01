@@ -28,7 +28,6 @@ from .interfaces.types import (
 from .interfaces import repository
 from . import (
     bookmarks,
-    bundle2 as bundle2mod,
     cacheutil,
     error,
     narrowspec,
@@ -39,6 +38,9 @@ from . import (
     store,
     transaction,
     util,
+)
+from .exchanges import (
+    bundle_caps,
 )
 from .revlogutils import (
     nodemap,
@@ -127,7 +129,7 @@ def canperformstreamclone(pullop, bundle2: bool = False):
 
     bundle2supported = False
     if pullop.canusebundle2:
-        local_caps = bundle2mod.getrepocaps(repo, role=b'client')
+        local_caps = bundle_caps.get_repo_caps(repo, role=b'client')
         local_supported = set(local_caps.get(b'stream', []))
         remote_supported = set(pullop.remotebundle2caps.get(b'stream', []))
         bundle2supported = bool(local_supported & remote_supported)
