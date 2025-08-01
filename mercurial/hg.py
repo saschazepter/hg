@@ -107,8 +107,11 @@ def peer(uiorrepo, *args, **kwargs):
     return repo_factory.peer(uiorrepo, *args, **kwargs)
 
 
-def repository(*args, **kwargs):
-    return repo_factory.repository(*args, **kwargs)
+def repository(uiorrepo, *args, **kwargs):
+    ui = getattr(uiorrepo, 'ui', uiorrepo)
+    msg = b'``hg.repository(...)` moved to `repo.factory.repository(...)`'
+    ui.deprecwarn(msg, b'7.3')
+    return repo_factory.repository(uiorrepo, *args, **kwargs)
 
 
 def defaultdest(source):
