@@ -18,6 +18,40 @@ Mercurial. If you add an import of a new file and haven't yet `hg add`ed it, you
 will likely receive warnings about a direct import.
 
   $ bash contrib/check-import
+  Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
+  Import cycle: mercurial.merge -> mercurial.sparse -> mercurial.merge
+  Import cycle: mercurial.scmutil -> mercurial.ui -> mercurial.scmutil
+  Import cycle: mercurial.repair -> mercurial.scmutil -> mercurial.repair
+  Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
+  Import cycle: mercurial.localrepo -> mercurial.phases -> mercurial.localrepo
+  Import cycle: mercurial.bookmarks -> mercurial.scmutil -> mercurial.bookmarks
+  Import cycle: mercurial.context -> mercurial.subrepoutil -> mercurial.context
+  Import cycle: mercurial.help -> mercurial.hgweb.webcommands -> mercurial.help
+  Import cycle: mercurial.subrepo -> mercurial.subrepoutil -> mercurial.subrepo
+  Import cycle: mercurial.commands -> mercurial.extensions -> mercurial.commands
+  Import cycle: mercurial.branchmap -> mercurial.localrepo -> mercurial.branchmap
+  Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
+  Import cycle: mercurial.extensions -> mercurial.filemerge -> mercurial.extensions
+  Import cycle: mercurial.revlog -> mercurial.revlogutils.rewrite -> mercurial.revlog
+  Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.bundlecaches
+  Import cycle: mercurial.hg -> mercurial.logcmdutil -> mercurial.revset -> mercurial.hg
+  Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
+  Import cycle: mercurial.commit -> mercurial.phases -> mercurial.localrepo -> mercurial.commit
+  Import cycle: mercurial.diffutil -> mercurial.merge -> mercurial.obsutil -> mercurial.diffutil
+  Import cycle: mercurial.bundlerepo -> mercurial.cmdutil -> mercurial.hg -> mercurial.bundlerepo
+  Import cycle: mercurial.changegroup -> mercurial.phases -> mercurial.localrepo -> mercurial.changegroup
+  Import cycle: mercurial.configuration.rcutil -> mercurial.vfs -> mercurial.ui -> mercurial.configuration.rcutil
+  Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
+  Import cycle: mercurial.dirstate -> mercurial.scmutil -> mercurial.phases -> mercurial.localrepo -> mercurial.dirstate
+  Import cycle: mercurial.chgserver -> mercurial.dispatch -> mercurial.commands -> mercurial.server -> mercurial.chgserver
+  Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
+  Import cycle: mercurial.archival -> mercurial.localrepo -> mercurial.extensions -> mercurial.commands -> mercurial.archival
+  Import cycle: mercurial.grep -> mercurial.scmutil -> mercurial.phases -> mercurial.localrepo -> mercurial.revset -> mercurial.grep
+  Import cycle: mercurial.cmd_impls.graft -> mercurial.merge -> mercurial.extensions -> mercurial.commands -> mercurial.cmd_impls.graft
+  Import cycle: mercurial.destutil -> mercurial.obsutil -> mercurial.phases -> mercurial.localrepo -> mercurial.revset -> mercurial.destutil
+  Import cycle: mercurial.admin.chainsaw -> mercurial.localrepo -> mercurial.extensions -> mercurial.commands -> mercurial.admin_commands -> mercurial.admin.chainsaw
+  Import cycle: mercurial.changelog -> mercurial.metadata -> mercurial.worker -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.changelog
+  [1]
 
 All files that get type checked must have 'from __future__ import annotations'
 

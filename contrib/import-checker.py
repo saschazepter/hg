@@ -742,7 +742,7 @@ def main(argv: list[str]) -> int:
             try:
                 used_imports[modname] = sorted(
                     imported_modules(
-                        src, modname, name, localmods, ignore_nested=True
+                        src, modname, name, localmods, ignore_nested=False
                     )
                 )
                 for error, lineno in verify_import_convention(
