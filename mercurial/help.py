@@ -34,6 +34,7 @@ from . import (
     pycompat,
     registrar,
     revset,
+    tables,
     templatefilters,
     templatefuncs,
     templatekw,
@@ -314,7 +315,7 @@ def topicmatch(
             name = names[0]
             if not filtertopic(ui, name):
                 results[b'topics'].append((names[0], header))
-    for cmd, entry in commands.table.items():
+    for cmd, entry in tables.command_table.items():
         if len(entry) == 3:
             summary = entry[2]
         else:
@@ -813,7 +814,7 @@ def help_(
     def helpcmd(name: bytes, subtopic: bytes | None) -> list[bytes]:
         try:
             aliases, entry = cmdutil.findcmd(
-                name, commands.table, strict=unknowncmd
+                name, tables.command_table, strict=unknowncmd
             )
         except error.AmbiguousCommand as inst:
             # py3 fix: except vars can't be used outside the scope of the
@@ -914,7 +915,7 @@ def help_(
 
     def helplist(select: _SelectFn | None = None, **opts) -> list[bytes]:
         cats, h, syns = _getcategorizedhelpcmds(
-            ui, commands.table, name, select
+            ui, tables.command_table, name, select
         )
 
         rst = []
@@ -1075,7 +1076,7 @@ def help_(
             indicateomitted(rst, omitted)
 
         try:
-            cmdutil.findcmd(name, commands.table)
+            cmdutil.findcmd(name, tables.command_table)
             rst.append(
                 _(b"\nuse 'hg help -c %s' to see help for the %s command\n")
                 % (name, name)
