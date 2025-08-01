@@ -69,6 +69,11 @@ from .utils import (
     stringutil,
 )
 
+try:
+    from . import __version__  # pytype: disable=import-error
+except ImportError:
+    __version__ = None
+
 
 if typing.TYPE_CHECKING:
     from typing import (
@@ -164,12 +169,8 @@ def _getmtimepaths(ui):
     - python binary
     """
     modules = [m for n, m in extensions.extensions(ui)]
-    try:
-        from . import __version__  # pytype: disable=import-error
-
+    if __version__ is not None:
         modules.append(__version__)
-    except ImportError:
-        pass
     files = []
     if pycompat.sysexecutable:
         files.append(pycompat.sysexecutable)

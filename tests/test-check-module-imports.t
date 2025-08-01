@@ -23,7 +23,6 @@ will likely receive warnings about a direct import.
   mercurial/bundle2.py:*: function level import: mercurial.localrepo (glob)
   mercurial/bundle2.py:*: function level import: mercurial.exchange (glob)
   mercurial/bundlecaches.py:*: function level import: mercurial.localrepo (glob)
-  mercurial/chgserver.py:*: function level import: mercurial.__version__ (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.hg (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
