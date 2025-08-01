@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 from . import (
-    commands,
     error,
     extensions,
     registrar,
+    tables,
 )
 
 from hgdemandimport import tracing
@@ -140,7 +140,11 @@ class exthelper:
         - pushkey setup
         """
         for command, wrapper, opts in self._commandwrappers:
-            entry = extensions.wrapcommand(commands.table, command, wrapper)
+            entry = extensions.wrapcommand(
+                tables.command_table,
+                command,
+                wrapper,
+            )
             if opts:
                 for opt in opts:
                     entry[1].append(opt)
