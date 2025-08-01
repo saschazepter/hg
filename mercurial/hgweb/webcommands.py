@@ -34,6 +34,7 @@ from .. import (
     revsetlang,
     scmutil,
     smartset,
+    tables,
     templateutil,
 )
 
@@ -1540,7 +1541,7 @@ def help(web):
 
         early, other = [], []
         primary = lambda s: s.partition(b'|')[0]
-        for c, e in commands.table.items():
+        for c, e in tables.command_table.items():
             doc = _getdoc(e)
             if b'DEPRECATED' in doc or c.startswith(b'debug'):
                 continue
