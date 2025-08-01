@@ -707,8 +707,7 @@ def sources(f, modname):
         # other than ASCII (mainly) and UTF-8 (in a few exceptions), so
         # simplicity is fine.
         with open(f, encoding='utf-8') as src:
-            for script, modname, t, line in embedded(f, modname, src):
-                yield script, modname.encode('utf8'), t, line
+            yield from embedded(f, modname, src)
 
 
 def main(argv):
@@ -728,7 +727,7 @@ def main(argv):
     for localmodname, source_path in sorted(localmodpaths.items()):
         if not isinstance(localmodname, bytes):
             # This is only safe because all hg's files are ascii
-            localmodname = localmodname.encode('ascii')
+            localmodname = localmodname
         for src, modname, name, line in sources(source_path, localmodname):
             try:
                 used_imports[modname] = sorted(
