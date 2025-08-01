@@ -203,6 +203,7 @@ def optrst(header: bytes, options, verbose: bool, ui: uimod.ui) -> bytes:
         else:
             shortopt, longopt, default, desc = option
             optlabel = _(b"VALUE")  # default label
+        assert desc is not None
 
         if not verbose and any(w in desc for w in _exclkeywords):
             continue
@@ -895,9 +896,7 @@ def help_(
 
         if ui.verbose:
             rst.append(
-                optrst(
-                    _(b"global options"), commands.globalopts, ui.verbose, ui
-                )
+                optrst(_(b"global options"), cmdutil.globalopts, ui.verbose, ui)
             )
 
         if not ui.verbose:
@@ -1004,7 +1003,7 @@ def help_(
             rst.append(
                 b'\n%s\n'
                 % optrst(
-                    _(b"global options"), commands.globalopts, ui.verbose, ui
+                    _(b"global options"), cmdutil.globalopts, ui.verbose, ui
                 )
             )
             if name == b'shortlist':
