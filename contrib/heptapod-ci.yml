@@ -207,15 +207,12 @@ build-c-wheel-arm64-musl:
       FILTER: ""
       FLAVOR: ""
       RUNTEST_ARGS: ""
+      FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: true
     # The runner made a clone as root.
     # We make a new clone owned by user used to run the step.
     before_script:
       - echo "python used, $PYTHON"
       - for tool in $SHOW_VERSION_OF ; do echo '#' version of $tool; $tool --version; done
-      - rm -rf "${TMP_WORK_DIR}"/mercurial-ci/  # Clean slate if not using containers
-      - hg clone . "${TMP_WORK_DIR}"/mercurial-ci/ --noupdate --config phases.publish=no
-      - hg -R "${TMP_WORK_DIR}"/mercurial-ci/ update `hg log --rev '.' --template '{node}'`
-      - cd "${TMP_WORK_DIR}"/mercurial-ci/
       - ls -1 tests/test-check-*.* tests/test-contrib-check-*.t > "${TMP_WORK_DIR}"/check-tests.txt
     script:
         - echo "$TEST_HGTESTS_ALLOW_NETIO"
