@@ -844,6 +844,11 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def merge(self, state):
+        # avoid cycle
+        from .cmd_impls import (
+            update as up_impl,
+        )
+
         self._get(state)
         cur = self._repo[b'.']
         dst = self._repo[state[1]]
@@ -854,7 +859,7 @@ class hgsubrepo(abstractsubrepo):
                 self.ui.debug(
                     b'updating subrepository "%s"\n' % subrelpath(self)
                 )
-                hg.update(self._repo, state[1])
+                up_impl.update(self._repo, state[1])
             elif anc == dst:
                 self.ui.debug(
                     b'skipping subrepository "%s"\n' % subrelpath(self)
