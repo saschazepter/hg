@@ -400,7 +400,14 @@ def verify_import_convention(module, source, localmods):
     return verify_modern_convention(module, root, localmods)
 
 
-def verify_modern_convention(module, root, localmods, root_col_offset=0):
+def verify_modern_convention(
+    module,
+    root,
+    localmods,
+    root_col_offset=0,
+    warn_local=False,
+    local_main_prefix='mercurial',
+):
     """Verify a file conforms to the modern import convention rules.
 
     The rules of the modern convention are:
@@ -450,7 +457,11 @@ def verify_modern_convention(module, root, localmods, root_col_offset=0):
         if newscope:
             # Check for local imports in function
             yield from verify_modern_convention(
-                module, node, localmods, node.col_offset + 4
+                module,
+                node,
+                localmods,
+                node.col_offset + 4,
+                warn_local=topmodule == local_main_prefix,
             )
         elif isinstance(node, ast.Import):
             # Disallow "import foo, bar" and require separate imports
@@ -498,6 +509,14 @@ def verify_modern_convention(module, root, localmods, root_col_offset=0):
                     name,
                     requirealias[name],
                 )
+            # note all function level import are bad, but as this check is
+            # added most of them are. See rational explained in e703ef157565.
+            #
+            # When all import cycle induced by this pattern are gone, we might
+            # consider relaxing this check for the case where function level
+            # import really help.
+            if warn_local and name.startswith(local_main_prefix):
+                yield msg('function level import: %s', name)
 
         elif isinstance(node, ast.ImportFrom):
             # Resolve the full imported module name.
@@ -595,6 +614,14 @@ def verify_modern_convention(module, root, localmods, root_col_offset=0):
                         fullname,
                         requirealias[n.name],
                     )
+                # note all function level import are bad, but as this check is
+                # added most of them are. See rational explained in e703ef157565.
+                #
+                # When all import cycle induced by this pattern are gone, we might
+                # consider relaxing this check for the case where function level
+                # import really help.
+                if warn_local and found:
+                    yield msg('function level import: %s.%s', fullname, n.name)
 
 
 class CircularImport(Exception):
