@@ -109,8 +109,6 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
-  mercurial/wireprotoserver.py:*: function level import: mercurial.hgweb.common (glob)
-  mercurial/wireprotoserver.py:*: function level import: mercurial.hgweb.common (glob)
   Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
   Import cycle: mercurial.merge -> mercurial.sparse -> mercurial.merge
   Import cycle: mercurial.scmutil -> mercurial.ui -> mercurial.scmutil

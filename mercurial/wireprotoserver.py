@@ -23,6 +23,7 @@ from .utils import (
     compression,
     stringutil,
 )
+from .hgweb import common as hgwebcommon
 
 stringio = util.stringio
 
@@ -182,7 +183,6 @@ def handlewsgirequest(rctx, req, res, checkperm):
     should stop processing the request, as a response has already been issued.
     """
     # Avoid cycle involving hg module.
-    from .hgweb import common as hgwebcommon
 
     repo = rctx.repo
 
@@ -276,9 +276,6 @@ def _httpresponsetype(ui, proto, prefer_uncompressed):
 
 
 def _callhttp(repo, req, res, proto, cmd):
-    # Avoid cycle involving hg module.
-    from .hgweb import common as hgwebcommon
-
     def genversion2(gen, engine, engineopts):
         # application/mercurial-0.2 always sends a payload header
         # identifying the compression engine.
