@@ -1094,14 +1094,9 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def unshare(self):
-        # subrepo inherently violates our import layering rules
-        # because it wants to make repo objects from deep inside the stack
-        # so we manually delay the circular imports to not break
-        # scripts that don't use our demand-loading
-        global hg
-        from . import hg as h
-
-        hg = h
+        from .cmd_impls import (
+            clone as clone_impl,
+        )
 
         # Nothing prevents a user from sharing in a repo, and then making that a
         # subrepo.  Alternately, the previous unshare attempt may have failed
@@ -1109,7 +1104,7 @@ class hgsubrepo(abstractsubrepo):
         if self._repo.shared():
             self.ui.status(_(b"unsharing subrepo '%s'\n") % self._relpath)
 
-        hg.unshare(self.ui, self._repo)
+        clone_impl.unshare(self.ui, self._repo)
 
     def verify(self, onpush=False):
         try:
