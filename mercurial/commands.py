@@ -2502,7 +2502,7 @@ def copy(ui, repo, *pats, **opts):
 )
 def debugcommands(ui, cmd=b'', *args):
     """list all available commands and options"""
-    for cmd, vals in sorted(table.items()):
+    for cmd, vals in sorted(tables.command_table.items()):
         cmd = cmd.split(b'|')[0]
         opts = b', '.join([i[1] for i in vals[1]])
         ui.write(b'%s: %s\n' % (cmd, opts))
@@ -2522,7 +2522,11 @@ def debugcomplete(ui, cmd=b'', **opts):
         options = []
         otables = [globalopts]
         if cmd:
-            aliases, entry = cmdutil.findcmd(cmd, table, False)
+            aliases, entry = cmdutil.findcmd(
+                cmd,
+                tables.command_table,
+                False,
+            )
             otables.append(entry[1])
         for t in otables:
             for o in t:
@@ -2534,7 +2538,7 @@ def debugcomplete(ui, cmd=b'', **opts):
         ui.write(b"%s\n" % b"\n".join(options))
         return
 
-    cmdlist, unused_allcmds = cmdutil.findpossible(cmd, table)
+    cmdlist, unused_allcmds = cmdutil.findpossible(cmd, tables.command_table)
     if ui.verbose:
         cmdlist = [b' '.join(c[0]) for c in cmdlist.values()]
     ui.write(b"%s\n" % b"\n".join(sorted(cmdlist)))
