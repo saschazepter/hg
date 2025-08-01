@@ -65,6 +65,8 @@ sharedbookmarks = b'bookmarks'
 
 
 def addbranchrevs(lrepo, *args, **kwargs):
+    msg = b'``hg.addbranchrevs(...)` moved to `urlutil.add_branch_revs(...)`'
+    lrepo.ui.deprecwarn(msg, b'7.3')
     return urlutil.add_branch_revs(lrepo, *args, **kwargs)
 
 
