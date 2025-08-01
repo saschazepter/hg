@@ -39,6 +39,9 @@ from mercurial import (
     registrar,
     util,
 )
+from mercurial.cmd_impls import (
+    clone as clone_impl,
+)
 from mercurial.utils import (
     dateutil,
     procutil,
@@ -63,7 +66,7 @@ wdirparenttype = b'wdirparent'
 # In a shared repository, what shared feature name is used
 # to indicate this namespace is shared with the source?
 sharednamespaces = {
-    bookmarktype: hg.sharedbookmarks,
+    bookmarktype: clone_impl.sharedbookmarks,
 }
 
 
@@ -75,7 +78,7 @@ def extsetup(ui):
     extensions.wrapfilecache(
         localrepo.localrepository, b'dirstate', wrapdirstate
     )
-    extensions.wrapfunction(hg, 'postshare', wrappostshare)
+    extensions.wrapfunction(clone_impl, 'post_share', wrappostshare)
     extensions.wrapfunction(hg, 'copystore', unsharejournal)
 
 

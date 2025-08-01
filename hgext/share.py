@@ -78,6 +78,9 @@ from mercurial import (
     txnutil,
     util,
 )
+from mercurial.cmd_impls import (
+    clone as clone_impl,
+)
 
 cmdtable = {}
 command = registrar.command(cmdtable)
@@ -179,7 +182,7 @@ def _hassharedbookmarks(repo):
         shared = repo.vfs.read(b'shared').splitlines()
     except FileNotFoundError:
         return False
-    return hg.sharedbookmarks in shared
+    return clone_impl.sharedbookmarks in shared
 
 
 def getbkfile(orig, repo):

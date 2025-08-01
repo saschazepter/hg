@@ -103,6 +103,7 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.cmd_impls.update -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.cmd_impls.update
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
+  Import cycle: mercurial.cmd_impls.clone -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.cmd_impls.clone
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'
