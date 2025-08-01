@@ -1,7 +1,6 @@
 #require test-repo hg32
 
   $ . "$TESTDIR/helpers-testrepo.sh"
-  $ import_checker="$TESTDIR"/../contrib/import-checker.py
 
   $ cd "$TESTDIR"/..
 
@@ -18,30 +17,7 @@ NOTE: the `hg files` command here only works on files that are known to
 Mercurial. If you add an import of a new file and haven't yet `hg add`ed it, you
 will likely receive warnings about a direct import.
 
-  $ testrepohg files 'set:**.py or grep(r"^#!.*?python")' \
-  > 'glob:tests/**.t' \
-  > -X hgweb.cgi \
-  > -X setup.py \
-  > -X contrib/automation/ \
-  > -X contrib/debugshell.py \
-  > -X contrib/hgweb.fcgi \
-  > -X contrib/packaging/hg-docker \
-  > -X contrib/packaging/hgpackaging/ \
-  > -X contrib/packaging/inno/ \
-  > -X contrib/phab-clean.py \
-  > -X contrib/python-zstandard/ \
-  > -X contrib/win32/hgwebdir_wsgi.py \
-  > -X contrib/perf-utils/perf-revlog-write-plot.py \
-  > -X doc/gendoc.py \
-  > -X doc/hgmanpage.py \
-  > -X i18n/posplit \
-  > -X mercurial/thirdparty \
-  > -X tests/hypothesishelpers.py \
-  > -X tests/test-demandimport.py \
-  > -X tests/test-imports-checker.t \
-  > -X tests/test-verify-repo-operations.py \
-  > -X tests/test-extension.t \
-  > | sed 's-\\-/-g' | "$PYTHON" "$import_checker" -
+  $ bash contrib/check-import
 
 All files that get type checked must have 'from __future__ import annotations'
 
