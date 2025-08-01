@@ -43,7 +43,6 @@ will likely receive warnings about a direct import.
   > -X tests/test-extension.t \
   > | sed 's-\\-/-g' | "$PYTHON" "$import_checker" -
   Import cycle: mercurial.bundle2 -> mercurial.streamclone -> mercurial.bundle2
-  Import cycle: mercurial.configuration.rcutil -> mercurial.localrepo -> mercurial.configuration.rcutil
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'

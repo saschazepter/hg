@@ -520,31 +520,6 @@ class locallegacypeer(localpeer, repository.ipeerlegacycommands):
 featuresetupfuncs = set()
 
 
-def _getsharedvfs(hgvfs, requirements):
-    """returns the vfs object pointing to root of shared source
-    repo for a shared repository
-
-    hgvfs is vfs pointing at .hg/ of current repo (shared one)
-    requirements is a set of requirements of current repo (shared one)
-    """
-    # The ``shared`` or ``relshared`` requirements indicate the
-    # store lives in the path contained in the ``.hg/sharedpath`` file.
-    # This is an absolute path for ``shared`` and relative to
-    # ``.hg/`` for ``relshared``.
-    sharedpath = hgvfs.read(b'sharedpath').rstrip(b'\n')
-    if requirementsmod.RELATIVE_SHARED_REQUIREMENT in requirements:
-        sharedpath = util.normpath(hgvfs.join(sharedpath))
-
-    sharedvfs = vfsmod.vfs(sharedpath, realpath=True)
-
-    if not sharedvfs.exists():
-        raise error.RepoError(
-            _(b'.hg/sharedpath points to nonexistent directory %s')
-            % sharedvfs.base
-        )
-    return sharedvfs
-
-
 def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
@@ -614,7 +589,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     storevfs = None
     if shared:
         # This is a shared repo
-        sharedvfs = _getsharedvfs(hgvfs, requirements)
+        sharedvfs = rcutil.get_shared_vfs(hgvfs, requirements)
         storevfs = vfsmod.vfs(sharedvfs.join(b'store'))
     else:
         storevfs = vfsmod.vfs(hgvfs.join(b'store'))
