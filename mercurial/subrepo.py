@@ -803,7 +803,7 @@ class hgsubrepo(abstractsubrepo):
                 )
                 peer = getpeer()
                 try:
-                    other, cloned = hg.clone(
+                    other, cloned = clone_impl.clone(
                         self._repo._subparent.baseui,
                         {},
                         peer,
