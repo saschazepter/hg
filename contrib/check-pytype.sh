@@ -91,6 +91,7 @@ touch --no-create --date '2005-05-03 13:16:10' mercurial/__version__.py
 
 pytype --keep-going --jobs auto \
     doc/check-seclevel.py hgdemandimport hgext mercurial \
+    contrib/import-checker.py \
     -x hgext/absorb.py \
     -x hgext/bugzilla.py \
     -x hgext/convert/bzr.py \
