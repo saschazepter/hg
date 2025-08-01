@@ -569,7 +569,7 @@ def wrapcommand(table, command, wrapper, synopsis=None, docstring=None):
       local bookmarks.
       """
 
-      extensions.wrapcommand(commands.table, 'bookmarks', exbookmarks,
+      extensions.wrapcommand(tables.command_table, 'bookmarks', exbookmarks,
                              synopsis, docstring)
     '''
     assert callable(wrapper)
