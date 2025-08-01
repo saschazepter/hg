@@ -31,6 +31,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 )
 
 from . import (
+    bundle,
     matcher,
     repository,
     status,
@@ -58,3 +59,5 @@ RevisionDeltaT = repository.irevisiondelta
 
 StatusT = status.Status
 TransactionT = transaction.ITransaction
+
+UnbundlePartT = bundle.IUnbundlePart

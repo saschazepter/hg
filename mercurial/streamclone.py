@@ -22,6 +22,9 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import (
+    UnbundlePartT,
+)
 from .interfaces import repository
 from . import (
     bookmarks,
@@ -1420,7 +1423,7 @@ class _FileChunker:
 
     def __init__(
         self,
-        fp: bundle2mod.unbundlepart,
+        fp: UnbundlePartT,
         data_len: int,
         progress: scmutil.progress,
         report: V2Report,
@@ -1449,7 +1452,7 @@ class _ThreadSafeFileChunker(_FileChunker):
 
     def __init__(
         self,
-        fp: bundle2mod.unbundlepart,
+        fp: UnbundlePartT,
         data_len: int,
         progress: scmutil.progress,
         report: V2Report,
@@ -1498,7 +1501,7 @@ def _trivial_file(
 
 def _v2_parse_files(
     repo,
-    fp: bundle2mod.unbundlepart,
+    fp: UnbundlePartT,
     vfs_map,
     file_count: int,
     progress: scmutil.progress,
