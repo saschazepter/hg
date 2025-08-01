@@ -83,9 +83,9 @@ command = registrar.command(tables.command_table)
 # offered for backward compatibility
 table = tables.command_table
 
-table.update(debugcommandsmod.command._table)
 # make sure the module is imported so it can register its commands
 admin_commands_mod.__doc__
+debugcommandsmod.__doc__
 
 
 INTENT_READONLY = registrar.INTENT_READONLY
