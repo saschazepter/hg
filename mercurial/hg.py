@@ -87,8 +87,6 @@ def islocal(repo):
         if hasattr(cls, 'islocal'):
             return cls.islocal(repo)  # pytype: disable=module-attr
         return False
-    repo.ui.deprecwarn(b"use obj.local() instead of islocal(obj)", b"6.4")
-    return repo.local()
 
 
 def openpath(ui, path, sendaccept=True):
