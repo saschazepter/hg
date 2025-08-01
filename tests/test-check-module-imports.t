@@ -44,7 +44,6 @@ will likely receive warnings about a direct import.
   > | sed 's-\\-/-g' | "$PYTHON" "$import_checker" -
   Import cycle: mercurial.bundle2 -> mercurial.streamclone -> mercurial.bundle2
   Import cycle: mercurial.configuration.rcutil -> mercurial.localrepo -> mercurial.configuration.rcutil
-  Import cycle: mercurial.admin.chainsaw -> mercurial.commands -> mercurial.admin_commands -> mercurial.admin.chainsaw
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'
