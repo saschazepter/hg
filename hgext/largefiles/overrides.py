@@ -30,7 +30,6 @@ from mercurial import (
     extensions,
     exthelper,
     filemerge,
-    hg,
     logcmdutil,
     match as matchmod,
     merge,
@@ -1156,7 +1155,7 @@ def overrideclone(orig, ui, source, dest=None, **opts):
     return orig(ui, source, dest, **opts)
 
 
-@eh.wrapfunction(hg, 'clone')
+@eh.wrapfunction(clone_impl, 'clone')
 def hgclone(orig, ui, opts, *args, **kwargs):
     result = orig(ui, opts, *args, **kwargs)
 

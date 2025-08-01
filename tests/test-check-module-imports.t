@@ -56,7 +56,6 @@ will likely receive warnings about a direct import.
   mercurial/extensions.py:*: function level import: mercurial.templatekw (glob)
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
-  mercurial/hg.py:*: function level import: mercurial.streamclone (glob)
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
@@ -101,9 +100,8 @@ will likely receive warnings about a direct import.
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.repo.factory -> mercurial.bundlerepo
   Import cycle: mercurial.filemerge -> mercurial.templatekw -> mercurial.merge_utils.diff -> mercurial.merge -> mercurial.filemerge
-  Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
+  Import cycle: mercurial.cmd_impls.clone -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.clone
   Import cycle: mercurial.cmd_impls.update -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.cmd_impls.update
-  Import cycle: mercurial.cmd_impls.clone -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.clone
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
   [1]
 
