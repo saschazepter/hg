@@ -287,7 +287,7 @@ def filtertopic(ui: uimod.ui, topic: bytes) -> bool:
 
 
 def topicmatch(
-    ui: uimod.ui, commands, kw: bytes
+    ui: uimod.ui, kw: bytes
 ) -> dict[bytes, list[tuple[bytes, bytes]]]:
     """Return help topics matching kw.
 
@@ -1153,7 +1153,7 @@ def help_(
     rst = []
     kw = opts.get(b'keyword')
     if kw or name is None and any(opts[o] for o in opts):
-        matches = topicmatch(ui, commands, name or b'')
+        matches = topicmatch(ui, name or b'')
         helpareas = []
         if opts.get(b'extension'):
             helpareas += [(b'extensions', _(b'Extensions'))]
