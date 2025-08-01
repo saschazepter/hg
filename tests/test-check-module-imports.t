@@ -69,8 +69,6 @@ will likely receive warnings about a direct import.
   mercurial/filemerge.py:*: function level import: mercurial.extensions (glob)
   mercurial/filemerge.py:*: function level import: mercurial.context (glob)
   mercurial/hg.py:*: function level import: mercurial.streamclone (glob)
-  mercurial/hgweb/request.py:*: function level import: mercurial.hgweb.wsgiheaders (glob)
-  mercurial/hgweb/request.py:*: function level import: mercurial.hgweb.wsgiheaders (glob)
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
