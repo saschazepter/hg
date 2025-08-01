@@ -60,6 +60,7 @@ from . import (
     server,
     shelve as shelvemod,
     state as statemod,
+    tables,
     tags as tagsmod,
     util,
     verify as verifymod,
@@ -77,11 +78,15 @@ from .utils import (
     urlutil,
 )
 
-table = {}
+command = registrar.command(tables.command_table)
+
+# offered for backward compatibility
+table = tables.command_table
+
 table.update(debugcommandsmod.command._table)
 table.update(admin_commands_mod.command._table)
 
-command = registrar.command(table)
+
 INTENT_READONLY = registrar.INTENT_READONLY
 
 # common command options
