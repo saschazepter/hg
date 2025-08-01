@@ -69,6 +69,7 @@ from . import (
 from .cmd_impls import (
     clone as clone_impl,
     graft as graft_impl,
+    incoming as inc_impl,
     outgoing as out_impl,
     update as up_impl,
 )
@@ -4096,7 +4097,9 @@ def incoming(ui, repo, source=b"default", **opts):
                 ui, repo, revdag, displayer, graphmod.asciiedges
             )
 
-        hg._incoming(display, lambda: 1, ui, repo, source, opts, buffered=True)
+        inc_impl._incoming(
+            display, lambda: 1, ui, repo, source, opts, buffered=True
+        )
         return 0
 
     cmdutil.check_incompatible_arguments(opts, b'subrepos', [b'bundle'])
