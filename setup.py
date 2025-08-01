@@ -996,6 +996,7 @@ packages = [
     'mercurial.branching',
     'mercurial.defaultrc',
     'mercurial.dirstateutils',
+    'mercurial.exchanges',
     'mercurial.helptext',
     'mercurial.helptext.internals',
     'mercurial.hgweb',
