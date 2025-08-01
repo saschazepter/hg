@@ -184,7 +184,10 @@ from .utils import (
     stringutil,
     urlutil,
 )
-from .interfaces import repository
+from .interfaces import (
+    bundle as i_bundle,
+    repository,
+)
 
 if typing.TYPE_CHECKING:
     from typing import (
@@ -1392,7 +1395,7 @@ def decodepayloadchunks(ui, fh):
             debug(b'bundle2-input: payload chunk size: %i\n' % chunksize)
 
 
-class unbundlepart(unpackermixin):
+class unbundlepart(unpackermixin, i_bundle.IUnbundlePart):
     """a bundle part read from a bundle"""
 
     def __init__(self, ui, header, fp):
