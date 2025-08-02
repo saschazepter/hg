@@ -24,6 +24,7 @@ import typing
 from typing import (
     Any,
     Callable,
+    Iterator,
     NoReturn,
     TypeVar,
     Union,
@@ -987,7 +988,11 @@ class ui:
                     )
         return items
 
-    def walkconfig(self, untrusted=False, all_known=False):
+    def walkconfig(
+        self,
+        untrusted=False,
+        all_known=False,
+    ) -> Iterator[tuple[bytes, bytes, Any,]]:
         defined = self._walk_config(untrusted)
         if not all_known:
             yield from defined
@@ -997,19 +1002,27 @@ class ui:
         current_known = next(known, None)
         while current_defined is not None or current_known is not None:
             if current_defined is None:
+                assert current_known is not None
                 yield current_known
                 current_known = next(known, None)
             elif current_known is None:
+                assert current_defined is not None
                 yield current_defined
                 current_defined = next(defined, None)
             elif current_known[0:2] == current_defined[0:2]:
+                assert current_known is not None
+                assert current_defined is not None
                 yield current_defined
                 current_defined = next(defined, None)
                 current_known = next(known, None)
             elif current_known[0:2] < current_defined[0:2]:
+                assert current_known is not None
+                assert current_defined is not None
                 yield current_known
                 current_known = next(known, None)
             else:
+                assert current_known is not None
+                assert current_defined is not None
                 yield current_defined
                 current_defined = next(defined, None)
 
