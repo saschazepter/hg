@@ -35,9 +35,9 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from . import localrepo
-
-    assert [localrepo]
+    from .interfaces.types import (
+        RepoT,
+    )
 
 subsettable = repoviewutil.subsettable
 
@@ -196,7 +196,7 @@ class _BaseBranchCache:
 
     def __init__(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         entries: (
             dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
         ) = (),
@@ -431,7 +431,7 @@ class _LocalBranchCache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         entries: (
             dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
         ) = (),
@@ -1075,7 +1075,7 @@ class remotebranchcache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         entries: (
             dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
         ) = (),

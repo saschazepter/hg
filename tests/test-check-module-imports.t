@@ -129,7 +129,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.help -> mercurial.hgweb.webcommands -> mercurial.help
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.localrepo
   Import cycle: mercurial.subrepo -> mercurial.subrepoutil -> mercurial.subrepo
-  Import cycle: mercurial.branchmap -> mercurial.localrepo -> mercurial.branchmap
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.extensions -> mercurial.filemerge -> mercurial.extensions
   Import cycle: mercurial.revlog -> mercurial.revlogutils.rewrite -> mercurial.revlog
@@ -138,8 +137,10 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: mercurial.diffutil -> mercurial.merge -> mercurial.obsutil -> mercurial.diffutil
   Import cycle: mercurial.bundlerepo -> mercurial.cmdutil -> mercurial.hg -> mercurial.bundlerepo
+  Import cycle: mercurial.discovery -> mercurial.scmutil -> mercurial.repair -> mercurial.discovery
   Import cycle: mercurial.changegroup -> mercurial.scmutil -> mercurial.repair -> mercurial.changegroup
   Import cycle: mercurial.commands -> mercurial.help -> mercurial.hgweb.webcommands -> mercurial.commands
+  Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.branchmap
   Import cycle: mercurial.configuration.rcutil -> mercurial.vfs -> mercurial.ui -> mercurial.configuration.rcutil
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: mercurial.chgserver -> mercurial.dispatch -> mercurial.commands -> mercurial.server -> mercurial.chgserver
