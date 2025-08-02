@@ -1887,7 +1887,7 @@ def outgoing(repo, subset, x):
     for path in urlutil.get_push_paths(repo, repo.ui, dests):
         branches = path.branch, []
 
-        revs, checkout = hg.addbranchrevs(repo, repo, branches, [])
+        revs, checkout = urlutil.add_branch_revs(repo, repo, branches, [])
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
         other = hg.peer(repo, {}, path)
