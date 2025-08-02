@@ -797,7 +797,6 @@ addtopichook(b'config', inserttweakrc)
 
 def help_(
     ui: uimod.ui,
-    commands,
     name: bytes,
     unknowncmd: bool = False,
     full: bool = True,
@@ -1249,7 +1248,6 @@ def formattedhelp(
         textwidth = termwidth
     text = help_(
         ui,
-        commands,
         name,
         fullname=fullname,
         subtopic=subtopic,

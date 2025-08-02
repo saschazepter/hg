@@ -1529,7 +1529,7 @@ def help(web):
     The ``help`` template will be rendered when requesting help for a topic.
     ``helptopics`` will be rendered for the index of help topics.
     """
-    from .. import commands, help as helpmod  # avoid cycle
+    from .. import help as helpmod  # avoid cycle
 
     topicname = web.req.qsparams.get(b'node')
     if not topicname:
@@ -1604,7 +1604,7 @@ def help(web):
         subtopic = None
 
     try:
-        doc = helpmod.help_(u, commands, topic, subtopic=subtopic)
+        doc = helpmod.help_(u, topic, subtopic=subtopic)
     except error.Abort:
         raise ErrorResponse(HTTP_NOT_FOUND)
 
