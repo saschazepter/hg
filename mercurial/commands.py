@@ -53,6 +53,7 @@ from . import (
     phases,
     pycompat,
     registrar,
+    repo as repo_utils,
     revsetlang,
     rewriteutil,
     scmutil,
@@ -6194,8 +6195,8 @@ def root(ui, repo, **opts):
     if use_share_source:
         # building a full repositry seems overkill and might have side effect,
         # so we just do path manipulation instead.
-        w_path = cmdutil.findrepo(repo.spath)
-        r_path = os.path.join(cmdutil.findrepo(repo.spath), b'.hg/')
+        w_path = repo_utils.find_repo(repo.spath)
+        r_path = os.path.join(repo_utils.find_repo(repo.spath), b'.hg/')
 
     opts = pycompat.byteskwargs(opts)
     with ui.formatter(b'root', opts) as fm:
