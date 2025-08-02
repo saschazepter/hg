@@ -89,6 +89,7 @@ from mercurial import (
     phases,
     pycompat,
     registrar,
+    repo as repo_utils,
     revsetlang,
     scmutil,
     smartset,
@@ -4206,7 +4207,7 @@ def mqinit(orig, ui, *args, **kwargs):
                 _(b'only a local queue repository may be initialized')
             )
     else:
-        repopath = cmdutil.findrepo(encoding.getcwd())
+        repopath = repo_utils.find_repo(encoding.getcwd())
         if not repopath:
             raise error.Abort(
                 _(b'there is no Mercurial repository here (.hg not found)')
