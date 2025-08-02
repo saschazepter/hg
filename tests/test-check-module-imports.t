@@ -128,7 +128,7 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.discovery -> mercurial.scmutil -> mercurial.repair -> mercurial.discovery
   Import cycle: mercurial.changegroup -> mercurial.scmutil -> mercurial.repair -> mercurial.changegroup
   Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.branchmap
-  Import cycle: mercurial.configuration.rcutil -> mercurial.vfs -> mercurial.ui -> mercurial.configuration.rcutil
+  Import cycle: mercurial.configuration.rcutil -> mercurial.scmposix -> mercurial.ui -> mercurial.configuration.rcutil
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.exchange -> mercurial.narrowspec -> mercurial.merge -> mercurial.bundlerepo
@@ -136,7 +136,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.dirstate -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.dirstate
   Import cycle: mercurial.changelog -> mercurial.metadata -> mercurial.worker -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.changelog
-  Import cycle: mercurial.manifest -> mercurial.revlog -> mercurial.vfs -> mercurial.ui -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.manifest
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'

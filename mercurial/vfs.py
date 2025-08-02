@@ -36,9 +36,7 @@ from . import (
 )
 
 if typing.TYPE_CHECKING:
-    from . import (
-        ui as uimod,
-    )
+    from .interfaces.types import UiT
 
     _Tbackgroundfilecloser = TypeVar(
         '_Tbackgroundfilecloser', bound='backgroundfilecloser'
@@ -420,7 +418,7 @@ class abstractvfs(abc.ABC):
 
     @contextlib.contextmanager
     def backgroundclosing(
-        self, ui: uimod.ui, expectedcount: int = -1
+        self, ui: UiT, expectedcount: int = -1
     ) -> Iterator[backgroundfilecloser | None]:
         """Allow files to be closed asynchronously.
 
@@ -831,7 +829,7 @@ class delayclosedfile(closewrapbase):
 class backgroundfilecloser:
     """Coordinates background closing of file handles on multiple threads."""
 
-    def __init__(self, ui: uimod.ui, expectedcount: int = -1) -> None:
+    def __init__(self, ui: UiT, expectedcount: int = -1) -> None:
         self._running = False
         self._entered = False
         self._threads = []
