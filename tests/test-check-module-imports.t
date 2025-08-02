@@ -83,7 +83,6 @@ will likely receive warnings about a direct import.
   mercurial/profiling.py:*: function level import: mercurial.lsprofcalltree (glob)
   mercurial/profiling.py:*: function level import: mercurial.statprof (glob)
   mercurial/repoview.py:*: function level import: mercurial.mergestate (glob)
-  mercurial/revlogutils/rewrite.py:*: function level import: mercurial.revlog (glob)
   mercurial/revlogutils/rewrite.py:*: function level import: mercurial.pure.parsers (glob)
   mercurial/revlogutils/rewrite.py:*: function level import: mercurial.pure.parsers (glob)
   mercurial/revset.py:*: function level import: mercurial.mergestate (glob)
@@ -118,7 +117,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.subrepo -> mercurial.subrepoutil -> mercurial.subrepo
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.extensions -> mercurial.filemerge -> mercurial.extensions
-  Import cycle: mercurial.revlog -> mercurial.revlogutils.rewrite -> mercurial.revlog
   Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.bundlecaches
   Import cycle: mercurial.hg -> mercurial.logcmdutil -> mercurial.revset -> mercurial.hg
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding

@@ -4121,7 +4121,7 @@ class revlog:
                 % self._format_version
             )
         elif self._format_version == REVLOGV1:
-            rewrite.v1_censor(self, tr, censor_nodes, tombstone)
+            rewrite.v1_censor(revlog, self, tr, censor_nodes, tombstone)
         else:
             rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 

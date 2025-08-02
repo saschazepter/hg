@@ -54,12 +54,9 @@ from . import (
 )
 
 
-def v1_censor(rl, tr, censor_nodes, tombstone=b''):
+def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
     """censors a revision in a "version 1" revlog"""
     assert rl._format_version == constants.REVLOGV1, rl._format_version
-
-    # avoid cycle
-    from .. import revlog
 
     censor_revs = {rl.rev(node) for node in censor_nodes}
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
@@ -69,7 +66,7 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
     # revlogs on transaction close.
     #
     # This is a bit dangerous. We could easily have a mismatch of state.
-    newrl = revlog.revlog(
+    newrl = revlog_cls(
         rl.opener,
         target=rl.target,
         radix=rl.radix,
