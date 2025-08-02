@@ -37,6 +37,7 @@ from . import (
     profiling,
     pycompat,
     registrar,
+    repo as repo_utils,
     scmutil,
     tables,
     ui as uimod,
@@ -1139,7 +1140,7 @@ def _dispatch_post_cwd(req):
                     if not func.optionalrepo:
                         if func.inferrepo and args and not path:
                             # try to infer -R from command args
-                            repos = pycompat.maplist(cmdutil.findrepo, args)
+                            repos = pycompat.maplist(repo_utils.find_repo, args)
                             guess = repos[0]
                             if guess and repos.count(guess) == len(repos):
                                 req.args = [b'--repository', guess] + fullargs
