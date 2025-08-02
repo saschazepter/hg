@@ -20,7 +20,6 @@ from .i18n import _
 
 from . import (
     changelog,
-    cmdutil,
     encoding,
     error,
     filelog,
@@ -28,6 +27,7 @@ from . import (
     manifest,
     mdiff,
     pathutil,
+    repo as repo_utils,
     revlog,
     util,
     vfs as vfsmod,
@@ -327,7 +327,7 @@ def instance(ui, path, create, intents=None, createopts=None):
     parentpath = ui.config(b"bundle", b"mainreporoot")
     if not parentpath:
         # try to find the correct path to the working directory repo
-        parentpath = cmdutil.findrepo(encoding.getcwd())
+        parentpath = repo_utils.find_repo(encoding.getcwd())
         if parentpath is None:
             parentpath = b''
     if parentpath:
