@@ -1247,7 +1247,12 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             )
             return common, hds
 
-    remoterevs, _checkout = hg.addbranchrevs(repo, remote, branches, revs=None)
+    remoterevs, _checkout = urlutil.add_branch_revs(
+        repo,
+        remote,
+        branches,
+        revs=None,
+    )
     localrevs = opts['rev']
 
     fm = ui.formatter(b'debugdiscovery', pycompat.byteskwargs(opts))
