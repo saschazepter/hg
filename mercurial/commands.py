@@ -1638,8 +1638,11 @@ def bundle(ui, repo, fname, *dests, **opts):
             else:
                 hex_revs = None
             branches = (path.branch, [])
-            head_revs, checkout = hg.addbranchrevs(
-                repo, repo, branches, hex_revs
+            head_revs, checkout = urlutil.add_branch_revs(
+                repo,
+                repo,
+                branches,
+                hex_revs,
             )
             heads = (
                 head_revs
@@ -3617,7 +3620,7 @@ def identify(
             peer = hg.peer(repo or ui, opts, path)
             repo = peer.local()
             branches = (path.branch, [])
-            revs, checkout = hg.addbranchrevs(repo, peer, branches, None)
+            revs, checkout = urlutil.add_branch_revs(repo, peer, branches, None)
 
         fm = ui.formatter(b'identify', opts)
         fm.startitem()
@@ -5119,7 +5122,7 @@ def pull(ui, repo, *sources, **opts):
         update_conflict = None
         try:
             branches = (path.branch, opts.get('branch', []))
-            revs, checkout = hg.addbranchrevs(
+            revs, checkout = urlutil.add_branch_revs(
                 repo,
                 other,
                 branches,
@@ -5191,7 +5194,7 @@ def pull(ui, repo, *sources, **opts):
                     checkout = repo.unfiltered().changelog.rev(checkout)
 
                     # order below depends on implementation of
-                    # hg.addbranchrevs(). opts['bookmark'] is ignored,
+                    # urlutil.add_branch_revs(). opts['bookmark'] is ignored,
                     # because 'checkout' is determined without it.
                     if opts.get('rev'):
                         brev = opts['rev'][0]
@@ -5455,8 +5458,11 @@ def push(ui, repo, *dests, **opts):
         dest = path.loc
         branches = (path.branch, opts.get(b'branch') or [])
         ui.status(_(b'pushing to %s\n') % urlutil.hidepassword(dest))
-        revs, checkout = hg.addbranchrevs(
-            repo, repo, branches, opts.get(b'rev')
+        revs, checkout = urlutil.add_branch_revs(
+            repo,
+            repo,
+            branches,
+            opts.get(b'rev'),
         )
         other = hg.peer(repo, opts, dest)
 
@@ -6992,7 +6998,7 @@ def summary(ui, repo, **opts):
                 raise
             return path.loc, sbranch, None, None, None
         branches = (path.branch, [])
-        revs, checkout = hg.addbranchrevs(repo, other, branches, None)
+        revs, checkout = urlutil.add_branch_revs(repo, other, branches, None)
         if revs:
             revs = [other.lookup(rev) for rev in revs]
         ui.debug(b'comparing with %s\n' % urlutil.hidepassword(path.loc))
@@ -7022,7 +7028,9 @@ def summary(ui, repo, **opts):
         else:
             dest = b'default'
             dbranch = None
-        revs, checkout = hg.addbranchrevs(repo, repo, (dbranch, []), None)
+        revs, checkout = urlutil.add_branch_revs(
+            repo, repo, (dbranch, []), None
+        )
         if source != dest:
             try:
                 dother = hg.peer(repo, {}, path if path is not None else dest)
