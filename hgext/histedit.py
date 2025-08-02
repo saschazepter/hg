@@ -1051,7 +1051,12 @@ def findoutgoing(ui, repo, remote=None, force=False, opts=None):
 
     ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
 
-    revs, checkout = hg.addbranchrevs(repo, repo, (path.branch, []), None)
+    revs, checkout = urlutil.add_branch_revs(
+        repo,
+        repo,
+        (path.branch, []),
+        None,
+    )
     other = hg.peer(repo, opts, path)
 
     if revs:
