@@ -28,7 +28,6 @@ from . import (
     bundle2,
     changegroup,
     changelog,
-    cmdutil,
     discovery,
     encoding,
     error,
@@ -40,6 +39,7 @@ from . import (
     pathutil,
     phases,
     pycompat,
+    repo as repo_utils,
     revlog,
     revlogutils,
     util,
@@ -544,7 +544,7 @@ def instance(ui, path, create, intents=None, createopts=None):
     parentpath = ui.config(b"bundle", b"mainreporoot")
     if not parentpath:
         # try to find the correct path to the working directory repo
-        parentpath = cmdutil.findrepo(encoding.getcwd())
+        parentpath = repo_utils.find_repo(encoding.getcwd())
         if parentpath is None:
             parentpath = b''
     if parentpath:
