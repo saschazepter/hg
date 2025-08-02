@@ -124,6 +124,10 @@ from .node import (
     short,
     wdirrev,
 )
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from . import (
     error,
     requirements,
@@ -136,17 +140,7 @@ Phaseroots = dict[int, set[int]]
 PhaseSets = dict[int, set[int]]
 
 if typing.TYPE_CHECKING:
-    from . import (
-        localrepo,
-        ui as uimod,
-    )
-
-    # keeps pyflakes happy
-    assert [uimod]
-
-    Phasedefaults = list[
-        Callable[[localrepo.localrepository, Phaseroots], Phaseroots]
-    ]
+    Phasedefaults = list[Callable[[RepoT, Phaseroots], Phaseroots]]
 
 
 _fphasesentry = struct.Struct(b'>i20s')
@@ -185,18 +179,18 @@ all_internal_phases = tuple(p for p in allphases if p & internal)
 no_bundle_phases = all_internal_phases
 
 
-def supportinternal(repo: localrepo.localrepository) -> bool:
+def supportinternal(repo: RepoT) -> bool:
     """True if the internal phase can be used on a repository"""
     return requirements.INTERNAL_PHASE_REQUIREMENT in repo.requirements
 
 
-def supportarchived(repo: localrepo.localrepository) -> bool:
+def supportarchived(repo: RepoT) -> bool:
     """True if the archived phase can be used on a repository"""
     return requirements.ARCHIVED_PHASE_REQUIREMENT in repo.requirements
 
 
 def _readroots(
-    repo: localrepo.localrepository,
+    repo: RepoT,
     phasedefaults: Phasedefaults | None = None,
 ) -> tuple[Phaseroots, bool]:
     """Read phase roots from disk
@@ -389,7 +383,7 @@ class phasecache:
         @overload
         def __init__(
             self,
-            repo: localrepo.localrepository,
+            repo: RepoT,
             phasedefaults: Phasedefaults | None,
             _load: bool = True,
         ) -> None:
@@ -409,14 +403,14 @@ class phasecache:
             self._loadedrevslen = 0
             self._phasesets: PhaseSets | None = None
 
-    def hasnonpublicphases(self, repo: localrepo.localrepository) -> bool:
+    def hasnonpublicphases(self, repo: RepoT) -> bool:
         """detect if there are revisions with non-public phase"""
         # XXX deprecate the unused repo argument
         return any(
             revs for phase, revs in self._phaseroots.items() if phase != public
         )
 
-    def nonpublicphaseroots(self, repo: localrepo.localrepository) -> set[int]:
+    def nonpublicphaseroots(self, repo: RepoT) -> set[int]:
         """returns the roots of all non-public phases
 
         The roots are not minimized, so if the secret revisions are
@@ -434,7 +428,7 @@ class phasecache:
 
     def get_raw_set(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         phase: int,
     ) -> set[int]:
         """return the set of revision in that phase
@@ -455,7 +449,7 @@ class phasecache:
 
     def getrevset(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         phases: Iterable[int],
         subset: Any | None = None,
     ) -> Any:
@@ -555,7 +549,7 @@ class phasecache:
                 self._phasesets[phase] = ps
         self._loadedrevslen = len(cl)
 
-    def _ensure_phase_sets(self, repo: localrepo.localrepository) -> None:
+    def _ensure_phase_sets(self, repo: RepoT) -> None:
         """ensure phase information is loaded in the object"""
         assert repo.filtername is None
         update = -1
@@ -627,7 +621,7 @@ class phasecache:
         self._loadedrevslen = 0
         self._phasesets = None
 
-    def phase(self, repo: localrepo.localrepository, rev: int) -> int:
+    def phase(self, repo: RepoT, rev: int) -> int:
         # We need a repo argument here to be able to build _phasesets
         # if necessary. The repository instance is not stored in
         # phasecache to avoid reference cycles. The changelog instance
@@ -1049,7 +1043,7 @@ def registernew(repo, tr, targetphase, revs):
     repo._phasecache.replace(phcache)
 
 
-def listphases(repo: localrepo.localrepository) -> dict[bytes, bytes]:
+def listphases(repo: RepoT) -> dict[bytes, bytes]:
     """List phases root for serialization over pushkey"""
     # Use ordered dictionary so behavior is deterministic.
     keys = util.sortdict()
@@ -1082,7 +1076,7 @@ def listphases(repo: localrepo.localrepository) -> dict[bytes, bytes]:
 
 
 def pushphase(
-    repo: localrepo.localrepository,
+    repo: RepoT,
     nhex: bytes,
     oldphasestr: bytes,
     newphasestr: bytes,
@@ -1243,7 +1237,7 @@ def new_heads(
     return sorted(new_heads)
 
 
-def newcommitphase(ui: uimod.ui) -> int:
+def newcommitphase(ui: UiT) -> int:
     """helper to get the target phase of new commit
 
     Handle all possible values for the phases.new-commit options.
@@ -1258,7 +1252,7 @@ def newcommitphase(ui: uimod.ui) -> int:
         )
 
 
-def hassecret(repo: localrepo.localrepository) -> bool:
+def hassecret(repo: RepoT) -> bool:
     """utility function that check if a repo have any secret changeset."""
     return bool(repo._phasecache._phaseroots[secret])
 
