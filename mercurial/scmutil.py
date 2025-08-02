@@ -76,13 +76,11 @@ else:
     from . import scmposix as scmplatform
 
 if typing.TYPE_CHECKING:
-    from . import (
-        ui as uimod,
-    )
     from .interfaces.types import (
         LocalRepoMainT,
         MatcherT,
         RevsetAliasesT,
+        UiT,
     )
 
 parsers = policy.importmod('parsers')
@@ -149,7 +147,7 @@ def itersubrepos(ctx1, ctx2):
         yield subpath, ctx2.nullsub(subpath, ctx1)
 
 
-def nochangesfound(ui: uimod.ui, repo, excluded=None) -> None:
+def nochangesfound(ui: UiT, repo, excluded=None) -> None:
     """Report no changes for push/pull, excluded is None or a list of
     nodes excluded from the push/pull.
     """
@@ -169,7 +167,7 @@ def nochangesfound(ui: uimod.ui, repo, excluded=None) -> None:
         ui.status(_(b"no changes found\n"))
 
 
-def callcatch(ui: uimod.ui, func: Callable[[], int]) -> int:
+def callcatch(ui: UiT, func: Callable[[], int]) -> int:
     """call func() with global exception handling
 
     return func() if no exception happens. otherwise do some error handling
@@ -326,7 +324,7 @@ def checkfilename(f: bytes) -> None:
         )
 
 
-def checkportable(ui: uimod.ui, f: bytes) -> None:
+def checkportable(ui: UiT, f: bytes) -> None:
     '''Check if filename f is portable and warn or abort depending on config'''
     checkfilename(f)
     abort, warn = checkportabilityalert(ui)
@@ -339,7 +337,7 @@ def checkportable(ui: uimod.ui, f: bytes) -> None:
             ui.warn(_(b"warning: %s\n") % msg)
 
 
-def checkportabilityalert(ui: uimod.ui) -> tuple[bool, bool]:
+def checkportabilityalert(ui: UiT) -> tuple[bool, bool]:
     """check if the user's config requests nothing, a warning, or abort for
     non-portable filenames"""
     val = ui.config(b'ui', b'portablefilenames')
@@ -355,7 +353,7 @@ def checkportabilityalert(ui: uimod.ui) -> tuple[bool, bool]:
 
 
 class casecollisionauditor:
-    def __init__(self, ui: uimod.ui, abort: bool, dirstate) -> None:
+    def __init__(self, ui: UiT, abort: bool, dirstate) -> None:
         self._ui = ui
         self._abort = abort
         allfiles = b'\0'.join(dirstate)
@@ -547,7 +545,7 @@ def formatchangeid(ctx) -> bytes:
     return formatrevnode(repo.ui, intrev(ctx), binnode(ctx))
 
 
-def formatrevnode(ui: uimod.ui, rev: int, node: bytes) -> bytes:
+def formatrevnode(ui: UiT, rev: int, node: bytes) -> bytes:
     """Format given revision and node depending on the current verbosity"""
     if ui.debugflag:
         hexfunc = hex
@@ -1094,7 +1092,7 @@ def parsefollowlinespattern(repo, rev, pat: bytes, msg: bytes) -> bytes:
         return files[0]
 
 
-def getorigvfs(ui: uimod.ui, repo):
+def getorigvfs(ui: UiT, repo):
     """return a vfs suitable to save 'orig' file
 
     return None if no special directory is configured"""
@@ -1104,7 +1102,7 @@ def getorigvfs(ui: uimod.ui, repo):
     return vfs.vfs(repo.wvfs.join(origbackuppath))
 
 
-def backuppath(ui: uimod.ui, repo, filepath: bytes) -> bytes:
+def backuppath(ui: UiT, repo, filepath: bytes) -> bytes:
     """customize where working copy backup files (.orig files) are created
 
     Fetch user defined path from config file: [ui] origbackuppath = <path>
@@ -1594,7 +1592,7 @@ def getcopiesfn(repo, endrev=None):
 
 
 def dirstatecopy(
-    ui: uimod.ui,
+    ui: UiT,
     repo,
     wctx,
     src,
@@ -1970,7 +1968,7 @@ def extdatasource(repo, source: bytes):
 
 
 class progress:
-    ui: uimod.ui
+    ui: UiT
     pos: int | None  # None once complete
     topic: bytes
     unit: bytes
@@ -1979,7 +1977,7 @@ class progress:
 
     def __init__(
         self,
-        ui: uimod.ui,
+        ui: UiT,
         updatebar,
         topic: bytes,
         unit: bytes = b"",
@@ -2038,7 +2036,7 @@ class progress:
             self.ui.debug(b'%s:%s %d%s\n' % (self.topic, item, self.pos, unit))
 
 
-def gdinitconfig(ui: uimod.ui):
+def gdinitconfig(ui: UiT):
     """helper function to know if a repo should be created as general delta"""
     # experimental config: format.generaldelta
     return ui.configbool(b'format', b'generaldelta') or ui.configbool(
@@ -2046,7 +2044,7 @@ def gdinitconfig(ui: uimod.ui):
     )
 
 
-def explicit_gd_config(ui: uimod.ui):
+def explicit_gd_config(ui: UiT):
     """return True if the general delta config is explicitly set"""
     # experimental config: format.generaldelta
     return (ui.config_is_set(b'format', b'generaldelta')) or (
@@ -2054,7 +2052,7 @@ def explicit_gd_config(ui: uimod.ui):
     )
 
 
-def gddeltaconfig(ui: uimod.ui):
+def gddeltaconfig(ui: UiT):
     """helper function to know if incoming deltas should be optimized
 
     The `format.generaldelta` config is an old form of the config that also
@@ -2507,7 +2505,7 @@ def format_bookmark_revspec(mark: bytes) -> bytes:
     )
 
 
-def ismember(ui: uimod.ui, username: bytes, userlist: list[bytes]) -> bool:
+def ismember(ui: UiT, username: bytes, userlist: list[bytes]) -> bool:
     """Check if username is a member of userlist.
 
     If userlist has a single '*' member, all users are considered members.
@@ -2530,7 +2528,7 @@ RESOURCE_MAPPING: dict[bytes, int] = {
 DEFAULT_RESOURCE: int = RESOURCE_MEDIUM
 
 
-def get_resource_profile(ui: uimod.ui, dimension: bytes | None = None) -> int:
+def get_resource_profile(ui: UiT, dimension: bytes | None = None) -> int:
     """return the resource profile for a dimension
 
     If no dimension is specified, the generic value is returned"""

@@ -111,7 +111,6 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
   Import cycle: mercurial.merge -> mercurial.sparse -> mercurial.merge
-  Import cycle: mercurial.scmutil -> mercurial.ui -> mercurial.scmutil
   Import cycle: mercurial.repair -> mercurial.scmutil -> mercurial.repair
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
   Import cycle: mercurial.bookmarks -> mercurial.scmutil -> mercurial.bookmarks
@@ -132,9 +131,9 @@ will likely receive warnings about a direct import.
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.exchange -> mercurial.narrowspec -> mercurial.merge -> mercurial.bundlerepo
-  Import cycle: mercurial.destutil -> mercurial.scmutil -> mercurial.ui -> mercurial.extensions -> mercurial.revset -> mercurial.destutil
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.dirstate -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.dirstate
+  Import cycle: mercurial.grep -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.revset -> mercurial.grep
   Import cycle: mercurial.changelog -> mercurial.metadata -> mercurial.worker -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.changelog
   [1]
 
