@@ -32,8 +32,8 @@ from . import (
 from .utils import stringutil
 
 if typing.TYPE_CHECKING:
-    from . import (
-        localrepo,
+    from .interfaces.types import (
+        RepoT,
     )
 
 stringio = util.stringio
@@ -278,7 +278,7 @@ archivers = {
 
 
 def archive(
-    repo: localrepo.localrepository,
+    repo: RepoT,
     dest,  # TODO: should be bytes, but could be Callable
     node,
     kind: bytes,
