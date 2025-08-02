@@ -16,6 +16,7 @@ from typing import (
 )
 
 from ..i18n import _
+from ..node import hex
 from .. import (
     encoding,
     error,
@@ -975,3 +976,51 @@ class path(int_misc.IPath):
             if value is not None:
                 d[subopt] = value
         return d
+
+
+def add_branch_revs(lrepo, other, branches, revs, remotehidden=False):
+    if hasattr(other, 'peer'):
+        # a courtesy to callers using a localrepo for other
+        peer = other.peer(remotehidden=remotehidden)
+    else:
+        peer = other
+    hashbranch, branches = branches
+    if not hashbranch and not branches:
+        x = revs or None
+        if revs:
+            y = revs[0]
+        else:
+            y = None
+        return x, y
+    if revs:
+        revs = list(revs)
+    else:
+        revs = []
+
+    if not peer.capable(b'branchmap'):
+        if branches:
+            raise error.Abort(_(b"remote branch lookup not supported"))
+        revs.append(hashbranch)
+        return revs, revs[0]
+
+    with peer.commandexecutor() as e:
+        branchmap = e.callcommand(b'branchmap', {}).result()
+
+    def primary(branch):
+        if branch == b'.':
+            if not lrepo:
+                raise error.Abort(_(b"dirstate branch not accessible"))
+            branch = lrepo.dirstate.branch()
+        if branch in branchmap:
+            revs.extend(hex(r) for r in reversed(branchmap[branch]))
+            return True
+        else:
+            return False
+
+    for branch in branches:
+        if not primary(branch):
+            raise error.RepoLookupError(_(b"unknown branch '%s'") % branch)
+    if hashbranch:
+        if not primary(hashbranch):
+            revs.append(hashbranch)
+    return revs, revs[0]

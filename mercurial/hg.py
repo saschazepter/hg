@@ -64,52 +64,8 @@ release = lock.release
 sharedbookmarks = b'bookmarks'
 
 
-def addbranchrevs(lrepo, other, branches, revs, remotehidden=False):
-    if hasattr(other, 'peer'):
-        # a courtesy to callers using a localrepo for other
-        peer = other.peer(remotehidden=remotehidden)
-    else:
-        peer = other
-    hashbranch, branches = branches
-    if not hashbranch and not branches:
-        x = revs or None
-        if revs:
-            y = revs[0]
-        else:
-            y = None
-        return x, y
-    if revs:
-        revs = list(revs)
-    else:
-        revs = []
-
-    if not peer.capable(b'branchmap'):
-        if branches:
-            raise error.Abort(_(b"remote branch lookup not supported"))
-        revs.append(hashbranch)
-        return revs, revs[0]
-
-    with peer.commandexecutor() as e:
-        branchmap = e.callcommand(b'branchmap', {}).result()
-
-    def primary(branch):
-        if branch == b'.':
-            if not lrepo:
-                raise error.Abort(_(b"dirstate branch not accessible"))
-            branch = lrepo.dirstate.branch()
-        if branch in branchmap:
-            revs.extend(hex(r) for r in reversed(branchmap[branch]))
-            return True
-        else:
-            return False
-
-    for branch in branches:
-        if not primary(branch):
-            raise error.RepoLookupError(_(b"unknown branch '%s'") % branch)
-    if hashbranch:
-        if not primary(hashbranch):
-            revs.append(hashbranch)
-    return revs, revs[0]
+def addbranchrevs(lrepo, *args, **kwargs):
+    return urlutil.add_branch_revs(lrepo, *args, **kwargs)
 
 
 def _isfile(path):
@@ -355,7 +311,9 @@ def share(
         source_path = urlutil.get_clone_path_obj(ui, source)
         srcrepo = repository(ui, source_path.loc)
         branches = (source_path.branch, [])
-        rev, checkout = addbranchrevs(srcrepo, srcrepo, branches, None)
+        rev, checkout = urlutil.add_branch_revs(
+            srcrepo, srcrepo, branches, None
+        )
     else:
         srcrepo = source.local()
         checkout = None
@@ -738,7 +696,9 @@ def clone(
     srclock = destlock = destwlock = cleandir = None
     destpeer = None
     try:
-        revs, checkout = addbranchrevs(srcpeer, srcpeer, branches, revs)
+        revs, checkout = urlutil.add_branch_revs(
+            srcpeer, srcpeer, branches, revs
+        )
 
         if dest is None:
             dest = defaultdest(source)
@@ -1370,7 +1330,9 @@ def _incoming(
     try:
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(url))
         branches = (path.branch, opts.get(b'branch', []))
-        revs, checkout = addbranchrevs(repo, other, branches, opts.get(b'rev'))
+        revs, checkout = urlutil.add_branch_revs(
+            repo, other, branches, opts.get(b'rev')
+        )
 
         if revs:
             revs = [other.lookup(rev) for rev in revs]
@@ -1502,7 +1464,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
             branches = path.branch, opts.get(b'branch') or []
 
             ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
-            revs, checkout = addbranchrevs(
+            revs, checkout = urlutil.add_branch_revs(
                 repo, repo, branches, opts.get(b'rev')
             )
             if revs:
