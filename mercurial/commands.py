@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import re
-import sys
 
 from .i18n import _
 from .node import (
@@ -3519,8 +3518,7 @@ def help_(ui, name=None, **opts):
     if ui.verbose:
         keep.append(b'verbose')
 
-    commands = sys.modules[__name__]
-    formatted = help.formattedhelp(ui, commands, name, keep=keep, **opts)
+    formatted = help.formattedhelp(ui, name, keep=keep, **opts)
     ui.pager(b'help')
     ui.write(formatted)
 

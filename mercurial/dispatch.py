@@ -500,9 +500,7 @@ def _callcatch(ui, func):
         try:
             # check if the command is in a disabled extension
             # (but don't check for extensions themselves)
-            formatted = help.formattedhelp(
-                ui, commands, inst.command, unknowncmd=True
-            )
+            formatted = help.formattedhelp(ui, inst.command, unknowncmd=True)
             ui.warn(nocmdmsg)
             ui.write(formatted)
         except (error.UnknownCommand, error.Abort):

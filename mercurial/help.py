@@ -1216,7 +1216,6 @@ def help_(
 
 def formattedhelp(
     ui: uimod.ui,
-    commands,
     fullname: bytes | None,
     keep: Iterable[bytes] | None = None,
     unknowncmd: bool = False,
