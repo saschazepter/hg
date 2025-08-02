@@ -155,7 +155,7 @@ class command(_funcregistrarbase):
 
     The `inferrepo` argument defines whether to try to find a repository from
     the command line arguments. If True, arguments will be examined for
-    potential repository locations. See ``findrepo()``. If a repository is
+    potential repository locations. See ``find_repo()``. If a repository is
     found, it will be used and passed to the decorated function.
 
     The `intents` argument defines a set of intended actions or capabilities
