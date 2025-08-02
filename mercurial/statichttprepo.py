@@ -178,6 +178,8 @@ class statichttprepository(
     manifestlog: manifest.manifestlog
     sjoin: Callable[[bytes], bytes]
 
+    is_static_http_repository = True
+
     def __init__(self, ui, path):
         self._url = path
         self.ui = ui

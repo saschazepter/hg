@@ -582,9 +582,7 @@ class obsstore:
         return len(self._all)
 
     def __nonzero__(self):
-        from . import statichttprepo
-
-        if isinstance(self.repo, statichttprepo.statichttprepository):
+        if getattr(self.repo, 'is_static_http_repository', False):
             # If repo is accessed via static HTTP, then we can't use os.stat()
             # to just peek at the file size.
             return len(self._data) > 1

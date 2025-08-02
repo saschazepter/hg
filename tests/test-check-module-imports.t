@@ -79,7 +79,6 @@ will likely receive warnings about a direct import.
   mercurial/merge.py:*: function level import: mercurial.bundlerepo (glob)
   mercurial/merge.py:*: function level import: mercurial.sparse (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
-  mercurial/obsolete.py:*: function level import: mercurial.statichttprepo (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprofcalltree (glob)
   mercurial/profiling.py:*: function level import: mercurial.statprof (glob)
@@ -126,14 +125,11 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.diffutil -> mercurial.merge -> mercurial.obsutil -> mercurial.diffutil
   Import cycle: mercurial.discovery -> mercurial.scmutil -> mercurial.repair -> mercurial.discovery
   Import cycle: mercurial.changegroup -> mercurial.scmutil -> mercurial.repair -> mercurial.changegroup
-  Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.branchmap
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
+  Import cycle: mercurial.branchmap -> mercurial.scmutil -> mercurial.repair -> mercurial.discovery -> mercurial.branchmap
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.exchange -> mercurial.narrowspec -> mercurial.merge -> mercurial.bundlerepo
-  Import cycle: mercurial.commit -> mercurial.context -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.commit
-  Import cycle: mercurial.dirstate -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.dirstate
-  Import cycle: mercurial.grep -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.revset -> mercurial.grep
-  Import cycle: mercurial.changelog -> mercurial.metadata -> mercurial.worker -> mercurial.scmutil -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.changelog
+  Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'
