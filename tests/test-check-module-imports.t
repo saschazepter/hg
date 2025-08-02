@@ -127,8 +127,8 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.discovery -> mercurial.scmutil -> mercurial.repair -> mercurial.discovery
   Import cycle: mercurial.changegroup -> mercurial.scmutil -> mercurial.repair -> mercurial.changegroup
   Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.branchmap
-  Import cycle: mercurial.configuration.rcutil -> mercurial.scmposix -> mercurial.ui -> mercurial.configuration.rcutil
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
+  Import cycle: mercurial.configuration.rcutil -> mercurial.scmwindows -> mercurial.ui -> mercurial.configuration.rcutil
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.exchange -> mercurial.narrowspec -> mercurial.merge -> mercurial.bundlerepo
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.obsolete -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.commit

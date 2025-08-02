@@ -14,7 +14,9 @@ from . import (
 )
 
 if typing.TYPE_CHECKING:
-    from . import ui as uimod
+    from .interfaces.types import (
+        UiT,
+    )
 
 # BSD 'more' escapes ANSI color sequences by default. This can be disabled by
 # $MORE variable, but there's no compatible option with Linux 'more'. Given
@@ -68,7 +70,7 @@ def userrcpath() -> list[bytes]:
         ]
 
 
-def termsize(ui: uimod.ui) -> tuple[int, int]:
+def termsize(ui: UiT) -> tuple[int, int]:
     try:
         import termios
 
