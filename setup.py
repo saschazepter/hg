@@ -1002,6 +1002,7 @@ packages = [
     'mercurial.hgweb',
     'mercurial.interfaces',
     'mercurial.main_script',
+    'mercurial.narrow',
     'mercurial.pure',
     'mercurial.stabletailgraph',
     'mercurial.templates',

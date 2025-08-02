@@ -39,6 +39,9 @@ from mercurial import (
 from mercurial.utils import (
     urlutil,
 )
+from mercurial.narrow import (
+    working_copy as narrow_wc,
+)
 
 table = {}
 command = registrar.command(table)
@@ -326,7 +329,7 @@ def _narrow(
 
             ui.status(_(b'deleting unwanted files from working copy\n'))
             with repo.dirstate.changing_parents(repo):
-                narrowspec.updateworkingcopy(repo, assumeclean=True)
+                narrow_wc.update_working_copy(repo, assumeclean=True)
                 narrowspec.copytoworkingcopy(repo)
 
         repo.destroyed()
@@ -431,7 +434,7 @@ def _widen(
             repo
         ):
             repo.setnewnarrowpats()
-            narrowspec.updateworkingcopy(repo)
+            narrow_wc.update_working_copy(repo)
             narrowspec.copytoworkingcopy(repo)
 
 
@@ -600,7 +603,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
             with repo.transaction(b'narrow-wc'), repo.dirstate.changing_parents(
                 repo
             ):
-                narrowspec.updateworkingcopy(repo)
+                narrow_wc.update_working_copy(repo)
                 narrowspec.copytoworkingcopy(repo)
             return 0
 
