@@ -74,8 +74,8 @@ will likely receive warnings about a direct import.
   mercurial/revlogutils/rewrite.py:*: function level import: mercurial.pure.parsers (glob)
   mercurial/revlogutils/rewrite.py:*: function level import: mercurial.pure.parsers (glob)
   mercurial/revset.py:*: function level import: mercurial.discovery (glob)
-  mercurial/revset.py:*: function level import: mercurial.hg (glob)
-  mercurial/revset.py:*: function level import: mercurial.hg (glob)
+  mercurial/revset.py:*: function level import: mercurial.repo.factory (glob)
+  mercurial/revset.py:*: function level import: mercurial.repo.factory (glob)
   mercurial/statprof.py:*: function level import: mercurial.utils.procutil (glob)
   mercurial/streamclone.py:*: function level import: mercurial.localrepo (glob)
   mercurial/streamclone.py:*: function level import: mercurial.localrepo (glob)
@@ -94,10 +94,11 @@ will likely receive warnings about a direct import.
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.hg -> mercurial.localrepo -> mercurial.upgrade -> mercurial.hg
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
-  Import cycle: mercurial.extensions -> mercurial.revset -> mercurial.hg -> mercurial.extensions
+  Import cycle: mercurial.extensions -> mercurial.revset -> mercurial.repo.factory -> mercurial.extensions
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
-  Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.hg -> mercurial.bundlerepo
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
+  Import cycle: mercurial.localrepo -> mercurial.revset -> mercurial.repo.factory -> mercurial.unionrepo -> mercurial.localrepo
+  Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.repo.factory -> mercurial.bundlerepo
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
   [1]

@@ -1867,7 +1867,9 @@ def outgoing(repo, subset, x):
     # Avoid cycles.
     from . import (
         discovery,
-        hg,
+    )
+    from .repo import (
+        factory as repo_factory,
     )
 
     # i18n: "outgoing" is a keyword
@@ -1887,7 +1889,7 @@ def outgoing(repo, subset, x):
         revs, checkout = urlutil.add_branch_revs(repo, repo, branches, [])
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
-        other = hg.peer(repo, {}, path)
+        other = repo_factory.peer(repo, {}, path)
         try:
             with repo.ui.silent():
                 outgoing = discovery.findcommonoutgoing(
@@ -2130,8 +2132,10 @@ def remote(repo, subset, x):
     remote repository, if present. Here, the '.' identifier is a
     synonym for the current local branch.
     """
-
-    from . import hg  # avoid start-up nasties
+    # avoid a circular import
+    from .repo import (
+        factory as repo_factory,
+    )
 
     # i18n: "remote" is a keyword
     l = getargs(x, 0, 2, _(b"remote takes zero, one, or two arguments"))
@@ -2151,7 +2155,7 @@ def remote(repo, subset, x):
         dest = b'default'
     path = urlutil.get_unique_pull_path_obj(b'remote', repo.ui, dest)
 
-    other = hg.peer(repo, {}, path)
+    other = repo_factory.peer(repo, {}, path)
     n = other.lookup(q)
     if n in repo:
         r = repo[n].rev()
