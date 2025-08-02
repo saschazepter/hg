@@ -23,6 +23,7 @@ from .. import (
     error,
     fancyopts,
     pycompat,
+    repo as repo_utils,
 )
 
 from ..configuration import rcutil
@@ -139,7 +140,7 @@ def get_local(ui, rpath, wd=None):
             oldcwd = cwd
             os.chdir(wd)
 
-        path = cmdutil.findrepo(wd) or b""
+        path = repo_utils.find_repo(wd) or b""
         if not path:
             lui = ui
         else:
