@@ -1609,9 +1609,9 @@ class seekableunbundlepart(unbundlepart):
 # offered for compatibilities
 capabilities: Capabilities = bundle_caps.capabilities
 
-
-def getrepocaps(repo, *args, **kwargs):
-    return bundle_caps.get_repo_caps(repo, *args, **kwargs)
+getrepocaps = util.deprecated(
+    "Use `mercurial.exchanges.bundle_caps.get_repo_caps() instead`", "7.3"
+)(bundle_caps.get_repo_caps)
 
 
 def bundle2caps(remote) -> Capabilities:
