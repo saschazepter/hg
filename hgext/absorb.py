@@ -952,7 +952,7 @@ class fixupstate:
             for k, v in self.replacemap.items()
         }
         if replacements:
-            scmutil.cleanupnodes(
+            cmdutil.cleanup_nodes(
                 self.repo, replacements, operation=b'absorb', fixphase=True
             )
 

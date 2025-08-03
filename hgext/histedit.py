@@ -2135,7 +2135,7 @@ def _finishhistedit(ui, repo, state, fm):
         for k, v in mapping.items()
         if has_node(k) and all(has_node(n) for n in v)
     }
-    scmutil.cleanupnodes(repo, mapping, b'histedit')
+    cmdutil.cleanup_nodes(repo, mapping, b'histedit')
     hf = fm.hexfunc
     fl = fm.formatlist
     fd = fm.formatdict

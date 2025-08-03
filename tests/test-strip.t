@@ -1313,7 +1313,7 @@ Use delayedstrip to strip inside a transaction
   |/
   o  0:426bada5c675 A
   
-Test high-level scmutil.cleanupnodes API
+Test high-level cmdutil.cleanupnodes API
 
   $ cd $TESTTMP/scmutilcleanup
   $ hg debugdrawdag <<'EOS'
@@ -1330,7 +1330,7 @@ Test high-level scmutil.cleanupnodes API
   $ cp -R . ../scmutilcleanup.obsstore
 
   $ cat > $TESTTMP/scmutilcleanup.py <<EOF
-  > from mercurial import registrar, scmutil
+  > from mercurial import cmdutil, registrar
   > cmdtable = {}
   > command = registrar.command(cmdtable)
   > @command(b'testnodescleanup')
@@ -1345,8 +1345,8 @@ Test high-level scmutil.cleanupnodes API
   >                 mapping = {node(b'F'): [node(b'F2')],
   >                            node(b'D'): [node(b'D2')],
   >                            node(b'G'): [node(b'G2')]}
-  >                 scmutil.cleanupnodes(repo, mapping, b'replace')
-  >                 scmutil.cleanupnodes(repo, nodes(b'((B::)+I+Z)-D2-obsolete()'),
+  >                 cmdutil.cleanup_nodes(repo, mapping, b'replace')
+  >                 cmdutil.cleanup_nodes(repo, nodes(b'((B::)+I+Z)-D2-obsolete()'),
   >                                      b'replace')
   > EOF
   $ hg testnodescleanup --config extensions.t=$TESTTMP/scmutilcleanup.py

@@ -2103,7 +2103,7 @@ def clearrebased(
         fm.data(nodechanges=nodechanges)
     if keepf:
         replacements = {}
-    scmutil.cleanupnodes(repo, replacements, b'rebase', moves, backup=backup)
+    cmdutil.cleanup_nodes(repo, replacements, b'rebase', moves, backup=backup)
 
 
 def pullrebase(orig, ui, repo, *args, **opts):

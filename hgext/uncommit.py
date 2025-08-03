@@ -238,7 +238,7 @@ def uncommit(ui, repo, *pats, **opts):
             with repo.dirstate.changing_parents(repo):
                 scmutil.movedirstate(repo, repo[newid], match)
 
-            scmutil.cleanupnodes(repo, mapping, b'uncommit', fixphase=True)
+            cmdutil.cleanup_nodes(repo, mapping, b'uncommit', fixphase=True)
 
 
 def predecessormarkers(ctx):
@@ -319,4 +319,4 @@ def unamend(ui, repo, **opts):
             scmutil.movedirstate(repo, newpredctx)
 
         mapping = {curctx.node(): (newprednode,)}
-        scmutil.cleanupnodes(repo, mapping, b'unamend', fixphase=True)
+        cmdutil.cleanup_nodes(repo, mapping, b'unamend', fixphase=True)

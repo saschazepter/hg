@@ -184,7 +184,7 @@ def dosplit(ui, repo, tr, ctx, **opts):
     if len(committed) != 1 or committed[0].node() != ctx.node():
         # Ensure we don't strip a node if we produce the same commit as already
         # exists
-        scmutil.cleanupnodes(
+        cmdutil.cleanup_nodes(
             repo,
             {ctx.node(): [c.node() for c in committed]},
             operation=b'split',
