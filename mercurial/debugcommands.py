@@ -3822,7 +3822,7 @@ def debugbackupbundle(ui, repo, *pats, **opts):
             ui.warn(msg, hint=hint)
             continue
         branches = (path.branch, opts.get('branch', []))
-        revs, checkout = hg.addbranchrevs(
+        revs, checkout = urlutil.add_branch_revs(
             repo, other, branches, opts.get("rev")
         )
 
