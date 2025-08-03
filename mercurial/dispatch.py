@@ -170,7 +170,7 @@ def _formatargs(args):
     return b' '.join(procutil.shellquote(a) for a in args)
 
 
-def dispatch(req):
+def dispatch(req: main_script.request) -> int:
     """run the command specified in req.args; returns an integer status code"""
     err = None
     try:
@@ -185,7 +185,7 @@ def dispatch(req):
     return status
 
 
-def _rundispatch(req) -> int:
+def _rundispatch(req: main_script.request) -> int:
     with tracing.log('dispatch._rundispatch'):
         if req.ferr:
             ferr = req.ferr
