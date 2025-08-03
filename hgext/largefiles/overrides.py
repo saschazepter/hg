@@ -595,9 +595,9 @@ def overridecheckunknownfile(
 # default prompt answer is to use the largefile version since it was
 # presumably changed on purpose.
 #
-# Finally, the merge.applyupdates function will then take care of
-# writing the files into the working copy and lfcommands.updatelfiles
-# will update the largefiles.
+# Finally, the merge_utils.update.apply_updates function will then take care of
+# writing the files into the working copy and lfcommands.updatelfiles will
+# update the largefiles.
 @eh.wrapfunction(merge, 'calculateupdates')
 def overridecalculateupdates(
     origfn, repo, p1, p2, pas, branchmerge, force, acceptremote, *args, **kwargs

@@ -359,13 +359,13 @@ trigger it. If you see flakyness here, there is a race.
   > from mercurial import (
   >   error,
   >   extensions,
-  >   merge,
   > )
-  > def applyupdates(orig, *args, **kwargs):
+  > from mercurial.merge_utils import update
+  > def apply_updates(orig, *args, **kwargs):
   >     orig(*args, **kwargs)
   >     raise error.Abort(b'intentional aborting')
   > def extsetup(ui):
-  >     extensions.wrapfunction(merge, "applyupdates", applyupdates)
+  >     extensions.wrapfunction(update, "apply_updates", apply_updates)
   > EOF
 
 (file gotten from other revision)

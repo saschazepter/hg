@@ -10,12 +10,14 @@ from __future__ import annotations
 from ..i18n import _
 from .. import (
     match as matchmod,
-    merge,
     merge_utils,
     mergestate as mergestatemod,
     narrowspec,
     scmutil,
     sparse,
+)
+from ..merge_utils import (
+    update as update_util,
 )
 
 
@@ -37,7 +39,7 @@ def _writeaddedfiles(repo, pctx, files):
                 (mf.flags(f), False),
                 b"narrowspec updated",
             )
-    merge.applyupdates(
+    update_util.apply_updates(
         repo,
         mresult,
         wctx=repo[None],

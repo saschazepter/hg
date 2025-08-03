@@ -182,8 +182,8 @@ def submerge(
     labels: Any | None = None,
 ) -> Substate:
     # TODO: type the `labels` arg
-    """delegated from merge.applyupdates: merging of .hgsubstate file
-    in working context, merging context and ancestor context"""
+    """delegated from merge_utils.update.apply_updates: merging of .hgsubstate
+    file in working context, merging context and ancestor context"""
     if mctx == actx:  # backwards?
         actx = wctx.p1()
     s1 = wctx.substate

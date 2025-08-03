@@ -34,10 +34,10 @@ outside of hg's control.
   > from mercurial import (
   >     commit,
   >     extensions,
-  >     merge,
   > )
+  > from mercurial.merge_utils import update
   > def extsetup(ui):
-  >     extensions.wrapfunction(merge, 'applyupdates', wrap(0))
+  >     extensions.wrapfunction(update, 'apply_updates', wrap(0))
   >     extensions.wrapfunction(commit, 'commitctx', wrap(1))
   > def wrap(duration):
   >     def new(orig, *args, **kwargs):

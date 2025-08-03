@@ -73,11 +73,8 @@ will likely receive warnings about a direct import.
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
-  mercurial/merge.py:*: function level import: mercurial.sparse (glob)
   mercurial/merge.py:*: function level import: mercurial.extensions (glob)
-  mercurial/merge.py:*: function level import: mercurial.sparse (glob)
   mercurial/merge.py:*: function level import: mercurial.bundlerepo (glob)
-  mercurial/merge.py:*: function level import: mercurial.sparse (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprofcalltree (glob)
@@ -105,7 +102,6 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
-  Import cycle: mercurial.merge -> mercurial.sparse -> mercurial.merge
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
   Import cycle: mercurial.context -> mercurial.subrepoutil -> mercurial.context
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.localrepo
@@ -121,6 +117,7 @@ will likely receive warnings about a direct import.
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.bookmarks -> mercurial.obsutil -> mercurial.diffutil -> mercurial.context -> mercurial.subrepo -> mercurial.cmdutil -> mercurial.bookmarks
+  Import cycle: mercurial.exchange -> mercurial.narrowspec -> mercurial.sparse -> mercurial.merge_utils.update -> mercurial.subrepoutil -> mercurial.subrepo -> mercurial.exchange
   Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.obsutil -> mercurial.diffutil -> mercurial.merge -> mercurial.bundlerepo -> mercurial.discovery -> mercurial.branchmap
   [1]
 

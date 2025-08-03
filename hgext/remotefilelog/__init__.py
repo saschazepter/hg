@@ -164,6 +164,9 @@ from mercurial import (
     streamclone,
     util,
 )
+from mercurial.merge_utils import (
+    update as update_util,
+)
 from . import (
     constants,
     debugcommands,
@@ -178,6 +181,7 @@ from . import (
     shallowutil,
     shallowverifier,
 )
+
 
 # ensures debug commands are registered
 hgdebugcommands.command
@@ -325,7 +329,7 @@ def uisetup(ui):
     )
     extensions.wrapfunction(localrepo, 'makestore', storewrapper)
     extensions.wrapfunction(exchange, 'pull', exchangepull)
-    extensions.wrapfunction(merge, 'applyupdates', applyupdates)
+    extensions.wrapfunction(update_util, 'apply_updates', apply_updates)
     extensions.wrapfunction(merge, '_checkunknownfiles', checkunknownfiles)
     extensions.wrapfunction(context.workingctx, '_checklookup', checklookup)
     extensions.wrapfunction(scmutil, '_findrenames', findrenames)
@@ -482,7 +486,7 @@ def storewrapper(orig, requirements, path, vfstype):
 
 
 # prefetch files before update
-def applyupdates(
+def apply_updates(
     orig, repo, mresult, wctx, mctx, overwrite, wantfiledata, **opts
 ):
     if isenabled(repo):

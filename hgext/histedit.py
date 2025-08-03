@@ -237,6 +237,9 @@ from mercurial import (
     state as statemod,
     util,
 )
+from mercurial.merge_utils import (
+    update as update_util,
+)
 from mercurial.utils import (
     dateutil,
     stringutil,
@@ -655,7 +658,7 @@ def applychanges(ui, repo, ctx, opts):
         # just applies changes on parent for editing
         with ui.silent():
             cmdutil.revert(ui, repo, ctx, all=True)
-            stats = mergemod.updateresult(0, 0, 0, 0)
+            stats = update_util.UpdateResult(0, 0, 0, 0)
     else:
         try:
             # ui.forcemerge is an internal variable, do not document

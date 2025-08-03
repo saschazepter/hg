@@ -2514,7 +2514,7 @@ class overlayworkingctx(committablectx):
     def _auditconflicts(self, path: bytes) -> None:
         """Replicates conflict checks done by wvfs.write().
 
-        Since we never write to the filesystem and never call `applyupdates` in
+        Since we never write to the filesystem and never call `apply_updates` in
         IMM, we'll never check that a path is actually writable -- e.g., because
         it adds `a/foo`, but `a` is actually a file in the other commit.
         """
