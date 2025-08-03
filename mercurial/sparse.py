@@ -15,6 +15,7 @@ from . import (
     error,
     match as matchmod,
     merge as mergemod,
+    merge_utils,
     mergestate as mergestatemod,
     node,
     pathutil,
@@ -282,7 +283,7 @@ def prunetemporaryincludes(repo):
 
     sparsematch = matcher(repo, includetemp=False)
     dirstate = repo.dirstate
-    mresult = mergemod.mergeresult()
+    mresult = merge_utils.MergeResult()
     dropped = []
     tempincludes = readtemporaryincludes(repo)
     for file in tempincludes:
@@ -442,7 +443,7 @@ def filterupdatesactions(repo, wctx, mctx, branchmerge, mresult):
         addtemporaryincludes(repo, temporaryfiles)
 
         # Add the new files to the working copy so they can be merged, etc
-        tmresult = mergemod.mergeresult()
+        tmresult = merge_utils.MergeResult()
         message = b'temporarily adding to sparse checkout'
         wctxmanifest = repo[None].manifest()
         for file in temporaryfiles:
@@ -529,7 +530,7 @@ def refreshwdir(repo, origstatus, origsparsematch, force=False):
     dropped = []
     mf = ctx.manifest()
     files = set(mf)
-    mresult = mergemod.mergeresult()
+    mresult = merge_utils.MergeResult()
 
     for file in files:
         old = origsparsematch(file)

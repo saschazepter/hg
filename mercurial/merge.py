@@ -7,11 +7,10 @@
 
 from __future__ import annotations
 
-import collections
 import os
 import struct
 import typing
-from typing import Iterable, Iterator, Optional
+from typing import Iterator, Optional
 
 from .i18n import _
 from .node import nullrev
@@ -41,18 +40,6 @@ from . import (
     util,
     worker,
 )
-
-if typing.TYPE_CHECKING:
-    # TODO: figure out what exactly is in this tuple
-    MergeResultData = tuple
-    MergeResultAction = tuple[bytes, Optional[MergeResultData], bytes]
-    """The filename, data about the merge, and message about the merge."""
-
-    FileMappingValue = tuple[
-        merge_utils.MergeAction, Optional[MergeResultData], bytes
-    ]
-    """The merge action, data about the merge, and message about the merge, for
-    the keyed file."""
 
 rust_update_mod = policy.importrust("update")
 
@@ -146,7 +133,12 @@ class _unknowndirschecker:
 
 
 def _checkunknownfiles(
-    repo, wctx, mctx, force, mresult: mergeresult, mergeforce
+    repo,
+    wctx,
+    mctx,
+    force,
+    mresult: merge_utils.MergeResult,
+    mergeforce,
 ):
     """
     Considers any actions that care about the presence of conflicting unknown
@@ -292,7 +284,12 @@ def _checkunknownfiles(
     )
 
 
-def _forgetremoved(wctx, mctx, branchmerge, mresult: mergeresult) -> None:
+def _forgetremoved(
+    wctx,
+    mctx,
+    branchmerge,
+    mresult: merge_utils.MergeResult,
+) -> None:
     """
     Forget removed files
 
@@ -325,7 +322,11 @@ def _forgetremoved(wctx, mctx, branchmerge, mresult: mergeresult) -> None:
                 )
 
 
-def _checkcollision(repo, wmf, mresult: mergeresult | None) -> None:
+def _checkcollision(
+    repo,
+    wmf,
+    mresult: merge_utils.MergeResult | None,
+) -> None:
     """
     Check for case-folding collisions.
     """
@@ -406,7 +407,12 @@ def _filesindirs(repo, manifest, dirs) -> Iterator[tuple[bytes, bytes]]:
                 break
 
 
-def checkpathconflicts(repo, wctx, mctx, mresult: mergeresult) -> None:
+def checkpathconflicts(
+    repo,
+    wctx,
+    mctx,
+    mresult: merge_utils.MergeResult,
+) -> None:
     """
     Check if any actions introduce path conflicts in the repository, updating
     actions to record or handle the path conflict accordingly.
@@ -548,7 +554,9 @@ def checkpathconflicts(repo, wctx, mctx, mresult: mergeresult) -> None:
 
 
 def _filternarrowactions(
-    narrowmatch, branchmerge, mresult: mergeresult
+    narrowmatch,
+    branchmerge,
+    mresult: merge_utils.MergeResult,
 ) -> None:
     """
     Filters out actions that can ignored because the repo is narrowed.
@@ -584,205 +592,6 @@ def _filternarrowactions(
             raise error.StateError(msg % f)
 
 
-class mergeresult:
-    """An object representing result of merging manifests.
-
-    It has information about what actions need to be performed on dirstate
-    mapping of divergent renames and other such cases."""
-
-    _filemapping: dict[bytes, FileMappingValue]
-    _actionmapping: dict[
-        merge_utils.MergeAction, dict[bytes, tuple[MergeResultData, bytes]]
-    ]
-
-    def __init__(self) -> None:
-        """
-        filemapping: dict of filename as keys and action related info as values
-        diverge: mapping of source name -> list of dest name for
-                 divergent renames
-        renamedelete: mapping of source name -> list of destinations for files
-                      deleted on one side and renamed on other.
-        commitinfo: dict containing data which should be used on commit
-                    contains a filename -> info mapping
-        actionmapping: dict of action names as keys and values are dict of
-                       filename as key and related data as values
-        """
-        self._filemapping = {}
-        self._diverge = {}
-        self._renamedelete = {}
-        self._commitinfo = collections.defaultdict(dict)
-        self._actionmapping = collections.defaultdict(dict)
-
-    def updatevalues(self, diverge, renamedelete):
-        self._diverge = diverge
-        self._renamedelete = renamedelete
-
-    def addfile(
-        self,
-        filename: bytes,
-        action: merge_utils.MergeAction,
-        data: MergeResultData | None,
-        message,
-    ) -> None:
-        """adds a new file to the mergeresult object
-
-        filename: file which we are adding
-        action: one of mergestatemod.ACTION_*
-        data: a tuple of information like fctx and ctx related to this merge
-        message: a message about the merge
-        """
-        # if the file already existed, we need to delete it's old
-        # entry form _actionmapping too
-        if filename in self._filemapping:
-            a, d, m = self._filemapping[filename]
-            del self._actionmapping[a][filename]
-
-        self._filemapping[filename] = (action, data, message)
-        self._actionmapping[action][filename] = (data, message)
-
-    def mapaction(
-        self,
-        actionfrom: merge_utils.MergeAction,
-        actionto: merge_utils.MergeAction,
-        transform,
-    ):
-        """changes all occurrences of action `actionfrom` into `actionto`,
-        transforming its args with the function `transform`.
-        """
-        orig = self._actionmapping[actionfrom]
-        del self._actionmapping[actionfrom]
-        dest = self._actionmapping[actionto]
-        for f, (data, msg) in orig.items():
-            data = transform(f, data)
-            self._filemapping[f] = (actionto, data, msg)
-            dest[f] = (data, msg)
-
-    def getfile(
-        self, filename: bytes, default_return: FileMappingValue | None = None
-    ) -> FileMappingValue | None:
-        """returns (action, args, msg) about this file
-
-        returns default_return if the file is not present"""
-        if filename in self._filemapping:
-            return self._filemapping[filename]
-        return default_return
-
-    def files(
-        self, actions: Iterable[merge_utils.MergeAction] | None = None
-    ) -> Iterator[bytes]:
-        """returns files on which provided action needs to perfromed
-
-        If actions is None, all files are returned
-        """
-        # TODO: think whether we should return renamedelete and
-        # diverge filenames also
-        if actions is None:
-            yield from self._filemapping
-
-        else:
-            for a in actions:
-                yield from self._actionmapping[a]
-
-    def removefile(self, filename: bytes) -> None:
-        """removes a file from the mergeresult object as the file might
-        not merging anymore"""
-        action, data, message = self._filemapping[filename]
-        del self._filemapping[filename]
-        del self._actionmapping[action][filename]
-
-    def getactions(
-        self, actions: Iterable[merge_utils.MergeAction], sort: bool = False
-    ) -> Iterator[MergeResultAction]:
-        """get list of files which are marked with these actions
-        if sort is true, files for each action is sorted and then added
-
-        Returns a list of tuple of form (filename, data, message)
-        """
-        for a in actions:
-            if sort:
-                for f in sorted(self._actionmapping[a]):
-                    args, msg = self._actionmapping[a][f]
-                    yield f, args, msg
-            else:
-                for f, (args, msg) in self._actionmapping[a].items():
-                    yield f, args, msg
-
-    def len(
-        self, actions: Iterable[merge_utils.MergeAction] | None = None
-    ) -> int:
-        """returns number of files which needs actions
-
-        if actions is passed, total of number of files in that action
-        only is returned"""
-
-        if actions is None:
-            return len(self._filemapping)
-
-        return sum(len(self._actionmapping[a]) for a in actions)
-
-    def filemap(
-        self, sort: bool = False
-    ) -> Iterator[tuple[bytes, MergeResultData]]:
-        if sort:
-            yield from sorted(self._filemapping.items())
-        else:
-            yield from self._filemapping.items()
-
-    def addcommitinfo(self, filename: bytes, key, value) -> None:
-        """adds key-value information about filename which will be required
-        while committing this merge"""
-        self._commitinfo[filename][key] = value
-
-    @property
-    def diverge(self):
-        return self._diverge
-
-    @property
-    def renamedelete(self):
-        return self._renamedelete
-
-    @property
-    def commitinfo(self):
-        return self._commitinfo
-
-    @property
-    def actionsdict(
-        self,
-    ) -> dict[merge_utils.MergeAction, list[MergeResultAction]]:
-        """returns a dictionary of actions to be perfomed with action as key
-        and a list of files and related arguments as values"""
-        res = collections.defaultdict(list)
-        for a, d in self._actionmapping.items():
-            for f, (args, msg) in d.items():
-                res[a].append((f, args, msg))
-        return res
-
-    def setactions(self, actions) -> None:
-        self._filemapping = actions
-        self._actionmapping = collections.defaultdict(dict)
-        for f, (act, data, msg) in self._filemapping.items():
-            self._actionmapping[act][f] = data, msg
-
-    def hasconflicts(self) -> bool:
-        """tells whether this merge resulted in some actions which can
-        result in conflicts or not"""
-        for a in self._actionmapping.keys():
-            if (
-                a
-                not in (
-                    mergestatemod.ACTION_GET,
-                    mergestatemod.ACTION_EXEC,
-                    mergestatemod.ACTION_REMOVE,
-                    mergestatemod.ACTION_PATH_CONFLICT_RESOLVE,
-                )
-                and self._actionmapping[a]
-                and not a.no_op
-            ):
-                return True
-
-        return False
-
-
 def manifestmerge(
     repo,
     wctx,
@@ -794,7 +603,7 @@ def manifestmerge(
     acceptremote,
     followcopies,
     forcefulldiff=False,
-) -> mergeresult:
+) -> merge_utils.MergeResult:
     """
     Merge wctx and p2 with ancestor pa and generate merge action list
 
@@ -802,9 +611,9 @@ def manifestmerge(
     matcher = matcher to filter file lists
     acceptremote = accept the incoming changes without prompting
 
-    Returns an object of mergeresult class
+    Returns an object of merge_utils.MergeResult class
     """
-    mresult = mergeresult()
+    mresult = merge_utils.MergeResult()
     if matcher is not None and matcher.always():
         matcher = None
 
@@ -1168,7 +977,13 @@ def manifestmerge(
     return mresult
 
 
-def _resolvetrivial(repo, wctx, mctx, ancestor, mresult: mergeresult) -> None:
+def _resolvetrivial(
+    repo,
+    wctx,
+    mctx,
+    ancestor,
+    mresult: merge_utils.MergeResult,
+) -> None:
     """Resolves false conflicts where the nodeid changed but the content
     remained the same."""
     # We force a copy of actions.items() because we're going to mutate
@@ -1197,7 +1012,7 @@ def calculateupdates(
     followcopies,
     matcher=None,
     mergeforce=False,
-) -> mergeresult:
+) -> merge_utils.MergeResult:
     """
     Calculate the actions needed to merge mctx into wctx using ancestors
 
@@ -1207,7 +1022,7 @@ def calculateupdates(
 
     Also filters out actions which are unrequired if repository is sparse.
 
-    Returns mergeresult object same as manifestmerge().
+    Returns merge_utils.MergeResult object same as manifestmerge().
     """
     # Avoid cycle.
     from . import sparse
@@ -1245,7 +1060,7 @@ def calculateupdates(
         # mapping of following form:
         # {ACTION_X : [info, ..], ACTION_Y : [info, ..]}
         fbids = {}
-        mresult = mergeresult()
+        mresult = merge_utils.MergeResult()
         diverge, renamedelete = None, None
         for ancestor in ancestors:
             repo.ui.note(_(b'\ncalculating bids for ancestor %s\n') % ancestor)
@@ -1520,7 +1335,7 @@ def batchget(repo, mctx, wctx, wantfiledata, actions):
     yield True, filedata
 
 
-def _prefetchfiles(repo, ctx, mresult: mergeresult) -> None:
+def _prefetchfiles(repo, ctx, mresult: merge_utils.MergeResult) -> None:
     """Invoke ``scmutil.prefetchfiles()`` for the files relevant to the dict
     of merge actions.  ``ctx`` is the context being merged in."""
 
@@ -1567,7 +1382,7 @@ class updateresult:
 
 def applyupdates(
     repo,
-    mresult: mergeresult,
+    mresult: merge_utils.MergeResult,
     wctx,
     mctx,
     overwrite,

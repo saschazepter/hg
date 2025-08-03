@@ -11,6 +11,7 @@ from ..i18n import _
 from .. import (
     match as matchmod,
     merge,
+    merge_utils,
     mergestate as mergestatemod,
     narrowspec,
     scmutil,
@@ -26,7 +27,7 @@ def _deletecleanfiles(repo, files):
 
 
 def _writeaddedfiles(repo, pctx, files):
-    mresult = merge.mergeresult()
+    mresult = merge_utils.MergeResult()
     mf = repo[b'.'].manifest()
     for f in files:
         if not repo.wvfs.exists(f):
