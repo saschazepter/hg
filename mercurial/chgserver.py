@@ -48,6 +48,7 @@ import socket
 import stat
 import struct
 import time
+import typing
 
 from .i18n import _
 from .node import hex
@@ -67,6 +68,21 @@ from .utils import (
     procutil,
     stringutil,
 )
+
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+    )
+    from io import (
+        RawIOBase,
+    )
+    from socket import socket as Socket
+    from .interfaces.types import (
+        RepoT,
+        UiT,
+    )
 
 
 def _hashlist(items):
@@ -353,7 +369,15 @@ _iochannels = [
 
 class chgcmdserver(commandserver.server):
     def __init__(
-        self, ui, repo, fin, fout, sock, prereposetups, hashstate, baseaddress
+        self,
+        ui: UiT,
+        repo: RepoT,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        sock: Socket,
+        prereposetups: list[Callable[[UiT, RepoT], None]] | None,
+        hashstate: hashstate,
+        baseaddress: bytes,
     ):
         super().__init__(
             _newchgui(ui, channeledsystem(fin, fout, b'S'), self.attachio),
@@ -633,7 +657,7 @@ class chgunixservicehandler:
     _baseaddress: bytes | None
     _realaddress: bytes | None
 
-    def __init__(self, ui):
+    def __init__(self, ui: UiT):
         self.ui = ui
 
         self._hashstate = None
@@ -719,7 +743,14 @@ class chgunixservicehandler:
     def newconnection(self):
         self._lastactive = time.time()
 
-    def createcmdserver(self, repo, conn, fin, fout, prereposetups):
+    def createcmdserver(
+        self,
+        repo: RepoT,
+        conn: Socket,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        prereposetups: list[Callable[[UiT, RepoT], None]] | None,
+    ):
         return chgcmdserver(
             self.ui,
             repo,
@@ -732,7 +763,11 @@ class chgunixservicehandler:
         )
 
 
-def chgunixservice(ui, repo, opts):
+def chgunixservice(
+    ui: UiT,
+    repo: RepoT | None,
+    opts: dict[bytes, Any],
+) -> commandserver.unixforkingservice:
     # CHGINTERNALMARK is set by chg client. It is an indication of things are
     # started by chg so other code can do things accordingly, like disabling
     # demandimport or detecting chg client started by chg client. When executed

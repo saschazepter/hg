@@ -9,8 +9,17 @@ from __future__ import annotations
 
 import os
 
+from typing import (
+    Any,
+    Callable,
+)
+
 from .i18n import _
 
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from . import (
     chgserver,
     cmdutil,
@@ -172,7 +181,11 @@ _cmdservicemap = {
 }
 
 
-def _createcmdservice(ui, repo, opts):
+def _createcmdservice(
+    ui: UiT,
+    repo: RepoT,
+    opts: dict[bytes, Any],
+):
     mode = opts[b'cmdserver']
     try:
         servicefn = _cmdservicemap[mode]
@@ -182,7 +195,7 @@ def _createcmdservice(ui, repo, opts):
     return servicefn(ui, repo, opts)
 
 
-def _createhgwebservice(ui, repo, opts):
+def _createhgwebservice(ui: UiT, repo: RepoT, opts: dict[bytes, Any]):
     # this way we can check if something was given in the command-line
     if opts.get(b'port'):
         opts[b'port'] = urlutil.getport(opts.get(b'port'))
@@ -229,7 +242,11 @@ def _createhgwebservice(ui, repo, opts):
     return hgweb.httpservice(servui, app, opts)
 
 
-def createservice(ui, repo, opts):
+def createservice(
+    ui: UiT,
+    repo: RepoT,
+    opts: dict[bytes, Any],
+):
     if opts[b"cmdserver"]:
         return _createcmdservice(ui, repo, opts)
     else:

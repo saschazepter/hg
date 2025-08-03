@@ -15,6 +15,7 @@ import signal
 import socket
 import struct
 import traceback
+import typing
 
 from .i18n import _
 from . import (
@@ -31,6 +32,20 @@ from .utils import (
     cborutil,
     procutil,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+    )
+    from io import (
+        RawIOBase,
+    )
+    from socket import socket as Socket
+    from .interfaces.types import (
+        RepoT,
+        UiT,
+    )
 
 
 class channeledoutput:
@@ -200,7 +215,14 @@ class server:
     based stream to fout.
     """
 
-    def __init__(self, ui, repo, fin, fout, prereposetups=None):
+    def __init__(
+        self,
+        ui: UiT,
+        repo: RepoT,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        prereposetups: list[Callable[[UiT, RepoT], None]] | None = None,
+    ) -> None:
         self.cwd = encoding.getcwd()
 
         if repo:
@@ -438,7 +460,12 @@ def setuplogging(ui, repo=None, fp=None):
 
 
 class pipeservice:
-    def __init__(self, ui, repo, opts):
+    def __init__(
+        self,
+        ui: UiT,
+        repo: RepoT,
+        opts: dict[bytes, Any],
+    ) -> None:
         self.ui = ui
         self.repo = repo
 
@@ -519,7 +546,7 @@ class unixservicehandler:
 
     pollinterval = None
 
-    def __init__(self, ui):
+    def __init__(self, ui: UiT) -> None:
         self.ui = ui
 
     def bindsocket(self, sock, address):
@@ -538,7 +565,14 @@ class unixservicehandler:
     def newconnection(self):
         """Called when main process notices new connection"""
 
-    def createcmdserver(self, repo, conn, fin, fout, prereposetups):
+    def createcmdserver(
+        self,
+        repo: RepoT,
+        conn: Socket,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        prereposetups: list[Callable[[UiT, RepoT], None]] | None,
+    ):
         """Create new command server instance; called in the process that
         serves for the current connection"""
         return server(self.ui, repo, fin, fout, prereposetups)
@@ -549,7 +583,13 @@ class unixforkingservice:
     Listens on unix domain socket and forks server per connection
     """
 
-    def __init__(self, ui, repo, opts, handler=None):
+    def __init__(
+        self,
+        ui: UiT,
+        repo: RepoT,
+        opts: dict[bytes, Any],
+        handler=None,
+    ) -> None:
         self.ui = ui
         self.repo = repo
         self.address = opts[b'address']
