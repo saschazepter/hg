@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "wheel",
-    "setuptools>=80.1.0",
+    "setuptools>=64",
     "setuptools-scm>=8.1.0",
     ]
 build-backend = "setuptools.build_meta"
@@ -15,13 +15,13 @@ authors = [
 description="Fast scalable distributed SCM (revision control, version control) system"
 readme = "README.rst"
 requires-python = ">=3.9"
-license = "GPL-2.0-or-later"
-license-files = ["COPYING"]
+license = {text = "GPL-2.0-or-later"}
 classifiers=[
     "Development Status :: 6 - Mature",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
     "Natural Language :: Danish",
     "Natural Language :: English",
     "Natural Language :: German",
