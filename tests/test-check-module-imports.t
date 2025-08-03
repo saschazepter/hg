@@ -105,7 +105,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
   Import cycle: mercurial.context -> mercurial.subrepoutil -> mercurial.context
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.localrepo
-  Import cycle: mercurial.subrepo -> mercurial.subrepoutil -> mercurial.subrepo
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.extensions -> mercurial.filemerge -> mercurial.extensions
   Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.bundlecaches
@@ -117,7 +116,6 @@ will likely receive warnings about a direct import.
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.bookmarks -> mercurial.obsutil -> mercurial.diffutil -> mercurial.context -> mercurial.subrepo -> mercurial.cmdutil -> mercurial.bookmarks
-  Import cycle: mercurial.exchange -> mercurial.narrowspec -> mercurial.sparse -> mercurial.merge_utils.update -> mercurial.subrepoutil -> mercurial.subrepo -> mercurial.exchange
   Import cycle: mercurial.branchmap -> mercurial.obsolete -> mercurial.obsutil -> mercurial.diffutil -> mercurial.merge -> mercurial.bundlerepo -> mercurial.discovery -> mercurial.branchmap
   [1]
 

@@ -43,6 +43,9 @@ from . import (
     util,
     vfs as vfsmod,
 )
+from .interfaces import (
+    misc as misc_type,
+)
 from .utils import (
     dateutil,
     hashutil,
@@ -230,7 +233,7 @@ def nullsubrepo(ctx, path, pctx):
 # subrepo classes need to implement the following abstract class:
 
 
-class abstractsubrepo:
+class abstractsubrepo(misc_type.ISubRepo):
     def __init__(self, ctx, path):
         """Initialize abstractsubrepo part
 

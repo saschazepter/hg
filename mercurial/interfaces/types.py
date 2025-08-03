@@ -33,6 +33,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 from . import (
     bundle,
     matcher,
+    misc,
     repository,
     status,
     transaction,
@@ -58,6 +59,7 @@ MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
 RevisionDeltaT = repository.irevisiondelta
 
 StatusT = status.Status
+SubrepoT = misc.ISubRepo
 TransactionT = transaction.ITransaction
 
 UnbundlePartT = bundle.IUnbundlePart

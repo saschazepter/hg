@@ -40,20 +40,19 @@ nullstate = (b'', b'', b'empty')
 if typing.TYPE_CHECKING:
     from . import (
         context,
-        subrepo,
     )
 
     from .interfaces import status as istatus
     from .interfaces.types import (
         MatcherT,
         RepoT,
+        SubrepoT,
         UiT,
     )
 
     # keeps pyflakes happy
     assert [
         context,
-        subrepo,
     ]
 
 Substate = dict[bytes, tuple[bytes, bytes, bytes]]
@@ -433,7 +432,7 @@ def reporelpath(repo: RepoT) -> bytes:
     return repo.root[len(pathutil.normasprefix(parent.root)) :]
 
 
-def subrelpath(sub: subrepo.abstractsubrepo) -> bytes:
+def subrelpath(sub: SubrepoT) -> bytes:
     """return path to this subrepo as seen from outermost repo"""
     return sub._relpath
 

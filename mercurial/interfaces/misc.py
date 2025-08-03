@@ -166,3 +166,10 @@ class IPath(Protocol):
 
         This is intended to be used for presentation purposes.
         """
+
+
+# XXX this Protocol is a Stub, you can help by expanding it.
+class ISubRepo(Protocol):
+    """A generic subrepo object"""
+
+    _relpath: bytes
