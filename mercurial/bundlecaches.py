@@ -30,6 +30,9 @@ from . import (
     util,
 )
 from .exchanges import bundle_cache
+from .repo import (
+    requirements as repo_req,
+)
 from .utils import stringutil
 
 urlreq = util.urlreq
@@ -303,10 +306,7 @@ def parsebundlespec(repo, spec, strict=True):
         relevant_reqs = (
             requirements - requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
         )
-        # avoid cycle (not great for pytype)
-        from . import localrepo
-
-        supported_req = localrepo.gathersupportedrequirements(repo.ui)
+        supported_req = repo_req.gather_supported_requirements(repo.ui)
         missing_reqs = relevant_reqs - supported_req
         if missing_reqs:
             raise error.UnsupportedBundleSpecification(

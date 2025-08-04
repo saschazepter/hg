@@ -28,6 +28,9 @@ from . import (
     util,
     vfs as vfsmod,
 )
+from .repo import (
+    requirements as repo_req,
+)
 from .utils import (
     urlutil,
 )
@@ -216,7 +219,7 @@ class statichttprepository(
             storevfs = vfsclass(self.vfs.join(b'store'))
             requirements |= set(storevfs.read(b'requires').splitlines())
 
-        supportedrequirements = localrepo.gathersupportedrequirements(ui)
+        supportedrequirements = repo_req.gather_supported_requirements(ui)
         localrepo.ensurerequirementsrecognized(
             requirements, supportedrequirements
         )

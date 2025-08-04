@@ -22,7 +22,6 @@ will likely receive warnings about a direct import.
   mercurial/__main__.py:*: function level import: mercurial.dispatch (glob)
   mercurial/bundle2.py:*: function level import: mercurial.localrepo (glob)
   mercurial/bundle2.py:*: function level import: mercurial.exchange (glob)
-  mercurial/bundlecaches.py:*: function level import: mercurial.localrepo (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.hg (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
@@ -96,11 +95,11 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.hg -> mercurial.localrepo -> mercurial.upgrade -> mercurial.hg
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: mercurial.extensions -> mercurial.revset -> mercurial.hg -> mercurial.extensions
-  Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.exchange -> mercurial.bundlecaches
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.hg -> mercurial.bundlerepo
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
+  Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'
