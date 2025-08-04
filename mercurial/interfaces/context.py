@@ -16,6 +16,8 @@ from . import (
 
 # XXX this Protocol is a Stub, you can help by expanding it.
 class IContext(Protocol):
+    in_memory: bool
+
     @abc.abstractmethod
     def parents(self) -> list[IChangeContext]:
         ...

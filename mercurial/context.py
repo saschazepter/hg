@@ -71,6 +71,8 @@ class basectx(abc.ABC):
     memctx: a context that represents changes in-memory and can also
             be committed."""
 
+    in_memory = False
+
     def __init__(self, repo):
         self._repo = repo
 
@@ -867,6 +869,8 @@ class basefilectx(abc.ABC):
     # local repo ops.
     _repo: LocalRepoCompleteT
     _path: bytes
+
+    in_memory = False
 
     @abc.abstractmethod
     def data(self) -> bytes:
@@ -2370,6 +2374,8 @@ class overlayworkingctx(committablectx):
     is `False`, the file was deleted.
     """
 
+    in_memory = True
+
     def __init__(self, repo) -> None:
         super().__init__(repo)
         self.clean()
@@ -2789,6 +2795,8 @@ class overlayworkingfilectx(committablefilectx):
     """Wrap a ``workingfilectx`` but intercepts all writes into an in-memory
     cache, which can be flushed through later by calling ``flush()``."""
 
+    in_memory = True
+
     def __init__(
         self,
         repo: LocalRepoCompleteT,
@@ -3003,6 +3011,8 @@ class memctx(committablectx):
     # Extensions that need to retain compatibility across Mercurial 3.1 can use
     # this field to determine what to do in filectxfn.
     _returnnoneformissingfiles = True
+
+    in_memory = True
 
     def __init__(
         self,

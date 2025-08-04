@@ -659,9 +659,7 @@ def _idump(repo, mynode, local, other, base, toolconf, backup):
     a = _workingpath(repo, local.fctx)
     fd = local.fctx.path()
 
-    from . import context
-
-    if isinstance(local.fctx, context.overlayworkingfilectx):
+    if local.fctx.in_memory:
         raise error.InMemoryMergeConflictsError(
             b'in-memory merge does not support the :dump tool.'
         )
@@ -921,9 +919,8 @@ def _makebackup(repo, ui, fcd):
         return None
     # TODO: Break this import cycle somehow. (filectx -> ctx -> fileset ->
     # merge -> filemerge). (I suspect the fileset import is the weakest link)
-    from . import context
 
-    if isinstance(fcd, context.overlayworkingfilectx):
+    if fcd.in_memory:
         # If we're merging in-memory, we're free to put the backup anywhere.
         fd, backup = pycompat.mkstemp(b'hg-merge-backup')
         with os.fdopen(fd, 'wb') as f:
