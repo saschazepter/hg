@@ -20,6 +20,9 @@ from mercurial import (
     pycompat,
     registrar,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import (
     dateutil,
     urlutil,
@@ -109,7 +112,7 @@ def fetch(ui, repo, source=b'default', **opts):
             )
 
         path = urlutil.get_unique_pull_path_obj(b'fetch', ui, source)
-        other = hg.peer(repo, pycompat.byteskwargs(opts), path)
+        other = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         revs = None
         if opts['rev']:
