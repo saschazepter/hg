@@ -77,7 +77,6 @@ from mercurial import (
     copies,
     error,
     extensions,
-    hg,
     mdiff,
     merge,
     util,
@@ -121,6 +120,13 @@ try:
     from mercurial import profiling
 except ImportError:
     profiling = None
+
+try:
+    from mercurial.repo import (
+        factory as repo_factory,
+    )  # since 7.2 (or 44ea08e1193b)
+except ImportError:
+    from mercurial import hg as repo_factory
 
 
 try:
@@ -1162,7 +1168,7 @@ def perfdiscovery(ui, repo, path, **opts):
             path = ui.expandpath(path)
 
     def s():
-        repos[1] = hg.peer(ui, opts, path)
+        repos[1] = repo_factory.peer(ui, opts, path)
 
     def d():
         setdiscovery.findcommonheads(ui, *repos)
@@ -1761,7 +1767,6 @@ def perfphasesremote(ui, repo, dest=None, **opts):
     from mercurial.node import bin
     from mercurial import (
         exchange,
-        hg,
         phases,
     )
 
@@ -1780,7 +1785,7 @@ def perfphasesremote(ui, repo, dest=None, **opts):
     else:
         dest = path.pushloc or path.loc
     ui.statusnoi18n(b'analysing phase of %s\n' % util.hidepassword(dest))
-    other = hg.peer(repo, opts, dest)
+    other = repo_factory.peer(repo, opts, dest)
 
     # easier to perform discovery through the operation
     op = exchange.pushoperation(repo, other)
@@ -2222,11 +2227,6 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
         msg %= _bytestr(exc)
         raise error.Abort(msg)
     try:
-        from mercurial import hg
-    except ImportError as exc:
-        msg %= _bytestr(exc)
-        raise error.Abort(msg)
-    try:
         from mercurial import localrepo
     except ImportError as exc:
         msg %= _bytestr(exc)
@@ -2281,7 +2281,7 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
         localrepo.createrepository(
             new_ui, tmp_dir, requirements=repo.requirements
         )
-        target = hg.repository(new_ui, tmp_dir)
+        target = repo_factory.repository(new_ui, tmp_dir)
         # we don't need to use a config override here because this is a
         # dedicated UI object for the disposable repository create for the
         # benchmark.
