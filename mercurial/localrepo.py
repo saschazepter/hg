@@ -3807,6 +3807,11 @@ def clone_requirements(ui, *args, **kwargs):
 
 
 def newreporequirements(ui, *args, **kwargs):
+    msg = (
+        b'`newreporequirements(...)` moved to '
+        b'`repo.creation.new_repo_requirements(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
     return creation.new_repo_requirements(ui, *args, **kwargs)
 
 
