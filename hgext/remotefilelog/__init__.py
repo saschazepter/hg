@@ -167,6 +167,9 @@ from mercurial import (
 from mercurial.merge_utils import (
     update as update_util,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from . import (
     constants,
     debugcommands,
@@ -846,7 +849,7 @@ def gc(ui, *args, **opts):
     repos = []
     for repopath in repopaths:
         try:
-            repo = hg.peer(ui, {}, repopath)
+            repo = repo_factory.peer(ui, {}, repopath)
             repos.append(repo)
 
             repocache = shallowutil.getcachepath(repo.ui, allowempty=True)
@@ -895,7 +898,7 @@ def gcclient(ui, cachepath):
             traceback.print_exc()
             continue
         try:
-            peer = hg.peer(ui, {}, path)
+            peer = repo_factory.peer(ui, {}, path)
             repo = peer._repo
         except error.RepoError:
             continue
