@@ -601,7 +601,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # there exists a `.hg/store/requires` too and we should read it
     # NOTE: presence of SHARESAFE_REQUIREMENT imply that store requirement
     # is present. We never write SHARESAFE_REQUIREMENT for a repo if store
-    # is not present, refer checkrequirementscompat() for that
+    # is not present, refer check_requirements_compat() for that
     #
     # However, if SHARESAFE_REQUIREMENT is not present, it means that the
     # repository was shared the old way. We check the share source .hg/requires
@@ -3840,13 +3840,13 @@ def createrepository(ui, path: bytes, createopts=None, requirements=None):
             raise error.ProgrammingError(msg)
         createopts = {}
     else:
-        createopts = defaultcreateopts(ui, createopts=createopts)
+        createopts = creation.default_create_opts(ui, createopts=createopts)
 
-        unknownopts = filterknowncreateopts(ui, createopts)
+        unknownopts = creation.filter_known_create_opts(ui, createopts)
 
         if not isinstance(unknownopts, dict):
             raise error.ProgrammingError(
-                b'filterknowncreateopts() did not return a dict'
+                b'filter_known_create_opts() did not return a dict'
             )
 
         if unknownopts:
@@ -3859,8 +3859,8 @@ def createrepository(ui, path: bytes, createopts=None, requirements=None):
                 hint=_(b'is a required extension not loaded?'),
             )
 
-        requirements = newreporequirements(ui, createopts=createopts)
-        requirements -= checkrequirementscompat(ui, requirements)
+        requirements = creation.new_repo_requirements(ui, createopts=createopts)
+        requirements -= creation.check_requirements_compat(ui, requirements)
 
     wdirvfs = vfsmod.vfs(path, expandpath=True, realpath=True)
 
