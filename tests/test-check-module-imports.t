@@ -66,7 +66,6 @@ will likely receive warnings about a direct import.
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/merge.py:*: function level import: mercurial.extensions (glob)
-  mercurial/merge.py:*: function level import: mercurial.bundlerepo (glob)
   mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)

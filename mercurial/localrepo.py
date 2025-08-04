@@ -1423,6 +1423,8 @@ class localrepository(_localrepo_base_classes):
         b'bisect.state',
     }
 
+    is_bundle_repo = False
+
     def __init__(
         self,
         baseui,

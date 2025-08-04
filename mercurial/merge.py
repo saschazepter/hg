@@ -1646,10 +1646,6 @@ def _update_rust_fast_path(
     followcopies,
     mergeforce,
 ):
-    # avoid same cycle as in `_update`
-    from . import bundlerepo
-
-    is_bundlerepo = isinstance(repo, bundlerepo.bundlerepository)
     update_from_clean = (
         MAYBE_USE_RUST_UPDATE
         and not is_dirty
@@ -1666,7 +1662,7 @@ def _update_rust_fast_path(
     update_from_null = False
     if (
         MAYBE_USE_RUST_UPDATE
-        and not is_bundlerepo
+        and not repo.is_bundle_repo
         and repo.ui.configbool(b"rust", b"update-from-null")
         and rust_update_mod is not None
         and p1.rev() == nullrev
@@ -1740,7 +1736,7 @@ def _update_rust_fast_path(
         if (
             rust_update_mod is not None
             and MAYBE_USE_RUST_UPDATE
-            and not is_bundlerepo
+            and not repo.is_bundle_repo
             and not branchmerge
             and not force  # TODO support force?
             and not mergeancestor

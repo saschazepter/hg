@@ -316,6 +316,8 @@ class bundlerepository(_bundle_repo_baseclass):
     Use instance() or makebundlerepository() to create instances.
     """
 
+    is_bundle_repo = True
+
     def __init__(self, bundlepath, url, tempparent):
         self._tempparent = tempparent
         self._url = url
