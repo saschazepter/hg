@@ -98,6 +98,9 @@ from . import (
     wireprotoserver,
 )
 from .interfaces import repository
+from .repo import (
+    factory as repo_factory,
+)
 from .stabletailgraph import stabletailsort
 from .utils import (
     cborutil,
@@ -107,7 +110,6 @@ from .utils import (
     stringutil,
     urlutil,
 )
-
 from .revlogutils import (
     debug as revlog_debug,
     nodemap,
@@ -495,7 +497,7 @@ def debugbundle(ui, bundlepath, all=None, spec=None, **opts):
 @command(b'debugcapabilities', [], _(b'PATH'), norepo=True)
 def debugcapabilities(ui, path, **opts):
     """lists the capabilities of a remote peer"""
-    peer = hg.peer(ui, pycompat.byteskwargs(opts), path)
+    peer = repo_factory.peer(ui, pycompat.byteskwargs(opts), path)
     try:
         caps = peer.capabilities()
         ui.writenoi18n(b'Main capabilities:\n')
@@ -1176,7 +1178,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             b'debugdiscovery', ui, remoteurl
         )
         branches = (path.branch, [])
-        remote = hg.peer(repo, pycompat.byteskwargs(opts), path)
+        remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
     else:
         branches = (None, [])
@@ -1771,7 +1773,7 @@ def debuggetbundle(ui, repopath, bundlepath, head=None, common=None, **opts):
     Every ID must be a full-length hex node id string. Saves the bundle to the
     given file.
     """
-    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
+    repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     if not repo.capable(b'getbundle'):
         raise error.Abort(b"getbundle() not supported by target repository")
     args = {}
@@ -2283,7 +2285,7 @@ def debugknown(ui, repopath, *ids, **opts):
     Every ID must be a full-length hex node id string. Returns a list of 0s
     and 1s indicating unknown/known.
     """
-    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
+    repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     if not repo.capable(b'known'):
         raise error.Abort(b"known() not supported by target repository")
     flags = repo.known([bin(s) for s in ids])
@@ -2978,7 +2980,7 @@ def debugpeer(ui, path):
     }
 
     with ui.configoverride(overrides):
-        peer = hg.peer(ui, {}, path)
+        peer = repo_factory.peer(ui, {}, path)
 
         try:
             local = peer.local() is not None
@@ -3088,7 +3090,7 @@ def debugpushkey(ui, repopath, namespace, *keyinfo, **opts):
     Reports success or failure.
     """
 
-    target = hg.peer(ui, {}, repopath)
+    target = repo_factory.peer(ui, {}, repopath)
     try:
         if keyinfo:
             key, old, new = keyinfo
@@ -3815,7 +3817,7 @@ def debugbackupbundle(ui, repo, *pats, **opts):
             source,
         )
         try:
-            other = hg.peer(repo, pycompat.byteskwargs(opts), path)
+            other = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
         except error.LookupError as ex:
             msg = _(b"\nwarning: unable to open bundle %s") % path.loc
             hint = _(b"\n(missing parent rev %s)\n") % short(ex.name)
@@ -4362,7 +4364,7 @@ def debugwhyunstable(ui, repo, rev):
     norepo=True,
 )
 def debugwireargs(ui, repopath, *vals, **opts):
-    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
+    repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     try:
         for opt in cmdutil.remoteopts:
             del opts[pycompat.sysstr(opt[1])]
@@ -4719,7 +4721,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             )
 
     elif path:
-        # We bypass hg.peer() so we can proxy the sockets.
+        # We bypass repo_factory.peer() so we can proxy the sockets.
         # TODO consider not doing this because we skip
         # ``hg.wirepeersetupfuncs`` and potentially other useful functionality.
         u = urlutil.url(path)
