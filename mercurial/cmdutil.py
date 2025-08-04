@@ -1824,12 +1824,8 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
         else:
             if len(ctx.parents()) > 1:
                 raise error.InputError(_(b'cannot unmark copy in merge commit'))
-            # avoid cycle context -> subrepo -> cmdutil
-            from . import context
-
             rewriteutil.precheck(repo, [ctx.rev()], b'uncopy')
-            new_ctx = context.overlayworkingctx(repo)
-            new_ctx.setbase(ctx.p1())
+            new_ctx = ctx.p1_overlay()
             mergemod.graft(repo, ctx, wctx=new_ctx)
 
         match = scmutil.match(ctx, pats, opts)
@@ -1916,9 +1912,6 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
                 % (uipathfn(absdest), ctx)
             )
 
-        # avoid cycle context -> subrepo -> cmdutil
-        from . import context
-
         copylist = []
         for pat in pats:
             srcs = walkpat(pat)
@@ -1935,8 +1928,7 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
         if len(copylist) != 1:
             raise error.InputError(_(b'--at-rev requires a single source'))
 
-        new_ctx = context.overlayworkingctx(repo)
-        new_ctx.setbase(ctx.p1())
+        new_ctx = ctx.p1_overlay()
         mergemod.graft(repo, ctx, wctx=new_ctx)
 
         new_ctx.markcopied(absdest, copylist[0])

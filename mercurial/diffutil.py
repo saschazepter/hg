@@ -170,12 +170,10 @@ def diff_parent(ctx):
     if repo.ui.configbool(b"diff", b"merge") and ctx.p2().rev() != nullrev:
         # avoid circular import
         from . import (
-            context,
             merge,
         )
 
-        wctx = context.overlayworkingctx(repo)
-        wctx.setbase(ctx.p1())
+        wctx = ctx.p1_overlay()
         with repo.ui.configoverride(
             {
                 (
