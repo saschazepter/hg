@@ -34,7 +34,6 @@ from mercurial import (
     context,
     error,
     exchange,
-    hg,
     lock as lockmod,
     logcmdutil,
     merge as mergemod,
@@ -42,6 +41,7 @@ from mercurial import (
     phases,
     util,
 )
+from mercurial.repo import factory as repo_factory
 from mercurial.utils import dateutil
 
 stringio = util.stringio
@@ -63,7 +63,7 @@ class mercurial_sink(common.converter_sink):
         self.lastbranch = None
         if os.path.isdir(path) and len(os.listdir(path)) > 0:
             try:
-                self.repo = hg.repository(self.ui, path)
+                self.repo = repo_factory.repository(self.ui, path)
                 if not self.repo.local():
                     raise NoRepo(
                         _(b'%s is not a local Mercurial repository') % path
@@ -74,7 +74,7 @@ class mercurial_sink(common.converter_sink):
         else:
             try:
                 ui.status(_(b'initializing destination %s repository\n') % path)
-                self.repo = hg.repository(self.ui, path, create=True)
+                self.repo = repo_factory.repository(self.ui, path, create=True)
                 if not self.repo.local():
                     raise NoRepo(
                         _(b'%s is not a local Mercurial repository') % path
@@ -122,9 +122,13 @@ class mercurial_sink(common.converter_sink):
         if setbranch:
             self.after()
             try:
-                self.repo = hg.repository(self.ui, branchpath)
+                self.repo = repo_factory.repository(self.ui, branchpath)
             except Exception:
-                self.repo = hg.repository(self.ui, branchpath, create=True)
+                self.repo = repo_factory.repository(
+                    self.ui,
+                    branchpath,
+                    create=True,
+                )
             self.before()
 
         # pbranches may bring revisions from other branches (merge parents)
@@ -140,7 +144,7 @@ class mercurial_sink(common.converter_sink):
             self.after()
             for pbranch, heads in sorted(missings.items()):
                 pbranchpath = os.path.join(self.path, pbranch)
-                prepo = hg.peer(self.ui, {}, pbranchpath)
+                prepo = repo_factory.peer(self.ui, {}, pbranchpath)
                 self.ui.note(
                     _(b'pulling from %s into %s\n') % (pbranch, branch)
                 )
@@ -521,7 +525,7 @@ class mercurial_source(common.converter_source):
         self.ignored = set()
         self.saverev = ui.configbool(b'convert', b'hg.saverev')
         try:
-            self.repo = hg.repository(self.ui, path)
+            self.repo = repo_factory.repository(self.ui, path)
             # try to provoke an exception if this isn't really a hg
             # repo, but some other bogus compatible-looking url
             if not self.repo.local():
