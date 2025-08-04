@@ -51,6 +51,9 @@ from . import (
     vfs as vfsmod,
 )
 from .interfaces import repository as repositorymod
+from .repo import (
+    creation,
+)
 from .utils import (
     hashutil,
     stringutil,
@@ -882,7 +885,7 @@ def clone(
             srcrepo.hook(b'preoutgoing', throw=True, source=b'clone')
 
             destrootpath = urlutil.urllocalpath(dest)
-            dest_reqs = localrepo.clone_requirements(ui, createopts, srcrepo)
+            dest_reqs = creation.clone_requirements(ui, createopts, srcrepo)
             localrepo.createrepository(
                 ui,
                 destrootpath,
