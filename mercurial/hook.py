@@ -17,7 +17,6 @@ from . import (
     demandimport,
     encoding,
     error,
-    extensions,
     pycompat,
     util,
 )
@@ -352,7 +351,7 @@ def runhooks(ui, repo, htype, hooks, throw=False, **args):
                         path = os.path.join(repo.root, path)
                     try:
                         mod_name = 'hghook.%s' % pycompat.sysstr(hname)
-                        mod = extensions.loadpath(path, mod_name)
+                        mod = util.load_path(path, mod_name)
                     except Exception:
                         ui.write(_(b"loading %s hook failed:\n") % hname)
                         raise

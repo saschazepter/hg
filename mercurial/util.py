@@ -21,6 +21,7 @@ import contextlib
 import errno
 import gc
 import hashlib
+import importlib
 import io
 import itertools
 import locale
@@ -3502,3 +3503,23 @@ def rust_tracing_span(name: str):
         trace_span = tracer.span
 
     return trace_span(name)
+
+
+def load_path(path, module_name):
+    module_name = module_name.replace('.', '_')
+    path = normpath(expandpath(path))
+    path = pycompat.fsdecode(path)
+    if os.path.isdir(path):
+        # module/__init__.py style
+        init_py_path = os.path.join(path, '__init__.py')
+        if not os.path.exists(init_py_path):
+            raise ImportError("No module named '%s'" % os.path.basename(path))
+        path = init_py_path
+
+    loader = importlib.machinery.SourceFileLoader(module_name, path)
+    spec = importlib.util.spec_from_file_location(module_name, loader=loader)
+    assert spec is not None  # help Pytype
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module

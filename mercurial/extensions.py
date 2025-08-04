@@ -10,10 +10,8 @@ from __future__ import annotations
 import ast
 import collections
 import functools
-import importlib
 import inspect
 import os
-import sys
 
 from .i18n import (
     _,
@@ -80,26 +78,6 @@ def find(name):
     return mod
 
 
-def loadpath(path, module_name):
-    module_name = module_name.replace('.', '_')
-    path = util.normpath(util.expandpath(path))
-    path = pycompat.fsdecode(path)
-    if os.path.isdir(path):
-        # module/__init__.py style
-        init_py_path = os.path.join(path, '__init__.py')
-        if not os.path.exists(init_py_path):
-            raise ImportError("No module named '%s'" % os.path.basename(path))
-        path = init_py_path
-
-    loader = importlib.machinery.SourceFileLoader(module_name, path)
-    spec = importlib.util.spec_from_file_location(module_name, loader=loader)
-    assert spec is not None  # help Pytype
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 def _importh(name):
     """import and return the <name> module"""
     mod = __import__(name)
@@ -115,7 +93,7 @@ def _importext(name, path=None, reportfunc=None):
         # the module will be loaded in sys.modules
         # choose an unique name so that it doesn't
         # conflicts with other modules
-        mod = loadpath(path, 'hgext.%s' % name)
+        mod = util.load_path(path, 'hgext.%s' % name)
     else:
         try:
             mod = _importh("hgext.%s" % name)
