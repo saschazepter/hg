@@ -3785,6 +3785,11 @@ def islocal(path: bytes) -> bool:
 
 
 def defaultcreateopts(ui, *args, **kwargs):
+    msg = (
+        b'`defaultcreateopts(...)` moved to '
+        b'`repo.creation.default_create_opts(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
     return creation.default_create_opts(ui, *args, **kwargs)
 
 
