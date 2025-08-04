@@ -3794,6 +3794,11 @@ def defaultcreateopts(ui, *args, **kwargs):
 
 
 def filterknowncreateopts(ui, *args, **kwargs):
+    msg = (
+        b'`filterknowncreateopts(...)` moved to '
+        b'`repo.creation.filter_known_create_opts(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
     return creation.filter_known_create_opts(ui, *args, **kwargs)
 
 
