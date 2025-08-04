@@ -98,6 +98,9 @@ from mercurial import (
     util,
     vfs as vfsmod,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import (
     dateutil,
     stringutil,
@@ -2259,7 +2262,7 @@ class queue:
                 b'mqpager',
             )
         if create or os.path.isdir(self.join(b".hg")):
-            return hg.repository(ui, path=self.path, create=create)
+            return repo_factory.repository(ui, path=self.path, create=create)
 
     def restore(self, repo, rev, delete=None, qupdate=None):
         desc = repo[rev].description().strip()
@@ -2855,7 +2858,7 @@ def clone(ui, source, dest=None, **opts):
     if dest is None:
         dest = hg.defaultdest(source)
     source_path = urlutil.get_clone_path_obj(ui, source)
-    sr = hg.peer(ui, opts, source_path)
+    sr = repo_factory.peer(ui, opts, source_path)
 
     # patches repo (source only)
     if opts.get(b'patches'):
@@ -2864,7 +2867,7 @@ def clone(ui, source, dest=None, **opts):
         # XXX path: we should turn this into a path object
         patches_path = patchdir(sr)
     try:
-        hg.peer(ui, opts, patches_path)
+        repo_factory.peer(ui, opts, patches_path)
     except error.RepoError:
         raise error.Abort(
             _(b'versioned patch repository not found (see init --mq)')
@@ -4212,7 +4215,7 @@ def mqinit(orig, ui, *args, **kwargs):
             raise error.Abort(
                 _(b'there is no Mercurial repository here (.hg not found)')
             )
-    repo = hg.repository(ui, repopath)
+    repo = repo_factory.repository(ui, repopath)
     return qinit(ui, repo, True)
 
 
