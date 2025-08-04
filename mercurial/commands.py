@@ -70,6 +70,9 @@ from .cmd_impls import graft as graft_impl
 from .configuration import (
     command as config_command,
 )
+from .repo import (
+    factory as repo_factory,
+)
 from .utils import (
     dateutil,
     procutil,
@@ -1634,7 +1637,7 @@ def bundle(ui, repo, fname, *dests, **opts):
         missing = set()
         excluded = set()
         for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, pycompat.byteskwargs(opts), path)
+            other = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
             if revs is not None:
                 hex_revs = [repo[r].hex() for r in revs]
             else:
@@ -3619,7 +3622,7 @@ def identify(
         if source:
             path = urlutil.get_unique_pull_path_obj(b'identify', ui, source)
             # only pass ui when no repo
-            peer = hg.peer(repo or ui, opts, path)
+            peer = repo_factory.peer(repo or ui, opts, path)
             repo = peer.local()
             branches = (path.branch, [])
             revs, checkout = urlutil.add_branch_revs(repo, peer, branches, None)
@@ -4093,7 +4096,7 @@ def incoming(ui, repo, source=b"default", **opts):
         srcs = urlutil.get_pull_paths(repo, ui, [source])
         for path in srcs:
             # XXX the "branches" options are not used. Should it be used?
-            other = hg.peer(repo, opts, path)
+            other = repo_factory.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
@@ -4134,7 +4137,7 @@ def init(ui, dest=b".", **opts):
     """
     opts = pycompat.byteskwargs(opts)
     path = urlutil.get_clone_path_obj(ui, dest)
-    peer = hg.peer(ui, opts, path, create=True)
+    peer = repo_factory.peer(ui, opts, path, create=True)
     peer.close()
 
 
@@ -4748,7 +4751,7 @@ def outgoing(ui, repo, *dests, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'bookmarks'):
         for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, opts, path)
+            other = repo_factory.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
@@ -5115,7 +5118,7 @@ def pull(ui, repo, *sources, **opts):
     for path in urlutil.get_pull_paths(repo, ui, sources):
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(
+        other = repo_factory.peer(
             repo,
             pycompat.byteskwargs(opts),
             path,
@@ -5466,7 +5469,7 @@ def push(ui, repo, *dests, **opts):
             branches,
             opts.get(b'rev'),
         )
-        other = hg.peer(repo, opts, dest)
+        other = repo_factory.peer(repo, opts, dest)
 
         try:
             if revs:
@@ -6994,7 +6997,7 @@ def summary(ui, repo, **opts):
         path = urlutil.get_unique_pull_path_obj(b'summary', ui, b'default')
         sbranch = path.branch
         try:
-            other = hg.peer(repo, {}, path)
+            other = repo_factory.peer(repo, {}, path)
         except error.RepoError:
             if opts.get('remote'):
                 raise
@@ -7035,7 +7038,9 @@ def summary(ui, repo, **opts):
         )
         if source != dest:
             try:
-                dother = hg.peer(repo, {}, path if path is not None else dest)
+                dother = repo_factory.peer(
+                    repo, {}, path if path is not None else dest
+                )
             except error.RepoError:
                 if opts.get('remote'):
                     raise
