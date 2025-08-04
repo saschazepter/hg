@@ -30,6 +30,7 @@ from . import (
     error,
     filemerge,
     match as matchmod,
+    merge_utils,
     mergestate as mergestatemod,
     obsutil,
     pathutil,
@@ -48,7 +49,7 @@ if typing.TYPE_CHECKING:
     """The filename, data about the merge, and message about the merge."""
 
     FileMappingValue = tuple[
-        mergestatemod.MergeAction, Optional[MergeResultData], bytes
+        merge_utils.MergeAction, Optional[MergeResultData], bytes
     ]
     """The merge action, data about the merge, and message about the merge, for
     the keyed file."""
@@ -591,7 +592,7 @@ class mergeresult:
 
     _filemapping: dict[bytes, FileMappingValue]
     _actionmapping: dict[
-        mergestatemod.MergeAction, dict[bytes, tuple[MergeResultData, bytes]]
+        merge_utils.MergeAction, dict[bytes, tuple[MergeResultData, bytes]]
     ]
 
     def __init__(self) -> None:
@@ -619,7 +620,7 @@ class mergeresult:
     def addfile(
         self,
         filename: bytes,
-        action: mergestatemod.MergeAction,
+        action: merge_utils.MergeAction,
         data: MergeResultData | None,
         message,
     ) -> None:
@@ -641,8 +642,8 @@ class mergeresult:
 
     def mapaction(
         self,
-        actionfrom: mergestatemod.MergeAction,
-        actionto: mergestatemod.MergeAction,
+        actionfrom: merge_utils.MergeAction,
+        actionto: merge_utils.MergeAction,
         transform,
     ):
         """changes all occurrences of action `actionfrom` into `actionto`,
@@ -667,7 +668,7 @@ class mergeresult:
         return default_return
 
     def files(
-        self, actions: Iterable[mergestatemod.MergeAction] | None = None
+        self, actions: Iterable[merge_utils.MergeAction] | None = None
     ) -> Iterator[bytes]:
         """returns files on which provided action needs to perfromed
 
@@ -690,7 +691,7 @@ class mergeresult:
         del self._actionmapping[action][filename]
 
     def getactions(
-        self, actions: Iterable[mergestatemod.MergeAction], sort: bool = False
+        self, actions: Iterable[merge_utils.MergeAction], sort: bool = False
     ) -> Iterator[MergeResultAction]:
         """get list of files which are marked with these actions
         if sort is true, files for each action is sorted and then added
@@ -707,7 +708,7 @@ class mergeresult:
                     yield f, args, msg
 
     def len(
-        self, actions: Iterable[mergestatemod.MergeAction] | None = None
+        self, actions: Iterable[merge_utils.MergeAction] | None = None
     ) -> int:
         """returns number of files which needs actions
 
@@ -747,7 +748,7 @@ class mergeresult:
     @property
     def actionsdict(
         self,
-    ) -> dict[mergestatemod.MergeAction, list[MergeResultAction]]:
+    ) -> dict[merge_utils.MergeAction, list[MergeResultAction]]:
         """returns a dictionary of actions to be perfomed with action as key
         and a list of files and related arguments as values"""
         res = collections.defaultdict(list)
@@ -1596,7 +1597,7 @@ def applyupdates(
         # mergestate so that it can be reused on commit
         ms.addcommitinfo(f, op)
 
-    num_no_op = mresult.len(mergestatemod.MergeAction.NO_OP_ACTIONS)
+    num_no_op = mresult.len(merge_utils.MergeAction.NO_OP_ACTIONS)
     numupdates = mresult.len() - num_no_op
     progress = repo.ui.makeprogress(
         _(b'updating'), unit=_(b'files'), total=numupdates
@@ -1701,7 +1702,7 @@ def applyupdates(
         progress.increment(item=f)
 
     # keep (noop, just log it)
-    for a in mergestatemod.MergeAction.NO_OP_ACTIONS:
+    for a in merge_utils.MergeAction.NO_OP_ACTIONS:
         for f, args, msg in mresult.getactions((a,), sort=True):
             repo.ui.debug(b" %s: %s -> %s\n" % (f, msg, a.__bytes__()))
             # no progress

@@ -34,6 +34,7 @@ from mercurial import (
     logcmdutil,
     match as matchmod,
     merge,
+    merge_utils,
     mergestate as mergestatemod,
     pathutil,
     pycompat,
@@ -56,17 +57,17 @@ from . import (
     storefactory,
 )
 
-ACTION_ADD = mergestatemod.ACTION_ADD
-ACTION_DELETED_CHANGED = mergestatemod.ACTION_DELETED_CHANGED
-ACTION_GET = mergestatemod.ACTION_GET
-ACTION_KEEP = mergestatemod.ACTION_KEEP
-ACTION_REMOVE = mergestatemod.ACTION_REMOVE
+ACTION_ADD = merge_utils.ACTION_ADD
+ACTION_DELETED_CHANGED = merge_utils.ACTION_DELETED_CHANGED
+ACTION_GET = merge_utils.ACTION_GET
+ACTION_KEEP = merge_utils.ACTION_KEEP
+ACTION_REMOVE = merge_utils.ACTION_REMOVE
 
 eh = exthelper.exthelper()
 
 lfstatus = lfutil.lfstatus
 
-MERGE_ACTION_LARGEFILE_MARK_REMOVED = mergestatemod.MergeAction('lfmr')
+MERGE_ACTION_LARGEFILE_MARK_REMOVED = merge_utils.MergeAction('lfmr')
 
 # -- Utility functions: commonly/repeatedly needed functionality ---------------
 
