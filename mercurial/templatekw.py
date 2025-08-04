@@ -31,6 +31,9 @@ from .utils import (
     stringutil,
     urlutil,
 )
+from .merge_utils import (
+    diff as merge_diff,
+)
 
 _hybrid = templateutil.hybrid
 hybriddict = templateutil.hybriddict
@@ -271,7 +274,7 @@ def showdiffstat(context, mapping):
     ui = context.resource(mapping, b'ui')
     ctx = context.resource(mapping, b'ctx')
     diffopts = diffutil.diffallopts(ui, {b'noprefix': False})
-    diff = ctx.diff(diffutil.diff_parent(ctx), opts=diffopts)
+    diff = ctx.diff(merge_diff.diff_parent(ctx), opts=diffopts)
     stats = patch.diffstatdata(util.iterlines(diff))
     maxname, maxtotal, adds, removes, binary = patch.diffstatsum(stats)
     return b'%d: +%d/-%d' % (len(stats), adds, removes)

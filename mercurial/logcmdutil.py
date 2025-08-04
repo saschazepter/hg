@@ -33,7 +33,6 @@ if typing.TYPE_CHECKING:
 
 from . import (
     dagop,
-    diffutil,
     error,
     formatter,
     graphmod,
@@ -54,6 +53,9 @@ from .utils import (
     dag_util,
     dateutil,
     stringutil,
+)
+from .merge_utils import (
+    diff as diff_util,
 )
 
 
@@ -247,7 +249,7 @@ class changesetdiffer:
             ui,
             ctx.repo(),
             diffopts,
-            diffutil.diff_parent(ctx),
+            diff_util.diff_parent(ctx),
             ctx,
             match=self._makefilematcher(ctx),
             stat=stat,
@@ -260,7 +262,7 @@ class changesetdiffer:
             ui,
             ctx.repo(),
             diffopts,
-            diffutil.diff_parent(ctx),
+            diff_util.diff_parent(ctx),
             ctx,
             match=self._makefilematcher(ctx),
             stat=stat,

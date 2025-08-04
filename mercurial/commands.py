@@ -30,7 +30,6 @@ from . import (
     copies,
     debugcommands as debugcommandsmod,
     destutil,
-    diffutil,
     discovery,
     encoding,
     error,
@@ -76,6 +75,9 @@ from .utils import (
     procutil,
     stringutil,
     urlutil,
+)
+from .merge_utils import (
+    diff as diff_util,
 )
 
 command = registrar.command(tables.command_table)
@@ -2580,7 +2582,7 @@ def diff(ui, repo, *pats, **opts):
     if change:
         repo = scmutil.unhidehashlikerevs(repo, [change], b'nowarn')
         ctx2 = logcmdutil.revsingle(repo, change, None)
-        ctx1 = diffutil.diff_parent(ctx2)
+        ctx1 = diff_util.diff_parent(ctx2)
     elif from_rev or to_rev:
         repo = scmutil.unhidehashlikerevs(
             repo, [from_rev] + [to_rev], b'nowarn'
