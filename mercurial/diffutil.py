@@ -24,14 +24,16 @@ from . import (
 )
 
 if typing.TYPE_CHECKING:
-    from . import ui as uimod
+    from .interfaces.types import (
+        UiT,
+    )
 
 # TODO: narrow the value after the config module is typed
 _Opts = dict[bytes, Any]
 
 
 def diffallopts(
-    ui: uimod.ui,
+    ui: UiT,
     opts: _Opts | None = None,
     untrusted: bool = False,
     section: bytes = b'diff',
@@ -51,7 +53,7 @@ def diffallopts(
 
 
 def difffeatureopts(
-    ui: uimod.ui,
+    ui: UiT,
     opts: _Opts | None = None,
     untrusted: bool = False,
     section: bytes = b'diff',
