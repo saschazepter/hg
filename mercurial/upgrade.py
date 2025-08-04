@@ -11,7 +11,6 @@ from .i18n import _
 from . import (
     error,
     hg,
-    localrepo,
     lock as lockmod,
     pycompat,
     requirements as requirementsmod,
@@ -61,7 +60,7 @@ def upgraderepo(
     upgrade_actions.check_source_requirements(repo)
 
     default_options = creation.default_create_opts(repo.ui)
-    newreqs = localrepo.newreporequirements(repo.ui, default_options)
+    newreqs = creation.new_repo_requirements(repo.ui, default_options)
     newreqs.update(upgrade_actions.preservedrequirements(repo))
 
     upgrade_actions.check_requirements_changes(repo, newreqs)
