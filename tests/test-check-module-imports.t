@@ -60,7 +60,6 @@ will likely receive warnings about a direct import.
   mercurial/extensions.py:*: function level import: mercurial.templatekw (glob)
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
-  mercurial/filemerge.py:*: function level import: mercurial.hook (glob)
   mercurial/filemerge.py:*: function level import: mercurial.extensions (glob)
   mercurial/hg.py:*: function level import: mercurial.streamclone (glob)
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)

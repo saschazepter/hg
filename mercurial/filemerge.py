@@ -848,11 +848,13 @@ def _xmerge(repo, mynode, local, other, base, toolconf, backup):
                     _(b"%s does not have function: %s") % (toolpath, scriptfn)
                 )
             argslist = procutil.shellsplit(args)
-            # avoid cycle cmdutil->merge->filemerge->hook->extensions->cmdutil
-            from . import hook
 
-            ret, raised = hook.pythonhook(
-                ui, repo, b"merge", toolpath, mergefn, {b'args': argslist}, True
+            ret, raised = repo.python_hook(
+                b"merge",
+                toolpath,
+                mergefn,
+                {b'args': argslist},
+                True,
             )
             if raised:
                 r = 1

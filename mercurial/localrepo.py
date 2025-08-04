@@ -2222,6 +2222,15 @@ class localrepository(_localrepo_base_classes):
         """
         return hook.hook(self.ui, self, name, throw, **args)
 
+    def python_hook(self, name, *args, **kwargs):
+        """Call a python hook, passing this repo instance.
+
+        This a convenience method to aid invoking hooks. Extensions likely
+        won't call this unless they have registered a custom hook or are
+        replacing code that is expected to call a hook.
+        """
+        return hook.pythonhook(self.ui, self, name, *args, **kwargs)
+
     @filteredpropertycache
     def _tagscache(self):
         """Returns a tagscache object that contains various tags related
