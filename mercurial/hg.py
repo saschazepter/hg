@@ -461,7 +461,7 @@ def clonewithshare(
 
     _postshareupdate(destrepo, update)
 
-    return srcpeer, peer(ui, peeropts, dest)
+    return srcpeer, repo_factory.peer(ui, peeropts, dest)
 
 
 # Recomputing caches is often slow on big repos, so copy them.
@@ -543,11 +543,11 @@ def clone(
     if isinstance(source, bytes):
         src_path = urlutil.get_clone_path_obj(ui, source)
         if src_path is None:
-            srcpeer = peer(ui, peeropts, b'')
+            srcpeer = repo_factory.peer(ui, peeropts, b'')
             origsource = source = b''
             branches = (None, branch or [])
         else:
-            srcpeer = peer(ui, peeropts, src_path)
+            srcpeer = repo_factory.peer(ui, peeropts, src_path)
             origsource = src_path.rawloc
             branches = (src_path.branch, branch or [])
             source = src_path.loc
@@ -762,7 +762,7 @@ def clone(
 
             # we need to re-init the repo after manually copying the data
             # into it
-            destpeer = peer(srcrepo, peeropts, dest)
+            destpeer = repo_factory.peer(srcrepo, peeropts, dest)
 
             # make the peer aware that is it already locked
             #
@@ -783,7 +783,7 @@ def clone(
         else:
             try:
                 # only pass ui when no srcrepo
-                destpeer = peer(
+                destpeer = repo_factory.peer(
                     srcrepo or ui,
                     peeropts,
                     dest,
@@ -1191,7 +1191,7 @@ def _incoming(
                 normpath = posixpath.normpath
             p.path = normpath(b'%s/%s' % (p.path, subpath))
             peer_path = url = bytes(p)
-    other = peer(repo, opts, peer_path)
+    other = repo_factory.peer(repo, opts, peer_path)
     cleanupfn = other.close
     try:
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(url))
@@ -1338,7 +1338,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
                     repo[rev].node() for rev in logcmdutil.revrange(repo, revs)
                 ]
 
-            other = peer(repo, opts, dest)
+            other = repo_factory.peer(repo, opts, dest)
             try:
                 outgoing = discovery.findcommonoutgoing(
                     repo, other, revs, force=opts.get(b'force')
