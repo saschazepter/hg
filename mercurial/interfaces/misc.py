@@ -173,3 +173,7 @@ class ISubRepo(Protocol):
     """A generic subrepo object"""
 
     _relpath: bytes
+
+    @abc.abstractmethod
+    def dirty(self, ignoreupdate: bool = False, missing: bool = False):
+        ...
