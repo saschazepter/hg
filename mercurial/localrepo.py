@@ -3816,6 +3816,11 @@ def newreporequirements(ui, *args, **kwargs):
 
 
 def checkrequirementscompat(ui, *args, **kwargs):
+    msg = (
+        b'`checkrequirementscompat(...)` moved to '
+        b'`repo.creation.check_requirements_compat(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
     return creation.check_requirements_compat(ui, *args, **kwargs)
 
 
