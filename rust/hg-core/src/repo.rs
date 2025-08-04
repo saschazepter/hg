@@ -177,7 +177,7 @@ impl Repo {
         // there exists a `.hg/store/requires` too and we should read it
         // NOTE: presence of SHARESAFE_REQUIREMENT imply that store requirement
         // is present. We never write SHARESAFE_REQUIREMENT for a repo if store
-        // is not present, refer checkrequirementscompat() for that
+        // is not present, refer check_requirements_compat() for that
         //
         // However, if SHARESAFE_REQUIREMENT is not present, it means that the
         // repository was shared the old way. We check the share source
