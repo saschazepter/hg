@@ -17,7 +17,9 @@ from . import (
     requirements as requirementsmod,
     scmutil,
 )
-
+from .repo import (
+    creation,
+)
 from .upgrade_utils import (
     actions as upgrade_actions,
     auto_upgrade,
@@ -58,7 +60,7 @@ def upgraderepo(
     # Ensure the repository can be upgraded.
     upgrade_actions.check_source_requirements(repo)
 
-    default_options = localrepo.defaultcreateopts(repo.ui)
+    default_options = creation.default_create_opts(repo.ui)
     newreqs = localrepo.newreporequirements(repo.ui, default_options)
     newreqs.update(upgrade_actions.preservedrequirements(repo))
 
