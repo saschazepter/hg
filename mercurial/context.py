@@ -1322,6 +1322,10 @@ class basefilectx(abc.ABC):
         """
         return self._repo.wwritedata(self.path(), self.data())
 
+    def new_arbitrary(self, path):
+        """return a new arbitraryfilectx object at <path>"""
+        return arbitraryfilectx(path, repo=self.repo())
+
 
 class filectx(basefilectx):
     """A filecontext object makes access to data related to a particular

@@ -932,8 +932,7 @@ def _makebackup(repo, ui, fcd):
         backup = scmutil.backuppath(ui, repo, fcd.path())
         a = _workingpath(repo, fcd)
         util.copyfile(a, backup)
-
-    return context.arbitraryfilectx(backup, repo=repo)
+    return fcd.new_arbitrary(backup)
 
 
 @contextlib.contextmanager
