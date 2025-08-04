@@ -17,7 +17,9 @@ from .. import (
     revlog,
     util,
 )
-
+from ..repo import (
+    creation,
+)
 from ..utils import compression
 
 
@@ -138,7 +140,8 @@ class requirementformatvariant(formatvariant):
     @staticmethod
     def _newreporequirements(ui):
         return localrepo.newreporequirements(
-            ui, localrepo.defaultcreateopts(ui)
+            ui,
+            creation.default_create_opts(ui),
         )
 
     @classmethod
