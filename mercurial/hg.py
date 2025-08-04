@@ -147,7 +147,7 @@ def sharedreposource(repo):
     # the sharedpath always ends in the .hg; we want the path to the repo
     source = repo.vfs.split(repo.sharedpath)[0]
     srcurl, branches = urlutil.parseurl(source)
-    srcrepo = repository(repo.ui, srcurl)
+    srcrepo = repo_factory.repository(repo.ui, srcurl)
     repo.srcrepo = srcrepo
     return srcrepo
 
@@ -178,7 +178,7 @@ def share(
 
     if isinstance(source, bytes):
         source_path = urlutil.get_clone_path_obj(ui, source)
-        srcrepo = repository(ui, source_path.loc)
+        srcrepo = repo_factory.repository(ui, source_path.loc)
         branches = (source_path.branch, [])
         rev, checkout = urlutil.add_branch_revs(
             srcrepo, srcrepo, branches, None
@@ -191,7 +191,7 @@ def share(
     if bookmarks:
         shareditems.add(sharedbookmarks)
 
-    r = repository(
+    r = repo_factory.repository(
         ui,
         dest,
         create=True,
@@ -203,7 +203,7 @@ def share(
     )
 
     postshare(srcrepo, r, defaultpath=defaultpath)
-    r = repository(ui, dest)
+    r = repo_factory.repository(ui, dest)
     _postshareupdate(r, update, checkout=checkout)
     return r
 
@@ -264,7 +264,7 @@ def unshare(ui, repo):
     # Removing share changes some fundamental properties of the repo instance.
     # So we instantiate a new repo object and operate on it rather than
     # try to keep the existing repo usable.
-    newrepo = repository(repo.baseui, repo.root, create=False)
+    newrepo = repo_factory.repository(repo.baseui, repo.root, create=False)
 
     # TODO: figure out how to access subrepos that exist, but were previously
     #       removed from .hgsub
@@ -445,7 +445,7 @@ def clonewithshare(
     else:
         defaultpath = source
 
-    sharerepo = repository(ui, path=sharepath)
+    sharerepo = repo_factory.repository(ui, path=sharepath)
     destrepo = share(
         ui,
         sharerepo,
@@ -1451,7 +1451,7 @@ class cachedlocalrepo:
         if state == self._state:
             return self._repo, False
 
-        repo = repository(self._repo.baseui, self._repo.url())
+        repo = repo_factory.repository(self._repo.baseui, self._repo.url())
         if self._filtername:
             self._repo = repo.filtered(self._filtername)
         else:
@@ -1482,7 +1482,7 @@ class cachedlocalrepo:
         A new localrepository instance is obtained. The new instance should be
         completely independent of the original.
         """
-        repo = repository(self._repo.baseui, self._repo.origroot)
+        repo = repo_factory.repository(self._repo.baseui, self._repo.origroot)
         if self._filtername:
             repo = repo.filtered(self._filtername)
         else:
