@@ -3,12 +3,12 @@ import sys
 import time
 from mercurial import (
     commands,
-    hg,
     policy,
     pycompat,
     ui as uimod,
     util,
 )
+from mercurial.repo import factory
 
 TESTDIR = os.environ["TESTDIR"]
 BUNDLEPATH = os.path.join(TESTDIR, 'bundles', 'test-no-symlinks.hg')
@@ -25,12 +25,12 @@ if not getattr(os, "symlink", False):
 
 u = uimod.ui.load()
 # hide outer repo
-hg.peer(u, {}, b'.', create=True)
+factory.peer(u, {}, b'.', create=True)
 
 # unbundle with symlink support
-hg.peer(u, {}, b'test0', create=True)
+factory.peer(u, {}, b'test0', create=True)
 
-repo = hg.repository(u, b'test0')
+repo = factory.repository(u, b'test0')
 commands.unbundle(u, repo, pycompat.fsencode(BUNDLEPATH), update=True)
 
 # wait a bit, or the status call wont update the dirstate
@@ -63,11 +63,11 @@ for f in b'test0/a.lnk', b'test0/d/b.lnk':
 
 # reload repository
 u = uimod.ui.load()
-repo = hg.repository(u, b'test0')
+repo = factory.repository(u, b'test0')
 commands.status(u, repo)
 
 # try unbundling a repo which contains symlinks
 u = uimod.ui.load()
 
-repo = hg.repository(u, b'test1', create=True)
+repo = factory.repository(u, b'test1', create=True)
 commands.unbundle(u, repo, pycompat.fsencode(BUNDLEPATH), update=True)
