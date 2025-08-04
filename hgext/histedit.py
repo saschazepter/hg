@@ -240,6 +240,9 @@ from mercurial import (
 from mercurial.merge_utils import (
     update as update_util,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import (
     dateutil,
     stringutil,
@@ -1060,7 +1063,7 @@ def findoutgoing(ui, repo, remote=None, force=False, opts=None):
         (path.branch, []),
         None,
     )
-    other = hg.peer(repo, opts, path)
+    other = repo_factory.peer(repo, opts, path)
 
     if revs:
         revs = [repo.lookup(rev) for rev in revs]
