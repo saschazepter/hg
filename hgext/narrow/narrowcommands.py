@@ -36,6 +36,9 @@ from mercurial import (
     util,
     wireprototypes,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import (
     urlutil,
 )
@@ -618,7 +621,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         # also define the set of revisions to update for widening.
         path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
-        remote = hg.peer(repo, pycompat.byteskwargs(opts), path)
+        remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
 
         try:
             # check narrow support before doing anything if widening needs to be
