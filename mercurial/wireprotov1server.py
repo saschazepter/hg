@@ -35,6 +35,7 @@ from .utils import (
     procutil,
     stringutil,
 )
+from .exchanges import bundle_cache as bundle_cache_util
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -308,7 +309,7 @@ def clonebundles(repo, proto):
     This version filtered out new url scheme (like peer-bundle-cache://) to
     avoid confusion in older clients.
     """
-    manifest_contents = bundlecaches.get_manifest(repo)
+    manifest_contents = bundle_cache_util.get_manifest(repo)
     # Filter out peer-bundle-cache:// entries
     modified_manifest = []
     for line in manifest_contents.splitlines():
@@ -333,7 +334,7 @@ def clonebundles_2(repo, proto, args):
     in case a client does not support them.
     Otherwise, older clients would retrieve and error out on those.
     """
-    manifest_contents = bundlecaches.get_manifest(repo)
+    manifest_contents = bundle_cache_util.get_manifest(repo)
     return wireprototypes.bytesresponse(manifest_contents)
 
 

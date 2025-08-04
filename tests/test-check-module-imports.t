@@ -93,10 +93,10 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
-  Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.bundlecaches
   Import cycle: mercurial.hg -> mercurial.localrepo -> mercurial.upgrade -> mercurial.hg
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: mercurial.extensions -> mercurial.revset -> mercurial.hg -> mercurial.extensions
+  Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.exchange -> mercurial.bundlecaches
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.hg -> mercurial.bundlerepo
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__

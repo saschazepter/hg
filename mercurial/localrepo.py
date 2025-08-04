@@ -30,7 +30,6 @@ from . import (
     bookmarks,
     branchmap,
     bundle2,
-    bundlecaches,
     changegroup,
     color,
     commit,
@@ -77,6 +76,9 @@ from .branching import (
     rev_cache as rev_branch_cache,
 )
 from .configuration import rcutil
+from .exchanges import (
+    bundle_cache,
+)
 from .interfaces import (
     repository,
 )
@@ -376,7 +378,7 @@ class localpeer(repository.peer, repository.ipeercommands):
         raise NotImplementedError
 
     def clonebundles(self):
-        return bundlecaches.get_manifest(self._repo)
+        return bundle_cache.get_manifest(self._repo)
 
     def debugwireargs(self, one, two, three=None, four=None, five=None):
         """Used to test argument passing over the wire"""
