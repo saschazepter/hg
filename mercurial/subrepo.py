@@ -463,6 +463,11 @@ class abstractsubrepo(misc_type.ISubRepo):
 
 class hgsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state, allowcreate):
+        # avoid cycle
+        from .repo import (
+            factory as repo_factory,
+        )
+
         super().__init__(ctx, path)
         self._state = state
         r = ctx.repo()
@@ -476,7 +481,7 @@ class hgsubrepo(abstractsubrepo):
             raise error.Abort(
                 _(b'subrepo path contains illegal component: %s') % path
             )
-        self._repo = hg.repository(r.baseui, root, create=create)
+        self._repo = repo_factory.repository(r.baseui, root, create=create)
         if os.path.normcase(self._repo.root) != os.path.normcase(root):
             raise error.ProgrammingError(
                 b'failed to reject unsafe subrepo '
@@ -722,6 +727,11 @@ class hgsubrepo(abstractsubrepo):
         hg.clean(self._repo, self._repo.nullid, False)
 
     def _get(self, state):
+        # avoid cycle
+        from .repo import (
+            factory as repo_factory,
+        )
+
         source, revision, kind = state
         parentrepo = self._repo._subparent
 
@@ -734,7 +744,7 @@ class hgsubrepo(abstractsubrepo):
 
         # Defer creating the peer until after the status message is logged, in
         # case there are network problems.
-        getpeer = lambda: hg.peer(self._repo, {}, srcurl)
+        getpeer = lambda: repo_factory.peer(self._repo, {}, srcurl)
 
         if len(self._repo) == 0:
             # use self._repo.vfs instead of self.wvfs to remove .hg only
@@ -867,6 +877,11 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def push(self, opts):
+        # avoid cycle
+        from .repo import (
+            factory as repo_factory,
+        )
+
         force = opts.get(b'force')
         newbranch = opts.get(b'new_branch')
         ssh = opts.get(b'ssh')
@@ -890,7 +905,7 @@ class hgsubrepo(abstractsubrepo):
             _(b'pushing subrepo %s to %s\n')
             % (subrelpath(self), urlutil.hidepassword(dsturl))
         )
-        other = hg.peer(self._repo, {b'ssh': ssh}, dsturl)
+        other = repo_factory.peer(self._repo, {b'ssh': ssh}, dsturl)
         try:
             res = exchange.push(self._repo, other, force, newbranch=newbranch)
         finally:
