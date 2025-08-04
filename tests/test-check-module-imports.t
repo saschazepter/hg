@@ -102,7 +102,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: mercurial.extensions -> mercurial.revset -> mercurial.hg -> mercurial.extensions
   Import cycle: mercurial.filemerge -> mercurial.templatekw -> mercurial.mergestate -> mercurial.filemerge
-  Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.upgrade_utils.actions -> mercurial.localrepo
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.hg -> mercurial.bundlerepo
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__

@@ -12,7 +12,6 @@ import random
 from ..i18n import _
 from .. import (
     error,
-    localrepo,
     requirements,
     revlog,
     util,
@@ -139,7 +138,7 @@ class requirementformatvariant(formatvariant):
 
     @staticmethod
     def _newreporequirements(ui):
-        return localrepo.newreporequirements(
+        return creation.new_repo_requirements(
             ui,
             creation.default_create_opts(ui),
         )
