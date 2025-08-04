@@ -38,6 +38,9 @@ from . import (
     testing,
     util,
 )
+from .interfaces import (
+    context as i_context,
+)
 from .utils import (
     dag_util,
     dateutil,
@@ -534,7 +537,7 @@ class basectx(abc.ABC):
         )
 
 
-class changectx(basectx):
+class changectx(basectx, i_context.IChangeContext):
     """A changecontext object makes access to data related to a particular
     changeset convenient. It represents a read-only context already present in
     the repo."""
@@ -1616,7 +1619,7 @@ class committablectx(basectx):
         return False
 
 
-class workingctx(committablectx):
+class workingctx(committablectx, i_context.IWorkingContext):
     """A workingctx object makes access to data related to
     the current working directory convenient.
     date - any valid date string or (unixtime, offset), or None.
@@ -2840,7 +2843,7 @@ class overlayworkingfilectx(committablefilectx):
         pass
 
 
-class workingcommitctx(workingctx):
+class workingcommitctx(workingctx, i_context.IWorkingCommitContext):
     """A workingcommitctx object makes access to data related to
     the revision being committed convenient.
 

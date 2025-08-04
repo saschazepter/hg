@@ -38,27 +38,21 @@ assert [
 nullstate = (b'', b'', b'empty')
 
 if typing.TYPE_CHECKING:
-    from . import (
-        context,
-    )
-
     from .interfaces import status as istatus
     from .interfaces.types import (
+        ChangeContextT,
         MatcherT,
         RepoT,
         SubrepoT,
         UiT,
+        WorkingCommitContextT,
+        WorkingContextT,
     )
-
-    # keeps pyflakes happy
-    assert [
-        context,
-    ]
 
 Substate = dict[bytes, tuple[bytes, bytes, bytes]]
 
 
-def state(ctx: context.changectx, ui: UiT) -> Substate:
+def state(ctx: ChangeContextT, ui: UiT) -> Substate:
     """return a state dict, mapping subrepo paths configured in .hgsub
     to tuple: (source from .hgsub, revision from .hgsubstate, kind
     (key in types dict))
@@ -174,9 +168,9 @@ def writestate(repo: RepoT, state: Substate) -> None:
 
 def submerge(
     repo: RepoT,
-    wctx: context.workingctx,
-    mctx: context.changectx,
-    actx: context.changectx,
+    wctx: WorkingContextT,
+    mctx: ChangeContextT,
+    actx: ChangeContextT,
     overwrite: bool,
     labels: Any | None = None,
 ) -> Substate:
@@ -321,7 +315,7 @@ def submerge(
 
 def precommit(
     ui: UiT,
-    wctx: context.workingcommitctx,
+    wctx: WorkingCommitContextT,
     status: istatus.Status,
     match: MatcherT,
     force: bool = False,
@@ -489,7 +483,7 @@ def _abssource(
         raise error.Abort(_(b"default path for subrepository not found"))
 
 
-def newcommitphase(ui: UiT, ctx: context.changectx) -> int:
+def newcommitphase(ui: UiT, ctx: ChangeContextT) -> int:
     commitphase = phases.newcommitphase(ui)
     substate = getattr(ctx, "substate", None)
     if not substate:

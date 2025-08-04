@@ -32,6 +32,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
 
 from . import (
     bundle,
+    context,
     matcher,
     misc,
     repository,
@@ -41,6 +42,7 @@ from . import (
 
 
 Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
+ChangeContextT = context.IChangeContext
 
 FileStorageT = repository.ifilestorage
 
@@ -63,3 +65,6 @@ SubrepoT = misc.ISubRepo
 TransactionT = transaction.ITransaction
 
 UnbundlePartT = bundle.IUnbundlePart
+
+WorkingCommitContextT = context.IWorkingCommitContext
+WorkingContextT = context.IWorkingContext

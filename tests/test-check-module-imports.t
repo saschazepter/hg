@@ -103,13 +103,13 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
-  Import cycle: mercurial.context -> mercurial.subrepoutil -> mercurial.context
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.localrepo
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.extensions -> mercurial.filemerge -> mercurial.extensions
   Import cycle: mercurial.bundlecaches -> mercurial.localrepo -> mercurial.bundlecaches
   Import cycle: mercurial.hg -> mercurial.logcmdutil -> mercurial.revset -> mercurial.hg
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
+  Import cycle: mercurial.context -> mercurial.patch -> mercurial.diffutil -> mercurial.context
   Import cycle: mercurial.diffutil -> mercurial.merge -> mercurial.obsutil -> mercurial.diffutil
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.hg -> mercurial.bundlerepo
