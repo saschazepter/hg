@@ -807,9 +807,8 @@ def conflictlocal(repo, subset, x):
     "merge" here includes merge conflicts from e.g. 'hg rebase' or 'hg graft'.
     """
     getargs(x, 0, 0, _(b"conflictlocal takes no arguments"))
-    from . import mergestate as mergestatemod
 
-    mergestate = mergestatemod.mergestate.read(repo)
+    mergestate = repo.mergestate()
     if mergestate.active() and repo.changelog.hasnode(mergestate.local):
         return subset & {repo.changelog.rev(mergestate.local)}
 
@@ -823,9 +822,7 @@ def conflictother(repo, subset, x):
     "merge" here includes merge conflicts from e.g. 'hg rebase' or 'hg graft'.
     """
     getargs(x, 0, 0, _(b"conflictother takes no arguments"))
-    from . import mergestate as mergestatemod
-
-    mergestate = mergestatemod.mergestate.read(repo)
+    mergestate = repo.mergestate()
     if mergestate.active() and repo.changelog.hasnode(mergestate.other):
         return subset & {repo.changelog.rev(mergestate.other)}
 

@@ -1917,6 +1917,9 @@ class localrepository(_localrepo_base_classes):
                 )
             return self.nullid
 
+    def mergestate(self):
+        return mergestatemod.mergestate.read(self)
+
     @storecache(narrowspec.FILENAME)
     def narrowpats(self):
         """matcher patterns for this repository's narrowspec
@@ -3433,7 +3436,7 @@ class localrepository(_localrepo_base_classes):
                 self, status, text, user, date, extra
             )
 
-            ms = mergestatemod.mergestate.read(self)
+            ms = self.mergestate()
             mergeutil.checkunresolved(ms)
 
             # internal config: ui.allowemptycommit

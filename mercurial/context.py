@@ -2182,7 +2182,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
     def mergestate(self, clean: bool = False):
         if clean:
             return mergestatemod.mergestate.clean(self._repo)
-        return mergestatemod.mergestate.read(self._repo)
+        return self._repo.mergestate()
 
 
 class committablefilectx(basefilectx):

@@ -54,7 +54,6 @@ from . import (
     lock as lockmod,
     mdiff,
     merge,
-    mergestate as mergestatemod,
     patch,
     phases,
     pycompat,
@@ -687,7 +686,7 @@ def _docreatecmd(ui, repo, pats, opts):
                 scmutil.movedirstate(repo, parent, match)
         else:
             hg.update(repo, parent.node())
-            ms = mergestatemod.mergestate.read(repo)
+            ms = repo.mergestate()
             if not ms.unresolvedcount():
                 ms.reset()
 
@@ -902,7 +901,7 @@ def unshelvecontinue(ui, repo, state: shelvedstate, opts) -> None:
     basename = state.name
     with repo.lock():
         checkparents(repo, state)
-        ms = mergestatemod.mergestate.read(repo)
+        ms = repo.mergestate()
         if ms.unresolvedcount():
             raise error.Abort(
                 _(b"unresolved conflicts, can't continue"),

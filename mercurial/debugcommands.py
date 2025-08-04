@@ -2510,7 +2510,7 @@ def debugmergestate(ui, repo, *args, **opts):
     was chosen."""
 
     if ui.verbose:
-        ms = mergestatemod.mergestate(repo)
+        ms = repo.mergestate()
 
         # sort so that reasonable information is on top
         v1records = ms._readrecordsv1()
@@ -2544,7 +2544,7 @@ def debugmergestate(ui, repo, *args, **opts):
             b'{extras % "extra: {file} ({key} = {value})\n"}'
         )
 
-    ms = mergestatemod.mergestate.read(repo)
+    ms = repo.mergestate()
 
     fm = ui.formatter(b'debugmergestate', pycompat.byteskwargs(opts))
     fm.startitem()
