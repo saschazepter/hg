@@ -3798,6 +3798,11 @@ def filterknowncreateopts(ui, *args, **kwargs):
 
 
 def clone_requirements(ui, *args, **kwargs):
+    msg = (
+        b'`clone_requirements(...)` moved to '
+        b'`repo.creation.clone_requirements(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
     return creation.clone_requirements(ui, *args, **kwargs)
 
 
