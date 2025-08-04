@@ -41,6 +41,9 @@ from mercurial import (
 from mercurial.interfaces import (
     repository,
 )
+from mercurial.repo import (
+    creation,
+)
 from mercurial.utils import (
     cborutil,
     storageutil,
@@ -704,7 +707,7 @@ def featuresetup(ui, supported):
     supported.add(REQUIREMENT)
 
 
-def newreporequirements(orig, ui, createopts):
+def new_repo_requirements(orig, ui, createopts):
     """Modifies default requirements for new repos to use the simple store."""
     requirements = orig(ui, createopts)
 
@@ -740,7 +743,7 @@ def extsetup(ui):
     localrepo.featuresetupfuncs.add(featuresetup)
 
     extensions.wrapfunction(
-        localrepo, 'newreporequirements', newreporequirements
+        creation, 'new_repo_requirements', new_repo_requirements
     )
     extensions.wrapfunction(localrepo, 'makestore', makestore)
     extensions.wrapfunction(verify.verifier, '__init__', verifierinit)
