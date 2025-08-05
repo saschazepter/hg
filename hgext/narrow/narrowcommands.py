@@ -17,7 +17,6 @@ from mercurial.node import (
 )
 from mercurial import (
     bundle2,
-    cmdutil,
     commands,
     discovery,
     encoding,
@@ -32,6 +31,7 @@ from mercurial import (
     repair,
     repoview,
     requirements,
+    scmutil,
     sparse,
     util,
     wireprototypes,
@@ -614,7 +614,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
             ui.status(_(b"nothing to widen or narrow\n"))
             return 0
 
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
         # Find the revisions we have in common with the remote. These will
         # be used for finding local-only changes for narrowing. They will
