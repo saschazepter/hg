@@ -1741,7 +1741,7 @@ def _chistedit(ui, repo, state, freeargs, opts):
         keep = opts.get(b'keep')
         revs = opts.get(b'rev', [])[:]
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
         revs.extend(freeargs)
         if not revs:
@@ -2238,7 +2238,7 @@ def _newhistedit(ui, repo, state, revs, freeargs, opts):
     force = opts.get(b'force')
 
     cmdutil.checkunfinished(repo)
-    cmdutil.bailifchanged(repo)
+    scmutil.bail_if_changed(repo)
 
     topmost = repo.dirstate.p1()
     if outg:
