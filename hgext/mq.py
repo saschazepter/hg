@@ -2877,7 +2877,7 @@ def clone(ui, source, dest=None, **opts):
         repo = sr.local()
         if repo.mq.applied and repo[qbase].phase() != phases.secret:
             qbase = repo.mq.applied[0].node
-            if not hg.islocal(dest):
+            if not repo_factory.is_local(dest):
                 heads = set(repo.heads())
                 destrev = list(heads.difference(repo.heads(qbase)))
                 destrev.append(repo.changelog.parents(qbase)[0])
@@ -4205,7 +4205,7 @@ def mqinit(orig, ui, *args, **kwargs):
 
     if args:
         repopath = args[0]
-        if not hg.islocal(repopath):
+        if not repo_factory.is_local(repopath):
             raise error.Abort(
                 _(b'only a local queue repository may be initialized')
             )
