@@ -322,7 +322,7 @@ def clonewithshare(
         defaultpath = source
 
     sharerepo = repo_factory.repository(ui, path=sharepath)
-    destrepo = share(
+    destrepo = clone_impl.share(
         ui,
         sharerepo,
         dest=dest,
