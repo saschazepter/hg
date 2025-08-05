@@ -13,10 +13,12 @@ import threading
 
 from . import (
     error,
-    hg,
     obsolete,
     scmutil,
     util,
+)
+from .repo import (
+    factory as repo_factory,
 )
 
 
@@ -99,7 +101,7 @@ class repoloader:
             # pop before loading so inconsistent state wouldn't be exposed
             repo = self._cache.pop(path)
         except KeyError:
-            repo = hg.repository(self._ui, path).unfiltered()
+            repo = repo_factory.repository(self._ui, path).unfiltered()
         _warmupcache(repo)
         repo.ui.log(
             b'repocache',
