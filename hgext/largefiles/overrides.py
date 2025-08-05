@@ -45,6 +45,9 @@ from mercurial import (
     util,
 )
 
+from mercurial.cmd_impls import (
+    clone as clone_impl,
+)
 from mercurial.upgrade_utils import (
     actions as upgrade_actions,
 )
@@ -1140,7 +1143,7 @@ def pulledrevsetsymbol(repo, subset, x):
 def overrideclone(orig, ui, source, dest=None, **opts):
     d = dest
     if d is None:
-        d = hg.defaultdest(source)
+        d = clone_impl.default_dest(source)
     if opts.get('all_largefiles') and urlutil.url(d).scheme not in (
         b'file',
         None,
