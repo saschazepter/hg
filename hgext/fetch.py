@@ -15,7 +15,6 @@ from mercurial import (
     cmdutil,
     error,
     exchange,
-    hg,
     lock,
     pycompat,
     registrar,
@@ -182,7 +181,7 @@ def fetch(ui, repo, source=b'default', **opts):
             ui.status(
                 _(b'merging with %d:%s\n') % (p2ctx.rev(), short(secondparent))
             )
-            err = hg.merge(p2ctx, remind=False)
+            err = up_impl.merge(p2ctx, remind=False)
 
         if not err:
             # we don't translate commit messages
