@@ -67,6 +67,7 @@ from . import (
 )
 
 from .cmd_impls import (
+    clone as clone_impl,
     graft as graft_impl,
     update as up_impl,
 )
@@ -1979,7 +1980,7 @@ def clone(ui, source, dest=None, **opts):
     # --include/--exclude can come from narrow or sparse.
     includepats, excludepats = None, None
 
-    # hg.clone() differentiates between None and an empty set. So make sure
+    # clone() differentiates between None and an empty set. So make sure
     # patterns are sets if narrow is requested without patterns.
     if opts.get('narrow'):
         includepats = set()
@@ -1990,7 +1991,7 @@ def clone(ui, source, dest=None, **opts):
         if opts.get('exclude'):
             excludepats = narrowspec.parsepatterns(opts.get('exclude'))
 
-    r = hg.clone(
+    r = clone_impl.clone(
         ui,
         pycompat.byteskwargs(opts),
         source,
