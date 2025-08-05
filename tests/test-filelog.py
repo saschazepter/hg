@@ -5,12 +5,12 @@ Tests the behavior of filelog w.r.t. data starting with '\1\n'
 
 from mercurial.node import hex
 from mercurial import (
-    hg,
     ui as uimod,
 )
+from mercurial.repo import factory
 
 myui = uimod.ui.load()
-repo = hg.repository(myui, path=b'.', create=True)
+repo = factory.repository(myui, path=b'.', create=True)
 
 fl = repo.file(b'foobar', writable=True)
 

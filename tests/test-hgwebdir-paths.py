@@ -1,9 +1,9 @@
 import os
 from mercurial import (
-    hg,
     ui as uimod,
 )
 from mercurial.hgweb import hgwebdir_mod
+from mercurial.repo import factory
 
 hgwebdir = hgwebdir_mod.hgwebdir
 
@@ -13,12 +13,12 @@ os.chdir(b'webdir')
 webdir = os.path.realpath(b'.')
 
 u = uimod.ui.load()
-hg.repository(u, b'a', create=1)
-hg.repository(u, b'b', create=1)
+factory.repository(u, b'a', create=1)
+factory.repository(u, b'b', create=1)
 os.chdir(b'b')
-hg.repository(u, b'd', create=1)
+factory.repository(u, b'd', create=1)
 os.chdir(b'..')
-hg.repository(u, b'c', create=1)
+factory.repository(u, b'c', create=1)
 os.chdir(b'..')
 
 paths = {

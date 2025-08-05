@@ -23,13 +23,13 @@ def print(*args, **kwargs):
 
 from mercurial import (
     extensions,
-    hg,
     localrepo,
     pycompat,
     ui as uimod,
     util,
     vfs as vfsmod,
 )
+from mercurial.repo import factory
 
 
 class fakerepo:
@@ -166,7 +166,7 @@ def fakeuncacheable():
 def test_filecache_synced():
     # test old behavior that caused filecached properties to go out of sync
     os.system('hg init && echo a >> a && hg add a && hg ci -qm.')
-    repo = hg.repository(uimod.ui.load())
+    repo = factory.repository(uimod.ui.load())
     # first rollback clears the filecache, but changelog to stays in __dict__
     repo.rollback()
     repo.commit(b'.')

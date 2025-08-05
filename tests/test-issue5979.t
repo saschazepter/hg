@@ -22,9 +22,9 @@
   o  c0
   
 
-  >>> from mercurial import hg
   >>> from mercurial import ui as uimod
-  >>> repo = hg.repository(uimod.ui())
+  >>> from mercurial.repo import factory
+  >>> repo = factory.repository(uimod.ui())
   >>> for anc in repo.changelog.ancestors([4], inclusive=True):
   ...   print(anc)
   4

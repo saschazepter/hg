@@ -1,11 +1,11 @@
 import os
 
 from mercurial import (
-    hg,
     scmutil,
     ui as uimod,
     util,
 )
+from mercurial.repo import factory
 
 chdir = os.chdir
 mkdir = os.mkdir
@@ -17,13 +17,13 @@ checklink = util.checklink
 u = uimod.ui.load()
 sym = checklink(b'.')
 
-hg.repository(u, b'top1', create=1)
+factory.repository(u, b'top1', create=1)
 mkdir(b'subdir')
 chdir(b'subdir')
-hg.repository(u, b'sub1', create=1)
+factory.repository(u, b'sub1', create=1)
 mkdir(b'subsubdir')
 chdir(b'subsubdir')
-hg.repository(u, b'subsub1', create=1)
+factory.repository(u, b'subsub1', create=1)
 chdir(os.path.pardir)
 if sym:
     os.symlink(os.path.pardir, b'circle')

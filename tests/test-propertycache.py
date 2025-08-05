@@ -8,7 +8,6 @@ import os
 import subprocess
 
 from mercurial import (
-    hg,
     localrepo,
     pycompat,
     ui as uimod,
@@ -16,6 +15,7 @@ from mercurial import (
 )
 
 from mercurial.utils import procutil
+from mercurial.repo import factory
 
 # create some special property cache that trace they call
 
@@ -61,7 +61,7 @@ assert (
 )
 
 ui = uimod.ui.load()
-repo = hg.repository(ui, path=repopath).unfiltered()
+repo = factory.repository(ui, path=repopath).unfiltered()
 
 
 print('')
