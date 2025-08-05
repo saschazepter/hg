@@ -32,6 +32,9 @@ from mercurial import (
     scmutil,
     util,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import hashutil
 
 from ..convert import (
@@ -99,9 +102,9 @@ def lfconvert(ui, src, dest, *pats, **opts):
     if not hg.islocal(dest):
         raise error.Abort(_(b'%s is not a local Mercurial repo') % dest)
 
-    rsrc = hg.repository(ui, src)
+    rsrc = repo_factory.repository(ui, src)
     ui.status(_(b'initializing destination %s\n') % dest)
-    rdst = hg.repository(ui, dest, create=True)
+    rdst = repo_factory.repository(ui, dest, create=True)
 
     success = False
     dstwlock = dstlock = None
