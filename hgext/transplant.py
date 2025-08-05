@@ -36,6 +36,7 @@ from mercurial import (
     pycompat,
     registrar,
     revset,
+    scmutil,
     smartset,
     state as statemod,
     util,
@@ -818,7 +819,7 @@ def _dotransplant(ui, repo, *revs, **opts):
         return tp.stop(ui, repo)
     else:
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
     sourcerepo = opts.get(b'source')
     if sourcerepo:
