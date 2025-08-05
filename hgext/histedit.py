@@ -223,7 +223,6 @@ from mercurial import (
     error,
     exchange,
     extensions,
-    hg,
     logcmdutil,
     merge as mergemod,
     mergestate as mergestatemod,
@@ -2193,7 +2192,7 @@ def _aborthistedit(ui, repo, state, nobackup=False):
             state.parentctxnode,
             leafs | tmpnodes,
         ):
-            hg.clean(repo, state.topmost, show_stats=True, quietempty=True)
+            up_impl.clean(repo, state.topmost, show_stats=True, quietempty=True)
         cleanupnode(ui, repo, tmpnodes, nobackup=nobackup)
         cleanupnode(ui, repo, leafs, nobackup=nobackup)
     except Exception:
