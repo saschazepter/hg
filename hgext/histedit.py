@@ -2171,7 +2171,7 @@ def _aborthistedit(ui, repo, state, nobackup=False):
         # Recover our old commits if necessary
         if not state.topmost in repo and state.backupfile:
             backupfile = repo.vfs.join(state.backupfile)
-            f = hg.openpath(ui, backupfile)
+            f = scmutil.open_path(ui, backupfile)
             gen = exchange.readbundle(ui, f, backupfile)
             with repo.transaction(b'histedit.abort') as tr:
                 bundle2.applybundle(
