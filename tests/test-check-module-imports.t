@@ -75,8 +75,6 @@ will likely receive warnings about a direct import.
   mercurial/streamclone.py:*: function level import: mercurial.localrepo (glob)
   mercurial/streamclone.py:*: function level import: mercurial.localrepo (glob)
   mercurial/streamclone.py:*: function level import: mercurial.localrepo (glob)
-  mercurial/subrepo.py:*: function level import: mercurial.hg (glob)
-  mercurial/subrepo.py:*: function level import: mercurial.hg (glob)
   mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.update (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.clone (glob)
@@ -84,6 +82,7 @@ will likely receive warnings about a direct import.
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.update (glob)
   mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.outgoing (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.incoming (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.clone (glob)
   mercurial/templatekw.py:*: function level import: mercurial.cmdutil (glob)
   mercurial/util.py:*: function level import: mercurial.__version__ (glob)
@@ -97,7 +96,6 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.repo.factory -> mercurial.localrepo
   Import cycle: mercurial.extensions -> mercurial.revset -> mercurial.repo.factory -> mercurial.extensions
-  Import cycle: mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.context
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.repo.factory -> mercurial.bundlerepo

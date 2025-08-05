@@ -58,7 +58,6 @@ if typing.TYPE_CHECKING:
         StatusT,
     )
 
-hg = None
 reporelpath = subrepoutil.reporelpath
 subrelpath = subrepoutil.subrelpath
 _abssource = subrepoutil._abssource
@@ -191,15 +190,6 @@ def _checktype(ui, kind):
 
 def subrepo(ctx, path, allowwdir=False, allowcreate=True):
     """return instance of the right subrepo class for subrepo in path"""
-    # subrepo inherently violates our import layering rules
-    # because it wants to make repo objects from deep inside the stack
-    # so we manually delay the circular imports to not break
-    # scripts that don't use our demand-loading
-    global hg
-    from . import hg as h
-
-    hg = h
-
     repo = ctx.repo()
     _auditsubrepopath(repo, path)
     state = ctx.substate[path]
@@ -211,15 +201,6 @@ def subrepo(ctx, path, allowwdir=False, allowcreate=True):
 
 def nullsubrepo(ctx, path, pctx):
     """return an empty subrepo in pctx for the extant subrepo in ctx"""
-    # subrepo inherently violates our import layering rules
-    # because it wants to make repo objects from deep inside the stack
-    # so we manually delay the circular imports to not break
-    # scripts that don't use our demand-loading
-    global hg
-    from . import hg as h
-
-    hg = h
-
     repo = ctx.repo()
     _auditsubrepopath(repo, path)
     state = ctx.substate[path]
@@ -945,12 +926,16 @@ class hgsubrepo(abstractsubrepo):
 
     @annotatesubrepoerror
     def incoming(self, ui, source, opts):
+        from .cmd_impls import (
+            incoming as inc_impl,
+        )
+
         if b'rev' in opts or b'branch' in opts:
             opts = copy.copy(opts)
             opts.pop(b'rev', None)
             opts.pop(b'branch', None)
         subpath = subrepoutil.repo_rel_or_abs_source(self._repo)
-        return hg.incoming(ui, self._repo, source, opts, subpath=subpath)
+        return inc_impl.incoming(ui, self._repo, source, opts, subpath=subpath)
 
     @annotatesubrepoerror
     def files(self):
