@@ -872,7 +872,7 @@ class queue:
         self.ui.warn(_(b"patch didn't work out, merging %s\n") % patch)
 
         # apply failed, strip away that rev and merge.
-        hg.clean(repo, head)
+        up_impl.clean(repo, head)
         strip(self.ui, repo, [n], update=False, backup=False)
 
         ctx = repo[rev]
@@ -2320,7 +2320,7 @@ class queue:
                 if not r:
                     self.ui.warn(_(b"unable to load queue repository\n"))
                     return 1
-                hg.clean(r, qpp[0])
+                up_impl.clean(r, qpp[0])
 
     def save(self, repo, msg=None):
         if not self.applied:
