@@ -879,7 +879,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         ui.status(_(b'merging with changeset %s\n') % nice(newnode))
         overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
         with ui.configoverride(overrides, b'backout'):
-            return hg.merge(repo[b'tip'])
+            return up_impl.merge(repo[b'tip'])
     return 0
 
 
@@ -4670,7 +4670,7 @@ def merge(ui, repo, node=None, **opts):
     with ui.configoverride(overrides, b'merge'):
         force = opts.get('force')
         labels = [b'working copy', b'merge rev', b'common ancestor']
-        return hg.merge(ctx, force=force, labels=labels)
+        return up_impl.merge(ctx, force=force, labels=labels)
 
 
 statemod.addunfinished(
