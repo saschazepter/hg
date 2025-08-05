@@ -1342,12 +1342,12 @@ class localrepository(_localrepo_base_classes):
 
     Constructed on its own, instances of this class are not usable as
     repository objects. To obtain a usable repository object, call
-    ``hg.repository()``, ``localrepo.instance()``, or
+    ``repo.factory.repository()``, ``localrepo.instance()``, or
     ``localrepo.makelocalrepository()``. The latter is the lowest-level.
     ``instance()`` adds support for creating new repositories.
-    ``hg.repository()`` adds more extension integration, including calling
-    ``reposetup()``. Generally speaking, ``hg.repository()`` should be
-    used.
+    ``repo.factory.repository()`` adds more extension integration, including
+    calling ``reposetup()``. Generally speaking, ``repo.factory.repository()``
+    should be used.
     """
 
     _transref: _weakref.ReferenceType[TransactionT] | None
@@ -1392,9 +1392,9 @@ class localrepository(_localrepo_base_classes):
     ):
         """Create a new local repository instance.
 
-        Most callers should use ``hg.repository()``, ``localrepo.instance()``,
-        or ``localrepo.makelocalrepository()`` for obtaining a new repository
-        object.
+        Most callers should use ``repo.factory.repository()``,
+        ``localrepo.instance()``, or ``localrepo.makelocalrepository()`` for
+        obtaining a new repository object.
 
         Arguments:
 
