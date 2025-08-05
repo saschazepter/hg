@@ -40,7 +40,6 @@ from . import (
     requirements,
     scmutil,
     ui as uimod,
-    url,
     util,
     verify as verifymod,
     vfs as vfsmod,
@@ -78,13 +77,8 @@ def islocal(repo: bytes) -> bool:
     return repo_factory.is_local(repo)
 
 
-def openpath(ui, path, sendaccept=True):
-    '''open path with open if local, url.open if remote'''
-    pathurl = urlutil.url(path, parsequery=False, parsefragment=False)
-    if pathurl.islocal():
-        return util.posixfile(pathurl.localpath(), b'rb')
-    else:
-        return url.open(ui, path, sendaccept=sendaccept)
+def openpath(*args, **kwargs):
+    return scmutil.open_path(*args, **kwargs)
 
 
 def peer(uiorrepo, *args, **kwargs):

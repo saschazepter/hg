@@ -68,6 +68,7 @@ from .utils import (
     hashutil,
     procutil,
     stringutil,
+    urlutil,
 )
 
 if pycompat.iswindows:
@@ -87,6 +88,15 @@ parsers = policy.importmod('parsers')
 rustrevlog = policy.importrust('revlog')
 
 termsize = scmplatform.termsize
+
+
+def open_path(ui, path, sendaccept=True):
+    '''open path with open if local, url.open if remote'''
+    pathurl = urlutil.url(path, parsequery=False, parsefragment=False)
+    if pathurl.islocal():
+        return util.posixfile(pathurl.localpath(), b'rb')
+    else:
+        return url.open(ui, path, sendaccept=sendaccept)
 
 
 @attr.s(slots=True, repr=False)
