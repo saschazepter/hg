@@ -63,7 +63,6 @@ will likely receive warnings about a direct import.
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
-  mercurial/merge.py:*: function level import: mercurial.extensions (glob)
   mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
@@ -100,6 +99,7 @@ will likely receive warnings about a direct import.
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.repo.factory -> mercurial.bundlerepo
+  Import cycle: mercurial.filemerge -> mercurial.templatekw -> mercurial.merge_utils.diff -> mercurial.merge -> mercurial.filemerge
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
   [1]

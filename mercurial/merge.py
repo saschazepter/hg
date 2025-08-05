@@ -38,6 +38,9 @@ rust_update_mod = policy.importrust("update")
 _pack = struct.pack
 _unpack = struct.unpack
 
+# updated by fsmonitor when it load. Used to detect the extension presence.
+_fs_monitor_loaded = False
+
 
 def _getcheckunknownconfig(repo, section, name):
     config = repo.ui.config(section, name)
@@ -1217,16 +1220,12 @@ def _advertisefsmonitor(repo, num_gets, p1node):
             b'warn_update_file_count_rust',
         )
 
-    try:
-        # avoid cycle: extensions -> cmdutil -> merge
-        from . import extensions
-
-        extensions.find(b'fsmonitor')
-        fsmonitorenabled = repo.ui.config(b'fsmonitor', b'mode') != b'off'
+    if _fs_monitor_loaded:
         # We intentionally don't look at whether fsmonitor has disabled
         # itself because a) fsmonitor may have already printed a warning
         # b) we only care about the config state here.
-    except KeyError:
+        fsmonitorenabled = repo.ui.config(b'fsmonitor', b'mode') != b'off'
+    else:
         fsmonitorenabled = False
 
     if (

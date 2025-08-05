@@ -760,6 +760,7 @@ def extsetup(ui):
         extensions.wrapfunction(os, 'symlink', wrapsymlink)
 
     extensions.wrapfunction(merge, '_update', wrapupdate)
+    merge._fs_monitor_loaded = True
 
 
 def wrapsymlink(orig, source, link_name):
