@@ -4473,12 +4473,9 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
 def unbundle_files(ui, repo, fnames, unbundle_source=b'unbundle'):
     """utility for `hg unbundle` and `hg debug::unbundle`"""
     assert fnames
-    # avoid circular import
-    from . import hg
-
     with repo.lock():
         for fname in fnames:
-            f = hg.openpath(ui, fname)
+            f = scmutil.open_path(ui, fname)
             gen = exchange.readbundle(ui, f, fname)
             if isinstance(gen, streamclone.streamcloneapplier):
                 raise error.InputError(
