@@ -71,22 +71,8 @@ repo_schemes = repo_factory.repo_schemes
 peer_schemes = repo_factory.peer_schemes
 
 
-def islocal(repo):
-    '''return true if repo (or path pointing to repo) is local'''
-    if isinstance(repo, bytes):
-        u = urlutil.url(repo)
-        scheme = u.scheme or b'file'
-        if scheme in peer_schemes:
-            cls = peer_schemes[scheme]
-            cls.make_peer  # make sure we load the module
-        elif scheme in repo_schemes:
-            cls = repo_schemes[scheme]
-            cls.instance  # make sure we load the module
-        else:
-            cls = repo_factory.LocalFactory
-        if hasattr(cls, 'islocal'):
-            return cls.islocal(repo)  # pytype: disable=module-attr
-        return False
+def islocal(repo: bytes) -> bool:
+    return repo_factory.is_local(repo)
 
 
 def openpath(ui, path, sendaccept=True):

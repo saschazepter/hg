@@ -28,6 +28,24 @@ from ..utils import (
 )
 
 
+def is_local(repo: bytes) -> bool:
+    '''return true if repo (or path pointing to repo) is local'''
+    if isinstance(repo, bytes):
+        u = urlutil.url(repo)
+        scheme = u.scheme or b'file'
+        if scheme in peer_schemes:
+            cls = peer_schemes[scheme]
+            cls.make_peer  # make sure we load the module
+        elif scheme in repo_schemes:
+            cls = repo_schemes[scheme]
+            cls.instance  # make sure we load the module
+        else:
+            cls = LocalFactory
+        if hasattr(cls, 'islocal'):
+            return cls.islocal(repo)  # pytype: disable=module-attr
+        return False
+
+
 class LocalFactory:
     """thin wrapper to dispatch between localrepo and bundle repo"""
 
