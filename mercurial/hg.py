@@ -101,6 +101,8 @@ def repository(uiorrepo, *args, **kwargs):
 
 
 def defaultdest(source):
+    msg = b'hg.defaultdest(src), moved to cmd_impls.clone.default_dest(src)'
+    util.nouideprecwarn(msg, b'7.3')
     return clone_impl.default_dest(source)
 
 
