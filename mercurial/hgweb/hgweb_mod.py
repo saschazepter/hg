@@ -36,7 +36,9 @@ from .. import (
     ui as uimod,
     wireprotoserver,
 )
-
+from ..repo import (
+    factory as repo_factory,
+)
 from . import (
     common,
     request as requestmod,
@@ -266,7 +268,7 @@ class hgweb:
                 u = uimod.ui.load()
                 extensions.loadall(u)
                 extensions.populateui(u)
-            r = hg.repository(u, repo)
+            r = repo_factory.repository(u, repo)
         else:
             # we trust caller to give us a private copy
             r = repo

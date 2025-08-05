@@ -31,7 +31,6 @@ from .. import (
     encoding,
     error,
     extensions,
-    hg,
     pathutil,
     profiling,
     pycompat,
@@ -42,7 +41,9 @@ from .. import (
     ui as uimod,
     util,
 )
-
+from ..repo import (
+    factory as repo_factory,
+)
 from . import (
     hgweb_mod,
     request as requestmod,
@@ -150,7 +151,7 @@ def rawindexentries(ui, repos, req, subdir=b''):
                 path = path[: -len(discarded) - 1]
 
                 try:
-                    hg.repository(ui, path)
+                    repo_factory.repository(ui, path)
                     directory = False
                 except (OSError, error.RepoError):
                     pass
@@ -210,7 +211,7 @@ def rawindexentries(ui, repos, req, subdir=b''):
 
         # update time with local timezone
         try:
-            r = hg.repository(ui, path)
+            r = repo_factory.repository(ui, path)
         except OSError:
             u.warn(_(b'error accessing repository at %s\n') % path)
             continue
@@ -471,7 +472,7 @@ class hgwebdir:
                     )
                     try:
                         # ensure caller gets private copy of ui
-                        repo = hg.repository(self.ui.copy(), real)
+                        repo = repo_factory.repository(self.ui.copy(), real)
                         return hgweb_mod.hgweb(repo).run_wsgi(req, res)
                     except OSError as inst:
                         msg = encoding.strtolocal(inst.strerror)
