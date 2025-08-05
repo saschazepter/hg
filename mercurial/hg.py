@@ -72,6 +72,9 @@ peer_schemes = repo_factory.peer_schemes
 
 
 def islocal(repo: bytes) -> bool:
+    util.nouideprecwarn(
+        b'hg.islocal(path), moved to repo.factor.is_local(path)', b'7.3'
+    )
     return repo_factory.is_local(repo)
 
 
