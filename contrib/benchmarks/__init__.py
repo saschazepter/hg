@@ -38,8 +38,10 @@ import re
 
 from mercurial import (
     extensions,
-    hg,
     ui as uimod,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 
 basedir = os.path.abspath(
@@ -67,7 +69,7 @@ def runperfcommand(reponame, command, *args, **kwargs):
         ui = uimod.ui.load()
     else:
         ui = uimod.ui()
-    repo = hg.repository(ui, os.path.join(reposdir, reponame))
+    repo = repo_factory.repository(ui, os.path.join(reposdir, reponame))
     perfext = extensions.load(
         ui, 'perfext', os.path.join(basedir, 'contrib', 'perf.py')
     )
