@@ -104,6 +104,8 @@ def defaultdest(source):
 
 
 def share(ui, *args, **kwargs):
+    msg = b'``hg.share(...)` moved to `cmd_impls.clone.share(...)`'
+    ui.deprecwarn(msg, b'7.3')
     return clone_impl.share(ui, *args, **kwargs)
 
 
