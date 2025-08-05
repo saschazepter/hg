@@ -237,6 +237,9 @@ from mercurial import (
     state as statemod,
     util,
 )
+from mercurial.cmd_impls import (
+    update as up_impl,
+)
 from mercurial.merge_utils import (
     update as update_util,
 )
@@ -582,7 +585,7 @@ class histeditaction:
         repo = self.repo
         rulectx = repo[self.node]
         with repo.ui.silent():
-            hg.update(repo, self.state.parentctxnode, quietempty=True)
+            up_impl.update(repo, self.state.parentctxnode, quietempty=True)
         stats = applychanges(repo.ui, repo, rulectx, {})
         repo.dirstate.setbranch(rulectx.branch(), repo.currenttransaction())
         if stats.unresolvedcount:
@@ -815,7 +818,7 @@ class edit(histeditaction):
     def run(self):
         repo = self.repo
         rulectx = repo[self.node]
-        hg.update(repo, self.state.parentctxnode, quietempty=True)
+        up_impl.update(repo, self.state.parentctxnode, quietempty=True)
         applychanges(repo.ui, repo, rulectx, {})
         hint = _(b'to edit %s, `hg histedit --continue` after making changes')
         raise error.InterventionRequired(
