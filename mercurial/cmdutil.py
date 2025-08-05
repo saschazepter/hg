@@ -1296,7 +1296,7 @@ def changebranch(ui, repo, revs, label, **opts):
 
     with repo.wlock(), repo.lock(), repo.transaction(b'branches'):
         # abort in case of uncommitted merge or dirty wdir
-        bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
         revs = logcmdutil.revrange(repo, revs)
         if not revs:
             raise error.InputError(b"empty revision set")
@@ -4223,7 +4223,7 @@ summaryremotehooks = util.hooks()
 def checkunfinished(repo, commit=False, skipmerge=False):
     """Look for an unfinished multistep operation, like graft, and abort
     if found. It's probably good to check this right before
-    bailifchanged().
+    bail_if_changed().
     """
     # Check for non-clearable states first, so things like rebase will take
     # precedence over update.
