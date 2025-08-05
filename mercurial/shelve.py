@@ -50,7 +50,6 @@ from . import (
     discovery,
     error,
     exchange,
-    hg,
     lock as lockmod,
     mdiff,
     merge,
@@ -62,6 +61,9 @@ from . import (
     templatefilters,
     util,
     vfs as vfsmod,
+)
+from .cmd_impls import (
+    update as up_impl,
 )
 from .utils import (
     dateutil,
@@ -685,7 +687,7 @@ def _docreatecmd(ui, repo, pats, opts):
             with repo.dirstate.changing_parents(repo):
                 scmutil.movedirstate(repo, parent, match)
         else:
-            hg.update(repo, parent.node())
+            up_impl.update(repo, parent.node())
             ms = repo.mergestate()
             if not ms.unresolvedcount():
                 ms.reset()
@@ -873,7 +875,7 @@ def mergefiles(ui, repo, wctx, shelvectx) -> None:
     """updates to wctx and merges the changes from shelvectx into the
     dirstate."""
     with ui.configoverride({(b'ui', b'quiet'): True}):
-        hg.update(repo, wctx.node())
+        up_impl.update(repo, wctx.node())
         cmdutil.revert(ui, repo, shelvectx)
 
 
