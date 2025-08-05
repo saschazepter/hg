@@ -143,7 +143,7 @@ def share(
         raise error.Abort(not_local_msg)
 
     if not dest:
-        dest = defaultdest(source)
+        dest = clone_impl.default_dest(source)
     else:
         dest = urlutil.get_clone_path_obj(ui, dest).loc
 
@@ -541,7 +541,7 @@ def clone(
         )
 
         if dest is None:
-            dest = defaultdest(source)
+            dest = clone_impl.default_dest(source)
             if dest:
                 ui.status(_(b"destination directory: %s\n") % dest)
         else:
