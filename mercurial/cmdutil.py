@@ -1417,22 +1417,7 @@ def findrepo(p: bytes) -> bytes | None:
 
 
 def bailifchanged(repo, merge=True, hint=None):
-    """enforce the precondition that working directory must be clean.
-
-    'merge' can be set to false if a pending uncommitted merge should be
-    ignored (such as when 'update --check' runs).
-
-    'hint' is the usual hint given to Abort exception.
-    """
-
-    if merge and repo.dirstate.p2() != repo.nullid:
-        raise error.StateError(_(b'outstanding uncommitted merge'), hint=hint)
-    st = repo.status()
-    if st.modified or st.added or st.removed or st.deleted:
-        raise error.StateError(_(b'uncommitted changes'), hint=hint)
-    ctx = repo[None]
-    for s in sorted(ctx.substate):
-        ctx.sub(s).bailifchanged(hint=hint)
+    return scmutil.bail_if_changed(repo, merge=merge, hint=None)
 
 
 def logmessage(ui: uimod.ui, opts: dict[bytes, Any]) -> bytes | None:

@@ -299,6 +299,25 @@ def callcatch(ui: UiT, func: Callable[[], int]) -> int:
         return coarse_exit_code
 
 
+def bail_if_changed(repo, merge=True, hint=None):
+    """enforce the precondition that working directory must be clean.
+
+    'merge' can be set to false if a pending uncommitted merge should be
+    ignored (such as when 'update --check' runs).
+
+    'hint' is the usual hint given to Abort exception.
+    """
+
+    if merge and repo.dirstate.p2() != repo.nullid:
+        raise error.StateError(_(b'outstanding uncommitted merge'), hint=hint)
+    st = repo.status()
+    if st.modified or st.added or st.removed or st.deleted:
+        raise error.StateError(_(b'uncommitted changes'), hint=hint)
+    ctx = repo[None]
+    for s in sorted(ctx.substate):
+        ctx.sub(s).bailifchanged(hint=hint)
+
+
 def checknewlabel(repo, lbl: bytes, kind) -> None:
     # Do not use the "kind" parameter in ui output.
     # It makes strings difficult to translate.
