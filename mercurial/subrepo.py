@@ -755,7 +755,7 @@ class hgsubrepo(abstractsubrepo):
             # assemble the repos in a tree, so that can't be consistently done.
             # A simpler option is for the user to configure clone pooling, and
             # work with that.
-            if parentrepo.shared() and hg.islocal(srcurl):
+            if parentrepo.shared() and repo_factory.is_local(srcurl):
                 self.ui.status(
                     _(b'sharing subrepo %s from %s\n')
                     % (subrelpath(self), srcurl)
