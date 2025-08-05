@@ -154,7 +154,7 @@ def share(
     if hasattr(source, 'local'):
         if source.local() is None:
             raise error.Abort(not_local_msg)
-    elif not islocal(source):
+    elif not repo_factory.is_local(source):
         # XXX why are we getting bytes here ?
         raise error.Abort(not_local_msg)
 
@@ -427,7 +427,7 @@ def clonewithshare(
             )
 
     # Resolve the value to put in [paths] section for the source.
-    if islocal(source):
+    if repo_factory.is_local(source):
         defaultpath = util.abspath(urlutil.urllocalpath(source))
     else:
         defaultpath = source
@@ -633,7 +633,7 @@ def clone(
         shareopts = shareopts or {}
         sharepool = shareopts.get(b'pool')
         sharenamemode = shareopts.get(b'mode')
-        if sharepool and islocal(dest):
+        if sharepool and repo_factory.is_local(dest):
             sharepath = None
             if sharenamemode == b'identity':
                 # Resolve the name from the initial changeset in the remote
@@ -698,10 +698,10 @@ def clone(
         srcrepo = srcpeer.local()
 
         abspath = origsource
-        if islocal(origsource):
+        if repo_factory.is_local(origsource):
             abspath = util.abspath(urlutil.urllocalpath(origsource))
 
-        if islocal(dest):
+        if repo_factory.is_local(dest):
             if os.path.exists(dest):
                 # only clean up directories we create ourselves
                 hgdir = os.path.realpath(os.path.join(dest, b".hg"))
@@ -713,7 +713,7 @@ def clone(
         if (
             srcrepo
             and srcrepo.cancopy()
-            and islocal(dest)
+            and repo_factory.is_local(dest)
             and not phases.hassecret(srcrepo)
         ):
             copy = not pull and not revs
