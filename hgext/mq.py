@@ -876,7 +876,7 @@ class queue:
         strip(self.ui, repo, [n], update=False, backup=False)
 
         ctx = repo[rev]
-        ret = hg.merge(ctx, remind=False)
+        ret = up_impl.merge(ctx, remind=False)
         if ret:
             raise error.Abort(_(b"update returned %d") % ret)
         n = newcommit(repo, None, ctx.description(), ctx.user(), force=True)
