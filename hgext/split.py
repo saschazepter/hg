@@ -21,13 +21,15 @@ from mercurial import (
     cmdutil,
     commands,
     error,
-    hg,
     logcmdutil,
     registrar,
     revsetlang,
     rewriteutil,
     scmutil,
     util,
+)
+from mercurial.cmd_impls import (
+    update as up_impl,
 )
 
 # allow people to use split without explicitly enabling rebase extension
@@ -120,7 +122,7 @@ def split(ui, repo, *revs, **opts):
                 # top is None: split failed, need update --clean recovery.
                 # wnode == ctx.node(): wnode split, no need to update.
                 if top is None or wnode != ctx.node():
-                    hg.clean(repo, wnode, show_stats=False)
+                    up_impl.clean(repo, wnode, show_stats=False)
                 if bname:
                     bookmarks.activate(repo, bname)
             if torebase and top:
@@ -132,7 +134,7 @@ def dosplit(ui, repo, tr, ctx, **opts):
 
     # Set working parent to ctx.p1(), and keep working copy as ctx's content
     if ctx.node() != repo.dirstate.p1():
-        hg.clean(repo, ctx.node(), show_stats=False)
+        up_impl.clean(repo, ctx.node(), show_stats=False)
     with repo.dirstate.changing_parents(repo):
         scmutil.movedirstate(repo, ctx.p1())
 
