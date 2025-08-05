@@ -162,7 +162,7 @@ def uncommit(ui, repo, *pats, **opts):
             'allow_dirty_working_copy'
         ] or repo.ui.configbool(b'experimental', b'uncommitondirtywdir')
         if not allowdirtywcopy and (not pats or isdirtypath):
-            cmdutil.bailifchanged(
+            scmutil.bail_if_changed(
                 repo,
                 hint=_(b'requires --allow-dirty-working-copy to uncommit'),
             )
