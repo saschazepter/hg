@@ -186,6 +186,8 @@ def abortmerge(ui, *args, **kwargs):
 
 
 def outgoing(ui, *args, **kwargs):
+    msg = b'``hg.outgoing(...)` moved to `cmd_impls.outgoing.outgoing(...)`'
+    ui.deprecwarn(msg, b'7.3')
     return out_impl.outgoing(ui, *args, **kwargs)
 
 
