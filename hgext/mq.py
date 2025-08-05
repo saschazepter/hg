@@ -81,7 +81,6 @@ from mercurial import (
     encoding,
     error,
     extensions,
-    hg,
     localrepo,
     lock as lockmod,
     logcmdutil,
@@ -2892,7 +2891,7 @@ def clone(ui, source, dest=None, **opts):
             pass
 
     ui.note(_(b'cloning main repository\n'))
-    sr, dr = hg.clone(
+    sr, dr = clone_impl.clone(
         ui,
         opts,
         sr.url(),
@@ -2904,7 +2903,7 @@ def clone(ui, source, dest=None, **opts):
     )
 
     ui.note(_(b'cloning patch repository\n'))
-    hg.clone(
+    clone_impl.clone(
         ui,
         opts,
         opts.get(b'patches') or patchdir(sr),
