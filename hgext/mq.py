@@ -99,6 +99,7 @@ from mercurial import (
     vfs as vfsmod,
 )
 from mercurial.cmd_impls import (
+    clone as clone_impl,
     update as up_impl,
 )
 from mercurial.repo import (
@@ -2859,7 +2860,7 @@ def clone(ui, source, dest=None, **opts):
 
     # main repo (destination and sources)
     if dest is None:
-        dest = hg.defaultdest(source)
+        dest = clone_impl.default_dest(source)
     source_path = urlutil.get_clone_path_obj(ui, source)
     sr = repo_factory.peer(ui, opts, source_path)
 
