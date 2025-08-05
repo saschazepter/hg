@@ -31,7 +31,6 @@ from . import (
     extensions,
     fancyopts,
     help,
-    hg,
     hook,
     main_script,
     profiling,
@@ -43,7 +42,9 @@ from . import (
     ui as uimod,
     util,
 )
-
+from .repo import (
+    factory as repo_factory,
+)
 from .utils import (
     procutil,
     stringutil,
@@ -964,7 +965,7 @@ def _dispatch_post_cwd(req):
 
         # (uisetup and extsetup are handled in extensions.loadall)
 
-        # (reposetup is handled in hg.repository)
+        # (reposetup is handled in repo.factory.repository)
 
         addaliases(lui, tables.command_table)
 
@@ -1119,7 +1120,7 @@ def _dispatch_post_cwd(req):
                 repo.ui.fmsg = ui.fmsg
             else:
                 try:
-                    repo = hg.repository(
+                    repo = repo_factory.repository(
                         ui,
                         path=path,
                         presetupfuncs=req.prereposetups,
