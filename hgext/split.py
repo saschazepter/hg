@@ -104,7 +104,7 @@ def split(ui, repo, *revs, **opts):
             if len(ctx.parents()) > 1:
                 raise error.InputError(_(b'cannot split a merge changeset'))
 
-            cmdutil.bailifchanged(repo)
+            scmutil.bail_if_changed(repo)
 
             # Deactivate bookmark temporarily so it won't get moved
             # unintentionally
