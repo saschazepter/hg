@@ -305,7 +305,7 @@ def _postshareupdate(repo, update, checkout=None):
             break
         except error.RepoLookupError:
             continue
-    _update(repo, uprev)
+    up_impl.update(repo, uprev)
 
 
 def copystore(ui, srcrepo, destpath):
@@ -928,7 +928,7 @@ def clone(
                     bn = destrepo[uprev].branch()
                     status = _(b"updating to branch %s\n") % bn
                 destrepo.ui.status(status)
-                _update(destrepo, uprev)
+                up_impl.update(destrepo, uprev)
                 if update in destrepo._bookmarks:
                     bookmarks.activate(destrepo, update)
             if destlock is not None:
@@ -992,10 +992,6 @@ def merge(*args, **kwargs):
 
 def abortmerge(*args, **kwargs):
     return up_impl.abort_merge(*args, **kwargs)
-
-
-# naming conflict in clone()
-_update = update
 
 
 def _incoming(
