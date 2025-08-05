@@ -4627,7 +4627,7 @@ def merge(ui, repo, node=None, **opts):
             )
         if node:
             raise error.InputError(_(b"cannot specify a node with --abort"))
-        return hg.abortmerge(repo.ui, repo)
+        return up_impl.abort_merge(repo.ui, repo)
 
     if opts.get('rev') and node:
         raise error.InputError(_(b"please specify just one revision"))
@@ -4679,7 +4679,7 @@ statemod.addunfinished(
     clearable=True,
     allowcommit=True,
     cmdmsg=_(b'outstanding uncommitted merge'),
-    abortfunc=hg.abortmerge,
+    abortfunc=up_impl.abort_merge,
     statushint=_(
         b'To continue:    hg commit\nTo abort:       hg merge --abort'
     ),
