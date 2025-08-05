@@ -1416,7 +1416,7 @@ def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
 
 
 # If a largefile is modified, the change is not reflected in its
-# standin until a commit. cmdutil.bailifchanged() raises an exception
+# standin until a commit. scmutil.bail_if_changed() raises an exception
 # if the repo has uncommitted changes. Wrap it to also check if
 # largefiles were changed. This is used by bisect, backout and fetch.
 @eh.wrapfunction(scmutil, 'bail_if_changed')
