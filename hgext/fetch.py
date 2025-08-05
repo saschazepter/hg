@@ -148,7 +148,7 @@ def fetch(ui, repo, source=b'default', **opts):
         newparent = parent
         if newchildren:
             newparent = newchildren[0]
-            hg.clean(repo, newparent)
+            up_impl.clean(repo, newparent)
         newheads = [n for n in newheads if n != newparent]
         if len(newheads) > 1:
             ui.status(
@@ -177,7 +177,7 @@ def fetch(ui, repo, source=b'default', **opts):
                     _(b'updating to %d:%s\n')
                     % (repo.changelog.rev(firstparent), short(firstparent))
                 )
-            hg.clean(repo, firstparent)
+            up_impl.clean(repo, firstparent)
             p2ctx = repo[secondparent]
             ui.status(
                 _(b'merging with %d:%s\n') % (p2ctx.rev(), short(secondparent))
