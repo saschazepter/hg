@@ -2534,7 +2534,7 @@ class queue:
                     if filename == b'-':
                         text = self.ui.fin.read()
                     else:
-                        fp = hg.openpath(self.ui, filename)
+                        fp = scmutil.open_path(self.ui, filename)
                         text = fp.read()
                         fp.close()
                 except OSError:
