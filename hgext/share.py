@@ -148,7 +148,7 @@ def unshare(ui, repo):
     if not repo.shared():
         raise error.Abort(_(b"this is not a shared repo"))
 
-    hg.unshare(ui, repo)
+    clone_impl.unshare(ui, repo)
 
 
 # Wrap clone command to pass auto share options.
