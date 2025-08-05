@@ -98,6 +98,9 @@ from mercurial import (
     util,
     vfs as vfsmod,
 )
+from mercurial.cmd_impls import (
+    update as up_impl,
+)
 from mercurial.repo import (
     factory as repo_factory,
 )
@@ -1653,7 +1656,7 @@ class queue:
                         _(b"%s does not have a parent recorded") % root
                     )
                 if not repo[target] == repo[b'.']:
-                    hg.update(repo, target)
+                    up_impl.update(repo, target)
 
             if move:
                 if not patch:
@@ -1824,7 +1827,7 @@ class queue:
                 )
 
             # we know there are no local changes, so we can make a simplified
-            # form of hg.update.
+            # form of up_impl.update.
             if update:
                 qp = self.qparents(repo, rev)
                 ctx = repo[qp]
@@ -2922,7 +2925,7 @@ def clone(ui, source, dest=None, **opts):
             strip(ui, repo, [qbase], update=False, backup=None)
         if not opts.get(b'noupdate'):
             ui.note(_(b'updating destination repository\n'))
-            hg.update(repo, repo.changelog.tip())
+            up_impl.update(repo, repo.changelog.tip())
 
 
 @command(

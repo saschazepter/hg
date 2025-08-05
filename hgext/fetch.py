@@ -21,6 +21,9 @@ from mercurial import (
     registrar,
     scmutil,
 )
+from mercurial.cmd_impls import (
+    update as up_impl,
+)
 from mercurial.repo import (
     factory as repo_factory,
 )
@@ -136,7 +139,7 @@ def fetch(ui, repo, source=b'default', **opts):
         newchildren = repo.changelog.nodesbetween([parent], newheads)[2]
         if len(newheads) == 1 and len(newchildren):
             if newchildren[0] != parent:
-                return hg.update(repo, newchildren[0])
+                return up_impl.update(repo, newchildren[0])
             else:
                 return 0
 
