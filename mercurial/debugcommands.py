@@ -55,7 +55,6 @@ from . import (
     filemerge,
     filesetlang,
     formatter,
-    hg,
     httppeer,
     localrepo,
     lock as lockmod,
@@ -165,7 +164,7 @@ def debugantivirusrunning(ui, repo):
 @command(b'debugapplystreamclonebundle', [], b'FILE')
 def debugapplystreamclonebundle(ui, repo, fname):
     """apply a stream clone bundle file"""
-    f = hg.openpath(ui, fname)
+    f = scmutil.open_path(ui, fname)
     gen = exchange.readbundle(ui, f, fname)
     gen.apply(repo)
 
@@ -482,7 +481,7 @@ def _debugbundle2(ui, gen, all=None, **opts):
 )
 def debugbundle(ui, bundlepath, all=None, spec=None, **opts):
     """lists the contents of a bundle"""
-    with hg.openpath(ui, bundlepath) as f:
+    with scmutil.open_path(ui, bundlepath) as f:
         if spec:
             spec = exchange.getbundlespec(ui, f)
             ui.write(b'%s\n' % spec)
@@ -3846,7 +3845,7 @@ def debugbackupbundle(ui, repo, *pats, **opts):
                 with repo.lock(), repo.transaction(b"unbundle") as tr:
                     if scmutil.isrevsymbol(other, recovernode):
                         ui.status(_(b"Unbundling %s\n") % (recovernode))
-                        f = hg.openpath(ui, path.loc)
+                        f = scmutil.open_path(ui, path.loc)
                         gen = exchange.readbundle(ui, f, path.loc)
                         if isinstance(gen, bundle2.unbundle20):
                             bundle2.applybundle(
