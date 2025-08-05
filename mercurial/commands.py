@@ -785,7 +785,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         opts['date'] = dateutil.parsedate(date)
 
     cmdutil.checkunfinished(repo)
-    cmdutil.bailifchanged(repo)
+    scmutil.bail_if_changed(repo)
     ctx = logcmdutil.revsingle(repo, rev)
     node = ctx.node()
 
@@ -1062,7 +1062,7 @@ def bisect(
         if noupdate:
             return
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
         return hg.clean(repo, node, show_stats=show_stats)
 
     displayer = logcmdutil.changesetdisplayer(ui, repo, {})
@@ -3932,7 +3932,7 @@ def import_(ui, repo, patch1=None, *patches, **opts):
         if update:
             cmdutil.checkunfinished(repo)
             if exact or not opts.get('force'):
-                cmdutil.bailifchanged(repo)
+                scmutil.bail_if_changed(repo)
 
         if not opts.get('no_commit'):
             lock = repo.lock
