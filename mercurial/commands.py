@@ -69,6 +69,7 @@ from . import (
 from .cmd_impls import (
     clone as clone_impl,
     graft as graft_impl,
+    outgoing as out_impl,
     update as up_impl,
 )
 from .configuration import (
@@ -4772,7 +4773,7 @@ def outgoing(ui, repo, *dests, **opts):
             finally:
                 other.close()
 
-    return hg.outgoing(ui, repo, dests, opts)
+    return out_impl.outgoing(ui, repo, dests, opts)
 
 
 @command(
