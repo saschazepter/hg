@@ -190,6 +190,8 @@ def outgoing(ui, *args, **kwargs):
 
 
 def incoming(ui, *args, **kwargs):
+    msg = b'``hg.incoming(...)` moved to `cmd_impls.outgoing.incoming(...)`'
+    ui.deprecwarn(msg, b'7.3')
     return inc_impl.incoming(ui, *args, **kwargs)
 
 
