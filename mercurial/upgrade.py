@@ -10,7 +10,6 @@ from __future__ import annotations
 from .i18n import _
 from . import (
     error,
-    hg,
     lock as lockmod,
     pycompat,
     requirements as requirementsmod,
@@ -18,6 +17,7 @@ from . import (
 )
 from .repo import (
     creation,
+    factory as repo_factory,
 )
 from .upgrade_utils import (
     actions as upgrade_actions,
@@ -273,7 +273,7 @@ def upgraderepo(
 
             # clone ui without using ui.copy because repo.ui is protected
             repoui = repo.ui.__class__(repo.ui)
-            dstrepo = hg.repository(repoui, path=tmppath, create=True)
+            dstrepo = repo_factory.repository(repoui, path=tmppath, create=True)
 
             with dstrepo.wlock(), dstrepo.lock():
                 backuppath = upgrade_engine.upgrade(
