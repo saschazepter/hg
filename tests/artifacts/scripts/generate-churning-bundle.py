@@ -28,7 +28,7 @@ import sys
 import tempfile
 
 import mercurial.context
-import mercurial.hg
+import mercurial.repo.factory
 import mercurial.ui
 
 BUNDLE_NAME = 'big-file-churn.hg'
@@ -256,7 +256,7 @@ def hg(command, *args):
 
 def write_repo(path):
     """write repository content in memory"""
-    repo = mercurial.hg.repository(
+    repo = mercurial.repo.factory.repository(
         mercurial.ui.ui.load(),
         path=path.encode('utf-8'),
     )
