@@ -1417,6 +1417,8 @@ def findrepo(p: bytes) -> bytes | None:
 
 
 def bailifchanged(repo, merge=True, hint=None):
+    msg = b'`cmdutil.bailifchanged(...)` moved to `scmutil.bail_if_changed`'
+    repo.ui.deprecwarn(msg, b'7.3')
     return scmutil.bail_if_changed(repo, merge=merge, hint=None)
 
 
