@@ -25,7 +25,6 @@ from mercurial import (
     context,
     error,
     exthelper,
-    hg,
     lock,
     logcmdutil,
     match as matchmod,
@@ -97,9 +96,9 @@ def lfconvert(ui, src, dest, *pats, **opts):
         tolfile = True
         size = lfutil.getminsize(ui, True, opts.get('size'), default=None)
 
-    if not hg.islocal(src):
+    if not repo_factory.is_local(src):
         raise error.Abort(_(b'%s is not a local Mercurial repo') % src)
-    if not hg.islocal(dest):
+    if not repo_factory.is_local(dest):
         raise error.Abort(_(b'%s is not a local Mercurial repo') % dest)
 
     rsrc = repo_factory.repository(ui, src)
