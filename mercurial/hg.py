@@ -1070,7 +1070,7 @@ def updatetotally(ui, repo, checkout, brev, clean=False, updatecheck=None):
             ret = _clean(repo, checkout)
         else:
             if updatecheck == mergemod.UPDATECHECK_ABORT:
-                cmdutil.bailifchanged(repo, merge=False)
+                scmutil.bail_if_changed(repo, merge=False)
                 updatecheck = mergemod.UPDATECHECK_NONE
             ret = _update(repo, checkout, updatecheck=updatecheck)
 
