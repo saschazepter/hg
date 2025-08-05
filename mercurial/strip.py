@@ -5,7 +5,6 @@ from . import (
     bookmarks as bookmarksmod,
     cmdutil,
     error,
-    hg,
     lock as lockmod,
     logcmdutil,
     mergestate as mergestatemod,
@@ -14,6 +13,9 @@ from . import (
     repair,
     scmutil,
     tables,
+)
+from .cmd_impls import (
+    update as up_impl,
 )
 
 release = lockmod.release
@@ -68,7 +70,7 @@ def strip(
         if update:
             checklocalchanges(repo, force=force)
             urev = _findupdatetarget(repo, revs)
-            hg.clean(repo, urev)
+            up_impl.clean(repo, urev)
             repo.dirstate.write(repo.currenttransaction())
 
         if soft:
