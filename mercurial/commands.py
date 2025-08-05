@@ -834,7 +834,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
             )
             return 1
     else:
-        hg.clean(repo, node, show_stats=False)
+        up_impl.clean(repo, node, show_stats=False)
         repo.dirstate.setbranch(branch, repo.currenttransaction())
         cmdutil.revert(ui, repo, rctx)
 
@@ -875,7 +875,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         % (nice(newnode), nice(node))
     )
     if opts.get('merge') and op1 != node:
-        hg.clean(repo, op1, show_stats=False)
+        up_impl.clean(repo, op1, show_stats=False)
         ui.status(_(b'merging with changeset %s\n') % nice(newnode))
         overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
         with ui.configoverride(overrides, b'backout'):
@@ -1066,7 +1066,7 @@ def bisect(
             return
         cmdutil.checkunfinished(repo)
         scmutil.bail_if_changed(repo)
-        return hg.clean(repo, node, show_stats=show_stats)
+        return up_impl.clean(repo, node, show_stats=show_stats)
 
     displayer = logcmdutil.changesetdisplayer(ui, repo, {})
 
@@ -3969,7 +3969,7 @@ def import_(ui, repo, patch1=None, *patches, **opts):
                             parents,
                             pycompat.byteskwargs(opts),
                             msgs,
-                            hg.clean,
+                            up_impl.clean,
                         )
                     if msg:
                         haspatch = True
