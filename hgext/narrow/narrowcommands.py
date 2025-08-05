@@ -23,7 +23,6 @@ from mercurial import (
     error,
     exchange,
     extensions,
-    hg,
     narrowspec,
     pathutil,
     pycompat,
@@ -35,6 +34,9 @@ from mercurial import (
     sparse,
     util,
     wireprototypes,
+)
+from mercurial.cmd_impls import (
+    update as up_impl,
 )
 from mercurial.repo import (
     factory as repo_factory,
@@ -286,7 +288,7 @@ def _narrow(
                         visibletostrip,
                     )
                 )
-                hg.clean(repo, urev)
+                up_impl.clean(repo, urev)
             overrides = {(b'devel', b'strip-obsmarkers'): False}
             if backup:
                 ui.status(_(b'moving unwanted changesets to backup\n'))
