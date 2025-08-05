@@ -25,7 +25,7 @@ def checklocalchanges(repo, force=False):
     s = repo.status()
     if not force:
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
     else:
         cmdutil.checkunfinished(repo, skipmerge=True)
     return s
