@@ -4202,11 +4202,6 @@ def _performrevert(
             repo.dirstate.copy(copied[f], f)
 
 
-# a list of (ui, repo, otherpeer, opts, missing) functions called by
-# commands.outgoing.  "missing" is "missing" of the result of
-# "findcommonoutgoing()"
-outgoinghooks = util.hooks()
-
 # a list of (ui, repo) functions called by commands.summary
 summaryhooks = util.hooks()
 

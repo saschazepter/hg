@@ -13,16 +13,22 @@ import posixpath
 from ..i18n import _
 
 from .. import (
-    cmdutil,
     discovery,
     graphmod,
     logcmdutil,
     scmutil,
+    util,
 )
 from ..repo import factory as repo_factory
 from ..utils import (
     urlutil,
 )
+
+
+# a list of (ui, repo, otherpeer, opts, missing) functions called by
+# commands.outgoing.  "missing" is "missing" of the result of
+# "findcommonoutgoing()"
+outgoinghooks = util.hooks()
 
 
 def _outgoing_filter(repo, revs, opts):
@@ -123,7 +129,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
                     ret = 0
                     display_outgoing_revs(ui, repo, o, opts)
 
-                cmdutil.outgoinghooks(ui, repo, other, opts, o)
+                outgoinghooks(ui, repo, other, opts, o)
 
                 # path.loc is used instead of dest because what we need to pass
                 # is the destination of the repository containing the
