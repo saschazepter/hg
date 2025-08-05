@@ -4123,7 +4123,7 @@ def incoming(ui, repo, source=b"default", **opts):
             finally:
                 other.close()
 
-    return hg.incoming(ui, repo, source, opts)
+    return inc_impl.incoming(ui, repo, source, opts)
 
 
 @command(
