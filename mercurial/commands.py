@@ -7580,8 +7580,13 @@ def update(ui, repo, node=None, **opts):
         hidden = ctx.hidden()
         overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
         with ui.configoverride(overrides, b'update'):
-            ret = hg.updatetotally(
-                ui, repo, rev, brev, clean=clean, updatecheck=updatecheck
+            ret = up_impl.update_totally(
+                ui,
+                repo,
+                rev,
+                brev,
+                clean=clean,
+                updatecheck=updatecheck,
             )
         if hidden:
             ctxstr = ctx.hex()[:12]
