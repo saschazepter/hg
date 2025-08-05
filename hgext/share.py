@@ -127,7 +127,7 @@ def share(
        the broken clone to reset it to a changeset that still exists.
     """
 
-    hg.share(
+    clone_impl.share(
         ui,
         source,
         dest=dest,
