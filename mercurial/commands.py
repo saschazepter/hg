@@ -66,7 +66,10 @@ from . import (
     wireprotoserver,
 )
 
-from .cmd_impls import graft as graft_impl
+from .cmd_impls import (
+    graft as graft_impl,
+    update as up_impl,
+)
 from .configuration import (
     command as config_command,
 )
@@ -824,7 +827,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
             with ui.configoverride(overrides, b'backout'):
                 stats = mergemod.back_out(ctx, parent=repo[parent])
             repo.setparents(op1, op2)
-        hg._showstats(repo, stats)
+        up_impl.show_stats(repo, stats)
         if stats.unresolvedcount:
             repo.ui.status(
                 _(b"use 'hg resolve' to retry unresolved file merges\n")

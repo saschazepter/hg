@@ -24,7 +24,6 @@ from . import (
     bookmarks,
     bundlerepo,
     cmdutil,
-    destutil,
     discovery,
     error,
     exchange,
@@ -43,6 +42,9 @@ from . import (
     util,
     verify as verifymod,
     vfs as vfsmod,
+)
+from .cmd_impls import (
+    update as up_impl,
 )
 from .interfaces import repository as repositorymod
 from .repo import creation, factory as repo_factory
@@ -952,23 +954,6 @@ def clone(
     return srcpeer, destpeer
 
 
-def _showstats(repo, stats, quietempty=False):
-    if quietempty and stats.isempty():
-        return
-    repo.ui.status(
-        _(
-            b"%d files updated, %d files merged, "
-            b"%d files removed, %d files unresolved\n"
-        )
-        % (
-            stats.updatedcount,
-            stats.mergedcount,
-            stats.removedcount,
-            stats.unresolvedcount,
-        )
-    )
-
-
 def updaterepo(repo, node, overwrite, updatecheck=None):
     """Update the working directory to node.
 
@@ -989,155 +974,28 @@ def updaterepo(repo, node, overwrite, updatecheck=None):
     )
 
 
-def update(repo, node, quietempty=False, updatecheck=None):
-    """update the working directory to node"""
-    stats = mergemod.update(repo[node], updatecheck=updatecheck)
-    _showstats(repo, stats, quietempty)
-    if stats.unresolvedcount:
-        repo.ui.status(_(b"use 'hg resolve' to retry unresolved file merges\n"))
-    return stats.unresolvedcount > 0
+def update(*args, **kwargs):
+    return up_impl.update(*args, **kwargs)
+
+
+def updatetotally(*args, **kwargs):
+    return up_impl.update_totally(*args, **kwargs)
+
+
+def clean(*args, **kwargs):
+    return up_impl.clean(*args, **kwargs)
+
+
+def merge(*args, **kwargs):
+    return up_impl.merge(*args, **kwargs)
+
+
+def abortmerge(*args, **kwargs):
+    return up_impl.abort_merge(*args, **kwargs)
 
 
 # naming conflict in clone()
 _update = update
-
-
-def clean(repo, node, show_stats=True, quietempty=False):
-    """forcibly switch the working directory to node, clobbering changes"""
-    stats = mergemod.clean_update(repo[node])
-    assert stats.unresolvedcount == 0
-    if show_stats:
-        _showstats(repo, stats, quietempty)
-    return False
-
-
-# naming conflict in updatetotally()
-_clean = clean
-
-_VALID_UPDATECHECKS = {
-    mergemod.UPDATECHECK_ABORT,
-    mergemod.UPDATECHECK_NONE,
-    mergemod.UPDATECHECK_LINEAR,
-    mergemod.UPDATECHECK_NO_CONFLICT,
-}
-
-
-def updatetotally(ui, repo, checkout, brev, clean=False, updatecheck=None):
-    """Update the working directory with extra care for non-file components
-
-    This takes care of non-file components below:
-
-    :bookmark: might be advanced or (in)activated
-
-    This takes arguments below:
-
-    :checkout: to which revision the working directory is updated
-    :brev: a name, which might be a bookmark to be activated after updating
-    :clean: whether changes in the working directory can be discarded
-    :updatecheck: how to deal with a dirty working directory
-
-    Valid values for updatecheck are the UPDATECHECK_* constants
-    defined in the merge module. Passing `None` will result in using the
-    configured default.
-
-     * ABORT: abort if the working directory is dirty
-     * NONE: don't check (merge working directory changes into destination)
-     * LINEAR: check that update is linear before merging working directory
-               changes into destination
-     * NO_CONFLICT: check that the update does not result in file merges
-
-    This returns whether conflict is detected at updating or not.
-    """
-    if updatecheck is None:
-        updatecheck = ui.config(b'commands', b'update.check')
-        if updatecheck not in _VALID_UPDATECHECKS:
-            # If not configured, or invalid value configured
-            updatecheck = mergemod.UPDATECHECK_LINEAR
-    if updatecheck not in _VALID_UPDATECHECKS:
-        raise ValueError(
-            r'Invalid updatecheck value %r (can accept %r)'
-            % (updatecheck, _VALID_UPDATECHECKS)
-        )
-    with repo.wlock():
-        movemarkfrom = None
-        warndest = False
-        if checkout is None:
-            updata = destutil.destupdate(repo, clean=clean)
-            checkout, movemarkfrom, brev = updata
-            warndest = True
-
-        if clean:
-            ret = _clean(repo, checkout)
-        else:
-            if updatecheck == mergemod.UPDATECHECK_ABORT:
-                scmutil.bail_if_changed(repo, merge=False)
-                updatecheck = mergemod.UPDATECHECK_NONE
-            ret = _update(repo, checkout, updatecheck=updatecheck)
-
-        if not ret and movemarkfrom:
-            if movemarkfrom == repo[b'.'].node():
-                pass  # no-op update
-            elif bookmarks.update(repo, [movemarkfrom], repo[b'.'].node()):
-                b = ui.label(repo._activebookmark, b'bookmarks.active')
-                ui.status(_(b"updating bookmark %s\n") % b)
-            else:
-                # this can happen with a non-linear update
-                b = ui.label(repo._activebookmark, b'bookmarks')
-                ui.status(_(b"(leaving bookmark %s)\n") % b)
-                bookmarks.deactivate(repo)
-        elif brev in repo._bookmarks:
-            if brev != repo._activebookmark:
-                b = ui.label(brev, b'bookmarks.active')
-                ui.status(_(b"(activating bookmark %s)\n") % b)
-            bookmarks.activate(repo, brev)
-        elif brev:
-            if repo._activebookmark:
-                b = ui.label(repo._activebookmark, b'bookmarks')
-                ui.status(_(b"(leaving bookmark %s)\n") % b)
-            bookmarks.deactivate(repo)
-
-        if warndest:
-            destutil.statusotherdests(ui, repo)
-
-    return ret
-
-
-def merge(
-    ctx,
-    force=False,
-    remind=True,
-    labels=None,
-):
-    """Branch merge with node, resolving changes. Return true if any
-    unresolved conflicts."""
-    repo = ctx.repo()
-    stats = mergemod.merge(ctx, force=force, labels=labels)
-    _showstats(repo, stats)
-    if stats.unresolvedcount:
-        repo.ui.status(
-            _(
-                b"use 'hg resolve' to retry unresolved file merges "
-                b"or 'hg merge --abort' to abandon\n"
-            )
-        )
-    elif remind:
-        repo.ui.status(_(b"(branch merge, don't forget to commit)\n"))
-    return stats.unresolvedcount > 0
-
-
-def abortmerge(ui, repo):
-    ms = repo.mergestate()
-    if ms.active():
-        # there were conflicts
-        node = ms.localctx.hex()
-    else:
-        # there were no conficts, mergestate was not stored
-        node = repo[b'.'].hex()
-
-    repo.ui.status(_(b"aborting the merge, updating back to %s\n") % node[:12])
-    stats = mergemod.clean_update(repo[node])
-    assert stats.unresolvedcount == 0
-    _showstats(repo, stats)
 
 
 def _incoming(
