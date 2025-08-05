@@ -3950,7 +3950,11 @@ def import_(ui, repo, patch1=None, *patches, **opts):
                 else:
                     patchurl = os.path.join(base, patchurl)
                     ui.status(_(b'applying %s\n') % patchurl)
-                    patchfile = hg.openpath(ui, patchurl, sendaccept=False)
+                    patchfile = scmutil.open_path(
+                        ui,
+                        patchurl,
+                        sendaccept=False,
+                    )
 
                 haspatch = False
                 for hunk in patch.split(patchfile):
