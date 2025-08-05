@@ -19,6 +19,7 @@ from mercurial import (
     lock,
     pycompat,
     registrar,
+    scmutil,
 )
 from mercurial.repo import (
     factory as repo_factory,
@@ -99,7 +100,7 @@ def fetch(ui, repo, source=b'default', **opts):
         wlock = repo.wlock()
         lock = repo.lock()
 
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
         bheads = repo.branchheads(branch)
         bheads = [head for head in bheads if len(repo[head].children()) == 0]
