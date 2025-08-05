@@ -71,6 +71,9 @@ from . import (
     vfs as vfsmod,
 )
 
+from .cmd_impls import (
+    update as update_impl,
+)
 from .utils import (
     dateutil,
     stringutil,
@@ -1401,11 +1404,7 @@ def changebranch(ui, repo, revs, label, **opts):
         if len(wctx.parents()) == 1:
             newid = replacements.get(wctx.p1().node())
             if newid is not None:
-                # avoid import cycle mercurial.cmdutil -> mercurial.hg ->
-                # mercurial.cmdutil
-                from . import hg
-
-                hg.update(repo, newid[0], quietempty=True)
+                update_impl.update(repo, newid[0], quietempty=True)
 
         ui.status(_(b"changed branch on %d changesets\n") % n_branch_changes)
 
@@ -4429,11 +4428,8 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
     if modheads == 0:
         return False
     if optupdate:
-        # avoid circular import
-        from . import hg
-
         try:
-            return hg.updatetotally(ui, repo, checkout, brev)
+            return update_impl.update_totally(ui, repo, checkout, brev)
         except error.UpdateAbort as inst:
             msg = _(b"not updating: %s") % stringutil.forcebytestr(inst)
             hint = inst.hint

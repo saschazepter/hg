@@ -23,10 +23,8 @@ will likely receive warnings about a direct import.
   mercurial/bundle2.py:*: function level import: mercurial.localrepo (glob)
   mercurial/bundle2.py:*: function level import: mercurial.exchange (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
-  mercurial/cmdutil.py:*: function level import: mercurial.hg (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
   mercurial/cmdutil.py:*: function level import: mercurial.context (glob)
-  mercurial/cmdutil.py:*: function level import: mercurial.hg (glob)
   mercurial/color.py:*: function level import: mercurial.win32 (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.fileset (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
@@ -90,8 +88,8 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
-  Import cycle: mercurial.cmdutil -> mercurial.hg -> mercurial.cmdutil
   Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
+  Import cycle: mercurial.cmdutil -> mercurial.templatekw -> mercurial.cmdutil
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.repo.factory -> mercurial.localrepo
@@ -101,8 +99,8 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.revset -> mercurial.repo.factory -> mercurial.bundlerepo
   Import cycle: mercurial.filemerge -> mercurial.templatekw -> mercurial.merge_utils.diff -> mercurial.merge -> mercurial.filemerge
   Import cycle: mercurial.commit -> mercurial.context -> mercurial.subrepo -> mercurial.hg -> mercurial.localrepo -> mercurial.commit
+  Import cycle: mercurial.cmd_impls.update -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.cmd_impls.update
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
-  Import cycle: mercurial.cmd_impls.update -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.hg -> mercurial.cmd_impls.update
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'
