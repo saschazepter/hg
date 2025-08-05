@@ -96,6 +96,8 @@ def share(ui, *args, **kwargs):
 
 
 def unshare(ui, *args, **kwargs):
+    msg = b'``hg.unshare(...)` moved to `cmd_impls.clone.unshare(...)`'
+    ui.deprecwarn(msg, b'7.3')
     return clone_impl.unshare(ui, *args, **kwargs)
 
 
