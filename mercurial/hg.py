@@ -98,6 +98,8 @@ def share(ui, *args, **kwargs):
 
 
 def clone(ui, *args, **kwargs):
+    msg = b'``hg.clone(...)` moved to `cmd_impls.clone.clone(...)`'
+    ui.deprecwarn(msg, b'7.3')
     return clone_impl.clone(ui, *args, **kwargs)
 
 
