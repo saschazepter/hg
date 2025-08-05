@@ -22,10 +22,12 @@ from mercurial.i18n import _
 from mercurial import (
     encoding,
     error,
-    hg,
     pycompat,
     scmutil,
     util,
+)
+from mercurial.cmd_impls import (
+    clone as clone_impl,
 )
 from mercurial.utils import dateutil
 
@@ -660,7 +662,7 @@ def convert(
         opts[b'authormap'] = opts.get(b'authors')
 
     if not dest:
-        dest = hg.defaultdest(src) + b"-hg"
+        dest = clone_impl.default_dest(src) + b"-hg"
         ui.status(_(b"assuming destination %s\n") % dest)
 
     destc = convertsink(ui, dest, opts.get(b'dest_type'))
