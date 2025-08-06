@@ -32,6 +32,7 @@ from . import (
     fancyopts,
     help,
     hook,
+    initialization,
     main_script,
     profiling,
     pycompat,
@@ -49,6 +50,9 @@ from .utils import (
     procutil,
     stringutil,
 )
+
+
+initialization.init()
 
 
 def _flushstdio(ui, err):

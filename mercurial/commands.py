@@ -19,7 +19,6 @@ from .node import (
     wdirrev,
 )
 from . import (
-    admin_commands as admin_commands_mod,
     archival,
     bookmarks,
     bundle2,
@@ -28,7 +27,6 @@ from . import (
     cmdutil,
     context as contextmod,
     copies,
-    debugcommands as debugcommandsmod,
     destutil,
     discovery,
     encoding,
@@ -89,14 +87,18 @@ from .merge_utils import (
     diff as diff_util,
 )
 
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
 command = registrar.command(tables.command_table)
 
 # offered for backward compatibility
 table = tables.command_table
-
-# make sure the module is imported so it can register its commands
-admin_commands_mod.__doc__
-debugcommandsmod.__doc__
 
 
 INTENT_READONLY = registrar.INTENT_READONLY
@@ -4134,7 +4136,7 @@ def incoming(ui, repo, source=b"default", **opts):
     helpbasic=True,
     norepo=True,
 )
-def init(ui, dest=b".", **opts):
+def _init(ui, dest=b".", **opts):
     """create a new repository in the given directory
 
     Initialize a new repository in the given directory. If the given

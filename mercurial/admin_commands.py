@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from .i18n import _
-from .admin import chainsaw, verify
+from .admin import verify
 from . import (
     error,
     registrar,
@@ -16,8 +16,14 @@ from . import (
     transaction,
 )
 
-# make sure the module is imported so it can register its commands
-chainsaw.command.__doc__
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
 command = registrar.command(tables.command_table)
 
 

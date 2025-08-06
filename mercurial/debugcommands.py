@@ -83,7 +83,6 @@ from . import (
     sshpeer,
     sslutil,
     streamclone,
-    strip,
     tables,
     tags as tagsmod,
     templater,
@@ -116,10 +115,16 @@ from .revlogutils import (
     sidedata,
 )
 
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
 release = lockmod.release
 
-# make sure the module is imported so it can register its commands
-strip.__doc__
 command = registrar.command(tables.command_table)
 
 

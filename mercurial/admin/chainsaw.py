@@ -35,6 +35,14 @@ from ..utils import (
     urlutil,
 )
 
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
 command = registrar.command(tables.command_table)
 
 

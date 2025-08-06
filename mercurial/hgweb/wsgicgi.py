@@ -6,3 +6,10 @@
 from __future__ import annotations
 
 from .wsgicgi_inner import *
+
+from .. import (
+    initialization,
+)
+
+
+initialization.init()

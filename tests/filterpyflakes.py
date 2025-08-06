@@ -16,6 +16,12 @@ for line in sys.stdin:
         r"cffi/[^:]*:.*\bimport \*' used",
         r"cffi/[^:]*:.*\*' imported but unused",
         r"mercurial/interfaces/types.py:.+' imported but unused",
+        r"mercurial/hgweb/hgweb_mod.py:.+ 'from \.hgweb_mod_inner import \*' used.+",
+        r"mercurial/hgweb/hgweb_mod.py:.+ '\.hgweb_mod_inner\.\*' imported but unused",
+        r"mercurial/hgweb/hgwebdir_mod.py:.+ 'from \.hgwebdir_mod_inner import \*' used.+",
+        r"mercurial/hgweb/hgwebdir_mod.py:.+ '\.hgwebdir_mod_inner.\*' imported but unused",
+        r"mercurial/hgweb/wsgicgi.py:.+ 'from \.wsgicgi_inner import \*' used.+",
+        r"mercurial/hgweb/wsgicgi.py:.+ '\.wsgicgi_inner\.\*' imported but unused",
     ]
 
     keep = True

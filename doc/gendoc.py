@@ -33,6 +33,7 @@ from mercurial import (
     extensions,
     fancyopts,
     help,
+    initialization,
     minirst,
     pycompat,
     ui as uimod,
@@ -42,6 +43,8 @@ from mercurial.i18n import (
     _,
 )
 from mercurial.utils import stringutil
+
+initialization.init()
 
 table = commands.table
 globalopts = commands.globalopts

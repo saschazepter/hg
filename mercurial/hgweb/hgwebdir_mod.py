@@ -6,3 +6,10 @@
 from __future__ import annotations
 
 from .hgwebdir_mod_inner import *
+
+from .. import (
+    initialization,
+)
+
+
+initialization.init()

@@ -18,6 +18,14 @@ from .cmd_impls import (
     update as up_impl,
 )
 
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
 release = lockmod.release
 
 command = registrar.command(tables.command_table)

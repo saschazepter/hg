@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 
 from ..i18n import _
@@ -39,6 +40,12 @@ def hgweb(config, name=None, baseui=None):
     - dict of virtual:real pairs (multi-repo view)
     - list of virtual:real tuples (multi-repo view)
     """
+
+    # hgweb.cgi work with this module before access wsgicgi, so we make sure
+    # Mercurial is initialized. This is not ideal, but we can assume that some
+    # old copy pasted hgweb.cgi lives on various website and we do not want to
+    # break them.
+    importlib.import_module('mercurial.initialization').init()
 
     if isinstance(config, str):
         raise error.ProgrammingError(
