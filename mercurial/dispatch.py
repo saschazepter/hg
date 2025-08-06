@@ -22,6 +22,7 @@ from .i18n import _
 from hgdemandimport import tracing
 
 from . import (
+    cmd_impls,
     cmdutil,
     color,
     commands,
@@ -295,7 +296,7 @@ def _runcatch(req):
             realcmd = None
             try:
                 cmdargs = fancyopts.fancyopts(
-                    req.args[:], commands.globalopts, {}
+                    req.args[:], cmd_impls.global_opts, {}
                 )
                 cmd = cmdargs[0]
                 aliases, entry = cmdutil.findcmd(
@@ -770,7 +771,7 @@ def _parse(ui, args):
     cmdoptions = {}
 
     try:
-        args = fancyopts.fancyopts(args, cmdutil.globalopts, options)
+        args = fancyopts.fancyopts(args, cmd_impls.global_opts, options)
     except getopt.GetoptError as inst:
         raise error.CommandError(None, stringutil.forcebytestr(inst))
 
@@ -799,7 +800,7 @@ def _parse(ui, args):
         return opt_name.replace(b'-', b'_')
 
     # combine global options into local
-    for o in cmdutil.globalopts:
+    for o in cmd_impls.global_opts:
         name = global_opt_to_fancy_opt(o[1])
 
         # The fancyopts name is needed for `options`, but the original name
@@ -813,7 +814,7 @@ def _parse(ui, args):
         raise error.CommandError(cmd, stringutil.forcebytestr(inst))
 
     # separate global options back out
-    for o in cmdutil.globalopts:
+    for o in cmd_impls.global_opts:
         n = global_opt_to_fancy_opt(o[1])
         options[n] = cmdoptions[n]
         del cmdoptions[n]
@@ -881,7 +882,7 @@ def _checkshellalias(lui, ui, args):
     options = {}
 
     try:
-        args = fancyopts.fancyopts(args, cmdutil.globalopts, options)
+        args = fancyopts.fancyopts(args, cmd_impls.global_opts, options)
     except getopt.GetoptError:
         return
 
@@ -996,7 +997,7 @@ def _dispatch_post_cwd(req):
                 if cause.opt and "config".startswith(cause.opt):
                     # pycompat._getoptbwrapper() decodes bytes with latin-1
                     opt = cause.opt.encode('latin-1')
-                    all_long = {o[1] for o in cmdutil.globalopts}
+                    all_long = {o[1] for o in cmd_impls.global_opts}
                     possible = [o for o in all_long if o.startswith(opt)]
 
                     if len(possible) != 1:
