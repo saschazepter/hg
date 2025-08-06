@@ -191,6 +191,9 @@ from .interfaces import (
     bundle as i_bundle,
     repository,
 )
+from .repo import (
+    vfs_options as repo_vfs_opts,
+)
 
 if typing.TYPE_CHECKING:
     from typing import (
@@ -2037,8 +2040,6 @@ def combinechangegroupresults(op):
 )
 def handlechangegroup(op, inpart):
     """apply a changegroup part on the repo"""
-    from . import localrepo
-
     tr = op.gettransaction()
     unpackerversion = inpart.params.get(b'version', b'01')
     # We should raise an appropriate exception here
@@ -2057,8 +2058,10 @@ def handlechangegroup(op, inpart):
                 )
             )
         op.repo.requirements.add(requirements.TREEMANIFEST_REQUIREMENT)
-        op.repo.svfs.options = localrepo.resolvestorevfsoptions(
-            op.repo.ui, op.repo.requirements, op.repo.features
+        op.repo.svfs.options = repo_vfs_opts.resolve_store_vfs_options(
+            op.repo.ui,
+            op.repo.requirements,
+            op.repo.features,
         )
         scmutil.writereporequirements(op.repo)
 

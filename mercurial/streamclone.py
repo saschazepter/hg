@@ -42,6 +42,9 @@ from . import (
 from .exchanges import (
     bundle_caps,
 )
+from .repo import (
+    vfs_options as repo_vfs_opts,
+)
 from .revlogutils import (
     nodemap,
 )
@@ -198,8 +201,6 @@ def maybeperformlegacystreamclone(pullop) -> None:
     A legacy stream clone will not be performed if a bundle2 stream clone is
     supported.
     """
-    from . import localrepo
-
     supported, requirements = canperformstreamclone(pullop)
 
     if not supported:
@@ -252,8 +253,10 @@ def maybeperformlegacystreamclone(pullop) -> None:
             repo.requirements,
             requirements,
         )
-        repo.svfs.options = localrepo.resolvestorevfsoptions(
-            repo.ui, repo.requirements, repo.features
+        repo.svfs.options = repo_vfs_opts.resolve_store_vfs_options(
+            repo.ui,
+            repo.requirements,
+            repo.features,
         )
         scmutil.writereporequirements(repo)
         nodemap.post_stream_cleanup(repo)
@@ -1640,8 +1643,6 @@ def consumev3(repo, fp) -> None:
 def applybundlev2(
     repo, fp, filecount: int, filesize: int, requirements: Iterable[bytes]
 ) -> None:
-    from . import localrepo
-
     missingreqs = [r for r in requirements if r not in repo.supported]
     if missingreqs:
         raise error.Abort(
@@ -1656,16 +1657,16 @@ def applybundlev2(
         repo.requirements,
         requirements,
     )
-    repo.svfs.options = localrepo.resolvestorevfsoptions(
-        repo.ui, repo.requirements, repo.features
+    repo.svfs.options = repo_vfs_opts.resolve_store_vfs_options(
+        repo.ui,
+        repo.requirements,
+        repo.features,
     )
     scmutil.writereporequirements(repo)
     nodemap.post_stream_cleanup(repo)
 
 
 def applybundlev3(repo, fp, requirements: Iterable[bytes]) -> None:
-    from . import localrepo
-
     missingreqs = [r for r in requirements if r not in repo.supported]
     if missingreqs:
         msg = _(b'unable to apply stream clone: unsupported format: %s')
@@ -1678,8 +1679,10 @@ def applybundlev3(repo, fp, requirements: Iterable[bytes]) -> None:
         repo.requirements,
         requirements,
     )
-    repo.svfs.options = localrepo.resolvestorevfsoptions(
-        repo.ui, repo.requirements, repo.features
+    repo.svfs.options = repo_vfs_opts.resolve_store_vfs_options(
+        repo.ui,
+        repo.requirements,
+        repo.features,
     )
     scmutil.writereporequirements(repo)
     nodemap.post_stream_cleanup(repo)

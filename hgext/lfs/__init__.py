@@ -148,6 +148,7 @@ from mercurial import (
 )
 
 from mercurial.interfaces import repository
+from mercurial.repo import vfs_options as repo_vfs_opts
 
 from . import (
     blobstore,
@@ -346,7 +347,7 @@ def wrapfilelog(filelog):
     wrapfunction(filelog, 'size', wrapper.filelogsize)
 
 
-@eh.wrapfunction(localrepo, 'resolverevlogstorevfsoptions')
+@eh.wrapfunction(repo_vfs_opts, 'resolve_revlog_store_vfs_options')
 def _resolverevlogstorevfsoptions(orig, ui, requirements, features):
     opts = orig(ui, requirements, features)
     for name, module in extensions.extensions(ui):
