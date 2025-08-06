@@ -12,6 +12,7 @@ import typing
 
 from mercurial.i18n import _
 from mercurial import (
+    cmd_impls,
     commands,
     encoding,
     error,
@@ -260,7 +261,7 @@ _knownopts: set[bytes] = {
     # TODO: drop the cast when pytype stops munging the tuple elements into a
     #  single Union.
     typing.cast(bytes, opt[1]).replace(b'-', b'_')
-    for opt in (fastannotatecommandargs['options'] + commands.globalopts)
+    for opt in (fastannotatecommandargs['options'] + cmd_impls.global_opts)
 }
 
 
