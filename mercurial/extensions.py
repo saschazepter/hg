@@ -399,7 +399,6 @@ def loadall(ui, whitelist=None):
         fileset,
         templatefilters,
         templatefuncs,
-        templatekw,
     )
 
     # list of (objname, loadermod, loadername) tuple:
@@ -417,7 +416,7 @@ def loadall(ui, whitelist=None):
         ('revsetpredicate', tables, 'load_revset_predicates'),
         ('templatefilter', templatefilters, 'loadfilter'),
         ('templatefunc', templatefuncs, 'loadfunction'),
-        ('templatekeyword', templatekw, 'loadkeyword'),
+        ('templatekeyword', tables, 'load_template_keywords'),
     ]
     with util.timedcm('load registration objects') as stats:
         _loadextra(ui, newindex, extraloaders)

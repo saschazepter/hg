@@ -37,6 +37,8 @@ safe_revset_symbols: set[bytes] = set()
 
 bundle2_part_handler_mapping = {}
 
+template_keyword_table: dict = {}
+
 
 def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:
     """Load command functions from specified cmdtable
@@ -54,3 +56,9 @@ def load_revset_predicates(ui: UiT, extname: bytes, registrarobj):
     """Load revset predicates from specified registrarobj"""
     revset_symbol_table.update(registrarobj._table)
     safe_revset_symbols.update(registrarobj._safe_set)
+
+
+def load_template_keywords(ui: UiT, extname: bytes, registrarobj):
+    """Load template keyword from specified registrarobj"""
+    for name, func in registrarobj._table.items():
+        template_keyword_table[name] = func

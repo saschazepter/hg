@@ -24,6 +24,7 @@ from . import (
     pycompat,
     registrar,
     scmutil,
+    tables,
     templateutil,
     util,
 )
@@ -34,6 +35,14 @@ from .utils import (
 from .merge_utils import (
     diff as merge_diff,
 )
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
 
 _hybrid = templateutil.hybrid
 hybriddict = templateutil.hybriddict
@@ -158,8 +167,8 @@ defaulttempl = {
 defaulttempl[b'filecopy'] = defaulttempl[b'file_copy']
 
 # keywords are callables (see registrar.templatekeyword for details)
-keywords = {}
-templatekeyword = registrar.templatekeyword(keywords)
+templatekeyword = registrar.templatekeyword(tables.template_keyword_table)
+keywords = tables.template_keyword_table
 
 
 @templatekeyword(b'author', requires={b'ctx'})
@@ -1021,12 +1030,6 @@ def showwhyunstable(context, mapping):
         b'{reason} {node|short}'
     )
     return templateutil.mappinglist(entries, tmpl=tmpl, sep=b'\n')
-
-
-def loadkeyword(ui, extname, registrarobj):
-    """Load template keyword from specified registrarobj"""
-    for name, func in registrarobj._table.items():
-        keywords[name] = func
 
 
 # tell hggettext to extract docstrings from these functions:

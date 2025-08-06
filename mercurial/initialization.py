@@ -47,6 +47,7 @@ from . import (
     revset,
     revset_predicates,
     strip,
+    templatekw,
 )
 
 from .admin import (
@@ -72,3 +73,4 @@ revset.init()
 strip.init()
 webcommands.init()
 bundle2_part_handlers.init()
+templatekw.init()
