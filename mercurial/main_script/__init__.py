@@ -17,7 +17,7 @@ from typing import (
 from ..i18n import _
 
 from .. import (
-    cmdutil,
+    cmd_impls,
     config as configmod,
     encoding,
     error,
@@ -36,7 +36,7 @@ def early_parse_opts(ui, args):
     options = {}
     fancyopts.fancyopts(
         args,
-        cmdutil.globalopts,
+        cmd_impls.global_opts,
         options,
         gnu=not ui.plain(b'strictflags'),
         early=True,
