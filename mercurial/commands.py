@@ -76,6 +76,9 @@ from .cmd_impls import (
 from .configuration import (
     command as config_command,
 )
+from .main_script import (
+    cmd_finder,
+)
 from .repo import (
     factory as repo_factory,
 )
@@ -88,6 +91,7 @@ from .utils import (
 from .merge_utils import (
     diff as diff_util,
 )
+
 
 if typing.TYPE_CHECKING:
     from typing import Final
@@ -2471,7 +2475,7 @@ def debugcomplete(ui, cmd=b'', **opts):
         options = []
         otables = [cmdutil.globalopts]
         if cmd:
-            aliases, entry = cmdutil.findcmd(
+            aliases, entry = cmd_finder.find_cmd(
                 cmd,
                 tables.command_table,
                 False,
@@ -2487,7 +2491,9 @@ def debugcomplete(ui, cmd=b'', **opts):
         ui.write(b"%s\n" % b"\n".join(options))
         return
 
-    cmdlist, unused_allcmds = cmdutil.findpossible(cmd, tables.command_table)
+    cmdlist, unused_allcmds = cmd_finder.find_possible(
+        cmd, tables.command_table
+    )
     if ui.verbose:
         cmdlist = [b' '.join(c[0]) for c in cmdlist.values()]
     ui.write(b"%s\n" % b"\n".join(sorted(cmdlist)))

@@ -19,7 +19,6 @@ from .i18n import (
 )
 
 from . import (
-    cmdutil,
     configitems,
     error,
     pycompat,
@@ -27,6 +26,9 @@ from . import (
     util,
 )
 
+from .main_script import (
+    cmd_finder,
+)
 from .utils import stringutil
 
 _extensions = {}
@@ -551,7 +553,7 @@ def wrapcommand(table, command, wrapper, synopsis=None, docstring=None):
                              synopsis, docstring)
     '''
     assert callable(wrapper)
-    aliases, entry = cmdutil.findcmd(command, table)
+    aliases, entry = cmd_finder.find_cmd(command, table)
     for alias, e in table.items():
         if e is entry:
             key = alias
@@ -904,7 +906,7 @@ def _finddisabledcmd(ui, cmd, name, path, strict):
     except (OSError, SyntaxError):
         return
     try:
-        aliases, entry = cmdutil.findcmd(cmd, cmdtable, strict)
+        aliases, entry = cmd_finder.find_cmd(cmd, cmdtable, strict)
     except (error.AmbiguousCommand, error.UnknownCommand):
         return
     for c in aliases:

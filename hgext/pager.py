@@ -25,12 +25,12 @@ takes precedence over ignore options and defaults::
 from __future__ import annotations
 
 from mercurial import (
-    cmdutil,
     commands,
     dispatch,
     extensions,
     registrar,
 )
+from mercurial.main_script import cmd_finder
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
@@ -55,7 +55,7 @@ def uisetup(ui):
             usepager = False
             attend = ui.configlist(b'pager', b'attend')
             ignore = ui.configlist(b'pager', b'ignore')
-            cmds, _ = cmdutil.findcmd(cmd, commands.table)
+            cmds, _ = cmd_finder.find_cmd(cmd, commands.table)
 
             for cmd in cmds:
                 var = b'attend-%s' % cmd

@@ -25,12 +25,12 @@ import shutil
 
 from ..i18n import _
 from .. import (
-    cmdutil,
     error,
     localrepo,
     registrar,
     tables,
 )
+from ..main_script import cmd_finder
 from ..utils import (
     urlutil,
 )
@@ -197,7 +197,7 @@ def update(ui, **opts):
             pull_revs = [rev]
         overrides = {(b'ui', b'quiet'): True}
         with repo.ui.configoverride(overrides, b'chainsaw-update'):
-            pull = cmdutil.findcmd(b'pull', tables.command_table)[1][0]
+            pull = cmd_finder.find_cmd(b'pull', tables.command_table)[1][0]
             ret = pull(
                 repo.ui,
                 repo,
@@ -208,7 +208,7 @@ def update(ui, **opts):
             if ret:
                 return ret
 
-        purge = cmdutil.findcmd(b'purge', tables.command_table)[1][0]
+        purge = cmd_finder.find_cmd(b'purge', tables.command_table)[1][0]
         ret = purge(
             ui,
             repo,
@@ -221,7 +221,7 @@ def update(ui, **opts):
             return ret
 
         ui.status(_(b'updating to revision \'%s\'\n') % rev)
-        update = cmdutil.findcmd(b'update', tables.command_table)[1][0]
+        update = cmd_finder.find_cmd(b'update', tables.command_table)[1][0]
         ret = update(ui, repo, rev=rev, clean=True)
         if ret:
             return ret

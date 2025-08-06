@@ -24,7 +24,6 @@ from .i18n import (
 )
 from . import (
     cmd_impls,
-    cmdutil,
     encoding,
     error,
     extensions,
@@ -40,6 +39,9 @@ from . import (
     templatefuncs,
     templatekw,
     ui as uimod,
+)
+from .main_script import (
+    cmd_finder,
 )
 from .utils import (
     compression,
@@ -327,7 +329,7 @@ def topicmatch(
         if kw in cmd or lowercontains(summary) or lowercontains(docs):
             if docs:
                 summary = stringutil.firstline(docs)
-            cmdname = cmdutil.parsealiases(cmd)[0]
+            cmdname = cmd_finder.parse_aliases(cmd)[0]
             if filtercmd(ui, cmdname, func, kw, docs):
                 continue
             results[b'commands'].append((cmdname, summary))
@@ -348,7 +350,7 @@ def topicmatch(
             continue
         for cmd, entry in getattr(mod, 'cmdtable', {}).items():
             if kw in cmd or (len(entry) > 2 and lowercontains(entry[2])):
-                cmdname = cmdutil.parsealiases(cmd)[0]
+                cmdname = cmd_finder.parse_aliases(cmd)[0]
                 func = entry[0]
                 cmddoc = pycompat.getdoc(func)
                 if cmddoc:
@@ -754,7 +756,7 @@ def _getcategorizedhelpcmds(
     # Command -> string showing synonyms
     syns = {}
     for c, e in cmdtable.items():
-        fs = cmdutil.parsealiases(c)
+        fs = cmd_finder.parse_aliases(c)
         f = fs[0]
         syns[f] = fs
         func = e[0]
@@ -816,14 +818,14 @@ def help_(
 
     def helpcmd(name: bytes, subtopic: bytes | None) -> list[bytes]:
         try:
-            aliases, entry = cmdutil.findcmd(
+            aliases, entry = cmd_finder.find_cmd(
                 name, tables.command_table, strict=unknowncmd
             )
         except error.AmbiguousCommand as inst:
             # py3 fix: except vars can't be used outside the scope of the
             # except block, nor can be used inside a lambda. python issue4617
             prefix = inst.prefix
-            select = lambda c: cmdutil.parsealiases(c)[0].startswith(prefix)
+            select = lambda c: cmd_finder.parse_aliases(c)[0].startswith(prefix)
             rst = helplist(select)
             return rst
 
@@ -1079,7 +1081,7 @@ def help_(
             indicateomitted(rst, omitted)
 
         try:
-            cmdutil.findcmd(name, tables.command_table)
+            cmd_finder.find_cmd(name, tables.command_table)
             rst.append(
                 _(b"\nuse 'hg help -c %s' to see help for the %s command\n")
                 % (name, name)

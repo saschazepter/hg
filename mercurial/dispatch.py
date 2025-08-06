@@ -23,7 +23,6 @@ from hgdemandimport import tracing
 
 from . import (
     cmd_impls,
-    cmdutil,
     color,
     commands,
     demandimport,
@@ -45,6 +44,7 @@ from . import (
     util,
 )
 from .main_script import (
+    cmd_finder,
     options as args_util,
     paths as local_util,
 )
@@ -303,7 +303,7 @@ def _runcatch(req):
                     req.args[:], cmd_impls.global_opts, {}
                 )
                 cmd = cmdargs[0]
-                aliases, entry = cmdutil.findcmd(
+                aliases, entry = cmd_finder.find_cmd(
                     cmd,
                     tables.command_table,
                     False,
@@ -547,7 +547,7 @@ class cmdalias:
         self.source = source
 
         try:
-            aliases, entry = cmdutil.findcmd(self.name, cmdtable)
+            aliases, entry = cmd_finder.find_cmd(self.name, cmdtable)
             for alias, e in cmdtable.items():
                 if e is entry:
                     self.cmd = alias
@@ -610,7 +610,7 @@ class cmdalias:
         self.givenargs = args
 
         try:
-            tableentry = cmdutil.findcmd(cmd, cmdtable, False)[1]
+            tableentry = cmd_finder.find_cmd(cmd, cmdtable, False)[1]
             if len(tableentry) > 2:
                 self.fn, self.opts, cmdhelp = tableentry
             else:
@@ -781,7 +781,7 @@ def _parse(ui, args):
 
     if args:
         cmd, args = args[0], args[1:]
-        aliases, entry = cmdutil.findcmd(
+        aliases, entry = cmd_finder.find_cmd(
             cmd, tables.command_table, ui.configbool(b"ui", b"strict")
         )
         cmd = aliases[0]
@@ -898,7 +898,7 @@ def _checkshellalias(lui, ui, args):
     cmd = args[0]
     try:
         strict = ui.configbool(b"ui", b"strict")
-        aliases, entry = cmdutil.findcmd(cmd, cmdtable, strict)
+        aliases, entry = cmd_finder.find_cmd(cmd, cmdtable, strict)
     except (error.AmbiguousCommand, error.UnknownCommand):
         return
 

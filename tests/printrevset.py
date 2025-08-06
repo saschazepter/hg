@@ -1,6 +1,5 @@
 from mercurial.thirdparty import attr
 from mercurial import (
-    cmdutil,
     commands,
     extensions,
     logcmdutil,
@@ -8,6 +7,7 @@ from mercurial import (
     smartset,
 )
 
+from mercurial.main_script import cmd_finder
 from mercurial.utils import stringutil
 
 
@@ -38,7 +38,7 @@ def uisetup(ui):
         return revs, filematcher
 
     extensions.wrapfunction(logcmdutil, 'getrevs', printrevset)
-    aliases, entry = cmdutil.findcmd(b'log', commands.table)
+    aliases, entry = cmd_finder.find_cmd(b'log', commands.table)
     entry[1].append(
         (
             b'',

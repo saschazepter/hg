@@ -672,12 +672,14 @@ environment variable changes in alias commands
 
   $ cat > $TESTTMP/expandalias.py <<EOF
   > import os
-  > from mercurial import cmdutil, commands, registrar
+  > from mercurial import commands, initialization, registrar
+  > from mercurial.main_script import cmd_finder
+  > initialization.init()
   > cmdtable = {}
   > command = registrar.command(cmdtable)
   > @command(b'expandalias')
   > def expandalias(ui, repo, name):
-  >     alias = cmdutil.findcmd(name, commands.table)[1][0]
+  >     alias = cmd_finder.find_cmd(name, commands.table)[1][0]
   >     ui.write(b'%s args: %s\n' % (name, b' '.join(alias.args)))
   >     os.environ['COUNT'] = '2'
   >     ui.write(b'%s args: %s (with COUNT=2)\n' % (name, b' '.join(alias.args)))

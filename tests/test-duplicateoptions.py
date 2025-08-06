@@ -2,9 +2,12 @@ import os
 from mercurial import (
     cmd_impls,
     extensions,
+    initialization,
     tables,
     ui as uimod,
 )
+
+initialization.init()
 
 ignore = {b'highlight', b'win32text', b'factotum', b'beautifygraph'}
 

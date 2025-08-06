@@ -101,6 +101,9 @@ from mercurial.cmd_impls import (
     clone as clone_impl,
     update as up_impl,
 )
+from mercurial.main_script import (
+    cmd_finder,
+)
 from mercurial.repo import (
     factory as repo_factory,
 )
@@ -4282,7 +4285,7 @@ def extsetup(ui):
 
     def dotable(cmdtable):
         for cmd, entry in cmdtable.items():
-            cmd = cmdutil.parsealiases(cmd)[0]
+            cmd = cmd_finder.parse_aliases(cmd)[0]
             func = entry[0]
             if func.norepo:
                 continue
