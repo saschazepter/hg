@@ -205,7 +205,7 @@ impl<T: 'static> PyShareable<T> {
         &'py self,
         owner: &'py Bound<'py, PyAny>,
     ) -> SharedByPyObject<&'static T> {
-        self.borrow_with_owner(owner).share_immutable()
+        unsafe { self.borrow_with_owner(owner).share_immutable() }
     }
 
     /// Share for other Python objects, transforming the inner data
@@ -220,7 +220,7 @@ impl<T: 'static> PyShareable<T> {
         owner: &'py Bound<'py, PyAny>,
         f: impl FnOnce(&'static T) -> U,
     ) -> SharedByPyObject<U> {
-        self.share(owner).map(owner.py(), f)
+        unsafe { self.share(owner).map(owner.py(), f) }
     }
 
     /// # Safety
@@ -231,7 +231,7 @@ impl<T: 'static> PyShareable<T> {
         &'py self,
         owner: &'py Bound<'py, PyAny>,
     ) -> Result<SharedByPyObject<&'static T>, TryShareError> {
-        self.borrow_with_owner(owner).try_share_immutable()
+        unsafe { self.borrow_with_owner(owner).try_share_immutable() }
     }
 
     /// # Safety
@@ -243,7 +243,7 @@ impl<T: 'static> PyShareable<T> {
         owner: &'py Bound<'py, PyAny>,
         f: impl FnOnce(&'static T) -> U,
     ) -> Result<SharedByPyObject<U>, TryShareError> {
-        Ok(self.try_share(owner)?.map(owner.py(), f))
+        unsafe { Ok(self.try_share(owner)?.map(owner.py(), f)) }
     }
 }
 
