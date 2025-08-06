@@ -28,7 +28,7 @@ from mercurial import demandimport
 demandimport.enable()
 
 from mercurial import (
-    commands,
+    cmd_impls,
     encoding,
     extensions,
     fancyopts,
@@ -36,6 +36,7 @@ from mercurial import (
     initialization,
     minirst,
     pycompat,
+    tables,
     ui as uimod,
 )
 from mercurial.i18n import (
@@ -46,8 +47,8 @@ from mercurial.utils import stringutil
 
 initialization.init()
 
-table = commands.table
-globalopts = commands.globalopts
+table = tables.command_table
+globalopts = cmd_impls.global_opts
 helptable = help.helptable
 loaddoc = help.loaddoc
 
