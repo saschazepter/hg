@@ -27,8 +27,8 @@ from . import (
     registrar,
     scmutil,
     simplemerge,
+    tables,
     tagmerge,
-    templatekw,
     templater,
     templateutil,
     util,
@@ -741,7 +741,10 @@ def _describemerge(ui, repo, mynode, fcl, fcb, fco, env, toolpath, args):
     # things for us to import cmdutil.
     tres = formatter.templateresources(ui, repo)
     t = formatter.maketemplater(
-        ui, tmpl, defaults=templatekw.keywords, resources=tres
+        ui,
+        tmpl,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
     ui.status(t.renderdefault(props))
 
@@ -879,7 +882,10 @@ def _populate_label_details(repo, inputs, tool=None):
     template = templater.unquotestring(template)
     tres = formatter.templateresources(ui, repo)
     tmpl = formatter.maketemplater(
-        ui, template, defaults=templatekw.keywords, resources=tres
+        ui,
+        template,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
 
     for input in inputs:
