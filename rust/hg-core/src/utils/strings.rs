@@ -436,7 +436,7 @@ mod tests {
     fn test_expand_vars() {
         // Modifying process-global state in a test isn’t great,
         // but hopefully this won’t collide with anything.
-        std::env::set_var("TEST_EXPAND_VAR", "1");
+        unsafe { std::env::set_var("TEST_EXPAND_VAR", "1") };
         assert_eq!(
             expand_vars(b"before/$TEST_EXPAND_VAR/after"),
             &b"before/1/after"[..]
