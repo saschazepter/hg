@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import typing
 
 from .i18n import _
 from .node import (
@@ -24,6 +25,7 @@ from . import (
     bundle2,
     bundlecaches,
     changegroup,
+    cmd_impls,
     cmdutil,
     context as contextmod,
     copies,
@@ -87,6 +89,9 @@ from .merge_utils import (
     diff as diff_util,
 )
 
+if typing.TYPE_CHECKING:
+    from typing import Final
+
 
 def init():
     """noop function that is called to make sure the module is loaded and has
@@ -104,26 +109,24 @@ table = tables.command_table
 INTENT_READONLY = registrar.INTENT_READONLY
 
 
-# options reused by all commands
-globalopts = cmdutil.globalopts
-
-# templates for common options pattern.
-dryrunopts = cmdutil.dryrunopts
-remoteopts = cmdutil.remoteopts
-walkopts = cmdutil.walkopts
-commitopts = cmdutil.commitopts
-commitopts2 = cmdutil.commitopts2
-commitopts3 = cmdutil.commitopts3
-formatteropts = cmdutil.formatteropts
-templateopts = cmdutil.templateopts
-logopts = cmdutil.logopts
-diffopts = cmdutil.diffopts
-diffwsopts = cmdutil.diffwsopts
-diffopts2 = cmdutil.diffopts2
-mergetoolopts = cmdutil.mergetoolopts
-similarityopts = cmdutil.similarityopts
-subrepoopts = cmdutil.subrepoopts
-debugrevlogopts = cmdutil.debugrevlogopts
+globalopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.global_opts
+dryrunopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.dry_run_opts
+confirmopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.confirm_opts
+remoteopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.remote_opts
+walkopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.walk_opts
+commitopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts
+commitopts2: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts2
+commitopts3: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts3
+formatteropts: Final[cmd_impls.CmdOptionsT] = cmd_impls.formatter_opts
+templateopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.template_opts
+logopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.log_opts
+diffopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_opts
+diffwsopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_ws_opts
+diffopts2: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_opts2
+mergetoolopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.merge_tool_opts
+similarityopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.similarity_opts
+subrepoopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.subrepo_opts
+debugrevlogopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.debug_revlog_opts
 
 # Commands start here, listed alphabetically
 
