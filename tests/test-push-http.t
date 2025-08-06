@@ -585,83 +585,17 @@ Case 3: missing path component of a vanilla path
   > /missing = missing
   > EOF
 
-TODO: missing path should probably abort like a missing path with a glob.
   $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
+  abort: filesystem path is not a repository: 'missing'
+  (this was mapped to server path 'missing')
+  [10]
 
-  $ hg id http://localhost:$HGPORT 2>&1 | grep '^abort:'
-  abort: 'http://localhost:$HGPORT/' does not appear to be an hg repository:
-
-  $ killdaemons.py hg.pid
-  $ cat errors.log | "$PYTHON" $TESTDIR/filtertraceback.py
-  $ rm -f errors.log
-
-  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
-
-  $ hg id http://localhost:$HGPORT/missing 2>&1 | grep '^abort:'
-  abort: HTTP Error 500: Internal Server Error
-
-  $ killdaemons.py hg.pid
-  $ cat errors.log | "$PYTHON" $TESTDIR/filtertraceback.py
-  $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/missing?cmd=capabilities':
-  Traceback (most recent call last):
-  mercurial.error.ParseError: '' is not iterable of mappings
-  
-  During handling of the above exception, another exception occurred:
-  
-  Traceback (most recent call last):
-  mercurial.error.ParseError: '' is not iterable of mappings
-  
-  $ rm -f errors.log
-
-  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
-
-  $ hg id http://localhost:$HGPORT/missing/deeper 2>&1 | grep '^abort:'
-  abort: HTTP Error 500: Internal Server Error
-
-  $ killdaemons.py hg.pid
-  $ cat errors.log | "$PYTHON" $TESTDIR/filtertraceback.py
-  $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/missing/deeper?cmd=capabilities':
-  Traceback (most recent call last):
-  mercurial.error.ParseError: '' is not iterable of mappings
-  
-  During handling of the above exception, another exception occurred:
-  
-  Traceback (most recent call last):
-  mercurial.error.ParseError: '' is not iterable of mappings
-  
-  $ rm -f errors.log
-
-  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
-
-  $ hg id http://localhost:$HGPORT/unmapped_path 2>&1 | grep '^abort:'
-  abort: HTTP Error 404: Not Found
-
-  $ killdaemons.py hg.pid
-  $ cat errors.log | "$PYTHON" $TESTDIR/filtertraceback.py
-  $ rm -f errors.log
-
-Path exists, but is not a repo, still trips over a 500
+Path exists, but is not a repo
   $ mkdir -p missing
   $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
-
-  $ hg id http://localhost:$HGPORT/missing
-  abort: HTTP Error 500: Internal Server Error
-  [100]
-  $ find missing/.hg | sort
-  find: `missing/.hg': $ENOENT$
-
-  $ killdaemons.py hg.pid
-  $ cat errors.log | "$PYTHON" $TESTDIR/filtertraceback.py
-  $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/missing?cmd=capabilities':
-  Traceback (most recent call last):
-  mercurial.error.ParseError: '' is not iterable of mappings
-  
-  During handling of the above exception, another exception occurred:
-  
-  Traceback (most recent call last):
-  mercurial.error.ParseError: '' is not iterable of mappings
-  
-  $ rm -f errors.log
+  abort: filesystem path is not a repository: 'missing'
+  (this was mapped to server path 'missing')
+  [10]
 
 What happens when we fake a repo?  Looks like we get something repo-adjacent,
 but not initialized on disk.

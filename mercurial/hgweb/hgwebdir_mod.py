@@ -69,6 +69,17 @@ def findrepos(paths):
         try:
             recurse = {b'*': False, b'**': True}[roottail]
         except KeyError:
+            # scmutil.walkrepos() will do some validation that the given path
+            # exists, and will ignore directories without '.hg' by its nature.
+            # Replicate that here so the server doesn't launch with bogus paths.
+            # TODO: Follow symlinks for the root path like scmutil.walkrepos()?
+            if not os.path.isdir(root) or not os.path.isdir(
+                os.path.join(root, b'.hg')
+            ):
+                msg = _(b"filesystem path is not a repository: '%s'") % root
+                hint = _(b"this was mapped to server path '%s'") % prefix
+                raise error.InputError(msg, hint=hint)
+
             repos.append((prefix, root))
             continue
         roothead = os.path.normpath(util.abspath(roothead))
