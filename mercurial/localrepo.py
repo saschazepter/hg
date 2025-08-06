@@ -2391,6 +2391,60 @@ class localrepository(_localrepo_base_classes):
         self[None].setparents(p1, p2)
         self._quick_access_changeid_invalidate()
 
+    def memctx(
+        self,
+        parents,
+        text: bytes,
+        files,
+        filectxfn,
+        user: bytes | None = None,
+        date=None,
+        extra=None,
+        branch: bytes | None = None,
+        editor=None,
+    ) -> context.memctx:
+        """create a new memctx using this repository
+
+        Exists to make it easy to create a memctx in any logic that already
+        deals with context or repository, without having to import the context
+        module, creating potential cycles."""
+        return context.memctx(
+            repo=self,
+            parents=parents,
+            text=text,
+            files=files,
+            filectxfn=filectxfn,
+            user=user,
+            date=date,
+            extra=extra,
+            branch=branch,
+            editor=editor,
+        )
+
+    def memfilectx(
+        self,
+        changectx,
+        path: bytes,
+        data: bytes,
+        islink: bool = False,
+        isexec: bool = False,
+        copysource: bytes | None = None,
+    ) -> context.memfilectx:
+        """create a new memfilectx using this repository
+
+        Exists to make it easy to create a memctx in any logic that already
+        deals with context or repository, without having to import the context
+        module, creating potential cycles."""
+        return context.memfilectx(
+            repo=self,
+            changectx=changectx,
+            path=path,
+            data=data,
+            islink=islink,
+            isexec=isexec,
+            copysource=copysource,
+        )
+
     def filectx(self, path: bytes, changeid=None, fileid=None, changectx=None):
         """changeid must be a changeset revision, if specified.
         fileid can be a file revision or node."""

@@ -1329,9 +1329,6 @@ def changebranch(ui, repo, revs, label, **opts):
 
         n_branch_changes = 0
         replacements = {}
-        # avoid import cycle mercurial.cmdutil -> mercurial.context ->
-        # mercurial.subrepo -> mercurial.cmdutil
-        from . import context
 
         for rev in revs:
             ctx = repo[rev]
@@ -1379,8 +1376,7 @@ def changebranch(ui, repo, revs, label, **opts):
             else:
                 files = set(ctx.files())
 
-            mc = context.memctx(
-                repo,
+            mc = repo.memctx(
                 (p1, p2),
                 ctx.description(),
                 files,
@@ -2233,9 +2229,6 @@ def tryimportone(ui, repo, patchdata, parents, opts, msgs, updatefunc):
     :updatefunc: a function that update a repo to a given node
                  updatefunc(<repo>, <node>)
     """
-    # avoid cycle context -> subrepo -> cmdutil
-    from . import context
-
     tmpname = patchdata.get(b'filename')
     message = patchdata.get(b'message')
     user = opts.get(b'user') or patchdata.get(b'user')
@@ -2402,8 +2395,7 @@ def tryimportone(ui, repo, patchdata, parents, opts, msgs, updatefunc):
                 editor = None
             else:
                 editor = getcommiteditor(editform=b'import.bypass')
-            memctx = context.memctx(
-                repo,
+            memctx = repo.memctx(
                 (p1.node(), p2.node()),
                 message,
                 files=files,
@@ -3243,9 +3235,6 @@ def samefile(f, ctx1, ctx2):
 
 
 def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
-    # avoid cycle context -> subrepo -> cmdutil
-    from . import context
-
     # amend will reuse the existing user if not specified, but the obsolete
     # marker creation requires that the current user's name is specified.
     if obsolete.isenabled(repo, obsolete.createmarkersopt):
@@ -3363,8 +3352,7 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
                     else:
                         fctx = old.filectx(path)
                     flags = fctx.flags()
-                    mctx = context.memfilectx(
-                        repo,
+                    mctx = repo.memfilectx(
                         ctx_,
                         fctx.path(),
                         fctx.data(),
@@ -3407,8 +3395,7 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
         pureextra = extra.copy()
         extra[b'amend_source'] = old.hex()
 
-        new = context.memctx(
-            repo,
+        new = repo.memctx(
             parents=[base.node(), old.p2().node()],
             text=message,
             files=files,
