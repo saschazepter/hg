@@ -37,7 +37,6 @@ from . import (
     tables,
     templatefilters,
     templatefuncs,
-    templatekw,
     ui as uimod,
 )
 from .main_script import (
@@ -686,7 +685,11 @@ addtopicsymbols(
     b'merge-tools', b'.. internaltoolsmarker', filemerge.internalsdoc
 )
 addtopicsymbols(b'revisions', b'.. predicatesmarker', revset.symbols)
-addtopicsymbols(b'templates', b'.. keywordsmarker', templatekw.keywords)
+addtopicsymbols(
+    b'templates',
+    b'.. keywordsmarker',
+    tables.template_keyword_table,
+)
 addtopicsymbols(b'templates', b'.. filtersmarker', templatefilters.filters)
 addtopicsymbols(b'templates', b'.. functionsmarker', templatefuncs.funcs)
 addtopicsymbols(
