@@ -110,7 +110,7 @@ class namespaces:
 
             @templatekeyword(namespace.name, requires={b'repo', b'ctx'})
             def generatekw(context, mapping):
-                return templatekw.shownames(context, mapping, namespace.name)
+                return templateutil.show_names(context, mapping, namespace.name)
 
     def singlenode(self, repo, name):
         """

@@ -413,21 +413,6 @@ def showobsfate(context, mapping):
     return compatlist(context, mapping, b"fate", values)
 
 
-def shownames(context, mapping, namespace):
-    """helper method to generate a template keyword for a namespace"""
-    repo = context.resource(mapping, b'repo')
-    ctx = context.resource(mapping, b'ctx')
-    ns = repo.names.get(namespace)
-    if ns is None:
-        # namespaces.addnamespace() registers new template keyword, but
-        # the registered namespace might not exist in the current repo.
-        return
-    names = ns.names(repo, ctx.node())
-    return compatlist(
-        context, mapping, ns.templatename, names, plural=namespace
-    )
-
-
 @templatekeyword(b'namespaces', requires={b'repo', b'ctx'})
 def shownamespaces(context, mapping):
     """Dict of lists. Names attached to this changeset per
@@ -782,7 +767,7 @@ def showsubrepos(context, mapping):
 @templatekeyword(b'tags', requires={b'repo', b'ctx'})
 def showtags(context, mapping):
     """List of strings. Any tags associated with the changeset."""
-    return shownames(context, mapping, b'tags')
+    return templateutil.show_names(context, mapping, b'tags')
 
 
 @templatekeyword(b'termwidth', requires={b'ui'})
