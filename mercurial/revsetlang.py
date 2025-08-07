@@ -16,6 +16,7 @@ from . import (
     parser,
     pycompat,
     smartset,
+    tables,
     util,
 )
 from .utils import stringutil
@@ -63,7 +64,7 @@ elements = {
 
 keywords = {b'and', b'or', b'not'}
 
-symbols = {}
+symbols = tables.revset_symbol_table
 
 _quoteletters = {b'"', b"'"}
 _simpleopletters = set(pycompat.iterbytestr(b"()[]#:=,-|&+!~^%"))

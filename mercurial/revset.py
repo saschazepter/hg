@@ -38,6 +38,7 @@ from . import (
     scmutil,
     smartset,
     stack as stackmod,
+    tables,
     util,
 )
 from .utils import (
@@ -398,14 +399,17 @@ def func(repo, subset, a, b, order):
 #   repo - current repository instance
 #   subset - of revisions to be examined
 #   x - argument in tree form
-symbols = revsetlang.symbols
+symbols = tables.revset_symbol_table
 
 # symbols which can't be used for a DoS attack for any given input
 # (e.g. those which accept regexes as plain strings shouldn't be included)
 # functions that just return a lot of changesets (like all) don't count here
-safesymbols = set()
+safesymbols = tables.safe_revset_symbols
 
-predicate = registrar.revsetpredicate()
+predicate = registrar.revsetpredicate(
+    tables.revset_symbol_table,
+    tables.safe_revset_symbols,
+)
 
 
 @predicate(b'_destupdate')
@@ -2878,15 +2882,6 @@ def makematcher(tree):
 
     return mfunc
 
-
-def loadpredicate(ui, extname, registrarobj):
-    """Load revset predicates from specified registrarobj"""
-    symbols.update(registrarobj._table)
-    safesymbols.update(registrarobj._safe_set)
-
-
-# load built-in predicates explicitly to setup safesymbols
-loadpredicate(None, None, predicate)
 
 # tell hggettext to extract docstrings from these functions:
 i18nfunctions = symbols.values()

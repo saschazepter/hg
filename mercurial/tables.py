@@ -23,6 +23,18 @@ from .i18n import _
 command_table: dict = {}
 webcommand_table: dict = {}
 
+# symbols are callables like:
+#   fn(repo, subset, x)
+# with:
+#   repo - current repository instance
+#   subset - of revisions to be examined
+#   x - argument in tree form
+revset_symbol_table: dict = {}
+# symbols which can't be used for a DoS attack for any given input
+# (e.g. those which accept regexes as plain strings shouldn't be included)
+# functions that just return a lot of changesets (like all) don't count here
+safe_revset_symbols: set[bytes] = set()
+
 
 def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:
     """Load command functions from specified cmdtable
@@ -34,3 +46,9 @@ def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:
         msg %= (name, b" ".join(overrides))
         ui.warn(msg)
     command_table.update(cmdtable)
+
+
+def load_revset_predicates(ui: UiT, extname: bytes, registrarobj):
+    """Load revset predicates from specified registrarobj"""
+    revset_symbol_table.update(registrarobj._table)
+    safe_revset_symbols.update(registrarobj._safe_set)
