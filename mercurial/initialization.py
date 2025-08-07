@@ -43,6 +43,8 @@ from . import (
     admin_commands,
     commands,
     debugcommands,
+    revset,
+    revset_predicates,
     strip,
 )
 
@@ -63,5 +65,8 @@ admin_chainsaw.init()
 admin_commands.init()
 commands.init()
 debugcommands.init()
+revset_predicates.init()
+# register all other revset first because of the i18nfunctions business.
+revset.init()
 strip.init()
 webcommands.init()

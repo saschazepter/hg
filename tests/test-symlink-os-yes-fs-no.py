@@ -3,12 +3,15 @@ import sys
 import time
 from mercurial import (
     commands,
+    initialization,
     policy,
     pycompat,
     ui as uimod,
     util,
 )
 from mercurial.repo import factory
+
+initialization.init()
 
 TESTDIR = os.environ["TESTDIR"]
 BUNDLEPATH = os.path.join(TESTDIR, 'bundles', 'test-no-symlinks.hg')

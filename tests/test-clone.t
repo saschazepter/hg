@@ -541,6 +541,8 @@ iterable in addbranchrevs()
   $ rm -r ua
 
   $ cat <<EOF > branchclone.py
+  > from mercurial import initialization
+  > initialization.init()
   > from mercurial import extensions, ui as uimod
   > from mercurial.cmd_impls import clone
   > from mercurial.repo import factory

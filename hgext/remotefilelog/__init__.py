@@ -159,6 +159,7 @@ from mercurial import (
     repair,
     repoview,
     revset,
+    revset_predicates,
     scmutil,
     smartset,
     streamclone,
@@ -349,8 +350,8 @@ def uisetup(ui):
 
     # disappointing hacks below
     extensions.wrapfunction(scmutil, 'getrenamedfn', getrenamedfn)
-    extensions.wrapfunction(revset, 'filelog', filelogrevset)
-    revset.symbols[b'filelog'] = revset.filelog
+    extensions.wrapfunction(revset_predicates, 'filelog', filelogrevset)
+    revset.symbols[b'filelog'] = revset_predicates.filelog
 
 
 def cloneshallow(orig, ui, repo, *args, **opts):
