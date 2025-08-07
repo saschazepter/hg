@@ -74,10 +74,10 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
-  Import cycle: mercurial.cmdutil -> mercurial.templatekw -> mercurial.cmdutil
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
+  Import cycle: mercurial.cmdutil -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil
   Import cycle: mercurial.context -> mercurial.subrepo -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   Import cycle: mercurial.filemerge -> mercurial.templatekw -> mercurial.merge_utils.diff -> mercurial.merge -> mercurial.filemerge

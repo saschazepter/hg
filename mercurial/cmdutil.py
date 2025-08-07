@@ -67,7 +67,7 @@ from . import (
     state as statemod,
     streamclone,
     subrepoutil,
-    templatekw,
+    tables,
     templater,
     util,
     vfs as vfsmod,
@@ -1200,7 +1200,10 @@ def rendertemplate(ctx, tmpl, props=None):
     repo = ctx.repo()
     tres = formatter.templateresources(repo.ui, repo)
     t = formatter.maketemplater(
-        repo.ui, tmpl, defaults=templatekw.keywords, resources=tres
+        repo.ui,
+        tmpl,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
     mapping = {b'ctx': ctx}
     if props:
