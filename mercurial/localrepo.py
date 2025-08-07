@@ -80,9 +80,7 @@ from .exchanges import (
 from .interfaces import (
     repository,
 )
-from .upgrade_utils import (
-    auto_upgrade,
-)
+from .upgrade_utils import auto_upgrade, share_safe as share_safe_upgrade
 from .utils import (
     hashutil,
     procutil,
@@ -625,10 +623,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 b'allow',
                 b'downgrade-abort',
             ):
-                # prevent cyclic import localrepo -> upgrade -> localrepo
-                from . import upgrade
-
-                upgrade.downgrade_share_to_non_safe(
+                share_safe_upgrade.downgrade_share_to_non_safe(
                     ui,
                     hgvfs,
                     sharedvfs,
@@ -669,10 +664,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 b'allow',
                 b'upgrade-abort',
             ):
-                # prevent cyclic import localrepo -> upgrade -> localrepo
-                from . import upgrade
-
-                upgrade.upgrade_share_to_safe(
+                share_safe_upgrade.upgrade_share_to_safe(
                     ui,
                     hgvfs,
                     storevfs,

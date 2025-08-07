@@ -52,8 +52,6 @@ will likely receive warnings about a direct import.
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
-  mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
-  mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
@@ -82,13 +80,12 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.cmdutil -> mercurial.templatekw -> mercurial.cmdutil
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
-  Import cycle: mercurial.localrepo -> mercurial.upgrade -> mercurial.repo.factory -> mercurial.localrepo
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
+  Import cycle: mercurial.context -> mercurial.subrepo -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
-  Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.upgrade -> mercurial.repo.factory -> mercurial.bundlerepo
   Import cycle: mercurial.filemerge -> mercurial.templatekw -> mercurial.merge_utils.diff -> mercurial.merge -> mercurial.filemerge
   Import cycle: mercurial.cmd_impls.clone -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.clone
-  Import cycle: mercurial.httppeer -> mercurial.statichttprepo -> mercurial.localrepo -> mercurial.upgrade -> mercurial.repo.factory -> mercurial.httppeer
+  Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.incoming -> mercurial.bundlerepo
   Import cycle: mercurial.cmd_impls.update -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.cmd_impls.update
   Import cycle: mercurial.cmd_impls.outgoing -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.outgoing
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
