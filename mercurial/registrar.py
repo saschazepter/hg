@@ -291,10 +291,28 @@ class revsetpredicate(_funcregistrarbase):
     _getname = _funcregistrarbase._parsefuncdecl
     _docformat = b"``%s``\n    %s"
 
-    def _extrasetup(self, name, func, safe=False, takeorder=False, weight=1):
+    def __init__(
+        self, table: dict | None = None, safe_set: set[bytes] | None = None
+    ):
+        if (table is not None and safe_set is None) or (
+            table is None and safe_set is not None
+        ):
+            msg = b"should provide both table and safe_set or neither"
+            raise error.ProgrammingError(msg)
+        elif table is None:
+            safe_set = set()
+        assert safe_set is not None  # help pytype
+        super().__init__(table)
+        self._safe_set: set[bytes] = safe_set
+
+    def _extrasetup(
+        self, name: bytes, func, safe=False, takeorder=False, weight=1
+    ):
         func._safe = safe
         func._takeorder = takeorder
         func._weight = weight
+        if safe:
+            self._safe_set.add(name)
 
 
 class filesetpredicate(_funcregistrarbase):

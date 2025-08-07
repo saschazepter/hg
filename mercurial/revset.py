@@ -2881,10 +2881,8 @@ def makematcher(tree):
 
 def loadpredicate(ui, extname, registrarobj):
     """Load revset predicates from specified registrarobj"""
-    for name, func in registrarobj._table.items():
-        symbols[name] = func
-        if func._safe:
-            safesymbols.add(name)
+    symbols.update(registrarobj._table)
+    safesymbols.update(registrarobj._safe_set)
 
 
 # load built-in predicates explicitly to setup safesymbols
