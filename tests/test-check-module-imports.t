@@ -20,7 +20,6 @@ will likely receive warnings about a direct import.
   $ bash contrib/check-import
   mercurial/__main__.py:*: function level import: mercurial.demandimport (glob)
   mercurial/__main__.py:*: function level import: mercurial.dispatch (glob)
-  mercurial/bundle2.py:*: function level import: mercurial.exchange (glob)
   mercurial/color.py:*: function level import: mercurial.win32 (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.fileset (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
@@ -76,7 +75,6 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
-  Import cycle: mercurial.bundle2 -> mercurial.exchange -> mercurial.bundle2
   Import cycle: mercurial.cmdutil -> mercurial.templatekw -> mercurial.cmdutil
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
@@ -89,6 +87,7 @@ will likely receive warnings about a direct import.
   Import cycle: mercurial.cmd_impls.update -> mercurial.merge -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.cmd_impls.update
   Import cycle: mercurial.cmd_impls.outgoing -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.outgoing
   Import cycle: mercurial.bundlecaches -> mercurial.repo.requirements -> mercurial.extensions -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.exchange -> mercurial.bundlecaches
+  Import cycle: mercurial.bundle2 -> mercurial.streamclone -> mercurial.narrowspec -> mercurial.sparse -> mercurial.merge_utils.update -> mercurial.filemerge -> mercurial.templatekw -> mercurial.cmdutil -> mercurial.bundle2
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'

@@ -17,6 +17,7 @@ Create an extension to test bundle2 API
   > import sys
   > from mercurial import util
   > from mercurial import bundle2
+  > from mercurial import bundle2_part_handlers
   > from mercurial import scmutil
   > from mercurial import discovery
   > from mercurial import changegroup
@@ -43,7 +44,7 @@ Create an extension to test bundle2 API
   > Emana Karassoli, Loucra Loucra Ponponto, Pata Pata, Ko Ko Ko."""
   > assert len(ELEPHANTSSONG) == 178 # future test say 178 bytes, trust it.
   > 
-  > @bundle2.parthandler(b'test:song')
+  > @bundle2_part_handlers.parthandler(b'test:song')
   > def songhandler(op, part):
   >     """handle a "test:song" bundle2 part, printing the lyrics on stdin"""
   >     op.ui.write(b'The choir starts singing:\n')
@@ -53,7 +54,7 @@ Create an extension to test bundle2 API
   >         verses += 1
   >     op.records.add(b'song', {b'verses': verses})
   > 
-  > @bundle2.parthandler(b'test:ping')
+  > @bundle2_part_handlers.parthandler(b'test:ping')
   > def pinghandler(op, part):
   >     op.ui.write(b'received ping request (id %i)\n' % part.id)
   >     if op.reply is not None and b'ping-pong' in op.reply.capabilities:
@@ -61,7 +62,7 @@ Create an extension to test bundle2 API
   >         op.reply.newpart(b'test:pong', [(b'in-reply-to', b'%d' % part.id)],
   >                          mandatory=False)
   > 
-  > @bundle2.parthandler(b'test:debugreply')
+  > @bundle2_part_handlers.parthandler(b'test:debugreply')
   > def debugreply(op, part):
   >     """print data about the capacity of the bundle reply"""
   >     if op.reply is None:

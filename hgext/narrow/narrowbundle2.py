@@ -12,6 +12,7 @@ import struct
 from mercurial.i18n import _
 from mercurial import (
     bundle2,
+    bundle2_part_handlers,
     changegroup,
     error,
     exchange,
@@ -179,7 +180,9 @@ def generate_ellipses_bundle2_for_widening(
             part.addparam(b'treemanifest', b'1')
 
 
-@bundle2.parthandler(_SPECPART, (_SPECPART_INCLUDE, _SPECPART_EXCLUDE))
+@bundle2_part_handlers.parthandler(
+    _SPECPART, (_SPECPART_INCLUDE, _SPECPART_EXCLUDE)
+)
 def _handlechangespec_2(op, inpart):
     # XXX: This bundle2 handling is buggy and should be removed after hg5.2 is
     # released. New servers will send a mandatory bundle2 part named
@@ -197,7 +200,7 @@ def _handlechangespec_2(op, inpart):
     narrowspec.copytoworkingcopy(op.repo)
 
 
-@bundle2.parthandler(_RESSPECS)
+@bundle2_part_handlers.parthandler(_RESSPECS)
 def _handlenarrowspecs(op, inpart):
     data = inpart.read()
     inc, exc = data.split(b'\0')
@@ -213,7 +216,7 @@ def _handlenarrowspecs(op, inpart):
     narrowspec.copytoworkingcopy(op.repo)
 
 
-@bundle2.parthandler(_CHANGESPECPART)
+@bundle2_part_handlers.parthandler(_CHANGESPECPART)
 def _handlechangespec(op, inpart):
     repo = op.repo
     cl = repo.changelog

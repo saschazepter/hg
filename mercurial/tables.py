@@ -35,6 +35,8 @@ revset_symbol_table: dict = {}
 # functions that just return a lot of changesets (like all) don't count here
 safe_revset_symbols: set[bytes] = set()
 
+bundle2_part_handler_mapping = {}
+
 
 def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:
     """Load command functions from specified cmdtable

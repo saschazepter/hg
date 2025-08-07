@@ -41,6 +41,7 @@ from __future__ import annotations
 
 from . import (
     admin_commands,
+    bundle2_part_handlers,
     commands,
     debugcommands,
     revset,
@@ -70,3 +71,4 @@ revset_predicates.init()
 revset.init()
 strip.init()
 webcommands.init()
+bundle2_part_handlers.init()
