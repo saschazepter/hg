@@ -52,75 +52,6 @@ compatlist = templateutil.compatlist
 _showcompatlist = templateutil._showcompatlist
 
 
-def getlatesttags(context, mapping, pattern=None):
-    '''return date, distance and name for the latest tag of rev'''
-    repo = context.resource(mapping, b'repo')
-    ctx = context.resource(mapping, b'ctx')
-    cache = context.resource(mapping, b'cache')
-
-    cachename = b'latesttags'
-    if pattern is not None:
-        cachename += b'-' + pattern
-        match = stringutil.stringmatcher(pattern)[2]
-    else:
-        match = util.always
-
-    if cachename not in cache:
-        # Cache mapping from rev to a tuple with tag date, tag
-        # distance and tag name
-        cache[cachename] = {-1: (0, 0, [b'null'])}
-    latesttags = cache[cachename]
-
-    rev = ctx.rev()
-    todo = [rev]
-    while todo:
-        rev = todo.pop()
-        if rev in latesttags:
-            continue
-        ctx = repo[rev]
-        tags = [
-            t
-            for t in ctx.tags()
-            if (repo.tagtype(t) and repo.tagtype(t) != b'local' and match(t))
-        ]
-        if tags:
-            latesttags[rev] = ctx.date()[0], 0, [t for t in sorted(tags)]
-            continue
-        try:
-            ptags = [latesttags[p.rev()] for p in ctx.parents()]
-            if len(ptags) > 1:
-                if ptags[0][2] == ptags[1][2]:
-                    # The tuples are laid out so the right one can be found by
-                    # comparison in this case.
-                    pdate, pdist, ptag = max(ptags)
-                else:
-
-                    def key(x):
-                        tag = x[2][0]
-                        if ctx.rev() is None:
-                            # only() doesn't support wdir
-                            prevs = [c.rev() for c in ctx.parents()]
-                            changes = repo.revs(b'only(%ld, %s)', prevs, tag)
-                            changessincetag = len(changes) + 1
-                        else:
-                            changes = repo.revs(b'only(%d, %s)', ctx.rev(), tag)
-                            changessincetag = len(changes)
-                        # Smallest number of changes since tag wins. Date is
-                        # used as tiebreaker.
-                        return [-changessincetag, x[0]]
-
-                    pdate, pdist, ptag = max(ptags, key=key)
-            else:
-                pdate, pdist, ptag = ptags[0]
-        except KeyError:
-            # Cache miss - recurse
-            todo.append(rev)
-            todo.extend(p.rev() for p in ctx.parents())
-            continue
-        latesttags[rev] = pdate, pdist + 1, ptag
-    return latesttags[rev]
-
-
 def getlogcolumns():
     """Return a dict of log column labels"""
     _ = pycompat.identity  # temporarily disable gettext
@@ -493,59 +424,21 @@ def showlatesttag(context, mapping):
     tagged ancestor of this changeset.  If no such tags exist, the list
     consists of the single string "null".
     """
-    return showlatesttags(context, mapping, None)
-
-
-def showlatesttags(context, mapping, pattern) -> _hybrid:
-    """helper method for the latesttag keyword and function"""
-    latesttags = getlatesttags(context, mapping, pattern)
-
-    # latesttag[0] is an implementation detail for sorting csets on different
-    # branches in a stable manner- it is the date the tagged cset was created,
-    # not the date the tag was created.  Therefore it isn't made visible here.
-    makemap = lambda v: {
-        b'changes': _showchangessincetag,
-        b'distance': latesttags[1],
-        b'latesttag': v,  # BC with {latesttag % '{latesttag}'}
-        b'tag': v,
-    }
-
-    tags = latesttags[2]
-    f = _showcompatlist(context, mapping, b'latesttag', tags, separator=b':')
-    return _hybrid(f, tags, makemap, pycompat.identity)
+    return templateutil.show_latest_tags(context, mapping, None)
 
 
 @templatekeyword(b'latesttagdistance', requires={b'repo', b'ctx', b'cache'})
 def showlatesttagdistance(context, mapping):
     """Integer. Longest path to the latest tag."""
-    return getlatesttags(context, mapping)[1]
+    return templateutil.get_latest_tags(context, mapping)[1]
 
 
 @templatekeyword(b'changessincelatesttag', requires={b'repo', b'ctx', b'cache'})
 def showchangessincelatesttag(context, mapping):
     """Integer. All ancestors not in the latest tag."""
-    tag = getlatesttags(context, mapping)[2][0]
+    tag = templateutil.get_latest_tags(context, mapping)[2][0]
     mapping = context.overlaymap(mapping, {b'tag': tag})
-    return _showchangessincetag(context, mapping)
-
-
-def _showchangessincetag(context, mapping):
-    repo = context.resource(mapping, b'repo')
-    ctx = context.resource(mapping, b'ctx')
-    offset = 0
-    revs = [ctx.rev()]
-    tag = context.symbol(mapping, b'tag')
-
-    # The only() revset doesn't currently support wdir()
-    if ctx.rev() is None:
-        offset = 1
-        revs = [p.rev() for p in ctx.parents()]
-
-    return len(repo.revs(b'only(%ld, %s)', revs, tag)) + offset
-
-
-# teach templater latesttags.changes is switched to (context, mapping) API
-_showchangessincetag._requires = {b'repo', b'ctx'}
+    return templateutil.show_changes_since_tag(context, mapping)
 
 
 @templatekeyword(b'manifest', requires={b'repo', b'ctx'})
