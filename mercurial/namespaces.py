@@ -3,7 +3,7 @@ from __future__ import annotations
 from .i18n import _
 from . import (
     registrar,
-    templatekw,
+    tables,
     templateutil,
     util,
 )
@@ -105,10 +105,10 @@ class namespaces:
             self._names[namespace.name] = namespace
 
         # we only generate a template keyword if one does not already exist
-        if namespace.name not in templatekw.keywords:
-            templatekeyword = registrar.templatekeyword(templatekw.keywords)
+        if namespace.name not in tables.template_keyword_table:
+            tk = registrar.templatekeyword(tables.template_keyword_table)
 
-            @templatekeyword(namespace.name, requires={b'repo', b'ctx'})
+            @tk(namespace.name, requires={b'repo', b'ctx'})
             def generatekw(context, mapping):
                 return templateutil.show_names(context, mapping, namespace.name)
 
