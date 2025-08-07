@@ -35,8 +35,8 @@ from .. import (
     pathutil,
     pycompat,
     scmutil,
+    tables,
     templatefilters,
-    templatekw,
     templateutil,
     ui as uimod,
     util,
@@ -439,7 +439,8 @@ def formatlinerange(fromline, toline):
 
 def _succsandmarkersgen(context, mapping):
     repo = context.resource(mapping, b'repo')
-    itemmappings = templatekw.showsuccsandmarkers(context, mapping)
+    show_succs_and_markers = tables.template_keyword_table[b'succsandmarkers']
+    itemmappings = show_succs_and_markers(context, mapping)
     for item in itemmappings.tovalue(context, mapping):
         item[b'successors'] = _siblings(
             repo[successor] for successor in item[b'successors']
