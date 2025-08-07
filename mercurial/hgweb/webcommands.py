@@ -49,6 +49,13 @@ from . import webutil
 __all__ = []
 
 
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
 class webcommand:
     """Decorator used to register a web command handler.
 

@@ -49,6 +49,9 @@ from . import (
 from .admin import (
     chainsaw as admin_chainsaw,
 )
+from .hgweb import (
+    webcommands,
+)
 
 
 def init():
@@ -61,3 +64,4 @@ admin_commands.init()
 commands.init()
 debugcommands.init()
 strip.init()
+webcommands.init()
