@@ -18,7 +18,6 @@ from . import (
     encoding,
     error,
     hbisect,
-    i18n,
     obsutil,
     patch,
     pycompat,
@@ -50,37 +49,6 @@ hybridlist = templateutil.hybridlist
 compatdict = templateutil.compatdict
 compatlist = templateutil.compatlist
 _showcompatlist = templateutil._showcompatlist
-
-
-def getlogcolumns():
-    """Return a dict of log column labels"""
-    _ = pycompat.identity  # temporarily disable gettext
-    # i18n: column positioning for "hg log"
-    columns = _(
-        b'bookmark:    %s\n'
-        b'branch:      %s\n'
-        b'changeset:   %s\n'
-        b'copies:      %s\n'
-        b'date:        %s\n'
-        b'extra:       %s=%s\n'
-        b'files+:      %s\n'
-        b'files-:      %s\n'
-        b'files:       %s\n'
-        b'instability: %s\n'
-        b'manifest:    %s\n'
-        b'obsolete:    %s\n'
-        b'parent:      %s\n'
-        b'phase:       %s\n'
-        b'summary:     %s\n'
-        b'tag:         %s\n'
-        b'user:        %s\n'
-    )
-    return dict(
-        zip(
-            [s.split(b':', 1)[0] for s in columns.splitlines()],
-            i18n._(columns).splitlines(True),
-        )
-    )
 
 
 # basic internal templates

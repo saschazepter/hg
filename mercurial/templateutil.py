@@ -13,6 +13,7 @@ import types
 from .i18n import _
 from . import (
     error,
+    i18n,  # used in get_log_columns to bypass some override
     pycompat,
     smartset,
     util,
@@ -1163,6 +1164,39 @@ def joinitems(itemiter, sep):
         elif sep:
             yield sep
         yield x
+
+
+def get_log_columns():
+    """Return a dict of log column labels"""
+    # Temporarily disable gettext. We want the i18n tooling to pick up the key
+    # and reported them as needing translation, however we don't want the key
+    # to be translated, just the value. So here come this wonderful hack from
+    # c7b45db8f317
+    _ = pycompat.identity
+    # i18n: column positioning for "hg log"
+    raw_columns = _(
+        b'bookmark:    %s\n'
+        b'branch:      %s\n'
+        b'changeset:   %s\n'
+        b'copies:      %s\n'
+        b'date:        %s\n'
+        b'extra:       %s=%s\n'
+        b'files+:      %s\n'
+        b'files-:      %s\n'
+        b'files:       %s\n'
+        b'instability: %s\n'
+        b'manifest:    %s\n'
+        b'obsolete:    %s\n'
+        b'parent:      %s\n'
+        b'phase:       %s\n'
+        b'summary:     %s\n'
+        b'tag:         %s\n'
+        b'user:        %s\n'
+    )
+    columns = [s.split(b':', 1)[0] for s in raw_columns.splitlines()]
+    # explicitly using i18n here to work around the override we did above.
+    translated_columns = i18n._(raw_columns).splitlines(True)
+    return dict(zip(columns, translated_columns))
 
 
 def show_latest_tags(context, mapping, pattern) -> hybrid:

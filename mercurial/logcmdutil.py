@@ -47,6 +47,7 @@ from . import (
     smartset,
     templatekw,
     templater,
+    templateutil,
     util,
 )
 from .utils import (
@@ -311,7 +312,7 @@ class changesetprinter:
         self.hunk = {}
         self.lastheader = None
         self.footer = None
-        self._columns = templatekw.getlogcolumns()
+        self._columns = templateutil.get_log_columns()
 
     def flush(self, ctx):
         rev = ctx.rev()

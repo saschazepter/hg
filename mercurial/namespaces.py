@@ -4,6 +4,7 @@ from .i18n import _
 from . import (
     registrar,
     templatekw,
+    templateutil,
     util,
 )
 
@@ -28,7 +29,7 @@ class namespaces:
 
     def __init__(self):
         self._names = util.sortdict()
-        columns = templatekw.getlogcolumns()
+        columns = templateutil.get_log_columns()
 
         # we need current mercurial named objects (bookmarks, tags, and
         # branches) to be initialized somewhere, so that place is here
