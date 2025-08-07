@@ -38,6 +38,7 @@ safe_revset_symbols: set[bytes] = set()
 bundle2_part_handler_mapping = {}
 
 template_keyword_table: dict = {}
+default_templates: dict = {}
 
 
 def load_cmd_table(ui: UiT, name: bytes, cmdtable: dict) -> None:

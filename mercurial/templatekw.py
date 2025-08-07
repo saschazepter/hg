@@ -156,7 +156,7 @@ def getlogcolumns():
 _changeidtmpl = b'{rev}:{node|formatnode}'
 
 # default templates internally used for rendering of lists
-defaulttempl = {
+tables.default_templates = {
     b'parent': _changeidtmpl + b' ',
     b'manifest': _changeidtmpl,
     b'file_copy': b'{name} ({source})',
@@ -164,10 +164,13 @@ defaulttempl = {
     b'extra': b'{key}={value|stringescape}',
 }
 # filecopy is preserved for compatibility reasons
-defaulttempl[b'filecopy'] = defaulttempl[b'file_copy']
+tables.default_templates[b'filecopy'] = tables.default_templates[b'file_copy']
 
 # keywords are callables (see registrar.templatekeyword for details)
 templatekeyword = registrar.templatekeyword(tables.template_keyword_table)
+
+# preserved for compatibility reason
+defaulttempl = tables.default_templates
 keywords = tables.template_keyword_table
 
 
