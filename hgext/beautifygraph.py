@@ -17,7 +17,7 @@ from mercurial import (
     encoding,
     extensions,
     graphmod,
-    templatekw,
+    templateutil,
 )
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
@@ -104,4 +104,4 @@ def extsetup(ui):
         return
 
     extensions.wrapfunction(graphmod, 'outputgraph', outputprettygraph)
-    extensions.wrapfunction(templatekw, 'getgraphnode', getprettygraphnode)
+    extensions.wrapfunction(templateutil, 'get_graph_node', getprettygraphnode)

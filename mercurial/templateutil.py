@@ -1304,3 +1304,41 @@ def get_latest_tags(context, mapping, pattern=None):
 
 # teach templater latesttags.changes is switched to (context, mapping) API
 show_changes_since_tag._requires = {b'repo', b'ctx'}
+
+
+def get_graph_node(repo, ctx, cache):
+    return get_graph_node_current(repo, ctx, cache) or get_graph_node_symbol(
+        ctx
+    )
+
+
+def get_graph_node_current(repo, ctx, cache):
+    wpnodes = repo.dirstate.parents()
+    if wpnodes[1] == repo.nullid:
+        wpnodes = wpnodes[:1]
+    if ctx.node() in wpnodes:
+        return b'@'
+    else:
+        merge_nodes = cache.get(b'merge_nodes')
+        if merge_nodes is None:
+            mergestate = repo.mergestate()
+            if mergestate.unresolvedcount():
+                merge_nodes = (mergestate.local, mergestate.other)
+            else:
+                merge_nodes = ()
+            cache[b'merge_nodes'] = merge_nodes
+
+        if ctx.node() in merge_nodes:
+            return b'%'
+        return b''
+
+
+def get_graph_node_symbol(ctx):
+    if ctx.obsolete():
+        return b'x'
+    elif ctx.isunstable():
+        return b'*'
+    elif ctx.closesbranch():
+        return b'_'
+    else:
+        return b'o'

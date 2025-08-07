@@ -333,43 +333,7 @@ def showgraphnode(context, mapping):
     repo = context.resource(mapping, b'repo')
     ctx = context.resource(mapping, b'ctx')
     cache = context.resource(mapping, b'cache')
-    return getgraphnode(repo, ctx, cache)
-
-
-def getgraphnode(repo, ctx, cache):
-    return getgraphnodecurrent(repo, ctx, cache) or getgraphnodesymbol(ctx)
-
-
-def getgraphnodecurrent(repo, ctx, cache):
-    wpnodes = repo.dirstate.parents()
-    if wpnodes[1] == repo.nullid:
-        wpnodes = wpnodes[:1]
-    if ctx.node() in wpnodes:
-        return b'@'
-    else:
-        merge_nodes = cache.get(b'merge_nodes')
-        if merge_nodes is None:
-            mergestate = repo.mergestate()
-            if mergestate.unresolvedcount():
-                merge_nodes = (mergestate.local, mergestate.other)
-            else:
-                merge_nodes = ()
-            cache[b'merge_nodes'] = merge_nodes
-
-        if ctx.node() in merge_nodes:
-            return b'%'
-        return b''
-
-
-def getgraphnodesymbol(ctx):
-    if ctx.obsolete():
-        return b'x'
-    elif ctx.isunstable():
-        return b'*'
-    elif ctx.closesbranch():
-        return b'_'
-    else:
-        return b'o'
+    return templateutil.get_graph_node(repo, ctx, cache)
 
 
 @templatekeyword(b'graphwidth', requires=())
