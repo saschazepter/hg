@@ -45,7 +45,7 @@ from . import (
     revsetlang,
     scmutil,
     smartset,
-    templatekw,
+    tables,
     templater,
     templateutil,
     util,
@@ -464,7 +464,7 @@ class changesetprinter:
         t = formatter.maketemplater(
             self.repo.ui,
             b'{join(obsfate, "\n")}',
-            defaults=templatekw.keywords,
+            defaults=tables.template_keyword_table,
             resources=tres,
         )
         obsfate = t.renderdefault({b'ctx': ctx}).splitlines()
@@ -595,9 +595,9 @@ class changesettemplater(changesetprinter):
         self.t = formatter.loadtemplater(
             ui,
             tmplspec,
-            defaults=templatekw.keywords,
+            defaults=tables.template_keyword_table,
             resources=tres,
-            cache=templatekw.defaulttempl,
+            cache=tables.default_templates,
         )
         self._counter = itertools.count()
 
@@ -1256,7 +1256,10 @@ def _graphnodeformatter(ui, displayer):
     else:
         tres = formatter.templateresources(ui)
     templ = formatter.maketemplater(
-        ui, spec, defaults=templatekw.keywords, resources=tres
+        ui,
+        spec,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
 
     def formatnode(repo, ctx, cache):
