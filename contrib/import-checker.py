@@ -36,6 +36,11 @@ allowsymbolimports = (
     'mercurial',
     'mercurial.hgweb.common',
     'mercurial.hgweb.request',
+    # allows import to the hgweb*_mod_inner module to accomodate the external
+    # entry points.
+    'mercurial.hgweb.hgweb_mod_inner',
+    'mercurial.hgweb.hgwebdir_mod_inner',
+    'mercurial.hgweb.wsgicgi_inner',
     'mercurial.i18n',
     'mercurial.interfaces',
     'mercurial.interfaces._basetypes',

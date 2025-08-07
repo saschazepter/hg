@@ -124,9 +124,9 @@ pytype --keep-going --jobs auto \
     -x mercurial/debugcommands.py \
     -x mercurial/dispatch.py \
     -x mercurial/exchange.py \
-    -x mercurial/hgweb/hgweb_mod.py \
+    -x mercurial/hgweb/hgweb_mod_inner.py \
     -x mercurial/hgweb/server.py \
-    -x mercurial/hgweb/wsgicgi.py \
+    -x mercurial/hgweb/wsgicgi_inner.py \
     -x mercurial/httppeer.py \
     -x mercurial/keepalive.py \
     -x mercurial/localrepo.py \

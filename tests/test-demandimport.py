@@ -111,10 +111,11 @@ from mercurial import hgweb
 
 assert isinstance(hgweb, _LazyModule)
 assert f(hgweb) == "<module 'mercurial.hgweb' from '?'>", f(hgweb)
-assert isinstance(hgweb.hgweb_mod, _LazyModule)
-assert f(hgweb.hgweb_mod) == "<module 'mercurial.hgweb.hgweb_mod' from '?'>", f(
-    hgweb.hgweb_mod
-)
+assert isinstance(hgweb.hgweb_mod_inner, _LazyModule)
+assert (
+    f(hgweb.hgweb_mod_inner)
+    == "<module 'mercurial.hgweb.hgweb_mod_inner' from '?'>"
+), f(hgweb.hgweb_mod_inner)
 
 assert f(hgweb) == "<module 'mercurial.hgweb' from '?'>", f(hgweb)
 

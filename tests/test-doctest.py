@@ -146,7 +146,7 @@ expected_mods_tested = {
     ('mercurial.encoding', '{}'),
     ('mercurial.fancyopts', '{}'),
     ('mercurial.formatter', '{}'),
-    ('mercurial.hgweb.hgwebdir_mod', '{}'),
+    ('mercurial.hgweb.hgwebdir_mod_inner', '{}'),
     ('mercurial.match', '{}'),
     ('mercurial.mdiff', '{}'),
     ('mercurial.minirst', '{}'),

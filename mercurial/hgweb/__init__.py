@@ -21,8 +21,8 @@ from ..utils import procutil
 
 # pytype: disable=pyi-error
 from . import (
-    hgweb_mod,
-    hgwebdir_mod,
+    hgweb_mod_inner as hgweb_mod,
+    hgwebdir_mod_inner as hgwebdir_mod,
     server,
 )
 
