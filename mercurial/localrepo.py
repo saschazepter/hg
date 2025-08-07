@@ -80,7 +80,9 @@ from .exchanges import (
 from .interfaces import (
     repository,
 )
-
+from .upgrade_utils import (
+    auto_upgrade,
+)
 from .utils import (
     hashutil,
     procutil,
@@ -3511,7 +3513,6 @@ def undoname(fn: bytes) -> bytes:
 
 def instance(ui, path: bytes, create, intents=None, createopts=None):
     # prevent cyclic import localrepo -> upgrade -> localrepo
-    from . import upgrade
 
     localpath = urlutil.urllocalpath(path)
     if create:
@@ -3521,7 +3522,7 @@ def instance(ui, path: bytes, create, intents=None, createopts=None):
         return makelocalrepository(ui, localpath, intents=intents)
 
     repo = repo_maker()
-    repo = upgrade.may_auto_upgrade(repo, repo_maker)
+    repo = auto_upgrade.may_auto_upgrade(repo, repo_maker)
     return repo
 
 

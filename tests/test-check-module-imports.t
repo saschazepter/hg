@@ -54,7 +54,6 @@ will likely receive warnings about a direct import.
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
-  mercurial/localrepo.py:*: function level import: mercurial.upgrade (glob)
   mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
