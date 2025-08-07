@@ -1,9 +1,9 @@
 from mercurial import (
     error,
-    main_script,
     pycompat,
     ui as uimod,
 )
+from mercurial.main_script import options as args_util
 from mercurial.utils import stringutil
 
 testui = uimod.ui.load()
@@ -16,7 +16,7 @@ testui = uimod.ui.load()
 testui.setconfig(b'devel', b'warn-config-unknown', False, b'test')
 testui.setconfig(b'devel', b'all-warnings', False, b'test')
 
-parsed = main_script.parse_config_opts(
+parsed = args_util.parse_config_opts(
     testui,
     [
         b'values.string=string value',

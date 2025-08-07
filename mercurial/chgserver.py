@@ -58,11 +58,14 @@ from . import (
     encoding,
     error,
     extensions,
-    main_script,
     pycompat,
     util,
 )
 
+from .main_script import (
+    options as args_util,
+    paths as local_util,
+)
 from .utils import (
     hashutil,
     procutil,
@@ -279,9 +282,9 @@ def _loadnewui(srcui, args, cdebug):
         newui._csystem = srcui._csystem
 
     # command line args
-    options = main_script.early_parse_opts(newui, args)
-    main_script.parse_config_files_opts(newui, args, options[b'config_file'])
-    main_script.parse_config_opts(newui, options[b'config'])
+    options = args_util.early_parse_opts(newui, args)
+    args_util.parse_config_files_opts(newui, args, options[b'config_file'])
+    args_util.parse_config_opts(newui, options[b'config'])
 
     # stolen from tortoisehg.util.copydynamicconfig()
     for section, name, value in srcui.walkconfig():
@@ -295,7 +298,7 @@ def _loadnewui(srcui, args, cdebug):
     cwd = options[b'cwd']
     cwd = os.path.realpath(cwd) if cwd else None
     rpath = options[b'repository']
-    path, newlui = main_script.get_local(newui, rpath, wd=cwd)
+    path, newlui = local_util.get_local(newui, rpath, wd=cwd)
 
     extensions.populateui(newui)
     commandserver.setuplogging(newui, fp=cdebug)

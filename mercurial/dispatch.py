@@ -44,6 +44,10 @@ from . import (
     ui as uimod,
     util,
 )
+from .main_script import (
+    options as args_util,
+    paths as local_util,
+)
 from .repo import (
     factory as repo_factory,
 )
@@ -204,7 +208,7 @@ def _rundispatch(req: main_script.request) -> int:
         try:
             if not req.ui:
                 req.ui = uimod.ui.load()
-            early_opts = main_script.early_parse_opts(req.ui, req.args)
+            early_opts = args_util.early_parse_opts(req.ui, req.args)
             req.earlyoptions.update(early_opts)
             if req.earlyoptions[b'traceback']:
                 req.ui.setconfig(b'ui', b'traceback', b'on', b'--traceback')
@@ -353,10 +357,10 @@ def _runcatch(req):
 
                 # cmdargs may not have been initialized here (in the case of an
                 # error), so use pycompat.sysargv instead.
-                file_cfgs = main_script.parse_config_files_opts(
+                file_cfgs = args_util.parse_config_files_opts(
                     req.ui, pycompat.sysargv, req.earlyoptions[b'config_file']
                 )
-                cfgs = main_script.parse_config_opts(
+                cfgs = args_util.parse_config_opts(
                     req.ui, req.earlyoptions[b'config']
                 )
 
@@ -916,7 +920,7 @@ def _dispatch(req):
     cwd = req.earlyoptions[b'cwd']
     try:
         if cwd:
-            old_cwd = main_script.get_cwd()
+            old_cwd = local_util.get_cwd()
             os.chdir(cwd)
         return _dispatch_post_cwd(req)
     finally:
@@ -929,7 +933,7 @@ def _dispatch_post_cwd(req):
     ui = req.ui
 
     rpath = req.earlyoptions[b'repository']
-    path, lui = main_script.get_local(ui, rpath)
+    path, lui = local_util.get_local(ui, rpath)
 
     uis = {ui, lui}
 
