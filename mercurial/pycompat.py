@@ -27,6 +27,7 @@ import socketserver  # noqa: F401 (ignore imported but not used)
 import struct
 import sys
 import tempfile
+import typing
 import xmlrpc.client as xmlrpclib  # noqa: F401 (ignore imported but not used)
 
 from typing import (
@@ -48,9 +49,7 @@ ispy3 = sys.version_info[0] >= 3
 ispypy = '__pypy__' in sys.builtin_module_names
 TYPE_CHECKING = False
 
-if not globals():  # hide this from non-pytype users
-    import typing
-
+if typing.TYPE_CHECKING:
     TYPE_CHECKING = typing.TYPE_CHECKING
 
 _GetOptResult = tuple[list[tuple[bytes, bytes]], list[bytes]]
