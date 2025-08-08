@@ -828,6 +828,8 @@ def _ext_key(ext):
 class basicstore:
     '''base class for local repository stores'''
 
+    fncache = None
+
     def __init__(self, path: bytes, vfstype) -> None:
         vfs = vfstype(path)
         self.path = vfs.base
