@@ -1422,6 +1422,16 @@ default = true
 
 [[items]]
 section = "format"
+name = "exp-use-fileindex-v1"
+default = ""
+experimental = true
+documentation = """Flag that is considered on when set to
+"enable-unstable-format-and-corrupt-my-data", and off otherwise.
+Enables fileindex-v1 format *when creating a new repository*.
+Which format to use for existing repos is controlled by `.hg/store/requires`."""
+
+[[items]]
+section = "format"
 name = "usegeneraldelta"
 default = true
 

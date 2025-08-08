@@ -976,6 +976,20 @@ def ensurerequirementscompatible(ui, requirements):
             )
         )
 
+    if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+        for req in [
+            requirementsmod.FNCACHE_REQUIREMENT,
+            requirementsmod.DOTENCODE_REQUIREMENT,
+            requirementsmod.TREEMANIFEST_REQUIREMENT,
+        ]:
+            if req in requirements:
+                msg = _(
+                    b"repository is using '%s' and 'fileindex-v1' which "
+                    b"are incompatible with each other"
+                )
+                msg %= req
+                raise error.RepoError(msg)
+
 
 def makestore(requirements, path, vfstype):
     """Construct a storage object for a repository."""
@@ -988,6 +1002,9 @@ def makestore(requirements, path, vfstype):
             else:
                 encoding = storemod.Encoding.HYBRID
             return storemod.fncachestore(path, vfstype, encoding)
+
+        if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+            return storemod.FileIndexStore(path, vfstype)
 
         return storemod.encodedstore(path, vfstype)
 

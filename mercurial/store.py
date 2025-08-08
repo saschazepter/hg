@@ -48,11 +48,14 @@ from . import (
     vfs as vfsmod,
 )
 from .utils import hashutil
+from .store_utils import file_index as file_index_mod
 
 parsers = policy.importmod('parsers')
 # how much bytes should be read from fncache in one read
 # It is done to prevent loading large fncache files into memory
 fncache_chunksize = 10**6
+
+propertycache = util.propertycache
 
 
 def _match_tracked_entry(entry: BaseStoreEntry, matcher):
@@ -840,6 +843,7 @@ class basicstore:
     '''base class for local repository stores'''
 
     fncache = None
+    fileindex = None
 
     def __init__(self, path: bytes, vfstype) -> None:
         vfs = vfstype(path)
@@ -1354,3 +1358,53 @@ class fncachestore(basicstore):
             if e.startswith(path) and self._exists(e):
                 return True
         return False
+
+
+class FileIndexStore(basicstore):
+    """A store that keeps track of files in a file index.
+
+    This store owns the file index, and adds paths to it when filelogs are
+    opened for writing.
+    """
+
+    def __init__(self, path, vfstype):
+        self.encode = _pathencode
+        vfs = vfstype(path + b'/store')
+        self.path = vfs.base
+        self.pathsep = self.path + b'/'
+        self.createmode = _calcmode(vfs)
+        vfs.createmode = self.createmode
+        self.rawvfs = vfs
+        self.vfs = vfsmod.filtervfs(vfs, self.encode)
+        self.opener = self.vfs
+
+    @propertycache
+    def fileindex(self):
+        return file_index_mod.FileIndex(self.rawvfs)
+
+    def join(self, f):
+        return self.pathsep + self.encode(f)
+
+    def filelog_radix_for_writing(self, filename, tr):
+        self.fileindex.add(filename, tr)
+        return super().filelog_radix_for_writing(filename, tr)
+
+    def data_entries(
+        self, matcher=None, undecodable=None
+    ) -> Generator[BaseStoreEntry, None, None]:
+        raise NotImplementedError("file index data_entries not implemented yet")
+
+    def copylist(self):
+        raise NotImplementedError("file index copylist not implemented yet")
+
+    def schedule_write(self, tr):
+        tr.addfinalize(b'fileindex', self.write)
+
+    def write(self, tr):
+        self.fileindex.write(tr)
+
+    def invalidatecaches(self):
+        util.clearcachedproperty(self, b"fileindex")
+
+    def markremoved(self, fn):
+        raise NotImplementedError("file index markremoved not implemented yet")

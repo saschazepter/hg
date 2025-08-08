@@ -79,7 +79,12 @@ def new_repo_requirements(ui, createopts):
     requirements = {requirementsmod.REVLOGV1_REQUIREMENT}
     if ui.configbool(b'format', b'usestore'):
         requirements.add(requirementsmod.STORE_REQUIREMENT)
-        if ui.configbool(b'format', b'usefncache'):
+        if (
+            ui.config(b'format', b'exp-use-fileindex-v1')
+            == b"enable-unstable-format-and-corrupt-my-data"
+        ):
+            requirements.add(requirementsmod.FILEINDEXV1_REQUIREMENT)
+        elif ui.configbool(b'format', b'usefncache'):
             requirements.add(requirementsmod.FNCACHE_REQUIREMENT)
             if ui.configbool(b'format', b'dotencode'):
                 requirements.add(requirementsmod.DOTENCODE_REQUIREMENT)
@@ -295,6 +300,22 @@ def check_requirements_compat(ui, requirements):
                 )
                 ui.warn(msg)
             dropped.add(requirementsmod.SHARESAFE_REQUIREMENT)
+
+    if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+        if requirementsmod.TREEMANIFEST_REQUIREMENT in requirements:
+            raise error.Abort(
+                _(
+                    b"cannot create repository with "
+                    b"'format.exp-use-fileindex-v1' and "
+                    b"'experimental.treemanifest' both enabled since they are "
+                    b"incompatible with each other"
+                )
+            )
+        if (
+            requirementsmod.FNCACHE_REQUIREMENT in requirements
+            or requirementsmod.DOTENCODE_REQUIREMENT in requirements
+        ):
+            raise error.ProgrammingError(b"bug in newreporequirements")
 
     return dropped
 

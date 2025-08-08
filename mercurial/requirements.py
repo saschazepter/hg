@@ -18,6 +18,7 @@ DOTENCODE_REQUIREMENT = b'dotencode'
 PLAIN_ENCODE_REQUIREMENT = b"exp-very-fragile-and-unsafe-plain-store-encoding"
 STORE_REQUIREMENT = b'store'
 FNCACHE_REQUIREMENT = b'fncache'
+FILEINDEXV1_REQUIREMENT = b'exp-fileindex-v1'
 
 DIRSTATE_TRACKED_HINT_V1 = b'dirstate-tracked-key-v1'
 DIRSTATE_V2_REQUIREMENT = b'dirstate-v2'
@@ -122,6 +123,7 @@ STREAM_IGNORABLE_REQUIREMENTS = WORKING_DIR_REQUIREMENTS | {
     DOTENCODE_REQUIREMENT,  # abstracted by the vfs layer
     PLAIN_ENCODE_REQUIREMENT,  # abstracted by the vfs layer
     FNCACHE_REQUIREMENT,  # abstracted by the vfs layer
+    FILEINDEXV1_REQUIREMENT,  # abstracted by the vfs layer
     STORE_REQUIREMENT,  # abstracted by the vfs layer
     NODEMAP_REQUIREMENT,  # Have some special logic to handle that case
 }

@@ -31,6 +31,7 @@ BASE_SUPPORTED = {
     requirementsmod.DIRSTATE_TRACKED_HINT_V1,
     requirementsmod.DIRSTATE_V2_REQUIREMENT,
     requirementsmod.DOTENCODE_REQUIREMENT,
+    requirementsmod.FILEINDEXV1_REQUIREMENT,
     requirementsmod.FILELOG_METAFLAG_REQUIREMENT,
     requirementsmod.FNCACHE_REQUIREMENT,
     requirementsmod.GENERALDELTA_REQUIREMENT,

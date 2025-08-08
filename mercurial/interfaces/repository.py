@@ -659,6 +659,9 @@ class ifileindex(Protocol):
     * A mapping between revision numbers and nodes.
     * DAG data (storing and querying the relationship between nodes).
     * Metadata to facilitate storage.
+
+    Not to be confused with IFileIndex in mercurial/interfaces/file_index.py,
+    which stores paths of files in the repository.
     """
 
     nullid: bytes

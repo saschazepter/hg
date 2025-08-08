@@ -986,6 +986,7 @@ packages = [
     'mercurial.narrow',
     'mercurial.pure',
     'mercurial.stabletailgraph',
+    'mercurial.store_utils',
     'mercurial.templates',
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',

@@ -3220,6 +3220,59 @@ def debugrebuildfncache(ui, repo, **opts):
 
 
 @command(
+    b'debug::file-index',
+    [
+        (b'', b'docket', None, _(b'dump docket file')),
+        (b'', b'tree', None, _(b'dump tree file')),
+        (b'p', b'path', b'', _(b'look up path'), _(b'PATH')),
+        (b't', b'token', b'', _(b'look up token'), _(b'TOKEN')),
+    ],
+)
+def debug_file_index(ui, repo, **opts):
+    """inspect or manipulate the file index"""
+    opts = pycompat.byteskwargs(opts)
+    choice = None
+    for opt, value in opts.items():
+        if value:
+            if choice:
+                raise error.Abort(
+                    _(b"cannot use --%s and --%s together" % (choice, opt))
+                )
+            choice = opt
+
+    fileindex = repo.store.fileindex
+    if fileindex is None:
+        raise error.Abort(
+            _(b"this repository does not have a file index"),
+            hint=_(
+                b"you can create it with 'hg debugupgrade "
+                b"--config format.exp-use-fileindex-v1="
+                b"enable-unstable-format-and-corrupt-my-data'"
+            ),
+        )
+
+    if choice is None:
+        for path, token in fileindex.items():
+            ui.write(b"%d: %s\n" % (token, path))
+    if choice == b"docket":
+        fileindex.dump_docket(ui)
+    elif choice == b"tree":
+        fileindex.dump_tree(ui)
+    elif choice == b"path":
+        path = opts[choice]
+        token = fileindex.get_token(path)
+        if token is None:
+            raise error.Abort(_(b"path %s is not in the file index" % path))
+        ui.write(b"%d: %s\n" % (token, path))
+    elif choice == b"token":
+        token = int(opts[choice])
+        if not fileindex.has_token(token):
+            raise error.Abort(_(b"token %d is not in the file index" % token))
+        path = fileindex.get_path(token)
+        ui.write(b"%d: %s\n" % (token, path))
+
+
+@command(
     b'debugrename',
     [(b'r', b'rev', b'', _(b'revision to debug'), _(b'REV'))],
     _(b'[-r REV] [FILE]...'),

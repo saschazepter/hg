@@ -1010,6 +1010,8 @@ Test list of internal help commands
                  display statistics about revlogs in the store
    debug::fast-upgrade
                  (no help text available)
+   debug::file-index
+                 inspect or manipulate the file index
    debug::revlog-reencoded-delta-info
                  show revlog statistic if delta where to be reencoded
    debug::stable-tail-sort

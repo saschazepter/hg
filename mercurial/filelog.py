@@ -460,7 +460,11 @@ class narrowfilelog(filelog):
         self, opener, path, radix, narrowmatch, writable, *, try_split=False
     ):
         super().__init__(
-            opener, path, radix, writable=writable, try_split=try_split
+            opener,
+            path,
+            radix=radix,
+            writable=writable,
+            try_split=try_split,
         )
         self._narrowmatch = narrowmatch
 

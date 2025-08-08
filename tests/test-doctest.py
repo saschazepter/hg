@@ -145,6 +145,7 @@ expected_mods_tested = {
     ('mercurial.dirstateutils.v2', '{}'),
     ('mercurial.encoding', '{}'),
     ('mercurial.fancyopts', '{}'),
+    ('mercurial.store_utils.file_index_util', '{}'),
     ('mercurial.formatter', '{}'),
     ('mercurial.hgweb.hgwebdir_mod_inner', '{}'),
     ('mercurial.match', '{}'),
