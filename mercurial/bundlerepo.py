@@ -56,7 +56,12 @@ from .revlogutils import (
 
 class bundlerevlog(revlog.revlog):
     def __init__(
-        self, opener: typing.Any, target, radix, cgunpacker, linkmapper
+        self,
+        opener: typing.Any,
+        target,
+        radix,
+        cgunpacker: changegroup.cg1unpacker,
+        linkmapper,
     ):
         # TODO: figure out real type of opener
         #
@@ -287,7 +292,7 @@ class bundlephasecache(phases.phasecache):
         self.dirty = True
 
 
-def _getfilestarts(cgunpacker):
+def _getfilestarts(cgunpacker: changegroup.cg1unpacker):
     filespos = {}
     for chunkdata in iter(cgunpacker.filelogheader, {}):
         fname = chunkdata[b'filename']
@@ -344,7 +349,7 @@ class bundlerepository(_bundle_repo_baseclass):
                         raise NotImplementedError(
                             b"can't process multiple changegroups"
                         )
-                    cgpart = part
+                    cgpart: bundle2.seekableunbundlepart = part.as_seekable()
                     self._handle_bundle2_cg_part(bundle, part)
 
             if not cgpart:
@@ -364,10 +369,15 @@ class bundlerepository(_bundle_repo_baseclass):
                 _(b'bundle type %r cannot be read') % type(bundle)
             )
 
-    def _handle_bundle1(self, bundle, bundlepath):
+    def _handle_bundle1(self, bundle: changegroup.cg1unpacker, bundlepath):
         if bundle.compressed():
             f = self._writetempbundle(bundle.read, b'.hg10un', header=b'HG10UN')
-            bundle = exchange.readbundle(self.ui, f, bundlepath, self.vfs)
+            bundle: changegroup.cg1unpacker = typing.cast(
+                # XXX: We know what this is as we just wrote it,
+                # using a cast is lazy, but simple. Fix me later.
+                changegroup.cg1unpacker,
+                exchange.readbundle(self.ui, f, bundlepath, self.vfs),
+            )
 
         self._bundlefile = bundle
         self._cgunpacker = bundle

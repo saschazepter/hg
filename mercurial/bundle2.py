@@ -1527,6 +1527,9 @@ class unbundlepart(unpackermixin, i_bundle.IUnbundlePart):
         """the amount of byte read so far in the part"""
         return self._payloadstream.tell()
 
+    def as_seekable(self) -> seekableunbundlepart:
+        raise error.ProgrammingError(b"part isn't from a seekable source")
+
 
 class seekableunbundlepart(unbundlepart):
     """A bundle2 part in a bundle that is seekable.
@@ -1647,6 +1650,9 @@ class seekableunbundlepart(unbundlepart):
                 else:
                     raise
         return None
+
+    def as_seekable(self) -> seekableunbundlepart:
+        return self
 
 
 # offered for compatibilities
