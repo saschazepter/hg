@@ -33,7 +33,6 @@ from . import (
     repoview,
     scmutil,
     sparse,
-    subrepo,
     subrepoutil,
     testing,
     util,
@@ -61,6 +60,28 @@ if typing.TYPE_CHECKING:
     )
 
 propertycache = util.propertycache
+
+# The `subrepo` and `nullsubrepo` function exists to avoid an circular import
+# between `mercurial.context` and `mercurial.subrepo`. They are set to real
+# value by the `subrepo` module itself when initializing. The
+# `mercurial.initialization` module make sure `mercurial.subrepo` is run early.
+
+
+# XXX should -> SubrepoT once the Protocol has some content
+def make_subrepo(
+    ctx: basectx,
+    path: bytes,
+    allowwdir: bool = False,
+    allowcreate: bool = True,
+):
+    msg = b"using the `context` module before `subrepo` initialization"
+    raise error.ProgrammingError(msg)
+
+
+# XXX should -> SubrepoT once the Protocol has some content
+def make_null_subrepo(ctx: basectx, path: bytes, pctx: basectx):
+    msg = b"using the `context` module before `subrepo` initialization"
+    raise error.ProgrammingError(msg)
 
 
 class basectx(abc.ABC):
@@ -349,16 +370,16 @@ class basectx(abc.ABC):
 
     def sub(self, path: bytes, allowcreate: bool = True):
         '''return a subrepo for the stored revision of path, never wdir()'''
-        return subrepo.subrepo(self, path, allowcreate=allowcreate)
+        return make_subrepo(self, path, allowcreate=allowcreate)
 
     def nullsub(self, path: bytes, pctx):
-        return subrepo.nullsubrepo(self, path, pctx)
+        return make_null_subrepo(self, path, pctx)
 
     def workingsub(self, path: bytes):
         """return a subrepo for the stored revision, or wdir if this is a wdir
         context.
         """
-        return subrepo.subrepo(self, path, allowwdir=True)
+        return make_subrepo(self, path, allowwdir=True)
 
     def match(
         self,

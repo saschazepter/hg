@@ -47,6 +47,7 @@ from . import (
     revset,
     revset_predicates,
     strip,
+    subrepo,
     templatekw,
 )
 
@@ -74,3 +75,4 @@ strip.init()
 webcommands.init()
 bundle2_part_handlers.init()
 templatekw.init()
+subrepo.init()

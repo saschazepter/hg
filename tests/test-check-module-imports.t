@@ -66,11 +66,7 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
-  Import cycle: mercurial.context -> mercurial.subrepo -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
-  Import cycle: mercurial.cmd_impls.clone -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.clone
-  Import cycle: mercurial.bundlerepo -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.incoming -> mercurial.bundlerepo
-  Import cycle: mercurial.cmd_impls.outgoing -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context -> mercurial.subrepo -> mercurial.cmd_impls.outgoing
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'

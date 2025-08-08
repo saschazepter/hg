@@ -29,6 +29,7 @@ from .node import (
 )
 from . import (
     cmdutil,
+    context,
     encoding,
     error,
     exchange,
@@ -57,6 +58,14 @@ if typing.TYPE_CHECKING:
     from .interfaces.types import (
         StatusT,
     )
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
 
 reporelpath = subrepoutil.reporelpath
 subrelpath = subrepoutil.subrelpath
@@ -209,6 +218,12 @@ def nullsubrepo(ctx, path, pctx):
     if state[2] == b'hg':
         subrev = b"0" * 40
     return types[state[2]](pctx, path, (state[0], subrev), True)
+
+
+# Assign maker functions so that context can create subrepo without a circular
+# import.
+context.make_subrepo = subrepo
+context.make_null_subrepo = nullsubrepo
 
 
 # subrepo classes need to implement the following abstract class:
