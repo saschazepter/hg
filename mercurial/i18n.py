@@ -15,6 +15,7 @@ import sys
 from .utils import resourceutil
 from . import (
     encoding,
+    error,
     pycompat,
 )
 
@@ -120,3 +121,6 @@ if _plain():
 
 else:
     _ = gettext
+
+# manually pass "_" to the error module to avoid an import cycle
+error._ = _

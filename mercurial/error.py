@@ -25,6 +25,14 @@ from typing import (
 from . import pycompat
 
 
+def _(text: bytes) -> bytes:
+    # dummy translation until mercurial.i18n is loaded and overload this
+    #
+    # If we have to handle error before i18n is loaded this probably mean we
+    # had an error during i18n setup and i18n won't be able to do much anyway.
+    return text
+
+
 def _tobytes(exc) -> bytes:
     """Byte-stringify exception in the same way as BaseException_str()"""
     if not exc.args:
@@ -78,8 +86,6 @@ class Error(Hint, Exception):
         return pycompat.sysstr(self.__bytes__())
 
     def format(self) -> bytes:
-        from .i18n import _
-
         message = _(b"abort: %s\n") % self.message
         if self.hint:
             message += _(b"(%s)\n") % self.hint
@@ -205,8 +211,6 @@ class InterventionRequired(Abort):
     detailed_exit_code = 240
 
     def format(self) -> bytes:
-        from .i18n import _
-
         message = _(b"%s\n") % self.message
         if self.hint:
             message += _(b"(%s)\n") % self.hint
@@ -217,8 +221,6 @@ class ConflictResolutionRequired(InterventionRequired):
     """Exception raised when a continuable command required merge conflict resolution."""
 
     def __init__(self, opname: bytes) -> None:
-        from .i18n import _
-
         self.opname = opname
         InterventionRequired.__init__(
             self,
@@ -295,8 +297,6 @@ class ConfigError(Abort):
         self.location = location
 
     def format(self) -> bytes:
-        from .i18n import _
-
         if self.location is not None:
             message = _(b"config error at %s: %s\n") % (
                 pycompat.bytestr(self.location),
@@ -329,8 +329,6 @@ class ResponseExpected(Abort):
     """Raised when an EOF is received for a prompt"""
 
     def __init__(self):
-        from .i18n import _
-
         Abort.__init__(self, _(b'response expected'))
 
 
@@ -348,8 +346,6 @@ class OutOfBandError(RemoteError):
         message: bytes | None = None,
         hint: bytes | None = None,
     ):
-        from .i18n import _
-
         if message:
             # Abort.format() adds a trailing newline
             message = _(b"remote error:\n%s") % message.rstrip(b'\n')
@@ -373,8 +369,6 @@ class ParseError(Abort):
         self.location = location
 
     def format(self) -> bytes:
-        from .i18n import _
-
         if self.location is not None:
             message = _(b"hg: parse error at %s: %s\n") % (
                 pycompat.bytestr(self.location),
@@ -407,8 +401,6 @@ def getsimilar(symbols: Iterable[bytes], value: bytes) -> list[bytes]:
 
 
 def similarity_hint(similar: list[bytes]) -> bytes | None:
-    from .i18n import _
-
     if len(similar) == 1:
         return _(b"did you mean %s?") % similar[0]
     elif similar:
@@ -422,8 +414,6 @@ class UnknownIdentifier(ParseError):
     """Exception raised when a {rev,file}set references an unknown identifier"""
 
     def __init__(self, function: bytes, symbols: Iterable[bytes]) -> None:
-        from .i18n import _
-
         similar = getsimilar(symbols, function)
         hint = similarity_hint(similar)
 
@@ -463,8 +453,6 @@ class StdioError(IOError):
 
 class UnsupportedMergeRecords(Abort):
     def __init__(self, recordtypes: Iterable[bytes]) -> None:
-        from .i18n import _
-
         self.recordtypes = sorted(recordtypes)
         s = b' '.join(self.recordtypes)
         Abort.__init__(

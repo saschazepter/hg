@@ -30,17 +30,7 @@ will likely receive warnings about a direct import.
   mercurial/debugcommands.py:*: function level import: mercurial.win32 (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.cext (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
   mercurial/error.py:*: function level import: mercurial.node.hex (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
-  mercurial/error.py:*: function level import: mercurial.i18n._ (glob)
   mercurial/error.py:*: function level import: mercurial.node.short (glob)
   mercurial/extensions.py:*: function level import: mercurial.color (glob)
   mercurial/extensions.py:*: function level import: mercurial.filemerge (glob)
@@ -75,7 +65,6 @@ will likely receive warnings about a direct import.
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
-  Import cycle: mercurial.encoding -> mercurial.error -> mercurial.i18n -> mercurial.encoding
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: mercurial.context -> mercurial.subrepo -> mercurial.repo.factory -> mercurial.localrepo -> mercurial.context
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
