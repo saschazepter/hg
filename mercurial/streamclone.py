@@ -1791,7 +1791,7 @@ def local_copy(src_repo, dest_repo) -> None:
         src_repo.ui.debug(msg % total_files)
 
         with dest_repo.transaction(b"localclone") as tr:
-            dest_repo.store.write(tr)
+            dest_repo.store.schedule_write(tr)
 
         # clean up transaction file as they do not make sense
         transaction.cleanup_undo_files(dest_repo.ui.warn, dest_repo.vfs_map)

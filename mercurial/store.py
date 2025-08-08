@@ -968,8 +968,13 @@ class basicstore:
     def copylist(self):
         return _data
 
-    def write(self, tr):
-        pass
+    def schedule_write(self, tr):
+        """Schedule writing this store's metadata as part of the transaction.
+
+        This does not write anything immediately. It just registers callbacks on
+        the transaction that run when it is pending and/or finalized. See
+        subclass implementations for their specific writing pattern.
+        """
 
     def invalidatecaches(self):
         pass
@@ -1277,8 +1282,16 @@ class fncachestore(basicstore):
         )
         return [b'requires', b'00changelog.i'] + [b'store/' + f for f in d]
 
-    def write(self, tr):
-        self.fncache.write(tr)
+    def schedule_write(self, tr):
+        """Schedule writing this store's metadata as part of the transaction.
+
+        This just adds a callback to write the fncache on transaction finalize.
+
+        Since it only writes out on finalize, this means the fncache is outdated
+        when running hooks. As fncache is used for streaming clone, this is not
+        expected to break anything that happen during the hooks.
+        """
+        tr.addfinalize(b'flush-fncache', self.fncache.write)
 
     def invalidatecaches(self):
         self.fncache.entries = None

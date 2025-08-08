@@ -273,7 +273,7 @@ Aborting transaction prevents fncache change
   >     tr = orig(self, *args, **kwargs)
   >     def fail(tr):
   >         raise error.Abort(b"forced transaction failure")
-  >     # zzz prefix to ensure it sorted after store.write
+  >     # zzz prefix to ensure it sorted after fncache.write
   >     tr.addfinalize(b'zzz-forcefails', fail)
   >     return tr
   > 
@@ -315,7 +315,7 @@ Aborted transactions can be recovered later
   >     tr = orig(self, *args, **kwargs)
   >     def fail(tr):
   >         ps_util.kill(os.getpid())
-  >     # zzz prefix to ensure it sorted after store.write
+  >     # zzz prefix to ensure it sorted after fncache.write
   >     tr.addfinalize(b'zzz-forcefails', fail)
   >     return tr
   > 

@@ -2490,10 +2490,8 @@ class localrepository(_localrepo_base_classes):
         tr.hookargs[b'txnid'] = txnid
         tr.hookargs[b'txnname'] = desc
         tr.hookargs[b'changes'] = tr.changes
-        # note: writing the fncache only during finalize mean that the file is
-        # outdated when running hooks. As fncache is used for streaming clone,
-        # this is not expected to break anything that happen during the hooks.
-        tr.addfinalize(b'flush-fncache', self.store.write)
+
+        self.store.schedule_write(tr)
 
         def txnclosehook(tr2):
             """To be run if transaction is successful, will schedule a hook run"""
