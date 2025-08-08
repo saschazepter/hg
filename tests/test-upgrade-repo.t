@@ -215,6 +215,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat
   format-variant                 repo
   fncache:                        yes
+  fileindex-v1:                    no
   dirstate-v2:                     no
   tracked-hint:                    no
   dotencode:                      yes
@@ -235,6 +236,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat --verbose
   format-variant                 repo config default
   fncache:                        yes    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
@@ -256,6 +258,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat --verbose --config format.usefncache=no
   format-variant                 repo config default
   fncache:                        yes     no     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes     no     yes
@@ -277,6 +280,7 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat --verbose --config format.usefncache=no --color=debug
   format-variant                 repo config default
   [formatvariant.name.mismatchconfig|fncache:                       ][formatvariant.repo.mismatchconfig| yes][formatvariant.config.special|     no][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|fileindex-v1:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|dirstate-v2:                   ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|tracked-hint:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchconfig|dotencode:                     ][formatvariant.repo.mismatchconfig| yes][formatvariant.config.special|     no][formatvariant.default|     yes]
@@ -302,6 +306,12 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "fncache",
     "repo": true
+   },
+   {
+    "config": false,
+    "default": false,
+    "name": "fileindex-v1",
+    "repo": false
    },
    {
     "config": false,
@@ -553,6 +563,7 @@ Various sub-optimal detections work
   $ hg debugformat
   format-variant                 repo
   fncache:                         no
+  fileindex-v1:                    no
   dirstate-v2:                     no
   tracked-hint:                    no
   dotencode:                       no
@@ -572,6 +583,7 @@ Various sub-optimal detections work
   $ hg debugformat --verbose
   format-variant                 repo config default
   fncache:                         no    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                       no    yes     yes
@@ -593,6 +605,7 @@ Various sub-optimal detections work
   $ hg debugformat --verbose --config format.usegeneraldelta=no
   format-variant                 repo config default
   fncache:                         no    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                       no    yes     yes
@@ -614,6 +627,7 @@ Various sub-optimal detections work
   $ hg debugformat --verbose --config format.usegeneraldelta=no --color=debug
   format-variant                 repo config default
   [formatvariant.name.mismatchconfig|fncache:                       ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|fileindex-v1:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|dirstate-v2:                   ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|tracked-hint:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchconfig|dotencode:                     ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
@@ -1880,6 +1894,7 @@ upgrade
   $ hg debugformat -v
   format-variant                 repo config default
   fncache:                        yes    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
@@ -1933,6 +1948,7 @@ downgrade
   $ hg debugformat -v
   format-variant                 repo config default
   fncache:                        yes    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
@@ -1987,6 +2003,7 @@ upgrade from hgrc
   $ hg debugformat -v
   format-variant                 repo config default
   fncache:                        yes    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes

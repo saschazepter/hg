@@ -175,6 +175,31 @@ class fncache(requirementformatvariant):
 
 
 @registerformatvariant
+class file_index_v1(requirementformatvariant):
+    name = b'fileindex-v1'
+
+    _requirement = requirements.FILEINDEXV1_REQUIREMENT
+
+    default = False
+
+    description = _(
+        b'replaces the fncache with a more efficient and powerful storage '
+        b'format'
+    )
+
+    upgrademessage = _(
+        b'transactions that add files will be faster in large repos'
+    )
+
+    touches_filelogs = False
+    touches_manifests = False
+    touches_changelog = False
+    touches_requirements = True
+    touches_dirstate = False
+    compatible_with_share = False
+
+
+@registerformatvariant
 class dirstatev2(requirementformatvariant):
     name = b'dirstate-v2'
     _requirement = requirements.DIRSTATE_V2_REQUIREMENT

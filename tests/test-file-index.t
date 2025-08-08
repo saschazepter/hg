@@ -3,6 +3,11 @@ Create a new repo with the file index
   $ cd repo1
   $ hg debugrequirements | grep -E 'fncache|dotencode|fileindex'
   exp-fileindex-v1
+  $ hg debugformat --verbose fncache dotencode fileindex
+  format-variant                 repo config default
+  fncache:                         no    yes     yes
+  fileindex-v1:                   yes     no      no
+  dotencode:                       no    yes     yes
   $ hg debug::file-index
   $ hg debug::file-index --docket
   no docket exists yet (empty file index)
