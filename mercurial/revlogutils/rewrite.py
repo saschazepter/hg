@@ -752,7 +752,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
             if not line:
                 continue
             filenodes, filename = line.split(b' ', 1)
-            fl = repo.file(filename, writable=True)
+            fl = repo.file(filename, writable=not dry_run)
             to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
             }
@@ -835,9 +835,11 @@ def filter_delta_issue6528(revlog, deltas_iter):
 def repair_issue6528(
     ui, repo, dry_run=False, to_report=None, from_report=None, paranoid=False
 ):
+    readonly = dry_run or to_report
+
     @contextlib.contextmanager
     def context():
-        if dry_run or to_report:  # No need for locking
+        if readonly:  # No need for locking
             yield
         else:
             with repo.wlock(), repo.lock():
@@ -865,7 +867,7 @@ def repair_issue6528(
         for entry in files:
             progress.increment()
             filename = entry.target_id
-            fl = repo.file(entry.target_id, writable=not dry_run)
+            fl = repo.file(entry.target_id, writable=not readonly)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
