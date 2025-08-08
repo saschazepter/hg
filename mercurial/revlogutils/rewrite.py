@@ -842,7 +842,7 @@ def repair_issue6528(
         if readonly:  # No need for locking
             yield
         else:
-            with repo.wlock(), repo.lock():
+            with repo.wlock(), repo.lock(), repo.transaction(b'issue6528'):
                 yield
 
     if from_report:
