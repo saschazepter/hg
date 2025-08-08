@@ -12,7 +12,7 @@ from mercurial.repo import factory
 myui = uimod.ui.load()
 repo = factory.repository(myui, path=b'.', create=True)
 
-fl = repo.file(b'foobar', writable=True)
+filename = b'foobar'
 
 
 def addrev(text, renamed=False):
@@ -26,6 +26,7 @@ def addrev(text, renamed=False):
     try:
         lock = repo.lock()
         t = repo.transaction(b'commit')
+        fl = repo.file(b'foobar', writable=True)
         node = fl.add(text, meta, t, 0, repo.nullid, repo.nullid)
         return node
     finally:
@@ -43,6 +44,7 @@ textwith = b'\1\nfoo'
 without = b'foo'
 
 node = addrev(textwith)
+fl = repo.file(b'foobar')
 if not textwith == fl.read(node):
     error('filelog.read for data starting with \\1\\n')
 if fl.cmp(node, textwith) or not fl.cmp(node, without):
@@ -51,6 +53,7 @@ if fl.size(0) != len(textwith):
     error('filelog.size for data starting with \\1\\n')
 
 node = addrev(textwith, renamed=True)
+fl = repo.file(b'foobar')
 if not textwith == fl.read(node):
     error('filelog.read for a renaming + data starting with \\1\\n')
 if fl.cmp(node, textwith) or not fl.cmp(node, without):
