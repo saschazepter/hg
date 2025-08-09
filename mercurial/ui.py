@@ -26,6 +26,7 @@ from typing import (
     Callable,
     Iterator,
     NoReturn,
+    Sequence,
     TypeVar,
     Union,
     cast,
@@ -59,6 +60,8 @@ from .utils import (
 )
 
 if typing.TYPE_CHECKING:
+    import urllib.request
+
     from .interfaces.types import (
         CfgRemapT,
         CfgSectionsT,
@@ -199,12 +202,18 @@ class httppasswordmgrdbproxy:
     def __init__(self) -> None:
         self._mgr = None
 
-    def _get_mgr(self):
+    def _get_mgr(self) -> urllib.request.HTTPPasswordMgrWithDefaultRealm:
         if self._mgr is None:
             self._mgr = urlreq.httppasswordmgrwithdefaultrealm()
         return self._mgr
 
-    def add_password(self, realm, uris, user, passwd):
+    def add_password(
+        self,
+        realm: bytes | str,
+        uris: bytes | str | Sequence[bytes | str],
+        user: bytes | str,
+        passwd: bytes | str,
+    ) -> None:
         return self._get_mgr().add_password(
             _maybestrurl(realm),
             _maybestrurl(uris),
@@ -212,7 +221,11 @@ class httppasswordmgrdbproxy:
             _maybestrurl(passwd),
         )
 
-    def find_user_password(self, realm, uri):
+    def find_user_password(
+        self,
+        realm: bytes | str,
+        uri: bytes | str,
+    ) -> tuple[bytes | None, bytes | None]:
         mgr = self._get_mgr()
         return _maybebytesurl(
             mgr.find_user_password(_maybestrurl(realm), _maybestrurl(uri))
