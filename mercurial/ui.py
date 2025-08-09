@@ -33,6 +33,9 @@ from typing import (
     overload,
 )
 
+from .interfaces.types import (
+    HttpPasswordMgrT,
+)
 from .i18n import _
 from .node import hex
 
@@ -188,7 +191,7 @@ default = %s
 }
 
 
-class httppasswordmgrdbproxy:
+class httppasswordmgrdbproxy(HttpPasswordMgrT):
     """Delays loading urllib2 until it's needed."""
 
     def __init__(self) -> None:

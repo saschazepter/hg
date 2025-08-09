@@ -39,6 +39,7 @@ from . import (
     repository,
     status,
     transaction,
+    ui as uimod,
 )
 
 
@@ -49,6 +50,8 @@ CfgRemapT = config.CfgRemapT
 CfgSectionsT = config.CfgSectionsT
 
 FileStorageT = repository.ifilestorage
+
+HttpPasswordMgrT = uimod.IHttpPasswordMgr
 
 # The names for repository types are shifted a bit in order to be able to group
 # them together while alphabetizing.
