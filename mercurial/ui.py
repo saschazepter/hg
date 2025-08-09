@@ -188,19 +188,19 @@ default = %s
 }
 
 
-def _maybestrurl(maybebytes):
-    return pycompat.rapply(pycompat.strurl, maybebytes)
-
-
-def _maybebytesurl(maybestr):
-    return pycompat.rapply(pycompat.bytesurl, maybestr)
-
-
 class httppasswordmgrdbproxy:
     """Delays loading urllib2 until it's needed."""
 
     def __init__(self) -> None:
         self._mgr = None
+
+    @staticmethod
+    def _maybestrurl(maybebytes):  # May take bytes|str|composite[bytes|str]
+        return pycompat.rapply(pycompat.strurl, maybebytes)
+
+    @staticmethod
+    def _maybebytesurl(maybestr: tuple[str | None, str | None]):
+        return pycompat.rapply(pycompat.bytesurl, maybestr)
 
     def _get_mgr(self) -> urllib.request.HTTPPasswordMgrWithDefaultRealm:
         if self._mgr is None:
@@ -215,10 +215,10 @@ class httppasswordmgrdbproxy:
         passwd: bytes | str,
     ) -> None:
         return self._get_mgr().add_password(
-            _maybestrurl(realm),
-            _maybestrurl(uris),
-            _maybestrurl(user),
-            _maybestrurl(passwd),
+            self._maybestrurl(realm),
+            self._maybestrurl(uris),
+            self._maybestrurl(user),
+            self._maybestrurl(passwd),
         )
 
     def find_user_password(
@@ -227,8 +227,10 @@ class httppasswordmgrdbproxy:
         uri: bytes | str,
     ) -> tuple[bytes | None, bytes | None]:
         mgr = self._get_mgr()
-        return _maybebytesurl(
-            mgr.find_user_password(_maybestrurl(realm), _maybestrurl(uri))
+        return self._maybebytesurl(
+            mgr.find_user_password(
+                self._maybestrurl(realm), self._maybestrurl(uri)
+            )
         )
 
 
