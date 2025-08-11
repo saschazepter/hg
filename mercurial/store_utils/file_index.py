@@ -11,7 +11,7 @@ import typing
 
 from ..i18n import _
 from ..thirdparty import attr
-from ..interfaces.types import HgPathT
+from ..interfaces.types import HgPathT, TransactionT
 from .. import pycompat, util
 from ..interfaces import file_index as int_file_index
 from . import file_index_util
@@ -37,7 +37,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._docket_file_found = False
         self._written = False
 
-    def has_token(self, token):
+    def has_token(self, token: int_file_index.FileTokenT):
         return token >= 0 and token < len(self)
 
     def get_path(self, token: int_file_index.FileTokenT):
@@ -52,7 +52,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def _get_path_on_disk(self, token: int_file_index.FileTokenT) -> HgPathT:
         """Look up a path on disk by token."""
 
-    def get_token(self, path):
+    def get_token(self, path: HgPathT):
         token = self._add_map.get(path)
         if token is not None:
             return token
@@ -64,7 +64,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     ) -> int_file_index.FileTokenT | None:
         """Look up a path on disk by token."""
 
-    def __contains__(self, path):
+    def __contains__(self, path: HgPathT):
         return self.get_token(path) is not None
 
     def __len__(self):
@@ -78,7 +78,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         for token in range(len(self)):
             yield self.get_path(int_file_index.FileTokenT(token)), token
 
-    def add(self, path, tr):
+    def add(self, path: HgPathT, tr: TransactionT):
         assert not self._written, "cannot add to file index after writing"
         token = self.get_token(path)
         if token is None:
@@ -87,7 +87,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._add_map[path] = token
         return token
 
-    def write(self, tr):
+    def write(self, tr: TransactionT):
         assert not self._written, "should only write file index once"
         if not self._add:
             return
@@ -140,7 +140,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def tree_file(self):
         return self._mapfile(b"tree", default=b"\x00\x00")
 
-    def _mapfile(self, name: bytes, default) -> memoryview:
+    def _mapfile(self, name: bytes, default: bytes) -> memoryview:
         if self._is_initial():
             data = default
         else:
@@ -209,11 +209,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 class FileIndex(_FileIndexCommon):
     """Pure Python implementation of the file index."""
 
-    def _get_path_on_disk(self, token):
+    def _get_path_on_disk(self, token: int_file_index.FileTokenT):
         meta = self.meta_array[token]
         return bytes(self._read_span(meta.offset, meta.length))
 
-    def _get_token_on_disk(self, path):
+    def _get_token_on_disk(self, path: HgPathT):
         tree_file = self.tree_file
         node = file_index_util.TreeNode.parse_from(
             tree_file[self.docket.tree_root_pointer :]
@@ -232,7 +232,7 @@ class FileIndex(_FileIndexCommon):
                 return None
         return node.token
 
-    def _write(self, f):
+    def _write(self, f: typing.BinaryIO):
         assert not self._written, "should only write once"
         assert self._add, "should have something to write"
         docket = self.docket
