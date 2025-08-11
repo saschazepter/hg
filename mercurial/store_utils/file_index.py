@@ -101,9 +101,15 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             post_finalize=True,
         )
 
-    @abc.abstractmethod
     def _write(self, f: typing.BinaryIO):
-        """Write all data files, and write the docket to f."""
+        assert not self._written, "should only write file index once"
+        self._write_data()
+        self._written = True
+        f.write(self.docket.serialize())
+
+    @abc.abstractmethod
+    def _write_data(self):
+        """Write all data files and update self.docket."""
 
     @propertycache
     def docket(self) -> file_index_util.Docket:
@@ -232,7 +238,7 @@ class FileIndex(_FileIndexCommon):
                 return None
         return node.token
 
-    def _write(self, f: typing.BinaryIO):
+    def _write_data(self):
         assert not self._written, "should only write once"
         assert self._add, "should have something to write"
         docket = self.docket
@@ -248,30 +254,24 @@ class FileIndex(_FileIndexCommon):
                     tree_file=self.tree_file,
                 )
             )
-        list_file_size = docket.list_file_size
-        meta_file_size = docket.meta_file_size
         with (
             self._openfile(b"list", create=initial) as list_file,
             self._openfile(b"meta", create=initial) as meta_file,
         ):
             token = len(self.meta_array)
             for path in self._add:
-                offset = list_file_size
+                offset = docket.list_file_size
                 metadata = file_index_util.Metadata.from_path(path, offset)
                 list_file.write(b"%s\x00" % path)
                 meta_file.write(metadata.serialize())
                 tree.insert(path, token, offset)
-                list_file_size += len(path) + 1
-                meta_file_size += file_index_util.Metadata.STRUCT.size
+                docket.list_file_size += len(path) + 1
+                docket.meta_file_size += file_index_util.Metadata.STRUCT.size
                 token += 1
         serialized = tree.serialize()
         with self._openfile(b"tree", create=initial) as tree_file:
             tree_file.write(serialized.bytes)
-        docket.list_file_size = list_file_size
-        docket.meta_file_size = meta_file_size
         docket.tree_file_size = serialized.tree_file_size
         docket.tree_root_pointer = serialized.tree_root_pointer
         docket.tree_unused_bytes = serialized.tree_unused_bytes
         docket.reserved_flags = 0
-        f.write(docket.serialize())
-        self._written = True

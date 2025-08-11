@@ -1398,9 +1398,9 @@ class FileIndexStore(basicstore):
         raise NotImplementedError("file index copylist not implemented yet")
 
     def schedule_write(self, tr):
-        tr.addfinalize(b'fileindex', self.write)
+        tr.addfinalize(b'fileindex', self._write)
 
-    def write(self, tr):
+    def _write(self, tr):
         self.fileindex.write(tr)
 
     def invalidatecaches(self):
