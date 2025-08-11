@@ -61,6 +61,21 @@ def resolve_store_vfs_options(ui, requirements, features):
         if writecopiesto in copiesextramode:
             options[b'copies-storage'] = b'extra'
 
+    if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+        value = ui.configint(b'storage', b'fileindex.max-unused-percentage')
+        if not 0 <= value <= 100:
+            fallback = ui.configdefault(
+                b'storage', b'fileindex.max-unused-percentage'
+            )
+            msg = _(
+                b'warning: invalid storage.fileindex.max-unused-percentage '
+                b'value %d (must be between 0 and 100); falling back to %d'
+                % (value, fallback)
+            )
+            ui.warn(msg)
+            value = fallback
+        options[b'fileindex-max-unused-percentage'] = value
+
     return options
 
 

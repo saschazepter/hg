@@ -1380,7 +1380,10 @@ class FileIndexStore(basicstore):
 
     @propertycache
     def fileindex(self):
-        return file_index_mod.FileIndex(self.rawvfs)
+        percentage = self.vfs.options[b'fileindex-max-unused-percentage']
+        return file_index_mod.FileIndex(
+            self.rawvfs, max_unused_ratio=percentage / 100
+        )
 
     def join(self, f):
         return self.pathsep + self.encode(f)

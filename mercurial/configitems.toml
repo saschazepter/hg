@@ -2494,6 +2494,14 @@ section = "storage"
 name = "revlog.zstd.level"
 
 [[items]]
+section = "storage"
+name = "fileindex.max-unused-percentage"
+default = 50
+experimental = true
+documentation = """Maximum percentage of unreachable bytes / total bytes in the
+file index tree file. When this is exceeded, the tree is vacuumed."""
+
+[[items]]
 section = "subrepos"
 name = "allowed"
 default-type = "dynamic"  # to make backporting simpler

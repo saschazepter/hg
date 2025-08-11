@@ -48,8 +48,9 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     class, with and without Rust extensions enabled.
     """
 
-    def __init__(self, opener):
+    def __init__(self, opener, max_unused_ratio: float):
         self._opener = opener
+        self._max_unused_ratio = max_unused_ratio
         self._add = []
         self._add_map = {}
         self._docket_file_found = False
@@ -106,28 +107,38 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             tr.addfinalize(b"fileindex", self._add_file_generator)
         return token
 
-    def _add_file_generator(self, tr: TransactionT):
+    def vacuum(self, tr: TransactionT):
+        assert not self._written, "should only write file index once"
+        assert not self._add, "manual vacuum should not add files"
+        self._add_file_generator(tr, force_vacuum=True)
+
+    def _add_file_generator(self, tr: TransactionT, force_vacuum=False):
         """Add a file generator for writing the file index."""
         assert not self._written, "should only write file index once"
         tr.addfilegenerator(
             b"fileindex",
             (b"fileindex",),
-            self._write,
+            lambda f: self._write(f, force_vacuum),
             location=b"store",
             # Need post_finalize since we call this in an addfinalize callback.
             post_finalize=True,
         )
 
-    def _write(self, f: typing.BinaryIO):
+    def _write(self, f: typing.BinaryIO, force_vacuum: bool):
         """Write all data files and the docket."""
         assert not self._written, "should only write file index once"
-        self._write_data()
+        self._write_data(force_vacuum)
         self._written = True
         f.write(self.docket.serialize())
 
     @abc.abstractmethod
-    def _write_data(self):
-        """Write all data files and update self.docket."""
+    def _write_data(self, force_vacuum: bool):
+        """Write all data files and update self.docket.
+
+        If force_vacuum is True, or if the ratio of unused / total bytes in the
+        tree file equals or exceeds self._max_unused_ratio, writes a new tree
+        file instead of appending to the existing one.
+        """
 
     @propertycache
     def docket(self) -> file_index_util.Docket:
@@ -275,14 +286,21 @@ class FileIndex(_FileIndexCommon):
                 return None
         return node.token
 
-    def _write_data(self):
+    def _write_data(self, force_vacuum: bool):
         assert not self._written, "should only write once"
-        assert self._add, "should have something to write"
         docket = self.docket
         initial = self._is_initial()
-        if initial:
-            assert len(self.meta_array) == 0, "should have nothing on disk yet"
+        new_tree = (
+            initial
+            or force_vacuum
+            or docket.tree_unused_bytes
+            >= docket.tree_file_size * self._max_unused_ratio
+        )
+        if new_tree:
             tree = file_index_util.MutableTree(base=None)
+            for token, meta in enumerate(self.meta_array):
+                path = bytes(self._read_span(meta.offset, meta.length))
+                tree.insert(path, int_file_index.FileTokenT(token), meta.offset)
         else:
             tree = file_index_util.MutableTree(
                 file_index_util.Base(
@@ -291,7 +309,7 @@ class FileIndex(_FileIndexCommon):
                     tree_file=self.tree_file,
                 )
             )
-        if True:  # ident to minimize diff
+        if initial or self._add:
             with (
                 self._open_list_file(create=initial) as list_file,
                 self._open_meta_file(create=initial) as meta_file,
@@ -302,15 +320,15 @@ class FileIndex(_FileIndexCommon):
                     metadata = file_index_util.Metadata.from_path(path, offset)
                     list_file.write(b"%s\x00" % path)
                     meta_file.write(metadata.serialize())
-                    tree.insert(path, token, offset)
+                    tree.insert(path, int_file_index.FileTokenT(token), offset)
                     docket.list_file_size += len(path) + 1
                     docket.meta_file_size += (
                         file_index_util.Metadata.STRUCT.size
                     )
-                token += 1
-        if True:  # ident to minimize diff
+                    token += 1
+        if new_tree or self._add:
             serialized = tree.serialize()
-            with self._open_tree_file(create=initial) as tree_file:
+            with self._open_tree_file(create=new_tree) as tree_file:
                 tree_file.write(serialized.bytes)
             docket.tree_file_size = serialized.tree_file_size
             docket.tree_root_pointer = serialized.tree_root_pointer
@@ -357,3 +375,13 @@ def debug_file_index(ui, repo, **opts):
             raise error.InputError(msg)
         path = fileindex.get_path(token)
         ui.write(b"%d: %s\n" % (token, path))
+    elif choice == b"vacuum":
+        with repo.lock():
+            old_size = fileindex.docket.tree_file_size
+            with repo.transaction(b"fileindex-vacuum") as tr:
+                fileindex.vacuum(tr)
+            new_size = fileindex.docket.tree_file_size
+        percent = (old_size - new_size) / old_size * 100
+        msg = _(b"vacuumed tree: %s => %s (saved %.01f%%)\n")
+        msg %= util.bytecount(old_size), util.bytecount(new_size), percent
+        ui.write(msg)

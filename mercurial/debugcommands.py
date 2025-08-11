@@ -3230,6 +3230,7 @@ def debugrebuildfncache(ui, repo, **opts):
         (b'', b'tree', None, _(b'dump tree file')),
         (b'p', b'path', b'', _(b'look up path'), _(b'PATH')),
         (b't', b'token', b'', _(b'look up token'), _(b'TOKEN')),
+        (b'', b'vacuum', None, _(b'vacuum the tree file')),
     ],
 )
 def debug_file_index(ui, repo, **opts):

@@ -64,3 +64,11 @@ class IFileIndex(Protocol):
 
         If the path already exists in the file index, returns its token.
         """
+
+    @abc.abstractmethod
+    def vacuum(self, tr: TransactionT):
+        """Vacuum the file index tree file.
+
+        This is done automatically upon writing when the ratio of unused bytes
+        gets too large, but this method provides a way to do it manually.
+        """

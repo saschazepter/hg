@@ -85,6 +85,26 @@ Add more files
   0000004e: token = 2
   00000028: token = 3
 
+Manually vacuum tree
+  $ old_id=$(hg debug::file-index --docket -T '{tree_file_id}')
+  $ hg debug::file-index --vacuum
+  vacuumed tree: 84 bytes => 66 bytes (saved 21.4%)
+  $ new_id=$(hg debug::file-index --docket -T '{tree_file_id}')
+  $ f --size ".hg/store/fileindex-tree.$old_id"
+  .hg/store/fileindex-tree.*: size=84 (glob)
+  $ f --size ".hg/store/fileindex-tree.$new_id"
+  .hg/store/fileindex-tree.*: size=66 (glob)
+  $ hg debug::file-index --vacuum
+  vacuumed tree: 66 bytes => 66 bytes (saved 0.0%)
+
+Force vacuuming tree during commit
+  $ touch anotherfile
+  $ hg add
+  adding anotherfile
+  $ hg --config storage.fileindex.max-unused-percentage=0 commit -m 2
+  $ hg debug::file-index --docket | grep tree_unused_bytes
+  tree_unused_bytes: 0
+
   $ cd ..
 
 Access file index in pretxnclose hook
