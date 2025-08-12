@@ -537,18 +537,15 @@ Upgrade empty repo from fncache to fileindex
   repository locked and read-only
   creating temporary repository to stage upgraded data: $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
-  copying requires
-  data fully upgraded in a temporary repository
-  marking source repository as being upgraded; clients will be unable to read from repository
-  starting in-place swap of repository data
+  upgrading from fncache to fileindex-v1
   replaced files will be backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
-  replacing store...
-  store replacement complete; repository was inconsistent for 0.0s
-  finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
-  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
-  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
   $ hg debug::file-index
+
+You can't roll back the fast path upgrade
+  $ hg rollback
+  no rollback information available
+  [1]
 
 Removing file index is not allowed if you aren't downgrading to fncache
   $ hg debugupgrade --config format.usefncache=0 --config format.exp-use-fileindex-v1=0 --run
@@ -605,8 +602,6 @@ Add a file, then upgrade to fileindex
   $ cat .hg/store/fncache | sort
   data/f1.i
   $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
-  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
-  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
   $ test -f .hg/store/fncache
   [1]
   $ hg debug::file-index
@@ -628,8 +623,6 @@ Add another file, then downgrade to fncache
 
 Finally, upgrade back to fileindex
   $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
-  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
-  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
   $ hg debug::file-index
   0: f1
   1: f2

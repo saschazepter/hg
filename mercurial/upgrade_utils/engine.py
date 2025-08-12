@@ -18,6 +18,7 @@ from .. import (
     requirements,
     scmutil,
     store,
+    transaction,
     util,
     vfs as vfsmod,
 )
@@ -27,6 +28,7 @@ from ..revlogutils import (
     nodemap,
     sidedata as sidedatamod,
 )
+from ..store_utils import file_index as file_index_mod
 from . import actions as upgrade_actions
 
 
@@ -456,6 +458,20 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
         upgrade_tracked_hint(ui, srcrepo, upgrade_op, add=False)
         upgrade_op.removed_actions.remove(upgrade_actions.dirstatetrackedkey)
 
+    # Fast path for upgrading from fncache to file index.
+    if upgrade_actions.file_index_v1 in upgrade_op.upgrade_actions:
+        if not {upgrade_actions.fncache, upgrade_actions.dotencode}.issubset(
+            upgrade_op.removed_actions
+        ):
+            raise error.ProgrammingError(
+                b'adding fileindex-v1 must remove fncache and dotencode'
+            )
+        ui.status(_(b'upgrading from fncache to fileindex-v1\n'))
+        upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op)
+        upgrade_op.upgrade_actions.remove(upgrade_actions.file_index_v1)
+        upgrade_op.removed_actions.remove(upgrade_actions.fncache)
+        upgrade_op.removed_actions.remove(upgrade_actions.dotencode)
+
     if not (upgrade_op.upgrade_actions or upgrade_op.removed_actions):
         return
 
@@ -646,3 +662,43 @@ def upgrade_tracked_hint(ui, srcrepo, upgrade_op, add):
         srcrepo.dirstate.delete_tracked_hint()
 
     scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
+
+
+def upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op):
+    if upgrade_op.backup_store:
+        backuppath = pycompat.mkdtemp(
+            prefix=b'upgradebackup.', dir=srcrepo.path
+        )
+        ui.status(_(b'replaced files will be backed up at %s\n') % backuppath)
+        backupvfs_outer = vfsmod.vfs(backuppath)
+        backupvfs_outer.mkdir(b'store')
+        backupvfs = vfsmod.vfs(backupvfs_outer.join(b'store'))
+        util.copyfile(
+            srcrepo.svfs.join(b'requires'), backupvfs.join(b'requires')
+        )
+
+    fileindex = file_index_mod.FileIndex(
+        ui,
+        srcrepo.store.rawvfs,
+        try_pending=False,
+        vacuum_mode=file_index_mod.VACUUM_MODE_NEVER,
+        max_unused_ratio=0,
+        gc_retention_s=0,
+        garbage_timestamp=None,
+    )
+    with srcrepo.transaction(b'upgrade') as tr:
+        for path in srcrepo.store.fncache:
+            radix = store.parse_filelog_radix(path)
+            if radix:
+                fileindex.add(radix, tr)
+
+    transaction.cleanup_undo_files(ui.warn, srcrepo.vfs_map)
+
+    scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
+
+    old_file = b"fncache"
+    if srcrepo.svfs.exists(old_file):
+        if upgrade_op.backup_store:
+            util.rename(srcrepo.svfs.join(old_file), backupvfs.join(old_file))
+        else:
+            srcrepo.svfs.unlink(old_file)
