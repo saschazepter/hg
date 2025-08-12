@@ -1126,7 +1126,7 @@ def check_source_requirements(repo):
 ### Verify the validity of the planned requirement changes ####################
 
 
-def supportremovedrequirements(repo):
+def supportremovedrequirements(repo, new_reqs):
     """Obtain requirements that can be removed during an upgrade.
 
     If an upgrade were to create a repository that dropped a requirement,
@@ -1148,6 +1148,10 @@ def supportremovedrequirements(repo):
         requirements.SHARESAFE_REQUIREMENT,
         requirements.SPARSEREVLOG_REQUIREMENT,
     }
+    if requirements.FILEINDEXV1_REQUIREMENT in new_reqs:
+        supported.add(requirements.FNCACHE_REQUIREMENT)
+    elif requirements.FNCACHE_REQUIREMENT in new_reqs:
+        supported.add(requirements.FILEINDEXV1_REQUIREMENT)
     for name in compression.compengines:
         engine = compression.compengines[name]
         if engine.available() and engine.revlogheader():
@@ -1172,6 +1176,7 @@ def supporteddestrequirements(repo):
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILEINDEXV1_REQUIREMENT,
         requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
@@ -1212,6 +1217,7 @@ def allowednewrequirements(repo):
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
+        requirements.FILEINDEXV1_REQUIREMENT,
         requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
@@ -1234,7 +1240,7 @@ def allowednewrequirements(repo):
 def check_requirements_changes(repo, new_reqs):
     old_reqs = repo.requirements
     check_revlog_version(repo.requirements)
-    support_removal = supportremovedrequirements(repo)
+    support_removal = supportremovedrequirements(repo, new_reqs)
     no_remove_reqs = old_reqs - new_reqs - support_removal
     if no_remove_reqs:
         msg = _(b'cannot upgrade repository; requirement would be removed: %s')

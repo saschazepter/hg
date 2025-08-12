@@ -491,3 +491,145 @@ Recover transaction, new file
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
   .hg/store/fileindex-tree.* (glob)
+
+  $ cd ..
+
+Test upgrading from fncache to fileindex and back
+-------------------------------------------------
+
+Create an empty repo with fncache
+  $ hg init repoupgrade --config format.exp-use-fileindex-v1=0
+  $ cd repoupgrade
+  $ hg debugformat fileindex
+  format-variant                 repo
+  fileindex-v1:                    no
+  $ hg debug::file-index
+  abort: this repository does not have a file index
+  [20]
+
+Removing fncache is not allowed if you aren't upgrading to file index
+  $ hg debugupgrade --config format.usefncache=0 --config format.exp-use-fileindex-v1=0 --run
+  abort: cannot upgrade repository; requirement would be removed: fncache
+  [255]
+
+Upgrade empty repo from fncache to fileindex
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run
+  note:    selecting all-filelogs for processing to change: dotencode
+  note:    selecting all-manifestlogs for processing to change: fncache
+  note:    selecting changelog for processing to change: fncache
+  
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: dotencode, fncache
+     added: exp-fileindex-v1
+  
+  fileindex-v1
+     transactions that add files will be faster in large repos
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  beginning upgrade...
+  repository locked and read-only
+  creating temporary repository to stage upgraded data: $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
+  (it is safe to interrupt this process any time before data migration completes)
+  copying requires
+  data fully upgraded in a temporary repository
+  marking source repository as being upgraded; clients will be unable to read from repository
+  starting in-place swap of repository data
+  replaced files will be backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  replacing store...
+  store replacement complete; repository was inconsistent for 0.0s
+  finalizing requirements file and making repository readable again
+  removing temporary repository $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ hg debug::file-index
+
+Removing file index is not allowed if you aren't downgrading to fncache
+  $ hg debugupgrade --config format.usefncache=0 --config format.exp-use-fileindex-v1=0 --run
+  abort: cannot upgrade repository; requirement would be removed: exp-fileindex-v1
+  [255]
+
+Downgrade empty repo to fncache
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=0 --run
+  note:    selecting all-filelogs for processing to change: dotencode
+  note:    selecting all-manifestlogs for processing to change: fncache
+  note:    selecting changelog for processing to change: fncache
+  
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: * (glob)
+     removed: exp-fileindex-v1
+     added: dotencode, fncache
+  
+  fncache
+     repository will be more resilient to storing certain paths and performance of certain operations should be improved
+  
+  dotencode
+     repository will be better able to store files beginning with a space or period
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  beginning upgrade...
+  repository locked and read-only
+  creating temporary repository to stage upgraded data: $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
+  (it is safe to interrupt this process any time before data migration completes)
+  copying requires
+  data fully upgraded in a temporary repository
+  marking source repository as being upgraded; clients will be unable to read from repository
+  starting in-place swap of repository data
+  replaced files will be backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  replacing store...
+  store replacement complete; repository was inconsistent for 0.0s
+  finalizing requirements file and making repository readable again
+  removing temporary repository $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ hg debug::file-index
+  abort: this repository does not have a file index
+  [20]
+
+Add a file, then upgrade to fileindex
+  $ touch f1
+  $ hg add f1
+  $ hg ci -m 0
+  $ cat .hg/store/fncache | sort
+  data/f1.i
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ test -f .hg/store/fncache
+  [1]
+  $ hg debug::file-index
+  0: f1
+
+Add another file, then downgrade to fncache
+  $ touch f2
+  $ hg add f2
+  $ hg ci -m 1
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=0 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ cat .hg/store/fncache | sort
+  data/f1.i
+  data/f2.i
+  $ hg debug::file-index
+  abort: this repository does not have a file index
+  [20]
+
+Finally, upgrade back to fileindex
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ hg debug::file-index
+  0: f1
+  1: f2
