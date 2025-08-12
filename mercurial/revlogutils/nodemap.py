@@ -18,7 +18,7 @@ from .. import (
     requirements,
     util,
 )
-from . import docket as docket_mod
+from ..utils import docket as docket_mod
 
 
 class NodeMap(dict):

@@ -10,8 +10,7 @@ from typing import Iterator, List, Optional
 from ..thirdparty import attr
 from .. import error
 from ..interfaces import file_index as int_file_index, types
-from ..revlogutils import docket
-from ..utils import stringutil
+from ..utils import docket, stringutil
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
