@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import struct
 import typing
-from typing import Iterator, List
+from typing import Iterator, List, Optional
 
 from ..thirdparty import attr
 from .. import error
@@ -196,7 +196,7 @@ class TreeNode:
     """A node parsed from the tree file."""
 
     # Token for this node, if it represents a path in the file index.
-    token = attr.ib(type=int_file_index.FileTokenT | None)
+    token = attr.ib(type=Optional[int_file_index.FileTokenT])
     # Edges pointing to children of this node.
     edges = attr.ib(type=List[TreeEdge])
 
@@ -228,7 +228,7 @@ class MutableTreeNode:
     """Mutable version of `TreeNode`."""
 
     # See TreeNode.token.
-    token = attr.ib(type=int_file_index.FileTokenT | None)
+    token = attr.ib(type=Optional[int_file_index.FileTokenT])
     # Edges to children of this node.
     edges = attr.ib(type=List["MutableTreeEdge"])
 
