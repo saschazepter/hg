@@ -155,7 +155,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 if self._opener.is_mmap_safe(path):
                     data = util.mmapread(fp, self._size(name))
                 else:
-                    data = fp.read()
+                    data = fp.read(size)
         return util.buffer(data)
 
     def _openfile(self, name: bytes, create: bool) -> typing.BinaryIO:
