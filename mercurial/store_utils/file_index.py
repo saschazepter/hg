@@ -130,13 +130,22 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def _open_docket_file(self):
         return self._opener(b"fileindex")
 
+    def _list_file_path(self):
+        return b"fileindex-list." + self.docket.list_file_id
+
+    def _meta_file_path(self):
+        return b"fileindex-meta." + self.docket.meta_file_id
+
+    def _tree_file_path(self):
+        return b"fileindex-tree." + self.docket.tree_file_id
+
     @propertycache
     def list_file(self):
-        return self._mapfile(b"list", default=b"")
+        return self._mapfile(self._list_file_path(), self.docket.list_file_size)
 
     @propertycache
     def meta_file(self):
-        return self._mapfile(b"meta", default=b"")
+        return self._mapfile(self._meta_file_path(), self.docket.meta_file_size)
 
     @propertycache
     def meta_array(self):
@@ -144,42 +153,50 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     @propertycache
     def tree_file(self):
-        return self._mapfile(b"tree", default=b"\x00\x00")
+        return self._mapfile(
+            self._tree_file_path(),
+            self.docket.tree_file_size,
+            default=b"\x00\x00",
+        )
 
-    def _mapfile(self, name: bytes, default: bytes) -> memoryview:
+    def _mapfile(self, path: bytes, size: int, default=b"") -> memoryview:
+        """Read a file up to the given size using mmap if possible.
+
+        If this is a new file index, returns default instead.
+        """
         if self._is_initial():
             data = default
         else:
-            path = self._path(name)
             with self._opener(path) as fp:
                 if self._opener.is_mmap_safe(path):
-                    data = util.mmapread(fp, self._size(name))
+                    data = util.mmapread(fp, size)
                 else:
                     data = fp.read(size)
         return util.buffer(data)
 
-    def _openfile(self, name: bytes, create: bool) -> typing.BinaryIO:
-        mode = b"wb" if create else b"r+b"
-        f = self._opener(self._path(name, create=create), mode)
-        if not create:
-            try:
-                f.seek(self._size(name))
-            except:  # re-raises
-                f.close()
-                raise
+    def _open_list_file(self, create: bool):
+        if create:
+            self.docket.list_file_id = file_index_util.Docket.make_id()
+            return self._opener(self._list_file_path(), b"wb")
+        f = self._opener(self._list_file_path(), b"r+b")
+        f.seek(self.docket.list_file_size)
         return f
 
-    def _path(self, name: bytes, create=False) -> bytes:
-        attr = pycompat.sysstr(b"%s_file_id" % name)
+    def _open_meta_file(self, create: bool):
         if create:
-            id = file_index_util.Docket.make_id()
-            setattr(self.docket, attr, id)
-        else:
-            id = getattr(self.docket, attr)
-        return b"fileindex-%s.%s" % (name, id)
+            self.docket.meta_file_id = file_index_util.Docket.make_id()
+            return self._opener(self._meta_file_path(), b"wb")
+        f = self._opener(self._meta_file_path(), b"r+b")
+        f.seek(self.docket.meta_file_size)
+        return f
 
-    def _size(self, name: bytes) -> int:
-        return getattr(self.docket, pycompat.sysstr(b"%s_file_size" % name))
+    def _open_tree_file(self, create: bool):
+        if create:
+            self.docket.tree_file_id = file_index_util.Docket.make_id()
+            return self._opener(self._tree_file_path(), b"wb")
+        f = self._opener(self._tree_file_path(), b"r+b")
+        f.seek(self.docket.tree_file_size)
+        return f
 
     def _read_span(self, offset: int, length: int) -> memoryview:
         """Read a span of bytes from the list file."""
@@ -255,8 +272,8 @@ class FileIndex(_FileIndexCommon):
                 )
             )
         with (
-            self._openfile(b"list", create=initial) as list_file,
-            self._openfile(b"meta", create=initial) as meta_file,
+            self._open_list_file(create=initial) as list_file,
+            self._open_meta_file(create=initial) as meta_file,
         ):
             token = len(self.meta_array)
             for path in self._add:
@@ -269,7 +286,7 @@ class FileIndex(_FileIndexCommon):
                 docket.meta_file_size += file_index_util.Metadata.STRUCT.size
                 token += 1
         serialized = tree.serialize()
-        with self._openfile(b"tree", create=initial) as tree_file:
+        with self._open_tree_file(create=initial) as tree_file:
             tree_file.write(serialized.bytes)
         docket.tree_file_size = serialized.tree_file_size
         docket.tree_root_pointer = serialized.tree_root_pointer
