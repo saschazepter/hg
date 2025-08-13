@@ -302,7 +302,7 @@ def _narrow(
                 continue
             if entry.is_filelog:
                 if not newmatch(entry.target_id):
-                    for file_ in entry.files():
+                    for file_ in entry.files(repo.svfs):
                         todelete.append(file_.unencoded_path)
             elif entry.is_manifestlog:
                 dir = entry.target_id[:-1]
@@ -316,7 +316,7 @@ def _narrow(
                     if visit == b'all':
                         break
                 if not include:
-                    for file_ in entry.files():
+                    for file_ in entry.files(repo.svfs):
                         todelete.append(file_.unencoded_path)
 
         repo.destroying()

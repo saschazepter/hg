@@ -410,7 +410,7 @@ class verifier:
             revlogv1 = self.revlogv1
             undecodable = []
             for entry in repo.store.data_entries(undecodable=undecodable):
-                for file_ in entry.files():
+                for file_ in entry.files(repo.svfs):
                     f = file_.unencoded_path
                     size = file_.file_size(repo.svfs)
                     if (size > 0 or not revlogv1) and f.startswith(b'meta/'):
@@ -481,7 +481,7 @@ class verifier:
             fncache_files = set()
             undecodable = []
             for entry in repo.store.data_entries(undecodable=undecodable):
-                for file_ in entry.files():
+                for file_ in entry.files(repo.svfs):
                     size = file_.file_size(repo.svfs)
                     f = file_.unencoded_path
                     if (size > 0 or not revlogv1) and f.startswith(b'data/'):

@@ -38,6 +38,7 @@ from . import (
     store,
     transaction,
     util,
+    vfs as vfsmod,
 )
 from .exchanges import (
     bundle_caps,
@@ -334,7 +335,7 @@ def generatev1(repo) -> tuple[int, int, Iterator[bytes]]:
         repo.ui.debug(b'scanning\n')
         _test_sync_point_walk_1_2(repo)
         for entry in _walkstreamfiles(repo):
-            for f in entry.files():
+            for f in entry.files(repo.svfs):
                 file_size = f.file_size(repo.svfs)
                 if file_size:
                     entries.append((f.unencoded_path, file_size))
@@ -788,7 +789,7 @@ def _emit2(repo, entries):
             # record the expected size of every file
             for k, vfs, e in entries:
                 e.preserve_volatiles(vfs, volatiles)
-                for f in e.files():
+                for f in e.files(vfs):
                     file_count += 1
                     totalfilesize += f.file_size(vfs)
 
@@ -856,7 +857,7 @@ def _emit3(repo, entries) -> Iterator[bytes | None]:
             if e.maybe_volatile:
                 any_files = False
                 e.preserve_volatiles(vfs, volatiles)
-                for f in e.files():
+                for f in e.files(vfs):
                     if f.is_volatile:
                         # record the expected size under lock
                         f.file_size(vfs)
@@ -953,7 +954,7 @@ class CacheEntry(store.SimpleStoreEntry):
                 )
             ]
 
-    def files(self) -> list[store.StoreFile]:
+    def files(self, vfs: vfsmod.vfs) -> list[store.StoreFile]:
         if self._files is None:
             self._files = [
                 CacheFile(
@@ -961,7 +962,7 @@ class CacheEntry(store.SimpleStoreEntry):
                     is_volatile=self._is_volatile,
                 )
             ]
-        return super().files()
+        return super().files(vfs)
 
 
 class CacheFile(store.StoreFile):
@@ -1758,7 +1759,12 @@ def local_copy(src_repo, dest_repo) -> None:
             entries = list(entries)
             src_vfs_map = _makemap(src_repo)
             dest_vfs_map = _makemap(dest_repo)
-            total_files = sum(len(e[1].files()) for e in entries) + bm_count
+            total_files = (
+                sum(
+                    len(e.files(src_vfs_map[vfs_key])) for vfs_key, e in entries
+                )
+                + bm_count
+            )
             progress = src_repo.ui.makeprogress(
                 topic=_(b'linking'),
                 total=total_files,
@@ -1774,7 +1780,7 @@ def local_copy(src_repo, dest_repo) -> None:
             files = [
                 (vfs_key, f.unencoded_path, f.optional)
                 for vfs_key, e in entries
-                for f in e.files()
+                for f in e.files(src_vfs_map[vfs_key])
             ]
             hardlink = _copy_files(src_vfs_map, dest_vfs_map, files, progress)
 

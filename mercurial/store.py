@@ -548,7 +548,11 @@ class BaseStoreEntry:
 
     maybe_volatile = True
 
-    def files(self) -> list[StoreFile]:
+    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
+        """Return the files in vfs backing this entry.
+
+        Assumes the same vfs is passed every time, so it can cache the result.
+        """
         raise NotImplementedError
 
     def get_streams(
@@ -564,7 +568,7 @@ class BaseStoreEntry:
         return [(unencoded_file_path, content_iterator, content_size), …]
         """
         assert vfs is not None
-        return [f.get_stream(vfs, volatiles) for f in self.files()]
+        return [f.get_stream(vfs, volatiles) for f in self.files(vfs)]
 
     def preserve_volatiles(self, vfs, volatiles):
         """Use a VolatileManager to preserve the state of any volatile file
@@ -572,7 +576,7 @@ class BaseStoreEntry:
         This is useful for code that need a consistent view of the content like stream clone.
         """
         if self.maybe_volatile:
-            for f in self.files():
+            for f in self.files(vfs):
                 if f.is_volatile:
                     volatiles(vfs.join(f.unencoded_path))
 
@@ -602,7 +606,7 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._files = None
         self.maybe_volatile = is_volatile
 
-    def files(self) -> list[StoreFile]:
+    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
         if self._files is None:
             self._files = [
                 StoreFile(
@@ -664,7 +668,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         """unencoded path of the main revlog file"""
         return self._path_prefix + b'.i'
 
-    def files(self) -> list[StoreFile]:
+    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
         if self._files is None:
             self._files = []
             for ext in sorted(self._details, key=_ext_key):
@@ -688,7 +692,8 @@ class RevlogStoreEntry(BaseStoreEntry):
         max_changeset=None,
         preserve_file_count=False,
     ):
-        pre_sized = all(f.has_size for f in self.files())
+        files = self.files(vfs)
+        pre_sized = all(f.has_size for f in files)
         if pre_sized and (
             repo is None
             or max_changeset is None
@@ -707,7 +712,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         elif not preserve_file_count:
             stream = [
                 f.get_stream(vfs, volatiles)
-                for f in self.files()
+                for f in files
                 if not f.unencoded_path.endswith((b'.i', b'.d'))
             ]
             rl = self.get_revlog_instance(repo).get_revlog()
@@ -716,12 +721,12 @@ class RevlogStoreEntry(BaseStoreEntry):
             return stream
 
         name_to_size = {}
-        for f in self.files():
+        for f in files:
             name_to_size[f.unencoded_path] = f.file_size(None)
 
         stream = [
             f.get_stream(vfs, volatiles)
-            for f in self.files()
+            for f in files
             if not f.unencoded_path.endswith(b'.i')
         ]
 
@@ -764,7 +769,6 @@ class RevlogStoreEntry(BaseStoreEntry):
             if index_file is not None:
                 index_file.close()
 
-        files = self.files()
         assert len(stream) == len(files), (
             stream,
             files,
