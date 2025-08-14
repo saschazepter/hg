@@ -475,7 +475,9 @@ class verifier:
         havemf = self.havemf
         ui.status(_(b"checking files\n"))
 
-        if repo.store.fncache is not None:
+        if repo.store.fileindex is not None:
+            fileindex_files = set(repo.store.fileindex)
+        elif repo.store.fncache is not None:
             fncache_files = set()
             undecodable = []
             for entry in repo.store.data_entries(undecodable=undecodable):
@@ -519,15 +521,25 @@ class verifier:
                 self._err(lr, _(b"broken revlog! (%s)") % e, f)
                 continue
 
-            if repo.store.fncache is not None:
-                for ff in fl.files():
+            if self.warnorphanstorefiles:
+                if repo.store.fileindex is not None:
                     try:
-                        fncache_files.remove(ff)
+                        fileindex_files.remove(f)
                     except KeyError:
-                        if self.warnorphanstorefiles:
-                            msg = _(b" warning: revlog '%s' not in fncache!")
-                            self._warn(msg % ff)
-                            self.fncachewarned = True
+                        if repo.store.fncache is not None:
+                            msg = _(b" warning: revlog '%s' not in file index!")
+                            self._warn(msg % f)
+                elif repo.store.fncache is not None:
+                    for ff in fl.files():
+                        try:
+                            fncache_files.remove(ff)
+                        except KeyError:
+                            if repo.store.fncache is not None:
+                                msg = _(
+                                    b" warning: revlog '%s' not in fncache!"
+                                )
+                                self._warn(msg % ff)
+                                self.fncachewarned = True
 
             if not len(fl) and (self.havecl or self.havemf):
                 self._err(lr, _(b"empty or missing %s") % f)
@@ -603,7 +615,10 @@ class verifier:
         progress.complete()
 
         if self.warnorphanstorefiles:
-            if repo.store.fncache is not None:
+            if repo.store.fileindex is not None:
+                for f in sorted(fileindex_files):
+                    self._warn(_(b"warning: orphan file index entry '%s'") % f)
+            elif repo.store.fncache is not None:
                 for f in sorted(fncache_files):
                     self._warn(_(b"warning: orphan data file '%s'") % f)
 
