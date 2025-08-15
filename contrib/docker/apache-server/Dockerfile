@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:trixie
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
@@ -26,7 +26,7 @@ ADD --checksum=sha256:0194e0ed433d26090f2b57c91a9e877f8717ae68208d53227d6513404e
 RUN apt-get install /tmp/anubis_${ANUBIS_VERSION}_amd64.deb && \
     rm /tmp/anubis_${ANUBIS_VERSION}_amd64.deb
 
-RUN /usr/bin/python3.11 -m venv "${INSTALL_DIR}" && \
+RUN /usr/bin/python3.13 -m venv "${INSTALL_DIR}" && \
     "${INSTALL_DIR}"/bin/python -m pip install "mercurial==${PIP_HG_VERSION}"
 
 # Enable the extra Apache mods that we need.

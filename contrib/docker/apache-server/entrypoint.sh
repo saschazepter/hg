@@ -18,7 +18,7 @@ if [ ! -f ${HTDOCS_DIR}/hgweb.wsgi ]; then
 config = b'${HTDOCS_DIR}/config'
 
 import sys
-sys.path.insert(0, '${INSTALL_DIR}/lib/python3.11/site-packages')
+sys.path.insert(0, '${INSTALL_DIR}/lib/python3.13/site-packages')
 
 from mercurial import demandimport
 demandimport.enable()
