@@ -1384,7 +1384,11 @@ class FileIndexStore(basicstore):
     opened for writing.
     """
 
-    def __init__(self, path, vfstype):
+    def __init__(self, path, vfstype, try_pending: bool):
+        """
+        If try_pending is True, tries to open the file index written by a
+        transaction that is still pending. This is used for hooks.
+        """
         self.encode = _pathencode
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
@@ -1394,13 +1398,16 @@ class FileIndexStore(basicstore):
         self.rawvfs = vfs
         self.vfs = vfsmod.filtervfs(vfs, self.encode)
         self.opener = self.vfs
+        self._try_pending = try_pending
         self._filecache = {}  # used by @storecache
 
     @storecache(b'fileindex')
     def fileindex(self):
         percentage = self.vfs.options[b'fileindex-max-unused-percentage']
         return file_index_mod.FileIndex(
-            self.rawvfs, max_unused_ratio=percentage / 100
+            self.rawvfs,
+            try_pending=self._try_pending,
+            max_unused_ratio=percentage / 100,
         )
 
     def join(self, f):

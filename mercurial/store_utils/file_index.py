@@ -48,8 +48,15 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     class, with and without Rust extensions enabled.
     """
 
-    def __init__(self, opener, max_unused_ratio: float):
+    def __init__(self, opener, try_pending: bool, max_unused_ratio: float):
+        """
+        If try_pending is True, tries opening the docket with the ".pending"
+        suffix, falling back to the normal docket path.
+        """
+        if not 0 <= max_unused_ratio <= 100:
+            raise error.ProgrammingError(b"invalid max_unused_ratio")
         self._opener = opener
+        self._try_pending = try_pending
         self._max_unused_ratio = max_unused_ratio
         self._add = []
         self._add_map = {}
@@ -104,6 +111,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             token = len(self)
             self._add.append(path)
             self._add_map[path] = token
+            # If there are external hooks, both callbacks run:
+            # - pending: write data files, and write docket with ".pending" suffix
+            # - finalize: write docket again without suffix
+            # Otherwise, only the finalize callback runs and we do everything then.
+            tr.addpending(b"fileindex", self._add_file_generator)
             tr.addfinalize(b"fileindex", self._add_file_generator)
         return token
 
@@ -125,9 +137,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _write(self, f: typing.BinaryIO, force_vacuum: bool):
         """Write all data files and the docket."""
-        assert not self._written, "should only write file index once"
-        self._write_data(force_vacuum)
-        self._written = True
+        # If we write multiple times (e.g. transaction pending and finalize),
+        # only write data files the first time. Next time, just the docket.
+        if not self._written:
+            self._write_data(force_vacuum)
+            self._written = True
         f.write(self.docket.serialize())
 
     @abc.abstractmethod
@@ -142,11 +156,15 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     @propertycache
     def docket(self) -> file_index_util.Docket:
         self._docket_file_found = False
-        try:
-            with self._open_docket_file() as fp:
-                data = fp.read()
-        except FileNotFoundError:
-            return file_index_util.Docket()
+        data = None
+        if self._try_pending:
+            # Written by transaction.writepending.
+            data = self._opener.tryread(b"fileindex.pending")
+        if not data:
+            try:
+                data = self._opener.read(b"fileindex")
+            except FileNotFoundError:
+                return file_index_util.Docket()
         self._docket_file_found = True
         return file_index_util.Docket.parse_from(data)
 
@@ -154,9 +172,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         """Return true if this is a new file index (there was none on disk)."""
         self.docket
         return not self._docket_file_found
-
-    def _open_docket_file(self):
-        return self._opener(b"fileindex")
 
     def _list_file_path(self):
         return b"fileindex-list." + self.docket.list_file_id

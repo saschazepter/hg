@@ -108,7 +108,6 @@ Force vacuuming tree during commit
   $ cd ..
 
 Access file index in pretxnclose hook
-TODO: make this work
   $ hg init repohook --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repohook
   $ cat > .hg/hgrc <<EOF
@@ -123,5 +122,5 @@ TODO: make this work
   committing manifest
   committing changelog
   running hook pretxnclose: hg debug::file-index
-  0: file (missing-correct-output !)
+  0: file
   committed changeset 0:* (glob)
