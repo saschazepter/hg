@@ -472,8 +472,8 @@ changesets that only contain changes to existing files:
   > from mercurial import extensions, localrepo
   > 
   > def extsetup(ui):
-  >     def wrapstore(orig, requirements, *args):
-  >         store = orig(requirements, *args)
+  >     def wrapstore(orig, requirements, *args, **kwargs):
+  >         store = orig(requirements, *args, **kwargs)
   >         if b'store' in requirements and b'fncache' in requirements:
   >             instrumentfncachestore(store, ui)
   >         return store

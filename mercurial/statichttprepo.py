@@ -226,7 +226,9 @@ class statichttprepository(localrepo.localrepository):
         self.nullid = self.nodeconstants.nullid
 
         # setup store
-        self.store = localrepo.makestore(requirements, self.path, vfsclass)
+        self.store = localrepo.makestore(
+            requirements, self.path, vfsclass, try_pending=False
+        )
         self.spath = self.store.path
         self.svfs = self.store.opener
         # We can't use Rust because the Rust code cannot cope with the

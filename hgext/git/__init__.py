@@ -124,6 +124,7 @@ def _makestore(
     requirements: set[bytes],
     storebasepath: FsPathT,
     vfstype: Callable[..., vfsmod.abstractvfs],
+    try_pending: bool,
 ):
     if b'git' in requirements:
         if not os.path.exists(os.path.join(storebasepath, b'..', b'.git')):
@@ -144,7 +145,7 @@ def _makestore(
             )
 
         return gitstore(storebasepath, vfstype)
-    return orig(requirements, storebasepath, vfstype)
+    return orig(requirements, storebasepath, vfstype, try_pending)
 
 
 def _setupdothg(ui, path):

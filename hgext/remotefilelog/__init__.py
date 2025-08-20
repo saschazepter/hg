@@ -481,8 +481,8 @@ def setupclient(ui, repo):
     repo.store = shallowstore.wrapstore(repo.store)
 
 
-def storewrapper(orig, requirements, path, vfstype):
-    s = orig(requirements, path, vfstype)
+def storewrapper(orig, requirements, path, vfstype, try_pending):
+    s = orig(requirements, path, vfstype, try_pending)
     if constants.SHALLOWREPO_REQUIREMENT in requirements:
         s = shallowstore.wrapstore(s)
 

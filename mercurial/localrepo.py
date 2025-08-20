@@ -734,6 +734,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         requirements,
         storebasepath,
         lambda base: vfsmod.vfs(base, cacheaudited=True),
+        try_pending=txnutil.mayhavepending(wdirvfs.base),
     )
     hgvfs.createmode = store.createmode
 
@@ -947,8 +948,13 @@ def makestore(
     requirements: set[bytes],
     path: FsPathT,
     vfstype: Callable[..., vfsmod.abstractvfs],
+    try_pending: bool,
 ):
-    """Construct a storage object for a repository."""
+    """Construct a storage object for a repository.
+
+    If try_pending is True, tries to load store metadata from pending files
+    (that were written by another hg process in a pending transaction).
+    """
     if requirementsmod.STORE_REQUIREMENT in requirements:
         if requirementsmod.FNCACHE_REQUIREMENT in requirements:
             if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
