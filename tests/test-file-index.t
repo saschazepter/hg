@@ -14,9 +14,8 @@ Add a file
   $ hg commit -m 0
 
 Confirm it's in the file index, not the fncache
-  $ ls .hg/store/fncache
-  ls: cannot access '.hg/store/fncache': $ENOENT$
-  [2]
+  $ test -f .hg/store/fncache
+  [1]
   $ ls .hg/store/fileindex*
   .hg/store/fileindex
   .hg/store/fileindex-list.* (glob)
