@@ -7,7 +7,7 @@ mapping between file paths and integer tokens.
 from __future__ import annotations
 
 import abc
-from typing import Iterator, NewType, Protocol, Tuple
+from typing import Iterator, List, NewType, Protocol, Tuple
 
 from ._basetypes import HgPathT
 from .types import TransactionT
@@ -99,4 +99,11 @@ class IFileIndex(Protocol):
         certain number of transactions have occurred.
 
         If force is True, deletes all files in the garbage list unconditionally.
+        """
+
+    @abc.abstractmethod
+    def data_files(self) -> List[HgPathT]:
+        """Return the files where the file index is persisted on disk.
+
+        The paths are relative to the VFS passed to the constructor.
         """

@@ -1453,7 +1453,8 @@ class FileIndexStore(basicstore):
                 yield entry
 
     def copylist(self):
-        raise NotImplementedError("file index copylist not implemented yet")
+        d = _data + [b'dh'] + self.fileindex.data_files()
+        return [b'requires', b'00changelog.i'] + [b'store/' + f for f in d]
 
     def schedule_write(self, tr):
         """Schedule garbage collection for the file index.

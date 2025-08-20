@@ -220,6 +220,14 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self.docket.garbage_entries = new_entries
             self._add_file_generator(tr)
 
+    def data_files(self):
+        return [
+            b"fileindex",
+            self._list_file_path(),
+            self._meta_file_path(),
+            self._tree_file_path(),
+        ]
+
     def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
         tr.addfilegenerator(
