@@ -1336,21 +1336,7 @@ class fncachestore(basicstore):
                 yield entry
 
     def copylist(self):
-        d = (
-            b'bookmarks',
-            b'narrowspec',
-            b'data',
-            b'meta',
-            b'dh',
-            b'fncache',
-            b'phaseroots',
-            b'obsstore',
-            b'00manifest.d',
-            b'00manifest.i',
-            b'00changelog.d',
-            b'00changelog.i',
-            b'requires',
-        )
+        d = _data + [b'dh', b'fncache']
         return [b'requires', b'00changelog.i'] + [b'store/' + f for f in d]
 
     def schedule_write(self, tr):
