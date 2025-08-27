@@ -540,7 +540,12 @@ def delta_has_meta(delta: bytes, has_base: bool = True) -> int:
         else:
             return HM_NO_META
     before, local_bytes, after = mdiff.first_bytes(delta, META_MARKER_SIZE)
-    if before + after == META_MARKER_SIZE:
+    if before == META_MARKER_SIZE:
+        # We can't trust bytes from `after` as it could mean some initial
+        # content was deleted.
+        #
+        # This is not the case with `before` as it garanteed to be untouched
+        # from the delta base.
         return HM_INHERIT
     elif len(local_bytes) == META_MARKER_SIZE:
         if local_bytes == META_MARKER:
