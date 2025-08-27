@@ -75,7 +75,7 @@ help:
 
 .PHONY: local
 local:
-	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
+	uv venv -p $(PYTHON_FOR_UV) .local-venv --system-site-packages
 	uv pip install -e . \
 	  -p .local-venv/$(PYBINDIRNAME)/python -v \
 	  -C=--global-option="$(PURE)"
