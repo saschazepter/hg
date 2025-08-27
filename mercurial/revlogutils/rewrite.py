@@ -722,7 +722,11 @@ def _is_revision_affected_fast_inner(
         if not len(chunk):
             # No diff for this revision
             metadata_cache[filerev] = parent_has_metadata
-            return parent_has_metadata
+            if parent_has_metadata:
+                (p1, p2) = parent_revs()
+                if p1 != nullrev and p2 == nullrev:
+                    return True
+            return False
 
         header_length = 12
         if len(chunk) < header_length:
@@ -745,7 +749,11 @@ def _is_revision_affected_fast_inner(
     # The diff did not remove or add the metadata header, it's then in the same
     # situation as its parent
     metadata_cache[filerev] = parent_has_metadata
-    return parent_has_metadata
+    if parent_has_metadata:
+        (p1, p2) = parent_revs()
+        if p1 != nullrev and p2 == nullrev:
+            return True
+    return False
 
 
 def _from_report(ui, repo, context, from_report, dry_run):
