@@ -680,7 +680,6 @@ def _is_revision_affected_fast(repo, fl, filerev, metadata_cache):
         delta,
         full_text,
         parent_revs,
-        None,  # don't trust the parent revisions
         filerev,
         metadata_cache,
     )
@@ -692,7 +691,6 @@ def _is_revision_affected_fast_inner(
     delta,
     full_text,
     parent_revs,
-    deltabase_parentrevs,
     filerev,
     metadata_cache,
 ):
@@ -709,29 +707,12 @@ def _is_revision_affected_fast_inner(
         metadata_cache[filerev] = False
         return False
 
-    p1, p2 = parent_revs()
-    if p1 == nullrev and p2 != nullrev:
-        metadata_cache[filerev] = True
-        return False
-
     delta_parent = delta_base()
     if delta_parent < 0 or delta_parent == filerev:
         touch_start = True
     else:
         parent_has_metadata = metadata_cache.get(delta_parent)
         if parent_has_metadata is None:
-            if deltabase_parentrevs is not None:
-                deltabase_parentrevs = deltabase_parentrevs()
-                if deltabase_parentrevs == (nullrev, nullrev):
-                    # Need to check the content itself as there is no flag.
-                    parent_has_metadata = None
-                elif deltabase_parentrevs[0] == nullrev:
-                    # Second parent is !null, assume repository is correct
-                    # and has flagged this file revision as having metadata.
-                    parent_has_metadata = True
-                elif deltabase_parentrevs[1] == nullrev:
-                    # First parent is !null, so assume it has no metadata.
-                    parent_has_metadata = False
             if parent_has_metadata is None:
                 return _is_revision_affected_inner(
                     full_text,
@@ -832,7 +813,6 @@ def filter_delta_issue6528(revlog, deltas_iter):
         is_censored = lambda: bool(d.flags & REVIDX_ISCENSORED)
         delta_base = lambda: base_rev
         parent_revs = lambda: (p1_rev, p2_rev)
-        deltabase_parentrevs = lambda: revlog.parentrevs(base_rev)
 
         def full_text():
             if d.raw_text is None:
@@ -856,7 +836,6 @@ def filter_delta_issue6528(revlog, deltas_iter):
             lambda: d.delta,
             full_text,
             parent_revs,
-            deltabase_parentrevs,
             rev,
             metadata_cache,
         )
