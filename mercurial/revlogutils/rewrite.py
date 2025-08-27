@@ -631,8 +631,7 @@ def _is_revision_affected_inner(
         # We don't care about censored nodes as they never carry metadata
         return False
 
-    # raw text can be a `memoryview`, which doesn't implement `startswith`
-    has_meta = bytes(raw_text[:META_MARKER_SIZE]) == META_MARKER
+    has_meta = raw_text[:META_MARKER_SIZE] == META_MARKER
     if metadata_cache is not None:
         metadata_cache[filerev] = has_meta
     if has_meta:
