@@ -688,7 +688,7 @@ def _is_revision_affected_fast_inner(
         return False
 
     p1, p2 = parent_revs()
-    if p1 == nullrev or p2 != nullrev:
+    if p1 == nullrev and p2 != nullrev:
         metadata_cache[filerev] = True
         return False
 
