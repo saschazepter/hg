@@ -712,43 +712,35 @@ def _is_revision_affected_fast_inner(
         touch_start = True
     else:
         parent_has_metadata = metadata_cache.get(delta_parent)
-        if parent_has_metadata is None:
-            if parent_has_metadata is None:
-                return _is_revision_affected_inner(
-                    full_text,
-                    parent_revs,
-                    filerev,
-                    metadata_cache,
-                )
-
-        chunk = delta()
-        if not len(chunk):
-            # No diff for this revision
+        if parent_has_metadata is not None:
             metadata_cache[filerev] = parent_has_metadata
-            return _has_bad_parents(parent_has_metadata, *parent_revs())
+            chunk = delta()
+            if not len(chunk):
+                touch_start = False
+            else:
+                header_length = 12
+                if len(chunk) < header_length:
+                    raise error.Abort(_(b"patch cannot be decoded"))
 
-        header_length = 12
-        if len(chunk) < header_length:
-            raise error.Abort(_(b"patch cannot be decoded"))
-
-        start, _end, _length = struct.unpack(b">lll", chunk[:header_length])
-        touch_start = start < META_MARKER_SIZE
+                start, _end, _length = struct.unpack(
+                    b">lll",
+                    chunk[:header_length],
+                )
+                touch_start = start < META_MARKER_SIZE
 
     if touch_start:
-        # This delta does *something* to the metadata marker (if any).
-        # Check it the slow way
-        is_affected = _is_revision_affected_inner(
+        # This delta does *something* to the metadata marker (if any).  Check
+        # it the slow way
+        return _is_revision_affected_inner(
             full_text,
             parent_revs,
             filerev,
             metadata_cache,
         )
-        return is_affected
 
     # The diff did not remove or add the metadata header, it's then in the same
     # situation as its parent
-    metadata_cache[filerev] = parent_has_metadata
-    return _has_bad_parents(parent_has_metadata, *parent_revs())
+    return _has_bad_parents(metadata_cache[filerev], *parent_revs())
 
 
 def _from_report(ui, repo, context, from_report, dry_run):
