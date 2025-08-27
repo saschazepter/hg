@@ -693,41 +693,45 @@ def _is_revision_affected_fast_inner(
         return False
 
     delta_parent = delta_base()
-    parent_has_metadata = metadata_cache.get(delta_parent)
-    if parent_has_metadata is None:
-        if deltabase_parentrevs is not None:
-            deltabase_parentrevs = deltabase_parentrevs()
-            if deltabase_parentrevs == (nullrev, nullrev):
-                # Need to check the content itself as there is no flag.
-                parent_has_metadata = None
-            elif deltabase_parentrevs[0] == nullrev:
-                # Second parent is !null, assume repository is correct
-                # and has flagged this file revision as having metadata.
-                parent_has_metadata = True
-            elif deltabase_parentrevs[1] == nullrev:
-                # First parent is !null, so assume it has no metadata.
-                parent_has_metadata = False
+    if delta_parent < 0 or delta_parent == filerev:
+        touch_start = True
+    else:
+        parent_has_metadata = metadata_cache.get(delta_parent)
         if parent_has_metadata is None:
-            return _is_revision_affected_inner(
-                full_text,
-                parent_revs,
-                filerev,
-                metadata_cache,
-            )
+            if deltabase_parentrevs is not None:
+                deltabase_parentrevs = deltabase_parentrevs()
+                if deltabase_parentrevs == (nullrev, nullrev):
+                    # Need to check the content itself as there is no flag.
+                    parent_has_metadata = None
+                elif deltabase_parentrevs[0] == nullrev:
+                    # Second parent is !null, assume repository is correct
+                    # and has flagged this file revision as having metadata.
+                    parent_has_metadata = True
+                elif deltabase_parentrevs[1] == nullrev:
+                    # First parent is !null, so assume it has no metadata.
+                    parent_has_metadata = False
+            if parent_has_metadata is None:
+                return _is_revision_affected_inner(
+                    full_text,
+                    parent_revs,
+                    filerev,
+                    metadata_cache,
+                )
 
-    chunk = delta()
-    if not len(chunk):
-        # No diff for this revision
-        metadata_cache[filerev] = parent_has_metadata
-        return parent_has_metadata
+        chunk = delta()
+        if not len(chunk):
+            # No diff for this revision
+            metadata_cache[filerev] = parent_has_metadata
+            return parent_has_metadata
 
-    header_length = 12
-    if len(chunk) < header_length:
-        raise error.Abort(_(b"patch cannot be decoded"))
+        header_length = 12
+        if len(chunk) < header_length:
+            raise error.Abort(_(b"patch cannot be decoded"))
 
-    start, _end, _length = struct.unpack(b">lll", chunk[:header_length])
+        start, _end, _length = struct.unpack(b">lll", chunk[:header_length])
+        touch_start = start < META_MARKER_SIZE
 
-    if start < META_MARKER_SIZE:
+    if touch_start:
         # This delta does *something* to the metadata marker (if any).
         # Check it the slow way
         is_affected = _is_revision_affected_inner(
