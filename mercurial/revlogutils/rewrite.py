@@ -605,6 +605,32 @@ def _reorder_filelog_parents(repo, fl, to_fix):
             util.tryunlink(new_file_path)
 
 
+def _has_bad_parents(has_meta, p1, p2):
+    """return True if the parent of revision are badly ordered
+
+    >>> _has_bad_parents(True, -1, -1)
+    False
+    >>> _has_bad_parents(True, -1, 42)
+    False
+    >>> _has_bad_parents(True, 42, -1)
+    True
+    >>> _has_bad_parents(True, 18, 42)
+    False
+    >>> _has_bad_parents(False, -1, -1)
+    False
+    >>> _has_bad_parents(False, -1, 42)
+    True
+    >>> _has_bad_parents(False, 42, -1)
+    False
+    >>> _has_bad_parents(False, 18, 42)
+    False
+    """
+    if has_meta:
+        return p1 != nullrev and p2 == nullrev
+    else:
+        return p1 == nullrev and p2 != nullrev
+
+
 def _is_revision_affected(fl, filerev, metadata_cache=None):
     full_text = lambda: fl._revlog.rawdata(filerev)
     parent_revs = lambda: fl._revlog.parentrevs(filerev)
@@ -634,11 +660,7 @@ def _is_revision_affected_inner(
     has_meta = raw_text[:META_MARKER_SIZE] == META_MARKER
     if metadata_cache is not None:
         metadata_cache[filerev] = has_meta
-    if has_meta:
-        (p1, p2) = parents_revs()
-        if p1 != nullrev and p2 == nullrev:
-            return True
-    return False
+    return _has_bad_parents(has_meta, *parents_revs())
 
 
 def _is_revision_affected_fast(repo, fl, filerev, metadata_cache):
@@ -722,11 +744,7 @@ def _is_revision_affected_fast_inner(
         if not len(chunk):
             # No diff for this revision
             metadata_cache[filerev] = parent_has_metadata
-            if parent_has_metadata:
-                (p1, p2) = parent_revs()
-                if p1 != nullrev and p2 == nullrev:
-                    return True
-            return False
+            return _has_bad_parents(parent_has_metadata, *parent_revs())
 
         header_length = 12
         if len(chunk) < header_length:
@@ -749,11 +767,7 @@ def _is_revision_affected_fast_inner(
     # The diff did not remove or add the metadata header, it's then in the same
     # situation as its parent
     metadata_cache[filerev] = parent_has_metadata
-    if parent_has_metadata:
-        (p1, p2) = parent_revs()
-        if p1 != nullrev and p2 == nullrev:
-            return True
-    return False
+    return _has_bad_parents(parent_has_metadata, *parent_revs())
 
 
 def _from_report(ui, repo, context, from_report, dry_run):
