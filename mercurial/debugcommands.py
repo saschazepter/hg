@@ -807,7 +807,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     Output can be templatized. Available template keywords are:
 
-    :``rev``:       revision number
+    :``rev``:       revision number (or node)
     :``p1``:        parent 1 revision number (for reference)
     :``p2``:        parent 2 revision number (for reference)
 
@@ -888,10 +888,6 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     The sparse read can be enabled with experimental.sparse-read = True
     """
-    revs = None
-    revs_opt = opts.pop('rev', [])
-    if revs_opt:
-        revs = [int(r) for r in revs_opt]
 
     all_info = opts.pop('all_info', False)
     size_info = opts.pop('size_info', None)
@@ -907,6 +903,12 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     revlog = cmdutil.openrevlog(
         repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
     )
+
+    revs = None
+    revs_opt = opts.pop('rev', [])
+    if revs_opt:
+        revs = [revlog.rev(revlog.lookup(r)) for r in revs_opt]
+
     fm = ui.formatter(b'debugdeltachain', pycompat.byteskwargs(opts))
 
     lines = revlog_debug.debug_delta_chain(
