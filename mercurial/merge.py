@@ -1785,8 +1785,8 @@ def _update_rust_fast_path(
 
             try:
                 with util.rust_tracing_span("update from clean python"):
-                    p1_manifest = pl[0]._manifest._lm
-                    p2_manifest = p2._manifest._lm
+                    p1_manifest = pl[0]._manifest
+                    p2_manifest = p2._manifest
                     dirstate = repo.dirstate
                     with dirstate.changing_parents(repo):
                         repo.setparents(fp2)
@@ -1795,9 +1795,9 @@ def _update_rust_fast_path(
                         update_stats = rust_update_mod.update_from_clean(
                             repo_path=repo.root,
                             dirstate=dirstate._map._map,
-                            wc_manifest_bytes=p1_manifest.text(),
+                            wc_manifest=p1_manifest,
                             target_rev=p2.rev(),
-                            target_manifest_bytes=p2_manifest.text(),
+                            target_manifest=p2_manifest,
                             num_cpus=num_cpus,
                             remove_empty_dirs=remove_empty_dirs,
                             devel_abort_dirstate=devel_abort_dirstate,
