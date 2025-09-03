@@ -884,9 +884,10 @@ A default setting can we set using the special `*` extension key::
 ----------
 
 Configuration that controls the repository format. Newer format options are more
-powerful, but incompatible with some older versions of Mercurial. Format options
-are considered at repository initialization only. You need to make a new clone
-for config changes to be taken into account.
+powerful, but incompatible with some older versions of Mercurial.
+
+Format options are considered at repository initialization only. You need to
+make a new clone for config changes to be taken into account.
 
 For more details about repository format and version compatibility, see
 https://www.mercurial-scm.org/wiki/MissingRequirement
