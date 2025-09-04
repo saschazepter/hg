@@ -242,7 +242,7 @@ Test the --paranoid option
        1       7 2a80419dfc31 2a8d3833f2fb 000000000000
 
 Run the fix
-  $ hg debug-repair-issue6528
+  $ hg debug-repair-issue6528  --paranoid
   found affected revision 1 for file 'D.txt'
   repaired revision 1 of 'filelog data/D.txt.i'
   found affected revision 1 for file 'b.txt'
@@ -262,7 +262,7 @@ Check that the fix worked and that running it twice does nothing
      rev linkrev nodeid       p1           p2
        0       6 2a8d3833f2fb 000000000000 000000000000
        1       7 2a80419dfc31 000000000000 2a8d3833f2fb
-  $ hg debug-repair-issue6528
+  $ hg debug-repair-issue6528  --paranoid
   no affected revisions were found
   $ hg st
   $ hg debugrevlogindex b.txt
@@ -284,7 +284,7 @@ Try the using the report options
   $ cd repo-to-fix
   $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
 
-  $ hg debug-repair-issue6528 --to-report $TESTTMP/report.txt
+  $ hg debug-repair-issue6528 --to-report $TESTTMP/report.txt --paranoid
   found affected revision 1 for file 'D.txt'
   found affected revision 1 for file 'b.txt'
   found affected revision 3 for file 'b.txt'
@@ -395,7 +395,7 @@ Status is correct, but the problem is still there, in the earlier revision
        2       8 65aecc89bb5d 2a80419dfc31 000000000000
 
 Run the fix on the non-inline revlog
-  $ hg debug-repair-issue6528
+  $ hg debug-repair-issue6528  --paranoid
   found affected revision 1 for file 'D.txt'
   repaired revision 1 of 'filelog data/D.txt.i'
   found affected revision 1 for file 'b.txt'
@@ -416,7 +416,7 @@ Check that it worked
        0       6 2a8d3833f2fb 000000000000 000000000000
        1       7 2a80419dfc31 000000000000 2a8d3833f2fb
        2       8 65aecc89bb5d 2a80419dfc31 000000000000
-  $ hg debug-repair-issue6528
+  $ hg debug-repair-issue6528  --paranoid
   no affected revisions were found
   $ hg st
 
@@ -464,7 +464,7 @@ That we don't see the symptoms of the bug
 
 And that the repair command does not find anything to fix
 
-  $ hg debug-repair-issue6528
+  $ hg debug-repair-issue6528  --paranoid
   no affected revisions were found
 
   $ cd ..
@@ -508,7 +508,7 @@ That we don't see the symptoms of the bug
 
 And that the repair command does not find anything to fix
 
-  $ hg debug-repair-issue6528
+  $ hg debug-repair-issue6528  --paranoid
   no affected revisions were found
 
   $ cd ..
@@ -559,7 +559,7 @@ That we do see the symptoms of the bug
 
 And that the repair command find issue to fix.
 
-  $ hg debug-repair-issue6528 --dry-run
+  $ hg debug-repair-issue6528 --dry-run  --paranoid
   found affected revision 1 for file 'D.txt'
   found affected revision 1 for file 'b.txt'
   found affected revision 3 for file 'b.txt'
@@ -607,7 +607,7 @@ That we do see the symptoms of the bug
 
 And that the repair command find issue to fix.
 
-  $ hg debug-repair-issue6528 --dry-run
+  $ hg debug-repair-issue6528 --dry-run  --paranoid
   found affected revision 1 for file 'D.txt'
   found affected revision 1 for file 'b.txt'
   found affected revision 3 for file 'b.txt'

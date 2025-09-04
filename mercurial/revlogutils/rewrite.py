@@ -11,7 +11,6 @@ from __future__ import annotations
 import binascii
 import contextlib
 import os
-import struct
 
 from ..node import (
     nullrev,
@@ -537,7 +536,12 @@ def delta_has_meta(delta: bytes, has_base: bool = True) -> int:
         else:
             return HM_NO_META
     before, local_bytes, after = mdiff.first_bytes(delta, META_MARKER_SIZE)
-    if before + after == META_MARKER_SIZE:
+    if before == META_MARKER_SIZE:
+        # We can't trust bytes from `after` as it could mean some initial
+        # content was deleted.
+        #
+        # This is not the case with `before` as it garanteed to be untouched
+        # from the delta base.
         return HM_INHERIT
     elif len(local_bytes) == META_MARKER_SIZE:
         if local_bytes == META_MARKER:
@@ -597,6 +601,32 @@ def _reorder_filelog_parents(repo, fl, to_fix):
             util.tryunlink(new_file_path)
 
 
+def _has_bad_parents(has_meta, p1, p2):
+    """return True if the parent of revision are badly ordered
+
+    >>> _has_bad_parents(True, -1, -1)
+    False
+    >>> _has_bad_parents(True, -1, 42)
+    False
+    >>> _has_bad_parents(True, 42, -1)
+    True
+    >>> _has_bad_parents(True, 18, 42)
+    False
+    >>> _has_bad_parents(False, -1, -1)
+    False
+    >>> _has_bad_parents(False, -1, 42)
+    True
+    >>> _has_bad_parents(False, 42, -1)
+    False
+    >>> _has_bad_parents(False, 18, 42)
+    False
+    """
+    if has_meta:
+        return p1 != nullrev and p2 == nullrev
+    else:
+        return p1 == nullrev and p2 != nullrev
+
+
 def _is_revision_affected(fl, filerev, metadata_cache=None):
     full_text = lambda: fl._revlog.rawdata(filerev)
     parent_revs = lambda: fl._revlog.parentrevs(filerev)
@@ -623,15 +653,10 @@ def _is_revision_affected_inner(
         # We don't care about censored nodes as they never carry metadata
         return False
 
-    # raw text can be a `memoryview`, which doesn't implement `startswith`
-    has_meta = bytes(raw_text[:META_MARKER_SIZE]) == META_MARKER
+    has_meta = raw_text[:META_MARKER_SIZE] == META_MARKER
     if metadata_cache is not None:
         metadata_cache[filerev] = has_meta
-    if has_meta:
-        (p1, p2) = parents_revs()
-        if p1 != nullrev and p2 == nullrev:
-            return True
-    return False
+    return _has_bad_parents(has_meta, *parents_revs())
 
 
 def _is_revision_affected_fast(repo, fl, filerev, metadata_cache):
@@ -651,7 +676,6 @@ def _is_revision_affected_fast(repo, fl, filerev, metadata_cache):
         delta,
         full_text,
         parent_revs,
-        None,  # don't trust the parent revisions
         filerev,
         metadata_cache,
     )
@@ -663,7 +687,6 @@ def _is_revision_affected_fast_inner(
     delta,
     full_text,
     parent_revs,
-    deltabase_parentrevs,
     filerev,
     metadata_cache,
 ):
@@ -680,61 +703,33 @@ def _is_revision_affected_fast_inner(
         metadata_cache[filerev] = False
         return False
 
-    p1, p2 = parent_revs()
-    if p1 == nullrev or p2 != nullrev:
-        metadata_cache[filerev] = True
-        return False
-
     delta_parent = delta_base()
-    parent_has_metadata = metadata_cache.get(delta_parent)
-    if parent_has_metadata is None:
-        if deltabase_parentrevs is not None:
-            deltabase_parentrevs = deltabase_parentrevs()
-            if deltabase_parentrevs == (nullrev, nullrev):
-                # Need to check the content itself as there is no flag.
-                parent_has_metadata = None
-            elif deltabase_parentrevs[0] == nullrev:
-                # Second parent is !null, assume repository is correct
-                # and has flagged this file revision as having metadata.
-                parent_has_metadata = True
-            elif deltabase_parentrevs[1] == nullrev:
-                # First parent is !null, so assume it has no metadata.
-                parent_has_metadata = False
-        if parent_has_metadata is None:
-            return _is_revision_affected_inner(
-                full_text,
-                parent_revs,
-                filerev,
-                metadata_cache,
-            )
-
-    chunk = delta()
-    if not len(chunk):
-        # No diff for this revision
-        metadata_cache[filerev] = parent_has_metadata
-        return parent_has_metadata
-
-    header_length = 12
-    if len(chunk) < header_length:
-        raise error.Abort(_(b"patch cannot be decoded"))
-
-    start, _end, _length = struct.unpack(b">lll", chunk[:header_length])
-
-    if start < META_MARKER_SIZE:
+    if delta_parent >= 0:
+        d_meta = delta_has_meta(delta())
+    else:
+        # the content of `delta()` can still be a delta against nullrev when
+        # filtering incoming delta, so we keep things simple and explicitly
+        # rely on the code path using `full_text`.
+        d_meta = HM_UNKNOWN
+    if d_meta == HM_NO_META:
+        metadata_cache[filerev] = False
+    elif d_meta == HM_META:
+        metadata_cache[filerev] = True
+    elif d_meta == HM_INHERIT and delta_parent in metadata_cache:
+        # The diff did not remove or add the metadata header, it's then in the
+        # same situation as its parent
+        metadata_cache[filerev] = metadata_cache[delta_parent]
+    else:
         # This delta does *something* to the metadata marker (if any).
         # Check it the slow way
-        is_affected = _is_revision_affected_inner(
+        return _is_revision_affected_inner(
             full_text,
             parent_revs,
             filerev,
             metadata_cache,
         )
-        return is_affected
 
-    # The diff did not remove or add the metadata header, it's then in the same
-    # situation as its parent
-    metadata_cache[filerev] = parent_has_metadata
-    return parent_has_metadata
+    return _has_bad_parents(metadata_cache[filerev], *parent_revs())
 
 
 def _from_report(ui, repo, context, from_report, dry_run):
@@ -799,7 +794,6 @@ def filter_delta_issue6528(revlog, deltas_iter):
         is_censored = lambda: bool(d.flags & REVIDX_ISCENSORED)
         delta_base = lambda: base_rev
         parent_revs = lambda: (p1_rev, p2_rev)
-        deltabase_parentrevs = lambda: revlog.parentrevs(base_rev)
 
         def full_text():
             if d.raw_text is None:
@@ -823,7 +817,6 @@ def filter_delta_issue6528(revlog, deltas_iter):
             lambda: d.delta,
             full_text,
             parent_revs,
-            deltabase_parentrevs,
             rev,
             metadata_cache,
         )

@@ -157,6 +157,7 @@ expected_mods_tested = {
     ('mercurial.pure.deltas', '{}'),
     ('mercurial.pycompat', '{}'),
     ('mercurial.revlogutils.deltas', '{}'),
+    ('mercurial.revlogutils.rewrite', '{}'),
     ('mercurial.revset', '{}'),
     ('mercurial.revsetlang', '{}'),
     ('mercurial.simplemerge', '{}'),

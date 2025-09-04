@@ -1157,8 +1157,8 @@ class ui:
         return self._fout
 
     @util.propertycache
-    def _fout_is_a_tty(self):
-        self._isatty(self._fout)
+    def _fout_is_a_tty(self) -> bool:
+        return self._isatty(self._fout)
 
     @fout.setter
     def fout(self, f):
