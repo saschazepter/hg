@@ -397,6 +397,26 @@ impl<'a> HasIgnoredAncestor<'a> {
     }
 }
 
+/// Groups the information we need to bubble up the status recursion so that
+/// a given parent context can make decisions base on its descendants.
+#[derive(Debug)]
+struct RecursiveResponse {
+    /// `true` if all children are either ignored or have a dirstate node
+    ignored_or_dirstate: bool,
+}
+
+impl RecursiveResponse {
+    fn identity() -> Self {
+        Self { ignored_or_dirstate: true }
+    }
+
+    fn combine(a: Self, b: Self) -> Self {
+        Self {
+            ignored_or_dirstate: a.ignored_or_dirstate && b.ignored_or_dirstate,
+        }
+    }
+}
+
 impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     fn push_outcome(
         &self,
@@ -542,10 +562,10 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         directory_entry: &DirEntry,
         cached_directory_mtime: Option<TruncatedTimestamp>,
         is_at_repo_root: bool,
-    ) -> Result<bool, DirstateV2ParseError> {
+    ) -> Result<RecursiveResponse, DirstateV2ParseError> {
         let children_set = self.matcher.visit_children_set(directory_hg_path);
         if let VisitChildrenSet::Empty = children_set {
-            return Ok(false);
+            return Ok(RecursiveResponse { ignored_or_dirstate: false });
         }
         if self.can_skip_fs_readdir(directory_entry, cached_directory_mtime) {
             dirstate_nodes
@@ -571,6 +591,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                                 symlink_metadata: Some(fs_metadata),
                                 file_type,
                             };
+
                             self.traverse_fs_and_dirstate(
                                 &entry,
                                 dirstate_node,
@@ -593,7 +614,10 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             // We don’t know, so conservatively say this isn’t the case
             let children_all_have_dirstate_node_or_are_ignored = false;
 
-            return Ok(children_all_have_dirstate_node_or_are_ignored);
+            return Ok(RecursiveResponse {
+                ignored_or_dirstate:
+                    children_all_have_dirstate_node_or_are_ignored,
+            });
         }
 
         let readdir_succeeded;
@@ -626,6 +650,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         for dirstate_node in &dirstate_nodes {
             dirstate_node.base_name(self.dmap.on_disk)?;
         }
+
         itertools::merge_join_by(
             dirstate_nodes,
             &fs_entries,
@@ -648,7 +673,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 Right(fs_entry) => &fs_entry.hg_path,
             };
             if !Self::should_visit(&children_set, basename) {
-                return Ok(false);
+                return Ok(RecursiveResponse { ignored_or_dirstate: false });
             }
             let has_dirstate_node_or_is_ignored = match pair {
                 Both(dirstate_node, fs_entry) => {
@@ -657,11 +682,12 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                         dirstate_node,
                         has_ignored_ancestor,
                     )?;
-                    true
+
+                    RecursiveResponse { ignored_or_dirstate: true }
                 }
                 Left(dirstate_node) => {
                     self.traverse_dirstate_only(dirstate_node)?;
-                    true
+                    RecursiveResponse { ignored_or_dirstate: true }
                 }
                 Right(fs_entry) => self.traverse_fs_only(
                     has_ignored_ancestor.force(&self.ignore_fn),
@@ -669,10 +695,16 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     fs_entry,
                 ),
             };
+
             Ok(has_dirstate_node_or_is_ignored)
         })
-        .try_reduce(|| true, |a, b| Ok(a && b))
-        .map(|res| res && readdir_succeeded)
+        .try_reduce(RecursiveResponse::identity, |a, b| {
+            Ok(RecursiveResponse::combine(a, b))
+        })
+        .map(|response| RecursiveResponse {
+            ignored_or_dirstate: response.ignored_or_dirstate
+                && readdir_succeeded,
+        })
     }
 
     #[cfg_attr(
@@ -705,6 +737,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     .push((path.to_owned().into(), BadMatch::BadType(bad_type)))
             }
         }
+
         if fs_entry.is_dir() {
             if self.options.collect_traversed_dirs {
                 self.outcome
@@ -716,15 +749,17 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             let is_ignored =
                 HasIgnoredAncestor::create(Some(has_ignored_ancestor), hg_path);
             let is_at_repo_root = false;
-            let children_all_have_dirstate_node_or_are_ignored = self
-                .traverse_fs_directory_and_dirstate(
-                    &is_ignored,
-                    dirstate_node.children(self.dmap.on_disk)?,
-                    hg_path,
-                    fs_entry,
-                    dirstate_node.cached_directory_mtime()?,
-                    is_at_repo_root,
-                )?;
+            let recursive_response = self.traverse_fs_directory_and_dirstate(
+                &is_ignored,
+                dirstate_node.children(self.dmap.on_disk)?,
+                hg_path,
+                fs_entry,
+                dirstate_node.cached_directory_mtime()?,
+                is_at_repo_root,
+            )?;
+
+            let children_all_have_dirstate_node_or_are_ignored =
+                recursive_response.ignored_or_dirstate;
             self.maybe_save_directory_mtime(
                 children_all_have_dirstate_node_or_are_ignored,
                 fs_entry,
@@ -737,6 +772,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                     if !entry.any_tracked() {
                         // Forward-compat if we start tracking unknown/ignored
                         // files for caching reasons
+
                         self.mark_unknown_or_ignored(
                             has_ignored_ancestor.force(&self.ignore_fn),
                             hg_path,
@@ -766,6 +802,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 self.traverse_dirstate_only(child_node)?
             }
         }
+
         Ok(())
     }
 
@@ -936,6 +973,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     ) -> Result<(), DirstateV2ParseError> {
         self.check_for_outdated_directory_cache(&dirstate_node)?;
         self.mark_removed_or_deleted_if_file(&dirstate_node)?;
+
         dirstate_node
             .children(self.dmap.on_disk)?
             .par_iter()
@@ -981,7 +1019,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         has_ignored_ancestor: bool,
         directory_hg_path: &HgPath,
         fs_entry: &DirEntry,
-    ) -> bool {
+    ) -> RecursiveResponse {
         let hg_path = directory_hg_path.join(&fs_entry.hg_path);
         let file_or_symlink = fs_entry.is_file() || fs_entry.is_symlink();
         if fs_entry.is_dir() {
@@ -996,6 +1034,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             };
             if traverse_children {
                 let is_at_repo_root = false;
+
                 if let Ok(children_fs_entries) =
                     self.read_dir(&hg_path, &fs_entry.fs_path, is_at_repo_root)
                 {
@@ -1007,29 +1046,33 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                         );
                     })
                 }
+
                 if self.options.collect_traversed_dirs {
                     self.outcome.lock().unwrap().traversed.push(hg_path.into())
                 }
             }
-            is_ignored
+
+            RecursiveResponse { ignored_or_dirstate: is_ignored }
         } else if file_or_symlink {
             if self.matcher.matches(&hg_path) {
-                self.mark_unknown_or_ignored(
+                let ignored = self.mark_unknown_or_ignored(
                     has_ignored_ancestor,
                     &BorrowedPath::InMemory(&hg_path),
-                )
+                );
+
+                RecursiveResponse { ignored_or_dirstate: ignored }
             } else {
                 // We haven’t computed whether this path is ignored. It
                 // might not be, and a future run of status might have a
                 // different matcher that matches it. So treat it as not
                 // ignored. That is, inhibit readdir caching of the parent
                 // directory.
-                false
+                RecursiveResponse { ignored_or_dirstate: false }
             }
         } else {
             // This is neither a directory, a plain file, or a symlink.
             // Treat it like an ignored file.
-            true
+            RecursiveResponse { ignored_or_dirstate: true }
         }
     }
 
