@@ -411,6 +411,11 @@ internalstable: list[_HelpEntryNoCategory] = sorted(
             loaddoc(b'extensions', subdir=b'internals'),
         ),
         (
+            [b'file-index'],
+            _(b'File Index'),
+            loaddoc(b'file-index', subdir=b'internals'),
+        ),
+        (
             [b'mergestate'],
             _(b'Mergestate'),
             loaddoc(b'mergestate', subdir=b'internals'),

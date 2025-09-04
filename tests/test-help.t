@@ -1165,6 +1165,7 @@ internals topic renders index of available sub-topics
        config        Config Registrar
        dirstate-v2   dirstate-v2 file format
        extensions    Extension API
+       file-index    File Index
        mergestate    Mergestate
        requirements  Repository Requirements
        revlogs       Revision Logs
@@ -3692,6 +3693,13 @@ Sub-topic indexes rendered properly
   </a>
   </td><td>
   Extension API
+  </td></tr>
+  <tr><td>
+  <a href="/help/internals.file-index">
+  file-index
+  </a>
+  </td><td>
+  File Index
   </td></tr>
   <tr><td>
   <a href="/help/internals.mergestate">
