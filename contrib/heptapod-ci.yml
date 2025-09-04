@@ -283,9 +283,11 @@ rust-cargo-test:
 
 .runtests-no-check:
   extends: .runtests
+  parallel: 4
   variables:
       FILTER: "--blacklist ${TMP_WORK_DIR}/check-tests.txt"
       TEST_HGTESTS_ALLOW_NETIO: "1"
+      CI_CLEVER_CLOUD_FLAVOR: "M"
 
 .test-c:
     extends: .runtests-no-check
