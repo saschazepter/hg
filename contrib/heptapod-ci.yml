@@ -726,15 +726,36 @@ build-c-wheel-macos:
     - .nightly_build_step
     - .dummy
 
-test-result-linux:
+test-result-linux-main:
   extends: .sink
   needs:
     - test-c
+    - test-chg
+    - test-pure
+    - test-rhg
+    - test-rust
+
+test-result-linux-py-a:
+  extends: .sink
+  needs:
     - test-3.9-c
+    - test-3.9-rust
     - test-3.10-c
+    - test-3.10-rust
+
+test-result-linux-py-b:
+  extends: .sink
+  needs:
     - test-3.11-c
+    - test-3.11-rust
     - test-3.12-c
+    - test-3.12-rust
+
+test-result-linux-py-c:
+  extends: .sink
+  needs:
     - test-3.13-c
+    - test-3.13-rust
 
 test-result-macos:
   extends: .sink
@@ -787,7 +808,10 @@ upload-wheel-nightly:
     - wheel-result-linux
     - wheel-result-windows
     - build-c-wheel-macos
-    - test-result-linux
+    - test-result-linux-main
+    - test-result-linux-py-a
+    - test-result-linux-py-b
+    - test-result-linux-py-c
     - test-result-macos
     - test-result-windows
   # It would be nice to be able to restrict that a bit to protected branch only
