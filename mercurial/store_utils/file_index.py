@@ -12,7 +12,7 @@ import typing
 from ..i18n import _
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT, TransactionT
-from .. import pycompat, util
+from .. import error, formatter, pycompat, util
 from ..interfaces import file_index as int_file_index
 from . import file_index_util
 
@@ -292,3 +292,48 @@ class FileIndex(_FileIndexCommon):
         docket.tree_root_pointer = serialized.tree_root_pointer
         docket.tree_unused_bytes = serialized.tree_unused_bytes
         docket.reserved_flags = 0
+
+
+# See debug_file_index in mercurial/debugcommands.py for the opts.
+def debug_file_index(ui, repo, **opts):
+    """inspect or manipulate the file index"""
+    opts = pycompat.byteskwargs(opts)
+    choice = None
+    for opt, value in opts.items():
+        if value:
+            if choice:
+                raise error.Abort(
+                    _(b"cannot use --%s and --%s together" % (choice, opt))
+                )
+            choice = opt
+
+    fileindex = repo.store.fileindex
+    if fileindex is None:
+        raise error.Abort(
+            _(b"this repository does not have a file index"),
+            hint=_(
+                b"you can create it with 'hg debugupgrade "
+                b"--config format.exp-use-fileindex-v1="
+                b"enable-unstable-format-and-corrupt-my-data'"
+            ),
+        )
+
+    if choice is None:
+        for path, token in fileindex.items():
+            ui.write(b"%d: %s\n" % (token, path))
+    if choice == b"docket":
+        fileindex.dump_docket(ui)
+    elif choice == b"tree":
+        fileindex.dump_tree(ui)
+    elif choice == b"path":
+        path = opts[choice]
+        token = fileindex.get_token(path)
+        if token is None:
+            raise error.Abort(_(b"path %s is not in the file index" % path))
+        ui.write(b"%d: %s\n" % (token, path))
+    elif choice == b"token":
+        token = int(opts[choice])
+        if not fileindex.has_token(token):
+            raise error.Abort(_(b"token %d is not in the file index" % token))
+        path = fileindex.get_path(token)
+        ui.write(b"%d: %s\n" % (token, path))
