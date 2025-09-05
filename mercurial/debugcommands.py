@@ -4154,7 +4154,7 @@ def debugsub(ui, repo, rev=None):
             b'',
             _(b'program passed in as a string'),
             _(b'COMMAND'),
-        )
+        ),
     ],
     _(b'[-c COMMAND]'),
     optionalrepo=True,
@@ -4223,7 +4223,10 @@ def debugshell(ui, repo, **opts):
 
     command = opts.get('command')
     if command:
-        compiled = code.compile_command(encoding.strfromlocal(command))
+        symbol = 'exec'
+        compiled = code.compile_command(
+            encoding.strfromlocal(command), symbol=symbol
+        )
         interpreter = InteractiveInterpreterWithErrorTracking(
             locals=imported_objects
         )

@@ -19,3 +19,6 @@ Mercurial XXX.
 == Internal API Changes ==
 
 == Miscellaneous ==
+
+* The `--command` flag of the `hg debugshell` now accepts a multi-line script
+  and no longer implicitly print the command result.
