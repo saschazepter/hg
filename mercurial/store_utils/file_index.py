@@ -23,6 +23,24 @@ if typing.TYPE_CHECKING:
 
 propertycache = util.propertycache
 
+DEFAULT_DOCKET_TEMPLATE = b"""\
+marker: {marker}
+list_file_size: {list_file_size}
+reserved_revlog_size: {reserved_revlog_size}
+meta_file_size: {meta_file_size}
+tree_file_size: {tree_file_size}
+trash_file_size: {trash_file_size}
+list_file_id: {list_file_id}
+reserved_revlog_id: {reserved_revlog_id}
+meta_file_id: {meta_file_id}
+tree_file_id: {tree_file_id}
+tree_root_pointer: {tree_root_pointer}
+tree_unused_bytes: {tree_unused_bytes}
+reserved_revlog_unused: {reserved_revlog_unused}
+trash_start_offset: {trash_start_offset}
+reserved_flags: {reserved_flags}
+"""
+
 
 class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     """
@@ -202,14 +220,16 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         """Read a span of bytes from the list file."""
         return self.list_file[offset : offset + length]
 
-    def dump_docket(self, ui):
+    def dump_docket(self, ui, template: bytes):
         if self._is_initial():
             ui.write(_(b"no docket exists yet (empty file index)\n"))
             return
-        for name, value in attr.asdict(self.docket).items():
-            ui.write(
-                b"%s: %s\n" % (pycompat.bytestr(name), pycompat.bytestr(value))
-            )
+        t = formatter.maketemplater(ui, template or DEFAULT_DOCKET_TEMPLATE)
+        values = {
+            pycompat.bytestr(k): pycompat.bytestr(v)
+            for k, v in attr.asdict(self.docket).items()
+        }
+        ui.write(t.renderdefault(values))
 
     def dump_tree(self, ui):
         tree = self.tree_file
@@ -298,6 +318,7 @@ class FileIndex(_FileIndexCommon):
 def debug_file_index(ui, repo, **opts):
     """inspect or manipulate the file index"""
     opts = pycompat.byteskwargs(opts)
+    template = opts.pop(b"template", None)
     choice = None
     for opt, value in opts.items():
         if value:
@@ -315,7 +336,7 @@ def debug_file_index(ui, repo, **opts):
         for path, token in fileindex.items():
             ui.write(b"%d: %s\n" % (token, path))
     if choice == b"docket":
-        fileindex.dump_docket(ui)
+        fileindex.dump_docket(ui, template)
     elif choice == b"tree":
         fileindex.dump_tree(ui)
     elif choice == b"path":

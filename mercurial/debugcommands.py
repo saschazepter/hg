@@ -3226,6 +3226,7 @@ def debugrebuildfncache(ui, repo, **opts):
     b'debug::file-index',
     [
         (b'', b'docket', None, _(b'dump docket file')),
+        (b'T', b'template', b'', _(b'template for --docket')),
         (b'', b'tree', None, _(b'dump tree file')),
         (b'p', b'path', b'', _(b'look up path'), _(b'PATH')),
         (b't', b'token', b'', _(b'look up token'), _(b'TOKEN')),
