@@ -310,8 +310,10 @@ If the file was already deleted, the command must still succeed.
 
 from __future__ import annotations
 
+import abc
 import os
 import weakref
+from typing import Protocol
 
 from mercurial.i18n import _
 
@@ -328,7 +330,7 @@ from mercurial import (
     wireprotov1server,
 )
 
-
+from mercurial.interfaces import repository as int_repo
 from mercurial.utils import (
     procutil,
 )
@@ -681,7 +683,7 @@ def generate_manifest(bundles):
     return b"".join(lines)
 
 
-def update_ondisk_manifest(repo):
+def update_ondisk_manifest(repo: AutoBundlesRepoT):
     """update the clonebundle manifest with latest url"""
     with repo.clonebundles_lock():
         bundles = read_auto_gen(repo)
@@ -947,7 +949,13 @@ def make_auto_bundler(source_repo):
     return autobundle
 
 
-def reposetup(ui, repo):
+class AutoBundlesRepoT(int_repo.completelocalrepository, Protocol):
+    @abc.abstractmethod
+    def clonebundles_lock(self, wait: bool = True) -> lock.lock:
+        ...
+
+
+def reposetup(ui, repo: int_repo.completelocalrepository):
     """install the two pieces needed for automatic clonebundle generation
 
     - add a "post-close" hook that fires bundling when needed
@@ -1019,7 +1027,7 @@ def reposetup(ui, repo):
 )
 def cmd_admin_clone_bundles_refresh(
     ui,
-    repo: localrepo.localrepository,
+    repo: AutoBundlesRepoT,
     background=False,
 ):
     """generate clone bundles according to the configuration
@@ -1071,7 +1079,7 @@ def cmd_admin_clone_bundles_refresh(
 
 
 @command(b'admin::clone-bundles-clear', [], b'')
-def cmd_admin_clone_bundles_clear(ui, repo: localrepo.localrepository):
+def cmd_admin_clone_bundles_clear(ui, repo: AutoBundlesRepoT):
     """remove existing clone bundle caches
 
     See `hg help admin::clone-bundles-refresh` for details on how to regenerate
