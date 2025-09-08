@@ -1726,22 +1726,7 @@ class imanifestlog(Protocol):
         """update whatever cache are relevant for the used storage."""
 
 
-class ilocalrepositoryfilestorage(Protocol):
-    """Local repository sub-interface providing access to tracked file storage.
-
-    This interface defines how a repository accesses storage for a single
-    tracked file path.
-    """
-
-    @abc.abstractmethod
-    def file(self, f: HgPathT, writable: bool = False) -> ifilestorage:
-        """Obtain a filelog for a tracked path.
-
-        The returned type conforms to the ``ifilestorage`` interface.
-        """
-
-
-class ilocalrepositorymain(Protocol):
+class IRepo(Protocol):
     """Main interface for local repositories.
 
     This currently captures the reality of things - not how things should be.
@@ -1894,6 +1879,13 @@ class ilocalrepositorymain(Protocol):
 
     Provides access to manifests for the repository.
     """
+
+    @abc.abstractmethod
+    def file(self, f: HgPathT, writable: bool = False) -> ifilestorage:
+        """Obtain a filelog for a tracked path.
+
+        The returned type conforms to the ``ifilestorage`` interface.
+        """
 
     dirstate: intdirstate.idirstate
     """Working directory state."""
@@ -2272,9 +2264,5 @@ class ilocalrepositorymain(Protocol):
         pass
 
 
-class completelocalrepository(
-    ilocalrepositorymain,
-    ilocalrepositoryfilestorage,
-    Protocol,
-):
-    """Complete interface for a local repository."""
+ilocalrepositorymain = IRepo
+completelocalrepository = IRepo

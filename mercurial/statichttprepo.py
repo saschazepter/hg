@@ -173,9 +173,7 @@ class statichttppeer(localrepo.localpeer):
         return False
 
 
-class statichttprepository(
-    localrepo.localrepository, localrepo.revlogfilestorage
-):
+class statichttprepository(localrepo.localrepository):
     supported = localrepo.localrepository._basesupported
 
     manifestlog: manifest.manifestlog

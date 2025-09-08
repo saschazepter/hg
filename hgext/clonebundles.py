@@ -949,13 +949,13 @@ def make_auto_bundler(source_repo):
     return autobundle
 
 
-class AutoBundlesRepoT(int_repo.completelocalrepository, Protocol):
+class AutoBundlesRepoT(int_repo.IRepo, Protocol):
     @abc.abstractmethod
     def clonebundles_lock(self, wait: bool = True) -> lock.lock:
         ...
 
 
-def reposetup(ui, repo: int_repo.completelocalrepository):
+def reposetup(ui, repo: int_repo.IRepo):
     """install the two pieces needed for automatic clonebundle generation
 
     - add a "post-close" hook that fires bundling when needed

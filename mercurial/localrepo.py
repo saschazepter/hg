@@ -793,6 +793,10 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     bases = []
     extrastate = {}
 
+    # This is always active in practice
+    features.add(repository.REPO_FEATURE_REVLOG_FILE_STORAGE)
+    features.add(repository.REPO_FEATURE_STREAM_CLONE)
+
     for iface, fn in REPO_INTERFACES:
         # We pass all potentially useful state to give extensions tons of
         # flexibility.
@@ -1028,60 +1032,6 @@ def makemain(**kwargs):
     return localrepository
 
 
-class revlogfilestorage(repository.ilocalrepositoryfilestorage):
-    """File storage when using revlogs."""
-
-    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
-        if path.startswith(b'/'):
-            path = path[1:]
-
-        tr = self.currenttransaction()
-        try_split = tr is not None or txnutil.mayhavepending(self.root)
-
-        if writable:
-            radix = self.store.filelog_radix_for_writing(path, tr)
-        else:
-            radix = self.store.filelog_radix_for_reading(path)
-        return filelog.filelog(
-            self.svfs, path, radix, writable=writable, try_split=try_split
-        )
-
-
-class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
-    """File storage when using revlogs and narrow files."""
-
-    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
-        if path.startswith(b'/'):
-            path = path[1:]
-
-        tr = self.currenttransaction()
-        try_split = tr is not None or txnutil.mayhavepending(self.root)
-
-        if writable:
-            radix = self.store.filelog_radix_for_writing(path, tr)
-        else:
-            radix = self.store.filelog_radix_for_reading(path)
-        return filelog.narrowfilelog(
-            self.svfs,
-            path,
-            radix,
-            self._storenarrowmatch,
-            writable=writable,
-            try_split=try_split,
-        )
-
-
-def makefilestorage(requirements, features, **kwargs):
-    """Produce a type conforming to ``ilocalrepositoryfilestorage``."""
-    features.add(repository.REPO_FEATURE_REVLOG_FILE_STORAGE)
-    features.add(repository.REPO_FEATURE_STREAM_CLONE)
-
-    if requirementsmod.NARROW_REQUIREMENT in requirements:
-        return revlognarrowfilestorage
-    else:
-        return revlogfilestorage
-
-
 # List of repository interfaces and factory functions for them. Each
 # will be called in order during ``makelocalrepository()`` to iteratively
 # derive the final type for a local repository instance. We capture the
@@ -1089,16 +1039,12 @@ def makefilestorage(requirements, features, **kwargs):
 # functions can be wrapped.
 REPO_INTERFACES = [
     (repository.ilocalrepositorymain, lambda: makemain),
-    (repository.ilocalrepositoryfilestorage, lambda: makefilestorage),
 ]
 
 _localrepo_base_classes = object
 
 if typing.TYPE_CHECKING:
-    _localrepo_base_classes = [
-        repository.ilocalrepositorymain,
-        repository.ilocalrepositoryfilestorage,
-    ]
+    _localrepo_base_classes = repository.IRepo
 
 
 class localrepository(_localrepo_base_classes):
@@ -1572,6 +1518,35 @@ class localrepository(_localrepo_base_classes):
     @manifestlogcache()
     def manifestlog(self):
         return self.store.manifestlog(self, self._storenarrowmatch)
+
+    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
+        if path.startswith(b'/'):
+            path = path[1:]
+
+        tr = self.currenttransaction()
+        try_split = tr is not None or txnutil.mayhavepending(self.root)
+
+        if writable:
+            radix = self.store.filelog_radix_for_writing(path, tr)
+        else:
+            radix = self.store.filelog_radix_for_reading(path)
+        if self.is_narrow:
+            return filelog.narrowfilelog(
+                self.svfs,
+                path,
+                radix,
+                self._storenarrowmatch,
+                writable=writable,
+                try_split=try_split,
+            )
+        else:
+            return filelog.filelog(
+                self.svfs,
+                path,
+                radix,
+                writable=writable,
+                try_split=try_split,
+            )
 
     @unfilteredpropertycache
     def dirstate(self):

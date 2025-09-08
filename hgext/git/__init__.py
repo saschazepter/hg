@@ -7,6 +7,7 @@ firstborn a la Rumpelstiltskin, etc.
 from __future__ import annotations
 
 import os
+import typing
 
 from mercurial.i18n import _
 
@@ -29,6 +30,12 @@ from . import (
     gitutil,
     index,
 )
+
+if typing.TYPE_CHECKING:
+    from mercurial.interfaces.types import (
+        FileStorageT,
+        HgPathT,
+    )
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
@@ -129,20 +136,6 @@ def _makestore(orig, requirements, storebasepath, vfstype):
 
         return gitstore(storebasepath, vfstype)
     return orig(requirements, storebasepath, vfstype)
-
-
-class gitfilestorage:
-    def file(self, path):
-        if path[0:1] == b'/':
-            path = path[1:]
-        return gitlog.filelog(self.store.git, self.store._db, path)
-
-
-def _makefilestorage(orig, requirements, features, **kwargs):
-    store = kwargs['store']
-    if isinstance(store, gitstore):
-        return gitfilestorage
-    return orig(requirements, features, **kwargs)
 
 
 def _setupdothg(ui, path):
@@ -333,8 +326,15 @@ def reposetup(ui, repo):
             def _bookmarks(self):
                 return gitbmstore(self.store.git)
 
+            def file(
+                self, path: HgPathT, writable: bool = False
+            ) -> FileStorageT:
+                # XXX We could make the store responsible for creating filelog
+                if path[0:1] == b'/':
+                    path = path[1:]
+                return gitlog.filelog(self.store.git, self.store._db, path)
+
         repo.__class__ = gitlocalrepo
-    return repo
 
 
 def _featuresetup(ui, supported):
@@ -344,7 +344,6 @@ def _featuresetup(ui, supported):
 
 def extsetup(ui):
     extensions.wrapfunction(localrepo, 'makestore', _makestore)
-    extensions.wrapfunction(localrepo, 'makefilestorage', _makefilestorage)
     # Inject --git flag for `hg init`
     entry = extensions.wrapcommand(commands.table, b'init', init)
     entry[1].extend(

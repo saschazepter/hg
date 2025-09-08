@@ -53,11 +53,12 @@ FileStorageT = repository.ifilestorage
 
 HttpPasswordMgrT = uimod.IHttpPasswordMgr
 
-# The names for repository types are shifted a bit in order to be able to group
-# them together while alphabetizing.
-LocalRepoCompleteT = repository.completelocalrepository
-LocalRepoMainT = repository.ilocalrepositorymain
-LocalRepoFileStorageT = repository.ilocalrepositoryfilestorage
+# XXX RepoT should be IlocalRepo
+#
+# The other are copied for temporary backward compatibility
+LocalRepoMainT = repository.IRepo
+LocalRepoCompleteT = repository.IRepo
+LocalRepoFileStorageT = repository.IRepo
 
 MatcherBadFuncT = matcher.BadFuncT
 MatcherKindPatT = matcher.KindPatT
