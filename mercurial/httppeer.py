@@ -14,6 +14,7 @@ import os
 import struct
 
 from concurrent import futures
+from typing import Protocol
 from .i18n import _
 from . import (
     bundle2,
@@ -61,8 +62,25 @@ def encodevalueinheaders(value, header, limit):
     return result
 
 
+class _File(Protocol):
+    """Simple protocol class to help typing `_multifile`"""
+
+    def read(self, size: int = -1, /) -> bytes:
+        ...
+
+    def seek(self, offset: int, whence: int = os.SEEK_SET, /) -> None:
+        ...
+
+    length: int
+
+
 class _multifile:
-    def __init__(self, *fileobjs):
+    # pytype is confused by the possible `raise` in `__init__` and need help to
+    # realize these attribute always exists.
+    _index: int
+    _fileobjs: tuple[_File]
+
+    def __init__(self, *fileobjs: _File):
         for f in fileobjs:
             if not hasattr(f, 'length'):
                 raise ValueError(
@@ -76,6 +94,7 @@ class _multifile:
 
     @property
     def length(self):
+        assert self is not None
         return sum(f.length for f in self._fileobjs)
 
     def read(self, amt=None):
@@ -104,6 +123,12 @@ class _multifile:
         for f in self._fileobjs:
             f.seek(0)
         self._index = 0
+
+
+class _BytesIO(io.BytesIO):
+    def __init__(self, data, *args, **kwargs):
+        self.length = len(data)
+        super().__init__(data, *args, **kwargs)
 
 
 def makev1commandrequest(
@@ -148,11 +173,8 @@ def makev1commandrequest(
             data = strargs
         else:
             if isinstance(data, bytes):
-                i = io.BytesIO(data)
-                i.length = len(data)
-                data = i
-            argsio = io.BytesIO(strargs)
-            argsio.length = len(strargs)
+                data = _BytesIO(data)
+            argsio = _BytesIO(strargs)
             data = _multifile(argsio, data)
         headers['X-HgArgs-Post'] = b'%d' % len(strargs)
     elif args:
