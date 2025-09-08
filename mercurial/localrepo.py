@@ -209,13 +209,18 @@ class manifestlogcache(storecache):
 class mixedrepostorecache(_basefilecache):
     """filecache for a mix files in .hg/store and outside"""
 
-    def __init__(self, *pathsandlocations):
-        # scmutil.filecache only uses the path for passing back into our
-        # join(), so we can safely pass a list of paths and locations
-        super().__init__(*pathsandlocations)
+    paths_and_locations: tuple[tuple[bytes, bytes]]
+
+    def __init__(self, *pathsandlocations: tuple[bytes, bytes]):
+        # make the super class typing happy
+        self.paths = tuple(p for (p, l) in pathsandlocations)
+        self.paths_and_locations = pathsandlocations
         _cachedfiles.update(pathsandlocations)
 
-    def join(self, obj, fnameandlocation):
+    def tracked_paths(self, obj) -> list[bytes]:
+        return [self.join(obj, path) for path in self.paths_and_locations]
+
+    def join(self, obj, fnameandlocation) -> bytes:
         fname, location = fnameandlocation
         if location == b'plain':
             return obj.vfs.join(fname)

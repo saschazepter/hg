@@ -1670,10 +1670,10 @@ class filecache:
     def __init__(self, *paths: bytes) -> None:
         self.paths = paths
 
-    def tracked_paths(self, obj):
+    def tracked_paths(self, obj) -> list[bytes]:
         return [self.join(obj, path) for path in self.paths]
 
-    def join(self, obj, fname: bytes):
+    def join(self, obj, fname: bytes) -> bytes:
         """Used to compute the runtime path of a cached file.
 
         Users should subclass filecache and provide their own version of this
