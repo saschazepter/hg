@@ -17,6 +17,7 @@ import errno
 import os
 
 from typing import (
+    Any,
     Callable,
     Collection,
 )
@@ -293,7 +294,7 @@ class transaction(util.transactional, itxn.ITransaction):
 
         # A dict dedicated to precisely tracking the changes introduced in the
         # transaction.
-        self.changes = {}
+        self.changes: dict[bytes, Any] = {}  # see comment in ITransaction
 
         # a dict of arguments to be passed to hooks
         self.hookargs = {}

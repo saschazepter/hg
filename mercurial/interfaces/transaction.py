@@ -16,6 +16,7 @@ from __future__ import annotations
 import abc
 
 from typing import (
+    Any,
     Callable,
     Collection,
     ContextManager,
@@ -32,6 +33,12 @@ JournalEntryT = tuple[HgPathT, int]
 
 
 class ITransaction(ContextManager, Protocol):
+    changes: dict[bytes, Any]  # XXX maybe use a typed dict?
+    """tracks the changes introduced in the transaction"""
+
+    hookargs: dict[bytes, bytes]
+    """Arguments to be passed to hooks"""
+
     @property
     @abc.abstractmethod
     def finalized(self) -> bool:
