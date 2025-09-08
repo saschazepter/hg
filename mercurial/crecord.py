@@ -84,6 +84,8 @@ class patchnode:
     (i.e. patchroot, header, hunk, hunkline)
     """
 
+    folded: bool = False
+
     @property
     def content(self):
         return b''
@@ -128,11 +130,7 @@ class patchnode:
 
         If it is not possible to get the next item, return None.
         """
-        try:
-            itemfolded = self.folded
-        except AttributeError:
-            itemfolded = False
-        if skipfolded and itemfolded:
+        if skipfolded and self.folded:
             nextitem = self.nextsibling()
             if nextitem is None:
                 try:
