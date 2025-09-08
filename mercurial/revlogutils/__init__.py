@@ -80,9 +80,19 @@ def entry(
 @attr.s(slots=True)
 class CachedDelta:
     base = attr.ib(type=RevnumT)
+    """The revision number of the revision on which the delta apply on"""
     delta = attr.ib(type=bytes)
+    """The uncompressed delta information"""
     reuse_policy = attr.ib(type=Optional[int], default=None)
+    """The policy request to reuse this delta"""
     snapshot_level = attr.ib(type=Optional[int], default=None)
+    """The snapshot_level of this delta.
+
+    Possible values:
+    * None: No snapshot information for this delta,
+    * -1:   Delta isn't a snapshot,
+    * >=0:  Detla is a snapshot of the corresponding level.
+    """
 
 
 @attr.s(slots=True)
