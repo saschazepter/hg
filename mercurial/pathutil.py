@@ -1,16 +1,13 @@
 from __future__ import annotations
 
+import abc
 import contextlib
 import errno
 import os
 import posixpath
 import stat
 
-from typing import (
-    Any,
-    Callable,
-    Iterator,
-)
+from typing import Any, Callable, Iterator, Protocol
 
 from .i18n import _
 from . import (
@@ -27,11 +24,17 @@ rustdirs = policy.importrust('dirstate', 'Dirs')
 parsers = policy.importmod('parsers')
 
 
+class PathAuditT(Protocol):
+    @abc.abstractmethod
+    def __call__(self, path: bytes, mode: bytes | None = None) -> None:
+        ...
+
+
 def _lowerclean(s: bytes) -> bytes:
     return encoding.hfsignoreclean(s.lower())
 
 
-class pathauditor:
+class pathauditor(PathAuditT):
     """ensure that a filesystem path contains no banned components.
     the following properties of a path are checked:
 

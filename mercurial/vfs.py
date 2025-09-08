@@ -490,7 +490,7 @@ class vfs(abstractvfs):
     See pathutil.pathauditor() for details.
     """
 
-    audit: pathutil.pathauditor | Callable[[bytes, bytes | None], Any]
+    audit: pathutil.PathAuditT
     base: bytes
     createmode: int | None
     options: dict[bytes, Any]

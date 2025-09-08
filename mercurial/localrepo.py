@@ -1220,7 +1220,7 @@ class localrepository(_localrepo_base_classes):
 
         return checkvfs
 
-    def _getsvfsward(self, origfunc):
+    def _getsvfsward(self, origfunc: pathutil.PathAuditT):
         """build a ward for self.svfs"""
         rref = weakref.ref(self)
 
