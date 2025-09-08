@@ -15,6 +15,9 @@ from .node import (
     hex,
     nullrev,
 )
+from .interfaces.types import (
+    RepoT,
+)
 from . import (
     bookmarks as bookmod,
     bundle2,
@@ -1631,7 +1634,7 @@ def _fullpullbundle2(repo, pullop):
         pullop.rheads = set(pullop.rheads) - pullop.common
 
 
-def add_confirm_callback(repo, pullop):
+def add_confirm_callback(repo: RepoT, pullop: pulloperation):
     """adds a finalize callback to transaction which can be used to show stats
     to user and confirm the pull before committing transaction"""
 
@@ -1639,10 +1642,11 @@ def add_confirm_callback(repo, pullop):
     scmutil.registersummarycallback(
         repo, tr, txnname=b'pull', as_validator=True
     )
-    reporef = weakref.ref(repo.unfiltered())
+    reporef: weakref.ref[RepoT] = weakref.ref(repo.unfiltered())
 
     def prompt(tr):
         repo = reporef()
+        assert repo is not None
         cm = _(b'accept incoming changes (yn)?$$ &Yes $$ &No')
         if repo.ui.promptchoice(cm):
             raise error.Abort(b"user aborted")
