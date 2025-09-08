@@ -171,6 +171,10 @@ class ConnectionManager:
 
 
 class KeepAliveHandler:
+    # that attribute is directly set by stdlib's urllib.request.
+    parent: KeepAliveHandler
+    addheaders: list[tuple[str, str]]
+
     def __init__(self, timeout=None):
         self._cm = ConnectionManager()
         self._timeout = timeout
@@ -249,9 +253,13 @@ class KeepAliveHandler:
         # The string form of BadStatusLine is the status line. Add some context
         # to make the error message slightly more useful.
         except httplib.BadStatusLine as err:
-            raise urlerr.urlerror(
-                _(b'bad HTTP status line: %s') % pycompat.sysbytes(err.line)
-            )
+            msg = _(b'bad HTTP status line: %s')
+            # For unclear reason, pytype is confused by BadStatusLine
+            #
+            # pytype: disable=attribute-error
+            msg %= pycompat.sysbytes(err.line)
+            # pytype: enable=attribute-error
+            raise urlerr.urlerror(msg)
         except (OSError, httplib.HTTPException) as err:
             raise urlerr.urlerror(err)
 
@@ -497,12 +505,14 @@ def safesend(self, str):
             self.sock.sendall(str)
             self.sentbytescount += len(str)
     except BrokenPipeError:
+        # pytype: disable=module-attr,attribute-error
         if self._HTTPConnection__state == httplib._CS_REQ_SENT:
             self._broken_pipe_resp = None
             self._broken_pipe_resp = self.getresponse()
             reraise = False
         else:
             reraise = True
+        # pytype: enable=module-attr,attribute-error
         self.close()
         if reraise:
             raise
