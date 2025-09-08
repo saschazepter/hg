@@ -100,6 +100,7 @@ from .revlogutils import (
 
 if typing.TYPE_CHECKING:
     from typing import (
+        Any,
         Callable,
         TypeVar,
         overload,
@@ -1678,7 +1679,7 @@ class localrepository(_localrepo_base_classes):
         def __getitem__(self, changeid: _IdentityCtxT) -> _IdentityCtxT:
             ...
 
-    def __getitem__(self, changeid):
+    def __getitem__(self, changeid: Any) -> Any:
         # dealing with special cases
         if changeid is None:
             return context.workingctx(self)
@@ -1688,11 +1689,14 @@ class localrepository(_localrepo_base_classes):
         # dealing with multiple revisions
         if isinstance(changeid, slice):
             # wdirrev isn't contiguous so the slice shouldn't include it
-            return [
-                self[i]
-                for i in range(*changeid.indices(len(self)))
-                if i not in self.changelog.filteredrevs
-            ]
+            start, stop, stride = changeid.indices(len(self))
+            filtered = self.changelog.filteredrevs
+            revs = (i for i in range(start, stop, stride) if i not in filtered)
+            # pytype is confused about the signature of __getitem__
+            #
+            # pytype: disable=unsupported-operands
+            return [self[r] for r in revs]
+            # pytype: enable=unsupported-operands
 
         # dealing with some special values
         quick_access = self._quick_access_changeid.get(changeid)

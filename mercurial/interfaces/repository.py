@@ -1901,8 +1901,9 @@ class IRepo(Protocol):
     def setnarrowpats(self, newincludes, newexcludes):
         """Define the narrowspec for this repository."""
 
+    # XXX We should use overload to type this better.
     @abc.abstractmethod
-    def __getitem__(self, changeid):
+    def __getitem__(self, changeid: Any) -> Any:
         """Try to resolve a changectx."""
 
     @abc.abstractmethod
