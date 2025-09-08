@@ -2898,11 +2898,12 @@ class localrepository(_localrepo_base_classes):
 
         The callback will be executed when the outermost lock is released
         (with wlock being higher level than 'lock')."""
-        for ref in (self._wlockref, self._lockref):
-            l = ref and ref()
-            if l and l.held:
-                l.postrelease.append(callback)
-                break
+        wlock = self.currentwlock()
+        lock = self.currentlock()
+        if wlock is not None and wlock.held:
+            wlock.postrelease.append(callback)
+        elif lock is not None and lock.held:
+            lock.postrelease.append(callback)
         else:  # no lock have been found.
             callback(True)
 
