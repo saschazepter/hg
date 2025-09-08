@@ -713,6 +713,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # `relshared` requirements are present, this indicates current repository
     # is a share and store exists in path mentioned in `.hg/sharedpath`
     if shared:
+        assert sharedvfs is not None
         storebasepath = sharedvfs.base
         cachepath = sharedvfs.join(b'cache')
         features.add(repository.REPO_FEATURE_SHARED_STORAGE)
