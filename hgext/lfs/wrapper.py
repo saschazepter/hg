@@ -21,6 +21,7 @@ from mercurial import (
     exchange,
     exthelper,
     localrepo,
+    requirements as req_mod,
     revlog,
     scmutil,
     vfs as vfsmod,
@@ -51,7 +52,7 @@ eh = exthelper.exthelper()
 
 @eh.wrapfunction(localrepo, 'makefilestorage')
 def localrepomakefilestorage(orig, requirements, features, **kwargs):
-    if b'lfs' in requirements:
+    if req_mod.LFS_REQUIREMENT in requirements:
         features.add(repository.REPO_FEATURE_LFS)
 
     return orig(requirements=requirements, features=features, **kwargs)
@@ -73,7 +74,7 @@ def _capabilities(orig, repo, proto):
         # that the client knows it MUST load the extension.  If lfs is not
         # required on the server, there's no reason to autoload the extension
         # on the client.
-        if b'lfs' in repo.requirements:
+        if req_mod.LFS_REQUIREMENT in repo.requirements:
             caps.append(b'lfs-serve')
 
         caps.append(b'lfs')
@@ -317,13 +318,13 @@ def convertsink(orig, sink):
                     cleanp2,
                 )
 
-                if b'lfs' not in self.repo.requirements:
+                if req_mod.LFS_REQUIREMENT not in self.repo.requirements:
                     ctx = self.repo[node]
 
                     # The file list may contain removed files, so check for
                     # membership before assuming it is in the context.
                     if any(f in ctx and ctx[f].islfs() for f, n in files):
-                        self.repo.requirements.add(b'lfs')
+                        self.repo.requirements.add(req_mod.LFS_REQUIREMENT)
                         scmutil.writereporequirements(self.repo)
 
                 return node
@@ -414,7 +415,7 @@ def prepush(pushop):
 def push(orig, repo, remote, *args, **kwargs):
     """bail on push if the extension isn't enabled on remote when needed, and
     update the remote store based on the destination path."""
-    if b'lfs' in repo.requirements:
+    if req_mod.LFS_REQUIREMENT in repo.requirements:
         # If the remote peer is for a local repo, the requirement tests in the
         # base class method enforce lfs support.  Otherwise, some revisions in
         # this repo use lfs, and the remote repo needs the extension loaded.
@@ -550,6 +551,6 @@ def upgradefinishdatamigration(orig, ui, srcrepo, dstrepo, requirements):
 @eh.wrapfunction(upgrade_actions, 'supporteddestrequirements')
 def upgraderequirements(orig, repo):
     reqs = orig(repo)
-    if b'lfs' in repo.requirements:
-        reqs.add(b'lfs')
+    if req_mod.LFS_REQUIREMENT in repo.requirements:
+        reqs.add(req_mod.LFS_REQUIREMENT)
     return reqs

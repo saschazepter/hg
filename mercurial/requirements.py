@@ -30,6 +30,10 @@ NARROW_REQUIREMENT = b'narrowhg-experimental'
 # Enables sparse working directory usage
 SPARSE_REQUIREMENT = b'exp-sparse'
 
+# Some file revision might be stored in a `lfs` remote store. See the `lfs`
+# extension for details.
+LFS_REQUIREMENT = b'lfs'
+
 # Enables the internal phase which is used to hide changesets instead
 # of stripping them
 INTERNAL_PHASE_REQUIREMENT = b'internal-phase-2'
