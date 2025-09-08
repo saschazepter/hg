@@ -522,32 +522,9 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
     Given arguments needed to construct a local repository, this function
-    performs various early repository loading functionality (such as
-    reading the ``.hg/requires`` and ``.hg/hgrc`` files), validates that
-    the repository can be opened, derives a type suitable for representing
-    that repository, and returns an instance of it.
-
-    The returned object conforms to the ``repository.completelocalrepository``
-    interface.
-
-    The repository type is derived by calling a series of factory functions
-    for each aspect/interface of the final repository. These are defined by
-    ``REPO_INTERFACES``.
-
-    Each factory function is called to produce a type implementing a specific
-    interface. The cumulative list of returned types will be combined into a
-    new type and that type will be instantiated to represent the local
-    repository.
-
-    The factory functions each receive various state that may be consulted
-    as part of deriving a type.
-
-    Extensions should wrap these factory functions to customize repository type
-    creation. Note that an extension's wrapped function may be called even if
-    that extension is not loaded for the repo being constructed. Extensions
-    should check if their ``__name__`` appears in the
-    ``extensionmodulenames`` set passed to the factory function and no-op if
-    not.
+    performs various early repository loading functionality (such as reading
+    the ``.hg/requires`` and ``.hg/hgrc`` files), validates that the repository
+    can be opened, and returns an install of `localrepository`.
     """
     ui = baseui.copy()
     # Prevent copying repo configuration.
@@ -699,9 +676,6 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         extensions.loadall(ui)
         extensions.populateui(ui)
 
-    # Set of module names of extensions loaded for this repository.
-    extensionmodulenames = {m.__name__ for n, m in extensions.extensions(ui)}
-
     supportedrequirements = req_util.gather_supported_requirements(ui)
 
     # We first validate the requirements are known.
@@ -785,55 +759,11 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     wcachevfs = vfsmod.vfs(wcachepath, cacheaudited=True)
     wcachevfs.createmode = store.createmode
 
-    # Now resolve the type for the repository object. We do this by repeatedly
-    # calling a factory function to produces types for specific aspects of the
-    # repo's operation. The aggregate returned types are used as base classes
-    # for a dynamically-derived type, which will represent our new repository.
-
-    bases = []
-    extrastate = {}
-
     # This is always active in practice
     features.add(repository.REPO_FEATURE_REVLOG_FILE_STORAGE)
     features.add(repository.REPO_FEATURE_STREAM_CLONE)
 
-    for iface, fn in REPO_INTERFACES:
-        # We pass all potentially useful state to give extensions tons of
-        # flexibility.
-        typ = fn()(
-            ui=ui,
-            intents=intents,
-            requirements=requirements,
-            features=features,
-            wdirvfs=wdirvfs,
-            hgvfs=hgvfs,
-            store=store,
-            storevfs=storevfs,
-            storeoptions=storevfs.options,
-            cachevfs=cachevfs,
-            wcachevfs=wcachevfs,
-            extensionmodulenames=extensionmodulenames,
-            extrastate=extrastate,
-            baseclasses=bases,
-        )
-
-        if not isinstance(typ, type):
-            raise error.ProgrammingError(
-                b'unable to construct type for %s' % iface
-            )
-
-        bases.append(typ)
-
-    # type() allows you to use characters in type names that wouldn't be
-    # recognized as Python symbols in source code. We abuse that to add
-    # rich information about our constructed repo.
-    name = pycompat.sysstr(
-        b'derivedrepo:%s<%s>' % (wdirvfs.base, b','.join(sorted(requirements)))
-    )
-
-    cls = type(name, tuple(bases), {})
-
-    return cls(
+    return localrepository(
         baseui=baseui,
         ui=ui,
         origroot=path,
@@ -1026,20 +956,6 @@ def makestore(requirements, path, vfstype):
 
     return storemod.basicstore(path, vfstype)
 
-
-def makemain(**kwargs):
-    """Produce a type conforming to ``ilocalrepositorymain``."""
-    return localrepository
-
-
-# List of repository interfaces and factory functions for them. Each
-# will be called in order during ``makelocalrepository()`` to iteratively
-# derive the final type for a local repository instance. We capture the
-# function as a lambda so we don't hold a reference and the module-level
-# functions can be wrapped.
-REPO_INTERFACES = [
-    (repository.ilocalrepositorymain, lambda: makemain),
-]
 
 _localrepo_base_classes = object
 
