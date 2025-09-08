@@ -14,6 +14,11 @@ import os
 import re
 import signal
 
+from typing import (
+    Any,
+    Optional,
+)
+
 from .i18n import _
 from . import (
     diffhelper,
@@ -639,6 +644,15 @@ _headermessages = {  # {operation: text}
 
 
 class curseschunkselector:
+    # Attributes not set by __init__ but by `main`
+    yscreensize: int
+    xscreensize: int
+    initexc: Optional[Exception]
+    # These are actually a `curses.window` object, but since curses is
+    # Optional we can't use it.
+    chunkpad: Any
+    statuswin: Any
+
     def __init__(self, headerlist, ui, operation=None):
         # put the headers into a patch object
         self.headerlist = patch(headerlist)

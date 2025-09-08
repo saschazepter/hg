@@ -120,7 +120,6 @@ pytype --keep-going --jobs auto \
     -x hgext/remotefilelog/shallowbundle.py \
     -x hgext/zeroconf/__init__.py \
     -x mercurial/context.py \
-    -x mercurial/crecord.py \
     -x mercurial/debugcommands.py \
     -x mercurial/dispatch.py \
     -x mercurial/exchange.py \
