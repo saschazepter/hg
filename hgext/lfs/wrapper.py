@@ -20,7 +20,6 @@ from mercurial import (
     error,
     exchange,
     exthelper,
-    localrepo,
     requirements as req_mod,
     revlog,
     scmutil,
@@ -32,8 +31,6 @@ from mercurial.upgrade_utils import (
     actions as upgrade_actions,
     engine as upgrade_engine,
 )
-
-from mercurial.interfaces import repository
 
 from mercurial.utils import (
     storageutil,
@@ -48,14 +45,6 @@ from . import (
 )
 
 eh = exthelper.exthelper()
-
-
-@eh.wrapfunction(localrepo, 'makefilestorage')
-def localrepomakefilestorage(orig, requirements, features, **kwargs):
-    if req_mod.LFS_REQUIREMENT in requirements:
-        features.add(repository.REPO_FEATURE_LFS)
-
-    return orig(requirements=requirements, features=features, **kwargs)
 
 
 @eh.wrapfunction(changegroup, 'allsupportedversions')

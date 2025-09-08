@@ -766,6 +766,12 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         # the revlogv2 docket introduced race condition that we need to fix
         features.discard(repository.REPO_FEATURE_STREAM_CLONE)
 
+    # We can add the feature without the extensions here because the lack of
+    # support for the requirement will lead to a crash later if the extension
+    # is missing.
+    if requirementsmod.LFS_REQUIREMENT in requirements:
+        features.add(repository.REPO_FEATURE_LFS)
+
     # The cache vfs is used to manage cache files.
     cachevfs = vfsmod.vfs(cachepath, cacheaudited=True)
     cachevfs.createmode = store.createmode
