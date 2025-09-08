@@ -2323,7 +2323,7 @@ def supportedoutgoingversions(repo):
         # support versions 01 and 02.
         versions.discard(b'01')
         versions.discard(b'02')
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
         # Versions 01 and 02 don't support revlog flags, and we need to
         # support that for stripping and unbundling to work.
         versions.discard(b'01')

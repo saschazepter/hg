@@ -29,7 +29,6 @@ from mercurial import (
     registrar,
     repair,
     repoview,
-    requirements,
     scmutil,
     sparse,
     util,
@@ -148,7 +147,7 @@ def clonenarrowcmd(orig, ui, repo, *args, **opts):
 def pullnarrowcmd(orig, ui, repo, *args, **opts):
     """Wraps pull command to allow modifying narrow spec."""
     wrappedextraprepare = util.nullcontextmanager()
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
 
         def pullbundle2extraprepare_widen(orig, pullop, kwargs):
             orig(pullop, kwargs)
@@ -165,7 +164,7 @@ def pullnarrowcmd(orig, ui, repo, *args, **opts):
 
 def archivenarrowcmd(orig, ui, repo, *args, **opts):
     """Wraps archive command to narrow the default includes."""
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
         repo_includes, repo_excludes = repo.narrowpats
         includes = set(opts.get('include', []))
         excludes = set(opts.get('exclude', []))
@@ -181,7 +180,7 @@ def archivenarrowcmd(orig, ui, repo, *args, **opts):
 
 def pullbundle2extraprepare(orig, pullop, kwargs):
     repo = pullop.repo
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
+    if not repo.is_narrow:
         return orig(pullop, kwargs)
 
     if wireprototypes.NARROWCAP not in pullop.remote.capabilities():
@@ -521,7 +520,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     add --addinclude, --addexclude rules in bulk. Like the other include and
     exclude switches, the changes are applied immediately.
     """
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
+    if not repo.is_narrow:
         raise error.InputError(
             _(
                 b'the tracked command is only supported on '

@@ -739,7 +739,7 @@ def post_share(sourcerepo, destrepo, defaultpath=None):
     if default:
         template = b'[paths]\ndefault = %s\n'
         destrepo.vfs.write(b'hgrc', util.tonativeeol(template % default))
-    if requirements.NARROW_REQUIREMENT in sourcerepo.requirements:
+    if sourcerepo.is_narrow:
         with destrepo.wlock(), destrepo.lock(), destrepo.transaction(
             b"narrow-share"
         ):

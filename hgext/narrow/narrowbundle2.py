@@ -193,8 +193,9 @@ def _handlechangespec_2(op, inpart):
     narrowspec.validatepatterns(includepats)
     narrowspec.validatepatterns(excludepats)
 
-    if not requirements.NARROW_REQUIREMENT in op.repo.requirements:
+    if not op.repo.is_narrow:
         op.repo.requirements.add(requirements.NARROW_REQUIREMENT)
+        del op.repo.is_narrow  # refresh the property cache
         scmutil.writereporequirements(op.repo)
     op.repo.setnarrowpats(includepats, excludepats)
     narrowspec.copytoworkingcopy(op.repo)
@@ -209,8 +210,9 @@ def _handlenarrowspecs(op, inpart):
     narrowspec.validatepatterns(includepats)
     narrowspec.validatepatterns(excludepats)
 
-    if requirements.NARROW_REQUIREMENT not in op.repo.requirements:
+    if not op.repo.is_narrow:
         op.repo.requirements.add(requirements.NARROW_REQUIREMENT)
+        del op.repo.is_narrow  # refresh the property cache
         scmutil.writereporequirements(op.repo)
     op.repo.setnarrowpats(includepats, excludepats)
     narrowspec.copytoworkingcopy(op.repo)

@@ -69,7 +69,7 @@ def reposetup(ui, repo):
         return
 
     repo.ui.setconfig(b'experimental', b'narrow', True, b'narrow-ext')
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
         narrowrepo.wraprepo(repo)
         narrowwirepeer.reposetup(repo)
 

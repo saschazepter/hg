@@ -1637,16 +1637,20 @@ class localrepository(_localrepo_base_classes):
             val = narrowspec.load(self)
         return val
 
+    @unfilteredpropertycache
+    def is_narrow(self) -> bool:
+        return requirementsmod.NARROW_REQUIREMENT in self.requirements
+
     @storecache(narrowspec.FILENAME)
     def _storenarrowmatch(self):
-        if requirementsmod.NARROW_REQUIREMENT not in self.requirements:
+        if not self.is_narrow:
             return matchmod.always()
         include, exclude = self.narrowpats
         return narrowspec.match(self.root, include=include, exclude=exclude)
 
     @storecache(narrowspec.FILENAME)
     def _narrowmatch(self):
-        if requirementsmod.NARROW_REQUIREMENT not in self.requirements:
+        if not self.is_narrow:
             return matchmod.always()
         narrowspec.checkworkingcopynarrowspec(self)
         include, exclude = self.narrowpats

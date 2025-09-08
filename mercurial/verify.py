@@ -16,7 +16,6 @@ from .utils import stringutil
 from . import (
     error,
     pycompat,
-    requirements,
     revlog,
     transaction,
     util,
@@ -618,8 +617,7 @@ class verifier:
         m2 = repo[parent2].manifest()
         dirstate_errors = 0
 
-        is_narrow = requirements.NARROW_REQUIREMENT in repo.requirements
-        narrow_matcher = repo.narrowmatch() if is_narrow else None
+        narrow_matcher = repo.narrowmatch() if repo.is_narrow else None
 
         for err in repo.dirstate.verify(m1, m2, parent1, narrow_matcher):
             ui.error(err)
