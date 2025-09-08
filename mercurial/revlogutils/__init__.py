@@ -84,7 +84,7 @@ def entry(
 class CachedDelta:
     base = attr.ib(type=RevnumT)
     """The revision number of the revision on which the delta apply on"""
-    delta = attr.ib(type=bytes)
+    u_delta = attr.ib(type=bytes)
     """The uncompressed delta information"""
     reuse_policy = attr.ib(
         type=Optional[revlog_t.DeltaBaseReusePolicy],

@@ -1535,7 +1535,7 @@ class deltacomputer:
         revlog = self.revlog
         cachedelta = revinfo.cachedelta
         baserev = cachedelta.base
-        delta = cachedelta.delta
+        delta = cachedelta.u_delta
 
         fulltext = revinfo.btext = _textfromdelta(
             revlog,
@@ -1664,7 +1664,7 @@ class deltacomputer:
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
             if self.revlog.delta_config.lazy_delta and currentbase == base:
-                delta = revinfo.cachedelta.delta
+                delta = revinfo.cachedelta.u_delta
                 if revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
                     # let's ignore foldin there.
@@ -1919,7 +1919,7 @@ class deltacomputer:
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
-                delta = revinfo.cachedelta.delta
+                delta = revinfo.cachedelta.u_delta
                 header, data = revlog.compress(delta)
                 deltalen = len(header) + len(data)
                 if gather_debug:

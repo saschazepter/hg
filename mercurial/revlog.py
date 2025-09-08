@@ -3353,7 +3353,7 @@ class revlog:
             # the non-raw size. use revlog explicitly to avoid filelog's extra
             # logic that might remove metadata size.
             textlen = mdiff.patchedsize(
-                revlog.size(self, cachedelta.base), cachedelta.delta
+                revlog.size(self, cachedelta.base), cachedelta.u_delta
             )
         else:
             textlen = len(rawtext)
