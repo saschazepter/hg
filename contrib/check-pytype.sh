@@ -126,7 +126,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/hgweb/hgweb_mod_inner.py \
     -x mercurial/hgweb/server.py \
     -x mercurial/hgweb/wsgicgi_inner.py \
-    -x mercurial/httppeer.py \
     -x mercurial/localrepo.py \
     -x mercurial/minirst.py \
     -x mercurial/repoview.py \
