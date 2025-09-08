@@ -17,6 +17,7 @@ from .node import (
 )
 from .interfaces.types import (
     RepoT,
+    TransactionT,
 )
 from . import (
     bookmarks as bookmod,
@@ -2765,8 +2766,10 @@ def unbundle(repo, cg, heads, source, url):
     If the push was raced as PushRaced exception is raised."""
     r = 0
     # need a transaction when processing a bundle2 stream
-    # [wlock, lock, tr] - needs to be an array so nested functions can modify it
-    lockandtr = [None, None, None]
+    # [wlock, lock] - needs to be an array so nested functions can modify it
+    lock_cache: list[lockmod.lock | None] = [None, None]
+    # [transaction] - needs to be an array so nested functions can modify it
+    tr_cache: list[TransactionT | None] = [None]
     recordout = None
     # quick fix for output mismatch with bundle2 in 3.4
     captureoutput = repo.ui.configbool(
@@ -2789,16 +2792,19 @@ def unbundle(repo, cg, heads, source, url):
             r = None
             try:
 
-                def gettransaction():
-                    if not lockandtr[2]:
+                def gettransaction() -> TransactionT:
+                    if tr_cache[0] is not None:
+                        tr = tr_cache[0]
+                    else:
                         if not bookmod.bookmarksinstore(repo):
-                            lockandtr[0] = repo.wlock()
-                        lockandtr[1] = repo.lock()
-                        lockandtr[2] = repo.transaction(source)
-                        lockandtr[2].hookargs[b'source'] = source
-                        lockandtr[2].hookargs[b'url'] = url
-                        lockandtr[2].hookargs[b'bundle2'] = b'1'
-                    return lockandtr[2]
+                            lock_cache[0] = repo.wlock()
+                        lock_cache[1] = repo.lock()
+                        tr = tr_cache[0] = repo.transaction(source)
+                        tr.hookargs[b'source'] = source
+                        tr.hookargs[b'url'] = url
+                        tr.hookargs[b'bundle2'] = b'1'
+                    assert tr is not None
+                    return tr
 
                 # Do greedy locking by default until we're satisfied with lazy
                 # locking.
@@ -2823,8 +2829,9 @@ def unbundle(repo, cg, heads, source, url):
                         def recordout(output):
                             r.newpart(b'output', data=output, mandatory=False)
 
-                if lockandtr[2] is not None:
-                    lockandtr[2].close()
+                tr = tr_cache[0]
+                if tr is not None:
+                    tr.close()
             except BaseException as exc:
                 exc.duringunbundle2 = True
                 if captureoutput and r is not None:
@@ -2838,7 +2845,7 @@ def unbundle(repo, cg, heads, source, url):
 
                 raise
     finally:
-        lockmod.release(lockandtr[2], lockandtr[1], lockandtr[0])
+        lockmod.release(tr_cache[0], lock_cache[1], lock_cache[0])
         if recordout is not None:
             recordout(repo.ui.popbuffer())
     return r
