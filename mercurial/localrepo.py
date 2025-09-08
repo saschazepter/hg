@@ -2306,7 +2306,7 @@ class localrepository(_localrepo_base_classes):
         if desc != b'strip' and shouldtracktags:
             oldheads = self.changelog.headrevs()
 
-            def tracktags(tr2):
+            def tracktags(tr2: TransactionT):
                 repo = reporef()
                 assert repo is not None  # help pytype
                 oldfnodes = tagsmod.fnoderevs(repo.ui, repo, oldheads)
@@ -2325,7 +2325,7 @@ class localrepository(_localrepo_base_classes):
                         # is close (for txnclose hooks)
                         tagsmod.writediff(changesfile, changes)
 
-        def validate(tr2):
+        def validate(tr2: TransactionT):
             """will run pre-closing hooks"""
             # XXX the transaction API is a bit lacking here so we take a hacky
             # path for now
@@ -2389,7 +2389,7 @@ class localrepository(_localrepo_base_classes):
                 b'pretxnclose', throw=True, **pycompat.strkwargs(tr.hookargs)
             )
 
-        def releasefn(tr, success):
+        def releasefn(tr: TransactionT, success):
             repo = reporef()
             if repo is None:
                 # If the repo has been GC'd (and this release function is being
@@ -2444,13 +2444,14 @@ class localrepository(_localrepo_base_classes):
             hookargs = tr2.hookargs
 
             def hookfunc(unused_success):
+                tr3: TransactionT = tr
                 repo = reporef()
                 assert repo is not None  # help pytype
 
                 if hook.hashook(repo.ui, b'txnclose-bookmark'):
-                    bmchanges = sorted(tr.changes[b'bookmarks'].items())
+                    bmchanges = sorted(tr3.changes[b'bookmarks'].items())
                     for name, (old, new) in bmchanges:
-                        args = tr.hookargs.copy()
+                        args = tr3.hookargs.copy()
                         args.update(bookmarks.preparehookargs(name, old, new))
                         repo.hook(
                             b'txnclose-bookmark',
@@ -2461,11 +2462,11 @@ class localrepository(_localrepo_base_classes):
                 if hook.hashook(repo.ui, b'txnclose-phase'):
                     cl = repo.unfiltered().changelog
                     phasemv = sorted(
-                        tr.changes[b'phases'], key=lambda r: r[0][0]
+                        tr3.changes[b'phases'], key=lambda r: r[0][0]
                     )
                     for revs, (old, new) in phasemv:
                         for rev in revs:
-                            args = tr.hookargs.copy()
+                            args = tr3.hookargs.copy()
                             node = hex(cl.node(rev))
                             args.update(phases.preparehookargs(node, old, new))
                             repo.hook(
