@@ -176,7 +176,7 @@ def makev1commandrequest(
                 data = _BytesIO(data)
             argsio = _BytesIO(strargs)
             data = _multifile(argsio, data)
-        headers['X-HgArgs-Post'] = b'%d' % len(strargs)
+        headers['X-HgArgs-Post'] = '%d' % len(strargs)
     elif args:
         # Calling self.capable() can infinite loop if we are calling
         # "capabilities". But that command should never accept wire
