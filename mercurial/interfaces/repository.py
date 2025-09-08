@@ -1861,6 +1861,12 @@ class ilocalrepositorymain(Protocol):
     filecopiesmode: Any  # TODO: add type hints
     """The way files copies should be dealt with in this repo."""
 
+    # XXX We should not have private property as part of the interface
+    #
+    # Tt exists to let extension expand the set easily.
+    _wlockfreeprefix: set[HgPathT]
+    """files and directory that can be accessed without the wlock"""
+
     @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
