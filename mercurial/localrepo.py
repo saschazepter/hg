@@ -2363,9 +2363,9 @@ class localrepository(_localrepo_base_classes):
                 )
             if hook.hashook(repo.ui, b'pretxnclose-bookmark'):
                 for name, (old, new) in sorted(
-                    tr.changes[b'bookmarks'].items()
+                    tr2.changes[b'bookmarks'].items()
                 ):
-                    args = tr.hookargs.copy()
+                    args = tr2.hookargs.copy()
                     args.update(bookmarks.preparehookargs(name, old, new))
                     repo.hook(
                         b'pretxnclose-bookmark',
@@ -2374,9 +2374,9 @@ class localrepository(_localrepo_base_classes):
                     )
             if hook.hashook(repo.ui, b'pretxnclose-phase'):
                 cl = repo.unfiltered().changelog
-                for revs, (old, new) in tr.changes[b'phases']:
+                for revs, (old, new) in tr2.changes[b'phases']:
                     for rev in revs:
-                        args = tr.hookargs.copy()
+                        args = tr2.hookargs.copy()
                         node = hex(cl.node(rev))
                         args.update(phases.preparehookargs(node, old, new))
                         repo.hook(
