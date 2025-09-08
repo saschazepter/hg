@@ -14,7 +14,11 @@ import os
 import struct
 
 from concurrent import futures
-from typing import Protocol
+from typing import (
+    Any,
+    Callable,
+    Protocol,
+)
 from .i18n import _
 from . import (
     bundle2,
@@ -135,10 +139,10 @@ def makev1commandrequest(
     ui,
     requestbuilder,
     caps,
-    capablefn,
+    capablefn: Callable[[bytes], bool | bytes],
     repobaseurl,
     cmd,
-    args,
+    args: dict[bytes, Any],
     remotehidden=False,
 ):
     """Make an HTTP request to run a command for a version 1 client.
@@ -154,7 +158,7 @@ def makev1commandrequest(
     if cmd == b'pushkey':
         args[b'data'] = b''
     data = args.pop(b'data', None)
-    headers = args.pop(b'headers', {})
+    headers: dict[str, str] = args.pop(b'headers', {})
 
     ui.debug(b"sending %s command\n" % cmd)
     q = [(b'cmd', cmd)]
