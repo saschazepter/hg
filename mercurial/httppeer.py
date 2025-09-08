@@ -183,7 +183,9 @@ def makev1commandrequest(
         # protocol arguments. So this should never happen.
         assert cmd != b'capabilities'
         httpheader = capablefn(b'httpheader')
-        if httpheader:
+        # the hasattr call filter out the `bool` return that `capablefn` may
+        # theorically return.
+        if httpheader and hasattr(httpheader, 'split'):
             headersize = int(httpheader.split(b',', 1)[0])
 
         # Send arguments via HTTP headers.
@@ -218,7 +220,7 @@ def makev1commandrequest(
     mediatypes = set()
     if caps is not None:
         mt = capablefn(b'httpmediatype')
-        if mt:
+        if mt and hasattr(mt, 'split'):
             protoparams.add(b'0.1')
             mediatypes = set(mt.split(b','))
 
@@ -507,9 +509,9 @@ class httppeer(wireprotov1peer.wirepeer):
         # http 1.1 chunked transfer.
 
         types = self.capable(b'unbundle')
-        try:
+        if hasattr(types, 'split'):
             types = types.split(b',')
-        except AttributeError:
+        else:
             # servers older than d1b16a746db6 will send 'unbundle' as a
             # boolean capability. They only support headerless/uncompressed
             # bundles.
