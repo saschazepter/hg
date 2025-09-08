@@ -1125,7 +1125,9 @@ class localrepository(_localrepo_base_classes):
         self._revbranchcache = None
         self._filterpats = {}
         self._datafilters = {}
-        self._transref = self._lockref = self._wlockref = None
+        self._transref: weakref.ref[TransactionT] | None = None
+        self._wlockref: weakref.ref[lockmod.lock] | None = None
+        self._lockref: weakref.ref[lockmod.lock] | None = None
 
         # A cache for various files under .hg/ that tracks file changes,
         # (used by the filecache decorator)
@@ -2854,7 +2856,7 @@ class localrepository(_localrepo_base_classes):
         acquirefn,
         desc,
         steal_from=None,
-    ):
+    ) -> lockmod.lock:
         timeout = 0
         warntimeout = 0
         if wait:
@@ -2907,7 +2909,7 @@ class localrepository(_localrepo_base_classes):
         else:  # no lock have been found.
             callback(True)
 
-    def lock(self, wait=True, steal_from=None):
+    def lock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
         stripping). If you are opening a transaction, get a lock as well.)
@@ -2942,7 +2944,7 @@ class localrepository(_localrepo_base_classes):
         self._lockref = weakref.ref(l)
         return l
 
-    def wlock(self, wait=True, steal_from=None):
+    def wlock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the non-store parts of the repository (everything under
         .hg except .hg/store) and return a weak reference to the lock.
 
@@ -3001,20 +3003,22 @@ class localrepository(_localrepo_base_classes):
         self._wlockref = weakref.ref(l)
         return l
 
-    def _currentlock(self, lockref):
+    def _currentlock(
+        self,
+        lockref: weakref.ref[lockmod.lock],
+    ) -> lockmod.lock | None:
         """Returns the lock if it's held, or None if it's not."""
-        if lockref is None:
+        if lockref is None or (l := lockref()) is None:
             return None
-        l = lockref()
-        if l is None or not l.held:
+        if not l.held:
             return None
         return l
 
-    def currentwlock(self):
+    def currentwlock(self) -> lockmod.lock | None:
         """Returns the wlock if it's held, or None if it's not."""
         return self._currentlock(self._wlockref)
 
-    def currentlock(self):
+    def currentlock(self) -> lockmod.lock | None:
         """Returns the lock if it's held, or None if it's not."""
         return self._currentlock(self._lockref)
 
