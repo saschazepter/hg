@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import collections
 import weakref
+from typing import Any
 
 from .i18n import _
 from .node import (
@@ -1874,7 +1875,10 @@ def _pullbundle2(pullop: pulloperation):
     """pull data using bundle2
 
     For now, the only supported data are changegroup."""
-    kwargs = {b'bundlecaps': caps20to10(pullop.repo, role=b'client')}
+    # XXX use typed dict
+    kwargs: dict[bytes, Any] = {
+        b'bundlecaps': caps20to10(pullop.repo, role=b'client'),
+    }
 
     # make ui easier to access
     ui = pullop.repo.ui
@@ -1937,7 +1941,9 @@ def _pullbundle2(pullop: pulloperation):
             # make sure to always includes bookmark data when migrating
             # `hg incoming --bundle` to using this function.
             pullop.stepsdone.add(b'request-bookmarks')
-            kwargs.setdefault(b'listkeys', []).append(b'bookmarks')
+            lk_arg = kwargs.setdefault(b'listkeys', [])
+            assert lk_arg is not None
+            lk_arg.append(b'bookmarks')
 
     # If this is a full pull / clone and the server supports the clone bundles
     # feature, tell the server whether we attempted a clone bundle. The
