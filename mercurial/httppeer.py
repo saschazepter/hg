@@ -571,6 +571,8 @@ class httppeer(wireprotov1peer.wirepeer):
 class queuedcommandfuture(futures.Future):
     """Wraps result() on command futures to trigger submission on call."""
 
+    _peerexecutor: wireprotov1peer.peerexecutor
+
     def result(self, timeout=None):
         if self.done():
             return futures.Future.result(self, timeout)
