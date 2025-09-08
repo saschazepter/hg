@@ -25,6 +25,13 @@ parsers = policy.importmod('parsers')
 
 
 class PathAuditT(Protocol):
+    """ensure that an operation on a path respect constraint
+
+    Typically raise `InputError` in case of issue.
+
+    See the `pathauditor` class for an example implementation.
+    """
+
     @abc.abstractmethod
     def __call__(self, path: bytes, mode: bytes | None = None) -> None:
         ...

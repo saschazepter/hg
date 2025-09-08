@@ -2160,7 +2160,7 @@ class IRepo(Protocol):
         wctx,
         match: matcher.IMatcher,
         status: istatus.Status,
-        fail: Callable[[bytes], bytes],
+        fail: Callable[[bytes, bytes], bytes],
     ) -> None:
         pass
 

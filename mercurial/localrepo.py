@@ -3027,7 +3027,7 @@ class localrepository(_localrepo_base_classes):
         wctx,
         match: MatcherT,
         status: StatusT,
-        fail: Callable[[bytes], bytes],
+        fail: Callable[[bytes, bytes], bytes],
     ) -> None:
         """check for commit arguments that aren't committable"""
         if match.isexact() or match.prefix():
