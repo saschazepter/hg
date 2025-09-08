@@ -1939,6 +1939,7 @@ def _pullbundle2(pullop):
     # presence of this flag indicates the client supports clone bundles. This
     # will enable the server to treat clients that support clone bundles
     # differently from those that don't.
+    assert pullop.common is not None
     if (
         pullop.remote.capable(b'clonebundles')
         and pullop.heads is None
