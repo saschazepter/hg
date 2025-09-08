@@ -1470,6 +1470,8 @@ class pulloperation:
     afterward.
     """
 
+    stepsdone: set[bytes]
+
     def __init__(
         self,
         repo,
@@ -1866,7 +1868,7 @@ def _pulldiscoverychangegroup(pullop):
     pullop.rheads = rheads
 
 
-def _pullbundle2(pullop):
+def _pullbundle2(pullop: pulloperation):
     """pull data using bundle2
 
     For now, the only supported data are changegroup."""
