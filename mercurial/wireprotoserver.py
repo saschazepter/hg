@@ -10,7 +10,9 @@ import contextlib
 import struct
 import threading
 
+from typing import Iterator
 from .i18n import _
+from .interfaces import compression as i_comp
 from . import (
     encoding,
     error,
@@ -283,7 +285,11 @@ def _httpresponsetype(ui, proto, prefer_uncompressed):
 
 
 def _callhttp(repo, req, res, proto, cmd):
-    def genversion2(gen, engine, engineopts):
+    def genversion2(
+        gen: Iterator[bytes],
+        engine: i_comp.ICompressionEngine,
+        engineopts: dict,
+    ):
         # application/mercurial-0.2 always sends a payload header
         # identifying the compression engine.
         w = engine.wireprotosupport()

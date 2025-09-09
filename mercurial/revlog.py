@@ -83,6 +83,7 @@ from .revlogutils.flagutil import (
     REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
 from .thirdparty import attr
+from .interfaces import compression as i_comp
 from .revlogutils import config as revlog_config
 
 # Force pytype to use the non-vendored package
@@ -362,7 +363,7 @@ class _InnerRevlog:
         )
 
         # revlog header -> revlog compressor
-        self._decompressors = {}
+        self._decompressors: dict[bytes, i_comp.IRevlogCompressor] = {}
         # 3-tuple of (node, rev, text) for a raw revision.
         self._revisioncache = None
 
@@ -525,7 +526,7 @@ class _InnerRevlog:
         c = self._get_decompressor(t)
         return c.decompress
 
-    def _get_decompressor(self, t: bytes):
+    def _get_decompressor(self, t: bytes) -> i_comp.IRevlogCompressor:
         try:
             compressor = self._decompressors[t]
         except KeyError:

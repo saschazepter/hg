@@ -9,12 +9,15 @@ import bz2
 import collections
 import zlib
 
+from typing import Iterator
+
 from .. import (
     error,
     i18n,
     pycompat,
 )
 from . import stringutil
+from ..interfaces import compression as i_comp
 
 
 _ = i18n._
@@ -57,26 +60,26 @@ class compressormanager:
     """
 
     def __init__(self):
-        self._engines = {}
+        self._engines: dict[bytes, i_comp.ICompressionEngine] = {}
         # Bundle spec human name to engine name.
-        self._bundlenames = {}
+        self._bundlenames: dict[bytes, bytes] = {}
         # Internal bundle identifier to engine name.
-        self._bundletypes = {}
+        self._bundletypes: dict[bytes, bytes] = {}
         # Revlog header to engine name.
-        self._revlogheaders = {}
+        self._revlogheaders: dict[bytes, bytes] = {}
         # Wire proto identifier to engine name.
-        self._wiretypes = {}
+        self._wiretypes: dict[bytes, bytes] = {}
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> i_comp.ICompressionEngine:
         return self._engines[key]
 
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         return key in self._engines
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         return iter(self._engines.keys())
 
-    def register(self, engine):
+    def register(self, engine: i_comp.ICompressionEngine):
         """Register a compression engine with the manager.
 
         The argument must be a ``compressionengine`` instance.
@@ -138,14 +141,14 @@ class compressormanager:
         self._engines[name] = engine
 
     @property
-    def supportedbundlenames(self):
+    def supportedbundlenames(self) -> set[bytes]:
         return set(self._bundlenames.keys())
 
     @property
-    def supportedbundletypes(self):
+    def supportedbundletypes(self) -> set[bytes]:
         return set(self._bundletypes.keys())
 
-    def forbundlename(self, bundlename):
+    def forbundlename(self, bundlename) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a bundle name.
 
         Will raise KeyError if the bundle type isn't registered.
@@ -159,7 +162,7 @@ class compressormanager:
             )
         return engine
 
-    def forbundletype(self, bundletype):
+    def forbundletype(self, bundletype) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a bundle type.
 
         Will raise KeyError if the bundle type isn't registered.
@@ -173,7 +176,9 @@ class compressormanager:
             )
         return engine
 
-    def supportedwireengines(self, role, onlyavailable=True):
+    def supportedwireengines(
+        self, role, onlyavailable=True
+    ) -> list[i_comp.ICompressionEngine]:
         """Obtain compression engines that support the wire protocol.
 
         Returns a list of engines in prioritized order, most desired first.
@@ -198,7 +203,7 @@ class compressormanager:
 
         return list(sorted(engines, key=getkey))
 
-    def forwiretype(self, wiretype):
+    def forwiretype(self, wiretype) -> i_comp.ICompressionEngine:
         engine = self._engines[self._wiretypes[wiretype]]
         if not engine.available():
             raise error.Abort(
@@ -206,7 +211,7 @@ class compressormanager:
             )
         return engine
 
-    def forrevlogheader(self, header):
+    def forrevlogheader(self, header) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a revlog header.
 
         Will raise KeyError if the revlog header value isn't registered.
@@ -252,7 +257,7 @@ def bundlecompressiontopics() -> dict[bytes, object]:
 i18nfunctions = bundlecompressiontopics().values()
 
 
-class compressionengine:
+class compressionengine(i_comp.ICompressionEngine):
     """Base class for compression engines.
 
     Compression engines must implement the interface defined by this class.
