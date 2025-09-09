@@ -667,7 +667,10 @@ def makeitemsdoc(
 
 
 def addtopicsymbols(
-    topic: bytes, marker: bytes, symbols, dedent: bool = False
+    topic: bytes,
+    marker: bytes,
+    symbols: dict[bytes, object],
+    dedent: bool = False,
 ) -> None:
     def add(ui: uimod.ui, topic: bytes, doc: bytes):
         return makeitemsdoc(ui, topic, doc, marker, symbols, dedent=dedent)
