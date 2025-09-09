@@ -4166,10 +4166,15 @@ class revlog:
                         snapshotdepth = -1
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
+                        # note: we can blindy reuse the compression during
+                        # `_clone`, because if we can read the source revlog it
+                        # mean we know about that compression for the
+                        # destination too, (even if we might not reuse it).
+                        comp, c_chunk = self.raw_comp_chunk(rev)
                         cachedelta = revlogutils.CachedDelta(
                             base=dp,
-                            c_delta=bytes(self._inner._chunk(rev)),
-                            compression=i_comp.REVLOG_COMP_NONE,
+                            c_delta=bytes(c_chunk),
+                            compression=comp,
                             reuse_policy=delta_base_reuse,
                             snapshot_level=snapshotdepth,
                         )
