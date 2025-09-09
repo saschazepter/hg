@@ -151,9 +151,14 @@ class httpv1protocolhandler(wireprototypes.baseprotocolhandler):
             repo.ui, compression.SERVERROLE
         )
         if compengines:
-            comptypes = b','.join(
-                urlreq.quote(e.wireprotosupport().name) for e in compengines
-            )
+            # typing don't know that supportedcompengines always have
+            # wireprotosupport set...
+            wps = []
+            for e in compengines:
+                w = e.wireprotosupport()
+                assert w is not None
+                wps.append(w)
+            comptypes = b','.join(urlreq.quote(i.name) for i in wps)
             caps.append(b'compression=%s' % comptypes)
 
         return caps
@@ -257,7 +262,9 @@ def _httpresponsetype(ui, proto, prefer_uncompressed):
         for engine in wireprototypes.supportedcompengines(
             ui, compression.SERVERROLE
         ):
-            if engine.wireprotosupport().name in compformats:
+            w = engine.wireprotosupport()
+            assert w is not None
+            if w.name in compformats:
                 opts = {}
                 level = ui.configint(b'server', b'%slevel' % engine.name())
                 if level is not None:
@@ -279,7 +286,9 @@ def _callhttp(repo, req, res, proto, cmd):
     def genversion2(gen, engine, engineopts):
         # application/mercurial-0.2 always sends a payload header
         # identifying the compression engine.
-        name = engine.wireprotosupport().name
+        w = engine.wireprotosupport()
+        assert w is not None
+        name = w.name
         assert 0 < len(name) < 256
         yield struct.pack(b'B', len(name))
         yield name
