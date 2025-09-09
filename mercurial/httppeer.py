@@ -249,10 +249,12 @@ def makev1commandrequest(
         # We /could/ compare supported compression formats and prune
         # non-mutually supported or error if nothing is mutually supported.
         # For now, send the full list to the server and have it error.
-        comps = [
-            e.wireprotosupport().name
-            for e in util.compengines.supportedwireengines(util.CLIENTROLE)
-        ]
+        comps = []
+        for e in util.compengines.supportedwireengines(util.CLIENTROLE):
+            w = e.wireprotosupport()
+            assert w is not None
+            comps.append(w.name)
+
         protoparams.add(b'comp=%s' % b','.join(comps))
 
     if protoparams:
