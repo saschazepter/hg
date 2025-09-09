@@ -255,7 +255,7 @@ def _httpresponsetype(ui, proto, prefer_uncompressed):
     if b'0.2' in proto.getprotocaps():
         # All clients are expected to support uncompressed data.
         if prefer_uncompressed:
-            return HGTYPE2, compression._noopengine(), {}
+            return HGTYPE2, compression.compengines[b'none'], {}
 
         # Now find an agreed upon compression format.
         compformats = wireprotov1server.clientcompressionsupport(proto)
