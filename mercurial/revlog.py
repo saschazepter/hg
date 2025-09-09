@@ -4127,7 +4127,8 @@ class revlog:
                     if dp != nullrev:
                         cachedelta = revlogutils.CachedDelta(
                             base=dp,
-                            u_delta=bytes(self._inner._chunk(rev)),
+                            c_delta=bytes(self._inner._chunk(rev)),
+                            compression=i_comp.REVLOG_COMP_NONE,
                             reuse_policy=delta_base_reuse,
                             snapshot_level=snapshotdepth,
                         )
