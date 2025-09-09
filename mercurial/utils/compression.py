@@ -217,6 +217,41 @@ class compressormanager:
 compengines = compressormanager()
 
 
+def bundlecompressiontopics() -> dict[bytes, object]:
+    """Obtains a list of available bundle compressions for use in help."""
+    # help.makeitemsdocs() expects a dict of names to items with a .__doc__.
+    items: dict[bytes, object] = {}
+
+    # We need to format the docstring. So use a dummy object/type to hold it
+    # rather than mutating the original.
+    class docobject:
+        pass
+
+    for name in compengines:
+        engine = compengines[name]
+
+        if not engine.available():
+            continue
+
+        bt = engine.bundletype()
+        if not bt or not bt[0]:
+            continue
+
+        doc = b'``%s``\n    %s' % (bt[0], pycompat.getdoc(engine.bundletype))
+
+        value = docobject()
+        value.__doc__ = pycompat.sysstr(doc)
+        value._origdoc = engine.bundletype.__doc__
+        value._origfunc = engine.bundletype
+
+        items[bt[0:1]] = value
+
+    return items
+
+
+i18nfunctions = bundlecompressiontopics().values()
+
+
 class compressionengine:
     """Base class for compression engines.
 
@@ -771,38 +806,3 @@ class _zstdengine(compressionengine):
 
 
 compengines.register(_zstdengine())
-
-
-def bundlecompressiontopics() -> dict[bytes, object]:
-    """Obtains a list of available bundle compressions for use in help."""
-    # help.makeitemsdocs() expects a dict of names to items with a .__doc__.
-    items: dict[bytes, object] = {}
-
-    # We need to format the docstring. So use a dummy object/type to hold it
-    # rather than mutating the original.
-    class docobject:
-        pass
-
-    for name in compengines:
-        engine = compengines[name]
-
-        if not engine.available():
-            continue
-
-        bt = engine.bundletype()
-        if not bt or not bt[0]:
-            continue
-
-        doc = b'``%s``\n    %s' % (bt[0], pycompat.getdoc(engine.bundletype))
-
-        value = docobject()
-        value.__doc__ = pycompat.sysstr(doc)
-        value._origdoc = engine.bundletype.__doc__
-        value._origfunc = engine.bundletype
-
-        items[bt[0:1]] = value
-
-    return items
-
-
-i18nfunctions = bundlecompressiontopics().values()
