@@ -23,7 +23,10 @@ from ..interfaces.types import (
     NodeIdT,
     RevnumT,
 )
-from ..interfaces import repository
+from ..interfaces import (
+    repository,
+    revlog as revlog_t,
+)
 
 # See mercurial.revlogutils.constants for doc
 COMP_MODE_INLINE = 2
@@ -83,7 +86,10 @@ class CachedDelta:
     """The revision number of the revision on which the delta apply on"""
     delta = attr.ib(type=bytes)
     """The uncompressed delta information"""
-    reuse_policy = attr.ib(type=Optional[int], default=None)
+    reuse_policy = attr.ib(
+        type=Optional[revlog_t.DeltaBaseReusePolicy],
+        default=None,
+    )
     """The policy request to reuse this delta"""
     snapshot_level = attr.ib(type=Optional[int], default=None)
     """The snapshot_level of this delta.

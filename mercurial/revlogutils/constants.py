@@ -17,7 +17,10 @@ from typing import (
     TypedDict,
 )
 
-from ..interfaces import repository
+from ..interfaces import (
+    repository,
+    revlog as revlog_t,
+)
 from .. import revlogutils
 
 ### Internal utily constants
@@ -353,14 +356,14 @@ SPARSE_REVLOG_MAX_CHAIN_LENGTH = 1000
 #
 # The cached delta might be used, but the delta base will not be scheduled for
 # usage earlier than in "normal" order.
-DELTA_BASE_REUSE_NO = 0
+DELTA_BASE_REUSE_NO = revlog_t.DeltaBaseReusePolicy.NO
 
 # Prioritize trying the cached delta base
 #
 # The delta base will be tested for validy first. So that the cached deltas get
 # used when possible.
-DELTA_BASE_REUSE_TRY = 1
-DELTA_BASE_REUSE_FORCE = 2
+DELTA_BASE_REUSE_TRY = revlog_t.DeltaBaseReusePolicy.TRY
+DELTA_BASE_REUSE_FORCE = revlog_t.DeltaBaseReusePolicy.FORCE
 
 FILELOG_HASMETA_UPGRADE = 1
 FILELOG_HASMETA_DOWNGRADE = 2
