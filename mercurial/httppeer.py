@@ -19,9 +19,11 @@ from typing import (
     Callable,
     Protocol,
     TYPE_CHECKING,
+    cast,
 )
 from .i18n import _
 from .interfaces.types import (
+    NeedsTypeHint,
     UiT,
 )
 from . import (
@@ -432,7 +434,11 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
             _(b"'%s' uses newer protocol %s") % (safeurl, subtype)
         )
 
-    return respurl, proto, new_resp
+    # pytype get very confused by the "new_resp" variable type and it cause various
+    # problem down the line, making it a Any for now.
+    #
+    # If you are reading this, this "Any" as probably created problem, Sorry.
+    return respurl, proto, cast(NeedsTypeHint, new_resp)
 
 
 class httppeer(wireprotov1peer.wirepeer):
