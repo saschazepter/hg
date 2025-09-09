@@ -4036,6 +4036,7 @@ class TestRunner:
         # configured on the current system.
         env = os.environ.copy()
         env["HGUSER"] = "test_gremlin"
+        env["HGRCPATH"] = "/dev/null"
         env["HGEDITOR"] = sys.executable  # The executable must exist
         return env
 
