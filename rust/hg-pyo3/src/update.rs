@@ -13,6 +13,7 @@ use hg::progress::HgProgressBar;
 use hg::progress::Progress;
 use hg::update::update_from_clean as core_update_from_clean;
 use hg::update::update_from_null as core_update_from_null;
+use hg::update::FileConflictConfig;
 use hg::update::UpdateConfig;
 use hg::warnings::HgWarningContext;
 use hg::BaseRevision;
@@ -38,7 +39,10 @@ use crate::utils::PyBytesDeref;
     num_cpus,
     on_warnings,
     devel_abort_dirstate,
+    ignored_conflict,
+    unknown_conflict,
 ))]
+#[allow(clippy::too_many_arguments)]
 pub fn update_from_null(
     repo_path: &Bound<'_, PyBytes>,
     to: BaseRevision,
@@ -46,18 +50,32 @@ pub fn update_from_null(
     num_cpus: Option<usize>,
     on_warnings: PyObject,
     devel_abort_dirstate: bool,
+    ignored_conflict: &Bound<'_, PyBytes>,
+    unknown_conflict: &Bound<'_, PyBytes>,
 ) -> PyResult<usize> {
     tracing::debug!("Using update from null fastpath");
     let repo = repo_from_path(repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
 
     let py = repo_path.py();
+    let ignored_conflict = FileConflictConfig::new(
+        "merge.checkignored",
+        Some(&String::from_utf8_lossy(ignored_conflict.as_bytes())),
+    )
+    .into_pyerr(py)?;
+    let unknown_conflict = FileConflictConfig::new(
+        "merge.checkunknown",
+        Some(&String::from_utf8_lossy(unknown_conflict.as_bytes())),
+    )
+    .into_pyerr(py)?;
     let update_config = UpdateConfig {
         workers: num_cpus,
         remove_empty_dirs: false,
         devel_abort_dirstate,
         orig_backup_path: None,
         atomic_file: false,
+        ignored_conflict,
+        unknown_conflict,
     };
 
     let warning_context = HgWarningContext::new();
@@ -101,6 +119,8 @@ pub fn update_from_null(
     orig_backup_path,
     atomic_file,
     on_warnings,
+    ignored_conflict,
+    unknown_conflict,
 ))]
 pub fn update_from_clean(
     repo_path: &Bound<'_, PyBytes>,
@@ -114,17 +134,31 @@ pub fn update_from_clean(
     orig_backup_path: Option<&[u8]>,
     atomic_file: bool,
     on_warnings: PyObject,
+    ignored_conflict: &Bound<'_, PyBytes>,
+    unknown_conflict: &Bound<'_, PyBytes>,
 ) -> PyResult<(usize, usize, usize, usize, usize)> {
     tracing::debug!("Using update from clean fastpath");
     let repo = repo_from_path(repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
     let py = repo_path.py();
+    let ignored_conflict = FileConflictConfig::new(
+        "merge.checkignored",
+        Some(&String::from_utf8_lossy(ignored_conflict.as_bytes())),
+    )
+    .into_pyerr(py)?;
+    let unknown_conflict = FileConflictConfig::new(
+        "merge.checkunknown",
+        Some(&String::from_utf8_lossy(unknown_conflict.as_bytes())),
+    )
+    .into_pyerr(py)?;
     let update_config = UpdateConfig {
         workers: num_cpus,
         remove_empty_dirs,
         devel_abort_dirstate,
         orig_backup_path: orig_backup_path.map(ToOwned::to_owned),
         atomic_file,
+        ignored_conflict,
+        unknown_conflict,
     };
     let warning_context = HgWarningContext::new();
 

@@ -90,6 +90,8 @@ pub struct UpdateConfig {
     pub orig_backup_path: Option<Vec<u8>>,
     /// `experimental.update.atomic-file`
     pub atomic_file: bool,
+    pub ignored_conflict: FileConflictConfig,
+    pub unknown_conflict: FileConflictConfig,
 }
 
 /// Update the current working copy of `repo` to the given revision `to`, from
@@ -240,6 +242,7 @@ pub fn update_from_clean(
         &narrow_matcher,
         &sparse_matcher.as_ref(),
         warnings,
+        update_config,
     )?;
 
     progress.update(0, Some(actions.len() as u64));
@@ -548,7 +551,7 @@ pub enum UpdateWarning {
 /// What to do when encountering a file conflict on disk. There is a different
 /// config for unknown and ignored files.
 #[derive(Copy, Clone, Debug)]
-enum FileConflictConfig {
+pub enum FileConflictConfig {
     /// Abort the update process entirely
     Abort,
     /// Warn about each file
@@ -558,7 +561,7 @@ enum FileConflictConfig {
 }
 
 impl FileConflictConfig {
-    fn new(config: &str, value: Option<&str>) -> Result<Self, HgError> {
+    pub fn new(config: &str, value: Option<&str>) -> Result<Self, HgError> {
         match value {
             Some("abort") => Ok(Self::Abort),
             Some("warn") => Ok(Self::Warn),
@@ -578,6 +581,7 @@ impl FileConflictConfig {
 /// Compute what actions need to be taken to update the working copy to the
 /// target revision.
 #[tracing::instrument(level = "debug", skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub fn compute_actions<
     'manifests,
     'm1: 'manifests,
@@ -591,6 +595,7 @@ pub fn compute_actions<
     narrow_matcher: &'m1 impl Matcher,
     sparse_matcher: &impl Matcher,
     warnings: &HgWarningSender,
+    update_config: &UpdateConfig,
 ) -> Result<MergeActions<'manifests>, HgError> {
     let mut actions =
         manifest_actions(wc_manifest, target_manifest, narrow_matcher)?;
@@ -602,6 +607,7 @@ pub fn compute_actions<
             &actions,
             target_manifest,
             warnings,
+            update_config,
         )?;
 
         if file_conflicts.len() >= 100 {
@@ -706,6 +712,7 @@ fn check_unknown_files<'a>(
     merge_result: &'a MergeActions,
     p2_manifest: &Manifest,
     warnings: &HgWarningSender,
+    update_config: &UpdateConfig,
 ) -> Result<Vec<&'a HgPath>, HgError> {
     let check_exec = check_exec(repo.working_directory_path());
     let filelog_options = default_revlog_options(
@@ -745,19 +752,10 @@ fn check_unknown_files<'a>(
     let unknown_conflicts: Vec<&HgPath> =
         unknown_receiver.into_iter().collect();
 
-    let ignored_conflict_config =
-        repo.config().get_str(b"merge", b"checkignored")?;
-    let on_ignored_conflict =
-        FileConflictConfig::new("merge.checkignored", ignored_conflict_config)?;
-    let unknown_conflict_config =
-        repo.config().get_str(b"merge", b"checkunknown")?;
-    let on_unknown_conflict =
-        FileConflictConfig::new("merge.checkunknown", unknown_conflict_config)?;
-
     let (mut abort_conflicts, mut warn_conflicts): (
         Vec<&HgPath>,
         Vec<&HgPath>,
-    ) = match (on_ignored_conflict, on_unknown_conflict) {
+    ) = match (update_config.ignored_conflict, update_config.unknown_conflict) {
         (FileConflictConfig::Abort, FileConflictConfig::Abort) => (
             ignored_conflicts
                 .iter()
