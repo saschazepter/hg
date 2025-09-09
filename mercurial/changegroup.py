@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
+import io
 import os
 import struct
 import weakref
 
-from typing import Iterator
+from typing import Iterator, cast
 
 from .i18n import _
 from .node import (
@@ -308,7 +309,15 @@ class cg1unpacker:
             alg = b'_truncatedBZ'
 
         compengine = util.compengines.forbundletype(alg)
-        self._stream = compengine.decompressorreader(fh)
+        # Assumes that the result has all io.BytesIO method even when it has
+        # not. This work around the fact the typing does not distinct pure
+        # stream processing (most common case) and the seekable/closable case,
+        # used for bundlerepo & Co.
+        #
+        # This is not ideal and should be improved at some point.
+        stream = compengine.decompressorreader(fh)
+        assert stream is not None
+        self._stream: io.BytesIO = cast(io.BytesIO, stream)
         self._type = alg
         self.extras = extras or {}
         self.callback = None
