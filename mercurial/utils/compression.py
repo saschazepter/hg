@@ -773,10 +773,10 @@ class _zstdengine(compressionengine):
 compengines.register(_zstdengine())
 
 
-def bundlecompressiontopics():
+def bundlecompressiontopics() -> dict[bytes, object]:
     """Obtains a list of available bundle compressions for use in help."""
     # help.makeitemsdocs() expects a dict of names to items with a .__doc__.
-    items = {}
+    items: dict[bytes, object] = {}
 
     # We need to format the docstring. So use a dummy object/type to hold it
     # rather than mutating the original.
