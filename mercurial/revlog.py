@@ -4101,10 +4101,10 @@ class revlog:
                     dp = self.deltaparent(rev)
                     if dp != nullrev:
                         cachedelta = revlogutils.CachedDelta(
-                            dp,
-                            bytes(self._inner._chunk(rev)),
-                            delta_base_reuse,
-                            snapshotdepth,
+                            base=dp,
+                            u_delta=bytes(self._inner._chunk(rev)),
+                            reuse_policy=delta_base_reuse,
+                            snapshot_level=snapshotdepth,
                         )
 
                 sidedata = None
