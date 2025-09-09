@@ -509,7 +509,7 @@ class _gitlfsremote:
                 request.add_header('Content-Length', request.data.length)
 
             with contextlib.closing(self.urlopener.open(request)) as res:
-                contentlength = res.info().get(b"content-length")
+                contentlength = res.info().get("content-length")
                 ui = self.ui  # Shorten debug lines
                 if self.ui.debugflag:
                     ui.debug(b'Status: %d\n' % res.status)
