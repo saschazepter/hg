@@ -636,7 +636,7 @@ def makeitemsdoc(
     topic: bytes,
     doc: bytes,
     marker: bytes,
-    items: dict[bytes, bytes],
+    items: dict[bytes, object],
     dedent: bool = False,
 ) -> bytes:
     """Extract docstring from the items key to function mapping, build a
