@@ -51,6 +51,7 @@ pub fn update_from_null(
     let repo = repo_from_path(repo_path)?;
     let progress: &dyn Progress = &HgProgressBar::new("updating");
 
+    let py = repo_path.py();
     let update_config = UpdateConfig {
         workers: num_cpus,
         remove_empty_dirs: false,
@@ -61,7 +62,7 @@ pub fn update_from_null(
 
     let warning_context = HgWarningContext::new();
     DirstateMap::with_inner_write(dirstate, |_inner, mut dirstate| {
-        let res = with_sigint_wrapper(repo_path.py(), || {
+        let res = with_sigint_wrapper(py, || {
             core_update_from_null(
                 &repo,
                 to.into(),
@@ -74,13 +75,13 @@ pub fn update_from_null(
         });
         // Handle warnings even in case of an error
         handle_warnings(
-            repo_path.py(),
+            py,
             warning_context,
             repo.working_directory_path(),
             on_warnings,
         )?;
 
-        let updated = res?.into_pyerr(repo_path.py())?;
+        let updated = res?.into_pyerr(py)?;
 
         Ok(updated)
     })
