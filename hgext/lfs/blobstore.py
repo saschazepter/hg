@@ -382,8 +382,7 @@ class _gitlfsremote:
             response = pycompat.json_loads(rawjson)
         except ValueError:
             raise LfsRemoteError(
-                _(b'LFS server returns invalid JSON: %s')
-                % rawjson.encode("utf-8")
+                _(b'LFS server returns invalid JSON: %s') % rawjson
             )
 
         if self.ui.debugflag:
