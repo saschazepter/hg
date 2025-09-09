@@ -800,7 +800,7 @@ def bundlecompressiontopics():
         value._origdoc = engine.bundletype.__doc__
         value._origfunc = engine.bundletype
 
-        items[bt[0]] = value
+        items[bt[0:1]] = value
 
     return items
 
