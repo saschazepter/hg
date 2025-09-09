@@ -1471,6 +1471,7 @@ class pulloperation:
     """
 
     stepsdone: set[bytes]
+    trmanager: transactionmanager | None
 
     def __init__(
         self,
@@ -1641,6 +1642,7 @@ def add_confirm_callback(repo: RepoT, pullop: pulloperation):
     """adds a finalize callback to transaction which can be used to show stats
     to user and confirm the pull before committing transaction"""
 
+    assert pullop.trmanager is not None
     tr = pullop.trmanager.transaction()
     scmutil.registersummarycallback(
         repo, tr, txnname=b'pull', as_validator=True
