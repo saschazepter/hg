@@ -11,8 +11,17 @@ import abc
 import io
 from typing import (
     Iterator,
+    NewType,
     Protocol,
 )
+
+# CompresionType is not an Enum, because we want Extension to be able to extend
+# it, while Enum can't be extended by design.
+#
+# This is only assign to compression types that are use to compress Delta in a
+# revlog (for example, BZ2 can be used for bundles, but at the time of writing
+# this comment it is not used for revlog's internal compression)
+RevlogCompHeader = NewType('RevlogCompHeader', bytes)
 
 
 class IRevlogCompressor(Protocol):
@@ -113,7 +122,7 @@ class ICompressionEngine(Protocol):
         """
 
     @abc.abstractmethod
-    def revlogheader(self) -> bytes | None:
+    def revlogheader(self) -> RevlogCompHeader | None:
         """Header added to revlog chunks that identifies this engine.
 
         If this engine can be used to compress revlogs, this method should

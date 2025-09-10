@@ -27,6 +27,7 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    cast,
 )
 
 # import stuff from node for others to import from revlog
@@ -315,6 +316,7 @@ class _InnerRevlog:
     """
 
     opener: vfsmod.vfs
+    _default_compression_header: i_comp.RevlogCompHeader
 
     def __init__(
         self,
@@ -328,7 +330,7 @@ class _InnerRevlog:
         delta_config,
         feature_config,
         chunk_cache,
-        default_compression_header,
+        default_compression_header: i_comp.RevlogCompHeader,
     ):
         self.opener = opener
         self.index: BaseIndexObject = index
@@ -364,7 +366,9 @@ class _InnerRevlog:
         )
 
         # revlog header -> revlog compressor
-        self._decompressors: dict[bytes, i_comp.IRevlogCompressor] = {}
+        self._decompressors: dict[
+            i_comp.RevlogCompHeader, i_comp.IRevlogCompressor
+        ] = {}
         # 3-tuple of (node, rev, text) for a raw revision.
         self._revisioncache = None
 
@@ -548,7 +552,10 @@ class _InnerRevlog:
         c = self._get_decompressor(t)
         return c.decompress
 
-    def _get_decompressor(self, t: bytes) -> i_comp.IRevlogCompressor:
+    def _get_decompressor(
+        self,
+        t: i_comp.RevlogCompHeader,
+    ) -> i_comp.IRevlogCompressor:
         try:
             compressor = self._decompressors[t]
         except KeyError:
@@ -625,7 +632,7 @@ class _InnerRevlog:
         elif t == b'u':
             return util.buffer(data, 1)
 
-        compressor = self._get_decompressor(t)
+        compressor = self._get_decompressor(cast(i_comp.RevlogCompHeader, t))
 
         return compressor.decompress(data)
 

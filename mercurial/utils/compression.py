@@ -66,7 +66,7 @@ class compressormanager:
         # Internal bundle identifier to engine name.
         self._bundletypes: dict[bytes, bytes] = {}
         # Revlog header to engine name.
-        self._revlogheaders: dict[bytes, bytes] = {}
+        self._revlogheaders: dict[i_comp.RevlogCompHeader, bytes] = {}
         # Wire proto identifier to engine name.
         self._wiretypes: dict[bytes, bytes] = {}
 
@@ -211,7 +211,10 @@ class compressormanager:
             )
         return engine
 
-    def forrevlogheader(self, header) -> i_comp.ICompressionEngine:
+    def forrevlogheader(
+        self,
+        header: i_comp.RevlogCompHeader,
+    ) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a revlog header.
 
         Will raise KeyError if the revlog header value isn't registered.
@@ -219,7 +222,7 @@ class compressormanager:
         return self._engines[self._revlogheaders[header]]
 
 
-compengines = compressormanager()
+compengines: compressormanager = compressormanager()
 
 
 def bundlecompressiontopics() -> dict[bytes, object]:
