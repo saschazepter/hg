@@ -321,7 +321,7 @@ def sendrequest(ui, opener, req):
     except httplib.HTTPException as inst:
         ui.debug(
             b'http error requesting %s\n'
-            % urlutil.hidepassword(req.get_full_url())
+            % urlutil.hidepassword(pycompat.bytesurl(req.get_full_url()))
         )
         ui.traceback()
         raise OSError(None, inst)
