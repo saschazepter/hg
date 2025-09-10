@@ -315,7 +315,7 @@ def sendrequest(ui, opener, req):
     try:
         res = opener.open(req)
     except urlerr.httperror as inst:
-        if inst.code == 401:
+        if inst.status == 401:
             raise error.Abort(_(b'authorization failed'))
         raise
     except httplib.HTTPException as inst:
@@ -327,7 +327,9 @@ def sendrequest(ui, opener, req):
         raise OSError(None, inst)
     finally:
         if ui.debugflag and ui.configbool(b'devel', b'debug.peer-request'):
-            code = res.code if res else -1
+            code = -1
+            if res is not None:
+                code = res.status
             dbg(
                 line
                 % b'  finished in %.4f seconds (%d)'
