@@ -1706,8 +1706,6 @@ class deltacomputer:
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
             if self.revlog.delta_config.lazy_delta and currentbase == base:
-                self.decompress_cached(revinfo.cachedelta)
-                delta = revinfo.cachedelta.u_delta
                 if revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
                     # let's ignore foldin there.
@@ -1716,6 +1714,8 @@ class deltacomputer:
                     # folding the incoming delta should only produce better
                     # chain, so the risk is probably slow.
                     optimize_by_folding = None
+                self.decompress_cached(revinfo.cachedelta)
+                delta = revinfo.cachedelta.u_delta
 
         # Can we use a size estimate for something ?
         #
