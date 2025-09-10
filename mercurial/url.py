@@ -9,9 +9,11 @@
 
 from __future__ import annotations
 
+import abc
 import base64
 import hashlib
 import socket
+from typing import Protocol, TYPE_CHECKING
 
 from .i18n import _
 from .node import hex
@@ -34,6 +36,13 @@ httplib = util.httplib
 stringio = util.stringio
 urlerr = util.urlerr
 urlreq = util.urlreq
+
+if TYPE_CHECKING:
+    import http.client
+    import urllib.request
+
+    HTTPResponseT = http.client.HTTPResponse
+    HTTPRequestT = urllib.request.Request
 
 
 def escape(s, quote=None):
@@ -582,6 +591,32 @@ class digesthandler(urlreq.basehandler):
 handlerfuncs = []
 
 
+class _Stream(Protocol):
+    """Simple protocol class to help typing `UrlOpenerT`"""
+
+    @abc.abstractmethod
+    def read(self, size: int = -1, /) -> bytes:
+        ...
+
+
+class UrlOpenerT(Protocol):
+    handlers: list
+    requestscount: int
+    sentbytescount: int
+    receivedbytescount: int
+
+    def open(
+        self,
+        x: HTTPRequestT | str,
+        data: bytes | _Stream | None = None,
+        timeout: float | None = None,
+    ) -> HTTPResponseT:
+        ...
+
+    def add_handler(self, handler: urllib.request.BaseHandler):
+        ...
+
+
 def opener(
     ui,
     authinfo=None,
@@ -591,7 +626,7 @@ def opener(
     loggingopts=None,
     sendaccept=True,
     digest=None,
-):
+) -> UrlOpenerT:
     """
     construct an opener suitable for urllib2
     authinfo will be added to the password manager
@@ -621,7 +656,9 @@ def opener(
     if has_https:
         # pytype get confused about the conditional existence for httpshandler here.
         handlers.append(
-            httpshandler(ui, timeout=timeout)  # pytype: disable=name-error
+            # pytype: disable=name-error
+            httpshandler(ui, timeout=timeout)
+            # pytype: enable=name-error
         )
 
     handlers.append(proxyhandler(ui))
@@ -683,7 +720,7 @@ def opener(
     return opener
 
 
-def open(ui, url_, data=None, sendaccept=True, digest=None):
+def open(ui, url_, data=None, sendaccept=True, digest=None) -> HTTPResponseT:
     u = urlutil.url(url_)
     if u.scheme:
         u.scheme = u.scheme.lower()

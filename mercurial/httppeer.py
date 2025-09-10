@@ -18,8 +18,12 @@ from typing import (
     Any,
     Callable,
     Protocol,
+    TYPE_CHECKING,
 )
 from .i18n import _
+from .interfaces.types import (
+    UiT,
+)
 from . import (
     bundle2,
     error,
@@ -35,6 +39,10 @@ from .utils import urlutil
 httplib = util.httplib
 urlerr = util.urlerr
 urlreq = util.urlreq
+if TYPE_CHECKING:
+    RequestBuilderT = Callable[
+        [str, None | bytes, dict[str, str]], urlmod.HTTPRequestT
+    ]
 
 
 def encodevalueinheaders(value, header, limit):
@@ -136,15 +144,15 @@ class _BytesIO(io.BytesIO):
 
 
 def makev1commandrequest(
-    ui,
-    requestbuilder,
+    ui: UiT,
+    requestbuilder: RequestBuilderT,
     caps,
     capablefn: Callable[[bytes], bool | bytes],
     repobaseurl,
     cmd,
     args: dict[bytes, Any],
     remotehidden=False,
-):
+) -> tuple[urlmod.HTTPRequestT, bytes, bytes]:
     """Make an HTTP request to run a command for a version 1 client.
 
     ``caps`` is a set of known server capabilities. The value may be
@@ -154,6 +162,8 @@ def makev1commandrequest(
 
     ``cmd``, ``args``, and ``data`` define the command, its arguments, and
     raw data to pass to it.
+
+    Return (request, command_url, command_string)
     """
     if cmd == b'pushkey':
         args[b'data'] = b''
@@ -267,7 +277,11 @@ def makev1commandrequest(
     return req, cu, qs
 
 
-def sendrequest(ui, opener, req):
+def sendrequest(
+    ui: UiT,
+    opener: urlmod.UrlOpenerT,
+    req: urlmod.HTTPRequestT,
+) -> urlmod.HTTPResponseT:
     """Send a prepared HTTP request.
 
     Returns the response object.
@@ -401,7 +415,9 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
     # generators.
     if version_info == (0, 1):
         if compressible:
-            resp = util.compengines[b'zlib'].decompressorreader(resp)
+            new_resp = util.compengines[b'zlib'].decompressorreader(resp)
+        else:
+            new_resp = resp
 
     elif version_info == (0, 2):
         # application/mercurial-0.2 always identifies the compression
@@ -410,26 +426,33 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
         ename = util.readexactly(resp, elen)
         engine = util.compengines.forwiretype(ename)
 
-        resp = engine.decompressorreader(resp)
+        new_resp = engine.decompressorreader(resp)
     else:
         raise error.RepoError(
             _(b"'%s' uses newer protocol %s") % (safeurl, subtype)
         )
 
-    return respurl, proto, resp
+    return respurl, proto, new_resp
 
 
 class httppeer(wireprotov1peer.wirepeer):
     def __init__(
-        self, ui, path, url, opener, requestbuilder, caps, remotehidden=False
+        self,
+        ui: UiT,
+        path,
+        url,
+        opener: urlmod.UrlOpenerT,
+        requestbuilder: RequestBuilderT,
+        caps,
+        remotehidden: bool = False,
     ):
         super().__init__(ui, path=path, remotehidden=remotehidden)
         self._url = url
         self._caps = caps
         self.limitedarguments = caps is not None and b'httppostargs' not in caps
-        self._urlopener = opener
-        self._requestbuilder = requestbuilder
-        self._remotehidden = remotehidden
+        self._urlopener: urlmod.UrlOpenerT = opener
+        self._requestbuilder: RequestBuilderT = requestbuilder
+        self._remotehidden: bool = remotehidden
 
     def __del__(self):
         for h in self._urlopener.handlers:
@@ -635,6 +658,7 @@ def performhandshake(ui, url, opener, requestbuilder):
     try:
         rawdata = resp.read()
     finally:
+        # pytype get confused by the mixed types
         resp.close()
 
     if not ct.startswith(b'application/mercurial-'):
@@ -646,7 +670,11 @@ def performhandshake(ui, url, opener, requestbuilder):
 
 
 def _make_peer(
-    ui, path, opener=None, requestbuilder=urlreq.request, remotehidden=False
+    ui: UiT,
+    path,
+    opener: urlmod.UrlOpenerT | None = None,
+    requestbuilder: RequestBuilderT = urlreq.request,
+    remotehidden: bool = False,
 ):
     """Construct an appropriate HTTP peer instance.
 
@@ -665,7 +693,9 @@ def _make_peer(
     url, authinfo = path.url.authinfo()
     ui.debug(b'using %s\n' % url)
 
-    opener = opener or urlmod.opener(ui, authinfo)
+    if opener is None:
+        opener = urlmod.opener(ui, authinfo)
+    assert opener is not None
 
     respurl, info = performhandshake(ui, url, opener, requestbuilder)
 
