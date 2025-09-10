@@ -659,7 +659,7 @@ class _noopengine(compressionengine):
     # revlog special cases the uncompressed case, but implementing
     # revlogheader allows forcing uncompressed storage.
     def revlogheader(self):
-        return b'\0'
+        return i_comp.REVLOG_COMP_NONE
 
     def compressstream(self, it, opts=None):
         return it

@@ -23,6 +23,9 @@ from typing import (
 # this comment it is not used for revlog's internal compression)
 RevlogCompHeader = NewType('RevlogCompHeader', bytes)
 
+REVLOG_COMP_NONE = RevlogCompHeader(b'\0')
+"""The "no-compression" RevlogCompHeader"""
+
 
 class IRevlogCompressor(Protocol):
     @abc.abstractmethod
