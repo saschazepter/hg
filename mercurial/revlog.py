@@ -3285,6 +3285,19 @@ class revlog:
                 sidedata=sidedata,
             )
 
+    @util.propertycache
+    def compatible_compressions(self) -> set[i_comp.RevlogCompHeader]:
+        """set of compresiosn header compatible with this revlog
+
+        Will be used to validate if an incoming compressed delta maybe used as
+        it or not.
+        """
+        current_name = self.feature_config.compression_engine
+        current_engine = util.compengines[current_name]
+        current_header = current_engine.revlogheader()
+        assert current_header is not None
+        return {i_comp.REVLOG_COMP_NONE, current_header}
+
     def compress(self, data: bytes) -> tuple[bytes, bytes]:
         return self._inner.compress(data)
 
