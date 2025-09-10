@@ -1717,122 +1717,133 @@ class deltacomputer:
                 self.decompress_cached(revinfo.cachedelta)
                 delta = revinfo.cachedelta.u_delta
 
-        # Can we use a size estimate for something ?
-        #
-        # See usage below.
-        use_estimate_size = (
-            revlog.delta_config.upper_bound_comp is not None and snapshotdepth
-        )
-
-        # Compute the delta if we could not use an existing one.
-        if delta is not None:
-            delta_size = len(delta)
-        elif (
-            # Try to use delta folding for estimate the final delta size.
+        if True:
+            # Can we use a size estimate for something ?
             #
-            # We can do it when
-            # - it is useful
-            use_estimate_size
-            # - the feature is enabled
-            and revlog.delta_config.delta_fold_estimate
-            # - we have a existing delta we could fold
-            and known_delta is not None
-            # - that delta has uncompressed delta we can use
-            #   (we could decompress the data if needed)
-            and known_delta.u_data is not None
-            # - Its base is stored as a delta against our target base
-            #   (we could do it more broadly if our target base is in the
-            #   "known_delta" delta chain. It "just" requires folding more
-            #   deltas)
-            and (fold_chain := self._fold_chain(base, known_delta.base))
-            is not None
-        ):
-            rl = revlog
-            fold_data = [rl.revdiff(rl.deltaparent(r), r) for r in fold_chain]
-            fold_data.append(known_delta.u_data)
-            delta_size = delta_fold.estimate_combined_deltas_size(fold_data)
-        else:
-            delta = self._builddeltadiff(base, revinfo)
-            delta_size = len(delta)
+            # See usage below.
+            use_estimate_size = (
+                revlog.delta_config.upper_bound_comp is not None
+                and snapshotdepth
+            )
 
-        if self._debug_search:
-            if delta is None:
-                estimated = b"estimated-"
+            # Compute the delta if we could not use an existing one.
+            if delta is not None:
+                delta_size = len(delta)
+            elif (
+                # Try to use delta folding for estimate the final delta size.
+                #
+                # We can do it when
+                # - it is useful
+                use_estimate_size
+                # - the feature is enabled
+                and revlog.delta_config.delta_fold_estimate
+                # - we have a existing delta we could fold
+                and known_delta is not None
+                # - that delta has uncompressed delta we can use
+                #   (we could decompress the data if needed)
+                and known_delta.u_data is not None
+                # - Its base is stored as a delta against our target base
+                #   (we could do it more broadly if our target base is in the
+                #   "known_delta" delta chain. It "just" requires folding more
+                #   deltas)
+                and (fold_chain := self._fold_chain(base, known_delta.base))
+                is not None
+            ):
+                rl = revlog
+                fold_data = [
+                    rl.revdiff(rl.deltaparent(r), r) for r in fold_chain
+                ]
+                fold_data.append(known_delta.u_data)
+                delta_size = delta_fold.estimate_combined_deltas_size(fold_data)
             else:
-                estimated = b""
-            msg = b"DBG-DELTAS-SEARCH:     %suncompressed-delta-size=%d\n"
-            msg %= (estimated, delta_size)
-            self._write_debug(msg)
+                delta = self._builddeltadiff(base, revinfo)
+                delta_size = len(delta)
 
-        # Estimate the size of intermediate snapshot need to be smaller than:
-        #
-        #  1) the previous snapshot
-        #  2) <size-of-full-text> / 2 ** (<snapshot-level>)
-        #
-        # This only apply to intermediate snapshot so snapshotdept need to be
-        # neither None (not a snapshot) nor 0 (initial snapshot).
-        if revlog.delta_config.upper_bound_comp is not None and snapshotdepth:
-            lowestrealisticdeltalen = (
-                delta_size // revlog.delta_config.upper_bound_comp
-            )
             if self._debug_search:
-                msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
-                msg %= lowestrealisticdeltalen
+                if delta is None:
+                    estimated = b"estimated-"
+                else:
+                    estimated = b""
+                msg = b"DBG-DELTAS-SEARCH:     %suncompressed-delta-size=%d\n"
+                msg %= (estimated, delta_size)
                 self._write_debug(msg)
 
-            snapshotlimit = revinfo.textlen >> snapshotdepth
-            if snapshotlimit < lowestrealisticdeltalen:
-                if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     DISCARDED (snapshot limit)\n"
-                    self._write_debug(msg)
-                return None
-
-            if revlog.length(base) < lowestrealisticdeltalen:
-                if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
-                    self._write_debug(msg)
-                return None
-
-        # If we still have not delta, finally Compute it delta if we could not use an existing one.
-        if delta is None:
-            delta = self._builddeltadiff(base, revinfo)
-            if self._debug_search:
-                msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
-                msg %= len(delta)
-                self._write_debug(msg)
-
-        if optimize_by_folding is not None:
-            new_delta_base = delta_fold.optimize_base(
-                delta,
-                self._iter_fold_candidates(deltabase),
-                int(len(delta) * optimize_by_folding),
-            )
-
-            if new_delta_base == nullrev:
-                # we collapsed the full stack, lets do a full snapshot
-                if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
-                    msg %= deltabase
-                    self._write_debug(msg)
-                return self._fullsnapshotinfo(
-                    revinfo,
-                    target_rev,
+            # Estimate the size of intermediate snapshot need to be smaller than:
+            #
+            #  1) the previous snapshot
+            #  2) <size-of-full-text> / 2 ** (<snapshot-level>)
+            #
+            # This only apply to intermediate snapshot so snapshotdept need to be
+            # neither None (not a snapshot) nor 0 (initial snapshot).
+            if (
+                revlog.delta_config.upper_bound_comp is not None
+                and snapshotdepth
+            ):
+                lowestrealisticdeltalen = (
+                    delta_size // revlog.delta_config.upper_bound_comp
                 )
-            elif new_delta_base is not None:
-                delta = self._builddeltadiff(new_delta_base, revinfo)
-                base = deltabase = new_delta_base
-                if snapshotdepth is not None:
-                    snapshotdepth = len(revlog._deltachain(base)[0])
                 if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
-                    msg %= deltabase
+                    msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
+                    msg %= lowestrealisticdeltalen
                     self._write_debug(msg)
-                    msg = b"DBG-DELTAS-SEARCH:       delta-size=%d\n"
+
+                snapshotlimit = revinfo.textlen >> snapshotdepth
+                if snapshotlimit < lowestrealisticdeltalen:
+                    if self._debug_search:
+                        msg = b"DBG-DELTAS-SEARCH:     DISCARDED (snapshot limit)\n"
+                        self._write_debug(msg)
+                    return None
+
+                if revlog.length(base) < lowestrealisticdeltalen:
+                    if self._debug_search:
+                        msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
+                        self._write_debug(msg)
+                    return None
+
+            # If we still have not delta, finally Compute it delta if we could not use an existing one.
+            if delta is None:
+                delta = self._builddeltadiff(base, revinfo)
+                if self._debug_search:
+                    msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
                     msg %= len(delta)
                     self._write_debug(msg)
 
-        # try to compress the delta
-        header, data = revlog._inner.compress(delta)
+            if optimize_by_folding is not None:
+                new_delta_base = delta_fold.optimize_base(
+                    delta,
+                    self._iter_fold_candidates(deltabase),
+                    int(len(delta) * optimize_by_folding),
+                )
+
+                if new_delta_base == nullrev:
+                    # we collapsed the full stack, lets do a full snapshot
+                    if self._debug_search:
+                        msg = (
+                            b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
+                        )
+                        msg %= deltabase
+                        self._write_debug(msg)
+                    return self._fullsnapshotinfo(
+                        revinfo,
+                        target_rev,
+                    )
+                elif new_delta_base is not None:
+                    delta = self._builddeltadiff(new_delta_base, revinfo)
+                    base = deltabase = new_delta_base
+                    if snapshotdepth is not None:
+                        snapshotdepth = len(revlog._deltachain(base)[0])
+                    if self._debug_search:
+                        msg = (
+                            b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
+                        )
+                        msg %= deltabase
+                        self._write_debug(msg)
+                        msg = b"DBG-DELTAS-SEARCH:       delta-size=%d\n"
+                        msg %= len(delta)
+                        self._write_debug(msg)
+
+            # try to compress the delta
+            header, data = revlog._inner.compress(delta)
 
         # compute information about the resulting chain
         deltalen = len(header) + len(data)
