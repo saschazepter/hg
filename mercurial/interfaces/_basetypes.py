@@ -15,6 +15,12 @@ from __future__ import annotations
 
 from typing import Any
 
+NeedsTypeHint = Any
+"""A custom version of Any to signal a that Any was used temporarily
+
+Feel free to turn occurrences of this in proper typing.
+"""
+
 UserMsgT = bytes
 """Text (maybe) displayed to the user."""
 

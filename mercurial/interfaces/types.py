@@ -19,6 +19,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     CallbackCategoryT,
     FsPathT,
     HgPathT,
+    NeedsTypeHint,
     NodeIdT,
     RepoT,
     RevlogT,
