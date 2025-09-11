@@ -1,3 +1,26 @@
+# Mercurial 7.1.1 (2025-09-10)
+
+A scheduled minor release containing only one series that is relevant for these notes. 
+
+The series fixes the way we detect non-critical repository corruption due to issue6528 because, unfortunately, the fix for issue6528 was itself buggy.
+
+This means that if your repo had the on-the-fly rewrite option on (which is the default), too many file revisions will have been marked as having metadata, potentially costing you a bit of performance because Mercurial will look for metadata that isn't there.
+
+**Your repository will behave completely fine by not doing anything**, and we even have work well underway that changes how we flag file revisions with metadata, removing the root of this problem entirely.
+
+If you want to fix this however, as with the original issue, this problem is contagious across the wire so you need to first upgrade to 7.1.1 to get the correct on-the-fly rewrite, and then run the `hg debug-repair-issue6528` command to repair your clone. Consult the help of this command for more options.
+
+ * issue6528: fix the detection of metadata from delta
+ * issue6528: avoid creating an intermediate bytes object
+ * issue6528: don't process snapshot as patches
+ * issue6528: fix fast path detection of file with metadata
+ * issue6528: don't report the revision as affect if it just has me
+ * issue6528: factor out the parent checking
+ * issue6528: stop trusting repository parent order claiming metadata ex
+ * issue6528: add --paranoid flag to various call
+ * issue6528: simplify code flow in _is_revision_affected_fast_inner
+ * issue6528: directly use delta_has_meta in _is_revision_affected_fast_inner
+
 # Mercurial 7.1 (2025-08-04)
 
 This release is the first that does **not** support Python 3.8.

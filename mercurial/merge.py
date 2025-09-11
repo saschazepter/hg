@@ -1702,6 +1702,8 @@ def _update_rust_fast_path(
             if repo.ui.configbool(b"worker", b"enabled")
             else 1
         )
+        ignored_conflict = repo.ui.config(b"merge", b"checkignored")
+        unknown_conflict = repo.ui.config(b"merge", b"checkunknown")
 
         try:
             dirstate = repo.dirstate
@@ -1716,6 +1718,8 @@ def _update_rust_fast_path(
                     num_cpus=num_cpus,
                     on_warnings=on_rust_warnings,
                     devel_abort_dirstate=devel_abort_dirstate,
+                    ignored_conflict=ignored_conflict,
+                    unknown_conflict=unknown_conflict,
                 )
                 dirstate._dirty = True
                 # In the narrow (pun intended) case of a narrowed repo whose
@@ -1776,6 +1780,8 @@ def _update_rust_fast_path(
             atomic_file = repo.ui.configbool(
                 b"experimental", b"update.atomic-file"
             )
+            ignored_conflict = repo.ui.config(b"merge", b"checkignored")
+            unknown_conflict = repo.ui.config(b"merge", b"checkunknown")
 
             try:
                 with util.rust_tracing_span("update from clean python"):
@@ -1798,6 +1804,8 @@ def _update_rust_fast_path(
                             orig_backup_path=orig_backup_path,
                             atomic_file=atomic_file,
                             on_warnings=on_rust_warnings,
+                            ignored_conflict=ignored_conflict,
+                            unknown_conflict=unknown_conflict,
                         )
                         dirstate._dirty = True
                         # added or removed
