@@ -637,6 +637,26 @@ class optimization(improvement):
 
 
 @register_optimization
+class ReDeltaQuick(optimization):
+    name = b're-delta-quick'
+
+    type = OPTIMISATION
+
+    description = _(
+        b'deltas within internal storage will be reprocessed with minimal '
+        b'overhead, deltas already in store will be reused as often as '
+        b'possible. This provides a way to smooth out potential problematic '
+        b'deltas while avoiding deeper but slower optimization that might '
+        b'not be necessary'
+    )
+
+    upgrademessage = _(
+        b"deltas within internal storage will choose a new "
+        b"base revision when the previous one wasn't suitable"
+    )
+
+
+@register_optimization
 class redeltaparents(optimization):
     name = b're-delta-parent'
 
@@ -845,6 +865,8 @@ class UpgradeOperation(BaseOperation):
             self.delta_reuse_mode = revlog.revlog.DELTAREUSESAMEREVS
         elif b're-delta-fulladd' in upgrade_actions_names:
             self.delta_reuse_mode = revlog.revlog.DELTAREUSEFULLADD
+        elif b're-delta-quick' in upgrade_actions_names:
+            self.delta_reuse_mode = revlog.revlog.DELTAREUSEALWAYS
 
         # should this operation force re-delta of both parents
         self.force_re_delta_both_parents = (

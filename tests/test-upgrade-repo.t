@@ -415,6 +415,9 @@ An upgrade of a repository created with recommended settings only suggests optim
   
   additional optimizations are available by specifying "--optimize <name>":
   
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
+  
   re-delta-parent
      deltas within internal storage will be recalculated to choose an optimal base revision where this was not already done; the size of the repository may shrink and various operations may become faster; the first time this optimization is performed could slow down upgrade execution considerably; subsequent invocations should not run noticeably slower
   
@@ -458,6 +461,9 @@ An upgrade of a repository created with recommended settings only suggests optim
   
   additional optimizations are available by specifying "--optimize <name>":
   
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
+  
   re-delta-multibase
      deltas within internal storage will be recalculated against multiple base revision and the smallest difference will be used; the size of the repository may shrink significantly when there are many merges; this optimization will slow down execution in proportion to the number of merges in the repository and the amount of files in the repository; this slow down should not be significant unless there are tens of thousands of files and thousands of merges
   
@@ -489,6 +495,9 @@ modern form of the option
     - manifest
   
   additional optimizations are available by specifying "--optimize <name>":
+  
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
   
   re-delta-multibase
      deltas within internal storage will be recalculated against multiple base revision and the smallest difference will be used; the size of the repository may shrink significantly when there are many merges; this optimization will slow down execution in proportion to the number of merges in the repository and the amount of files in the repository; this slow down should not be significant unless there are tens of thousands of files and thousands of merges
@@ -681,6 +690,9 @@ Various sub-optimal detections work
   
   additional optimizations are available by specifying "--optimize <name>":
   
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
+  
   re-delta-parent
      deltas within internal storage will be recalculated to choose an optimal base revision where this was not already done; the size of the repository may shrink and various operations may become faster; the first time this optimization is performed could slow down upgrade execution considerably; subsequent invocations should not run noticeably slower
   
@@ -783,6 +795,9 @@ Check that disabling general-delta also disable sparse-revlog
     - manifest
   
   additional optimizations are available by specifying "--optimize <name>":
+  
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
   
   re-delta-parent
      deltas within internal storage will be recalculated to choose an optimal base revision where this was not already done; the size of the repository may shrink and various operations may become faster; the first time this optimization is performed could slow down upgrade execution considerably; subsequent invocations should not run noticeably slower
