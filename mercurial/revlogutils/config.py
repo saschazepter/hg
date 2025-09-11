@@ -136,6 +136,8 @@ class DeltaConfig(_Config):
     lazy_delta = attr.ib(default=True, type=bool)
     # trust the base of incoming delta by default
     lazy_delta_base = attr.ib(default=False, type=bool)
+    # trust the incoming compression if available (and compatible)
+    lazy_compression = attr.ib(default=True, type=bool)
     # don't used incoming delta if they don't look optimal
     filter_suspicious_delta = attr.ib(default=False, type=bool)
     # check integrity of candidate bases before computing a delta against them

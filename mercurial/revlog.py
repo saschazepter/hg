@@ -3938,6 +3938,7 @@ class revlog:
         destrevlog,
         addrevisioncb=None,
         deltareuse=DELTAREUSESAMEREVS,
+        reuse_compression=None,
         forcedeltabothparents=None,
         sidedata_helpers=None,
         hasmeta_change=None,
@@ -3988,6 +3989,11 @@ class revlog:
         argument controls whether to force compute deltas against both parents
         for merges. By default, the current default is used.
 
+        If ``reuse_compression`` is True, the cloning process will be provided
+        compressed delta and will reuse them directly when possible. By
+        default, the current default for that revlog is used. (seed the
+        `storage.revlog.reuse-external-delta-compression` config)
+
         See `revlogutil.sidedata.get_sidedata_helpers` for the doc on
         `sidedata_helpers`.
         """
@@ -4028,6 +4034,9 @@ class revlog:
                 forcedeltabothparents or old_delta_config.delta_both_parents
             )
             destrevlog.delta_config.delta_both_parents = delta_both_parents
+
+            if reuse_compression is not None:
+                destrevlog.delta_config.lazy_compression = reuse_compression
 
             with self.reading(), destrevlog._writing(tr):
                 self._clone(

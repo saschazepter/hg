@@ -1695,6 +1695,8 @@ class deltacomputer:
 
         # can we use the cached delta?
         delta = None
+        header = None
+        data = None
         if revinfo.cachedelta:
             cachebase = revinfo.cachedelta.base
             # check if the diff still apply
@@ -1714,10 +1716,27 @@ class deltacomputer:
                     # folding the incoming delta should only produce better
                     # chain, so the risk is probably slow.
                     optimize_by_folding = None
-                self.decompress_cached(revinfo.cachedelta)
-                delta = revinfo.cachedelta.u_delta
+                if (
+                    optimize_by_folding is None
+                    and revlog.delta_config.lazy_compression
+                    and revinfo.cachedelta.c_delta is not None
+                ):
+                    comp = revinfo.cachedelta.compression
+                    if comp == compression.REVLOG_COMP_NONE:
+                        data = revinfo.cachedelta.c_delta
+                        if data.startswith(b'\0'):
+                            header = b''
+                        else:
+                            header = b'u'
+                    elif comp in revlog.compatible_compressions:
+                        header = b''
+                        data = revinfo.cachedelta.c_delta
 
-        if True:
+                if data is None:
+                    self.decompress_cached(revinfo.cachedelta)
+                    delta = revinfo.cachedelta.u_delta
+
+        if data is None:
             # Can we use a size estimate for something ?
             #
             # See usage below.

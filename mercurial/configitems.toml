@@ -2498,6 +2498,14 @@ supporting sparse-revlog"""
 
 [[items]]
 section = "storage"
+name = "revlog.reuse-external-delta-compression"
+default = true
+experimental = true
+documentation = """When True, reuse the compression of incoming delta when receiving a compressed delta and its compression type is compatible with the one used by the revlog.
+"""
+
+[[items]]
+section = "storage"
 name = "revlog.validate-delta-base"
 default = false
 documentation = """Validate the integrity of bases when computing deltas.

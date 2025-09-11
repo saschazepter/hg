@@ -157,6 +157,10 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
         b'storage',
         b'revlog.reuse-external-suspicious-delta-parent',
     )
+    delta_config.lazy_compression = ui.configbool(
+        b'storage',
+        b'revlog.reuse-external-delta-compression',
+    )
 
     chainspan = ui.configbytes(b'experimental', b'maxdeltachainspan')
     if 0 <= chainspan:

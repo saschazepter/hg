@@ -221,6 +221,11 @@ class compressormanager:
         """
         return self._engines[self._revlogheaders[header]]
 
+    def compatible_with(
+        self, header: i_comp.RevlogCompHeader, name: bytes
+    ) -> bool:
+        return self.forrevlogheader(header).name() == name
+
 
 compengines: compressormanager = compressormanager()
 

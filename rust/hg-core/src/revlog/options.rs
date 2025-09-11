@@ -274,6 +274,8 @@ pub struct RevlogDeltaConfig {
     pub lazy_delta: bool,
     /// Trust the base of incoming deltas by default
     pub lazy_delta_base: bool,
+    /// Trust the compression of incoming deltas (when avaiable and compatible)
+    pub lazy_compression: bool,
     /// A theoretical maximum compression ratio for file content
     /// Used to estimate delta size before compression. value <= 0 disable such
     /// estimate.
@@ -330,6 +332,9 @@ impl RevlogDeltaConfig {
         delta_config.lazy_delta = lazy_delta;
         delta_config.lazy_delta_base = lazy_delta_base;
 
+        delta_config.lazy_compression = config
+            .get_bool(b"storage", b"revlog.reuse-external-delta-compression")?;
+
         delta_config.max_deltachain_span =
             match config.get_i64(b"experimental", b"maxdeltachainspan")? {
                 Some(span) => {
@@ -377,6 +382,7 @@ impl Default for RevlogDeltaConfig {
         Self {
             delta_both_parents: true,
             lazy_delta: true,
+            lazy_compression: true,
             general_delta: Default::default(),
             sparse_revlog: Default::default(),
             delta_info: Default::default(),
