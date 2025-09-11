@@ -118,6 +118,9 @@ class CachedDelta:
     When `c_delta` is None, the value in this attribute is irrelevant.
     """
 
+    fulltext_length = attr.ib(type=Optional[int], default=None)
+    """length of the full text created by this patch"""
+
 
 @attr.s(slots=True)
 class revisioninfo:

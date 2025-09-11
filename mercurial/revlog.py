@@ -3422,11 +3422,14 @@ class revlog:
         # become comparable to the uncompressed text
         if rawtext is None:
             assert cachedelta is not None
-            # need rawtext size, before changed by flag processors, which is
-            # the non-raw size.
-            base_size = self.size(cachedelta.base)
-            deltacomputer.decompress_cached(cachedelta)  # populate u_delta
-            textlen = mdiff.patchedsize(base_size, cachedelta.u_delta)
+            if cachedelta.fulltext_length is not None:
+                textlen = cachedelta.fulltext_length
+            else:
+                # need rawtext size, before changed by flag processors, which is
+                # the non-raw size.
+                base_size = self.size(cachedelta.base)
+                deltacomputer.decompress_cached(cachedelta)  # populate u_delta
+                textlen = mdiff.patchedsize(base_size, cachedelta.u_delta)
         else:
             textlen = len(rawtext)
 
@@ -4184,6 +4187,7 @@ class revlog:
                             compression=comp,
                             reuse_policy=delta_base_reuse,
                             snapshot_level=snapshotdepth,
+                            fulltext_length=self.size(rev),
                         )
 
                 sidedata = None
