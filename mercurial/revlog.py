@@ -3423,12 +3423,10 @@ class revlog:
         if rawtext is None:
             assert cachedelta is not None
             # need rawtext size, before changed by flag processors, which is
-            # the non-raw size. use revlog explicitly to avoid filelog's extra
-            # logic that might remove metadata size.
+            # the non-raw size.
+            base_size = self.size(cachedelta.base)
             deltacomputer.decompress_cached(cachedelta)  # populate u_delta
-            textlen = mdiff.patchedsize(
-                revlog.size(self, cachedelta.base), cachedelta.u_delta
-            )
+            textlen = mdiff.patchedsize(base_size, cachedelta.u_delta)
         else:
             textlen = len(rawtext)
 
