@@ -1,86 +1,87 @@
-= Mercurial 6.6.3 =
+# Mercurial 6.6 (2023-11-07)
 
- * tests: don't use "status" operand of dd in test-censor.t (issue6858)
- * tests: make sha256line.py available for all tests
- * tests: use sha256line.py instead of /dev/random in test-censor.t (issue6858)
- * tests: fix nondeterministic test failure in test-contrib-perf.t
- * rust-changelog: don't panic on empty file lists
- * grep: restore usage of --include/--exclude options
+## Mercurial 6.6.3 
 
- = Mercurial 6.6.2 =
+- tests: don't use "status" operand of dd in test-censor.t (issue6858)
+- tests: make sha256line.py available for all tests
+- tests: use sha256line.py instead of /dev/random in test-censor.t (issue6858)
+- tests: fix nondeterministic test failure in test-contrib-perf.t
+- rust-changelog: don't panic on empty file lists
+- grep: restore usage of --include/--exclude options
 
- * histedit: remove superfluous echo() and endwin() calls (issue6859)
- * persistent-nodemap: avoid writing nodemap for empty revlog
- * persistent-nodemap: respect the mmap setting when refreshing data
- * bundle: do not detect --base argument that match nothing as lack of argument
- * narrow: prevent removal of ACL-defined excludes
- * pycompat: fix bytestr(bytes) in Python 3.11
+## Mercurial 6.6.2 
 
-= Mercurial 6.6.1 =
+- histedit: remove superfluous echo() and endwin() calls (issue6859)
+- persistent-nodemap: avoid writing nodemap for empty revlog
+- persistent-nodemap: respect the mmap setting when refreshing data
+- bundle: do not detect --base argument that match nothing as lack of argument
+- narrow: prevent removal of ACL-defined excludes
+- pycompat: fix bytestr(bytes) in Python 3.11
+
+## Mercurial 6.6.1 
 
 The first two patches fix aborted transactions that could happen since 6.6.
 
- * revlog: avoid exposing delayed index entry too widely in non-inline revlog
- * revlog: avoid wrongly updating the data file location on "divert"
- * tests: do not fail tests in a state with uncommitted .py file removal
- * perf-tags: fix the --clear-fnode-cache-rev code
- * perf-tags: fix clear_cache_fnodes to actually clear that cache
- * censor: fix things around inlining
- * Various Python 3 cleanups
- * Various Windows test suite fixes
+- revlog: avoid exposing delayed index entry too widely in non-inline revlog
+- revlog: avoid wrongly updating the data file location on "divert"
+- tests: do not fail tests in a state with uncommitted .py file removal
+- perf-tags: fix the --clear-fnode-cache-rev code
+- perf-tags: fix clear_cache_fnodes to actually clear that cache
+- censor: fix things around inlining
+- Various Python 3 cleanups
+- Various Windows test suite fixes
 
-= Mercurial 6.6 =
+## Mercurial 6.6 
 
 As usual, a *lot* of patches don't make it to this list.
 
-== New Features ==
- * rust-config: add support for default config items
- * rhg: add config defaults to configitems.toml
- * rhg: support "status FILE"
- * rhg: support rhg files [FILE]
- * commands: add admin namespace
- * admin-command: add verify command
- * debug-delta-chain: add options to control what we compute
- * Added some caching for uncompressed revlog chunks that speed up some operations
+### New Features 
+- rust-config: add support for default config items
+- rhg: add config defaults to configitems.toml
+- rhg: support "status FILE"
+- rhg: support rhg files [FILE]
+- commands: add admin namespace
+- admin-command: add verify command
+- debug-delta-chain: add options to control what we compute
+- Added some caching for uncompressed revlog chunks that speed up some operations
 
-== New Experimental Features ==
+### New Experimental Features 
 
-== Bug Fixes ==
- * Improve OpenVMS support
- * byteify-strings: passe sysstr to attr function and wrapper
- * journal: track bookmark deletion
- * transaction: actually delete file created during the transaction on rollback
- * pull: avoid referencing a variable before it is initialized
- * rust-filepatterns: also normalize RelPath
- * narrow: hoist a variable to a higher level to avoid use-before-init warning
- * convert: stabilize subversion date sorter
- * run-tests: detect HGWITHRUSTEXT value
- * censor: accept censored revision during upgrade
- * rust-matchers: fix quadratic complexity in `FileMatcher`
- * unstable: do not consider internal phases when computing unstable
- * Still a whole bunch of Python 2 -> 3 migration leftovers
+### Bug Fixes 
+- Improve OpenVMS support
+- byteify-strings: passe sysstr to attr function and wrapper
+- journal: track bookmark deletion
+- transaction: actually delete file created during the transaction on rollback
+- pull: avoid referencing a variable before it is initialized
+- rust-filepatterns: also normalize RelPath
+- narrow: hoist a variable to a higher level to avoid use-before-init warning
+- convert: stabilize subversion date sorter
+- run-tests: detect HGWITHRUSTEXT value
+- censor: accept censored revision during upgrade
+- rust-matchers: fix quadratic complexity in `FileMatcher`
+- unstable: do not consider internal phases when computing unstable
+- Still a whole bunch of Python 2 -> 3 migration leftovers
 
-== Backwards Compatibility Changes ==
- * perf: display all timing by default
- * infinitepush: drop the extension
- * debug-delta-chain: print less data by default
+### Backwards Compatibility Changes 
+- perf: display all timing by default
+- infinitepush: drop the extension
+- debug-delta-chain: print less data by default
 
-== Internal API Changes ==
+### Internal API Changes 
 
- * The revlog interface has been significantly cleaned up.
- * configitems: add `documentation` field
- * configitems: declare items in a TOML file
- * configitems: move blackbox's config items to the new configitems.toml
- * path-suboption: deprecated specifying the attributes as bytes
- * pycompat: deprecate using bytes
- * check-code: drop the `safehasattr` rule
- * safehasattr: drop usage in favor of hasattr
- * rust: add `UncheckedRevision` type
- * rust: implement the `Graph` trait for all revlogs
- * rust: make `Revision` a newtype
- * perf: change the way we approach revlog reading
- * perf: ensure all readlog's reading is done within a `reading` context
- * delta-chain: move the debugdeltachain command in revlogutils
+- The revlog interface has been significantly cleaned up.
+- configitems: add `documentation` field
+- configitems: declare items in a TOML file
+- configitems: move blackbox's config items to the new configitems.toml
+- path-suboption: deprecated specifying the attributes as bytes
+- pycompat: deprecate using bytes
+- check-code: drop the `safehasattr` rule
+- safehasattr: drop usage in favor of hasattr
+- rust: add `UncheckedRevision` type
+- rust: implement the `Graph` trait for all revlogs
+- rust: make `Revision` a newtype
+- perf: change the way we approach revlog reading
+- perf: ensure all readlog's reading is done within a `reading` context
+- delta-chain: move the debugdeltachain command in revlogutils
 
-== Miscellaneous ==
-
+### Miscellaneous 

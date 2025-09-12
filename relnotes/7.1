@@ -1,6 +1,8 @@
-# Mercurial 7.1.1 (2025-09-10)
+# Mercurial 7.1 (2025-08-04)
 
-A scheduled minor release containing only one series that is relevant for these notes. 
+## Mercurial 7.1.1
+
+A scheduled minor release containing only one series that is relevant for these notes.
 
 The series fixes the way we detect non-critical repository corruption due to issue6528 because, unfortunately, the fix for issue6528 was itself buggy.
 
@@ -10,24 +12,24 @@ This means that if your repo had the on-the-fly rewrite option on (which is the 
 
 If you want to fix this however, as with the original issue, this problem is contagious across the wire so you need to first upgrade to 7.1.1 to get the correct on-the-fly rewrite, and then run the `hg debug-repair-issue6528` command to repair your clone. Consult the help of this command for more options.
 
- * issue6528: fix the detection of metadata from delta
- * issue6528: avoid creating an intermediate bytes object
- * issue6528: don't process snapshot as patches
- * issue6528: fix fast path detection of file with metadata
- * issue6528: don't report the revision as affect if it just has me
- * issue6528: factor out the parent checking
- * issue6528: stop trusting repository parent order claiming metadata ex
- * issue6528: add --paranoid flag to various call
- * issue6528: simplify code flow in _is_revision_affected_fast_inner
- * issue6528: directly use delta_has_meta in _is_revision_affected_fast_inner
+* issue6528: fix the detection of metadata from delta
+* issue6528: avoid creating an intermediate bytes object
+* issue6528: don't process snapshot as patches
+* issue6528: fix fast path detection of file with metadata
+* issue6528: don't report the revision as affect if it just has me
+* issue6528: factor out the parent checking
+* issue6528: stop trusting repository parent order claiming metadata ex
+* issue6528: add --paranoid flag to various call
+* issue6528: simplify code flow in _is_revision_affected_fast_inner
+* issue6528: directly use delta_has_meta in _is_revision_affected_fast_inner
 
-# Mercurial 7.1 (2025-08-04)
+## Mercurial 7.1
 
 This release is the first that does **not** support Python 3.8.
 
 As always, a lot of patches don't make it to the release notes.
 
-## New Features
+### New Features
 
 * share: add a `--share-source` argument to `hg root`
 * fastexport: make it possible to ignore `.gitmodules` in the source repository
@@ -68,11 +70,11 @@ Developer tooling
 * setup-dev-tools: add make target to format the working copy using `fix`
 * setup-dev-tools: add make target to format the current stack using `fix`
 
-## Default Format Change
+### Default Format Change
 
 No default format changes this version.
 
-## New Experimental Features
+### New Experimental Features
 
 Following last version's "update from null", this is a Rust version of the update logic when all tracked files are clean and we are not merging. It is on by default if you have Rust enabled: if you encounter any problems use `rust.update-from-clean=no` to disable it, and please let us know what the problem is.
 
@@ -91,7 +93,7 @@ A temporary store encoding that should only exist for one version of Mercurial, 
 * store: add a first version of a "plain" encoding
 * rust: add support for plain encoding
 
-## Bug Fixes
+### Bug Fixes
 
 * diff: fix function name context detection (issue6965)
 * merge: filter ambiguous files and/or wait for fs tick in `applyupdates`
@@ -108,7 +110,7 @@ A temporary store encoding that should only exist for one version of Mercurial, 
 * ui: avoid a str interpolation into bytes crash in `fixconfig()`
 * contrib-hgk: use plain ascii `(C)` instead of latin1 symbol"
 
-## Backwards Compatibility Changes
+### Backwards Compatibility Changes
 
 * fastexport: add support for Git subrepositories (BC)
 * pycompat: drop support for Python 3.8 (BC)
@@ -116,12 +118,12 @@ A temporary store encoding that should only exist for one version of Mercurial, 
 * contrib: delete debugshell extension
 * rust: update minimum Rust supported version to 1.85.1 for the 7.1 cycle
 
-## Internal API Changes
+### Internal API Changes
 
 * revlog: add "writable" parameter to revlog
 * revlog: enforce that filelog get the `writable` parameter passed
 
-## Miscellaneous
+### Miscellaneous
 
 As with every release for a while, there were a ton of patches helping with adding typing information to our Python code, and catching bugs while doing so. The Pytype CI job itself was upgraded to be more helpful.
 

@@ -1,102 +1,108 @@
-= Mercurial 6.0.3 =
+# Mercurial 6.0 (2021-11-17)
 
-  * Fix an infinite loop in edge cases of the pure Python dirstate-v2 packer
-  * Fix a small race condition with deleted files in Rust-augmented status
-  * Small improvement to Python 3.11 compatibility
-  * Fixed some typos in help messages that caused missing sections
-  * Centos -> Rockylinux packaging
+This release was delayed due to the ongoing efforts to improve robustness of the UX on Windows, especially on Python 3.
 
-= Mercurial 6.0.2 =
+This was supposed to be the last release to support Python 2, but it was instead decided to wait until 6.2. 6.1 is the last release to support Python 2. 
 
-  * Fix `hg incoming` and `hg outgoing` with remote subrepos on Windows
-  * Fix Rust build on MacOS
-  * Fix a (15 year old?) bug where some data loss could happen in a very tight race window (f38ae2d7390e + ccd9cb73125c)
-  * Remove support for running `hg unamend` on merge changesets at it was never actually implemented
-  * Fix stream-clone requirements filtering which caused some stream-clones to be unusable from an older version of Mercurial
-  * Rename dirstate-v2 configuration name from `exp-rc-dirstate-v2` to `use-dirstate-v2`. This was overlooked in `6.0`, the old name will be kept as an alias for compatibility.
-  * Fix a bug where the branchmap could point to uncommitted data 
+## Mercurial 6.0.3 
 
-= Mercurial 6.0.1 =
+ - Fix an infinite loop in edge cases of the pure Python dirstate-v2 packer
+ - Fix a small race condition with deleted files in Rust-augmented status
+ - Small improvement to Python 3.11 compatibility
+ - Fixed some typos in help messages that caused missing sections
+ - Centos -> Rockylinux packaging
 
-  * Improve documentation around Rust (see hg help rust) and rust-related actions
-  * Improve upgrade/downgrade edge cases for dirstate-v2
-  * Make the test suite nicer to big-endian platforms
-  * Make the test suite nicer to NetBSD
-  * Fix a performance regression on fsmonitor (issue6612)
-  * Add fixes for Python 3.10
-  * Fix a deadlock when using sparse and share-safe together 
 
-= Mercurial 6.0 =
+## Mercurial 6.0.2 
 
-== New Features ==
-  * `debugrebuildfncache` now has an option to rebuild only the index files
-  * a new `bookmarks.mode` path option have been introduced to control the
-    bookmark update strategy during exchange with a peer. See `hg help paths` for
-    details.
-  * a new `bookmarks.mirror` option has been introduced. See `hg help bookmarks`
-   for details.
-  * more commands support detailed exit codes when config `ui.detailed-exit-codes` is enabled 
+ - Fix `hg incoming` and `hg outgoing` with remote subrepos on Windows
+ - Fix Rust build on MacOS
+ - Fix a (15 year old?) bug where some data loss could happen in a very tight race window (f38ae2d7390e + ccd9cb73125c)
+ - Remove support for running `hg unamend` on merge changesets at it was never actually implemented
+ - Fix stream-clone requirements filtering which caused some stream-clones to be unusable from an older version of Mercurial
+ - Rename dirstate-v2 configuration name from `exp-rc-dirstate-v2` to `use-dirstate-v2`. This was overlooked in `6.0`, the old name will be kept as an alias for compatibility.
+ - Fix a bug where the branchmap could point to uncommitted data
 
-== Default Format Change ==
+## Mercurial 6.0.1 
 
-== New Experimental Features ==
+ - Improve documentation around Rust (see `hg help rust`) and rust-related actions
+ - Improve upgrade/downgrade edge cases for `dirstate-v2`
+ - Make the test suite nicer to big-endian platforms
+ - Make the test suite nicer to NetBSD
+ - Fix a performance regression on fsmonitor (issue6612)
+ - Add fixes for Python 3.10
+ - Fix a deadlock when using `sparse` and `share-safe` together
 
- * '''Major feature''': version 2 of the dirstate is available (the first version is as old as Mercurial itself). It allows for much faster working copy inspection (status, diff, commit, update, etc.) and richer information (symlink and exec info on Windows, etc.). The format has been frozen with room for some future evolution and the current implementations (Python, Python + C, Python + Rust or pure Rust) should be compatible with any future change or optimization that the format allows. You can get more information [[https://www.mercurial-scm.org/repo/hg/file/tip/mercurial/helptext/internals/dirstate-v2.txt | in the internal documentation]]
- * Added a new `web.full-garbage-collection-rate` to control performance. See
+## Mercurial 6.0 
+### New Features 
+ - `debugrebuildfncache` now has an option to rebuild only the index files
+ - a new `bookmarks.mode` path option have been introduced to control the bookmark update strategy during exchange with a peer. See `hg help config` and look for section `paths` for details.
+ - the new `bookmarks.mode` paths option supports the new mode `mirror`. See `hg help config` and look for section `paths` for details.
+ - more commands support detailed exit codes when config `ui.detailed-exit-codes` is enabled
+
+### Default Format Change 
+
+### New Experimental Features 
+
+- '''Major feature''': version 2 of the dirstate is available (the first version is as old as Mercurial itself). It allows for much faster working copy inspection (status, diff, commit, update, etc.) and richer information (symlink and exec info on Windows, etc.). The format has been frozen with room for some future evolution and the current implementations (Python, Python + C, Python + Rust or pure Rust) should be compatible with any future change or optimization that the format allows. You can get more information [[https://www.mercurial-scm.org/repo/hg/file/tip/mercurial/helptext/internals/dirstate-v2.txt | in the internal documentation]]
+- Added a new `web.full-garbage-collection-rate` to control performance. See
    de2e04fe4897a554b9ef433167f11ea4feb2e09c for more information
- * Added a new `histedit.later-commits-first` option to affect the ordering of commits in `chistedit` to match the order in `hg log -G`. It will affect the text-based version before graduating from experimental.
+- Added a new `histedit.later-commits-first` option to affect the ordering of commits in `chistedit` to match the order in `hg log -G`. It will affect the text-based version before graduating from experimental.
 
-== Bug Fixes ==
+### Bug Fixes 
 
- * `hg fix --working-dir` now correctly works when in an uncommitted merge state
- * Unintentional duplicated calls to `hg fix`'s internals were removed, making it potentially much faster
- * `rhg cat` can be called without a revision
- * `rhg cat` can be called with the `.` revision
- * `rhg cat` is more robust than before with regards to edge cases. Some still remain like a tag or bookmark that is ambiguous with a nodeid prefix, only nodeids (prefixed or not) are supported as of now.
- * `rhg cat` is even faster
- * `rhg` (Rust fast-path for `hg`) now supports the full config list syntax
- * `rhg` now parses some corner-cases for revsets correctly
- * Fixed an `fsmonitor` on Python 3 during exception handling
- * Lots of Windows fixes
- * Lots of miscellaneous other fixes
- * Removed a CPython-specific compatibility hack to improve support for alternative Python implementations
+- `hg fix --working-dir` now correctly works when in an uncommitted merge state
+- Unintentional duplicated calls to `hg fix`'s internals were removed, making it potentially much faster
+- `rhg cat` can be called without a revision
+- `rhg cat` can be called with the `.` revision
+- `rhg cat` is more robust than before with regards to edge cases. Some still remain like a tag or bookmark that is ambiguous with a nodeid prefix, only nodeids (prefixed or not) are supported as of now.
+- `rhg cat` is even faster
+- `rhg` (Rust fast-path for `hg`) now supports the full config list syntax
+- `rhg` now parses some corner-cases for revsets correctly
+- Fixed an `fsmonitor` on Python 3 during exception handling
+- Lots of Windows fixes
+- Lots of miscellaneous other fixes
+- Removed a CPython-specific compatibility hack to improve support for alternative Python implementations
+- Added a compatibility fix for Python 3.11
 
-== Backwards Compatibility Changes ==
+### Backwards Compatibility Changes 
 
 
-== Internal API Changes ==
+### Internal API Changes 
 
 The following functions have been removed:
 
-  * `dirstate.normal`
-  * `dirstate.normallookup`
-  * `dirstate.otherparent`
-  * `dirstate.add`
-  * `dirstate.addfile`
-  * `dirstate.remove`
-  * `dirstate.drop`
-  * `dirstate.dropfile`
-  * `dirstate.__getitem__`
-  * `dirstatemap.nonnormalentries`
-  * `dirstatemap.nonnormalset`
-  * `dirstatemap.otherparentset`
-  * `dirstatemap.non_normal_or_other_parent_paths`
-  * `dirstateitem.dm_nonnormal`
-  * `dirstateitem.dm_otherparent`
-  * `dirstateitem.merged_removed`
-  * `dirstateitem.from_p2`
-  * `dirstateitem.merged`
-  * `dirstateitem.new_merged`
-  * `dirstateitem.new_added`
-  * `dirstateitem.new_from_p2`
-  * `dirstateitem.new_possibly_dirty`
-  * `dirstateitem.new_normal`
-  * `dirstateitem.from_p2_removed`
+ - `dirstate.normal`
+ - `dirstate.normallookup`
+ - `dirstate.otherparent`
+ - `dirstate.add`
+ - `dirstate.addfile`
+ - `dirstate.remove`
+ - `dirstate.drop`
+ - `dirstate.dropfile`
+ - `dirstate.__getitem__`
+ - `dirstatemap.nonnormalentries`
+ - `dirstatemap.nonnormalset`
+ - `dirstatemap.otherparentset`
+ - `dirstatemap.non_normal_or_other_parent_paths`
+ - `dirstateitem.dm_nonnormal`
+ - `dirstateitem.dm_otherparent`
+ - `dirstateitem.merged_removed`
+ - `dirstateitem.from_p2`
+ - `dirstateitem.merged`
+ - `dirstateitem.new_merged`
+ - `dirstateitem.new_added`
+ - `dirstateitem.new_from_p2`
+ - `dirstateitem.new_possibly_dirty`
+ - `dirstateitem.new_normal`
+ - `dirstateitem.from_p2_removed`
 
 Miscellaneous:
 
-  * `wireprotov1peer`'s `batchable` is now a simple function and not a generator
+ - `wireprotov1peer`'s `batchable` is now a simple function and not a generator
    anymore
-  * The Rust extensions (and by extension the experimental `rhg status`) only use a tree-based dirstate in-memory, even when using dirstate-v1. See bf8837e3d7cec40fe649c47163a3154dda03fa16 for more details
-  * The Rust minimum supported version is now 1.48.0 in accordance with out policy of keeping up with Debian stable
-  * The test harness plays nicer with the NixOS sandbox
+ - The Rust extensions (and by extension the experimental `rhg status`) only use a tree-based dirstate in-memory, even when using dirstate-v1. See bf8837e3d7cec40fe649c47163a3154dda03fa16 for more details
+ - The Rust minimum supported version is now 1.48.0 in accordance with out policy of keeping up with Debian stable
+ - The test harness plays nicer with the NixOS sandbox
+ - The test harness plays nicer with NetBSD
+ - Improved rpm packaging

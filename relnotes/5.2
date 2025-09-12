@@ -1,30 +1,39 @@
-== New Features ==
-
- * The amend extension supports the `--currentuser` argument.
-
- * The amend extension supports the `--close-branch` argument.
-
- * The amend extension supports the `--secret` argument.
-
- * The uncommit extension supports the `rewrite.update-timestamp` config option.
-
-== New Experimental Features ==
+# Mercurial 5.2 (2019-11-05)
 
 
-== Bug Fixes  ==
+## Mercurial 5.2 release 
+
+This is an overview of the 5.2 release.
+
+### New Features 
+
+- The amend extension supports the `--currentuser` argument.
+
+- The amend extension supports the `--close-branch` argument.
+
+- The amend extension supports the `--secret` argument.
+
+- The uncommit extension supports the `rewrite.update-timestamp` config option.
 
 
-== Backwards Compatibility Changes ==
+### New Experimental Features 
 
- * A shell that supports `$(command)`` syntax for command substitution is now
+
+
+### Bug Fixes  
+
+
+### Backwards Compatibility Changes 
+
+- A shell that supports `$(command)`` syntax for command substitution is now
    required for running the test suite. The test runner normally uses
    `sh`, so if that is a shell that doesn't support `$(command)` syntax,
    you can override it by setting `$HGTEST_SHELL` or by passing it to
    `run-tests.py --shell <shell>`.
 
- * The (experimental) narrow extension's wire protocol changed. If
+- The (experimental) narrow extension's wire protocol changed. If
    you're using it, you'll need to make sure to upgrade server and
    client at the same time.
 
-== Internal API Changes ==
 
+### Internal API Changes 
