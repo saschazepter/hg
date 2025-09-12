@@ -1,0 +1,21 @@
+# Mercurial 4.0 (2016-11-01)
+
+## Mercurial 4.0 release 
+
+### Features 
+- The following commands now also have experimental [[GenericTemplatingPlan#Specifying_a_format|formatter support]]: 'hg version', 'hg grep' and 'hg config'
+- New template keywords and functions: `termwidth`, `mod(a, b)`, `relpath(path)`
+- Basic arithmetic operations in template such as `termwidth - 10`
+- `follow()` revset takes new `startrev` parameter
+- Bash completion now allows skipping potentially expensive Cmd:status call for completing 'hg status' arguments, using $HGCOMPLETE_NOSTATUS environment variable
+
+### Improvements 
+- A number of changes were made to move and copy tracking, to make sure move and copy information is not lost during commands like 'hg graft'
+- Compound revset expression is now properly ordered
+- Performance of client-side application of bundle data for generaldelta repos has been significantly improved. This makes 'hg clone', 'hg pull', and 'hg unbundle' operations faster. Cloning the Firefox repository now consumes 70+s less CPU time and completes over a minute faster (when not network or I/O bound).
+- The storage and transfer of changeset data has been optimized to improve read performance
+- Python 3 support has received a lot of improvements (but will take a lot of additional work)
+- zlib performance in hgweb is improved, and it's now possible to control zlib compression level using server.zliblevel option
+- Various improvements for largefiles extension related to executable bit tracking and removing files, better recovery from an interrupted state
+
+A full overview is available on WhatsNew.

@@ -1,0 +1,368 @@
+# Mercurial 4.6 (2017-11-30)
+
+
+## Mercurial 4.6 release
+
+### New Features
+
+#### pullbundles
+
+Pullbundles allow the server to answer client requests using pre-built bundles. This is different from the existing clonebundle feature:
+
+- pullbundles can be used for both the initial clone and later pull operations
+- pullbundles can be used incrementally, i.e. to cover the changes up to the start of the current month as one bundle and the remaining changes as second bundle
+- the bundle is transferred inline as part of the existing connection without a secondary server
+
+Pullbundles are only used for clients running Mercurial 4.6 as well.
+
+#### push
+
+If 'server.streamunbundle' option is enabled, the server will directly apply the changes send by the changes. This avoids potentially large temporary files on the server side. It can also prevent concurrent pushes.
+
+#### notify extension
+
+The 'maxdiffstat' option can be used to truncate long file lists similar to 'maxdiff' for the patch part of the email.
+
+#### hgweb
+
+hgweb now shows date and user for operations that resulted in obsolete commit(s). For unstable commits, it shows the exact reason why they are considered unstable.
+
+`Server:` header is now configurable using `web.server-header` option.
+
+#### templates
+
+A new template keyword 'reporoot' which shows the root directory of the current repository.
+A new template function 'mailmap' which maps author fields based on values in a .mailmap file.
+
+
+### Backwards Compatibility Changes
+
+- Support for connecting to Mercurial servers older than 0.9.1 has been removed.
+
+- Working-directory commands now respect "-X PATTERN" no matter if PATTERN matches explicitly-specified FILEs. For example, "hg add foo -X foo" no longer add the file "foo".
+
+- Support for the experimental manifestv2 format has been removed, as it was never completed and failed to meet expectations.
+
+- '{' in output filename passed to archive/cat/export is taken as a start of a template expression.
+
+- The HTTP wire protocol server no longer accepts the "cmd" argument to control which command to run via HTTP POST bodies. The "cmd" argument must be specified on the URL query string.
+
+- Hgweb no longer reads form data in POST requests from multipart/form-data and application/x-www-form-urlencoded requests. Arguments should be specified as URL path components or in the query string in the URL instead.
+
+- Query string shorts in hgweb like "?cs=@" have been removed. Use URLs of the form "/:cmd" instead.
+
+- The HTTP client no longer accepts text/plain and application/hg-changegroup Content-Type values as a valid Mercurial command response. These should only be encountered on pre 1.0 Mercurial servers.
+
+### Performance Improvements
+
+- 'hg manifest --all' is likely slower due to changing its implementation to respect storage interface boundaries. If you are impacted by this regression in a meaningful way, please make noise on the development mailing list and it can be dealt with.
+
+- 'hg diff' is much faster for larger repositories. 40% improvements have been reported. Other operations using diffs like hgweb also benefit.
+
+### Bug Fixes
+
+- grep: fixes erroneous output of grep in forward order (Bts:issue3885)
+- dirstate: drop explicit files that shouldn't match (BC) (Bts:issue4679)
+- procutil: rewrite popen() as a subprocess.Popen wrapper (Bts:issue4746) (API)
+- bookmarks: test for exchanging long bookmark names (Bts:issue5165)
+- templater: drop symbols which should be overridden by new 'ctx' (Bts:issue5612)
+- clone: updates the help text for hg clone -{r,b} (Bts:issue5654)
+- bundle: updates the help text for hg bundle (Bts:issue5744)
+- histedit: make histedit's commands accept revsets (Bts:issue5746)
+- releasenotes: replace abort with warning while parsing (Bts:issue5775)
+- context: skip path conflicts by default when clearing unknown file (Bts:issue5776)
+- templatekw: switch most of showlist template keywords to new API (Bts:issue5779)
+- rebase: do not consider extincts for divergence detection (Bts:issue5782)
+- revert: use an exact matcher in interactive diff selection (Bts:issue5789)
+- subrepo: don't attempt to share remote sources (Bts:issue5793)
+- lfs: respect narrowmatcher when testing to add 'lfs' requirement (Bts:issue5794)
+- showconfig: allow multiple section.name selectors (Bts:issue5797)
+- annotate: do not poorly split lines at CR (Bts:issue5798)
+- convert: avoid closing ui.fout in subversion code (Bts:issue5807)
+- setdiscovery: back out changeset 5cfdf6137af8 (Bts:issue5809)
+- fsmonitor: layer on another hack in bser.c for os.stat() compat (Bts:issue5811)
+- notify: access the initial revision on an unfiltered repository (Bts:issue5821)
+- rebase: fix issue 5494 also with --collapse
+- date: fixed a bug in parsing months like 'Feb 2018', 'Apr 2018'
+- diffhelper: rename module to avoid conflicts with ancient C module (Bts:issue5846)
+- infinitepush: ensure fileindex bookmarks use '/' separators (Bts:issue5840)
+- import: fix crash on --exact check of empty commit (Bts:issue5702)
+- hgweb: reuse body file object when hgwebdir calls hgweb (Bts:issue5851)
+- debugcolor: fix crash by empty styles (Bts:issue5856)
+- hgweb: discard Content-Type header for 304 responses (Bts:issue5844)
+- hgweb: allow Content-Security-Policy header on 304 responses (Bts:issue5844)
+- paper: don't register click handlers with inline javascript (Bts:issue5812)
+- httppeer: detect redirect to URL without query string (Bts:issue5860)
+- filelog: don't crash on invalid copy metadata (Bts:issue5748)
+
+
+### New experimental features
+
+Each release there are lot of new features added which are hidden under the EXPERIMENTAL tag as the behavior may change in future or the feature is not complete yet. The experimental features added in this cycle are:
+
+#### narrow extension
+
+Allows to create clones which fetch history data for only a subset of files. This experimental extension is now distributed with Mercurial.
+
+#### remotenames extension
+
+Shows `remotebookmarks` and `remotebranches` in the UI. This experimental extension is now distributed with Mercurial.
+
+#### infinitepush extension
+
+Allows to store some pushes in a remote blob store on the server and to serve commits from remote blob store. The revisions are stored on disk or in everstore, the metadata are stored in sql or on disk. This experimental extension is now distributed with Mercurial.
+
+#### fix extension
+
+Allows to rewrite file content in changesets or working copy. For example, automatically applying formatting fixes to modified lines of code. This experimental extension is now distributed with Mercurial.
+
+#### lfs extension
+
+An alternative to the largefiles extension, which uses the git-lfs protocol. This experimental extension is now distributed with Mercurial.
+
+### Other notable features
+
+- revset: parse error now shows a hint where the error occurred
+- templates: parse error now shows a hint where the error occured
+- forget: new '--dry-run' and '--interactive' flags
+- copyfile: preserve stat info (mtime, etc.) when doing copies/renames
+- bundle2 format is documented and can be found using 'hg help internals.bundle2'
+- patch: implement a new worddiff algorithm
+- util: whitelist apfs for hardlink support
+- children: support specifying revision by revset
+- filemerge: support passing labels to external merge tools
+- heads: add support for specifying branches by revset
+- annotate: add support for template keywords and functions depending on ctx
+- bookmarks: write bookmarks file deterministically
+- rebase: introduce support for automatically rebasing orphan changes
+- patches: release the GIL while applying the patch
+
+### API Changes
+
+- Content from mercurial.hgweb.protocol has been moved to mercurial.wireprotoserver.
+
+- Content from mercurial.sshserver has been moved into mercurial.wireprotoserver.
+
+- sshserver no longers looks for wire protocol command handlers in methods named `do_<command>`. Use `@wireproto.wireprotocommand` to declare wire protocol command handler functions.
+
+- Log-related utility functions has been renamed as follows:
+
+   - cmdutil.loglimit -> logcmdutil.getlimit
+
+   - cmdutil.diffordiffstat -> logcmdutil.diffordiffstat
+
+   - cmdutil._changesetlabels -> logcmdutil.changesetlabels
+
+   - cmdutil.changeset_printer -> logcmdutil.changesetprinter
+
+   - cmdutil.jsonchangeset = logcmdutil.jsonchangeset
+
+   - cmdutil.changeset_templater -> logcmdutil.changesettemplater
+
+   - cmdutil.logtemplatespec -> logcmdutil.templatespec
+
+   - cmdutil.makelogtemplater -> logcmdutil.maketemplater
+
+   - cmdutil.show_changeset -> logcmdutil.changesetdisplayer
+
+   - cmdutil.getlogrevs -> logcmdutil.getrevs
+
+   - cmdutil.getloglinerangerevs -> logcmdutil.getlinerangerevs
+
+   - cmdutil.displaygraph -> logcmdutil.displaygraph
+
+   - cmdutil.graphlog -> logcmdutil.graphlog
+
+   - cmdutil.checkunsupportedgraphflags -> logcmdutil.checkunsupportedgraphflags
+
+   - cmdutil.graphrevs -> logcmdutil.graphrevs
+
+   - cmdutil._makenofollowlogfilematcher -> logcmdutil._makenofollowfilematcher
+
+- The following deprecated methods have been removed from context, with replacements:
+
+   - unstable() -> orphan()
+
+   - bumped() -> phasedivergent()
+
+   - divergent() -> contentdivergent()
+
+   - troubled() -> isunstable()
+
+   - troubles() -> instabilities()
+
+- The following deprecated methods have been removed from obsolete, with replacements:
+
+   - _addprecursors() -> _addpredecessors()
+
+   - obsstore.precursors -> obsstore.predecessors
+
+   - allprecursors() -> obsutil.allprecursors()
+
+   - allsuccessors() -> obsutil.allsuccessors()
+
+   - marker() -> obsutil.marker
+
+   - getmarkers() -> obsutil.getmarkers()
+
+   - exclusivemarkers() -> obsutil.exclusivemarkers()
+
+   - foreground() -> obsutil.foreground()
+
+   - successorssets() -> obsutil.successorsset()
+
+   - unstable() -> orphan()
+
+   - bumped() -> phasedivergent()
+
+   - divergent() -> contentdivergent()
+
+- The following deprecated methods have been removed from obsutil: `marker.precnode()` and `allprecursors()`.  Use `marker.prednode()` and `allpredecessors()` instead.
+
+- `beginparentchange()` and `endparentchange()` have been replaced by the `parentchange` context manager.
+
+- The deprecated `localrepo.walk()` has been removed, and replaced by `repo[node].walk()`.
+
+- The following deprecated methods have been removed from bookmarks: `__setitem__()`, `__delitem__()`, `update()`, and `recordchange()`.  Use `bookmarks.applychanges()` instead.
+
+- The `cmdutil._revertprefetch()` hook point for prefetching stored files has been replaced by the command agnostic `cmdutil._prefetchfiles()`.  The new function takes a list of files, instead of a list of lists of files.
+
+- `sshpeer.sshpeer.__init__` now receives arguments describing an existing connection instead of creating a connection itself.
+
+- `sshpeer.sshpeer` renamed to `sshpeer.sshv1peer`.
+
+- `wireproto.pushres` and `wireproto.pusherr` now explicitly track stdio output.
+
+- `redirect()` and `restore()` have been removed from the wire protocol handler interface. Use `mayberedirectstdio()` instead.
+
+- The `_client()` method of the wire protocol handler interface has been renamed to `client()`.
+
+- Wire protocol command handlers now return a `wireprototypes.bytesresponse` instead of a raw bytes instance. Protocol handlers will continue handling bytes instances. However, any extensions wrapping wire protocol commands will need to handle the new type.
+
+- SSH protocol handler now advertises its name internally as "ssh-v1" instead of "ssh."
+
+- File prefetching is now handled by registering a callback with `scmutil.fileprefetchhooks`.
+
+- HTTP protocol handlers now advertises its internal name as "http-v1" instead of "http".
+
+- `context.basectx` no longer implements `__int__`. Context instances will no longer cast to ints. Consumers should call `ctx.rev()` instead.
+
+- `templatekw.showdict()` and `showlist()` are deprecated in favor of new `(context, mapping)` API. Switch the keyword function to new API and use `templatekw.compatdict()` and `compatlist()` instead.
+
+- `hgweb_mod.perms` and `wireproto.permissions` have been removed. Wire protocol commands should declare their required permissions in the `@wireprotocommand` decorator.
+
+- The WSGI request object no longer exposes a `form` attribute containing parsed query string data. Use the `qsparams` attribute instead.
+
+- `hgweb.hgweb_mod.permhooks` no longer take a `wsgirequest` instance as an argument.
+
+- hgweb `@webcommand` functions must use the new response object passed in via "web.res" to initiate sending of a response. The hgweb WSGI application will no longer start sending the response automatically.
+
+- Various helper functions in hgweb.webutil no longer accept a templater instance. Access the templater through the "web" argument instead.
+
+- Various functions in hgweb.webutil now take a modern request object instead of "wsgirequest".
+
+- `@webcommand` functions now only receive a single argument. The request and templater instances can be accessed via the "req" and "templater" attributes of the first argument. Note that the request object is different from previous Mercurial releases and consumers of the previous "req" 2nd argument will need updating to use the new API.
+
+- The old "wsgirequest" class for handling everything WSGI in hgweb has been replaced by separate request and response types. Various high-level functions in the hgweb WSGI applications now receive these new types as arguments instead of the old "wsgirequest" type.
+
+- The `render(mapping)` method of the templater has been renamed to `renderdefault(mapping)`.
+
+- `httppeer.httppeer.__init__` now takes additional arguments. Instances should be obtained by calling `httppeer.instance()` or `httppeer.makepeer()` instead.
+
+- The templater is no longer callable. Use `templater.generate(t, mapping)` instead of `templater(t, **pycompat.strkwargs(mapping))`.
+
+- `templatekw._showlist()` is deprecated in favor of `templateutil._showcompatlist()`, which takes `context` in place of `templ`.
+
+- Several generic string helper functions have been moved to utils.stringutil module.
+
+- The `util.Abort` alias has been removed. Use `error.Abort`.
+
+- `merge.update()` and `merge.applyupdates()` now return a class with named attributes instead of a tuple. Switch consumers to access elements by name instead of by offset.
+
+- Utility functions related to process/executable management have been moved to utils.procutil module.
+
+- localrepo.localrepository.featuresetupfuncs has been renamed to localrepo.featuresetupfuncs.
+
+- localrepo.localrepository.filterpats was renamed to localrepo.localrepository._filterpats.
+
+- Template filters should declare input data type and/or catch `AttributeError`, `ValueError`, `TypeError`, etc. as needed. See the doc of "registrar.templatefilters" for details.
+
+- "wireproto" module no longer re-exports various types used to define responses to wire protocol commands. Access these types from the "wireprototypes" module.
+
+- `filelog.parsemeta()` and `filelog.packmeta()` have been moved to the revlog module.
+
+- `procutil.popen()` no longer supports text mode I/O.
+
+- `hook.hook()` and `hook.runhooks()` may return a negative integer to denote that the process was killed by signal.
+
+- `filelog.filelog` is now a standalone class and doesn't inherit from revlog. Instead, it wraps a revlog instance at `self._revlog`. This change was made in an attempt to formalize storage APIs and prevent revlog implementation details leaking through to callers.
+
+- The `fp` argument is removed from `cmdutil.export()`. Use `cmdutil.exportfile()` instead.
+
+- `cmdutil.export()` takes a formatter as an argument.
+
+- `patch.extract()` is now a context manager. Callers no longer have to worry about deleting the temporary file it creates, as the file is tied to the lifetime of the context manager.
+
+- The wire protocol peer's `iterbatch()` for bulk executing commands has been removed. Use `peer.commandexecutor()` instead.
+
+
+## More notes to sort into the above
+
+### core
+- cmdutil: make node parameter of makefileobj() mandatory (API)
+- cmdutil: pass ctx to makefilename() in place of repo/node pair (API)
+- cmdutil: pass ctx to makefileobj() in place of repo/node pair (API)
+- cmdutil: pass in parsed patch to tryimportone() (API)
+- cmdutil: split functions of log-like commands to new module (API)
+- context: drop support for changeid='' (API)
+- context: move handling of filtering error to revsymbol() (API)
+- context: move reuse of context object to repo.__getitem__ (API)
+- context: remove unwanted assignments in basectx.__new__() (API)
+- filelog: declare that filelog implements a storage interface
+- repo: remove now-unused changectx() method (API)
+- revlog: make shortest() take a full binary nodeid (API)
+- revset: drop support for posttreebuilthook() (API)
+- revset: pass in lookup function instead of repo (API)
+- templater: complain about invalid application of '%' operator (BC)
+- transaction: add a name and a __repr__ implementation (API)
+- wireproto: move gboptsmap to wireprototypes and rename (API)
+- wireproto: move value encoding functions to wireprototypes (API)
+- wireproto: move version 1 peer functionality to standalone module (API)
+- wireproto: remove unused proto argument from supportedcompengines (API)
+- wireproto: rename wireproto to wireprotov1server (API)
+- wireprotoserver: rename getfile() to forwardpayload() (API)
+
+### unsorted
+- addbranchrevs: no longer accept revset as "revs" (API)
+- addremove: remove dry_run, similarity from scmutil.addremove (API)
+- bundle2: make source a mandatory argument for bundle2.applybundle() (API)
+- localrepo: drop "remote" argument from lookupbranch() (API)
+- mdiff: add a config option to use xdiff algorithm
+- revsymbol: stop delegating to repo.__getitem__ for unhandled symbols (API)
+- templatekw: fix return type of {succsandmarkers} (BC)
+- templater: complain about invalid application of '%' operator (BC)
+- cmdutil: make node parameter of makefileobj() mandatory (API)
+- cmdutil: pass ctx to makefilename() in place of repo/node pair (API)
+- cmdutil: pass ctx to makefileobj() in place of repo/node pair (API)
+- cmdutil: pass in parsed patch to tryimportone() (API)
+- cmdutil: split functions of log-like commands to new module (API)
+- context: drop support for changeid='' (API)
+- context: move handling of filtering error to revsymbol() (API)
+- context: move reuse of context object to repo.__getitem__ (API)
+- context: remove unwanted assignments in basectx.__new__() (API)
+- peer: scatter module to the wind (API)
+- procutil: drop unused 'newlines' option from popen*() (API)
+- procutil: make explainexit() simply return a message (API)
+- registrar: replace "cmdtype" with an intent-based mechanism (API)
+- revlog: make shortest() take a full binary nodeid (API)
+- revset: drop support for posttreebuilthook() (API)
+- revset: pass in lookup function instead of repo (API)
+- revsymbol: stop delegating to repo.__getitem__ for unhandled symbols (API)
+- scmutil: make revpair() return context objects (API)
+- transaction: add a name and a __repr__ implementation (API)
+- wireproto: move gboptsmap to wireprototypes and rename (API)
+- wireproto: move value encoding functions to wireprototypes (API)
+- wireproto: move version 1 peer functionality to standalone module (API)
+- wireproto: remove unused proto argument from supportedcompengines (API)
+- wireproto: rename wireproto to wireprotov1server (API)
+- wireprotoserver: rename getfile() to forwardpayload() (API)

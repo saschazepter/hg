@@ -1,0 +1,51 @@
+# Mercurial 4.9 (2019-01-08)
+
+
+## Mercurial 4.9 release 
+
+This is an overview of [[WhatsNew#Mercurial_4.9_.282019-02-01.29|4.9 release]].
+
+### Security Fixes 
+
+It was possible to use symlinks and subrepositories to defeat Mercurial's path-checking logic and write files outside a repository. This has been fixed. Users on older versions can either disable subrepositories with
+{{{
+[subrepos]
+allowed = false
+}}}
+in their configuration or by ensuring any cloned repositories don't contain malicious symlinks.
+
+### New Features 
+
+- 'hg histedit' will now present a curses UI if curses is available and 'ui.interface' or 'ui.interface.histedit' is set to 'curses'.
+- The 'sparse-revlog' delta strategy is enabled by default for new repositories.
+ See `hg help config.format.sparse-revlog` for details.
+
+
+### New Experimental Features 
+
+
+### Other Notable Features 
+
+- New `rewrite.update-timestamp=True` option to update the commit timestamp on history editing (e.g. amend.)
+- New `ui.message-output=stderr` option for scripting, which prevents status messages from interleaved.
+- New `rootglob:` filename pattern for a glob that is rooted at the root of the repository.
+ See `hg help patterns` and `hg help hgignore` for details.
+- Some more reimplementation of ancestry algorithms in Rust for better performance.
+
+### Bug Fixes 
+
+
+### Backwards Compatibility Changes 
+
+- Boolean options passed to the logtoprocess extension are now formatted as "0" or "1" instead of "None", "False", or "True".
+
+- The logtoprocess extension no longer supports invalid "ui.log()" arguments. A log message is always formatted and passed in to the "$MSG1" environment variable.
+
+
+### Internal API Changes 
+
+- Status messages may be sent to a dedicated stream depending on configuration. Don't use "ui.status()", etc. as a shorthand for conditional writes. Use "ui.write()" for data output.
+
+- Add 'exthelper' class to simplify extension writing by allowing functions, commands, and configitems to be registered via annotations.  The previous APIs are still available for use.
+
+- The extension hook "extsetup" without a 'ui' argument has been deprecated, and will be removed in the next version.  Add a 'ui' argument to avoid the deprecation warning.

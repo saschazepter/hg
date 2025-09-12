@@ -1,0 +1,37 @@
+# Mercurial 3.9 (2016-08-01)
+
+## Mercurial 3.9 release 
+### Features 
+- ui.textwidth can now be set to define width of help text
+- separate() template function added
+- ui.rollback can be set to false to disable the `hg rollback` command
+- fail-<command> hooks now run when a command fails
+- experimental.graphstyle.* config options to control styling of graphs in console
+- experimental.histedit.autoverb allows histedit lines beginning with "verb!" to be interpreted as histedit actions
+- [hostsecurity] config section for defining advanced per-host security settings
+- ability to define the SHA-256 and SHA-512 hashes of pinned server certificates
+- ability to define CA certificates on a per-host basis
+- ability to define the minimum TLS protocol version on a global or per-host basis
+- sort() revset can now perform topological sorts using the ''topo'' option
+- hgweb can now render JSON for ''filelog'', ''filerevision'', ''summary'', and ''search'' web commands
+- [paths] entries can now define a ''pushrev'' sub-option to control which revisions to push by default
+- The experimental [[JournalExtension|'journal' extension]] was added, allowing users to view the previous positions of bookmarks and the working copy
+
+### Improvements 
+This release includes many improvements, including (but not limited to):
+
+- performance of `hg diff` has been improved
+- chg now detects more changes to the configuration and execution environment
+- SSL/TLS code has been significantly refactored and now is consistent across all consumers (HTTPS, SMTPS)
+- performance improvements to server communication (particularly for the largefiles and remotefilelog extensions)
+- connections to servers whose certificate authority (CA) is unknown are now
+ refused even if no CA certificates are available
+ (see SecureConnections for details)
+- fingerprints of server certificates are now printed using SHA-256 instead of SHA-1
+- reads and writes to certain files is now robust and avoids more race conditions and edge cases (see ExactCacheValidationPlan)
+- performance improvements to certain revsets
+- cloning will no longer prompt for a password multiple times when cloning from a server that requires a password
+- annotate view in hgweb now groups lines into blocks depending on their revision and highlights lines for the current revision
+- hgweb now displays extra information and also navigation links in popups for each line in annotate view
+
+A full overview is available on WhatsNew.

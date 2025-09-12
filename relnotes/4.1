@@ -1,0 +1,22 @@
+# Mercurial 4.1 (2017-02-01)
+
+
+## Mercurial 4.1 release 
+
+### Features 
+
+- A new extensible "compression engines" API has been implemented. Support for a new compression format can now be implemented in extensions.
+  - New compression formats are fully supported in bundles and the wire protocol. There is experimental support for different compression in revlogs.
+- zstd - a new and exciting compression engine - is now distributed with Mercurial and built by default
+  - HTTP payloads for many commands will now use zstd by default (as opposed to zlib) when both client and server support it. This can reduce server-side CPU usage to ~60% of original for operations like serving bundles.
+  - zstd compressed bundles can be produced by specifying the `zstd` bundle type. e.g. `hg bundle -a -t zstd-v2 zstd-bundle.hg`.
+- A new statistical profiler has been added and made the default profiler for ``--profile``. This profiler gives more accurate results than Python's built-in ``cProfile`` (the previous default) because the profiler overhead is much smaller. The output from ``--profile`` now displays the code hot path by default. This allows Mercurial developers to more accurately identify performance problems.
+- New `followlines(file, from:to, startrev=.)` revset predicate to track a part of changes.
+- Experimental support for additional git-diff features.
+- Troubled changes (from ChangesetEvolution) are noted more prominently in a few places.
+- An experimental ``hg debugupgraderepo`` command allows in-place upgrading of repositories to the latest storage format.
+
+### Improvements 
+
+- Performance of reading individual revlog entries has been greatly improved. This will be noticeable when performing changelog scans on large repositories (such as when executing certain revsets).
+- The low-level content diffing algorithm is now ~2x faster. Operations that write data to the repository (like commit) can be noticeably faster as a result.

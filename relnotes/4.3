@@ -1,0 +1,211 @@
+# Mercurial 4.3 (2017-08-07)
+
+
+## Mercurial 4.3 release 
+
+### Notable changes 
+
+- experimental amend extension providing the amend command
+- experimental sparse extension
+- Support for Python 2.6 has been dropped.
+- Bundles created by the strip extension now store phase information. It will be restored when unbundling.
+- The strip extension now removes relevant obsmarkers. If a backup requested (the default), the obsmarkers are stored in the backup bundle and will be restored when unbundling.
+- `hg show work` (from the experimental `show` extension) now displays more info
+- `hg show stack` is a new view for the current, in-progress changeset and others around it
+
+### Security fixes 
+#### CVE-2017-1000115 
+
+Mercurial's symlink auditing was incomplete prior to 4.3, and could be abused to write to files outside the repository.
+
+#### CVE-2017-1000116 
+
+Mercurial was not sanitizing hostnames passed to ssh, allowing shell injection attacks by specifying a hostname starting with -oProxyCommand. This is also present in Git (CVE-2017-1000117) and Subversion (CVE-2017-9800), so please patch those tools as well if you have them installed.
+
+
+### Bug fixes 
+
+- archive: flag missing files as a dirty wdir() in the metadata file (BC)
+- bundle: add optional 'tagsfnodecache' data to on disk bundle (Bts:issue5543)
+- rebase: allow rebase even if some revisions need no rebase (BC) (Bts:issue5422)
+- rebase: make sure merge state is cleaned up for no-op rebases (Bts:issue5494)
+- diffstat: properly count lines starting in '--' or '++' (Bts:issue5479)
+- checklink: degrade gracefully on posix when fs is readonly (Bts:issue5511)
+- json: pass formatting options recursively
+- revset: more predicates and commands support `wdir()` (Bts:issue4905, Bts:issue5438)
+- test-obsolete-bundle-strip: do not include \n in filename (Bts:issue5586)
+- streamclone: now correctly omits secret changesets (BC) (Bts:issue5589)
+- debugcommands: issue warning when repo has secret changesets (Bts:issue5589)
+- context: avoid writing outdated dirstate out (Bts:issue5584)
+- fsmonitor: write state with wlock held and dirstate unchanged (Bts:issue5581)
+- fsmonitor: don't write out state if identity has changed (Bts:issue5581)
+- help: clarify ancestors() and descendants() include given set (Bts:issue5594)
+- patch: rewrite reversehunks (Bts:issue5337)
+- extensions: register functions always at loading extension (Bts:issue5601)
+- revset: fix order of first() and last() members (Bts:issue5609)
+- revlog: add an experimental option to mitigated delta issues (Bts:issue5480)
+- followlines: join merge parents line ranges in blockdescendants() (Bts:issue5595)
+- rebase: use scmutil.cleanupnodes (Bts:issue5606) (BC)
+- sslutil: check for missing certificate and key files (Bts:issue5598)
+- convert: transcode CVS log messages by specified encoding (Bts:issue5597)
+- localrepo: cache types for filtered repos (Bts:issue5043)
+- zsh_completion: add '--partial' flag to completions for 'import' (Bts:issue5618)
+- parsers: fix invariant bug in find_deepest (Bts:issue5623)
+- debugignore: eliminate inconsistencies with `hg status` (Bts:issue5222)
+- demandimport: prefer loaded module over package attribute (Bts:issue5617)
+- share: share 'cachevfs' with the source clone (Bts:issue5108)
+- status: add a flag to terse the output (Bts:issue4119)
+
+### Improvements 
+
+- annotate: new experimental `--skip` option to skip revs
+- annotate: restructure formatter output to be nested list (BC)
+- bookmarks: warn about bookmark names that unambiguously resolve to a node (BC)
+- bisect: improve option validation message
+- cat: add formatter support
+- clone: add a server-side option to disable full getbundles (pull-based clones)
+- clone: warn when streaming was requested but couldn't be performed
+- clonebundle: update hook arguments (BC)
+- color: enable ANSI support on Windows 10
+- commandserver: now uses selectors2 which should improve reliability
+- commit: curses interactive commit works with line selections (Bts:issue5337)
+- hgweb: improved styling of gitweb's search form
+- hgweb: better UI for getting history of a range of lines
+- identify: add template support
+- revset: add depth limit to `ancestors()` and `descendants()` (Bts:issue5374)
+- templater: better handling of template fragments defined in `[templates]` section
+- add `ui.tweakdefaults` config knob
+- add `successors` revset
+
+### Extensions 
+
+- new experimental "sparse" extension
+- convert: transcode CVS log messages by specified encoding (Bts:issue5597)
+- fetch: remove shorthand of --edit colliding against -e/-ssh in remoteopts (BC)
+- fsmonitor: don't write out state if identity has changed (Bts:issue5581)
+- fsmonitor: write state with wlock held and dirstate unchanged (Bts:issue5581)
+- histedit: simplify removing of edited and temporary revisions (BC)
+- histedit: remove moving bookmarks message on verbose (BC)
+- keyword: make comparison webcommand suppress keyword expansion
+- largefiles: avoid a crash when archiving a subrepo with largefiles disabled
+- patchbomb: add `-B` option to select a bookmark
+- rebase: add config to move rebase into a single transaction
+- rebase: allow rebase even if some revisions need no rebase (BC) (Bts:issue5422)
+- rebase: make sure merge state is cleaned up for no-op rebases (Bts:issue5494)
+- rebase: use scmutil.cleanupnodes (Bts:issue5606) (BC)
+- share: now correctly shares caches the source clone (Bts:issue5108)
+- shelve: allow unlimited shelved changes per name
+- show: commands.show.aliasprefix config option allows show views to be mass-aliased. e.g. setting this option to "s" enables "hg swork" as an alias for "hg show work"
+- show: additional labels are shown in "work" view
+- show: new "stack" view to show mutable changesets around the current one and their relationship to future changesets
+- strip: now phase information is stored in backup bundle
+
+### Behavior changes 
+
+- amend: strip backup file name changed (BC)
+- histedit: strip backup file name changed (BC)
+- rebase: strip backup file name changed (BC)
+- annotate: restructure formatter output to be nested list (BC)
+- archival: flag missing files as a dirty wdir() in the metadata file (BC)
+- bookmarks: warn about bookmark names that unambiguously resolve to a node (BC)
+- clonebundle: update hook arguments (BC)
+- commit: do not look up committemplate in template paths (BC)
+- fetch: remove shorthand of --edit colliding against -e/-ssh in remoteopts (BC)
+- formatter: open raw template file in binary mode (BC)
+- graphlog: do not look up graphnodetemplate in template paths (BC)
+- histedit: pass multiple nodes to strip (BC)
+- histedit: remove moving bookmarks message on verbose (BC)
+- histedit: unify strip backup files on success (BC)
+- histedit: use scmutil.cleanupnodes (BC)
+- match: don't print explicitly listed files with wrong case (BC)
+- rebase: allow rebase even if some revisions need no rebase (BC) (Bts:issue5422)
+- rebase: use scmutil.cleanupnodes (Bts:issue5606)
+- revset: fix order of first/last members in compound expression (BC)
+- revset: fix order of last() n members where n > 1 (BC)
+- setup: drop support for Python 2.6 (BC)
+- sparse: add a requirement when a repository uses sparse (BC)
+- sparse: require [section] in sparse config files (BC)
+- streamclone: consider secret changesets (BC) (Bts:issue5589)
+- strip: include phases in bundle (BC)
+- update: show the commit to which we updated in case of multiple heads (BC)
+- util: raise ParseError when parsing dates (BC)
+
+### Internal API changes 
+
+- bundle2: record changegroup data in 'op.records' (API)
+- changegroup: delete unused 'bundlecaps' argument (API)
+- changegroup: deprecate 'getlocalchangroup' (API)
+- changegroup: don't fail on empty changegroup (API)
+- changegroup: let callers pass in transaction to apply() (API)
+- changegroup: remove option to allow empty changegroup (API)
+- changelog: make sure datafile is 00changelog.d (API)
+- cmdutil: drop deprecated hack to pass file object to makefileobj() (API)
+- cmdutil: pass templatespec tuple directly to changeset_templater (API)
+- commands: move templates of common command options to cmdutil (API)
+- context: inline makememctx (API)
+- dirstate: expose a sparse matcher on dirstate (API)
+- dirstate: mark {begin,end}parentchange as deprecated (API)
+- extensions: prohibit registration of command without using @command (API)
+- hidden: rename "revealedrevs" to "pinnedrevs" (API)
+- localrepo: mark walk convenience method as deprecated (API)
+- localrepo: remove unused addchangegroup() (API)
+- match: implement __repr__() and update users (API)
+- match: replace match class by match function (API)
+- osutil: proxy through util (and platform) modules (API)
+- registrar: move cmdutil.command to registrar module (API)
+- repoview: rename '_getdynamicblockers' to 'revealedrevs' (API)
+- revlog: rename constants (API)
+- revset: make repo.anyrevs accept customized alias override (API)
+- sparse: refactor activeprofiles into a generic function (API)
+- templater: add simple interface for unnamed template (API)
+
+### Unprocessed script output below, please integrate this into the above 
+Note that there may be duplicates between the above and the below.
+
+#### commands 
+- amend: new experimental extension providing the amend command
+- bisect: simpler approach for option validation message
+- bookmark: track bookmark changes at the transaction level
+- bookmarks: fix check of hash-like name to not abort by ambiguous identifier
+- config: use the 'config' method in 'configsuboptions'
+- debugcommands: issue warning when repo has secret changesets (Bts:issue5589)
+- debugignore: eliminate inconsistencies with 'hg status' (Bts:issue5222)
+- export: map wctx.node() to 'ff...' node id (Bts:issue5438)
+- help: clarify ancestors() and descendants() include given set (Bts:issue5594)
+- log: add an extension hook-point in changeset_printer
+- perf: add an option to `perfbranchmap` to purge the revbranch cache
+- perf: add 'perfphases' command
+- push: add a way to allow concurrent pushes on unrelated heads
+- show: config option to register aliases for views
+- status: add a flag to terse the output (Bts:issue4119)
+- tag: make sure the repository is locked when tagging
+- update: show the commit to which we updated in case of multiple heads (BC)
+- verify: add a config option to skip certain flag processors
+- verify: always check rawsize
+
+#### core 
+- bundle: add config option to include phases
+- bundle: add optional 'tagsfnodecache' data to on disk bundle (Bts:issue5543)
+- check-concurrency: expose the feature as 'concurrent-push-mode'
+- checklink: degrade gracefully on posix when fs is readonly (Bts:issue5511)
+- context: avoid writing outdated dirstate out (Bts:issue5584)
+- extensions: register functions always at loading extension (Bts:issue5601)
+- followlines: join merge parents line ranges in blockdescendants() (Bts:issue5595)
+- local-clone: also copy revs-branch-cache files
+- local-clone: also copy tags related caches
+- localrepo: cache types for filtered repos (Bts:issue5043)
+- match: don't print explicitly listed files with wrong case (BC)
+- md5sum: adapt for python 3 support
+- parsers: fix invariant bug in find_deepest (Bts:issue5623)
+- profile: support --profile in alias and abbreviated version (--prof)
+- revlog: C implementation of delta chain resolution
+- revlog: add an experimental option to mitigate delta issues (Bts:issue5480)
+- revlog: micro-optimize the computation of hashes
+- revlog: skeleton support for version 2 revlogs
+- setup: drop support for Python 2.6 (BC)
+- sslutil: check for missing certificate and key files (Bts:issue5598)
+- test-obsolete-bundle-strip: do not include \n in filename (Bts:issue5586)
+- transaction-summary: display the summary for all transactions
+- ui: add support for a tweakdefaults knob
+- util: raise ParseError when parsing dates (BC)
+- zsh_completion: add '--partial' flag to completions for 'import' (Bts:issue5618)

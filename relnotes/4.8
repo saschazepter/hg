@@ -1,0 +1,89 @@
+# Mercurial 4.8 (2018-10-28)
+
+
+## Mercurial 4.8 release 
+
+This is an overview of [[WhatsNew#Mercurial_4.8_.282018-11-02.29|4.8 release]].
+
+### New Features 
+
+- [[GenericTemplatingPlan|Command templates (aka formatter templates)]]
+ are stabilized. See `hg help <command> -v` for details.
+- New closehead extension to close arbitrary heads without checking them out.
+- New config option `commands.resolve.mark-check` to warn or abort on `resolve --mark` when files still have conflict markers
+- New config option `commands.resolve.confirm` to confirm before performing action when no filename is passed.
+- Rebase gets new `--stop` flag to stop interrupted rebase without discarding the already rebased changes.
+
+### New Experimental Features 
+
+- New absorb extension to make working changes "absorbed" into relevant changesets.
+ - Read more about this feature at https://gregoryszorc.com/blog/2018/11/05/absorbing-commit-changes-in-mercurial-4.8/
+- New fastannotate extension to greatly speed up "annotate" with precomputed cache and adding new flags like `--deleted`.
+- The phabricator extension gets into hgext.
+
+### Other Notable Features 
+
+- New `http.timeout` config option to specify timeout in seconds.
+ 
+- Several performance optimizations on [[https://www.mercurial-scm.org/repo/hg/help/filesets|fileset query]].
+- Sort out command help by categories.
+- Storage extensions such as lfs are now loaded on demand.
+- Improvements to zsh completions:
+ - Completing files, shelve and unshelve commands
+ - Completing merge tools
+ - Completing added and removed (in addition to changed) files to commit and diff commands
+ - Numerous updates to flags and descriptions
+ - Fixes for minor issues and a couple of performance improvements
+
+### Bug Fixes 
+
+- revlog: reuse cached delta for identical base revision (Bts:issue5975)
+ - This was a performance regression on unbundle in 4.7. Not reusing the delta from the bundle can have a significant performance impact, so we now make sure to do so when possible.
+- ancestors: actually iterate over ancestors in topological order (Bts:issue5979)
+ - revlog.ancestors was noticed to sometimes emit nodes before their descendants, contrary to what the docstring said.
+- overlayworkingctx: fix exception in metadata-only inmemory merges (Bts:issue5960)
+ - With rebase.experimental.inmemory, changing a file from +x to -x or vice versa, with no content changes, could produce an exception.
+
+### Backwards Compatibility Changes 
+
+- The experimental narrow extension has undergone perf and correctness improvements, bug fixes and introducing new capabilities to make it more robust. It's expected that narrow clients with new mercurial version won't be able to interact with narrow server using older version of mercurial. It is recommended to update both client and server versions if you are using narrow for improvements.
+- Emails from the patchbomb extension will always be printed as though they are iso-8859-1 if they're not valid us-ascii. Previously, previewed emails were always claimed to be us-ascii and might contain invalid byte sequences.
+- 'hg debugdata' no longer accepts the path to a revlog file.
+- Bulk-renaming of the formatter template keywords:
+ - "{abspath}" and "{file}" to "{path}". Any "{path}" is a repository-absolute path.
+  Use "{path|relpath}" to convert it to a filesystem path.
+ - "{copy}" in status command to "{source}".
+ - "{oldhashes}" and "{newhashes}" in journal template to "{oldnodes}" and
+  "{newnodes}" respectively.
+ - "{line_number}" to "{lineno}".
+ - "{status}" of resolve command to "{mergestatus}".
+- A repository will no longer use shared storage if it has a ".hg/sharedpath" file but no entry in ".hg/requires" saying it is shared.<<BR>>This change should not have any end-user impact, as all shared repos should have a ".hg/requires" file indicating this.
+
+### Internal API Changes 
+
+- externalize() and externalizeall() removed from dagutil
+ - Use .node() on a storage primitive to perform revision to node conversions.
+- removed internalize() and internalizeall() from dagutil
+ - Use .rev(node) on storage objects to convert nodes to revisions.
+- descendantset() and ancestorset() removed from dagutil
+ - Use a revset instead when operating on the changelog. Or use various functionality in the ancestor or dagop modules.
+- remove inverse() methods from classes in dagutil
+- parents() removed from dagutil classes
+ - Use parentrevs() on the storage object instead.
+- dagutil module has been removed
+ - Some functionality has been moved to the dagop module. Other functionality can be accomplished via revsets.
+- storedeltachains has been dropped from ifilestorage interface
+- storedeltachains on revlog classes is now _storedeltachains
+- renamed `manifest.manifestrevlog.__init__` dir argument to tree
+- manifestlog now has a getstorage(tree) method
+ - It should be used for obtaining an object representing the manifest's storage implementation. Accessing manifestlog._revlog should be avoided.
+- cmdutil.openrevlog() now returns a revlog instance or aborts
+ - Previously, it would return a storage object, which may not be a revlog instance.
+ - Use the new cmdutil.openstorage() API to return an object conforming to the storage interface of the thing you are accessing if you don't need a revlog instance.
+- manifest.manifestrevlog no longer inherits from revlog
+ - The manifestrevlog class now wraps a revlog instance instead of inheriting from revlog. Various attributes and methods on instances are no longer available.
+- local repo creation moved out of constructor
+ - `localrepo.localrepository.__init__` no longer accepts a "create" argument to create a new repository. New repository creation is now performed as part of "localrepo.instance()" and the bulk of the work is performed by "localrepo.createrepository()".
+- options can now be passed to influence repository creation
+ - The various instance() functions to spawn new peers or repository instances now receive a "createopts" argument that can be a dict defining additional options to influence repository creation.
+ - localrepo.newreporequirements() also receives this argument.
