@@ -1,178 +1,180 @@
-= Mercurial 6.3.3 =
+# Mercurial 6.3 (2022-11-09)
 
- * tests: filter out PEP 657 error locations in tracebacks (issue6780)
- * tests: optional PEP 657 error location in test-extension.t (issue6781)
- * tests: optional PEP 657 error location in test-lfs-serve-access.t (issue6782)
- * histedit: byteify the help for the multifold action
- * sparse: fix a py2 based usage of `map()`
- * convert: stop passing str to the dateutil API in darcs
- * convert: turn the last str regex into bytes in cvs.py (issue6789)
- * convert: change socket mode from b'r+' to 'rwb' in cvs.py (issue6789)
- * convert: replace repr() by pycompat.byterepr() in cvsps.py (issue6789)
- * tests: os module is frozen in Python 3.11 (issue6786)
- * hgweb: unbyteify the 100-continue check
- * resourceutil: start using importlib.resources.files() when possible
- * revset: the `random` sort should not depend on sys.maxsize (issue6770)
- * tests: make sure pygments can detect python script without extension
- * convert: brz 3.3.0 moved NoSuchFile exception to breezy.transport
- * tests: pygments 2.14+ highlight whitespace in python code
- * hghave: make different has_pyoxidizer functions have different names
- * hghave: refactor checks for pygments versions using checkvers()
- * rust-narrow: fix loop that never loops
- * scmutil: make checknewlabel() allow "_" in otherwise numeric names (issue6737)
- * bundlerepo: enforce the requirements declared by the underlying repository
- * setup: make the version computation process more resistant
- * fix: add more information to the debug output
- * tag: disallow tagging the working directory
- * dirstate: handle missing backup file on restoration
- * dirstate-v2: complain early on docket name collision
- * rust: upgrade minimum `rayon` dependency
- * setup: support building from an ongoing merge
- * rust: add debug log about skipping dirstate update
- * rust-dirstate: trace append/no append to help debugging
- * dirstate-v2: don't mmap the data file when on NFS
- * run-tests: make it possible to nest conditionals
- * dirstate: add some debug output when writing the dirstate
- * testing: introduce util function to synchronize concurrent commands on files
- * dirstate: add a way to test races happening during status
- * dirstate: use more than a bool to control append behavior
- * dirstate-v2: add devel config option to control write behavior
- * rhg: fix race when a fixup file is deleted on disk
- * rhg: fix race when an ambiguous file is deleted on disk
- * dirstate: deal with read-race for pure python code
- * dirstate: deal with read-race for python code using rust object
- * dirstate: deal with read-race for pure rust code path (rhg)
- * dirstate: set identity whenever we read the dirstate's v2 docket
- * rust-dirstate-v2: don't write dirstate if data file has changed
- * rhg: remember the inode of .hg/dirstate
+## Mercurial 6.3.3 
 
-= Mercurial 6.3.2 =
+- tests: filter out PEP 657 error locations in tracebacks (issue6780)
+- tests: optional PEP 657 error location in test-extension.t (issue6781)
+- tests: optional PEP 657 error location in test-lfs-serve-access.t (issue6782)
+- histedit: byteify the help for the multifold action
+- sparse: fix a py2 based usage of `map()`
+- convert: stop passing str to the dateutil API in darcs
+- convert: turn the last str regex into bytes in cvs.py (issue6789)
+- convert: change socket mode from b'r+' to 'rwb' in cvs.py (issue6789)
+- convert: replace repr() by pycompat.byterepr() in cvsps.py (issue6789)
+- tests: os module is frozen in Python 3.11 (issue6786)
+- hgweb: unbyteify the 100-continue check
+- resourceutil: start using importlib.resources.files() when possible
+- revset: the `random` sort should not depend on sys.maxsize (issue6770)
+- tests: make sure pygments can detect python script without extension
+- convert: brz 3.3.0 moved NoSuchFile exception to breezy.transport
+- tests: pygments 2.14+ highlight whitespace in python code
+- hghave: make different has_pyoxidizer functions have different names
+- hghave: refactor checks for pygments versions using checkvers()
+- rust-narrow: fix loop that never loops
+- scmutil: make checknewlabel() allow "_" in otherwise numeric names (issue6737)
+- bundlerepo: enforce the requirements declared by the underlying repository
+- setup: make the version computation process more resistant
+- fix: add more information to the debug output
+- tag: disallow tagging the working directory
+- dirstate: handle missing backup file on restoration
+- dirstate-v2: complain early on docket name collision
+- rust: upgrade minimum `rayon` dependency
+- setup: support building from an ongoing merge
+- rust: add debug log about skipping dirstate update
+- rust-dirstate: trace append/no append to help debugging
+- dirstate-v2: don't mmap the data file when on NFS
+- run-tests: make it possible to nest conditionals
+- dirstate: add some debug output when writing the dirstate
+- testing: introduce util function to synchronize concurrent commands on files
+- dirstate: add a way to test races happening during status
+- dirstate: use more than a bool to control append behavior
+- dirstate-v2: add devel config option to control write behavior
+- rhg: fix race when a fixup file is deleted on disk
+- rhg: fix race when an ambiguous file is deleted on disk
+- dirstate: deal with read-race for pure python code
+- dirstate: deal with read-race for python code using rust object
+- dirstate: deal with read-race for pure rust code path (rhg)
+- dirstate: set identity whenever we read the dirstate's v2 docket
+- rust-dirstate-v2: don't write dirstate if data file has changed
+- rhg: remember the inode of .hg/dirstate
 
- * [ecfc84b956a8] tests: expect the message from 1baf0fffd82f in test-hghave.t (issue6762)
- * [5c095119bff4] tests: add the missing space to test-hghave.t (issue6762)
- * [2c346c1c75ec] tests: use an all too familiar executable in test-run-tests.t (issue6661)
- * [13c0e3b4fd35] tests: use `test -f` instead of `ls` to see if a file is present (issue6662)
- * [8ced4ca30ea1] bisect: correct message about aborting an in-progress bisect (issue6527)
- * filemerge: fix crash when using filesets in [partial-merge-tools]
- * help: fix a py3 error interpolating Set into b'%s'
- * match: make the FLAG_RE pattern a raw string
- * python-compat: adapt to Python 3.11 BC breakage with `random.sample`
- * rust-status: fix thread count ceiling
- * hg: show the correct message when cloning an LFS repo with extension disabled
- * extensions: process disabled external paths when `hgext` package is in-memory
- * emitrevision: consider ancestors revision to emit as available base
- * make: add a target for building pyoxidizer tests on macOS
- * run-tests: support --pyoxidized on macOS
- * packaging: add dependencies to the PyOxidizer build on macOS
- * Miscellaneous test fixes
+## Mercurial 6.3.2 
 
-= Mercurial 6.3.1 =
+- [ecfc84b956a8] tests: expect the message from 1baf0fffd82f in test-hghave.t (issue6762)
+- [5c095119bff4] tests: add the missing space to test-hghave.t (issue6762)
+- [2c346c1c75ec] tests: use an all too familiar executable in test-run-tests.t (issue6661)
+- [13c0e3b4fd35] tests: use `test -f` instead of `ls` to see if a file is present (issue6662)
+- [8ced4ca30ea1] bisect: correct message about aborting an in-progress bisect (issue6527)
+- filemerge: fix crash when using filesets in [partial-merge-tools]
+- help: fix a py3 error interpolating Set into b'%s'
+- match: make the FLAG_RE pattern a raw string
+- python-compat: adapt to Python 3.11 BC breakage with `random.sample`
+- rust-status: fix thread count ceiling
+- hg: show the correct message when cloning an LFS repo with extension disabled
+- extensions: process disabled external paths when `hgext` package is in-memory
+- emitrevision: consider ancestors revision to emit as available base
+- make: add a target for building pyoxidizer tests on macOS
+- run-tests: support --pyoxidized on macOS
+- packaging: add dependencies to the PyOxidizer build on macOS
+- Miscellaneous test fixes
 
- * memory-usage: fix `hg log --follow --rev R F` space complexity (dcb2581e33be)
- * Improve portability and robustness of test harness
- * hg-core: relax dependencies pinning
- * matcher: fix issues regex flag contained in pattern (issue6759)
- * matcher: do not prepend '.*' to pattern using ^ after flags
- * packaging: refresh dependency hashes (issue6750)
- * cffi: fix a bytes vs str issue on macOS when listing directories
- * commit: properly consider file include and exclude options when closing branch
- * dirstate-v2: do not put the dirstate data file in a transaction
+## Mercurial 6.3.1 
 
-= Mercurial 6.3 =
+- memory-usage: fix `hg log --follow --rev R F` space complexity (dcb2581e33be)
+- Improve portability and robustness of test harness
+- hg-core: relax dependencies pinning
+- matcher: fix issues regex flag contained in pattern (issue6759)
+- matcher: do not prepend '.*' to pattern using ^ after flags
+- packaging: refresh dependency hashes (issue6750)
+- cffi: fix a bytes vs str issue on macOS when listing directories
+- commit: properly consider file include and exclude options when closing branch
+- dirstate-v2: do not put the dirstate data file in a transaction
 
-== New Features ==
+## Mercurial 6.3 
 
- * testlib: add `--raw-sha1` option to `f`
- * rhg: add `config.rhg` helptext
- * config: add alias from `hg help rhg` to `hg help rust`
- * rhg: add a config option to fall back immediately
- * bundle: introduce a --exact option
- * perf-bundle: add a new command to benchmark bundle creation time
- * perf-bundle: accept --rev arguments
- * perf-bundle: accept --type argument
- * perf-unbundle: add a perf command to time the unbundle operation
- * perf: introduce a benchmark for delta-find
- * contrib: add support for rhel9
- * phase-shelve: Implement a 'shelve.store' experimental config
- * debug-delta-find: introduce a quiet mode
- * sort-revset: introduce a `random` variant
- * phase: introduce a dedicated requirement for the `archived` phase
- * rebase: add boolean config item rebase.store-source
- * rhg: make [rhg status -v] work when it needs no extra output
- * rhg: support "!" syntax for disabling extensions
- * rhg: add debugrhgsparse command to help figure out bugs in rhg
- * rhg: add sparse support
- * rhg-status: add support for narrow clones
- * templates: add filter to reverse list
- * contrib: add pull_logger extension
- * revset: handle wdir() in `roots()`
- * revset: handle wdir() in `sort(..., -topo)`
- * rhg: support tweakdefaults
- * rhg: parallellize computation of [unsure_is_modified]
+### New Features 
 
-== Default Format Change ==
+- testlib: add `--raw-sha1` option to `f`
+- rhg: add `config.rhg` helptext
+- config: add alias from `hg help rhg` to `hg help rust`
+- rhg: add a config option to fall back immediately
+- bundle: introduce a --exact option
+- perf-bundle: add a new command to benchmark bundle creation time
+- perf-bundle: accept --rev arguments
+- perf-bundle: accept --type argument
+- perf-unbundle: add a perf command to time the unbundle operation
+- perf: introduce a benchmark for delta-find
+- contrib: add support for rhel9
+- phase-shelve: Implement a 'shelve.store' experimental config
+- debug-delta-find: introduce a quiet mode
+- sort-revset: introduce a `random` variant
+- phase: introduce a dedicated requirement for the `archived` phase
+- rebase: add boolean config item rebase.store-source
+- rhg: make [rhg status -v] work when it needs no extra output
+- rhg: support "!" syntax for disabling extensions
+- rhg: add debugrhgsparse command to help figure out bugs in rhg
+- rhg: add sparse support
+- rhg-status: add support for narrow clones
+- templates: add filter to reverse list
+- contrib: add pull_logger extension
+- revset: handle wdir() in `roots()`
+- revset: handle wdir() in `sort(..., -topo)`
+- rhg: support tweakdefaults
+- rhg: parallellize computation of [unsure_is_modified]
+
+### Default Format Change 
 
 These changes affect newly created repositories (or new clones) done with
 Mercurial 6.3.
 
-== New Experimental Features ==
+### New Experimental Features 
 
-== Bug Fixes ==
+### Bug Fixes 
 
- * shelve: demonstrate that the state is different across platforms (issue6735)
- * shelve: in test for trailing whitespace, strip commit (issue6735)
- * shelve: remove strip and rely on prior state (issue6735)
- * tests: fix http-bad-server expected errors for python 3.10 (issue6643)
- * status: let `--no-copies` override `ui.statuscopies`
- * releasenotes: use re.MULTILINE mode when checking admonitions
- * rhg: fallback to slow path on invalid patterns in hgignore
- * Fix a bunch of leftover str/bytes issues from Python 3 migration
- * keepalive: ensure `close_all()` actually closes all cached connections
- * lfs: fix blob corruption when tranferring with workers on posix
- * lfs: avoid closing connections when the worker doesn't fork
- * dirstate-v2: update constant that wasn't kept in sync
- * dirstate-v2: fix edge case where entries aren't sorted
- * upgrade: no longer keep all revlogs in memory at any point
- * rust-status: save new dircache even if just invalidated
- * dirstate-v2: hash the source of the ignore patterns as well
- * rhg: fallback when encountering ellipsis revisions
- * shelve: handle empty parents and nodestoremove in shelvedstate (issue6748)
- * profile: prevent a crash when line number is unknown
- * tags-fnode-cache: do not repeatedly open the filelog in a loop
- * tags-fnode-cache: skip building a changectx in getfnode
- * rust: create wrapper struct to reduce `regex` contention issues
+- shelve: demonstrate that the state is different across platforms (issue6735)
+- shelve: in test for trailing whitespace, strip commit (issue6735)
+- shelve: remove strip and rely on prior state (issue6735)
+- tests: fix http-bad-server expected errors for python 3.10 (issue6643)
+- status: let `--no-copies` override `ui.statuscopies`
+- releasenotes: use re.MULTILINE mode when checking admonitions
+- rhg: fallback to slow path on invalid patterns in hgignore
+- Fix a bunch of leftover str/bytes issues from Python 3 migration
+- keepalive: ensure `close_all()` actually closes all cached connections
+- lfs: fix blob corruption when tranferring with workers on posix
+- lfs: avoid closing connections when the worker doesn't fork
+- dirstate-v2: update constant that wasn't kept in sync
+- dirstate-v2: fix edge case where entries aren't sorted
+- upgrade: no longer keep all revlogs in memory at any point
+- rust-status: save new dircache even if just invalidated
+- dirstate-v2: hash the source of the ignore patterns as well
+- rhg: fallback when encountering ellipsis revisions
+- shelve: handle empty parents and nodestoremove in shelvedstate (issue6748)
+- profile: prevent a crash when line number is unknown
+- tags-fnode-cache: do not repeatedly open the filelog in a loop
+- tags-fnode-cache: skip building a changectx in getfnode
+- rust: create wrapper struct to reduce `regex` contention issues
 
-== Backwards Compatibility Changes ==
+### Backwards Compatibility Changes 
 
- * chg worker processes will now correctly load per-repository configuration
+- chg worker processes will now correctly load per-repository configuration
    when given a both a relative `--repository` path and an alternate working
    directory via `--cwd`. A side-effect of this change is that these workers
    will now return an error if hg cannot find the current working directory,
    even when a different directory is specified via `--cwd`.
- * phase: rename the requirement for internal-phase from `internal-phase` to `use-internal-phase` (see 74fb1842f8b962cf03d7cd5b841dbcf2ae065587)
+- phase: rename the requirement for internal-phase from `internal-phase` to `use-internal-phase` (see 74fb1842f8b962cf03d7cd5b841dbcf2ae065587)
 
-== Internal API Changes ==
+### Internal API Changes 
 
-== Miscellaneous ==
+### Miscellaneous 
 
- * sslutil: use proper attribute to select python 3.7+
- * typing: suppress a few pyi-errors with more recent pytype
- * ci: bump pytype to 2022.03.29
- * bundlespec: add documentation about existing option
- * subrepo: avoid opening console window for non-native subrepos on Windows
- * setup: unconditionally enable the `long-paths-support` option on Windows
- * setup: use the full executable manifest from `python.exe`
- * tests: work around libmagic bug in svn subrepo tests
- * packagelib: use python3 by default
- * Improve `hg bisect` performance
- * perf: properly process formatter option in perf::unbundle
- * compare-disco: miscellaneous display improvements
- * fsmonitor: better compatibility with newer Pythons
- * revlog: finer computation of "issnapshot"
- * rhg: don't fallback if `strip` or `rebase` are activated
- * perf: make perf::bundle compatible before 61ba04693d65
- * perf: make perf::bundle compatible down to 5.2
- * perf-unbundle: improve compatibility
- * run-tests: display the time it took to install Mercurial
- * mergetools: don't let meld open all changed files on startup
- * dirstate-v2: skip evaluation of hgignore regex on cached directories
+- sslutil: use proper attribute to select python 3.7+
+- typing: suppress a few pyi-errors with more recent pytype
+- ci: bump pytype to 2022.03.29
+- bundlespec: add documentation about existing option
+- subrepo: avoid opening console window for non-native subrepos on Windows
+- setup: unconditionally enable the `long-paths-support` option on Windows
+- setup: use the full executable manifest from `python.exe`
+- tests: work around libmagic bug in svn subrepo tests
+- packagelib: use python3 by default
+- Improve `hg bisect` performance
+- perf: properly process formatter option in perf::unbundle
+- compare-disco: miscellaneous display improvements
+- fsmonitor: better compatibility with newer Pythons
+- revlog: finer computation of "issnapshot"
+- rhg: don't fallback if `strip` or `rebase` are activated
+- perf: make perf::bundle compatible before 61ba04693d65
+- perf: make perf::bundle compatible down to 5.2
+- perf-unbundle: improve compatibility
+- run-tests: display the time it took to install Mercurial
+- mergetools: don't let meld open all changed files on startup
+- dirstate-v2: skip evaluation of hgignore regex on cached directories

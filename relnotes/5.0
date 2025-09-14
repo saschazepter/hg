@@ -1,0 +1,115 @@
+# Mercurial 5.0 (2019-04-25)
+
+
+## Mercurial 5.0 release 
+
+This is an overview of the 5.0 release.
+
+### New Features 
+
+- `ui.relative-paths` option for getting relative path output from most commands. This is enabled when `ui.tweakdefaults` is enabled.
+- `expectsize()` revset errors out if revset has unexpected number of elements.
+- `config()` template function for getting a config value.
+- `{negrev}` template keyword shows the negative revision number. This is convenient because it is usually shorter than the positive number, but note that it is less stable.
+- `hg uncommit` now has an `--allow-dirty-working-copy` option.
+- `hg shelve` now has `--keep` option, which shelves but also leaves the working directory unchanged.
+- `hg diff` will now include specified files in subrepos.
+- `hg recover` now has a `--no-verify` option
+
+#### Python 3 Support (Beta) 
+
+Mercurial 5.0 has beta level support for running on Python 3.5, 3.6, and 3.7. The Mercurial distribution itself and all extensions bundled with it should work on these Python versions.
+
+To use Mercurial with Python 3, invoke `setup.py` with a Python 3 interpreter or set the `PYTHON` variable to a Python 3 interpreter when invoking the `Makefile`. e.g. `python3.7 setup.py install` or `make install-home PYTHON=python3.7`.
+
+3rd party extensions will likely need to be ported to support running on Python 3 and attempts to run many existing extensions with a Python 3 powered Mercurial will result in extension loading failures. See the [[Python3]] page for more.
+
+While the Mercurial test suite has a >99% pass rate when running with Python 3.5, 3.6, and 3.7, we anticipate that there are still many Python 3 bugs lingering in Mercurial. Please report Python 3 issues using the instructions at BugTracker.
+
+If you package Mercurial or distribute it to users, we do not recommend making Python 3 the default at this time.
+
+Python 3 is not yet very well tested on Windows and there are likely several more lingering issues on Windows compared to Linux, macOS, and other UNIX-like platforms.
+
+#### Updated Windows Installers 
+
+Windows installer packaging has been transitioned away from ad-hoc processes employed on individual contributors' personal machines to occurring in reproducible infrastructure driven by code in the Mercurial repository itself. This transition should enable Windows packaging and releasing to be more reliable and reproducible.
+
+As part of this transition, there are changes to the Windows installers.
+
+##### Inno Setup .exe Installer Changes 
+
+- Python has been upgraded from 2.7.15 to 2.7.16
+- add_path.exe has been removed and the Inno installer now updates PATH via a Pascal script that is part of the installer
+- The dulwich package has been upgraded from version 0.18.3 to 0.19.11
+- The keyring package has been upgraded to version 18.0.1
+- The pygments package has been upgraded to version 2.3.1
+- The urllib3 package is now included
+- The MSVC Runtime DLLs (msvcm90.dll, msvcp90.dll, and msvcr90.dll) have been upgraded from version 9.0.21022.8 to 9.0.30729.9518
+- Various tcl/tk Python packages are now included (making the Python distribution more complete)
+- The pywin32 package is no longer included (pywin32 has not been required by Mercurial for years)
+- Known issue: the distutils package is broken
+- (x86 only) Python .pyd and .dll extension modules and support libraries are now installed as standalone files instead of bundled in the library.zip file. This behavior is now consistent with 64-bit installers.
+
+### New Experimental Features 
+
+### Other Notable Features 
+
+### Other Improvements 
+
+- Improved color scheme for histedit's curses interface, making it more consistent with the curses hunk selector.
+
+### Bug Fixes 
+
+ - Histedit's curse interface has improved support for non ascii characters.
+
+### Backwards Compatibility Changes 
+
+- color: change color of grep.rev label (BC)
+
+- commit: if interactive, look elsewhere for whitespace settings (BC)
+
+- diff: make sure we output stat even when --git is not passed (Bts:issue4037) (BC)
+
+- uncommit: abort if an explicitly given file cannot be uncommitted (BC)
+
+- The Windows Inno installers no longer ship the pywin32 package. This package was being bundled for historical reasons. Mercurial stopped using pywin32 several years ago and the disappearance of this package should not have any meaningful impact.
+
+- The 32-bit Windows Inno installers no longer distribute w9xpopen.exe. This should only impact people running Mercurial on Windows 95, 98, or ME.
+
+- The Windows MSI installers no longer include the Python sphinx package and its various dependencies.
+
+- The Windows MSI installers no longer include the pywin32 Python package.
+
+- The Windows MSI installers no longer include the enum and future Python packages.
+
+### Internal API Changes 
+
+- add: pass around uipathfn and use instead of m.rel() (API)
+- addremove: pass around uipathfn and use instead of m.uipath() (API)
+- branchmap: drop branchcache.setdefault() (API)
+- branchmap: remove the dict interface from the branchcache class (API)
+- forget: pass around uipathfn and use instead of m.rel() (API)
+- largefiles: use uipathfn instead of match.{rel,uipath}() (API)
+- match: delete unused abs() (API)
+- match: delete unused rel() (API)
+- match: delete unused root and cwd arguments from {always,never,exact}() (API)
+- match: delete unused root and cwd arguments to constructors (API)
+- match: delete unused uipath() and _uipathrelative (API)
+- match: remove unused "exact" argument (API)
+- memctx: rename constructor argument "copied" to "copysource" (API)
+- patch: accept second matcher that applies only to copy sources (API)
+- patch: let caller pass in root-filtering matcher (API)
+- patch: pass in context objects into diffhunks() (API)
+- patch: replace "prefix" and "relroot" arguments by "pathfn" (API)
+- remove: pass around uipathfn and use instead of m.rel() (API)
+- revset: leverage getintrange() helper in relation-subscript operation (API)
+- scmutil: delete now-unused origpath() (API)
+- scmutil: remove special handling of pats==("",) in matchandpats() (API)
+- subrepo: adjust subrepo prefix before calling subrepo.add() (API)
+- subrepo: adjust subrepo prefix before calling subrepo.addremove() (API)
+- subrepo: adjust subrepo prefix before calling subrepo.archive() (API)
+- subrepo: adjust subrepo prefix before calling subrepo.diff() (API)
+- subrepo: adjust subrepo prefix before calling subrepo.forget() (API)
+- subrepo: adjust subrepo prefix before calling subrepo.removefiles() (API)
+- subrepo: avoid calculating subrepo prefix twice for cat() (API)
+- templatekw: move getrenamedfn() to scmutil (API)

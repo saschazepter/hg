@@ -1,0 +1,177 @@
+# Mercurial 4.7 (2018-08-01)
+
+
+## Mercurial 4.7 release 
+
+### New Features 
+
+ - 'hg graft' now has a '--stop' flag to stop interrupted graft.
+
+ - 'hg graft' now has an '--abort' flag which aborts the interrupted graft and
+  rollbacks to state before the graft.
+
+ - 'hg graft' now has a '--no-commit' mode (Bts:issue5631)
+
+ - 'hg rebase' now supports '--confirm' and '--dry-run' flags.
+
+ - 'hg export' now has a '-B/--bookmark' option to select a bookmarked branch.
+
+ - The 'acl' extension now has support for bookmarks as well as branches.
+
+ - 'word-diff' option is now officially supported, and enabled by ui.tweakdefaults or can be enabled by setting `diff.word-diff=True`.
+
+ - The 'optimize-delta-parent-choice' is now enabled by default. It makes storing merge changesets more efficient by checking against which parent to make a delta.
+
+ - 'sparse-revlog' option is now available. This option allows for a better storage and compression of the manifest for very big repositories at a minimal cost on day-to-day commands.
+
+### Backwards Compatibility Changes 
+
+- The fileset expression may include untracked files by default. Use
+ "tracked()" to explicitly filter out files not existing at the context
+ revision.
+
+- graft: reuse --user, --date, a --log values in 'hg graft --continue' (BC)
+ 
+- revset: fix heads() order to always follow the input set (BC)
+ 
+- revset: make id() an empty set for ambiguous nodeid (BC)
+ 
+- revset: make id() to resolve node id prefix in unfiltered repo (BC)
+ 
+- templater: consistently join() string-like object per character (BC)
+ 
+
+### Bug Fixes 
+
+- dispatch: fix exit code of unhandled exception recorded in blackbox log
+- merge: mark file gets as not thread safe (Bts:issue5933)
+- patch: don't separate \r and \n when colorizing diff output
+- sparse-revlog: implement algorithm to write sparse delta chains (Bts:issue5480)
+- obsolete: store user name and note in UTF-8 (Bts:issue5754) (BC)
+- phases: remove excessive optimization from newheads() (Bts:issue5939)
+- unlinkpath: make empty directory removal optional (Bts:issue5901) (Bts:issue5826)
+- revlog: suggest other parent when a parent was refused for a delta (Bts:issue5481)
+- templatefuncs: show hint if extdata source is evaluated to empty (Bts:issue5843)
+- bookmarks: cache reverse mapping (Bts:issue5868)
+- hgweb: strip trailing '/' in apppath before appending '/static/' (Bts:issue5943)
+
+### Performance improvements 
+
+- fncache: avoid loading the filename cache when not actually modifying it. This makes commits to existing files faster.
+
+### New experimental features 
+
+- grep: '--all-files -r "wdir()"' to search working-directory files,
+ which is the default if tweakdefaults is on.
+
+### Other notable features 
+
+- annotate, files: automatically populate fields referenced from template
+- bookmarks, files, status, tags: add support for log-like template keywords and functions
+- grep: deprecates '--all' flag in favor of '--diff'
+- serve: add --print-url option
+- shelve: pick the most recent shelve if none specified for --patch/--stat
+- status: add a config knob for setting default of --terse
+
+### API Changes 
+
+- repo[x] is now more strict about its input, see https://www.mercurial-scm.org/repo/hg/file/4.6/mercurial/context.py#l380
+
+- "sshserver()" no longer sets stdin and stdout to binary mode.
+
+- New context manager "ui.uninterruptable()" to mark portions of a command as
+ potentially unsafe places to interrupt Mercurial with Control-C or similar.
+
+- New ui.makeprogress() that makes it easier to update progress.
+
+- changegroup: use progress helper in apply() (API)
+- cmdutil: drop deprecated log helper methods (API)
+- cmdutil: drop deprecated precursor of registrar.command (API)
+- cmdutil: remove deprecated _revertprefetch code (API)
+- context: drop support for looking up context by ambiguous changeid (API)
+- context: explicitly take diffopts in 'context.diff' (API)
+- context: make workingctx.matches() filter our removed files (API)
+- demandimport: make module ignores a set (API)
+- fileset: remove callexisting flag and mctx.existing() (API)
+- fileset: restrict getfileset() to not return a computed set (API)
+- merge: drop support for using updateresults as tuples (API)
+- obsolete: explode if metadata contains invalid UTF-8 sequence (API)
+- pycompat: export queue module instead of symbols in module (API)
+- revlog: do inclusive descendant testing (API)
+- revlog: replace descendant(b, a) by isdescendantrev(a, b) (API)
+- scmutil: move repair.stripbmrevset as scmutil.bookmarkrevs (API)
+- scmutil: remove deprecated revpairnodes method (API)
+- shortest: don't keep checking for longer prefix if node doesn't exist (API)
+- templatekw: drop deprecated showlist() and showdict() (API)
+- templater: drop extension point of engine classes (API)
+- update: use context manager for config override (API)
+- util: drop deprecated forwarding to dateutil, procutil, and stringutil (API)
+
+### More notes to sort into the above 
+
+#### commands 
+
+#### core 
+- cmdutil: drop deprecated log helper methods (API)
+- cmdutil: drop deprecated precursor of registrar.command (API)
+- cmdutil: remove deprecated _revertprefetch code (API)
+- context: also accept diff option directly
+- context: drop support for looking up context by ambiguous changeid (API)
+- context: explicitly take diffopts in 'context.diff' (API)
+- context: make workingctx.matches() filter our removed files (API)
+- context: no longer accept diff options as dictionnary
+- dispatch: mask negative exit code recorded in blackbox log
+- dispatch: unify handling of None returned by a command function
+- filelog: don't crash on invalid copy metadata (Bts:issue5748)
+- hook: add support for disabling the shell to native command translation
+- hook: disable the shell to native command translation by default
+- revlog: _segmentspan computes the byte span of a segment
+- revlog: add function to slice chunk down to a given size
+- revlog: delete isdescendantrev() in favor of isancestorrev()
+- revlog: disallow setting uncompressed length to None
+- revlog: do inclusive descendant testing (API)
+- revlog: don't say "not found" on internal error
+- revlog: early return in _slicechunk when density is already good
+- revlog: early return in _slicechunk when span is already small enough
+- revlog: efficient implementation of 'descendant'
+- revlog: enforce chunk slicing down to a certain size
+- revlog: handle error from node lookup
+- revlog: handle errors from index_node() in nt_insert() and index_slice_del()
+- revlog: introduce a tiny mock of a revlog class
+- revlog: isgooddeltainfo takes the whole revinfo object
+- revlog: make chainbase cache its result for the correct revision
+- revlog: make getcandidaterevs more consistent about updating tested revs set
+- revlog: make isdescendantrev(a, b) check if a < b
+- revlog: make variable name 'd' more explicit in _isgooddeltainfo
+- revlog: postprocess chunk to slice them down to a certain size
+- revlog: replace descendant(b, a) by isdescendantrev(a, b) (API)
+- revlog: reuse 'descendant' implemention in 'isancestor'
+- revlog: use node tree (native code) for shortest() calculation
+- revlog: use radix tree also for matching keys shorter than 4 hex digits
+- revset: add partial support for ancestor(wdir())
+- revset: fix heads() order to always follow the input set (BC)
+- revset: make id() an empty set for ambiguous nodeid (BC)
+- revset: pass in lookup function to matchany() (Bts:issue5879)
+- revset: use resolvehexnodeidprefix() in id() predicate (BC)
+- templater: make date wrapper support dot/map operations
+- transaction-summary: show phase changes statistics in pull/unbundle
+- worker: support more return types in posix worker
+
+#### extensions 
+- convert: don't pass --no-files to "darcs show repo" command
+- histedit: add history-editing-backup config option
+- shelve: use more accurate description in conflict marker
+
+#### hgweb 
+- hgweb: propagate http headers from ErrorResponse for web interface commands
+
+#### unsorted 
+- aggressivemergedeltas: enabled the option by default
+- filemerge: support specifying a python function to custom merge-tools
+- fuzzutil: make it possible to use absl when C++17 isn't supported
+- mpatch: introduce a safeadd() helper to work around UB int overflow
+- mpatch: introduce a safesub() helper as well
+- phase: clarify the message about movement on command changeset
+- remotenames: enable the storage config option if extension is enabled
+- sparse-revlog: new requirement enabled with format.sparse-revlog
+- zstandard: pull in bug fixes from upstream 0.9.1 release (Bts:issue5884)

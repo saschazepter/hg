@@ -677,8 +677,6 @@ build-c-wheel-macos:
       allow_failure: true
     stage: build
     variables:
-        # TODO: drop this when CI system is updated to support arm64 builds
-        CIBW_ARCHS: "x86_64"
     tags:
       - macos
     script:

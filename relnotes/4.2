@@ -1,0 +1,73 @@
+# Mercurial 4.2 (2017-05-02)
+
+
+## Mercurial 4.2 release 
+
+### Features 
+
+- Pager has moved from a bundled extension and into core.
+ - The in-core pager is on by default for any command that can produce long output.
+ - The pager extension is now deprecated. Please migrate off of it by removing `extensions.pager` from your configuration.
+ - If you have the pager extension enabled, it will override the in-core pager and will work as before.
+ - Unlike the pager extension, the in-core pager is disabled per underlying command, not per alias. This means that if you configure it to be off for `log`, it will be off for all aliases that use log. If you want paging e.g. for one log-alias but not for another, please keep the pager ''extension'' enabled for now.
+ - The in-core pager does not yet support attending commands that were not designed for it, so third-party extensions will not be paged until they have been updated to use the in-core pager. If you want paging for a command from a third-party command, please keep the pager ''extension'' enabled for now.
+ - See `hg help pager` for details.
+- Color is now a core feature on by default. See `hg help color` for details.
+ - Set `ui.color=never` in your configuration to disable it.
+ - The color extension is now deprecated. Please migrate off of it by removing `extensions.color` from your configuration.
+- The file content view on hgweb now allows you to select a range of lines and follow history of those lines over time.
+- `hg update` and `hg rebase` can now be configured to abort if no destination was explicitly given. This can be useful if your workflow is such that the destination is hard to predict. Set configuration option `commands.update.requiredest=1` and `commands.rebase.requiredest=1` to enable them.
+- `hg status` can now be configured to display the paths relative to the working directory. Set configuration option `commands.status.relative=1` to enable that.
+- `hg update` learned to update across branches with a dirty working directory with `--merge`.
+- A new `rev` fileset has been introduced to evaluate a fileset in the context of specific revision.
+- A new `status` fileset has been introduced to simulate `hg status` between revisions and select files with desired properties. For example, to find files not modified between revisions `3.0` and `.`: `hg files 'set:status("3.0", ., clean())'`
+- A `bundlespec` help topic has been added. It documents the syntax used to define what is in a bundle file.
+- Clients can now define the path to a file containing cookies that should be sent in HTTP requests. See `hg help config.auth.cookiefile`.
+
+### Bug fixes 
+
+- Aborts from an HTTP server are now properly reported back to the client instead of resulting in a 500 return code (Cset:f3807a135e43)
+- lock: remove possible confusion between pid from different namespace (Cset:1f151a33af8e)
+- color: fix handling of nested color (Bts:issue5413)
+- template: cleanly reject invalid argument passed to `pad()`
+- template: make `pad()` strip color codes before computing width (Bts:issue5416)
+- graphlog: properly display multiple edges towards null node (Bts:issue5440)
+- addremove: significant speedup on large repository (Cset:d3e2af4e0128, Cset:985a98c6bad0)
+- fileset: significant speed up on large repository (Cset:992882cef7e1)
+- curses: fix the interactive hunk selection user interface on windows (Bts:issue5512)
+- hgwebdir: allow a repository to be hosted at "/"
+- bundle2: ignore errors seeking a bundle after an exception (Bts:issue4784)
+- templatefilters: fix crash by string formatting of '{x|splitlines}'
+
+### Improvements 
+
+- merge: print message before launching external merge tool (Cset:4d019d0e1b3b),
+- profiling: add statprof support for Chrome trace viewer rendering (Cset:517bc1cd7033),
+- hg: allow usage of ''`$XDG_CONFIG_HOME/hg/hgrc`'' (Cset:354020079723),
+- matcher: adds a new `rootfilesin:` matcher type. It matches files inside a directory, but not any subdirectories.
+- sslutil: issue warning when `[hostfingerprint]` is used. The `[hostsecurity]` is better in everyway.
+- pager: improve error reporting when calling out to page (Bts:issue5491)
+- documentation: various improvements
+- hgweb: use monospace font for commit messages in gitweb theme
+- template: provide loop counter as "index" keyword
+- template: add support for keyword arguments
+- template: introduce new `hybridlist` and `hybriddict` function and the ability to define a `dict` in a template
+- hg: hardlink is enabled more widely on some filesystems, to speed up certain operations.
+
+### Extensions 
+
+- bugzilla: add a REST API backend (usable with Bugzilla 5.0+) (Cset:78de43ab585f),
+- blackbox: allow to log time spent blocked (eg: waiting on user input) using the `ui.logblockedtimes = on` config option,
+- shelve: add -n/--name option to unshelve (Bts:issue5475)
+- patchbomb: add config knob to generate flags by template (Bts:issue5354)
+- rebase: fix a bug where public changeset could still be rebase in if the rebase set had multiple roots,
+- rebase: fix rebase possible rebase crash when working directory parent is obsolete (Bts:issue5219) (<1> not sure if we should include stuff touching experimental feature)
+- patchbomb: use a single pager to display all output from `-n/--test` (BC)
+- mq: reject new patch name containing leading/trailing whitespace
+- convert: fix the handling of empty changlist descriptions in P4
+- largefiles: set the extension as enabled locally after a share requiring it
+
+
+
+
+  

@@ -1,35 +1,71 @@
-== New Features ==
-
- * Windows will process hgrc files in %PROGRAMDATA%\Mercurial\hgrc.d.
+# Mercurial 5.3 (2020-01-29)
 
 
-== New Experimental Features ==
+## Mercurial 5.3 release 
+
+This is an overview of the 5.3 release.
+
+### New Features 
+
+- Windows will process hgrc files in `%PROGRAMDATA%\Mercurial\hgrc.d`.
+
+- The Phabricator extension will read `.arcconfig` in the repository root to assign
+   the `phabricator.callsign` and `phabricator.url` properties, if available.
+   This file will override the settings in the global or user level config
+   files, but is itself overridden by the config file for the repository (issue6243)
+
+- Accept explicit -r 'wdir()' when adding new bookmarks (issue6218)
+
+- `hg import` has a new --secret option for committing with the  secret phase.
 
 
-== Bug Fixes  ==
+### New Experimental Features 
 
- * The `indent()` template function was documented to not indent empty lines,
+- The LFS extension adds `--no-lfs` to the `verify`, so that it won't attempt to
+   download missing blobs as part of the process.
+
+### Bug Fixes  
+
+- The `indent()` template function was documented to not indent empty lines,
    but it still indented the first line even if it was empty. It no longer does
    that.
 
-== Backwards Compatibility Changes ==
+- Avoid setting both parents to the same commit in some cases when evolving a merge (issue6098)
 
+- Avoid spurious warnings with `hg verify --verbose` when there are renames in obsolete revisions (issue6172)
 
-== Internal API Changes ==
+- Check for unfinished ops when using the experimental in-memory rebase (issue6214)
 
- * Matcher instances no longer have a `explicitdir` property. Consider
+- Avoid corrupting dirstate if files are modified while the editor is open for an amend (issue6233)
+
+- Ensure reviews are posted to Phabricator in topological order, regardless of the order specified on the command line (issue6241)
+
+### Backwards Compatibility Changes 
+
+- Changed bundled config file location in Windows .exe installers to `hgrc.d`,
+   from `default.d`.  Consider using the new `%PROGRAMDATA%\Mercurial\hgrc.d`
+   directory instead of the installation directory if you need to add custom
+   config files globally.
+
+- File patterns for the `fix` configuration are resolved against the repository
+   root, instead of `cwd`.  This allows filesets to be resolved consistently,
+   regardless of `cwd`.
+
+### Internal API Changes 
+
+- Matcher instances no longer have a `explicitdir` property. Consider
    rewriting your code to use `repo.wvfs.isdir()` and/or
    `ctx.hasdir()` instead. Also, the `traversedir` property is now
    also called when only `explicitdir` used to be called. That may
    mean that you can simply remove the use of `explicitdir` if you
    were already using `traversedir`.
 
- * The `revlog.nodemap` object have been merged into the `revlog.index` object.
-   * `n in revlog.nodemap` becomes `revlog.index.has_node(n)`,
-   * `revlog.nodemap[n]` becomes `revlog.index.rev(n)`,
-   * `revlog.nodemap.get(n)` becomes `revlog.index.get_rev(n)`.
+- The `revlog.nodemap` object have been merged into the `revlog.index` object.
+  - `n in revlog.nodemap` becomes `revlog.index.has_node(n)`,
+  - `revlog.nodemap[n]` becomes `revlog.index.rev(n)`,
+  - `revlog.nodemap.get(n)` becomes `revlog.index.get_rev(n)`.
 
- * `copies.duplicatecopies()` was renamed to
+- `copies.duplicatecopies()` was renamed to
    `copies.graftcopies()`. Its arguments changed from revision numbers
    to context objects. It also lost its `repo` and `skip` arguments
    (they should no longer be needed).

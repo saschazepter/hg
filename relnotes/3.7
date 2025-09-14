@@ -1,0 +1,45 @@
+# Mercurial 3.7 (2016-02-01)
+
+## Mercurial 3.7 release 
+### Features 
+- [[GeneralDelta]]: the original Mercurial compression format had an inefficient way of storing history in very branchy repositories. Generaldelta addresses this weakness. As a result, depending on the repository, this can improve the size of the history up to a factor of 10. Mercurial 1.9 was the first release to support generaldelta (behind a feature flag), but Mercurial 3.7 also allows pulling a mixture of non-generaldelta and generaldelta history without having to recompute everything, which avoids overloading servers. As a result, generaldelta is now enabled by default. You can convert a repository to generaldelta using:
+ {{{
+hg clone -U --config format.generaldelta=1 --pull originalrepo generaldeltarepo
+}}}
+
+- Clonebundles: this is an server-side extension. It allows using a pre-generated bundle for an initial Mercurial clone. Clients will automatically use clonebundles if a server advertises them. Clonebundles allows much faster initial clones and reduces the load on a central server significantly. Mercurial 3.6 was the first version to include experimental clonebundles support, it's now been marked non-experimental. You can find out more using: {{{hg help clonebundles}}}.
+
+- Filesets now support 'missing()', to specify all files missing according to {{{hg status}}}.
+
+- Interactive committing ({{{hg commit -i}}}) and amending ({{{hg commit --amend}}}) can now be used together.
+
+- Merging can now handle collisions between untracked and tracked files, configurable according to the config option {{{merge.checkunknown}}}.
+
+- Default 'histedit' destination: it's now possible to run {{{hg histedit}}} without specifying a base revision. Mercurial will try to determine an appropriate base automatically. The revset used for this is "{{{reverse(only(.) and not public() and not ::merge())}}}", which specifies the first ancestor of the current changeset that is not public and does not have any descendants that are merges.
+
+- The '*.orig' files created by revert can now be stored in a different location, specified by the config option {{{ui.origbackuppath}}}.
+
+- {{{hg shelve}}} now supports storing untracked files.
+
+- {{{hg unshelve}}} now supports using a custom merge tool.
+
+- {{{hg backout}}} now commits by default if no conflicts were encountered.
+
+- hgweb now supports rendering sub-topics.
+- Server operators can now limit interaction with legacy clients speaking an outdated wire protocol. This is useful for preventing excessive CPU use when the server is using generaldelta repositories. See the various {{{bundle1}}} options in {{{hg help config.server}}}.
+
+- Python wheel packages are now available for Windows on PyPI
+- {{{[paths]}}} entries can now define a separate URL for pushes. See {{{hg help config.paths}}} for more.
+
+### Improvements 
+This release includes many improvements, including (but not limited to):
+
+- performance improvements (speedup for 'hg log <file/folder>')
+
+- many documentation improvements (clarification, additional examples (see {{{hg help <command> --verbose}}}), ...)
+
+- improved PyPy support
+
+- {{{hg clone --uncompressed}}} is now 3-4x faster on Windows. See the backgroundclose* options in {{{hg help config.worker}}} for more.
+
+A full overview is available on WhatsNew.

@@ -1,52 +1,47 @@
-= Mercurial 7.0.3 =
+# Mercurial 7.0 (2025-03-25)
 
- * convert: correctly convert sub-hour timezones from Git source
- * fastexport: fix error message when UTC offset is not a multiple of minutes
- * hgdemandimport: exclude _contextvars (newly imported from threading)
- * procutil: actually silence backgrounded process stdio on Windows when asked
- * bundlespec: fix error in help text
- * branch: pass correct set of files to memctx() in case of merge (issue6972)
- * branch: recreate changeset of top of new parents if they were replaced
- * fix: stop adding unexpected extra requirements to stream clones
- * crecord: handle bad regexes in search
- * config: move the --shared and --non-shared flag out of experimental
- * Test harness improvements
- * More modern Python fixes
+## Mercurial 7.0.3 
 
-= Mercurial 7.0.2 =
+- convert: correctly convert sub-hour timezones from Git source
+- fastexport: fix error message when UTC offset is not a multiple of minutes
+- hgdemandimport: exclude _contextvars (newly imported from threading)
+- procutil: actually silence backgrounded process stdio on Windows when asked
+- bundlespec: fix error in help text
+- branch: pass correct set of files to memctx() in case of merge (issue6972)
+- branch: recreate changeset of top of new parents if they were replaced
+- fix: stop adding unexpected extra requirements to stream clones
+- crecord: handle bad regexes in search
+- config: move the --shared and --non-shared flag out of experimental
+- Test harness improvements
+- More modern Python fixes
 
- * rust: document a `pipx` install
- * keepalive: don't reuse a connection to the proxy for a different host
- * httppeer: don't put an int in headers
- * dirstate: fix panic when validating dirstate on write
- * reject_new_heads: handle None being passed as node
- * rust-revlog: detect and fix nodemap lagging behind its revlog
- * General improvements to the CI
+## Mercurial 7.0.2 
 
-= Mercurial 7.0.1 =
+- rust: document a `pipx` install
+- keepalive: don't reuse a connection to the proxy for a different host
+- httppeer: don't put an int in headers
+- dirstate: fix panic when validating dirstate on write
+- reject_new_heads: handle None being passed as node
+- rust-revlog: detect and fix nodemap lagging behind its revlog
+- General improvements to the CI
+
+## Mercurial 7.0.1 
 
 This upgrade is long overdue and fixes a security vulnerability transitive
 from `zstd` itself.
 
- * vendor: upgrade to python-zstandard 0.23.0
+- vendor: upgrade to python-zstandard 0.23.0
 
-= Mercurial 7.0=
+## Mercurial 7.0 
 
-== Packaging Changes ==
+### Packaging Changes 
 
 The 7.0 release is the first to be compliant with `PEP 517`.
 
-This required an overhaul of the Mercurial packaging: packagers should pay extra
-attention to this release and report any issues they might encounter with the
-new system.
+This required an overhaul of the Mercurial packaging: packagers should pay extra attention to this release and report any issues they might encounter with the new system.
 
-In practice, this means that Mercurial's `setup.py` can no longer be called
-directly.
-Instead, one should build the Mercurial package using PyPA's `build` package
-(https://github.com/pypa/build).
-
-In the general case, this will take care of the build dependencies, but
-packagers might want to explicitly manage them. Currently the build depends on:
+In practice, this means that Mercurial's `setup.py` can no longer be called directly. Instead, one should build the Mercurial package using PyPA's `build` package
+(https://github.com/pypa/build). In the general case, this will take care of the build dependencies, but packagers might want to explicitly manage them. Currently the build depends on:
 
 - `wheel`
 - `setuptools>=64`
@@ -56,26 +51,25 @@ packagers might want to explicitly manage them. Currently the build depends on:
 The `Makefile` no longer offers a `build` target.
 We now use `BuildTools 2022` when building Windows packages.
 
-== Other Backwards Compatibility Changes ==
+### Other Backwards Compatibility Changes 
 
 - sslutil: bump the default minimum TLS version of the client to 1.2 (BC) (085cc409847d)
 - setup: require TLS 1.2 support from the Python interpreter (BC) (a820a7a1fce0)
 
-== New Features ==
+### New Features 
 
 - It is now possible to store inline clone bundle outside of .hg (48572371d478)
-- Added a generic `storage.all-slow-path` option to control the default
-  behavior regarding degraded support for some repository format. (bbbb12632607)
+- Added a generic `storage.all-slow-path` option to control the default behavior regarding degraded support for some repository format. (bbbb12632607)
 - Added a `--to` flag to `hg graft` that allows graft in memory (68dc6cecca32)
 - Added a `fix.extra-bin-paths` configuration for the `fix` extension (1330278b9029)
 
-== New Experimental Features ==
+### New Experimental Features 
 
 - add a --ignore-changes-from-ancestors option (688665425496)
 - stream-clone: use dedicated threads to write the data on disk (7f848cfc4286, 58baa86c7a02, aee193b1c784)
 - the experimental `git` extension now supports more commands
 
-== Bug Fixes ==
+### Bug Fixes 
 
 - subrepo: fix calling outgoing with multiple paths (85c095c1f8bc)
 - stream clone: fix a race condition around volatile files (46574e588017, 3f0cf7bb3086)
@@ -86,7 +80,7 @@ We now use `BuildTools 2022` when building Windows packages.
 - bundle-spec: properly format boolean parameter (issue6960)
 - bundle2: fix a bug where _forwardchunks doesn't work with empty bundles
 
-== Rust ==
+### Rust 
 
 - the Rust code is now exposed to Python though PyO3 instead of `rust-cpython` (6673cec8605c)¹
 - rhg: support `status --change`, including `--copies` (bde718849153)
@@ -96,7 +90,7 @@ We now use `BuildTools 2022` when building Windows packages.
 
 [1] Both `rust-cpython` and `PyO3` bridges are present in this release in case users need to switch back (by changing every `importrust` call) in case something went really wrong in the translation. The `rust-cpython` code will be removed entirely in Mercurial 7.1.
 
-== Miscellaneous ==
+### Miscellaneous 
 
 - help: modernize the help text for `hostsecurity.minimumprotocol` (b65085c6d6ff)
 - run-tests: add a 4th `HGPORT` value (7f8d0c2c3692)

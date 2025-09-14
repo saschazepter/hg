@@ -1,0 +1,122 @@
+# Mercurial 4.4 (2017-11-01)
+
+
+## Mercurial 4.4 release
+
+### Notable changes
+
+#### Control whitespace settings for annotation on hgweb
+
+/annotate URLs on hgweb now accept query string arguments to influence how
+whitespace changes impact results.
+
+The arguments "ignorews," "ignorewsamount," "ignorewseol," and
+"ignoreblanklines" now have the same meaning as their [annotate] config
+section counterparts. Any provided setting overrides the server default.
+
+HTML checkboxes have been added to the paper and gitweb themes to expose
+current whitespace settings and to easily modify the current view.
+
+#### Fast, heuristic copy-tracing
+
+A new fast heuristic algorithm for copytracing which assumes that the files
+moves are either:
+
+ 1. renames in the same directory
+ 2. moves in other directories with same names
+
+You can use this algorithm by setting 'experimental.copytrace=heuristics'. This
+setting performs full copytracing if both source and destination branches
+contains non-public changesets only.
+
+#### Other changes
+
+- Estimated time is more accurate with non-linear progress
+
+- "hg status -v" can now show unfinished state. For example, when in an
+ unfinished rebase state, "hg status -v" might show:
+
+ ```shell
+ # The repository is in an unfinished *rebase* state.
+ # No unresolved merge conflicts.
+ # To continue:                hg rebase --continue
+ # To abort:                   hg rebase --abort
+ ```
+
+- Added '--ignore-space-at-eol' diff option to ignore whitespace differences
+ at line endings.
+
+- show: use consistent node length in views
+
+- show: decrease minimum displayed hash length from 5 to 4
+
+- A new uncommit extension which provides 'hg uncommit' using which one can
+ uncommit part or all of the changeset. This command undoes the effect of a
+ local commit, returning the affected files to their uncommitted state.
+
+- 'hg clone --uncompressed' uses clone bundles when possible
+
+- 'hg annotate --skip' now prints a '*' on lines with skipped revisions
+
+- New 'commands.update.check' feature to adjust constraints on when 'hg
+ update' will allow updates with a dirty working copy.
+
+- Add an experimental -L/--line-range FILE,FROMLINE-TOLINE option to 'hg log'
+ command to follow the history of files by line range. In combination with
+ -p/--patch option, only diff hunks within specified line range will be
+ displayed. Feedback, especially on UX aspects, is welcome.
+
+- Print warning when fsmonitor isn't being used on a large repository
+
+### Backwards Compatibility Changes
+
+- The config option for copytrace 'experimental.disablecopytrace' is now
+ replaced with 'experimental.copytrace' which defaults to 'on'. If you need
+ to turn off copytracing, add '[experimental] copytrace = off' to your
+ config.
+
+- 'hg clone --stream' should now be used instead of --uncompressed.
+
+ --uncompressed is marked as deprecated and is an alias for --stream. There
+ is no schedule for elimination of --uncompressed.
+
+- The 'experimental.updatecheck' name for the new 'commands.update.check'
+ feature is now deprecated, and will be removed after this release.
+
+- Mercurial subrepositories are now shared instead of cloned when the parent
+ repository is shared.  This prevents dangling subrepository references in
+ the share source.  Previously shared repositories with cloned
+ subrepositories will continue to function unchanged.
+
+- Push no longer triggers a pushkey hook when updating phases. Use the new
+ 'txnclose-phase' and 'txnclose-phase' hooks instead. (Applies when both
+ server and client use version 4.4 or above).
+
+### Bug Fixes
+
+- Core rebase algorithm has been rewritten to be more robust (Bts:issue5578, Bts:issue5630)
+
+- Creating a share of a repository with a Mercurial subrepository will now share the subrepository (Bts:issue5675)
+
+### Performance Improvements
+
+- improved performance when many aliases are defined
+
+
+### API Changes
+
+#### remove peer.batch()
+
+Replace with peer.iterbatch().
+
+#### Other Changes
+
+- @peer.batchable can no longer emit local values
+
+- @peer.batchable functions must now yield exactly 2 values
+
+- Rename attributes on sshpeer to reflect peer API
+
+- peer.peerrepository has been removed. Use repository.peer abstract base class to represent a peer repository.
+
+- revset.stringset() now takes 'order' as the last argument.

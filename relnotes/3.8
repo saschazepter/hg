@@ -1,0 +1,32 @@
+# Mercurial 3.8 (2016-04-30)
+
+## Mercurial 3.8 release 
+### Features 
+- `hg update` and other commands that can perform update (such as `hg pull -u`) now warn about other topological heads
+- [[CHg|cHg]] has been added
+- `hg update` now updates to the tip-most changeset on the same topological branch. Before, it would update to the tip-most changeset, possibly on a different topological head
+- Hints on how to continue interrupted commands are now printed (e.g. `hg resolve -m` will now tell you to run `hg rebase --continue` or `hg histedit --continue`)
+- The experimental automv extension has been added. This extension attempts to detect file copes and renames automatically.
+- The 3rd party hgwatchman extension has been imported as the [[FsMonitorExtension|fsmonitor extension]]. This extension uses filesystem watching to make commands like hg status significantly faster on large repositories.
+- `hg rebase` now chooses its default destination the same way `hg merge` does
+- `hg pull -u` now activates a bookmark if the has a bookmark
+- `hg pull -u` now deactivates a bookmark if the destination doesn't match the existing bookmark
+- Improved edge styles in graph log. Cset:d7af9b4ae7dd
+- User template keywords and functions can be defined in `[templatealias]` section.
+- It's now possible to push the active bookmark using `hg push -B .`.
+
+### Improvements 
+This release includes many improvements, including (but not limited to):
+
+- performance of copy detection during rebases has been improved, potentially leading to faster rebase execution
+- performance of `hg log -f <file>` has been improved
+- syntax errors in loaded extensions are now handled better
+- `hg update` on Windows should now be up to 4x faster
+- JSON encoding should now be proper UTF-8 for all inputs
+- Performance of the `-` revset operator has been improved
+- The blackbox extension now logs more data
+- "hgext" is now a Python namespace package
+- revsets accessing changelog data (commit messages, authors, dates) are now 10-15% faster
+- hg.exe built in MinGW will now link against the proper Python DLL
+
+A full overview is available on WhatsNew.

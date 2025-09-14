@@ -1,246 +1,241 @@
-= Mercurial 6.9.5 =
+# Mercurial 6.9 (2024-11-20)
+
+## Mercurial 6.9.5 
 
 This upgrade is long overdue and fixes a security vulnerability transitive
 from `zstd` itself.
 
- * vendor: upgrade to python-zstandard 0.23.0
+- vendor: upgrade to python-zstandard 0.23.0
 
-= Mercurial 6.9.4 =
+## Mercurial 6.9.4 
 
- * hgweb: fix XSS vulnerability in hgweb (CVE-2025-2361)
+- hgweb: fix XSS vulnerability in hgweb (CVE-2025-2361)
 
-= Mercurial 6.9.3 =
+## Mercurial 6.9.3 
 
- * fix processing of superfluous requirements specified for streamclone in clone bundle manifest 
+⚠️ out of schedule release to fix a regression introduced in 6.9.2
 
-= Mercurial 6.9.2 =
+- fix processing of superfluous requirements specified for streamclone in clone bundle manifest
 
- * narrow: stricter validation of narrowspec patterns
- * narrow: stricter validation of narrowspec patterns in rhg
- * rhg: fix a bug where only the first pattern in narrowspec was validated
- * extensions: allow wrapping a function with a bytes name again
- * upgrade: fix a reference to a missing attribute
- * bundles: filter out unsupported requirements for non-packed1 format
- * dirstate-race: add more output to highlight a "to-be-revealed" bug
- * dirstate-race: simplify some output match to highligh an error
- * dirstate-race: fix a missing synchronisation in the python code
- * dirstatemap: stop setting identity after reading the data
- * sshpeer: fix deadlock on short writes
- * sshpeer: fix another occurrence of short write handling
+## Mercurial 6.9.2 
 
-= Mercurial 6.9.1 =
+- narrow: stricter validation of narrowspec patterns
+- narrow: stricter validation of narrowspec patterns in rhg
+- rhg: fix a bug where only the first pattern in narrowspec was validated
+- extensions: allow wrapping a function with a bytes name again
+- upgrade: fix a reference to a missing attribute
+- bundles: filter out unsupported requirements for non-packed1 format
+- dirstate-race: add more output to highlight a "to-be-revealed" bug
+- dirstate-race: simplify some output match to highligh an error
+- dirstate-race: fix a missing synchronisation in the python code
+- dirstatemap: stop setting identity after reading the data
+- sshpeer: fix deadlock on short writes
+- sshpeer: fix another occurrence of short write handling
 
- * ci: disable caching of the wheels that get built to save space
- * tests: use `--no-cache-dir` with `pip`
- * run-tests: disable caching of the wheels when installing test Mercurial
- * manifest: delay import of `typing.ByteString` for py 3.14 support (issue6940)
- * contrib: propagate `pytype` failures outside of `check-pytype.sh`
- * acl: fix confusing formatting in help text (issue6942)
- * ui: fix escape sequences in in readline prompts (issue6930)
- * ci: let branch job run for scheduled build too
- * ci: automatically starts platform and py-version test for scheduled build
- * help: fix command build with rust
- * copyright: update to 2025
- * ci: also let the nightly build run on tags
- * usage: refactor usage.resources config parsing
- * hg-core: fix usage.resources typo
- * hg-core: fix usage.resources default logic
+## Mercurial 6.9.1 
 
-= Mercurial 6.9 =
+- ci: disable caching of the wheels that get built to save space
+- tests: use `--no-cache-dir` with `pip`
+- run-tests: disable caching of the wheels when installing test Mercurial
+- manifest: delay import of `typing.ByteString` for py 3.14 support (issue6940)
+- contrib: propagate `pytype` failures outside of `check-pytype.sh`
+- acl: fix confusing formatting in help text (issue6942)
+- ui: fix escape sequences in in readline prompts (issue6930)
+- ci: let branch job run for scheduled build too
+- ci: automatically starts platform and py-version test for scheduled build
+- help: fix command build with rust
+- copyright: update to 2025
+- ci: also let the nightly build run on tags
+- usage: refactor usage.resources config parsing
+- hg-core: fix usage.resources typo
+- hg-core: fix usage.resources default logic
 
-== Backwards Compatibility Changes ==
+## Mercurial 6.9 
 
- * This release drops support for Python 3.6 and 3.7.
- * Starting with this release and hopefully for the forseeable future,
-   we are now building wheels for most architectures.
-   /!\ Note that for Rust users installing via `pip` or `pipx`, you will need
-   to specify `--no-binary` to continue using Rust since we do not yet package
-   the Rust compilation in our wheels. We plan on fixing this for 7.0.
- * Python 3.13 changed how it handles docstrings (namely removing uniform
-   leading whitespace for every line), which forced us to align the
-   representation of our help text with this new behavior across all versions.
-   Due to this and a lack of time and expertise from contributors, a lot of
-   existing translations could be missing. The effort of i18n in general has
-   died down many years ago, but if this matters to you, feel free to send
-   your contributions. 
+### Backwards Compatibility Changes 
+
+- This release drops support for Python 3.6 and 3.7.
+- Starting with this release and hopefully for the forseeable future, we are now building wheels for most architectures.
+   ⚠️ Note that for Rust users installing via `pip` or `pipx`, you will need to specify `--no-binary` to continue using Rust since we do not yet package the Rust compilation in our wheels. We plan on fixing this for 7.0.
+- Python 3.13 changed how it handles docstrings (namely removing uniform leading whitespace for every line), which forced us to align the representation of our help text with this new behavior across all versions. Due to this and a lack of time and expertise from contributors, a lot of existing translations could be missing. The effort of i18n in general has died down many years ago, but if this matters to you, feel free to send your contributions.
 
 
-== New Features ==
+### New Features 
 
- * exchange: improve computation of relevant markers for large repos
- * Add a Rust fast-path to speed up update (also for `clone`) from null (up to 4x faster) 
- * Introduced a new rev-branch-cache version (v2) that is mmap-resistant
- * The branchmap's performance was improved
- * Improved the performance of the fix for issue6528
- * clonebundles: allow manifest to specify sha256 digest of bundles
- * merge: improve working-copy mtime race handling
- * profiling: add a py-spy profiling backend
- * revlog: use an explicit config option to enable mmap usage for index
- * revlog: use mmap by default is pre-population is available
- * mmap: populate the mapping by default
- * mmap: populate mapping in a background thread
+- exchange: improve computation of relevant markers for large repos
+- Add a Rust fast-path to speed up update (also for `clone`) from null (up to 4x faster)
+- Introduced a new rev-branch-cache version (v2) that is mmap-resistant
+- The branchmap's performance was improved
+- Improved the performance of the fix for issue6528
+- clonebundles: allow manifest to specify sha256 digest of bundles
+- merge: improve working-copy mtime race handling
+- profiling: add a py-spy profiling backend
+- revlog: use an explicit config option to enable mmap usage for index
+- revlog: use mmap by default is pre-population is available
+- mmap: populate the mapping by default
+- mmap: populate mapping in a background thread
 
-== Experimental features ==
+### Experimental features 
 
- * merge: add a config to allow conflict-free merge of changes on adjacent lines
+- merge: add a config to allow conflict-free merge of changes on adjacent lines
 
-== Bug Fixes ==
+### Bug Fixes 
 
- * `config.server.validate` now also works on narrowed repositories
- * convert: fix various leaked file descriptors
- * stream: prefer keeping an open file handle to volatile file instead of copy
- * dummysmtpd: fix EOF handling on newer versions of OpenSSL
- * cext: correct the argument handling of `b85encode()`
- * branchmap-v3: make sure we write the cache after detecting pure-topo mode
- * rust: apply clippy lints
- * copies: make sure deleted copy info do not overwriting unrelated ones
- * rebase: don't call rewriteutil.precheck() with to-be-skipped commits
- * phabricator: correct the default value of `phabhunk.corpus`
- * linelog: correct the default value of `annotateresult.lines`
- * largefiles: avoid a potentially undefined variable in exception case
- * httppeer: move a variable to avoid a bad reference before assignment warning
- * httppeer: avoid another bad reference before assignment warning
- * tests: use packaging from setuptools instead of deprecated distutils
- * manifest: type and fix unhexlify
- * manifest: align some vfs option access on the fact we might not have options
- * scmutils: read the requires file before writing to avoid unnecessary rewrite
- * debugsparse: stop taking the store lock
- * sparse: reliably avoid writing to store without a lock
- * largefiles: sync up `largefilesdirstate` methods with `dirstate` base class
- * shelve: raise an error when loading a corrupt state file in an impossible case
- * monotone: replace %s interpolation with appropriate numeric specifiers
- * shelve: consistently convert exception to bytes via `stringutil.forcebytestr`
- * remotefilelog: honor the `--format` arg of the `debugindex` command
- * remotefilelog: adapt the `debugindex` command to past API changes
- * run-tests: add color to the progress output
- * archive: defer opening the output until a file is matched
- * help: add :config-doc:`section.key` shorthand to insert documentation
- * censor: document the censor.policy option (issue6909)
- * rust-revlog: don't try to open the data file if the index is empty
- * bundlerepo: fix mismatches with repository and revlog classes
- * revlog: make `clearcaches()` signature consistent with ManifestRevlog
- * unionrepo: fix mismatches with revlog classes
- * keepalive: fix a signature mismatch for a http.client.HTTPResponse subclass
- * lfs: fix various signature mismatches for vfs subclasses
- * store: fix a signature mismatch for a vfs subclass
- * util: avoid a leaked file descriptor in `util.makelock()` exceptional case
- * statichttprepo: fix `httprangereader.read()` for py3
- * util: make `mmapread()` work on Windows again
- * mdiff: tweak calls into `bdiff.fixws` to match its type hints
- * base85: avoid a spurious use-before-initialized warning in `pure` module
- * install: static data moved from setup.py to pyproject.toml
- * upgrade: disable using the parallel workers optimization on macOS
- * doc: generate separate commands/topics/extension pages
- * extdiff: don't run gui programs when in a cli-only environment
- * clonebundles: stop shell quoting `HGCB_BUNDLE_BASENAME` environment variable
- * streamclone: disable the volatile file open handle optimization on Windows
- * pytype: add relative timestamp to the output if `ts` is available
- * hgweb: skip logging ConnectionAbortedError
+- `config.server.validate` now also works on narrowed repositories
+- convert: fix various leaked file descriptors
+- stream: prefer keeping an open file handle to volatile file instead of copy
+- dummysmtpd: fix EOF handling on newer versions of OpenSSL
+- cext: correct the argument handling of `b85encode()`
+- branchmap-v3: make sure we write the cache after detecting pure-topo mode
+- rust: apply clippy lints
+- copies: make sure deleted copy info do not overwriting unrelated ones
+- rebase: don't call rewriteutil.precheck() with to-be-skipped commits
+- phabricator: correct the default value of `phabhunk.corpus`
+- linelog: correct the default value of `annotateresult.lines`
+- largefiles: avoid a potentially undefined variable in exception case
+- httppeer: move a variable to avoid a bad reference before assignment warning
+- httppeer: avoid another bad reference before assignment warning
+- tests: use packaging from setuptools instead of deprecated distutils
+- manifest: type and fix unhexlify
+- manifest: align some vfs option access on the fact we might not have options
+- scmutils: read the requires file before writing to avoid unnecessary rewrite
+- debugsparse: stop taking the store lock
+- sparse: reliably avoid writing to store without a lock
+- largefiles: sync up `largefilesdirstate` methods with `dirstate` base class
+- shelve: raise an error when loading a corrupt state file in an impossible case
+- monotone: replace %s interpolation with appropriate numeric specifiers
+- shelve: consistently convert exception to bytes via `stringutil.forcebytestr`
+- remotefilelog: honor the `--format` arg of the `debugindex` command
+- remotefilelog: adapt the `debugindex` command to past API changes
+- run-tests: add color to the progress output
+- archive: defer opening the output until a file is matched
+- help: add :config-doc:`section.key` shorthand to insert documentation
+- censor: document the censor.policy option (issue6909)
+- rust-revlog: don't try to open the data file if the index is empty
+- bundlerepo: fix mismatches with repository and revlog classes
+- revlog: make `clearcaches()` signature consistent with ManifestRevlog
+- unionrepo: fix mismatches with revlog classes
+- keepalive: fix a signature mismatch for a http.client.HTTPResponse subclass
+- lfs: fix various signature mismatches for vfs subclasses
+- store: fix a signature mismatch for a vfs subclass
+- util: avoid a leaked file descriptor in `util.makelock()` exceptional case
+- statichttprepo: fix `httprangereader.read()` for py3
+- util: make `mmapread()` work on Windows again
+- mdiff: tweak calls into `bdiff.fixws` to match its type hints
+- base85: avoid a spurious use-before-initialized warning in `pure` module
+- install: static data moved from setup.py to pyproject.toml
+- upgrade: disable using the parallel workers optimization on macOS
+- doc: generate separate commands/topics/extension pages
+- extdiff: don't run gui programs when in a cli-only environment
+- clonebundles: stop shell quoting `HGCB_BUNDLE_BASENAME` environment variable
+- streamclone: disable the volatile file open handle optimization on Windows
+- pytype: add relative timestamp to the output if `ts` is available
+- hgweb: skip logging ConnectionAbortedError
 
-== Internal API Changes ==
+### Internal API Changes 
 
- * manifest: deprecated readdelta and readfast
+- manifest: deprecated readdelta and readfast
 
-== Miscellaneous ==
+### Miscellaneous 
 
- * http: reuse Python's implementation of read/readline/readinto
- * http: use urllib's cookie handler
- * rev-branch-cache: schedule a write of the "v2" format if we read from "v1"
- * rev-branch-cache: have debugupdatecache warm rbc too
- * rev-branch-cache: reenable memory mapping of the revision data
- * debugwireproto: redo logging to also work for https
- * rust: use `.cargo/config.toml` instead of `.cargo/config`
- * A whole bunch of typing improvements, which in turn found many bugs
- * Test suite improvements
- * Various packaging improvements
+- http: reuse Python's implementation of read/readline/readinto
+- http: use urllib's cookie handler
+- rev-branch-cache: schedule a write of the "v2" format if we read from "v1"
+- rev-branch-cache: have debugupdatecache warm rbc too
+- rev-branch-cache: reenable memory mapping of the revision data
+- debugwireproto: redo logging to also work for https
+- rust: use `.cargo/config.toml` instead of `.cargo/config`
+- A whole bunch of typing improvements, which in turn found many bugs
+- Test suite improvements
+- Various packaging improvements
 
 Below are many, many changes that have to do with building/testing wheels,
 adding some sharding to the CI and MacOS + Windows compatibility work:
 
- * ci: abstract the branch matching regexp
- * ci: add "sink" for parallel tests
- * ci: for branches, use a single trigger
- * packaging: explain why we purge while building wheels
- * wheels: rely on the image config to be able to access the repository
- * packaging: remove the i686 wheel from the linux-wheels target
- * packaging: propagate the make option to packaging target
- * packaging: factor the linux-wheels-x86_64 a bit
- * wheel: add a target for amdx86_64-musl wheels
- * wheel: also build the musl wheel in the ci
- * wheel: reintroduce the building of i686 wheel
- * wheels: also build the i686 wheel in the CI
- * contrib: install the arm64 compiler tools in the Windows dependency script
- * contrib: add a bat file to build all of the wheels on Windows
- * wheels: remove deprecated blacklist
- * wheels: make sure we create the `dist/` directory in the make target
- * contrib: add a script to build all of the wheels on macOS
- * wheel: also build wheel for linux arm64 in the CI
- * ci: add sink for wheels too
- * run-tests: don't use shell call for subprocess
- * run-tests: add a --hg-wheel options to test a pre-built wheel
- * ci: unify the way `check-pytype` inherit the common setting
- * ci: split the jobs on more stage
- * ci: build a wheel and use it to run c tests
- * tests: stabilize `test-extdiff.t` on macOS
- * tests: disable `test-git-interop.t` with a requirements directive
- * tests: disable a section of `test-hgrc.t` that may hit a zeroconf bug
- * ci: add a runner for Windows 10
- * tests: treat `select` as a built-in module on Windows
- * tests: disable a section of `test-paths.t` that may hit a zeroconf bug
- * tests: conditionalize missing output in test-racy-mutations.t on Windows
- * tests: add a "missing" tests for manifest content in test-racy-mutations.t
- * tests: bump the wait timeouts in test-racy-mutations.t
- * test-install: use the global hg for the install step
- * test-install: glob instance of "python" in warning
- * ci: pre-adjust some identation
- * setup: add a way to force the setup to translate (or fail)
- * ci: use smaller VM to build wheel
- * ci: use a pre-setup many-linux image to build wheel
- * ci: build (and use) wheel for all supported version
- * ci: automatically compute the python tag we use to identify tag
- * run-tests: install wheel using --prefix instead of --user
- * pycompat: drop some now useless workaround for makedirs
- * wheel: build mac os wheel through the CI
- * ci: use the macos wheel to run tests
- * ci: use extends instead of <<: *x
- * ci: move some variables closer to their usage
- * ci: rationalize variable usage
- * ci: abstract the of absolute /tmp/ path
- * ci: move the "tempory work dir" to "concurrency-safe" location
- * ci: adjust the starting port range to runner concurrency
- * ci: have the mac test run if you trigger building the mac wheel
- * run-tests: implement crude sharding support
- * ci: shard the test run on mac os X
- * dev-version: change the scheme of non tagged version
- * wheel: enforce that translation being build for macos wheel
- * run-tests: focus on listing the selected test for the shard tests
- * run-tests: cleanup the "output" directory after the related tests
- * tests: drop PYTHONPATH manipulation in test-pushvars.t
- * windows: work around argument size limitation in test-bookmarks-pushpull.t
- * windows: adjust PYTHONPATH update in test-status-color.t
- * ci: use a concurrency safe TMP dir on Windows
- * ci: again common element into a `.windows` template
- * ci: split the windows runtest invocation into more granular variables
- * windows: skip test-clonebundles-autogen.t in the CI
- * ci: adjust port range on windows too
- * windows: simply rely on the PATH adjustment to find python.exe in tests
- * wheel: assign CIBW_SKIP globally
- * wheel: make --hg-wheel works on Windows
- * wheel: build Windows wheels too
- * wheel: explicitly list built architecture
- * wheel: test the built wheel in the windows tests
- * ci: shard the tests on windows too
- * wheel: enforce that translation being build for windows wheel
- * setup: remote a debug statement that slipped through
- * setup: factor version computation in a function
- * setup: use the same code to compute tag from archive
- * wheel: add a platform level to the wheel directories
- * wheel: add a job uploading nightly build
- * wheels: factor the core of Linux wheel building into a script
- * wheels: update the Linux wheels make target
- * clone: properly exclude rev-branch-cache from post clone cache warming
- * setup: make sure Rust build its extension for the right python
- * setup: preserve version part after the "+" on Windows
- * wheel: build windows wheel for ARM64 too
- * ci: adds a trigger for all pycompat jobs
- * ci: let the Windows runner decide how many job they want to run
+- ci: abstract the branch matching regexp
+- ci: add "sink" for parallel tests
+- ci: for branches, use a single trigger
+- packaging: explain why we purge while building wheels
+- wheels: rely on the image config to be able to access the repository
+- packaging: remove the i686 wheel from the linux-wheels target
+- packaging: propagate the make option to packaging target
+- packaging: factor the linux-wheels-x86_64 a bit
+- wheel: add a target for amdx86_64-musl wheels
+- wheel: also build the musl wheel in the ci
+- wheel: reintroduce the building of i686 wheel
+- wheels: also build the i686 wheel in the CI
+- contrib: install the arm64 compiler tools in the Windows dependency script
+- contrib: add a bat file to build all of the wheels on Windows
+- wheels: remove deprecated blacklist
+- wheels: make sure we create the `dist/` directory in the make target
+- contrib: add a script to build all of the wheels on macOS
+- wheel: also build wheel for linux arm64 in the CI
+- ci: add sink for wheels too
+- run-tests: don't use shell call for subprocess
+- run-tests: add a --hg-wheel options to test a pre-built wheel
+- ci: unify the way `check-pytype` inherit the common setting
+- ci: split the jobs on more stage
+- ci: build a wheel and use it to run c tests
+- tests: stabilize `test-extdiff.t` on macOS
+- tests: disable `test-git-interop.t` with a requirements directive
+- tests: disable a section of `test-hgrc.t` that may hit a zeroconf bug
+- ci: add a runner for Windows 10
+- tests: treat `select` as a built-in module on Windows
+- tests: disable a section of `test-paths.t` that may hit a zeroconf bug
+- tests: conditionalize missing output in test-racy-mutations.t on Windows
+- tests: add a "missing" tests for manifest content in test-racy-mutations.t
+- tests: bump the wait timeouts in test-racy-mutations.t
+- test-install: use the global hg for the install step
+- test-install: glob instance of "python" in warning
+- ci: pre-adjust some identation
+- setup: add a way to force the setup to translate (or fail)
+- ci: use smaller VM to build wheel
+- ci: use a pre-setup many-linux image to build wheel
+- ci: build (and use) wheel for all supported version
+- ci: automatically compute the python tag we use to identify tag
+- run-tests: install wheel using --prefix instead of --user
+- pycompat: drop some now useless workaround for makedirs
+- wheel: build mac os wheel through the CI
+- ci: use the macos wheel to run tests
+- ci: use extends instead of <<: *x
+- ci: move some variables closer to their usage
+- ci: rationalize variable usage
+- ci: abstract the of absolute /tmp/ path
+- ci: move the "tempory work dir" to "concurrency-safe" location
+- ci: adjust the starting port range to runner concurrency
+- ci: have the mac test run if you trigger building the mac wheel
+- run-tests: implement crude sharding support
+- ci: shard the test run on mac os X
+- dev-version: change the scheme of non tagged version
+- wheel: enforce that translation being build for macos wheel
+- run-tests: focus on listing the selected test for the shard tests
+- run-tests: cleanup the "output" directory after the related tests
+- tests: drop PYTHONPATH manipulation in test-pushvars.t
+- windows: work around argument size limitation in test-bookmarks-pushpull.t
+- windows: adjust PYTHONPATH update in test-status-color.t
+- ci: use a concurrency safe TMP dir on Windows
+- ci: again common element into a `.windows` template
+- ci: split the windows runtest invocation into more granular variables
+- windows: skip test-clonebundles-autogen.t in the CI
+- ci: adjust port range on windows too
+- windows: simply rely on the PATH adjustment to find python.exe in tests
+- wheel: assign CIBW_SKIP globally
+- wheel: make --hg-wheel works on Windows
+- wheel: build Windows wheels too
+- wheel: explicitly list built architecture
+- wheel: test the built wheel in the windows tests
+- ci: shard the tests on windows too
+- wheel: enforce that translation being build for windows wheel
+- setup: remote a debug statement that slipped through
+- setup: factor version computation in a function
+- setup: use the same code to compute tag from archive
+- wheel: add a platform level to the wheel directories
+- wheel: add a job uploading nightly build
+- wheels: factor the core of Linux wheel building into a script
+- wheels: update the Linux wheels make target
+- clone: properly exclude rev-branch-cache from post clone cache warming
+- setup: make sure Rust build its extension for the right python
+- setup: preserve version part after the "+" on Windows
+- wheel: build windows wheel for ARM64 too
+- ci: adds a trigger for all pycompat jobs
+- ci: let the Windows runner decide how many job they want to run
