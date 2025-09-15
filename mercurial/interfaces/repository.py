@@ -35,6 +35,8 @@ if typing.TYPE_CHECKING:
     from ._basetypes import (
         HgPathT,
         NeedsTypeHint,
+        NodeIdT,
+        RevnumT,
         RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
@@ -593,6 +595,90 @@ class IOutboundRevision(Protocol):
     """
 
 
+class IDeltaEmittingStore(Protocol):
+    """A storage class capable of emitting OutboundRevisionT
+
+    Typically used to generate a changegroup.
+    """
+
+    @abc.abstractmethod
+    def rev(self, NodeIdT) -> RevnumT:
+        """Obtain the revision number given a node.
+
+        Raises ``error.LookupError`` if the node is not known.
+        """
+
+    @abc.abstractmethod
+    def parentrevs(self, RevnumT) -> tuple[RevnumT, RevnumT]:
+        ...
+
+    @abc.abstractmethod
+    def node(self, RevnumT) -> NodeIdT:
+        ...
+
+    @abc.abstractmethod
+    def emitrevisions(
+        self,
+        nodes: Iterable[NodeIdT],
+        nodesorder: bytes | None = None,
+        revisiondata: bool = False,
+        assumehaveparentrevisions: bool = False,
+        deltamode: bytes = CG_DELTAMODE_STD,
+        # Need typing
+        debug_info=None,
+        # Need typing
+        sidedata_helpers=None,
+        use_hasmeta_flag: bool = False,
+    ) -> Iterator[IOutboundRevision]:
+        """Produce ``IOutboundRevision`` for revisions.
+
+        Given an iterable of nodes, emits objects conforming to the
+        ``irevisiondelta`` interface that describe revisions in storage.
+
+        This method is a generator.
+
+        The input nodes may be unordered. Implementations must ensure that a
+        node's parents are emitted before the node itself. Transitively, this
+        means that a node may only be emitted once all its ancestors in
+        ``nodes`` have also been emitted.
+
+        By default, emits "index" data (the ``node``, ``p1node``, and
+        ``p2node`` attributes). If ``revisiondata`` is set, revision data
+        will also be present on the emitted objects.
+
+        With default argument values, implementations can choose to emit
+        either fulltext revision data or a delta. When emitting deltas,
+        implementations must consider whether the delta's base revision
+        fulltext is available to the receiver.
+
+        The base revision fulltext is guaranteed to be available if any of
+        the following are met:
+
+        * Its fulltext revision was emitted by this method call.
+        * A delta for that revision was emitted by this method call.
+        * ``assumehaveparentrevisions`` is True and the base revision is a
+          parent of the node.
+
+        ``nodesorder`` can be used to control the order that revisions are
+        emitted. By default, revisions can be reordered as long as they are
+        in DAG topological order (see above). If the value is ``nodes``,
+        the iteration order from ``nodes`` should be used. If the value is
+        ``storage``, then the native order from the backing storage layer
+        is used. (Not all storage layers will have strong ordering and behavior
+        of this mode is storage-dependent.) ``nodes`` ordering can force
+        revisions to be emitted before their ancestors, so consumers should
+        use it with care.
+
+        The ``linknode`` attribute on the returned ``irevisiondelta`` may not
+        be set and it is the caller's responsibility to resolve it, if needed.
+
+        If ``deltamode`` is CG_DELTAMODE_PREV and revision data is requested,
+        all revision data should be emitted as deltas against the revision
+        emitted just prior. The initial revision should be a delta against its
+        1st parent.
+        """
+
+
 class ifilerevisionssequence(Protocol):
     """Contains index data for all revisions of a file.
 
@@ -767,7 +853,7 @@ class ifileindex(Protocol):
         """
 
 
-class ifiledata(Protocol):
+class ifiledata(IDeltaEmittingStore, Protocol):
     """Storage interface for data storage of a specific file.
 
     This complements ``ifileindex`` and provides an interface for accessing
@@ -822,63 +908,6 @@ class ifiledata(Protocol):
         This takes copy metadata into account.
 
         TODO better document the copy metadata and censoring logic.
-        """
-
-    @abc.abstractmethod
-    def emitrevisions(
-        self,
-        nodes,
-        nodesorder=None,
-        revisiondata=False,
-        assumehaveparentrevisions=False,
-        deltamode=CG_DELTAMODE_STD,
-    ):
-        """Produce ``IOutboundRevision`` for revisions.
-
-        Given an iterable of nodes, emits objects conforming to the
-        ``IOutboundRevision`` interface that describe revisions in storage.
-
-        This method is a generator.
-
-        The input nodes may be unordered. Implementations must ensure that a
-        node's parents are emitted before the node itself. Transitively, this
-        means that a node may only be emitted once all its ancestors in
-        ``nodes`` have also been emitted.
-
-        By default, emits "index" data (the ``node``, ``p1node``, and
-        ``p2node`` attributes). If ``revisiondata`` is set, revision data
-        will also be present on the emitted objects.
-
-        With default argument values, implementations can choose to emit
-        either fulltext revision data or a delta. When emitting deltas,
-        implementations must consider whether the delta's base revision
-        fulltext is available to the receiver.
-
-        The base revision fulltext is guaranteed to be available if any of
-        the following are met:
-
-        * Its fulltext revision was emitted by this method call.
-        * A delta for that revision was emitted by this method call.
-        * ``assumehaveparentrevisions`` is True and the base revision is a
-          parent of the node.
-
-        ``nodesorder`` can be used to control the order that revisions are
-        emitted. By default, revisions can be reordered as long as they are
-        in DAG topological order (see above). If the value is ``nodes``,
-        the iteration order from ``nodes`` should be used. If the value is
-        ``storage``, then the native order from the backing storage layer
-        is used. (Not all storage layers will have strong ordering and behavior
-        of this mode is storage-dependent.) ``nodes`` ordering can force
-        revisions to be emitted before their ancestors, so consumers should
-        use it with care.
-
-        The ``linknode`` attribute on the returned ``IOutboundRevision`` may not
-        be set and it is the caller's responsibility to resolve it, if needed.
-
-        If ``deltamode`` is CG_DELTAMODE_PREV and revision data is requested,
-        all revision data should be emitted as deltas against the revision
-        emitted just prior. The initial revision should be a delta against its
-        1st parent.
         """
 
 
@@ -1416,7 +1445,7 @@ class imanifestrevisionwritable(imanifestrevisionbase, Protocol):
         """
 
 
-class imanifeststorage(Protocol):
+class imanifeststorage(IDeltaEmittingStore, Protocol):
     """Storage interface for manifest data."""
 
     nodeconstants: NodeConstants
@@ -1451,13 +1480,6 @@ class imanifeststorage(Protocol):
     @abc.abstractmethod
     def __iter__(self):
         """Iterate over revision numbers for this manifest."""
-
-    @abc.abstractmethod
-    def rev(self, node):
-        """Obtain the revision number given a binary node.
-
-        Raises ``error.LookupError`` if the node is not known.
-        """
 
     @abc.abstractmethod
     def node(self, rev):
@@ -1512,19 +1534,6 @@ class imanifeststorage(Protocol):
         """Compare fulltext to another revision.
 
         Returns True if the fulltext is different from what is stored.
-        """
-
-    @abc.abstractmethod
-    def emitrevisions(
-        self,
-        nodes,
-        nodesorder=None,
-        revisiondata=False,
-        assumehaveparentrevisions=False,
-    ):
-        """Produce ``IOutboundRevision`` describing revisions.
-
-        See the documentation for ``ifiledata`` for more.
         """
 
     @abc.abstractmethod

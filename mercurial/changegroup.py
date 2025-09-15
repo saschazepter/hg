@@ -1137,7 +1137,7 @@ def _resolvenarrowrevisioninfo(
 
 def deltagroup(
     repo: repository.IRepo,
-    store,
+    store: repository.IDeltaEmittingStore,
     nodes: list[NodeIdT],
     ischangelog: bool,
     # a node → link node function
