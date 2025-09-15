@@ -3912,7 +3912,6 @@ class revlog:
                 nodes,
                 nodesorder,
                 revlogrevisiondelta,
-                deltaparentfn=self.deltaparent,
                 candeltafn=self._candelta,
                 rawsizefn=self.rawsize,
                 revdifffn=self.revdiff,
@@ -3930,7 +3929,6 @@ class revlog:
         nodes,
         nodesorder,
         resultcls,
-        deltaparentfn=None,
         candeltafn=None,
         rawsizefn=None,
         revdifffn=None,
@@ -3953,14 +3951,6 @@ class revlog:
         ``resultcls``
            A type implementing the ``irevisiondelta`` interface that will be
            constructed and returned.
-
-        ``deltaparentfn`` (optional)
-           Callable receiving a revision number and returning the revision
-           number of a revision that the internal delta is stored against. This
-           delta will be preferred over computing a new arbitrary delta.
-
-           If not defined, a delta will always be computed from raw revision
-           data.
 
         ``candeltafn`` (optional)
            Callable receiving a pair of revision numbers that returns a bool
@@ -4058,16 +4048,12 @@ class revlog:
                 if p1rev != p2rev and p1rev != nullrev and p2rev != nullrev:
                     debug_info['merge-total'] += 1
 
-            if deltaparentfn:
-                deltaparentrev = deltaparentfn(rev)
-                if debug_info is not None:
-                    if deltaparentrev == nullrev:
-                        debug_info['available-full'] += 1
-                    else:
-                        debug_info['available-delta'] += 1
-
-            else:
-                deltaparentrev = nullrev
+            deltaparentrev = self.deltaparent(rev)
+            if debug_info is not None:
+                if deltaparentrev == nullrev:
+                    debug_info['available-full'] += 1
+                else:
+                    debug_info['available-delta'] += 1
 
             # Forced delta against previous mode.
             if deltamode == repository.CG_DELTAMODE_PREV:
