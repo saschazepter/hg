@@ -29,6 +29,7 @@ from .node import (
 )
 from .interfaces.types import (
     MatcherT,
+    NeedsTypeHint,
     NodeIdT,
     RepoT,
     RevisionDeltaT,
@@ -1147,7 +1148,7 @@ def deltagroup(
     sidedata_helpers=None,
     debug_info=None,
     filelog_hasmeta=False,
-):
+) -> Iterator[RevisionDeltaT]:
     """Calculate deltas for a set of revisions.
 
     Is a generator of ``revisiondelta`` instances.
@@ -1778,7 +1779,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         generate=True,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> tuple[dict[bytes, NeedsTypeHint], Iterator[RevisionDeltaT]]:
         """Generate data for changelog chunks.
 
         Returns a 2-tuple of a dict containing state and an iterable of
@@ -1816,7 +1817,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
                 # this manifest.
                 changedfiles.update(c.files)
 
-            return state, ()
+            return state, iter(())
 
         # Callback for the changelog, used to collect changed files and
         # manifest nodes.
@@ -1889,7 +1890,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         clrevtolocalrev,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> Iterator[tuple[bytes, Iterator[RevisionDeltaT]]]:
         """Returns an iterator of changegroup chunks containing manifests.
 
         `source` is unused here, but is used by extensions like remotefilelog to
@@ -2000,7 +2001,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
                 for d in deltas:
                     pass
                 if not tree:
-                    yield tree, []
+                    yield tree, iter([])
 
     def _prunemanifests(self, store, nodes, commonrevs):
         if not self._ellipses:
@@ -2029,7 +2030,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         clrevs,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> Iterator[tuple[bytes, Iterator[RevisionDeltaT]]]:
         changedfiles = [
             f
             for f in changedfiles
