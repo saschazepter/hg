@@ -21,7 +21,9 @@ from .node import (
     short,
 )
 from .interfaces.types import (
+    NodeIdT,
     RevisionDeltaT,
+    RevnumT,
 )
 
 from . import (
@@ -36,7 +38,10 @@ from . import (
     util,
 )
 
-from .interfaces import repository
+from .interfaces import (
+    changegroup as i_cg,
+    repository,
+)
 from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
 from .utils import storageutil
@@ -1454,7 +1459,7 @@ def display_bundling_debug_info(
             _dbg_bdl_line(ui, 3, k, v['delta-against-p1'])
 
 
-class cgpacker:
+class cgpacker(i_cg.IChangeGroupPacker):
     def __init__(
         self,
         repo,
@@ -1543,12 +1548,12 @@ class cgpacker:
 
     def generate(
         self,
-        commonrevs,
-        clnodes,
-        fastpathlinkrev,
-        source,
-        changelog=True,
-    ):
+        commonrevs: set[RevnumT],
+        clnodes: list[NodeIdT],
+        fastpathlinkrev: bool,
+        source: bytes,
+        changelog: bool = True,
+    ) -> Iterator[bytes]:
         """Yield a sequence of changegroup byte chunks.
         If changelog is False, changelog data won't be added to changegroup
         """
@@ -2374,7 +2379,7 @@ def getbundler(
     ellipsisroots=None,
     fullnodes=None,
     remote_sidedata=None,
-):
+) -> i_cg.IChangeGroupPacker:
     assert version in supportedoutgoingversions(repo)
 
     if matcher is None:
