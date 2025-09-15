@@ -674,8 +674,6 @@ build-c-wheel-macos:
       needs:
         - trigger-nightly-build
     - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
-      when: manual  # avoid overloading the CI by default
-      allow_failure: true
     stage: build
     variables:
     tags:
