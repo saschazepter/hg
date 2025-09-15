@@ -56,6 +56,8 @@ from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
 from .utils import storageutil
 
+# small type alias to help type some function
+LookupFnT = Callable[[NodeIdT], NodeIdT]
 PreComputedEllipsisT = Dict[RevnumT, Set[RevnumT]]
 
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
@@ -1134,20 +1136,23 @@ def _resolvenarrowrevisioninfo(
 
 
 def deltagroup(
-    repo,
+    repo: repository.IRepo,
     store,
-    nodes,
-    ischangelog,
-    lookup,
-    forcedeltaparentprev,
-    topic=None,
-    ellipses=False,
-    clrevtolocalrev=None,
-    fullclnodes=None,
-    precomputedellipsis=None,
+    nodes: list[NodeIdT],
+    ischangelog: bool,
+    # a node → link node function
+    lookup: LookupFnT,
+    forcedeltaparentprev: bool,
+    topic: bytes | None = None,
+    ellipses: bool = False,
+    clrevtolocalrev: dict[RevnumT, RevnumT] | None = None,
+    fullclnodes: set[NodeIdT] | None = None,
+    precomputedellipsis: PreComputedEllipsisT | None = None,
+    # typing: the sidedata_helpers were a bit too hairy to type when this
+    # function was opportunisticly typed. Feel free to fix that.
     sidedata_helpers=None,
-    debug_info=None,
-    filelog_hasmeta=False,
+    debug_info: dict[str, NeedsTypeHint] | None = None,
+    filelog_hasmeta: bool = False,
 ) -> Iterator[RevisionDeltaT]:
     """Calculate deltas for a set of revisions.
 
@@ -1192,6 +1197,7 @@ def deltagroup(
         filtered = []
         adjustedparents = {}
         linknodes = {}
+        assert clrevtolocalrev is not None
 
         for node in nodes:
             rev = store.rev(node)
