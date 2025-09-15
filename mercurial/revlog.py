@@ -3912,7 +3912,6 @@ class revlog:
                 nodes,
                 nodesorder,
                 revlogrevisiondelta,
-                candeltafn=self._candelta,
                 rawsizefn=self.rawsize,
                 revdifffn=self.revdiff,
                 flagsfn=self.flags,
@@ -3929,7 +3928,6 @@ class revlog:
         nodes,
         nodesorder,
         resultcls,
-        candeltafn=None,
         rawsizefn=None,
         revdifffn=None,
         flagsfn=None,
@@ -3951,13 +3949,6 @@ class revlog:
         ``resultcls``
            A type implementing the ``irevisiondelta`` interface that will be
            constructed and returned.
-
-        ``candeltafn`` (optional)
-           Callable receiving a pair of revision numbers that returns a bool
-           indicating whether a delta between them can be produced.
-
-           If not defined, it is assumed that any two revisions can delta with
-           each other.
 
         ``rawsizefn`` (optional)
            Callable receiving a revision number and returning the length of the
@@ -4118,11 +4109,7 @@ class revlog:
 
             # But we can't actually use our chosen delta base for whatever
             # reason. Reset to fulltext.
-            if (
-                baserev != nullrev
-                and candeltafn is not None
-                and not candeltafn(baserev, rev)
-            ):
+            if baserev != nullrev and not self._candelta(baserev, rev):
                 if debug_info is not None:
                     debug_delta_source = "full"
                     debug_info['denied-delta-candeltafn'] += 1
