@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 import typing
 
+from typing import Callable
+
 from mercurial.i18n import _
 
 from mercurial import (
@@ -22,6 +24,7 @@ from mercurial import (
     scmutil,
     store,
     util,
+    vfs as vfsmod,
 )
 
 from . import (
@@ -34,6 +37,7 @@ from . import (
 if typing.TYPE_CHECKING:
     from mercurial.interfaces.types import (
         FileStorageT,
+        FsPathT,
         HgPathT,
     )
 
@@ -115,7 +119,12 @@ class gitstore:  # store.basicstore):
         pass
 
 
-def _makestore(orig, requirements, storebasepath, vfstype):
+def _makestore(
+    orig,
+    requirements: set[bytes],
+    storebasepath: FsPathT,
+    vfstype: Callable[..., vfsmod.abstractvfs],
+):
     if b'git' in requirements:
         if not os.path.exists(os.path.join(storebasepath, b'..', b'.git')):
             raise error.Abort(

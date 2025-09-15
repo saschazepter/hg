@@ -111,6 +111,7 @@ if typing.TYPE_CHECKING:
 
     from .interfaces.types import (
         FileStorageT,
+        FsPathT,
         HgPathT,
         MatcherT,
         NodeIdT,
@@ -942,7 +943,11 @@ def ensurerequirementscompatible(ui, requirements):
                 raise error.RepoError(msg)
 
 
-def makestore(requirements, path, vfstype):
+def makestore(
+    requirements: set[bytes],
+    path: FsPathT,
+    vfstype: Callable[..., vfsmod.abstractvfs],
+):
     """Construct a storage object for a repository."""
     if requirementsmod.STORE_REQUIREMENT in requirements:
         if requirementsmod.FNCACHE_REQUIREMENT in requirements:
