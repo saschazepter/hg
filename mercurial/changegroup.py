@@ -289,7 +289,7 @@ def display_unbundle_debug_info(ui, debug_info):
                 _dbg_ubdl_line(ui, 3, b'cached', t[tc], td, b"total")
 
 
-class cg1unpacker:
+class cg1unpacker(i_cg.IChangeGroupUnpacker):
     """Unpacker for cg1 changegroup streams.
 
     A changegroup unpacker handles the framing of the revision data in
@@ -2337,7 +2337,7 @@ class ChangeGroupPacker05(cgpacker):
 
 
 _packermap: dict[
-    bytes, tuple[type[i_cg.IChangeGroupPacker], type[cg1unpacker]]
+    bytes, tuple[type[i_cg.IChangeGroupPacker], type[i_cg.IChangeGroupUnpacker]]
 ] = {
     b'01': (ChangeGroupPacker01, cg1unpacker),
     # cg2 adds support for exchanging generaldelta
@@ -2480,7 +2480,12 @@ def getbundler(
     )
 
 
-def getunbundler(version, fh, alg, extras=None):
+def getunbundler(
+    version: bytes,
+    fh: io.BytesIO | NeedsTypeHint,
+    alg: bytes | None,
+    extras: dict[bytes, NeedsTypeHint] | None = None,
+) -> i_cg.IChangeGroupUnpacker:
     return _packermap[version][1](fh, alg, extras=extras)
 
 

@@ -53,7 +53,10 @@ from .revlogutils import (
     constants as revlog_constants,
 )
 
-from .interfaces import compression as i_comp
+from .interfaces import (
+    changegroup as i_cg,
+    compression as i_comp,
+)
 
 
 class bundlerevlog(revlog.revlog):
@@ -62,7 +65,7 @@ class bundlerevlog(revlog.revlog):
         opener: typing.Any,
         target,
         radix,
-        cgunpacker: changegroup.cg1unpacker,
+        cgunpacker: i_cg.IChangeGroupUnpacker,
         linkmapper,
     ):
         # TODO: figure out real type of opener
@@ -300,7 +303,7 @@ class bundlephasecache(phases.phasecache):
         self.dirty = True
 
 
-def _getfilestarts(cgunpacker: changegroup.cg1unpacker):
+def _getfilestarts(cgunpacker: i_cg.IChangeGroupUnpacker):
     filespos = {}
     for chunkdata in iter(cgunpacker.filelogheader, {}):
         fname = chunkdata[b'filename']
@@ -340,7 +343,7 @@ class bundlerepository(_bundle_repo_baseclass):
         # dict with the mapping 'filename' -> position in the changegroup.
         self._cgfilespos = {}
         self._bundlefile = None
-        self._cgunpacker = None
+        self._cgunpacker: i_cg.IChangeGroupUnpacker = None
         self.tempfile = None
         f = util.posixfile(bundlepath, b"rb")
         bundle = exchange.readbundle(self.ui, f, bundlepath)
