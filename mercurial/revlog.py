@@ -4122,43 +4122,22 @@ class revlog:
                     revision = self.rawdata(node)
                     emitted.add(rev)
                 else:
-                    if True:
-                        if debug_info is not None:
-                            if debug_delta_source == "full":
-                                debug_info['computed-delta'] += 1
-                                debug_info['delta-full'] += 1
-                            elif debug_delta_source == "prev":
-                                debug_info['computed-delta'] += 1
-                                debug_info['delta-against-prev'] += 1
-                            elif debug_delta_source == "p1":
-                                debug_info['computed-delta'] += 1
-                                debug_info['delta-against-p1'] += 1
-                            elif debug_delta_source == "storage":
-                                debug_info['reused-storage-delta'] += 1
-                            else:
-                                assert False, 'unreachable'
+                    if debug_info is not None:
+                        if debug_delta_source == "full":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-full'] += 1
+                        elif debug_delta_source == "prev":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-against-prev'] += 1
+                        elif debug_delta_source == "p1":
+                            debug_info['computed-delta'] += 1
+                            debug_info['delta-against-p1'] += 1
+                        elif debug_delta_source == "storage":
+                            debug_info['reused-storage-delta'] += 1
+                        else:
+                            assert False, 'unreachable'
 
-                        delta = self.revdiff(baserev, rev)
-                    else:
-                        if debug_info is not None:
-                            if debug_delta_source == "full":
-                                debug_info['computed-delta'] += 1
-                                debug_info['delta-full'] += 1
-                            elif debug_delta_source == "prev":
-                                debug_info['computed-delta'] += 1
-                                debug_info['delta-against-prev'] += 1
-                            elif debug_delta_source == "p1":
-                                debug_info['computed-delta'] += 1
-                                debug_info['delta-against-p1'] += 1
-                            elif debug_delta_source == "storage":
-                                # seem quite unlikelry to happens
-                                debug_info['computed-delta'] += 1
-                                debug_info['reused-storage-delta'] += 1
-                            else:
-                                assert False, 'unreachable'
-                        delta = mdiff.textdiff(
-                            self.rawdata(baserev), self.rawdata(rev)
-                        )
+                    delta = self.revdiff(baserev, rev)
 
                     emitted.add(rev)
 
