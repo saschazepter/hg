@@ -3909,7 +3909,6 @@ class revlog:
             return self._emit_revisions(
                 nodes,
                 nodesorder,
-                revlogrevisiondelta,
                 deltamode=deltamode,
                 revisiondata=revisiondata,
                 assumehaveparentrevisions=assumehaveparentrevisions,
@@ -3921,7 +3920,6 @@ class revlog:
         self,
         nodes,
         nodesorder,
-        resultcls,
         deltamode=repository.CG_DELTAMODE_STD,
         revisiondata=False,
         assumehaveparentrevisions=False,
@@ -3935,10 +3933,6 @@ class revlog:
 
         ``nodes``
            List of revision nodes whose data to emit.
-
-        ``resultcls``
-           A type implementing the ``irevisiondelta`` interface that will be
-           constructed and returned.
 
         ``deltamode``
            constaint on delta to be sent:
@@ -4172,7 +4166,7 @@ class revlog:
             else:
                 snap_lvl = -1
 
-            yield resultcls(
+            yield revlogrevisiondelta(
                 node=node,
                 p1node=fnode(p1rev),
                 p2node=fnode(p2rev),
