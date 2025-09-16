@@ -4142,6 +4142,7 @@ class revlog:
 
             revision = None
             delta = None
+            comp = None
             baserevisionsize = None
 
             if revisiondata:
@@ -4156,7 +4157,19 @@ class revlog:
 
                     if baserev != nullrev:
                         baserevisionsize = self.rawsize(baserev)
+                elif (
+                    accepted_compression
+                    and baserev != nullrev
+                    and deltamode != repository.CG_DELTAMODE_PREV
+                    and baserev == deltaparentrev
+                ):
+                    stored_comp, chunk = self.raw_comp_chunk(rev)
+                    if stored_comp in accepted_compression:
+                        comp = stored_comp
+                        delta = bytes(chunk)
+                        emitted.add(rev)
 
+                # if we still not have data, let's fetch some
                 if delta is None and revision is None:
                     if (
                         baserev == nullrev
@@ -4239,6 +4252,7 @@ class revlog:
                 sidedata=serialized_sidedata,
                 protocol_flags=protocol_flags,
                 snapshot_level=snap_lvl,
+                compression=comp,
             )
 
             prevrev = rev
