@@ -662,9 +662,9 @@ macos:
     needs:
       - build-c-wheel-macos
 
-# We could use CIBW_BUILD="cp310-*" to only build the Python 3.10 wheel for now as
-# this is the only one we need to test. However testing that build work on all
-# version is useful and match what we do with Linux.
+# We could use CIBW_BUILD="cp39-*" to only build the Python 3.9 wheel for now as
+# this is the only one we need to test. However testing that build works on all
+# versions is useful and matches what we do with Linux.
 #
 # The weird directory structure match the one we use for Linux to deal with the
 # multiple jobs. (all this might be unnecessary)
