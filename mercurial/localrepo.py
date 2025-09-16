@@ -54,6 +54,7 @@ from . import (
     phases,
     pushkey,
     pycompat,
+    repo as repomod,
     repoview,
     requirements as requirementsmod,
     revset,
@@ -129,10 +130,7 @@ RE_SKIP_DIRSTATE_ROLLBACK = re.compile(
     b"^((dirstate|narrowspec.dirstate).*|branch$)"
 )
 
-# set of (path, vfs-location) tuples. vfs-location is:
-# - 'plain for vfs relative paths
-# - '' for svfs relative paths
-_cachedfiles = set()
+cachedfiles = repomod.cachedfiles
 
 
 class _basefilecache(scmutil.filecache):
@@ -159,7 +157,7 @@ class repofilecache(_basefilecache):
     def __init__(self, *paths):
         super().__init__(*paths)
         for path in paths:
-            _cachedfiles.add((path, b'plain'))
+            cachedfiles.add((path, b'plain'))
 
     def join(self, obj, fname):
         return obj.vfs.join(fname)
@@ -171,7 +169,7 @@ class storecache(_basefilecache):
     def __init__(self, *paths):
         super().__init__(*paths)
         for path in paths:
-            _cachedfiles.add((path, b''))
+            cachedfiles.add((path, b''))
 
     def join(self, obj, fname):
         return obj.sjoin(fname)
@@ -182,8 +180,8 @@ class changelogcache(storecache):
 
     def __init__(self):
         super().__init__()
-        _cachedfiles.add((b'00changelog.i', b''))
-        _cachedfiles.add((b'00changelog.n', b''))
+        cachedfiles.add((b'00changelog.i', b''))
+        cachedfiles.add((b'00changelog.n', b''))
 
     def tracked_paths(self, obj):
         paths = [self.join(obj, b'00changelog.i')]
@@ -197,8 +195,8 @@ class manifestlogcache(storecache):
 
     def __init__(self):
         super().__init__()
-        _cachedfiles.add((b'00manifest.i', b''))
-        _cachedfiles.add((b'00manifest.n', b''))
+        cachedfiles.add((b'00manifest.i', b''))
+        cachedfiles.add((b'00manifest.n', b''))
 
     def tracked_paths(self, obj):
         paths = [self.join(obj, b'00manifest.i')]
@@ -216,7 +214,7 @@ class mixedrepostorecache(_basefilecache):
         # make the super class typing happy
         self.paths = tuple(p for (p, l) in pathsandlocations)
         self.paths_and_locations = pathsandlocations
-        _cachedfiles.update(pathsandlocations)
+        cachedfiles.update(pathsandlocations)
 
     def tracked_paths(self, obj) -> list[bytes]:
         return [self.join(obj, path) for path in self.paths_and_locations]
@@ -2419,7 +2417,7 @@ class localrepository(_localrepo_base_classes):
             self.store.createmode,
             validator=validate,
             releasefn=releasefn,
-            checkambigfiles=_cachedfiles,
+            checkambigfiles=cachedfiles,
             name=desc,
         )
         for vfs_id, path in self._journalfiles():
@@ -2558,7 +2556,7 @@ class localrepository(_localrepo_base_classes):
                     vfsmap,
                     b"journal",
                     self.ui.warn,
-                    checkambigfiles=_cachedfiles,
+                    checkambigfiles=cachedfiles,
                 )
                 self.invalidate()
                 return True
@@ -2629,7 +2627,7 @@ class localrepository(_localrepo_base_classes):
             vfsmap,
             b'undo',
             ui.warn,
-            checkambigfiles=_cachedfiles,
+            checkambigfiles=cachedfiles,
             skip_journal_pattern=skip_journal_pattern,
         )
         self.invalidate()

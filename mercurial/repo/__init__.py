@@ -17,3 +17,9 @@ def find_repo(p: bytes) -> bytes | None:
         if p == oldp:
             return None
     return p
+
+
+# set of (path, vfs-location) tuples. vfs-location is:
+# - 'plain for vfs relative paths
+# - '' for svfs relative paths
+cachedfiles = set()
