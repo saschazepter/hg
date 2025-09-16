@@ -3912,7 +3912,6 @@ class revlog:
                 nodes,
                 nodesorder,
                 revlogrevisiondelta,
-                flagsfn=self.flags,
                 deltamode=deltamode,
                 revisiondata=revisiondata,
                 assumehaveparentrevisions=assumehaveparentrevisions,
@@ -3926,7 +3925,6 @@ class revlog:
         nodes,
         nodesorder,
         resultcls,
-        flagsfn=None,
         deltamode=repository.CG_DELTAMODE_STD,
         revisiondata=False,
         assumehaveparentrevisions=False,
@@ -3945,10 +3943,6 @@ class revlog:
         ``resultcls``
            A type implementing the ``irevisiondelta`` interface that will be
            constructed and returned.
-
-        ``flagsfn`` (optional)
-           Callable receiving a revision number and returns the integer flags
-           value for it. If not defined, flags value will be 0.
 
         ``deltamode``
            constaint on delta to be sent:
@@ -4164,7 +4158,7 @@ class revlog:
                         sidedata
                     )
 
-            flags = flagsfn(rev) if flagsfn else 0
+            flags = self.flags(rev)
             protocol_flags = 0
             if serialized_sidedata:
                 # Advertise that sidedata exists to the other side
