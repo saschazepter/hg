@@ -3905,8 +3905,6 @@ class revlog:
         ):
             deltamode = repository.CG_DELTAMODE_FULL
 
-        snaplvl = lambda r: self.snapshotdepth(r) if self.issnapshot(r) else -1
-
         with self.reading():
             return self._emit_revisions(
                 nodes,
@@ -3917,7 +3915,6 @@ class revlog:
                 assumehaveparentrevisions=assumehaveparentrevisions,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
-                snap_lvl_fn=snaplvl,
             )
 
     def _emit_revisions(
@@ -3930,7 +3927,6 @@ class revlog:
         assumehaveparentrevisions=False,
         sidedata_helpers=None,
         debug_info=None,
-        snap_lvl_fn=None,
     ) -> Iterator[RevisionDeltaT]:
         """Generic implementation of ifiledata.emitrevisions().
 
@@ -4169,12 +4165,12 @@ class revlog:
             snap_lvl = None
             if baserev == nullrev:
                 snap_lvl = 0
-            elif snap_lvl is not None:
-                if baserev == deltaparentrev:
-                    snap_lvl = snap_lvl_fn(rev)
-                else:
-                    # we recomputed it, so it is not a snapshot
-                    snap_lvl = -1
+            elif baserev == deltaparentrev and self.issnapshot(rev):
+                # If baserev != deltaparentrev we recomputed it, so it is not a
+                # snapshot
+                snap_lvl = self.snapshotdepth(rev)
+            else:
+                snap_lvl = -1
 
             yield resultcls(
                 node=node,
