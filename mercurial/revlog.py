@@ -239,6 +239,7 @@ class OutboundRevision(repository.IOutboundRevision):
     protocol_flags = attr.ib(type=int)
     linknode = attr.ib(default=None, type=Optional[bytes])
     snapshot_level = attr.ib(default=None, type=Optional[int])
+    compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
 
 
 @attr.s(frozen=True)

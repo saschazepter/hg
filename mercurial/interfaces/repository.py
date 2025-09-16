@@ -43,6 +43,7 @@ if typing.TYPE_CHECKING:
     )
 
     from . import (
+        compression as i_comp,
         dirstate as intdirstate,
         matcher,
         misc,
@@ -633,6 +634,9 @@ class IOutboundRevision(Protocol):
 
     Stored in the bdiff delta format.
     """
+
+    compression: i_comp.RevlogCompHeader | None
+    """When set, the delta/revision send is a compressed delta"""
 
     sidedata: bytes | None
     """Raw sidedata bytes for the given revision."""
