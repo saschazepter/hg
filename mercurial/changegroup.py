@@ -69,8 +69,8 @@ _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
 # node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
-# node p1node p2node basenode linknode flags snapshot_level
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHb")
+# node p1node p2node basenode linknode flags snapshot_level raw_text_size
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbI")
 _CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
@@ -980,7 +980,16 @@ class cg4unpacker(cg3unpacker):
         headertuple: tuple,
         prevnode: NodeIdT,
     ) -> _DeltaHeader:
-        node, p1, p2, deltabase, cs, flags, snapshot_level = headertuple
+        (
+            node,
+            p1,
+            p2,
+            deltabase,
+            cs,
+            flags,
+            snapshot_level,
+            raw_size,
+        ) = headertuple
         if snapshot_level < -1:
             snapshot_level = None
         return _DeltaHeader(
@@ -991,6 +1000,7 @@ class cg4unpacker(cg3unpacker):
             cs=cs,
             flags=flags,
             snapshot_level=snapshot_level,
+            raw_text_size=raw_size,
         )
 
 
@@ -2329,6 +2339,7 @@ class ChangeGroupPacker04(cgpacker):
             d.linknode,
             d.flags,
             snap_lvl,
+            d.raw_revision_size,
         )
 
     def __init__(
