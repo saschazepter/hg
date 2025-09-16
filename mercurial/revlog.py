@@ -3912,7 +3912,6 @@ class revlog:
                 nodes,
                 nodesorder,
                 revlogrevisiondelta,
-                rawsizefn=self.rawsize,
                 revdifffn=self.revdiff,
                 flagsfn=self.flags,
                 deltamode=deltamode,
@@ -3928,7 +3927,6 @@ class revlog:
         nodes,
         nodesorder,
         resultcls,
-        rawsizefn=None,
         revdifffn=None,
         flagsfn=None,
         deltamode=repository.CG_DELTAMODE_STD,
@@ -3949,12 +3947,6 @@ class revlog:
         ``resultcls``
            A type implementing the ``irevisiondelta`` interface that will be
            constructed and returned.
-
-        ``rawsizefn`` (optional)
-           Callable receiving a revision number and returning the length of the
-           ``self.rawdata(rev)``.
-
-           If not defined, ``len(self.rawdata(rev))`` will be called.
 
         ``revdifffn`` (optional)
            Callable receiving a pair of revision numbers that returns a delta
@@ -4130,10 +4122,7 @@ class revlog:
                         revision = e.tombstone
 
                     if baserev != nullrev:
-                        if rawsizefn:
-                            baserevisionsize = rawsizefn(baserev)
-                        else:
-                            baserevisionsize = len(self.rawdata(baserev))
+                        baserevisionsize = self.rawsize(baserev)
 
                 elif (
                     baserev == nullrev
