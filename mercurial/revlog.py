@@ -203,6 +203,25 @@ HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
 )
 
 
+def _split_compression(
+    chunk: bytes,
+) -> tuple[i_comp.RevlogCompHeader, bytes]:
+    """split an inline-compressed chunk into a (compression, delta) tuple"""
+    # mostly duplicated from `decompress` for performance reason
+    if not chunk:
+        comp = i_comp.REVLOG_COMP_NONE
+    else:
+        header = chunk[0:1]
+        if header == b'\0':
+            comp = i_comp.REVLOG_COMP_NONE
+        elif header == b'u':
+            comp = i_comp.REVLOG_COMP_NONE
+            chunk = util.buffer(chunk, 1)
+        else:
+            comp = i_comp.RevlogCompHeader(header)
+    return (comp, chunk)
+
+
 @attr.s(slots=True)
 class revlogrevisiondelta(repository.irevisiondelta):
     node = attr.ib(type=bytes)
@@ -2892,6 +2911,28 @@ class revlog:
         number.
         """
         return self._revisiondata(nodeorrev)
+
+    def raw_comp_chunk(self, rev) -> tuple[i_comp.RevlogCompHeader, bytes]:
+        """The raw dat chunk stored for this specific revision
+
+        No decompression is performed, but the applicable compression header is
+        returned.
+        """
+        comp_mode = self.index[rev][10]
+        full_chunk = self._inner.get_segment_for_revs(rev, rev)[1]
+        # note: we can blindy reuse the compression during
+        # `_clone`, because if we can read the source revlog it
+        # mean we know about that compression for the destination
+        # too, (even if we might not reuse it).
+        if comp_mode == COMP_MODE_PLAIN:
+            comp = i_comp.REVLOG_COMP_NONE
+            chunk = full_chunk
+        elif comp_mode == COMP_MODE_INLINE:
+            comp, chunk = _split_compression(full_chunk)
+        elif comp_mode == COMP_MODE_DEFAULT:
+            comp = self._default_compression_header
+            chunk = full_chunk
+        return (comp, chunk)
 
     def sidedata(self, nodeorrev):
         """a map of extra data related to the changeset but not part of the hash

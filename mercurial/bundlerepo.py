@@ -53,6 +53,8 @@ from .revlogutils import (
     constants as revlog_constants,
 )
 
+from .interfaces import compression as i_comp
+
 
 class bundlerevlog(revlog.revlog):
     def __init__(
@@ -132,6 +134,12 @@ class bundlerevlog(revlog.revlog):
         else:
             with super().reading() as x:
                 yield x
+
+    def raw_comp_chunk(self, rev) -> tuple[i_comp.RevlogCompHeader, bytes]:
+        if rev <= self.repotiprev:
+            return super().raw_comp_chunk(rev)
+        self.bundle.seek(self.start(rev))
+        return (i_comp.REVLOG_COMP_NONE, self.bundle.read(self.length(rev)))
 
     def _chunk(self, rev):
         # Warning: in case of bundle, the diff is against what we stored as
