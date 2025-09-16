@@ -291,26 +291,30 @@ class FileIndex(_FileIndexCommon):
                     tree_file=self.tree_file,
                 )
             )
-        with (
-            self._open_list_file(create=initial) as list_file,
-            self._open_meta_file(create=initial) as meta_file,
-        ):
-            token = len(self.meta_array)
-            for path in self._add:
-                offset = docket.list_file_size
-                metadata = file_index_util.Metadata.from_path(path, offset)
-                list_file.write(b"%s\x00" % path)
-                meta_file.write(metadata.serialize())
-                tree.insert(path, token, offset)
-                docket.list_file_size += len(path) + 1
-                docket.meta_file_size += file_index_util.Metadata.STRUCT.size
+        if True:  # ident to minimize diff
+            with (
+                self._open_list_file(create=initial) as list_file,
+                self._open_meta_file(create=initial) as meta_file,
+            ):
+                token = len(self.meta_array)
+                for path in self._add:
+                    offset = docket.list_file_size
+                    metadata = file_index_util.Metadata.from_path(path, offset)
+                    list_file.write(b"%s\x00" % path)
+                    meta_file.write(metadata.serialize())
+                    tree.insert(path, token, offset)
+                    docket.list_file_size += len(path) + 1
+                    docket.meta_file_size += (
+                        file_index_util.Metadata.STRUCT.size
+                    )
                 token += 1
-        serialized = tree.serialize()
-        with self._open_tree_file(create=initial) as tree_file:
-            tree_file.write(serialized.bytes)
-        docket.tree_file_size = serialized.tree_file_size
-        docket.tree_root_pointer = serialized.tree_root_pointer
-        docket.tree_unused_bytes = serialized.tree_unused_bytes
+        if True:  # ident to minimize diff
+            serialized = tree.serialize()
+            with self._open_tree_file(create=initial) as tree_file:
+                tree_file.write(serialized.bytes)
+            docket.tree_file_size = serialized.tree_file_size
+            docket.tree_root_pointer = serialized.tree_root_pointer
+            docket.tree_unused_bytes = serialized.tree_unused_bytes
         docket.reserved_flags = 0
 
 
