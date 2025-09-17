@@ -3456,11 +3456,18 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
         (b'd', b'dist', 100, b'distance between the revisions'),
         (b's', b'startrev', 0, b'revision to start reading at'),
         (b'', b'reverse', False, b'read in reverse'),
+        (b'', b'checksum', True, b'check-integrity'),
     ],
     b'-c|-m|FILE',
 )
 def perfrevlogrevisions(
-    ui, repo, file_=None, startrev=0, reverse=False, **opts
+    ui,
+    repo,
+    file_=None,
+    startrev=0,
+    reverse=False,
+    checksum=True,
+    **opts,
 ):
     """Benchmark reading a series of revisions from a revlog.
 
@@ -3491,7 +3498,10 @@ def perfrevlogrevisions(
         for x in _xrange(beginrev, endrev, dist):
             # Old revisions don't support passing int.
             n = rl.node(x)
-            rl.revision(n)
+            if checksum:
+                rl.revision(n)
+            else:
+                rl.rawdata(n, validate=False)
 
     timer, fm = gettimer(ui, opts)
     timer(d)
