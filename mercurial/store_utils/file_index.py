@@ -309,14 +309,7 @@ def debug_file_index(ui, repo, **opts):
 
     fileindex = repo.store.fileindex
     if fileindex is None:
-        raise error.Abort(
-            _(b"this repository does not have a file index"),
-            hint=_(
-                b"you can create it with 'hg debugupgrade "
-                b"--config format.exp-use-fileindex-v1="
-                b"enable-unstable-format-and-corrupt-my-data'"
-            ),
-        )
+        raise error.StateError(_(b"this repository does not have a file index"))
 
     if choice is None:
         for path, token in fileindex.items():
@@ -329,11 +322,13 @@ def debug_file_index(ui, repo, **opts):
         path = opts[choice]
         token = fileindex.get_token(path)
         if token is None:
-            raise error.Abort(_(b"path %s is not in the file index" % path))
+            msg = _(b"path %s is not in the file index" % path)
+            raise error.InputError(msg)
         ui.write(b"%d: %s\n" % (token, path))
     elif choice == b"token":
         token = int(opts[choice])
         if not fileindex.has_token(token):
-            raise error.Abort(_(b"token %d is not in the file index" % token))
+            msg = _(b"token %d is not in the file index" % token)
+            raise error.InputError(msg)
         path = fileindex.get_path(token)
         ui.write(b"%d: %s\n" % (token, path))

@@ -31,10 +31,10 @@ Look up by path and by token
   0: file
   $ hg debug::file-index --path nonexistent
   abort: path nonexistent is not in the file index
-  [255]
+  [10]
   $ hg debug::file-index --token 1
   abort: token 1 is not in the file index
-  [255]
+  [10]
 
 Examine the file index structure
   $ hg debug::file-index --docket
