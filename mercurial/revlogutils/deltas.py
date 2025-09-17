@@ -1723,7 +1723,7 @@ class deltacomputer:
                 ):
                     comp = revinfo.cachedelta.compression
                     if comp == compression.REVLOG_COMP_NONE:
-                        data = revinfo.cachedelta.c_delta
+                        delta = data = revinfo.cachedelta.c_delta
                         if data.startswith(b'\0'):
                             header = b''
                         else:
