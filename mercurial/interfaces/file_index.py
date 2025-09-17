@@ -64,7 +64,3 @@ class IFileIndex(Protocol):
 
         If the path already exists in the file index, returns its token.
         """
-
-    @abc.abstractmethod
-    def write(self, tr: TransactionT):
-        """Write the file index to disk."""

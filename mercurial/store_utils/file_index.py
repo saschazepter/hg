@@ -103,23 +103,23 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             token = len(self)
             self._add.append(path)
             self._add_map[path] = token
+            tr.addfinalize(b"fileindex", self._add_file_generator)
         return token
 
-    def write(self, tr: TransactionT):
+    def _add_file_generator(self, tr: TransactionT):
+        """Add a file generator for writing the file index."""
         assert not self._written, "should only write file index once"
-        if not self._add:
-            return
         tr.addfilegenerator(
             b"fileindex",
             (b"fileindex",),
             self._write,
             location=b"store",
-            # Needs to be post_finalize so that we can call fileindex.write
-            # in a tr.addfinalize callback.
+            # Need post_finalize since we call this in an addfinalize callback.
             post_finalize=True,
         )
 
     def _write(self, f: typing.BinaryIO):
+        """Write all data files and the docket."""
         assert not self._written, "should only write file index once"
         self._write_data()
         self._written = True
