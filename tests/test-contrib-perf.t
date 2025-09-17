@@ -175,14 +175,14 @@ perfstatus
                  printing of progress bars
    perf::rawfiles
                  (no help text available)
+   perf::revlog-read-revisions
+                 Benchmark reading a series of revisions from a revlog.
    perf::revlogchunks
                  Benchmark operations on revlog chunks.
    perf::revlogindex
                  Benchmark operations against a revlog index.
    perf::revlogrevision
                  Benchmark obtaining a revlog revision.
-   perf::revlogrevisions
-                 Benchmark reading a series of revisions from a revlog.
    perf::revlogwrite
                  Benchmark writing a series of revisions to a revlog.
    perf::revrange

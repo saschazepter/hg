@@ -3449,7 +3449,7 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
 
 
 @command(
-    b'perf::revlogrevisions|perfrevlogrevisions',
+    b'perf::revlog-read-revisions|perf::revlogrevisions|perfrevlogrevisions',
     revlogopts
     + formatteropts
     + [
