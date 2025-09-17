@@ -1781,6 +1781,17 @@ class workingctx(committablectx, i_context.IWorkingContext):
             self._repo, path, workingctx=self, filelog=filelog
         )
 
+    def use_rust_status(self) -> bool:
+        """Returns whether we can run the Rust version of the status algorithm
+        in this context."""
+        subrepos = False
+        if b'.hgsub' in self:
+            # We need to make sure we actually have a subrepo otherwise we
+            # would skip using Rust for nothing
+            subrepos = bool(self.substate)
+
+        return self._repo.dirstate.use_rust_status(subrepos)
+
     def dirty(
         self,
         missing: bool = False,

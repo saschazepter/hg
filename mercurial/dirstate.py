@@ -1625,6 +1625,20 @@ class dirstate(intdirstate.idirstate):
         )
         return (lookup, status)
 
+    def use_rust_status(
+        self,
+        subrepos: bool,
+    ) -> bool:
+        if rustmod is None:
+            return False
+        elif self._checkcase:
+            # Case-insensitive filesystems are not handled yet
+            return False
+        elif subrepos:
+            return False
+
+        return True
+
     def status(
         self,
         match: MatcherT,
@@ -1658,16 +1672,6 @@ class dirstate(intdirstate.idirstate):
         dmap = self._map
         dmap.preload()
 
-        use_rust = True
-
-        if rustmod is None:
-            use_rust = False
-        elif self._checkcase:
-            # Case-insensitive filesystems are not handled yet
-            use_rust = False
-        elif subrepos:
-            use_rust = False
-
         # Get the time from the filesystem so we can disambiguate files that
         # appear modified in the present or future.
         try:
@@ -1676,7 +1680,7 @@ class dirstate(intdirstate.idirstate):
             # In largefiles or readonly context
             mtime_boundary = None
 
-        if use_rust:
+        if self.use_rust_status(subrepos):
             try:
                 res = self._rust_status(
                     match, listclean, listignored, listunknown
