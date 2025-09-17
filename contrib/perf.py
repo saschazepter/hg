@@ -3457,6 +3457,12 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
         (b's', b'startrev', 0, b'revision to start reading at'),
         (b'', b'reverse', False, b'read in reverse'),
         (b'', b'checksum', True, b'check-integrity'),
+        (
+            b'',
+            b'reuse-caches',
+            False,
+            b'reuse caches instead of clearing between runs',
+        ),
     ],
     b'-c|-m|FILE',
 )
@@ -3477,6 +3483,7 @@ def perfrevlogrevisions(
     The start revision can be defined via ``-s/--startrev``.
     """
     opts = _byteskwargs(opts)
+    use_caches = opts[b'reuse_caches']
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogrevisions', file_, opts)
     rllen = getlen(ui)(rl)
@@ -3485,7 +3492,8 @@ def perfrevlogrevisions(
         startrev = rllen + startrev
 
     def d():
-        rl.clearcaches()
+        if not use_caches:
+            rl.clearcaches()
 
         beginrev = startrev
         endrev = rllen
