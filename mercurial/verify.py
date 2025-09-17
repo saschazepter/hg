@@ -475,16 +475,17 @@ class verifier:
         havemf = self.havemf
         ui.status(_(b"checking files\n"))
 
-        storefiles = set()
-        undecodable = []
-        for entry in repo.store.data_entries(undecodable=undecodable):
-            for file_ in entry.files():
-                size = file_.file_size(repo.store.vfs)
-                f = file_.unencoded_path
-                if (size > 0 or not revlogv1) and f.startswith(b'data/'):
-                    storefiles.add(_normpath(f))
-        for f in undecodable:
-            self._err(None, _(b"cannot decode filename '%s'") % f)
+        if repo.store.fncache is not None:
+            fncache_files = set()
+            undecodable = []
+            for entry in repo.store.data_entries(undecodable=undecodable):
+                for file_ in entry.files():
+                    size = file_.file_size(repo.store.vfs)
+                    f = file_.unencoded_path
+                    if (size > 0 or not revlogv1) and f.startswith(b'data/'):
+                        fncache_files.add(_normpath(f))
+            for f in undecodable:
+                self._err(None, _(b"cannot decode filename '%s'") % f)
 
         state = {
             # TODO this assumes revlog storage for changelog.
@@ -518,14 +519,15 @@ class verifier:
                 self._err(lr, _(b"broken revlog! (%s)") % e, f)
                 continue
 
-            for ff in fl.files():
-                try:
-                    storefiles.remove(ff)
-                except KeyError:
-                    if self.warnorphanstorefiles:
-                        msg = _(b" warning: revlog '%s' not in fncache!")
-                        self._warn(msg % ff)
-                        self.fncachewarned = True
+            if repo.store.fncache is not None:
+                for ff in fl.files():
+                    try:
+                        fncache_files.remove(ff)
+                    except KeyError:
+                        if self.warnorphanstorefiles:
+                            msg = _(b" warning: revlog '%s' not in fncache!")
+                            self._warn(msg % ff)
+                            self.fncachewarned = True
 
             if not len(fl) and (self.havecl or self.havemf):
                 self._err(lr, _(b"empty or missing %s") % f)
@@ -601,8 +603,9 @@ class verifier:
         progress.complete()
 
         if self.warnorphanstorefiles:
-            for f in sorted(storefiles):
-                self._warn(_(b"warning: orphan data file '%s'") % f)
+            if repo.store.fncache is not None:
+                for f in sorted(fncache_files):
+                    self._warn(_(b"warning: orphan data file '%s'") % f)
 
         return len(files), revisions
 
