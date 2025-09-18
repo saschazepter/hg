@@ -116,6 +116,20 @@ Force vacuuming tree during commit
   $ hg debug::file-index --docket | grep tree_unused_bytes
   tree_unused_bytes: 0
 
+Test race where vacuuming happens between reading tree ID and opening file.
+It should successfully read the old tree file (vacuuming shouldn't delete it
+immediately). Use --path because it causes a lookup in the tree file.
+  $ hg debug::file-index --path anotherfile > $TESTTMP/race-lock.out 2>&1 \
+  > --config devel.sync.fileindex.pre-read-tree-file=$TESTTMP/race-lock \
+  > &
+  $ $RUNTESTDIR/testlib/wait-on-file 5 $TESTTMP/race-lock.waiting
+  $ hg debug::file-index --vacuum
+  vacuumed tree: 82 bytes => 82 bytes (saved 0.0%)
+  $ touch $TESTTMP/race-lock
+  $ wait
+  $ cat $TESTTMP/race-lock.out
+  4: anotherfile
+
   $ cd ..
 
 Test interaction with hooks

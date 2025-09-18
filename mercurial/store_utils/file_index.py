@@ -12,7 +12,7 @@ import typing
 from ..i18n import _
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT, TransactionT
-from .. import error, formatter, pycompat, ui as uimod, util
+from .. import error, formatter, pycompat, testing, ui as uimod, util
 from ..interfaces import file_index as int_file_index
 from . import file_index_util
 
@@ -219,6 +219,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     @propertycache
     def tree_file(self):
+        testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
         return self._mapfile(
             self._tree_file_path(),
             self.docket.tree_file_size,

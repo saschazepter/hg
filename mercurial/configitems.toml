@@ -701,6 +701,15 @@ name = 'sync.dirstate.pre-read-file-timeout'
 default=20
 
 [[items]]
+section = 'devel'
+name = 'sync.fileindex.pre-read-tree-file'
+
+[[items]]
+section = 'devel'
+name = 'sync.fileindex.pre-read-tree-file-timeout'
+default = 20
+
+[[items]]
 section = "devel"
 name = "user.obsmarker"
 
