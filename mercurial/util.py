@@ -3490,6 +3490,9 @@ def _estimatememory() -> int | None:
         pass
 
 
+_rust_tracer = None
+
+
 def rust_tracing_span(name: str):
     """Maybe¹ returns a context manager that calls into the Rust extensions's
     tracing system to register a span, creating it on `__enter__` and closing
@@ -3500,6 +3503,10 @@ def rust_tracing_span(name: str):
     [1] The context manager does nothing if the Rust extensions are unavailable
     or have not been compiled with the `full-tracing` feature.
     """
+    global _rust_tracer
+    if _rust_tracer is not None:
+        return _rust_tracer(name)
+
     try:
         tracer = policy.importrust("tracing", member="tracer", default=None)
     except ImportError:
@@ -3514,6 +3521,9 @@ def rust_tracing_span(name: str):
 
     else:
         trace_span = tracer.span
+
+    # cache the import
+    _rust_tracer = trace_span
 
     return trace_span(name)
 
