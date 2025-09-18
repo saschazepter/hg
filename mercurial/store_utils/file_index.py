@@ -140,17 +140,21 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         # If we write multiple times (e.g. transaction pending and finalize),
         # only write data files the first time. Next time, just the docket.
         if not self._written:
-            self._write_data(force_vacuum)
+            vacuum = (
+                force_vacuum
+                or self.docket.tree_unused_bytes
+                >= self.docket.tree_file_size * self._max_unused_ratio
+            )
+            self._write_data(vacuum)
             self._written = True
         f.write(self.docket.serialize())
 
     @abc.abstractmethod
-    def _write_data(self, force_vacuum: bool):
+    def _write_data(self, vacuum: bool):
         """Write all data files and update self.docket.
 
-        If force_vacuum is True, or if the ratio of unused / total bytes in the
-        tree file equals or exceeds self._max_unused_ratio, writes a new tree
-        file instead of appending to the existing one.
+        If vacuum is True, writes a new tree file instead of appending to the
+        existing one.
         """
 
     @propertycache
@@ -300,16 +304,11 @@ class FileIndex(_FileIndexCommon):
                 return None
         return node.token
 
-    def _write_data(self, force_vacuum: bool):
+    def _write_data(self, vacuum: bool):
         assert not self._written, "should only write once"
         docket = self.docket
         initial = self._is_initial()
-        new_tree = (
-            initial
-            or force_vacuum
-            or docket.tree_unused_bytes
-            >= docket.tree_file_size * self._max_unused_ratio
-        )
+        new_tree = initial or vacuum
         if new_tree:
             tree = file_index_util.MutableTree(base=None)
             for token, meta in enumerate(self.meta_array):
