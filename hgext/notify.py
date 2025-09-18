@@ -325,7 +325,7 @@ class notifier:
         if cfg:
             self.ui.readconfig(cfg, sections=[b'usersubs', b'reposubs'])
         self.repo = repo
-        self.stripcount = int(self.ui.config(b'notify', b'strip'))
+        self.stripcount = self.ui.configint(b'notify', b'strip')
         self.root = self.strip(self.repo.root)
         self.domain = self.ui.config(b'notify', b'domain')
         self.mbox = self.ui.config(b'notify', b'mbox')
@@ -485,7 +485,7 @@ class notifier:
             else:
                 s = ctx.description().lstrip().split(b'\n', 1)[0].rstrip()
                 subject = b'%s: %s' % (self.root, s)
-        maxsubject = int(self.ui.config(b'notify', b'maxsubject'))
+        maxsubject = self.ui.configint(b'notify', b'maxsubject')
         if maxsubject:
             subject = stringutil.ellipsis(subject, maxsubject)
         msg['Subject'] = mail.headencode(
@@ -545,7 +545,7 @@ class notifier:
             )
 
     def diff(self, ctx, ref=None):
-        maxdiff = int(self.ui.config(b'notify', b'maxdiff'))
+        maxdiff = self.ui.configint(b'notify', b'maxdiff')
         prev = ctx.p1().node()
         if ref:
             ref = ref.node()
@@ -557,7 +557,7 @@ class notifier:
         difflines = b''.join(chunks).splitlines()
 
         if self.ui.configbool(b'notify', b'diffstat'):
-            maxdiffstat = int(self.ui.config(b'notify', b'maxdiffstat'))
+            maxdiffstat = self.ui.configint(b'notify', b'maxdiffstat')
             s = patch.diffstat(difflines)
             # s may be nil, don't include the header if it is
             if s:

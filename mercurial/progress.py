@@ -195,7 +195,7 @@ class progbar:
 
     def width(self):
         tw = self.ui.termwidth()
-        return min(int(self.ui.config(b'progress', b'width', default=tw)), tw)
+        return min(self.ui.configint(b'progress', b'width', default=tw), tw)
 
     def estimate(self, topic, pos, total, now):
         if total is None:
