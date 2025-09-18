@@ -46,6 +46,7 @@ from . import (
     repo as repomod,
     revlog as revlogmod,
     scmutil,
+    ui as uimod,
     util,
     vfs as vfsmod,
 )
@@ -1384,11 +1385,12 @@ class FileIndexStore(basicstore):
     opened for writing.
     """
 
-    def __init__(self, path, vfstype, try_pending: bool):
+    def __init__(self, ui: uimod.ui, path, vfstype, try_pending: bool):
         """
         If try_pending is True, tries to open the file index written by a
         transaction that is still pending. This is used for hooks.
         """
+        self._ui = ui
         self.encode = _pathencode
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
@@ -1405,6 +1407,7 @@ class FileIndexStore(basicstore):
     def fileindex(self):
         percentage = self.vfs.options[b'fileindex-max-unused-percentage']
         return file_index_mod.FileIndex(
+            self._ui,
             self.rawvfs,
             try_pending=self._try_pending,
             vacuum_mode=self.vfs.options[b'fileindex-vacuum-mode'],

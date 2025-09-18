@@ -66,6 +66,7 @@ from . import (
     tags as tagsmod,
     transaction,
     txnutil,
+    ui as uimod,
     util,
     vfs as vfsmod,
     wireprototypes,
@@ -731,6 +732,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # requirements. The store interface abstracts differences across all
     # of them.
     store = makestore(
+        ui,
         requirements,
         storebasepath,
         lambda base: vfsmod.vfs(base, cacheaudited=True),
@@ -945,6 +947,7 @@ def ensurerequirementscompatible(ui, requirements):
 
 
 def makestore(
+    ui: uimod.ui,
     requirements: set[bytes],
     path: FsPathT,
     vfstype: Callable[..., vfsmod.abstractvfs],
@@ -966,7 +969,7 @@ def makestore(
             return storemod.fncachestore(path, vfstype, encoding)
 
         if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
-            return storemod.FileIndexStore(path, vfstype, try_pending)
+            return storemod.FileIndexStore(ui, path, vfstype, try_pending)
 
         return storemod.encodedstore(path, vfstype)
 

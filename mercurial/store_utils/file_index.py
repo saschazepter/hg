@@ -12,7 +12,7 @@ import typing
 from ..i18n import _
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT, TransactionT
-from .. import error, formatter, pycompat, util
+from .. import error, formatter, pycompat, ui as uimod, util
 from ..interfaces import file_index as int_file_index
 from . import file_index_util
 
@@ -56,6 +56,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def __init__(
         self,
+        ui: uimod.ui,
         opener,
         try_pending: bool,
         vacuum_mode: bytes,
@@ -67,6 +68,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         """
         if not 0 <= max_unused_ratio <= 100:
             raise error.ProgrammingError(b"invalid max_unused_ratio")
+        self._ui = ui
         self._opener = opener
         self._try_pending = try_pending
         self._vacuum_mode = vacuum_mode

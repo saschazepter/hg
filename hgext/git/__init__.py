@@ -23,6 +23,7 @@ from mercurial import (
     requirements as requirementsmod,
     scmutil,
     store,
+    ui as uimod,
     util,
     vfs as vfsmod,
 )
@@ -121,6 +122,7 @@ class gitstore:  # store.basicstore):
 
 def _makestore(
     orig,
+    ui: uimod.ui,
     requirements: set[bytes],
     storebasepath: FsPathT,
     vfstype: Callable[..., vfsmod.abstractvfs],
@@ -145,7 +147,7 @@ def _makestore(
             )
 
         return gitstore(storebasepath, vfstype)
-    return orig(requirements, storebasepath, vfstype, try_pending)
+    return orig(ui, requirements, storebasepath, vfstype, try_pending)
 
 
 def _setupdothg(ui, path):

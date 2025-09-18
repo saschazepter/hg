@@ -227,7 +227,7 @@ class statichttprepository(localrepo.localrepository):
 
         # setup store
         self.store = localrepo.makestore(
-            requirements, self.path, vfsclass, try_pending=False
+            ui, requirements, self.path, vfsclass, try_pending=False
         )
         self.spath = self.store.path
         self.svfs = self.store.opener
