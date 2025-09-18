@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import errno
 import os
+import signal
 
 from typing import (
     Any,
@@ -35,7 +36,7 @@ from . import (
     pycompat,
     util,
 )
-from .utils import stringutil
+from .utils import procutil, stringutil
 from .interfaces import transaction as itxn
 
 version = 2
@@ -43,6 +44,10 @@ version = 2
 GEN_GROUP_ALL = b'all'
 GEN_GROUP_PRE_FINALIZE = b'prefinalize'
 GEN_GROUP_POST_FINALIZE = b'postfinalize'
+
+# Values of the config devel.debug.abort-transaction.
+ABORT_POST_FINALIZE = b'abort-post-finalize'
+KILL_9_POST_FINALIZE = b'kill-9-post-finalize'
 
 
 def active(func):
@@ -251,6 +256,7 @@ class transaction(util.transactional, itxn.ITransaction):
         releasefn=None,
         checkambigfiles=None,
         name=b'<unnamed>',
+        debug_abort=b'',
     ):
         """Begin a new transaction
 
@@ -264,6 +270,8 @@ class transaction(util.transactional, itxn.ITransaction):
         `checkambigfiles` is a set of (path, vfs-location) tuples,
         which determine whether file stat ambiguity should be avoided
         for corresponded files.
+
+        `debug_abort` is a value of the config devel.debug.abort-transaction.
         """
         self._count = 1
         self._usages = 1
@@ -291,6 +299,7 @@ class transaction(util.transactional, itxn.ITransaction):
             self._checkambigfiles.update(checkambigfiles)
 
         self._names = [name]
+        self._debug_abort = debug_abort
 
         # A dict dedicated to precisely tracking the changes introduced in the
         # transaction.
@@ -734,6 +743,11 @@ class transaction(util.transactional, itxn.ITransaction):
             # Prevent double usage and help clear cycles.
             self._finalizecallback = None
             self._generatefiles(group=GEN_GROUP_POST_FINALIZE)
+
+            if self._debug_abort == ABORT_POST_FINALIZE:
+                raise error.Abort(_(b"requested %s" % ABORT_POST_FINALIZE))
+            elif self._debug_abort == KILL_9_POST_FINALIZE:
+                procutil.kill_self(signal.SIGKILL)
 
         self._count -= 1
         if self._count != 0:

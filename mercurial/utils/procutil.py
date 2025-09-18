@@ -802,3 +802,8 @@ else:
             returncode = p.wait
             if record_wait is not None:
                 record_wait(returncode)
+
+
+def kill_self(signal: int):
+    """Kill the current process with the given signal."""
+    os.kill(os.getpid(), signal)

@@ -2430,6 +2430,7 @@ class localrepository(_localrepo_base_classes):
             releasefn=releasefn,
             checkambigfiles=cachedfiles,
             name=desc,
+            debug_abort=self.ui.config(b'devel', b'debug.abort-transaction'),
         )
         for vfs_id, path in self._journalfiles():
             tr.add_journal(vfs_id, path)
