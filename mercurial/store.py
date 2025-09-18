@@ -1407,6 +1407,7 @@ class FileIndexStore(basicstore):
         return file_index_mod.FileIndex(
             self.rawvfs,
             try_pending=self._try_pending,
+            vacuum_mode=self.vfs.options[b'fileindex-vacuum-mode'],
             max_unused_ratio=percentage / 100,
         )
 

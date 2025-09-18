@@ -22,6 +22,7 @@ from ..revlogutils import (
     config as revlog_config,
     constants as revlogconst,
 )
+from ..store_utils import file_index
 
 
 def resolve_store_vfs_options(ui, requirements, features):
@@ -62,6 +63,17 @@ def resolve_store_vfs_options(ui, requirements, features):
             options[b'copies-storage'] = b'extra'
 
     if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+        value = ui.config(b'devel', b'fileindex.vacuum-mode')
+        if value not in file_index.ALL_VACUUM_MODES:
+            fallback = ui.configdefault(b'devel', b'fileindex.vacuum-mode')
+            msg = _(
+                b'warning: invalid devel.fileindex.vacuum-mode '
+                b'value "%s"; falling back to "%s"' % (value, fallback)
+            )
+            ui.warn(msg)
+            value = fallback
+        options[b'fileindex-vacuum-mode'] = value
+
         value = ui.configint(b'storage', b'fileindex.max-unused-percentage')
         if not 0 <= value <= 100:
             fallback = ui.configdefault(

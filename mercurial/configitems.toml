@@ -612,6 +612,20 @@ documentation = "Controls the initial size of the discovery for initial change."
 
 [[items]]
 section = "devel"
+name = "fileindex.vacuum-mode"
+default = "auto"
+experimental = true
+documentation = """Controls when to vacuum the file index tree file.
+Possible values:
+- ``auto`` (default): vacuum based on storage.fileindex.max-unused-percentage
+- ``never``: never vacuum
+- ``always``: always vacuum when writing the file index
+This config only has an effect if the operation writes the file index. For
+example, a commit that adds no files will never vacuum, even with ``always``.
+"""
+
+[[items]]
+section = "devel"
 name = "legacy.exchange"
 default-type = "list_type"
 

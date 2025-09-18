@@ -23,6 +23,12 @@ if typing.TYPE_CHECKING:
 
 propertycache = util.propertycache
 
+# Values of the config devel.fileindex.vacuum-mode.
+VACUUM_MODE_AUTO = b'auto'
+VACUUM_MODE_NEVER = b'never'
+VACUUM_MODE_ALWAYS = b'always'
+ALL_VACUUM_MODES = {VACUUM_MODE_AUTO, VACUUM_MODE_NEVER, VACUUM_MODE_ALWAYS}
+
 DEFAULT_DOCKET_TEMPLATE = b"""\
 marker: {marker}
 list_file_size: {list_file_size}
@@ -48,7 +54,13 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     class, with and without Rust extensions enabled.
     """
 
-    def __init__(self, opener, try_pending: bool, max_unused_ratio: float):
+    def __init__(
+        self,
+        opener,
+        try_pending: bool,
+        vacuum_mode: bytes,
+        max_unused_ratio: float,
+    ):
         """
         If try_pending is True, tries opening the docket with the ".pending"
         suffix, falling back to the normal docket path.
@@ -57,6 +69,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             raise error.ProgrammingError(b"invalid max_unused_ratio")
         self._opener = opener
         self._try_pending = try_pending
+        self._vacuum_mode = vacuum_mode
         self._max_unused_ratio = max_unused_ratio
         self._add = []
         self._add_map = {}
@@ -140,11 +153,15 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         # If we write multiple times (e.g. transaction pending and finalize),
         # only write data files the first time. Next time, just the docket.
         if not self._written:
-            vacuum = (
-                force_vacuum
-                or self.docket.tree_unused_bytes
-                >= self.docket.tree_file_size * self._max_unused_ratio
-            )
+            if force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
+                vacuum = True
+            elif self._vacuum_mode == VACUUM_MODE_AUTO:
+                vacuum = (
+                    self.docket.tree_unused_bytes
+                    >= self.docket.tree_file_size * self._max_unused_ratio
+                )
+            else:
+                vacuum = False
             self._write_data(vacuum)
             self._written = True
         f.write(self.docket.serialize())
