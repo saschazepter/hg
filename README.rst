@@ -14,7 +14,7 @@ Basic install::
 Running without installing::
 
  $ make local      # build for inplace usage
- $ ./hg --version  # should show the latest version
+ $ ./hg-local --version  # should show the latest version
 
 See https://mercurial-scm.org/ for detailed installation
 instructions, platform-specific notes, and Mercurial user information.
