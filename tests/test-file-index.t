@@ -138,3 +138,113 @@ Access file index in pretxnclose hook
   running hook pretxnclose: hg debug::file-index
   0: file
   committed changeset 0:* (glob)
+
+  $ cd ..
+
+Test transaction failure and rollback
+-------------------------------------
+
+We test all combinations of these cases:
+
+Rollback
+- manual via hg rollback
+- automatic when transaction fails
+- with hg recover when transaction is abandoned
+Vacuuming
+- no (same tree file)
+- yes (new tree file)
+
+There are a few important things here:
+1. Don't leave old tree files around forever, delete them at some point.
+2. But leave them around long enough so we can rollback after a vacuum.
+3. And in that case, also clean up the file we rolled back from at some point.
+Currently we never clean up files so (2) always passes.
+TODO: Implement file cleaning and add tests for (1) and (3).
+
+Manul rollback, new file index (initial commit)
+  $ hg init repotxn --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repotxn
+  $ touch file
+  $ hg commit -qAm 0
+  $ hg rollback
+  repository tip rolled back to revision -1 (undo commit)
+  working directory now based on revision -1
+  $ hg debug::file-index
+
+Set up the following tests so we are adding to a nonempty file index
+  $ hg commit -qAm 0 --config devel.fileindex.vacuum-mode=never
+  $ touch file2
+  $ original_id=$(hg debug::file-index --docket -T '{tree_file_id}')
+  $ hg debug::file-index
+  0: file
+
+Manual rollback, same file
+  $ hg commit -qAm 1 --config devel.fileindex.vacuum-mode=never
+  $ hg rollback
+  repository tip rolled back to revision 0 (undo commit)
+  working directory now based on revision 0
+  $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+
+Manual rollback, new file
+  $ hg commit -qAm 1 --config devel.fileindex.vacuum-mode=always
+  $ hg rollback
+  repository tip rolled back to revision 0 (undo commit)
+  working directory now based on revision 0
+  $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+
+Abort transaction, same file
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=abort-post-finalize --config devel.fileindex.vacuum-mode=never
+  transaction abort!
+  rollback completed
+  abort: requested abort-post-finalize
+  [255]
+  $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+
+Abort transaction, new file
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=abort-post-finalize --config devel.fileindex.vacuum-mode=always
+  transaction abort!
+  rollback completed
+  abort: requested abort-post-finalize
+  [255]
+  $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+
+Recover transaction, same file
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.fileindex.vacuum-mode=never || echo exit=$?
+  *Killed* (glob) (no-chg !)
+  exit=137 (no-chg !)
+  exit=255 (chg !)
+  $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+  1: file2
+  $ hg recover
+  rolling back interrupted transaction
+  (verify step skipped, run `hg verify` to check your repository content)
+  $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+
+Recover transaction, new file
+  $ id=$(hg debug::file-index --docket -T '{tree_file_id}')
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.fileindex.vacuum-mode=always || echo exit=$?
+  *Killed* (glob) (no-chg !)
+  exit=137 (no-chg !)
+  exit=255 (chg !)
+  $ test "$id" != "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
+  1: file2
+  $ hg recover
+  rolling back interrupted transaction
+  (verify step skipped, run `hg verify` to check your repository content)
+  $ test "$id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
+  $ hg debug::file-index
+  0: file
