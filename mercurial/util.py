@@ -3512,15 +3512,21 @@ def rust_tracing_span(name: str):
     except ImportError:
         tracer = None
 
+    import contextlib
+
     if tracer is None:
-        import contextlib
 
         @contextlib.contextmanager
         def trace_span(name: str):
             yield
 
     else:
-        trace_span = tracer.span
+
+        @contextlib.contextmanager
+        def trace_span(name: str):
+            # Rewrap so we can also use it as a decorator
+            with tracer.span(name):
+                yield
 
     # cache the import
     _rust_tracer = trace_span
