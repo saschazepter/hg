@@ -289,7 +289,7 @@ Show all commands + options
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum
-  debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, reuse-stored-delta
+  debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific
   debug::unbundle: 

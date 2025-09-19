@@ -5012,6 +5012,7 @@ def debugwireproto(ui, repo, path=None, **opts):
         (b'', b'start-rev', b"", _(b'start at rev')),
         (b'', b'stop-rev', b"", _(b'stop at rev')),
         (b'', b'delete', True, _(b'delete the result')),
+        (b'', b'report', True, _(b'report statistic about the result')),
         (
             b'',
             b'reuse-stored-delta',
@@ -5030,6 +5031,7 @@ def debug_reencoder_revlog(
     stop_rev=None,
     delete=True,
     reuse_stored_delta=True,
+    report=True,
     **opts,
 ):
     """show revlog statistic if delta where to be reencoded
@@ -5052,6 +5054,7 @@ def debug_reencoder_revlog(
         stop_rev=stop_rev,
         delete=delete,
         reuse_delta=reuse_stored_delta,
+        report=report,
     )
 
 

@@ -977,6 +977,7 @@ def reencoded_info(
     stop_rev=None,
     delete=True,
     reuse_delta=True,
+    report=True,
 ):
     class _faketr:
         def add(s, x, y, z=None):
@@ -1101,7 +1102,8 @@ def reencoded_info(
                 )
                 p.update(rev)
         rev = None
-        debug_revlog(ui, dest)
+        if report:
+            debug_revlog(ui, dest)
     finally:
         end = time.monotonic()
         if rev is not None:
