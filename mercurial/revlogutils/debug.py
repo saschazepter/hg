@@ -1103,7 +1103,7 @@ def reencoded_info(
         rev = None
         debug_revlog(ui, dest)
     finally:
-        end = time.time()
+        end = time.monotonic()
         if rev is not None:
             ui.writenoi18n(b"/!\\ interrupted while processing %d\n" % rev)
         ui.writenoi18n(b"duration: %f\n" % (end - start))
