@@ -985,40 +985,11 @@ Combination of "finalization" and "empty-ness of changelog" (2 x 2 =
 4) are tested, because '00changelog.i' are differently changed in each
 cases.
 
-  $ cat > $TESTTMP/failafterfinalize.py <<EOF
-  > # extension to abort transaction after finalization forcibly
-  > from mercurial import commands, error, extensions, lock as lockmod
-  > from mercurial import registrar
-  > cmdtable = {}
-  > command = registrar.command(cmdtable)
-  > configtable = {}
-  > configitem = registrar.configitem(configtable)
-  > configitem(b'failafterfinalize', b'fail',
-  >     default=None,
-  > )
-  > def fail(tr):
-  >     raise error.Abort(b'fail after finalization')
-  > def reposetup(ui, repo):
-  >     class failrepo(repo.__class__):
-  >         def commitctx(self, ctx, error=False, origctx=None):
-  >             if self.ui.configbool(b'failafterfinalize', b'fail'):
-  >                 # 'sorted()' by ASCII code on category names causes
-  >                 # invoking 'fail' after finalization of changelog
-  >                 # using "'cl-%i' % id(self)" as category name
-  >                 self.currenttransaction().addfinalize(b'zzzzzzzz', fail)
-  >             return super(failrepo, self).commitctx(ctx, error, origctx)
-  >     repo.__class__ = failrepo
-  > EOF
-
   $ hg init repo3
   $ cd repo3
-
   $ cat <<EOF >> $HGRCPATH
   > [command-templates]
   > log = {rev} {desc|firstline} ({files})\n
-  > 
-  > [extensions]
-  > failafterfinalize = $TESTTMP/failafterfinalize.py
   > EOF
 
 - test failure with "empty changelog"
@@ -1052,14 +1023,14 @@ cases.
   ... def abort(server):
   ...     readchannel(server)
   ...     runcommand(server, [b'commit',
-  ...                         b'--config', b'failafterfinalize.fail=true',
+  ...                         b'--config', b'devel.debug.abort-transaction=abort-post-finalize',
   ...                         b'-mfoo'])
   ...     runcommand(server, [b'log'])
   ...     runcommand(server, [b'verify', b'-q'])
-  *** runcommand commit --config failafterfinalize.fail=true -mfoo
+  *** runcommand commit --config devel.debug.abort-transaction=abort-post-finalize -mfoo
   transaction abort!
   rollback completed
-  abort: fail after finalization
+  abort: requested abort-post-finalize
    [255]
   *** runcommand log
   *** runcommand verify -q
@@ -1097,14 +1068,14 @@ cases.
   ... def abort(server):
   ...     readchannel(server)
   ...     runcommand(server, [b'commit',
-  ...                         b'--config', b'failafterfinalize.fail=true',
+  ...                         b'--config', b'devel.debug.abort-transaction=abort-post-finalize',
   ...                         b'-mfoo', b'foo'])
   ...     runcommand(server, [b'log'])
   ...     runcommand(server, [b'verify', b'-q'])
-  *** runcommand commit --config failafterfinalize.fail=true -mfoo foo
+  *** runcommand commit --config devel.debug.abort-transaction=abort-post-finalize -mfoo foo
   transaction abort!
   rollback completed
-  abort: fail after finalization
+  abort: requested abort-post-finalize
    [255]
   *** runcommand log
   0 bar (bar)

@@ -255,42 +255,20 @@ Aborting lock does not prevent fncache writes
   $ extpath=`pwd`/exceptionext.py
   $ hg init fncachetxn
   $ cd fncachetxn
-  $ printf "[extensions]\nexceptionext=$extpath\n" >> .hg/hgrc
   $ touch y
-  $ hg ci -qAm y
+  $ hg ci -qAm y --config extensions.exceptionext="$extpath"
   abort: forced lock failure
   [255]
   $ cat .hg/store/fncache
   data/y.i
 
-Aborting transaction prevents fncache change
-
-  $ cat > ../exceptionext.py <<EOF
-  > import os
-  > from mercurial import commands, error, extensions, localrepo
-  > 
-  > def wrapper(orig, self, *args, **kwargs):
-  >     tr = orig(self, *args, **kwargs)
-  >     def fail(tr):
-  >         raise error.Abort(b"forced transaction failure")
-  >     # zzz prefix to ensure it sorted after fncache.write
-  >     tr.addfinalize(b'zzz-forcefails', fail)
-  >     return tr
-  > 
-  > def uisetup(ui):
-  >     extensions.wrapfunction(
-  >         localrepo.localrepository, 'transaction', wrapper)
-  > 
-  > cmdtable = {}
-  > 
-  > EOF
-
-Clean cached version
-  $ rm -f "${extpath}c"
+  $ rm -f "$extpath" "${extpath}c"
   $ rm -Rf "`dirname $extpath`/__pycache__"
 
+Aborting transaction prevents fncache change
+
   $ touch z
-  $ hg ci -qAm z
+  $ hg ci -qAm z --config devel.debug.abort-transaction=abort-post-finalize
   transaction abort!
   rollback completed
   abort: forced transaction failure
@@ -300,43 +278,13 @@ Clean cached version
 
 Aborted transactions can be recovered later
 
-  $ cat > ../exceptionext.py <<EOF
-  > import os
-  > from mercurial.testing import ps_util
-  > from mercurial import (
-  >   commands,
-  >   error,
-  >   extensions,
-  >   localrepo,
-  >   transaction,
-  > )
-  > 
-  > def trwrapper(orig, self, *args, **kwargs):
-  >     tr = orig(self, *args, **kwargs)
-  >     def fail(tr):
-  >         ps_util.kill(os.getpid())
-  >     # zzz prefix to ensure it sorted after fncache.write
-  >     tr.addfinalize(b'zzz-forcefails', fail)
-  >     return tr
-  > 
-  > def uisetup(ui):
-  >     extensions.wrapfunction(localrepo.localrepository, 'transaction',
-  >                             trwrapper)
-  > 
-  > cmdtable = {}
-  > 
-  > EOF
-
-Clean cached versions
-  $ rm -f "${extpath}c"
-  $ rm -Rf "`dirname $extpath`/__pycache__"
-
   $ hg up -q 1
   $ touch z
 # Cannot rely on the return code value as chg use a different one.
 # So we use a `|| echo` trick
 # XXX-CHG fixing chg behavior would be nice here.
-  $ hg ci -qAm z || echo "He's Dead, Jim." 2>/dev/null
+  $ hg ci -qAm z --config devel.debug.abort-transaction=kill-9-post-finalize \
+  > || echo "He's Dead, Jim." 2>/dev/null
   *Killed* (glob) (?)
   He's Dead, Jim.
   $ cat .hg/store/fncache | sort

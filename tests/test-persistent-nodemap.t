@@ -531,10 +531,10 @@ Check that a failing transaction will properly revert the data
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
   .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  $ hg ci -m a3 --config "extensions.abort=$RUNTESTDIR/testlib/crash_transaction_late.py"
+  $ hg ci -m a3 --config devel.debug.abort-transaction=abort-post-finalize
   transaction abort!
   rollback completed
-  abort: This is a late abort
+  abort: requested abort-post-finalize
   [255]
   $ hg debugnodemap --metadata
   uid: ???????? (glob)
