@@ -636,19 +636,19 @@ class RevlogStoreEntry(BaseStoreEntry):
         revlog_type,
         path_prefix,
         target_id,
-        details,
+        details: dict | None,
     ):
         super().__init__()
         self.revlog_type = revlog_type
         self.target_id = target_id
         self._path_prefix = path_prefix
-        assert b'.i' in details, (path_prefix, details)
-        for ext in details:
-            if ext.endswith(REVLOG_FILES_VOLATILE_EXT):
-                self.maybe_volatile = True
-                break
-        else:
-            self.maybe_volatile = False
+        self.maybe_volatile = False
+        if details is not None:
+            assert b'.i' in details, (path_prefix, details)
+            for ext in details:
+                if ext.endswith(REVLOG_FILES_VOLATILE_EXT):
+                    self.maybe_volatile = True
+                    break
         self._details = details
         self._files = None
 
@@ -671,17 +671,27 @@ class RevlogStoreEntry(BaseStoreEntry):
     def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
         if self._files is None:
             self._files = []
-            for ext in sorted(self._details, key=_ext_key):
-                path = self._path_prefix + ext
-                file_size = self._details[ext]
-                # files that are "volatile" and might change between
-                # listing and streaming
-                #
-                # note: the ".nd" file are nodemap data and won't "change"
-                # but they might be deleted.
-                volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
-                f = StoreFile(path, file_size, volatile)
-                self._files.append(f)
+            if self._details is None:
+                # XXX Once we store the radix in the file index, we will have to
+                # deal with it here.
+                index_path = self.main_file_path()
+                self._files.append(StoreFile(index_path))
+                with vfs(index_path) as fp:
+                    header = fp.read(INDEX_HEADER.size)
+                if not revlogmod.revlog.is_inline_index(header):
+                    self._files.append(StoreFile(self._path_prefix + b'.d'))
+            else:
+                for ext in sorted(self._details, key=_ext_key):
+                    path = self._path_prefix + ext
+                    file_size = self._details[ext]
+                    # files that are "volatile" and might change between
+                    # listing and streaming
+                    #
+                    # note: the ".nd" file are nodemap data and won't "change"
+                    # but they might be deleted.
+                    volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
+                    f = StoreFile(path, file_size, volatile)
+                    self._files.append(f)
         return self._files
 
     def get_streams(
@@ -694,13 +704,17 @@ class RevlogStoreEntry(BaseStoreEntry):
     ):
         files = self.files(vfs)
         pre_sized = all(f.has_size for f in files)
-        if pre_sized and (
-            repo is None
-            or max_changeset is None
-            # This use revlog-v2, ignore for now
-            or any(k.endswith(b'.idx') for k in self._details.keys())
-            # This is not inline, no race expected
-            or b'.d' in self._details
+        if (
+            pre_sized
+            and self._details is not None
+            and (
+                repo is None
+                or max_changeset is None
+                # This use revlog-v2, ignore for now
+                or any(k.endswith(b'.idx') for k in self._details.keys())
+                # This is not inline, no race expected
+                or b'.d' in self._details
+            )
         ):
             return super().get_streams(
                 repo=repo,
@@ -1428,7 +1442,11 @@ class FileIndexStore(basicstore):
     def data_entries(
         self, matcher=None, undecodable=None
     ) -> Generator[BaseStoreEntry, None, None]:
-        raise NotImplementedError("file index data_entries not implemented yet")
+        # XXX Sorting takes 2s on large repo. Can we skip it?
+        for path in sorted(self.fileindex):
+            entry = RevlogStoreEntry(KIND_FILELOG, b'data/' + path, path, None)
+            if _match_tracked_entry(entry, matcher):
+                yield entry
 
     def copylist(self):
         raise NotImplementedError("file index copylist not implemented yet")

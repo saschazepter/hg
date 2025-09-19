@@ -93,6 +93,14 @@ Add more files
   0000004e: token = 2
   00000028: token = 3
 
+Test debug-revlog-stats to exercise walking the store.
+  $ hg debug-revlog-stats --filelog
+  rev-count   data-size inl type      target 
+          1           0 yes file      fi
+          1           0 yes file      file
+          1           0 yes file      filename
+          1           0 yes file      other
+
 Test vacuuming the tree file
 ----------------------------
 
