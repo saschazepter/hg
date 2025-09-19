@@ -2739,8 +2739,6 @@ class localrepository(_localrepo_base_classes):
         if repository.CACHE_MANIFESTLOG_CACHE in caches:
             self.manifestlog.update_caches(transaction=tr)
             for entry in self.store.walk():
-                if not entry.is_revlog:
-                    continue
                 if not entry.is_manifestlog:
                     continue
                 manifestrevlog = entry.get_revlog_instance(self).get_revlog()

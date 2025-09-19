@@ -175,8 +175,6 @@ def onetimesetup(ui):
 
             if scmutil.istreemanifest(repo):
                 for entry in repo.store.data_entries():
-                    if not entry.is_revlog:
-                        continue
                     if entry.is_manifestlog:
                         yield entry
 

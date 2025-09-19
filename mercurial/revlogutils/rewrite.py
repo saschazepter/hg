@@ -845,9 +845,7 @@ def repair_issue6528(
 
     with context():
         files = list(
-            entry
-            for entry in repo.store.data_entries()
-            if entry.is_revlog and entry.is_filelog
+            entry for entry in repo.store.data_entries() if entry.is_filelog
         )
 
         progress = ui.makeprogress(

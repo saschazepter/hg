@@ -450,7 +450,7 @@ def manifestrevlogs(repo):
         # This logic is safe if treemanifest isn't enabled, but also
         # pointless, so we skip it if treemanifest isn't enabled.
         for entry in repo.store.data_entries():
-            if entry.is_revlog and entry.is_manifestlog:
+            if entry.is_manifestlog:
                 yield repo.manifestlog.getstorage(entry.target_id)
 
 

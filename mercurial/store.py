@@ -548,6 +548,11 @@ class BaseStoreEntry:
 
     maybe_volatile = True
 
+    is_revlog: bool = False
+    is_changelog: bool = False
+    is_manifestlog: bool = False
+    is_filelog: bool = False
+
     def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
         """Return the files in vfs backing this entry.
 
@@ -584,8 +589,6 @@ class BaseStoreEntry:
 @attr.s(slots=True, init=False)
 class SimpleStoreEntry(BaseStoreEntry):
     """A generic entry in the store"""
-
-    is_revlog = False
 
     maybe_volatile = attr.ib()
     _entry_path = attr.ib()

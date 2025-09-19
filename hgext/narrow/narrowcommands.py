@@ -298,8 +298,6 @@ def _narrow(
 
         todelete = []
         for entry in repo.store.data_entries():
-            if not entry.is_revlog:
-                continue
             if entry.is_filelog:
                 if not newmatch(entry.target_id):
                     for file_ in entry.files(repo.svfs):
