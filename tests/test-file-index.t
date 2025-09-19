@@ -1,3 +1,6 @@
+Test the basics
+---------------
+
 Create a new repo with the file index
   $ hg init repo1 --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repo1
@@ -90,6 +93,9 @@ Add more files
   0000004e: token = 2
   00000028: token = 3
 
+Test vacuuming the tree file
+----------------------------
+
 Manually vacuum tree
   $ old_id=$(hg debug::file-index --docket -T '{tree_file_id}')
   $ hg debug::file-index --vacuum
@@ -111,6 +117,9 @@ Force vacuuming tree during commit
   tree_unused_bytes: 0
 
   $ cd ..
+
+Test interaction with hooks
+---------------------------
 
 Access file index in pretxnclose hook
   $ hg init repohook --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data

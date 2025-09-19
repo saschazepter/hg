@@ -271,7 +271,7 @@ Aborting transaction prevents fncache change
   $ hg ci -qAm z --config devel.debug.abort-transaction=abort-post-finalize
   transaction abort!
   rollback completed
-  abort: forced transaction failure
+  abort: requested abort-post-finalize
   [255]
   $ cat .hg/store/fncache
   data/y.i
