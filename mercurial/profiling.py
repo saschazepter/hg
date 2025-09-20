@@ -293,6 +293,7 @@ class profile:
         if not self._output:
             output_dir = self._ui.config(b'profiling', b'output-dir')
             if output_dir:
+                output_dir = util.expandpath(output_dir)
                 if not os.path.isdir(output_dir):
                     if self._ui.configbool(b'profiling', b'output-dir:create'):
                         util.makedirs(output_dir)
