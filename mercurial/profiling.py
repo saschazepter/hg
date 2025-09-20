@@ -13,6 +13,8 @@ import signal
 import subprocess
 import sys
 
+from typing import Literal, Union
+
 from .i18n import _
 from . import (
     encoding,
@@ -249,9 +251,13 @@ class profile:
 
     def __init__(self, ui, enabled=True):
         self._ui = ui
-        self._output = None
+        self._output_type: Union[
+            None,
+            Literal[b'blackbox'],
+            Literal[b'file'],
+            Literal[b'stderr'],
+        ] = None
         self._fp = None
-        self._fpdoclose = True
         self._flushfp = None
         self._profiler = None
         self._enabled = enabled
@@ -288,36 +294,41 @@ class profile:
                 )
                 profiler = b'stat'
 
-        self._output = self._ui.config(b'profiling', b'output')
+        output_conf = self._ui.config(b'profiling', b'output')
 
-        if not self._output:
-            output_dir = self._ui.config(b'profiling', b'output-dir')
-            if output_dir:
-                output_dir = util.expandpath(output_dir)
-                if not os.path.isdir(output_dir):
-                    if self._ui.configbool(b'profiling', b'output-dir:create'):
-                        util.makedirs(output_dir)
-                    else:
-                        msg = _(
-                            b"profiling output directory does not exist: %s\n"
-                        )
-                        msg %= output_dir
-                        self._ui.warn(msg)
-                        return
-                pid = os.getpid()
-                timestamp = encoding.strtolocal(
-                    pycompat.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-                )
-                filename = b"hg-profile-%s-%d.prof" % (timestamp, pid)
-                self._output = os.path.join(output_dir, filename)
+        if output_conf == b'blackbox':
+            self._output_type = b'blackbox'
+        elif output_conf:
+            self._output_type = b'file'
+            file_path = util.expandpath(output_conf)
+        elif output_dir_conf := self._ui.config(b'profiling', b'output-dir'):
+            output_dir = util.expandpath(output_dir_conf)
+            if not os.path.isdir(output_dir):
+                if self._ui.configbool(b'profiling', b'output-dir:create'):
+                    util.makedirs(output_dir)
+                else:
+                    msg = _(b"profiling output directory does not exist: %s\n")
+                    msg %= output_dir
+                    self._ui.warn(msg)
+                    return
+            pid = os.getpid()
+            timestamp = encoding.strtolocal(
+                pycompat.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+            )
+            filename = b"hg-profile-%s-%d.prof" % (timestamp, pid)
+            self._output_type = b'file'
+            file_path = os.path.join(output_dir, filename)
+        else:
+            self._output_type = b'stderr'
 
         try:
-            if self._output == b'blackbox':
+            if self._output_type == b'blackbox':
                 self._fp = util.stringio()
-            elif self._output:
-                path = util.expandpath(self._output)
-                self._fp = open(path, 'wb')
+            elif self._output_type == b'file':
+                self._fp = open(file_path, 'wb')
             elif pycompat.iswindows:
+                assert self._output_type == b'stderr'
+
                 # parse escape sequence by win32print()
                 class uifp:
                     def __init__(self, ui):
@@ -329,10 +340,9 @@ class profile:
                     def flush(self):
                         self._ui.flush()
 
-                self._fpdoclose = False
                 self._fp = uifp(self._ui)
             else:
-                self._fpdoclose = False
+                assert self._output_type == b'stderr'
                 self._fp = self._ui.ferr
                 # Ensure we've flushed fout before writing to ferr.
                 self._flushfp = self._ui.fout
@@ -361,7 +371,7 @@ class profile:
             propagate = self._profiler.__exit__(
                 exception_type, exception_value, traceback
             )
-            if self._output == b'blackbox':
+            if self._output_type == b'blackbox':
                 fp = self._fp
                 # Help pytype: blackbox output uses io.BytesIO instead of a file
                 assert isinstance(fp, util.stringio)
@@ -374,7 +384,7 @@ class profile:
         return propagate
 
     def _closefp(self):
-        if self._fpdoclose and self._fp is not None:
+        if self._output_type == b'file' and self._fp is not None:
             self._fp.close()
 
     def _uiflush(self):
