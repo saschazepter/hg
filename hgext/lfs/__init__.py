@@ -129,6 +129,7 @@ from mercurial.node import bin
 
 from mercurial import (
     bundlecaches,
+    cmd_impls,
     config,
     context,
     error,
@@ -416,6 +417,31 @@ def lfsfiles(context, mapping):
     # TODO: make the separator ', '?
     f = templateutil._showcompatlist(context, mapping, b'lfs_file', files)
     return templateutil.hybrid(f, files, makemap, pycompat.identity)
+
+
+@eh.command(
+    b'debug::lfs-local-cache',
+    cmd_impls.formatter_opts,
+)
+def debugcache(ui, repo, **opts):
+    """print information about the local blob cache"""
+    path = b""
+    enabled = b"no"
+
+    if (store := getattr(repo.svfs, "lfslocalblobstore", None)) is not None:
+        # The nullvfs doesn't call the superclass constructor, so it doesn't
+        # have a ``base`` attribute.
+        if not isinstance(store.cachevfs, blobstore.nullvfs):
+            path = store.cachevfs.base
+            enabled = b"yes"
+
+    with ui.formatter(b'lfs-local-cache', pycompat.byteskwargs(opts)) as fm:
+        fm.startitem()
+        fm.data(path=path, enabled=enabled)
+        fm.plain(_(b"path:    %s\n") % (path if path else b"(unknown)"))
+        fm.plain(_(b"enabled: %s\n") % enabled)
+
+    return 0
 
 
 @eh.command(

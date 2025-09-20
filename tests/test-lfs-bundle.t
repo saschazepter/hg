@@ -96,6 +96,64 @@ Apply bundles
   ---- Applying src-lfs.bundle to dst-lfs ----
   OK
 
+
+Test that the cache info can be printed.  The 4 cases are:
+
+1) The test-provided config path, with plain and json output
+2) The test-provided config path, with plain and json output, but the cache disabled
+3) A config provided path, with plain and json output
+4) A config provided path, with plain and json output, but the cache disabled
+
+  $ hg debug::lfs-local-cache
+  path:    $TESTTMP/.cache/lfs (glob)
+  enabled: yes
+  $ hg debug::lfs-local-cache -T json
+  [
+   {
+    "enabled": "yes",
+    "path": "$TESTTMP/.cache/lfs" (glob) (no-windows !)
+    "path": "$STR_REPR_TESTTMP\\.cache/lfs" (windows !)
+   }
+  ]
+
+  $ hg debug::lfs-local-cache --config experimental.lfs.disableusercache=1
+  path:    (unknown)
+  enabled: no
+  $ hg debug::lfs-local-cache --config experimental.lfs.disableusercache=1 \
+  >                           -T json
+  [
+   {
+    "enabled": "no",
+    "path": ""
+   }
+  ]
+
+  $ hg debug::lfs-local-cache --config lfs.usercache=relpath
+  path:    relpath
+  enabled: yes
+  $ hg debug::lfs-local-cache --config lfs.usercache=relpath -T json
+  [
+   {
+    "enabled": "yes",
+    "path": "relpath"
+   }
+  ]
+
+  $ hg debug::lfs-local-cache --config lfs.usercache=relpath \
+  >                           --config experimental.lfs.disableusercache=1
+  path:    (unknown)
+  enabled: no
+  $ hg debug::lfs-local-cache --config lfs.usercache=relpath \
+  >                           --config experimental.lfs.disableusercache=1 \
+  >                           -T json
+  [
+   {
+    "enabled": "no",
+    "path": ""
+   }
+  ]
+
+
 Hint if the cache location cannot be inferred from the environment
 
 #if windows
