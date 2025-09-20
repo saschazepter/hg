@@ -666,7 +666,7 @@ Various sub-optimal detections work
      old shared repositories do not share source repository requirements and config. This leads to various problems when the source repository format is upgraded or some new extensions are enabled.
   
   sparserevlog
-     in order to limit disk reading and memory usage on older version, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severly limit Mercurial ability to build good chain of delta resulting is much more storage space being taken and limit reusability of on disk delta during exchange.
+     in order to limit disk reading and memory usage on older versions, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severely limit Mercurial's ability to build a good chain of delta resulting in much more storage space being taken, and limit reusability of on disk delta during exchange.
   
   persistent-nodemap (rust !)
      persist the node -> rev mapping on disk to speedup lookup (rust !)
@@ -692,7 +692,7 @@ Various sub-optimal detections work
      Upgrades a repository to share-safe format so that future shares of this repository share its requirements and configs.
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   persistent-nodemap (rust !)
      Speedup revision lookup by node id. (rust !)
@@ -770,7 +770,7 @@ Check that disabling general-delta also disable sparse-revlog
      old shared repositories do not share source repository requirements and config. This leads to various problems when the source repository format is upgraded or some new extensions are enabled.
   
   sparserevlog
-     in order to limit disk reading and memory usage on older version, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severly limit Mercurial ability to build good chain of delta resulting is much more storage space being taken and limit reusability of on disk delta during exchange.
+     in order to limit disk reading and memory usage on older versions, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severely limit Mercurial's ability to build a good chain of delta resulting in much more storage space being taken, and limit reusability of on disk delta during exchange.
   
   persistent-nodemap (rust !)
      persist the node -> rev mapping on disk to speedup lookup (rust !)
@@ -798,7 +798,7 @@ Check that disabling general-delta also disable sparse-revlog
      Upgrades a repository to share-safe format so that future shares of this repository share its requirements and configs.
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   persistent-nodemap (rust !)
      Speedup revision lookup by node id. (rust !)
@@ -989,7 +989,7 @@ unless --no-backup is passed
      added: sparserevlog
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   processed revlogs:
     - all-filelogs
@@ -1320,7 +1320,7 @@ Check you can't skip revlog clone during important format upgrade
   optimisations: re-delta-parent
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   re-delta-parent
      deltas within internal storage will choose a new base revision if needed

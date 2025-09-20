@@ -390,19 +390,19 @@ class sparserevlog(requirementformatvariant):
 
     description = _(
         b'in order to limit disk reading and memory usage on older '
-        b'version, the span of a delta chain from its root to its '
+        b'versions, the span of a delta chain from its root to its '
         b'end is limited, whatever the relevant data in this span. '
-        b'This can severly limit Mercurial ability to build good '
-        b'chain of delta resulting is much more storage space being '
-        b'taken and limit reusability of on disk delta during '
+        b"This can severely limit Mercurial's ability to build a good "
+        b'chain of delta resulting in much more storage space being '
+        b'taken, and limit reusability of on disk delta during '
         b'exchange.'
     )
 
     upgrademessage = _(
         b'Revlog supports delta chain with more unused data '
-        b'between payload. These gaps will be skipped at read '
+        b'between payloads. These gaps will be skipped at read '
         b'time. This allows for better delta chains, making a '
-        b'better compression and faster exchange with server.'
+        b'better compression and faster exchange with the server.'
     )
 
 
@@ -422,7 +422,7 @@ class delta_info_flags(requirementformatvariant):
     upgrademessage = _(
         b'Using this format will improve local storage, speedup '
         b'local operation and help to preserve storage quality and '
-        b'performace during exchanges with other peer'
+        b'performance during exchanges with other repositories.'
     )
 
     touches_filelogs = True
