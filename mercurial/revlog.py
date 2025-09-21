@@ -3201,6 +3201,8 @@ class revlog:
             self._format_flags | self._format_version,
             new_index_file_path=new_index_file_path,
         )
+        if self.target[1] != b'':
+            self.opener.register_file(self._datafile)
 
         self._inline = False
         if new_index_file_path is not None:
@@ -3239,6 +3241,14 @@ class revlog:
                 data_end=data_end,
                 sidedata_end=sidedata_end,
             ):
+                # If this is a new revlog, register it to update the potential
+                # fncache
+                if len(self.index) == 0 and self.target[1] != b'':
+                    if self._docket_file is None:
+                        assert self._sidedatafile is None
+                        self.opener.register_file(self._indexfile)
+                        if not self._inline:
+                            self.opener.register_file(self._datafile)
                 yield
                 if self._docket is not None:
                     self._write_docket(transaction)

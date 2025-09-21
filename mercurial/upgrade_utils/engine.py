@@ -94,6 +94,11 @@ def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
     if copydata:
         util.copyfile(olddata, newdata)
 
+    if newrl.target != b'':
+        newvfs.register_file(newrl._indexfile)
+        if copydata:
+            newvfs.register_file(newrl._datafile)
+
     if entry.is_filelog:
         unencodedname = entry.main_file_path()
         destrepo.svfs.fncache.add(unencodedname)

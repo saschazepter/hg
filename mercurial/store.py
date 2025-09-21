@@ -71,6 +71,7 @@ parsers = policy.importmod('parsers')
 fncache_chunksize = 10**6
 
 RE_FILELOG_RADIX = re.compile(br'^data/(.*)\.i$')
+RE_FNCACHE_FILE = re.compile(br'^(data|meta)/.*\.[id]$')
 
 
 def parse_filelog_radix(path: HgPathT):
@@ -1317,22 +1318,6 @@ class _fncachevfs(vfsmod.proxyvfs):
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
-        if (
-            mode not in (b'r', b'rb')
-            and (path.startswith(b'data/') or path.startswith(b'meta/'))
-            and is_revlog_file(path)
-        ):
-            # do not trigger a fncache load when adding a file that already is
-            # known to exist.
-            notload = not self.fncache.is_loaded and (
-                # if the file has size zero, it should be considered as missing.
-                # Such zero-size files are the result of truncation when a
-                # transaction is aborted.
-                self.vfs.exists(encoded)
-                and self.vfs.stat(encoded).st_size
-            )
-            if not notload:
-                self.fncache.add(path)
         return self.vfs(encoded, mode, *args, **kw)
 
     def join(self, path: bytes | None, *insidef: bytes) -> bytes:
@@ -1343,9 +1328,9 @@ class _fncachevfs(vfsmod.proxyvfs):
         else:
             return self.vfs.join(path, *insidef)
 
-    def register_file(self, path):
+    def register_file(self, path: HgPathT):
         """generic hook point to lets fncache steer its stew"""
-        if path.startswith(b'data/') or path.startswith(b'meta/'):
+        if RE_FNCACHE_FILE.match(path):
             self.fncache.add(path)
 
 

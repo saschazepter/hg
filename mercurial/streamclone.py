@@ -518,12 +518,11 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
                         )
                     # for backwards compat, name was partially encoded
                     path = store.decodedir(name)
-
                     if fileindex is not None:
                         radix = store.parse_filelog_radix(name)
                         if radix is not None:
                             fileindex.add(radix, tr)
-
+                    repo.svfs.register_file(path)
                     with repo.svfs(path, b'w', backgroundclose=True) as ofp:
                         total_file_count += 1
                         for chunk in util.filechunkiter(fp, limit=size):
@@ -1549,6 +1548,7 @@ def _v2_parse_files(
                 fileindex.add(radix, tr)
 
         vfs = vfs_map[src]
+        vfs.register_file(name)
         path, mode = vfs.prepare_streamed_file(name, known_dirs)
         if datalen <= util.DEFAULT_FILE_CHUNK:
             c = fp.read(datalen)
@@ -1649,7 +1649,7 @@ def consumev3(repo, fp) -> None:
                             msg %= (src, name, util.bytecount(datalen))
                             repo.ui.debug(msg)
                         bytes_transferred += datalen
-
+                        vfs.register_file(name)
                         with vfs(name, b'w') as ofp:
                             for chunk in util.filechunkiter(fp, limit=datalen):
                                 ofp.write(chunk)
