@@ -41,6 +41,9 @@ _lfsre = re.compile(br'\A[a-f0-9]{64}\Z')
 
 
 class lfsvfs(vfsmod.vfs):
+    def __init__(self, base: bytes) -> None:
+        super().__init__(base, expandpath=True, realpath=True)
+
     def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         """split the path at first two characters, like: XX/XXXXX..."""
         if not _lfsre.match(path):

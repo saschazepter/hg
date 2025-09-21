@@ -112,7 +112,7 @@ Test that the cache info can be printed.  The 4 cases are:
    {
     "enabled": "yes",
     "path": "$TESTTMP/.cache/lfs" (glob) (no-windows !)
-    "path": "$STR_REPR_TESTTMP\\.cache/lfs" (windows !)
+    "path": "$STR_REPR_TESTTMP\\.cache\\lfs" (windows !)
    }
   ]
 
@@ -129,13 +129,14 @@ Test that the cache info can be printed.  The 4 cases are:
   ]
 
   $ hg debug::lfs-local-cache --config lfs.usercache=relpath
-  path:    relpath
+  path:    $TESTTMP/tmp-src-lfs-dst-lfs/relpath
   enabled: yes
   $ hg debug::lfs-local-cache --config lfs.usercache=relpath -T json
   [
    {
     "enabled": "yes",
-    "path": "relpath"
+    "path": "$TESTTMP/tmp-src-lfs-dst-lfs/relpath" (no-windows !)
+    "path": "$STR_REPR_TESTTMP\\tmp-src-lfs-dst-lfs\\relpath" (windows !)
    }
   ]
 
