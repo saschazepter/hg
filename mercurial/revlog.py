@@ -24,7 +24,6 @@ import weakref
 import zlib
 
 from typing import (
-    Callable,
     Iterable,
     Iterator,
     Optional,
@@ -59,6 +58,7 @@ from .revlogutils.constants import (
     INDEX_HEADER,
     KIND_CHANGELOG,
     KIND_FILELOG,
+    KIND_MANIFESTLOG,
     META_MARKER,
     META_MARKER_SIZE,
     RANK_UNKNOWN,
@@ -1400,7 +1400,6 @@ class revlog:
         writable: Optional[
             bool
         ] = None,  # None is "unspecified" and allow writing
-        diff_fn: Callable[[bytes, bytes], bytes] = mdiff.storage_diff,
     ):
         """
         create a revlog object
@@ -1429,7 +1428,6 @@ class revlog:
         self._may_inline = may_inline
         self.uses_rust = False
         self.opener = opener
-        self._diff_fn = diff_fn
         if persistentnodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(self)
 
@@ -1443,6 +1441,12 @@ class revlog:
             self._writable = True
         else:
             self._writable = bool(writable)
+
+        if target[0] == KIND_MANIFESTLOG:
+            self._diff_fn = mdiff.line_diff
+        else:
+            self._diff_fn = mdiff.storage_diff
+
         if feature_config is not None:
             self.feature_config = feature_config.copy()
         elif b'feature-config' in self.opener.options:
