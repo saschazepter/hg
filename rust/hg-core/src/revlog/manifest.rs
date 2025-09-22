@@ -1,3 +1,4 @@
+use std::iter;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
@@ -422,19 +423,122 @@ fn changed_sections<'a>(
     m1: &'a [u8],
     m2: &'a [u8],
 ) -> impl Iterator<Item = Section> + 'a {
-    SyncLineIterator::new(m1, m2).map(|lines| match lines {
-        (Some(l), None) => Section::Changed(l.size(), 0),
-        (None, Some(l)) => Section::Changed(0, l.size()),
-        (Some(l1), Some(l2)) => {
-            if l1.data().eq(l2.data()) {
-                debug_assert!(l1.size() == l2.size());
-                Section::Same(l1.size())
-            } else {
-                Section::Changed(l1.size(), l2.size())
+    let mut m1 = m1;
+    let mut m2 = m2;
+    let mut same_streak = 0;
+
+    let mut current_iter = None;
+
+    std::iter::from_fn(move || {
+        match (m1, m2) {
+            ([], []) => return None,
+            (tail, []) => {
+                let size = tail.len();
+                m1 = &m1[size..];
+                debug_assert!(m1.is_empty());
+                debug_assert!(m2.is_empty());
+                return Some(Section::Changed(
+                    size.try_into().expect("patch data bigger than 2GB"),
+                    0,
+                ));
+            }
+            ([], tail) => {
+                let size = tail.len();
+                m2 = &m2[size..];
+                debug_assert!(m1.is_empty());
+                debug_assert!(m2.is_empty());
+                return Some(Section::Changed(
+                    0,
+                    size.try_into().expect("patch data bigger than 2GB"),
+                ));
+            }
+            (_, _) => (),
+        }
+        // if we have seen enough "same" content from the iterator, lets try
+        // some SIMD comparison first
+        if same_streak > CMP_BLK_SIZE {
+            current_iter.take();
+        }
+        if current_iter.is_none() {
+            let size = start_maybe_mismatch_line(m1, m2);
+            if size > 0 {
+                m1 = &m1[size..];
+                m2 = &m2[size..];
+            }
+            // we always create an iterator from there as we should not run
+            // prefix matching again until the difference have been
+            // processed
+            current_iter = Some(SyncLineIterator::new(m1, m2));
+            same_streak = 0;
+            if size > 0 {
+                return Some(Section::Same(size as u32));
             }
         }
-        (None, None) => unreachable!(),
+        Some(
+            match current_iter
+                .as_mut()
+                .expect("programming error, iterator missing")
+                .next()
+                .expect("attempted iteration on empty manifest")
+            {
+                (Some(l), None) => {
+                    let size = l.size();
+                    m1 = &m1[size as usize..];
+                    Section::Changed(size, 0)
+                }
+                (None, Some(l)) => {
+                    let size = l.size();
+                    m2 = &m2[size as usize..];
+                    Section::Changed(0, size)
+                }
+                (Some(l1), Some(l2)) => {
+                    let l1_size = l1.size();
+                    let l2_size = l2.size();
+                    m1 = &m1[l1_size as usize..];
+                    m2 = &m2[l2_size as usize..];
+                    if l1.data() == l2.data() {
+                        same_streak += l1_size as usize;
+                        debug_assert!(l1_size == l2_size);
+                        Section::Same(l1_size)
+                    } else {
+                        Section::Changed(l1_size, l2_size)
+                    }
+                }
+                (None, None) => unreachable!(
+                    "iteration continue despite no remaining lines."
+                ),
+            },
+        )
     })
+}
+
+// note: 512 was picked somewhat arbitrarily and could probably be tuned.
+// The value need to be big enough to the compiler to decide to use the most
+// efficient SIMD vectorization at hand. Overshooting a bit is not dramatic as a
+// manifest line is in the 100 bytes order of magnitude.
+const CMP_BLK_SIZE: usize = 512;
+
+/// return the starting position from which lines MAY be different between xs
+/// and yz
+///
+/// Any position before that garantee that the lines are the same.
+fn start_maybe_mismatch_line(left: &[u8], right: &[u8]) -> usize {
+    start_mismatch_line_chunk::<CMP_BLK_SIZE>(left, right)
+}
+
+fn start_mismatch_line_chunk<const N: usize>(
+    left: &[u8],
+    right: &[u8],
+) -> usize {
+    let chunk_off = iter::zip(left.chunks_exact(N), right.chunks_exact(N))
+        .take_while(|(l, r)| l == r)
+        .count()
+        * N;
+
+    match memchr::memrchr(b'\n', &left[..chunk_off]) {
+        None => 0,
+        Some(pos) => pos + 1,
+    }
 }
 
 /// Compute a binary delta between two flat manifest texts
