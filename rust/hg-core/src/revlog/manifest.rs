@@ -229,7 +229,9 @@ impl Manifest {
                         ))
                     }
                 }
-                (None, None) => unreachable!(),
+                (None, None) => unreachable!(
+                    "iteration continue despite no remaining lines."
+                ),
             };
         }
 
@@ -407,6 +409,34 @@ impl<'a> Iterator for SyncLineIterator<'a> {
     }
 }
 
+/// Result of binary diffing some part of two manifests
+enum Section {
+    /// Content is the same on both side (size of both)
+    Same(u32),
+    /// Content is different on each side, (size of m1, size of m2)
+    Changed(u32, u32),
+}
+
+/// detect the section that are similar or different in two manifest we compare
+fn changed_sections<'a>(
+    m1: &'a [u8],
+    m2: &'a [u8],
+) -> impl Iterator<Item = Section> + 'a {
+    SyncLineIterator::new(m1, m2).map(|lines| match lines {
+        (Some(l), None) => Section::Changed(l.size(), 0),
+        (None, Some(l)) => Section::Changed(0, l.size()),
+        (Some(l1), Some(l2)) => {
+            if l1.data().eq(l2.data()) {
+                debug_assert!(l1.size() == l2.size());
+                Section::Same(l1.size())
+            } else {
+                Section::Changed(l1.size(), l2.size())
+            }
+        }
+        (None, None) => unreachable!(),
+    })
+}
+
 /// Compute a binary delta between two flat manifest texts
 pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
     let mut delta = vec![];
@@ -416,50 +446,32 @@ pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
 
     let mut cursor: Option<DeltaCursor> = None;
 
-    for lines in SyncLineIterator::new(m1, m2) {
-        // This return the size of each different area in each manifest.
-        //
-        // If both sides are 0 size, they are identical.
-        let (size_1, size_2) = match lines {
-            (Some(l), None) => (l.size(), 0),
-            (None, Some(l)) => (0, l.size()),
-            (Some(l1), Some(l2)) => {
-                if l1.data().eq(l2.data()) {
-                    assert!(l1.size() == l2.size());
-                    (0, 0)
-                } else {
-                    (l1.size(), l2.size())
+    for section in changed_sections(m1, m2) {
+        match section {
+            Section::Same(size) => {
+                m1_offset += size;
+                m2_offset += size;
+                // We have a common block so any existing cursor need flushing
+                if let Some(change) = cursor.take() {
+                    change.into_chunk().write(&mut delta);
                 }
             }
-            (None, None) => {
-                unreachable!("iteration continue despite no remaining lines.")
+            Section::Changed(size_1, size_2) => {
+                // If a hunk is still around, we must be able to merge with it.
+                if let Some(c) = cursor.as_mut() {
+                    c.extend(size_1, size_2)
+                } else {
+                    cursor = Some(DeltaCursor::new(
+                        m1_offset,
+                        m1_offset + size_1,
+                        m2_offset,
+                        m2_offset + size_2,
+                        m2,
+                    ));
+                }
+                m1_offset += size_1;
+                m2_offset += size_2;
             }
-        };
-
-        if (size_1 | size_2) == 0 {
-            // secret signal to mark the line as identical
-            let size = lines.0.unwrap().size();
-            m1_offset += size;
-            m2_offset += size;
-            // We have a common block so any existing cursor need flushing
-            if let Some(change) = cursor.take() {
-                change.into_chunk().write(&mut delta);
-            };
-        } else {
-            // If a hunk is still around, we must be able to merge with it.
-            if let Some(ref mut c) = cursor {
-                c.extend(size_1, size_2);
-            } else {
-                cursor = Some(DeltaCursor::new(
-                    m1_offset,
-                    m1_offset + size_1,
-                    m2_offset,
-                    m2_offset + size_2,
-                    m2,
-                ));
-            }
-            m1_offset += size_1;
-            m2_offset += size_2;
         }
     }
     if let Some(change) = cursor.take() {
