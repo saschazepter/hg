@@ -3912,7 +3912,6 @@ class revlog:
                 nodes,
                 nodesorder,
                 revlogrevisiondelta,
-                revdifffn=self.revdiff,
                 flagsfn=self.flags,
                 deltamode=deltamode,
                 revisiondata=revisiondata,
@@ -3927,7 +3926,6 @@ class revlog:
         nodes,
         nodesorder,
         resultcls,
-        revdifffn=None,
         flagsfn=None,
         deltamode=repository.CG_DELTAMODE_STD,
         revisiondata=False,
@@ -3947,16 +3945,6 @@ class revlog:
         ``resultcls``
            A type implementing the ``irevisiondelta`` interface that will be
            constructed and returned.
-
-        ``revdifffn`` (optional)
-           Callable receiving a pair of revision numbers that returns a delta
-           between them.
-
-           If not defined, a delta will be computed by invoking mdiff code
-           on ``self.revision()`` results.
-
-           Defining this function allows a precomputed or stored delta to be
-           used without having to compute on.
 
         ``flagsfn`` (optional)
            Callable receiving a revision number and returns the integer flags
@@ -4134,7 +4122,7 @@ class revlog:
                     revision = self.rawdata(node)
                     emitted.add(rev)
                 else:
-                    if revdifffn:
+                    if True:
                         if debug_info is not None:
                             if debug_delta_source == "full":
                                 debug_info['computed-delta'] += 1
@@ -4150,7 +4138,7 @@ class revlog:
                             else:
                                 assert False, 'unreachable'
 
-                        delta = revdifffn(baserev, rev)
+                        delta = self.revdiff(baserev, rev)
                     else:
                         if debug_info is not None:
                             if debug_delta_source == "full":
