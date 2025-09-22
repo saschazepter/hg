@@ -186,8 +186,11 @@ def new_repo_requirements(ui, createopts):
 
     revlogv2 = ui.config(b'experimental', b'revlogv2')
     if revlogv2 == b'enable-unstable-format-and-corrupt-my-data':
-        requirements.discard(requirementsmod.REVLOGV1_REQUIREMENT)
         requirements.add(requirementsmod.REVLOGV2_REQUIREMENT)
+        requirements.add(requirementsmod.FILEINDEXV1_REQUIREMENT)
+        requirements.discard(requirementsmod.REVLOGV1_REQUIREMENT)
+        requirements.discard(requirementsmod.FNCACHE_REQUIREMENT)
+        requirements.discard(requirementsmod.DOTENCODE_REQUIREMENT)
     # experimental config: format.internal-phase
     if ui.configbool(b'format', b'use-internal-phase'):
         requirements.add(requirementsmod.INTERNAL_PHASE_REQUIREMENT)

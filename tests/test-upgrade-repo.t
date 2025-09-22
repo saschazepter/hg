@@ -2060,11 +2060,11 @@ upgrade
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
-     preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: revlogv1
-     added: exp-revlogv2.2
+     preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
+     preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
+     preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
+     removed: dotencode, fncache, revlogv1
+     added: exp-fileindex-v1, exp-revlogv2.2
   
   processed revlogs:
     - all-filelogs
@@ -2073,11 +2073,11 @@ upgrade
   
   $ hg debugformat -v
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
-  fileindex-v1:                    no     no      no
+  fncache:                         no    yes     yes
+  fileindex-v1:                   yes     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
+  dotencode:                       no    yes     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
@@ -2094,9 +2094,8 @@ upgrade
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
   $ hg debugrequires
-  dotencode
+  exp-fileindex-v1
   exp-revlogv2.2
-  fncache
   generaldelta
   persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
@@ -2114,11 +2113,11 @@ downgrade
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
-     preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: exp-revlogv2.2
-     added: revlogv1
+     preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
+     preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
+     preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
+     removed: exp-fileindex-v1, exp-revlogv2.2
+     added: dotencode, fncache, revlogv1
   
   processed revlogs:
     - all-filelogs
@@ -2169,11 +2168,11 @@ upgrade from hgrc
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
-     preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: revlogv1
-     added: exp-revlogv2.2
+     preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
+     preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
+     preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
+     removed: dotencode, fncache, revlogv1
+     added: exp-fileindex-v1, exp-revlogv2.2
   
   processed revlogs:
     - all-filelogs
@@ -2182,11 +2181,11 @@ upgrade from hgrc
   
   $ hg debugformat -v
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
-  fileindex-v1:                    no     no      no
+  fncache:                         no     no     yes
+  fileindex-v1:                   yes    yes      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
+  dotencode:                       no     no     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
@@ -2203,9 +2202,8 @@ upgrade from hgrc
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
   $ hg debugrequires
-  dotencode
+  exp-fileindex-v1
   exp-revlogv2.2
-  fncache
   generaldelta
   persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
