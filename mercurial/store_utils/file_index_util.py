@@ -8,8 +8,9 @@ import typing
 from typing import Iterator, List, Optional
 
 from ..thirdparty import attr
+from ..interfaces.types import HgPathT
 from .. import error
-from ..interfaces import file_index as int_file_index, types
+from ..interfaces import file_index as int_file_index
 from ..utils import docket, stringutil
 
 # Force pytype to use the non-vendored package
@@ -17,6 +18,7 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
+FileTokenT = int_file_index.FileTokenT
 
 V1_FORMAT_MARKER = b"fileindex-v1"
 
@@ -195,7 +197,7 @@ class TreeNode:
     """A node parsed from the tree file."""
 
     # Token for this node, if it represents a path in the file index.
-    token = attr.ib(type=Optional[int_file_index.FileTokenT])
+    token = attr.ib(type=Optional[FileTokenT])
     # Edges pointing to children of this node.
     edges = attr.ib(type=List[TreeEdge])
 
@@ -227,7 +229,7 @@ class MutableTreeNode:
     """Mutable version of `TreeNode`."""
 
     # See TreeNode.token.
-    token = attr.ib(type=Optional[int_file_index.FileTokenT])
+    token = attr.ib(type=Optional[FileTokenT])
     # Edges to children of this node.
     edges = attr.ib(type=List["MutableTreeEdge"])
 
@@ -367,8 +369,8 @@ class MutableTree:
 
     def insert(
         self,
-        path: types.HgPathT,
-        token: int_file_index.FileTokenT,
+        path: HgPathT,
+        token: FileTokenT,
         path_offset: int,
     ):
         remainder = path

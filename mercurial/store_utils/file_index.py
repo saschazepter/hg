@@ -21,6 +21,8 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
+FileTokenT = int_file_index.FileTokenT
+
 propertycache = util.propertycache
 
 # Values of the config devel.fileindex.vacuum-mode.
@@ -78,10 +80,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._docket_file_found = False
         self._written = False
 
-    def has_token(self, token: int_file_index.FileTokenT):
+    def has_token(self, token: FileTokenT):
         return token >= 0 and token < len(self)
 
-    def get_path(self, token: int_file_index.FileTokenT):
+    def get_path(self, token: FileTokenT):
         if not self.has_token(token):
             raise KeyError
         n = len(self.meta_array)
@@ -90,7 +92,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self._add[token - n]
 
     @abc.abstractmethod
-    def _get_path_on_disk(self, token: int_file_index.FileTokenT) -> HgPathT:
+    def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
         """Look up a path on disk by token."""
 
     def get_token(self, path: HgPathT):
@@ -100,9 +102,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self._get_token_on_disk(path)
 
     @abc.abstractmethod
-    def _get_token_on_disk(
-        self, path: HgPathT
-    ) -> int_file_index.FileTokenT | None:
+    def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
         """Look up a path on disk by token."""
 
     def __contains__(self, path: HgPathT):
@@ -113,11 +113,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def __iter__(self):
         for token in range(len(self)):
-            yield self.get_path(int_file_index.FileTokenT(token))
+            yield self.get_path(FileTokenT(token))
 
     def items(self):
         for token in range(len(self)):
-            yield self.get_path(int_file_index.FileTokenT(token)), token
+            yield self.get_path(FileTokenT(token)), token
 
     def add(self, path: HgPathT, tr: TransactionT):
         assert not self._written, "cannot add to file index after writing"
@@ -301,7 +301,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 class FileIndex(_FileIndexCommon):
     """Pure Python implementation of the file index."""
 
-    def _get_path_on_disk(self, token: int_file_index.FileTokenT):
+    def _get_path_on_disk(self, token: FileTokenT):
         meta = self.meta_array[token]
         return bytes(self._read_span(meta.offset, meta.length))
 
@@ -333,7 +333,7 @@ class FileIndex(_FileIndexCommon):
             tree = file_index_util.MutableTree(base=None)
             for token, meta in enumerate(self.meta_array):
                 path = bytes(self._read_span(meta.offset, meta.length))
-                tree.insert(path, int_file_index.FileTokenT(token), meta.offset)
+                tree.insert(path, FileTokenT(token), meta.offset)
         else:
             tree = file_index_util.MutableTree(
                 file_index_util.Base(
@@ -353,7 +353,7 @@ class FileIndex(_FileIndexCommon):
                     metadata = file_index_util.Metadata.from_path(path, offset)
                     list_file.write(b"%s\x00" % path)
                     meta_file.write(metadata.serialize())
-                    tree.insert(path, int_file_index.FileTokenT(token), offset)
+                    tree.insert(path, FileTokenT(token), offset)
                     docket.list_file_size += len(path) + 1
                     docket.meta_file_size += (
                         file_index_util.Metadata.STRUCT.size
