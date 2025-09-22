@@ -24,6 +24,7 @@ from typing import (
 from .i18n import _
 from .interfaces.types import (
     UnbundlePartT,
+    VfsKeyT,
 )
 from .interfaces import repository
 from . import (
@@ -1689,37 +1690,44 @@ def applybundlev3(repo, fp, requirements: Iterable[bytes]) -> None:
     nodemap.post_stream_cleanup(repo)
 
 
-def _copy_files(src_vfs_map, dst_vfs_map, entries, progress) -> bool:
+def _copy_files(
+    src_vfs_map,
+    dst_vfs_map,
+    entries: list[tuple[VfsKeyT, store.BaseStoreEntry]],
+    progress,
+) -> bool:
     hardlink = [True]
 
     def copy_used():
         hardlink[0] = False
         progress.topic = _(b'copying')
 
-    for k, path, optional in entries:
+    for k, entry in entries:
         src_vfs = src_vfs_map[k]
         dst_vfs = dst_vfs_map[k]
-        src_path = src_vfs.join(path)
-        dst_path = dst_vfs.join(path)
-        # We cannot use dirname and makedirs of dst_vfs here because the store
-        # encoding confuses them. See issue 6581 for details.
-        dirname = os.path.dirname(dst_path)
-        if not os.path.exists(dirname):
-            util.makedirs(dirname)
-        dst_vfs.register_file(path)
-        # XXX we could use the #nb_bytes argument.
-        try:
-            util.copyfile(
-                src_path,
-                dst_path,
-                hardlink=hardlink[0],
-                no_hardlink_cb=copy_used,
-                check_fs_hardlink=False,
-            )
-        except FileNotFoundError:
-            if not optional:
-                raise
-        progress.increment()
+        for f in entry.files(src_vfs):
+            path = f.unencoded_path
+            src_path = src_vfs.join(path)
+            dst_path = dst_vfs.join(path)
+            # We cannot use dirname and makedirs of dst_vfs here because the store
+            # encoding confuses them. See issue 6581 for details.
+            dirname = os.path.dirname(dst_path)
+            if not os.path.exists(dirname):
+                util.makedirs(dirname)
+            dst_vfs.register_file(path)
+            # XXX we could use the #nb_bytes argument.
+            try:
+                util.copyfile(
+                    src_path,
+                    dst_path,
+                    hardlink=hardlink[0],
+                    no_hardlink_cb=copy_used,
+                    check_fs_hardlink=False,
+                )
+            except FileNotFoundError:
+                if not f.optional:
+                    raise
+            progress.increment()
     return hardlink[0]
 
 
@@ -1777,12 +1785,7 @@ def local_copy(src_repo, dest_repo) -> None:
             # this would also requires checks that nobody is appending any data
             # to the files while we do the clone, so this is not done yet. We
             # could do this blindly when copying files.
-            files = [
-                (vfs_key, f.unencoded_path, f.optional)
-                for vfs_key, e in entries
-                for f in e.files(src_vfs_map[vfs_key])
-            ]
-            hardlink = _copy_files(src_vfs_map, dest_vfs_map, files, progress)
+            hardlink = _copy_files(src_vfs_map, dest_vfs_map, entries, progress)
 
             # copy bookmarks over
             if bm_count:
