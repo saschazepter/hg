@@ -1560,7 +1560,14 @@ class dirstate(intdirstate.idirstate):
                     results[next(iv)] = st
         return results
 
-    def _rust_status(self, matcher, list_clean, list_ignored, list_unknown):
+    def _rust_status(
+        self,
+        matcher,
+        list_clean,
+        list_ignored,
+        list_unknown,
+        empty_dirs_keep_files,
+    ):
         if self._sparsematchfn is not None:
             em = matchmod.exact(matcher.files())
             sm = matchmod.unionmatcher([self._sparsematcher, em])
@@ -1599,6 +1606,7 @@ class dirstate(intdirstate.idirstate):
             bool(list_ignored),
             bool(list_unknown),
             bool(matcher.traversedir),
+            bool(empty_dirs_keep_files),
         )
 
         self._dirty |= dirty
@@ -1646,6 +1654,7 @@ class dirstate(intdirstate.idirstate):
         ignored: bool,
         clean: bool,
         unknown: bool,
+        empty_dirs_keep_files: bool = False,
     ) -> intdirstate.StatusReturnT:
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
@@ -1683,7 +1692,11 @@ class dirstate(intdirstate.idirstate):
         if self.use_rust_status(subrepos):
             try:
                 res = self._rust_status(
-                    match, listclean, listignored, listunknown
+                    match,
+                    listclean,
+                    listignored,
+                    listunknown,
+                    empty_dirs_keep_files,
                 )
                 return res + (mtime_boundary,)
             except rustmod.FallbackError:

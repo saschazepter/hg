@@ -3254,10 +3254,17 @@ class localrepository(_localrepo_base_classes):
         clean: bool = False,
         unknown: bool = False,
         listsubrepos: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         '''a convenience method that calls node1.status(node2)'''
         return self[node1].status(
-            node2, match, ignored, clean, unknown, listsubrepos
+            node2,
+            match,
+            ignored,
+            clean,
+            unknown,
+            listsubrepos,
+            empty_dirs_keep_files,
         )
 
     def addpostdsstatus(self, ps):

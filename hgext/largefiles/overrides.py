@@ -1696,9 +1696,17 @@ def overridepurge(orig, ui, repo, *dirs, **opts):
         clean=False,
         unknown=False,
         listsubrepos=False,
+        empty_dirs_keep_files=False,
     ):
         r = oldstatus(
-            node1, node2, match, ignored, clean, unknown, listsubrepos
+            node1,
+            node2,
+            match,
+            ignored,
+            clean,
+            unknown,
+            listsubrepos,
+            empty_dirs_keep_files,
         )
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         unknown = [

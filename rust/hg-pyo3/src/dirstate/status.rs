@@ -193,6 +193,7 @@ pub(super) fn status(
     list_ignored: bool,
     list_unknown: bool,
     collect_traversed_dirs: bool,
+    empty_dirs_keep_files: bool,
 ) -> PyResult<Py<PyTuple>> {
     let root_dir = get_path_from_bytes(root_dir.as_bytes());
 
@@ -228,6 +229,7 @@ pub(super) fn status(
                 list_unknown,
                 list_copies,
                 collect_traversed_dirs,
+                empty_dirs_keep_files,
             },
             after_status,
         )

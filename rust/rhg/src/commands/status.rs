@@ -339,6 +339,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         list_ignored: display_states.ignored,
         list_copies,
         collect_traversed_dirs: false,
+        empty_dirs_keep_files: false,
     };
 
     type StatusResult<'a> = Result<DirstateStatus<'a>, StatusError>;

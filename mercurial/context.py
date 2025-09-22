@@ -163,6 +163,7 @@ class basectx(abc.ABC):
         listignored: bool,
         listclean: bool,
         listunknown: bool,
+        empty_dirs_keep_files: bool,
     ) -> StatusT:
         """build a status with respect to another context"""
         # Load earliest manifest first for caching reasons. More specifically,
@@ -452,6 +453,7 @@ class basectx(abc.ABC):
         listclean: bool = False,
         listunknown: bool = False,
         listsubrepos: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         """return status of files between two nodes or node and working
         directory.
@@ -495,7 +497,13 @@ class basectx(abc.ABC):
         match = ctx2._matchstatus(ctx1, match)
         r = scmutil.status([], [], [], [], [], [], [])
         r = ctx2._buildstatus(
-            ctx1, r, match, listignored, listclean, listunknown
+            ctx1,
+            r,
+            match,
+            listignored,
+            listclean,
+            listunknown,
+            empty_dirs_keep_files,
         )
 
         if reversed:
@@ -2033,6 +2041,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         ignored: bool = False,
         clean: bool = False,
         unknown: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         '''Gets the status from the dirstate -- internal use only.'''
         subrepos = []
@@ -2041,7 +2050,12 @@ class workingctx(committablectx, i_context.IWorkingContext):
         dirstate = self._repo.dirstate
         with dirstate.running_status(self._repo):
             cmp, s, mtime_boundary = dirstate.status(
-                match, subrepos, ignored=ignored, clean=clean, unknown=unknown
+                match,
+                subrepos,
+                ignored=ignored,
+                clean=clean,
+                unknown=unknown,
+                empty_dirs_keep_files=empty_dirs_keep_files,
             )
 
             # check for any possibly clean files
@@ -2133,6 +2147,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         listignored: bool,
         listclean: bool,
         listunknown: bool,
+        empty_dirs_keep_files: bool,
     ) -> StatusT:
         """build a status with respect to another context
 
@@ -2141,14 +2156,22 @@ class workingctx(committablectx, i_context.IWorkingContext):
         building a new manifest if self (working directory) is not comparing
         against its parent (repo['.']).
         """
-        s = self._dirstatestatus(match, listignored, listclean, listunknown)
+        s = self._dirstatestatus(
+            match, listignored, listclean, listunknown, empty_dirs_keep_files
+        )
         # Filter out symlinks that, in the case of FAT32 and NTFS filesystems,
         # might have accidentally ended up with the entire contents of the file
         # they are supposed to be linking to.
         s.modified[:] = self._filtersuspectsymlink(s.modified)
         if other != self._repo[b'.']:
             s = super()._buildstatus(
-                other, s, match, listignored, listclean, listunknown
+                other,
+                s,
+                match,
+                listignored,
+                listclean,
+                listunknown,
+                empty_dirs_keep_files,
             )
         return s
 
@@ -2918,6 +2941,7 @@ class workingcommitctx(workingctx, i_context.IWorkingCommitContext):
         ignored: bool = False,
         clean: bool = False,
         unknown: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         """Return matched files only in ``self._status``
 

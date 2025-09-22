@@ -95,6 +95,8 @@ pub struct StatusOptions {
     /// Whether to collect traversed dirs for applying a callback later.
     /// Used by `hg purge` for example.
     pub collect_traversed_dirs: bool,
+    // Compute empty_dirs as if the files were not deleted
+    pub empty_dirs_keep_files: bool,
 }
 
 #[derive(Default)]

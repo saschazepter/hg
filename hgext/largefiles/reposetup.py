@@ -116,6 +116,7 @@ def reposetup(ui, repo):
             clean: bool = False,
             unknown: bool = False,
             listsubrepos: bool = False,
+            empty_dirs_keep_files: bool = False,
         ) -> StatusT:
             listignored, listclean, listunknown = ignored, clean, unknown
             orig = super().status
@@ -128,6 +129,7 @@ def reposetup(ui, repo):
                     listclean,
                     listunknown,
                     listsubrepos,
+                    empty_dirs_keep_files,
                 )
 
             # some calls in this function rely on the old version of status

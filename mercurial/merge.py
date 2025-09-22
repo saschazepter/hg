@@ -2046,7 +2046,12 @@ def purge(
             directories = []
             matcher.traversedir = directories.append
 
-        status = repo.status(match=matcher, ignored=ignored, unknown=unknown)
+        status = repo.status(
+            match=matcher,
+            ignored=ignored,
+            unknown=unknown,
+            empty_dirs_keep_files=not (removefiles),
+        )
 
         if confirm:
             msg = None

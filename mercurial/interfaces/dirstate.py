@@ -334,6 +334,7 @@ class idirstate(Protocol):
         ignored: bool,
         clean: bool,
         unknown: bool,
+        empty_dirs_keep_files: bool,
     ) -> StatusReturnT:
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
