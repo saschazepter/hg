@@ -490,7 +490,8 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
         # clonebundles).
 
         total_file_count = 0
-        with repo.transaction(b'clone'):
+        with repo.transaction(b'clone') as tr:
+            fileindex = repo.store.fileindex
             with repo.svfs.backgroundclosing(repo.ui, expectedcount=filecount):
                 for i in range(filecount):
                     # XXX doesn't support '\n' or '\r' in filenames
@@ -517,6 +518,12 @@ def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
                         )
                     # for backwards compat, name was partially encoded
                     path = store.decodedir(name)
+
+                    if fileindex is not None:
+                        radix = store.parse_filelog_radix(name)
+                        if radix is not None:
+                            fileindex.add(radix, tr)
+
                     with repo.svfs(path, b'w', backgroundclose=True) as ofp:
                         total_file_count += 1
                         for chunk in util.filechunkiter(fp, limit=size):
@@ -1522,6 +1529,9 @@ def _v2_parse_files(
     """
     known_dirs = set()  # set of directory that we know to exists
     progress.update(0)
+    fileindex = repo.store.fileindex
+    tr = repo.currenttransaction()
+    assert tr is not None
     for i in range(file_count):
         src = util.readexactly(fp, 1)
         namelen = util.uvarintdecodestream(fp)
@@ -1533,6 +1543,11 @@ def _v2_parse_files(
             repo.ui.debug(
                 b'adding [%s] %s (%s)\n' % (src, name, util.bytecount(datalen))
             )
+        if fileindex is not None and src == _srcstore:
+            radix = store.parse_filelog_radix(name)
+            if radix is not None:
+                fileindex.add(radix, tr)
+
         vfs = vfs_map[src]
         path, mode = vfs.prepare_streamed_file(name, known_dirs)
         if datalen <= util.DEFAULT_FILE_CHUNK:
@@ -1606,8 +1621,9 @@ def consumev3(repo, fp) -> None:
                 'repo.vfs must not be added to vfsmap for security reasons'
             )
         total_file_count = 0
-        with repo.transaction(b'clone'):
+        with repo.transaction(b'clone') as tr:
             ctxs = (vfs.backgroundclosing(repo.ui) for vfs in vfsmap.values())
+            fileindex = repo.store.fileindex
             with nested(*ctxs):
                 for i in range(entrycount):
                     filecount = util.uvarintdecodestream(fp)
@@ -1622,6 +1638,11 @@ def consumev3(repo, fp) -> None:
                         datalen = util.uvarintdecodestream(fp)
 
                         name = util.readexactly(fp, namelen)
+
+                        if fileindex is not None and src == _srcstore:
+                            radix = store.parse_filelog_radix(name)
+                            if radix is not None:
+                                fileindex.add(radix, tr)
 
                         if repo.ui.debugflag:
                             msg = b'adding [%s] %s (%s)\n'

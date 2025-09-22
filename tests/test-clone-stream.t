@@ -1,6 +1,7 @@
 #require serve no-chg
 
 #testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
+#testcases fncache fileindex
 
 #if stream-legacy
   $ cat << EOF >> $HGRCPATH
@@ -16,6 +17,18 @@
   $ cat << EOF >> $HGRCPATH
   > [experimental]
   > stream-v3 = yes
+  > EOF
+#endif
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > exp-use-fileindex-v1=no
   > EOF
 #endif
 

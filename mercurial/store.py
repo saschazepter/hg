@@ -35,7 +35,10 @@ from .revlogutils.constants import (
     KIND_FILELOG,
     KIND_MANIFESTLOG,
 )
-from .interfaces.types import TransactionT
+from .interfaces.types import (
+    HgPathT,
+    TransactionT,
+)
 from . import (
     changelog,
     error,
@@ -57,6 +60,16 @@ parsers = policy.importmod('parsers')
 # how much bytes should be read from fncache in one read
 # It is done to prevent loading large fncache files into memory
 fncache_chunksize = 10**6
+
+RE_FILELOG_RADIX = re.compile(br'^data/(.*)\.i$')
+
+
+def parse_filelog_radix(path: HgPathT):
+    """If the path is a filelog index file, returns the radix."""
+    match = RE_FILELOG_RADIX.match(path)
+    if match:
+        return match.group(1)
+    return None
 
 
 def _match_tracked_entry(entry: BaseStoreEntry, matcher):
