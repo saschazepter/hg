@@ -330,7 +330,7 @@ class remotefilelog:
             else:
                 revision = self.rawdata(node)
                 delta = None
-            yield revlog.revlogrevisiondelta(
+            yield revlog.OutboundRevision(
                 node=node,
                 p1node=p1,
                 p2node=p2,

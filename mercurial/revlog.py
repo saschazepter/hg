@@ -224,7 +224,7 @@ def _split_compression(
 
 
 @attr.s(slots=True)
-class revlogrevisiondelta(repository.irevisiondelta):
+class OutboundRevision(repository.irevisiondelta):
     node = attr.ib(type=bytes)
     p1node = attr.ib(type=bytes)
     p2node = attr.ib(type=bytes)
@@ -4166,7 +4166,7 @@ class revlog:
             else:
                 snap_lvl = -1
 
-            yield revlogrevisiondelta(
+            yield OutboundRevision(
                 node=node,
                 p1node=fnode(p1rev),
                 p2node=fnode(p2rev),

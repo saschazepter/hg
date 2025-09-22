@@ -541,7 +541,7 @@ class irevisiondelta(Protocol):
     p2node: bytes
     """20 byte node of 2nd parent of this revision."""
 
-    # TODO: is this really optional? revlog.revlogrevisiondelta defaults to None
+    # TODO: is this really optional? revlog.OutboundRevision defaults to None
     linknode: bytes | None
     """20 byte node of the changelog revision this node is linked to."""
 
