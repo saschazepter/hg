@@ -88,7 +88,7 @@ help:
 
 .PHONY: local
 local:
-	uv venv -p $(PYTHON_FOR_UV) .local-venv --system-site-packages
+	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
 	env CARGO_NET_OFFLINE=$(CARGO_NET_OFFLINE) uv pip install -e . $(OFFLINE_UV_OPTION) \
 	  -p .local-venv/$(PYBINDIRNAME)/python -v \
 	  -C=--global-option="$(PURE)"
