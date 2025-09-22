@@ -216,57 +216,20 @@ impl Manifest {
         other: &'m2 Manifest,
     ) -> Result<ManifestDiff<'m_any>, HgError> {
         let mut res = Vec::new();
-        let mut left = self.iter().peekable();
-        let mut right = other.iter().peekable();
-
-        loop {
-            match (left.peek(), right.peek()) {
-                (None, None) => break,
-                (Some(Ok(left_entry)), Some(Ok(right_entry))) => {
-                    // Since manifests are sorted, we can determine which
-                    // entry is missing
-                    match left_entry.path.cmp(right_entry.path) {
-                        std::cmp::Ordering::Less => {
-                            // Path missing on the right
-                            res.push((Some(left.next().unwrap()?), None));
-                        }
-                        std::cmp::Ordering::Equal => {
-                            // Same path in both, don't compare the paths again
-                            if left_entry.flags != right_entry.flags
-                                || left_entry.hex_node_id
-                                    != right_entry.hex_node_id
-                            {
-                                res.push((
-                                    Some(left.next().unwrap()?),
-                                    Some(right.next().unwrap()?),
-                                ));
-                            } else {
-                                left.next();
-                                right.next();
-                            }
-                        }
-                        std::cmp::Ordering::Greater => {
-                            // Path missing on the left
-                            res.push((None, Some(right.next().unwrap()?)));
-                        }
+        for lines in SyncLineIterator::new(&self.bytes, &other.bytes) {
+            match lines {
+                (Some(l), None) => res.push((Some(l.into_entry()?), None)),
+                (None, Some(l)) => res.push((None, Some(l.into_entry()?))),
+                (Some(l1), Some(l2)) => {
+                    if l1.data() != l2.data() {
+                        res.push((
+                            Some(l1.into_entry()?),
+                            Some(l2.into_entry()?),
+                        ))
                     }
                 }
-                (Some(Ok(_)), None) => {
-                    // Right manifest is done, the rest are adds
-                    for entry in left {
-                        res.push((Some(entry?), None));
-                    }
-                    break;
-                }
-                (None, Some(Ok(_))) => {
-                    // Left manifest is done, the rest are adds
-                    for entry in right {
-                        res.push((None, Some(entry?)));
-                    }
-                    break;
-                }
-                _ => {}
-            }
+                (None, None) => unreachable!(),
+            };
         }
 
         Ok(res)
@@ -314,6 +277,127 @@ impl ManifestFlags {
 
     fn is_flag(&self, flag: u8) -> bool {
         self.0.map(|f| f == NonZeroU8::new(flag).unwrap()).unwrap_or(false)
+    }
+}
+
+/// A manifest line is a Lazy ManifestEntry used during comparison
+#[derive(Copy, Clone)]
+struct ManifestLine<'a> {
+    /// The size of that manifest line
+    line: &'a [u8],
+    /// An optional length of the filename in case it was already computed
+    ///
+    /// A value < 0 means the value is not initialized.
+    filename_len: i32,
+}
+
+impl<'a> ManifestLine<'a> {
+    /// Grabs the next line from a byte slice and returns the line if any,
+    /// with the remainder of the byte slice
+    fn grab_next(data: &'a [u8]) -> (Option<ManifestLine<'a>>, &'a [u8]) {
+        if !data.is_empty() {
+            match memchr::memchr(b'\n', data) {
+                None => (None, data),
+                Some(pos) => (
+                    Some(Self { line: &data[0..pos + 1], filename_len: -1 }),
+                    &data[pos + 1..],
+                ),
+            }
+        } else {
+            (None, data)
+        }
+    }
+
+    /// The filename part of that line
+    ///
+    /// When accessing this, the `filename_len` is cached to speedup future
+    /// access to the "data" part.
+    fn filename(&mut self) -> &'a [u8] {
+        if self.filename_len < 0 {
+            self.filename_len = match memchr::memchr(b'\0', self.line) {
+                None => 0, // no file name should not happen treat it as empty
+                Some(pos) => pos.try_into().expect("manifest larger than 2GB?"),
+            };
+        }
+        debug_assert!(self.filename_len > 0);
+        &self.line[0..self.filename_len as usize]
+    }
+
+    /// The non-filename part of this manifest line
+    pub(self) fn data(self) -> &'a [u8] {
+        debug_assert!(self.filename_len > 0);
+        &self.line[self.filename_len as usize..self.line.len() - 1]
+    }
+
+    fn into_entry(self) -> Result<ManifestEntry<'a>, HgError> {
+        if self.line.is_empty() {
+            Err(HgError::corrupted("empty manifest line"))
+        } else if self.line[self.line.len() - 1] != b'\n' {
+            Err(HgError::corrupted("manifest line not terminated by '\\n'"))
+        } else if self.filename_len == 0 {
+            if self.line[0] == b'\0' {
+                Err(HgError::corrupted("manifest entry with empty filename"))
+            } else {
+                Err(HgError::corrupted("manifest entry without \\0 delimiter"))
+            }
+        } else if self.filename_len < 0 {
+            ManifestEntry::from_raw(&self.line[..self.line.len() - 1])
+        } else {
+            let path = &self.line[0..self.filename_len as usize];
+            let (_, rest) = self
+                .data()
+                .split_first()
+                .expect("previously seen \\0 has vanished");
+            Ok(ManifestEntry::from_path_and_rest(path, rest))
+        }
+    }
+}
+
+/// Iterate over two manifests and yield the pair of line associated with each
+/// filename.
+///
+/// If the manifest are not sorted, this is expected to misbehave
+struct SyncLineIterator<'a> {
+    m1_data: &'a [u8],
+    m1_line: Option<ManifestLine<'a>>,
+    m2_data: &'a [u8],
+    m2_line: Option<ManifestLine<'a>>,
+}
+
+impl<'a> SyncLineIterator<'a> {
+    fn new(m1: &'a [u8], m2: &'a [u8]) -> Self {
+        let (m1_line, m1_data) = ManifestLine::grab_next(m1);
+        let (m2_line, m2_data) = ManifestLine::grab_next(m2);
+        Self { m1_data, m1_line, m2_data, m2_line }
+    }
+}
+
+impl<'a> Iterator for SyncLineIterator<'a> {
+    type Item = (Option<ManifestLine<'a>>, Option<ManifestLine<'a>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = match (&mut self.m1_line, &mut self.m2_line) {
+            (None, None) => (None, None),
+            (Some(line), None) => (Some(*line), None),
+            (None, Some(line)) => (None, Some(*line)),
+            (Some(l1), Some(l2)) => match l1.filename().cmp(l2.filename()) {
+                std::cmp::Ordering::Less => (Some(*l1), None),
+                std::cmp::Ordering::Equal => (Some(*l1), Some(*l2)),
+                std::cmp::Ordering::Greater => (None, Some(*l2)),
+            },
+        };
+        if result.0.is_some() {
+            (self.m1_line, self.m1_data) =
+                ManifestLine::grab_next(self.m1_data);
+        }
+        if result.1.is_some() {
+            (self.m2_line, self.m2_data) =
+                ManifestLine::grab_next(self.m2_data);
+        }
+        match result {
+            (None, None) => None,
+            r => Some(r),
+        }
     }
 }
 
