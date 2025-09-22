@@ -49,6 +49,20 @@ impl Chunk<'_> {
     fn len_diff(&self) -> i32 {
         self.data.len() as i32 - self.replaced_len() as i32
     }
+
+    /// push a single patch inside a delta, ignoring empty ones
+    pub fn write(self, delta: &mut Vec<u8>) {
+        let size: u32 =
+            self.data.len().try_into().expect("more than 2GB of patch data");
+        debug_assert!(
+            !(self.start == self.end && size == 0),
+            "won't write empty chunk"
+        );
+        delta.extend_from_slice(&u32::to_be_bytes(self.start));
+        delta.extend_from_slice(&u32::to_be_bytes(self.end));
+        delta.extend_from_slice(&u32::to_be_bytes(size));
+        delta.extend_from_slice(self.data);
+    }
 }
 
 /// The delta between two revisions data.
@@ -229,6 +243,47 @@ pub fn fold_patch_lists<'a>(lists: &[PatchList<'a>]) -> PatchList<'a> {
         let mut left_res = fold_patch_lists(left);
         let mut right_res = fold_patch_lists(right);
         left_res.combine(&mut right_res)
+    }
+}
+
+/// A windows of different data when computing a delta
+///
+/// It keep a reference to the full "new" data to be able to extend them.
+pub(super) struct DeltaCursor<'a> {
+    old: (u32, u32),
+    new: (u32, u32),
+    data: &'a [u8],
+}
+
+impl<'a> DeltaCursor<'a> {
+    pub fn new(
+        old_start: u32,
+        old_end: u32,
+        new_start: u32,
+        new_end: u32,
+        full_new_data: &'a [u8],
+    ) -> Self {
+        assert!(!(old_start == old_end && new_start == new_end));
+        DeltaCursor {
+            old: (old_start, old_end),
+            new: (new_start, new_end),
+            data: full_new_data,
+        }
+    }
+
+    pub fn extend(&mut self, old_size: u32, new_size: u32) {
+        self.old.1 += old_size;
+        self.new.1 += new_size;
+    }
+
+    /// flush a non empty cursor
+    pub fn into_chunk(self) -> Chunk<'a> {
+        let start = self.old.0;
+        let end = self.old.1;
+        let d_start = self.new.0.try_into().expect("16 bits computer?");
+        let d_end = self.new.1.try_into().expect("16 bits computer?");
+        let data = &self.data[d_start..d_end];
+        Chunk { start, end, data }
     }
 }
 

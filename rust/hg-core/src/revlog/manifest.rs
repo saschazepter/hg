@@ -4,6 +4,7 @@ use std::ops::Deref;
 use super::RevlogType;
 use crate::errors::HgError;
 use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::patch::DeltaCursor;
 use crate::revlog::Node;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revlog;
@@ -308,6 +309,11 @@ impl<'a> ManifestLine<'a> {
         }
     }
 
+    /// Size of the line in bytes
+    fn size(&self) -> u32 {
+        self.line.len().try_into().expect("manifest line larger than 4GB?")
+    }
+
     /// The filename part of that line
     ///
     /// When accessing this, the `filename_len` is cached to speedup future
@@ -401,6 +407,67 @@ impl<'a> Iterator for SyncLineIterator<'a> {
     }
 }
 
+/// Compute a binary delta between two flat manifest texts
+pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
+    let mut delta = vec![];
+    // our current work position in the two manifest
+    let mut m1_offset = 0u32;
+    let mut m2_offset = 0u32;
+
+    let mut cursor: Option<DeltaCursor> = None;
+
+    for lines in SyncLineIterator::new(m1, m2) {
+        // This return the size of each different area in each manifest.
+        //
+        // If both sides are 0 size, they are identical.
+        let (size_1, size_2) = match lines {
+            (Some(l), None) => (l.size(), 0),
+            (None, Some(l)) => (0, l.size()),
+            (Some(l1), Some(l2)) => {
+                if l1.data().eq(l2.data()) {
+                    assert!(l1.size() == l2.size());
+                    (0, 0)
+                } else {
+                    (l1.size(), l2.size())
+                }
+            }
+            (None, None) => {
+                unreachable!("iteration continue despite no remaining lines.")
+            }
+        };
+
+        if (size_1 | size_2) == 0 {
+            // secret signal to mark the line as identical
+            let size = lines.0.unwrap().size();
+            m1_offset += size;
+            m2_offset += size;
+            // We have a common block so any existing cursor need flushing
+            if let Some(change) = cursor.take() {
+                change.into_chunk().write(&mut delta);
+            };
+        } else {
+            // If a hunk is still around, we must be able to merge with it.
+            if let Some(ref mut c) = cursor {
+                c.extend(size_1, size_2);
+            } else {
+                cursor = Some(DeltaCursor::new(
+                    m1_offset,
+                    m1_offset + size_1,
+                    m2_offset,
+                    m2_offset + size_2,
+                    m2,
+                ));
+            }
+            m1_offset += size_1;
+            m2_offset += size_2;
+        }
+    }
+    if let Some(change) = cursor.take() {
+        change.into_chunk().write(&mut delta);
+    };
+    delta
+}
+
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
 #[derive(PartialEq)]
 pub struct ManifestEntry<'manifest> {
@@ -451,5 +518,130 @@ impl<'a> ManifestEntry<'a> {
 
     pub fn node_id(&self) -> Result<Node, HgError> {
         Node::from_hex_for_repo(self.hex_node_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::revlog::inner_revlog::CoreRevisionBuffer;
+    use crate::revlog::inner_revlog::RevisionBuffer;
+    use crate::revlog::Revlog;
+
+    /// Check that applying the diff from m1 to m2 is the same as m2
+    fn identity_check(m1: &[u8], m2: &[u8], delta: &[u8]) {
+        let mut computed_m2 = CoreRevisionBuffer::new();
+        Revlog::build_data_from_deltas(&mut computed_m2, m1, &[delta]).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&computed_m2.finish()),
+            String::from_utf8_lossy(m2)
+        );
+    }
+
+    fn test_roundtrip(m1: &[u8], m2: &[u8]) {
+        let delta = manifest_delta(m1, m2);
+        identity_check(m1, m2, &delta)
+    }
+
+    #[test]
+    fn test_manifest_diff_simple() {
+        let m1 =
+            b"contrib/perf.py\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            contrib/phab-clean.py\0e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        let m2 =
+            b"contrib/perf.py\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            contrib/phab-clean.py\0e14fa8304bb04039a70ccdcfa170715fa2136e47\n";
+
+        // delete all
+        test_roundtrip(&m1[..], &[]);
+
+        // add all content
+        test_roundtrip(&[], &m1[..]);
+        // identical
+        test_roundtrip(&m1[..], &m1[..]);
+        assert_eq!(manifest_delta(&m1[..], &m1[..]).len(), 0);
+        test_roundtrip(&m2[..], &m2[..]);
+        assert_eq!(manifest_delta(&m2[..], &m2[..]).len(), 0);
+
+        // changing a line
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+
+        // changing a line
+        test_roundtrip(&m2[..], &m1[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+    }
+
+    #[test]
+    fn test_manifest_diff_complex() {
+        let m1 = b"a\0abc\nb\0abc\nc\0abc\n";
+
+        // Identical, diff should be empty
+        test_roundtrip(&m1[..], &m1[..]);
+        assert_eq!(manifest_delta(&m1[..], &m1[..]).len(), 0);
+
+        // Removed a path at the start
+        let m2 = b"b\0abc\nc\0abc\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_eq!(manifest_delta(&m1[..], &m2[..]).len(), 12);
+
+        // Removed a path in the middle
+        let m2 = b"a\0abc\nc\0abc\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_eq!(manifest_delta(&m1[..], &m2[..]).len(), 12);
+
+        // Added a path in the middle
+        test_roundtrip(&m2[..], &m1[..]);
+        assert_ne!(manifest_delta(&m2[..], &m1[..]).len(), 0);
+
+        // Changed a node/flag in the middle, should replace
+        let m2 = b"a\0abc\nb\0bcd\nc\0abc\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+    }
+
+    #[test]
+    fn test_manifest_diff_actual_cases() {
+        // Removed two paths in the middle
+        let m1 = b"a.txt\x00b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3\n\
+        aa.txt\x00a4bdc161c8fbb523c9a60409603f8710ff49a571\n\
+        b.txt\x001e88685f5ddec574a34c70af492f95b6debc8741\n\
+        c.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        cc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        d.txt\x001e88685f5ddec574a34c70af492f95b6debc8741\n\
+        e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n";
+        let m2 = b"a.txt\x00b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3\n\
+        aa.txt\x00a4bdc161c8fbb523c9a60409603f8710ff49a571\n\
+        c.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        cc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+
+        // Removed two paths and added one
+        let m2 = b"a.txt\x00b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3\n\
+        aa.txt\x00a4bdc161c8fbb523c9a60409603f8710ff49a571\n\
+        bb.txt\x0004c6faf8a9fdd848a5304dfc1704749a374dff44\n\
+        c.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        cc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+
+        // Updated the last path
+        let m1 = b"bar\x00b004912a8510032a0350a74daa2803dadfb00e12\n\
+        baz\x00354ae8da6e890359ef49ade27b68bbc361f3ca88\n\
+        foo\x0022fb50216c01fd6a604494be1bcb05c8d2d07641\n";
+
+        let m2 = b"bar\x00b004912a8510032a0350a74daa2803dadfb00e12\n\
+        baz\x00354ae8da6e890359ef49ade27b68bbc361f3ca88\n\
+        foo\x00263143458f3c42bd4b185a2dc56c5f1593c17c3f\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
     }
 }

@@ -37,6 +37,7 @@ from .interfaces import (
 from .utils import dateutil
 
 bdiff: intmod.BDiff = policy.importmod('bdiff')
+rust_diff = policy.importrust('diff')
 mpatch: intmod.MPatch = policy.importmod('mpatch')
 
 blocks = bdiff.blocks
@@ -50,7 +51,10 @@ text_diff = textdiff
 # produce diff using line as boundary
 line_diff = bdiff.line_diff
 # diff algorithm optimized for the manifest must be line aligned
-manifest_diff = bdiff.manifest_diff
+if rust_diff is not None:
+    manifest_diff = rust_diff.manifest_diff
+else:
+    manifest_diff = bdiff.manifest_diff
 # diff algorithm optimized for storage purpose, might not be line aligned
 storage_diff = bdiff.storage_diff
 

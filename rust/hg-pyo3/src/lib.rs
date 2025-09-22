@@ -4,6 +4,7 @@ mod ancestors;
 mod copy_tracing;
 mod dagops;
 mod deltas;
+mod diff;
 mod dirstate;
 mod discovery;
 mod exceptions;
@@ -28,6 +29,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     let dotted_name: String = m.getattr("__name__")?.extract()?;
 
     m.add_submodule(&ancestors::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&diff::init_module(py, &dotted_name)?)?;
     m.add_submodule(&copy_tracing::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dagops::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dirstate::init_module(py, &dotted_name)?)?;
