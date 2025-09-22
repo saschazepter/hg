@@ -76,11 +76,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._try_pending = try_pending
         self._vacuum_mode = vacuum_mode
         self._max_unused_ratio = max_unused_ratio
-        self._add = []
-        self._add_map = {}
+        self._add_paths: list[HgPathT] = []
+        self._add_map: dict[HgPathT, FileTokenT] = {}
 
     def has_token(self, token: FileTokenT):
-        return token >= 0 and token < len(self)
+        return 0 <= token < len(self)
 
     def has_path(self, path: HgPathT):
         return self.get_token(path) is not None
@@ -91,7 +91,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         n = len(self.meta_array)
         if token < n:
             return self._get_path_on_disk(token)
-        return self._add[token - n]
+        return self._add_paths[token - n]
 
     @abc.abstractmethod
     def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
@@ -111,11 +111,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self.has_path(path)
 
     def __len__(self):
-        return len(self.meta_array) + len(self._add)
+        return len(self.meta_array) + len(self._add_paths)
 
     def __iter__(self):
-        for token in range(len(self)):
-            yield self.get_path(FileTokenT(token))
+        for path, _token in self.items():
+            yield path
 
     def items(self):
         for token in range(len(self)):
@@ -125,18 +125,22 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         token = self.get_token(path)
         if token is None:
             token = len(self)
-            self._add.append(path)
-            self._add_map[path] = token
-            # If there are external hooks, both callbacks run:
-            # - pending: write data files, and write docket with ".pending" suffix
-            # - finalize: write docket again without suffix
-            # Otherwise, only the finalize callback runs and we do everything then.
-            tr.addpending(b"fileindex", self._add_file_generator)
-            tr.addfinalize(b"fileindex", self._add_file_generator)
+            self._add_paths.append(path)
+            self._add_map[path] = FileTokenT(token)
+            self._register_write(tr)
         return token
 
+    def _register_write(self, tr: TransactionT):
+        # If there are external hooks, both callbacks run:
+        # - pending: write data files, and write docket with ".pending" suffix
+        # - finalize: write docket again without suffix
+        # Otherwise, only the finalize callback runs and we do everything then.
+        tr.addpending(b"fileindex", self._add_file_generator)
+        tr.addfinalize(b"fileindex", self._add_file_generator)
+
     def vacuum(self, tr: TransactionT):
-        assert not self._add, "manual vacuum should not add files"
+        if self._add_paths:
+            raise error.ProgrammingError(b"manual vacuum should not add files")
         self._add_file_generator(tr, force_vacuum=True)
 
     def _add_file_generator(self, tr: TransactionT, force_vacuum=False):
@@ -152,7 +156,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _write(self, f: typing.BinaryIO, force_vacuum: bool):
         """Write all data files and the docket."""
-        if self._add or force_vacuum:
+        if self._add_paths or force_vacuum:
             if force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
                 vacuum = True
             elif self._vacuum_mode == VACUUM_MODE_AUTO:
@@ -163,7 +167,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             else:
                 vacuum = False
             self._write_data(vacuum)
-            self._add.clear()
+            self._add_paths.clear()
             self._add_map.clear()
             self._invalidate_caches()
         f.write(self.docket.serialize())
@@ -324,9 +328,11 @@ class FileIndex(_FileIndexCommon):
         new_list = docket.list_file_id == docketmod.UNSET_UID
         new_meta = docket.meta_file_id == docketmod.UNSET_UID
         new_tree = docket.tree_file_id == docketmod.UNSET_UID or vacuum
+        meta_array = self.meta_array
+        add_paths = self._add_paths
         if new_tree:
             tree = file_index_util.MutableTree(base=None)
-            for token, meta in enumerate(self.meta_array):
+            for token, meta in enumerate(meta_array):
                 path = bytes(self._read_span(meta.offset, meta.length))
                 tree.insert(path, FileTokenT(token), meta.offset)
         else:
@@ -341,8 +347,8 @@ class FileIndex(_FileIndexCommon):
             self._open_list_file(new_list) as list_file,
             self._open_meta_file(new_meta) as meta_file,
         ):
-            token = len(self.meta_array)
-            for path in self._add:
+            token = len(meta_array)
+            for path in add_paths:
                 offset = docket.list_file_size
                 metadata = file_index_util.Metadata.from_path(path, offset)
                 list_file.write(b"%s\x00" % path)
