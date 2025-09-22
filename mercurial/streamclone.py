@@ -1800,6 +1800,14 @@ def local_copy(src_repo, dest_repo) -> None:
         src_repo.ui.debug(msg % total_files)
 
         with dest_repo.transaction(b"localclone") as tr:
+            fileindex = dest_repo.store.fileindex
+            if fileindex is not None:
+                for _vfs_key, entry in entries:
+                    if entry.is_filelog:
+                        fileindex.add(
+                            entry.target_id,  # pytype: disable=attribute-error
+                            tr,
+                        )
             dest_repo.store.schedule_write(tr)
 
         # clean up transaction file as they do not make sense
