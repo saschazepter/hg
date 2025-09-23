@@ -56,31 +56,18 @@ int _tmain(int argc, TCHAR *argv[])
 		goto bail;
 	}
 
-	p = _tcsrchr(pyscript, '.');
+	p = _tcsrchr(pyscript, '\\');
 	if (p == NULL) {
 		err = "malformed module filename";
 		goto bail;
 	}
-	*p = 0; /* cut trailing ".exe" */
+	*p = 0; /* cut trailing "executable.exe" */
 	_tcscpy_s(pyhome, _countof(pyhome), pyscript);
 
-	hfind = FindFirstFile(pyscript, &fdata);
-	if (hfind != INVALID_HANDLE_VALUE) {
-		/* pyscript exists, close handle */
-		FindClose(hfind);
-	} else {
-		/* file pyscript isn't there, take <pyscript>exe.py */
-		_tcscat_s(pyscript, _countof(pyscript), _T("exe.py"));
-	}
+	/* assume the 'hg' script lives next to the executable */
+	_tcscat_s(pyscript, _countof(pyscript), _T("\\hg"));
 
 	pydll = NULL;
-
-	p = _tcsrchr(pyhome, _T('\\'));
-	if (p == NULL) {
-		err = "can't find backslash in module filename";
-		goto bail;
-	}
-	*p = 0; /* cut at directory */
 
 	/* check for private Python of HackableMercurial */
 	_tcscat_s(pyhome, _countof(pyhome), _T("\\hg-python"));
