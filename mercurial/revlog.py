@@ -3369,19 +3369,6 @@ class revlog:
 
         p1r, p2r = self.rev(p1), self.rev(p2)
 
-        # full versions are inserted when the needed deltas
-        # become comparable to the uncompressed text
-        if rawtext is None:
-            assert cachedelta is not None
-            # need rawtext size, before changed by flag processors, which is
-            # the non-raw size. use revlog explicitly to avoid filelog's extra
-            # logic that might remove metadata size.
-            textlen = mdiff.patchedsize(
-                revlog.size(self, cachedelta.base), cachedelta.u_delta
-            )
-        else:
-            textlen = len(rawtext)
-
         if deltacomputer is None:
             write_debug = None
             if self.delta_config.debug_delta:
@@ -3389,6 +3376,20 @@ class revlog:
             deltacomputer = deltautil.deltacomputer(
                 self, write_debug=write_debug
             )
+
+        # full versions are inserted when the needed deltas
+        # become comparable to the uncompressed text
+        if rawtext is None:
+            assert cachedelta is not None
+            # need rawtext size, before changed by flag processors, which is
+            # the non-raw size. use revlog explicitly to avoid filelog's extra
+            # logic that might remove metadata size.
+            deltacomputer.decompress_cached(cachedelta)  # populate u_delta
+            textlen = mdiff.patchedsize(
+                revlog.size(self, cachedelta.base), cachedelta.u_delta
+            )
+        else:
+            textlen = len(rawtext)
 
         if cachedelta is not None and cachedelta.reuse_policy is None:
             # If the cached delta has no information about how it should be

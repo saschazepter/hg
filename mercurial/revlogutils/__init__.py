@@ -24,6 +24,7 @@ from ..interfaces.types import (
     RevnumT,
 )
 from ..interfaces import (
+    compression as i_comp,
     repository,
     revlog as revlog_t,
 )
@@ -84,8 +85,11 @@ def entry(
 class CachedDelta:
     base = attr.ib(type=RevnumT)
     """The revision number of the revision on which the delta apply on"""
-    u_delta = attr.ib(type=bytes)
-    """The uncompressed delta information"""
+    u_delta = attr.ib(type=Optional[bytes], default=None)
+    """The uncompressed delta data if any
+
+    If None, `c_delta` must be set
+    """
     reuse_policy = attr.ib(
         type=Optional[revlog_t.DeltaBaseReusePolicy],
         default=None,
@@ -98,6 +102,20 @@ class CachedDelta:
     * None: No snapshot information for this delta,
     * -1:   Delta isn't a snapshot,
     * >=0:  Detla is a snapshot of the corresponding level.
+    """
+    c_delta = attr.ib(type=Optional[bytes], default=None)
+    """The compressed delta data if any
+
+    If None, `u_delta` must be set
+    If not None, `compression` must be set
+    """
+    compression = attr.ib(
+        type=i_comp.RevlogCompHeader,
+        default=i_comp.REVLOG_COMP_NONE,
+    )
+    """The type of compression used by the data in `c_delta`
+
+    When `c_delta` is None, the value in this attribute is irrelevant.
     """
 
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 
 import abc
+import binascii
 import collections
 import enum
 import typing
@@ -48,6 +49,7 @@ from ..interfaces.types import (
 
 
 from ..thirdparty import attr
+from ..interfaces import compression
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -1519,6 +1521,44 @@ class deltacomputer:
             self._debug_search = debug_search
         self._debug_info = debug_info
         self._snapshot_cache = SnapshotCache()
+        self._decompressors = {}
+
+    def _get_decompressor(
+        self,
+        t: compression.RevlogCompHeader,
+    ) -> compression.IRevlogCompressor:
+        try:
+            compressor = self._decompressors[t]
+        except KeyError:
+            try:
+                engine = util.compengines.forrevlogheader(t)
+                compressor = engine.revlogcompressor(
+                    self.revlog.feature_config.compression_engine_options
+                )
+                self._decompressors[t] = compressor
+            except KeyError:
+                raise error.RevlogError(
+                    _(b'unknown compression type %s') % binascii.hexlify(t)
+                )
+        return compressor
+
+    def decompress_cached(
+        self,
+        cached: CachedDeltaT,
+    ):
+        """ensure a CachedDeltaT have its `u_delta` argument set"""
+        if cached.u_delta is not None:
+            return
+        if cached.c_delta is None:
+            msg = "CachedDelta as neither `u_delta` nor `c_delta`"
+            raise error.ProgrammingError(msg)
+        # Fast path non compressed input
+        if cached.compression == compression.REVLOG_COMP_NONE:
+            cached.u_delta = cached.c_delta
+        else:
+            decompressor = self._get_decompressor(cached.compression)
+            cached.u_delta = decompressor.decompress(cached.c_delta)
+        assert cached.u_delta is not None, cached
 
     @property
     def _gather_debug(self) -> bool:
@@ -1535,7 +1575,9 @@ class deltacomputer:
         revlog = self.revlog
         cachedelta = revinfo.cachedelta
         baserev = cachedelta.base
+        self.decompress_cached(cachedelta)
         delta = cachedelta.u_delta
+        assert delta is not None
 
         fulltext = revinfo.btext = _textfromdelta(
             revlog,
@@ -1664,6 +1706,7 @@ class deltacomputer:
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
             if self.revlog.delta_config.lazy_delta and currentbase == base:
+                self.decompress_cached(revinfo.cachedelta)
                 delta = revinfo.cachedelta.u_delta
                 if revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
@@ -1919,6 +1962,7 @@ class deltacomputer:
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
+                self.decompress_cached(cachedelta)
                 delta = revinfo.cachedelta.u_delta
                 header, data = revlog.compress(delta)
                 deltalen = len(header) + len(data)
