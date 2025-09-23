@@ -251,7 +251,12 @@ def parsebundlespec(repo, spec, strict=True):
     if b'-' in pre_args:
         compression, version = spec.split(b'-', 1)
 
-        if compression not in util.compengines.supportedbundlenames:
+        if (
+            compression not in util.compengines.supportedbundlenames
+            or not util.compengines[
+                util.compengines._bundlenames[compression]
+            ].available()
+        ):
             raise error.UnsupportedBundleSpecification(
                 _(b'%s compression is not supported') % compression
             )
