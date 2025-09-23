@@ -13,7 +13,13 @@ import os
 import struct
 import weakref
 
-from typing import Iterator, cast
+from typing import (
+    Callable,
+    Dict,
+    Iterator,
+    Set,
+    cast,
+)
 
 from .i18n import _
 from .node import (
@@ -22,7 +28,9 @@ from .node import (
     short,
 )
 from .interfaces.types import (
+    MatcherT,
     NodeIdT,
+    RepoT,
     RevisionDeltaT,
     RevnumT,
 )
@@ -46,6 +54,8 @@ from .interfaces import (
 from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
 from .utils import storageutil
+
+PreComputedEllipsisT = Dict[RevnumT, Set[RevnumT]]
 
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
@@ -1461,6 +1471,27 @@ def display_bundling_debug_info(
 
 
 class cgpacker(i_cg.IChangeGroupPacker):
+    _oldmatcher: MatcherT
+    _matcher: MatcherT
+
+    version: bytes
+    _forcedeltaparentprev: bool
+    _manifestsend: bytes
+    _ellipses: bool
+    _filelog_hasmeta: bool
+
+    # Set of capabilities we can use to build the bundle.
+    _bundlecaps: set
+    _remote_sidedata: set
+    _isshallow: bool
+    _fullclnodes: set[NodeIdT]
+
+    _precomputedellipsis: PreComputedEllipsisT | None
+
+    _repo: RepoT
+
+    _verbosenote: Callable[[bytes], None]
+
     def __init__(
         self,
         repo,
