@@ -75,8 +75,8 @@ _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
 # node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
-# node p1node p2node basenode linknode flags snapshot_level raw_text_size
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbIB")
+# node p1node p2node basenode linknode flags snapshot_level raw_size compression delta_flag
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbIBB")
 _CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
@@ -507,8 +507,16 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             return None
         headerdata = readexactly(self._stream, self.deltaheadersize)
         header = self.deltaheader.unpack(headerdata)
-        delta = readexactly(self._stream, l - self.deltaheadersize)
+        chunk = readexactly(self._stream, l - self.deltaheadersize)
         header = self._deltaheader(header, prevnode)
+        protocol_flags = header.protocol_flags
+        if protocol_flags & storageutil.CG_FLAG_FULL_TEXT:
+            protocol_flags &= ~storageutil.CG_FLAG_FULL_TEXT
+            delta = None
+            text = chunk
+        else:
+            delta = chunk
+            text = None
         return revlogutils.InboundRevision(
             header.node,
             header.p1,
@@ -518,9 +526,10 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             delta,
             header.flags,
             {},
-            header.protocol_flags,
+            protocol_flags,
             snapshot_level=header.snapshot_level,
             raw_text_size=header.raw_text_size,
+            raw_text=text,
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
             compression=header.compression,
@@ -1063,6 +1072,7 @@ class cg4unpacker(cg3unpacker):
             snapshot_level,
             raw_size,
             encoded_comp,
+            protocol_flags,
         ) = headertuple
         wire_comp = WireDeltaCompression(encoded_comp)
         if snapshot_level < -1:
@@ -1077,6 +1087,7 @@ class cg4unpacker(cg3unpacker):
             snapshot_level=snapshot_level,
             raw_text_size=raw_size,
             compression=wire_comp.to_revlog_compression(),
+            protocol_flags=protocol_flags,
         )
 
 
@@ -1134,7 +1145,7 @@ class headerlessfixup:
         return readexactly(self._fh, n)
 
 
-def _revisiondeltatochunks(repo, delta, headerfn):
+def _revisiondeltatochunks(repo, delta, headerfn, full_text_support=False):
     """Serialize a revisiondelta to changegroup chunks."""
 
     # The captured revision delta may be encoded as a delta against
@@ -1145,10 +1156,13 @@ def _revisiondeltatochunks(repo, delta, headerfn):
 
     if delta.delta is not None:
         prefix, data = b'', delta.delta
-    elif delta.basenode == repo.nullid:
-        assert delta.revision is not None
+    elif delta.revision is not None:
+        assert delta.basenode == repo.nullid
         data = delta.revision
-        prefix = mdiff.trivialdiffheader(len(data))
+        if full_text_support:
+            prefix = b''  # a flag will be set to signal it a full text
+        else:
+            prefix = mdiff.trivialdiffheader(len(data))
     else:
         data = delta.revision
         prefix = mdiff.replacediffheader(delta.baserevisionsize, len(data))
@@ -1631,6 +1645,9 @@ def display_bundling_debug_info(
 
 
 class cgpacker(i_cg.IChangeGroupPacker):
+    _send_full_text: bool = False
+    """Can we send full text without wrapping them in a patch ?"""
+
     _oldmatcher: MatcherT
     _matcher: MatcherT
 
@@ -1791,7 +1808,10 @@ class cgpacker(i_cg.IChangeGroupPacker):
         )
         for delta in deltas:
             for chunk in _revisiondeltatochunks(
-                self._repo, delta, self._builddeltaheader
+                self._repo,
+                delta,
+                self._builddeltaheader,
+                full_text_support=self._send_full_text,
             ):
                 size += len(chunk)
                 yield chunk
@@ -1859,7 +1879,10 @@ class cgpacker(i_cg.IChangeGroupPacker):
 
             for delta in deltas:
                 chunks = _revisiondeltatochunks(
-                    self._repo, delta, self._builddeltaheader
+                    self._repo,
+                    delta,
+                    self._builddeltaheader,
+                    full_text_support=self._send_full_text,
                 )
                 for chunk in chunks:
                     size += len(chunk)
@@ -1907,7 +1930,10 @@ class cgpacker(i_cg.IChangeGroupPacker):
 
             for delta in deltas:
                 chunks = _revisiondeltatochunks(
-                    self._repo, delta, self._builddeltaheader
+                    self._repo,
+                    delta,
+                    self._builddeltaheader,
+                    full_text_support=self._send_full_text,
                 )
                 for chunk in chunks:
                     size += len(chunk)
@@ -2417,11 +2443,17 @@ class ChangeGroupPacker04(cgpacker):
     see documentation of cg4unpacker for details.
     """
 
+    _send_full_text = True
+
     def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         snap_lvl = -2  # means no-info
         if d.snapshot_level is not None:
             snap_lvl = d.snapshot_level
         wire_comp = WireDeltaCompression.from_revlog_compression(d.compression)
+
+        protocol_flags = 0
+        if d.delta is None and d.revision is not None:
+            protocol_flags |= storageutil.CG_FLAG_FULL_TEXT
         return _CHANGEGROUPV4_DELTA_HEADER.pack(
             d.node,
             d.p1node,
@@ -2432,6 +2464,7 @@ class ChangeGroupPacker04(cgpacker):
             snap_lvl,
             d.raw_revision_size,
             wire_comp,
+            protocol_flags,
         )
 
     def __init__(

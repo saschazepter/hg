@@ -3763,6 +3763,7 @@ class revlog:
                         cached = revlogutils.CachedDelta(
                             base=baserev,
                             c_delta=data.delta,
+                            c_full_text=data.raw_text,
                             compression=data.compression,
                             reuse_policy=delta_base_reuse_policy,
                             snapshot_level=data.snapshot_level,
@@ -3772,15 +3773,20 @@ class revlog:
                         cached = revlogutils.CachedDelta(
                             base=baserev,
                             u_delta=data.delta,
+                            u_full_text=data.raw_text,
                             reuse_policy=delta_base_reuse_policy,
                             snapshot_level=data.snapshot_level,
                             fulltext_length=data.raw_text_size,
                         )
+
+                    text = data.raw_text
+                    if data.compression:
+                        text = None
                     rev = self._addrevision(
                         data.node,
                         # raw text is usually None, but it might have been set
                         # by some pre-processing/checking code.
-                        data.raw_text,
+                        text,
                         transaction,
                         linkmapper(data.link_node),
                         data.p1,

@@ -31,8 +31,9 @@ from ..utils import hashutil
 _nullhash = hashutil.sha1(sha1nodeconstants.nullid)
 
 # revision data contains extra metadata not part of the official digest
-# Only used in changegroup >= v4.
+# Only used in changegroup >= v5.
 CG_FLAG_SIDEDATA = 1
+CG_FLAG_FULL_TEXT = 2
 
 
 def hashrevisionsha1(text, p1, p2):
