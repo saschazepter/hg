@@ -11,8 +11,10 @@ export PREFIX=/usr/local
 # Windows ships Python 3 as `python.exe`, which may not be on PATH.  py.exe is.
 ifeq ($(OS),Windows_NT)
 PYTHON?=py -3
+EXE:=.exe
 else
 PYTHON?=python3
+EXE:=
 endif
 
 # to support PYTHON equal to "py -3", "py.exe -3", "3.13" and other strings
@@ -90,10 +92,10 @@ help:
 local:
 	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
 	env CARGO_NET_OFFLINE=$(CARGO_NET_OFFLINE) uv pip install -e . $(OFFLINE_UV_OPTION) \
-	  -p .local-venv/$(PYBINDIRNAME)/python -v \
+	  -p .local-venv/$(PYBINDIRNAME)/python$(EXE) -v \
 	  -C=--global-option="$(PURE)"
-	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg version
-	test -e .local-venv/bin/hg && ln -s -f .local-venv/bin/hg hg-local
+	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg$(EXE) version
+	test -e .local-venv/$(PYBINDIRNAME)/hg$(EXE) && ln -s -f .local-venv/$(PYBINDIRNAME)/hg$(EXE) hg-local$(EXE)
 
 .PHONY: build-chg
 build-chg:
@@ -117,7 +119,7 @@ cleanbutpackages:
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
 	rm -rf .local-venv
-	rm -f hg-local
+	rm -f hg-local$(EXE)
 	rm -f hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi
