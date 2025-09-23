@@ -2930,7 +2930,7 @@ class revlog:
         elif comp_mode == COMP_MODE_INLINE:
             comp, chunk = _split_compression(full_chunk)
         elif comp_mode == COMP_MODE_DEFAULT:
-            comp = self._default_compression_header
+            comp = self._docket.default_compression_header
             chunk = full_chunk
         return (comp, chunk)
 
@@ -4174,16 +4174,22 @@ class revlog:
                         snapshotdepth = self.snapshotdepth(rev)
                     else:
                         snapshotdepth = -1
-                    dp = self.deltaparent(rev)
-                    if dp != nullrev:
+                    if not self.iscensored(rev):
+                        dp = self.deltaparent(rev)
                         # note: we can blindy reuse the compression during
                         # `_clone`, because if we can read the source revlog it
                         # mean we know about that compression for the
                         # destination too, (even if we might not reuse it).
-                        comp, c_chunk = self.raw_comp_chunk(rev)
+                        comp, chunk = self.raw_comp_chunk(rev)
+                        c_delta = c_full_text = None
+                        if dp == nullrev:
+                            c_full_text = bytes(chunk)
+                        else:
+                            c_delta = bytes(chunk)
                         cachedelta = revlogutils.CachedDelta(
                             base=dp,
-                            c_delta=bytes(c_chunk),
+                            c_delta=c_delta,
+                            c_full_text=c_full_text,
                             compression=comp,
                             reuse_policy=delta_base_reuse,
                             snapshot_level=snapshotdepth,

@@ -1560,6 +1560,22 @@ class deltacomputer:
             cached.u_delta = decompressor.decompress(cached.c_delta)
         assert cached.u_delta is not None, cached
 
+    def decompress_full_cached(
+        self,
+        cached: CachedDeltaT,
+    ):
+        """ensure a CachedDeltaT have its `u_full_text` argument set"""
+        if cached.u_full_text is not None:
+            return
+        if cached.c_full_text is None:
+            msg = "CachedDelta as neither `u_full_text` nor `c_full_text`"
+            raise error.ProgrammingError(msg)
+        if cached.compression == compression.REVLOG_COMP_NONE:
+            cached.u_full_text = cached.c_full_text
+        else:
+            decompressor = self._get_decompressor(cached.compression)
+            cached.u_full_text = decompressor.decompress(cached.c_full_text)
+
     @property
     def _gather_debug(self) -> bool:
         return self._write_debug is not None or self._debug_info is not None
@@ -1570,6 +1586,13 @@ class deltacomputer:
         revinfo: revisioninfo instance that contains all needed info
         """
         if revinfo.btext is not None:
+            return revinfo.btext
+        if revinfo.cachedelta.u_full_text is not None:
+            revinfo.btext = revinfo.cachedelta.u_full_text
+            return revinfo.btext
+        if revinfo.cachedelta.c_full_text is not None:
+            self.decompress_full_cached(revinfo.cachedelta)
+            revinfo.btext = revinfo.cachedelta.u_full_text
             return revinfo.btext
 
         revlog = self.revlog

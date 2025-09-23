@@ -118,6 +118,11 @@ class CachedDelta:
     When `c_delta` is None, the value in this attribute is irrelevant.
     """
 
+    u_full_text = attr.ib(type=Optional[bytes], default=None)
+    """uncompressed full text if available"""
+    c_full_text = attr.ib(type=Optional[bytes], default=None)
+    """compressed full text if available"""
+
     fulltext_length = attr.ib(type=Optional[int], default=None)
     """length of the full text created by this patch"""
 
