@@ -2174,34 +2174,42 @@ class ChangeGroupPacker02(cgpacker):
         )
 
 
-def _makecg3packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    builddeltaheader = lambda d: _CHANGEGROUPV3_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.basenode, d.linknode, d.flags
-    )
+class ChangeGroupPacker03(cgpacker):
+    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+        return _CHANGEGROUPV3_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.basenode,
+            d.linknode,
+            d.flags,
+        )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'03',
-        builddeltaheader=builddeltaheader,
-        manifestsend=closechunk(),
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super().__init__(
+            repo,
+            oldmatcher,
+            matcher,
+            b'03',
+            builddeltaheader=self._builddeltaheader,
+            manifestsend=closechunk(),
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+        )
 
 
 def _cg4_delta_header(d: RevisionDeltaT):
@@ -2295,7 +2303,7 @@ _packermap = {
     # cg2 adds support for exchanging generaldelta
     b'02': (ChangeGroupPacker02, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
-    b'03': (_makecg3packer, cg3unpacker),
+    b'03': (ChangeGroupPacker03, cg3unpacker),
     # cg4 adds support for exchanging more advances flags
     b'04': (_makecg4packer, cg4unpacker),
     # ch5 adds support for exchanging sidedata
