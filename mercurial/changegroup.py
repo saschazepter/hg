@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import abc
 import io
 import os
 import struct
@@ -1466,7 +1467,6 @@ class cgpacker(i_cg.IChangeGroupPacker):
         oldmatcher,
         matcher,
         version,
-        builddeltaheader,
         manifestsend,
         forcedeltaparentprev=False,
         bundlecaps=None,
@@ -1521,7 +1521,6 @@ class cgpacker(i_cg.IChangeGroupPacker):
 
         self.version = version
         self._forcedeltaparentprev = forcedeltaparentprev
-        self._builddeltaheader = builddeltaheader
         self._manifestsend = manifestsend
         self._ellipses = ellipses
         self._filelog_hasmeta = filelog_hasmeta
@@ -1545,6 +1544,10 @@ class cgpacker(i_cg.IChangeGroupPacker):
             self._verbosenote = self._repo.ui.note
         else:
             self._verbosenote = lambda s: None
+
+    @abc.abstractmethod
+    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+        ...
 
     def generate(
         self,
@@ -2126,7 +2129,6 @@ class ChangeGroupPacker01(cgpacker):
             oldmatcher,
             matcher,
             b'01',
-            builddeltaheader=self._builddeltaheader,
             manifestsend=b'',
             forcedeltaparentprev=True,
             bundlecaps=bundlecaps,
@@ -2164,7 +2166,6 @@ class ChangeGroupPacker02(cgpacker):
             oldmatcher,
             matcher,
             b'02',
-            builddeltaheader=self._builddeltaheader,
             manifestsend=b'',
             bundlecaps=bundlecaps,
             ellipses=ellipses,
@@ -2202,7 +2203,6 @@ class ChangeGroupPacker03(cgpacker):
             oldmatcher,
             matcher,
             b'03',
-            builddeltaheader=self._builddeltaheader,
             manifestsend=closechunk(),
             bundlecaps=bundlecaps,
             ellipses=ellipses,
@@ -2248,7 +2248,6 @@ class ChangeGroupPacker04(cgpacker):
             oldmatcher,
             matcher,
             b'04',
-            builddeltaheader=self._builddeltaheader,
             manifestsend=closechunk(),
             bundlecaps=bundlecaps,
             ellipses=ellipses,
@@ -2290,7 +2289,6 @@ class ChangeGroupPacker05(cgpacker):
             oldmatcher,
             matcher,
             b'05',
-            builddeltaheader=self._builddeltaheader,
             manifestsend=closechunk(),
             bundlecaps=bundlecaps,
             ellipses=ellipses,
