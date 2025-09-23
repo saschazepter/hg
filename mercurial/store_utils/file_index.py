@@ -78,7 +78,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._max_unused_ratio = max_unused_ratio
         self._add = []
         self._add_map = {}
-        self._written = False
 
     def has_token(self, token: FileTokenT):
         return token >= 0 and token < len(self)
@@ -120,7 +119,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             yield self.get_path(FileTokenT(token)), token
 
     def add(self, path: HgPathT, tr: TransactionT):
-        assert not self._written, "cannot add to file index after writing"
         token = self.get_token(path)
         if token is None:
             token = len(self)
@@ -135,7 +133,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return token
 
     def vacuum(self, tr: TransactionT):
-        assert not self._written, "should only write file index once"
         assert not self._add, "manual vacuum should not add files"
         self._add_file_generator(tr, force_vacuum=True)
 
@@ -152,9 +149,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _write(self, f: typing.BinaryIO, force_vacuum: bool):
         """Write all data files and the docket."""
-        # If we write multiple times (e.g. transaction pending and finalize),
-        # only write data files the first time. Next time, just the docket.
-        if not self._written:
+        if self._add or force_vacuum:
             if force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
                 vacuum = True
             elif self._vacuum_mode == VACUUM_MODE_AUTO:
@@ -165,7 +160,9 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             else:
                 vacuum = False
             self._write_data(vacuum)
-            self._written = True
+            self._add.clear()
+            self._add_map.clear()
+            self._invalidate_caches()
         f.write(self.docket.serialize())
 
     @abc.abstractmethod
@@ -220,6 +217,12 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         if self.docket.meta_file_id == docketmod.UNSET_UID:
             return file_index_util.EMPTY_TREE_BYTES
         return self._mapfile(self._tree_file_path(), self.docket.tree_file_size)
+
+    def _invalidate_caches(self):
+        util.clearcachedproperty(self, b"list_file")
+        util.clearcachedproperty(self, b"meta_file")
+        util.clearcachedproperty(self, b"meta_array")
+        util.clearcachedproperty(self, b"tree_file")
 
     def _mapfile(self, path: bytes, size: int) -> memoryview:
         """Read a file up to the given size using mmap if possible."""
@@ -314,7 +317,6 @@ class FileIndex(_FileIndexCommon):
         return node.token
 
     def _write_data(self, vacuum: bool):
-        assert not self._written, "should only write once"
         docket = self.docket
         new_list = docket.list_file_id == docketmod.UNSET_UID
         new_meta = docket.meta_file_id == docketmod.UNSET_UID
@@ -332,30 +334,26 @@ class FileIndex(_FileIndexCommon):
                     tree_file=self.tree_file,
                 )
             )
-        if new_list or new_meta or self._add:
-            with (
-                self._open_list_file(new_list) as list_file,
-                self._open_meta_file(new_meta) as meta_file,
-            ):
-                token = len(self.meta_array)
-                for path in self._add:
-                    offset = docket.list_file_size
-                    metadata = file_index_util.Metadata.from_path(path, offset)
-                    list_file.write(b"%s\x00" % path)
-                    meta_file.write(metadata.serialize())
-                    tree.insert(path, FileTokenT(token), offset)
-                    docket.list_file_size += len(path) + 1
-                    docket.meta_file_size += (
-                        file_index_util.Metadata.STRUCT.size
-                    )
-                    token += 1
-        if new_tree or self._add:
-            serialized = tree.serialize()
-            with self._open_tree_file(new_tree) as tree_file:
-                tree_file.write(serialized.bytes)
-            docket.tree_file_size = serialized.tree_file_size
-            docket.tree_root_pointer = serialized.tree_root_pointer
-            docket.tree_unused_bytes = serialized.tree_unused_bytes
+        with (
+            self._open_list_file(new_list) as list_file,
+            self._open_meta_file(new_meta) as meta_file,
+        ):
+            token = len(self.meta_array)
+            for path in self._add:
+                offset = docket.list_file_size
+                metadata = file_index_util.Metadata.from_path(path, offset)
+                list_file.write(b"%s\x00" % path)
+                meta_file.write(metadata.serialize())
+                tree.insert(path, FileTokenT(token), offset)
+                docket.list_file_size += len(path) + 1
+                docket.meta_file_size += file_index_util.Metadata.STRUCT.size
+                token += 1
+        serialized = tree.serialize()
+        with self._open_tree_file(new_tree) as tree_file:
+            tree_file.write(serialized.bytes)
+        docket.tree_file_size = serialized.tree_file_size
+        docket.tree_root_pointer = serialized.tree_root_pointer
+        docket.tree_unused_bytes = serialized.tree_unused_bytes
         docket.reserved_flags = 0
 
 
