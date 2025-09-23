@@ -461,14 +461,20 @@ Test uncopy on committed copies
   $ hg -R clone2-cg3 status --copies --change 0
   A foo
 
-  $ hg clone --pull part1 clone1-cg4 --config experimental.changegroup4=yes --quiet
+  $ hg clone --pull part1 clone1-cg4 \
+  >     --config experimental.changegroup4=yes \
+  >     --quiet \
+  >     --config server.validate=yes
   $ hg -R clone1-cg4 status --copies --change 0
   A a
   $ hg -R clone1-cg4 status --copies --change 1
   A b
     a
 
-  $ hg clone --pull part2 clone2-cg4 --config experimental.changegroup4=yes --quiet
+  $ hg clone --pull part2 clone2-cg4 \
+  >     --config experimental.changegroup4=yes \
+  >     --quiet \
+  >     --config server.validate=yes
   $ hg -R clone2-cg4 status --copies --change 5
   A baz
   A qux
