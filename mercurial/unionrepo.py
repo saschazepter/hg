@@ -174,6 +174,15 @@ class unionrevlog(revlog.revlog):
             func = super()._revisiondata
         return func(node, raw=raw)
 
+    def issnapshot(self, rev):
+        if rev > self.repotiprev:
+            return False
+        is_snap = super().issnapshot(rev)
+        if 'issnapshot' in vars(self):
+            # drop the fast access setup by the subclass
+            del self.issnapshot
+        return is_snap
+
     def addrevision(
         self,
         text,
