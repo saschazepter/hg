@@ -2100,35 +2100,41 @@ class cgpacker(i_cg.IChangeGroupPacker):
         progress.complete()
 
 
-def _makecg1packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    builddeltaheader = lambda d: _CHANGEGROUPV1_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.linknode
-    )
+class ChangeGroupPacker01(cgpacker):
+    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+        return _CHANGEGROUPV1_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.linknode,
+        )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'01',
-        builddeltaheader=builddeltaheader,
-        manifestsend=b'',
-        forcedeltaparentprev=True,
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super().__init__(
+            repo,
+            oldmatcher,
+            matcher,
+            b'01',
+            builddeltaheader=self._builddeltaheader,
+            manifestsend=b'',
+            forcedeltaparentprev=True,
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+        )
 
 
 def _makecg2packer(
@@ -2278,7 +2284,7 @@ def _makecg5packer(
 
 
 _packermap = {
-    b'01': (_makecg1packer, cg1unpacker),
+    b'01': (ChangeGroupPacker01, cg1unpacker),
     # cg2 adds support for exchanging generaldelta
     b'02': (_makecg2packer, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
