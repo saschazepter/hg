@@ -20,6 +20,21 @@ class IChangeGroupPacker(Protocol):
     """An object able to produce a changegroup"""
 
     @abc.abstractmethod
+    def __init__(
+        self,
+        repo,
+        oldmatcher,
+        matcher,
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ) -> None:
+        ...
+
+    @abc.abstractmethod
     def generate(
         self,
         commonrevs: set[_basetypes.RevnumT],

@@ -1492,7 +1492,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
 
     _verbosenote: Callable[[bytes], None]
 
-    def __init__(
+    def _init(
         self,
         repo,
         oldmatcher,
@@ -2155,7 +2155,7 @@ class ChangeGroupPacker01(cgpacker):
         fullnodes=None,
         remote_sidedata=None,
     ):
-        super().__init__(
+        super()._init(
             repo,
             oldmatcher,
             matcher,
@@ -2192,7 +2192,7 @@ class ChangeGroupPacker02(cgpacker):
         fullnodes=None,
         remote_sidedata=None,
     ):
-        super().__init__(
+        super()._init(
             repo,
             oldmatcher,
             matcher,
@@ -2229,7 +2229,7 @@ class ChangeGroupPacker03(cgpacker):
         fullnodes=None,
         remote_sidedata=None,
     ):
-        super().__init__(
+        super()._init(
             repo,
             oldmatcher,
             matcher,
@@ -2274,7 +2274,7 @@ class ChangeGroupPacker04(cgpacker):
 
         see documentation of cg4unpacker for details.
         """
-        super().__init__(
+        super()._init(
             repo,
             oldmatcher,
             matcher,
@@ -2315,7 +2315,7 @@ class ChangeGroupPacker05(cgpacker):
         fullnodes=None,
         remote_sidedata=None,
     ):
-        super().__init__(
+        super()._init(
             repo,
             oldmatcher,
             matcher,
