@@ -78,9 +78,16 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._max_unused_ratio = max_unused_ratio
         self._add_paths: list[HgPathT] = []
         self._add_map: dict[HgPathT, FileTokenT] = {}
+        self._remove_tokens: set[FileTokenT] = set()
+
+    def _token_count(self):
+        return len(self.meta_array) + len(self._add_paths)
 
     def has_token(self, token: FileTokenT):
-        return 0 <= token < len(self)
+        return (
+            0 <= token < self._token_count()
+            and token not in self._remove_tokens
+        )
 
     def has_path(self, path: HgPathT):
         return self.get_token(path) is not None
@@ -101,7 +108,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         token = self._add_map.get(path)
         if token is not None:
             return token
-        return self._get_token_on_disk(path)
+        token = self._get_token_on_disk(path)
+        if token in self._remove_tokens:
+            return None
+        return token
 
     @abc.abstractmethod
     def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
@@ -111,24 +121,37 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self.has_path(path)
 
     def __len__(self):
-        return len(self.meta_array) + len(self._add_paths)
+        return self._token_count() - len(self._remove_tokens)
 
     def __iter__(self):
         for path, _token in self.items():
             yield path
 
     def items(self):
-        for token in range(len(self)):
-            yield self.get_path(FileTokenT(token)), token
+        for token in range(self._token_count()):
+            path = self.get_path(FileTokenT(token))
+            if path is not None:
+                yield path, token
 
     def add(self, path: HgPathT, tr: TransactionT):
+        if self._remove_tokens:
+            raise error.ProgrammingError(b"cannot add and remove in same txn")
         token = self.get_token(path)
         if token is None:
-            token = len(self)
+            token = self._token_count()
             self._add_paths.append(path)
             self._add_map[path] = FileTokenT(token)
             self._register_write(tr)
         return token
+
+    def remove(self, path: HgPathT, tr: TransactionT):
+        if self._add_paths:
+            raise error.ProgrammingError(b"cannot add and remove in same txn")
+        token = self.get_token(path)
+        if token is None:
+            raise ValueError("path not in file index")
+        self._remove_tokens.add(token)
+        self._register_write(tr)
 
     def _register_write(self, tr: TransactionT):
         # If there are external hooks, both callbacks run:
@@ -156,7 +179,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _write(self, f: typing.BinaryIO, force_vacuum: bool):
         """Write all data files and the docket."""
-        if self._add_paths or force_vacuum:
+        if self._add_paths or self._remove_tokens or force_vacuum:
             if force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
                 vacuum = True
             elif self._vacuum_mode == VACUUM_MODE_AUTO:
@@ -169,6 +192,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._write_data(vacuum)
             self._add_paths.clear()
             self._add_map.clear()
+            self._remove_tokens.clear()
             self._invalidate_caches()
         f.write(self.docket.serialize())
 
@@ -325,11 +349,18 @@ class FileIndex(_FileIndexCommon):
 
     def _write_data(self, vacuum: bool):
         docket = self.docket
-        new_list = docket.list_file_id == docketmod.UNSET_UID
-        new_meta = docket.meta_file_id == docketmod.UNSET_UID
-        new_tree = docket.tree_file_id == docketmod.UNSET_UID or vacuum
+        removing = bool(self._remove_tokens)
+        new_list = docket.list_file_id == docketmod.UNSET_UID or removing
+        new_meta = docket.meta_file_id == docketmod.UNSET_UID or removing
+        new_tree = docket.tree_file_id == docketmod.UNSET_UID or removing
+        new_tree = new_tree or vacuum
         meta_array = self.meta_array
         add_paths = self._add_paths
+        if add_paths and removing:
+            raise error.ProgrammingError(b"cannot add and remove in same txn")
+        if removing:
+            meta_array = []
+            add_paths = list(self)
         if new_tree:
             tree = file_index_util.MutableTree(base=None)
             for token, meta in enumerate(meta_array):

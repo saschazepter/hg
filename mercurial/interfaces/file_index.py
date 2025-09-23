@@ -67,6 +67,17 @@ class IFileIndex(Protocol):
         """Add a path to the file index and return the new token.
 
         If the path already exists in the file index, returns its token.
+
+        It is not allowed to call add and remove in the same transaction.
+        """
+
+    @abc.abstractmethod
+    def remove(self, path: HgPathT, tr: TransactionT):
+        """Remove a path from the file index.
+
+        Raises a ValueError if the path is not in the file index.
+
+        It is not allowed to call add and remove in the same transaction.
         """
 
     @abc.abstractmethod

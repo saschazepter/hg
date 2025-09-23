@@ -224,8 +224,12 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 cl.strip(striprev, tr)
                 stripmanifest(repo, striprev, tr, files)
 
+                fileindex = repo.store.fileindex
                 for fn in files:
-                    repo.file(fn).strip(striprev, tr)
+                    filelog = repo.file(fn)
+                    filelog.strip(striprev, tr)
+                    if fileindex is not None and len(filelog) == 0:
+                        fileindex.remove(fn, tr)
                 tr.endgroup()
 
                 entries = tr.readjournal()

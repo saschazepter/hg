@@ -1459,6 +1459,3 @@ class FileIndexStore(basicstore):
             self._filecache.pop(b'fileindex', None)
         if 'fileindex' in vars(self):
             del self.fileindex
-
-    def markremoved(self, fn):
-        raise NotImplementedError("file index markremoved not implemented yet")

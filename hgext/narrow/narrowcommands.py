@@ -297,9 +297,11 @@ def _narrow(
                 repair.strip(ui, unfi, tostrip, topic=b'narrow', backup=backup)
 
         todelete = []
+        to_remove_from_file_index = []
         for entry in repo.store.data_entries():
             if entry.is_filelog:
                 if not newmatch(entry.target_id):
+                    to_remove_from_file_index.append(entry.target_id)
                     for file_ in entry.files(repo.svfs):
                         todelete.append(file_.unencoded_path)
             elif entry.is_manifestlog:
@@ -319,10 +321,15 @@ def _narrow(
 
         repo.destroying()
 
-        with repo.transaction(b'narrowing'):
+        with repo.transaction(b'narrowing') as tr:
             # Update narrowspec before removing revlogs, so repo won't be
             # corrupt in case of crash
             repo.setnarrowpats(newincludes, newexcludes)
+
+            fileindex = repo.store.fileindex
+            if fileindex:
+                for path in to_remove_from_file_index:
+                    fileindex.remove(path, tr)
 
             for f in todelete:
                 ui.status(_(b'deleting %s\n') % f)

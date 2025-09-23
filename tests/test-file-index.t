@@ -154,6 +154,84 @@ immediately). Use --path because it causes a lookup in the tree file.
 
   $ cd ..
 
+Test removing paths with debugstrip
+-----------------------------------
+
+  $ hg init repostrip --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repostrip
+
+Start with one file
+  $ touch file0
+  $ hg ci -qAm 0
+  $ hg debug::file-index
+  0: file0
+
+Strip to remove the file
+  $ hg debugstrip -q -r 0
+  $ hg debug::file-index
+
+Add the file back
+  $ touch file0
+  $ hg ci -qAm 0
+  $ hg debug::file-index
+  0: file0
+
+Add another file
+  $ touch file1
+  $ hg ci -qAm 1
+  $ hg debug::file-index
+  0: file0
+  1: file1
+
+Strip to remove only the second file
+  $ hg debugstrip -q -r 1
+  $ hg debug::file-index
+  0: file0
+
+Add two more files
+  $ touch file1
+  $ hg ci -qAm 1
+  $ hg up -q 0
+  $ touch file2
+  $ hg ci -qAm 2
+  $ hg debug::file-index
+  0: file0
+  1: file1
+  2: file2
+
+Strip to remove the middle file
+  $ hg debugstrip -q -r 1
+  $ hg debug::file-index
+  0: file0
+  1: file2
+
+  $ cd ..
+
+Test removing paths with tracked
+--------------------------------
+
+  $ cp $HGRCPATH hgrc.backup
+  $ . "$TESTDIR/narrow-library.sh"
+
+Set up a narrow clone
+  $ hg clone -q repostrip repotracked --narrow --include "" --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repotracked
+  $ hg debug::file-index
+  0: file0
+  1: file2
+
+Test excluding file0
+  $ hg tracked -q --addexclude file0
+  $ hg debug::file-index
+  0: file2
+
+Test excluding file2 too
+  $ hg tracked -q --addexclude file2
+  $ hg debug::file-index
+
+  $ cd ..
+  $ mv hgrc.backup $HGRCPATH
+
 Test interaction with hooks
 ---------------------------
 
