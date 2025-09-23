@@ -224,7 +224,7 @@ def _split_compression(
 
 
 @attr.s(slots=True)
-class OutboundRevision(repository.irevisiondelta):
+class OutboundRevision(repository.IOutboundRevision):
     node = attr.ib(type=bytes)
     p1node = attr.ib(type=bytes)
     p2node = attr.ib(type=bytes)

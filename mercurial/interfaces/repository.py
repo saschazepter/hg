@@ -520,7 +520,7 @@ class iverifyproblem(Protocol):
     """
 
 
-class irevisiondelta(Protocol):
+class IOutboundRevision(Protocol):
     """Represents a delta between one revision and another.
 
     Instances convey enough information to allow a revision to be exchanged
@@ -833,10 +833,10 @@ class ifiledata(Protocol):
         assumehaveparentrevisions=False,
         deltamode=CG_DELTAMODE_STD,
     ):
-        """Produce ``irevisiondelta`` for revisions.
+        """Produce ``IOutboundRevision`` for revisions.
 
         Given an iterable of nodes, emits objects conforming to the
-        ``irevisiondelta`` interface that describe revisions in storage.
+        ``IOutboundRevision`` interface that describe revisions in storage.
 
         This method is a generator.
 
@@ -872,7 +872,7 @@ class ifiledata(Protocol):
         revisions to be emitted before their ancestors, so consumers should
         use it with care.
 
-        The ``linknode`` attribute on the returned ``irevisiondelta`` may not
+        The ``linknode`` attribute on the returned ``IOutboundRevision`` may not
         be set and it is the caller's responsibility to resolve it, if needed.
 
         If ``deltamode`` is CG_DELTAMODE_PREV and revision data is requested,
@@ -1522,7 +1522,7 @@ class imanifeststorage(Protocol):
         revisiondata=False,
         assumehaveparentrevisions=False,
     ):
-        """Produce ``irevisiondelta`` describing revisions.
+        """Produce ``IOutboundRevision`` describing revisions.
 
         See the documentation for ``ifiledata`` for more.
         """
