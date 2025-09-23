@@ -2330,7 +2330,9 @@ class ChangeGroupPacker05(cgpacker):
         )
 
 
-_packermap = {
+_packermap: dict[
+    bytes, tuple[type[i_cg.IChangeGroupPacker], type[cg1unpacker]]
+] = {
     b'01': (ChangeGroupPacker01, cg1unpacker),
     # cg2 adds support for exchanging generaldelta
     b'02': (ChangeGroupPacker02, cg2unpacker),
