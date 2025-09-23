@@ -430,11 +430,10 @@ def clone(
                 u = urlutil.url(abspath)
                 defaulturl = bytes(u)
                 local.ui.setconfig(b'paths', b'default', defaulturl, b'clone')
-                if not stream:
-                    if pull:
-                        stream = False
-                    else:
-                        stream = None
+                # If the user asks for "pull" mode, only use
+                # stream clones if the user explicitly asked for them.
+                if stream is None and pull:
+                    stream = False
                 # internal config: ui.quietbookmarkmove
                 overrides = {(b'ui', b'quietbookmarkmove'): True}
                 with local.ui.configoverride(overrides, b'clone'):

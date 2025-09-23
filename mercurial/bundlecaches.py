@@ -431,9 +431,20 @@ def filterclonebundleentries(
 
                 # If a stream clone was requested, filter out non-streamclone
                 # entries.
-                if streamclonerequested and not isstreamclonespec(bundlespec):
+                if isstreamclonespec(bundlespec):
+                    if (
+                        streamclonerequested is not None
+                        and not streamclonerequested
+                    ):
+                        repo.ui.debug(
+                            b'filtering %s because it is a stream clonebundle\n'
+                            % url
+                        )
+                        continue
+                elif streamclonerequested:
                     repo.ui.debug(
-                        b'filtering %s because not a stream clone\n' % url
+                        b'filtering %s because it is not a stream clonebundle\n'
+                        % url
                     )
                     continue
 

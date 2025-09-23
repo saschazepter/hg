@@ -2002,13 +2002,17 @@ def clone(ui, source, dest=None, **opts):
         if opts.get('exclude'):
             excludepats = narrowspec.parsepatterns(opts.get('exclude'))
 
+    stream = opts.get('stream')
+    if stream is None:
+        stream = opts.get('uncompressed')
+
     r = clone_impl.clone(
         ui,
         pycompat.byteskwargs(opts),
         source,
         dest,
         pull=opts.get('pull'),
-        stream=opts.get('stream') or opts.get('uncompressed'),
+        stream=stream,
         revs=opts.get('rev'),
         update=opts.get('updaterev') or not opts.get('noupdate'),
         branch=opts.get('branch'),
