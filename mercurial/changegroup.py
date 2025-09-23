@@ -2259,20 +2259,10 @@ class ChangeGroupPacker04(cgpacker):
         )
 
 
-def _makecg5packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
+class ChangeGroupPacker05(cgpacker):
     # Sidedata is in a separate chunk from the delta to differentiate
     # "raw delta" and sidedata.
-    def builddeltaheader(d):
+    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
         return _CHANGEGROUPV5_DELTA_HEADER.pack(
             d.protocol_flags,
             d.node,
@@ -2283,20 +2273,32 @@ def _makecg5packer(
             d.flags,
         )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'05',
-        builddeltaheader=builddeltaheader,
-        manifestsend=closechunk(),
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-        remote_sidedata=remote_sidedata,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super().__init__(
+            repo,
+            oldmatcher,
+            matcher,
+            b'05',
+            builddeltaheader=self._builddeltaheader,
+            manifestsend=closechunk(),
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+            remote_sidedata=remote_sidedata,
+        )
 
 
 _packermap = {
@@ -2308,7 +2310,7 @@ _packermap = {
     # cg4 adds support for exchanging more advances flags
     b'04': (ChangeGroupPacker04, cg4unpacker),
     # ch5 adds support for exchanging sidedata
-    b'05': (_makecg5packer, cg5unpacker),
+    b'05': (ChangeGroupPacker05, cg5unpacker),
 }
 
 
