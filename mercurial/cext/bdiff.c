@@ -111,7 +111,8 @@ static PyObject *_inner_bdiff(PyObject *self, PyObject *args, bool prune_suffix)
 
 	if (prune_suffix) {
 		li = 0;
-		for (ia = ba.buf + la - 1, ib = bb.buf + lb - 1;
+		for (ia = ((char *)ba.buf) + la - 1,
+		    ib = ((char *)bb.buf) + lb - 1;
 		     li < lmax - lcommon_prefix && *ia == *ib;
 		     ++li, --ia, --ib) {
 			if (*ia == '\n') {
