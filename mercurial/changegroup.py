@@ -2212,50 +2212,51 @@ class ChangeGroupPacker03(cgpacker):
         )
 
 
-def _cg4_delta_header(d: RevisionDeltaT):
-    snap_lvl = -2  # means no-info
-    if d.snapshot_level is not None:
-        snap_lvl = d.snapshot_level
-    return _CHANGEGROUPV4_DELTA_HEADER.pack(
-        d.node,
-        d.p1node,
-        d.p2node,
-        d.basenode,
-        d.linknode,
-        d.flags,
-        snap_lvl,
-    )
+class ChangeGroupPacker04(cgpacker):
+    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+        snap_lvl = -2  # means no-info
+        if d.snapshot_level is not None:
+            snap_lvl = d.snapshot_level
+        return _CHANGEGROUPV4_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.basenode,
+            d.linknode,
+            d.flags,
+            snap_lvl,
+        )
 
-
-def _makecg4packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    """Changegroup 4 support more advanced flag for each delta.
-
-    see documentation of cg4unpacker for details.
-    """
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'04',
-        builddeltaheader=_cg4_delta_header,
-        manifestsend=closechunk(),
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-        filelog_hasmeta=True,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        """Changegroup 4 support more advanced flag for each delta.
+
+        see documentation of cg4unpacker for details.
+        """
+        super().__init__(
+            repo,
+            oldmatcher,
+            matcher,
+            b'04',
+            builddeltaheader=self._builddeltaheader,
+            manifestsend=closechunk(),
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+            filelog_hasmeta=True,
+        )
 
 
 def _makecg5packer(
@@ -2305,7 +2306,7 @@ _packermap = {
     # cg3 adds support for exchanging revlog flags and treemanifests
     b'03': (ChangeGroupPacker03, cg3unpacker),
     # cg4 adds support for exchanging more advances flags
-    b'04': (_makecg4packer, cg4unpacker),
+    b'04': (ChangeGroupPacker04, cg4unpacker),
     # ch5 adds support for exchanging sidedata
     b'05': (_makecg5packer, cg5unpacker),
 }
