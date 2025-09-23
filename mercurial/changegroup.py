@@ -2137,34 +2137,41 @@ class ChangeGroupPacker01(cgpacker):
         )
 
 
-def _makecg2packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    builddeltaheader = lambda d: _CHANGEGROUPV2_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.basenode, d.linknode
-    )
+class ChangeGroupPacker02(cgpacker):
+    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+        return _CHANGEGROUPV2_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.basenode,
+            d.linknode,
+        )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'02',
-        builddeltaheader=builddeltaheader,
-        manifestsend=b'',
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super().__init__(
+            repo,
+            oldmatcher,
+            matcher,
+            b'02',
+            builddeltaheader=self._builddeltaheader,
+            manifestsend=b'',
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+        )
 
 
 def _makecg3packer(
@@ -2286,7 +2293,7 @@ def _makecg5packer(
 _packermap = {
     b'01': (ChangeGroupPacker01, cg1unpacker),
     # cg2 adds support for exchanging generaldelta
-    b'02': (_makecg2packer, cg2unpacker),
+    b'02': (ChangeGroupPacker02, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
     b'03': (_makecg3packer, cg3unpacker),
     # cg4 adds support for exchanging more advances flags
