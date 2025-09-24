@@ -59,7 +59,6 @@ will likely receive warnings about a direct import.
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.incoming (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.clone (glob)
   mercurial/templatekw.py:*: function level import: mercurial.cmdutil (glob)
-  mercurial/util.py:*: function level import: mercurial.__version__ (glob)
   mercurial/utils/compression.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)

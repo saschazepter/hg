@@ -41,6 +41,7 @@ Config
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import os
 import re
@@ -71,11 +72,6 @@ from .utils import (
     procutil,
     stringutil,
 )
-
-try:
-    from . import __version__  # pytype: disable=import-error
-except ImportError:
-    __version__ = None
 
 
 if typing.TYPE_CHECKING:
@@ -172,7 +168,13 @@ def _getmtimepaths(ui):
     - python binary
     """
     modules = [m for n, m in extensions.extensions(ui)]
-    if __version__ is not None:
+    try:
+        # use importlib to prevent pytype to see the dependencies and
+        # invalidate the cache on every rebuild (like… any test run).
+        __version__ = importlib.import_module('mercurial.__version__')
+    except ImportError:
+        pass
+    else:
         modules.append(__version__)
     files = []
     if pycompat.sysexecutable:

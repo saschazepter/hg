@@ -1220,12 +1220,14 @@ def makeloggingsocket(
 def version() -> bytes:
     """Return version information if available."""
     try:
-        from . import __version__  # pytype: disable=import-error
-
-        # setuptools-scm uses py3 str
-        return __version__.version.encode()
+        # use importlib to prevent pytype to see the dependencies and
+        # invalidate the cache on every rebuild (like… any test run).
+        __version__ = importlib.import_module('mercurial.__version__')
     except ImportError:
         return b'unknown'
+    else:
+        # setuptools-scm uses py3 str
+        return __version__.version.encode()
 
 
 def versiontuple(v=None, n=4):
