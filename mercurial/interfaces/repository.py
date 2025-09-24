@@ -34,6 +34,7 @@ if typing.TYPE_CHECKING:
 
     from ._basetypes import (
         HgPathT,
+        NeedsTypeHint,
         RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
@@ -1851,6 +1852,13 @@ class IRepo(Protocol):
     # Tt exists to let extension expand the set easily.
     _wlockfreeprefix: set[HgPathT]
     """files and directory that can be accessed without the wlock"""
+
+    _phasecache: NeedsTypeHint
+    """old the phase information.
+
+    Note: the leading `_` is wrong as this is neither a cache nor a private
+    information.
+    """
 
     @abc.abstractmethod
     def close(self):

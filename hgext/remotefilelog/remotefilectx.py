@@ -9,28 +9,38 @@ from __future__ import annotations
 
 import collections
 import time
-import typing
+
+from typing import (
+    Iterator,
+    Protocol,
+)
 
 from mercurial.node import bin, hex, nullrev
 from mercurial import (
-    ancestor,
     context,
     error,
     phases,
     util,
 )
-from . import shallowutil
-
-if typing.TYPE_CHECKING:
-    from typing import (
-        Iterator,
-    )
+from mercurial.interfaces import (
+    repository,
+)
+from . import (
+    fileserverclient,
+    shallowutil,
+)
 
 propertycache = util.propertycache
 FASTLOG_TIMEOUT_IN_SECS = 0.5
 
 
+class RFLRepo(repository.IRepo, Protocol):
+    fileservice: fileserverclient.fileserverclient
+
+
 class remotefilectx(context.filectx):
+    _repo: RFLRepo
+
     def __init__(
         self,
         repo,
@@ -425,27 +435,9 @@ class remotefilectx(context.filectx):
         if fc2.path() in actx and self.path() not in actx:
             return actx[fc2.path()]
 
-        # do a full traversal
-        amap = self.ancestormap()
-        bmap = fc2.ancestormap()
-
-        def parents(x):
-            f, n = x
-            p = amap.get(n) or bmap.get(n)
-            if not p:
-                return []
-
-            return [(p[3] or f, p[0]), (f, p[1])]
-
-        a = (self.path(), self.filenode())
-        b = (fc2.path(), fc2.filenode())
-        result = ancestor.genericancestor(a, b, parents)
-        if result:
-            f, n = result
-            r = remotefilectx(self._repo, f, fileid=n, ancestormap=amap)
-            return r
-
-        return None
+        # the code handling this was "dead" since by over 10 years and was
+        # deleted. Check history if you need this to work again.
+        raise NotImplementedError
 
     def annotate(self, *args, **kwargs):
         introctx = self
