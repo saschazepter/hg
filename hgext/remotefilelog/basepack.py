@@ -278,6 +278,10 @@ class basepack(versionmixin):
 
     SUPPORTED_VERSIONS = [2]
 
+    PACKSUFFIX: bytes
+    INDEXSUFFIX: bytes
+    _pagedin: int
+
     def __init__(self, path):
         self.path = path
         self.packpath = path + self.PACKSUFFIX
@@ -359,6 +363,10 @@ class basepack(versionmixin):
 
 
 class mutablebasepack(versionmixin):
+    INDEXENTRYLENGTH: int
+    PACKSUFFIX: bytes
+    INDEXSUFFIX: bytes
+
     def __init__(self, ui, packdir, version=2):
         self._checkversion(version)
         # TODO(augie): make this configurable
