@@ -96,7 +96,7 @@ if typing.TYPE_CHECKING:
 
     from .interfaces.types import (
         NodeIdT,
-        RevisionDeltaT,
+        OutboundRevisionT,
     )
 
 from . import (
@@ -3925,7 +3925,7 @@ class revlog:
         assumehaveparentrevisions=False,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[RevisionDeltaT]:
+    ) -> Iterator[OutboundRevisionT]:
         """Generic implementation of ifiledata.emitrevisions().
 
         Emitting revision data is subtly complex. This function attempts to

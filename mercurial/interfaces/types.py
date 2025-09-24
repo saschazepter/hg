@@ -67,7 +67,7 @@ MatcherMatchFuncT = matcher.MatchFuncT
 MatcherT = matcher.IMatcher
 MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
 
-RevisionDeltaT = repository.IOutboundRevision
+OutboundRevisionT = repository.IOutboundRevision
 
 StatusT = status.Status
 SubrepoT = misc.ISubRepo

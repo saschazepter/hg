@@ -31,8 +31,8 @@ from .interfaces.types import (
     MatcherT,
     NeedsTypeHint,
     NodeIdT,
+    OutboundRevisionT,
     RepoT,
-    RevisionDeltaT,
     RevnumT,
 )
 
@@ -1153,7 +1153,7 @@ def deltagroup(
     sidedata_helpers=None,
     debug_info: dict[str, NeedsTypeHint] | None = None,
     filelog_hasmeta: bool = False,
-) -> Iterator[RevisionDeltaT]:
+) -> Iterator[OutboundRevisionT]:
     """Calculate deltas for a set of revisions.
 
     Is a generator of ``revisiondelta`` instances.
@@ -1584,7 +1584,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
             self._verbosenote = lambda s: None
 
     @abc.abstractmethod
-    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         ...
 
     def generate(
@@ -1785,7 +1785,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         generate=True,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> tuple[dict[bytes, NeedsTypeHint], Iterator[RevisionDeltaT]]:
+    ) -> tuple[dict[bytes, NeedsTypeHint], Iterator[OutboundRevisionT]]:
         """Generate data for changelog chunks.
 
         Returns a 2-tuple of a dict containing state and an iterable of
@@ -1896,7 +1896,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         clrevtolocalrev,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[tuple[bytes, Iterator[RevisionDeltaT]]]:
+    ) -> Iterator[tuple[bytes, Iterator[OutboundRevisionT]]]:
         """Returns an iterator of changegroup chunks containing manifests.
 
         `source` is unused here, but is used by extensions like remotefilelog to
@@ -2036,7 +2036,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         clrevs,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[tuple[bytes, Iterator[RevisionDeltaT]]]:
+    ) -> Iterator[tuple[bytes, Iterator[OutboundRevisionT]]]:
         changedfiles = [
             f
             for f in changedfiles
@@ -2142,7 +2142,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
 
 
 class ChangeGroupPacker01(cgpacker):
-    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         return _CHANGEGROUPV1_DELTA_HEADER.pack(
             d.node,
             d.p1node,
@@ -2178,7 +2178,7 @@ class ChangeGroupPacker01(cgpacker):
 
 
 class ChangeGroupPacker02(cgpacker):
-    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         return _CHANGEGROUPV2_DELTA_HEADER.pack(
             d.node,
             d.p1node,
@@ -2214,7 +2214,7 @@ class ChangeGroupPacker02(cgpacker):
 
 
 class ChangeGroupPacker03(cgpacker):
-    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         return _CHANGEGROUPV3_DELTA_HEADER.pack(
             d.node,
             d.p1node,
@@ -2251,7 +2251,7 @@ class ChangeGroupPacker03(cgpacker):
 
 
 class ChangeGroupPacker04(cgpacker):
-    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         snap_lvl = -2  # means no-info
         if d.snapshot_level is not None:
             snap_lvl = d.snapshot_level
@@ -2299,7 +2299,7 @@ class ChangeGroupPacker04(cgpacker):
 class ChangeGroupPacker05(cgpacker):
     # Sidedata is in a separate chunk from the delta to differentiate
     # "raw delta" and sidedata.
-    def _builddeltaheader(self, d: RevisionDeltaT) -> bytes:
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         return _CHANGEGROUPV5_DELTA_HEADER.pack(
             d.protocol_flags,
             d.node,

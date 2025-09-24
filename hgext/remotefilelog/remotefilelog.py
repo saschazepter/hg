@@ -16,7 +16,7 @@ from typing import (
 
 from mercurial.node import bin
 from mercurial.i18n import _
-from mercurial.interfaces.types import RevisionDeltaT
+from mercurial.interfaces.types import OutboundRevisionT
 from mercurial.revlogutils.constants import (
     META_MARKER,
     META_MARKER_SIZE,
@@ -311,7 +311,7 @@ class remotefilelog:
         deltamode=None,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[RevisionDeltaT]:
+    ) -> Iterator[OutboundRevisionT]:
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious
         del deltamode
