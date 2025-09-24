@@ -16,6 +16,8 @@ import weakref
 from typing import (
     Callable,
     Iterator,
+    Optional,
+    TYPE_CHECKING,
     cast,
 )
 
@@ -34,6 +36,7 @@ from .interfaces.types import (
     RevnumT,
 )
 
+from .thirdparty import attr
 from . import (
     error,
     match as matchmod,
@@ -53,6 +56,11 @@ from .interfaces import (
 from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
 from .utils import storageutil
+
+# Force pytype to use the non-vendored package
+if TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 # small type alias to help type some function
 LookupFnT = Callable[[NodeIdT], NodeIdT]
@@ -289,6 +297,24 @@ def display_unbundle_debug_info(ui, debug_info):
                 _dbg_ubdl_line(ui, 3, b'cached', t[tc], td, b"total")
 
 
+@attr.s(slots=True)
+class _DeltaHeader:
+    """internal data class to hold information read from the binary header
+
+    Hold default values to be used by older format that don't carry that
+    information.
+    """
+
+    node = attr.ib(type=NodeIdT)
+    p1 = attr.ib(type=NodeIdT)
+    p2 = attr.ib(type=NodeIdT)
+    delta_base = attr.ib(type=NodeIdT)
+    cs = attr.ib(type=NodeIdT)
+    flags = attr.ib(type=int, default=0)
+    protocol_flags = attr.ib(type=int, default=0)
+    snapshot_level = attr.ib(type=Optional[int], default=None)
+
+
 class cg1unpacker(i_cg.IChangeGroupUnpacker):
     """Unpacker for cg1 changegroup streams.
 
@@ -382,15 +408,23 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
         fname = readexactly(self._stream, l)
         return {b'filename': fname}
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, cs = headertuple
         if prevnode is None:
             deltabase = p1
         else:
             deltabase = prevnode
-        flags = 0
-        protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+        )
 
     def deltachunk(
         self, prevnode: bytes | None
@@ -402,18 +436,17 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
         header = self.deltaheader.unpack(headerdata)
         delta = readexactly(self._stream, l - self.deltaheadersize)
         header = self._deltaheader(header, prevnode)
-        node, p1, p2, deltabase, cs, flags, protocol_flags, snap_lvl = header
         return revlogutils.InboundRevision(
-            node,
-            p1,
-            p2,
-            cs,
-            deltabase,
+            header.node,
+            header.p1,
+            header.p2,
+            header.cs,
+            header.delta_base,
             delta,
-            flags,
+            header.flags,
             {},
-            protocol_flags,
-            snapshot_level=snap_lvl,
+            header.protocol_flags,
+            snapshot_level=header.snapshot_level,
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
         )
@@ -848,11 +881,19 @@ class cg2unpacker(cg1unpacker):
     deltaheadersize = deltaheader.size
     version = b'02'
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, deltabase, cs = headertuple
-        flags = 0
-        protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+        )
 
 
 class cg3unpacker(cg2unpacker):
@@ -870,10 +911,20 @@ class cg3unpacker(cg2unpacker):
 
     has_censor_flag = True
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, deltabase, cs, flags = headertuple
-        protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+            flags=flags,
+        )
 
     def _unpackmanifests(
         self,
@@ -922,20 +973,22 @@ class cg4unpacker(cg3unpacker):
 
     has_filelog_hasmeta_flag = True
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, deltabase, cs, flags, snapshot_level = headertuple
-        protocol_flags = 0
         if snapshot_level < -1:
             snapshot_level = None
-        return (
-            node,
-            p1,
-            p2,
-            deltabase,
-            cs,
-            flags,
-            protocol_flags,
-            snapshot_level,
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+            flags=flags,
+            snapshot_level=snapshot_level,
         )
 
 
@@ -949,9 +1002,21 @@ class cg5unpacker(cg3unpacker):
     deltaheadersize = deltaheader.size
     version = b'05'
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+            flags=flags,
+            protocol_flags=protocol_flags,
+        )
 
     def deltachunk(
         self, prevnode: bytes | None
