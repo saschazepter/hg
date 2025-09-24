@@ -161,6 +161,10 @@ class TreeNodeHeader:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
+EMPTY_TREE_BYTES = TreeNodeHeader(flags=0, num_children=0).serialize()
+"""A serialized empty file index tree."""
+
+
 TREE_NODE_FLAG_HAS_TOKEN = 0x01
 """Bit in TreeNodeHeader.flags indicating it is followed by a 32-bit token."""
 

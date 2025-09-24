@@ -223,7 +223,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self._mapfile(
             self._tree_file_path(),
             self.docket.tree_file_size,
-            default=b"\x00\x00",
+            default=file_index_util.EMPTY_TREE_BYTES,
         )
 
     def _mapfile(self, path: bytes, size: int, default=b"") -> memoryview:
