@@ -165,3 +165,6 @@ class IMatcher(Protocol):
     def anypats(self) -> bool:
         """None of .always(), .isexact(), and .prefix() is true --
         optimizations will be difficult."""
+
+
+MatcherT = IMatcher

@@ -64,7 +64,7 @@ LocalRepoFileStorageT = repository.IRepo
 MatcherBadFuncT = matcher.BadFuncT
 MatcherKindPatT = matcher.KindPatT
 MatcherMatchFuncT = matcher.MatchFuncT
-MatcherT = matcher.IMatcher
+MatcherT = matcher.MatcherT
 MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
 
 OutboundRevisionT = repository.IOutboundRevision
