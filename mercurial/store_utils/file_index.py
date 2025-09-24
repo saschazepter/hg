@@ -12,6 +12,7 @@ import typing
 from ..i18n import _
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT, TransactionT
+from ..utils import docket as docketmod
 from .. import error, formatter, pycompat, testing, ui as uimod, util
 from ..interfaces import file_index as int_file_index
 from . import file_index_util
@@ -243,7 +244,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _open_list_file(self, create: bool):
         if create:
-            self.docket.list_file_id = file_index_util.Docket.make_id()
+            self.docket.list_file_id = docketmod.make_uid()
             return self._opener(self._list_file_path(), b"wb")
         f = self._opener(self._list_file_path(), b"r+b")
         f.seek(self.docket.list_file_size)
@@ -251,7 +252,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _open_meta_file(self, create: bool):
         if create:
-            self.docket.meta_file_id = file_index_util.Docket.make_id()
+            self.docket.meta_file_id = docketmod.make_uid()
             return self._opener(self._meta_file_path(), b"wb")
         f = self._opener(self._meta_file_path(), b"r+b")
         f.seek(self.docket.meta_file_size)
@@ -259,7 +260,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _open_tree_file(self, create: bool):
         if create:
-            self.docket.tree_file_id = file_index_util.Docket.make_id()
+            self.docket.tree_file_id = docketmod.make_uid()
             return self._opener(self._tree_file_path(), b"wb")
         f = self._opener(self._tree_file_path(), b"r+b")
         f.seek(self.docket.tree_file_size)

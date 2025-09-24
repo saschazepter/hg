@@ -72,10 +72,6 @@ class Docket:
     # Currently unused. Reset to zero when writing the docket.
     reserved_flags = attr.ib(type=int, default=0)
 
-    @staticmethod
-    def make_id():
-        return docket.make_uid()
-
     @classmethod
     def parse_from(cls, data: memoryview) -> Docket:
         """Parse a file index docket from bytes."""
