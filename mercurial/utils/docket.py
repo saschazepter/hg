@@ -25,15 +25,21 @@ from .. import encoding, node
 
 UID_SIZE = 8
 
+UNSET_UID = b"0" * UID_SIZE
+
 
 def make_uid():
     """Return a new unique identifier.
 
     The identifier is random and composed of UID_SIZE ascii characters.
+    It will never be equal to UNSET_UID.
     """
-    # Since we "hex" the result we need half the number of bits to have a
-    # final uid of size UID_SIZE.
-    return node.hex(os.urandom(UID_SIZE // 2))
+    n = 0
+    while n == 0:
+        # Since we "hex" the result we need half the number of bits to have a
+        # final uid of size UID_SIZE.
+        n = os.urandom(UID_SIZE // 2)
+    return node.hex(n)
 
 
 # some special test logic to avoid anoying random output in the test

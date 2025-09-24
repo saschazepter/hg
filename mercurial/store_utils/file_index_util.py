@@ -27,7 +27,6 @@ V1_FORMAT_MARKER = b"fileindex-v1"
 class Docket:
     """Parsed file index docket."""
 
-    UNSET_ID = b"0" * docket.UID_SIZE
     STRUCT = struct.Struct(
         "".join(
             [
@@ -53,13 +52,13 @@ class Docket:
     # Used size of trash file in bytes.
     trash_file_size = attr.ib(type=int, default=0)
     # List file path ID.
-    list_file_id = attr.ib(type=bytes, default=UNSET_ID)
+    list_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Reserved for future use.
-    reserved_revlog_id = attr.ib(type=bytes, default=UNSET_ID)
+    reserved_revlog_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Meta file path ID.
-    meta_file_id = attr.ib(type=bytes, default=UNSET_ID)
+    meta_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Tree file path ID.
-    tree_file_id = attr.ib(type=bytes, default=UNSET_ID)
+    tree_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Pseudo-pointer to the root node in the tree file.
     tree_root_pointer = attr.ib(type=int, default=0)
     # Number of unused bytes within tree_file_size.
