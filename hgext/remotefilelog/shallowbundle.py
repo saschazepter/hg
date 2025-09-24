@@ -26,7 +26,7 @@ LocalFiles = 1
 AllFiles = 2
 
 
-class shallowcg1packer(changegroup.cgpacker):
+class ShallowCGPacker(changegroup.cgpacker):
     def generate(
         self,
         commonrevs,
@@ -136,6 +136,16 @@ def makechangegroup(orig, repo, outgoing, version, source, *args, **kwargs):
         return orig(repo, outgoing, version, source, *args, **kwargs)
     finally:
         repo.shallowmatch = original
+
+
+def wrap_bundler(orig, *args, **kwargs):
+    cg = orig(*args, **kwargs)
+
+    class Packer(ShallowCGPacker, cg.__class__):
+        pass
+
+    cg.__class__ = Packer
+    return cg
 
 
 def addchangegroupfiles(

@@ -323,13 +323,14 @@ def uisetup(ui):
     # debugdata needs remotefilelog.len to work
     extensions.wrapcommand(commands.table, b'debugdata', debugdatashallow)
 
-    changegroup.cgpacker = shallowbundle.shallowcg1packer
-
     extensions.wrapfunction(
         changegroup, '_addchangegroupfiles', shallowbundle.addchangegroupfiles
     )
     extensions.wrapfunction(
         changegroup, 'makechangegroup', shallowbundle.makechangegroup
+    )
+    extensions.wrapfunction(
+        changegroup, 'getbundler', shallowbundle.wrap_bundler
     )
     extensions.wrapfunction(localrepo, 'makestore', storewrapper)
     extensions.wrapfunction(exchange, 'pull', exchangepull)
