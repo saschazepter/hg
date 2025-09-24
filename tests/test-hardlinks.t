@@ -196,13 +196,8 @@ Push to repo r1 should break up most hardlinks in r2:
   1 r2/.hg/store/00manifest.i
   1 r2/.hg/store/data/d1/f2.i
   2 r2/.hg/store/data/f1.i
-  [12] r2/\.hg/store/fncache (re)
+  1 r2/\.hg/store/fncache (re)
   1 r2/.hg/store/requires
-
-#if hardlink-whitelisted
-  $ nlinksdir r2/.hg/store/fncache
-  1 r2/.hg/store/fncache
-#endif
 
   $ hg -R r2 verify -q
 
@@ -226,11 +221,6 @@ Committing a change to f1 in r1 must break up hardlink f1.i in r2:
   1 r2/.hg/store/data/f1.i
   1 r2/.hg/store/fncache
   1 r2/.hg/store/requires
-
-#if hardlink-whitelisted
-  $ nlinksdir r2/.hg/store/fncache
-  1 r2/.hg/store/fncache
-#endif
 
 Create a file which exec permissions we will change
   $ cd r3
