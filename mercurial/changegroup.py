@@ -15,9 +15,7 @@ import weakref
 
 from typing import (
     Callable,
-    Dict,
     Iterator,
-    Set,
     cast,
 )
 
@@ -58,7 +56,6 @@ from .utils import storageutil
 
 # small type alias to help type some function
 LookupFnT = Callable[[NodeIdT], NodeIdT]
-PreComputedEllipsisT = Dict[RevnumT, Set[RevnumT]]
 
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
@@ -1147,7 +1144,7 @@ def deltagroup(
     ellipses: bool = False,
     clrevtolocalrev: dict[RevnumT, RevnumT] | None = None,
     fullclnodes: set[NodeIdT] | None = None,
-    precomputedellipsis: PreComputedEllipsisT | None = None,
+    precomputedellipsis: i_cg.PreComputedEllipsisT | None = None,
     # typing: the sidedata_helpers were a bit too hairy to type when this
     # function was opportunisticly typed. Feel free to fix that.
     sidedata_helpers=None,
@@ -1493,7 +1490,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
     _isshallow: bool
     _fullclnodes: set[NodeIdT]
 
-    _precomputedellipsis: PreComputedEllipsisT | None
+    _precomputedellipsis: i_cg.PreComputedEllipsisT | None
 
     _repo: RepoT
 
@@ -1501,19 +1498,19 @@ class cgpacker(i_cg.IChangeGroupPacker):
 
     def _init(
         self,
-        repo,
-        oldmatcher,
-        matcher,
-        version,
-        manifestsend,
-        forcedeltaparentprev=False,
-        bundlecaps=None,
-        ellipses=False,
-        shallow=False,
-        ellipsisroots=None,
-        fullnodes=None,
-        remote_sidedata=None,
-        filelog_hasmeta=False,
+        repo: RepoT,
+        oldmatcher: MatcherT,
+        matcher: MatcherT,
+        version: bytes,
+        manifestsend: bytes,
+        forcedeltaparentprev: bool = False,
+        bundlecaps: set | None = None,
+        ellipses: bool = False,
+        shallow: bool = False,
+        ellipsisroots: i_cg.PreComputedEllipsisT | None = None,
+        fullnodes: set[NodeIdT] | None = None,
+        remote_sidedata: set[bytes] | None = None,
+        filelog_hasmeta: bool = False,
     ):
         """Given a source repo, construct a bundler.
 
@@ -1571,6 +1568,8 @@ class cgpacker(i_cg.IChangeGroupPacker):
             remote_sidedata = set()
         self._remote_sidedata = remote_sidedata
         self._isshallow = shallow
+        if fullnodes is None:
+            fullnodes = set()
         self._fullclnodes = fullnodes
 
         # Maps ellipsis revs to their roots at the changelog level.

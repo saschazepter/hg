@@ -9,11 +9,19 @@ from __future__ import annotations
 
 import abc
 from typing import (
+    Dict,
     Iterator,
     Protocol,
+    Set,
 )
 
-from . import _basetypes
+from . import (
+    _basetypes,
+    matcher,
+)
+
+
+PreComputedEllipsisT = Dict[_basetypes.RevnumT, Set[_basetypes.RevnumT]]
 
 
 class IChangeGroupPacker(Protocol):
@@ -22,15 +30,15 @@ class IChangeGroupPacker(Protocol):
     @abc.abstractmethod
     def __init__(
         self,
-        repo,
-        oldmatcher,
-        matcher,
-        bundlecaps,
-        ellipses=False,
-        shallow=False,
-        ellipsisroots=None,
-        fullnodes=None,
-        remote_sidedata=None,
+        repo: _basetypes.RepoT,
+        oldmatcher: matcher.MatcherT,
+        matcher: matcher.MatcherT,
+        bundlecaps: set[bytes],
+        ellipses: bool = False,
+        shallow: bool = False,
+        ellipsisroots: PreComputedEllipsisT | None = None,
+        fullnodes: set[_basetypes.NodeIdT] | None = None,
+        remote_sidedata: set[bytes] | None = None,
     ) -> None:
         ...
 
