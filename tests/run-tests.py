@@ -3335,8 +3335,10 @@ class TestRunner:
             subprocess.run(command_create_venv, check=True)
 
             bindir = b"Scripts" if WINDOWS else b"bin"
+            python = b"python.exe" if WINDOWS else b"python"
+
             self._bindir = os.path.join(self._installdir, bindir)
-            self._python = _bytes2sys(os.path.join(self._bindir, b"python"))
+            self._python = _bytes2sys(os.path.join(self._bindir, python))
             self._pythondir = get_site_packages_dir(self._python)
 
         # Force the use of hg.exe instead of relying on MSYS to recognize hg is
