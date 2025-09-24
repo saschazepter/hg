@@ -3348,8 +3348,11 @@ class TestRunner:
         #
         # We do not do it when using wheels and they do not install a .exe.
         if WINDOWS and not self.options.wheel:
-            # Currently no hg.exe without compiler
-            if self.options.pure:
+            # Currently no hg.exe without compiler, unless `run-tests.py` was
+            # invoked without --pure, but then a *.t file invoked it again with
+            # `--pure` (looking at you, test-hghave.t).  In that case, don't
+            # try to run hg.exe.bat.
+            if self.options.pure and not self._hgcommand.endswith(b'.exe'):
                 self._hgcommand += b'.bat'
             elif not self._hgcommand.endswith(b'.exe'):
                 self._hgcommand += b'.exe'
