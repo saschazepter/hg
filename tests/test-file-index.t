@@ -13,7 +13,21 @@ Create a new repo with the file index
   dotencode:                       no    yes     yes
   $ hg debug::file-index
   $ hg debug::file-index --docket
-  no docket exists yet (empty file index)
+  marker: fileindex-v1
+  list_file_size: 0
+  reserved_revlog_size: 0
+  meta_file_size: 0
+  tree_file_size: 0
+  trash_file_size: 0
+  list_file_id: 00000000
+  reserved_revlog_id: 00000000
+  meta_file_id: 00000000
+  tree_file_id: 00000000
+  tree_root_pointer: 0
+  tree_unused_bytes: 0
+  reserved_revlog_unused: 0
+  trash_start_offset: 0
+  reserved_flags: 0
   $ hg debug::file-index --tree
   00000000:
 Add a file

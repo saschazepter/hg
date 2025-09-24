@@ -78,7 +78,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._max_unused_ratio = max_unused_ratio
         self._add = []
         self._add_map = {}
-        self._docket_file_found = False
         self._written = False
 
     def has_token(self, token: FileTokenT):
@@ -179,7 +178,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     @propertycache
     def docket(self) -> file_index_util.Docket:
-        self._docket_file_found = False
         data = None
         if self._try_pending:
             # Written by transaction.writepending.
@@ -189,13 +187,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 data = self._opener.read(b"fileindex")
             except FileNotFoundError:
                 return file_index_util.Docket()
-        self._docket_file_found = True
         return file_index_util.Docket.parse_from(data)
-
-    def _is_initial(self):
-        """Return true if this is a new file index (there was none on disk)."""
-        self.docket
-        return not self._docket_file_found
 
     def _list_file_path(self):
         return b"fileindex-list." + self.docket.list_file_id
@@ -208,10 +200,14 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     @propertycache
     def list_file(self):
+        if self.docket.list_file_id == docketmod.UNSET_UID:
+            return b""
         return self._mapfile(self._list_file_path(), self.docket.list_file_size)
 
     @propertycache
     def meta_file(self):
+        if self.docket.meta_file_id == docketmod.UNSET_UID:
+            return b""
         return self._mapfile(self._meta_file_path(), self.docket.meta_file_size)
 
     @propertycache
@@ -221,46 +217,41 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     @propertycache
     def tree_file(self):
         testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
-        return self._mapfile(
-            self._tree_file_path(),
-            self.docket.tree_file_size,
-            default=file_index_util.EMPTY_TREE_BYTES,
-        )
+        if self.docket.meta_file_id == docketmod.UNSET_UID:
+            return file_index_util.EMPTY_TREE_BYTES
+        return self._mapfile(self._tree_file_path(), self.docket.tree_file_size)
 
-    def _mapfile(self, path: bytes, size: int, default=b"") -> memoryview:
-        """Read a file up to the given size using mmap if possible.
-
-        If this is a new file index, returns default instead.
-        """
-        if self._is_initial():
-            data = default
-        else:
-            with self._opener(path) as fp:
-                if self._opener.is_mmap_safe(path):
-                    data = util.mmapread(fp, size)
-                else:
-                    data = fp.read(size)
+    def _mapfile(self, path: bytes, size: int) -> memoryview:
+        """Read a file up to the given size using mmap if possible."""
+        with self._opener(path) as fp:
+            if self._opener.is_mmap_safe(path):
+                data = util.mmapread(fp, size)
+            else:
+                data = fp.read(size)
         return util.buffer(data)
 
-    def _open_list_file(self, create: bool):
-        if create:
+    def _open_list_file(self, new: bool):
+        if new:
             self.docket.list_file_id = docketmod.make_uid()
+            self.docket.list_file_size = 0
             return self._opener(self._list_file_path(), b"wb")
         f = self._opener(self._list_file_path(), b"r+b")
         f.seek(self.docket.list_file_size)
         return f
 
-    def _open_meta_file(self, create: bool):
-        if create:
+    def _open_meta_file(self, new: bool):
+        if new:
             self.docket.meta_file_id = docketmod.make_uid()
+            self.docket.meta_file_size = 0
             return self._opener(self._meta_file_path(), b"wb")
         f = self._opener(self._meta_file_path(), b"r+b")
         f.seek(self.docket.meta_file_size)
         return f
 
-    def _open_tree_file(self, create: bool):
-        if create:
+    def _open_tree_file(self, new: bool):
+        if new:
             self.docket.tree_file_id = docketmod.make_uid()
+            self.docket.tree_file_size = 0
             return self._opener(self._tree_file_path(), b"wb")
         f = self._opener(self._tree_file_path(), b"r+b")
         f.seek(self.docket.tree_file_size)
@@ -271,9 +262,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self.list_file[offset : offset + length]
 
     def dump_docket(self, ui, template: bytes):
-        if self._is_initial():
-            ui.write(_(b"no docket exists yet (empty file index)\n"))
-            return
         t = formatter.maketemplater(ui, template or DEFAULT_DOCKET_TEMPLATE)
         values = {
             pycompat.bytestr(k): pycompat.bytestr(v)
@@ -328,8 +316,9 @@ class FileIndex(_FileIndexCommon):
     def _write_data(self, vacuum: bool):
         assert not self._written, "should only write once"
         docket = self.docket
-        initial = self._is_initial()
-        new_tree = initial or vacuum
+        new_list = docket.list_file_id == docketmod.UNSET_UID
+        new_meta = docket.meta_file_id == docketmod.UNSET_UID
+        new_tree = docket.tree_file_id == docketmod.UNSET_UID or vacuum
         if new_tree:
             tree = file_index_util.MutableTree(base=None)
             for token, meta in enumerate(self.meta_array):
@@ -343,10 +332,10 @@ class FileIndex(_FileIndexCommon):
                     tree_file=self.tree_file,
                 )
             )
-        if initial or self._add:
+        if new_list or new_meta or self._add:
             with (
-                self._open_list_file(create=initial) as list_file,
-                self._open_meta_file(create=initial) as meta_file,
+                self._open_list_file(new_list) as list_file,
+                self._open_meta_file(new_meta) as meta_file,
             ):
                 token = len(self.meta_array)
                 for path in self._add:
@@ -362,7 +351,7 @@ class FileIndex(_FileIndexCommon):
                     token += 1
         if new_tree or self._add:
             serialized = tree.serialize()
-            with self._open_tree_file(create=new_tree) as tree_file:
+            with self._open_tree_file(new_tree) as tree_file:
                 tree_file.write(serialized.bytes)
             docket.tree_file_size = serialized.tree_file_size
             docket.tree_root_pointer = serialized.tree_root_pointer
