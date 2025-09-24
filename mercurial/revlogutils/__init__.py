@@ -149,7 +149,7 @@ class revisioninfo:
 
 
 @attr.s(slots=True)
-class InboundRevision:
+class InboundRevision(repository.IInboundRevision):
     """Data retrieved for a changegroup like data (used in revlog.addgroup)
     node:        the revision node
     p1, p2:      the parents (as node)

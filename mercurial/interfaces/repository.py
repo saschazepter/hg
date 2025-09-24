@@ -522,6 +522,49 @@ class iverifyproblem(Protocol):
     """
 
 
+class IInboundRevision(Protocol):
+    """Data retrieved for a changegroup like data (used in revlog.addgroup)"""
+
+    node: NodeIdT
+    """the revision node"""
+
+    p1: NodeIdT
+    """ first parent of the revision (as node)"""
+
+    p2: NodeIdT
+    """ second parent of the revision (as node)"""
+
+    link_node: NodeIdT
+    """the linkrev information"""
+
+    delta_base: NodeIdT
+    """delta_base"""
+
+    delta: bytes
+    """the serialized delta"""
+
+    flags: int
+    """revision flags"""
+
+    sidedata: dict | None
+    """sidedata associate with this revision"""
+
+    protocol_flags: int
+    """internal protocol flag"""
+
+    snapshot_level: int | None
+    """snapshot_level of the sent delta (if available)"""
+
+    raw_text: bytes | None
+    """full text of that revision (if available)"""
+
+    has_censor_flag: bool
+    """set when the incoming data has censor information available"""
+
+    has_filelog_hasmeta_flag: bool
+    """set when the incoming has "has_meta" information available"""
+
+
 class IOutboundRevision(Protocol):
     """Represents a delta between one revision and another.
 
