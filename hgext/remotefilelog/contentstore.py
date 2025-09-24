@@ -278,7 +278,7 @@ class manifestrevlogstore:
         self._store = repo.store
         self._svfs = repo.svfs
         self._revlogs = dict()
-        self._cl = revlog.revlog(self._svfs, radix=b'00changelog.i')
+        self._cl = repo.changelog
         self._repackstartlinkrev = 0
 
     def get(self, name, node):
