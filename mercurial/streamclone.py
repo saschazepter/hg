@@ -335,7 +335,7 @@ def generatev1(repo) -> tuple[int, int, Iterator[bytes]]:
         _test_sync_point_walk_1_2(repo)
         for entry in _walkstreamfiles(repo):
             for f in entry.files():
-                file_size = f.file_size(repo.store.vfs)
+                file_size = f.file_size(repo.svfs)
                 if file_size:
                     entries.append((f.unencoded_path, file_size))
                     total_bytes += file_size

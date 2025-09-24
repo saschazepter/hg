@@ -376,7 +376,7 @@ def _clonerevlogs(
 def _files_to_copy_post_revlog_clone(srcrepo):
     """yields files which should be copied to destination after revlogs
     are cloned"""
-    for path, kind, st in sorted(srcrepo.store.vfs.readdir(b'', stat=True)):
+    for path, kind, st in sorted(srcrepo.svfs.readdir(b'', stat=True)):
         # don't copy revlogs as they are already cloned
         if store.is_revlog_file(path):
             continue
