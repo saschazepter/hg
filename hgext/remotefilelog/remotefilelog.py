@@ -317,6 +317,7 @@ class remotefilelog:
         del deltamode
         prevnode = None
         for node in nodes:
+            rev = self.rev(node)
             p1, p2 = self.parents(node)
             if prevnode is None:
                 basenode = prevnode = p1
@@ -336,6 +337,7 @@ class remotefilelog:
                 basenode=basenode,
                 flags=self.flags(node),
                 baserevisionsize=None,
+                raw_revision_size=self.rawsize(rev),
                 revision=revision,
                 delta=delta,
                 # Sidedata is not supported yet

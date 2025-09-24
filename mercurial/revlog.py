@@ -232,6 +232,7 @@ class OutboundRevision(repository.IOutboundRevision):
     basenode = attr.ib(type=bytes)
     flags = attr.ib(type=int)
     baserevisionsize = attr.ib(type=Optional[int])
+    raw_revision_size = attr.ib(type=int)
     revision = attr.ib(type=Optional[bytes])
     delta = attr.ib(type=Optional[bytes])
     sidedata = attr.ib(type=Optional[bytes])
@@ -4216,6 +4217,7 @@ class revlog:
                 basenode=fnode(baserev),
                 flags=flags,
                 baserevisionsize=baserevisionsize,
+                raw_revision_size=self.rawsize(rev),
                 revision=revision,
                 delta=delta,
                 sidedata=serialized_sidedata,

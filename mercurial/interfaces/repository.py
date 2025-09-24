@@ -617,6 +617,9 @@ class IOutboundRevision(Protocol):
     May be ``None`` if ``basenode`` is ``nullid``.
     """
 
+    raw_revision_size: int
+    """Size of this revision raw full-text"""
+
     # TODO: is this really optional? (Seems possible in
     #  storageutil.emitrevisions()).
     revision: bytes | None
