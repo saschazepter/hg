@@ -14,7 +14,6 @@ class unionmetadatastore(basestore.baseunionstore):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.stores = args
         self.writestore = kwargs.get('writestore')
 
         # If allowincomplete==True then the union store can return partial

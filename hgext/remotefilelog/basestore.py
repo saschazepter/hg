@@ -404,7 +404,7 @@ class basestore:
 
 
 class baseunionstore:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *stores, **kwargs):
         # If one of the functions that iterates all of the stores is about to
         # throw a KeyError, try this many times with a full refresh between
         # attempts. A repack operation may have moved data from one store to
@@ -413,6 +413,7 @@ class baseunionstore:
         # If not-None, call this function on every retry and if the attempts are
         # exhausted.
         self.retrylog = kwargs.get('retrylog', None)
+        self.stores = stores
 
     def markforrefresh(self):
         for store in self.stores:

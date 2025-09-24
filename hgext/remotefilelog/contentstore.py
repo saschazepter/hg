@@ -36,10 +36,9 @@ class ChainIndicies:
 
 
 class unioncontentstore(basestore.baseunionstore):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *stores, **kwargs):
+        super().__init__(*stores, **kwargs)
 
-        self.stores = args
         self.writestore = kwargs.get('writestore')
 
         # If allowincomplete==True then the union store can return partial
