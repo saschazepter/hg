@@ -23,15 +23,17 @@ import struct
 
 from .. import encoding, node
 
+UID_SIZE = 8
 
-def make_uid(id_size=8):
+
+def make_uid():
     """Return a new unique identifier.
 
-    The identifier is random and composed of ascii characters.
+    The identifier is random and composed of UID_SIZE ascii characters.
     """
-    # Since we "hex" the result we need half the number of bits to have a final
-    # uid of size id_size.
-    return node.hex(os.urandom(id_size // 2))
+    # Since we "hex" the result we need half the number of bits to have a
+    # final uid of size UID_SIZE.
+    return node.hex(os.urandom(UID_SIZE // 2))
 
 
 # some special test logic to avoid anoying random output in the test
@@ -39,7 +41,7 @@ stable_docket_file = encoding.environ.get(b'HGTEST_UUIDFILE')
 
 if stable_docket_file:
 
-    def make_uid(id_size=8):
+    def make_uid():
         try:
             with open(stable_docket_file, mode='rb') as f:
                 seed = f.read().strip()
@@ -56,8 +58,8 @@ if stable_docket_file:
         r = random.Random()
         r.seed(int_seed, version=1)
         # once we drop python 3.8 support we can simply use r.randbytes
-        raw = r.getrandbits(id_size * 4)
-        assert id_size == 8
+        raw = r.getrandbits(UID_SIZE * 4)
+        assert UID_SIZE == 8
         p = struct.pack('>L', raw)
         new = node.hex(p)
         with open(stable_docket_file, 'wb') as f:

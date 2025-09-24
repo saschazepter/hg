@@ -27,15 +27,14 @@ V1_FORMAT_MARKER = b"fileindex-v1"
 class Docket:
     """Parsed file index docket."""
 
-    ID_SIZE = 8
-    UNSET_ID = b"0" * ID_SIZE
+    UNSET_ID = b"0" * docket.UID_SIZE
     STRUCT = struct.Struct(
         "".join(
             [
                 ">",
                 f"{len(V1_FORMAT_MARKER)}s",
                 "5I",
-                f"{ID_SIZE}s" * 4,
+                f"{docket.UID_SIZE}s" * 4,
                 "5I",
             ]
         )
@@ -75,7 +74,7 @@ class Docket:
 
     @staticmethod
     def make_id():
-        return docket.make_uid(id_size=Docket.ID_SIZE)
+        return docket.make_uid()
 
     @classmethod
     def parse_from(cls, data: memoryview) -> Docket:
