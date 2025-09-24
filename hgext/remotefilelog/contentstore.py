@@ -10,6 +10,9 @@ from mercurial import (
     mdiff,
     revlog,
 )
+from mercurial.revlogutils import (
+    constants as revlog_constants,
+)
 from . import (
     basestore,
     constants,
@@ -274,6 +277,8 @@ class remotecontentstore:
 
 
 class manifestrevlogstore:
+    _repackendlinkrev: int
+
     def __init__(self, repo):
         self._store = repo.store
         self._svfs = repo.svfs
@@ -335,13 +340,18 @@ class manifestrevlogstore:
     def add(self, *args):
         raise RuntimeError(b"cannot add to a revlog store")
 
-    def _revlog(self, name):
+    def _revlog(self, name) -> revlog.revlog:
         rl = self._revlogs.get(name)
         if rl is None:
             revlogname = b'00manifesttree'
             if name != b'':
                 revlogname = b'meta/%s/00manifest' % name
-            rl = revlog.revlog(self._svfs, radix=revlogname)
+            # XXX building your own revlog is bound to troubles
+            rl = revlog.revlog(
+                self._svfs,
+                target=(revlog_constants.KIND_MANIFESTLOG, name),
+                radix=revlogname,
+            )
             self._revlogs[name] = rl
         return rl
 
@@ -349,7 +359,7 @@ class manifestrevlogstore:
         missing = []
         for name, node in keys:
             mfrevlog = self._revlog(name)
-            if node not in mfrevlog.nodemap:
+            if not mfrevlog.index.has_node(node):
                 missing.append((name, node))
 
         return missing
@@ -362,7 +372,11 @@ class manifestrevlogstore:
         if options and options.get(constants.OPTION_PACKSONLY):
             return
         treename = b''
-        rl = revlog.revlog(self._svfs, radix=b'00manifesttree')
+        rl = revlog.revlog(
+            self._svfs,
+            target=(revlog_constants.KIND_MANIFESTLOG, treename),
+            radix=b'00manifesttree',
+        )
         startlinkrev = self._repackstartlinkrev
         endlinkrev = self._repackendlinkrev
         for rev in range(len(rl) - 1, -1, -1):
@@ -381,7 +395,11 @@ class manifestrevlogstore:
 
             treename = path[5 : -len(b'/00manifest')]
 
-            rl = revlog.revlog(self._svfs, indexfile=path[:-2])
+            rl = revlog.revlog(
+                self._svfs,
+                target=(revlog_constants.KIND_MANIFESTLOG, treename),
+                radix=path[:-2],
+            )
             for rev in range(len(rl) - 1, -1, -1):
                 linkrev = rl.linkrev(rev)
                 if linkrev < startlinkrev:

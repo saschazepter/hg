@@ -112,7 +112,6 @@ pytype --keep-going --jobs auto \
     -x hgext/narrow/narrowbundle2.py \
     -x hgext/narrow/narrowcommands.py \
     -x hgext/rebase.py \
-    -x hgext/remotefilelog/contentstore.py \
     -x hgext/remotefilelog/fileserverclient.py \
     -x hgext/remotefilelog/remotefilectx.py \
     -x hgext/remotefilelog/shallowbundle.py \
