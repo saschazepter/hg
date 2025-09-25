@@ -217,6 +217,8 @@ class server:
     based stream to fout.
     """
 
+    _prereposetups: list[RepoSetupFnT] | None
+
     def __init__(
         self,
         ui: UiT,
@@ -506,7 +508,13 @@ def _initworkerprocess():
     random.seed()
 
 
-def _serverequest(ui, repo: RepoT | None, conn, createcmdserver, prereposetups):
+def _serverequest(
+    ui,
+    repo: RepoT | None,
+    conn,
+    createcmdserver,
+    prereposetups: list[RepoSetupFnT],
+):
     fin = conn.makefile('rb')
     fout = conn.makefile('wb')
     sv = None

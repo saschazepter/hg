@@ -8,9 +8,17 @@
 from __future__ import annotations
 
 import sys
+import typing
+
+if typing.TYPE_CHECKING:
+    from ..interfaces.types import (
+        RepoSetupFnT,
+    )
 
 
 class request:
+    prereposetups: list[RepoSetupFnT]
+
     def __init__(
         self,
         args,
@@ -20,7 +28,7 @@ class request:
         fout=None,
         ferr=None,
         fmsg=None,
-        prereposetups=None,
+        prereposetups: list[RepoSetupFnT] | None = None,
     ):
         self.args = args
         self.ui = ui
