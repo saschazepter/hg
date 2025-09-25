@@ -6,6 +6,7 @@
 //! Mercurial concepts for handling revision history
 
 pub mod deltas;
+pub mod diff;
 pub mod node;
 pub mod nodemap;
 mod nodemap_docket;

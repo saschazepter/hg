@@ -2,6 +2,8 @@ use std::iter;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
+use super::diff::start_maybe_mismatch_line;
+use super::diff::CMP_BLK_SIZE;
 use super::RevlogType;
 use crate::errors::HgError;
 use crate::revlog::options::RevlogOpenOptions;
@@ -510,35 +512,6 @@ fn changed_sections<'a>(
             },
         )
     })
-}
-
-// note: 512 was picked somewhat arbitrarily and could probably be tuned.
-// The value need to be big enough to the compiler to decide to use the most
-// efficient SIMD vectorization at hand. Overshooting a bit is not dramatic as a
-// manifest line is in the 100 bytes order of magnitude.
-const CMP_BLK_SIZE: usize = 512;
-
-/// return the starting position from which lines MAY be different between xs
-/// and yz
-///
-/// Any position before that garantee that the lines are the same.
-fn start_maybe_mismatch_line(left: &[u8], right: &[u8]) -> usize {
-    start_mismatch_line_chunk::<CMP_BLK_SIZE>(left, right)
-}
-
-fn start_mismatch_line_chunk<const N: usize>(
-    left: &[u8],
-    right: &[u8],
-) -> usize {
-    let chunk_off = iter::zip(left.chunks_exact(N), right.chunks_exact(N))
-        .take_while(|(l, r)| l == r)
-        .count()
-        * N;
-
-    match memchr::memrchr(b'\n', &left[..chunk_off]) {
-        None => 0,
-        Some(pos) => pos + 1,
-    }
 }
 
 /// Compute a binary delta between two flat manifest texts
