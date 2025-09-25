@@ -24,14 +24,11 @@ from .. import (
 
 from ..utils import procutil
 
-# pytype: disable=pyi-error
 from . import (
     hgweb_mod_inner as hgweb_mod,
     hgwebdir_mod_inner as hgwebdir_mod,
     server,
 )
-
-# pytype: enable=pyi-error
 
 
 def hgweb(config, name=None, baseui=None):
