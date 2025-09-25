@@ -43,24 +43,12 @@ pytype --version
 # hgext/narrow/narrowbundle2.py # [attribute-error]
 # hgext/narrow/narrowcommands.py    # [attribute-error], [name-error]
 # hgext/rebase.py               # [attribute-error]
-# hgext/remotefilelog/basepack.py   # [attribute-error], [wrong-arg-count]
-# hgext/remotefilelog/basestore.py  # [attribute-error]
-# hgext/remotefilelog/contentstore.py   # [missing-parameter], [wrong-keyword-args], [attribute-error]
-# hgext/remotefilelog/fileserverclient.py  # [attribute-error]
-# hgext/remotefilelog/shallowbundle.py     # [attribute-error]
-# hgext/remotefilelog/remotefilectx.py  # [module-attr] (This is an actual bug)
 # hgext/zeroconf/__init__.py    # bytes vs str; tests fail on macOS
 #
 # mercurial/context.py          # many [attribute-error]
-# mercurial/crecord.py          # tons of [attribute-error], [module-attr]
 # mercurial/debugcommands.py    # [wrong-arg-types]
 # mercurial/dispatch.py         # initstdio: No attribute ... on TextIO [attribute-error]
-# mercurial/exchange.py         # [attribute-error]
-# mercurial/hgweb/hgweb_mod.py  # [attribute-error], [name-error], [wrong-arg-types]
-# mercurial/hgweb/wsgicgi.py    # confused values in os.environ
-# mercurial/httppeer.py         # [attribute-error], [wrong-arg-types]
-# mercurial/keepalive.py        # [attribute-error]
-# mercurial/localrepo.py        # [attribute-error]
+# mercurial/hgweb/wsgicgi_inner.py    # confused values in os.environ
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
