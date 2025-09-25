@@ -125,7 +125,7 @@ class IChangeGroupPacker(Protocol):
     @abc.abstractmethod
     def __init__(
         self,
-        repo: _basetypes.RepoT,
+        repo: repository.IRepo,
         oldmatcher: matcher.MatcherT,
         matcher: matcher.MatcherT,
         bundlecaps: set[bytes],

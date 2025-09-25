@@ -36,9 +36,6 @@ NodeIdT = bytes
 """a nodeid identifier"""
 
 # TODO: create a Protocol class,
-RepoT = Any
-
-# TODO: create a Protocol class,
 RevlogT = Any
 
 # I doubt we will be able to any anything more precise cheaply, however this is

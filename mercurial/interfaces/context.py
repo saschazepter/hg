@@ -10,7 +10,7 @@ from typing import (
 )
 
 from . import (
-    _basetypes,
+    repository,
 )
 
 
@@ -44,7 +44,7 @@ class IContext(Protocol):
 # XXX this Protocol is a Stub, you can help by expanding it.
 class IChangeContext(IContext, Protocol):
     @abc.abstractmethod
-    def repo(self) -> _basetypes.RepoT:
+    def repo(self) -> repository.IRepo:
         ...
 
     @abc.abstractmethod

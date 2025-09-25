@@ -21,7 +21,6 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     HgPathT,
     NeedsTypeHint,
     NodeIdT,
-    RepoT,
     RevlogT,
     RevnumT,
     RevsetAliasesT,
@@ -54,8 +53,7 @@ FileStorageT = repository.ifilestorage
 
 HttpPasswordMgrT = uimod.IHttpPasswordMgr
 
-# XXX RepoT should be IlocalRepo
-#
+RepoT = repository.IRepo
 # The other are copied for temporary backward compatibility
 LocalRepoMainT = repository.IRepo
 LocalRepoCompleteT = repository.IRepo

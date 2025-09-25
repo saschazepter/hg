@@ -1785,6 +1785,8 @@ class IRepo(Protocol):
     This currently captures the reality of things - not how things should be.
     """
 
+    _wanted_sidedata: Any  # TODO: get this off of the interface
+
     nodeconstants: NodeConstants
     """Constant nodes matching the hash function used by the repository."""
 
