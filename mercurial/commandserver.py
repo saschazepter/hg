@@ -219,6 +219,8 @@ class server:
 
     _prereposetups: list[RepoSetupFnT] | None
 
+    repo: RepoT | None
+
     def __init__(
         self,
         ui: UiT,
@@ -509,12 +511,25 @@ def _initworkerprocess():
 
 
 def _serverequest(
-    ui,
+    ui: UiT,
     repo: RepoT | None,
-    conn,
-    createcmdserver,
+    conn: Socket,
+    createcmdserver: Callable[
+        [
+            RepoT | None,
+            Socket,
+            NeedsTypeHint,
+            NeedsTypeHint,
+            list[RepoSetupFnT] | None,
+        ],
+        server,
+    ],
     prereposetups: list[RepoSetupFnT],
-):
+) -> None:
+    # TODO: Figure out the types for these, and adjust the callback signature
+    #  accordingly.  PyCharm thinks these are BufferedReader and BufferedWriter
+    #  respectively.  The lone caller is ``_runworker()``, which passes a
+    #  callback that is typed with ``RawIOBase``.
     fin = conn.makefile('rb')
     fout = conn.makefile('wb')
     sv = None

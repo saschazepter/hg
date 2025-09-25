@@ -13,17 +13,19 @@ import typing
 if typing.TYPE_CHECKING:
     from ..interfaces.types import (
         RepoSetupFnT,
+        RepoT,
     )
 
 
 class request:
+    repo: RepoT | None
     prereposetups: list[RepoSetupFnT]
 
     def __init__(
         self,
         args,
         ui=None,
-        repo=None,
+        repo: RepoT | None = None,
         fin=None,
         fout=None,
         ferr=None,
