@@ -1001,7 +1001,7 @@ class hgsubrepo(abstractsubrepo):
             except error.LookupError:
                 self.ui.status(
                     _(b"skipping missing subrepository: %s\n")
-                    % self.wvfs.reljoin(reporelpath(self), subpath)
+                    % self.wvfs.reljoin(reporelpath(self._repo), subpath)
                 )
         if len(matchers) == 1:
             return matchers[0]
