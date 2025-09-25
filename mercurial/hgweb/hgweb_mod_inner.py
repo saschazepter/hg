@@ -124,6 +124,9 @@ class requestcontext:
     mutable and race-free state for requests.
     """
 
+    # Not initialized until hgweb._runwsgi() runs
+    tmpl: templater.templater
+
     def __init__(self, app, repo, req, res):
         self.repo = repo
         self.reponame = app.reponame
