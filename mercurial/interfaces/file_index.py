@@ -25,10 +25,10 @@ class IFileIndex(Protocol):
     """
 
     @abc.abstractmethod
-    def get_path(self, token: FileTokenT) -> HgPathT:
+    def get_path(self, token: FileTokenT) -> HgPathT | None:
         """Look up a path by token.
 
-        Raises if the token isn't in the file index.
+        Returns None if the token isn't in the file index.
         """
 
     @abc.abstractmethod

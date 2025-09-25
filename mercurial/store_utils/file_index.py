@@ -87,7 +87,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def get_path(self, token: FileTokenT):
         if not self.has_token(token):
-            raise KeyError
+            return None
         n = len(self.meta_array)
         if token < n:
             return self._get_path_on_disk(token)
