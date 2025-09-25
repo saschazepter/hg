@@ -70,7 +70,12 @@ class ShallowCGPacker(changegroup.cgpacker):
             filestosend = self.shouldaddfilegroups(source)
             if filestosend == NoFiles:
                 changedfiles = list(
+                    # The ``repo`` field is typed on changegroup.cgpacker to be
+                    # a standard repo, but the method is tacked onto the repo
+                    # object in ``makechangegroup()`` below.
+                    # pytype: disable=attribute-error
                     [f for f in changedfiles if not repo.shallowmatch(f)]
+                    # pytype: enable=attribute-error
                 )
 
         return super().generatefiles(changedfiles, *args, **kwargs)
