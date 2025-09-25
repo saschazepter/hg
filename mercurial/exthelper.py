@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import typing
+
 from . import (
     error,
     extensions,
@@ -19,6 +21,20 @@ from . import (
 )
 
 from hgdemandimport import tracing
+
+if typing.TYPE_CHECKING:
+    from .cmd_impls import (
+        CmdOptionsT,
+    )
+    from .interfaces.types import (
+        ExtSetupFnT,
+        NeedsTypeHint,
+        RepoSetupFnT,
+        RepoT,
+        UiPopulateFnT,
+        UiSetupFnT,
+        UiT,
+    )
 
 
 class exthelper:
@@ -86,7 +102,22 @@ class exthelper:
             return b'babar'
     """
 
-    def __init__(self):
+    _commandwrappers: list[tuple[bytes, NeedsTypeHint, CmdOptionsT]]
+    _extcallables: list[ExtSetupFnT]
+    _extcommandwrappers: list[tuple[bytes, bytes, NeedsTypeHint, CmdOptionsT]]
+    _functionwrappers: list[tuple[NeedsTypeHint, str, NeedsTypeHint]]
+    _repocallables: list[RepoSetupFnT]
+    _uicallables: list[UiSetupFnT]
+    _uipopulatecallables: list[UiPopulateFnT]
+    # cmdtable: dict[nothing, nothing]
+    command: registrar.command
+    # configitem: functools.partial
+    configtable: dict[bytes, NeedsTypeHint]
+    filesetpredicate: registrar.filesetpredicate
+    revsetpredicate: registrar.revsetpredicate
+    templatekeyword: registrar.templatekeyword
+
+    def __init__(self) -> None:
         self._uipopulatecallables = []
         self._uicallables = []
         self._extcallables = []
@@ -102,7 +133,7 @@ class exthelper:
         self.revsetpredicate = registrar.revsetpredicate()
         self.templatekeyword = registrar.templatekeyword()
 
-    def merge(self, other):
+    def merge(self, other: exthelper) -> None:
         self._uicallables.extend(other._uicallables)
         self._uipopulatecallables.extend(other._uipopulatecallables)
         self._extcallables.extend(other._extcallables)
@@ -120,7 +151,7 @@ class exthelper:
             else:
                 self.configtable[section] = items
 
-    def finaluisetup(self, ui):
+    def finaluisetup(self, ui: UiT) -> None:
         """Method to be used as the extension uisetup
 
         The following operations belong here:
@@ -154,7 +185,7 @@ class exthelper:
             with tracing.log('finaluisetup: %s', repr(c)):
                 c(ui)
 
-    def finaluipopulate(self, ui):
+    def finaluipopulate(self, ui: UiT) -> None:
         """Method to be used as the extension uipopulate
 
         This is called once per ui instance to:
@@ -166,7 +197,7 @@ class exthelper:
         for c in self._uipopulatecallables:
             c(ui)
 
-    def finalextsetup(self, ui):
+    def finalextsetup(self, ui: UiT) -> None:
         """Method to be used as the extension extsetup
 
         The following operations belong here:
@@ -195,7 +226,7 @@ class exthelper:
             with tracing.log('finalextsetup: %s', repr(c)):
                 c(ui)
 
-    def finalreposetup(self, ui, repo):
+    def finalreposetup(self, ui: UiT, repo: RepoT) -> None:
         """Method to be used as the extension reposetup
 
         The following operations belong here:
@@ -208,7 +239,7 @@ class exthelper:
             with tracing.log('finalreposetup: %s', repr(c)):
                 c(ui, repo)
 
-    def uisetup(self, call):
+    def uisetup(self, call: UiSetupFnT) -> UiSetupFnT:
         """Decorated function will be executed during uisetup
 
         example::
@@ -223,7 +254,7 @@ class exthelper:
         self._uicallables.append(call)
         return call
 
-    def uipopulate(self, call):
+    def uipopulate(self, call: UiPopulateFnT) -> UiPopulateFnT:
         """Decorated function will be executed during uipopulate
 
         example::
@@ -238,7 +269,7 @@ class exthelper:
         self._uipopulatecallables.append(call)
         return call
 
-    def extsetup(self, call):
+    def extsetup(self, call: ExtSetupFnT) -> ExtSetupFnT:
         """Decorated function will be executed during extsetup
 
         example::
@@ -253,7 +284,7 @@ class exthelper:
         self._extcallables.append(call)
         return call
 
-    def reposetup(self, call):
+    def reposetup(self, call: RepoSetupFnT) -> RepoSetupFnT:
         """Decorated function will be executed during reposetup
 
         example::
@@ -268,7 +299,12 @@ class exthelper:
         self._repocallables.append(call)
         return call
 
-    def wrapcommand(self, command, extension=None, opts=None):
+    def wrapcommand(
+        self,
+        command: bytes,
+        extension: bytes | None = None,
+        opts: CmdOptionsT | None = None,
+    ):
         """Decorated function is a command wrapper
 
         The name of the command must be given as the decorator argument.
@@ -318,7 +354,7 @@ class exthelper:
 
         return dec
 
-    def wrapfunction(self, container, funcname):
+    def wrapfunction(self, container, funcname: str):
         """Decorated function is a function wrapper
 
         This function takes two arguments, the container and the name of the
