@@ -294,6 +294,17 @@ impl<'a> DeltaCursor<'a> {
     }
 }
 
+impl std::fmt::Debug for DeltaCursor<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeltaCursor")
+            .field("old", &self.old)
+            .field("old_size", &(self.old.1 - self.old.0))
+            .field("new", &self.new)
+            .field("new_size", &(self.new.1 - self.new.0))
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
