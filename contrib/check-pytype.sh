@@ -57,7 +57,6 @@ pytype --version
 # mercurial/dispatch.py         # initstdio: No attribute ... on TextIO [attribute-error]
 # mercurial/exchange.py         # [attribute-error]
 # mercurial/hgweb/hgweb_mod.py  # [attribute-error], [name-error], [wrong-arg-types]
-# mercurial/hgweb/server.py     # [attribute-error], [name-error], [module-attr]
 # mercurial/hgweb/wsgicgi.py    # confused values in os.environ
 # mercurial/httppeer.py         # [attribute-error], [wrong-arg-types]
 # mercurial/keepalive.py        # [attribute-error]
@@ -117,7 +116,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/debugcommands.py \
     -x mercurial/dispatch.py \
     -x mercurial/hgweb/hgweb_mod_inner.py \
-    -x mercurial/hgweb/server.py \
     -x mercurial/hgweb/wsgicgi_inner.py \
     -x mercurial/minirst.py \
     -x mercurial/repoview.py \
