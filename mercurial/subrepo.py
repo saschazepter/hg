@@ -1656,14 +1656,22 @@ class gitsubrepo(abstractsubrepo):
                 ] = b
         return tracking
 
-    def _abssource(self, source):
+    def _abssource(self, source: bytes) -> bytes:
         if b'://' not in source:
             # recognize the scp syntax as an absolute source
             colon = source.find(b':')
             if colon != -1 and b'/' not in source[:colon]:
                 return source
         self._subsource = source
-        return _abssource(self)
+
+        # gitsubrepo doesn't have a standard RepoT associated with it (just the
+        # ``_subparent`` for the parent repo).  As such, this gitsubrepo has the
+        # ``_subparent`` and ``_subsource`` attrs attached to it that would
+        # normally go on the associated RepoT.  It is passed to the method that
+        # expects ``RepoT``, but it is ducktype compatible for the few fields
+        # that are accessed.  We can't simply add ``gitsubrepo`` to the arg
+        # type there, because that would create a cycle.
+        return _abssource(self)  # pytype: disable=wrong-arg-types
 
     def _fetch(self, source, revision):
         if self._gitmissing():
