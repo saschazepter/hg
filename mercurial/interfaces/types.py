@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from typing import (
+    Callable,
     Union,
 )
 
@@ -76,3 +77,16 @@ UnbundlePartT = bundle.IUnbundlePart
 
 WorkingCommitContextT = context.IWorkingCommitContext
 WorkingContextT = context.IWorkingContext
+
+
+ExtSetupFnT = Callable[[UiT], None]
+"""The signature of ``extsetup()``, typically used by extensions."""
+
+RepoSetupFnT = Callable[[UiT, RepoT], None]
+"""The signature of ``reposetup()``, typically used by extensions."""
+
+UiPopulateFnT = Callable[[UiT], None]
+"""The signature of ``uipopulate()``, typically used by extensions."""
+
+UiSetupFnT = Callable[[UiT], None]
+"""The signature of ``uisetup()``, typically used by extensions."""
