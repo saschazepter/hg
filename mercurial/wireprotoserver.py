@@ -12,6 +12,11 @@ import threading
 
 from typing import Iterator
 from .i18n import _
+
+from .interfaces.types import (
+    RepoT,
+)
+
 from .interfaces import compression as i_comp
 from . import (
     encoding,
@@ -533,7 +538,7 @@ def _runsshserver(ui, repo, fin, fout, ev, accesshidden=False):
 
 
 class sshserver:
-    def __init__(self, ui, repo, logfh=None, accesshidden=False):
+    def __init__(self, ui, repo: RepoT, logfh=None, accesshidden=False):
         self._ui = ui
         self._repo = repo
         self._accesshidden = accesshidden

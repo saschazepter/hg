@@ -183,7 +183,7 @@ _cmdservicemap = {
 
 def _createcmdservice(
     ui: UiT,
-    repo: RepoT,
+    repo: RepoT | None,
     opts: dict[bytes, Any],
     dispatch: Callable,
 ):
@@ -196,7 +196,7 @@ def _createcmdservice(
     return servicefn(ui, repo, opts, dispatch)
 
 
-def _createhgwebservice(ui: UiT, repo: RepoT, opts: dict[bytes, Any]):
+def _createhgwebservice(ui: UiT, repo: RepoT | None, opts: dict[bytes, Any]):
     # this way we can check if something was given in the command-line
     if opts.get(b'port'):
         opts[b'port'] = urlutil.getport(opts.get(b'port'))
@@ -245,7 +245,7 @@ def _createhgwebservice(ui: UiT, repo: RepoT, opts: dict[bytes, Any]):
 
 def createservice(
     ui: UiT,
-    repo: RepoT,
+    repo: RepoT | None,
     opts: dict[bytes, Any],
     dispatch: Callable,
 ):

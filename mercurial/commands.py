@@ -96,6 +96,10 @@ from .merge_utils import (
 if typing.TYPE_CHECKING:
     from typing import Final
 
+    from .interfaces.types import (
+        RepoT,
+    )
+
 
 def init():
     """noop function that is called to make sure the module is loaded and has
@@ -6333,7 +6337,7 @@ def root(ui, repo, **opts):
     optionalrepo=True,
     need_dispatcher=True,
 )
-def serve(ui, repo, __dispatch__, **opts):
+def serve(ui, repo: RepoT | None, __dispatch__, **opts):
     """start stand-alone webserver
 
     Start a local HTTP repository browser and pull server. You can use
@@ -6368,6 +6372,9 @@ def serve(ui, repo, __dispatch__, **opts):
             raise error.RepoError(
                 _(b"there is no Mercurial repository here (.hg not found)")
             )
+
+        assert repo is not None  # help pytype
+
         accesshidden = False
         if repo.filtername is None:
             allow = ui.configlist(

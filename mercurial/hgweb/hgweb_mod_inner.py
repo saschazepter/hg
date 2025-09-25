@@ -11,6 +11,10 @@ from __future__ import annotations
 import contextlib
 import os
 
+from ..interfaces.types import (
+    RepoT,
+)
+
 from .common import (
     ErrorResponse,
     HTTP_BAD_REQUEST,
@@ -260,7 +264,7 @@ class hgweb:
     be multiple active threads inside __call__.
     """
 
-    def __init__(self, repo, name=None, baseui=None):
+    def __init__(self, repo: RepoT | bytes, name=None, baseui=None):
         if isinstance(repo, bytes):
             if baseui:
                 u = baseui.copy()

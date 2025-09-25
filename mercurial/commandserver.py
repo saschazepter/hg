@@ -43,6 +43,7 @@ if typing.TYPE_CHECKING:
     )
     from socket import socket as Socket
     from .interfaces.types import (
+        NeedsTypeHint,
         RepoT,
         UiT,
     )
@@ -218,7 +219,7 @@ class server:
     def __init__(
         self,
         ui: UiT,
-        repo: RepoT,
+        repo: RepoT | None,
         fin: RawIOBase,
         fout: RawIOBase,
         dispatch: Callable,
@@ -504,7 +505,7 @@ def _initworkerprocess():
     random.seed()
 
 
-def _serverequest(ui, repo, conn, createcmdserver, prereposetups):
+def _serverequest(ui, repo: RepoT | None, conn, createcmdserver, prereposetups):
     fin = conn.makefile('rb')
     fout = conn.makefile('wb')
     sv = None
@@ -570,7 +571,7 @@ class unixservicehandler:
 
     def createcmdserver(
         self,
-        repo: RepoT,
+        repo: RepoT | None,
         conn: Socket,
         fin: RawIOBase,
         fout: RawIOBase,
@@ -589,7 +590,7 @@ class unixforkingservice:
     def __init__(
         self,
         ui: UiT,
-        repo: RepoT,
+        repo: RepoT | None,
         opts: dict[bytes, Any],
         dispatch: Callable,
         handler=None,
@@ -753,11 +754,13 @@ class unixforkingservice:
         finally:
             gc.collect()  # trigger __del__ since worker process uses os._exit
 
-    def _reposetup(self, ui, repo):
+    def _reposetup(self, ui: UiT, repo: RepoT) -> None:
         if not repo.local():
             return
 
         class unixcmdserverrepo(repo.__class__):
+            _cmdserveripc: NeedsTypeHint
+
             def close(self):
                 super().close()
                 try:

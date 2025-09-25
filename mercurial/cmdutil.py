@@ -87,6 +87,7 @@ from .revlogutils import (
 
 if TYPE_CHECKING:
     from .interfaces.types import (
+        RepoT,
         StatusT,
     )
     from . import (
@@ -2373,7 +2374,7 @@ def add(ui, repo, match, prefix, uipathfn, explicitonly, **opts):
     return bad
 
 
-def addwebdirpath(repo, serverpath, webconf):
+def addwebdirpath(repo: RepoT, serverpath, webconf):
     webconf[serverpath] = repo.root
     repo.ui.debug(b'adding %s = %s\n' % (serverpath, repo.root))
 

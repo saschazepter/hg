@@ -11,6 +11,10 @@ from __future__ import annotations
 import importlib
 import os
 
+from ..interfaces.types import (
+    RepoT,
+)
+
 from ..i18n import _
 
 from .. import (
@@ -123,7 +127,7 @@ class httpservice:
         self.httpd.serve_forever()
 
 
-def createapp(baseui, repo, webconf):
+def createapp(baseui, repo: RepoT | None, webconf):
     if webconf:
         return hgwebdir_mod.hgwebdir(webconf, baseui=baseui)
     else:
