@@ -115,7 +115,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/context.py \
     -x mercurial/debugcommands.py \
     -x mercurial/dispatch.py \
-    -x mercurial/hgweb/hgweb_mod_inner.py \
     -x mercurial/hgweb/wsgicgi_inner.py \
     -x mercurial/minirst.py \
     -x mercurial/repoview.py \
