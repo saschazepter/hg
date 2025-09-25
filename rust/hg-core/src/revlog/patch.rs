@@ -263,7 +263,14 @@ impl<'a> DeltaCursor<'a> {
         new_end: u32,
         full_new_data: &'a [u8],
     ) -> Self {
-        assert!(!(old_start == old_end && new_start == new_end));
+        assert!(
+            !(old_start == old_end && new_start == new_end),
+            "{} == {} && {} == {}",
+            old_start,
+            old_end,
+            new_start,
+            new_end,
+        );
         DeltaCursor {
             old: (old_start, old_end),
             new: (new_start, new_end),
