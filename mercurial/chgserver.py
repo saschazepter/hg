@@ -84,6 +84,7 @@ if typing.TYPE_CHECKING:
     )
     from socket import socket as Socket
     from .interfaces.types import (
+        RepoSetupFnT,
         RepoT,
         UiT,
     )
@@ -382,7 +383,7 @@ class chgcmdserver(commandserver.server):
         fout: RawIOBase,
         sock: Socket,
         dispatch: Callable,
-        prereposetups: list[Callable[[UiT, RepoT], None]] | None,
+        prereposetups: list[RepoSetupFnT] | None,
         hashstate: hashstate,
         baseaddress: bytes,
     ):
@@ -758,7 +759,7 @@ class chgunixservicehandler:
         conn: Socket,
         fin: RawIOBase,
         fout: RawIOBase,
-        prereposetups: list[Callable[[UiT, RepoT], None]] | None,
+        prereposetups: list[RepoSetupFnT] | None,
     ):
         return chgcmdserver(
             self.ui,

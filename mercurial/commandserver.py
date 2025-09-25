@@ -44,6 +44,7 @@ if typing.TYPE_CHECKING:
     from socket import socket as Socket
     from .interfaces.types import (
         NeedsTypeHint,
+        RepoSetupFnT,
         RepoT,
         UiT,
     )
@@ -223,7 +224,7 @@ class server:
         fin: RawIOBase,
         fout: RawIOBase,
         dispatch: Callable,
-        prereposetups: list[Callable[[UiT, RepoT], None]] | None = None,
+        prereposetups: list[RepoSetupFnT] | None = None,
     ) -> None:
         self.cwd = encoding.getcwd()
         self._dispatch = dispatch
@@ -575,7 +576,7 @@ class unixservicehandler:
         conn: Socket,
         fin: RawIOBase,
         fout: RawIOBase,
-        prereposetups: list[Callable[[UiT, RepoT], None]] | None,
+        prereposetups: list[RepoSetupFnT] | None,
     ):
         """Create new command server instance; called in the process that
         serves for the current connection"""
