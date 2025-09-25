@@ -49,14 +49,16 @@ splitnewlines = bdiff.splitnewlines
 textdiff = bdiff.bdiff
 text_diff = textdiff
 # produce diff using line as boundary
-line_diff = bdiff.line_diff
 # diff algorithm optimized for the manifest must be line aligned
 if rust_diff is not None:
+    line_diff = rust_diff.line_diff
     manifest_diff = rust_diff.manifest_diff
+    storage_diff = rust_diff.line_diff
 else:
+    line_diff = bdiff.line_diff
     manifest_diff = bdiff.manifest_diff
+    storage_diff = bdiff.storage_diff
 # diff algorithm optimized for storage purpose, might not be line aligned
-storage_diff = bdiff.storage_diff
 
 if typing.TYPE_CHECKING:
     HunkLines = list[bytes]

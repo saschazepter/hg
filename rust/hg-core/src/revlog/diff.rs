@@ -1,5 +1,10 @@
 //! Utilities to compute diff for and with Revlogs.
 
+use imara_diff::Algorithm;
+use imara_diff::Diff;
+use imara_diff::InternedInput;
+use imara_diff::TokenSource;
+
 use super::patch::Chunk;
 
 /// A windows of different data when computing a delta
@@ -32,6 +37,10 @@ impl<'a> DeltaCursor<'a> {
             new: (new_start, new_end),
             data: full_new_data,
         }
+    }
+
+    pub fn ends_at(&self, offset: u32) -> bool {
+        self.old.1 == offset
     }
 
     pub fn extend(&mut self, old_size: u32, new_size: u32) {
@@ -87,5 +96,163 @@ fn lines_prefix_size_low_chunk<const N: usize>(
     match memchr::memrchr(b'\n', &left[..chunk_off]) {
         None => 0,
         Some(pos) => pos + 1,
+    }
+}
+
+/// Estimation of the number of bytes per lines
+///
+/// This is used to infer the number of line we can expect for a given full text
+///
+/// The value was arbitrarily picked and should probably be refined at some
+/// point.
+pub(crate) const MIN_AVG_LINE_SIZE: usize = 10;
+
+/// Tracks the starting position of each line of a full text
+///
+/// Also holds an abstract final line marking the end of the full text.
+struct Lines<'a> {
+    /// The full text.
+    data: &'a [u8],
+    /// Starting position of each lines.
+    offsets: Vec<usize>,
+}
+
+impl<'a> Lines<'a> {
+    fn new(data: &'a [u8]) -> Self {
+        let mut offsets =
+            Vec::with_capacity(data.len() / MIN_AVG_LINE_SIZE + 2);
+        // TODO: filling the vec at tokenization time would avoid walking the
+        // memory twice
+        offsets.push(0);
+        offsets.extend(memchr::memchr_iter(b'\n', data).map(|o| o + 1));
+        if let Some(c) = data.last() {
+            if *c != b'\n' {
+                offsets.push(data.len());
+            }
+        }
+        Self { data, offsets }
+    }
+
+    /// The starting position of the `idx`'th line.
+    fn offset(&self, idx: u32) -> u32 {
+        let i: usize = idx.try_into().expect("16 bits computer?");
+        self.offsets[i].try_into().expect("16 bits computer?")
+    }
+}
+
+/// iterator over each line of a full text.
+struct IterLines<'a> {
+    text: &'a Lines<'a>,
+    idx: u32,
+}
+
+impl<'a> IterLines<'a> {
+    fn new(text: &'a Lines) -> Self {
+        Self { text, idx: 1 }
+    }
+}
+
+impl<'a> Iterator for IterLines<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx
+            < self.text.offsets.len().try_into().expect("16 bits computer?")
+        {
+            let start = self
+                .text
+                .offset(self.idx - 1)
+                .try_into()
+                .expect("16 bits computer?");
+            let end = self
+                .text
+                .offset(self.idx)
+                .try_into()
+                .expect("16 bits computer?");
+            let next = &self.text.data[start..end];
+            self.idx += 1;
+            Some(next)
+        } else {
+            None
+        }
+    }
+}
+
+/// By default, a line diff is produced for slice of bytes
+impl<'a> TokenSource for &'a Lines<'a> {
+    type Token = &'a [u8];
+    type Tokenizer = IterLines<'a>;
+
+    fn tokenize(&self) -> Self::Tokenizer {
+        IterLines::new(self)
+    }
+
+    fn estimate_tokens(&self) -> u32 {
+        self.offsets.len().try_into().expect("16 bits computer?")
+    }
+}
+
+/// Compute a delta between m1 an m2.
+///
+/// The delta is line aligned.
+pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
+    let mut delta = vec![];
+
+    match (m1, m2) {
+        ([], []) => (),
+        (m, []) => all_deleted(m, &mut delta),
+        ([], m) => all_created(m, &mut delta),
+        (sub_1, sub_2) => text_delta_inner(sub_1, sub_2, &mut delta),
+    }
+    delta
+}
+
+fn all_created(content: &[u8], delta: &mut Vec<u8>) {
+    Chunk { start: 0, end: 0, data: content }.write(delta)
+}
+
+fn all_deleted(deleted: &[u8], delta: &mut Vec<u8>) {
+    Chunk {
+        start: 0,
+        end: deleted.len().try_into().expect("16 bits computer"),
+        data: &[],
+    }
+    .write(delta)
+}
+
+/// The main part of [`text_delta`] extracted for clarity
+///
+/// This is the part actually diffing lines.
+fn text_delta_inner(m1: &[u8], m2: &[u8], delta: &mut Vec<u8>) {
+    let mut cursor: Option<DeltaCursor> = None;
+    let t1 = Lines::new(m1);
+    let t2 = Lines::new(m2);
+    let input = InternedInput::new(&t1, &t2);
+    // XXX consider testing other algorithm at some point
+    let diff = Diff::compute(Algorithm::Myers, &input);
+    for h in diff.hunks() {
+        assert!(
+            !(h.before.start == h.before.end && h.after.start == h.after.end),
+            "{:?}",
+            h,
+        );
+        let start = t1.offset(h.before.start);
+        let end = t1.offset(h.before.end);
+        let content_start = t2.offset(h.after.start);
+        let content_end = t2.offset(h.after.end);
+        cursor = Some(if let Some(mut c) = cursor.take() {
+            if c.ends_at(start) {
+                c.extend(end - start, content_end - content_start);
+                c
+            } else {
+                c.into_chunk().write(delta);
+                DeltaCursor::new(start, end, content_start, content_end, m2)
+            }
+        } else {
+            DeltaCursor::new(start, end, content_start, content_end, m2)
+        });
+    }
+    if let Some(last) = cursor {
+        last.into_chunk().write(delta)
     }
 }

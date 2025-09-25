@@ -1,3 +1,4 @@
+use hg::revlog::diff::text_delta;
 use hg::revlog::manifest;
 use pyo3::pyfunction;
 use pyo3::types::PyModule;
@@ -24,12 +25,26 @@ pub fn manifest_diff(
     Ok(manifest::manifest_delta(&m1, &m2))
 }
 
+#[pyfunction]
+pub fn line_diff(
+    m1: Bound<'_, PyAny>,
+    m2: Bound<'_, PyAny>,
+) -> PyResult<Vec<u8>> {
+    // Safety: we keep `_buf` alive for the entire existence of the slices,
+    // as they are an internal detail of diff::text_delta
+    let (_buf, m1) = unsafe { take_buffer_with_slice(&m1)? };
+    // Safety: same as above
+    let (_buf, m2) = unsafe { take_buffer_with_slice(&m2)? };
+    Ok(text_delta(&m1, &m2))
+}
+
 pub fn init_module<'py>(
     py: Python<'py>,
     package: &str,
 ) -> PyResult<Bound<'py, PyModule>> {
     let m = new_submodule(py, package, "diff")?;
     m.add_function(wrap_pyfunction!(manifest_diff, &m)?)?;
+    m.add_function(wrap_pyfunction!(line_diff, &m)?)?;
 
     Ok(m)
 }
