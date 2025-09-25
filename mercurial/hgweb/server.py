@@ -12,6 +12,7 @@ import os
 import socket
 import sys
 import traceback
+import typing
 import wsgiref.validate
 
 from ..i18n import _
@@ -200,7 +201,15 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
         env['SERVER_PROTOCOL'] = self.request_version
         env['wsgi.version'] = (1, 0)
         env['wsgi.url_scheme'] = pycompat.sysstr(self.url_scheme)
-        if env.get('HTTP_EXPECT', '').lower() == '100-continue':
+
+        # TODO: try to use common.Environ for the ``env`` type instead of
+        #  casting.  Currently, this method adds more variables than is defined
+        #  there (and in the spec).
+        # cast to help pytype understand this isn't tuple[int, int]
+        if (
+            typing.cast(str, env.get('HTTP_EXPECT', '')).lower()
+            == '100-continue'
+        ):
             self.rfile = common.continuereader(self.rfile, self.wfile.write)
 
         env['wsgi.input'] = self.rfile
@@ -217,7 +226,9 @@ class _httprequesthandler(httpservermod.basehttprequesthandler):
 
         env['wsgi.run_once'] = 0
 
-        wsgiref.validate.check_environ(env)
+        # TODO: see if there's a way to do the validation with only public
+        #  methods, i.e. ``wsgiref.validate.validator(app)``
+        wsgiref.validate.check_environ(env)  # pytype: disable=module-attr
 
         self.saved_status = None
         self.saved_headers = []
