@@ -198,32 +198,41 @@ impl<'a> TokenSource for &'a Lines<'a> {
 pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
     let mut delta = vec![];
 
-    match (m1, m2) {
+    let prefix_size = lines_prefix_size_low(m1, m2);
+
+    match (&m1[prefix_size..], &m2[prefix_size..]) {
         ([], []) => (),
-        (m, []) => all_deleted(m, &mut delta),
-        ([], m) => all_created(m, &mut delta),
-        (sub_1, sub_2) => text_delta_inner(sub_1, sub_2, &mut delta),
+        (m, []) => all_deleted(prefix_size, m, &mut delta),
+        ([], m) => all_created(prefix_size, m, &mut delta),
+        (sub_1, sub_2) => {
+            text_delta_inner(prefix_size, sub_1, sub_2, &mut delta)
+        }
     }
     delta
 }
 
-fn all_created(content: &[u8], delta: &mut Vec<u8>) {
-    Chunk { start: 0, end: 0, data: content }.write(delta)
+fn all_created(prefix_size: usize, content: &[u8], delta: &mut Vec<u8>) {
+    let skip: u32 = prefix_size.try_into().expect("16 bits computer");
+    Chunk { start: skip, end: skip, data: content }.write(delta)
 }
 
-fn all_deleted(deleted: &[u8], delta: &mut Vec<u8>) {
-    Chunk {
-        start: 0,
-        end: deleted.len().try_into().expect("16 bits computer"),
-        data: &[],
-    }
-    .write(delta)
+fn all_deleted(prefix_size: usize, deleted: &[u8], delta: &mut Vec<u8>) {
+    let skip: u32 = prefix_size.try_into().expect("16 bits computer");
+    let deleted_size: u32 = deleted.len().try_into().expect("16 bits computer");
+
+    Chunk { start: skip, end: skip + deleted_size, data: &[] }.write(delta)
 }
 
 /// The main part of [`text_delta`] extracted for clarity
 ///
 /// This is the part actually diffing lines.
-fn text_delta_inner(m1: &[u8], m2: &[u8], delta: &mut Vec<u8>) {
+fn text_delta_inner(
+    prefix_size: usize,
+    m1: &[u8],
+    m2: &[u8],
+    delta: &mut Vec<u8>,
+) {
+    let skip: u32 = prefix_size.try_into().expect("16 bits computer");
     let mut cursor: Option<DeltaCursor> = None;
     let t1 = Lines::new(m1);
     let t2 = Lines::new(m2);
@@ -236,8 +245,8 @@ fn text_delta_inner(m1: &[u8], m2: &[u8], delta: &mut Vec<u8>) {
             "{:?}",
             h,
         );
-        let start = t1.offset(h.before.start);
-        let end = t1.offset(h.before.end);
+        let start = skip + t1.offset(h.before.start);
+        let end = skip + t1.offset(h.before.end);
         let content_start = t2.offset(h.after.start);
         let content_end = t2.offset(h.after.end);
         cursor = Some(if let Some(mut c) = cursor.take() {
