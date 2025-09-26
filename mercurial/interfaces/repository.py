@@ -1565,7 +1565,7 @@ class imanifeststorage(IDeltaEmittingStore, Protocol):
         """Obtain raw data for a node."""
 
     @abc.abstractmethod
-    def revdiff(self, rev1, rev2):
+    def revdiff(self, rev1: RevnumT, rev2: RevnumT) -> bytes:
         """Obtain a delta between two revision numbers.
 
         The returned data is the result of ``bdiff.bdiff()`` on the raw
