@@ -340,6 +340,7 @@ class _InnerRevlog:
     def __init__(
         self,
         opener: vfsmod.vfs,
+        target: tuple[int, bytes],
         index,
         index_file,
         data_file,
@@ -352,6 +353,7 @@ class _InnerRevlog:
         default_compression_header: i_comp.RevlogCompHeader,
     ):
         self.opener = opener
+        self.target = target
         self.index: BaseIndexObject = index
 
         self.index_file = index_file
@@ -1941,6 +1943,7 @@ class revlog:
         else:
             self._inner = _InnerRevlog(
                 opener=self.opener,
+                target=self.target,
                 index=index,
                 index_file=self._indexfile,
                 data_file=self._datafile,
