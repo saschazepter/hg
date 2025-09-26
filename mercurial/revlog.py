@@ -63,17 +63,6 @@ from .revlogutils.constants import (
     META_MARKER,
     META_MARKER_SIZE,
     RANK_UNKNOWN,
-    REVLOGV0,
-    REVLOGV1,
-    REVLOGV1_FLAGS,
-    REVLOGV2,
-    REVLOGV2_FLAGS,
-    REVLOG_DEFAULT_FLAGS,
-    REVLOG_DEFAULT_FORMAT,
-    REVLOG_DEFAULT_VERSION,
-    SUPPORTED_FLAGS,
-)
-from .revlogutils.flagutil import (
     REVIDX_DEFAULT_FLAGS,
     REVIDX_DELTA_IS_SNAPSHOT,
     REVIDX_ELLIPSIS,
@@ -83,6 +72,15 @@ from .revlogutils.flagutil import (
     REVIDX_HASMETA,
     REVIDX_ISCENSORED,
     REVIDX_RAWTEXT_CHANGING_FLAGS,
+    REVLOGV0,
+    REVLOGV1,
+    REVLOGV1_FLAGS,
+    REVLOGV2,
+    REVLOGV2_FLAGS,
+    REVLOG_DEFAULT_FLAGS,
+    REVLOG_DEFAULT_FORMAT,
+    REVLOG_DEFAULT_VERSION,
+    SUPPORTED_FLAGS,
 )
 from .thirdparty import attr
 from .interfaces import compression as i_comp
