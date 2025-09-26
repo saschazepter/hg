@@ -476,7 +476,10 @@ def clone(
             u = urlutil.url(abspath)
             u.passwd = None
             defaulturl = bytes(u)
-            destrepo.vfs.write(b'hgrc', util.tonativeeol(template % defaulturl))
+            content = util.tonativeeol(
+                template % defaulturl
+            ) + destrepo.vfs.tryread(b'hgrc')
+            destrepo.vfs.write(b'hgrc', content)
             destrepo.ui.setconfig(b'paths', b'default', defaulturl, b'clone')
 
             if ui.configbool(b'experimental', b'remotenames'):
