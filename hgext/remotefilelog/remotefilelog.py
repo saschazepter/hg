@@ -345,7 +345,10 @@ class remotefilelog:
             )
 
     def revdiff(self, node1, node2):
-        return mdiff.textdiff(self.rawdata(node1), self.rawdata(node2))
+        return mdiff.textdiff(
+            self.rawdata(node1, validate=False),
+            self.rawdata(node2, validate=False),
+        )
 
     def lookup(self, node):
         if len(node) == 40:
@@ -396,7 +399,7 @@ class remotefilelog:
             return rawtext
         return flagutil.processflagsread(self, rawtext, flags)[0]
 
-    def rawdata(self, node):
+    def rawdata(self, node, validate=True):
         return self.revision(node, raw=False)
 
     def ancestormap(self, node):

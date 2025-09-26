@@ -2905,7 +2905,10 @@ class revlog:
         if rev1 != nullrev and self.deltaparent(rev2) == rev1:
             return bytes(self._inner._chunk(rev2))
 
-        return self._diff_fn(self.rawdata(rev1), self.rawdata(rev2))
+        return self._diff_fn(
+            self.rawdata(rev1, validate=False),
+            self.rawdata(rev2, validate=False),
+        )
 
     def revision(self, nodeorrev):
         """return an uncompressed revision of a given node or revision
