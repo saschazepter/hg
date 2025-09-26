@@ -143,7 +143,9 @@ try:
     perf_rl_kind = (revlog_constants.KIND_OTHER, b'created-by-perf')
 
     def revlog(opener, *args, **kwargs):
-        return mercurial.revlog.revlog(opener, perf_rl_kind, *args, **kwargs)
+        if 'target' not in kwargs:
+            kwargs['target'] = perf_rl_kind
+        return mercurial.revlog.revlog(opener, *args, **kwargs)
 
 except (ImportError, AttributeError):
     perf_rl_kind = None
@@ -3552,9 +3554,9 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
 
     * ``run-limits``: disabled use --count instead
     """
-    opts = _byteskwargs(opts)
+    bopts = _byteskwargs(opts)
 
-    rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, opts)
+    rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, bopts)
     rllen = getlen(ui)(rl)
     if startrev < 0:
         startrev = rllen + startrev
@@ -3587,6 +3589,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
             startrev,
             stoprev,
             c + 1,
+            max_run=count,
             lazydeltabase=lazydeltabase,
             clearcaches=clearcaches,
         )
@@ -3613,30 +3616,30 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
     if opts['details']:
         for idx, item in enumerate(results, 1):
             rev, data = item
-            title = 'revisions #%d of %d, rev %d' % (idx, resultcount, rev)
+            title = b'revisions #%d of %d, rev %d' % (idx, resultcount, rev)
             formatone(fm, data, title=title, displayall=displayall)
 
     # sorts results by median time
     results.sort(key=lambda x: sorted(x[1])[len(x[1]) // 2])
     # list of (name, index) to display)
     relevants = [
-        ("min", 0),
-        ("10%", resultcount * 10 // 100),
-        ("25%", resultcount * 25 // 100),
-        ("50%", resultcount * 70 // 100),
-        ("75%", resultcount * 75 // 100),
-        ("90%", resultcount * 90 // 100),
-        ("95%", resultcount * 95 // 100),
-        ("99%", resultcount * 99 // 100),
-        ("99.9%", resultcount * 999 // 1000),
-        ("99.99%", resultcount * 9999 // 10000),
-        ("99.999%", resultcount * 99999 // 100000),
-        ("max", -1),
+        (b"min", 0),
+        (b"10%", resultcount * 10 // 100),
+        (b"25%", resultcount * 25 // 100),
+        (b"50%", resultcount * 70 // 100),
+        (b"75%", resultcount * 75 // 100),
+        (b"90%", resultcount * 90 // 100),
+        (b"95%", resultcount * 95 // 100),
+        (b"99%", resultcount * 99 // 100),
+        (b"99.9%", resultcount * 999 // 1000),
+        (b"99.99%", resultcount * 9999 // 10000),
+        (b"99.999%", resultcount * 99999 // 100000),
+        (b"max", -1),
     ]
     if not ui.quiet:
         for name, idx in relevants:
             data = results[idx]
-            title = '%s of %d, rev %d' % (name, resultcount, data[0])
+            title = b'%s of %d, rev %d' % (name, resultcount, data[0])
             formatone(fm, data[1], title=title, displayall=displayall)
 
     # XXX summing that many float will not be very precise, we ignore this fact
@@ -3653,7 +3656,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
     formatone(
         fm,
         totaltime,
-        title="total time (%d revs)" % resultcount,
+        title=b"total time (%d revs)" % resultcount,
         displayall=displayall,
     )
     fm.end()
@@ -3671,6 +3674,7 @@ def _timeonewrite(
     startrev,
     stoprev,
     runidx=None,
+    max_run=None,
     lazydeltabase=True,
     clearcaches=True,
 ):
@@ -3683,12 +3687,14 @@ def _timeonewrite(
             dest._lazydeltabase = lazydeltabase
         revs = list(orig.revs(startrev, stoprev))
         total = len(revs)
-        topic = 'adding'
-        if runidx is not None:
-            topic += ' (run #%d)' % runidx
+        topic = b'adding'
+        if runidx is not None and max_run is not None:
+            topic += b' (run #%d/%d)' % (runidx, max_run)
+        elif runidx is not None:
+            topic += b' (run #%d)' % runidx
         # Support both old and new progress API
         if util.safehasattr(ui, 'makeprogress'):
-            progress = ui.makeprogress(topic, unit='revs', total=total)
+            progress = ui.makeprogress(topic, unit=b'revs', total=total)
 
             def updateprogress(pos):
                 progress.update(pos)
@@ -3699,10 +3705,10 @@ def _timeonewrite(
         else:
 
             def updateprogress(pos):
-                ui.progress(topic, pos, unit='revs', total=total)
+                ui.progress(topic, pos, unit=b'revs', total=total)
 
             def completeprogress():
-                ui.progress(topic, None, unit='revs', total=total)
+                ui.progress(topic, None, unit=b'revs', total=total)
 
         for idx, rev in enumerate(revs):
             updateprogress(idx)
@@ -3777,18 +3783,18 @@ def _temprevlog(ui, orig, truncaterev):
         indexfile = getattr(orig, 'indexfile')
     origindexpath = orig.opener.join(indexfile)
 
-    datafile = getattr(orig, '_datafile', getattr(orig, 'datafile'))
+    datafile = orig._datafile
     origdatapath = orig.opener.join(datafile)
     radix = b'revlog'
     indexname = b'revlog.i'
     dataname = b'revlog.d'
 
-    tmpdir = tempfile.mkdtemp(prefix='tmp-hgperf-')
+    tmpdir = tempfile.mkdtemp(prefix='tmp-hgperf-').encode('ascii')
     try:
         # copy the data file in a temporary directory
         ui.debug('copying data in %s\n' % tmpdir)
-        destindexpath = os.path.join(tmpdir, 'revlog.i')
-        destdatapath = os.path.join(tmpdir, 'revlog.d')
+        destindexpath = os.path.join(tmpdir, b'revlog.i')
+        destdatapath = os.path.join(tmpdir, b'revlog.d')
         shutil.copyfile(origindexpath, destindexpath)
         shutil.copyfile(origdatapath, destdatapath)
 
@@ -3796,7 +3802,7 @@ def _temprevlog(ui, orig, truncaterev):
         ui.debug('truncating data to be rewritten\n')
         with open(destindexpath, 'ab') as index:
             index.seek(0)
-            index.truncate(truncaterev * orig._io.size)
+            index.truncate(truncaterev * orig.index.entry_size)
         with open(destdatapath, 'ab') as data:
             data.seek(0)
             data.truncate(orig.start(truncaterev))
@@ -3807,7 +3813,13 @@ def _temprevlog(ui, orig, truncaterev):
         vfs.options = getattr(orig.opener, 'options', None)
 
         try:
-            dest = revlog(vfs, radix=radix, **revlogkwargs)
+            dest = revlog(
+                vfs,
+                target=orig.target,
+                radix=radix,
+                writable=True,
+                **revlogkwargs,
+            )
         except TypeError:
             dest = revlog(
                 vfs, indexfile=indexname, datafile=dataname, **revlogkwargs
