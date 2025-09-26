@@ -15,7 +15,6 @@ from .. import (
     error,
     metadata,
     pycompat,
-    requirements,
     scmutil,
     store,
     transaction,
@@ -547,7 +546,7 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
             dst = dstrepo.store.rawvfs.join(p)
             util.copyfile(src, dst, copystat=True)
 
-        finishdatamigration(ui, srcrepo, dstrepo, requirements)
+        finishdatamigration(ui, srcrepo, dstrepo, upgrade_op.new_requirements)
 
         ui.status(_(b'data fully upgraded in a temporary repository\n'))
 
