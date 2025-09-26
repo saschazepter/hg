@@ -14,7 +14,16 @@ import mimetypes
 import os
 import stat
 
+from typing import (
+    Optional,
+    TypedDict,
+)
+
 from ..i18n import _
+from ..interfaces.types import (
+    NeedsTypeHint,
+)
+
 from .. import (
     encoding,
     pycompat,
@@ -38,6 +47,108 @@ HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_SERVER_ERROR = 500
 
 ismember = scmutil.ismember
+
+
+# See https://wsgi.readthedocs.io/en/latest/definitions.html#standard-environ-keys
+_StandardEnviron = TypedDict(
+    "_StandardEnviron",
+    {
+        # The HTTP request method, such as GET or POST. This cannot ever be an
+        # empty string, and so is always required.
+        "REQUEST_METHOD": str,
+        # The initial portion of the request URL’s "path" that corresponds to
+        # the application object, so that the application knows its virtual
+        # "location". This may be an empty string, if the application corresponds
+        # to the "root" of the server.
+        "SCRIPT_NAME": str,
+        # The remainder of the request URL’s "path", designating the virtual
+        # "location" of the request’s target within the application. This may
+        # be an empty string, if the request URL targets the application root
+        # and does not have a trailing slash.
+        "PATH_INFO": str,
+        # The portion of the request URL that follows the “?”, if any. May be
+        # empty or absent.
+        "QUERY_STRING": Optional[str],
+        # The contents of any Content-Type fields in the HTTP request. May be
+        # empty or absent.
+        "CONTENT_TYPE": Optional[str],
+        # These fields aren't currently used, so they aren't defined here.
+        # CONTENT_LENGTH
+        # SERVER_NAME
+        # SERVER_PORT
+        # SERVER_PROTOCOL
+    },
+)
+
+# See https://wsgi.readthedocs.io/en/latest/definitions.html#wsgi-environ-keys
+_WSGIEnviron = TypedDict(
+    "_WSGIEnviron",
+    {
+        # The tuple (1, 0), representing WSGI version 1.0.
+        "wsgi.version": tuple[int, int],
+        # A string representing the “scheme” portion of the URL at which the
+        # application is being invoked. Normally, this will have the value "http"
+        # or "https", as appropriate.
+        "wsgi.url_scheme": str,
+        # An input stream (file-like object) from which the HTTP request body
+        # can be read. (The server or gateway may perform reads on-demand as
+        # requested by the application, or it may pre-read the client’s request
+        # body and buffer it in-memory or on disk, or use any other technique
+        # for providing such an input stream, according to its preference.)
+        "wsgi.input": NeedsTypeHint,
+        # An output stream (file-like object) to which error output can be
+        # written, for the purpose of recording program or other errors in a
+        # standardized and possibly centralized location. This should be a
+        # "text mode" stream; i.e., applications should use “n” as a line
+        # ending, and assume that it will be converted to the correct line
+        # ending by the server/gateway.
+        #
+        # For many servers, wsgi.errors will be the server’s main error log.
+        # Alternatively, this may be sys.stderr, or a log file of some sort.
+        # The server’s documentation should include an explanation of how to
+        # configure this or where to find the recorded output. A server or
+        # gateway may supply different error streams to different applications,
+        # if this is desired.
+        "wsgi.errors": NeedsTypeHint,
+        # This value should evaluate true if the application object may be
+        # simultaneously invoked by another thread in the same process, and
+        # should evaluate false otherwise.
+        "wsgi.multithread": bool,
+        # This value should evaluate true if an equivalent application object
+        # may be simultaneously invoked by another process, and should evaluate
+        # false otherwise.
+        "wsgi.multiprocess": bool,
+        # This value should evaluate true if the server or gateway expects
+        # (but does not guarantee!) that the application will only be invoked
+        # this one time during the life of its containing process. Normally,
+        # this will only be true for a gateway based on CGI (or something
+        # similar).
+        "wsgi.run_once": bool,
+    },
+)
+
+# Variables that are not defined by the standard environment or WSGI
+# environment, but we use and therefore must define to appease the type
+# checking overlords.
+#
+# Note: these variables are optional, but pytype isn't smart enough to
+# understand that ``env.get('KEY', '')`` means that the access is never
+# None, so omit that for now.
+_ExtendedEnviron = TypedDict(
+    "_ExtendedEnviron",
+    {
+        # Not defined in standard environment- Microsoft-IIS specific?
+        "SERVER_SOFTWARE": str,
+        # The standard environment calls out a class of HTTP_ variables, but
+        # doesn't define what they are.
+        "HTTP_EXPECT": str,
+        "HTTPS": str,
+    },
+)
+
+
+class Environ(_StandardEnviron, _WSGIEnviron, _ExtendedEnviron):
+    """The combined standard environment and WSGI environment."""
 
 
 def hashiddenaccess(repo, req):
