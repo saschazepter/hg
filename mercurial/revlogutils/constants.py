@@ -256,6 +256,11 @@ REVIDX_FLAGS_ORDER = [
     REVIDX_DELTA_IS_SNAPSHOT,
 ]
 
+# the flags that doesn't alter the revision content
+REVIDX_NEUTRAL_FLAGS = (
+    REVIDX_HASCOPIESINFO | REVIDX_HASMETA | REVIDX_DELTA_IS_SNAPSHOT
+)
+
 # bitmark for flags that could cause rawdata content change
 REVIDX_RAWTEXT_CHANGING_FLAGS = REVIDX_ISCENSORED | REVIDX_EXTSTORED
 

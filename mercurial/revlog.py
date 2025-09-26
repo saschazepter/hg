@@ -71,6 +71,7 @@ from .revlogutils.constants import (
     REVIDX_HASCOPIESINFO,
     REVIDX_HASMETA,
     REVIDX_ISCENSORED,
+    REVIDX_NEUTRAL_FLAGS,
     REVIDX_RAWTEXT_CHANGING_FLAGS,
     REVLOGV0,
     REVLOGV1,
@@ -2994,7 +2995,10 @@ class revlog:
         # (usually alter its state or content)
         flags = self.flags(rev)
 
-        if validated and flags == REVIDX_DEFAULT_FLAGS:
+        if (
+            validated
+            and (flags & ~REVIDX_NEUTRAL_FLAGS) == REVIDX_DEFAULT_FLAGS
+        ):
             # no extra flags set, no flag processor runs, text = rawtext
             return rawtext
 
