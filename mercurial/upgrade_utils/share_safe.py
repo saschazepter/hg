@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import typing
+
 from ..i18n import _
 from .. import (
     error,
@@ -19,16 +21,23 @@ from ..utils import (
     stringutil,
 )
 
+if typing.TYPE_CHECKING:
+    from ..interfaces.types import (
+        RequirementSetT,
+        UiT,
+        VfsT,
+    )
+
 
 def upgrade_share_to_safe(
-    ui,
-    hgvfs,
-    storevfs,
-    current_requirements,
-    mismatch_config,
-    mismatch_warn,
-    mismatch_verbose_upgrade,
-):
+    ui: UiT,
+    hgvfs: VfsT,
+    storevfs: VfsT,
+    current_requirements: RequirementSetT,
+    mismatch_config: bytes,
+    mismatch_warn: bool,
+    mismatch_verbose_upgrade: bool,
+) -> None:
     """Upgrades a share to use share-safe mechanism"""
     wlock = None
     store_requirements = scmutil.readrequires(storevfs, False)
@@ -84,14 +93,14 @@ def upgrade_share_to_safe(
 
 
 def downgrade_share_to_non_safe(
-    ui,
-    hgvfs,
-    sharedvfs,
-    current_requirements,
-    mismatch_config,
-    mismatch_warn,
-    mismatch_verbose_upgrade,
-):
+    ui: UiT,
+    hgvfs: VfsT,
+    sharedvfs: VfsT,
+    current_requirements: RequirementSetT,
+    mismatch_config: bytes,
+    mismatch_warn: bool,
+    mismatch_verbose_upgrade: bool,
+) -> None:
     """Downgrades a share which use share-safe to not use it"""
     wlock = None
     source_requirements = scmutil.readrequires(sharedvfs, True)

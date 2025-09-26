@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import stat
 import time
+import typing
 
 from ..i18n import _
 from ..interfaces.types import (
     RepoT,
+    TransactionT,
     UiT,
+    VfsT,
 )
 
 from .. import (
@@ -35,8 +38,14 @@ from ..revlogutils import (
 from ..store_utils import file_index as file_index_mod
 from . import actions as upgrade_actions
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Final,
+        Iterator,
+    )
 
-def get_sidedata_helpers(srcrepo, dstrepo):
+
+def get_sidedata_helpers(srcrepo: RepoT, dstrepo: RepoT):
     use_w = srcrepo.ui.configbool(b'experimental', b'worker.repository-upgrade')
 
     if use_w and pycompat.isdarwin:
@@ -59,7 +68,7 @@ def get_sidedata_helpers(srcrepo, dstrepo):
     return sidedatamod.get_sidedata_helpers(srcrepo, dstrepo._wanted_sidedata)
 
 
-def _copyrevlog(tr, destrepo, oldrl, entry):
+def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
     """copy all relevant files for `oldrl` into `destrepo` store
 
     Files are copied "as is" without any transformation. The copy is performed
@@ -92,16 +101,16 @@ def _copyrevlog(tr, destrepo, oldrl, entry):
             destrepo.svfs.fncache.add(unencodedname[:-2] + b'.d')
 
 
-UPGRADE_CHANGELOG = b"changelog"
-UPGRADE_MANIFEST = b"manifest"
-UPGRADE_FILELOGS = b"all-filelogs"
+UPGRADE_CHANGELOG: Final[bytes] = b"changelog"
+UPGRADE_MANIFEST: Final[bytes] = b"manifest"
+UPGRADE_FILELOGS: Final[bytes] = b"all-filelogs"
 
-UPGRADE_ALL_REVLOGS = frozenset(
+UPGRADE_ALL_REVLOGS: Final[frozenset[bytes]] = frozenset(
     [UPGRADE_CHANGELOG, UPGRADE_MANIFEST, UPGRADE_FILELOGS]
 )
 
 
-def matchrevlog(revlogfilter, entry):
+def matchrevlog(revlogfilter, entry) -> bool:
     """check if a revlog is selected for cloning.
 
     In other words, are there any updates which need to be done on revlog
@@ -117,12 +126,12 @@ def matchrevlog(revlogfilter, entry):
 
 
 def _perform_clone(
-    ui,
-    dstrepo,
-    tr,
+    ui: UiT,
+    dstrepo: RepoT,
+    tr: TransactionT,
     old_revlog,
     entry,
-    upgrade_op,
+    upgrade_op: upgrade_actions.UpgradeOperation,
     sidedata_helpers,
     oncopiedrevision,
 ):
@@ -153,12 +162,12 @@ def _perform_clone(
 
 
 def _clonerevlogs(
-    ui,
-    srcrepo,
-    dstrepo,
-    tr,
-    upgrade_op,
-):
+    ui: UiT,
+    srcrepo: RepoT,
+    dstrepo: RepoT,
+    tr: TransactionT,
+    upgrade_op: upgrade_actions.UpgradeOperation,
+) -> None:
     """Copy revlogs between 2 repos."""
     revcount = 0
     srcsize = 0
@@ -370,7 +379,7 @@ def _clonerevlogs(
     ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
 
 
-def _files_to_copy_post_revlog_clone(srcrepo):
+def _files_to_copy_post_revlog_clone(srcrepo: RepoT) -> Iterator[bytes]:
     """yields files which should be copied to destination after revlogs
     are cloned"""
     for path, kind, st in sorted(srcrepo.svfs.readdir(b'', stat=True)):
@@ -391,7 +400,12 @@ def _files_to_copy_post_revlog_clone(srcrepo):
         yield path
 
 
-def _replacestores(currentrepo, upgradedrepo, backupvfs, upgrade_op):
+def _replacestores(
+    currentrepo: RepoT,
+    upgradedrepo: RepoT,
+    backupvfs: VfsT,
+    upgrade_op: upgrade_actions.UpgradeOperation,
+) -> None:
     """Replace the stores after current repository is upgraded
 
     Creates a backup of current repository store at backup path
@@ -428,7 +442,12 @@ def finishdatamigration(
     """
 
 
-def upgrade(ui, srcrepo, dstrepo, upgrade_op):
+def upgrade(
+    ui: UiT,
+    srcrepo: RepoT,
+    dstrepo: RepoT,
+    upgrade_op: upgrade_actions.UpgradeOperation,
+) -> bytes | None:
     """Do the low-level work of upgrading a repository.
 
     The upgrade is effectively performed as a copy between a source
@@ -629,7 +648,13 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
     return backuppath
 
 
-def upgrade_dirstate(ui, srcrepo, upgrade_op, old, new):
+def upgrade_dirstate(
+    ui: UiT,
+    srcrepo: RepoT,
+    upgrade_op: upgrade_actions.BaseOperation,
+    old: bytes,
+    new: bytes,
+) -> None:
     if upgrade_op.backup_store:
         backuppath = pycompat.mkdtemp(
             prefix=b'upgradebackup.', dir=srcrepo.path
@@ -671,7 +696,12 @@ def upgrade_dirstate(ui, srcrepo, upgrade_op, old, new):
         scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
 
 
-def upgrade_tracked_hint(ui, srcrepo, upgrade_op, add):
+def upgrade_tracked_hint(
+    ui: UiT,
+    srcrepo: RepoT,
+    upgrade_op: upgrade_actions.BaseOperation,
+    add: bool,
+) -> None:
     if add:
         srcrepo.dirstate._use_tracked_hint = True
         srcrepo.dirstate._dirty = True
@@ -683,7 +713,9 @@ def upgrade_tracked_hint(ui, srcrepo, upgrade_op, add):
     scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
 
 
-def upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op):
+def upgrade_fncache_to_fileindex(
+    ui: UiT, srcrepo: RepoT, upgrade_op: upgrade_actions.UpgradeOperation
+) -> None:
     if upgrade_op.backup_store:
         backuppath = pycompat.mkdtemp(
             prefix=b'upgradebackup.', dir=srcrepo.path

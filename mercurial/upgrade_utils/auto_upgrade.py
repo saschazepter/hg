@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import typing
+
 from ..i18n import _
 
 from .. import (
@@ -20,6 +22,12 @@ from . import (
     engine,
 )
 
+if typing.TYPE_CHECKING:
+    from ..interfaces.types import (
+        RepoT,
+        RequirementSetT,
+    )
+
 
 class AutoUpgradeOperation(actions.BaseOperation):
     """A limited Upgrade Operation used to run simple auto upgrade task
@@ -27,14 +35,14 @@ class AutoUpgradeOperation(actions.BaseOperation):
     (Expand it as needed in the future)
     """
 
-    def __init__(self, req):
+    def __init__(self, req: RequirementSetT) -> None:
         super().__init__(
             new_requirements=req,
             backup_store=False,
         )
 
 
-def get_share_safe_action(repo):
+def get_share_safe_action(repo: RepoT):
     """return an automatic-upgrade action for `share-safe` if applicable
 
     If no action is needed, return None, otherwise return a callback to upgrade
@@ -91,7 +99,7 @@ def get_share_safe_action(repo):
     return action
 
 
-def get_tracked_hint_action(repo):
+def get_tracked_hint_action(repo: RepoT):
     """return an automatic-upgrade action for `tracked-hint` if applicable
 
     If no action is needed, return None, otherwise return a callback to upgrade
@@ -147,7 +155,7 @@ def get_tracked_hint_action(repo):
     return action
 
 
-def get_dirstate_v2_action(repo):
+def get_dirstate_v2_action(repo: RepoT):
     """return an automatic-upgrade action for `dirstate-v2` if applicable
 
     If no action is needed, return None, otherwise return a callback to upgrade
@@ -214,7 +222,7 @@ AUTO_UPGRADE_ACTIONS = [
 ]
 
 
-def may_auto_upgrade(repo, maker_func):
+def may_auto_upgrade(repo: RepoT, maker_func) -> RepoT:
     """potentially perform auto-upgrade and return the final repository to use
 
     Auto-upgrade are "quick" repository upgrade that might automatically be run
