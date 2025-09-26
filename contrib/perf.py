@@ -3642,15 +3642,18 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
             title = b'%s of %d, rev %d' % (name, resultcount, data[0])
             formatone(fm, data[1], title=title, displayall=displayall)
 
-    # XXX summing that many float will not be very precise, we ignore this fact
-    # for now
+    # summing that many float loose precisions,
+    #
+    # There are advanced technique to reduce this precision lose, but to keep
+    # things simple, we just sort them to make sure we adds the smaller first,
+    # reducing the precision lose.
     totaltime = []
     for item in allresults:
         totaltime.append(
             (
-                sum(x[1][0] for x in item),
-                sum(x[1][1] for x in item),
-                sum(x[1][2] for x in item),
+                sum(sorted(x[1][0] for x in item)),
+                sum(sorted(x[1][1] for x in item)),
+                sum(sorted(x[1][2] for x in item)),
             )
         )
     formatone(
