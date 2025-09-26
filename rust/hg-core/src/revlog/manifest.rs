@@ -1,4 +1,3 @@
-use std::iter;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
@@ -6,8 +5,8 @@ use super::diff::start_maybe_mismatch_line;
 use super::diff::CMP_BLK_SIZE;
 use super::RevlogType;
 use crate::errors::HgError;
+use crate::revlog::diff::DeltaCursor;
 use crate::revlog::options::RevlogOpenOptions;
-use crate::revlog::patch::DeltaCursor;
 use crate::revlog::Node;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revlog;
