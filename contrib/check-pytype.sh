@@ -47,7 +47,6 @@ pytype --version
 #
 # mercurial/context.py          # many [attribute-error]
 # mercurial/debugcommands.py    # [wrong-arg-types]
-# mercurial/dispatch.py         # initstdio: No attribute ... on TextIO [attribute-error]
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
@@ -101,7 +100,6 @@ pytype --keep-going --jobs auto \
     -x hgext/zeroconf/__init__.py \
     -x mercurial/context.py \
     -x mercurial/debugcommands.py \
-    -x mercurial/dispatch.py \
     -x mercurial/minirst.py \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
