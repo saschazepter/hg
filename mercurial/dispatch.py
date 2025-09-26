@@ -16,6 +16,7 @@ import re
 import signal
 import sys
 import traceback
+import typing
 
 from .i18n import _
 
@@ -124,7 +125,7 @@ def initstdio():
         # write_through is new in Python 3.7.
         kwargs = {
             "newline": "\n",
-            "line_buffering": sys.stdout.line_buffering,
+            "line_buffering": bool(sys.stdout.line_buffering),
         }
         if hasattr(sys.stdout, "write_through"):
             # pytype: disable=attribute-error
@@ -137,7 +138,7 @@ def initstdio():
     if sys.stderr is not None:
         kwargs = {
             "newline": "\n",
-            "line_buffering": sys.stderr.line_buffering,
+            "line_buffering": bool(sys.stderr.line_buffering),
         }
         if hasattr(sys.stderr, "write_through"):
             # pytype: disable=attribute-error
@@ -155,7 +156,7 @@ def initstdio():
             sys.stdin.errors,
             # None is universal newlines mode.
             newline=None,
-            line_buffering=sys.stdin.line_buffering,
+            line_buffering=bool(sys.stdin.line_buffering),
         )
 
 
@@ -797,7 +798,7 @@ def _parse(ui, args):
         cmd = None
         c = []
 
-    def global_opt_to_fancy_opt(opt_name):
+    def global_opt_to_fancy_opt(opt_name: bytes) -> bytes:
         # fancyopts() does this transform on `options`, but globalopts uses a
         # '-', so that it is displayed in the help and accepted as input that
         # way.
@@ -1001,7 +1002,12 @@ def _dispatch_post_cwd(req):
                 if cause.opt and "config".startswith(cause.opt):
                     # pycompat._getoptbwrapper() decodes bytes with latin-1
                     opt = cause.opt.encode('latin-1')
-                    all_long = {o[1] for o in cmd_impls.global_opts}
+
+                    # pytype seems to merge all the types in each tuple index,
+                    # but o[1] is always bytes.
+                    all_long = typing.cast(
+                        set[bytes], {o[1] for o in cmd_impls.global_opts}
+                    )
                     possible = [o for o in all_long if o.startswith(opt)]
 
                     if len(possible) != 1:
