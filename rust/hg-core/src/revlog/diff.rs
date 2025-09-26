@@ -67,15 +67,15 @@ impl std::fmt::Debug for DeltaCursor<'_> {
 // manifest line is in the 100 bytes order of magnitude.
 pub(crate) const CMP_BLK_SIZE: usize = 512;
 
-/// return the starting position from which lines MAY be different between left
-/// and right
+/// return a lower bound estimate of the size of a line-aligned prefix
 ///
-/// Any position before that garantee that the lines are the same.
-pub(crate) fn start_maybe_mismatch_line(left: &[u8], right: &[u8]) -> usize {
-    start_mismatch_line_chunk::<CMP_BLK_SIZE>(left, right)
+/// For that  many bytes, we garantee all lines are the same. A few consecutive
+/// lines might still be identical after that point.
+pub(crate) fn lines_prefix_size_low(left: &[u8], right: &[u8]) -> usize {
+    lines_prefix_size_low_chunk::<CMP_BLK_SIZE>(left, right)
 }
 
-fn start_mismatch_line_chunk<const N: usize>(
+fn lines_prefix_size_low_chunk<const N: usize>(
     left: &[u8],
     right: &[u8],
 ) -> usize {

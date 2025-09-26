@@ -1,7 +1,7 @@
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
-use super::diff::start_maybe_mismatch_line;
+use super::diff::lines_prefix_size_low;
 use super::diff::CMP_BLK_SIZE;
 use super::RevlogType;
 use crate::errors::HgError;
@@ -461,7 +461,7 @@ fn changed_sections<'a>(
             current_iter.take();
         }
         if current_iter.is_none() {
-            let size = start_maybe_mismatch_line(m1, m2);
+            let size = lines_prefix_size_low(m1, m2);
             if size > 0 {
                 m1 = &m1[size..];
                 m2 = &m2[size..];
