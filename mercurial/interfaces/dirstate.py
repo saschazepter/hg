@@ -287,6 +287,12 @@ class idirstate(Protocol):
         pass
 
     @abc.abstractmethod
+    def delete_tracked_hint(self) -> None:
+        """remove the tracked_hint file
+
+        To be used by format downgrades operation"""
+
+    @abc.abstractmethod
     def addparentchangecallback(
         self, category: bytes, callback: AddParentChangeCallbackT
     ) -> None:
