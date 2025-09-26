@@ -60,6 +60,9 @@ LocalRepoMainT = repository.IRepo
 LocalRepoCompleteT = repository.IRepo
 LocalRepoFileStorageT = repository.IRepo
 
+RequirementT = repository.RequirementT
+RequirementSetT = repository.RequirementSetT
+
 MatcherBadFuncT = matcher.BadFuncT
 MatcherKindPatT = matcher.KindPatT
 MatcherMatchFuncT = matcher.MatchFuncT

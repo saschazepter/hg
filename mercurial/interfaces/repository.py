@@ -145,6 +145,13 @@ CACHES_POST_CLONE.discard(CACHE_FILE_NODE_TAGS)
 CACHES_POST_CLONE.discard(CACHE_REV_BRANCH)
 
 
+RequirementT = bytes
+"""A single requirement for a repository."""
+
+RequirementSetT = set[RequirementT]
+"""The collection of requirements for a repository."""
+
+
 class _ipeerconnection(Protocol):
     """Represents a "connection" to a repository.
 
@@ -1793,10 +1800,10 @@ class IRepo(Protocol):
     nullid: bytes
     """null revision for the hash function used by the repository."""
 
-    supported: set[bytes]
+    supported: RequirementSetT
     """Set of requirements that this repo is capable of opening."""
 
-    requirements: set[bytes]
+    requirements: RequirementSetT
     """Set of requirements this repo uses."""
 
     features: set[bytes]
