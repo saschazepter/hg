@@ -3713,15 +3713,16 @@ def _timeonewrite(
             def completeprogress():
                 ui.progress(topic, None, unit=b'revs', total=total)
 
-        for idx, rev in enumerate(revs):
-            updateprogress(idx)
-            addargs, addkwargs = _getrevisionseed(orig, rev, tr, source)
-            if clearcaches:
-                dest.index.clearcaches()
-                dest.clearcaches()
-            with timeone() as r:
-                dest.addrawrevision(*addargs, **addkwargs)
-            timings.append((rev, r[0]))
+        with dest._writing(tr):
+            for idx, rev in enumerate(revs):
+                updateprogress(idx)
+                addargs, addkwargs = _getrevisionseed(orig, rev, tr, source)
+                if clearcaches:
+                    dest.index.clearcaches()
+                    dest.clearcaches()
+                with timeone() as r:
+                    dest.addrawrevision(*addargs, **addkwargs)
+                timings.append((rev, r[0]))
         updateprogress(total)
         completeprogress()
     return timings
