@@ -11,6 +11,11 @@ import stat
 import time
 
 from ..i18n import _
+from ..interfaces.types import (
+    RepoT,
+    UiT,
+)
+
 from .. import (
     error,
     metadata,
@@ -408,11 +413,18 @@ def _replacestores(currentrepo, upgradedrepo, backupvfs, upgrade_op):
     util.rename(upgradedrepo.spath, currentrepo.spath)
 
 
-def finishdatamigration(ui, srcrepo, dstrepo, requirements):
+def finishdatamigration(
+    ui: UiT, srcrepo: RepoT, dstrepo: RepoT, requirements: set[bytes]
+) -> None:
     """Hook point for extensions to perform additional actions during upgrade.
 
     This function is called after revlogs and store files have been copied but
     before the new store is swapped into the original location.
+
+    Extensions can modify the set of requirements, but must be careful to
+    ensure they don't remove ones that really are required in the new
+    repository.  The migration engine will write the requirements out to the
+    ``dstrepo`` at the appropriate point.
     """
 
 
