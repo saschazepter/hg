@@ -99,6 +99,28 @@ fn lines_prefix_size_low_chunk<const N: usize>(
     }
 }
 
+/// Return the size of a line-aligned identical suffix
+///
+/// The suffix might not be minimal
+pub fn lines_suffix_size_low(left: &[u8], right: &[u8]) -> usize {
+    lines_suffix_size_low_chunk::<CMP_BLK_SIZE>(left, right)
+}
+
+fn lines_suffix_size_low_chunk<const N: usize>(
+    left: &[u8],
+    right: &[u8],
+) -> usize {
+    let chunk_count =
+        std::iter::zip(left.rchunks_exact(N), right.rchunks_exact(N))
+            .take_while(|(l, r)| l == r)
+            .count();
+    let size = chunk_count * N;
+    match memchr::memchr(b'\n', &left[left.len() - size..]) {
+        None => 0,
+        Some(pos) => size - (pos + 1),
+    }
+}
+
 /// Estimation of the number of bytes per lines
 ///
 /// This is used to infer the number of line we can expect for a given full text
@@ -199,8 +221,13 @@ pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
     let mut delta = vec![];
 
     let prefix_size = lines_prefix_size_low(m1, m2);
+    let suffix_size =
+        lines_suffix_size_low(&m1[prefix_size..], &m2[prefix_size..]);
 
-    match (&m1[prefix_size..], &m2[prefix_size..]) {
+    match (
+        &m1[prefix_size..m1.len() - suffix_size],
+        &m2[prefix_size..m2.len() - suffix_size],
+    ) {
         ([], []) => (),
         (m, []) => all_deleted(prefix_size, m, &mut delta),
         ([], m) => all_created(prefix_size, m, &mut delta),

@@ -3739,7 +3739,7 @@ def _getrevisionseed(orig, rev, tr, source):
     text = None
 
     if source == b'full':
-        text = orig.revision(rev)
+        text = orig._revisiondata(rev, validate=False)
     elif source == b'parent-1':
         baserev = orig.rev(p1)
         cachedelta = CachedDelta(baserev, orig.revdiff(p1, rev))
