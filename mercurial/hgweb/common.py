@@ -15,6 +15,7 @@ import os
 import stat
 
 from typing import (
+    Any,
     Optional,
     TypedDict,
 )
@@ -263,8 +264,8 @@ class continuereader:
             self._write(b'HTTP/1.1 100 Continue\r\n\r\n')
         return self.f.read(amt)
 
-    def __getattr__(self, attr):
-        if attr in (b'close', b'readline', b'readlines', b'__iter__'):
+    def __getattr__(self, attr: str) -> Any:
+        if attr in ('close', 'readline', 'readlines', '__iter__'):
             return getattr(self.f, attr)
         raise AttributeError
 
