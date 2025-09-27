@@ -15,6 +15,10 @@ from typing import (
 )
 
 if typing.TYPE_CHECKING:
+    from ._basetypes import (
+        NeedsTypeHint,
+    )
+
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
     from . import (
@@ -87,6 +91,12 @@ class idirstate(Protocol):
 
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
+
+    _use_dirstate_v2: bool
+
+    @property  # really @util.propertycache
+    def _map(self) -> NeedsTypeHint:
+        pass
 
     # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
     @property
