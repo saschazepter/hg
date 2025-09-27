@@ -1012,6 +1012,8 @@ class _InnerRevlog:
 
         returns rawtext
         """
+        if rev == nullrev:
+            return b''
 
         # revision in the cache (could be useful to apply delta)
         cachedrev = None
