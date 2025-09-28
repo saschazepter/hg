@@ -374,6 +374,11 @@ class _InnerRevlog:
 
         self._default_compression_header = default_compression_header
 
+        if target[0] == KIND_MANIFESTLOG:
+            self._diff_fn = mdiff.manifest_diff
+        else:
+            self._diff_fn = mdiff.storage_diff
+
         # index
 
         # 3-tuple of file handles being used for active writing.
@@ -1087,6 +1092,18 @@ class _InnerRevlog:
         self.cache_revision_text(rev, rawtext, False)
         return (rev, rawtext, False)
 
+    def rev_diff(self, rev_1: RevnumT, rev_2: RevnumT) -> bytes:
+        """return the diff between two revisions
+
+        The revision are expected to have nothing altering them (censoring,
+        flag processors, ...) (at least until the inner revlog has the tool to
+        be responsible for them)
+        """
+        return self._diff_fn(
+            self.raw_text(rev_1)[1],
+            self.raw_text(rev_2)[1],
+        )
+
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
         index_entry = self.index[rev]
@@ -1427,6 +1444,9 @@ class revlog:
 
     _flagserrorclass = error.RevlogError
     _inner: _InnerRevlog
+
+    # use by large file to signal it might affect some filelog
+    _large_file_enabled = False
 
     opener: vfsmod.vfs
 
@@ -2952,11 +2972,19 @@ class revlog:
         """
         if rev1 != nullrev and self.deltaparent(rev2) == rev1:
             return bytes(self._inner._chunk(rev2))
-
-        return self._diff_fn(
-            self.rawdata(rev1, validate=False),
-            self.rawdata(rev2, validate=False),
-        )
+        elif (
+            self._large_file_enabled
+            or self.iscensored(rev1)
+            or self.iscensored(rev2)
+            or (self.flags(rev1) & ~REVIDX_NEUTRAL_FLAGS)
+            or (self.flags(rev2) & ~REVIDX_NEUTRAL_FLAGS)
+        ):
+            return self._diff_fn(
+                self.rawdata(rev1, validate=False),
+                self.rawdata(rev2, validate=False),
+            )
+        else:
+            return self._inner.rev_diff(rev1, rev2)
 
     def revision(self, nodeorrev):
         """return an uncompressed revision of a given node or revision

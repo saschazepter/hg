@@ -23,6 +23,7 @@ use super::compression::ZlibCompressor;
 use super::compression::ZstdCompressor;
 use super::compression::ZLIB_BYTE;
 use super::compression::ZSTD_BYTE;
+use super::diff::text_delta;
 use super::file_io::DelayedBuffer;
 use super::file_io::FileHandle;
 use super::file_io::RandomAccessFile;
@@ -30,6 +31,7 @@ use super::file_io::WriteHandles;
 use super::index::Index;
 use super::index::IndexHeader;
 use super::index::INDEX_ENTRY_SIZE;
+use super::manifest::manifest_delta;
 use super::node::NODE_BYTES_LENGTH;
 use super::node::NULL_NODE;
 use super::options::RevlogDataConfig;
@@ -564,6 +566,25 @@ impl InnerRevlog {
             Ok(())
         })?;
         Ok(())
+    }
+
+    /// return a binary delta between two revisions
+    pub fn rev_delta(
+        &self,
+        rev_1: Revision,
+        rev_2: Revision,
+    ) -> Result<Vec<u8>, RevlogError> {
+        let entry_1 = &self.get_entry(rev_1)?;
+        let entry_2 = &self.get_entry(rev_2)?;
+
+        let data_1 = entry_1.data_unchecked()?;
+        let data_2 = entry_2.data_unchecked()?;
+
+        if self.revlog_type == RevlogType::Manifestlog {
+            Ok(manifest_delta(&data_1, &data_2))
+        } else {
+            Ok(text_delta(&data_1, &data_2))
+        }
     }
 
     /// Only `pub` for `hg-pyo3`.

@@ -705,6 +705,26 @@ impl InnerRevlog {
         })
     }
 
+    /// return a binary delta between two revisions
+    fn rev_diff(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        rev_1: PyRevision,
+        rev_2: PyRevision,
+    ) -> PyResult<Py<PyBytes>> {
+        let rev_1: UncheckedRevision = rev_1.into();
+        let rev_2: UncheckedRevision = rev_2.into();
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let idx = &irl.index;
+            let rev_1 = check_revision(idx, rev_1)?;
+            let rev_2 = check_revision(idx, rev_2)?;
+            let bytes =
+                irl.rev_delta(rev_1, rev_2).map_err(revlog_error_from_msg)?;
+            let py_bytes: Py<PyBytes> = PyBytes::new(py, &bytes).unbind();
+            Ok(py_bytes)
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
         transaction,
