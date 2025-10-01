@@ -1431,7 +1431,9 @@ def _exceptionwarning(ui):
     else:
         bugtracker = ui.config(b'ui', b'supportcontact')
         if bugtracker is None:
-            bugtracker = _(b"https://mercurial-scm.org/wiki/BugTracker")
+            bugtracker = _(
+                b"https://foss.heptapod.net/mercurial/mercurial-devel/-/issues"
+            )
         warning = (
             _(
                 b"** unknown exception encountered, "
