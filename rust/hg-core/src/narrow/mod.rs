@@ -8,11 +8,14 @@ use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
 use crate::matchers::Matcher;
 use crate::matchers::NeverMatcher;
+use crate::narrow::shape::ShardTreeNode;
 use crate::repo::Repo;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::sparse::SparseConfigError;
 use crate::sparse::{self};
 use crate::warnings::HgWarningSender;
+
+pub mod shape;
 
 /// The file in .hg/store/ that indicates which paths exit in the store
 const FILENAME: &str = "narrowspec";
@@ -67,7 +70,7 @@ pub fn matcher(
         return Ok(Box::new(NeverMatcher));
     }
 
-    let patterns = parse_pattern_file_contents(
+    let include_patterns = parse_pattern_file_contents(
         &config.includes,
         Path::new(""),
         None,
@@ -76,10 +79,7 @@ pub fn matcher(
         warnings,
     )?;
 
-    let mut m: Box<dyn Matcher + Send> =
-        Box::new(IncludeMatcher::new(patterns)?);
-
-    let patterns = parse_pattern_file_contents(
+    let exclude_patterns = parse_pattern_file_contents(
         &config.excludes,
         Path::new(""),
         None,
@@ -88,8 +88,25 @@ pub fn matcher(
         warnings,
     )?;
 
-    if !patterns.is_empty() {
-        let exclude_matcher = Box::new(IncludeMatcher::new(patterns)?);
+    // The old way only works for simple cases. Nested excludes/includes
+    // don't work and we need them for shapes, but only for `path:` patterns.
+    //
+    // `rootfilesin:` does not use the new logic yet because they make the code
+    // more complex and are not needed by shapes. Maybe we'll end up
+    // implementing it.
+    if let Ok(tree) =
+        ShardTreeNode::from_patterns(&include_patterns, &exclude_patterns)
+    {
+        let new_matcher = tree.matcher(repo.working_directory_path());
+        return Ok(new_matcher);
+    }
+
+    // Fall back to the old way of matching
+    let mut m: Box<dyn Matcher + Send> =
+        Box::new(IncludeMatcher::new(include_patterns)?);
+
+    if !exclude_patterns.is_empty() {
+        let exclude_matcher = Box::new(IncludeMatcher::new(exclude_patterns)?);
         m = Box::new(DifferenceMatcher::new(m, exclude_matcher));
     }
 
