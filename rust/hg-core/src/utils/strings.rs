@@ -121,6 +121,7 @@ pub trait SliceExt {
     fn drop_prefix(&self, needle: &Self) -> Option<&Self>;
     fn split_2(&self, separator: u8) -> Option<(&[u8], &[u8])>;
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])>;
+    fn to_hex_bytes(&self) -> Vec<u8>;
 }
 
 impl SliceExt for [u8] {
@@ -183,6 +184,14 @@ impl SliceExt for [u8] {
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])> {
         find_slice_in_slice(self, separator)
             .map(|pos| (&self[..pos], &self[pos + separator.len()..]))
+    }
+
+    fn to_hex_bytes(&self) -> Vec<u8> {
+        let mut hex = Vec::with_capacity(self.len() * 2);
+        for byte in self {
+            write!(hex, "{:02x}", byte).unwrap();
+        }
+        hex
     }
 }
 
