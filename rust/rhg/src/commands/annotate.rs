@@ -36,6 +36,7 @@ show changeset information by line for each file
 pub fn args() -> clap::Command {
     clap::command!("annotate")
         .alias("blame")
+        .args_override_self(true)
         .arg(
             clap::Arg::new("files")
                 .help("files to annotate")

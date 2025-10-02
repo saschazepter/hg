@@ -20,6 +20,7 @@ Some options might be missing, check the list below.
 
 pub fn args() -> clap::Command {
     clap::command!("debugignorerhg")
+        .args_override_self(true)
         .arg(
             Arg::new("all-patterns")
                 .help("include all patterns, including ones for exact file matches")

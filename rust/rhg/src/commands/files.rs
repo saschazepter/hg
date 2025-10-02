@@ -25,6 +25,7 @@ Returns 0 on success.
 
 pub fn args() -> clap::Command {
     clap::command!("files")
+        .args_override_self(true)
         .arg(
             Arg::new("rev")
                 .help("search the repository as it is in REV")

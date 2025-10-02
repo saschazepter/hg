@@ -59,6 +59,7 @@ Some options might be missing, check the list below.
 pub fn args() -> clap::Command {
     clap::command!("status")
         .alias("st")
+        .args_override_self(true)
         .about(HELP_TEXT)
         .arg(
             Arg::new("file")
