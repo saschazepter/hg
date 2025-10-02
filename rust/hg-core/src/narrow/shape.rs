@@ -1,9 +1,12 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::io::Write;
 use std::path::Path;
 use std::rc::Rc;
 
 use itertools::Itertools;
+use sha2::Digest;
+use sha2::Sha256;
 
 use crate::filepatterns::IgnorePattern;
 use crate::filepatterns::PatternError;
@@ -148,9 +151,73 @@ impl ShardTreeNode {
         Box::new(DifferenceMatcher::new(top_matcher, sub_matcher))
     }
 
+    /// Get the fingerprint for this node. It will return a different hash for
+    /// a semantically different node, allowing for a quick comparison.
+    pub fn fingerprint(&self) -> [u8; 32] {
+        let mut hasher = Sha256::new();
+        self.serialize(&mut hasher).expect("writing to a hasher never fails");
+        hasher.finalize().into()
+    }
+
     /// `true` if `self` is a sub-path of `other`
     fn sub_path_of(&self, other: &Self) -> bool {
         self.path.starts_with(&other.path)
+    }
+
+    /// Return the node normalized as two flat sets of includes and excludes
+    fn flat(&self) -> (Vec<ZeroPath>, Vec<ZeroPath>) {
+        let mut includes = vec![];
+        let mut excludes = vec![];
+
+        if self.included {
+            includes.push(self.path.clone());
+        } else {
+            excludes.push(self.path.clone());
+        }
+
+        for child in self.children.iter() {
+            let (sub_includes, sub_excludes) = child.borrow().flat();
+            includes.extend(sub_includes);
+            excludes.extend(sub_excludes);
+        }
+
+        (includes, excludes)
+    }
+
+    /// Serialize this node with the following binary format:
+    ///
+    /// `<HEADER>\n<NUM>\n[<MARKER>/<PATH>\n...]`
+    ///
+    /// With:
+    ///   - `<HEADER>` being the literal ascii bytes `shape-v1` to help identify
+    ///     the format easily, and as a sanity check
+    ///   - `<NUM>` is the number of paths as a little-endian 64bits integer
+    ///   - `[X...]` is syntax for "for each element, do X"
+    ///   - `<MARKER>` is either the literal ascii bytes `inc` or `exc`,
+    ///     depending on whether this path is included or excluded
+    ///   - `<PATH>` is the raw bytes of each path, rooted at the empty path
+    fn serialize(&self, mut buf: impl Write) -> Result<(), std::io::Error> {
+        let (includes, excludes) = self.flat();
+
+        buf.write_all(b"shape-v1\n")?;
+        let sorted_paths = includes
+            .into_iter()
+            .map(|i| (i, true))
+            .chain(excludes.into_iter().map(|i| (i, false)))
+            // sort by zero path so we get the children next to the parents
+            .sorted_by(|a, b| a.0.cmp(&b.0));
+
+        let number_of_paths: u64 =
+            sorted_paths.len().try_into().expect("too many paths");
+        buf.write_all(&number_of_paths.to_le_bytes())?;
+        for (zero_path, included) in sorted_paths {
+            buf.write_all(if included { b"inc" } else { b"exc" })?;
+            buf.write_all(b"/")?;
+            buf.write_all(zero_path.to_hg_path_buf().as_bytes())?;
+            buf.write_all(b"\n")?;
+        }
+
+        Ok(())
     }
 }
 

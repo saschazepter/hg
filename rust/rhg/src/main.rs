@@ -713,6 +713,7 @@ fn exit_no_fallback(
 }
 
 mod commands {
+    pub mod admin_narrow;
     pub mod annotate;
     pub mod cat;
     pub mod config;
@@ -795,6 +796,7 @@ impl Subcommands {
 
 fn subcommands() -> Subcommands {
     let subcommands = vec![
+        subcommand!(admin_narrow),
         subcommand!(annotate),
         subcommand!(cat),
         subcommand!(debugdata),
