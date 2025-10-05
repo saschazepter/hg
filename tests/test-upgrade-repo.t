@@ -885,13 +885,31 @@ make sure we have a .d file
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (384 bytes in store; 238 bytes tracked data)
-  finished migrating 3 manifest revisions across 1 manifests; change in size: -17 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: -17 bytes
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              384 bytes
+       tracked-size:            238 bytes
+       size-change:             -17 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1002,13 +1020,31 @@ unless --no-backup is passed
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1044,18 +1080,36 @@ We can restrict optimization to some revlog:
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   blindly copying data/FooBarDirectory.d/f1.i containing 1 revisions
   blindly copying data/f0.i containing 1 revisions
   blindly copying data/f2.i containing 1 revisions
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   cloning 3 revisions from 00manifest.i
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   blindly copying 00changelog.i containing 3 revisions
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1118,18 +1172,36 @@ Check we can select negatively
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   blindly copying 00manifest.i containing 3 revisions
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1164,18 +1236,36 @@ Check that we can select changelog only
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   blindly copying data/FooBarDirectory.d/f1.i containing 1 revisions
   blindly copying data/f0.i containing 1 revisions
   blindly copying data/f2.i containing 1 revisions
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   blindly copying 00manifest.i containing 3 revisions
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1210,18 +1300,36 @@ Check that we can select filelog only
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   blindly copying 00manifest.i containing 3 revisions
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   blindly copying 00changelog.i containing 3 revisions
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1280,18 +1388,36 @@ Check you can't skip revlog clone during important format downgrade
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   cloning 3 revisions from 00manifest.i
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1336,18 +1462,36 @@ Check you can't skip revlog clone during important format upgrade
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   cloning 3 revisions from 00manifest.i
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1394,13 +1538,31 @@ store files with special filenames aren't encoded during copy
   (it is safe to interrupt this process any time before data migration completes)
   migrating 3 total revisions (1 in filelogs, 1 in manifests, 1 in changelog)
   migrating 301 bytes in store; 107 bytes tracked data
-  migrating 1 filelogs containing 1 revisions (64 bytes in store; 0 bytes tracked data)
-  finished migrating 1 filelog revisions across 1 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 1 revisions (110 bytes in store; 45 bytes tracked data)
-  finished migrating 1 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 1 revisions (127 bytes in store; 62 bytes tracked data)
-  finished migrating 1 changelog revisions; change in size: 0 bytes
-  finished migrating 3 total revisions; total change in store size: 0 bytes
+  migrating filelogs:
+       revlog-count:              1
+       total-revisions:           1
+       store-size:               64 bytes
+       tracked-size:              0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           1
+       store-size:              110 bytes
+       tracked-size:             45 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           1
+       store-size:              127 bytes
+       tracked-size:             62 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           3
+       total-revisions:           3
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying .XX_special_filename
   copying phaseroots
   copying requires
@@ -1558,13 +1720,31 @@ repository config is taken in account
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 1019 bytes in store; 882 bytes tracked data
-  migrating 1 filelogs containing 3 revisions (320 bytes in store; 573 bytes tracked data)
-  finished migrating 3 filelog revisions across 1 filelogs; change in size: -9 bytes
-  migrating 1 manifests containing 3 revisions (333 bytes in store; 138 bytes tracked data)
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (366 bytes in store; 171 bytes tracked data)
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: -9 bytes
+  migrating filelogs:
+       revlog-count:              1
+       total-revisions:           3
+       store-size:              320 bytes
+       tracked-size:            573 bytes
+       size-change:              -9 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              333 bytes
+       tracked-size:            138 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              366 bytes
+       tracked-size:            171 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           3
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository

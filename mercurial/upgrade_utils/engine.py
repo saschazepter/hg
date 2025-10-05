@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import stat
+import time
 
 from ..i18n import _
 from .. import (
@@ -172,6 +173,7 @@ def _clonerevlogs(
     crawsize = 0
     cdstsize = 0
 
+    total_start_time = time.monotonic()
     alldatafiles = list(srcrepo.store.walk())
     # mapping of data files which needs to be cloned
     # key is unencoded filename
@@ -247,19 +249,15 @@ def _clonerevlogs(
     sidedata_helpers = get_sidedata_helpers(srcrepo, dstrepo)
 
     # Migrating filelogs
-    ui.status(
-        _(
-            b'migrating %d filelogs containing %d revisions '
-            b'(%s in store; %s tracked data)\n'
-        )
-        % (
-            fcount,
-            frevcount,
-            util.bytecount(fsrcsize),
-            util.bytecount(frawsize),
-        )
-    )
+    store_size = tuple(util.bytecount(fsrcsize).split(b' ', 1))
+    tracked_size = tuple(util.bytecount(frawsize).split(b' ', 1))
+    ui.status(_(b'migrating filelogs:\n'))
+    ui.status(_(b'     revlog-count:      %9d\n') % fcount)
+    ui.status(_(b'     total-revisions:   %9d\n') % frevcount)
+    ui.status(_(b'     store-size:        %9s %s\n') % store_size)
+    ui.status(_(b'     tracked-size:      %9s %s\n') % tracked_size)
     progress = srcrepo.ui.makeprogress(_(b'file revisions'), total=frevcount)
+    start_time = time.monotonic()
     for target_id, entry in sorted(filelogs.items()):
         oldrl = entry.get_revlog_instance(srcrepo)
 
@@ -275,32 +273,27 @@ def _clonerevlogs(
         )
         info = newrl.storageinfo(storedsize=True)
         fdstsize += info[b'storedsize'] or 0
-    ui.status(
-        _(
-            b'finished migrating %d filelog revisions across %d '
-            b'filelogs; change in size: %s\n'
-        )
-        % (frevcount, fcount, util.bytecount(fdstsize - fsrcsize))
-    )
-
-    # Migrating manifests
-    ui.status(
-        _(
-            b'migrating %d manifests containing %d revisions '
-            b'(%s in store; %s tracked data)\n'
-        )
-        % (
-            mcount,
-            mrevcount,
-            util.bytecount(msrcsize),
-            util.bytecount(mrawsize),
-        )
-    )
+    end_time = time.monotonic()
+    byte_change = util.bytecount(fdstsize - fsrcsize)
+    amount, unit = byte_change.split(b' ', 1)
+    elapsed = end_time - start_time
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
     if progress:
         progress.complete()
+
+    # Migrating manifests
+    store_size = tuple(util.bytecount(msrcsize).split(b' ', 1))
+    tracked_size = tuple(util.bytecount(mrawsize).split(b' ', 1))
+    ui.status(_(b'migrating manifest:\n'))
+    ui.status(_(b'     filelog-count:     %9d\n') % mcount)
+    ui.status(_(b'     total-revisions:   %9d\n') % mrevcount)
+    ui.status(_(b'     store-size:        %9s %s\n') % store_size)
+    ui.status(_(b'     tracked-size:      %9s %s\n') % tracked_size)
     progress = srcrepo.ui.makeprogress(
         _(b'manifest revisions'), total=mrevcount
     )
+    start_time = time.monotonic()
     for target_id, entry in sorted(manifests.items()):
         oldrl = entry.get_revlog_instance(srcrepo)
         newrl = _perform_clone(
@@ -315,31 +308,26 @@ def _clonerevlogs(
         )
         info = newrl.storageinfo(storedsize=True)
         mdstsize += info[b'storedsize'] or 0
-    ui.status(
-        _(
-            b'finished migrating %d manifest revisions across %d '
-            b'manifests; change in size: %s\n'
-        )
-        % (mrevcount, mcount, util.bytecount(mdstsize - msrcsize))
-    )
-
-    # Migrating changelog
-    ui.status(
-        _(
-            b'migrating changelog containing %d revisions '
-            b'(%s in store; %s tracked data)\n'
-        )
-        % (
-            crevcount,
-            util.bytecount(csrcsize),
-            util.bytecount(crawsize),
-        )
-    )
+    end_time = time.monotonic()
+    byte_change = util.bytecount(mdstsize - msrcsize)
+    amount, unit = byte_change.split(b' ', 1)
+    elapsed = end_time - start_time
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
     if progress:
         progress.complete()
+
+    # Migrating changelog
+    store_size = tuple(util.bytecount(csrcsize).split(b' ', 1))
+    tracked_size = tuple(util.bytecount(crawsize).split(b' ', 1))
+    ui.status(_(b'migrating changelog:\n'))
+    ui.status(_(b'     total-revisions:   %9d\n') % crevcount)
+    ui.status(_(b'     store-size:        %9s %s\n') % store_size)
+    ui.status(_(b'     tracked-size:      %9s %s\n') % tracked_size)
     progress = srcrepo.ui.makeprogress(
         _(b'changelog revisions'), total=crevcount
     )
+    start_time = time.monotonic()
     for target_id, entry in sorted(changelogs.items()):
         oldrl = entry.get_revlog_instance(srcrepo)
         newrl = _perform_clone(
@@ -354,23 +342,26 @@ def _clonerevlogs(
         )
         info = newrl.storageinfo(storedsize=True)
         cdstsize += info[b'storedsize'] or 0
-    progress.complete()
-    ui.status(
-        _(
-            b'finished migrating %d changelog revisions; change in size: '
-            b'%s\n'
-        )
-        % (crevcount, util.bytecount(cdstsize - csrcsize))
-    )
+    end_time = time.monotonic()
+    byte_change = util.bytecount(cdstsize - csrcsize)
+    amount, unit = byte_change.split(b' ', 1)
+    elapsed = end_time - start_time
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
+    if progress:
+        progress.complete()
 
     dstsize = fdstsize + mdstsize + cdstsize
-    ui.status(
-        _(
-            b'finished migrating %d total revisions; total change in store '
-            b'size: %s\n'
-        )
-        % (revcount, util.bytecount(dstsize - srcsize))
-    )
+    revlog_count = fcount + mcount + 1
+    total_end_time = time.monotonic()
+    elapsed = total_end_time - total_start_time
+    amount, unit = byte_change.split(b' ', 1)
+    byte_change = util.bytecount(dstsize - srcsize)
+    ui.status(_(b'finished migrating:\n'))
+    ui.status(_(b'     total-revlog   :   %9d\n') % revlog_count)
+    ui.status(_(b'     total-revisions:   %9d\n') % revcount)
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
 
 
 def _files_to_copy_post_revlog_clone(srcrepo):

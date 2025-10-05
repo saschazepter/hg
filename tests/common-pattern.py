@@ -132,6 +132,11 @@ substitutions = [
         br'DBG-DELTAS-SEARCH:     delta-search-time=\d+.\d{6}',
         br'DBG-DELTAS-SEARCH:     delta-search-time=* (glob)',
     ),
+    # debugupgrarepo output
+    (
+        br'    elapsed-time:      [0-9 ]{9} seconds\b',
+        br'    elapsed-time:      [0-9 ]{9} seconds (re)',
+    ),
 ]
 
 # Various platform error strings, keyed on a common replacement string
