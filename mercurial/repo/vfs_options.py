@@ -88,6 +88,13 @@ def resolve_store_vfs_options(ui, requirements, features):
             value = fallback
         options[b'fileindex-max-unused-percentage'] = value
 
+        options[b'fileindex-gc-retention-seconds'] = ui.configint(
+            b'storage', b'fileindex.gc-retention-seconds'
+        )
+        options[b'fileindex-garbage-timestamp'] = ui.configint(
+            b'devel', b'fileindex.garbage-timestamp'
+        )
+
     return options
 
 

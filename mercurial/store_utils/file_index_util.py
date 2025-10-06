@@ -32,7 +32,7 @@ class Docket:
             [
                 ">",
                 f"{len(V1_FORMAT_MARKER)}s",
-                "5I",
+                "4I",
                 f"{docket.UID_SIZE}s" * 4,
                 "5I",
             ]
@@ -49,8 +49,6 @@ class Docket:
     meta_file_size = attr.ib(type=int, default=0)
     # Used size of tree file in bytes.
     tree_file_size = attr.ib(type=int, default=0)
-    # Used size of trash file in bytes.
-    trash_file_size = attr.ib(type=int, default=0)
     # List file path ID.
     list_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Reserved for future use.
@@ -65,19 +63,24 @@ class Docket:
     tree_unused_bytes = attr.ib(type=int, default=0)
     # Reserved for future use.
     reserved_revlog_unused = attr.ib(type=int, default=0)
-    # Starting offset in the trash file.
-    # Entries before this offset have already been cleaned up.
-    trash_start_offset = attr.ib(type=int, default=0)
     # Currently unused. Reset to zero when writing the docket.
     reserved_flags = attr.ib(type=int, default=0)
+    # Paths to old data files to be removed.
+    garbage_entries = attr.ib(type=List["GarbageEntry"], factory=list)
 
     @classmethod
     def parse_from(cls, data: memoryview) -> Docket:
         """Parse a file index docket from bytes."""
         if len(data) < cls.STRUCT.size:
             raise error.CorruptedState("file index docket file too short")
-        # Use unpack_from instead of unpack to ignore any extra data.
-        docket = cls(*cls.STRUCT.unpack_from(data))
+        *fields, num_garbage_entries = cls.STRUCT.unpack_from(data)
+        garbage_entries = []
+        offset = cls.STRUCT.size
+        for _ in range(num_garbage_entries):
+            entry = GarbageEntry.parse_from(data[offset:])
+            offset += entry.size
+            garbage_entries.append(entry)
+        docket = cls(*fields, garbage_entries=garbage_entries)
         if docket.marker != V1_FORMAT_MARKER:
             raise error.CorruptedState("file index docket has wrong marker")
         docket.reserved_flags = 0
@@ -85,7 +88,53 @@ class Docket:
 
     def serialize(self) -> bytes:
         """Serialize the file index docket to bytes."""
+        *fields, garbage_entries = attr.astuple(self, recurse=False)
+        num_garbage_entries = len(self.garbage_entries)
+        return self.STRUCT.pack(*fields, num_garbage_entries) + b"".join(
+            entry.serialize() for entry in garbage_entries
+        )
+
+
+@attr.s(slots=True)
+class GarbageEntryHeader:
+    """An garbage entry header in the docket."""
+
+    STRUCT = struct.Struct(">HIH")
+
+    ttl = attr.ib(type=int)
+    timestamp = attr.ib(type=int)
+    length = attr.ib(type=int)
+
+    @classmethod
+    def parse_from(cls, data: memoryview) -> GarbageEntryHeader:
+        return cls(*cls.STRUCT.unpack_from(data))
+
+    def serialize(self):
         return self.STRUCT.pack(*attr.astuple(self))
+
+
+@attr.s(slots=True)
+class GarbageEntry:
+    """A garbage entry parsed from the docket."""
+
+    ttl = attr.ib(type=int)
+    timestamp = attr.ib(type=int)
+    path = attr.ib(type=bytes)
+
+    @classmethod
+    def parse_from(cls, data: memoryview) -> GarbageEntry:
+        header = GarbageEntryHeader.parse_from(data)
+        rest = data[GarbageEntryHeader.STRUCT.size :]
+        path = rest[: header.length]
+        return cls(header.ttl, header.timestamp, path)
+
+    @property
+    def size(self):
+        return GarbageEntryHeader.STRUCT.size + len(self.path)
+
+    def serialize(self):
+        header = GarbageEntryHeader(self.ttl, self.timestamp, len(self.path))
+        return header.serialize() + self.path
 
 
 @attr.s(slots=True)

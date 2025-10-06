@@ -18,7 +18,6 @@ Create a new repo with the file index
   reserved_revlog_size: 0
   meta_file_size: 0
   tree_file_size: 0
-  trash_file_size: 0
   list_file_id: 00000000
   reserved_revlog_id: 00000000
   meta_file_id: 00000000
@@ -26,8 +25,8 @@ Create a new repo with the file index
   tree_root_pointer: 0
   tree_unused_bytes: 0
   reserved_revlog_unused: 0
-  trash_start_offset: 0
   reserved_flags: 0
+  garbage_entries: 0
   $ hg debug::file-index --tree
   00000000:
 Add a file
@@ -65,7 +64,6 @@ Examine the file index structure
   reserved_revlog_size: 0
   meta_file_size: 8
   tree_file_size: 18
-  trash_file_size: 0
   list_file_id: * (glob)
   reserved_revlog_id: 00000000
   meta_file_id: * (glob)
@@ -73,8 +71,8 @@ Examine the file index structure
   tree_root_pointer: 0
   tree_unused_bytes: 0
   reserved_revlog_unused: 0
-  trash_start_offset: 0
   reserved_flags: 0
+  garbage_entries: 0
   $ hg debug::file-index --tree
   00000000:
       "file" -> 0000000c
@@ -122,6 +120,7 @@ We can format the docket as JSON
   $ hg debug::file-index --docket -Tjson
   [
    {
+    "garbage_entries": [],
     "list_file_id": "*", (glob)
     "list_file_size": 23,
     "marker": "fileindex-v1",
@@ -131,8 +130,6 @@ We can format the docket as JSON
     "reserved_revlog_id": "00000000",
     "reserved_revlog_size": 0,
     "reserved_revlog_unused": 0,
-    "trash_file_size": 0,
-    "trash_start_offset": 0,
     "tree_file_id": "*", (glob)
     "tree_file_size": 84,
     "tree_root_pointer": 18,
@@ -176,6 +173,80 @@ immediately). Use --path because it causes a lookup in the tree file.
   $ wait
   $ cat $TESTTMP/race-lock.out
   4: anotherfile
+
+Test cleaning up old files
+--------------------------
+
+There should be multiple tree files now
+  $ ls .hg/store/fileindex-tree.*
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+
+All except one are garbage
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path}\n"}'
+  fileindex-tree.* (glob)
+  fileindex-tree.* (glob)
+  fileindex-tree.* (glob)
+  fileindex-tree.* (glob)
+
+Force garbage collection
+  $ hg debug::file-index --gc
+  $ ls .hg/store/fileindex-tree.*
+  .hg/store/fileindex-tree.* (glob)
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path}\n"}'
+
+Make another tree
+  $ hg debug::file-index --vacuum
+  vacuumed tree: 82 bytes => 82 bytes (saved 0.0%)
+  $ ls .hg/store/fileindex-tree*
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path} ttl={ttl}\n"}'
+  fileindex-tree.* ttl=2 (glob)
+Delete the old tree via automatic gc during after 2 transactions.
+  $ hg ci -qAm "empty" --config ui.allowemptycommit=True --config storage.fileindex.gc-retention-seconds=0
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path} ttl={ttl}\n"}'
+  fileindex-tree.* ttl=1 (glob)
+  $ hg ci -qAm "empty" --config ui.allowemptycommit=True --config storage.fileindex.gc-retention-seconds=0
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path} ttl={ttl}\n"}'
+  $ ls .hg/store/fileindex-tree*
+  .hg/store/fileindex-tree.* (glob)
+
+Produce garbage entries with fake timestamps
+Avoid GC while doing so, since we want to test GC once at the end
+  $ max_uint32=4294967295
+  $ disable_gc="--config storage.fileindex.gc-retention-seconds=$max_uint32"
+Override the first entry's timestamp to zero (Jan 1970)
+  $ hg debug::file-index --vacuum --config devel.fileindex.garbage-timestamp=0 $disable_gc
+  vacuumed tree: 82 bytes => 82 bytes (saved 0.0%)
+Leave the second entry's timestamp at the current time
+  $ hg debug::file-index --vacuum $disable_gc
+  vacuumed tree: 82 bytes => 82 bytes (saved 0.0%)
+Override the third entry's timestamp to the max uint32 (Feb 2106)
+  $ hg debug::file-index --vacuum --config devel.fileindex.garbage-timestamp=$max_uint32 $disable_gc
+  vacuumed tree: 82 bytes => 82 bytes (saved 0.0%)
+  $ ls .hg/store/fileindex-tree*
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path} timestamp={timestamp}\n"}'
+  fileindex-tree.* timestamp=0 (glob)
+  fileindex-tree.* timestamp=* (glob)
+  fileindex-tree.* timestamp=4294967295 (glob)
+Trigger gc again with a day long retention period
+  $ hg ci -qAm "empty" --config ui.allowemptycommit=True --config storage.fileindex.gc-retention-seconds=86400
+It only deleted the first entry
+  $ ls .hg/store/fileindex-tree*
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path} timestamp={timestamp}\n"}'
+  fileindex-tree.* timestamp=* (glob)
+  fileindex-tree.* timestamp=4294967295 (glob)
 
   $ cd ..
 

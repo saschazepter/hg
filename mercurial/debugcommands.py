@@ -3231,10 +3231,23 @@ def debugrebuildfncache(ui, repo, **opts):
         (b'p', b'path', b'', _(b'look up path'), _(b'PATH')),
         (b't', b'token', b'', _(b'look up token'), _(b'TOKEN')),
         (b'', b'vacuum', None, _(b'vacuum the tree file')),
+        (b'', b'gc', None, _(b'run garbage collection')),
     ],
 )
 def debug_file_index(ui, repo, **opts):
-    """inspect or manipulate the file index"""
+    """inspect or manipulate the file index
+
+    There are two options relating to cleaning up the file index:
+
+    * With --vacuum, this command rewrites the tree file more compactly, saving
+      the result with a different filename. This also happens automatically
+      during commit based on the config storage.fileindex.max-unused-percentage.
+
+    * With --gc, this command deletes old data files that are no longer needed,
+      such as the old tree file left behind by --vacuum. This also happens
+      automatically during every hg transaction, but only after a retention
+      period has elapsed and a certain number of transactions have occurred.
+    """
     file_index.debug_file_index(ui, repo, **opts)
 
 

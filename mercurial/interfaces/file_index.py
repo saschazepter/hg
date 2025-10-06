@@ -87,3 +87,16 @@ class IFileIndex(Protocol):
         This is done automatically upon writing when the ratio of unused bytes
         gets too large, but this method provides a way to do it manually.
         """
+
+    @abc.abstractmethod
+    def garbage_collect(self, tr: TransactionT, force: bool = False):
+        """Delete data files eligible for garbage collection.
+
+        When the file index writes a new data file instead of appending to an
+        existing one, it adds the old file to the garbage list. That file
+        becomes eligible for garbage collection once the retention period has
+        elapsed (configured by storage.fileindex.gc-retention-seconds) and a
+        certain number of transactions have occurred.
+
+        If force is True, deletes all files in the garbage list unconditionally.
+        """

@@ -7,6 +7,7 @@ See mercurial/helptext/internals/fileindex.txt for format details.
 from __future__ import annotations
 
 import abc
+import time
 import typing
 
 from ..i18n import _
@@ -44,13 +45,16 @@ ALL_VACUUM_MODES = {VACUUM_MODE_AUTO, VACUUM_MODE_NEVER, VACUUM_MODE_ALWAYS}
 # 16K allows for adding 100 files before tree file is shrink down to 1.5K
 AUTO_VACUUM_MIN_SIZE = 16 * 1024
 
+# Initial TTL when adding a file to garbage_entries. Each hg transaction that
+# follows will decrement it by 1, and will not delete it until it reaches 0.
+INITIAL_GARBAGE_TTL = 2
+
 DEFAULT_DOCKET_TEMPLATE = b"""\
 marker: {marker}
 list_file_size: {list_file_size}
 reserved_revlog_size: {reserved_revlog_size}
 meta_file_size: {meta_file_size}
 tree_file_size: {tree_file_size}
-trash_file_size: {trash_file_size}
 list_file_id: {list_file_id}
 reserved_revlog_id: {reserved_revlog_id}
 meta_file_id: {meta_file_id}
@@ -58,8 +62,9 @@ tree_file_id: {tree_file_id}
 tree_root_pointer: {tree_root_pointer}
 tree_unused_bytes: {tree_unused_bytes}
 reserved_revlog_unused: {reserved_revlog_unused}
-trash_start_offset: {trash_start_offset}
 reserved_flags: {reserved_flags}
+garbage_entries: {garbage_entries|count}
+{garbage_entries % "- ttl={ttl} timestamp={timestamp} path={path}\n"}\
 """
 
 
@@ -76,6 +81,8 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         try_pending: bool,
         vacuum_mode: bytes,
         max_unused_ratio: float,
+        gc_retention_s: int,
+        garbage_timestamp: int | None,
     ):
         """
         If try_pending is True, tries opening the docket with the ".pending"
@@ -88,10 +95,13 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._try_pending = try_pending
         self._vacuum_mode = vacuum_mode
         self._max_unused_ratio = max_unused_ratio
+        self._gc_retention_s = gc_retention_s
+        self._garbage_timestamp = garbage_timestamp
         self._force_vacuum = False
         self._add_paths: list[HgPathT] = []
         self._add_map: dict[HgPathT, FileTokenT] = {}
         self._remove_tokens: set[FileTokenT] = set()
+        self._add_to_garbage: list[HgPathT] = []
 
     def _token_count(self):
         return len(self.meta_array) + len(self._add_paths)
@@ -180,6 +190,36 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._force_vacuum = True
         self._add_file_generator(tr)
 
+    def garbage_collect(self, tr: TransactionT, force=False):
+        old_entries = self.docket.garbage_entries
+        if not old_entries:
+            return
+
+        now = int(time.time())
+
+        def eligible_for_gc(entry):
+            if entry.ttl > 0:
+                return False
+            # Make zero a special case so timing never affects it.
+            if self._gc_retention_s == 0:
+                return True
+            return now > entry.timestamp + self._gc_retention_s
+
+        new_entries = []
+        changed = False
+        for entry in old_entries:
+            if entry.ttl > 0:
+                entry.ttl -= 1
+                changed = True
+            if force or eligible_for_gc(entry):
+                self._opener.tryunlink(entry.path)
+                changed = True
+            else:
+                new_entries.append(entry)
+        if changed:
+            self.docket.garbage_entries = new_entries
+            self._add_file_generator(tr)
+
     def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
         tr.addfilegenerator(
@@ -210,6 +250,16 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._remove_tokens.clear()
             self._invalidate_caches()
             self._force_vacuum = False
+        if self._add_to_garbage:
+            ttl = INITIAL_GARBAGE_TTL
+            timestamp = int(time.time())
+            if self._garbage_timestamp is not None:
+                timestamp = self._garbage_timestamp
+            self.docket.garbage_entries.extend(
+                file_index_util.GarbageEntry(ttl, timestamp, path)
+                for path in self._add_to_garbage
+            )
+            self._add_to_garbage.clear()
         f.write(self.docket.serialize())
 
     @abc.abstractmethod
@@ -282,6 +332,8 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _open_list_file(self, new: bool):
         if new:
+            if self.docket.list_file_id != docketmod.UNSET_UID:
+                self._add_to_garbage.append(self._list_file_path())
             self.docket.list_file_id = docketmod.make_uid()
             self.docket.list_file_size = 0
             return self._opener(self._list_file_path(), b"wb")
@@ -291,6 +343,8 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _open_meta_file(self, new: bool):
         if new:
+            if self.docket.meta_file_id != docketmod.UNSET_UID:
+                self._add_to_garbage.append(self._meta_file_path())
             self.docket.meta_file_id = docketmod.make_uid()
             self.docket.meta_file_size = 0
             return self._opener(self._meta_file_path(), b"wb")
@@ -300,6 +354,8 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _open_tree_file(self, new: bool):
         if new:
+            if self.docket.tree_file_id != docketmod.UNSET_UID:
+                self._add_to_garbage.append(self._tree_file_path())
             self.docket.tree_file_id = docketmod.make_uid()
             self.docket.tree_file_size = 0
             return self._opener(self._tree_file_path(), b"wb")
@@ -315,7 +371,13 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
         with ui.formatter(b"file-index", opts) as fm:
             fm.startitem()
-            fm.data(**attr.asdict(self.docket))
+            values = attr.asdict(self.docket)
+            del values["garbage_entries"]
+            fm.data(**values)
+            with fm.nested(b"garbage_entries") as fm_garbage:
+                for entry in self.docket.garbage_entries:
+                    fm_garbage.startitem()
+                    fm_garbage.data(**attr.asdict(entry))
 
     def dump_tree(self, ui):
         tree = self.tree_file
@@ -460,3 +522,6 @@ def debug_file_index(ui, repo, **opts):
         msg = _(b"vacuumed tree: %s => %s (saved %.01f%%)\n")
         msg %= util.bytecount(old_size), util.bytecount(new_size), percent
         ui.write(msg)
+    elif choice == b"gc":
+        with repo.lock(), repo.transaction(b"fileindex-gc") as tr:
+            fileindex.garbage_collect(tr, force=True)

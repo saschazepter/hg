@@ -626,6 +626,13 @@ example, a commit that adds no files will never vacuum, even with ``always``.
 
 [[items]]
 section = "devel"
+name = "fileindex.garbage-timestamp"
+experimental = true
+documentation = """Controls the timestamp used when the file index creates a new
+garbage entry. When unset, the current time is used."""
+
+[[items]]
+section = "devel"
 name = "legacy.exchange"
 default-type = "list_type"
 
@@ -2543,6 +2550,21 @@ default = 50
 experimental = true
 documentation = """Maximum percentage of unreachable bytes / total bytes in the
 file index tree file. When this is exceeded, the tree is vacuumed."""
+
+[[items]]
+section = "storage"
+name = "fileindex.gc-retention-seconds"
+default = 86400
+experimental = true
+documentation = """File index garbage collection retention period in seconds.
+When the file index needs to rewrite one of its internal data files, it chooses
+a new filename and leaves the old file on disk. That old file will be eligible
+for garbage collection once the retention period has elapsed and a sufficient
+number of transactions have occurred.
+
+As a special case, if it is set to 0, then garbage collection is based solely on
+the number of transactions and is not influenced by the current time.
+"""
 
 [[items]]
 section = "subrepos"

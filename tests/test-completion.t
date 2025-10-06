@@ -288,7 +288,7 @@ Show all commands + options
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::fast-upgrade: 
-  debug::file-index: docket, template, tree, path, token, vacuum
+  debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific

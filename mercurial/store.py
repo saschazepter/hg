@@ -1439,13 +1439,15 @@ class FileIndexStore(basicstore):
 
     @storecache(b'fileindex')
     def fileindex(self):
-        percentage = self.vfs.options[b'fileindex-max-unused-percentage']
+        opts = self.vfs.options
         return file_index_mod.FileIndex(
             self._ui,
             self.rawvfs,
             try_pending=self._try_pending,
-            vacuum_mode=self.vfs.options[b'fileindex-vacuum-mode'],
-            max_unused_ratio=percentage / 100,
+            vacuum_mode=opts[b'fileindex-vacuum-mode'],
+            max_unused_ratio=opts[b'fileindex-max-unused-percentage'] / 100,
+            gc_retention_s=opts[b'fileindex-gc-retention-seconds'],
+            garbage_timestamp=opts[b'fileindex-garbage-timestamp'],
         )
 
     def join(self, f):
@@ -1466,6 +1468,15 @@ class FileIndexStore(basicstore):
 
     def copylist(self):
         raise NotImplementedError("file index copylist not implemented yet")
+
+    def schedule_write(self, tr):
+        """Schedule garbage collection for the file index.
+
+        The file index automatically ensures it gets written if paths are added
+        or removed. However, we run garbage collection on every transaction so
+        that old data files are deleted in a predictable and timely manner.
+        """
+        tr.addfinalize(b'fileindex-gc', self.fileindex.garbage_collect)
 
     def invalidatecaches(self, clearfilecache: bool):
         if clearfilecache:
