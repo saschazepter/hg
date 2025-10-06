@@ -696,8 +696,13 @@ pub fn read_pattern_file(
 /// Represents an entry in an "ignore" file.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct IgnorePattern {
+    /// The syntax used for by pattern
     pub syntax: PatternSyntax,
+    /// The raw bytes without the prefix (e.g. `path:foo` becomes `foo`)
     pub raw: Vec<u8>,
+    /// The file whence this pattern originates.
+    /// TODO use a more complex `PatternOrigin` enum or something similar to
+    /// remove the need for a bogus path in some cases.
     pub source: PathBuf,
 }
 
