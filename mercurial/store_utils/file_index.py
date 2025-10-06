@@ -88,6 +88,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._try_pending = try_pending
         self._vacuum_mode = vacuum_mode
         self._max_unused_ratio = max_unused_ratio
+        self._force_vacuum = False
         self._add_paths: list[HgPathT] = []
         self._add_map: dict[HgPathT, FileTokenT] = {}
         self._remove_tokens: set[FileTokenT] = set()
@@ -176,23 +177,24 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def vacuum(self, tr: TransactionT):
         if self._add_paths:
             raise error.ProgrammingError(b"manual vacuum should not add files")
-        self._add_file_generator(tr, force_vacuum=True)
+        self._force_vacuum = True
+        self._add_file_generator(tr)
 
-    def _add_file_generator(self, tr: TransactionT, force_vacuum=False):
+    def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
         tr.addfilegenerator(
             b"fileindex",
             (b"fileindex",),
-            lambda f: self._write(f, force_vacuum),
+            self._write,
             location=b"store",
             # Need post_finalize since we call this in an addfinalize callback.
             post_finalize=True,
         )
 
-    def _write(self, f: typing.BinaryIO, force_vacuum: bool):
+    def _write(self, f: typing.BinaryIO):
         """Write all data files and the docket."""
-        if self._add_paths or self._remove_tokens or force_vacuum:
-            if force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
+        if self._add_paths or self._remove_tokens or self._force_vacuum:
+            if self._force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
                 vacuum = True
             elif self._vacuum_mode == VACUUM_MODE_AUTO:
                 size = self.docket.tree_file_size
@@ -207,6 +209,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._add_map.clear()
             self._remove_tokens.clear()
             self._invalidate_caches()
+            self._force_vacuum = False
         f.write(self.docket.serialize())
 
     @abc.abstractmethod
