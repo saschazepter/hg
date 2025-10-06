@@ -160,8 +160,8 @@ Force vacuuming tree during commit
   $ hg add
   adding anotherfile
   $ hg --config storage.fileindex.max-unused-percentage=0 commit -m 2
-  $ hg debug::file-index --docket | grep tree_unused_bytes
-  tree_unused_bytes: 0
+  $ hg debug::file-index --docket -T '{tree_unused_bytes}\n'
+  0
 
 Test race where vacuuming happens between reading tree ID and opening file.
 It should successfully read the old tree file (vacuuming shouldn't delete it
