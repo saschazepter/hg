@@ -46,7 +46,7 @@ impl ShardTreeNode {
                 let syntax = format!("{:?}", pattern.syntax);
                 Err(PatternError::UnsupportedSyntax(syntax))
             } else {
-                Ok(ZeroPath::new(&pattern.pattern))
+                Ok(ZeroPath::new(&pattern.raw))
             }
         };
         let mut include_paths = includes

@@ -333,7 +333,7 @@ fn _build_single_regex(
     entry: &IgnorePattern,
     glob_suffix: GlobSuffix,
 ) -> PatternResult<PreRegex> {
-    let IgnorePattern { syntax, pattern, .. } = entry;
+    let IgnorePattern { syntax, raw: pattern, .. } = entry;
     if pattern.is_empty() {
         return Ok(PreRegex::Empty);
     }
@@ -492,7 +492,7 @@ pub fn build_single_regex(
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
 ) -> Result<Option<PreRegex>, PatternError> {
-    let IgnorePattern { pattern, syntax, .. } = entry;
+    let IgnorePattern { raw: pattern, syntax, .. } = entry;
     let pattern = match syntax {
         PatternSyntax::RootGlob
         | PatternSyntax::Path
@@ -512,7 +512,7 @@ pub fn build_single_regex(
         Ok(None)
     } else {
         let mut entry = entry.clone();
-        entry.pattern = pattern;
+        entry.raw = pattern;
         Ok(Some(_build_single_regex(&entry, glob_suffix)?))
     }
 }
@@ -577,7 +577,7 @@ pub fn parse_one_pattern(
         _ => pattern_bytes.to_vec(),
     };
 
-    IgnorePattern { syntax, pattern, source: source.to_owned() }
+    IgnorePattern { syntax, raw: pattern, source: source.to_owned() }
 }
 
 pub fn parse_pattern_file_contents(
@@ -658,11 +658,11 @@ pub fn parse_pattern_args(
         );
         match pattern.syntax {
             PatternSyntax::RelGlob | PatternSyntax::RelPath => {
-                let name = get_path_from_bytes(&pattern.pattern);
+                let name = get_path_from_bytes(&pattern.raw);
                 let canon = canonical_path(root, cwd, name)?;
                 ignore_patterns.push(IgnorePattern {
                     syntax: pattern.syntax,
-                    pattern: get_bytes_from_path(canon),
+                    raw: get_bytes_from_path(canon),
                     source: pattern.source,
                 })
             }
@@ -697,24 +697,24 @@ pub fn read_pattern_file(
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct IgnorePattern {
     pub syntax: PatternSyntax,
-    pub pattern: Vec<u8>,
+    pub raw: Vec<u8>,
     pub source: PathBuf,
 }
 
 impl IgnorePattern {
     pub fn new(syntax: PatternSyntax, pattern: &[u8], source: &Path) -> Self {
-        Self { syntax, pattern: pattern.to_owned(), source: source.to_owned() }
+        Self { syntax, raw: pattern.to_owned(), source: source.to_owned() }
     }
 
     pub fn to_relative(self) -> Self {
-        let Self { syntax, pattern, source } = self;
+        let Self { syntax, raw: pattern, source } = self;
         Self {
             syntax: match syntax {
                 PatternSyntax::Regexp => PatternSyntax::RelRegexp,
                 PatternSyntax::Glob => PatternSyntax::RelGlob,
                 x => x,
             },
-            pattern,
+            raw: pattern,
             source,
         }
     }
@@ -741,7 +741,7 @@ pub fn get_patterns_from_file(
             Ok(match &entry.syntax {
                 PatternSyntax::Include => {
                     let inner_include =
-                        root_dir.join(get_path_from_bytes(&entry.pattern));
+                        root_dir.join(get_path_from_bytes(&entry.raw));
 
                     get_patterns_from_file(
                         &inner_include,
@@ -751,11 +751,8 @@ pub fn get_patterns_from_file(
                     )?
                 }
                 PatternSyntax::SubInclude => {
-                    let mut sub_include = SubInclude::new(
-                        root_dir,
-                        &entry.pattern,
-                        &entry.source,
-                    )?;
+                    let mut sub_include =
+                        SubInclude::new(root_dir, &entry.raw, &entry.source)?;
                     let inner_patterns = get_patterns_from_file(
                         &sub_include.path,
                         &sub_include.root,

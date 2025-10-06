@@ -394,7 +394,7 @@ impl PatternsDesc {
                         syntax: PatternSyntax::RootFilesIn,
                         source: PathBuf::from_str("<rootfilesin-matcher>")
                             .unwrap(),
-                        pattern,
+                        raw: pattern,
                     })
                     .collect_vec();
                 build_regex_match_for_debug(&patterns, *glob_suffix).unwrap()
@@ -927,7 +927,7 @@ fn build_regex_match<'a>(
         {
             regexps.push(re);
         } else {
-            let exact = normalize_path_bytes(&pattern.pattern);
+            let exact = normalize_path_bytes(&pattern.raw);
             exact_set.insert(HgPathBuf::from_bytes(&exact));
         }
     }
@@ -992,7 +992,7 @@ fn roots_and_dirs(
     let mut dirs = Vec::new();
 
     for ignore_pattern in ignore_patterns {
-        let IgnorePattern { syntax, pattern, .. } = ignore_pattern;
+        let IgnorePattern { syntax, raw: pattern, .. } = ignore_pattern;
         match syntax {
             PatternSyntax::RootGlob | PatternSyntax::Glob => {
                 let mut root = HgPathBuf::new();
@@ -1108,7 +1108,7 @@ fn build_match<'a>(
             .all(|k| k.syntax == PatternSyntax::RootFilesIn)
         {
             let dirs: HashSet<_> =
-                ignore_patterns.iter().map(|k| k.pattern.to_owned()).collect();
+                ignore_patterns.iter().map(|k| k.raw.to_owned()).collect();
             let mut dirs_vec: Vec<_> = dirs.iter().cloned().collect();
 
             let match_func = move |path: &HgPath| -> bool {
