@@ -40,7 +40,7 @@ pub enum PatternError {
     IO(std::io::Error),
     /// Needed a pattern that can be turned into a regex but got one that
     /// can't. This should only happen through programmer error.
-    NonRegexPattern(IgnorePattern),
+    NonRegexPattern(FilePattern),
 }
 
 impl fmt::Display for PatternError {
@@ -330,10 +330,10 @@ impl GlobSuffix {
 /// If within a `syntax: regexp` context, returns the pattern,
 /// otherwise, returns the corresponding regex.
 fn _build_single_regex(
-    entry: &IgnorePattern,
+    entry: &FilePattern,
     glob_suffix: GlobSuffix,
 ) -> PatternResult<PreRegex> {
-    let IgnorePattern { syntax, raw: pattern, .. } = entry;
+    let FilePattern { syntax, raw: pattern, .. } = entry;
     if pattern.is_empty() {
         return Ok(PreRegex::Empty);
     }
@@ -488,11 +488,11 @@ impl RegexCompleteness {
 /// Wrapper function to `_build_single_regex` that short-circuits 'exact' globs
 /// that don't need to be transformed into a regex.
 pub fn build_single_regex(
-    entry: &IgnorePattern,
+    entry: &FilePattern,
     glob_suffix: GlobSuffix,
     regex_config: RegexCompleteness,
 ) -> Result<Option<PreRegex>, PatternError> {
-    let IgnorePattern { raw: pattern, syntax, .. } = entry;
+    let FilePattern { raw: pattern, syntax, .. } = entry;
     let pattern = match syntax {
         PatternSyntax::RootGlob
         | PatternSyntax::Path
@@ -551,7 +551,7 @@ pub fn parse_one_pattern(
     source: &Path,
     default: PatternSyntax,
     normalize: bool,
-) -> IgnorePattern {
+) -> FilePattern {
     let mut pattern_bytes: &[u8] = pattern;
     let mut syntax = default;
 
@@ -577,7 +577,7 @@ pub fn parse_one_pattern(
         _ => pattern_bytes.to_vec(),
     };
 
-    IgnorePattern { syntax, raw: pattern, source: source.to_owned() }
+    FilePattern { syntax, raw: pattern, source: source.to_owned() }
 }
 
 pub fn parse_pattern_file_contents(
@@ -587,12 +587,12 @@ pub fn parse_pattern_file_contents(
     warn: bool,
     relativize: bool,
     warnings: &HgWarningSender,
-) -> Result<Vec<IgnorePattern>, PatternError> {
+) -> Result<Vec<FilePattern>, PatternError> {
     let comment_regex = Regex::new(r"((?:^|[^\\])(?:\\\\)*)#.*").unwrap();
 
     #[allow(clippy::trivial_regex)]
     let comment_escape_regex = Regex::new(r"\\#").unwrap();
-    let mut inputs: Vec<IgnorePattern> = vec![];
+    let mut inputs: Vec<FilePattern> = vec![];
 
     let mut current_syntax =
         default_syntax_override.unwrap_or(PatternSyntax::RelRegexp);
@@ -647,8 +647,8 @@ pub fn parse_pattern_args(
     patterns: Vec<Vec<u8>>,
     cwd: &Path,
     root: &Path,
-) -> Result<Vec<IgnorePattern>, HgPathError> {
-    let mut ignore_patterns: Vec<IgnorePattern> = Vec::new();
+) -> Result<Vec<FilePattern>, HgPathError> {
+    let mut file_patterns: Vec<FilePattern> = Vec::new();
     for pattern in patterns {
         let pattern = parse_one_pattern(
             &pattern,
@@ -660,16 +660,16 @@ pub fn parse_pattern_args(
             PatternSyntax::RelGlob | PatternSyntax::RelPath => {
                 let name = get_path_from_bytes(&pattern.raw);
                 let canon = canonical_path(root, cwd, name)?;
-                ignore_patterns.push(IgnorePattern {
+                file_patterns.push(FilePattern {
                     syntax: pattern.syntax,
                     raw: get_bytes_from_path(canon),
                     source: pattern.source,
                 })
             }
-            _ => ignore_patterns.push(pattern.to_owned()),
+            _ => file_patterns.push(pattern.to_owned()),
         };
     }
-    Ok(ignore_patterns)
+    Ok(file_patterns)
 }
 
 pub fn read_pattern_file(
@@ -677,7 +677,7 @@ pub fn read_pattern_file(
     warn: bool,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
     warnings: &HgWarningSender,
-) -> Result<Vec<IgnorePattern>, PatternError> {
+) -> Result<Vec<FilePattern>, PatternError> {
     match std::fs::read(file_path) {
         Ok(contents) => {
             inspect_pattern_bytes(file_path, &contents);
@@ -693,9 +693,9 @@ pub fn read_pattern_file(
     }
 }
 
-/// Represents an entry in an "ignore" file.
+/// Represents a notation for identifying one or more files at a time.
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct IgnorePattern {
+pub struct FilePattern {
     /// The syntax used for by pattern
     pub syntax: PatternSyntax,
     /// The raw bytes without the prefix (e.g. `path:foo` becomes `foo`)
@@ -706,7 +706,7 @@ pub struct IgnorePattern {
     pub source: PathBuf,
 }
 
-impl IgnorePattern {
+impl FilePattern {
     pub fn new(syntax: PatternSyntax, pattern: &[u8], source: &Path) -> Self {
         Self { syntax, raw: pattern.to_owned(), source: source.to_owned() }
     }
@@ -737,7 +737,7 @@ pub fn get_patterns_from_file(
     root_dir: &Path,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
     warnings: &HgWarningSender,
-) -> PatternResult<Vec<IgnorePattern>> {
+) -> PatternResult<Vec<FilePattern>> {
     let patterns =
         read_pattern_file(pattern_file, true, inspect_pattern_bytes, warnings)?;
     let patterns = patterns
@@ -765,7 +765,7 @@ pub fn get_patterns_from_file(
                         warnings,
                     )?;
                     sub_include.included_patterns = inner_patterns;
-                    vec![IgnorePattern {
+                    vec![FilePattern {
                         syntax: PatternSyntax::ExpandedSubInclude(Box::new(
                             sub_include,
                         )),
@@ -793,7 +793,7 @@ pub struct SubInclude {
     /// Folder in the filesystem where this it applies
     pub root: PathBuf,
 
-    pub included_patterns: Vec<IgnorePattern>,
+    pub included_patterns: Vec<FilePattern>,
 }
 
 impl SubInclude {
@@ -827,15 +827,14 @@ impl SubInclude {
     }
 }
 
-/// Separate and pre-process subincludes from other patterns for the "ignore"
-/// phase.
+/// Separate and pre-process subincludes from other patterns
 pub fn filter_subincludes(
-    ignore_patterns: Vec<IgnorePattern>,
-) -> Result<(Vec<SubInclude>, Vec<IgnorePattern>), HgPathError> {
+    patterns: Vec<FilePattern>,
+) -> Result<(Vec<SubInclude>, Vec<FilePattern>), HgPathError> {
     let mut subincludes = vec![];
     let mut others = vec![];
 
-    for pattern in ignore_patterns {
+    for pattern in patterns {
         if let PatternSyntax::ExpandedSubInclude(sub_include) = pattern.syntax {
             subincludes.push(*sub_include);
         } else {
@@ -900,7 +899,7 @@ mod tests {
                 warning_sender,
             )
             .unwrap(),
-            vec![IgnorePattern::new(
+            vec![FilePattern::new(
                 PatternSyntax::RelGlob,
                 b"*.elc",
                 Path::new("file_path")
@@ -932,7 +931,7 @@ mod tests {
                 warning_sender,
             )
             .unwrap(),
-            vec![IgnorePattern::new(
+            vec![FilePattern::new(
                 PatternSyntax::RelGlob,
                 b"**.o",
                 Path::new("file_path")
@@ -941,7 +940,7 @@ mod tests {
     }
 
     pub fn build_single_regex(
-        entry: &IgnorePattern,
+        entry: &FilePattern,
         glob_suffix: GlobSuffix,
     ) -> Result<Option<Vec<u8>>, PatternError> {
         super::build_single_regex(
@@ -956,7 +955,7 @@ mod tests {
     fn test_build_single_regex() {
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RelGlob,
                     b"rust/target/",
                     Path::new("")
@@ -968,7 +967,7 @@ mod tests {
         );
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::Regexp,
                     br"rust/target/\d+",
                     Path::new("")
@@ -984,11 +983,7 @@ mod tests {
     fn test_build_single_regex_shortcut() {
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
-                    PatternSyntax::RootGlob,
-                    b"",
-                    Path::new("")
-                ),
+                &FilePattern::new(PatternSyntax::RootGlob, b"", Path::new("")),
                 GlobSuffix::MoreComponents
             )
             .unwrap(),
@@ -996,7 +991,7 @@ mod tests {
         );
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RootGlob,
                     b"whatever",
                     Path::new("")
@@ -1008,7 +1003,7 @@ mod tests {
         );
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RootGlob,
                     b"*.o",
                     Path::new("")
@@ -1024,7 +1019,7 @@ mod tests {
     fn test_build_single_relregex() {
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RelRegexp,
                     b"^ba{2}r",
                     Path::new("")
@@ -1036,7 +1031,7 @@ mod tests {
         );
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RelRegexp,
                     b"ba{2}r",
                     Path::new("")
@@ -1048,7 +1043,7 @@ mod tests {
         );
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RelRegexp,
                     b"(?i)ba{2}r",
                     Path::new("")
@@ -1060,7 +1055,7 @@ mod tests {
         );
         assert_eq!(
             build_single_regex(
-                &IgnorePattern::new(
+                &FilePattern::new(
                     PatternSyntax::RelRegexp,
                     b"(?i)^ba{2}r",
                     Path::new("")

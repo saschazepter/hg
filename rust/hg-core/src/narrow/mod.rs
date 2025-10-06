@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::filepatterns::parse_pattern_file_contents;
-use crate::filepatterns::IgnorePattern;
+use crate::filepatterns::FilePattern;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
@@ -96,7 +96,7 @@ pub fn store_spec(repo: &Repo) -> Result<Vec<u8>, HgError> {
 }
 
 /// Raw patterns as deserialized and validated
-type NarrowPatterns = (Vec<IgnorePattern>, Vec<IgnorePattern>);
+type NarrowPatterns = (Vec<FilePattern>, Vec<FilePattern>);
 
 /// Get the validated narrow patterns for a given spec
 pub fn patterns_from_spec(

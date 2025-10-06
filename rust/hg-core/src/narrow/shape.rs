@@ -8,7 +8,7 @@ use itertools::Itertools;
 use sha2::Digest;
 use sha2::Sha256;
 
-use crate::filepatterns::IgnorePattern;
+use crate::filepatterns::FilePattern;
 use crate::filepatterns::PatternError;
 use crate::filepatterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
@@ -36,10 +36,9 @@ pub struct ShardTreeNode {
 }
 
 impl ShardTreeNode {
-    // XXX rename `ignorepattern` to something more general
     pub fn from_patterns(
-        includes: &[IgnorePattern],
-        excludes: &[IgnorePattern],
+        includes: &[FilePattern],
+        excludes: &[FilePattern],
     ) -> Result<Self, PatternError> {
         let check_pattern = |pattern: &IgnorePattern| {
             if pattern.syntax != PatternSyntax::Path {
@@ -123,7 +122,7 @@ impl ShardTreeNode {
             }
         } else {
             Box::new(
-                PatternMatcher::new(vec![IgnorePattern::new(
+                PatternMatcher::new(vec![FilePattern::new(
                     PatternSyntax::Path,
                     HgPathBuf::from(&self.path).as_bytes(),
                     root_path,

@@ -16,7 +16,7 @@ use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
 use hg::filepatterns::parse_pattern_syntax_kind;
-use hg::filepatterns::IgnorePattern;
+use hg::filepatterns::FilePattern;
 use hg::filepatterns::PatternError;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::DifferenceMatcher;
@@ -78,7 +78,7 @@ fn collect_bad_matches(
 fn collect_kindpats(
     py: Python,
     matcher: &Bound<'_, PyAny>,
-) -> PyResult<Vec<IgnorePattern>> {
+) -> PyResult<Vec<FilePattern>> {
     matcher
         .getattr(intern!(py, "_kindpats"))?
         .try_iter()?
@@ -88,7 +88,7 @@ fn collect_kindpats(
             let py_pattern = k.get_item(1)?;
             let py_source = k.get_item(2)?;
 
-            Ok(IgnorePattern::new(
+            Ok(FilePattern::new(
                 parse_pattern_syntax_kind(
                     py_syntax.downcast::<PyBytes>()?.as_bytes(),
                 )
@@ -131,9 +131,9 @@ fn extract_matcher(
             // Get the patterns from Python even though most of them are
             // redundant with those we will parse later on, as they include
             // those passed from the command line.
-            let ignore_patterns = collect_kindpats(py, matcher)?;
+            let file_patterns = collect_kindpats(py, matcher)?;
             Ok(Box::new(
-                IncludeMatcher::new(ignore_patterns)
+                IncludeMatcher::new(file_patterns)
                     .map_err(|e| handle_fallback(e.into()))?,
             ))
         }

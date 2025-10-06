@@ -502,9 +502,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
             let cwd = hg::utils::current_dir()?;
             let root = repo.working_directory_path();
-            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let file_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
-                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+                hg::matchers::PatternMatcher::new(file_patterns)?;
             Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };
