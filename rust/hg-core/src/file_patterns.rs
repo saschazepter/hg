@@ -1,4 +1,4 @@
-// filepatterns.rs
+// file_patterns.rs
 //
 // Copyright 2019 Raphaël Gomès <rgomes@octobus.net>
 //

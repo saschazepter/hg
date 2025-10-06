@@ -18,7 +18,7 @@ use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
-use hg::filepatterns::parse_pattern_args;
+use hg::file_patterns::parse_pattern_args;
 use hg::lock::LockError;
 use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;

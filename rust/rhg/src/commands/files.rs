@@ -1,5 +1,5 @@
 use clap::Arg;
-use hg::filepatterns::parse_pattern_args;
+use hg::file_patterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
 use hg::operations::list_revset_tracked_files;

@@ -4,7 +4,7 @@
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 
-use crate::filepatterns::PatternFileWarning;
+use crate::file_patterns::PatternFileWarning;
 use crate::sparse::SparseNarrowWarning;
 use crate::update::UpdateWarning;
 

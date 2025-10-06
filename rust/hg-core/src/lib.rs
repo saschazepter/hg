@@ -23,7 +23,7 @@ pub mod testing; // unconditionally built, for use from integration tests
 // Export very common type to make discovery easier
 pub use dirstate::DirstateParents;
 pub mod copy_tracing;
-pub mod filepatterns;
+pub mod file_patterns;
 pub mod matchers;
 pub mod repo;
 pub mod revlog;

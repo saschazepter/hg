@@ -8,10 +8,10 @@ use format_bytes::DisplayBytes;
 
 use crate::errors::HgError;
 use crate::exit_codes::STATE_ERROR;
-use crate::filepatterns::parse_pattern_file_contents;
-use crate::filepatterns::FilePattern;
-use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternSyntax;
+use crate::file_patterns::parse_pattern_file_contents;
+use crate::file_patterns::FilePattern;
+use crate::file_patterns::PatternError;
+use crate::file_patterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;

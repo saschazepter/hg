@@ -29,7 +29,7 @@ use crate::dirstate::dirstate_map::DirstateVersion;
 use crate::dirstate::dirstate_map::NodeRef;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::filepatterns::PatternError;
+use crate::file_patterns::PatternError;
 use crate::matchers::get_ignore_function;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;

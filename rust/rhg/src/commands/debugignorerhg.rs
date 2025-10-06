@@ -1,6 +1,6 @@
 use clap::Arg;
 use hg::dirstate::status::StatusError;
-use hg::filepatterns::RegexCompleteness;
+use hg::file_patterns::RegexCompleteness;
 use hg::matchers::get_ignore_matcher_pre;
 use hg::matchers::ReSyntax;
 use hg::repo::Repo;

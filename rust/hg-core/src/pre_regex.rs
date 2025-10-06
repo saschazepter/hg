@@ -2,7 +2,7 @@ use core::str;
 
 use lazy_static::lazy_static;
 
-use crate::filepatterns::PatternError;
+use crate::file_patterns::PatternError;
 
 lazy_static! {
     static ref RE_ESCAPE: Vec<Vec<u8>> = {

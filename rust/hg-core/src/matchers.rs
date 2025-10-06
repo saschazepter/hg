@@ -26,16 +26,16 @@ use regex_syntax::hir::Hir;
 use crate::dirstate::dirs_multiset::DirsChildrenMultiset;
 use crate::dirstate::dirs_multiset::DirsMultiset;
 use crate::dirstate::status::IgnoreFnType;
-use crate::filepatterns::build_single_regex;
-use crate::filepatterns::filter_subincludes;
-use crate::filepatterns::get_patterns_from_file;
-use crate::filepatterns::normalize_path_bytes;
-use crate::filepatterns::FilePattern;
-use crate::filepatterns::GlobSuffix;
-use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternResult;
-use crate::filepatterns::PatternSyntax;
-use crate::filepatterns::RegexCompleteness;
+use crate::file_patterns::build_single_regex;
+use crate::file_patterns::filter_subincludes;
+use crate::file_patterns::get_patterns_from_file;
+use crate::file_patterns::normalize_path_bytes;
+use crate::file_patterns::FilePattern;
+use crate::file_patterns::GlobSuffix;
+use crate::file_patterns::PatternError;
+use crate::file_patterns::PatternResult;
+use crate::file_patterns::PatternSyntax;
+use crate::file_patterns::RegexCompleteness;
 use crate::pre_regex::PreRegex;
 use crate::repo::Repo;
 use crate::utils::files::dir_ancestors;
@@ -335,7 +335,7 @@ impl Matcher for FileMatcher {
 /// ```
 /// use hg::{
 ///     matchers::{PatternMatcher, Matcher},
-///     filepatterns::{FilePattern, PatternSyntax},
+///     file_patterns::{FilePattern, PatternSyntax},
 ///     utils::hg_path::{HgPath, HgPathBuf}
 /// };
 /// use std::collections::HashSet;
@@ -526,7 +526,7 @@ impl IncludeMatcherPre {
 /// ```
 /// use hg::{
 ///     matchers::{IncludeMatcher, Matcher},
-///     filepatterns::{FilePattern, PatternSyntax},
+///     file_patterns::{FilePattern, PatternSyntax},
 ///     utils::hg_path::HgPath
 /// };
 /// use std::path::Path;

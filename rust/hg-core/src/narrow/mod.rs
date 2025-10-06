@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::errors::HgError;
 use crate::exit_codes;
-use crate::filepatterns::parse_pattern_file_contents;
-use crate::filepatterns::FilePattern;
+use crate::file_patterns::parse_pattern_file_contents;
+use crate::file_patterns::FilePattern;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;

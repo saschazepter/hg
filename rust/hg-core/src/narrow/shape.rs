@@ -8,9 +8,9 @@ use itertools::Itertools;
 use sha2::Digest;
 use sha2::Sha256;
 
-use crate::filepatterns::FilePattern;
-use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternSyntax;
+use crate::file_patterns::FilePattern;
+use crate::file_patterns::PatternError;
+use crate::file_patterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::Matcher;
@@ -40,7 +40,7 @@ impl ShardTreeNode {
         includes: &[FilePattern],
         excludes: &[FilePattern],
     ) -> Result<Self, PatternError> {
-        let check_pattern = |pattern: &IgnorePattern| {
+        let check_pattern = |pattern: &FilePattern| {
             if pattern.syntax != PatternSyntax::Path {
                 let syntax = format!("{:?}", pattern.syntax);
                 Err(PatternError::UnsupportedSyntax(syntax))
