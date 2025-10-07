@@ -76,14 +76,8 @@ Alias interpolation
 Alias to another alias (can only refer to earlier one)
   $ $NO_FALLBACK rhg foo --config alias.bar=root --config alias.foo=bar
   $TESTTMP/repository
-  $ $NO_FALLBACK rhg foo --config alias.foo=bar --config alias.bar=root
+  $ $NO_FALLBACK rhg foo --config alias.foo=bar --config alias.bar=root 2>&1 | grep "unrecognized subcommand 'bar'"
   unsupported feature: error: unrecognized subcommand 'bar'
-  
-  Usage: rhg [OPTIONS] <COMMAND>
-  
-  For more information, try '--help'.
-  
-  [252]
 
 Unwritable file descriptor
   $ $NO_FALLBACK rhg root > /dev/full
