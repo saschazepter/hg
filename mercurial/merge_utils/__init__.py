@@ -11,6 +11,12 @@ import collections
 import typing
 import weakref
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        ClassVar,
+        Final,
+    )
+
 
 class MergeAction:
     """represent an "action" merge need to take for a given file
@@ -37,10 +43,21 @@ class MergeAction:
           changed
     """
 
-    ALL_ACTIONS = weakref.WeakSet()
-    NO_OP_ACTIONS = weakref.WeakSet()
+    _short: bytes
+    no_op: bool
+    narrow_safe: bool
+    changes: bytes | None
 
-    def __init__(self, short, no_op=False, narrow_safe=False, changes=None):
+    ALL_ACTIONS: ClassVar[weakref.WeakSet[MergeAction]] = weakref.WeakSet()
+    NO_OP_ACTIONS: ClassVar[weakref.WeakSet[MergeAction]] = weakref.WeakSet()
+
+    def __init__(
+        self,
+        short: bytes,
+        no_op: bool = False,
+        narrow_safe: bool = False,
+        changes: bytes | None = None,
+    ) -> None:
         self._short = short
         self.ALL_ACTIONS.add(self)
         self.no_op = no_op
@@ -49,54 +66,66 @@ class MergeAction:
         self.narrow_safe = narrow_safe
         self.changes = changes
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._short)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'MergeAction<%s>' % self._short.decode('ascii')
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return self._short
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if other is None:
             return False
         assert isinstance(other, MergeAction)
         return self._short == other._short
 
-    def __lt__(self, other):
+    def __lt__(self, other: MergeAction) -> bool:
         return self._short < other._short
 
 
-CHANGE_ADDED = b'added'
-CHANGE_REMOVED = b'removed'
-CHANGE_MODIFIED = b'modified'
+CHANGE_ADDED: Final[bytes] = b'added'
+CHANGE_REMOVED: Final[bytes] = b'removed'
+CHANGE_MODIFIED: Final[bytes] = b'modified'
 
-ACTION_FORGET = MergeAction(b'f', narrow_safe=True, changes=CHANGE_REMOVED)
-ACTION_REMOVE = MergeAction(b'r', narrow_safe=True, changes=CHANGE_REMOVED)
-ACTION_ADD = MergeAction(b'a', narrow_safe=True, changes=CHANGE_ADDED)
-ACTION_GET = MergeAction(b'g', narrow_safe=True, changes=CHANGE_MODIFIED)
-ACTION_PATH_CONFLICT = MergeAction(b'p')
-ACTION_PATH_CONFLICT_RESOLVE = MergeAction(b'pr')
-ACTION_ADD_MODIFIED = MergeAction(
+ACTION_FORGET: Final[MergeAction] = MergeAction(
+    b'f', narrow_safe=True, changes=CHANGE_REMOVED
+)
+ACTION_REMOVE: Final[MergeAction] = MergeAction(
+    b'r', narrow_safe=True, changes=CHANGE_REMOVED
+)
+ACTION_ADD: Final[MergeAction] = MergeAction(
+    b'a', narrow_safe=True, changes=CHANGE_ADDED
+)
+ACTION_GET: Final[MergeAction] = MergeAction(
+    b'g', narrow_safe=True, changes=CHANGE_MODIFIED
+)
+ACTION_PATH_CONFLICT: Final[MergeAction] = MergeAction(b'p')
+ACTION_PATH_CONFLICT_RESOLVE: Final[MergeAction] = MergeAction(b'pr')
+ACTION_ADD_MODIFIED: Final[MergeAction] = MergeAction(
     b'am', narrow_safe=True, changes=CHANGE_ADDED
 )  # not 100% about the changes value here
-ACTION_CREATED = MergeAction(b'c', narrow_safe=True, changes=CHANGE_ADDED)
-ACTION_DELETED_CHANGED = MergeAction(b'dc')
-ACTION_CHANGED_DELETED = MergeAction(b'cd')
-ACTION_MERGE = MergeAction(b'm')
-ACTION_LOCAL_DIR_RENAME_GET = MergeAction(b'dg')
-ACTION_DIR_RENAME_MOVE_LOCAL = MergeAction(b'dm')
-ACTION_KEEP = MergeAction(b'k', no_op=True)
+ACTION_CREATED: Final[MergeAction] = MergeAction(
+    b'c', narrow_safe=True, changes=CHANGE_ADDED
+)
+ACTION_DELETED_CHANGED: Final[MergeAction] = MergeAction(b'dc')
+ACTION_CHANGED_DELETED: Final[MergeAction] = MergeAction(b'cd')
+ACTION_MERGE: Final[MergeAction] = MergeAction(b'm')
+ACTION_LOCAL_DIR_RENAME_GET: Final[MergeAction] = MergeAction(b'dg')
+ACTION_DIR_RENAME_MOVE_LOCAL: Final[MergeAction] = MergeAction(b'dm')
+ACTION_KEEP: Final[MergeAction] = MergeAction(b'k', no_op=True)
 # the file was absent on local side before merge and we should
 # keep it absent (absent means file not present, it can be a result
 # of file deletion, rename etc.)
-ACTION_KEEP_ABSENT = MergeAction(b'ka', no_op=True)
+ACTION_KEEP_ABSENT: Final[MergeAction] = MergeAction(b'ka', no_op=True)
 # the file is absent on the ancestor and remote side of the merge
 # hence this file is new and we should keep it
-ACTION_KEEP_NEW = MergeAction(b'kn', no_op=True)
-ACTION_EXEC = MergeAction(b'e', narrow_safe=True, changes=CHANGE_MODIFIED)
-ACTION_CREATED_MERGE = MergeAction(
+ACTION_KEEP_NEW: Final[MergeAction] = MergeAction(b'kn', no_op=True)
+ACTION_EXEC: Final[MergeAction] = MergeAction(
+    b'e', narrow_safe=True, changes=CHANGE_MODIFIED
+)
+ACTION_CREATED_MERGE: Final[MergeAction] = MergeAction(
     b'cm', narrow_safe=True, changes=CHANGE_ADDED
 )
 
