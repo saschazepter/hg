@@ -43,8 +43,12 @@ class IFileIndex(Protocol):
         """Return True if the token exists in the file index."""
 
     @abc.abstractmethod
+    def has_path(self, path: HgPathT) -> bool:
+        """Return True if the path exists in the file index."""
+
+    @abc.abstractmethod
     def __contains__(self, path: HgPathT) -> bool:
-        """Check if a path is in the file index."""
+        """Same as has_path."""
 
     @abc.abstractmethod
     def __len__(self) -> int:

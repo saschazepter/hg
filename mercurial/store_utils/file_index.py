@@ -82,6 +82,9 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def has_token(self, token: FileTokenT):
         return token >= 0 and token < len(self)
 
+    def has_path(self, path: HgPathT):
+        return self.get_token(path) is not None
+
     def get_path(self, token: FileTokenT):
         if not self.has_token(token):
             raise KeyError
@@ -105,7 +108,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         """Look up a path on disk by token."""
 
     def __contains__(self, path: HgPathT):
-        return self.get_token(path) is not None
+        return self.has_path(path)
 
     def __len__(self):
         return len(self.meta_array) + len(self._add)
