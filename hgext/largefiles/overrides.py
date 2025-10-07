@@ -69,7 +69,7 @@ eh = exthelper.exthelper()
 
 lfstatus = lfutil.lfstatus
 
-MERGE_ACTION_LARGEFILE_MARK_REMOVED = merge_utils.MergeAction('lfmr')
+MERGE_ACTION_LARGEFILE_MARK_REMOVED = merge_utils.MergeAction(b'lfmr')
 
 # -- Utility functions: commonly/repeatedly needed functionality ---------------
 
