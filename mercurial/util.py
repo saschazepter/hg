@@ -84,6 +84,7 @@ assert [
 ]
 
 if typing.TYPE_CHECKING:
+    import types
     from typing import (
         ParamSpec,
     )
@@ -3507,7 +3508,7 @@ def rust_tracing_span(name: str):
     return trace_span(name)
 
 
-def load_path(path, module_name):
+def load_path(path: bytes, module_name: str) -> types.ModuleType:
     module_name = module_name.replace('.', '_')
     path = normpath(expandpath(path))
     path = pycompat.fsdecode(path)
