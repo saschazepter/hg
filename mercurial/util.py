@@ -92,6 +92,8 @@ if typing.TYPE_CHECKING:
         Self,
     )
 
+    _C = TypeVar('_C', bound=Callable)
+
     _Tcow = TypeVar('_Tcow', bound="cow")
     _P = ParamSpec('_P')
     """An unconstrained type for a Callable ParamSpec."""
@@ -1975,7 +1977,7 @@ def pathto(root: bytes, n1: bytes, n2: bytes) -> bytes:
     return pycompat.ossep.join(([b'..'] * len(a)) + b) or b'.'
 
 
-def checksignature(func, depth=1):
+def checksignature(func: _C, depth: int = 1) -> _C:
     '''wrap a function with code to check for calling errors'''
 
     def check(*args, **kwargs):
