@@ -13,26 +13,24 @@ Set up a server
   $ cat >> .hg/hgrc << EOF
   > [extensions]
   > clonebundles =
+  > 
+  > [clone-bundles]
+  > auto-generate.formats = gzip-v2
+  > auto-generate.serve-inline=yes
   > EOF
 
   $ touch foo
   $ hg -q commit -A -m 'add foo'
   $ touch bar
   $ hg -q commit -A -m 'add bar'
-
-  $ hg serve -d -p $HGPORT --pid-file hg.pid --accesslog access.log
-  $ cat hg.pid >> $DAEMON_PIDS
   $ cd ..
-  $ "$PYTHON" $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
-  $ cat http.pid >> $DAEMON_PIDS
-  $ hg -R server bundle --type gzip-v2 --base null -r tip full.hg
+  $ hg -R server admin::clone-bundles-refresh
   2 changesets found
-  $ echo "http://localhost:$HGPORT1/full.hg" > server/.hg/clonebundles.manifest
 
 clone remote without extension
 
-  $ hg clone http://localhost:$HGPORT test
-  applying clone bundle from http://localhost:$HGPORT1/full.hg
+  $ hg clone ssh://user@dummy/server test
+  applying clone bundle from peer-bundle-cache://full-gzip-v2-2_revs-000000000000_tip-*_acbr.hg (glob)
   adding changesets
   adding manifests
   adding file changes
@@ -46,7 +44,7 @@ clone remote without extension
   $ cat test/.hg/hgrc
   # example repository config (see 'hg help config' for more info)
   [paths]
-  default = http://localhost:$HGPORT/
+  default = ssh://user@dummy/server
   
   # path aliases to other clones of this repo in URLs or filesystem paths
   # (see 'hg help config.paths' for more info)
@@ -74,8 +72,8 @@ add extension
   > def uisetup(ui):
   >   extensions.wrapfunction(bundle2, 'processbundle', _write_hgrc)
   > EOF
-  $ hg --config extensions.write_hgrc=./write_hgrc.py clone http://localhost:$HGPORT test-extended
-  applying clone bundle from http://localhost:$HGPORT1/full.hg
+  $ hg --config extensions.write_hgrc=./write_hgrc.py clone ssh://user@dummy/server test-extended
+  applying clone bundle from peer-bundle-cache://full-gzip-v2-2_revs-000000000000_tip-*_acbr.hg (glob)
   adding changesets
   adding manifests
   adding file changes
@@ -89,7 +87,7 @@ add extension
   $ cat ./test-extended/.hg/hgrc
   # example repository config (see 'hg help config' for more info)
   [paths]
-  default = http://localhost:$HGPORT/
+  default = ssh://user@dummy/server
   
   # path aliases to other clones of this repo in URLs or filesystem paths
   # (see 'hg help config.paths' for more info)
