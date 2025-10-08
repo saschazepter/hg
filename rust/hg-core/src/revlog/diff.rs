@@ -5,7 +5,7 @@ use imara_diff::Diff;
 use imara_diff::InternedInput;
 use imara_diff::TokenSource;
 
-use super::patch::Chunk;
+use super::patch::DeltaPiece;
 
 /// A windows of different data when computing a delta
 ///
@@ -49,13 +49,13 @@ impl<'a> DeltaCursor<'a> {
     }
 
     /// flush a non empty cursor
-    pub fn into_chunk(self) -> Chunk<'a> {
+    pub fn into_piece(self) -> DeltaPiece<'a> {
         let start = self.old.0;
         let end = self.old.1;
         let d_start = self.new.0.try_into().expect("16 bits computer?");
         let d_end = self.new.1.try_into().expect("16 bits computer?");
         let data = &self.data[d_start..d_end];
-        Chunk { start, end, data }
+        DeltaPiece { start, end, data }
     }
 }
 
@@ -240,14 +240,14 @@ pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
 
 fn all_created(prefix_size: usize, content: &[u8], delta: &mut Vec<u8>) {
     let skip: u32 = prefix_size.try_into().expect("16 bits computer");
-    Chunk { start: skip, end: skip, data: content }.write(delta)
+    DeltaPiece { start: skip, end: skip, data: content }.write(delta)
 }
 
 fn all_deleted(prefix_size: usize, deleted: &[u8], delta: &mut Vec<u8>) {
     let skip: u32 = prefix_size.try_into().expect("16 bits computer");
     let deleted_size: u32 = deleted.len().try_into().expect("16 bits computer");
 
-    Chunk { start: skip, end: skip + deleted_size, data: &[] }.write(delta)
+    DeltaPiece { start: skip, end: skip + deleted_size, data: &[] }.write(delta)
 }
 
 /// The main part of [`text_delta`] extracted for clarity
@@ -281,7 +281,7 @@ fn text_delta_inner(
                 c.extend(end - start, content_end - content_start);
                 c
             } else {
-                c.into_chunk().write(delta);
+                c.into_piece().write(delta);
                 DeltaCursor::new(start, end, content_start, content_end, m2)
             }
         } else {
@@ -289,6 +289,6 @@ fn text_delta_inner(
         });
     }
     if let Some(last) = cursor {
-        last.into_chunk().write(delta)
+        last.into_piece().write(delta)
     }
 }

@@ -529,7 +529,7 @@ pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
                 m2_offset += size;
                 // We have a common block so any existing cursor need flushing
                 if let Some(change) = cursor.take() {
-                    change.into_chunk().write(&mut delta);
+                    change.into_piece().write(&mut delta);
                 }
             }
             Section::Changed(size_1, size_2) => {
@@ -551,7 +551,7 @@ pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
         }
     }
     if let Some(change) = cursor.take() {
-        change.into_chunk().write(&mut delta);
+        change.into_piece().write(&mut delta);
     };
     delta
 }

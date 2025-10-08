@@ -18,15 +18,15 @@ use byteorder::ByteOrder;
 use super::inner_revlog::RevisionBuffer;
 use crate::revlog::RevlogError;
 
-/// A chunk of data to insert, delete or replace in a patch
+/// A piece of data to insert, delete or replace in a Delta
 ///
-/// A chunk is:
+/// A DeltaPiece is:
 /// - an insertion when `!data.is_empty() && start == end`
 /// - an deletion when `data.is_empty() && start < end`
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
 #[derive(Clone)]
-pub(crate) struct Chunk<'a> {
+pub(crate) struct DeltaPiece<'a> {
     /// The start position of the chunk of data to replace
     pub(crate) start: u32,
     /// The end position of the chunk of data to replace (open end interval)
@@ -35,26 +35,26 @@ pub(crate) struct Chunk<'a> {
     pub(crate) data: &'a [u8],
 }
 
-impl Chunk<'_> {
-    /// Adjusted start of the chunk to replace.
+impl DeltaPiece<'_> {
+    /// Adjusted start of the data to replace.
     ///
     /// The offset, taking into account the growth/shrinkage of data
-    /// induced by previously applied chunks.
+    /// induced by previously applied DeltaPiece.
     fn start_offset_by(&self, offset: i32) -> u32 {
         let start = self.start as i32 + offset;
         assert!(start >= 0, "negative chunk start should never happen");
         start as u32
     }
 
-    /// Adjusted end of the chunk to replace.
+    /// Adjusted end of the data to replace.
     ///
     /// The offset, taking into account the growth/shrinkage of data
-    /// induced by previously applied chunks.
+    /// induced by previously applied DeltaPiece.
     fn end_offset_by(&self, offset: i32) -> u32 {
         self.start_offset_by(offset) + self.data.len() as u32
     }
 
-    /// Length of the replaced chunk.
+    /// Length of the replaced date.
     fn replaced_len(&self) -> u32 {
         self.end - self.start
     }
@@ -64,7 +64,7 @@ impl Chunk<'_> {
         self.data.len() as i32 - self.replaced_len() as i32
     }
 
-    /// push a single patch inside a delta, ignoring empty ones
+    /// push a single DeltaPiece inside a Delta, ignoring empty ones
     pub fn write(self, delta: &mut Vec<u8>) {
         let size: u32 =
             self.data.len().try_into().expect("more than 2GB of patch data");
@@ -79,9 +79,9 @@ impl Chunk<'_> {
     }
 }
 
-impl std::fmt::Debug for Chunk<'_> {
+impl std::fmt::Debug for DeltaPiece<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Chunk")
+        f.debug_struct("DeltaPiece")
             .field("start", &self.start)
             .field("end", &self.end)
             .field("size", &self.data.len())
@@ -92,13 +92,13 @@ impl std::fmt::Debug for Chunk<'_> {
 /// The delta between two revisions data.
 #[derive(Debug, Clone)]
 pub struct PatchList<'a> {
-    /// A collection of chunks to apply.
+    /// A collection of DeltaPiece to apply.
     ///
-    /// Those chunks are:
+    /// Those DeltaPiece are:
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
-    pub(crate) chunks: Vec<Chunk<'a>>,
+    pub(crate) chunks: Vec<DeltaPiece<'a>>,
 }
 
 impl<'a> PatchList<'a> {
@@ -113,7 +113,7 @@ impl<'a> PatchList<'a> {
             if start > end {
                 return Err(RevlogError::corrupted("patch cannot be decoded"));
             }
-            chunks.push(Chunk {
+            chunks.push(DeltaPiece {
                 start,
                 end,
                 data: &data[12..12 + (len as usize)],
@@ -125,7 +125,7 @@ impl<'a> PatchList<'a> {
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
     pub fn full_snapshot(data: &'a [u8]) -> Self {
-        Self { chunks: vec![Chunk { start: 0, end: 0, data }] }
+        Self { chunks: vec![DeltaPiece { start: 0, end: 0, data }] }
     }
 
     /// Apply the patch to some data.
@@ -135,7 +135,7 @@ impl<'a> PatchList<'a> {
         initial: &[u8],
     ) {
         let mut last: usize = 0;
-        for Chunk { start, end, data } in self.chunks.iter() {
+        for DeltaPiece { start, end, data } in self.chunks.iter() {
             let slice = &initial[last..(*start as usize)];
             buffer.extend_from_slice(slice);
             buffer.extend_from_slice(data);
@@ -161,7 +161,7 @@ impl<'a> PatchList<'a> {
 
         // For each chunk of `other`, chunks of `self` are processed
         // until they start after the end of the current chunk.
-        for Chunk { start, end, data } in other.chunks.iter() {
+        for DeltaPiece { start, end, data } in other.chunks.iter() {
             // Add chunks of `self` that start before this chunk of `other`
             // without overlap.
             while pos < self.chunks.len()
@@ -185,7 +185,7 @@ impl<'a> PatchList<'a> {
                 let (data_left, data_right) = first.data.split_at(
                     (*start - first.start_offset_by(offset)) as usize,
                 );
-                let left = Chunk {
+                let left = DeltaPiece {
                     start: first.start,
                     end: first.start,
                     data: data_left,
@@ -236,7 +236,7 @@ impl<'a> PatchList<'a> {
             }
 
             // Add the chunk of `other` with adjusted position.
-            chunks.push(Chunk {
+            chunks.push(DeltaPiece {
                 start: (*start as i32 - offset) as u32,
                 end: (*end as i32 - next_offset) as u32,
                 data,
