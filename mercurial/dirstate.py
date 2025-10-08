@@ -11,6 +11,7 @@ import collections
 import contextlib
 import os
 import stat
+import typing
 import uuid
 
 from typing import (
@@ -49,6 +50,21 @@ from .interfaces import (
     dirstate as intdirstate,
 )
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
+
+    # For some reason, pytype got confused by using ParamSpec, and demoted
+    # some (but not all) decorated methods to Callable with no defined args.
+    # This manages to preserve all methods, even including the variable names.
+    _C = TypeVar('_C', bound=Callable)
+    """An unconstrained Callable, for when a method takes a method with any
+    signature, and returns a method with an identical signature.
+    """
+
+
 parsers = policy.importmod('parsers')
 rustmod = policy.importrust('dirstate')
 
@@ -75,7 +91,7 @@ class rootcache(filecache):
         return obj._join(fname)
 
 
-def check_invalidated(func):
+def check_invalidated(func: _C) -> _C:
     """check that the func is called with a non-invalidated dirstate
 
     The dirstate is in an "invalidated state" after an error occured during its
@@ -93,7 +109,7 @@ def check_invalidated(func):
     return wrap
 
 
-def requires_changing_parents(func):
+def requires_changing_parents(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not self.is_changing_parents:
             msg = 'calling `%s` outside of a changing_parents context'
@@ -104,7 +120,7 @@ def requires_changing_parents(func):
     return check_invalidated(wrap)
 
 
-def requires_changing_files(func):
+def requires_changing_files(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not self.is_changing_files:
             msg = 'calling `%s` outside of a `changing_files`'
@@ -115,7 +131,7 @@ def requires_changing_files(func):
     return check_invalidated(wrap)
 
 
-def requires_changing_any(func):
+def requires_changing_any(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not self.is_changing_any:
             msg = 'calling `%s` outside of a changing context'
@@ -126,7 +142,7 @@ def requires_changing_any(func):
     return check_invalidated(wrap)
 
 
-def requires_changing_files_or_status(func):
+def requires_changing_files_or_status(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not (self.is_changing_files or self._running_status > 0):
             msg = (
