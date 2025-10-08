@@ -1,3 +1,17 @@
+//! Gather code around processing and applying delta
+//!
+//! Terminology:
+//!
+//! **Full-Text:** a blob of bytes that consistitute a consisten content
+//! (usually a revision)
+//!
+//! **Delta:** A series of "DeltaPiece" that can be applied to a Full-Text" to
+//! produce another "Full-Text".
+//!
+//! **DeltaPiece:** An atomic unit that replace a section of the *old*
+//! "Full-Text" with another.
+//!
+//! **Delta-Chain:** A "Full-Text" followed by a list of Delta.
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 
