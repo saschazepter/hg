@@ -687,4 +687,95 @@ mod tests {
         let result = apply_chain(&data, &deltas);
         assert_eq!(result, expected);
     }
+
+    #[test]
+    /// complexe case reduced from a real life failure
+    fn test_complex_01() {
+        // we don't use the TestChain here because we build content longer than
+        // 10 bytes
+        let data = vec![0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let mut patch_data = vec![];
+
+        // insert 10 more bytes (20 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(5, 5, &[10u8, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+        patch_data.push(p);
+
+        // empty patch
+        let p = PatchDataBuilder::new();
+        patch_data.push(p);
+
+        // append 5 more bytes (25 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(20, 20, &[20u8, 21, 22, 23, 24]);
+        patch_data.push(p);
+
+        // insert 5 more bytes (30 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(0, 0, &[30u8, 31, 32, 33, 34]);
+        patch_data.push(p);
+
+        // alter a small section, dropping 2 bytes (28 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(7, 13, &[40u8, 41, 42, 43]);
+        patch_data.push(p);
+
+        // alter the end of this section same amount of bytes (28 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(9, 11, &[50u8, 51]);
+        patch_data.push(p);
+
+        // empty patch
+        let p = PatchDataBuilder::new();
+        patch_data.push(p);
+
+        // empty patch
+        let p = PatchDataBuilder::new();
+        patch_data.push(p);
+
+        // insert 5 more bytes somewhere (33 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(12, 12, &[60u8, 61, 62, 63, 64]);
+        patch_data.push(p);
+
+        // alter the same section again (33 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(9, 11, &[70u8, 71]);
+        patch_data.push(p);
+
+        // insert more data (38 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(20, 20, &[80u8, 81, 82, 83, 84]);
+        patch_data.push(p);
+
+        // alter the same section again (38 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(9, 11, &[90u8, 91]);
+        patch_data.push(p);
+
+        // insert more data close to the end (43 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(27, 27, &[100u8, 101, 102, 103, 104]);
+        patch_data.push(p);
+
+        // delete the end (38 total)
+        let mut p = PatchDataBuilder::new();
+        p.replace(38, 43, &[]);
+        patch_data.push(p);
+
+        // insert new thing before the end part
+        let mut p = PatchDataBuilder::new();
+        p.replace(33, 33, &[110u8, 111, 112, 113, 114]);
+        patch_data.push(p);
+
+        let expected = &[
+            30u8, 31, 32, 33, 34, 0, 1, 40, 41, 90, 91, 13, 60, 61, 62, 63, 64,
+            14, 15, 16, 80, 81, 82, 83, 84, 17, 18, 100, 101, 102, 103, 104,
+            19, 110, 111, 112, 113, 114, 5, 6, 7, 8, 9,
+        ];
+
+        let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
+        let result = apply_chain(&data, &deltas);
+        assert_eq!(result, expected);
+    }
 }
