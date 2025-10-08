@@ -11,7 +11,7 @@ use crate::revlog::RevlogError;
 /// - an deletion when `data.is_empty() && start < end`
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct Chunk<'a> {
     /// The start position of the chunk of data to replace
     pub(crate) start: u32,
@@ -62,6 +62,16 @@ impl Chunk<'_> {
         delta.extend_from_slice(&u32::to_be_bytes(self.end));
         delta.extend_from_slice(&u32::to_be_bytes(size));
         delta.extend_from_slice(self.data);
+    }
+}
+
+impl std::fmt::Debug for Chunk<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Chunk")
+            .field("start", &self.start)
+            .field("end", &self.end)
+            .field("size", &self.data.len())
+            .finish()
     }
 }
 
