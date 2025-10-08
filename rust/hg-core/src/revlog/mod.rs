@@ -822,7 +822,8 @@ impl<'revlog> RevlogEntry<'revlog> {
         }
     }
 
-    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
+    /// Get the revision data, without checking it integrity
+    fn data_unchecked(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
         // TODO figure out if there is ever a need for `Cow` here anymore.
         let mut data = CoreRevisionBuffer::new();
         if self.rev == NULL_REVISION {
@@ -842,7 +843,16 @@ impl<'revlog> RevlogEntry<'revlog> {
             f(&mut data)?;
             Ok(())
         })?;
-        self.check_data(data.finish().into())
+        Ok(data.finish().into())
+    }
+
+    /// Get the revision data, checking its integrity in the process
+    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
+        // TODO figure out if there is ever a need for `Cow` here anymore.
+        if self.rev == NULL_REVISION {
+            return Ok(b"".into());
+        }
+        self.check_data(self.data_unchecked()?)
     }
 }
 
