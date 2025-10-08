@@ -3767,7 +3767,7 @@ def _getrevisionseed(orig, rev, tr, source):
         cachedelta = CachedDelta(baserev, diff)
     elif source == b'storage':
         baserev = orig.deltaparent(rev)
-        cachedelta = CachedDelta(baserev, orig.revdiff(orig.node(baserev), rev))
+        cachedelta = CachedDelta(baserev, orig.revdiff(baserev, rev))
 
     return (
         (text, tr, linkrev, p1, p2),
