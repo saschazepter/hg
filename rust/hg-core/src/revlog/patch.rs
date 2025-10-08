@@ -778,4 +778,23 @@ mod tests {
         let result = apply_chain(&data, &deltas);
         assert_eq!(result, expected);
     }
+
+    #[test]
+    /// from a generated case
+    fn test_complex_02() {
+        let chain = TestChain::new(
+            6,
+            &[
+                &[(4, 1, 0), (6, 0, 1)],
+                &[(1, 4, 7)],
+                &[(4, 0, 1)],
+                &[(0, 1, 0)],
+                &[(2, 0, 3), (7, 1, 0)],
+            ],
+        );
+
+        let result = chain.apply_result();
+        let expected = chain.expected();
+        assert_eq!(result, expected);
+    }
 }
