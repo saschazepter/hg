@@ -573,4 +573,30 @@ mod tests {
         let result = chain.apply_result();
         assert_eq!(result, expected);
     }
+
+    const PATCH_COUNT: usize = 18;
+
+    #[test]
+    fn test_append_multiple_time() {
+        // we don't use the TestChain here because we build content longer than
+        // 10 bytes
+        let data = vec![0u8, 1, 2, 3, 4];
+        let mut expected = vec![];
+        expected.extend_from_slice(&data);
+
+        let mut patch_data = vec![];
+        for idx in 0..PATCH_COUNT {
+            let offset = 5 * (1 + idx);
+            let v = 10u8 * (1 + idx as u8);
+            let mut p = PatchDataBuilder::new();
+            let data = [v, v + 1, v + 2, v + 3, v + 4];
+            p.replace(offset, offset, &data);
+            patch_data.push(p);
+            expected.extend_from_slice(&data);
+        }
+
+        let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
+        let result = apply_chain(&data, &deltas);
+        assert_eq!(result, expected);
+    }
 }
