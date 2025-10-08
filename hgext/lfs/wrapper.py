@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import hashlib
+import typing
 
 from mercurial.i18n import _
 from mercurial.node import bin, hex, short
@@ -44,12 +45,22 @@ from . import (
     pointer,
 )
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+    )
+    from mercurial.interfaces.types import (
+        RepoT,
+    )
+
 eh = exthelper.exthelper()
 
 
 @eh.wrapfunction(changegroup, 'allsupportedversions')
-def allsupportedversions(orig, ui):
-    versions = orig(ui)
+def allsupportedversions(
+    orig: Callable[[RepoT], set[bytes]], repo: RepoT
+) -> set[bytes]:
+    versions = orig(repo)
     versions.add(b'03')
     return versions
 
