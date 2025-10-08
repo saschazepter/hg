@@ -279,8 +279,17 @@ pub fn fold_deltas<'a>(lists: &[Delta<'a>]) -> Delta<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rand::prelude::*;
+    use rand::SeedableRng;
+
     use super::*;
     use crate::revlog::CoreRevisionBuffer;
+
+    impl PartialOrd for TestChain {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
 
     const MIN_SIZE: usize = 1;
     const MAX_SIZE: usize = 10;
@@ -370,6 +379,131 @@ mod tests {
             Self { initial_size: initial_size as u8, deltas }
         }
 
+        fn random(seed: u64) -> Self {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            let mut src_size = (rng.random::<u8>() % 9u8) + 1u8;
+            let mut chain =
+                TestChain { initial_size: src_size, deltas: vec![] };
+            for _ in 1..(rng.random::<u8>() % 24) + 1u8 {
+                let size_change = (rng.random::<u8>() % 7) as i8 - 3;
+                let next_size = ((src_size as i8) + size_change)
+                    .max(MIN_SIZE as i8)
+                    .min(MAX_SIZE as i8) as u8;
+                let size_change = next_size as i8 - src_size as i8;
+                assert!(next_size <= 10);
+                assert!(1 <= next_size);
+
+                let mut d = TestDelta {
+                    src_size: src_size,
+                    dst_size: next_size,
+                    pieces: vec![],
+                };
+
+                let max_pos = src_size + 1;
+                let nb_pick = rng.random_range(1..10);
+                let mut selected_pos = std::collections::HashSet::new();
+                for _ in 0..nb_pick {
+                    let picked = rng.random_range(0..max_pos);
+                    selected_pos.insert(picked);
+                }
+                let mut used_pos: Vec<u8> = selected_pos.into_iter().collect();
+                used_pos.sort();
+                used_pos.reverse();
+
+                let mut tmp_patches = vec![];
+                let mut current_size_change: i8 = 0;
+
+                while let Some(start) = used_pos.pop() {
+                    // select the end of the range
+                    let end = if rng.random::<bool>() {
+                        used_pos.pop().unwrap_or(start)
+                    } else {
+                        start
+                    };
+                    assert!(start <= end, "{} <= {}", start, end);
+                    let old_size = end - start;
+                    let new_size = if start == end { 1 } else { 0 };
+                    current_size_change += new_size as i8 - old_size as i8;
+                    assert!(start <= d.src_size);
+                    assert!(start + old_size <= d.src_size);
+                    tmp_patches.push(TestPiece {
+                        pos: start,
+                        old_size,
+                        new_size,
+                    });
+                }
+
+                tmp_patches.shuffle(&mut rng);
+
+                let mut change_budget = size_change - current_size_change;
+
+                if change_budget >= 0 {
+                    for p in tmp_patches.iter_mut() {
+                        if change_budget > 0 {
+                            let extra: i8 = rng.random_range(0..change_budget);
+                            p.new_size += extra as u8;
+                            change_budget -= extra;
+                        }
+                    }
+                } else {
+                    tmp_patches = tmp_patches
+                        .into_iter()
+                        .filter(|p| {
+                            if p.old_size > 0 {
+                                true
+                            } else {
+                                if change_budget >= 0 {
+                                    true
+                                } else {
+                                    change_budget += p.new_size as i8;
+                                    false
+                                }
+                            }
+                        })
+                        .collect();
+                    if tmp_patches.is_empty() {
+                        if change_budget <= -(src_size as i8) {
+                            change_budget = -(src_size as i8) + 1
+                        }
+                        let max_pos =
+                            (src_size as i8 + change_budget.min(-1)) as u8;
+                        let pos = rng.random_range(0..max_pos + 1);
+                        tmp_patches.push(if change_budget >= 0 {
+                            TestPiece { pos, old_size: 1, new_size: 1 }
+                        } else {
+                            TestPiece {
+                                pos,
+                                old_size: (-change_budget as u8),
+                                new_size: 0,
+                            }
+                        });
+                    }
+                    if change_budget < 0 {
+                        change_budget = 0;
+                        d.dst_size = (d.dst_size as i8 - change_budget) as u8;
+                    }
+                }
+
+                assert!(!tmp_patches.is_empty());
+                tmp_patches.sort_by(|a, b| a.pos.cmp(&b.pos));
+                for p in tmp_patches.into_iter() {
+                    d.pieces.push(p);
+                }
+                assert!(!d.pieces.is_empty());
+                if change_budget > 0 {
+                    let p: &mut TestPiece =
+                        (&mut d.pieces[..]).choose_mut(&mut rng).unwrap();
+                    p.new_size += change_budget as u8;
+                    change_budget = 0
+                }
+                assert_eq!(change_budget, 0);
+                src_size = d.dst_size;
+                assert!(src_size <= 10, "{}", src_size);
+                assert!(1 <= src_size, "{}", src_size);
+                chain.deltas.push(d);
+            }
+            chain
+        }
         fn full_text(&self) -> Vec<u8> {
             assert!(self.initial_size <= 10);
             let mut text = vec![];
@@ -424,10 +558,53 @@ mod tests {
             content
         }
 
+        /// return a copy of this TestChain without the tip most patch.
+        fn sub_chain(&self) -> Self {
+            let mut other = self.clone();
+            other.deltas.pop();
+            other
+        }
+
+        /// return the result of apply this chain
+        ///
+        /// (using the iterator approach)
         fn apply_result(&self) -> Vec<u8> {
             let full_text = self.full_text();
             let deltas = self.deltas();
             apply_chain(&full_text, &deltas)
+        }
+
+        fn eprint(&self) {
+            eprintln!("TestChain [");
+            eprintln!("    base  {}", self.initial_size);
+            for d in &self.deltas {
+                eprintln!("    delta {} -> {}", d.src_size, d.dst_size);
+                for p in &d.pieces {
+                    eprintln!(
+                        "                # {} -{} +{} ~> {}",
+                        p.pos,
+                        p.old_size,
+                        p.new_size,
+                        p.new_size as i8 - p.old_size as i8,
+                    )
+                }
+            }
+            eprintln!("]");
+        }
+    }
+
+    impl Ord for TestChain {
+        /// simpler chain are "smaller" than the more complex one
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            if self.deltas.len() != other.deltas.len() {
+                self.deltas.len().cmp(&other.deltas.len())
+            } else {
+                let local_patch_count: usize =
+                    self.deltas.iter().map(|d| d.pieces.len()).sum();
+                let other_patch_count: usize =
+                    other.deltas.iter().map(|d| d.pieces.len()).sum();
+                local_patch_count.cmp(&other_patch_count)
+            }
         }
     }
 
@@ -838,5 +1015,47 @@ mod tests {
         let result = chain.apply_result();
         let expected = chain.expected();
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    /// some automatically generated test
+    ///
+    /// You should probably use proptest for that, but that is a good start
+    fn test_generated() {
+        let mut test_chains = vec![];
+        for seed in 0..1024 {
+            test_chains.push(TestChain::random(seed));
+        }
+
+        // try the simplest case first
+        test_chains.sort();
+
+        for chain in test_chains.into_iter() {
+            let result = chain.apply_result();
+            let expected = chain.expected();
+
+            // if we get a bad result, we shorten it to the smallest chain that
+            // still fails.
+            if result != expected {
+                let mut last_bad_chain = chain.clone();
+                let mut current_chain = chain.clone();
+                while !current_chain.deltas.is_empty() {
+                    current_chain = last_bad_chain.sub_chain();
+                    let sub_result = chain.apply_result();
+                    let sub_expected = chain.expected();
+                    if sub_result == sub_expected {
+                        break;
+                    }
+                    last_bad_chain = current_chain.clone();
+                }
+                last_bad_chain.eprint();
+                assert_eq!(
+                    last_bad_chain.apply_result(),
+                    last_bad_chain.expected(),
+                    "{:?}",
+                    last_bad_chain,
+                );
+            }
+        }
     }
 }
