@@ -159,7 +159,7 @@ Force vacuuming tree during commit
   $ touch anotherfile
   $ hg add
   adding anotherfile
-  $ hg --config storage.fileindex.max-unused-percentage=0 commit -m 2
+  $ hg --config devel.fileindex.vacuum-mode=always commit -m 2
   $ hg debug::file-index --docket -T '{tree_unused_bytes}\n'
   0
 
