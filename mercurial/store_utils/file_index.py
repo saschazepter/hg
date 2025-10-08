@@ -38,6 +38,12 @@ VACUUM_MODE_NEVER = b'never'
 VACUUM_MODE_ALWAYS = b'always'
 ALL_VACUUM_MODES = {VACUUM_MODE_AUTO, VACUUM_MODE_NEVER, VACUUM_MODE_ALWAYS}
 
+# Minimum size of the tree file in bytes before auto-vacuuming starts.
+#
+# The value was picked by adding files one by one in individual transaction.
+# 16K allows for adding 100 files before tree file is shrink down to 1.5K
+AUTO_VACUUM_MIN_SIZE = 16 * 1024
+
 DEFAULT_DOCKET_TEMPLATE = b"""\
 marker: {marker}
 list_file_size: {list_file_size}
@@ -189,9 +195,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             if force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
                 vacuum = True
             elif self._vacuum_mode == VACUUM_MODE_AUTO:
-                vacuum = (
-                    self.docket.tree_unused_bytes
-                    >= self.docket.tree_file_size * self._max_unused_ratio
+                size = self.docket.tree_file_size
+                unused = self.docket.tree_unused_bytes
+                vacuum = (size >= AUTO_VACUUM_MIN_SIZE) and (
+                    unused / size >= self._max_unused_ratio
                 )
             else:
                 vacuum = False
