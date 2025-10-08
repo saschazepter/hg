@@ -48,6 +48,7 @@ from .revlogutils.constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_NO,
     DELTA_BASE_REUSE_TRY,
+    ENTRY_DATA_COMPRESSED_LENGTH,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
@@ -541,7 +542,9 @@ class _InnerRevlog:
         iterrev = rev
         e = index[iterrev]
         while iterrev != e[3] and iterrev != stoprev:
-            chain.append(iterrev)
+            if e[ENTRY_DATA_COMPRESSED_LENGTH] > 0:
+                # skip over empty delta in the chain
+                chain.append(iterrev)
             if generaldelta:
                 iterrev = e[3]
             else:

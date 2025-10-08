@@ -1824,8 +1824,12 @@ static PyObject *index_deltachain(indexObject *self, PyObject *args)
 	iterrev = rev;
 
 	while (iterrev != baserev && iterrev != stoprev) {
-		if (pylist_append_owned(chain, PyLong_FromLong(iterrev))) {
-			goto bail;
+		/* skip over empty delta in the chain */
+		if (index_get_length(self, iterrev) > 0) {
+			if (pylist_append_owned(chain,
+			                        PyLong_FromLong(iterrev))) {
+				goto bail;
+			}
 		}
 
 		if (self->uses_generaldelta) {

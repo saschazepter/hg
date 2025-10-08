@@ -764,7 +764,11 @@ impl Index {
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
             && stop_rev.map(|r| r != current_rev).unwrap_or(true)
         {
-            chain.push(current_rev);
+            if entry.compressed_len() > 0 {
+                // skip over empty delta, they don't contribute to the restored
+                // content.
+                chain.push(current_rev);
+            }
             let new_rev = if using_general_delta {
                 entry.base_revision_or_base_of_delta_chain()
             } else {
