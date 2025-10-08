@@ -3529,6 +3529,7 @@ def perfrevlogrevisions(
         (b'', b'details', False, b'print timing for every revisions tested'),
         (b'', b'source', b'full', b'the kind of data feed in the revlog'),
         (b'', b'lazydeltabase', True, b'try the provided delta first'),
+        (b'', b'lazy-delta', True, b'try the provided delta first'),
         (b'', b'clear-caches', True, b'clear revlog cache between calls'),
     ],
     b'-c|-m|FILE',
@@ -3564,6 +3565,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
         stoprev = rllen + stoprev
 
     lazydeltabase = opts['lazydeltabase']
+    lazy_delta = opts['lazy_delta']
     source = opts['source']
     clearcaches = opts['clear_caches']
     validsource = (
@@ -3591,6 +3593,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
             c + 1,
             max_run=count,
             lazydeltabase=lazydeltabase,
+            lazy_delta=lazy_delta,
             clearcaches=clearcaches,
         )
         allresults.append(timing)
@@ -3679,6 +3682,7 @@ def _timeonewrite(
     runidx=None,
     max_run=None,
     lazydeltabase=True,
+    lazy_delta=True,
     clearcaches=True,
 ):
     timings = []
@@ -3686,6 +3690,7 @@ def _timeonewrite(
     with _temprevlog(ui, orig, startrev) as dest:
         if hasattr(dest, "delta_config"):
             dest.delta_config.lazy_delta_base = lazydeltabase
+            dest.delta_config.lazy_delta = lazy_delta
         else:
             dest._lazydeltabase = lazydeltabase
         revs = list(orig.revs(startrev, stoprev))
