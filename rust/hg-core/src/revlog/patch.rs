@@ -552,4 +552,25 @@ mod tests {
         let result = chain.apply_result();
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn test_stacking_3_patches() {
+        let chain = TestChain::new(
+            3,
+            &[
+                &[(1, 1, 2), (3, 0, 1)],
+                &[(0, 2, 0), (3, 1, 2)],
+                &[(0, 0, 1), (1, 1, 2)],
+            ],
+        );
+
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![30u8, 11, 31, 32, 21, 12]);
+
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
+    }
 }
