@@ -12,6 +12,9 @@
 //! "Full-Text" with another.
 //!
 //! **Delta-Chain:** A "Full-Text" followed by a list of Delta.
+//!
+//! **Delta-Base:** The content a Delta applies to. It can be an explicite
+//! Full-Text or a Delta-Chain.
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 
@@ -277,7 +280,156 @@ pub fn fold_deltas<'a>(lists: &[Delta<'a>]) -> Delta<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::revlog::inner_revlog::CoreRevisionBuffer;
+    use crate::revlog::CoreRevisionBuffer;
+
+    const MIN_SIZE: usize = 1;
+    const MAX_SIZE: usize = 10;
+
+    /// apply a chain of Delta in binary form to a Full-Text
+    fn apply_chain<D>(full_text: &[u8], deltas: &[D]) -> Vec<u8>
+    where
+        D: AsRef<[u8]>,
+    {
+        let deltas: Vec<_> =
+            deltas.iter().map(|d| Delta::new(d.as_ref()).unwrap()).collect();
+
+        let projected = fold_deltas(&deltas[..]);
+        let mut buffer = CoreRevisionBuffer::new();
+        projected.apply(&mut buffer, full_text);
+        buffer.finish()
+    }
+
+    /// represent a chain of deltas usable for test.
+    ///
+    /// - the full text size is alway betwen 1 and 10,
+    /// - content from the full text are bytes in the [0, 9] range,
+    /// - content from patch N are bytes in the [10 * N, 10 * N + 9].
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct TestChain {
+        /// the "Full-Text" initial size
+        initial_size: u8,
+        /// The "Deltas" involved in the chain
+        deltas: Vec<TestDelta>,
+    }
+
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct TestDelta {
+        /// The size of the Full-Text this Delta applies to.
+        src_size: u8,
+        /// The size of the Full-Text resulting from applying this delta.
+        dst_size: u8,
+        /// The Delta-Pieces that compose this delta (alway have at least one).
+        pieces: Vec<TestPiece>,
+    }
+
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct TestPiece {
+        /// offset in the "Base" we start replacing.
+        pos: u8,
+        /// the size of the section in the "Base" we replace.
+        old_size: u8,
+        /// the size of the new section that get inserted.
+        new_size: u8,
+    }
+
+    impl TestChain {
+        /// turn into a "simplified" expression into a TestChain
+        ///
+        /// The delta_spec express the chain as slice de delta, each expressed
+        /// as a slice of three item tuple: (pos, old_size, new_size)
+        ///
+        /// The actual bytes used for the full text and delta are automatically
+        /// computed (see [`TestChain`] for details).
+        fn new(
+            initial_size: usize,
+            deltas_spec: &[&[(usize, usize, usize)]],
+        ) -> Self {
+            assert!(MIN_SIZE <= initial_size);
+            assert!(initial_size <= MAX_SIZE);
+            let mut deltas = vec![];
+            let mut src_size = initial_size as u8;
+            for d_spec in deltas_spec.iter() {
+                let mut new_size: i8 = src_size as i8;
+                let mut pieces = vec![];
+                for (pos, old, new) in d_spec.iter() {
+                    new_size += *new as i8;
+                    new_size -= *old as i8;
+                    pieces.push(TestPiece {
+                        pos: *pos as u8,
+                        old_size: *old as u8,
+                        new_size: *new as u8,
+                    })
+                }
+                deltas.push(TestDelta {
+                    src_size,
+                    dst_size: new_size as u8,
+                    pieces,
+                });
+                src_size = new_size as u8;
+            }
+            Self { initial_size: initial_size as u8, deltas }
+        }
+
+        fn full_text(&self) -> Vec<u8> {
+            assert!(self.initial_size <= 10);
+            let mut text = vec![];
+            for i in 0..self.initial_size {
+                text.push(i as u8);
+            }
+            text
+        }
+
+        /// Return all deltas in their binary serialization
+        fn deltas(&self) -> Vec<Vec<u8>> {
+            let mut pieces = vec![];
+            for (idx, d) in self.deltas.iter().enumerate() {
+                let mut data = PatchDataBuilder::new();
+                let idx = (idx + 1) as u8;
+                let new_data = [
+                    (idx * 10) + 0,
+                    (idx * 10) + 1,
+                    (idx * 10) + 2,
+                    (idx * 10) + 3,
+                    (idx * 10) + 4,
+                    (idx * 10) + 5,
+                    (idx * 10) + 6,
+                    (idx * 10) + 7,
+                    (idx * 10) + 8,
+                    (idx * 10) + 9,
+                ];
+                let mut cursor: usize = 0;
+                for p in &d.pieces {
+                    let start = p.pos;
+                    let end = p.pos + p.old_size;
+                    let cursor_end = cursor + p.new_size as usize;
+                    assert!(cursor_end <= 10);
+                    let new = &new_data[cursor..cursor_end];
+                    data.replace(start as usize, end as usize, new);
+                    cursor = cursor_end;
+                }
+                pieces.push(data.data);
+            }
+            pieces
+        }
+
+        /// return the expected final Full-Text from applying this delta Chain
+        fn expected(&self) -> Vec<u8> {
+            let mut content = self.full_text();
+            for d in self.deltas() {
+                let patch = Delta::new(&d).unwrap();
+                let mut buffer = CoreRevisionBuffer::new();
+                patch.apply(&mut buffer, &content);
+                content = buffer.finish();
+            }
+            content
+        }
+
+        fn apply_result(&self) -> Vec<u8> {
+            let full_text = self.full_text();
+            let deltas = self.deltas();
+            apply_chain(&full_text, &deltas)
+        }
+    }
 
     struct PatchDataBuilder {
         data: Vec<u8>,
@@ -301,123 +453,89 @@ mod tests {
             self.data.extend(data.iter());
             self
         }
-
-        pub fn get(&mut self) -> &[u8] {
-            &self.data
-        }
     }
 
     #[test]
     fn test_ends_before() {
-        let data = vec![0u8, 0u8, 0u8];
-        let mut patch1_data = PatchDataBuilder::new();
-        patch1_data.replace(0, 1, &[1, 2]);
-        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
+        let chain = TestChain::new(3, &[&[(0, 1, 2)], &[(2, 2, 3)]]);
 
-        let mut patch2_data = PatchDataBuilder::new();
-        patch2_data.replace(2, 4, &[3, 4]);
-        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![10u8, 11, 20, 21, 22]);
 
-        let patch = patch1.combine(&mut patch2);
-
-        let mut buffer = CoreRevisionBuffer::new();
-        patch.apply(&mut buffer, &data);
-
-        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_starts_after() {
-        let data = vec![0u8, 0u8, 0u8];
-        let mut patch1_data = PatchDataBuilder::new();
-        patch1_data.replace(2, 3, &[3]);
-        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
+        let chain = TestChain::new(3, &[&[(0, 1, 1)], &[(1, 1, 2)]]);
 
-        let mut patch2_data = PatchDataBuilder::new();
-        patch2_data.replace(1, 2, &[1, 2]);
-        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![10u8, 20, 21, 2]);
 
-        let patch = patch1.combine(&mut patch2);
-
-        let mut buffer = CoreRevisionBuffer::new();
-        patch.apply(&mut buffer, &data);
-
-        assert_eq!(buffer.finish(), vec![0u8, 1, 2, 3]);
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_overridden() {
-        let data = vec![0u8, 0, 0];
-        let mut patch1_data = PatchDataBuilder::new();
-        patch1_data.replace(1, 2, &[3, 4]);
-        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
+        let chain = TestChain::new(3, &[&[(1, 1, 2)], &[(1, 3, 3)]]);
 
-        let mut patch2_data = PatchDataBuilder::new();
-        patch2_data.replace(1, 4, &[1, 2, 3]);
-        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![0u8, 20, 21, 22]);
 
-        let patch = patch1.combine(&mut patch2);
-
-        let mut buffer = CoreRevisionBuffer::new();
-        patch.apply(&mut buffer, &data);
-
-        assert_eq!(buffer.finish(), vec![0u8, 1, 2, 3]);
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_right_most_part_is_overridden() {
-        let data = vec![0u8, 0, 0];
-        let mut patch1_data = PatchDataBuilder::new();
-        patch1_data.replace(0, 1, &[1, 3]);
-        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
+        let chain = TestChain::new(3, &[&[(0, 1, 2)], &[(1, 3, 3)]]);
 
-        let mut patch2_data = PatchDataBuilder::new();
-        patch2_data.replace(1, 4, &[2, 3, 4]);
-        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![10u8, 20, 21, 22]);
 
-        let patch = patch1.combine(&mut patch2);
-
-        let mut buffer = CoreRevisionBuffer::new();
-        patch.apply(&mut buffer, &data);
-
-        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_left_most_part_is_overridden() {
-        let data = vec![0u8, 0, 0];
-        let mut patch1_data = PatchDataBuilder::new();
-        patch1_data.replace(1, 3, &[1, 3, 4]);
-        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
+        let chain = TestChain::new(3, &[&[(1, 2, 3)], &[(0, 2, 2)]]);
 
-        let mut patch2_data = PatchDataBuilder::new();
-        patch2_data.replace(0, 2, &[1, 2]);
-        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![20u8, 21, 11, 12]);
 
-        let patch = patch1.combine(&mut patch2);
-
-        let mut buffer = CoreRevisionBuffer::new();
-        patch.apply(&mut buffer, &data);
-
-        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn test_mid_is_overridden() {
-        let data = vec![0u8, 0, 0];
-        let mut patch1_data = PatchDataBuilder::new();
-        patch1_data.replace(0, 3, &[1, 3, 3, 4]);
-        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
+        let chain = TestChain::new(3, &[&[(0, 3, 4)], &[(1, 2, 2)]]);
 
-        let mut patch2_data = PatchDataBuilder::new();
-        patch2_data.replace(1, 3, &[2, 3]);
-        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![10u8, 20, 21, 13]);
 
-        let patch = patch1.combine(&mut patch2);
-
-        let mut buffer = CoreRevisionBuffer::new();
-        patch.apply(&mut buffer, &data);
-
-        assert_eq!(buffer.finish(), vec![1u8, 2, 3, 4]);
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
     }
 }
