@@ -538,4 +538,18 @@ mod tests {
         let result = chain.apply_result();
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn test_simple_interleaved() {
+        let chain = TestChain::new(3, &[&[(1, 1, 2), (3, 0, 1)]]);
+
+        // test that the testing tool generated what we want
+        //
+        // This is a way to sanity check the testing tool.
+        let expected = chain.expected();
+        assert_eq!(expected, vec![0u8, 10, 11, 2, 12]);
+
+        let result = chain.apply_result();
+        assert_eq!(result, expected);
+    }
 }
