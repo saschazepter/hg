@@ -115,6 +115,31 @@ Test debug-revlog-stats to exercise walking the store.
           1           0 yes file      filename
           1           0 yes file      other
 
+Test formatting
+---------------
+
+We can format the docket as JSON
+  $ hg debug::file-index --docket -Tjson
+  [
+   {
+    "list_file_id": "*", (glob)
+    "list_file_size": 23,
+    "marker": "fileindex-v1",
+    "meta_file_id": "*", (glob)
+    "meta_file_size": 32,
+    "reserved_flags": 0,
+    "reserved_revlog_id": "00000000",
+    "reserved_revlog_size": 0,
+    "reserved_revlog_unused": 0,
+    "trash_file_size": 0,
+    "trash_start_offset": 0,
+    "tree_file_id": "*", (glob)
+    "tree_file_size": 84,
+    "tree_root_pointer": 18,
+    "tree_unused_bytes": 18
+   }
+  ]
+
 Test vacuuming the tree file
 ----------------------------
 

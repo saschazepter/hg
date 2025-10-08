@@ -13,7 +13,13 @@ from ..i18n import _
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT, TransactionT
 from ..utils import docket as docketmod
-from .. import error, formatter, pycompat, testing, ui as uimod, util
+from .. import (
+    error,
+    pycompat,
+    testing,
+    ui as uimod,
+    util,
+)
 from ..interfaces import file_index as int_file_index
 from . import file_index_util
 
@@ -296,12 +302,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return self.list_file[offset : offset + length]
 
     def dump_docket(self, ui, template: bytes):
-        t = formatter.maketemplater(ui, template or DEFAULT_DOCKET_TEMPLATE)
-        values = {
-            pycompat.bytestr(k): pycompat.bytestr(v)
-            for k, v in attr.asdict(self.docket).items()
-        }
-        ui.write(t.renderdefault(values))
+        opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
+        with ui.formatter(b"file-index", opts) as fm:
+            fm.startitem()
+            fm.data(**attr.asdict(self.docket))
 
     def dump_tree(self, ui):
         tree = self.tree_file
