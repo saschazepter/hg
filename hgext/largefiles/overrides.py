@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import os
+import typing
 
 from mercurial.i18n import _
 
@@ -58,6 +59,12 @@ from . import (
     lfutil,
     storefactory,
 )
+
+if typing.TYPE_CHECKING:
+    from mercurial.interfaces.types import (
+        RepoT,
+        UiT,
+    )
 
 ACTION_ADD = merge_utils.ACTION_ADD
 ACTION_DELETED_CHANGED = merge_utils.ACTION_DELETED_CHANGED
@@ -324,7 +331,7 @@ def cmdutilremove(
 
 @eh.wrapfunction(dirstate.dirstate, '_changing')
 @contextlib.contextmanager
-def _changing(orig, self, repo, change_type):
+def _changing(orig, self: dirstate.dirstate, repo: RepoT, change_type):
     pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
     try:
         lfd = getattr(self, '_large_file_dirstate', False)
@@ -345,7 +352,7 @@ def _changing(orig, self, repo, change_type):
 
 @eh.wrapfunction(dirstate.dirstate, 'running_status')
 @contextlib.contextmanager
-def running_status(orig, self, repo):
+def running_status(orig, self: dirstate.dirstate, repo: RepoT):
     pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
     try:
         lfd = getattr(self, '_large_file_dirstate', False)
@@ -1200,7 +1207,7 @@ def overriderebasecmd(orig, ui, repo, **opts):
 
 
 @eh.extsetup
-def overriderebase(ui):
+def overriderebase(ui: UiT) -> None:
     try:
         rebase = extensions.find(b'rebase')
     except KeyError:
@@ -1422,7 +1429,7 @@ def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
 # if the repo has uncommitted changes. Wrap it to also check if
 # largefiles were changed. This is used by bisect, backout and fetch.
 @eh.wrapfunction(scmutil, 'bail_if_changed')
-def overridebailifchanged(orig, repo, *args, **kwargs):
+def overridebailifchanged(orig, repo: RepoT, *args, **kwargs) -> None:
     orig(repo, *args, **kwargs)
     with lfstatus(repo):
         s = repo.status()

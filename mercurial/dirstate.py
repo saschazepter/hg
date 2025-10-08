@@ -793,7 +793,7 @@ class dirstate(intdirstate.idirstate):
         return ret
 
     @requires_changing_files_or_status
-    def set_clean(self, filename, parentfiledata):
+    def set_clean(self, filename: bytes, parentfiledata) -> None:
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
         if not self._map[filename].tracked:
@@ -802,7 +802,7 @@ class dirstate(intdirstate.idirstate):
         self._map.set_clean(filename, mode, size, mtime)
 
     @requires_changing_files_or_status
-    def set_possibly_dirty(self, filename):
+    def set_possibly_dirty(self, filename: bytes) -> None:
         """record that the current state of the file on disk is unknown"""
         self._dirty = True
         self._map.set_possibly_dirty(filename)
@@ -810,9 +810,9 @@ class dirstate(intdirstate.idirstate):
     @requires_changing_parents
     def update_file_p1(
         self,
-        filename,
+        filename: bytes,
         p1_tracked,
-    ):
+    ) -> None:
         """Set a file as tracked in the parent (or not)
 
         This is to be called when adjust the dirstate to a new parent after an history
@@ -850,13 +850,13 @@ class dirstate(intdirstate.idirstate):
     @requires_changing_parents
     def update_file(
         self,
-        filename,
+        filename: bytes,
         wc_tracked,
         p1_tracked,
-        p2_info=False,
-        possibly_dirty=False,
+        p2_info: bool = False,
+        possibly_dirty: bool = False,
         parentfiledata=None,
-    ):
+    ) -> None:
         """update the information about a file in the dirstate
 
         This is to be called when the direstates parent changes to keep track
