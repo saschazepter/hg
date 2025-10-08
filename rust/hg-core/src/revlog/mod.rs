@@ -828,13 +828,6 @@ impl<'revlog> RevlogEntry<'revlog> {
         if self.rev == NULL_REVISION {
             return Ok(data.finish().into());
         }
-        self.rawdata(None, |size, f| {
-            // Pre-allocate the expected size (received from the index)
-            data.resize(size);
-            // Actually fill the buffer
-            f(&mut data)?;
-            Ok(())
-        })?;
         if self.is_censored() {
             return Err(HgError::CensoredNodeError(
                 *self.node(),
@@ -842,6 +835,13 @@ impl<'revlog> RevlogEntry<'revlog> {
             )
             .into());
         }
+        self.rawdata(None, |size, f| {
+            // Pre-allocate the expected size (received from the index)
+            data.resize(size);
+            // Actually fill the buffer
+            f(&mut data)?;
+            Ok(())
+        })?;
         self.check_data(data.finish().into())
     }
 }
