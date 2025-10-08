@@ -797,4 +797,26 @@ mod tests {
         let expected = chain.expected();
         assert_eq!(result, expected);
     }
+
+    #[test]
+    /// from a generated case
+    fn test_complex_03() {
+        let chain = TestChain::new(
+            6,
+            &[
+                &[(2, 3, 1), (6, 0, 2)],
+                &[(4, 1, 0), (6, 0, 1)],
+                &[(1, 3, 0)],
+                &[(1, 2, 5)],
+                &[(1, 4, 7)],
+                &[(4, 0, 1)],
+                &[(0, 1, 0)],
+                &[(2, 0, 3), (7, 1, 0)],
+            ],
+        );
+
+        let result = chain.apply_result();
+        let expected = chain.expected();
+        assert_eq!(result, expected);
+    }
 }
