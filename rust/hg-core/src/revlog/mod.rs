@@ -541,8 +541,8 @@ impl Revlog {
             return Ok(());
         }
         let patches: Result<Vec<_>, _> =
-            deltas.iter().map(|d| patch::PatchList::new(d.as_ref())).collect();
-        let patch = patch::fold_patch_lists(&patches?);
+            deltas.iter().map(|d| patch::Delta::new(d.as_ref())).collect();
+        let patch = patch::fold_deltas(&patches?);
         patch.apply(buffer, snapshot);
         Ok(())
     }
@@ -555,10 +555,10 @@ pub struct RawdataBuf {
 }
 
 impl RawdataBuf {
-    fn as_patch_list(&self) -> Result<patch::PatchList, RevlogError> {
+    fn as_delta(&self) -> Result<patch::Delta, RevlogError> {
         match self.base {
-            None => Ok(patch::PatchList::full_snapshot(&self.data)),
-            Some(_) => patch::PatchList::new(&self.data),
+            None => Ok(patch::Delta::full_snapshot(&self.data)),
+            Some(_) => patch::Delta::new(&self.data),
         }
     }
 }

@@ -91,7 +91,7 @@ impl std::fmt::Debug for DeltaPiece<'_> {
 
 /// The delta between two revisions data.
 #[derive(Debug, Clone)]
-pub struct PatchList<'a> {
+pub struct Delta<'a> {
     /// A collection of DeltaPiece to apply.
     ///
     /// Those DeltaPiece are:
@@ -101,8 +101,8 @@ pub struct PatchList<'a> {
     pub(crate) chunks: Vec<DeltaPiece<'a>>,
 }
 
-impl<'a> PatchList<'a> {
-    /// Create a `PatchList` from bytes.
+impl<'a> Delta<'a> {
+    /// Create a `Delta` from bytes.
     pub fn new(data: &'a [u8]) -> Result<Self, RevlogError> {
         let mut chunks = vec![];
         let mut data = data;
@@ -120,7 +120,7 @@ impl<'a> PatchList<'a> {
             });
             data = &data[12 + (len as usize)..];
         }
-        Ok(PatchList { chunks })
+        Ok(Delta { chunks })
     }
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
@@ -128,7 +128,7 @@ impl<'a> PatchList<'a> {
         Self { chunks: vec![DeltaPiece { start: 0, end: 0, data }] }
     }
 
-    /// Apply the patch to some data.
+    /// Apply the Delta to some Full-Text,
     pub fn apply<T>(
         &self,
         buffer: &mut dyn RevisionBuffer<Target = T>,
@@ -144,11 +144,11 @@ impl<'a> PatchList<'a> {
         buffer.extend_from_slice(&initial[last..]);
     }
 
-    /// Combine two patch lists into a single patch list.
+    /// Combine two Delta into a single Delta.
     ///
-    /// Applying consecutive patches can lead to waste of time and memory
-    /// as the changes introduced by one patch can be overridden by the next.
-    /// Combining patches optimizes the whole patching sequence.
+    /// Applying consecutive Delta can lead to waste of time and memory
+    /// as the changes introduced by one Delta can be overridden by the next.
+    /// Combining Delta optimizes the whole patching sequence.
     fn combine(&mut self, other: &mut Self) -> Self {
         let mut chunks = vec![];
 
@@ -250,22 +250,26 @@ impl<'a> PatchList<'a> {
         for elt in &self.chunks[pos..] {
             chunks.push(elt.clone());
         }
-        PatchList { chunks }
+        Delta { chunks }
     }
 }
 
-/// Combine a list of patch list into a single patch optimized patch list.
-pub fn fold_patch_lists<'a>(lists: &[PatchList<'a>]) -> PatchList<'a> {
+/// Combine a list of Deltas into a single Delta "optimized".
+///
+/// Content from different Delta will still appears in different DeltaPiece, so
+/// the result if not "minimal". However it is "optiomized" in terms of
+/// application as it only contains non overlapping DeltaPiece.
+pub fn fold_deltas<'a>(lists: &[Delta<'a>]) -> Delta<'a> {
     if lists.len() <= 1 {
         if lists.is_empty() {
-            PatchList { chunks: vec![] }
+            Delta { chunks: vec![] }
         } else {
             lists[0].clone()
         }
     } else {
         let (left, right) = lists.split_at(lists.len() / 2);
-        let mut left_res = fold_patch_lists(left);
-        let mut right_res = fold_patch_lists(right);
+        let mut left_res = fold_deltas(left);
+        let mut right_res = fold_deltas(right);
         left_res.combine(&mut right_res)
     }
 }
@@ -308,11 +312,11 @@ mod tests {
         let data = vec![0u8, 0u8, 0u8];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(0, 1, &[1, 2]);
-        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
+        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(2, 4, &[3, 4]);
-        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
+        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
@@ -327,11 +331,11 @@ mod tests {
         let data = vec![0u8, 0u8, 0u8];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(2, 3, &[3]);
-        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
+        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 2, &[1, 2]);
-        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
+        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
@@ -346,11 +350,11 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(1, 2, &[3, 4]);
-        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
+        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 4, &[1, 2, 3]);
-        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
+        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
@@ -365,11 +369,11 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(0, 1, &[1, 3]);
-        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
+        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 4, &[2, 3, 4]);
-        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
+        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
@@ -384,11 +388,11 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(1, 3, &[1, 3, 4]);
-        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
+        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(0, 2, &[1, 2]);
-        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
+        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
@@ -403,11 +407,11 @@ mod tests {
         let data = vec![0u8, 0, 0];
         let mut patch1_data = PatchDataBuilder::new();
         patch1_data.replace(0, 3, &[1, 3, 3, 4]);
-        let mut patch1 = PatchList::new(patch1_data.get()).unwrap();
+        let mut patch1 = Delta::new(patch1_data.get()).unwrap();
 
         let mut patch2_data = PatchDataBuilder::new();
         patch2_data.replace(1, 3, &[2, 3]);
-        let mut patch2 = PatchList::new(patch2_data.get()).unwrap();
+        let mut patch2 = Delta::new(patch2_data.get()).unwrap();
 
         let patch = patch1.combine(&mut patch2);
 
