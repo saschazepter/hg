@@ -819,4 +819,24 @@ mod tests {
         let expected = chain.expected();
         assert_eq!(result, expected);
     }
+
+    #[test]
+    /// from a generated case
+    fn test_complex_04() {
+        let chain = TestChain::new(
+            5,
+            &[
+                &[(1, 2, 0)],
+                &[(0, 3, 1)],
+                &[(0, 1, 1)],
+                &[(0, 0, 1), (1, 0, 2)],
+                &[(0, 2, 0), (3, 0, 5)],
+                &[(5, 1, 0)],
+            ],
+        );
+
+        let result = chain.apply_result();
+        let expected = chain.expected();
+        assert_eq!(result, expected);
+    }
 }
