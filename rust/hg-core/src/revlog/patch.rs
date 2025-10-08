@@ -656,4 +656,35 @@ mod tests {
         let result = apply_chain(&data, &deltas);
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn test_interleaved_insert_multiple_time() {
+        // we don't use the TestChain here because we build content longer than
+        // 10 bytes
+        let data = vec![0u8, 1, 2, 3, 4];
+
+        let mut expected = vec![];
+        for n in 0..5 {
+            for idx in (0..(PATCH_COUNT + 1)).rev() {
+                let v = (n + (10 * idx)) as u8;
+                expected.push(v);
+            }
+        }
+
+        let mut patch_data = vec![];
+        for idx in 0..PATCH_COUNT {
+            let mut p = PatchDataBuilder::new();
+            let block_size = 1 + idx;
+            let v = 10u8 * (1 + idx as u8);
+            for n in 0..5 {
+                let offset = block_size * n;
+                p.replace(offset, offset, &[v + (n as u8)]);
+            }
+            patch_data.push(p);
+        }
+
+        let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
+        let result = apply_chain(&data, &deltas);
+        assert_eq!(result, expected);
+    }
 }
