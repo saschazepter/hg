@@ -88,15 +88,6 @@ class bundlespec:
         return b';'.join(parts)
 
 
-# Maps bundle version human names to changegroup versions.
-_bundlespeccgversions = {
-    b'v1': b'01',
-    b'v2': b'02',
-    b'v3': b'03',
-    b'packed1': b's1',
-    b'bundle2': b'02',  # legacy
-}
-
 # Maps bundle version with content opts to choose which part to bundle
 _bundlespeccontentopts: dict[bytes, dict[bytes, bool | bytes]] = {
     b'v1': {
