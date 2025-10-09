@@ -365,21 +365,32 @@ Vacuuming
 - yes (new tree file)
 
 There are a few important things here:
-1. Don't leave old tree files around forever, delete them at some point.
+1. Delete old files at some point (see "Test cleaning up old files" above).
 2. But leave them around long enough so we can rollback after a vacuum.
-3. And in that case, also clean up the file we rolled back from at some point.
-Currently we never clean up files so (2) always passes.
-TODO: Implement file cleaning and add tests for (1) and (3).
+3. And in that case, also clean up the file we rolled back from.
+TODO: implement (3) and remove the known-bad-output lines below.
 
-Manul rollback, new file index (initial commit)
   $ hg init repotxn --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repotxn
+
+Retention is based on time and TTL (a transaction countdown). Disable the
+time-based retention to show that TTL alone is sufficient for rollback/recovery.
+  $ cat > .hg/hgrc <<EOF
+  > [storage]
+  > fileindex.gc-retention-seconds=0
+  > EOF
+
+Manul rollback, new file index (initial commit)
   $ touch file
   $ hg commit -qAm 0
   $ hg rollback
   repository tip rolled back to revision -1 (undo commit)
   working directory now based on revision -1
   $ hg debug::file-index
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
 
 Set up the following tests so we are adding to a nonempty file index
   $ hg commit -qAm 0 --config devel.fileindex.vacuum-mode=never
@@ -396,6 +407,13 @@ Manual rollback, same file
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
   0: file
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob)
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
 
 Manual rollback, new file
   $ hg commit -qAm 1 --config devel.fileindex.vacuum-mode=always
@@ -405,6 +423,14 @@ Manual rollback, new file
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
   0: file
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob)
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
 
 Abort transaction, same file
   $ hg commit -qAm 1 --config devel.debug.abort-transaction=abort-post-finalize --config devel.fileindex.vacuum-mode=never
@@ -415,6 +441,14 @@ Abort transaction, same file
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
   0: file
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob)
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
 
 Abort transaction, new file
   $ hg commit -qAm 1 --config devel.debug.abort-transaction=abort-post-finalize --config devel.fileindex.vacuum-mode=always
@@ -425,6 +459,15 @@ Abort transaction, new file
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
   0: file
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob)
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
 
 Recover transaction, same file
   $ hg commit -qAm 1 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.fileindex.vacuum-mode=never || echo exit=$?
@@ -441,6 +484,15 @@ Recover transaction, same file
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
   0: file
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob)
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
 
 Recover transaction, new file
   $ id=$(hg debug::file-index --docket -T '{tree_file_id}')
@@ -458,3 +510,13 @@ Recover transaction, new file
   $ test "$id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
   0: file
+  $ ls .hg/store/fileindex-*
+  .hg/store/fileindex-list.* (glob)
+  .hg/store/fileindex-list.* (glob) (known-bad-output !)
+  .hg/store/fileindex-meta.* (glob)
+  .hg/store/fileindex-meta.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
+  .hg/store/fileindex-tree.* (glob) (known-bad-output !)
