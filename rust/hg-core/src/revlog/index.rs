@@ -749,8 +749,16 @@ impl Index {
         rev: Revision,
         stop_rev: Option<Revision>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
+        let get_entry = |r| {
+            self.get_entry(r).ok_or_else(|| {
+                HgError::corrupted(format!(
+                    "invalid delta chain for rev {}",
+                    rev
+                ))
+            })
+        };
         let mut current_rev = rev;
-        let mut entry = self.get_entry(rev).unwrap();
+        let mut entry = get_entry(rev)?;
         let mut chain = vec![];
         let using_general_delta = self.uses_generaldelta();
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
@@ -768,7 +776,7 @@ impl Index {
             if current_rev.0 == NULL_REVISION.0 {
                 break;
             }
-            entry = self.get_entry(current_rev).unwrap()
+            entry = get_entry(current_rev)?;
         }
 
         let stopped = if stop_rev.map(|r| current_rev == r).unwrap_or(false) {
