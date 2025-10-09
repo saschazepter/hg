@@ -951,9 +951,8 @@ impl InnerRevlog {
     ) -> PyResult<Py<PyBytes>> {
         let rev: UncheckedRevision = rev.into();
         Self::with_index_read(slf, |idx| {
-            idx.check_revision(rev)
-                .map(|r| PyBytes::new(slf.py(), idx.entry_binary(r)).unbind())
-                .ok_or_else(|| rev_not_in_index(rev))
+            let rev = check_revision(idx, rev)?;
+            Ok(PyBytes::new(slf.py(), idx.entry_binary(rev)).unbind())
         })
     }
 
@@ -1142,9 +1141,7 @@ impl InnerRevlog {
         rev: PyRevision,
     ) -> PyResult<bool> {
         let rev: UncheckedRevision = rev.into();
-        let rev = Self::with_index_read(slf, |idx| {
-            idx.check_revision(rev).ok_or_else(|| rev_not_in_index(rev))
-        })?;
+        let rev = Self::with_index_read(slf, |idx| check_revision(idx, rev))?;
         Self::with_core_read(slf, |_self_ref, irl| {
             irl.is_snapshot(rev)
                 .map_err(|e| PyValueError::new_err(e.to_string()))
