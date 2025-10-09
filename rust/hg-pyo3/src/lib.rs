@@ -9,6 +9,7 @@ mod dirstate;
 mod discovery;
 mod exceptions;
 mod file_index;
+mod matchers;
 mod node;
 mod path;
 mod pytracing;
@@ -39,6 +40,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&update::init_module(py, &dotted_name)?)?;
     m.add_submodule(&pytracing::init_module(py, &dotted_name)?)?;
     m.add_submodule(&deltas::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&matchers::init_module(py, &dotted_name)?)?;
     m.add("GraphError", py.get_type::<exceptions::GraphError>())?;
     Ok(())
 }
