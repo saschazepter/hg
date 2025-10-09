@@ -944,8 +944,7 @@ impl InnerRevlog {
         let rev: UncheckedRevision = rev.into();
         Self::with_index_read(slf, |idx| {
             idx.check_revision(rev)
-                .and_then(|r| idx.entry_binary(r))
-                .map(|rust_bytes| PyBytes::new(slf.py(), rust_bytes).unbind())
+                .map(|r| PyBytes::new(slf.py(), idx.entry_binary(r)).unbind())
                 .ok_or_else(|| rev_not_in_index(rev))
         })
     }
@@ -1097,13 +1096,7 @@ impl InnerRevlog {
             let head_nodes = PyList::new(
                 py,
                 head_revs.iter().map(|r| {
-                    PyBytes::new(
-                        py,
-                        idx.node(*r)
-                            .expect("rev should have been in the index")
-                            .as_bytes(),
-                    )
-                    .unbind()
+                    PyBytes::new(py, idx.node(*r).as_bytes()).unbind()
                 }),
             )?
             .unbind();
@@ -1356,9 +1349,7 @@ impl InnerRevlog {
 
             for r in (data_tip.0 + 1)..current_tip as BaseRevision {
                 let rev = Revision(r);
-                // in this case node() won't ever return None
-                nt.insert(idx, idx.node(rev).expect("node should exist"), rev)
-                    .map_err(nodemap_error)?;
+                nt.insert(idx, idx.node(rev), rev).map_err(nodemap_error)?;
             }
 
             Ok(py.None())
@@ -1488,9 +1479,7 @@ impl InnerRevlog {
     fn fill_nodemap(idx: &Index, nt: &mut CoreNodeTree) -> PyResult<()> {
         for r in 0..idx.len() {
             let rev = Revision(r as BaseRevision);
-            // in this case node() won't ever return None
-            nt.insert(idx, idx.node(rev).expect("node should exist"), rev)
-                .map_err(nodemap_error)?
+            nt.insert(idx, idx.node(rev), rev).map_err(nodemap_error)?
         }
         Ok(())
     }
@@ -1589,7 +1578,7 @@ impl NodeTree {
             return Err(rev_not_in_index(rev.into()));
         }
 
-        let entry = idx.inner().get_entry(rev).expect("entry should exist");
+        let entry = idx.inner().get_entry(rev);
         let mut nt = self.nt.write().map_err(map_lock_error)?;
         nt.insert(idx, entry.hash(), rev).map_err(nodemap_error)
     }

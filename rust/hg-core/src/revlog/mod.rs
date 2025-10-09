@@ -97,6 +97,12 @@ impl format_bytes::DisplayBytes for Revision {
 )]
 pub struct UncheckedRevision(pub BaseRevision);
 
+impl UncheckedRevision {
+    pub fn is_nullrev(&self) -> bool {
+        self.0 == -1
+    }
+}
+
 impl format_bytes::DisplayBytes for UncheckedRevision {
     fn display_bytes(
         &self,
@@ -215,8 +221,8 @@ pub trait RevlogIndex {
         self.len() == 0
     }
 
-    /// Return a reference to the Node or `None` for `NULL_REVISION`
-    fn node(&self, rev: Revision) -> Option<&Node>;
+    /// Return a reference to the Node
+    fn node(&self, rev: Revision) -> &Node;
 
     /// Return a [`Revision`] if `rev` is a valid revision number for this
     /// index.
@@ -398,10 +404,7 @@ impl Revlog {
     /// Returns the node ID for the given revision number, if it exists in this
     /// revlog
     pub fn node_from_rev(&self, rev: Revision) -> &Node {
-        match self.index().get_entry(rev) {
-            None => &NULL_NODE,
-            Some(entry) => entry.hash(),
-        }
+        self.index().get_entry(rev).hash()
     }
 
     /// Like [`Self::node_from_rev`] but checks `rev` first.
@@ -462,9 +465,7 @@ impl Revlog {
         rev: Revision,
         linked_revlog: &Self,
     ) -> Result<Revision, RevlogError> {
-        let Some(entry) = self.index().get_entry(rev) else {
-            return Ok(NULL_REVISION);
-        };
+        let entry = self.index().get_entry(rev);
         linked_revlog.index().check_revision(entry.link_revision()).ok_or_else(
             || {
                 RevlogError::corrupted(format!(
@@ -505,7 +506,7 @@ impl Revlog {
         rev: Revision,
     ) -> Result<RawdataBuf, RevlogError> {
         let index = self.index();
-        let entry = index.get_entry(rev).expect("rev should not be null");
+        let entry = index.get_entry(rev);
         let delta_base = entry.base_revision_or_base_of_delta_chain();
         let base = if UncheckedRevision::from(rev) == delta_base {
             None

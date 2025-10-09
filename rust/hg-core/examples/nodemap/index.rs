@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::slice;
 
+use hg::revlog::node::NULL_NODE;
 use hg::revlog::RevlogIndex;
 use hg::*;
 use memmap2::*;
@@ -40,11 +41,11 @@ impl RevlogIndex for Index {
         self.data.len()
     }
 
-    fn node(&self, rev: Revision) -> Option<&Node> {
+    fn node(&self, rev: Revision) -> &Node {
         if rev == NULL_REVISION {
-            return None;
+            return &NULL_NODE;
         }
-        Some(&self.data[rev.0 as usize].node)
+        &self.data[rev.0 as usize].node
     }
 }
 

@@ -42,7 +42,7 @@ impl RevlogIndex for PySharedIndex {
     fn len(&self) -> usize {
         self.inner.len()
     }
-    fn node(&self, rev: Revision) -> Option<&Node> {
+    fn node(&self, rev: Revision) -> &Node {
         self.inner.node(rev)
     }
 }

@@ -68,5 +68,5 @@ pub fn py_node_for_rev<'py>(
     idx: &Index,
     rev: Revision,
 ) -> Bound<'py, PyBytes> {
-    PyBytes::new(py, idx.node(rev).expect("node should exist").as_bytes())
+    PyBytes::new(py, idx.node(rev).as_bytes())
 }

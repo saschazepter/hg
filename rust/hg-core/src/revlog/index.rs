@@ -303,17 +303,11 @@ impl Graph for Index {
     #[inline(always)]
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
         let err = || GraphError::ParentOutOfRange(rev);
-        match self.get_entry(rev) {
-            Some(entry) => {
-                // The C implementation checks that the parents are valid
-                // before returning
-                Ok([
-                    self.check_revision(entry.p1()).ok_or_else(err)?,
-                    self.check_revision(entry.p2()).ok_or_else(err)?,
-                ])
-            }
-            None => Ok([NULL_REVISION, NULL_REVISION]),
-        }
+        let entry = self.get_entry(rev);
+        Ok([
+            self.check_revision(entry.p1()).ok_or_else(err)?,
+            self.check_revision(entry.p2()).ok_or_else(err)?,
+        ])
     }
 }
 
@@ -462,11 +456,7 @@ impl Index {
             let candidate_node = if rev == Revision(-1) {
                 NULL_NODE
             } else {
-                let index_entry = self.get_entry(rev).ok_or_else(|| {
-                    HgError::corrupted(
-                        "revlog references a revision not in the index",
-                    )
-                })?;
+                let index_entry = self.get_entry(rev);
                 *index_entry.hash()
             };
             if node == candidate_node {
@@ -518,33 +508,26 @@ impl Index {
     /// The specified revision being of the checked type, it always exists
     /// if it was validated by this index.
     #[inline(always)]
-    pub fn get_entry(&self, rev: Revision) -> Option<IndexEntry> {
+    pub fn get_entry(&self, rev: Revision) -> IndexEntry {
         if rev == NULL_REVISION {
-            return None;
-        }
-        if rev.0 == 0 {
-            Some(IndexEntry { bytes: &self.bytes.first_entry[..] })
+            IndexEntry { bytes: NULL_ENTRY }
+        } else if rev.0 == 0 {
+            IndexEntry { bytes: &self.bytes.first_entry[..] }
+        } else if self.is_inline() {
+            self.get_entry_inline(rev)
         } else {
-            Some(if self.is_inline() {
-                self.get_entry_inline(rev)
-            } else {
-                self.get_entry_separated(rev)
-            })
+            self.get_entry_separated(rev)
         }
     }
 
     /// Return the binary content of the index entry for the given revision
-    ///
-    /// See [`Self::get_entry`] for cases when `None` is returned.
-    pub fn entry_binary(&self, rev: Revision) -> Option<&[u8]> {
-        self.get_entry(rev).map(|e| {
-            let bytes = e.as_bytes();
-            if rev.0 == 0 {
-                &bytes[4..]
-            } else {
-                bytes
-            }
-        })
+    pub fn entry_binary(&self, rev: Revision) -> &[u8] {
+        let bytes = self.get_entry(rev).as_bytes();
+        if rev.0 == 0 {
+            &bytes[4..]
+        } else {
+            bytes
+        }
     }
 
     pub fn entry_as_params(
@@ -552,7 +535,8 @@ impl Index {
         rev: UncheckedRevision,
     ) -> Option<RevisionDataParams> {
         let rev = self.check_revision(rev)?;
-        self.get_entry(rev).map(|e| RevisionDataParams {
+        let e = self.get_entry(rev);
+        Some(RevisionDataParams {
             flags: e.flags(),
             data_offset: if rev.0 == 0 && !self.bytes.is_new() {
                 e.flags() as u64
@@ -599,10 +583,6 @@ impl Index {
         let bytes = &self.bytes[start..end];
 
         IndexEntry { bytes }
-    }
-
-    fn null_entry(&self) -> IndexEntry {
-        IndexEntry { bytes: &[0; INDEX_ENTRY_SIZE] }
     }
 
     /// Return the head revisions of this index
@@ -749,16 +729,8 @@ impl Index {
         rev: Revision,
         stop_rev: Option<Revision>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
-        let get_entry = |r| {
-            self.get_entry(r).ok_or_else(|| {
-                HgError::corrupted(format!(
-                    "invalid delta chain for rev {}",
-                    rev
-                ))
-            })
-        };
         let mut current_rev = rev;
-        let mut entry = get_entry(rev)?;
+        let mut entry = self.get_entry(rev);
         let mut chain = vec![];
         let using_general_delta = self.uses_generaldelta();
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
@@ -780,7 +752,7 @@ impl Index {
             if current_rev.0 == NULL_REVISION.0 {
                 break;
             }
-            entry = get_entry(current_rev)?;
+            entry = self.get_entry(current_rev);
         }
 
         let stopped = if stop_rev.map(|r| current_rev == r).unwrap_or(false) {
@@ -815,7 +787,6 @@ impl Index {
             }
             let mut base = self
                 .get_entry(Revision(rev))
-                .unwrap()
                 .base_revision_or_base_of_delta_chain();
             if base.0 == rev {
                 base = NULL_REVISION.into();
@@ -897,11 +868,11 @@ impl Index {
         if rev == NULL_REVISION {
             Ok(true)
         } else if self.uses_delta_info() {
-            let entry = self.get_entry(rev).unwrap();
+            let entry = self.get_entry(rev);
             Ok((entry.flags() & REVISION_FLAG_DELTA_IS_SNAPSHOT) != 0)
         } else {
             while rev.0 >= 0 {
-                let entry = self.get_entry(rev).unwrap();
+                let entry = self.get_entry(rev);
                 let mut base = entry.base_revision_or_base_of_delta_chain().0;
                 if base == rev.0 {
                     base = NULL_REVISION.0;
@@ -912,7 +883,8 @@ impl Index {
                 let [mut p1, mut p2] = self
                     .parents(rev)
                     .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
-                while let Some(p1_entry) = self.get_entry(p1) {
+                while p1 != NULL_REVISION {
+                    let p1_entry = self.get_entry(p1);
                     if p1_entry.compressed_len() != 0 || p1.0 == 0 {
                         break;
                     }
@@ -925,7 +897,8 @@ impl Index {
                         RevlogError::InvalidRevision(parent_base.to_string())
                     })?;
                 }
-                while let Some(p2_entry) = self.get_entry(p2) {
+                while p2 != NULL_REVISION {
+                    let p2_entry = self.get_entry(p2);
                     if p2_entry.compressed_len() != 0 || p2.0 == 0 {
                         break;
                     }
@@ -984,12 +957,8 @@ impl Index {
         if delta_chain_span < min_gap_size {
             return vec![revs.to_owned()];
         }
-        let entries: Vec<_> = revs
-            .iter()
-            .map(|r| {
-                (*r, self.get_entry(*r).unwrap_or_else(|| self.null_entry()))
-            })
-            .collect();
+        let entries: Vec<_> =
+            revs.iter().map(|r| (*r, self.get_entry(*r))).collect();
 
         let mut read_data = delta_chain_span;
         let chain_payload: u32 =
@@ -1088,10 +1057,10 @@ impl Index {
             return 0;
         }
         let last_rev = revs[revs.len() - 1];
-        let last_entry = &self.get_entry(last_rev).unwrap();
+        let last_entry = &self.get_entry(last_rev);
         let end = last_entry.offset() + last_entry.compressed_len() as usize;
         let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
-        let first_entry = self.get_entry(*first_rev).unwrap();
+        let first_entry = self.get_entry(*first_rev);
         let start = first_entry.offset();
         end - start
     }
@@ -1470,21 +1439,13 @@ impl Index {
     pub fn start(&self, rev: Revision, entry: &IndexEntry<'_>) -> usize {
         #[cfg(debug_assertions)]
         {
-            assert_eq!(&self.get_entry(rev).unwrap(), entry);
+            assert_eq!(&self.get_entry(rev), entry);
         }
         let offset = entry.offset();
         if self.is_inline() {
             offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
         } else {
             offset
-        }
-    }
-
-    pub(crate) fn make_null_entry(&self) -> IndexEntry<'_> {
-        IndexEntry {
-            bytes: b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0 \
-            \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff \
-            \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
         }
     }
 }
@@ -1790,11 +1751,8 @@ impl super::RevlogIndex for Index {
         self.len()
     }
 
-    fn node(&self, rev: Revision) -> Option<&Node> {
-        if rev == NULL_REVISION {
-            return Some(&NULL_NODE);
-        }
-        self.get_entry(rev).map(|entry| entry.hash())
+    fn node(&self, rev: Revision) -> &Node {
+        self.get_entry(rev).hash()
     }
 }
 
@@ -1802,6 +1760,12 @@ impl super::RevlogIndex for Index {
 pub struct IndexEntry<'a> {
     bytes: &'a [u8],
 }
+
+static NULL_ENTRY: &[u8] = &[
+    0u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 impl<'a> IndexEntry<'a> {
     /// Return the offset of the data.

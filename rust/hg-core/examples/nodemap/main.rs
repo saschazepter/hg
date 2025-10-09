@@ -39,7 +39,7 @@ fn create(index: &Index, path: &Path) -> io::Result<()> {
     let mut nm = NodeTree::default();
     for rev in 0..index.len() {
         let rev = Revision(rev as BaseRevision);
-        nm.insert(index, index.node(rev).unwrap(), rev).unwrap();
+        nm.insert(index, index.node(rev), rev).unwrap();
     }
     eprintln!("Nodemap constructed in RAM in {:?}", start.elapsed());
     file.write_all(&nm.into_readonly_and_added_bytes().1)?;
@@ -58,9 +58,7 @@ fn bench(index: &Index, nm: &NodeTree, queries: usize) {
     let mut rng = rand::rng();
     let nodes: Vec<Node> = (0..queries)
         .map(|_| {
-            *index
-                .node(Revision((rng.random::<u32>() % len) as BaseRevision))
-                .unwrap()
+            *index.node(Revision((rng.random::<u32>() % len) as BaseRevision))
         })
         .collect();
     if queries < 10 {

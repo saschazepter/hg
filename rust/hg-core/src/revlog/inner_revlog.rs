@@ -238,10 +238,7 @@ impl InnerRevlog {
         if rev == NULL_REVISION {
             return Ok(self.make_null_entry());
         }
-        let index_entry = self
-            .index
-            .get_entry(rev)
-            .ok_or_else(|| RevlogError::InvalidRevision(rev.to_string()))?;
+        let index_entry = self.index.get_entry(rev);
         let p1 =
             self.index.check_revision(index_entry.p1()).ok_or_else(|| {
                 RevlogError::corrupted(format!("p1 for rev {} is invalid", rev))
@@ -288,22 +285,13 @@ impl InnerRevlog {
     /// The offset of the data chunk for this revision
     #[inline(always)]
     pub fn data_start(&self, rev: Revision) -> usize {
-        self.index.start(
-            rev,
-            &self
-                .index
-                .get_entry(rev)
-                .unwrap_or_else(|| self.index.make_null_entry()),
-        )
+        self.index.start(rev, &self.index.get_entry(rev))
     }
 
     /// The length of the data chunk for this revision
     #[inline(always)]
     pub fn data_compressed_length(&self, rev: Revision) -> usize {
-        self.index
-            .get_entry(rev)
-            .unwrap_or_else(|| self.index.make_null_entry())
-            .compressed_len() as usize
+        self.index.get_entry(rev).compressed_len() as usize
     }
 
     /// The end of the data chunk for this revision
@@ -314,11 +302,8 @@ impl InnerRevlog {
 
     /// Return the delta parent of the given revision
     pub fn delta_parent(&self, rev: Revision) -> Revision {
-        let base = self
-            .index
-            .get_entry(rev)
-            .unwrap()
-            .base_revision_or_base_of_delta_chain();
+        let base =
+            self.index.get_entry(rev).base_revision_or_base_of_delta_chain();
         if base.0 == rev.0 {
             NULL_REVISION
         } else if self.delta_config.general_delta {
@@ -418,12 +403,10 @@ impl InnerRevlog {
         let start = if start_rev == NULL_REVISION {
             0
         } else {
-            let start_entry =
-                self.index.get_entry(start_rev).expect("null revision segment");
+            let start_entry = self.index.get_entry(start_rev);
             self.index.start(start_rev, &start_entry)
         };
-        let end_entry =
-            self.index.get_entry(end_rev).expect("null revision segment");
+        let end_entry = self.index.get_entry(end_rev);
         let end = self.index.start(end_rev, &end_entry)
             + self.data_compressed_length(end_rev);
 
@@ -595,7 +578,7 @@ impl InnerRevlog {
                     let chunk = if !bytes.is_empty() && bytes[0] == ZSTD_BYTE {
                         // If we're using `zstd`, we want to try a more
                         // specialized decompression
-                        let entry = self.index.get_entry(*rev).unwrap();
+                        let entry = self.index.get_entry(*rev);
                         let is_delta = entry
                             .base_revision_or_base_of_delta_chain()
                             != (*rev).into();
@@ -792,16 +775,8 @@ impl InnerRevlog {
         expected: &[u8],
         data: &[u8],
     ) -> bool {
-        let e1 = self.index.get_entry(p1);
-        let h1 = match e1 {
-            Some(ref entry) => entry.hash(),
-            None => &NULL_NODE,
-        };
-        let e2 = self.index.get_entry(p2);
-        let h2 = match e2 {
-            Some(ref entry) => entry.hash(),
-            None => &NULL_NODE,
-        };
+        let h1 = self.index.get_entry(p1).hash();
+        let h2 = self.index.get_entry(p2).hash();
 
         hash(data, h1.as_bytes(), h2.as_bytes()) == expected
     }
@@ -1018,13 +993,7 @@ impl InnerRevlog {
         let mut new_data = Vec::with_capacity(self.len() * INDEX_ENTRY_SIZE);
         for r in 0..self.len() {
             let rev = Revision(r as BaseRevision);
-            let entry = self.index.entry_binary(rev).unwrap_or_else(|| {
-                panic!(
-                    "entry {} should exist in {}",
-                    r,
-                    self.index_file.display()
-                )
-            });
+            let entry = self.index.entry_binary(rev);
             if r == 0 {
                 new_data.extend(header.header_bytes);
             }
