@@ -143,12 +143,15 @@ def validatepatterns(pats):
 
 
 def format(includes, excludes):
-    output = b'[include]\n'
-    for i in sorted(includes - excludes):
-        output += i + b'\n'
-    output += b'[exclude]\n'
-    for e in sorted(excludes):
-        output += e + b'\n'
+    output = b''
+    if includes:
+        output += b'[include]\n'
+        for i in sorted(includes - excludes):
+            output += i + b'\n'
+    if excludes:
+        output += b'[exclude]\n'
+        for e in sorted(excludes):
+            output += e + b'\n'
     return output
 
 

@@ -432,7 +432,6 @@ Illegal patterns are rejected
   [include]
   path:dir1
   path:dir1/dirA
-  [exclude]
 
   $ cat > .hg/store/narrowspec << EOF
   > [include]
