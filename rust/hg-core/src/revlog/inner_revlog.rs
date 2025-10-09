@@ -514,7 +514,7 @@ impl InnerRevlog {
     {
         let entry = &self.get_entry(rev)?;
         let raw_size = entry.uncompressed_len();
-        let mut mutex_guard =
+        let mutex_guard =
             self.last_revision_cache.lock().expect("lock should not be held");
         let cached_rev = if let Some((_node, rev, data)) = &*mutex_guard {
             Some((*rev, data.deref().as_ref()))
@@ -525,9 +525,6 @@ impl InnerRevlog {
             self.seen_file_size(size.try_into().expect("16 bit computer?"));
         }
         entry.rawdata(cached_rev, get_buffer)?;
-        // drop cache to save memory, the caller is expected to update
-        // the revision cache after validating the text
-        mutex_guard.take();
         Ok(())
     }
 
