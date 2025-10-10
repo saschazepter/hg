@@ -3758,6 +3758,24 @@ class revlog:
                     # We're only using addgroup() in the context of changegroup
                     # generation so the revision data can always be handled as raw
                     # by the flagprocessor.
+
+                    if data.compression is not None:
+                        cached = revlogutils.CachedDelta(
+                            base=baserev,
+                            c_delta=data.delta,
+                            compression=data.compression,
+                            reuse_policy=delta_base_reuse_policy,
+                            snapshot_level=data.snapshot_level,
+                            fulltext_length=data.raw_text_size,
+                        )
+                    else:
+                        cached = revlogutils.CachedDelta(
+                            base=baserev,
+                            u_delta=data.delta,
+                            reuse_policy=delta_base_reuse_policy,
+                            snapshot_level=data.snapshot_level,
+                            fulltext_length=data.raw_text_size,
+                        )
                     rev = self._addrevision(
                         data.node,
                         # raw text is usually None, but it might have been set
@@ -3768,13 +3786,7 @@ class revlog:
                         data.p1,
                         data.p2,
                         flags,
-                        revlogutils.CachedDelta(
-                            baserev,
-                            data.delta,
-                            delta_base_reuse_policy,
-                            data.snapshot_level,
-                            fulltext_length=data.raw_text_size,
-                        ),
+                        cached,
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
                         sidedata=data.sidedata,

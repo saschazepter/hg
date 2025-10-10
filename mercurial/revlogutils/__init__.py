@@ -173,5 +173,6 @@ class InboundRevision(repository.IInboundRevision):
     snapshot_level = attr.ib(default=None, type=Optional[int])
     raw_text = attr.ib(default=None, type=Optional[bytes])
     raw_text_size = attr.ib(default=None, type=Optional[int])
+    compression = attr.ib(default=None, type=Optional[i_comp.RevlogCompHeader])
     has_censor_flag = attr.ib(default=False, type=bool)
     has_filelog_hasmeta_flag = attr.ib(default=False, type=bool)
