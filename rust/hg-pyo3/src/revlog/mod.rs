@@ -497,7 +497,7 @@ impl InnerRevlog {
         })
     }
 
-    fn seen_file_size(slf: &Bound<'_, Self>, size: u64) -> PyResult<PyObject> {
+    fn seen_file_size(slf: &Bound<'_, Self>, size: u32) -> PyResult<PyObject> {
         Self::with_core_read(slf, |_self_ref, irl| {
             irl.seen_file_size(size.try_into().expect("16 bit computer?"));
             Ok(slf.py().None())
