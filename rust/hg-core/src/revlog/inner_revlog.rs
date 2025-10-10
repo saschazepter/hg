@@ -578,8 +578,15 @@ impl InnerRevlog {
         match (rev_1, rev_2) {
             (old, new) if old == new => Ok(vec![]), /* they are the same */
             // picture
-            (old_rev, NULL_REVISION)
-                if self.get_entry(old_rev)?.uncompressed_len().is_some() =>
+            (old_rev, empty)
+                if (self
+                    .get_entry(empty)?
+                    .uncompressed_len()
+                    .is_some_and(|s| s == 0)
+                    && self
+                        .get_entry(old_rev)?
+                        .uncompressed_len()
+                        .is_some()) =>
             {
                 let mut delta = vec![];
                 let entry = &self.get_entry(old_rev)?;
@@ -590,7 +597,12 @@ impl InnerRevlog {
                 patch.write(&mut delta);
                 Ok(delta)
             }
-            (NULL_REVISION, new_rev) => {
+            (empty, new_rev)
+                if self
+                    .get_entry(empty)?
+                    .uncompressed_len()
+                    .is_some_and(|s| s == 0) =>
+            {
                 let mut delta = vec![];
                 let entry = &self.get_entry(new_rev)?;
                 let data = entry.data_unchecked()?;
