@@ -225,16 +225,16 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         tr.addfilegenerator(
             b"fileindex",
             (b"fileindex",),
-            self._write,
+            lambda f: self._write(f, tr),
             location=b"store",
             # Need post_finalize since we call this in an addfinalize callback.
             post_finalize=True,
         )
 
-    def _write(self, f: typing.BinaryIO):
+    def _write(self, f: typing.BinaryIO, tr: TransactionT):
         """Write all data files and the docket."""
         if self._add_paths or self._remove_tokens or self._force_vacuum:
-            self._write_data()
+            self._write_data(tr)
             self._add_paths.clear()
             self._add_map.clear()
             self._remove_tokens.clear()
@@ -267,7 +267,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         raise error.ProgrammingError(b"invalid file index vacuum mode")
 
     @abc.abstractmethod
-    def _write_data(self):
+    def _write_data(self, tr: TransactionT):
         """Write all data files and update self.docket."""
 
     @propertycache
@@ -330,48 +330,56 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 data = fp.read(size)
         return util.buffer(data)
 
-    def _open_list_file(self, new: bool):
+    def _open_list_file(self, new: bool, tr: TransactionT):
         if new:
             if self.docket.list_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._list_file_path())
             self.docket.list_file_id = docketmod.make_uid()
             self.docket.list_file_size = 0
-            return self._open_new(self._list_file_path())
+            return self._open_new(self._list_file_path(), tr)
         return self._open_for_appending(
             self._list_file_path(), self.docket.list_file_size
         )
 
-    def _open_meta_file(self, new: bool):
+    def _open_meta_file(self, new: bool, tr: TransactionT):
         if new:
             if self.docket.meta_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._meta_file_path())
             self.docket.meta_file_id = docketmod.make_uid()
             self.docket.meta_file_size = 0
-            return self._open_new(self._meta_file_path())
+            return self._open_new(self._meta_file_path(), tr)
         return self._open_for_appending(
             self._meta_file_path(), self.docket.meta_file_size
         )
 
-    def _open_tree_file(self, new: bool):
+    def _open_tree_file(self, new: bool, tr: TransactionT):
         if new:
             if self.docket.tree_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._tree_file_path())
             self.docket.tree_file_id = docketmod.make_uid()
             self.docket.tree_file_size = 0
-            return self._open_new(self._tree_file_path())
+            return self._open_new(self._tree_file_path(), tr)
         return self._open_for_appending(
             self._tree_file_path(), self.docket.tree_file_size
         )
 
-    def _open_new(self, path: HgPathT):
-        """Open a new file for writing."""
+    def _open_new(self, path: HgPathT, tr: TransactionT):
+        """Open a new file for writing.
+
+        This adds the file to the transaction so that it will be removed if we
+        later abort or rollback.
+        """
+        tr.add(path, 0)
         return self._opener(path, b"wb")
 
     def _open_for_appending(self, path: HgPathT, used_size: int):
-        """Open an existing file for appending past used_size.
+        """Open a file for appending past used_size.
 
         Despite "appending", this doesn't open in append mode because the
         physical size of the file may be larger than used_size.
+
+        Unlike _open_new, this doesn't add the file to the transaction. If we
+        rollback, there's no need to truncate since the docket stores used_size.
         """
         f = self._opener(path, b"r+b")
         f.seek(used_size)
@@ -437,7 +445,7 @@ class FileIndex(_FileIndexCommon):
                 return None
         return node.token
 
-    def _write_data(self):
+    def _write_data(self, tr: TransactionT):
         docket = self.docket
         removing = bool(self._remove_tokens)
         new_list = docket.list_file_id == docketmod.UNSET_UID or removing
@@ -465,8 +473,8 @@ class FileIndex(_FileIndexCommon):
                 )
             )
         with (
-            self._open_list_file(new_list) as list_file,
-            self._open_meta_file(new_meta) as meta_file,
+            self._open_list_file(new_list, tr) as list_file,
+            self._open_meta_file(new_meta, tr) as meta_file,
         ):
             token = len(meta_array)
             for path in add_paths:
@@ -479,7 +487,7 @@ class FileIndex(_FileIndexCommon):
                 docket.meta_file_size += file_index_util.Metadata.STRUCT.size
                 token += 1
         serialized = tree.serialize()
-        with self._open_tree_file(new_tree) as tree_file:
+        with self._open_tree_file(new_tree, tr) as tree_file:
             tree_file.write(serialized.bytes)
         docket.tree_file_size = serialized.tree_file_size
         docket.tree_root_pointer = serialized.tree_root_pointer
