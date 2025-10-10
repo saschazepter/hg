@@ -90,6 +90,9 @@ class bundlerevlog(revlog.revlog):
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
         for deltadata in cgunpacker.deltaiter():
+            baserev = self.rev(deltadata.delta_base)
+            base_size = self.rawsize(baserev)
+            full_size = mdiff.patchedsize(base_size, deltadata.delta)
             size = len(deltadata.delta)
             start = cgunpacker.tell() - size
 
@@ -115,11 +118,11 @@ class bundlerevlog(revlog.revlog):
                     _(b'unknown delta base'),
                 )
 
-            baserev = self.rev(deltadata.delta_base)
             e = revlogutils.entry(
                 flags=deltadata.flags,
                 data_offset=start,
                 data_compressed_length=size,
+                data_uncompressed_length=full_size,
                 data_delta_base=baserev,
                 link_rev=linkrev,
                 parent_rev_1=self.rev(deltadata.p1),
