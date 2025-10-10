@@ -234,17 +234,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def _write(self, f: typing.BinaryIO):
         """Write all data files and the docket."""
         if self._add_paths or self._remove_tokens or self._force_vacuum:
-            if self._force_vacuum or self._vacuum_mode == VACUUM_MODE_ALWAYS:
-                vacuum = True
-            elif self._vacuum_mode == VACUUM_MODE_AUTO:
-                size = self.docket.tree_file_size
-                unused = self.docket.tree_unused_bytes
-                vacuum = (size >= AUTO_VACUUM_MIN_SIZE) and (
-                    unused / size >= self._max_unused_ratio
-                )
-            else:
-                vacuum = False
-            self._write_data(vacuum)
+            self._write_data()
             self._add_paths.clear()
             self._add_map.clear()
             self._remove_tokens.clear()
@@ -262,13 +252,23 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._add_to_garbage.clear()
         f.write(self.docket.serialize())
 
-    @abc.abstractmethod
-    def _write_data(self, vacuum: bool):
-        """Write all data files and update self.docket.
+    def _should_vacuum(self) -> bool:
+        """Return True if the current write should vacuum the tree file."""
+        if self._vacuum_mode == VACUUM_MODE_ALWAYS or self._force_vacuum:
+            return True
+        if self._vacuum_mode == VACUUM_MODE_NEVER:
+            return False
+        if self._vacuum_mode == VACUUM_MODE_AUTO:
+            size = self.docket.tree_file_size
+            if size < AUTO_VACUUM_MIN_SIZE:
+                return False
+            unused = self.docket.tree_unused_bytes
+            return unused / size >= self._max_unused_ratio
+        raise error.ProgrammingError(b"invalid file index vacuum mode")
 
-        If vacuum is True, writes a new tree file instead of appending to the
-        existing one.
-        """
+    @abc.abstractmethod
+    def _write_data(self):
+        """Write all data files and update self.docket."""
 
     @propertycache
     def docket(self) -> file_index_util.Docket:
@@ -423,13 +423,13 @@ class FileIndex(_FileIndexCommon):
                 return None
         return node.token
 
-    def _write_data(self, vacuum: bool):
+    def _write_data(self):
         docket = self.docket
         removing = bool(self._remove_tokens)
         new_list = docket.list_file_id == docketmod.UNSET_UID or removing
         new_meta = docket.meta_file_id == docketmod.UNSET_UID or removing
         new_tree = docket.tree_file_id == docketmod.UNSET_UID or removing
-        new_tree = new_tree or vacuum
+        new_tree = new_tree or self._should_vacuum()
         meta_array = self.meta_array
         add_paths = self._add_paths
         if add_paths and removing:
