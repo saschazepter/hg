@@ -313,6 +313,7 @@ class _DeltaHeader:
     flags = attr.ib(type=int, default=0)
     protocol_flags = attr.ib(type=int, default=0)
     snapshot_level = attr.ib(type=Optional[int], default=None)
+    raw_text_size = attr.ib(type=Optional[int], default=None)
 
 
 class cg1unpacker(i_cg.IChangeGroupUnpacker):
@@ -447,6 +448,7 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             {},
             header.protocol_flags,
             snapshot_level=header.snapshot_level,
+            raw_text_size=header.raw_text_size,
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
         )
