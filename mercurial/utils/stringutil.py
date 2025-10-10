@@ -941,6 +941,8 @@ def parselist(value: bytes | None):
 
     >>> parselist(b'this,is "a small" ,test')
     ['this', 'is', 'a small', 'test']
+    >>> parselist(b'what about comma "in, a,value"')
+    ['what', 'about', 'comma', 'in, a,value']
     """
 
     def _parse_plain(parts, s, offset):
