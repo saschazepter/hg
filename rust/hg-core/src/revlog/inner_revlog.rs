@@ -38,6 +38,7 @@ use super::options::RevlogDataConfig;
 use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
 use super::patch;
+use super::patch::DeltaPiece;
 use super::BaseRevision;
 use super::Revision;
 use super::RevlogEntry;
@@ -574,16 +575,43 @@ impl InnerRevlog {
         rev_1: Revision,
         rev_2: Revision,
     ) -> Result<Vec<u8>, RevlogError> {
-        let entry_1 = &self.get_entry(rev_1)?;
-        let entry_2 = &self.get_entry(rev_2)?;
+        match (rev_1, rev_2) {
+            (old, new) if old == new => Ok(vec![]), /* they are the same */
+            // picture
+            (old_rev, NULL_REVISION)
+                if self.get_entry(old_rev)?.uncompressed_len().is_some() =>
+            {
+                let mut delta = vec![];
+                let entry = &self.get_entry(old_rev)?;
+                let deleted_size =
+                    entry.uncompressed_len().expect("checked above?");
+                let patch =
+                    DeltaPiece { start: 0, end: deleted_size, data: &[] };
+                patch.write(&mut delta);
+                Ok(delta)
+            }
+            (NULL_REVISION, new_rev) => {
+                let mut delta = vec![];
+                let entry = &self.get_entry(new_rev)?;
+                let data = entry.data_unchecked()?;
+                let patch =
+                    DeltaPiece { start: 0, end: 0, data: data.as_ref() };
+                patch.write(&mut delta);
+                Ok(delta)
+            }
+            (old, new) => {
+                let entry_1 = &self.get_entry(old)?;
+                let entry_2 = &self.get_entry(new)?;
 
-        let data_1 = entry_1.data_unchecked()?;
-        let data_2 = entry_2.data_unchecked()?;
+                let data_1 = entry_1.data_unchecked()?;
+                let data_2 = entry_2.data_unchecked()?;
 
-        if self.revlog_type == RevlogType::Manifestlog {
-            Ok(manifest_delta(&data_1, &data_2))
-        } else {
-            Ok(text_delta(&data_1, &data_2))
+                if self.revlog_type == RevlogType::Manifestlog {
+                    Ok(manifest_delta(&data_1, &data_2))
+                } else {
+                    Ok(text_delta(&data_1, &data_2))
+                }
+            }
         }
     }
 
