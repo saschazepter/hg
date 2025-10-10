@@ -172,5 +172,6 @@ class InboundRevision(repository.IInboundRevision):
     protocol_flags = attr.ib(type=int, default=0)
     snapshot_level = attr.ib(default=None, type=Optional[int])
     raw_text = attr.ib(default=None, type=Optional[bytes])
+    raw_text_size = attr.ib(default=None, type=Optional[int])
     has_censor_flag = attr.ib(default=False, type=bool)
     has_filelog_hasmeta_flag = attr.ib(default=False, type=bool)

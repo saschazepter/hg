@@ -565,6 +565,9 @@ class IInboundRevision(Protocol):
     raw_text: bytes | None
     """full text of that revision (if available)"""
 
+    raw_text_size: int | None
+    """full text of that revision (if available)"""
+
     has_censor_flag: bool
     """set when the incoming data has censor information available"""
 

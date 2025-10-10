@@ -3772,6 +3772,7 @@ class revlog:
                             data.delta,
                             delta_base_reuse_policy,
                             data.snapshot_level,
+                            fulltext_length=data.raw_text_size,
                         ),
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
