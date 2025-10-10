@@ -1,11 +1,12 @@
 //! Utilities to compute diff for and with Revlogs.
-
 use imara_diff::Algorithm;
 use imara_diff::Diff;
 use imara_diff::InternedInput;
 use imara_diff::TokenSource;
 
 use super::patch::DeltaPiece;
+use crate::utils::u32_u;
+use crate::utils::u_u32;
 
 /// A windows of different data when computing a delta
 ///
@@ -52,8 +53,8 @@ impl<'a> DeltaCursor<'a> {
     pub fn into_piece(self) -> DeltaPiece<'a> {
         let start = self.old.0;
         let end = self.old.1;
-        let d_start = self.new.0.try_into().expect("16 bits computer?");
-        let d_end = self.new.1.try_into().expect("16 bits computer?");
+        let d_start = u32_u(self.new.0);
+        let d_end = u32_u(self.new.1);
         let data = &self.data[d_start..d_end];
         DeltaPiece { start, end, data }
     }
@@ -157,8 +158,7 @@ impl<'a> Lines<'a> {
 
     /// The starting position of the `idx`'th line.
     fn offset(&self, idx: u32) -> u32 {
-        let i: usize = idx.try_into().expect("16 bits computer?");
-        self.offsets[i].try_into().expect("16 bits computer?")
+        u_u32(self.offsets[u32_u(idx)])
     }
 }
 
@@ -178,20 +178,10 @@ impl<'a> Iterator for IterLines<'a> {
     type Item = &'a [u8];
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.idx
-            < self.text.offsets.len().try_into().expect("16 bits computer?")
-        {
-            let start = self
-                .text
-                .offset(self.idx - 1)
-                .try_into()
-                .expect("16 bits computer?");
-            let end = self
-                .text
-                .offset(self.idx)
-                .try_into()
-                .expect("16 bits computer?");
-            let next = &self.text.data[start..end];
+        if u32_u(self.idx) < self.text.offsets.len() {
+            let start = self.text.offset(self.idx - 1);
+            let end = self.text.offset(self.idx);
+            let next = &self.text.data[u32_u(start)..u32_u(end)];
             self.idx += 1;
             Some(next)
         } else {
@@ -210,7 +200,7 @@ impl<'a> TokenSource for &'a Lines<'a> {
     }
 
     fn estimate_tokens(&self) -> u32 {
-        self.offsets.len().try_into().expect("16 bits computer?")
+        u_u32(self.offsets.len())
     }
 }
 
@@ -239,15 +229,14 @@ pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
 }
 
 fn all_created(prefix_size: usize, content: &[u8], delta: &mut Vec<u8>) {
-    let skip: u32 = prefix_size.try_into().expect("16 bits computer");
-    DeltaPiece { start: skip, end: skip, data: content }.write(delta)
+    let start = u_u32(prefix_size);
+    DeltaPiece { start, end: start, data: content }.write(delta)
 }
 
 fn all_deleted(prefix_size: usize, deleted: &[u8], delta: &mut Vec<u8>) {
-    let skip: u32 = prefix_size.try_into().expect("16 bits computer");
-    let deleted_size: u32 = deleted.len().try_into().expect("16 bits computer");
-
-    DeltaPiece { start: skip, end: skip + deleted_size, data: &[] }.write(delta)
+    let start = u_u32(prefix_size);
+    let end = start + u_u32(deleted.len());
+    DeltaPiece { start, end, data: &[] }.write(delta)
 }
 
 /// The main part of [`text_delta`] extracted for clarity
@@ -259,7 +248,7 @@ fn text_delta_inner(
     m2: &[u8],
     delta: &mut Vec<u8>,
 ) {
-    let skip: u32 = prefix_size.try_into().expect("16 bits computer");
+    let skip: u32 = u_u32(prefix_size);
     let mut cursor: Option<DeltaCursor> = None;
     let t1 = Lines::new(m1);
     let t2 = Lines::new(m2);

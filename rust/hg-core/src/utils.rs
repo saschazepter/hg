@@ -25,6 +25,18 @@ pub mod hg_path;
 pub mod path_auditor;
 pub mod strings;
 
+#[inline(always)]
+pub fn u32_u(i: u32) -> usize {
+    // XXX I am tempted to just use `as usize` only in debug mode
+    i.try_into()
+        .expect("usize can't hold a u32, are you on a 16 bits computer ?")
+}
+
+#[inline(always)]
+pub fn u_u32(i: usize) -> u32 {
+    i.try_into().expect("value too large for a u32")
+}
+
 pub fn current_dir() -> Result<std::path::PathBuf, HgError> {
     std::env::current_dir().map_err(|error| HgError::IoError {
         error,

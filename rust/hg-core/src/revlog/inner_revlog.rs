@@ -50,6 +50,7 @@ use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
+use crate::utils::u32_u;
 use crate::utils::ByTotalChunksSize;
 use crate::vfs::Vfs;
 
@@ -505,7 +506,7 @@ impl InnerRevlog {
             None
         };
         if let Some(size) = raw_size {
-            self.seen_file_size(size.try_into().expect("16 bit computer?"));
+            self.seen_file_size(u32_u(size));
         }
         entry.rawdata(cached_rev, get_buffer)?;
         Ok(())

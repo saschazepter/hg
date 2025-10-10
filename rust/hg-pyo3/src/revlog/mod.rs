@@ -37,6 +37,7 @@ use hg::revlog::RevlogIndex;
 use hg::revlog::RevlogType;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
+use hg::utils::u32_u;
 use hg::vfs::EncodedVfs;
 use hg::vfs::VfsImpl;
 use hg::BaseRevision;
@@ -499,7 +500,7 @@ impl InnerRevlog {
 
     fn seen_file_size(slf: &Bound<'_, Self>, size: u32) -> PyResult<PyObject> {
         Self::with_core_read(slf, |_self_ref, irl| {
-            irl.seen_file_size(size.try_into().expect("16 bit computer?"));
+            irl.seen_file_size(u32_u(size));
             Ok(slf.py().None())
         })
     }
