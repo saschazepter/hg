@@ -74,7 +74,7 @@ class unionrevlog(revlog.revlog):
             # rev numbers - in revlog2, very different from self.rev
             (
                 _start,
-                _csize,
+                csize,
                 rsize,
                 base,
                 linkrev,
@@ -111,7 +111,7 @@ class unionrevlog(revlog.revlog):
             # I have no idea if csize is valid in the base revlog context.
             e = (
                 flags,
-                -1,
+                csize,
                 rsize,
                 base,
                 link,
