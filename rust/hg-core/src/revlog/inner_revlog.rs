@@ -635,30 +635,31 @@ impl InnerRevlog {
     #[doc(hidden)]
     pub fn chunks(
         &self,
-        revs: Vec<Revision>,
+        revs: &[Revision],
         target_size: Option<u64>,
     ) -> Result<Vec<RawData>, RevlogError> {
         if revs.is_empty() {
             return Ok(vec![]);
         }
-        let mut fetched_revs = vec![];
+        let mut fetched_revs_vec = vec![];
         let mut chunks = Vec::with_capacity(revs.len());
 
-        match self.uncompressed_chunk_cache.as_ref() {
+        let fetched_revs = match self.uncompressed_chunk_cache.as_ref() {
             Some(cache) => {
                 if let Ok(mut cache) = cache.try_write() {
                     for rev in revs.iter() {
                         match cache.get(rev) {
                             Some(hit) => chunks.push((*rev, hit.clone())),
-                            None => fetched_revs.push(*rev),
+                            None => fetched_revs_vec.push(*rev),
                         }
                     }
+                    &fetched_revs_vec
                 } else {
-                    fetched_revs = revs
+                    revs
                 }
             }
-            None => fetched_revs = revs,
-        }
+            None => revs,
+        };
 
         let already_cached = chunks.len();
 
@@ -667,7 +668,7 @@ impl InnerRevlog {
         } else if !self.data_config.with_sparse_read || self.is_inline() {
             vec![fetched_revs]
         } else {
-            self.slice_chunk(&fetched_revs, target_size)?
+            self.slice_chunk(fetched_revs, target_size)?
         };
 
         self.with_read(|| {
@@ -743,7 +744,7 @@ impl InnerRevlog {
             .get_entry(rev)?
             .uncompressed_len()
             .map(|raw_size| 4 * raw_size as u64);
-        let deltas = self.chunks(delta_chain, target_size)?;
+        let deltas = self.chunks(&delta_chain, target_size)?;
         Ok((deltas, stopped))
     }
 
@@ -764,11 +765,11 @@ impl InnerRevlog {
     ///
     /// If individual revision chunks are larger than this limit, they will
     /// still be raised individually.
-    pub fn slice_chunk(
-        &self,
-        revs: &[Revision],
+    pub fn slice_chunk<'a>(
+        &'a self,
+        revs: &'a [Revision],
         target_size: Option<u64>,
-    ) -> Result<Vec<Vec<Revision>>, RevlogError> {
+    ) -> Result<Vec<&'a [Revision]>, RevlogError> {
         let target_size =
             target_size.map(|size| size.max(self.data_config.sr_min_gap_size));
 
@@ -784,9 +785,7 @@ impl InnerRevlog {
 
         for chunk in to_density {
             sliced.extend(
-                self.slice_chunk_to_size(&chunk, target_size)?
-                    .into_iter()
-                    .map(ToOwned::to_owned),
+                self.slice_chunk_to_size(chunk, target_size)?.into_iter(),
             );
         }
 

@@ -1309,23 +1309,24 @@ impl InnerRevlog {
         target_density: f64,
         min_gap_size: usize,
     ) -> PyResult<PyObject> {
-        let as_nested_vec = Self::with_index_read(slf, |idx| {
+        Self::with_index_read(slf, |idx| {
             let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
-            Ok(idx.slice_chunk_to_density(&revs, target_density, min_gap_size))
-        })?;
-        let res_len = as_nested_vec.len();
+            let as_nested_vec =
+                idx.slice_chunk_to_density(&revs, target_density, min_gap_size);
+            let res_len = as_nested_vec.len();
 
-        // cannot build the outer sequence from iterator, because
-        // `rev_py_list()` returns `Result<T>` instead of `T`.
-        let mut res = Vec::with_capacity(res_len);
-        for chunk in as_nested_vec {
-            res.push(revs_py_list(py, chunk)?.into_any());
-        }
-        // This is just to do the same as C, not sure why it does this
-        Ok(if res_len == 1 {
-            PyTuple::new(py, res)?.unbind().into_any()
-        } else {
-            PyList::new(py, res)?.unbind().into_any()
+            // cannot build the outer sequence from iterator, because
+            // `rev_py_list()` returns `Result<T>` instead of `T`.
+            let mut res = Vec::with_capacity(res_len);
+            for chunk in as_nested_vec {
+                res.push(revs_py_list(py, chunk.iter().copied())?.into_any());
+            }
+            // This is just to do the same as C, not sure why it does this
+            Ok(if res_len == 1 {
+                PyTuple::new(py, res)?.unbind().into_any()
+            } else {
+                PyList::new(py, res)?.unbind().into_any()
+            })
         })
     }
 

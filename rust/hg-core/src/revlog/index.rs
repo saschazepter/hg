@@ -942,28 +942,25 @@ impl Index {
     /// The initial chunk is sliced until the overall density
     /// (payload/chunks-span ratio) is above `target_density`.
     /// No gap smaller than `min_gap_size` is skipped.
-    pub fn slice_chunk_to_density(
-        &self,
-        revs: &[Revision],
+    pub fn slice_chunk_to_density<'a>(
+        &'a self,
+        revs: &'a [Revision],
         target_density: f64,
         min_gap_size: usize,
-    ) -> Vec<Vec<Revision>> {
+    ) -> Vec<&'a [Revision]> {
         if revs.is_empty() {
             return vec![];
         }
         if revs.len() == 1 {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
         let delta_chain_span = self.segment_span(revs);
         if delta_chain_span < min_gap_size {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
-        let entries: Vec<_> =
-            revs.iter().map(|r| (*r, self.get_entry(*r))).collect();
-
         let mut read_data = delta_chain_span;
         let chain_payload: u32 =
-            entries.iter().map(|(_r, e)| e.compressed_len()).sum();
+            revs.iter().map(|r| self.get_entry(*r).compressed_len()).sum();
         let mut density = if delta_chain_span > 0 {
             chain_payload as f64 / delta_chain_span as f64
         } else {
@@ -971,15 +968,16 @@ impl Index {
         };
 
         if density >= target_density {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
 
         // Store the gaps in a heap to have them sorted by decreasing size
         let mut gaps = Vec::new();
         let mut previous_end = None;
 
-        for (i, (rev, entry)) in entries.iter().enumerate() {
-            let start = self.start(*rev, entry);
+        for (i, rev) in revs.iter().enumerate() {
+            let entry = self.get_entry(*rev);
+            let start = self.start(*rev, &entry);
             let length = entry.compressed_len();
 
             // Skip empty revisions to form larger holes
@@ -997,7 +995,7 @@ impl Index {
             previous_end = Some(start + length as usize);
         }
         if gaps.is_empty() {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
         // sort the gaps to pop them from largest to small
         gaps.sort_unstable();
@@ -1030,15 +1028,15 @@ impl Index {
         let mut previous_idx = 0;
         let mut chunks = vec![];
         for idx in selected {
-            let chunk = self.trim_chunk(&entries, previous_idx, idx);
+            let chunk = self.trim_chunk(revs, previous_idx, idx);
             if !chunk.is_empty() {
-                chunks.push(chunk.iter().map(|(rev, _entry)| *rev).collect());
+                chunks.push(chunk);
             }
             previous_idx = idx;
         }
-        let chunk = self.trim_chunk(&entries, previous_idx, entries.len());
+        let chunk = self.trim_chunk(revs, previous_idx, revs.len());
         if !chunk.is_empty() {
-            chunks.push(chunk.iter().map(|(rev, _entry)| *rev).collect());
+            chunks.push(chunk);
         }
 
         chunks
@@ -1071,16 +1069,16 @@ impl Index {
     /// Returns `&revs[startidx..endidx]` without empty trailing revs
     fn trim_chunk<'a>(
         &'a self,
-        revs: &'a [(Revision, IndexEntry)],
+        revs: &'a [Revision],
         start: usize,
         mut end: usize,
-    ) -> &'a [(Revision, IndexEntry<'a>)] {
+    ) -> &'a [Revision] {
         // Trim empty revs at the end, except the very first rev of a chain
         let last_rev = revs[end - 1].0;
-        if last_rev.0 < self.len() as BaseRevision {
+        if last_rev < self.len() as BaseRevision {
             while end > 1
                 && end > start
-                && revs[end - 1].1.compressed_len() == 0
+                && self.get_entry(revs[end - 1]).compressed_len() == 0
             {
                 end -= 1
             }
