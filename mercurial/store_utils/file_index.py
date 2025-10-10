@@ -336,10 +336,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 self._add_to_garbage.append(self._list_file_path())
             self.docket.list_file_id = docketmod.make_uid()
             self.docket.list_file_size = 0
-            return self._opener(self._list_file_path(), b"wb")
-        f = self._opener(self._list_file_path(), b"r+b")
-        f.seek(self.docket.list_file_size)
-        return f
+            return self._open_new(self._list_file_path())
+        return self._open_for_appending(
+            self._list_file_path(), self.docket.list_file_size
+        )
 
     def _open_meta_file(self, new: bool):
         if new:
@@ -347,10 +347,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 self._add_to_garbage.append(self._meta_file_path())
             self.docket.meta_file_id = docketmod.make_uid()
             self.docket.meta_file_size = 0
-            return self._opener(self._meta_file_path(), b"wb")
-        f = self._opener(self._meta_file_path(), b"r+b")
-        f.seek(self.docket.meta_file_size)
-        return f
+            return self._open_new(self._meta_file_path())
+        return self._open_for_appending(
+            self._meta_file_path(), self.docket.meta_file_size
+        )
 
     def _open_tree_file(self, new: bool):
         if new:
@@ -358,9 +358,23 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 self._add_to_garbage.append(self._tree_file_path())
             self.docket.tree_file_id = docketmod.make_uid()
             self.docket.tree_file_size = 0
-            return self._opener(self._tree_file_path(), b"wb")
-        f = self._opener(self._tree_file_path(), b"r+b")
-        f.seek(self.docket.tree_file_size)
+            return self._open_new(self._tree_file_path())
+        return self._open_for_appending(
+            self._tree_file_path(), self.docket.tree_file_size
+        )
+
+    def _open_new(self, path: HgPathT):
+        """Open a new file for writing."""
+        return self._opener(path, b"wb")
+
+    def _open_for_appending(self, path: HgPathT, used_size: int):
+        """Open an existing file for appending past used_size.
+
+        Despite "appending", this doesn't open in append mode because the
+        physical size of the file may be larger than used_size.
+        """
+        f = self._opener(path, b"r+b")
+        f.seek(used_size)
         return f
 
     def _read_span(self, offset: int, length: int) -> memoryview:
