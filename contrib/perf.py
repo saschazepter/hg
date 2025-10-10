@@ -2427,7 +2427,11 @@ def perfnodelookup(ui, repo, rev, **opts):
     n = scmutil.revsingle(repo, rev).node()
 
     try:
-        cl = revlog(getsvfs(repo), radix=b"00changelog")
+        cl = revlog(
+            getsvfs(repo),
+            radix=b"00changelog",
+            target=(revlog_constants.KIND_CHANGELOG, None),
+        )
     except TypeError:
         cl = revlog(getsvfs(repo), indexfile=b"00changelog.i")
 
@@ -3307,6 +3311,7 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
     opener = getattr(rl, 'opener')  # trick linter
     # compat with hg <= 5.8
     radix = getattr(rl, 'radix', None)
+    target = getattr(rl, 'target', None)
     indexfile = getattr(rl, '_indexfile', None)
     if indexfile is None:
         # compatibility with <= hg-5.8
@@ -3355,7 +3360,7 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
 
     def constructor():
         if radix is not None:
-            revlog(opener, radix=radix)
+            revlog(opener, radix=radix, target=target)
         else:
             # hg <= 5.8
             revlog(opener, indexfile=indexfile)
