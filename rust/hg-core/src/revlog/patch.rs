@@ -62,6 +62,11 @@ impl DeltaPiece<'_> {
         self.end - self.start
     }
 
+    /// Length of the replaced date.
+    fn size(&self) -> u32 {
+        self.data.len().try_into().expect("PatchPiece add more the 2^32 bytes?")
+    }
+
     /// Length difference between the replacing data and the replaced data.
     fn len_diff(&self) -> i32 {
         self.data.len() as i32 - self.replaced_len() as i32
@@ -69,6 +74,9 @@ impl DeltaPiece<'_> {
 
     /// push a single DeltaPiece inside a Delta, ignoring empty ones
     pub fn write(self, delta: &mut Vec<u8>) {
+        if self.replaced_len() == 0 && self.size() == 0 {
+            return;
+        }
         let size: u32 =
             self.data.len().try_into().expect("more than 2GB of patch data");
         debug_assert!(
