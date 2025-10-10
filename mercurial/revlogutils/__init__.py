@@ -49,7 +49,7 @@ def entry(
     parent_rev_2,
     node_id,
     flags=0,
-    data_uncompressed_length=-1,
+    data_uncompressed_length=None,
     data_compression_mode=COMP_MODE_INLINE,
     sidedata_offset=0,
     sidedata_compressed_length=0,

@@ -125,7 +125,11 @@ def _p2_node(index, rev, entry, hexfn):
 
 @debug_column(b"full-size", size=20, verbose=True)
 def full_size(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+    size = entry[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+    if size is None:
+        return b"-"
+    else:
+        return b"%d" % size
 
 
 @debug_column(b"delta-base", size=6, verbose=True)
@@ -813,6 +817,8 @@ class DeltaChainAuditor:
 
         chain = self._revlog._deltachain(rev)[0]
 
+        if uncompsize is None:
+            uncompsize = -1
         data = {
             'p1': p1,
             'p2': p2,

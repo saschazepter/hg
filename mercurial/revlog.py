@@ -1041,7 +1041,7 @@ class _InnerRevlog:
 
         targetsize = None
         rawsize = self.index[rev][2]
-        if 0 <= rawsize:
+        if rawsize is not None and 0 <= rawsize:
             targetsize = 4 * rawsize
 
         self.seen_file_size(rawsize)
@@ -2144,7 +2144,7 @@ class revlog:
     def rawsize(self, rev):
         """return the length of the uncompressed text for a given revision"""
         l = self.index[rev][2]
-        if l >= 0:
+        if l is not None and l >= 0:
             return l
 
         t = self.rawdata(rev)
