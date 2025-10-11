@@ -316,22 +316,27 @@ pub fn build_data_from_deltas<T>(
         buffer.extend_from_slice(snapshot);
         return Ok(());
     }
-    let patches: Result<Vec<_>, _> =
-        deltas.iter().map(|d| Delta::new(d.as_ref())).collect();
+    let patches = self::deltas(deltas);
     let patch = fold_deltas(&patches?);
     patch.apply(buffer, snapshot);
     Ok(())
 }
 
-/// apply a chain of Delta in binary form to a Full-Text
-#[allow(dead_code)]
-fn apply_chain<D>(full_text: &[u8], deltas: &[D]) -> Vec<u8>
+/// Parse the Deltas from their binary form.
+pub(super) fn deltas<D>(deltas: &[D]) -> Result<Vec<Delta<'_>>, RevlogError>
 where
     D: AsRef<[u8]>,
 {
-    let deltas: Vec<_> =
-        deltas.iter().map(|d| Delta::new(d.as_ref()).unwrap()).collect();
+    deltas.iter().map(|d| Delta::new(d.as_ref())).collect()
+}
 
+/// apply a chain of Delta in binary form to a Full-Text
+#[allow(dead_code)]
+pub(super) fn apply_chain<D>(full_text: &[u8], delta_chain: &[D]) -> Vec<u8>
+where
+    D: AsRef<[u8]>,
+{
+    let deltas = deltas(delta_chain).unwrap();
     let projected = fold_deltas(&deltas[..]);
     let mut buffer = CoreRevisionBuffer::new();
     projected.apply(&mut buffer, full_text);
