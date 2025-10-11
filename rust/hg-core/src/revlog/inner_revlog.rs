@@ -623,14 +623,36 @@ impl InnerRevlog {
         rev_2: Revision,
     ) -> Result<Vec<u8>, RevlogError> {
         // Search for common part in the delta chain of the two revisions
+        //
+        // We also detect if an optionally cached revision is part of such
+        // common part.
         let entry_1 = &self.get_entry(rev_1)?;
         let entry_2 = &self.get_entry(rev_2)?;
 
         let (delta_chain_1, _) = self.delta_chain(rev_1, None)?;
         let (delta_chain_2, _) = self.delta_chain(rev_2, None)?;
 
+        let cached_entry = self.get_rev_cache();
+        let cached = cached_entry.as_ref().map(|c| c.as_delta_base());
+
         let zipped = std::iter::zip(delta_chain_1.iter(), delta_chain_2.iter());
-        let common_count = zipped.take_while(|(l, r)| l == r).count();
+        let (common_count, cached_idx) = match cached {
+            None => (zipped.take_while(|(l, r)| l == r).count(), None),
+            Some((cached_rev, _)) => {
+                let mut count = 0;
+                let mut cached_idx = None;
+                for (old_rev, new_rev) in zipped {
+                    if old_rev != new_rev {
+                        break;
+                    }
+                    if cached_rev == *old_rev && count > 0 {
+                        cached_idx = Some(count);
+                    }
+                    count += 1;
+                }
+                (count, cached_idx)
+            }
+        };
 
         // fast path the identical case
         //
@@ -684,15 +706,29 @@ impl InnerRevlog {
             let t_size_2 = Some(size_2 as u64 * 4);
             self.seen_file_size(u32_u(size_c.max(size_1.max(size_2))));
 
-            // Get all the relevant data chunks from disk and cache:
+            // Get all the relevant data chunks from disk and chunk cache:
+            let base_text;
             let common_chain;
             let old_chain;
-            chain_0 = self.chunks(&delta_chain_1, t_size_1)?;
-            let (head, deltas_1) = chain_0.split_first().expect("empty chain?");
-            (common_chain, old_chain) = deltas_1.split_at(common_count - 1);
-            let new_chain =
-                self.chunks(&delta_chain_2[common_count..], t_size_2)?;
-            let base_text = head.as_ref();
+            let new_chain;
+            if let Some(cached_idx) = cached_idx {
+                base_text = cached.expect("cached_idx without cache?").1;
+                let cached_skip = cached_idx + 1;
+                chain_0 =
+                    self.chunks(&delta_chain_1[cached_skip..], t_size_1)?;
+                (common_chain, old_chain) =
+                    chain_0.split_at((common_count) - cached_skip);
+                new_chain =
+                    self.chunks(&delta_chain_2[common_count..], t_size_2)?;
+            } else {
+                chain_0 = self.chunks(&delta_chain_1, t_size_1)?;
+                let (head, deltas_1) =
+                    chain_0.split_first().expect("empty chain?");
+                (common_chain, old_chain) = deltas_1.split_at(common_count - 1);
+                new_chain =
+                    self.chunks(&delta_chain_2[common_count..], t_size_2)?;
+                base_text = head.as_ref();
+            }
 
             // Build the two sections of text we need to diff
             //
