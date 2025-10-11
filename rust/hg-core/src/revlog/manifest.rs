@@ -515,9 +515,16 @@ fn changed_sections<'a>(
 
 /// Compute a binary delta between two flat manifest texts
 pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
+    manifest_delta_with_offset(0, m1, m2)
+}
+pub(super) fn manifest_delta_with_offset(
+    offset: u32,
+    m1: &[u8],
+    m2: &[u8],
+) -> Vec<u8> {
     let mut delta = vec![];
     // our current work position in the two manifest
-    let mut m1_offset = 0u32;
+    let mut m1_offset = offset;
     let mut m2_offset = 0u32;
 
     let mut cursor: Option<DeltaCursor> = None;
