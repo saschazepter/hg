@@ -208,8 +208,16 @@ impl<'a> TokenSource for &'a Lines<'a> {
 ///
 /// The delta is line aligned.
 pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
+    text_delta_with_offset(0, m1, m2)
+}
+pub(super) fn text_delta_with_offset(
+    offset: u32,
+    m1: &[u8],
+    m2: &[u8],
+) -> Vec<u8> {
     let mut delta = vec![];
 
+    let offset: usize = offset.try_into().expect("16bits computer?");
     let prefix_size = lines_prefix_size_low(m1, m2);
     let suffix_size =
         lines_suffix_size_low(&m1[prefix_size..], &m2[prefix_size..]);
@@ -219,10 +227,10 @@ pub fn text_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
         &m2[prefix_size..m2.len() - suffix_size],
     ) {
         ([], []) => (),
-        (m, []) => all_deleted(prefix_size, m, &mut delta),
-        ([], m) => all_created(prefix_size, m, &mut delta),
+        (m, []) => all_deleted(offset + prefix_size, m, &mut delta),
+        ([], m) => all_created(offset + prefix_size, m, &mut delta),
         (sub_1, sub_2) => {
-            text_delta_inner(prefix_size, sub_1, sub_2, &mut delta)
+            text_delta_inner(offset + prefix_size, sub_1, sub_2, &mut delta)
         }
     }
     delta
