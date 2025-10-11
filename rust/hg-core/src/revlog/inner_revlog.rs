@@ -23,7 +23,7 @@ use super::compression::ZlibCompressor;
 use super::compression::ZstdCompressor;
 use super::compression::ZLIB_BYTE;
 use super::compression::ZSTD_BYTE;
-use super::diff::text_delta;
+use super::diff::text_delta_with_offset;
 use super::file_io::DelayedBuffer;
 use super::file_io::FileHandle;
 use super::file_io::RandomAccessFile;
@@ -31,7 +31,7 @@ use super::file_io::WriteHandles;
 use super::index::Index;
 use super::index::IndexHeader;
 use super::index::INDEX_ENTRY_SIZE;
-use super::manifest::manifest_delta;
+use super::manifest::manifest_delta_with_offset;
 use super::node::NODE_BYTES_LENGTH;
 use super::node::NULL_NODE;
 use super::options::RevlogDataConfig;
@@ -39,6 +39,8 @@ use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
 use super::patch;
 use super::patch::apply_chain;
+use super::patch::deltas;
+use super::patch::fold_deltas;
 use super::patch::DeltaPiece;
 use super::BaseRevision;
 use super::Revision;
@@ -676,21 +678,22 @@ impl InnerRevlog {
         let data_c;
         let vec_1;
         let vec_2;
-        let (old_data, new_data) = if common_count == 0 {
-            // The delta chain of the two revisions are distinct, we must
-            // "fallback" on doing a normal delta computation on the
-            // two full text.
+        // The delta chain of the two revisions are distinct, we must "fallback"
+        // on doing a normal delta computation on the two full text.
+        let (offset, old_data, new_data) = if common_count == 0 {
             cow_1 = entry_1.data_unchecked()?;
             cow_2 = entry_2.data_unchecked()?;
-            (cow_1.as_ref(), cow_2.as_ref())
+            (0, cow_1.as_ref(), cow_2.as_ref())
         } else {
             // The delta chain of the two revision have a common prefix.
             //
             // We use this to optimize the delta computation:
             // * We fetch the chunks for the common part only once.
             // * We fold the delta for the common part only once.
-            // * We build the text for the common part once and apply the part
-            //   of the different aspect independently.
+            // * We detect the window of data affected by any of the other
+            //   chain.
+            // * We only build the associated section from the old and new side.
+            // * We only diff that section that might contains difference.
             //
             //   (We could do more)
             let higher_common_rev = delta_chain_1[common_count - 1];
@@ -734,41 +737,69 @@ impl InnerRevlog {
             //
             // Whever a delta-chain is empty, we directly re-use the base to
             // avoid useless copy in memory.
+            let old_deltas = deltas(old_chain)?;
+            let old_delta = fold_deltas(&old_deltas);
+            let new_deltas = deltas(&new_chain)?;
+            let new_delta = fold_deltas(&new_deltas);
 
             // build the common part (if ≠ from base)
-            let common_text: &[u8] = if common_chain.is_empty() {
-                base_text
+            let (start, end) = affected_range(&old_delta, &new_delta);
+
+            let skipped_size = if let Some(size) = entry_c.uncompressed_len() {
+                size - (end - start)
             } else {
+                0
+            };
+            let common_radix: &[u8] = if common_chain.is_empty() {
+                &base_text[u32_u(start)..u32_u(end)]
+            } else {
+                // TODO: We could only restore the affected windows in the
+                // common text.
+                //
+                // However it means we can no longer cache the result which has
+                // a negative effect of some benchmark.
+                // Restoring only the windows can have positive effect on
+                // benchmark, so it is a worthy pursuit, but it need to be done
+                // carefully while considering benchmark for
+                // high level operation.
                 data_c = RawData::from(apply_chain(
                     base_text,
                     common_chain,
                     size_c,
                 )?);
                 self.set_rev_cache_native(higher_common_rev, &data_c);
-                &data_c
+                &data_c[u32_u(start)..u32_u(end)]
             };
             // build the old text (if ≠ common)
             let old_text = if old_chain.is_empty() {
-                common_text
+                common_radix
             } else {
-                vec_1 = apply_chain(common_text, old_chain, size_1)?;
+                vec_1 = old_delta.as_applied(
+                    common_radix,
+                    start,
+                    size_1 - skipped_size,
+                );
                 &vec_1[..]
             };
             // build the new text (if ≠ common)
             let new_text = if new_chain.is_empty() {
-                common_text
+                common_radix
             } else {
-                vec_2 = apply_chain(common_text, &new_chain, size_2)?;
+                vec_2 = new_delta.as_applied(
+                    common_radix,
+                    start,
+                    size_2 - skipped_size,
+                );
                 &vec_2[..]
             };
-            (old_text, new_text)
+            (start, old_text, new_text)
         };
 
         // Actually compute the delta we are looking for
         let delta = if self.revlog_type == RevlogType::Manifestlog {
-            manifest_delta(old_data, new_data)
+            manifest_delta_with_offset(offset, old_data, new_data)
         } else {
-            text_delta(old_data, new_data)
+            text_delta_with_offset(offset, old_data, new_data)
         };
         Ok(delta)
     }
@@ -1567,6 +1598,29 @@ impl InnerRevlog {
     pub fn ignore_filelog_censored_revisions(&self) -> bool {
         assert!(self.revlog_type == RevlogType::Filelog);
         self.feature_config.ignore_filelog_censored_revisions
+    }
+}
+
+/// Given two delta targeting the same base, find the affected window
+///
+/// This return the start and end offset of section in "base" affected by a
+/// change in any of the two deltas. Assume that at least one of the delta is
+/// non-empty.
+pub fn affected_range(
+    left: &super::patch::Delta,
+    right: &super::patch::Delta,
+) -> (u32, u32) {
+    match (&left.chunks[..], &right.chunks[..]) {
+        ([], []) => unreachable!("identical chain handled earlier"),
+        ([], chain) => (chain[0].start, chain[chain.len() - 1].end),
+        (chain, []) => (chain[0].start, chain[chain.len() - 1].end),
+        (old_chain, new_chain) => {
+            let start = old_chain[0].start.min(new_chain[0].start);
+            let end = old_chain[old_chain.len() - 1]
+                .end
+                .max(new_chain[new_chain.len() - 1].end);
+            (start, end)
+        }
     }
 }
 
