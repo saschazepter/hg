@@ -337,16 +337,16 @@ pub(super) fn apply_chain<D>(
     full_text: &[u8],
     delta_chain: &[D],
     target_size: u32,
-) -> Vec<u8>
+) -> Result<Vec<u8>, RevlogError>
 where
     D: AsRef<[u8]>,
 {
-    let deltas = deltas(delta_chain).unwrap();
+    let deltas = deltas(delta_chain)?;
     let projected = fold_deltas(&deltas[..]);
     let mut buffer = CoreRevisionBuffer::new();
     buffer.resize(u32_u(target_size));
     projected.apply(&mut buffer, full_text);
-    buffer.finish()
+    Ok(buffer.finish())
 }
 
 #[cfg(test)]
@@ -629,7 +629,7 @@ mod tests {
         fn apply_result(&self) -> Vec<u8> {
             let full_text = self.full_text();
             let deltas = self.deltas();
-            apply_chain(&full_text, &deltas, self.final_size())
+            apply_chain(&full_text, &deltas, self.final_size()).unwrap()
         }
 
         fn eprint(&self) {
@@ -840,7 +840,8 @@ mod tests {
         }
 
         let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
-        let result = apply_chain(&data, &deltas, u_u32(expected.len()));
+        let result =
+            apply_chain(&data, &deltas, u_u32(expected.len())).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -866,7 +867,8 @@ mod tests {
         }
 
         let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
-        let result = apply_chain(&data, &deltas, u_u32(expected.len()));
+        let result =
+            apply_chain(&data, &deltas, u_u32(expected.len())).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -897,7 +899,8 @@ mod tests {
         }
 
         let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
-        let result = apply_chain(&data, &deltas, u_u32(expected.len()));
+        let result =
+            apply_chain(&data, &deltas, u_u32(expected.len())).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -928,7 +931,8 @@ mod tests {
         }
 
         let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
-        let result = apply_chain(&data, &deltas, u_u32(expected.len()));
+        let result =
+            apply_chain(&data, &deltas, u_u32(expected.len())).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -1019,7 +1023,8 @@ mod tests {
         ];
 
         let deltas: Vec<_> = patch_data.into_iter().map(|d| d.data).collect();
-        let result = apply_chain(&data, &deltas, u_u32(expected.len()));
+        let result =
+            apply_chain(&data, &deltas, u_u32(expected.len())).unwrap();
         assert_eq!(result, expected);
     }
 
