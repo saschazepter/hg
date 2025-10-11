@@ -38,6 +38,7 @@ use super::options::RevlogDataConfig;
 use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
 use super::patch;
+use super::patch::apply_chain;
 use super::patch::DeltaPiece;
 use super::BaseRevision;
 use super::Revision;
@@ -611,20 +612,129 @@ impl InnerRevlog {
                 patch.write(&mut delta);
                 Ok(delta)
             }
-            (old, new) => {
-                let entry_1 = &self.get_entry(old)?;
-                let entry_2 = &self.get_entry(new)?;
-
-                let data_1 = entry_1.data_unchecked()?;
-                let data_2 = entry_2.data_unchecked()?;
-
-                if self.revlog_type == RevlogType::Manifestlog {
-                    Ok(manifest_delta(&data_1, &data_2))
-                } else {
-                    Ok(text_delta(&data_1, &data_2))
-                }
-            }
+            (old, new) => self.rev_delta_non_null(old, new),
         }
+    }
+
+    /// inner part of `rev_delta` involving non null revision
+    fn rev_delta_non_null(
+        &self,
+        rev_1: Revision,
+        rev_2: Revision,
+    ) -> Result<Vec<u8>, RevlogError> {
+        // Search for common part in the delta chain of the two revisions
+        let entry_1 = &self.get_entry(rev_1)?;
+        let entry_2 = &self.get_entry(rev_2)?;
+
+        let (delta_chain_1, _) = self.delta_chain(rev_1, None)?;
+        let (delta_chain_2, _) = self.delta_chain(rev_2, None)?;
+
+        let zipped = std::iter::zip(delta_chain_1.iter(), delta_chain_2.iter());
+        let common_count = zipped.take_while(|(l, r)| l == r).count();
+
+        // fast path the identical case
+        //
+        // This case might happen when the revision are different, the only
+        // difference between them are empty delta (that got filtered
+        // when building the delta chain.
+        if common_count == delta_chain_1.len()
+            && common_count == delta_chain_2.len()
+        {
+            return Ok(vec![]);
+        }
+
+        // We need to define a handful of variable here.
+        //
+        // They will be optionally initialized in one of the branch below, but
+        // they need to live longer than the branch. See actual usage
+        // for details.
+        let cow_1;
+        let cow_2;
+        let chain_0;
+        let data_c;
+        let vec_1;
+        let vec_2;
+        let (old_data, new_data) = if common_count == 0 {
+            // The delta chain of the two revisions are distinct, we must
+            // "fallback" on doing a normal delta computation on the
+            // two full text.
+            cow_1 = entry_1.data_unchecked()?;
+            cow_2 = entry_2.data_unchecked()?;
+            (cow_1.as_ref(), cow_2.as_ref())
+        } else {
+            // The delta chain of the two revision have a common prefix.
+            //
+            // We use this to optimize the delta computation:
+            // * We fetch the chunks for the common part only once.
+            // * We fold the delta for the common part only once.
+            // * We build the text for the common part once and apply the part
+            //   of the different aspect independently.
+            //
+            //   (We could do more)
+            let higher_common_rev = delta_chain_1[common_count - 1];
+            let entry_c = self.get_entry(higher_common_rev)?;
+            let rev_size =
+                |e: &RevlogEntry| e.uncompressed_len().unwrap_or(0u32);
+
+            // estimate the total chunks size from the revisions size
+            let size_c = rev_size(&entry_c);
+            let size_1 = rev_size(entry_1);
+            let size_2 = rev_size(entry_2);
+            let t_size_1 = Some(size_1 as u64 * 4);
+            let t_size_2 = Some(size_2 as u64 * 4);
+            self.seen_file_size(u32_u(size_c.max(size_1.max(size_2))));
+
+            // Get all the relevant data chunks from disk and cache:
+            let common_chain;
+            let old_chain;
+            chain_0 = self.chunks(&delta_chain_1, t_size_1)?;
+            let (head, deltas_1) = chain_0.split_first().expect("empty chain?");
+            (common_chain, old_chain) = deltas_1.split_at(common_count - 1);
+            let new_chain =
+                self.chunks(&delta_chain_2[common_count..], t_size_2)?;
+            let base_text = head.as_ref();
+
+            // Build the two sections of text we need to diff
+            //
+            // Whever a delta-chain is empty, we directly re-use the base to
+            // avoid useless copy in memory.
+
+            // build the common part (if ≠ from base)
+            let common_text: &[u8] = if common_chain.is_empty() {
+                base_text
+            } else {
+                data_c = RawData::from(apply_chain(
+                    base_text,
+                    common_chain,
+                    size_c,
+                )?);
+                self.set_rev_cache_native(higher_common_rev, &data_c);
+                &data_c
+            };
+            // build the old text (if ≠ common)
+            let old_text = if old_chain.is_empty() {
+                common_text
+            } else {
+                vec_1 = apply_chain(common_text, old_chain, size_1)?;
+                &vec_1[..]
+            };
+            // build the new text (if ≠ common)
+            let new_text = if new_chain.is_empty() {
+                common_text
+            } else {
+                vec_2 = apply_chain(common_text, &new_chain, size_2)?;
+                &vec_2[..]
+            };
+            (old_text, new_text)
+        };
+
+        // Actually compute the delta we are looking for
+        let delta = if self.revlog_type == RevlogType::Manifestlog {
+            manifest_delta(old_data, new_data)
+        } else {
+            text_delta(old_data, new_data)
+        };
+        Ok(delta)
     }
 
     /// Only `pub` for `hg-pyo3`.
