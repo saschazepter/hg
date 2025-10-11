@@ -19,6 +19,7 @@ use byteorder::BigEndian;
 use byteorder::ByteOrder;
 
 use super::inner_revlog::RevisionBuffer;
+use crate::revlog::CoreRevisionBuffer;
 use crate::revlog::RevlogError;
 use crate::utils::u_u32;
 
@@ -322,13 +323,27 @@ pub fn build_data_from_deltas<T>(
     Ok(())
 }
 
+/// apply a chain of Delta in binary form to a Full-Text
+#[allow(dead_code)]
+fn apply_chain<D>(full_text: &[u8], deltas: &[D]) -> Vec<u8>
+where
+    D: AsRef<[u8]>,
+{
+    let deltas: Vec<_> =
+        deltas.iter().map(|d| Delta::new(d.as_ref()).unwrap()).collect();
+
+    let projected = fold_deltas(&deltas[..]);
+    let mut buffer = CoreRevisionBuffer::new();
+    projected.apply(&mut buffer, full_text);
+    buffer.finish()
+}
+
 #[cfg(test)]
 mod tests {
     use rand::prelude::*;
     use rand::SeedableRng;
 
     use super::*;
-    use crate::revlog::CoreRevisionBuffer;
 
     impl PartialOrd for TestChain {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -338,20 +353,6 @@ mod tests {
 
     const MIN_SIZE: usize = 1;
     const MAX_SIZE: usize = 10;
-
-    /// apply a chain of Delta in binary form to a Full-Text
-    fn apply_chain<D>(full_text: &[u8], deltas: &[D]) -> Vec<u8>
-    where
-        D: AsRef<[u8]>,
-    {
-        let deltas: Vec<_> =
-            deltas.iter().map(|d| Delta::new(d.as_ref()).unwrap()).collect();
-
-        let projected = fold_deltas(&deltas[..]);
-        let mut buffer = CoreRevisionBuffer::new();
-        projected.apply(&mut buffer, full_text);
-        buffer.finish()
-    }
 
     /// represent a chain of deltas usable for test.
     ///
