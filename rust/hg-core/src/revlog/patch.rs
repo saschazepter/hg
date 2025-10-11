@@ -154,14 +154,47 @@ impl<'a> Delta<'a> {
         buffer: &mut dyn RevisionBuffer<Target = T>,
         initial: &[u8],
     ) {
+        self.apply_with_offset(buffer, initial, 0)
+    }
+
+    /// Apply the patch to some data with some offset
+    ///
+    /// We apply on a subset of the base content where a prefix of `offset`
+    /// bytes is missing.
+    ///
+    /// The applied patch is still fully apply (and should not overlap with the
+    /// skipped offset).
+    fn apply_with_offset<T>(
+        &self,
+        buffer: &mut dyn RevisionBuffer<Target = T>,
+        initial: &[u8],
+        offset: u32,
+    ) {
         let mut last: usize = 0;
         for DeltaPiece { start, end, data } in self.chunks.iter() {
-            let slice = &initial[last..(*start as usize)];
+            let o_start =
+                (start - offset).try_into().expect("16 bits computer");
+            let slice = &initial[last..o_start];
             buffer.extend_from_slice(slice);
             buffer.extend_from_slice(data);
-            last = *end as usize;
+            last = (end - offset).try_into().expect("16 bits computer");
         }
         buffer.extend_from_slice(&initial[last..]);
+    }
+
+    /// Return a Vec<u8> with the result of a this patch application
+    ///
+    /// The specify offset match the semantic used by `apply_with_offset`.
+    pub(super) fn as_applied(
+        &self,
+        initial: &[u8],
+        offset: u32,
+        target_size: u32,
+    ) -> Vec<u8> {
+        let mut buffer = CoreRevisionBuffer::new();
+        buffer.resize(u32_u(target_size));
+        self.apply_with_offset(&mut buffer, initial, offset);
+        buffer.finish()
     }
 
     /// Combine two Delta into a single Delta.
@@ -343,10 +376,7 @@ where
 {
     let deltas = deltas(delta_chain)?;
     let projected = fold_deltas(&deltas[..]);
-    let mut buffer = CoreRevisionBuffer::new();
-    buffer.resize(u32_u(target_size));
-    projected.apply(&mut buffer, full_text);
-    Ok(buffer.finish())
+    Ok(projected.as_applied(full_text, 0, target_size))
 }
 
 #[cfg(test)]
