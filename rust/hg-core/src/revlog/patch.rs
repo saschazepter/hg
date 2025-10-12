@@ -239,7 +239,12 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             phantom: std::marker::PhantomData,
         }
     }
+}
 
+impl<'a, P> Delta<'a, P>
+where
+    P: DeltaPiece<'a>,
+{
     /// Apply the Delta to some Full-Text,
     pub fn apply<T>(
         &self,
