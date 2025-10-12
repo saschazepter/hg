@@ -51,6 +51,7 @@ if typing.TYPE_CHECKING:
     )
     from mercurial.interfaces.types import (
         RepoT,
+        UiT,
     )
 
 eh = exthelper.exthelper()
@@ -531,7 +532,13 @@ def uploadblobs(repo, pointers):
 
 
 @eh.wrapfunction(upgrade_engine, 'finishdatamigration')
-def upgradefinishdatamigration(orig, ui, srcrepo, dstrepo, requirements):
+def upgradefinishdatamigration(
+    orig: Callable[[UiT, RepoT, RepoT, set[bytes]], None],
+    ui: UiT,
+    srcrepo: RepoT,
+    dstrepo: RepoT,
+    requirements: set[bytes],
+) -> None:
     orig(ui, srcrepo, dstrepo, requirements)
 
     # Skip if this hasn't been passed to reposetup()
