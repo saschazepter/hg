@@ -32,7 +32,7 @@ use crate::utils::u_u32;
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
 #[derive(Clone)]
-pub(crate) struct DeltaPiece<'a> {
+pub(crate) struct PlainDeltaPiece<'a> {
     /// The start position of the chunk of data to replace
     pub(crate) start: u32,
     /// The end position of the chunk of data to replace (open end interval)
@@ -41,7 +41,7 @@ pub(crate) struct DeltaPiece<'a> {
     pub(crate) data: &'a [u8],
 }
 
-impl DeltaPiece<'_> {
+impl PlainDeltaPiece<'_> {
     /// Adjusted start of the data to replace.
     ///
     /// The offset, taking into account the growth/shrinkage of data
@@ -93,9 +93,9 @@ impl DeltaPiece<'_> {
     }
 }
 
-impl std::fmt::Debug for DeltaPiece<'_> {
+impl std::fmt::Debug for PlainDeltaPiece<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DeltaPiece")
+        f.debug_struct("PlainDeltaPiece")
             .field("start", &self.start)
             .field("end", &self.end)
             .field("size", &self.data.len())
@@ -112,7 +112,7 @@ pub struct Delta<'a> {
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
-    pub(crate) chunks: Vec<DeltaPiece<'a>>,
+    pub(crate) chunks: Vec<PlainDeltaPiece<'a>>,
 }
 
 impl<'a> Delta<'a> {
@@ -133,7 +133,7 @@ impl<'a> Delta<'a> {
                 let error = format!("patch insert more data than available: {len} < {available}");
                 return Err(RevlogError::corrupted(error));
             }
-            chunks.push(DeltaPiece {
+            chunks.push(PlainDeltaPiece {
                 start,
                 end,
                 data: &data[12..12 + (len as usize)],
@@ -145,7 +145,7 @@ impl<'a> Delta<'a> {
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
     pub fn full_snapshot(data: &'a [u8]) -> Self {
-        Self { chunks: vec![DeltaPiece { start: 0, end: 0, data }] }
+        Self { chunks: vec![PlainDeltaPiece { start: 0, end: 0, data }] }
     }
 
     /// Apply the Delta to some Full-Text,
@@ -171,7 +171,7 @@ impl<'a> Delta<'a> {
         offset: u32,
     ) {
         let mut last: usize = 0;
-        for DeltaPiece { start, end, data } in self.chunks.iter() {
+        for PlainDeltaPiece { start, end, data } in self.chunks.iter() {
             let o_start =
                 (start - offset).try_into().expect("16 bits computer");
             let slice = &initial[last..o_start];
@@ -226,7 +226,7 @@ impl<'a> Delta<'a> {
 
         // For each chunk of `other`, chunks of `self` are processed
         // until they start after the end of the current chunk.
-        for DeltaPiece { start, end, data } in other.chunks.iter() {
+        for PlainDeltaPiece { start, end, data } in other.chunks.iter() {
             // Add chunks of `self` that start before this chunk of `other`
             // without overlap.
             while pos < self.chunks.len()
@@ -250,7 +250,7 @@ impl<'a> Delta<'a> {
                 let (data_left, data_right) = first.data.split_at(
                     (*start - first.start_offset_by(offset)) as usize,
                 );
-                let left = DeltaPiece {
+                let left = PlainDeltaPiece {
                     start: first.start,
                     end: first.start,
                     data: data_left,
@@ -301,7 +301,7 @@ impl<'a> Delta<'a> {
             }
 
             // Add the chunk of `other` with adjusted position.
-            chunks.push(DeltaPiece {
+            chunks.push(PlainDeltaPiece {
                 start: (*start as i32 - offset) as u32,
                 end: (*end as i32 - next_offset) as u32,
                 data,
@@ -321,9 +321,9 @@ impl<'a> Delta<'a> {
 
 /// Combine a list of Deltas into a single Delta "optimized".
 ///
-/// Content from different Delta will still appears in different DeltaPiece, so
-/// the result if not "minimal". However it is "optiomized" in terms of
-/// application as it only contains non overlapping DeltaPiece.
+/// Content from different Delta will still appears in different
+/// PlainDeltaPiece, so the result if not "minimal". However it is "optiomized"
+/// in terms of application as it only contains non overlapping PlainDeltaPiece.
 pub fn fold_deltas<'a>(lists: &[Delta<'a>]) -> Delta<'a> {
     if lists.len() <= 1 {
         if lists.is_empty() {

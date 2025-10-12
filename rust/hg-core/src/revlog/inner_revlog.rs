@@ -41,7 +41,7 @@ use super::patch;
 use super::patch::apply_chain;
 use super::patch::deltas;
 use super::patch::fold_deltas;
-use super::patch::DeltaPiece;
+use super::patch::PlainDeltaPiece;
 use super::BaseRevision;
 use super::Revision;
 use super::RevlogEntry;
@@ -596,7 +596,7 @@ impl InnerRevlog {
                 let deleted_size =
                     entry.uncompressed_len().expect("checked above?");
                 let patch =
-                    DeltaPiece { start: 0, end: deleted_size, data: &[] };
+                    PlainDeltaPiece { start: 0, end: deleted_size, data: &[] };
                 patch.write(&mut delta);
                 Ok(delta)
             }
@@ -610,7 +610,7 @@ impl InnerRevlog {
                 let entry = &self.get_entry(new_rev)?;
                 let data = entry.data_unchecked()?;
                 let patch =
-                    DeltaPiece { start: 0, end: 0, data: data.as_ref() };
+                    PlainDeltaPiece { start: 0, end: 0, data: data.as_ref() };
                 patch.write(&mut delta);
                 Ok(delta)
             }

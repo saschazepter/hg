@@ -4,7 +4,7 @@ use imara_diff::Diff;
 use imara_diff::InternedInput;
 use imara_diff::TokenSource;
 
-use super::patch::DeltaPiece;
+use super::patch::PlainDeltaPiece;
 use crate::utils::u32_u;
 use crate::utils::u_u32;
 
@@ -50,13 +50,13 @@ impl<'a> DeltaCursor<'a> {
     }
 
     /// flush a non empty cursor
-    pub fn into_piece(self) -> DeltaPiece<'a> {
+    pub fn into_piece(self) -> PlainDeltaPiece<'a> {
         let start = self.old.0;
         let end = self.old.1;
         let d_start = u32_u(self.new.0);
         let d_end = u32_u(self.new.1);
         let data = &self.data[d_start..d_end];
-        DeltaPiece { start, end, data }
+        PlainDeltaPiece { start, end, data }
     }
 }
 
@@ -238,13 +238,13 @@ pub(super) fn text_delta_with_offset(
 
 fn all_created(prefix_size: usize, content: &[u8], delta: &mut Vec<u8>) {
     let start = u_u32(prefix_size);
-    DeltaPiece { start, end: start, data: content }.write(delta)
+    PlainDeltaPiece { start, end: start, data: content }.write(delta)
 }
 
 fn all_deleted(prefix_size: usize, deleted: &[u8], delta: &mut Vec<u8>) {
     let start = u_u32(prefix_size);
     let end = start + u_u32(deleted.len());
-    DeltaPiece { start, end, data: &[] }.write(delta)
+    PlainDeltaPiece { start, end, data: &[] }.write(delta)
 }
 
 /// The main part of [`text_delta`] extracted for clarity
