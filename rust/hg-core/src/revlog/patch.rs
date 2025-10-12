@@ -193,6 +193,77 @@ impl std::fmt::Debug for PlainDeltaPiece<'_> {
     }
 }
 
+/// An identifier for which Chunk a DeltaPiece comes from.
+///
+/// Used within RichDeltaPiece
+///
+/// The 0 value is usually reserved for the base-text
+type SrcToken = u32;
+
+/// A DeltaPiece with information about  source and position within that source
+#[derive(Clone, Debug)]
+pub(crate) struct RichDeltaPiece<'a> {
+    pub inner: PlainDeltaPiece<'a>,
+    pub src: SrcToken,
+    pub data_pos: u32,
+}
+
+impl RichDeltaPiece<'_> {
+    pub(super) fn data_start(&self) -> u32 {
+        self.data_pos
+    }
+
+    pub(super) fn data_end(&self) -> u32 {
+        self.data_start() + self.size()
+    }
+}
+
+impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
+    /// The start position of the chunk of data to replace
+    fn start(&self) -> u32 {
+        self.inner.start()
+    }
+
+    /// The end position of the chunk of data to replace (open end interval)
+    fn end(&self) -> u32 {
+        self.inner.end()
+    }
+
+    /// The data replacing the chunk
+    fn data(&self) -> &'a [u8] {
+        self.inner.data()
+    }
+
+    /// Length of the replaced date.
+    fn size(&self) -> u32 {
+        self.inner.size()
+    }
+
+    /// cut this DeltaPiece into two
+    ///
+    /// The `cut_start` argument refer to the first index in `self.data()` that
+    /// needs to go in the second DeltaPiece
+    fn cut_at(&mut self, cut_start: u32) -> Self {
+        let old_pos = self.data_pos;
+        self.data_pos += cut_start;
+        let right = self.inner.cut_at(cut_start);
+        Self { inner: right, src: self.src, data_pos: old_pos }
+    }
+
+    fn trim_prefix(&mut self, size: u32) -> i32 {
+        self.data_pos += size;
+        self.inner.trim_prefix(size)
+    }
+
+    fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self {
+        Self {
+            inner: self.inner.apply_offset(start_offset, end_offset),
+            src: self.src,
+            data_pos: self.data_pos,
+        }
+    }
+}
+
 /// The delta between two revisions data.
 #[derive(Debug, Clone)]
 pub(super) struct Delta<'a, P>
