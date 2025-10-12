@@ -66,6 +66,9 @@ pub(super) trait DeltaPiece<'a>: Clone {
         self.start_offset_by(offset) + self.size()
     }
 
+    /// remove the `size` first bytes from the this DeltaPiece
+    fn trim_prefix(&mut self, size: u32) -> i32;
+
     /// push a single DeltaPiece inside a Delta, ignoring empty ones
     fn write(self, delta: &mut Vec<u8>) {
         if self.replaced_len() == 0 && self.size() == 0 {
@@ -118,6 +121,19 @@ impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
     /// Length of the replaced date.
     fn size(&self) -> u32 {
         u_u32(self.data.len())
+    }
+
+    fn trim_prefix(&mut self, size: u32) -> i32 {
+        assert!(size < self.size());
+        self.data = &self.data[u32_u(size)..];
+        let old_replace = self.replaced_len();
+        if old_replace < size {
+            self.start = self.end;
+            size as i32 - old_replace as i32
+        } else {
+            self.start += size;
+            0
+        }
     }
 }
 
@@ -329,12 +345,8 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             {
                 let first = &mut self.chunks[pos];
 
-                let how_much_to_discard =
-                    end - first.start_offset_by(next_offset);
-
-                first.data = &first.data[(how_much_to_discard as usize)..];
-
-                next_offset += how_much_to_discard as i32;
+                let mask_size = end - first.start_offset_by(next_offset);
+                next_offset += first.trim_prefix(mask_size);
             }
 
             // Add the chunk of `other` with adjusted position.
