@@ -177,6 +177,8 @@ perfstatus
                  (no help text available)
    perf::revlog-read-revisions
                  Benchmark reading a series of revisions from a revlog.
+   perf::revlog-revdiff
+                 check how long it take to redelta a set of revision pair
    perf::revlogchunks
                  Benchmark operations on revlog chunks.
    perf::revlogindex

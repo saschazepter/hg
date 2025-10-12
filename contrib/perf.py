@@ -3519,6 +3519,104 @@ def perfrevlogrevisions(
 
 
 @command(
+    b'perf::revlog-revdiff',
+    revlogopts
+    + formatteropts
+    + [
+        (b'', b'target', [], b'target to diff against (prev, parents)'),
+        (
+            b'',
+            b'filter',
+            [],
+            b'restricting diffing to (storage, common-base, distinct-base)',
+        ),
+        (b'', b'clear-caches', False, b'clear revlog cache between calls'),
+    ],
+    b'-c|-m|FILE',
+)
+def perf_revlog_revdiff(
+    ui, repo, file_=None, startrev=1000, stoprev=-1, **opts
+):
+    """check how long it take to redelta a set of revision pair"""
+    bopts = _byteskwargs(opts)
+    rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, bopts)
+    clear_caches = bopts[b'clear_caches']
+
+    KNOWN_TARGET = {
+        b'prev',
+        b'parents',
+    }
+    if not bopts[b'target']:
+        targets = KNOWN_TARGET
+    else:
+        targets = set()
+        for t in bopts[b'target']:
+            if t not in KNOWN_TARGET:
+                raise error.Abort(b"unknown target: %s" % t)
+            targets.add(t)
+    targets = sorted(targets)
+
+    pairs = set()
+    prev = None
+    # gather possible pairs
+    for rev in rl:
+        if b'prev' in targets and prev is not None:
+            pairs.add((prev, rev))
+        if b'parents' in targets:
+            for p in rl.parentrevs(rev):
+                if p > 0:
+                    pairs.add((p, rev))
+        prev = rev
+
+    selected_filter = bopts[b'filter']
+    if selected_filter:
+        skip_store = b'storage' not in selected_filter
+        skip_same = b'common-base' not in selected_filter
+        skip_other = b'distinct-base' not in selected_filter
+        old_pairs = pairs
+        pairs = []
+        for p in old_pairs:
+            rev_1, rev_2 = p
+            if skip_store and rl.deltaparent(rev_2) == rev_1:
+                continue
+            base_1 = rl._deltachain(rev_1)[0][0]
+            base_2 = rl._deltachain(rev_2)[0][0]
+            if skip_same and base_1 == base_2:
+                continue
+            if skip_other and base_1 != base_2:
+                continue
+            pairs.append(p)
+    pairs = sorted(pairs, key=lambda x: (x[1], x[0]))
+
+    def setup():
+        if clear_caches:
+            rl.index.clearcaches()
+            rl.clearcaches()
+
+    pair_count = len(pairs)
+
+    count = [0]
+
+    def d():
+        count[0] += 1
+        progress = ui.makeprogress(
+            b"rev-diff #%d" % count[0],
+            unit=b'pairs',
+            total=pair_count,
+        )
+        with progress:
+            for idx, (rev_1, rev_2) in enumerate(pairs):
+                rl.revdiff(rev_1, rev_2)
+                # update sparsely toi avoid affecting the timing too much.
+                if (idx % 100) == 0:
+                    progress.increment(100)
+
+    timer, fm = gettimer(ui, bopts)
+    timer(d, setup=setup)
+    fm.end()
+
+
+@command(
     b'perf::revlogwrite|perfrevlogwrite',
     revlogopts
     + formatteropts
