@@ -322,13 +322,12 @@ where
     /// In this method, self is the "low" delta applying so a "base", and
     /// `other` is the "high" delta, apply to the result of applying "low"
     /// on "base".
-    pub(super) fn combine(&mut self, other: &mut Self) -> Self {
+    pub(super) fn combine(mut self, other: Self) -> Self {
         if self.chunks.is_empty() {
-            return other.clone();
+            return other;
         } else if other.chunks.is_empty() {
-            return self.clone();
+            return self;
         }
-
         // every delta-piece in "high" has an opportunity to slice a delta-piece
         // in "low", creating an extra part. (this is true even if the
         // "low" delta only have one delta-piece, it could be
@@ -354,7 +353,7 @@ where
 
         // For each chunk of `other`, chunks of `self` are processed
         // until they start after the end of the current chunk.
-        for high in other.chunks.iter() {
+        for high in other.chunks.into_iter() {
             // Add chunks of `self` that start before this chunk of `other`
             // without overlap.
             while pos < self.chunks.len()
@@ -446,9 +445,9 @@ where
         }
     } else {
         let (left, right) = lists.split_at(lists.len() / 2);
-        let mut left_res = fold_deltas(left);
-        let mut right_res = fold_deltas(right);
-        left_res.combine(&mut right_res)
+        let left_res = fold_deltas(left);
+        let right_res = fold_deltas(right);
+        left_res.combine(right_res)
     }
 }
 
