@@ -1607,19 +1607,22 @@ impl InnerRevlog {
 /// This return the start and end offset of section in "base" affected by a
 /// change in any of the two deltas. Assume that at least one of the delta is
 /// non-empty.
-pub fn affected_range(
-    left: &super::patch::Delta,
-    right: &super::patch::Delta,
-) -> (u32, u32) {
+pub(super) fn affected_range<'a, P>(
+    left: &super::patch::Delta<'a, P>,
+    right: &super::patch::Delta<'a, P>,
+) -> (u32, u32)
+where
+    P: DeltaPiece<'a>,
+{
     match (&left.chunks[..], &right.chunks[..]) {
         ([], []) => unreachable!("identical chain handled earlier"),
-        ([], chain) => (chain[0].start, chain[chain.len() - 1].end),
-        (chain, []) => (chain[0].start, chain[chain.len() - 1].end),
+        ([], chain) => (chain[0].start(), chain[chain.len() - 1].end()),
+        (chain, []) => (chain[0].start(), chain[chain.len() - 1].end()),
         (old_chain, new_chain) => {
-            let start = old_chain[0].start.min(new_chain[0].start);
+            let start = old_chain[0].start().min(new_chain[0].start());
             let end = old_chain[old_chain.len() - 1]
-                .end
-                .max(new_chain[new_chain.len() - 1].end);
+                .end()
+                .max(new_chain[new_chain.len() - 1].end());
             (start, end)
         }
     }

@@ -25,7 +25,7 @@ use crate::utils::u32_u;
 use crate::utils::u_u32;
 
 /// A piece of data to insert, delete or replace in a Delta
-pub(super) trait DeltaPiece: Clone {
+pub(super) trait DeltaPiece<'a>: Clone {
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32;
 
@@ -33,7 +33,7 @@ pub(super) trait DeltaPiece: Clone {
     fn end(&self) -> u32;
 
     /// The data replacing the chunk
-    fn data(&self) -> &[u8];
+    fn data(&self) -> &'a [u8];
 
     /// Length of the replaced date.
     fn size(&self) -> u32;
@@ -99,7 +99,7 @@ pub(crate) struct PlainDeltaPiece<'a> {
     pub(crate) data: &'a [u8],
 }
 
-impl DeltaPiece for PlainDeltaPiece<'_> {
+impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32 {
         self.start
@@ -111,7 +111,7 @@ impl DeltaPiece for PlainDeltaPiece<'_> {
     }
 
     /// The data replacing the chunk
-    fn data(&self) -> &[u8] {
+    fn data(&self) -> &'a [u8] {
         self.data
     }
 
@@ -133,17 +133,21 @@ impl std::fmt::Debug for PlainDeltaPiece<'_> {
 
 /// The delta between two revisions data.
 #[derive(Debug, Clone)]
-pub struct Delta<'a> {
+pub(super) struct Delta<'a, P>
+where
+    P: DeltaPiece<'a>,
+{
     /// A collection of DeltaPiece to apply.
     ///
     /// Those DeltaPiece are:
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
-    pub(crate) chunks: Vec<PlainDeltaPiece<'a>>,
+    pub(crate) chunks: Vec<P>,
+    phantom: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a> Delta<'a> {
+impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
     /// Create a `Delta` from bytes.
     pub fn new(data: &'a [u8]) -> Result<Self, RevlogError> {
         let mut chunks = vec![];
@@ -168,12 +172,15 @@ impl<'a> Delta<'a> {
             });
             data = &data[12 + (len as usize)..];
         }
-        Ok(Delta { chunks })
+        Ok(Delta { chunks, phantom: std::marker::PhantomData })
     }
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
     pub fn full_snapshot(data: &'a [u8]) -> Self {
-        Self { chunks: vec![PlainDeltaPiece { start: 0, end: 0, data }] }
+        Self {
+            chunks: vec![PlainDeltaPiece { start: 0, end: 0, data }],
+            phantom: std::marker::PhantomData,
+        }
     }
 
     /// Apply the Delta to some Full-Text,
@@ -343,7 +350,7 @@ impl<'a> Delta<'a> {
         for elt in &self.chunks[pos..] {
             chunks.push(elt.clone());
         }
-        Delta { chunks }
+        Delta { chunks, phantom: std::marker::PhantomData }
     }
 }
 
@@ -352,10 +359,12 @@ impl<'a> Delta<'a> {
 /// Content from different Delta will still appears in different
 /// PlainDeltaPiece, so the result if not "minimal". However it is "optiomized"
 /// in terms of application as it only contains non overlapping PlainDeltaPiece.
-pub fn fold_deltas<'a>(lists: &[Delta<'a>]) -> Delta<'a> {
+pub(super) fn fold_deltas<'a>(
+    lists: &[Delta<'a, PlainDeltaPiece<'a>>],
+) -> Delta<'a, PlainDeltaPiece<'a>> {
     if lists.len() <= 1 {
         if lists.is_empty() {
-            Delta { chunks: vec![] }
+            Delta { chunks: vec![], phantom: std::marker::PhantomData }
         } else {
             lists[0].clone()
         }
@@ -385,7 +394,9 @@ pub fn build_data_from_deltas<T>(
 }
 
 /// Parse the Deltas from their binary form.
-pub(super) fn deltas<D>(deltas: &[D]) -> Result<Vec<Delta<'_>>, RevlogError>
+pub(super) fn deltas<D>(
+    deltas: &[D],
+) -> Result<Vec<Delta<PlainDeltaPiece>>, RevlogError>
 where
     D: AsRef<[u8]>,
 {
