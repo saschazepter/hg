@@ -400,11 +400,12 @@ where
 /// Combine a list of Deltas into a single Delta "optimized".
 ///
 /// Content from different Delta will still appears in different
-/// PlainDeltaPiece, so the result if not "minimal". However it is "optiomized"
-/// in terms of application as it only contains non overlapping PlainDeltaPiece.
-pub(super) fn fold_deltas<'a>(
-    lists: &[Delta<'a, PlainDeltaPiece<'a>>],
-) -> Delta<'a, PlainDeltaPiece<'a>> {
+/// DeltaPiece, so the result if not "minimal". However it is "optiomized"
+/// in terms of application as it only contains non overlapping DeltaPiece.
+pub(super) fn fold_deltas<'a, P>(lists: &[Delta<'a, P>]) -> Delta<'a, P>
+where
+    P: DeltaPiece<'a>,
+{
     if lists.len() <= 1 {
         if lists.is_empty() {
             Delta { chunks: vec![], phantom: std::marker::PhantomData }
