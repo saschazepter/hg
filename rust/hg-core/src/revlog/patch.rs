@@ -66,6 +66,13 @@ pub(super) trait DeltaPiece<'a>: Clone {
         self.start_offset_by(offset) + self.size()
     }
 
+    /// cut this DeltaPiece into two
+    ///
+    /// The `cut_start` argument refer to the first index in `self.data()` that
+    /// goes in the first DeltaPiece. self is modified in place to contains
+    /// the second DeltaPiece.
+    fn cut_at(&mut self, cut_start: u32) -> Self;
+
     /// remove the `size` first bytes from the this DeltaPiece
     fn trim_prefix(&mut self, size: u32) -> i32;
 
@@ -121,6 +128,27 @@ impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
     /// Length of the replaced date.
     fn size(&self) -> u32 {
         u_u32(self.data.len())
+    }
+
+    /// cut this DeltaPiece into two
+    ///
+    /// The `cut_start` argument refer to the first index in `self.data()` that
+    /// needs to go in the second DeltaPiece
+    fn cut_at(&mut self, cut_start: u32) -> Self {
+        assert!(cut_start > 0);
+        assert!(cut_start < self.size());
+
+        let (left_data, right_data) = self.data.split_at(u32_u(cut_start));
+        self.data = right_data;
+        PlainDeltaPiece {
+            // there is no need to think too hard about which section of the
+            // replaced part goes in the prefix and which goes in
+            // the suffix. So lets use a zero size replacement for
+            // the suffix
+            start: self.start,
+            end: self.start,
+            data: left_data,
+        }
     }
 
     fn trim_prefix(&mut self, size: u32) -> i32 {
@@ -298,19 +326,9 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             if pos < self.chunks.len()
                 && self.chunks[pos].start_offset_by(offset) < start
             {
-                let first = &mut self.chunks[pos];
-
-                let (data_left, data_right) = first
-                    .data()
-                    .split_at((start - first.start_offset_by(offset)) as usize);
-                let left = PlainDeltaPiece {
-                    start: first.start,
-                    end: first.start,
-                    data: data_left,
-                };
-
-                first.data = data_right;
-
+                let current = &mut self.chunks[pos];
+                let cut_point = start - current.start_offset_by(offset);
+                let left = current.cut_at(cut_point);
                 offset += left.len_diff();
 
                 chunks.push(left);
