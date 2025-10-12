@@ -304,14 +304,11 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
 
         // For each chunk of `other`, chunks of `self` are processed
         // until they start after the end of the current chunk.
-        for p in other.chunks.iter() {
-            let start = p.start();
-            let end = p.end();
-            let data = p.data();
+        for high in other.chunks.iter() {
             // Add chunks of `self` that start before this chunk of `other`
             // without overlap.
             while pos < self.chunks.len()
-                && self.chunks[pos].end_offset_by(offset) <= start
+                && self.chunks[pos].end_offset_by(offset) <= high.start()
             {
                 let first = self.chunks[pos].clone();
                 offset += first.len_diff();
@@ -324,10 +321,10 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             // The left-most part of data is added as an insertion chunk.
             // The right-most part data is kept in the chunk.
             if pos < self.chunks.len()
-                && self.chunks[pos].start_offset_by(offset) < start
+                && self.chunks[pos].start_offset_by(offset) < high.start()
             {
                 let current = &mut self.chunks[pos];
-                let cut_point = start - current.start_offset_by(offset);
+                let cut_point = high.start() - current.start_offset_by(offset);
                 let left = current.cut_at(cut_point);
                 offset += left.len_diff();
 
@@ -349,7 +346,7 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             // Discard the chunks of `self` that are totally overridden
             // by the current chunk of `other`
             while pos < self.chunks.len()
-                && self.chunks[pos].end_offset_by(next_offset) <= end
+                && self.chunks[pos].end_offset_by(next_offset) <= high.end()
             {
                 let first = &self.chunks[pos];
                 next_offset += first.len_diff();
@@ -359,19 +356,19 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             // Truncate the left-most part of chunk of `self` that overlaps
             // the current chunk of `other`.
             if pos < self.chunks.len()
-                && self.chunks[pos].start_offset_by(next_offset) < end
+                && self.chunks[pos].start_offset_by(next_offset) < high.end()
             {
                 let first = &mut self.chunks[pos];
 
-                let mask_size = end - first.start_offset_by(next_offset);
+                let mask_size = high.end() - first.start_offset_by(next_offset);
                 next_offset += first.trim_prefix(mask_size);
             }
 
             // Add the chunk of `other` with adjusted position.
             chunks.push(PlainDeltaPiece {
-                start: (start as i32 - offset) as u32,
-                end: (end as i32 - next_offset) as u32,
-                data,
+                start: (high.start() as i32 - offset) as u32,
+                end: (high.end() as i32 - next_offset) as u32,
+                data: high.data(),
             });
 
             // Go back to normal offset tracking for the next `o` chunk
