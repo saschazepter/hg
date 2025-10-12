@@ -4,6 +4,7 @@ use imara_diff::Diff;
 use imara_diff::InternedInput;
 use imara_diff::TokenSource;
 
+use super::patch::DeltaPiece;
 use super::patch::PlainDeltaPiece;
 use crate::utils::u32_u;
 use crate::utils::u_u32;

@@ -25,6 +25,64 @@ use crate::utils::u32_u;
 use crate::utils::u_u32;
 
 /// A piece of data to insert, delete or replace in a Delta
+pub(super) trait DeltaPiece: Clone {
+    /// The start position of the chunk of data to replace
+    fn start(&self) -> u32;
+
+    /// The end position of the chunk of data to replace (open end interval)
+    fn end(&self) -> u32;
+
+    /// The data replacing the chunk
+    fn data(&self) -> &[u8];
+
+    /// Length of the replaced date.
+    fn size(&self) -> u32;
+
+    /// Length of the replaced date.
+    fn replaced_len(&self) -> u32 {
+        self.end() - self.start()
+    }
+
+    /// Length difference between the replacing data and the replaced data.
+    fn len_diff(&self) -> i32 {
+        self.size() as i32 - self.replaced_len() as i32
+    }
+
+    /// Adjusted start of the data to replace.
+    ///
+    /// The offset, taking into account the growth/shrinkage of data
+    /// induced by previously applied DeltaPiece.
+    fn start_offset_by(&self, offset: i32) -> u32 {
+        let start = self.start() as i32 + offset;
+        assert!(start >= 0, "negative chunk start should never happen");
+        start as u32
+    }
+
+    /// Adjusted end of the data to replace.
+    ///
+    /// The offset, taking into account the growth/shrinkage of data
+    /// induced by previously applied DeltaPiece.
+    fn end_offset_by(&self, offset: i32) -> u32 {
+        self.start_offset_by(offset) + self.size()
+    }
+
+    /// push a single DeltaPiece inside a Delta, ignoring empty ones
+    fn write(self, delta: &mut Vec<u8>) {
+        if self.replaced_len() == 0 && self.size() == 0 {
+            return;
+        }
+        debug_assert!(
+            !(self.start() == self.end() && self.size() == 0),
+            "won't write empty chunk"
+        );
+        delta.extend_from_slice(&u32::to_be_bytes(self.start()));
+        delta.extend_from_slice(&u32::to_be_bytes(self.end()));
+        delta.extend_from_slice(&u32::to_be_bytes(self.size()));
+        delta.extend_from_slice(self.data());
+    }
+}
+
+/// A piece of data to insert, delete or replace in a Delta
 ///
 /// A DeltaPiece is:
 /// - an insertion when `!data.is_empty() && start == end`
@@ -41,55 +99,25 @@ pub(crate) struct PlainDeltaPiece<'a> {
     pub(crate) data: &'a [u8],
 }
 
-impl PlainDeltaPiece<'_> {
-    /// Adjusted start of the data to replace.
-    ///
-    /// The offset, taking into account the growth/shrinkage of data
-    /// induced by previously applied DeltaPiece.
-    fn start_offset_by(&self, offset: i32) -> u32 {
-        let start = self.start as i32 + offset;
-        assert!(start >= 0, "negative chunk start should never happen");
-        start as u32
+impl DeltaPiece for PlainDeltaPiece<'_> {
+    /// The start position of the chunk of data to replace
+    fn start(&self) -> u32 {
+        self.start
     }
 
-    /// Adjusted end of the data to replace.
-    ///
-    /// The offset, taking into account the growth/shrinkage of data
-    /// induced by previously applied DeltaPiece.
-    fn end_offset_by(&self, offset: i32) -> u32 {
-        self.start_offset_by(offset) + self.data.len() as u32
+    /// The end position of the chunk of data to replace (open end interval)
+    fn end(&self) -> u32 {
+        self.end
     }
 
-    /// Length of the replaced date.
-    fn replaced_len(&self) -> u32 {
-        self.end - self.start
+    /// The data replacing the chunk
+    fn data(&self) -> &[u8] {
+        self.data
     }
 
     /// Length of the replaced date.
     fn size(&self) -> u32 {
-        self.data.len().try_into().expect("PatchPiece add more the 2^32 bytes?")
-    }
-
-    /// Length difference between the replacing data and the replaced data.
-    fn len_diff(&self) -> i32 {
-        self.data.len() as i32 - self.replaced_len() as i32
-    }
-
-    /// push a single DeltaPiece inside a Delta, ignoring empty ones
-    pub fn write(self, delta: &mut Vec<u8>) {
-        if self.replaced_len() == 0 && self.size() == 0 {
-            return;
-        }
-        let size: u32 =
-            self.data.len().try_into().expect("more than 2GB of patch data");
-        debug_assert!(
-            !(self.start == self.end && size == 0),
-            "won't write empty chunk"
-        );
-        delta.extend_from_slice(&u32::to_be_bytes(self.start));
-        delta.extend_from_slice(&u32::to_be_bytes(self.end));
-        delta.extend_from_slice(&u32::to_be_bytes(size));
-        delta.extend_from_slice(self.data);
+        u_u32(self.data.len())
     }
 }
 
@@ -385,7 +413,6 @@ mod tests {
     use rand::SeedableRng;
 
     use super::*;
-    use crate::utils::u_u32;
 
     impl PartialOrd for TestChain {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {

@@ -3,6 +3,7 @@ use std::ops::Deref;
 
 use super::diff::lines_prefix_size_low;
 use super::diff::CMP_BLK_SIZE;
+use super::patch::DeltaPiece;
 use super::RevlogType;
 use crate::errors::HgError;
 use crate::revlog::diff::DeltaCursor;

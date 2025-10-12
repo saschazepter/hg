@@ -41,6 +41,7 @@ use super::patch;
 use super::patch::apply_chain;
 use super::patch::deltas;
 use super::patch::fold_deltas;
+use super::patch::DeltaPiece;
 use super::patch::PlainDeltaPiece;
 use super::BaseRevision;
 use super::Revision;
