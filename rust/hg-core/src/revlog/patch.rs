@@ -76,6 +76,11 @@ pub(super) trait DeltaPiece<'a>: Clone {
     /// remove the `size` first bytes from the this DeltaPiece
     fn trim_prefix(&mut self, size: u32) -> i32;
 
+    /// adjust this DeltaPiece by the given offset
+    ///
+    /// (the offset is substracted to the piece `start` and `end`).
+    fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self;
+
     /// push a single DeltaPiece inside a Delta, ignoring empty ones
     fn write(self, delta: &mut Vec<u8>) {
         if self.replaced_len() == 0 && self.size() == 0 {
@@ -161,6 +166,14 @@ impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
         } else {
             self.start += size;
             0
+        }
+    }
+
+    fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self {
+        Self {
+            start: (self.start as i32 - start_offset) as u32,
+            end: (self.end as i32 - end_offset) as u32,
+            data: self.data,
         }
     }
 }
@@ -365,11 +378,7 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             }
 
             // Add the chunk of `other` with adjusted position.
-            chunks.push(PlainDeltaPiece {
-                start: (high.start() as i32 - offset) as u32,
-                end: (high.end() as i32 - next_offset) as u32,
-                data: high.data(),
-            });
+            chunks.push(high.apply_offset(offset, next_offset));
 
             // Go back to normal offset tracking for the next `o` chunk
             offset = next_offset;
