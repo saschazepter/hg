@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import enum
 import struct
 import typing
 
@@ -25,17 +26,22 @@ from .. import revlogutils
 
 ### Internal utily constants
 
-KIND_CHANGELOG = 1001  # over 256 to not be comparable with a bytes
-KIND_MANIFESTLOG = 1002
-KIND_FILELOG = 1003
-KIND_OTHER = 1004
 
-ALL_KINDS = {
-    KIND_CHANGELOG,
-    KIND_MANIFESTLOG,
-    KIND_FILELOG,
-    KIND_OTHER,
-}
+class Kind(enum.IntEnum):
+    # we picked number over 256 to not be comparable with a bytes
+    CHANGELOG = 1001
+    MANIFESTLOG = 1002
+    FILELOG = 1003
+    OTHER = 1004
+
+
+# Keep previous name for compatibility
+KIND_CHANGELOG: Kind = Kind.CHANGELOG
+KIND_MANIFESTLOG: Kind = Kind.MANIFESTLOG
+KIND_FILELOG: Kind = Kind.FILELOG
+KIND_OTHER: Kind = Kind.OTHER
+ALL_KINDS: set[Kind] = set(Kind)
+RevlogKindT = Kind
 
 ### Index entry key
 #
