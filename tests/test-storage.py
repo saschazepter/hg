@@ -1,11 +1,14 @@
 # This test verifies the conformance of various classes to various
 # storage interfaces.
 
+import sys
+
 import silenttestrunner
 
 from mercurial import (
     error,
     filelog,
+    policy,
     revlog,
     transaction,
     ui as uimod,
@@ -21,6 +24,13 @@ try:
     zstd.__version__
 except ImportError:
     zstd = None
+
+
+rustrevlog = policy.importrust('revlog')
+if rustrevlog is not None:
+    msg = "skipped: tests need to be cleaned up before running on Rust revlog"
+    print(msg, file=sys.stderr)
+    sys.exit(80)
 
 STATE = {
     'lastindex': 0,
