@@ -629,7 +629,7 @@ def _filterfull(entry, copy, vfsmap):
     return (src, name, ftype, copy(vfsmap[src].join(name)))
 
 
-class VolatileManager:
+class VolatileManager(store.IVolatileManager):
     """Manage temporary backups of volatile files during stream clone.
 
     This class will keep open file handles for the volatile files, writing the

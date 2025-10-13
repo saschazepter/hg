@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import abc
 import collections
+import contextlib
 import enum
 import functools
 import os
@@ -18,6 +20,7 @@ import typing
 from typing import (
     Generator,
     Iterator,
+    Protocol,
 )
 
 from .i18n import _
@@ -447,6 +450,54 @@ def _calcmode(vfs):
     except OSError:
         mode = None
     return mode
+
+
+class IVolatileManager(Protocol):
+    """Interface of object Managing  temporary backups of volatile files
+
+    (used during stream clone)
+
+    This class will keep open file handles for the volatile files, writing the
+    smaller ones on disk if the number of open file handles grow too much.
+
+    This should be used as a Python context, the file handles and copies will
+    be discarded when exiting the context.
+
+    The preservation can be done by calling the object on the real path
+    (encoded full path).
+
+    Valid filehandles for any file should be retrieved by calling `open(path)`.
+    """
+
+    @abc.abstractmethod
+    def __enter__(self):
+        ...
+
+    @abc.abstractmethod
+    def __exit__(self, *args, **kwars):
+        """discard all backups"""
+
+    @abc.abstractmethod
+    def __call__(self, src: bytes) -> None:
+        """preserve the volatile file at src"""
+
+    @abc.abstractmethod
+    def try_keep(self, src: bytes) -> int | None:
+        """record a volatile file and returns it size
+
+        return None if the file does not exists.
+
+        Used for cache file that are not lock protected.
+        """
+
+    @abc.abstractmethod
+    @contextlib.contextmanager
+    def open(self, src: bytes):
+        """open an unencoded path
+
+        This access previously preserved volatile files, directly access the
+        file when it wasn't marked as volatile.
+        """
 
 
 _data = [
