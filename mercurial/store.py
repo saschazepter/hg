@@ -19,8 +19,10 @@ import typing
 
 from typing import (
     Generator,
+    Iterable,
     Iterator,
     Protocol,
+    Tuple,
 )
 
 from .i18n import _
@@ -37,9 +39,13 @@ from .revlogutils.constants import (
     KIND_CHANGELOG,
     KIND_FILELOG,
     KIND_MANIFESTLOG,
+    RevlogKindT,
 )
 from .interfaces.types import (
     HgPathT,
+    RepoT,
+    RevlogT,
+    RevnumT,
     TransactionT,
 )
 from . import (
@@ -604,6 +610,9 @@ class StoreFile:
         return (self.unencoded_path, s, size)
 
 
+_StreamsT = Iterable[Tuple[bytes, Iterator[bytes], int]]
+
+
 @attr.s(slots=True, init=False)
 class BaseStoreEntry:
     """An entry in the store
@@ -626,12 +635,12 @@ class BaseStoreEntry:
 
     def get_streams(
         self,
-        repo=None,
-        vfs=None,
-        volatiles=None,
-        max_changeset=None,
-        preserve_file_count=False,
-    ):
+        repo: RepoT | None = None,
+        vfs: vfsmod.vfs | None = None,
+        volatiles: IVolatileManager | None = None,
+        max_changeset: RevnumT | None = None,
+        preserve_file_count: bool = False,
+    ) -> _StreamsT:
         """return a list of data stream associated to files for this entry
 
         return [(unencoded_file_path, content_iterator, content_size), …]
@@ -639,10 +648,13 @@ class BaseStoreEntry:
         assert vfs is not None
         return [f.get_stream(vfs, volatiles) for f in self.files(vfs)]
 
-    def preserve_volatiles(self, vfs, volatiles):
+    def preserve_volatiles(
+        self, vfs: vfsmod.vfs, volatiles: IVolatileManager
+    ) -> None:
         """Use a VolatileManager to preserve the state of any volatile file
 
-        This is useful for code that need a consistent view of the content like stream clone.
+        This is useful for code that need a consistent view of the content like
+        stream clone.
         """
         if self.maybe_volatile:
             for f in self.files(vfs):
@@ -662,9 +674,9 @@ class SimpleStoreEntry(BaseStoreEntry):
 
     def __init__(
         self,
-        entry_path,
-        is_volatile=False,
-        file_size=None,
+        entry_path: HgPathT,
+        is_volatile: bool = False,
+        file_size: int | None = None,
     ):
         super().__init__()
         self._entry_path = entry_path
@@ -700,9 +712,9 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     def __init__(
         self,
-        revlog_type,
-        path_prefix,
-        target_id,
+        revlog_type: RevlogKindT,
+        path_prefix: HgPathT,
+        target_id: HgPathT,
         details: dict | None,
     ):
         super().__init__()
@@ -720,15 +732,15 @@ class RevlogStoreEntry(BaseStoreEntry):
         self._files = None
 
     @property
-    def is_changelog(self):
+    def is_changelog(self) -> bool:
         return self.revlog_type == KIND_CHANGELOG
 
     @property
-    def is_manifestlog(self):
+    def is_manifestlog(self) -> bool:
         return self.revlog_type == KIND_MANIFESTLOG
 
     @property
-    def is_filelog(self):
+    def is_filelog(self) -> bool:
         return self.revlog_type == KIND_FILELOG
 
     def main_file_path(self):
@@ -763,12 +775,12 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     def get_streams(
         self,
-        repo=None,
-        vfs=None,
-        volatiles=None,
-        max_changeset=None,
-        preserve_file_count=False,
-    ):
+        repo: RepoT | None = None,
+        vfs: vfsmod.vfs | None = None,
+        volatiles: IVolatileManager | None = None,
+        max_changeset: RevnumT | None = None,
+        preserve_file_count: bool = False,
+    ) -> _StreamsT:
         files = self.files(vfs)
         pre_sized = all(f.has_size for f in files)
         if (
@@ -858,7 +870,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         )
         return stream
 
-    def get_revlog_instance(self, repo, writable=False):
+    def get_revlog_instance(self, repo, writable=False) -> RevlogT:
         """Obtain a revlog instance from this store entry
 
         An instance of the appropriate class is returned.
