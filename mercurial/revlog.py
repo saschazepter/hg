@@ -3877,7 +3877,7 @@ class revlog:
 
         return (dd, di)
 
-    def files(self):
+    def files(self, include_old=True):
         """return list of files that compose this revlog"""
         res = [self._indexfile]
         if self._docket_file is None:
@@ -3885,13 +3885,20 @@ class revlog:
                 res.append(self._datafile)
         else:
             res.append(self._docket_file)
-            res.extend(self._docket.old_index_filepaths(include_empty=False))
+            if include_old:
+                res.extend(
+                    self._docket.old_index_filepaths(include_empty=False)
+                )
             if self._docket.data_end:
                 res.append(self._datafile)
-            res.extend(self._docket.old_data_filepaths(include_empty=False))
+            if include_old:
+                res.extend(self._docket.old_data_filepaths(include_empty=False))
             if self._docket.sidedata_end:
                 res.append(self._sidedatafile)
-            res.extend(self._docket.old_sidedata_filepaths(include_empty=False))
+            if include_old:
+                res.extend(
+                    self._docket.old_sidedata_filepaths(include_empty=False)
+                )
         return res
 
     def emitrevisions(
@@ -4641,7 +4648,8 @@ class revlog:
 
         if storedsize:
             d[b'storedsize'] = sum(
-                self.opener.stat(path).st_size for path in self.files()
+                self.opener.stat(path).st_size
+                for path in self.files(include_old=False)
             )
 
         return d
