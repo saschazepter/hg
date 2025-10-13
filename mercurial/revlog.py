@@ -24,6 +24,7 @@ import weakref
 import zlib
 
 from typing import (
+    BinaryIO,
     Iterable,
     Iterator,
     Optional,
@@ -1410,6 +1411,25 @@ class revlog:
 
         features = FEATURES_BY_VERSION[_format_version]
         return features['inline'](_format_flags)
+
+    @staticmethod
+    def suffix_from_index(main_fp: BinaryIO) -> Iterator[bytes]:
+        """yield the suffix of extra files part of a revlog
+
+        This is done from an open file descriptor to the revlog main entry poin
+        (index or docket).
+        """
+        header_bytes = main_fp.read(INDEX_HEADER.size)
+        if len(header_bytes) == 0:
+            return
+
+        header = INDEX_HEADER.unpack(header_bytes)[0]
+        _format_flags = header & ~0xFFFF
+        _format_version = header & 0xFFFF
+        if _format_version in (REVLOGV0, REVLOGV1):
+            features = FEATURES_BY_VERSION[_format_version]
+            if not features['inline'](_format_flags):
+                yield b'.d'
 
     def __init__(
         self,
