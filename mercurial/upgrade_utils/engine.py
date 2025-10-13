@@ -466,11 +466,19 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
             raise error.ProgrammingError(
                 b'adding fileindex-v1 must remove fncache and dotencode'
             )
-        ui.status(_(b'upgrading from fncache to fileindex-v1\n'))
-        upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op)
-        upgrade_op.upgrade_actions.remove(upgrade_actions.file_index_v1)
-        upgrade_op.removed_actions.remove(upgrade_actions.fncache)
-        upgrade_op.removed_actions.remove(upgrade_actions.dotencode)
+
+        other_upgrade = upgrade_op.upgrade_actions.copy()
+        other_remove = upgrade_op.removed_actions.copy()
+        other_upgrade.remove(upgrade_actions.file_index_v1)
+        other_remove.remove(upgrade_actions.fncache)
+        other_remove.remove(upgrade_actions.dotencode)
+        if not (other_upgrade or other_remove):
+            ui.status(_(b'upgrading from fncache to fileindex-v1\n'))
+            upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op)
+
+            upgrade_op.upgrade_actions.remove(upgrade_actions.file_index_v1)
+            upgrade_op.removed_actions.remove(upgrade_actions.fncache)
+            upgrade_op.removed_actions.remove(upgrade_actions.dotencode)
 
     if not (upgrade_op.upgrade_actions or upgrade_op.removed_actions):
         return
