@@ -14,7 +14,6 @@ mod pytracing;
 mod repo;
 mod revision;
 mod revlog;
-mod store;
 mod transaction;
 mod update;
 mod utils;

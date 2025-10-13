@@ -1951,7 +1951,6 @@ class revlog:
 
             self._inner = rustrevlog.InnerRevlog(
                 vfs_base=vfs_base,
-                fncache=fncache,
                 vfs_is_readonly=vfs_is_readonly,
                 index_data=index,
                 index_file=self._indexfile,

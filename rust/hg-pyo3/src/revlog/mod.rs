@@ -37,7 +37,7 @@ use hg::revlog::RevlogIndex;
 use hg::revlog::RevlogType;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
-use hg::vfs::FnCacheVfs;
+use hg::vfs::EncodedVfs;
 use hg::BaseRevision;
 use hg::Revision;
 use hg::UncheckedRevision;
@@ -75,7 +75,6 @@ use crate::revision::rev_pyiter_collect_or_else;
 use crate::revision::revs_py_list;
 use crate::revision::revs_py_set;
 use crate::revision::PyRevision;
-use crate::store::PyFnCache;
 use crate::transaction::PyTransaction;
 use crate::utils::new_submodule;
 use crate::utils::take_buffer_with_slice;
@@ -248,7 +247,6 @@ impl InnerRevlog {
     #[allow(clippy::too_many_arguments)]
     fn new(
         vfs_base: &Bound<'_, PyBytes>,
-        fncache: &Bound<'_, PyAny>,
         vfs_is_readonly: bool,
         index_data: &Bound<'_, PyAny>,
         index_file: &Bound<'_, PyBytes>,
@@ -292,17 +290,13 @@ impl InnerRevlog {
             .map_err(revlog_error_from_msg)?;
 
         let base = get_path_from_bytes(vfs_base.as_bytes()).to_owned();
+        let encoding = if use_plain_encoding {
+            PathEncoding::Plain
+        } else {
+            PathEncoding::DotEncode
+        };
         let core = CoreInnerRevlog::new(
-            Box::new(FnCacheVfs::new(
-                base,
-                vfs_is_readonly,
-                Box::new(PyFnCache::new(fncache.clone().unbind())),
-                if use_plain_encoding {
-                    PathEncoding::Plain
-                } else {
-                    PathEncoding::DotEncode
-                },
-            )),
+            Box::new(EncodedVfs::new(base, vfs_is_readonly, encoding)),
             index,
             index_file,
             data_file,

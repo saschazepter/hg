@@ -86,7 +86,6 @@ class RustRevlogBasedTestBase(unittest.TestCase):
 
         return self.irl_class()(
             vfs_base=b"Just a path",
-            fncache=None,  # might be enough for now
             vfs_is_readonly=vfs_is_readonly,
             index_data=data,
             index_file=b'test.i',

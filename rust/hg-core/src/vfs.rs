@@ -29,7 +29,6 @@ use crate::errors::HgResultExt;
 use crate::errors::IoErrorContext;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
-use crate::fncache::FnCache;
 use crate::revlog::path_encode::path_encode;
 use crate::revlog::path_encode::PathEncoding;
 use crate::utils::files::get_bytes_from_path;
@@ -41,9 +40,6 @@ pub struct VfsImpl {
     pub(crate) base: PathBuf,
     pub readonly: bool,
     pub mode: Option<u32>,
-    /// XXX This encoding is only used to inform FnCacheVfs of its encoding
-    /// This is bad and will need to be reworked before or upon introduction
-    /// of the fileindex.
     pub encoding: PathEncoding,
 }
 
@@ -844,61 +840,27 @@ fn fix_directory_permissions(
     Ok(())
 }
 
-/// A VFS that understands the `fncache` store layout (file encoding), and
-/// adds new entries to the `fncache`.
+/// A VFS that understands file encoding
+///
 /// TODO Only works when using from Python for now.
-pub struct FnCacheVfs {
+pub struct EncodedVfs {
     inner: VfsImpl,
-    fncache: Box<dyn FnCache>,
 }
 
-impl Clone for FnCacheVfs {
+impl Clone for EncodedVfs {
     fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            fncache: dyn_clone::clone_box(&*self.fncache),
-        }
+        Self { inner: self.inner.clone() }
     }
 }
 
-impl FnCacheVfs {
-    pub fn new(
-        base: PathBuf,
-        readonly: bool,
-        fncache: Box<dyn FnCache>,
-        encoding: PathEncoding,
-    ) -> Self {
+impl EncodedVfs {
+    pub fn new(base: PathBuf, readonly: bool, encoding: PathEncoding) -> Self {
         let inner = VfsImpl::new(base, readonly, encoding);
-        Self { inner, fncache }
-    }
-
-    fn maybe_add_to_fncache(
-        &self,
-        filename: &Path,
-        encoded_path: &Path,
-    ) -> Result<(), HgError> {
-        let relevant_file = (filename.starts_with("data/")
-            || filename.starts_with("meta/"))
-            && is_revlog_file(filename);
-        if relevant_file {
-            let not_load = !self.fncache.is_loaded()
-                && (self.exists(filename)
-                    && self
-                        .inner
-                        .join(encoded_path)
-                        .metadata()
-                        .when_reading_file(encoded_path)?
-                        .size()
-                        != 0);
-            if !not_load {
-                self.fncache.add(filename);
-            }
-        };
-        Ok(())
+        Self { inner }
     }
 }
 
-impl Vfs for FnCacheVfs {
+impl Vfs for EncodedVfs {
     fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
@@ -910,7 +872,6 @@ impl Vfs for FnCacheVfs {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
-        self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.open_write(encoded_path)
     }
 
@@ -929,7 +890,6 @@ impl Vfs for FnCacheVfs {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
-        self.maybe_add_to_fncache(filename, encoded_path)?;
         self.inner.create(encoded_path, check_ambig)
     }
 

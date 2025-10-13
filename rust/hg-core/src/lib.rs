@@ -16,7 +16,6 @@ pub use ancestors::MissingAncestors;
 pub mod dirstate;
 pub mod discovery;
 pub mod exit_codes;
-pub mod fncache;
 pub mod requirements;
 pub mod testing; // unconditionally built, for use from integration tests
 
