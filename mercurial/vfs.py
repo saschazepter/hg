@@ -84,6 +84,8 @@ class abstractvfs(abc.ABC):
 
     _chmod: bool
 
+    base: bytes
+
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
     def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs) -> Any:
@@ -720,6 +722,7 @@ opener: type[vfs] = vfs
 class proxyvfs(abstractvfs, abc.ABC):
     def __init__(self, vfs: vfs) -> None:
         self.vfs = vfs
+        self.base = vfs.base
 
     @property
     def createmode(self) -> int | None:
