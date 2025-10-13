@@ -1941,7 +1941,7 @@ class revlog:
 
             if hasattr(self.opener, "vfs"):
                 vfs = self.opener
-                if isinstance(vfs, vfsmod.readonlyvfs):
+                if not vfs.read_write:
                     vfs_is_readonly = True
                     vfs = vfs.vfs
                 fncache = vfs.fncache

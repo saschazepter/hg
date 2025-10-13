@@ -86,6 +86,13 @@ class abstractvfs(abc.ABC):
 
     base: bytes
 
+    # Expose the read_write vs read_only status.
+    #
+    # This mostly exist to help the Rust extensions to easily propagate vfs
+    # information, to the Rust side. This can probably be removed in the future
+    # when Rust no longer needs it.
+    read_write: bool = True
+
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
     def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs) -> Any:
@@ -723,6 +730,7 @@ class proxyvfs(abstractvfs, abc.ABC):
     def __init__(self, vfs: vfs) -> None:
         self.vfs = vfs
         self.base = vfs.base
+        self.read_write = vfs.read_write
 
     @property
     def createmode(self) -> int | None:
@@ -767,6 +775,8 @@ filteropener: type[filtervfs] = filtervfs
 
 class readonlyvfs(proxyvfs):
     '''Wrapper vfs preventing any writing.'''
+
+    read_write = False
 
     def __init__(self, vfs: vfs) -> None:
         proxyvfs.__init__(self, vfs)
