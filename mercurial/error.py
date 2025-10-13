@@ -77,7 +77,9 @@ class Error(Hint, Exception):
         Exception.__init__(self, message)
 
     def __bytes__(self):
-        return self.message
+        if self.message is not None:
+            return self.message
+        return b""
 
     def __str__(self) -> str:
         # the output would be unreadable if the message was translated,
