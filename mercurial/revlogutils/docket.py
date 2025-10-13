@@ -312,8 +312,8 @@ def _parse_old_uids(get_data, count):
     return all_uids
 
 
-def parse_docket(revlog, data, use_pending=False):
-    """given some docket data return a docket object for the given revlog"""
+def parse_docket_args(data):
+    """given some docket data return the argument to initialize a docket"""
     header = S_HEADER.unpack(data[: S_HEADER.size])
 
     # this is a mutable closure capture used in `get_data`
@@ -365,23 +365,43 @@ def parse_docket(revlog, data, use_pending=False):
     pending_sidedata_size = next(iheader)
 
     default_compression_header = next(iheader)
+    return {
+        'version_header': version_header,
+        'index_uuid': index_uuid,
+        'older_index_uuids': older_index_uuids,
+        'data_uuid': data_uuid,
+        'older_data_uuids': older_data_uuids,
+        'sidedata_uuid': sidedata_uuid,
+        'older_sidedata_uuids': older_sidedata_uuids,
+        'index_end': index_size,
+        'pending_index_end': pending_index_size,
+        'data_end': data_size,
+        'pending_data_end': pending_data_size,
+        'sidedata_end': sidedata_size,
+        'pending_sidedata_end': pending_sidedata_size,
+        'default_compression_header': default_compression_header,
+    }
 
+
+def parse_docket(revlog, data, use_pending=False):
+    """given some docket data return a docket object for the given revlog"""
+    args = parse_docket_args(data)
     docket = RevlogDocket(
         revlog,
         use_pending=use_pending,
-        version_header=version_header,
-        index_uuid=index_uuid,
-        older_index_uuids=older_index_uuids,
-        data_uuid=data_uuid,
-        older_data_uuids=older_data_uuids,
-        sidedata_uuid=sidedata_uuid,
-        older_sidedata_uuids=older_sidedata_uuids,
-        index_end=index_size,
-        pending_index_end=pending_index_size,
-        data_end=data_size,
-        pending_data_end=pending_data_size,
-        sidedata_end=sidedata_size,
-        pending_sidedata_end=pending_sidedata_size,
-        default_compression_header=default_compression_header,
+        version_header=args['version_header'],
+        index_uuid=args['index_uuid'],
+        older_index_uuids=args['older_index_uuids'],
+        data_uuid=args['data_uuid'],
+        older_data_uuids=args['older_data_uuids'],
+        sidedata_uuid=args['sidedata_uuid'],
+        older_sidedata_uuids=args['older_sidedata_uuids'],
+        index_end=args['index_end'],
+        pending_index_end=args['pending_index_end'],
+        data_end=args['data_end'],
+        pending_data_end=args['pending_data_end'],
+        sidedata_end=args['sidedata_end'],
+        pending_sidedata_end=args['pending_sidedata_end'],
+        default_compression_header=args['default_compression_header'],
     )
     return docket
