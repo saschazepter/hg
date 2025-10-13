@@ -1395,6 +1395,8 @@ class revlog:
 
     opener: vfsmod.vfs
 
+    _docket_file: bytes | None
+
     @staticmethod
     def is_inline_index(header_bytes):
         """Determine if a revlog is inline from the initial bytes of the index"""
@@ -1408,8 +1410,6 @@ class revlog:
 
         features = FEATURES_BY_VERSION[_format_version]
         return features['inline'](_format_flags)
-
-    _docket_file: bytes | None
 
     def __init__(
         self,
