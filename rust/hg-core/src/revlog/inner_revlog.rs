@@ -1306,7 +1306,7 @@ impl InnerRevlog {
 type UncompressedChunkCache =
     RwLock<LruMap<Revision, Arc<[u8]>, ByTotalChunksSize>>;
 
-type CachedBytes = Box<dyn Deref<Target = [u8]> + Send>;
+type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
 
 /// The revision and data for the last revision we've seen. Speeds up
 /// a lot of sequential operations of the revlog.

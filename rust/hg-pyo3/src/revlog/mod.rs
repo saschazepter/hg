@@ -428,7 +428,7 @@ impl InnerRevlog {
             Self::with_core_read(slf, |_self_ref, irl| {
                 irl.set_rev_cache(
                     rev,
-                    Box::new(PyBytesDeref::new(py, data.clone_ref(py))),
+                    Arc::new(PyBytesDeref::new(py, data.clone_ref(py))),
                 );
                 Ok(())
             })?;
