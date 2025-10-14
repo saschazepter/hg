@@ -6,7 +6,6 @@ See mercurial/helptext/internals/fileindex.txt for format details.
 
 from __future__ import annotations
 
-import abc
 import time
 import typing
 
@@ -65,7 +64,7 @@ garbage_entries: {garbage_entries|count}
 """
 
 
-class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
+class FileIndex(int_file_index.IFileIndex):
     """
     Methods that are identical for both implementations of the fileindex
     class, with and without Rust extensions enabled.
@@ -120,10 +119,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             return self._get_path_on_disk(token)
         return self._add_paths[token - n]
 
-    @abc.abstractmethod
-    def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
-        """Look up a path on disk by token."""
-
     def get_token(self, path: HgPathT) -> FileTokenT | None:
         token = self._add_map.get(path)
         if token is not None:
@@ -132,10 +127,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         if token in self._remove_tokens:
             return None
         return token
-
-    @abc.abstractmethod
-    def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
-        """Look up a path on disk by token."""
 
     def __contains__(self, path: HgPathT) -> bool:
         return self.has_path(path)
@@ -292,10 +283,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             return unused / size >= self._max_unused_ratio
         raise error.ProgrammingError(b"invalid file index vacuum mode")
 
-    @abc.abstractmethod
-    def _write_data(self, tr: TransactionT):
-        """Write all data files and update self._docket."""
-
     @propertycache
     def _docket(self) -> file_index_util.Docket:
         data = None
@@ -421,15 +408,13 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         """Read a span of bytes from the list file."""
         return self._list_file[offset : offset + length]
 
-
-class FileIndex(_FileIndexCommon):
-    """Pure Python implementation of the file index."""
-
     def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
+        """Look up a path on disk by token."""
         meta = self._meta_array[token]
         return bytes(self._read_span(meta.offset, meta.length))
 
     def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
+        """Look up a path on disk by token."""
         tree_file = self._tree_file
         node = file_index_util.TreeNode.parse_from(
             tree_file[self._docket.tree_root_pointer :]
@@ -449,6 +434,7 @@ class FileIndex(_FileIndexCommon):
         return node.token
 
     def _write_data(self, tr: TransactionT):
+        """Write all data files and update self._docket."""
         docket = self._docket
         removing = bool(self._remove_tokens)
         new_list = docket.list_file_id == docketmod.UNSET_UID or removing
