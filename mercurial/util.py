@@ -1320,7 +1320,7 @@ def versiontuple(v=None, n=4):
     raise error.ProgrammingError(b"invalid version part request: %d" % n)
 
 
-def cachefunc(func):
+def cachefunc(func: _C) -> _C:
     '''cache the result of function calls'''
     # XXX doesn't handle keywords args
     if func.__code__.co_argcount == 0:
