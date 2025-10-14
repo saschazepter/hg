@@ -1030,6 +1030,8 @@ class _InnerRevlog:
         # The cache entry looks like (node, rev, rawtext)
         if self._revisioncache:
             cachedrev = self._revisioncache[1]
+            if node is not None:
+                assert self.index[cachedrev][7] == self._revisioncache[0]
 
         chain, stopped = self._deltachain(rev, stoprev=cachedrev)
         if stopped:
@@ -2982,7 +2984,8 @@ class revlog:
         # Check if we have the entry in cache
         # The cache entry looks like (node, rev, rawtext)
         if self._inner._revisioncache:
-            if self._inner._revisioncache[0] == node:
+            if self._inner._revisioncache[1] == rev:
+                assert self.index[rev][7] == node
                 return (rev, self._inner._revisioncache[2], True)
 
         if rev is None:
