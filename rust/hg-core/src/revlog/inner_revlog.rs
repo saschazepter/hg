@@ -192,6 +192,13 @@ impl InnerRevlog {
         }
     }
 
+    /// Set the "last revision cache" content
+    pub fn set_rev_cache(&self, rev: Revision, data: CachedBytes) {
+        let mut last_revision_cache =
+            self.last_revision_cache.lock().expect("propagate mutex panic");
+        *last_revision_cache = Some(SingleRevisionCache { rev, data });
+    }
+
     /// Signal that we have seen a file this big
     ///
     /// This might update the limit of underlying cache.
@@ -499,8 +506,8 @@ impl InnerRevlog {
         let raw_size = entry.uncompressed_len();
         let mutex_guard =
             self.last_revision_cache.lock().expect("lock should not be held");
-        let cached_rev = if let Some((rev, data)) = &*mutex_guard {
-            Some((*rev, data.deref().as_ref()))
+        let cached_rev = if let Some(cache) = &*mutex_guard {
+            Some(cache.as_delta_base())
         } else {
             None
         };
@@ -1288,12 +1295,23 @@ impl InnerRevlog {
 type UncompressedChunkCache =
     RwLock<LruMap<Revision, Arc<[u8]>, ByTotalChunksSize>>;
 
+type CachedBytes = Box<dyn Deref<Target = [u8]> + Send>;
+
 /// The revision and data for the last revision we've seen. Speeds up
 /// a lot of sequential operations of the revlog.
 ///
 /// The data is not just bytes since it can come from Python and we want to
 /// avoid copies if possible.
-type SingleRevisionCache = (Revision, Box<dyn Deref<Target = [u8]> + Send>);
+pub struct SingleRevisionCache {
+    rev: Revision,
+    data: CachedBytes,
+}
+
+impl SingleRevisionCache {
+    pub(super) fn as_delta_base(&self) -> (Revision, &[u8]) {
+        (self.rev, self.data.as_ref())
+    }
+}
 
 /// A way of progressively filling a buffer with revision data, then return
 /// that buffer. Used to abstract away Python-allocated code to reduce copying

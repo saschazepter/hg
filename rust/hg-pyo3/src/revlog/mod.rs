@@ -426,15 +426,10 @@ impl InnerRevlog {
             // checked
             let rev = Revision(rev.0);
             Self::with_core_read(slf, |_self_ref, irl| {
-                let mut last_revision_cache = irl
-                    .last_revision_cache
-                    .lock()
-                    .expect("lock should not be held");
-                *last_revision_cache = Some((
+                irl.set_rev_cache(
                     rev,
                     Box::new(PyBytesDeref::new(py, data.clone_ref(py))),
-                    validated,
-                ));
+                );
                 Ok(())
             })?;
         }
