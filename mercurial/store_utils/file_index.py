@@ -498,17 +498,17 @@ def debug_file_index(ui, repo, **opts):
     if choice is None:
         for path, token in fileindex.items():
             ui.write(b"%d: %s\n" % (token, path))
-    if choice == b"docket":
+    elif choice == b"docket":
         formatter_opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
         with ui.formatter(b"file-index", formatter_opts) as fm:
             fm.startitem()
             values = attr.asdict(fileindex._docket)
-            del values["garbage_entries"]
+            garbage_entries = values.pop("garbage_entries")
             fm.data(**values)
             with fm.nested(b"garbage_entries") as fm_garbage:
-                for entry in fileindex._docket.garbage_entries:
+                for entry in garbage_entries:
                     fm_garbage.startitem()
-                    fm_garbage.data(**attr.asdict(entry))
+                    fm_garbage.data(**entry)
     elif choice == b"tree":
         tree = fileindex._tree_file
 
