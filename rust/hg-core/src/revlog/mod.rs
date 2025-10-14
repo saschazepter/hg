@@ -778,17 +778,25 @@ impl<'revlog> RevlogEntry<'revlog> {
             }
             self.revlog.seen_file_size(u32_u(size));
         }
+        let cached_rev = self.revlog.get_rev_cache();
+        let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
+        let stop_rev = cache.map(|(r, _)| r);
         let (chunks, stopped) =
-            self.revlog.chunks_for_chain(self.revision(), None)?;
-        assert!(!stopped);
-        let base_text = &chunks[0];
-        let deltas = &chunks[1..];
-        if deltas.is_empty() {
-            return Ok(chunks
-                .into_iter()
-                .next()
-                .expect("the base must exists"));
-        }
+            self.revlog.chunks_for_chain(self.revision(), stop_rev)?;
+        let (base_text, deltas) = if stopped {
+            let base_text = cache.expect("cannot stop without a cache").1;
+            (base_text, &chunks[..])
+        } else {
+            let base_text = &chunks[0];
+            let deltas = &chunks[1..];
+            if deltas.is_empty() {
+                return Ok(chunks
+                    .into_iter()
+                    .next()
+                    .expect("the base must exists"));
+            }
+            (base_text.as_ref(), deltas)
+        };
         let size = raw_size.map(|l| l as usize).unwrap_or(base_text.len());
 
         let mut data = CoreRevisionBuffer::new();
