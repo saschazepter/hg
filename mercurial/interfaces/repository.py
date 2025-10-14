@@ -1800,6 +1800,11 @@ class imanifestlog(Protocol):
         """update whatever cache are relevant for the used storage."""
 
 
+class IRepoFileFn(Protocol):
+    def __call__(self, f: HgPathT, writable: bool = False) -> ifilestorage:
+        """The signature of IRepo.file()."""
+
+
 class IRepo(Protocol):
     """Main interface for local repositories.
 
@@ -1944,7 +1949,7 @@ class IRepo(Protocol):
         """Obtain an object conforming to the ``peer`` interface."""
 
     @abc.abstractmethod
-    def unfiltered(self):
+    def unfiltered(self) -> IRepo:
         """Obtain an unfiltered/raw view of this repo."""
 
     @abc.abstractmethod
@@ -1968,6 +1973,7 @@ class IRepo(Protocol):
         """Obtain a filelog for a tracked path.
 
         The returned type conforms to the ``ifilestorage`` interface.
+        Keep this in sync with ``IRepoFileFn``.
         """
 
     dirstate: intdirstate.idirstate

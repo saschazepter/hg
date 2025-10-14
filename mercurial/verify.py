@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import typing
 
 from .i18n import _
 from .node import short
@@ -20,6 +21,11 @@ from . import (
     transaction,
     util,
 )
+
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        RepoT,
+    )
 
 VERIFY_DEFAULT = 0
 VERIFY_FULL = 1
@@ -57,7 +63,7 @@ WARN_NULLID_COPY_SOURCE = _(
 
 
 class verifier:
-    def __init__(self, repo, level=None):
+    def __init__(self, repo: RepoT, level=None):
         self.repo = repo.unfiltered()
         self.ui = repo.ui
         self.match = repo.narrowmatch()

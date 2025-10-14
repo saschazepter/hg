@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import difflib
+import typing
 
 from .i18n import _
 
@@ -18,6 +19,12 @@ from . import (
     scmutil,
     util,
 )
+
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        RepoFileFnT,
+        RepoT,
+    )
 
 
 def matchlines(body, regexp):
@@ -88,8 +95,10 @@ class grepsearcher:
     - follow to skip files across copies and renames.
     """
 
+    _getfile: RepoFileFnT
+
     def __init__(
-        self, ui, repo, regexp, all_files=False, diff=False, follow=False
+        self, ui, repo: RepoT, regexp, all_files=False, diff=False, follow=False
     ):
         self._ui = ui
         self._repo = repo

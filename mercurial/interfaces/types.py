@@ -60,6 +60,8 @@ LocalRepoMainT = repository.IRepo
 LocalRepoCompleteT = repository.IRepo
 LocalRepoFileStorageT = repository.IRepo
 
+RepoFileFnT = repository.IRepoFileFn
+
 RequirementT = repository.RequirementT
 RequirementSetT = repository.RequirementSetT
 
