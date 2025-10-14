@@ -7,6 +7,7 @@ mapping between file paths and integer tokens.
 from __future__ import annotations
 
 import abc
+import enum
 from typing import Iterator, NewType, Protocol
 
 from ._basetypes import HgPathT
@@ -15,6 +16,14 @@ from .types import TransactionT, UiT, VfsT
 
 FileTokenT = NewType("FileTokenT", int)
 """An integer representing a file path in the repository."""
+
+
+class VacuumMode(enum.Enum):
+    """Values of the config ``devel.fileindex.vacuum-mode``."""
+
+    AUTO = b"auto"
+    NEVER = b"never"
+    ALWAYS = b"always"
 
 
 class IFileIndex(Protocol):
@@ -30,7 +39,7 @@ class IFileIndex(Protocol):
         ui: UiT,
         opener: VfsT,
         try_pending: bool,
-        vacuum_mode: bytes,
+        vacuum_mode: VacuumMode,
         max_unused_ratio: float,
         gc_retention_s: int,
         garbage_timestamp: int | None,

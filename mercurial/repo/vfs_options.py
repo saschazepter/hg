@@ -64,14 +64,16 @@ def resolve_store_vfs_options(ui, requirements, features):
 
     if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
         value = ui.config(b'devel', b'fileindex.vacuum-mode')
-        if value not in file_index.ALL_VACUUM_MODES:
+        try:
+            value = file_index.VacuumMode(value)
+        except ValueError:
             fallback = ui.configdefault(b'devel', b'fileindex.vacuum-mode')
             msg = _(
                 b'warning: invalid devel.fileindex.vacuum-mode '
                 b'value "%s"; falling back to "%s"' % (value, fallback)
             )
             ui.warn(msg)
-            value = fallback
+            value = file_index.VacuumMode(fallback)
         options[b'fileindex-vacuum-mode'] = value
 
         value = ui.configint(b'storage', b'fileindex.max-unused-percentage')

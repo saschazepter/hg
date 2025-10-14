@@ -732,7 +732,7 @@ def upgrade_fncache_to_fileindex(
         ui,
         srcrepo.store.rawvfs,
         try_pending=False,
-        vacuum_mode=file_index_mod.VACUUM_MODE_NEVER,
+        vacuum_mode=file_index_mod.VacuumMode.NEVER,
         max_unused_ratio=0,
         gc_retention_s=0,
         garbage_timestamp=None,

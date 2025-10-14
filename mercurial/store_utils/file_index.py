@@ -32,14 +32,9 @@ if typing.TYPE_CHECKING:
     import attr
 
 FileTokenT = int_file_index.FileTokenT
+VacuumMode = int_file_index.VacuumMode
 
 propertycache = util.propertycache
-
-# Values of the config devel.fileindex.vacuum-mode.
-VACUUM_MODE_AUTO = b'auto'
-VACUUM_MODE_NEVER = b'never'
-VACUUM_MODE_ALWAYS = b'always'
-ALL_VACUUM_MODES = {VACUUM_MODE_AUTO, VACUUM_MODE_NEVER, VACUUM_MODE_ALWAYS}
 
 # Minimum size of the tree file in bytes before auto-vacuuming starts.
 #
@@ -81,7 +76,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         ui: uimod.ui,
         opener,
         try_pending: bool,
-        vacuum_mode: bytes,
+        vacuum_mode: VacuumMode,
         max_unused_ratio: float,
         gc_retention_s: int,
         garbage_timestamp: int | None,
@@ -264,11 +259,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _should_vacuum(self) -> bool:
         """Return True if the current write should vacuum the tree file."""
-        if self._vacuum_mode == VACUUM_MODE_ALWAYS or self._force_vacuum:
+        if self._vacuum_mode == VacuumMode.ALWAYS or self._force_vacuum:
             return True
-        if self._vacuum_mode == VACUUM_MODE_NEVER:
+        if self._vacuum_mode == VacuumMode.NEVER:
             return False
-        if self._vacuum_mode == VACUUM_MODE_AUTO:
+        if self._vacuum_mode == VacuumMode.AUTO:
             size = self.docket.tree_file_size
             if size < AUTO_VACUUM_MIN_SIZE:
                 return False
