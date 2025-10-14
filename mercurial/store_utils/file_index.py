@@ -10,6 +10,8 @@ import abc
 import time
 import typing
 
+from typing import BinaryIO, Iterator
+
 from ..i18n import _
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT, TransactionT
@@ -103,19 +105,19 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._remove_tokens: set[FileTokenT] = set()
         self._add_to_garbage: list[HgPathT] = []
 
-    def _token_count(self):
+    def _token_count(self) -> int:
         return len(self.meta_array) + len(self._add_paths)
 
-    def has_token(self, token: FileTokenT):
+    def has_token(self, token: FileTokenT) -> bool:
         return (
             0 <= token < self._token_count()
             and token not in self._remove_tokens
         )
 
-    def has_path(self, path: HgPathT):
+    def has_path(self, path: HgPathT) -> bool:
         return self.get_token(path) is not None
 
-    def get_path(self, token: FileTokenT):
+    def get_path(self, token: FileTokenT) -> HgPathT | None:
         if not self.has_token(token):
             return None
         n = len(self.meta_array)
@@ -127,7 +129,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
         """Look up a path on disk by token."""
 
-    def get_token(self, path: HgPathT):
+    def get_token(self, path: HgPathT) -> FileTokenT | None:
         token = self._add_map.get(path)
         if token is not None:
             return token
@@ -140,30 +142,30 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
         """Look up a path on disk by token."""
 
-    def __contains__(self, path: HgPathT):
+    def __contains__(self, path: HgPathT) -> bool:
         return self.has_path(path)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._token_count() - len(self._remove_tokens)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[HgPathT]:
         for path, _token in self.items():
             yield path
 
-    def items(self):
+    def items(self) -> Iterator[tuple[HgPathT, FileTokenT]]:
         for token in range(self._token_count()):
             path = self.get_path(FileTokenT(token))
             if path is not None:
-                yield path, token
+                yield path, FileTokenT(token)
 
-    def add(self, path: HgPathT, tr: TransactionT):
+    def add(self, path: HgPathT, tr: TransactionT) -> FileTokenT:
         if self._remove_tokens:
             raise error.ProgrammingError(b"cannot add and remove in same txn")
         token = self.get_token(path)
         if token is None:
-            token = self._token_count()
+            token = FileTokenT(self._token_count())
             self._add_paths.append(path)
-            self._add_map[path] = FileTokenT(token)
+            self._add_map[path] = token
             self._register_write(tr)
         return token
 
@@ -220,7 +222,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self.docket.garbage_entries = new_entries
             self._add_file_generator(tr)
 
-    def data_files(self):
+    def data_files(self) -> list[HgPathT]:
         return [
             b"fileindex",
             self._list_file_path(),
@@ -239,7 +241,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             post_finalize=True,
         )
 
-    def _write(self, f: typing.BinaryIO, tr: TransactionT):
+    def _write(self, f: BinaryIO, tr: TransactionT):
         """Write all data files and the docket."""
         if self._add_paths or self._remove_tokens or self._force_vacuum:
             self._write_data(tr)
@@ -291,36 +293,36 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 return file_index_util.Docket()
         return file_index_util.Docket.parse_from(data)
 
-    def _list_file_path(self):
+    def _list_file_path(self) -> HgPathT:
         return b"fileindex-list." + self.docket.list_file_id
 
-    def _meta_file_path(self):
+    def _meta_file_path(self) -> HgPathT:
         return b"fileindex-meta." + self.docket.meta_file_id
 
-    def _tree_file_path(self):
+    def _tree_file_path(self) -> HgPathT:
         return b"fileindex-tree." + self.docket.tree_file_id
 
     @propertycache
-    def list_file(self):
+    def list_file(self) -> memoryview:
         if self.docket.list_file_id == docketmod.UNSET_UID:
-            return b""
+            return util.buffer(b"")
         return self._mapfile(self._list_file_path(), self.docket.list_file_size)
 
     @propertycache
-    def meta_file(self):
+    def meta_file(self) -> memoryview:
         if self.docket.meta_file_id == docketmod.UNSET_UID:
-            return b""
+            return util.buffer(b"")
         return self._mapfile(self._meta_file_path(), self.docket.meta_file_size)
 
     @propertycache
-    def meta_array(self):
+    def meta_array(self) -> file_index_util.MetadataArray:
         return file_index_util.MetadataArray(self.meta_file)
 
     @propertycache
-    def tree_file(self):
+    def tree_file(self) -> memoryview:
         testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
         if self.docket.meta_file_id == docketmod.UNSET_UID:
-            return file_index_util.EMPTY_TREE_BYTES
+            return util.buffer(file_index_util.EMPTY_TREE_BYTES)
         return self._mapfile(self._tree_file_path(), self.docket.tree_file_size)
 
     def _invalidate_caches(self):
@@ -338,7 +340,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                 data = fp.read(size)
         return util.buffer(data)
 
-    def _open_list_file(self, new: bool, tr: TransactionT):
+    def _open_list_file(self, new: bool, tr: TransactionT) -> BinaryIO:
         if new:
             if self.docket.list_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._list_file_path())
@@ -349,7 +351,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._list_file_path(), self.docket.list_file_size
         )
 
-    def _open_meta_file(self, new: bool, tr: TransactionT):
+    def _open_meta_file(self, new: bool, tr: TransactionT) -> BinaryIO:
         if new:
             if self.docket.meta_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._meta_file_path())
@@ -360,7 +362,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._meta_file_path(), self.docket.meta_file_size
         )
 
-    def _open_tree_file(self, new: bool, tr: TransactionT):
+    def _open_tree_file(self, new: bool, tr: TransactionT) -> BinaryIO:
         if new:
             if self.docket.tree_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._tree_file_path())
@@ -371,7 +373,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._tree_file_path(), self.docket.tree_file_size
         )
 
-    def _open_new(self, path: HgPathT, tr: TransactionT):
+    def _open_new(self, path: HgPathT, tr: TransactionT) -> BinaryIO:
         """Open a new file for writing.
 
         This adds the file to the transaction so that it will be removed if we
@@ -380,7 +382,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         tr.add(path, 0)
         return self._opener(path, b"wb")
 
-    def _open_for_appending(self, path: HgPathT, used_size: int):
+    def _open_for_appending(self, path: HgPathT, used_size: int) -> BinaryIO:
         """Open a file for appending past used_size.
 
         Despite "appending", this doesn't open in append mode because the
@@ -430,11 +432,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 class FileIndex(_FileIndexCommon):
     """Pure Python implementation of the file index."""
 
-    def _get_path_on_disk(self, token: FileTokenT):
+    def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
         meta = self.meta_array[token]
         return bytes(self._read_span(meta.offset, meta.length))
 
-    def _get_token_on_disk(self, path: HgPathT):
+    def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
         tree_file = self.tree_file
         node = file_index_util.TreeNode.parse_from(
             tree_file[self.docket.tree_root_pointer :]
