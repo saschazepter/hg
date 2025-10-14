@@ -728,25 +728,86 @@ static void getarg0size(char **argstart, size_t *argsize) {
 	*argstart = argvstart;
 	*argsize = argvsize;
 #else
-	/* On Linux >= 3.5, the 48 and 49 column of "/proc/self/stat" is the argv
-		 start and end pointers. See "man 5 proc". */
+	/* On Linux >= 3.5, fields 48 and 49 of `/proc/self/stat` are pointers
+	 * to the start and end of the argument values respectively.
+	 *
+	 * (See `man 5 proc` for details.) */
+	char buf[4096];
 	FILE *fp;
 	unsigned long start = 0, end = 0;
 	fp = fopen("/proc/self/stat", "r");
-	if (fp) {
-		/* Note: if "comm" name has rare chars like spaces, the fscanf will fail */
-		if (fscanf(
-				fp,
-				"%*d %*s %*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %*lu %*lu %*ld"
-				" %*ld %*ld %*ld %*ld %*ld %*llu %*lu %*ld %*lu %*lu %*lu %*lu %*lu %*lu"
-				" %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*d %*d %*u %*u %*llu %*lu %*ld %*lu"
-				" %*lu %*lu %lu %lu",
-				&start,
-				&end) == 2) {
-			*argstart = (char*)start;
-			*argsize = end - start;
-		}
+	if (!fp) {
+		return;
+	}
+	if (!fgets(buf, sizeof(buf), fp)) {
 		fclose(fp);
+		return;
+	}
+	fclose(fp);
+	size_t len = strlen(buf);
+	/* `fgets` should have read up to the trailing newline. */
+	if (len > 0 && buf[len-1] != '\n') {
+		return;
+	}
+	/* Skip past the `comm` field (enclosed in parens). */
+	char *s = strrchr(buf, ')');
+	if (!s) {
+		return;
+	}
+	s++;
+	/* Format specifiers for each field are listed in `man 5 proc`. */
+	if (sscanf(s,
+			" %*c"   /*  3. state */
+			" %*d"   /*  4. ppid */
+			" %*d"   /*  5. pgrp */
+			" %*d"   /*  6. session */
+			" %*d"   /*  7. tty_nr */
+			" %*d"   /*  8. tpdig */
+			" %*u"   /*  9. flags */
+			" %*lu"  /* 10. minflt */
+			" %*lu"  /* 11. cminflt */
+			" %*lu"  /* 12. majflt */
+			" %*lu"  /* 13. cmajflt */
+			" %*lu"  /* 14. utime */
+			" %*lu"  /* 15. stime */
+			" %*ld"  /* 16. cutime */
+			" %*ld"  /* 17. cstime */
+			" %*ld"  /* 18. priority */
+			" %*ld"  /* 19. nice */
+			" %*ld"  /* 20. num_threads */
+			" %*ld"  /* 21. itrealvalue */
+			" %*llu" /* 22. starttime */
+			" %*lu"  /* 23. vsize */
+			" %*ld"  /* 24. rss */
+			" %*lu"  /* 25. rsslim */
+			" %*lu"  /* 26. startcode */
+			" %*lu"  /* 27. endcode */
+			" %*lu"  /* 28. startstack */
+			" %*lu"  /* 29. kstkesp */
+			" %*lu"  /* 30. kstkeip */
+			" %*lu"  /* 31. signal */
+			" %*lu"  /* 32. blocked */
+			" %*lu"  /* 33. sigignore */
+			" %*lu"  /* 34. sigcatch */
+			" %*lu"  /* 35. wchan */
+			" %*lu"  /* 36. nswap */
+			" %*lu"  /* 37. cnswap */
+			" %*d"   /* 38. exit_signal */
+			" %*d"   /* 39. processor */
+			" %*u"   /* 40. rt_priority */
+			" %*u"   /* 41. policy */
+			" %*llu" /* 42. delayacct_blkio_ticks */
+			" %*lu"  /* 43. guest_time */
+			" %*ld"  /* 44. cguest_time */
+			" %*lu"  /* 45. start_data */
+			" %*lu"  /* 46. end_data */
+			" %*lu"  /* 47. start_brk */
+			" %lu"   /* 48. arg_start */
+			" %lu",  /* 49. arg_end */
+			&start,
+			&end) == 2) {
+		*argstart = (char*)start;
+		*argsize = end - start;
 	}
 #endif
 }
