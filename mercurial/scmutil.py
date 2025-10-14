@@ -84,7 +84,9 @@ if typing.TYPE_CHECKING:
     from .interfaces.types import (
         LocalRepoMainT,
         MatcherT,
+        RepoT,
         RevsetAliasesT,
+        TransactionT,
         UiT,
     )
 
@@ -2024,7 +2026,10 @@ _reportstroubledchangesets: bool = True
 
 
 def registersummarycallback(
-    repo, otr, txnname: bytes = b'', as_validator: bool = False
+    repo: RepoT,
+    otr: TransactionT,
+    txnname: bytes = b'',
+    as_validator: bool = False,
 ) -> None:
     """register a callback to issue a summary after the transaction is closed
 
@@ -2063,7 +2068,7 @@ def registersummarycallback(
         return wrapped
 
     @reportsummary
-    def reportchangegroup(repo, tr):
+    def reportchangegroup(repo: RepoT, tr: TransactionT) -> None:
         cgchangesets = tr.changes.get(b'changegroup-count-changesets', 0)
         cgrevisions = tr.changes.get(b'changegroup-count-revisions', 0)
         cgfiles = tr.changes.get(b'changegroup-count-files', 0)
@@ -2081,7 +2086,7 @@ def registersummarycallback(
     if txmatch(_reportobsoletedsource):
 
         @reportsummary
-        def reportobsoleted(repo, tr):
+        def reportobsoleted(repo: RepoT, tr: TransactionT) -> None:
             obsoleted = obsutil.getobsoleted(repo, tr)
             newmarkers = len(tr.changes.get(b'obsmarkers', ()))
             if newmarkers:
@@ -2103,7 +2108,7 @@ def registersummarycallback(
             (b'content-divergent', b'contentdivergent'),
         ]
 
-        def getinstabilitycounts(repo):
+        def getinstabilitycounts(repo: RepoT) -> dict[bytes, int]:
             filtered = repo.changelog.filteredrevs
             counts = {}
             for instability, revset in instabilitytypes:
@@ -2115,7 +2120,7 @@ def registersummarycallback(
         oldinstabilitycounts = getinstabilitycounts(repo)
 
         @reportsummary
-        def reportnewinstabilities(repo, tr):
+        def reportnewinstabilities(repo: RepoT, tr: TransactionT) -> None:
             newinstabilitycounts = getinstabilitycounts(repo)
             for instability, revset in instabilitytypes:
                 delta = (
@@ -2129,7 +2134,7 @@ def registersummarycallback(
     if txmatch(_reportnewcssource):
 
         @reportsummary
-        def reportnewcs(repo, tr):
+        def reportnewcs(repo: RepoT, tr: TransactionT) -> None:
             """Report the range of new revisions pulled/unbundled."""
             origrepolen = tr.changes.get(b'origrepolen', len(repo))
             unfi = repo.unfiltered()
@@ -2178,7 +2183,7 @@ def registersummarycallback(
                 repo.ui.status(msg % len(extinctadded))
 
         @reportsummary
-        def reportphasechanges(repo, tr):
+        def reportphasechanges(repo: RepoT, tr: TransactionT) -> None:
             """Report statistics of phase changes for changesets pre-existing
             pull/unbundle.
             """
