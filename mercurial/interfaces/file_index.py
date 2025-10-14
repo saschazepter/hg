@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import abc
 import enum
-from typing import Iterator, NewType, Protocol
+import typing
+
+from typing import Any, Iterator, NewType, Protocol
 
 from ._basetypes import HgPathT
 from .types import TransactionT, UiT, VfsT
@@ -24,6 +26,19 @@ class VacuumMode(enum.Enum):
     AUTO = b"auto"
     NEVER = b"never"
     ALWAYS = b"always"
+
+
+if typing.TYPE_CHECKING:
+    DebugTreePointer = int
+    """A debug representation of a file index pseudo-pointer."""
+
+    DebugTreeEdge = tuple[bytes, DebugTreePointer]
+    """A debug representation of a file index tree edge as (label, pointer)."""
+
+    DebugTreeNode = tuple[
+        DebugTreePointer, FileTokenT | None, list[DebugTreeEdge]
+    ]
+    """A debug representation of a file index tree node."""
 
 
 class IFileIndex(Protocol):
@@ -145,4 +160,23 @@ class IFileIndex(Protocol):
         """Return the files where the file index is persisted on disk.
 
         The paths are relative to the VFS passed to the constructor.
+        """
+
+    @abc.abstractmethod
+    def debug_docket(self) -> dict[str, Any]:
+        """Return the contents of the docket as a dict, for debug output.
+
+        The keys are docket field names, for example "list_file_id".
+        """
+
+    @abc.abstractmethod
+    def debug_tree_file_size(self) -> int:
+        """Return the size of the tree file in bytes, for debug output."""
+
+    @abc.abstractmethod
+    def debug_iter_tree_nodes(self) -> Iterator[DebugTreeNode]:
+        """Iterate over tree nodes, for debug output.
+
+        This only reflects what's on disk. It does not include changes from
+        calling the ``add`` or ``remove`` methods.
         """

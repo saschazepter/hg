@@ -225,6 +225,27 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             self._tree_file_path(),
         ]
 
+    def debug_docket(self) -> dict[str, typing.Any]:
+        return attr.asdict(self._docket)
+
+    def debug_tree_file_size(self) -> int:
+        return self._docket.tree_file_size
+
+    def debug_iter_tree_nodes(self) -> Iterator[int_file_index.DebugTreeNode]:
+        tree = self._tree_file
+
+        def recur(pointer):
+            node = file_index_util.TreeNode.parse_from(tree[pointer:])
+            edges = []
+            for edge in node.edges:
+                label = self._read_span(edge.label_offset, edge.label_length)
+                edges.append((label, edge.node_pointer))
+            yield (pointer, node.token, edges)
+            for edge in node.edges:
+                yield from recur(edge.node_pointer)
+
+        yield from recur(self._docket.tree_root_pointer)
+
     def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
         tr.addfilegenerator(
@@ -502,7 +523,7 @@ def debug_file_index(ui, repo, **opts):
         formatter_opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
         with ui.formatter(b"file-index", formatter_opts) as fm:
             fm.startitem()
-            values = attr.asdict(fileindex._docket)
+            values = fileindex.debug_docket()
             garbage_entries = values.pop("garbage_entries")
             fm.data(**values)
             with fm.nested(b"garbage_entries") as fm_garbage:
@@ -510,23 +531,13 @@ def debug_file_index(ui, repo, **opts):
                     fm_garbage.startitem()
                     fm_garbage.data(**entry)
     elif choice == b"tree":
-        tree = fileindex._tree_file
-
-        def dump(pointer):
-            node = file_index_util.TreeNode.parse_from(tree[pointer:])
-            token = b""
-            if node.token is not None:
-                token = b" token = %d" % node.token
-            ui.write(b"%08x:%s\n" % (pointer, token))
-            for edge in node.edges:
-                label = fileindex._read_span(
-                    edge.label_offset, edge.label_length
-                )
-                ui.write(b'    "%s" -> %08x\n' % (label, edge.node_pointer))
-            for edge in node.edges:
-                dump(edge.node_pointer)
-
-        dump(fileindex._docket.tree_root_pointer)
+        for pointer, token, edges in fileindex.debug_iter_tree_nodes():
+            token_str = b""
+            if token is not None:
+                token_str = b" token = %d" % token
+            ui.write(b"%08x:%s\n" % (pointer, token_str))
+            for label, pointer in edges:
+                ui.write(b'    "%s" -> %08x\n' % (label, pointer))
     elif choice == b"path":
         path = opts[choice]
         token = fileindex.get_token(path)
@@ -543,10 +554,10 @@ def debug_file_index(ui, repo, **opts):
         ui.write(b"%d: %s\n" % (token, path))
     elif choice == b"vacuum":
         with repo.lock():
-            old_size = fileindex._docket.tree_file_size
+            old_size = fileindex.debug_tree_file_size()
             with repo.transaction(b"fileindex-vacuum") as tr:
                 fileindex.vacuum(tr)
-            new_size = fileindex._docket.tree_file_size
+            new_size = fileindex.debug_tree_file_size()
         percent = (old_size - new_size) / old_size * 100
         msg = _(b"vacuumed tree: %s => %s (saved %.01f%%)\n")
         msg %= util.bytecount(old_size), util.bytecount(new_size), percent
