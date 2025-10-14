@@ -1882,15 +1882,8 @@ class revlog:
             if self._format_version != REVLOGV1:
                 use_rust_index = False
 
-        if hasattr(self.opener, "fncache"):
-            vfs = self.opener.vfs
-            if self.opener.filter_name not in ("dot-encode", "plain"):
-                use_rust_index = False
-            if not isinstance(vfs, vfsmod.vfs):
-                # Be cautious since we don't support other vfs
-                use_rust_index = False
-        else:
-            # Rust only supports repos with fncache
+        vfs = self.opener
+        if vfs.filter_name not in (None, 'dot-encode', 'plain'):
             use_rust_index = False
 
         self._parse_index = parse_index_v1
@@ -1932,26 +1925,22 @@ class revlog:
         else:
             default_compression_header = self._docket.default_compression_header
 
+        # not great, but hopefully temporary
+        vfs = self.opener
+        if vfs.filter_name is None:
+            encoding = 0
+        elif vfs.filter_name == 'dot-encode':
+            encoding = 1
+        elif vfs.filter_name == 'plain':
+            encoding = 2
+        elif self.uses_rust:
+            msg = b"rust does support encoding: %s" % vfs.filter_name
+            raise error.ProgrammingError(msg)
+
         if self.uses_rust:
-            vfs_is_readonly = False
-            fncache = None
-
-            if hasattr(self.opener, "vfs"):
-                vfs = self.opener
-                if not vfs.read_write:
-                    vfs_is_readonly = True
-                    vfs = vfs.vfs
-                fncache = vfs.fncache
-                vfs = vfs.vfs
-            else:
-                vfs = self.opener
-
-            vfs_base = vfs.base
-            assert fncache is not None, "Rust only supports repos with fncache"
-
             self._inner = rustrevlog.InnerRevlog(
-                vfs_base=vfs_base,
-                vfs_is_readonly=vfs_is_readonly,
+                vfs_base=vfs.base,
+                vfs_is_readonly=not vfs.read_write,
                 index_data=index,
                 index_file=self._indexfile,
                 data_file=self._datafile,
@@ -1964,7 +1953,7 @@ class revlog:
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
                 use_persistent_nodemap=self._nodemap_file is not None,
-                use_plain_encoding=self.opener.filter_name == "plain",
+                encoding=encoding,
             )
             self.index = RustIndexProxy(self._inner)
             self._register_nodemap_info(self.index)

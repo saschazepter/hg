@@ -99,7 +99,7 @@ class RustRevlogBasedTestBase(unittest.TestCase):
             default_compression_header=None,
             revlog_type=kind,
             use_persistent_nodemap=False,  # until we cook one.
-            use_plain_encoding=False,
+            encoding=0,
         )
 
     def parserustindex(self, data=None):

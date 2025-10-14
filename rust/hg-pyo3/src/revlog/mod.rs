@@ -38,6 +38,7 @@ use hg::revlog::RevlogType;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
 use hg::vfs::EncodedVfs;
+use hg::vfs::VfsImpl;
 use hg::BaseRevision;
 use hg::Revision;
 use hg::UncheckedRevision;
@@ -260,7 +261,7 @@ impl InnerRevlog {
         default_compression_header: &Bound<'_, PyAny>,
         revlog_type: usize,
         use_persistent_nodemap: bool,
-        use_plain_encoding: bool,
+        encoding: i64,
     ) -> PyResult<Self> {
         // Let clippy accept the unused arguments. This is a bit better than
         // a blank `allow` directive
@@ -290,13 +291,25 @@ impl InnerRevlog {
             .map_err(revlog_error_from_msg)?;
 
         let base = get_path_from_bytes(vfs_base.as_bytes()).to_owned();
-        let encoding = if use_plain_encoding {
-            PathEncoding::Plain
-        } else {
-            PathEncoding::DotEncode
-        };
         let core = CoreInnerRevlog::new(
-            Box::new(EncodedVfs::new(base, vfs_is_readonly, encoding)),
+            match encoding {
+                0 => Box::new(VfsImpl::new(
+                    base,
+                    vfs_is_readonly,
+                    PathEncoding::None,
+                )),
+                1 => Box::new(EncodedVfs::new(
+                    base,
+                    vfs_is_readonly,
+                    PathEncoding::DotEncode,
+                )),
+                2 => Box::new(EncodedVfs::new(
+                    base,
+                    vfs_is_readonly,
+                    PathEncoding::Plain,
+                )),
+                _ => unreachable!("unknown encoding {}", encoding),
+            },
             index,
             index_file,
             data_file,
