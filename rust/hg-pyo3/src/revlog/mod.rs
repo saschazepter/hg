@@ -603,7 +603,7 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         rev: PyRevision,
-    ) -> PyResult<Py<PyBytes>> {
+    ) -> PyResult<Py<PyTuple>> {
         Self::with_core_read(slf, |_self_ref, irl| {
             let mut py_bytes = PyBytes::new(py, &[]).unbind();
             irl.raw_text(Revision(rev.0), |size, f| {
@@ -611,7 +611,11 @@ impl InnerRevlog {
                 Ok(())
             })
             .map_err(revlog_error_from_msg)?;
-            Ok(py_bytes)
+            Ok(PyTuple::new(
+                py,
+                &[py_bytes.into_py_any(py)?, false.into_py_any(py)?],
+            )?
+            .unbind())
         })
     }
 
