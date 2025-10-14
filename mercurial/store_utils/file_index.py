@@ -188,7 +188,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._add_file_generator(tr)
 
     def garbage_collect(self, tr: TransactionT, force=False):
-        old_entries = self.docket.garbage_entries
+        old_entries = self._docket.garbage_entries
         if not old_entries:
             return
 
@@ -214,7 +214,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             else:
                 new_entries.append(entry)
         if changed:
-            self.docket.garbage_entries = new_entries
+            self._docket.garbage_entries = new_entries
             self._add_file_generator(tr)
 
     def data_files(self) -> list[HgPathT]:
@@ -250,12 +250,12 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             timestamp = int(time.time())
             if self._garbage_timestamp is not None:
                 timestamp = self._garbage_timestamp
-            self.docket.garbage_entries.extend(
+            self._docket.garbage_entries.extend(
                 file_index_util.GarbageEntry(ttl, timestamp, path)
                 for path in self._add_to_garbage
             )
             self._add_to_garbage.clear()
-        f.write(self.docket.serialize())
+        f.write(self._docket.serialize())
 
     def _should_vacuum(self) -> bool:
         """Return True if the current write should vacuum the tree file."""
@@ -264,19 +264,19 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         if self._vacuum_mode == VacuumMode.NEVER:
             return False
         if self._vacuum_mode == VacuumMode.AUTO:
-            size = self.docket.tree_file_size
+            size = self._docket.tree_file_size
             if size < AUTO_VACUUM_MIN_SIZE:
                 return False
-            unused = self.docket.tree_unused_bytes
+            unused = self._docket.tree_unused_bytes
             return unused / size >= self._max_unused_ratio
         raise error.ProgrammingError(b"invalid file index vacuum mode")
 
     @abc.abstractmethod
     def _write_data(self, tr: TransactionT):
-        """Write all data files and update self.docket."""
+        """Write all data files and update self._docket."""
 
     @propertycache
-    def docket(self) -> file_index_util.Docket:
+    def _docket(self) -> file_index_util.Docket:
         data = None
         if self._try_pending:
             # Written by transaction.writepending.
@@ -289,25 +289,27 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return file_index_util.Docket.parse_from(data)
 
     def _list_file_path(self) -> HgPathT:
-        return b"fileindex-list." + self.docket.list_file_id
+        return b"fileindex-list." + self._docket.list_file_id
 
     def _meta_file_path(self) -> HgPathT:
-        return b"fileindex-meta." + self.docket.meta_file_id
+        return b"fileindex-meta." + self._docket.meta_file_id
 
     def _tree_file_path(self) -> HgPathT:
-        return b"fileindex-tree." + self.docket.tree_file_id
+        return b"fileindex-tree." + self._docket.tree_file_id
 
     @propertycache
     def _list_file(self) -> memoryview:
-        if self.docket.list_file_id == docketmod.UNSET_UID:
+        docket = self._docket
+        if docket.list_file_id == docketmod.UNSET_UID:
             return util.buffer(b"")
-        return self._mapfile(self._list_file_path(), self.docket.list_file_size)
+        return self._mapfile(self._list_file_path(), docket.list_file_size)
 
     @propertycache
     def _meta_file(self) -> memoryview:
-        if self.docket.meta_file_id == docketmod.UNSET_UID:
+        docket = self._docket
+        if docket.meta_file_id == docketmod.UNSET_UID:
             return util.buffer(b"")
-        return self._mapfile(self._meta_file_path(), self.docket.meta_file_size)
+        return self._mapfile(self._meta_file_path(), docket.meta_file_size)
 
     @propertycache
     def _meta_array(self) -> file_index_util.MetadataArray:
@@ -316,9 +318,10 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     @propertycache
     def _tree_file(self) -> memoryview:
         testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
-        if self.docket.meta_file_id == docketmod.UNSET_UID:
+        docket = self._docket
+        if docket.meta_file_id == docketmod.UNSET_UID:
             return util.buffer(file_index_util.EMPTY_TREE_BYTES)
-        return self._mapfile(self._tree_file_path(), self.docket.tree_file_size)
+        return self._mapfile(self._tree_file_path(), docket.tree_file_size)
 
     def _invalidate_caches(self):
         util.clearcachedproperty(self, b"_list_file")
@@ -336,36 +339,39 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return util.buffer(data)
 
     def _open_list_file(self, new: bool, tr: TransactionT) -> BinaryIO:
+        docket = self._docket
         if new:
-            if self.docket.list_file_id != docketmod.UNSET_UID:
+            if docket.list_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._list_file_path())
-            self.docket.list_file_id = docketmod.make_uid()
-            self.docket.list_file_size = 0
+            docket.list_file_id = docketmod.make_uid()
+            docket.list_file_size = 0
             return self._open_new(self._list_file_path(), tr)
         return self._open_for_appending(
-            self._list_file_path(), self.docket.list_file_size
+            self._list_file_path(), docket.list_file_size
         )
 
     def _open_meta_file(self, new: bool, tr: TransactionT) -> BinaryIO:
+        docket = self._docket
         if new:
-            if self.docket.meta_file_id != docketmod.UNSET_UID:
+            if docket.meta_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._meta_file_path())
-            self.docket.meta_file_id = docketmod.make_uid()
-            self.docket.meta_file_size = 0
+            docket.meta_file_id = docketmod.make_uid()
+            docket.meta_file_size = 0
             return self._open_new(self._meta_file_path(), tr)
         return self._open_for_appending(
-            self._meta_file_path(), self.docket.meta_file_size
+            self._meta_file_path(), docket.meta_file_size
         )
 
     def _open_tree_file(self, new: bool, tr: TransactionT) -> BinaryIO:
+        docket = self._docket
         if new:
-            if self.docket.tree_file_id != docketmod.UNSET_UID:
+            if docket.tree_file_id != docketmod.UNSET_UID:
                 self._add_to_garbage.append(self._tree_file_path())
-            self.docket.tree_file_id = docketmod.make_uid()
-            self.docket.tree_file_size = 0
+            docket.tree_file_id = docketmod.make_uid()
+            docket.tree_file_size = 0
             return self._open_new(self._tree_file_path(), tr)
         return self._open_for_appending(
-            self._tree_file_path(), self.docket.tree_file_size
+            self._tree_file_path(), docket.tree_file_size
         )
 
     def _open_new(self, path: HgPathT, tr: TransactionT) -> BinaryIO:
@@ -398,11 +404,11 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
         with ui.formatter(b"file-index", opts) as fm:
             fm.startitem()
-            values = attr.asdict(self.docket)
+            values = attr.asdict(self._docket)
             del values["garbage_entries"]
             fm.data(**values)
             with fm.nested(b"garbage_entries") as fm_garbage:
-                for entry in self.docket.garbage_entries:
+                for entry in self._docket.garbage_entries:
                     fm_garbage.startitem()
                     fm_garbage.data(**attr.asdict(entry))
 
@@ -421,7 +427,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
             for edge in node.edges:
                 dump(edge.node_pointer)
 
-        dump(self.docket.tree_root_pointer)
+        dump(self._docket.tree_root_pointer)
 
 
 class FileIndex(_FileIndexCommon):
@@ -434,7 +440,7 @@ class FileIndex(_FileIndexCommon):
     def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
         tree_file = self._tree_file
         node = file_index_util.TreeNode.parse_from(
-            tree_file[self.docket.tree_root_pointer :]
+            tree_file[self._docket.tree_root_pointer :]
         )
         remainder = path
         while remainder:
@@ -451,7 +457,7 @@ class FileIndex(_FileIndexCommon):
         return node.token
 
     def _write_data(self, tr: TransactionT):
-        docket = self.docket
+        docket = self._docket
         removing = bool(self._remove_tokens)
         new_list = docket.list_file_id == docketmod.UNSET_UID or removing
         new_meta = docket.meta_file_id == docketmod.UNSET_UID or removing
@@ -541,10 +547,10 @@ def debug_file_index(ui, repo, **opts):
         ui.write(b"%d: %s\n" % (token, path))
     elif choice == b"vacuum":
         with repo.lock():
-            old_size = fileindex.docket.tree_file_size
+            old_size = fileindex._docket.tree_file_size
             with repo.transaction(b"fileindex-vacuum") as tr:
                 fileindex.vacuum(tr)
-            new_size = fileindex.docket.tree_file_size
+            new_size = fileindex._docket.tree_file_size
         percent = (old_size - new_size) / old_size * 100
         msg = _(b"vacuumed tree: %s => %s (saved %.01f%%)\n")
         msg %= util.bytecount(old_size), util.bytecount(new_size), percent
