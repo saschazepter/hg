@@ -51,6 +51,7 @@ from . import (
 
 from .interfaces import (
     changegroup as i_cg,
+    compression as i_comp,
     repository,
 )
 from .revlogutils import sidedata as sidedatamod
@@ -314,6 +315,7 @@ class _DeltaHeader:
     protocol_flags = attr.ib(type=int, default=0)
     snapshot_level = attr.ib(type=Optional[int], default=None)
     raw_text_size = attr.ib(type=Optional[int], default=None)
+    compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
 
 
 class cg1unpacker(i_cg.IChangeGroupUnpacker):
@@ -451,6 +453,7 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             raw_text_size=header.raw_text_size,
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
+            compression=header.compression,
         )
 
     def getchunks(self):
