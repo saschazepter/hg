@@ -101,7 +101,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         self._add_to_garbage: list[HgPathT] = []
 
     def _token_count(self) -> int:
-        return len(self.meta_array) + len(self._add_paths)
+        return len(self._meta_array) + len(self._add_paths)
 
     def has_token(self, token: FileTokenT) -> bool:
         return (
@@ -115,7 +115,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
     def get_path(self, token: FileTokenT) -> HgPathT | None:
         if not self.has_token(token):
             return None
-        n = len(self.meta_array)
+        n = len(self._meta_array)
         if token < n:
             return self._get_path_on_disk(token)
         return self._add_paths[token - n]
@@ -298,33 +298,33 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         return b"fileindex-tree." + self.docket.tree_file_id
 
     @propertycache
-    def list_file(self) -> memoryview:
+    def _list_file(self) -> memoryview:
         if self.docket.list_file_id == docketmod.UNSET_UID:
             return util.buffer(b"")
         return self._mapfile(self._list_file_path(), self.docket.list_file_size)
 
     @propertycache
-    def meta_file(self) -> memoryview:
+    def _meta_file(self) -> memoryview:
         if self.docket.meta_file_id == docketmod.UNSET_UID:
             return util.buffer(b"")
         return self._mapfile(self._meta_file_path(), self.docket.meta_file_size)
 
     @propertycache
-    def meta_array(self) -> file_index_util.MetadataArray:
-        return file_index_util.MetadataArray(self.meta_file)
+    def _meta_array(self) -> file_index_util.MetadataArray:
+        return file_index_util.MetadataArray(self._meta_file)
 
     @propertycache
-    def tree_file(self) -> memoryview:
+    def _tree_file(self) -> memoryview:
         testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
         if self.docket.meta_file_id == docketmod.UNSET_UID:
             return util.buffer(file_index_util.EMPTY_TREE_BYTES)
         return self._mapfile(self._tree_file_path(), self.docket.tree_file_size)
 
     def _invalidate_caches(self):
-        util.clearcachedproperty(self, b"list_file")
-        util.clearcachedproperty(self, b"meta_file")
-        util.clearcachedproperty(self, b"meta_array")
-        util.clearcachedproperty(self, b"tree_file")
+        util.clearcachedproperty(self, b"_list_file")
+        util.clearcachedproperty(self, b"_meta_file")
+        util.clearcachedproperty(self, b"_meta_array")
+        util.clearcachedproperty(self, b"_tree_file")
 
     def _mapfile(self, path: bytes, size: int) -> memoryview:
         """Read a file up to the given size using mmap if possible."""
@@ -392,7 +392,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
 
     def _read_span(self, offset: int, length: int) -> memoryview:
         """Read a span of bytes from the list file."""
-        return self.list_file[offset : offset + length]
+        return self._list_file[offset : offset + length]
 
     def dump_docket(self, ui, template: bytes):
         opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
@@ -407,7 +407,7 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
                     fm_garbage.data(**attr.asdict(entry))
 
     def dump_tree(self, ui):
-        tree = self.tree_file
+        tree = self._tree_file
 
         def dump(pointer):
             node = file_index_util.TreeNode.parse_from(tree[pointer:])
@@ -428,11 +428,11 @@ class FileIndex(_FileIndexCommon):
     """Pure Python implementation of the file index."""
 
     def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
-        meta = self.meta_array[token]
+        meta = self._meta_array[token]
         return bytes(self._read_span(meta.offset, meta.length))
 
     def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
-        tree_file = self.tree_file
+        tree_file = self._tree_file
         node = file_index_util.TreeNode.parse_from(
             tree_file[self.docket.tree_root_pointer :]
         )
@@ -457,7 +457,7 @@ class FileIndex(_FileIndexCommon):
         new_meta = docket.meta_file_id == docketmod.UNSET_UID or removing
         new_tree = docket.tree_file_id == docketmod.UNSET_UID or removing
         new_tree = new_tree or self._should_vacuum()
-        meta_array = self.meta_array
+        meta_array = self._meta_array
         add_paths = self._add_paths
         if add_paths and removing:
             raise error.ProgrammingError(b"cannot add and remove in same txn")
@@ -473,8 +473,8 @@ class FileIndex(_FileIndexCommon):
             tree = file_index_util.MutableTree(
                 file_index_util.Base(
                     docket=docket,
-                    list_file=self.list_file,
-                    tree_file=self.tree_file,
+                    list_file=self._list_file,
+                    tree_file=self._tree_file,
                 )
             )
         with (
