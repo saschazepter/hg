@@ -10,7 +10,7 @@ import abc
 from typing import Iterator, NewType, Protocol
 
 from ._basetypes import HgPathT
-from .types import TransactionT
+from .types import TransactionT, UiT, VfsT
 
 
 FileTokenT = NewType("FileTokenT", int)
@@ -23,6 +23,36 @@ class IFileIndex(Protocol):
     Not to be confused with ifileindex in mercurial/interfaces/repository.py,
     which is the storage interface for a revlog index (.i) file.
     """
+
+    @abc.abstractmethod
+    def __init__(
+        self,
+        ui: UiT,
+        opener: VfsT,
+        try_pending: bool,
+        vacuum_mode: bytes,
+        max_unused_ratio: float,
+        gc_retention_s: int,
+        garbage_timestamp: int | None,
+    ):
+        """Open the file index.
+
+        :param ui:
+            The UI object.
+        :param opener:
+            The store VFS.
+        :param try_pending:
+            If True, tries to open the pending docket before the normal one.
+        :param vacuum_mode:
+            Value of config ``devel.fileindex.vacuum-mode``.
+        :param max_unused_ratio:
+            Value of config ``storage.fileindex.max-unused-percentage``,
+            converted to a ratio from 0 to 1.
+        :param gc_retention_s:
+            Value of config ``storage.fileindex.gc-retention-seconds``.
+        :param garbage_timestamp:
+            Value of config ``devel.fileindex.garbage-timestamp``.
+        """
 
     @abc.abstractmethod
     def get_path(self, token: FileTokenT) -> HgPathT | None:
