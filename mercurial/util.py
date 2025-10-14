@@ -1809,7 +1809,7 @@ class lrucachedict:
             n = n.prev
 
 
-def lrucachefunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
+def lrucachefunc(func: _C) -> _C:
     '''cache most recent results of function calls'''
     cache = {}
     order = collections.deque()
@@ -1826,7 +1826,7 @@ def lrucachefunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
             return cache[arg]
 
     else:
-        # TODO: type with _P.args when pytype supports it
+
         def f(*args):
             if args not in cache:
                 if len(cache) > 20:
