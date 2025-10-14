@@ -53,6 +53,7 @@ We approximate that by reducing the read buffer to 1 byte.
   >         f = o(*a, **kwargs)
   >         return singlebyteread(f)
   >     wrapper.options = o.options
+  >     wrapper.filter_name = o.filter_name
   >     return wrapper
   > 
   > cl = changelog.changelog(opener(b'.hg/store'))

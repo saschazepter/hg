@@ -27,6 +27,7 @@ def binopen(path, mode=b'rb'):
 
 
 binopen.options = {}
+binopen.filter_name = None
 
 
 def printb(data, end=b'\n'):

@@ -102,12 +102,13 @@ def _match_tracked_entry(entry: BaseStoreEntry, matcher):
     raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
 
-class Encoding(enum.IntEnum):
-    HYBRID = enum.auto()
-    DOTENCODE = enum.auto()
-    PLAIN = enum.auto()
+class Encoding(enum.Enum):
+    HYBRID = "hybrid"
+    DOTENCODE = "dot-encode"
+    PLAIN = "plain"
 
 
+@vfsmod.filter("plain")
 def _plain_encode(path: bytes) -> bytes:
     """A very basic encoding that encode (almost) nothing
 
@@ -159,7 +160,9 @@ def _encodedir(path):
     )
 
 
-encodedir = getattr(parsers, 'encodedir', _encodedir)
+encodedir = vfsmod.filter('encode-dir')(
+    getattr(parsers, 'encodedir', _encodedir)
+)
 
 
 def decodedir(path):
@@ -256,6 +259,7 @@ def _buildencodefun():
 _encodefname, _decodefname = _buildencodefun()
 
 
+@vfsmod.filter("encode-filename")
 def encodefilename(s):
     """
     >>> encodefilename(b'foo.i/bar.d/bla.hg/hi:world?/HELLO')
@@ -439,9 +443,12 @@ def _pathencode(path):
     return res
 
 
-_pathencode = getattr(parsers, 'pathencode', _pathencode)
+_pathencode = vfsmod.filter("dot-encode")(
+    getattr(parsers, 'pathencode', _pathencode)
+)
 
 
+@vfsmod.filter("hybrid")
 def _plainhybridencode(f):
     return _hybridencode(f, False)
 
@@ -1302,9 +1309,11 @@ class _fncachevfs(vfsmod.proxyvfs):
     def __init__(self, vfs, fnc, encode):
         vfsmod.proxyvfs.__init__(self, vfs)
         self.fncache: fncache = fnc
+        name = getattr(encode, "filter_name", None)
+        if name is None:
+            name = vfsmod._NAME_BY_FILTER[encode]
+        self.filter_name = name
         self.encode = encode
-        self.uses_dotencode = encode is _pathencode
-        self.uses_plain_encode = encode is _plain_encode
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
@@ -1342,15 +1351,7 @@ class _fncachevfs(vfsmod.proxyvfs):
 
 class fncachestore(basicstore):
     def __init__(self, path: bytes, vfstype, encoding: Encoding) -> None:
-        if encoding == Encoding.DOTENCODE:
-            encode = _pathencode
-        elif encoding == Encoding.HYBRID:
-            encode = _plainhybridencode
-        elif encoding == Encoding.PLAIN:
-            encode = _plain_encode
-        else:
-            assert False, encoding
-        self.encode = encode
+        self.encode = vfsmod.FILTER_BY_NAME[encoding._value_]
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
         self.pathsep = self.path + b'/'
@@ -1359,7 +1360,7 @@ class fncachestore(basicstore):
         self.rawvfs = vfs
         fnc = fncache(vfs)
         self.fncache = fnc
-        self.vfs = _fncachevfs(vfs, fnc, encode)
+        self.vfs = _fncachevfs(vfs, fnc, self.encode)
         self.opener = self.vfs
 
     def join(self, f: bytes) -> bytes:

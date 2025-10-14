@@ -23,6 +23,7 @@ from typing import (
     Iterator,
     MutableMapping,
     Optional,
+    Protocol,
     TypeVar,
 )
 
@@ -43,6 +44,14 @@ if typing.TYPE_CHECKING:
     )
     _Tclosewrapbase = TypeVar('_Tclosewrapbase', bound='closewrapbase')
     _OnErrorFn = Callable[[Exception], Optional[object]]
+
+    # For some reason, pytype got confused by using ParamSpec, and demoted
+    # some (but not all) decorated methods to Callable with no defined args.
+    # This manages to preserve all methods, even including the variable names.
+    _C = TypeVar('_C', bound=Callable)
+    """An unconstrained Callable, for when a method takes a method with any
+    signature, and returns a method with an identical signature.
+    """
 
 
 def _avoidambig(path: bytes, oldstat: util.filestat) -> None:
@@ -92,6 +101,13 @@ class abstractvfs(abc.ABC):
     # information, to the Rust side. This can probably be removed in the future
     # when Rust no longer needs it.
     read_write: bool = True
+
+    # The name of the encoding used if any
+    #
+    # Mostly exist to help the Rust extension to identify the encoding it needs
+    # to use.
+    # This can probably be removed in the future when Rust no longer needs it.
+    filter_name: str | None = None
 
     # TODO: type return, which is util.posixfile wrapped by a proxy
     @abc.abstractmethod
@@ -542,7 +558,7 @@ class vfs(abstractvfs):
         os.chmod(name, self.createmode & 0o666)
 
     def _auditpath(self, path: bytes, mode: bytes) -> None:
-        if self._audit:
+        if self.audit:
             if os.path.isabs(path) and path.startswith(self.base):
                 path = os.path.relpath(path, self.base)
             r = util.checkosfilename(path)
@@ -731,6 +747,7 @@ class proxyvfs(abstractvfs, abc.ABC):
         self.vfs = vfs
         self.base = vfs.base
         self.read_write = vfs.read_write
+        self.filter_name = vfs.filter_name
 
     @property
     def createmode(self) -> int | None:
@@ -756,12 +773,51 @@ class proxyvfs(abstractvfs, abc.ABC):
         self.vfs.audit = audit
 
 
+class FilterFn(Protocol):
+    """protocol for "filter" function used for path encoding"""
+
+    filter_name: bytes
+
+    @abc.abstractmethod
+    def __call__(self, path: bytes) -> bytes:
+        ...
+
+
+def filter(name: str):
+    """annotate a function with a filter name"""
+
+    def add_name(fn: _C) -> _C:
+        if hasattr(fn, '__dict__'):
+            fn.filter_name = name
+        else:
+            _NAME_BY_FILTER[fn] = name
+        FILTER_BY_NAME[name] = fn
+        return fn
+
+    return add_name
+
+
+FILTER_BY_NAME: dict[str, FilterFn | Callable[[bytes], bytes]] = {}
+"""gather known filter by name"""
+
+_NAME_BY_FILTER: dict[Callable[[bytes], bytes], str] = {}
+"""fallback for C function that can't be added attributes"""
+
+
 class filtervfs(proxyvfs, abstractvfs):
     '''Wrapper vfs for filtering filenames with a function.'''
 
-    def __init__(self, vfs: vfs, filter: Callable[[bytes], bytes]) -> None:
+    def __init__(
+        self,
+        vfs: vfs,
+        filter: FilterFn | Callable[[bytes], bytes],
+    ) -> None:
         proxyvfs.__init__(self, vfs)
         self._filter = filter
+        name = getattr(filter, "filter_name", None)
+        if name is None:
+            name = _NAME_BY_FILTER[filter]
+        self.filter_name = name
 
     # TODO: The return type should be BinaryIO
     def __call__(self, path: bytes, *args, **kwargs) -> Any:
