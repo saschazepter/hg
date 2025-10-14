@@ -400,35 +400,6 @@ class _FileIndexCommon(int_file_index.IFileIndex, abc.ABC):
         """Read a span of bytes from the list file."""
         return self._list_file[offset : offset + length]
 
-    def dump_docket(self, ui, template: bytes):
-        opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
-        with ui.formatter(b"file-index", opts) as fm:
-            fm.startitem()
-            values = attr.asdict(self._docket)
-            del values["garbage_entries"]
-            fm.data(**values)
-            with fm.nested(b"garbage_entries") as fm_garbage:
-                for entry in self._docket.garbage_entries:
-                    fm_garbage.startitem()
-                    fm_garbage.data(**attr.asdict(entry))
-
-    def dump_tree(self, ui):
-        tree = self._tree_file
-
-        def dump(pointer):
-            node = file_index_util.TreeNode.parse_from(tree[pointer:])
-            token = b""
-            if node.token is not None:
-                token = b" token = %d" % node.token
-            ui.write(b"%08x:%s\n" % (pointer, token))
-            for edge in node.edges:
-                label = self._read_span(edge.label_offset, edge.label_length)
-                ui.write(b'    "%s" -> %08x\n' % (label, edge.node_pointer))
-            for edge in node.edges:
-                dump(edge.node_pointer)
-
-        dump(self._docket.tree_root_pointer)
-
 
 class FileIndex(_FileIndexCommon):
     """Pure Python implementation of the file index."""
@@ -528,9 +499,34 @@ def debug_file_index(ui, repo, **opts):
         for path, token in fileindex.items():
             ui.write(b"%d: %s\n" % (token, path))
     if choice == b"docket":
-        fileindex.dump_docket(ui, template)
+        formatter_opts = {b"template": template or DEFAULT_DOCKET_TEMPLATE}
+        with ui.formatter(b"file-index", formatter_opts) as fm:
+            fm.startitem()
+            values = attr.asdict(fileindex._docket)
+            del values["garbage_entries"]
+            fm.data(**values)
+            with fm.nested(b"garbage_entries") as fm_garbage:
+                for entry in fileindex._docket.garbage_entries:
+                    fm_garbage.startitem()
+                    fm_garbage.data(**attr.asdict(entry))
     elif choice == b"tree":
-        fileindex.dump_tree(ui)
+        tree = fileindex._tree_file
+
+        def dump(pointer):
+            node = file_index_util.TreeNode.parse_from(tree[pointer:])
+            token = b""
+            if node.token is not None:
+                token = b" token = %d" % node.token
+            ui.write(b"%08x:%s\n" % (pointer, token))
+            for edge in node.edges:
+                label = fileindex._read_span(
+                    edge.label_offset, edge.label_length
+                )
+                ui.write(b'    "%s" -> %08x\n' % (label, edge.node_pointer))
+            for edge in node.edges:
+                dump(edge.node_pointer)
+
+        dump(fileindex._docket.tree_root_pointer)
     elif choice == b"path":
         path = opts[choice]
         token = fileindex.get_token(path)
