@@ -7,7 +7,7 @@ mapping between file paths and integer tokens.
 from __future__ import annotations
 
 import abc
-from typing import Iterator, List, NewType, Protocol, Tuple
+from typing import Iterator, NewType, Protocol
 
 from ._basetypes import HgPathT
 from .types import TransactionT
@@ -59,7 +59,7 @@ class IFileIndex(Protocol):
         """Iterate the paths in the file index."""
 
     @abc.abstractmethod
-    def items(self) -> Iterator[Tuple[HgPathT, FileTokenT]]:
+    def items(self) -> Iterator[tuple[HgPathT, FileTokenT]]:
         """Iterate the file index entries as (path, token)."""
 
     @abc.abstractmethod
@@ -102,7 +102,7 @@ class IFileIndex(Protocol):
         """
 
     @abc.abstractmethod
-    def data_files(self) -> List[HgPathT]:
+    def data_files(self) -> list[HgPathT]:
         """Return the files where the file index is persisted on disk.
 
         The paths are relative to the VFS passed to the constructor.
