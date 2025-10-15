@@ -24,6 +24,8 @@ from typing import (
 RevlogCompHeader = NewType('RevlogCompHeader', bytes)
 
 REVLOG_COMP_NONE = RevlogCompHeader(b'\0')
+REVLOG_COMP_ZLIB = RevlogCompHeader(b'x')
+REVLOG_COMP_ZSTD = RevlogCompHeader(b'\x28')
 """The "no-compression" RevlogCompHeader"""
 
 

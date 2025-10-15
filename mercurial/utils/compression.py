@@ -510,7 +510,7 @@ class _zlibengine(compressionengine):
         return compewireprotosupport(b'zlib', 20, 20)
 
     def revlogheader(self):
-        return b'x'
+        return i_comp.REVLOG_COMP_ZLIB
 
     def compressstream(self, it, opts=None):
         opts = opts or {}
@@ -721,7 +721,7 @@ class _zstdengine(compressionengine):
         return compewireprotosupport(b'zstd', 50, 50)
 
     def revlogheader(self):
-        return b'\x28'
+        return i_comp.REVLOG_COMP_ZSTD
 
     def compressstream(self, it, opts=None):
         opts = opts or {}
