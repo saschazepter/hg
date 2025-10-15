@@ -2435,8 +2435,8 @@ class localrepository(_localrepo_base_classes):
             name=desc,
             debug_abort=self.ui.config(b'devel', b'debug.abort-transaction'),
         )
-        for vfs_id, path in self._journalfiles():
-            tr.add_journal(vfs_id, path)
+        for vfs, path in self._journalfiles():
+            tr.add_journal(vfs, path)
         tr.changes[b'origrepolen'] = len(self)
         tr.changes[b'obsmarkers'] = set()
         tr.changes[b'phases'] = []

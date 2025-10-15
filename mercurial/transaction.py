@@ -29,6 +29,7 @@ from .interfaces.types import (
     HgPathT,
     TransactionT,
     VfsKeyT,
+    VfsT,
 )
 from . import (
     encoding,
@@ -243,11 +244,14 @@ def _playback(
 
 
 class transaction(util.transactional, itxn.ITransaction):
+    _journal_files: list[tuple[VfsT, HgPathT]]
+    _vfsmap: dict[VfsKeyT, VfsT]
+
     def __init__(
         self,
         report,
         opener,
-        vfsmap,
+        vfsmap: dict[VfsKeyT, VfsT],
         journalname,
         undoname=None,
         after=None,
@@ -821,8 +825,8 @@ class transaction(util.transactional, itxn.ITransaction):
         self._abort()
 
     @active
-    def add_journal(self, vfs_id: VfsKeyT, path: HgPathT) -> None:
-        self._journal_files.append((vfs_id, path))
+    def add_journal(self, vfs: VfsT, path: HgPathT) -> None:
+        self._journal_files.append((vfs, path))
 
     def _writeundo(self):
         """write transaction data for possible future undo call"""

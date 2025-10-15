@@ -27,6 +27,7 @@ from ._basetypes import (
     CallbackCategoryT,
     HgPathT,
     VfsKeyT,
+    VfsT,
 )
 
 JournalEntryT = tuple[HgPathT, int]
@@ -253,5 +254,5 @@ class ITransaction(ContextManager, Protocol):
         scope)"""
 
     @abc.abstractmethod
-    def add_journal(self, vfs_id: VfsKeyT, path: HgPathT) -> None:
+    def add_journal(self, vfs: VfsT, path: HgPathT) -> None:
         ...
