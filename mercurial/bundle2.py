@@ -159,6 +159,7 @@ import typing
 from .i18n import _
 from .interfaces.types import (
     Capabilities,
+    MatcherT,
 )
 from . import (
     changegroup,
@@ -1807,10 +1808,15 @@ def format_remote_wanted_sidedata(repo):
     return wanted
 
 
-def addpartbundlestream2(bundler, repo, **kwargs):
-    if not kwargs.get('stream', False):
+def addpartbundlestream2(
+    bundler,
+    repo,
+    narrow_matcher: MatcherT | None = None,
+    stream: bool = False,
+    **kwargs,
+):
+    if not stream:
         return
-
     if not streamclone.allowservergeneration(repo):
         msg = _(b'stream data requested but server does not allow this feature')
         hint = _(b'the client seems buggy')
@@ -1838,15 +1844,10 @@ def addpartbundlestream2(bundler, repo, **kwargs):
     # to avoid compression to consumers of the bundle.
     bundler.prefercompressed = False
 
-    # get the includes and excludes
-    includepats = kwargs.get('includepats')
-    excludepats = kwargs.get('excludepats')
-
-    narrowstream = repo.ui.configbool(
+    support_narrow_stream = repo.ui.configbool(
         b'experimental', b'server.stream-narrow-clones'
     )
-
-    if (includepats or excludepats) and not narrowstream:
+    if narrow_matcher is not None and not support_narrow_stream:
         raise error.Abort(_(b'server does not support narrow stream clones'))
 
     includeobsmarkers = False
@@ -1864,7 +1865,7 @@ def addpartbundlestream2(bundler, repo, **kwargs):
 
     if version == b"v2":
         filecount, bytecount, it = streamclone.generatev2(
-            repo, includepats, excludepats, includeobsmarkers
+            repo, narrow_matcher, includeobsmarkers
         )
         requirements = streamclone.streamed_requirements(repo)
         requirements = _formatrequirementsspec(requirements)
@@ -1873,9 +1874,7 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
     elif version == b"v3-exp":
-        it = streamclone.generatev3(
-            repo, includepats, excludepats, includeobsmarkers
-        )
+        it = streamclone.generatev3(repo, narrow_matcher, includeobsmarkers)
         requirements = streamclone.streamed_requirements(repo)
         requirements = _formatrequirementsspec(requirements)
         part = bundler.newpart(b'stream3-exp', data=it)

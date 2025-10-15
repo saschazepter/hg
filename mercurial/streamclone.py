@@ -31,7 +31,6 @@ from . import (
     bookmarks,
     cacheutil,
     error,
-    narrowspec,
     phases,
     pycompat,
     requirements as requirementsmod,
@@ -978,7 +977,7 @@ class CacheFile(store.StoreFile):
     optional: bool = True
 
 
-def _entries_walk(repo, includes, excludes, includeobsmarkers: bool):
+def _entries_walk(repo, matcher, includeobsmarkers: bool):
     """emit a seris of files information useful to clone a repo
 
     return (vfs-key, entry) iterator
@@ -986,10 +985,6 @@ def _entries_walk(repo, includes, excludes, includeobsmarkers: bool):
     Where `entry` is StoreEntry. (used even for cache entries)
     """
     assert repo._currentlock(repo._lockref) is not None
-
-    matcher = None
-    if includes or excludes:
-        matcher = narrowspec.match(repo.root, includes, excludes)
 
     phase = not repo.publishing()
     # Python is getting crazy at all the small container we creates, disabling
@@ -1010,7 +1005,7 @@ def _entries_walk(repo, includes, excludes, includeobsmarkers: bool):
                 yield (_srccache, CacheEntry(entry_path=name))
 
 
-def generatev2(repo, includes, excludes, includeobsmarkers: bool):
+def generatev2(repo, matcher, includeobsmarkers: bool):
     """Emit content for version 2 of a streaming clone.
 
     the data stream consists the following entries:
@@ -1028,8 +1023,7 @@ def generatev2(repo, includes, excludes, includeobsmarkers: bool):
 
         entries = _entries_walk(
             repo,
-            includes=includes,
-            excludes=excludes,
+            matcher=matcher,
             includeobsmarkers=includeobsmarkers,
         )
         chunks = _emit2(repo, entries)
@@ -1042,7 +1036,7 @@ def generatev2(repo, includes, excludes, includeobsmarkers: bool):
 
 
 def generatev3(
-    repo, includes, excludes, includeobsmarkers: bool
+    repo, matcher, includeobsmarkers: bool
 ) -> Iterator[bytes | None]:
     """Emit content for version 3 of a streaming clone.
 
@@ -1076,8 +1070,7 @@ def generatev3(
 
         entries = _entries_walk(
             repo,
-            includes=includes,
-            excludes=excludes,
+            matcher=matcher,
             includeobsmarkers=includeobsmarkers,
         )
         chunks = _emit3(repo, list(entries))
@@ -1781,8 +1774,7 @@ def local_copy(src_repo, dest_repo) -> None:
 
             entries = _entries_walk(
                 src_repo,
-                includes=None,
-                excludes=None,
+                matcher=None,
                 includeobsmarkers=True,
             )
             entries = list(entries)

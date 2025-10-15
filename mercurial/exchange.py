@@ -17,6 +17,7 @@ from .node import (
     nullrev,
 )
 from .interfaces.types import (
+    MatcherT,
     RepoT,
     TransactionT,
 )
@@ -2509,11 +2510,18 @@ def _getbundlestream2(
     excludepats: list[bytes] | None = None,
     **kwargs,
 ):
+    # The bundle2 layer expects a matcher to work with
+    narrow_matcher: MatcherT | None = None
+    if includepats or excludepats:
+        narrow_matcher = narrowspec.match(
+            repo.root, include=includepats, exclude=excludepats
+        )
     return bundle2.addpartbundlestream2(
         bundler,
         repo,
         includepats=includepats,
         excludepats=excludepats,
+        narrow_matcher=narrow_matcher,
         **kwargs,
     )
 
