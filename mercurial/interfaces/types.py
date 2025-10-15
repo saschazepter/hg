@@ -54,6 +54,7 @@ FileStorageT = repository.ifilestorage
 
 HttpPasswordMgrT = uimod.IHttpPasswordMgr
 
+PeerT = repository.peer
 RepoT = repository.IRepo
 # The other are copied for temporary backward compatibility
 LocalRepoMainT = repository.IRepo
