@@ -158,6 +158,10 @@ based clone with a warning.
       03
     checkheads
       related
+    delta-compression
+      none
+      zlib
+      zstd
     digests
       md5
       sha1

@@ -109,7 +109,7 @@ Extension disabled for lack of a hook
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -174,7 +174,7 @@ Extension disabled for lack of acl.sources
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -242,7 +242,7 @@ No [acl.allow]/[acl.deny]
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -320,7 +320,7 @@ Empty [acl.allow]
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -389,7 +389,7 @@ fred is allowed inside foo/
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -462,7 +462,7 @@ Empty [acl.deny]
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -532,7 +532,7 @@ fred is allowed inside foo/, but not foo/bar/ (case matters)
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -607,7 +607,7 @@ fred is allowed inside foo/, but not foo/Bar/
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -679,7 +679,7 @@ fred is allowed inside foo/, but not foo/Bar/
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -750,7 +750,7 @@ fred is not blocked from moving bookmarks
   list of changesets:
   ef1ea85a6374b77d6da9dcda9541f498f2d17df7
   bundle2-output-bundle: "HG20", 7 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:bookmarks" 37 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
@@ -836,7 +836,7 @@ fred is not allowed to move bookmarks
   list of changesets:
   ef1ea85a6374b77d6da9dcda9541f498f2d17df7
   bundle2-output-bundle: "HG20", 7 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:bookmarks" 37 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
@@ -925,7 +925,7 @@ barney is allowed everywhere
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1009,7 +1009,7 @@ wilma can change files with a .txt extension
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1091,7 +1091,7 @@ file specified by acl.config does not exist
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1167,7 +1167,7 @@ betty is allowed inside foo/ by a acl.config file
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1254,7 +1254,7 @@ acl.config can set only [acl.allow]/[acl.deny]
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1342,7 +1342,7 @@ fred is always allowed
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1427,7 +1427,7 @@ no one is allowed inside foo/Bar/
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1508,7 +1508,7 @@ OS-level groups
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1593,7 +1593,7 @@ OS-level groups
   f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
   911600dab2ae7a9baff75958b84fe606851ce955
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1715,7 +1715,7 @@ No branch acls specified
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1801,7 +1801,7 @@ Branch acl deny test
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1879,7 +1879,7 @@ Branch acl empty allow test
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -1953,7 +1953,7 @@ Branch acl allow other
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -2021,7 +2021,7 @@ Branch acl allow other
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -2112,7 +2112,7 @@ push foobar into the remote
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -2202,7 +2202,7 @@ Branch acl conflicting deny
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -2275,7 +2275,7 @@ User 'astro' must not be denied
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
@@ -2359,7 +2359,7 @@ Non-astro users must be denied
   911600dab2ae7a9baff75958b84fe606851ce955
   e8fc755d4d8217ee5b0c2bb41558c40d43b92c01
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 210 bytes payload
+  bundle2-output-part: "replycaps" 243 bytes payload
   bundle2-output-part: "check:phases" 48 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload

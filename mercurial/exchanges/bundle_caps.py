@@ -53,6 +53,8 @@ def get_repo_caps(repo, allowpushback: bool = False, role=None) -> Capabilities:
     caps[b'changegroup'] = tuple(
         sorted(changegroup.supportedincomingversions(repo))
     )
+    dc = util.compengines.supported_wire_delta_compression()
+    caps[b'delta-compression'] = dc
     if obsolete.isenabled(repo, obsolete.exchangeopt):
         supportedformat = tuple(b'V%i' % v for v in obsolete.formats)
         caps[b'obsmarkers'] = supportedformat

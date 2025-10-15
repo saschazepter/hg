@@ -194,7 +194,7 @@ Failure to read getbundle HTTP request
   readline(~) -> (30) GET /?cmd=getbundle HTTP/1.1\r\n
   readline(281 from *) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(254 from *) -> (29) vary: X-HgArg-1,X-HgProto-1\r\n (glob)
-  readline(225 from *) -> (225) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtag (glob)
+  readline(225 from *) -> (225) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adelta-compression%253Dnone%252Czlib%252Czstd%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsup (glob)
   read limit reached; closing socket
 
   $ rm -f error.log
@@ -448,7 +448,7 @@ TODO this output is terrible
   readline(~) -> (30) GET /?cmd=getbundle HTTP/1.1\r\n
   readline(*) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(*) -> (29) vary: X-HgArg-1,X-HgProto-1\r\n (glob)
-  readline(*) -> (447) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=1&common=0000000000000000000000000000000000000000&heads=96ee1d7354c4ad7372047672c36a1f561e3a6a4c&listkeys=phases%2Cbookmarks\r\n (glob)
+  readline(*) -> (496) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adelta-compression%253Dnone%252Czlib%252Czstd%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=1&common=0000000000000000000000000000000000000000&heads=96ee1d7354c4ad7372047672c36a1f561e3a6a4c&listkeys=phases%2Cbookmarks\r\n (glob)
   readline(*) -> (61) x-hgproto-1: 0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull\r\n (glob)
   readline(*) -> (35) accept: application/mercurial-0.1\r\n (glob)
   readline(*) -> (2?) host: localhost:$HGPORT\r\n (glob)
@@ -526,7 +526,7 @@ Server sends empty HTTP body for getbundle
   readline(~) -> (30) GET /?cmd=getbundle HTTP/1.1\r\n
   readline(*) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(*) -> (29) vary: X-HgArg-1,X-HgProto-1\r\n (glob)
-  readline(*) -> (447) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=1&common=0000000000000000000000000000000000000000&heads=96ee1d7354c4ad7372047672c36a1f561e3a6a4c&listkeys=phases%2Cbookmarks\r\n (glob)
+  readline(*) -> (496) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adelta-compression%253Dnone%252Czlib%252Czstd%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=1&common=0000000000000000000000000000000000000000&heads=96ee1d7354c4ad7372047672c36a1f561e3a6a4c&listkeys=phases%2Cbookmarks\r\n (glob)
   readline(*) -> (61) x-hgproto-1: 0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull\r\n (glob)
   readline(*) -> (35) accept: application/mercurial-0.1\r\n (glob)
   readline(*) -> (2?) host: localhost:$HGPORT\r\n (glob)
@@ -580,7 +580,7 @@ Server sends partial compression string
   readline(~) -> (30) GET /?cmd=getbundle HTTP/1.1\r\n
   readline(*) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(*) -> (29) vary: X-HgArg-1,X-HgProto-1\r\n (glob)
-  readline(*) -> (447) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=1&common=0000000000000000000000000000000000000000&heads=96ee1d7354c4ad7372047672c36a1f561e3a6a4c&listkeys=phases%2Cbookmarks\r\n (glob)
+  readline(~) -> (496) x-hgarg-1: bookmarks=1&bundlecaps=HG20%2Cbundle2%3DHG20%250Abookmarks%250Achangegroup%253D01%252C02%252C03%250Adelta-compression%253Dnone%252Czlib%252Czstd%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps%250Astream%253Dv2&cg=1&common=0000000000000000000000000000000000000000&heads=96ee1d7354c4ad7372047672c36a1f561e3a6a4c&listkeys=phases%2Cbookmarks\r\n
   readline(*) -> (61) x-hgproto-1: 0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull\r\n (glob)
   readline(*) -> (35) accept: application/mercurial-0.1\r\n (glob)
   readline(*) -> (2?) host: localhost:$HGPORT\r\n (glob)

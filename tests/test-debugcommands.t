@@ -710,6 +710,10 @@ Test debugcapabilities command:
       03
     checkheads
       related
+    delta-compression
+      none
+      zlib
+      zstd
     digests
       md5
       sha1
@@ -745,7 +749,7 @@ Test debugpeer
   devel-peer-request:   pairs: 81 bytes
   sending hello command
   sending between command
-  remote: 473
+  remote: 514
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: 1
   devel-peer-request: protocaps
@@ -765,7 +769,7 @@ Test debugpeer
   devel-peer-request:   pairs: 81 bytes
   sending hello command
   sending between command
-  remote: 473
+  remote: 514
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: 1
   devel-peer-request: protocaps
@@ -785,7 +789,7 @@ Test debugpeer
   devel-peer-request:   pairs: 81 bytes
   sending hello command
   sending between command
-  remote: 449
+  remote: 490
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: 1
   devel-peer-request: protocaps

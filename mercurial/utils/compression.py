@@ -226,6 +226,17 @@ class compressormanager:
     ) -> bool:
         return self.forrevlogheader(header).name() == name
 
+    def supported_wire_delta_compression(self) -> tuple[bytes]:
+        """the set of supported delta compression"""
+        delta_comps = {b'none'}
+        if _zlibengine.name() in self:
+            delta_comps.add(b'zlib')
+        # for some reason, pytype consider that `_zstdengine` is undefined so
+        # using the plain name for now…
+        if b'zstd' in self:
+            delta_comps.add(b'zstd')
+        return tuple(sorted(delta_comps))
+
 
 compengines: compressormanager = compressormanager()
 
