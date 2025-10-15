@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import abc
+import enum
 import io
 import os
 import struct
@@ -71,7 +72,7 @@ _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
 # node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
 # node p1node p2node basenode linknode flags snapshot_level raw_text_size
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbI")
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbIB")
 _CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
@@ -296,6 +297,55 @@ def display_unbundle_debug_info(ui, debug_info):
                 tc = tn + b'-cached'
                 _dbg_ubdl_line(ui, 2, tn, t[tn], td, b"total")
                 _dbg_ubdl_line(ui, 3, b'cached', t[tc], td, b"total")
+
+
+class WireDeltaCompression(enum.IntEnum):
+    """encode the compression of a delta over the wire
+
+    Note that NO_COMPRESSION ≠ UNCOMPRESSED.
+
+    NO_COMPRESSION means the incoming delta is uncompressed and we don't have
+    any information about the source compression.
+
+    UNCOMPRESSED means the incoming delta is "compressed" with the "none"
+    compression, with the associated impact on the delta content. It usually
+    imply the delta wasn't compressed in the source storage.
+    """
+
+    NO_COMPRESSION = 0
+    UNCOMPRESSED = 1
+    ZLIB_COMPRESSED = 2
+    ZSTD_COMPRESSED = 3
+
+    @classmethod
+    def from_revlog_compression(
+        cls,
+        revlog_encoding: i_comp.RevlogCompHeader,
+    ) -> WireDeltaCompression:
+        if revlog_encoding is None:
+            return cls.NO_COMPRESSION
+        elif revlog_encoding == i_comp.REVLOG_COMP_NONE:
+            return cls.UNCOMPRESSED
+        elif revlog_encoding == b'u':
+            return cls.UNCOMPRESSED
+        elif revlog_encoding == i_comp.REVLOG_COMP_ZLIB:
+            return cls.ZLIB_COMPRESSED
+        elif revlog_encoding == i_comp.REVLOG_COMP_ZSTD:
+            return cls.ZSTD_COMPRESSED
+        else:
+            raise ValueError("unknown revlog compression: %s", revlog_encoding)
+
+    def to_revlog_compression(self) -> i_comp.RevlogCompHeader | None:
+        if self == self.NO_COMPRESSION:
+            return None
+        elif self == self.UNCOMPRESSED:
+            return i_comp.REVLOG_COMP_NONE
+        elif self == self.ZLIB_COMPRESSED:
+            return i_comp.REVLOG_COMP_ZLIB
+        elif self == self.ZSTD_COMPRESSED:
+            return i_comp.REVLOG_COMP_ZSTD
+        else:
+            assert False, "forgot to implement conversion for %s" % self
 
 
 @attr.s(slots=True)
@@ -992,7 +1042,9 @@ class cg4unpacker(cg3unpacker):
             flags,
             snapshot_level,
             raw_size,
+            encoded_comp,
         ) = headertuple
+        wire_comp = WireDeltaCompression(encoded_comp)
         if snapshot_level < -1:
             snapshot_level = None
         return _DeltaHeader(
@@ -1004,6 +1056,7 @@ class cg4unpacker(cg3unpacker):
             flags=flags,
             snapshot_level=snapshot_level,
             raw_text_size=raw_size,
+            compression=wire_comp.to_revlog_compression(),
         )
 
 
@@ -1073,6 +1126,7 @@ def _revisiondeltatochunks(repo, delta, headerfn):
     if delta.delta is not None:
         prefix, data = b'', delta.delta
     elif delta.basenode == repo.nullid:
+        assert delta.revision is not None
         data = delta.revision
         prefix = mdiff.trivialdiffheader(len(data))
     else:
@@ -2334,6 +2388,7 @@ class ChangeGroupPacker04(cgpacker):
         snap_lvl = -2  # means no-info
         if d.snapshot_level is not None:
             snap_lvl = d.snapshot_level
+        wire_comp = WireDeltaCompression.from_revlog_compression(d.compression)
         return _CHANGEGROUPV4_DELTA_HEADER.pack(
             d.node,
             d.p1node,
@@ -2343,6 +2398,7 @@ class ChangeGroupPacker04(cgpacker):
             d.flags,
             snap_lvl,
             d.raw_revision_size,
+            wire_comp,
         )
 
     def __init__(
