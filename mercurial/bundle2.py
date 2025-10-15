@@ -1815,9 +1815,10 @@ def addpartbundlestream2(bundler, repo, **kwargs):
         msg = _(b'stream data requested but server does not allow this feature')
         hint = _(b'the client seems buggy')
         raise error.Abort(msg, hint=hint)
-    if not (b'stream' in bundler.capabilities):
+    if b'stream' not in bundler.capabilities:
         msg = _(
-            b'stream data requested but supported streaming clone versions were not specified'
+            b'stream data requested but supported streaming clone versions '
+            b'were not specified'
         )
         hint = _(b'the client seems buggy')
         raise error.Abort(msg, hint=hint)
