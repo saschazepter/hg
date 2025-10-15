@@ -23,6 +23,7 @@ from .interfaces.types import (
     ChangeContextT,
     MatcherT,
     NodeIdT,
+    PathT,
     PeerT,
     RepoT,
     RevnumT,
@@ -1503,45 +1504,45 @@ class pulloperation:
         path=None,
     ):
         # repo we pull into
-        self.repo = repo
+        self.repo: RepoT = repo
         # repo we pull from
-        self.remote = remote
+        self.remote: PeerT = remote
         # path object used to build this remote
         #
         # Ideally, the remote peer would carry that directly.
-        self.remote_path = path
+        self.remote_path: PathT = path
         # revision we try to pull (None is "all")
-        self.heads = heads
+        self.heads: Collection[RevnumT] | None = heads
         # bookmark pulled explicitly
-        self.explicitbookmarks = [
+        self.explicitbookmarks: Collection[bytes] = [
             repo._bookmarks.expandname(bookmark) for bookmark in bookmarks
         ]
         # do we force pull?
-        self.force = force
+        self.force: bool = force
         # whether a streaming clone was requested
-        self.streamclonerequested = streamclonerequested
+        self.streamclonerequested: bool = streamclonerequested
         # transaction manager
-        self.trmanager = None
+        self.trmanager: transactionmanager = None
         # set of common changeset between local and remote before pull
-        self.common = None
+        self.common: set[NodeIdT] | None = None
         # set of pulled head
-        self.rheads = None
+        self.rheads: set[NodeIdT] = None
         # list of missing changeset to fetch remotely
-        self.fetch = None
+        self.fetch: set[NodeIdT] = None
         # remote bookmarks data
-        self.remotebookmarks = remotebookmarks
+        self.remotebookmarks: dict[bytes, NodeIdT] = remotebookmarks
         # result of changegroup pulling (used as return code by pull)
-        self.cgresult = None
+        self.cgresult: int = None
         # list of step already done
-        self.stepsdone = set()
+        self.stepsdone: set[bytes] = set()
         # Whether we attempted a clone from pre-generated bundles.
-        self.clonebundleattempted = False
+        self.clonebundleattempted: bool = False
         # Set of file patterns to include.
-        self.includepats = includepats
+        self.includepats: set[bytes] = includepats
         # Set of file patterns to exclude.
-        self.excludepats = excludepats
+        self.excludepats: set[bytes] = excludepats
         # Number of ancestor changesets to pull from each pulled head.
-        self.depth = depth
+        self.depth: int | None = depth
 
     @util.propertycache
     def pulledsubset(self):
