@@ -2384,6 +2384,11 @@ class ChangeGroupPacker03(cgpacker):
 
 
 class ChangeGroupPacker04(cgpacker):
+    """Changegroup 4 support more advanced flag for each delta.
+
+    see documentation of cg4unpacker for details.
+    """
+
     def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         snap_lvl = -2  # means no-info
         if d.snapshot_level is not None:
@@ -2413,10 +2418,6 @@ class ChangeGroupPacker04(cgpacker):
         fullnodes=None,
         remote_sidedata=None,
     ):
-        """Changegroup 4 support more advanced flag for each delta.
-
-        see documentation of cg4unpacker for details.
-        """
         super()._init(
             repo,
             oldmatcher,
