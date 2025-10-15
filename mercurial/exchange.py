@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import collections
 import weakref
-from typing import Any
+from typing import (
+    Any,
+    Collection,
+)
 
 from .i18n import _
 from .node import (
@@ -17,9 +20,14 @@ from .node import (
     nullrev,
 )
 from .interfaces.types import (
+    ChangeContextT,
     MatcherT,
+    NodeIdT,
+    PeerT,
     RepoT,
+    RevnumT,
     TransactionT,
+    UiT,
 )
 from . import (
     bookmarks as bookmod,
@@ -278,34 +286,34 @@ class pushoperation:
         pushvars=None,
     ):
         # repo we push from
-        self.repo = repo
-        self.ui = repo.ui
+        self.repo: RepoT = repo
+        self.ui: UiT = repo.ui
         # repo we push to
-        self.remote = remote
+        self.remote: PeerT = remote
         # force option provided
-        self.force = force
+        self.force: bool = force
         # revs to be pushed (None is "all")
-        self.revs = revs
+        self.revs: None | Collection[RevnumT] = revs
         # bookmark explicitly pushed
-        self.bookmarks = bookmarks
+        self.bookmarks: Collection[bytes] = bookmarks
         # allow push of new branch
-        self.newbranch = newbranch
+        self.newbranch: bool = newbranch
         # step already performed
         # (used to check what steps have been already performed through bundle2)
-        self.stepsdone = set()
+        self.stepsdone: set[bytes] = set()
         # Integer version of the changegroup push result
         # - None means nothing to push
         # - 0 means HTTP error
         # - 1 means we pushed and remote head count is unchanged *or*
         #   we have outgoing changesets but refused to push
         # - other values as described by addchangegroup()
-        self.cgresult = None
-        # Boolean value for the bookmark push
-        self.bkresult = None
+        self.cgresult: int | None = None
+        # integer value for the bookmark push
+        self.bkresult: int | None = None
         # discover.outgoing object (contains common and outgoing data)
-        self.outgoing = None
+        self.outgoing: discovery.outgoing = None
         # all remote topological heads before the push
-        self.remoteheads = None
+        self.remoteheads: Collection[NodeIdT] | None = None
         # Details of the remote branch pre and post push
         #
         # mapping: {'branch': ([remoteheads],
@@ -318,26 +326,26 @@ class pushoperation:
         # - newheads: the new remote heads (known locally) with outgoing pushed
         # - unsyncedheads: the list of remote heads unknown locally.
         # - discardedheads: the list of remote heads made obsolete by the push
-        self.pushbranchmap = None
+        self.pushbranchmap: dict[bytes, list[bytes]] | None = None
         # testable as a boolean indicating if any nodes are missing locally.
-        self.incoming = None
+        self.incoming: bool | None = None
         # summary of the remote phase situation
-        self.remotephases = None
+        self.remotephases: phases.RemotePhasesSummary | None = None
         # phases changes that must be pushed along side the changesets
-        self.outdatedphases = None
+        self.outdatedphases: list[ChangeContextT] | None = None
         # phases changes that must be pushed if changeset push fails
-        self.fallbackoutdatedphases = None
+        self.fallbackoutdatedphases: list[ChangeContextT] | None = None
         # outgoing obsmarkers
         self.outobsmarkers = set()
         # outgoing bookmarks, list of (bm, oldnode | '', newnode | '')
-        self.outbookmarks = []
+        self.outbookmarks: list[tuple[bytes, bytes, bytes]] = []
         # transaction manager
-        self.trmanager = None
+        self.trmanager: transactionmanager | None = None
         # map { pushkey partid -> callback handling failure}
         # used to handle exception from mandatory pushkey part failure
-        self.pkfailcb = {}
+        self.pkfailcb: dict = {}
         # an iterable of pushvars or None
-        self.pushvars = pushvars
+        self.pushvars: dict[bytes, bytes] | None = pushvars
         # publish pushed changesets
         self.publish = publish
 
