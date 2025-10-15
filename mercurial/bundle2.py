@@ -1667,20 +1667,26 @@ def writenewbundle(
     caps: Capabilities = {}
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
-    stream_version = opts.get(b'stream', b"")
-    if stream_version == b"v2":
-        caps[b'stream'] = [b'v2']
-    elif stream_version == b"v3-exp":
-        caps[b'stream'] = [b'v3-exp']
-    bundle = bundle20(ui, caps)
-    bundle.setcompression(compression, compopts)
-    if stream_version:
-        addpartbundlestream2(bundle, repo, stream=True)
+    if stream_version := opts.get(b'stream', b""):
+        return write_new_stream_bundle(
+            repo=repo, version=stream_version, filename=filename, vfs=vfs
+        )
     else:
+        bundle = bundle20(ui, caps)
+        bundle.setcompression(compression, compopts)
         _addpartsfromopts(repo, bundle, source, outgoing, opts)
     chunkiter = bundle.getchunks()
 
     return changegroup.writechunks(ui, chunkiter, filename, vfs=vfs)
+
+
+def write_new_stream_bundle(repo, version, filename, vfs):
+    ui = repo.ui
+
+    bundle = bundle20(ui, {b"stream": [version]})
+    addpartbundlestream2(bundle, repo, stream=True)
+
+    return changegroup.writechunks(ui, bundle.getchunks(), filename, vfs=vfs)
 
 
 def _addpartsfromopts(repo, bundler, source, outgoing, opts):
