@@ -717,6 +717,7 @@ mod commands {
     pub mod annotate;
     pub mod cat;
     pub mod config;
+    pub mod debug_narrow_fingerprint;
     pub mod debugdata;
     pub mod debugignorerhg;
     pub mod debugrequirements;
@@ -800,6 +801,7 @@ fn subcommands() -> Subcommands {
         subcommand!(annotate),
         subcommand!(cat),
         subcommand!(debugdata),
+        subcommand!(debug_narrow_fingerprint),
         subcommand!(debugrequirements),
         subcommand!(debugignorerhg),
         subcommand!(debugrhgsparse),
