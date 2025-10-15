@@ -77,8 +77,9 @@ class ICompressionEngine(Protocol):
     Compression engines must implement the interface defined by this class.
     """
 
+    @classmethod
     @abc.abstractmethod
-    def name(self) -> bytes:
+    def name(cls) -> bytes:
         """Returns the name of the compression engine.
 
         This is the key the engine is registered under.

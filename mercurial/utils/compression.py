@@ -271,7 +271,8 @@ class compressionengine(i_comp.ICompressionEngine):
     Compression engines must implement the interface defined by this class.
     """
 
-    def name(self):
+    @classmethod
+    def name(cls):
         """Returns the name of the compression engine.
 
         This is the key the engine is registered under.
@@ -494,7 +495,8 @@ class _ZstdCompressedStreamReader(_CompressedStreamReader):
 
 
 class _zlibengine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'zlib'
 
     def bundletype(self):
@@ -589,7 +591,8 @@ compengines.register(_zlibengine())
 
 
 class _bz2engine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'bz2'
 
     def bundletype(self):
@@ -629,7 +632,8 @@ compengines.register(_bz2engine())
 
 
 class _truncatedbz2engine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'bz2truncated'
 
     def bundletype(self):
@@ -645,7 +649,8 @@ compengines.register(_truncatedbz2engine())
 
 
 class _noopengine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'none'
 
     def bundletype(self):
@@ -684,7 +689,8 @@ compengines.register(_noopengine())
 
 
 class _zstdengine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'zstd'
 
     @propertycache
