@@ -16,6 +16,7 @@ import weakref
 
 from typing import (
     Callable,
+    Collection,
     Iterator,
     Optional,
     TYPE_CHECKING,
@@ -57,7 +58,10 @@ from .interfaces import (
 )
 from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
-from .utils import storageutil
+from .utils import (
+    storageutil,
+    urlutil,
+)
 
 # Force pytype to use the non-vendored package
 if TYPE_CHECKING:
@@ -316,6 +320,22 @@ class WireDeltaCompression(enum.IntEnum):
     UNCOMPRESSED = 1
     ZLIB_COMPRESSED = 2
     ZSTD_COMPRESSED = 3
+
+    @staticmethod
+    def accepted(
+        caps: Collection[bytes],
+    ) -> frozenset[i_comp.RevlogCompHeader]:
+        """return accepted compression from a bundle capability set"""
+        b2caps = urlutil.b2_caps_from_bundle_caps(caps)
+        cap_set = b2caps.get(b'delta-compression', ())
+        accepted = set()
+        if b'none' in cap_set:
+            accepted.add(i_comp.REVLOG_COMP_NONE)
+        if b'zlib' in cap_set:
+            accepted.add(i_comp.REVLOG_COMP_ZLIB)
+        if b'zstd' in cap_set:
+            accepted.add(i_comp.REVLOG_COMP_ZSTD)
+        return frozenset(accepted)
 
     @classmethod
     def from_revlog_compression(
@@ -1284,6 +1304,7 @@ def deltagroup(
     sidedata_helpers=None,
     debug_info: dict[str, NeedsTypeHint] | None = None,
     filelog_hasmeta: bool = False,
+    accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
 ) -> Iterator[OutboundRevisionT]:
     """Calculate deltas for a set of revisions.
 
@@ -1401,6 +1422,7 @@ def deltagroup(
         deltamode=deltamode,
         sidedata_helpers=sidedata_helpers,
         debug_info=debug_info,
+        accepted_compression=accepted_compression,
         **kwargs,
     )
 
@@ -1623,6 +1645,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
     _remote_sidedata: set
     _isshallow: bool
     _fullclnodes: set[NodeIdT]
+    _accepted_compression: frozenset[i_comp.RevlogCompHeader]
 
     _precomputedellipsis: i_cg.PreComputedEllipsisT | None
 
@@ -1645,6 +1668,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         fullnodes: set[NodeIdT] | None = None,
         remote_sidedata: set[bytes] | None = None,
         filelog_hasmeta: bool = False,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         """Given a source repo, construct a bundler.
 
@@ -1693,6 +1717,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
         self._manifestsend = manifestsend
         self._ellipses = ellipses
         self._filelog_hasmeta = filelog_hasmeta
+        self._accepted_compression = accepted_compression
 
         # Set of capabilities we can use to build the bundle.
         if bundlecaps is None:
@@ -2014,6 +2039,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
             precomputedellipsis=self._precomputedellipsis,
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
+            accepted_compression=self._accepted_compression,
         )
 
         return state, gen
@@ -2129,6 +2155,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
                 precomputedellipsis=self._precomputedellipsis,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
+                accepted_compression=self._accepted_compression,
             )
 
             if not self._oldmatcher.visitdir(store.tree[:-1]):
@@ -2267,6 +2294,7 @@ class cgpacker(i_cg.IChangeGroupPacker):
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
                 filelog_hasmeta=self._filelog_hasmeta,
+                accepted_compression=self._accepted_compression,
             )
 
             yield fname, deltas
@@ -2430,6 +2458,7 @@ class ChangeGroupPacker04(cgpacker):
             ellipsisroots=ellipsisroots,
             fullnodes=fullnodes,
             filelog_hasmeta=True,
+            accepted_compression=WireDeltaCompression.accepted(bundlecaps),
         )
 
 

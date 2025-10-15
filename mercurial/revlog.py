@@ -3948,6 +3948,7 @@ class revlog:
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
         debug_info=None,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         if nodesorder not in (b'nodes', b'storage', b'linear', None):
             raise error.ProgrammingError(
@@ -3972,6 +3973,7 @@ class revlog:
                 assumehaveparentrevisions=assumehaveparentrevisions,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
+                accepted_compression=accepted_compression,
             )
 
     def _emit_revisions(
@@ -3983,6 +3985,7 @@ class revlog:
         assumehaveparentrevisions=False,
         sidedata_helpers=None,
         debug_info=None,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ) -> Iterator[OutboundRevisionT]:
         """Generic implementation of ifiledata.emitrevisions().
 

@@ -689,6 +689,7 @@ class IDeltaEmittingStore(Protocol):
         # Need typing
         sidedata_helpers=None,
         use_hasmeta_flag: bool = False,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ) -> Iterator[IOutboundRevision]:
         """Produce ``IOutboundRevision`` for revisions.
 

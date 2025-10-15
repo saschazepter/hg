@@ -44,6 +44,7 @@ from . import (
     util,
 )
 from .interfaces import (
+    compression as i_comp,
     repository,
 )
 from .revlogutils import (
@@ -1966,6 +1967,7 @@ class manifestrevlog(repository.imanifeststorage):
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
         debug_info=None,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         return self._revlog.emitrevisions(
             nodes,
@@ -1975,6 +1977,7 @@ class manifestrevlog(repository.imanifeststorage):
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
+            accepted_compression=accepted_compression,
         )
 
     def addgroup(

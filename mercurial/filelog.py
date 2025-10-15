@@ -21,6 +21,7 @@ from . import (
     revlogutils,
 )
 from .interfaces import (
+    compression as i_comp,
     repository,
     types,
 )
@@ -161,6 +162,7 @@ class filelog(repository.ifilestorage):
         sidedata_helpers=None,
         debug_info=None,
         use_hasmeta_flag=False,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         all_revision_data = self._revlog.emitrevisions(
             nodes,
@@ -170,6 +172,7 @@ class filelog(repository.ifilestorage):
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
+            accepted_compression=accepted_compression,
         )
         revlog_hasmeta_flag = (
             self._revlog._format_flags & revlog.FLAG_FILELOG_META

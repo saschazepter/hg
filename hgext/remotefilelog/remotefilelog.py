@@ -311,6 +311,7 @@ class remotefilelog:
         deltamode=None,
         sidedata_helpers=None,
         debug_info=None,
+        accepted_compression=frozenset(),
     ) -> Iterator[OutboundRevisionT]:
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious
