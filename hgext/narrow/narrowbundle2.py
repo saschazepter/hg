@@ -180,27 +180,6 @@ def generate_ellipses_bundle2_for_widening(
             part.addparam(b'treemanifest', b'1')
 
 
-@bundle2_part_handlers.parthandler(
-    _SPECPART, (_SPECPART_INCLUDE, _SPECPART_EXCLUDE)
-)
-def _handlechangespec_2(op, inpart):
-    # XXX: This bundle2 handling is buggy and should be removed after hg5.2 is
-    # released. New servers will send a mandatory bundle2 part named
-    # 'Narrowspec' and will send specs as data instead of params.
-    # Refer to issue5952 and 6019
-    includepats = set(inpart.params.get(_SPECPART_INCLUDE, b'').splitlines())
-    excludepats = set(inpart.params.get(_SPECPART_EXCLUDE, b'').splitlines())
-    narrowspec.validatepatterns(includepats)
-    narrowspec.validatepatterns(excludepats)
-
-    if not op.repo.is_narrow:
-        op.repo.requirements.add(requirements.NARROW_REQUIREMENT)
-        del op.repo.is_narrow  # refresh the property cache
-        scmutil.writereporequirements(op.repo)
-    op.repo.setnarrowpats(includepats, excludepats)
-    narrowspec.copytoworkingcopy(op.repo)
-
-
 @bundle2_part_handlers.parthandler(_RESSPECS)
 def _handlenarrowspecs(op, inpart):
     data = inpart.read()
