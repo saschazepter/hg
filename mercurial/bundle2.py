@@ -1673,7 +1673,10 @@ def writenewbundle(
         caps[b'stream'] = [b'v3-exp']
     bundle = bundle20(ui, caps)
     bundle.setcompression(compression, compopts)
-    _addpartsfromopts(repo, bundle, source, outgoing, opts)
+    if stream_version:
+        addpartbundlestream2(bundle, repo, stream=True)
+    else:
+        _addpartsfromopts(repo, bundle, source, outgoing, opts)
     chunkiter = bundle.getchunks()
 
     return changegroup.writechunks(ui, chunkiter, filename, vfs=vfs)
@@ -1687,8 +1690,7 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
     # different right now. So we keep them separated for now for the sake of
     # simplicity.
 
-    # we might not always want a changegroup in such bundle, for example in
-    # stream bundles
+    # we might not always want a changegroup in such bundle for legacy formats
     if opts.get(b'changegroup', True):
         cgversion = opts.get(b'cg.version')
         if cgversion is None:
@@ -1712,12 +1714,6 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
                 )
     if repository.REPO_FEATURE_SIDE_DATA in repo.features:
         part.addparam(b'exp-sidedata', b'1')
-
-    if opts.get(b'stream', b"") == b"v2":
-        addpartbundlestream2(bundler, repo, stream=True)
-
-    if opts.get(b'stream', b"") == b"v3-exp":
-        addpartbundlestream2(bundler, repo, stream=True)
 
     if opts.get(b'tagsfnodescache', True):
         addparttagsfnodescache(repo, bundler, outgoing)
