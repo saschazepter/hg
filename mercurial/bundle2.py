@@ -1673,13 +1673,13 @@ def writenewbundle(
         caps[b'stream'] = [b'v3-exp']
     bundle = bundle20(ui, caps)
     bundle.setcompression(compression, compopts)
-    _addpartsfromopts(ui, repo, bundle, source, outgoing, opts)
+    _addpartsfromopts(repo, bundle, source, outgoing, opts)
     chunkiter = bundle.getchunks()
 
     return changegroup.writechunks(ui, chunkiter, filename, vfs=vfs)
 
 
-def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
+def _addpartsfromopts(repo, bundler, source, outgoing, opts):
     # We should eventually reconcile this logic with the one behind
     # 'exchange.getbundle2partsgenerator'.
     #
