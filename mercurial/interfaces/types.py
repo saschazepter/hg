@@ -72,6 +72,8 @@ MatcherMatchFuncT = matcher.MatchFuncT
 MatcherT = matcher.MatcherT
 MatcherTraverseDirFuncT = matcher.TraverseDirFuncT
 
+PathT = misc.IPath
+
 OutboundRevisionT = repository.IOutboundRevision
 InboundRevisionT = repository.IInboundRevision
 

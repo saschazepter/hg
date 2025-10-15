@@ -142,6 +142,9 @@ class IPath(Protocol):
     branch: bytes
     rawloc: bytes
     loc: bytes
+    bookmarks_mode: bytes
+    # TODO: turn DELTA_REUSE_POLICIES into an enum
+    delta_reuse_policy: None | int
 
     @abc.abstractmethod
     def copy(self, new_raw_location: bytes | None = None) -> IPath:
