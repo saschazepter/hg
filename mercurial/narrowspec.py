@@ -250,7 +250,6 @@ class ShardTreeNode:
         This ensures that the path and its subpath get sorted
         next to each other."""
         path = self.path
-        assert b':' not in path
         assert b'\0' not in path
         assert not path.startswith(b'/')
         assert not path.endswith(b'/')
