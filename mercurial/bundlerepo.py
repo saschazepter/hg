@@ -179,9 +179,9 @@ class bundlerevlog(revlog.revlog):
         while iterrev > self.repotiprev:
             if (
                 self._inner._revisioncache
-                and self._inner._revisioncache[1] == iterrev
+                and self._inner._revisioncache[0] == iterrev
             ):
-                rawtext = self._inner._revisioncache[2]
+                rawtext = self._inner._revisioncache[1]
                 break
             chain.append(iterrev)
             iterrev = self.index[iterrev][3]

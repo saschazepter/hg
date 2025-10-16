@@ -403,24 +403,19 @@ impl InnerRevlog {
                 }
                 drop(self_ref);
                 let tuple: &Bound<'_, PyTuple> = tuple.downcast_bound(py)?;
-                let node = tuple.get_item(0)?;
-                let node = node_from_py_bytes(node.downcast()?)?;
-                let rev: BaseRevision = tuple.get_item(1)?.extract()?;
+                let rev: BaseRevision = tuple.get_item(0)?.extract()?;
                 // Ok because Python only sets this if the revision has been
                 // checked
                 let rev = Revision(rev);
-                let data = tuple.get_item(2)?;
+                let data = tuple.get_item(1)?;
                 let bytes = data.downcast_into::<PyBytes>()?.unbind();
                 Self::with_core_read(slf, |_self_ref, irl| {
                     let mut last_revision_cache = irl
                         .last_revision_cache
                         .lock()
                         .expect("lock should not be held");
-                    *last_revision_cache = Some((
-                        node,
-                        rev,
-                        Box::new(PyBytesDeref::new(py, bytes)),
-                    ));
+                    *last_revision_cache =
+                        Some((rev, Box::new(PyBytesDeref::new(py, bytes))));
                     Ok(())
                 })?;
             }

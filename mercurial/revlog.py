@@ -98,6 +98,7 @@ if typing.TYPE_CHECKING:
     from .interfaces.types import (
         NodeIdT,
         OutboundRevisionT,
+        RevnumT,
     )
 
 from . import (
@@ -394,8 +395,8 @@ class _InnerRevlog:
         self._decompressors: dict[
             i_comp.RevlogCompHeader, i_comp.IRevlogCompressor
         ] = {}
-        # 3-tuple of (node, rev, text) for a raw revision.
-        self._revisioncache = None
+        # 2-tuple of (rev, text) for a raw revision.
+        self._revisioncache: tuple[RevnumT, bytes] = None
 
         # cache some uncompressed chunks
         # rev → uncompressed_chunk
@@ -1029,13 +1030,11 @@ class _InnerRevlog:
         # Check if we have the entry in cache
         # The cache entry looks like (node, rev, rawtext)
         if self._revisioncache:
-            cachedrev = self._revisioncache[1]
-            if node is not None:
-                assert self.index[cachedrev][7] == self._revisioncache[0]
+            cachedrev = self._revisioncache[0]
 
         chain, stopped = self._deltachain(rev, stoprev=cachedrev)
         if stopped:
-            basetext = self._revisioncache[2]
+            basetext = self._revisioncache[1]
 
         # drop cache to save memory, the caller is expected to
         # update self._inner._revisioncache after validating the text
@@ -2981,15 +2980,13 @@ class revlog:
 
         returns (rev, rawtext, validated)
         """
+        if rev is None:
+            rev = self.rev(node)
         # Check if we have the entry in cache
         # The cache entry looks like (node, rev, rawtext)
         if self._inner._revisioncache:
-            if self._inner._revisioncache[1] == rev:
-                assert self.index[rev][7] == node
-                return (rev, self._inner._revisioncache[2], True)
-
-        if rev is None:
-            rev = self.rev(node)
+            if self._inner._revisioncache[0] == rev:
+                return (rev, self._inner._revisioncache[1], True)
 
         text = self._inner.raw_text(node, rev)
         return (rev, text, False)
@@ -3037,7 +3034,7 @@ class revlog:
         if validate and validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
-            self._inner._revisioncache = (node, rev, rawtext)
+            self._inner._revisioncache = (rev, rawtext)
 
         return text
 
@@ -3083,9 +3080,11 @@ class revlog:
                 # revision data is accessed. But this case should be rare and
                 # it is extra work to teach the cache about the hash
                 # verification state.
+                if rev is None:
+                    rev = self.index.rev(node)
                 if (
                     self._inner._revisioncache
-                    and self._inner._revisioncache[0] == node
+                    and self._inner._revisioncache[1] == rev
                 ):
                     self._inner._revisioncache = None
 
@@ -3592,7 +3591,7 @@ class revlog:
             rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) is bytes:  # only accept immutable objects
-            self._inner._revisioncache = (node, curr, rawtext)
+            self._inner._revisioncache = (curr, rawtext)
         self._chainbasecache[curr] = deltainfo.chainbase
         self._inner.seen_file_size(textlen)
         if deltainfo.u_data is not None:

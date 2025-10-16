@@ -36,7 +36,6 @@ use super::options::RevlogDataConfig;
 use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
 use super::BaseRevision;
-use super::Node;
 use super::Revision;
 use super::RevlogEntry;
 use super::RevlogError;
@@ -500,7 +499,7 @@ impl InnerRevlog {
         let raw_size = entry.uncompressed_len();
         let mutex_guard =
             self.last_revision_cache.lock().expect("lock should not be held");
-        let cached_rev = if let Some((_node, rev, data)) = &*mutex_guard {
+        let cached_rev = if let Some((rev, data)) = &*mutex_guard {
             Some((*rev, data.deref().as_ref()))
         } else {
             None
@@ -1289,13 +1288,12 @@ impl InnerRevlog {
 type UncompressedChunkCache =
     RwLock<LruMap<Revision, Arc<[u8]>, ByTotalChunksSize>>;
 
-/// The node, revision and data for the last revision we've seen. Speeds up
+/// The revision and data for the last revision we've seen. Speeds up
 /// a lot of sequential operations of the revlog.
 ///
 /// The data is not just bytes since it can come from Python and we want to
 /// avoid copies if possible.
-type SingleRevisionCache =
-    (Node, Revision, Box<dyn Deref<Target = [u8]> + Send>);
+type SingleRevisionCache = (Revision, Box<dyn Deref<Target = [u8]> + Send>);
 
 /// A way of progressively filling a buffer with revision data, then return
 /// that buffer. Used to abstract away Python-allocated code to reduce copying
