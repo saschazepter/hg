@@ -652,7 +652,11 @@ impl InnerRevlog {
             .map_err(revlog_error_from_msg)?;
             Ok(PyTuple::new(
                 py,
-                &[py_bytes.into_py_any(py)?, false.into_py_any(py)?],
+                &[
+                    rev.into_py_any(py)?,
+                    py_bytes.into_py_any(py)?,
+                    false.into_py_any(py)?,
+                ],
             )?
             .unbind())
         })

@@ -1043,13 +1043,13 @@ class _InnerRevlog:
         chunks.sort()
         return [x[1] for x in chunks]
 
-    def raw_text(self, rev: RevnumT) -> tuple[bytes, bool]:
+    def raw_text(self, rev: RevnumT) -> tuple[RevnumT, bytes, bool]:
         """return the possibly unvalidated rawtext for a revision
 
         returns rawtext
         """
         if rev == nullrev:
-            return (b'', True)
+            return (rev, b'', True)
 
         # revision in the cache (could be useful to apply delta)
         cachedrev = None
@@ -1061,7 +1061,7 @@ class _InnerRevlog:
         cache = self._revision_cache
         if cache is not None:
             if cachedrev == rev:
-                return cache[1:]
+                return cache
             cachedrev = cache[0]
 
         chain, stopped = self._deltachain(rev, stoprev=cachedrev)
@@ -1084,7 +1084,7 @@ class _InnerRevlog:
         del basetext  # let us have a chance to free memory early
 
         self.cache_revision_text(rev, rawtext, False)
-        return (rawtext, False)
+        return (rev, rawtext, False)
 
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
@@ -3017,8 +3017,7 @@ class revlog:
         cached = self._inner.get_cached_text(rev)
         if cached is not None:
             return cached
-        text, validated = self._inner.raw_text(rev)
-        return (rev, text, validated)
+        return self._inner.raw_text(rev)
 
     def _revisiondata(self, nodeorrev, raw=False, validate=True):
         # deal with <nodeorrev> argument type
