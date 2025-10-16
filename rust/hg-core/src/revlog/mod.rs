@@ -35,6 +35,7 @@ pub mod patch;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::path::Path;
+use std::sync::Arc;
 
 use self::nodemap_docket::NodeMapDocket;
 use crate::dyn_bytes::DynBytes;
@@ -807,7 +808,9 @@ impl<'revlog> RevlogEntry<'revlog> {
         let mut data = CoreRevisionBuffer::new();
         data.resize(size);
         patch::build_data_from_deltas(&mut data, base_text, deltas)?;
-        Ok(data.finish().into())
+        let raw_text: RawData = data.finish().into();
+        self.revlog.set_rev_cache(self.rev, Arc::new(raw_text.clone()));
+        Ok(raw_text)
     }
 
     /// Get the revision data, checking its integrity in the process
