@@ -18,8 +18,8 @@ import stat
 import typing
 
 from typing import (
+    Collection,
     Generator,
-    Iterable,
     Iterator,
     Protocol,
     Tuple,
@@ -618,7 +618,7 @@ class StoreFile:
         return (self.unencoded_path, s, size)
 
 
-_StreamsT = Iterable[Tuple[bytes, Iterator[bytes], int]]
+_StreamsT = Collection[Tuple[bytes, Iterator[bytes], int]]
 
 
 @attr.s(slots=True, init=False)

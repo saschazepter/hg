@@ -23,10 +23,15 @@ from typing import (
 
 from .i18n import _
 from .interfaces.types import (
+    MatcherT,
+    RepoT,
     UnbundlePartT,
     VfsKeyT,
 )
-from .interfaces import repository
+from .interfaces import (
+    exchange as i_exc,
+    repository,
+)
 from . import (
     bookmarks,
     cacheutil,
@@ -88,7 +93,7 @@ def new_stream_clone_requirements(
     return requirements
 
 
-def streamed_requirements(repo) -> set[bytes]:
+def streamed_requirements(repo: RepoT) -> set[bytes]:
     """the set of requirement the new clone will have to support
 
     This is used for advertising the stream options and to generate the actual
@@ -99,7 +104,7 @@ def streamed_requirements(repo) -> set[bytes]:
     return requiredformats
 
 
-def canperformstreamclone(pullop, bundle2: bool = False):
+def canperformstreamclone(pullop: i_exc.IPullOperation, bundle2: bool = False):
     """Whether it is possible to perform a streaming clone as part of pull.
 
     ``bundle2`` will cause the function to consider stream clone through
@@ -193,7 +198,7 @@ def canperformstreamclone(pullop, bundle2: bool = False):
     return True, requirements
 
 
-def maybeperformlegacystreamclone(pullop) -> None:
+def maybeperformlegacystreamclone(pullop: i_exc.IPullOperation) -> None:
     """Possibly perform a legacy stream clone operation.
 
     Legacy stream clones are performed as part of pull but before all other
@@ -268,7 +273,7 @@ def maybeperformlegacystreamclone(pullop) -> None:
         repo.invalidate()
 
 
-def allowservergeneration(repo) -> bool:
+def allowservergeneration(repo: RepoT) -> bool:
     """Whether streaming clones are allowed from the server."""
     if repository.REPO_FEATURE_STREAM_CLONE not in repo.features:
         return False
@@ -287,13 +292,19 @@ def allowservergeneration(repo) -> bool:
 
 # This is it's own function so extensions can override it.
 def _walkstreamfiles(
-    repo, matcher=None, phase: bool = False, obsolescence: bool = False
+    repo: RepoT,
+    matcher: MatcherT | None = None,
+    phase: bool = False,
+    obsolescence: bool = False,
 ):
     return repo.store.walk(matcher, phase=phase, obsolescence=obsolescence)
 
 
 def _report_transferred(
-    repo, start_time: float, file_count: int, byte_count: int
+    repo: RepoT,
+    start_time: float,
+    file_count: int,
+    byte_count: int,
 ):
     """common utility to report time it took to apply the stream bundle"""
     elapsed = util.timer() - start_time
@@ -309,7 +320,7 @@ def _report_transferred(
     repo.ui.status(m)
 
 
-def generatev1(repo) -> tuple[int, int, Iterator[bytes]]:
+def generatev1(repo: RepoT) -> tuple[int, int, Iterator[bytes]]:
     """Emit content for version 1 of a streaming clone.
 
     This returns a 3-tuple of (file count, byte size, data iterator).
@@ -367,7 +378,7 @@ def generatev1(repo) -> tuple[int, int, Iterator[bytes]]:
     return len(entries), total_bytes, emitrevlogdata()
 
 
-def generatev1wireproto(repo) -> Iterator[bytes]:
+def generatev1wireproto(repo: RepoT) -> Iterator[bytes]:
     """Emit content for version 1 of streaming clone suitable for the wire.
 
     This is the data output from ``generatev1()`` with 2 header lines. The
@@ -395,7 +406,8 @@ def generatev1wireproto(repo) -> Iterator[bytes]:
 
 
 def generatebundlev1(
-    repo, compression: bytes = b'UN'
+    repo: RepoT,
+    compression: bytes = b'UN',
 ) -> tuple[set[bytes], Iterator[bytes]]:
     """Emit content for version 1 of a stream clone bundle.
 
@@ -454,7 +466,12 @@ def generatebundlev1(
     return requirements, gen()
 
 
-def consumev1(repo, fp, filecount: int, bytecount: int) -> None:
+def consumev1(
+    repo: RepoT,
+    fp,
+    filecount: int,
+    bytecount: int,
+) -> None:
     """Apply the contents from version 1 of a streaming clone file handle.
 
     This takes the output from "stream_out" and applies it to the specified
@@ -564,7 +581,7 @@ def readbundle1header(fp) -> tuple[int, int, set[bytes]]:
     return filecount, bytecount, requirements
 
 
-def applybundlev1(repo, fp) -> None:
+def applybundlev1(repo: RepoT, fp) -> None:
     """Apply the content from a stream clone bundle version 1.
 
     We assume the 4 byte header has been read and validated and the file handle
@@ -597,7 +614,7 @@ class streamcloneapplier:
     def __init__(self, fh) -> None:
         self._fh = fh
 
-    def apply(self, repo) -> None:
+    def apply(self, repo: RepoT) -> None:
         return applybundlev1(repo, self._fh)
 
 
@@ -757,7 +774,7 @@ class VolatileManager(store.IVolatileManager):
                 yield fp
 
 
-def _makemap(repo):
+def _makemap(repo: RepoT) -> dict[bytes, vfsmod.vfs]:
     """make a (src -> vfs) map for the repo"""
     vfsmap = {
         _srcstore: repo.svfs,
@@ -770,7 +787,7 @@ def _makemap(repo):
     return vfsmap
 
 
-def _emit2(repo, entries):
+def _emit2(repo: RepoT, entries) -> Iterator[tuple[int, int] | bytes]:
     """actually emit the stream bundle"""
     vfsmap = _makemap(repo)
     # we keep repo.vfs out of the on purpose, ther are too many danger there
@@ -837,7 +854,7 @@ def _emit2(repo, entries):
                         raise error.Abort(msg % (bytecount, name, size))
 
 
-def _emit3(repo, entries) -> Iterator[bytes | None]:
+def _emit3(repo: RepoT, entries) -> Iterator[bytes | None]:
     """actually emit the stream bundle (v3)"""
     vfsmap = _makemap(repo)
     # we keep repo.vfs out of the map on purpose, ther are too many dangers
@@ -902,7 +919,7 @@ def _emit3(repo, entries) -> Iterator[bytes | None]:
                 progress.increment()
 
 
-def _test_sync_point_walk_1_2(repo):
+def _test_sync_point_walk_1_2(repo: RepoT):
     """a function for synchronisation during tests
 
     Triggered after gather entry, but before starting to process/preserve them
@@ -912,7 +929,7 @@ def _test_sync_point_walk_1_2(repo):
     """
 
 
-def _test_sync_point_walk_3(repo):
+def _test_sync_point_walk_3(repo: RepoT):
     """a function for synchronisation during tests
 
     Triggered right before releasing the lock, but after computing what need
@@ -920,7 +937,7 @@ def _test_sync_point_walk_3(repo):
     """
 
 
-def _test_sync_point_walk_4(repo):
+def _test_sync_point_walk_4(repo: RepoT):
     """a function for synchronisation during tests
 
     Triggered right after releasing the lock.
@@ -977,7 +994,11 @@ class CacheFile(store.StoreFile):
     optional: bool = True
 
 
-def _entries_walk(repo, matcher, includeobsmarkers: bool):
+def _entries_walk(
+    repo: RepoT,
+    matcher: MatcherT | None,
+    includeobsmarkers: bool,
+) -> Iterator[tuple[bytes, store.BaseStoreEntry]]:
     """emit a seris of files information useful to clone a repo
 
     return (vfs-key, entry) iterator
@@ -1005,7 +1026,11 @@ def _entries_walk(repo, matcher, includeobsmarkers: bool):
                 yield (_srccache, CacheEntry(entry_path=name))
 
 
-def generatev2(repo, matcher, includeobsmarkers: bool):
+def generatev2(
+    repo: RepoT,
+    matcher: MatcherT,
+    includeobsmarkers: bool,
+) -> tuple[int, int, Iterator[bytes]]:
     """Emit content for version 2 of a streaming clone.
 
     the data stream consists the following entries:
@@ -1036,7 +1061,9 @@ def generatev2(repo, matcher, includeobsmarkers: bool):
 
 
 def generatev3(
-    repo, matcher, includeobsmarkers: bool
+    repo: RepoT,
+    matcher: MatcherT | None,
+    includeobsmarkers: bool,
 ) -> Iterator[bytes | None]:
     """Emit content for version 3 of a streaming clone.
 
@@ -1101,7 +1128,7 @@ class V2Report:
         self.byte_count = 0
 
 
-def consumev2(repo, fp, filecount: int, filesize: int) -> None:
+def consumev2(repo: RepoT, fp, filecount: int, filesize: int) -> None:
     """Apply the contents from a version 2 streaming clone.
 
     Data is read from an object that only needs to provide a ``read(size)``
@@ -1506,7 +1533,7 @@ def _trivial_file(
 
 
 def _v2_parse_files(
-    repo,
+    repo: RepoT,
     fp: UnbundlePartT,
     vfs_map,
     file_count: int,
@@ -1583,7 +1610,7 @@ def _write_files(info: Iterable[FileInfoT]):
             os.close(fd)
 
 
-def consumev3(repo, fp) -> None:
+def consumev3(repo: RepoT, fp) -> None:
     """Apply the contents from a version 3 streaming clone.
 
     Data is read from an object that only needs to provide a ``read(size)``
@@ -1657,7 +1684,11 @@ def consumev3(repo, fp) -> None:
 
 
 def applybundlev2(
-    repo, fp, filecount: int, filesize: int, requirements: Iterable[bytes]
+    repo: RepoT,
+    fp,
+    filecount: int,
+    filesize: int,
+    requirements: Iterable[bytes],
 ) -> None:
     missingreqs = [r for r in requirements if r not in repo.supported]
     if missingreqs:
@@ -1682,7 +1713,11 @@ def applybundlev2(
     nodemap.post_stream_cleanup(repo)
 
 
-def applybundlev3(repo, fp, requirements: Iterable[bytes]) -> None:
+def applybundlev3(
+    repo: RepoT,
+    fp,
+    requirements: Iterable[bytes],
+) -> None:
     missingreqs = [r for r in requirements if r not in repo.supported]
     if missingreqs:
         msg = _(b'unable to apply stream clone: unsupported format: %s')
@@ -1745,7 +1780,7 @@ def _copy_files(
     return hardlink[0]
 
 
-def local_copy(src_repo, dest_repo) -> None:
+def local_copy(src_repo: RepoT, dest_repo: RepoT) -> None:
     """copy all content from one local repository to another
 
     This is useful for local clone"""
