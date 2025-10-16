@@ -1060,6 +1060,8 @@ class _InnerRevlog:
         # The cache entry looks like (rev, rawtext, validated)
         cache = self._revision_cache
         if cache is not None:
+            if cachedrev == rev:
+                return cache[1:]
             cachedrev = cache[0]
 
         chain, stopped = self._deltachain(rev, stoprev=cachedrev)
