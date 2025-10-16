@@ -602,7 +602,6 @@ impl InnerRevlog {
     fn raw_text(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
-        _node: PyObject,
         rev: PyRevision,
     ) -> PyResult<Py<PyBytes>> {
         Self::with_core_read(slf, |_self_ref, irl| {

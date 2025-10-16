@@ -1014,7 +1014,7 @@ class _InnerRevlog:
         chunks.sort()
         return [x[1] for x in chunks]
 
-    def raw_text(self, node, rev) -> bytes:
+    def raw_text(self, rev: RevnumT) -> bytes:
         """return the possibly unvalidated rawtext for a revision
 
         returns rawtext
@@ -2984,8 +2984,7 @@ class revlog:
         if self._inner._revisioncache:
             if self._inner._revisioncache[0] == rev:
                 return self._inner._revisioncache
-
-        text = self._inner.raw_text(node, rev)
+        text = self._inner.raw_text(rev)
         return (rev, text, False)
 
     def _revisiondata(self, nodeorrev, raw=False, validate=True):
