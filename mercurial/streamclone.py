@@ -159,7 +159,7 @@ def canperformstreamclone(pullop, bundle2: bool = False):
     if remote.capable(b'stream'):
         requirements.add(requirementsmod.REVLOGV1_REQUIREMENT)
     else:
-        streamreqs = remote.capable(b'streamreqs')
+        streamreqs = remote.cap_value(b'streamreqs')
         # This is weird and shouldn't happen with modern servers.
         if not streamreqs:
             pullop.repo.ui.warn(

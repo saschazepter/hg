@@ -254,6 +254,17 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
+    def is_capable(self, name: bytes) -> bool:
+        """Determine support for a named capability"""
+
+    @abc.abstractmethod
+    def cap_value(self, name: bytes) -> bytes:
+        """Return the value associated with a capabilities
+
+        return an empty string if the capability is unknown
+        """
+
+    @abc.abstractmethod
     def capabilities(self) -> set[bytes]:
         """Obtain capabilities of the peer.
 
@@ -529,6 +540,19 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests, ipeercommands):
                 return cap[len(name) :]
 
         return False
+
+    def is_capable(self, name: bytes) -> bool:
+        ret = self.capable(name)
+        if isinstance(ret, bool):
+            return ret
+        else:
+            return True
+
+    def cap_value(self, name: bytes) -> bytes:
+        value = self.capable(name)
+        if isinstance(value, bool):
+            return b''
+        return value
 
     def requirecap(self, name: bytes, purpose: bytes) -> None:
         if self.capable(name):
