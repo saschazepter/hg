@@ -378,17 +378,31 @@ impl InnerRevlog {
         py: Python<'_>,
         rev: PyRevision,
     ) -> PyResult<PyObject> {
-        match &self.revision_cache {
-            None => Ok(py.None()),
-            Some(cache) => {
-                let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
-                let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
-                if rev == cached_rev {
-                    Ok(cache.clone_ref(py))
-                } else {
-                    Ok(py.None())
-                }
+        if let Some(tuple) = self.inner_get_cached_text(py, rev)? {
+            Ok(tuple.into_py_any(py)?)
+        } else {
+            Ok(py.None())
+        }
+    }
+
+    /// the inner part of getting a PyTuple from the cache.
+    fn inner_get_cached_text(
+        &self,
+        py: Python<'_>,
+        rev: PyRevision,
+    ) -> Result<Option<Py<PyTuple>>, PyErr> {
+        if let Some(cache) = &self.revision_cache {
+            let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+            let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
+            if rev == cached_rev {
+                let a = tuple.as_unbound();
+                let ret: Py<PyTuple> = a.clone_ref(py);
+                Ok(Some(ret))
+            } else {
+                Ok(None)
             }
+        } else {
+            Ok(None)
         }
     }
 
@@ -644,6 +658,9 @@ impl InnerRevlog {
         py: Python<'_>,
         rev: PyRevision,
     ) -> PyResult<Py<PyTuple>> {
+        if let Some(tuple) = slf.borrow().inner_get_cached_text(py, rev)? {
+            return Ok(tuple);
+        }
         Self::with_core_read(slf, |_self_ref, irl| {
             let mut py_bytes = PyBytes::new(py, &[]).unbind();
             irl.raw_text(Revision(rev.0), |size, f| {
