@@ -3021,7 +3021,7 @@ class localrepository(_localrepo_base_classes):
 
     def _currentlock(
         self,
-        lockref: weakref.ref[lockmod.lock],
+        lockref: weakref.ref[lockmod.lock] | None,
     ) -> lockmod.lock | None:
         """Returns the lock if it's held, or None if it's not."""
         if lockref is None or (l := lockref()) is None:
