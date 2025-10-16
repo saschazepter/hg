@@ -121,6 +121,7 @@ if typing.TYPE_CHECKING:
         TransactionT,
     )
 
+    _C = TypeVar('_C', bound=Callable)
     _IdentityCtxT = TypeVar("_IdentityCtxT", bound=context.basectx)
 
 
@@ -266,7 +267,7 @@ def hasunfilteredcache(repo, name):
     return name in vars(repo.unfiltered())
 
 
-def unfilteredmethod(orig):
+def unfilteredmethod(orig: _C) -> _C:
     """decorate method that always need to be run on unfiltered version"""
 
     @functools.wraps(orig)
