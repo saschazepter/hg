@@ -984,7 +984,7 @@ def _entries_walk(repo, matcher, includeobsmarkers: bool):
 
     Where `entry` is StoreEntry. (used even for cache entries)
     """
-    assert repo._currentlock(repo._lockref) is not None
+    assert repo.currentlock() is not None
 
     phase = not repo.publishing()
     # Python is getting crazy at all the small container we creates, disabling
