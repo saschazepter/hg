@@ -395,8 +395,8 @@ class _InnerRevlog:
         self._decompressors: dict[
             i_comp.RevlogCompHeader, i_comp.IRevlogCompressor
         ] = {}
-        # 2-tuple of (rev, text) for a raw revision.
-        self._revisioncache: tuple[RevnumT, bytes] = None
+        # 3-tuple of (rev, text, validated) for a raw revision.
+        self._revisioncache: tuple[RevnumT, bytes, bool] = None
 
         # cache some uncompressed chunks
         # rev → uncompressed_chunk
@@ -1028,13 +1028,14 @@ class _InnerRevlog:
         basetext = None
 
         # Check if we have the entry in cache
-        # The cache entry looks like (node, rev, rawtext)
-        if self._revisioncache:
-            cachedrev = self._revisioncache[0]
+        # The cache entry looks like (rev, rawtext, validated)
+        cache = self._revisioncache
+        if cache is not None:
+            cachedrev = cache[0]
 
         chain, stopped = self._deltachain(rev, stoprev=cachedrev)
         if stopped:
-            basetext = self._revisioncache[1]
+            basetext = cache[1]
 
         targetsize = None
         rawsize = self.index[rev][2]
@@ -2982,7 +2983,7 @@ class revlog:
         # The cache entry looks like (node, rev, rawtext)
         if self._inner._revisioncache:
             if self._inner._revisioncache[0] == rev:
-                return (rev, self._inner._revisioncache[1], True)
+                return self._inner._revisioncache
 
         text = self._inner.raw_text(node, rev)
         return (rev, text, False)
@@ -3030,7 +3031,7 @@ class revlog:
         if validate and validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
-            self._inner._revisioncache = (rev, rawtext)
+            self._inner._revisioncache = (rev, rawtext, True)
 
         return text
 
@@ -3587,7 +3588,7 @@ class revlog:
             rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) is bytes:  # only accept immutable objects
-            self._inner._revisioncache = (curr, rawtext)
+            self._inner._revisioncache = (curr, rawtext, False)
         self._chainbasecache[curr] = deltainfo.chainbase
         self._inner.seen_file_size(textlen)
         if deltainfo.u_data is not None:
