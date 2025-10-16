@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import abc
 import typing
-import weakref
 
 from typing import (
     Any,
@@ -2206,28 +2205,6 @@ class IRepo(Protocol):
     @abc.abstractmethod
     def currentlock(self):
         """Return the lock if it's held or None."""
-
-    # TODO: cleanup hgext.clonebundles and remove this
-    @abc.abstractmethod
-    def _currentlock(
-        self,
-        lockref: weakref.ref[NeedsTypeHint] | None,
-    ) -> NeedsTypeHint | None:
-        raise NotImplementedError
-
-    # TODO: cleanup hgext.clonebundles and remove this
-    @abc.abstractmethod
-    def _lock(
-        self,
-        vfs,
-        lockname,
-        wait,
-        releasefn,
-        acquirefn,
-        desc,
-        steal_from=None,
-    ) -> NeedsTypeHint:
-        raise NotImplementedError
 
     @abc.abstractmethod
     def wlock(self, wait=True, steal_from=None):

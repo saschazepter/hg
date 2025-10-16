@@ -955,7 +955,7 @@ class AutoBundlesRepoT(int_repo.IRepo, Protocol):
         ...
 
 
-def reposetup(ui, repo: int_repo.IRepo):
+def reposetup(ui, repo: localrepo.localrepository):
     """install the two pieces needed for automatic clonebundle generation
 
     - add a "post-close" hook that fires bundling when needed
