@@ -1912,8 +1912,24 @@ class deltacomputer:
         revinfo: RevisionInfoT,
         curr: RevnumT,
     ) -> _DeltaInfo:
-        rawtext = self.buildtext(revinfo)
-        data = self.revlog._inner.compress(rawtext)
+        rawtext = data = None
+        if (
+            revinfo.cachedelta is not None
+            and revinfo.cachedelta.c_full_text is not None
+            and self.revlog.delta_config.lazy_compression
+        ):
+            comp = revinfo.cachedelta.compression
+            if comp == compression.REVLOG_COMP_NONE:
+                rawtext = chunk = revinfo.cachedelta.c_full_text
+                if not chunk or chunk.startswith(b'\0'):
+                    data = (b'', chunk)
+                else:
+                    data = (b'u', chunk)
+            elif comp in self.revlog.compatible_compressions:
+                data = (b'', revinfo.cachedelta.c_full_text)
+        if data is None:
+            rawtext = self.buildtext(revinfo)
+            data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
         deltabase = chainbase = curr
         snapshotdepth = 0
