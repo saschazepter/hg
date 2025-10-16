@@ -1082,6 +1082,8 @@ class _InnerRevlog:
 
         rawtext = mdiff.patches(basetext, bins)
         del basetext  # let us have a chance to free memory early
+
+        self.cache_revision_text(rev, rawtext, False)
         return (rawtext, False)
 
     def sidedata(self, rev, sidedata_end):
