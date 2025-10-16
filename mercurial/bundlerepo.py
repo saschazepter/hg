@@ -177,11 +177,9 @@ class bundlerevlog(revlog.revlog):
         iterrev = rev
         # reconstruct the revision if it is from a changegroup
         while iterrev > self.repotiprev:
-            if (
-                self._inner._revisioncache
-                and self._inner._revisioncache[0] == iterrev
-            ):
-                rawtext = self._inner._revisioncache[1]
+            cached = self._inner.get_cached_text(iterrev)
+            if cached is not None:
+                rawtext = cached[1]
                 break
             chain.append(iterrev)
             iterrev = self.index[iterrev][3]

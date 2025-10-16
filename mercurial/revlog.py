@@ -396,7 +396,7 @@ class _InnerRevlog:
             i_comp.RevlogCompHeader, i_comp.IRevlogCompressor
         ] = {}
         # 3-tuple of (rev, text, validated) for a raw revision.
-        self._revisioncache: tuple[RevnumT, bytes, bool] = None
+        self._revision_cache: tuple[RevnumT, bytes, bool] = None
 
         # cache some uncompressed chunks
         # rev → uncompressed_chunk
@@ -417,7 +417,7 @@ class _InnerRevlog:
 
     def clear_cache(self):
         assert not self.is_delaying
-        self._revisioncache = None
+        self._revision_cache = None
         if self._uncompressed_chunk_cache is not None:
             self._uncompressed_chunk_cache.clear()
         self._segmentfile.clear_cache()
@@ -443,6 +443,35 @@ class _InnerRevlog:
                 u_data,
                 cost=len(u_data),
             )
+
+    def cache_revision_text(self, rev: RevnumT, data: bytes, validated: bool):
+        """cache the full text of a revision (validated or not)"""
+        if (
+            self._revision_cache is None
+            or self._revision_cache[0] != rev
+            or not self._revision_cache[2]
+        ):
+            self._revision_cache = (rev, data, validated)
+
+    def get_cached_text(
+        self,
+        rev: RevnumT,
+    ) -> tuple[RevnumT, bytes, bool] | None:
+        """return a cached value for this revision
+
+        Return None if no value are found.
+        Return (rev, text, validated) if a value is found.
+        """
+        assert rev is not None
+        cache = self._revision_cache
+        if cache is not None and cache[0] == rev:
+            return cache
+
+    def clear_cached_text(self, rev: RevnumT):
+        """drop cached text for a revision"""
+        cache = self._revision_cache
+        if cache is not None and cache[0] == rev:
+            self._revision_cache = None
 
     @property
     def canonical_index_file(self):
@@ -1029,7 +1058,7 @@ class _InnerRevlog:
 
         # Check if we have the entry in cache
         # The cache entry looks like (rev, rawtext, validated)
-        cache = self._revisioncache
+        cache = self._revision_cache
         if cache is not None:
             cachedrev = cache[0]
 
@@ -2981,9 +3010,9 @@ class revlog:
             rev = self.rev(node)
         # Check if we have the entry in cache
         # The cache entry looks like (node, rev, rawtext)
-        if self._inner._revisioncache:
-            if self._inner._revisioncache[0] == rev:
-                return self._inner._revisioncache
+        cached = self._inner.get_cached_text(rev)
+        if cached is not None:
+            return cached
         text, validated = self._inner.raw_text(rev)
         return (rev, text, validated)
 
@@ -3030,7 +3059,7 @@ class revlog:
         if validate and validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
-            self._inner._revisioncache = (rev, rawtext, True)
+            self._inner.cache_revision_text(rev, rawtext, True)
 
         return text
 
@@ -3078,11 +3107,7 @@ class revlog:
                 # verification state.
                 if rev is None:
                     rev = self.index.rev(node)
-                if (
-                    self._inner._revisioncache
-                    and self._inner._revisioncache[1] == rev
-                ):
-                    self._inner._revisioncache = None
+                self._inner.clear_cached_text(rev)
 
                 revornode = rev
                 if revornode is None:
@@ -3587,7 +3612,7 @@ class revlog:
             rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) is bytes:  # only accept immutable objects
-            self._inner._revisioncache = (curr, rawtext, False)
+            self._inner.cache_revision_text(curr, rawtext, False)
         self._chainbasecache[curr] = deltainfo.chainbase
         self._inner.seen_file_size(textlen)
         if deltainfo.u_data is not None:

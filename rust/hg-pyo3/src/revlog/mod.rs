@@ -372,53 +372,99 @@ impl InnerRevlog {
         Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_open()))
     }
 
-    #[getter]
-    fn _revisioncache(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_cached_text(
+        &self,
+        py: Python<'_>,
+        rev: PyRevision,
+    ) -> PyResult<PyObject> {
         match &self.revision_cache {
             None => Ok(py.None()),
-            Some(cache) => Ok(cache.clone_ref(py)),
+            Some(cache) => {
+                let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+                let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
+                if rev == cached_rev {
+                    Ok(cache.clone_ref(py))
+                } else {
+                    Ok(py.None())
+                }
+            }
         }
     }
 
-    #[setter]
-    fn set__revisioncache(
+    fn cache_revision_text(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
-        value: Option<PyObject>,
+        rev: PyRevision,
+        data: Py<PyBytes>,
+        validated: bool,
     ) -> PyResult<()> {
         let mut self_ref = slf.borrow_mut();
-        self_ref.revision_cache = value.as_ref().map(|v| v.clone_ref(py));
+        let replace = match &mut self_ref.revision_cache {
+            None => true,
+            Some(cache) => {
+                let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+                let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
+                let validated: bool = tuple.get_item(2)?.extract()?;
+                rev != cached_rev || !validated
+            }
+        };
+        if replace {
+            self_ref.revision_cache = Some(
+                PyTuple::new(
+                    py,
+                    &[
+                        rev.into_py_any(py)?,
+                        data.clone_ref(py).into_py_any(py)?,
+                        validated.into_py_any(py)?,
+                    ],
+                )?
+                .into_py_any(py)?,
+            );
+            drop(self_ref);
 
-        match value {
-            None => {
-                // This means the property has been deleted, *not* that the
-                // property has been set to `None`. Whatever happens is up
-                // to the implementation. Here we just set it to `None`.
-                self_ref.revision_cache.take();
-            }
-            Some(tuple) => {
-                if tuple.is_none(py) {
-                    self_ref.revision_cache.take();
-                    return Ok(());
-                }
-                drop(self_ref);
-                let tuple: &Bound<'_, PyTuple> = tuple.downcast_bound(py)?;
-                let rev: BaseRevision = tuple.get_item(0)?.extract()?;
-                // Ok because Python only sets this if the revision has been
-                // checked
-                let rev = Revision(rev);
-                let data = tuple.get_item(1)?;
-                let bytes = data.downcast_into::<PyBytes>()?.unbind();
-                Self::with_core_read(slf, |_self_ref, irl| {
-                    let mut last_revision_cache = irl
-                        .last_revision_cache
-                        .lock()
-                        .expect("lock should not be held");
-                    *last_revision_cache =
-                        Some((rev, Box::new(PyBytesDeref::new(py, bytes))));
-                    Ok(())
-                })?;
-            }
+            // Ok because Python only sets this if the revision has been
+            // checked
+            let rev = Revision(rev.0);
+            Self::with_core_read(slf, |_self_ref, irl| {
+                let mut last_revision_cache = irl
+                    .last_revision_cache
+                    .lock()
+                    .expect("lock should not be held");
+                *last_revision_cache = Some((
+                    rev,
+                    Box::new(PyBytesDeref::new(py, data.clone_ref(py))),
+                    validated,
+                ));
+                Ok(())
+            })?;
+        }
+        Ok(())
+    }
+
+    fn clear_cached_text(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        rev: PyRevision,
+    ) -> PyResult<()> {
+        let mut self_ref = slf.borrow_mut();
+        let clear = if let Some(cache) = &self_ref.revision_cache {
+            let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+            let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
+            rev == cached_rev
+        } else {
+            false
+        };
+        if clear {
+            self_ref.revision_cache.take();
+            drop(self_ref);
+            Self::with_core_read(slf, |_self_ref, irl| {
+                let mut last_revision_cache = irl
+                    .last_revision_cache
+                    .lock()
+                    .expect("lock should not be held");
+                *last_revision_cache = None;
+                Ok(())
+            })?;
         }
         Ok(())
     }
