@@ -1357,13 +1357,21 @@ type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
 /// avoid copies if possible.
 #[derive(Clone)]
 pub struct SingleRevisionCache {
-    pub(super) rev: Revision,
+    pub rev: Revision,
     pub(super) data: CachedBytes,
 }
 
 impl SingleRevisionCache {
     pub(super) fn as_delta_base(&self) -> (Revision, &[u8]) {
         (self.rev, self.data.as_ref())
+    }
+}
+
+impl std::ops::Deref for SingleRevisionCache {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }
 

@@ -374,12 +374,37 @@ impl InnerRevlog {
     }
 
     fn get_cached_text(
-        &self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         rev: PyRevision,
     ) -> PyResult<PyObject> {
-        if let Some(tuple) = self.inner_get_cached_text(py, rev)? {
-            Ok(tuple.into_py_any(py)?)
+        if let Some(tuple) = slf.borrow().inner_get_cached_text(py, rev)? {
+            return tuple.into_py_any(py);
+        }
+        let maybe_tuple = Self::with_core_read(slf, |_self_ref, irl| {
+            if let Some(cached) = irl.get_rev_cache() {
+                // Ok because even if the Revision is invalid, it will just
+                // result in a cache miss.
+                if cached.rev == Revision(rev.0) {
+                    // TODO: we should stop returning PyByte and start returning
+                    // memoryview to avoid the memcopy here.
+                    let bytes = PyBytes::new(py, &cached);
+                    let tuple = PyTuple::new(
+                        py,
+                        &[
+                            rev.into_py_any(py)?,
+                            bytes.into_py_any(py)?,
+                            false.into_py_any(py)?,
+                        ],
+                    )?;
+                    return Ok(Some(tuple.into_py_any(py)?));
+                }
+            }
+            Ok(None)
+        })?;
+        if let Some(tuple) = maybe_tuple {
+            slf.borrow_mut().revision_cache = Some(tuple.clone_ref(py));
+            Ok(tuple)
         } else {
             Ok(py.None())
         }
