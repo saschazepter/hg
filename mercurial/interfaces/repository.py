@@ -20,9 +20,6 @@ from typing import (
     Protocol,
 )
 
-from ..i18n import _
-from .. import error
-
 if typing.TYPE_CHECKING:
     # We need to fully qualify the set primitive when typing the imanifestdict
     # class, so its set() method doesn't hide the primitive.
@@ -509,8 +506,13 @@ class ipeerrequests(Protocol):
         """
 
 
-# TODO: make this a Protocol class when 3.11 is the minimum supported version?
-class peer(_ipeerconnection, ipeercapabilities, ipeerrequests, ipeercommands):
+class IPeer(
+    _ipeerconnection,
+    ipeercapabilities,
+    ipeerrequests,
+    ipeercommands,
+    Protocol,
+):
     """Unified interface for peer repositories.
 
     All peer instances must conform to this interface.
@@ -519,52 +521,6 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests, ipeercommands):
     limitedarguments: bool = False
     path: misc.IPath | None
     ui: Ui
-
-    def __init__(
-        self,
-        ui: Ui,
-        path: misc.IPath | None = None,
-        remotehidden: bool = False,
-    ) -> None:
-        self.ui = ui
-        self.path = path
-
-    def capable(self, name: bytes) -> bool | bytes:
-        caps = self.capabilities()
-        if name in caps:
-            return True
-
-        name = b'%s=' % name
-        for cap in caps:
-            if cap.startswith(name):
-                return cap[len(name) :]
-
-        return False
-
-    def is_capable(self, name: bytes) -> bool:
-        ret = self.capable(name)
-        if isinstance(ret, bool):
-            return ret
-        else:
-            return True
-
-    def cap_value(self, name: bytes) -> bytes:
-        value = self.capable(name)
-        if isinstance(value, bool):
-            return b''
-        return value
-
-    def requirecap(self, name: bytes, purpose: bytes) -> None:
-        if self.capable(name):
-            return
-
-        raise error.CapabilityError(
-            _(
-                b'cannot %s; remote repository does not support the '
-                b'\'%s\' capability'
-            )
-            % (purpose, name)
-        )
 
 
 class iverifyproblem(Protocol):
@@ -2068,7 +2024,7 @@ class IRepo(Protocol):
         self,
         path: misc.IPath | None = None,
         remotehidden: bool = False,
-    ) -> peer:
+    ) -> IPeer:
         """Obtain an object conforming to the ``peer`` interface."""
 
     @abc.abstractmethod

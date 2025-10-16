@@ -78,6 +78,7 @@ from .branching import (
 from .configuration import rcutil
 from .exchanges import (
     bundle_caps,
+    peer,
 )
 from .interfaces import (
     repository,
@@ -333,7 +334,7 @@ class localcommandexecutor(repository.ipeercommandexecutor):
         self._closed = True
 
 
-class localpeer(repository.peer, repository.ipeercommands):
+class localpeer(peer.Peer, repository.ipeercommands):
     '''peer for a local repo; reflects only the most recent API'''
 
     _repo: localrepository

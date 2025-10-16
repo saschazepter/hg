@@ -59,7 +59,7 @@ class IPullOperation(Protocol):
     repo: i_repo.IRepo
     """repo we pull into"""
 
-    remote: i_repo.peer
+    remote: i_repo.IPeer
     """repo we pull from"""
 
     remote_path: i_misc.IPath
@@ -161,7 +161,7 @@ class IPushOperation(Protocol):
 
     ui: i_base.UiT
 
-    remote: i_repo.peer
+    remote: i_repo.IPeer
     """repo we push to"""
 
     force: bool
@@ -423,7 +423,7 @@ class IUnbundleOperation(Protocol):
     ui: i_base.UiT
     source = bytes
     records: IUnbundleRecords
-    remote: i_repo.peer | None
+    remote: i_repo.IPeer | None
     reply: IBundle20 | None
     captureoutput: bool
     modes: dict[int, int]

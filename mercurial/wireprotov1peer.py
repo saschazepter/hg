@@ -26,6 +26,9 @@ from . import (
     util,
     wireprototypes,
 )
+from .exchanges import (
+    peer,
+)
 from .interfaces import (
     repository,
 )
@@ -332,7 +335,7 @@ class RemoteBranchMap(dict[bytes, list[NodeIdT]], repository.IBaseBranchMap):
 
 
 class wirepeer(
-    repository.peer, repository.ipeercommands, repository.ipeerlegacycommands
+    peer.Peer, repository.ipeercommands, repository.ipeerlegacycommands
 ):
     """Client-side interface for communicating with a peer repository.
 
