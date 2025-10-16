@@ -91,7 +91,7 @@ pub struct InnerRevlog {
     pub inline: bool,
     /// A cache of the last revision, which is usually accessed multiple
     /// times.
-    pub last_revision_cache: Mutex<Option<SingleRevisionCache>>,
+    last_revision_cache: Mutex<Option<SingleRevisionCache>>,
     /// The [`Compressor`] that this revlog uses by default to compress data.
     /// This does not mean that this revlog uses this compressor for reading
     /// data, as different revisions may have different compression modes.
@@ -197,6 +197,17 @@ impl InnerRevlog {
         let mut last_revision_cache =
             self.last_revision_cache.lock().expect("propagate mutex panic");
         *last_revision_cache = Some(SingleRevisionCache { rev, data });
+    }
+
+    /// Clear the revision cache for the given revision (if any)
+    pub fn clear_rev_cache(&self, rev: Revision) {
+        let mut last_revision_cache =
+            self.last_revision_cache.lock().expect("propagate mutex panic");
+        if let Some(cached) = &*last_revision_cache {
+            if cached.rev == rev {
+                last_revision_cache.take();
+            }
+        }
     }
 
     /// Signal that we have seen a file this big

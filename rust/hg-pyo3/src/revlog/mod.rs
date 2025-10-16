@@ -451,16 +451,14 @@ impl InnerRevlog {
         };
         if clear {
             self_ref.revision_cache.take();
-            drop(self_ref);
-            Self::with_core_read(slf, |_self_ref, irl| {
-                let mut last_revision_cache = irl
-                    .last_revision_cache
-                    .lock()
-                    .expect("lock should not be held");
-                *last_revision_cache = None;
-                Ok(())
-            })?;
         }
+        drop(self_ref);
+        // call it unconditionnaly in case the python and the rust cache
+        // diverged.
+        Self::with_core_read(slf, |_self_ref, irl| {
+            irl.clear_rev_cache(Revision(rev.0));
+            Ok(())
+        })?;
         Ok(())
     }
 
