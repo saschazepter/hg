@@ -210,6 +210,16 @@ impl InnerRevlog {
         }
     }
 
+    /// retrieve a owned copy of the cache
+    ///
+    /// The cache lock is only held for the duration of that function and the
+    /// cache value can then be used lock free.
+    pub fn get_rev_cache(&self) -> Option<SingleRevisionCache> {
+        let mutex_guard =
+            self.last_revision_cache.lock().expect("propagate mutex panic");
+        mutex_guard.as_ref().cloned()
+    }
+
     /// Signal that we have seen a file this big
     ///
     /// This might update the limit of underlying cache.
@@ -515,17 +525,12 @@ impl InnerRevlog {
     {
         let entry = &self.get_entry(rev)?;
         let raw_size = entry.uncompressed_len();
-        let mutex_guard =
-            self.last_revision_cache.lock().expect("lock should not be held");
-        let cached_rev = if let Some(cache) = &*mutex_guard {
-            Some(cache.as_delta_base())
-        } else {
-            None
-        };
+        let cached_rev = self.get_rev_cache();
+        let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
         if let Some(size) = raw_size {
             self.seen_file_size(u32_u(size));
         }
-        entry.rawdata(cached_rev, get_buffer)?;
+        entry.rawdata(cache, get_buffer)?;
         Ok(())
     }
 
@@ -1313,6 +1318,7 @@ type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
 ///
 /// The data is not just bytes since it can come from Python and we want to
 /// avoid copies if possible.
+#[derive(Clone)]
 pub struct SingleRevisionCache {
     rev: Revision,
     data: CachedBytes,
