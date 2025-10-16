@@ -13,10 +13,14 @@ import socket
 
 from typing import (
     Callable,
+    Collection,
 )
 
 from ..i18n import _
 from ..node import hex
+from ..interfaces.types import (
+    Capabilities,
+)
 from .. import (
     encoding,
     error,
@@ -1024,3 +1028,37 @@ def add_branch_revs(lrepo, other, branches, revs, remotehidden=False):
         if not primary(hashbranch):
             revs.append(hashbranch)
     return revs, revs[0]
+
+
+def decode_b2_caps(blob: bytes) -> Capabilities:
+    """decode a bundle2 caps bytes blob into a dictionary
+
+    The blob is a list of capabilities (one per line)
+    Capabilities may have values using a line of the form::
+
+        capability=value1,value2,value3
+
+    The values are always a list."""
+    caps = {}
+    for line in blob.splitlines():
+        if not line:
+            continue
+        if b'=' not in line:
+            key, vals = line, ()
+        else:
+            key, vals = line.split(b'=', 1)
+            vals = vals.split(b',')
+        key = urlreq.unquote(key)
+        vals = [urlreq.unquote(v) for v in vals]
+        caps[key] = vals
+    return caps
+
+
+def b2_caps_from_bundle_caps(caps: Collection[bytes]) -> Capabilities:
+    """extract bundle2 capabilities from a "bundle-caps" set"""
+    b2caps = {}
+    for bcaps in caps:
+        if bcaps.startswith(b'bundle2='):
+            blob = urlreq.unquote(bcaps[len(b'bundle2=') :])
+            b2caps.update(decode_b2_caps(blob))
+    return b2caps

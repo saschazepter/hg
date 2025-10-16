@@ -2477,11 +2477,7 @@ def getbundlechunks(
 
     # bundle20 case
     info[b'bundleversion'] = 2
-    b2caps = {}
-    for bcaps in bundlecaps:
-        if bcaps.startswith(b'bundle2='):
-            blob = urlreq.unquote(bcaps[len(b'bundle2=') :])
-            b2caps.update(bundle2.decodecaps(blob))
+    b2caps = urlutil.b2_caps_from_bundle_caps(bundlecaps)
     bundler = bundle2.bundle20(repo.ui, b2caps)
 
     kwargs[b'heads'] = heads

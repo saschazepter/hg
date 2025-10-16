@@ -178,6 +178,7 @@ from .exchanges import (
 )
 from .utils import (
     stringutil,
+    urlutil,
 )
 from .interfaces import (
     bundle as i_bundle,
@@ -591,28 +592,7 @@ def _processpart(op, part):
             )
 
 
-def decodecaps(blob: bytes) -> Capabilities:
-    """decode a bundle2 caps bytes blob into a dictionary
-
-    The blob is a list of capabilities (one per line)
-    Capabilities may have values using a line of the form::
-
-        capability=value1,value2,value3
-
-    The values are always a list."""
-    caps = {}
-    for line in blob.splitlines():
-        if not line:
-            continue
-        if b'=' not in line:
-            key, vals = line, ()
-        else:
-            key, vals = line.split(b'=', 1)
-            vals = vals.split(b',')
-        key = urlreq.unquote(key)
-        vals = [urlreq.unquote(v) for v in vals]
-        caps[key] = vals
-    return caps
+decodecaps = urlutil.decode_b2_caps
 
 
 def encodecaps(caps):
