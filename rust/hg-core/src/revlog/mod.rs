@@ -779,6 +779,11 @@ impl<'revlog> RevlogEntry<'revlog> {
             self.revlog.seen_file_size(u32_u(size));
         }
         let cached_rev = self.revlog.get_rev_cache();
+        if let Some(ref cached) = cached_rev {
+            if cached.rev == self.rev {
+                return Ok(RawData::from(cached.data.to_vec()));
+            }
+        }
         let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
         let stop_rev = cache.map(|(r, _)| r);
         let (chunks, stopped) =

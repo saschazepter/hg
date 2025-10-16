@@ -1357,8 +1357,8 @@ type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
 /// avoid copies if possible.
 #[derive(Clone)]
 pub struct SingleRevisionCache {
-    rev: Revision,
-    data: CachedBytes,
+    pub(super) rev: Revision,
+    pub(super) data: CachedBytes,
 }
 
 impl SingleRevisionCache {
