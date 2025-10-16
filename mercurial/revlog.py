@@ -1036,10 +1036,6 @@ class _InnerRevlog:
         if stopped:
             basetext = self._revisioncache[1]
 
-        # drop cache to save memory, the caller is expected to
-        # update self._inner._revisioncache after validating the text
-        self._revisioncache = None
-
         targetsize = None
         rawsize = self.index[rev][2]
         if rawsize is not None and 0 <= rawsize:
