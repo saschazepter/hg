@@ -586,7 +586,7 @@ Downgrade empty repo to fncache
   starting in-place swap of repository data
   replaced files will be backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
   replacing store...
-  store replacement complete; repository was inconsistent for 0.0s
+  store replacement complete; repository was inconsistent for *s (glob)
   finalizing requirements file and making repository readable again
   removing temporary repository $TESTTMP/repoupgrade/.hg/upgrade.* (glob)
   copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
