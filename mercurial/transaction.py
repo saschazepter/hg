@@ -16,6 +16,7 @@ from __future__ import annotations
 import errno
 import os
 import signal
+import typing
 
 from typing import (
     Any,
@@ -40,6 +41,14 @@ from . import (
 from .utils import procutil, stringutil
 from .interfaces import transaction as itxn
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
+
+    _C = TypeVar('_C', bound=Callable)
+
 version = 2
 
 GEN_GROUP_ALL = b'all'
@@ -51,7 +60,7 @@ ABORT_POST_FINALIZE = b'abort-post-finalize'
 KILL_9_POST_FINALIZE = b'kill-9-post-finalize'
 
 
-def active(func):
+def active(func: _C) -> _C:
     def _active(self, *args, **kwds):
         if self._count == 0:
             raise error.ProgrammingError(
