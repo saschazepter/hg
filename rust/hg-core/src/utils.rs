@@ -7,6 +7,7 @@
 
 //! Contains useful functions, traits, structs, etc. for use in core.
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
@@ -293,7 +294,61 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
 /// Represent the data from disk or from a Revision.
 ///
 /// TODO: We should probably use Bytes, from the https://crates.io/crates/bytes
-pub type RawData = Arc<[u8]>;
+#[derive(Clone, PartialEq, Eq)]
+pub struct RawData {
+    inner: Arc<[u8]>,
+}
+
+impl RawData {
+    pub fn empty() -> Self {
+        Self::from(vec![])
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+}
+
+impl From<Cow<'_, [u8]>> for RawData {
+    fn from(src: Cow<'_, [u8]>) -> Self {
+        Self { inner: src.into() }
+    }
+}
+
+impl From<Vec<u8>> for RawData {
+    fn from(src: Vec<u8>) -> Self {
+        Self { inner: src.into() }
+    }
+}
+
+impl From<&[u8]> for RawData {
+    fn from(src: &[u8]) -> Self {
+        Self { inner: src.into() }
+    }
+}
+
+impl From<RawData> for Vec<u8> {
+    fn from(src: RawData) -> Self {
+        src.inner.to_vec()
+    }
+}
+
+impl AsRef<[u8]> for RawData {
+    fn as_ref(&self) -> &[u8] {
+        &self.inner
+    }
+}
+impl std::ops::Deref for RawData {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
 
 /// Limits the actual memory usage of all byte slices in its cache. It does not
 /// take into account the size of the map itself.
