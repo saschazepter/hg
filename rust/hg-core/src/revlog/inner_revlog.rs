@@ -635,6 +635,26 @@ impl InnerRevlog {
         Ok(chunks.into_iter().map(|(_r, chunk)| chunk).collect())
     }
 
+    /// Return the chunks of the delta-chain of a revision
+    ///
+    /// Only return the chunk for the chain above `cached_rev` if possible.
+    ///
+    /// return the chunks and a boolean stating if the cached_rev was reached.
+    pub(super) fn chunks_for_chain(
+        &self,
+        rev: Revision,
+        cached_rev: Option<Revision>,
+    ) -> Result<(Vec<RawData>, bool), RevlogError> {
+        let (delta_chain, stopped) = self.delta_chain(rev, cached_rev)?;
+        // TODO: adjust the target size depending of `stopped`
+        let target_size = self
+            .get_entry(rev)?
+            .uncompressed_len()
+            .map(|raw_size| 4 * raw_size as u64);
+        let deltas = self.chunks(delta_chain, target_size)?;
+        Ok((deltas, stopped))
+    }
+
     /// Slice revs to reduce the amount of unrelated data to be read from disk.
     ///
     /// ``revs`` is sliced into groups that should be read in one time.

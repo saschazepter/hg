@@ -761,7 +761,7 @@ impl<'revlog> RevlogEntry<'revlog> {
     /// Non-Python callers should probably call [`Self::data`] instead.
     fn rawdata<G, T>(
         &self,
-        stop_rev: Option<(Revision, &[u8])>,
+        cache: Option<(Revision, &[u8])>,
         with_buffer: G,
     ) -> Result<(), RevlogError>
     where
@@ -772,19 +772,11 @@ impl<'revlog> RevlogEntry<'revlog> {
             ) -> Result<(), RevlogError>,
         ) -> Result<(), RevlogError>,
     {
-        let (delta_chain, stopped) = self
-            .revlog
-            .delta_chain(self.revision(), stop_rev.map(|(r, _)| r))?;
-        let target_size =
-            self.uncompressed_len().map(|raw_size| 4 * raw_size as u64);
-
-        let deltas = self.revlog.chunks(delta_chain, target_size)?;
-
+        let stop_rev = cache.map(|(r, _)| r);
+        let (deltas, stopped) =
+            self.revlog.chunks_for_chain(self.revision(), stop_rev)?;
         let (base_text, deltas) = if stopped {
-            (
-                stop_rev.as_ref().expect("last revision should be cached").1,
-                &deltas[..],
-            )
+            (cache.expect("last revision should be cached").1, &deltas[..])
         } else {
             let (buf, deltas) = deltas.split_at(1);
             (buf[0].as_ref(), deltas)
