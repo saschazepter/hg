@@ -776,11 +776,17 @@ impl<'revlog> RevlogEntry<'revlog> {
         if let Some(size) = raw_size {
             self.revlog.seen_file_size(u32_u(size));
         }
-        let (deltas, stopped) =
+        let (chunks, stopped) =
             self.revlog.chunks_for_chain(self.revision(), None)?;
         assert!(!stopped);
-        let base_text = &deltas[0];
-        let deltas = &deltas[1..];
+        let base_text = &chunks[0];
+        let deltas = &chunks[1..];
+        if deltas.is_empty() {
+            return Ok(chunks
+                .into_iter()
+                .next()
+                .expect("the base must exists"));
+        }
         let size = raw_size.map(|l| l as usize).unwrap_or(base_text.len());
 
         data.resize(size);
