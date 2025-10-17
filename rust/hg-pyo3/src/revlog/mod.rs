@@ -38,6 +38,7 @@ use hg::revlog::RevlogType;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
 use hg::utils::u32_u;
+use hg::utils::RawData;
 use hg::vfs::EncodedVfs;
 use hg::vfs::VfsImpl;
 use hg::BaseRevision;
@@ -547,7 +548,7 @@ impl InnerRevlog {
         let data = PyBuffer::<u8>::get(data)?.to_vec(slf.py())?;
         Self::with_core_read(slf, |_self_ref, irl| {
             if let Some(rev) = irl.index.check_revision(rev.into()) {
-                let data: Arc<[u8]> = Arc::from(data.to_owned());
+                let data: RawData = RawData::from(data.to_owned());
                 irl.record_uncompressed_chunk(rev, data);
             };
             Ok(slf.py().None())

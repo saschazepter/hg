@@ -290,6 +290,11 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
     Ok(())
 }
 
+/// Represent the data from disk or from a Revision.
+///
+/// TODO: We should probably use Bytes, from the https://crates.io/crates/bytes
+pub type RawData = Arc<[u8]>;
+
 /// Limits the actual memory usage of all byte slices in its cache. It does not
 /// take into account the size of the map itself.
 ///
@@ -327,7 +332,7 @@ impl ByTotalChunksSize {
     }
 }
 
-impl<K> schnellru::Limiter<K, Arc<[u8]>> for ByTotalChunksSize
+impl<K> schnellru::Limiter<K, RawData> for ByTotalChunksSize
 where
     K: PartialEq + core::fmt::Debug,
 {
@@ -343,8 +348,8 @@ where
         &mut self,
         _length: usize,
         key: Self::KeyToInsert<'_>,
-        value: Arc<[u8]>,
-    ) -> Option<(K, Arc<[u8]>)> {
+        value: RawData,
+    ) -> Option<(K, RawData)> {
         let new_size = value.len();
         self.maybe_grow_max(new_size);
 
@@ -357,8 +362,8 @@ where
         _length: usize,
         old_key: &mut K,
         new_key: Self::KeyToInsert<'_>,
-        old_value: &mut Arc<[u8]>,
-        new_value: &mut Arc<[u8]>,
+        old_value: &mut RawData,
+        new_value: &mut RawData,
     ) -> bool {
         assert_eq!(*old_key, new_key);
 
@@ -369,7 +374,7 @@ where
         true
     }
 
-    fn on_removed(&mut self, _key: &mut K, value: &mut Arc<[u8]>) {
+    fn on_removed(&mut self, _key: &mut K, value: &mut RawData) {
         self.total_chunks_size -= value.len();
     }
 

@@ -51,6 +51,7 @@ use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
 use crate::utils::u32_u;
 use crate::utils::ByTotalChunksSize;
+use crate::utils::RawData;
 use crate::vfs::Vfs;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
@@ -240,7 +241,7 @@ impl InnerRevlog {
     /// Record the uncompressed raw chunk for rev
     ///
     /// This is a noop if the cache is disabled.
-    pub fn record_uncompressed_chunk(&self, rev: Revision, data: Arc<[u8]>) {
+    pub fn record_uncompressed_chunk(&self, rev: Revision, data: RawData) {
         if let Some(Ok(mut cache)) =
             self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
         {
@@ -446,7 +447,7 @@ impl InnerRevlog {
     }
 
     /// Return the uncompressed raw data for `rev`
-    pub fn chunk_for_rev(&self, rev: Revision) -> Result<Arc<[u8]>, HgError> {
+    pub fn chunk_for_rev(&self, rev: Revision) -> Result<RawData, HgError> {
         if let Some(Ok(mut cache)) =
             self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
         {
@@ -463,7 +464,7 @@ impl InnerRevlog {
                 None,
             )
         })?;
-        let uncompressed: Arc<[u8]> = Arc::from(uncompressed.into_owned());
+        let uncompressed: RawData = RawData::from(uncompressed.into_owned());
         self.record_uncompressed_chunk(rev, uncompressed.clone());
         Ok(uncompressed)
     }
@@ -544,7 +545,7 @@ impl InnerRevlog {
         &self,
         revs: Vec<Revision>,
         target_size: Option<u64>,
-    ) -> Result<Vec<Arc<[u8]>>, RevlogError> {
+    ) -> Result<Vec<RawData>, RevlogError> {
         if revs.is_empty() {
             return Ok(vec![]);
         }
@@ -1309,7 +1310,7 @@ impl InnerRevlog {
 }
 
 type UncompressedChunkCache =
-    RwLock<LruMap<Revision, Arc<[u8]>, ByTotalChunksSize>>;
+    RwLock<LruMap<Revision, RawData, ByTotalChunksSize>>;
 
 type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
 

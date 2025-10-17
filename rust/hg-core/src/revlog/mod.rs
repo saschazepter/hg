@@ -46,6 +46,7 @@ use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
+use crate::utils::RawData;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -552,7 +553,7 @@ impl Revlog {
 pub struct RawdataBuf {
     // If `Some`, data is a delta.
     base: Option<UncheckedRevision>,
-    data: std::sync::Arc<[u8]>,
+    data: RawData,
 }
 
 impl RawdataBuf {
