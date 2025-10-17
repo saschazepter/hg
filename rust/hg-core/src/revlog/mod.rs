@@ -761,9 +761,8 @@ impl<'revlog> RevlogEntry<'revlog> {
 
     /// Get the revision data, without checking it integrity
     fn data_unchecked(&self) -> Result<RawData, RevlogError> {
-        let mut data = CoreRevisionBuffer::new();
         if self.rev == NULL_REVISION {
-            return Ok(data.finish().into());
+            return Ok(RawData::empty());
         }
         if self.is_censored() {
             return Err(HgError::CensoredNodeError(
@@ -774,6 +773,9 @@ impl<'revlog> RevlogEntry<'revlog> {
         }
         let raw_size = self.uncompressed_len();
         if let Some(size) = raw_size {
+            if size == 0 {
+                return Ok(RawData::empty());
+            }
             self.revlog.seen_file_size(u32_u(size));
         }
         let (chunks, stopped) =
@@ -789,6 +791,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         }
         let size = raw_size.map(|l| l as usize).unwrap_or(base_text.len());
 
+        let mut data = CoreRevisionBuffer::new();
         data.resize(size);
         patch::build_data_from_deltas(&mut data, base_text, deltas)?;
         Ok(data.finish().into())
