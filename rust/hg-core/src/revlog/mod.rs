@@ -45,6 +45,7 @@ use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
+use crate::utils::u32_u;
 use crate::utils::RawData;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
@@ -771,15 +772,16 @@ impl<'revlog> RevlogEntry<'revlog> {
             )
             .into());
         }
+        let raw_size = self.uncompressed_len();
+        if let Some(size) = raw_size {
+            self.revlog.seen_file_size(u32_u(size));
+        }
         let (deltas, stopped) =
             self.revlog.chunks_for_chain(self.revision(), None)?;
         assert!(!stopped);
         let base_text = &deltas[0];
         let deltas = &deltas[1..];
-        let size = self
-            .uncompressed_len()
-            .map(|l| l as usize)
-            .unwrap_or(base_text.len());
+        let size = raw_size.map(|l| l as usize).unwrap_or(base_text.len());
 
         data.resize(size);
         patch::build_data_from_deltas(&mut data, base_text, deltas)?;
