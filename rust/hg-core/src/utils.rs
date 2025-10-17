@@ -296,7 +296,7 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
 /// TODO: We should probably use Bytes, from the https://crates.io/crates/bytes
 #[derive(Clone, PartialEq, Eq)]
 pub struct RawData {
-    inner: Arc<[u8]>,
+    inner: Arc<Vec<u8>>,
 }
 
 impl RawData {
@@ -315,7 +315,7 @@ impl RawData {
 
 impl From<Cow<'_, [u8]>> for RawData {
     fn from(src: Cow<'_, [u8]>) -> Self {
-        Self { inner: src.into() }
+        Self { inner: src.into_owned().into() }
     }
 }
 
@@ -327,7 +327,7 @@ impl From<Vec<u8>> for RawData {
 
 impl From<&[u8]> for RawData {
     fn from(src: &[u8]) -> Self {
-        Self { inner: src.into() }
+        Self { inner: src.to_vec().into() }
     }
 }
 
@@ -339,7 +339,7 @@ impl From<RawData> for Vec<u8> {
 
 impl AsRef<[u8]> for RawData {
     fn as_ref(&self) -> &[u8] {
-        &self.inner
+        self.inner.as_ref()
     }
 }
 impl std::ops::Deref for RawData {
