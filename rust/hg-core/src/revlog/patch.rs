@@ -167,8 +167,20 @@ impl<'a> Delta<'a> {
     /// Applying consecutive Delta can lead to waste of time and memory
     /// as the changes introduced by one Delta can be overridden by the next.
     /// Combining Delta optimizes the whole patching sequence.
+    ///
+    /// In this method, self is the "low" delta applying so a "base", and
+    /// `other` is the "high" delta, apply to the result of applying "low"
+    /// on "base".
     fn combine(&mut self, other: &mut Self) -> Self {
-        let mut chunks = vec![];
+        // every delta-piece in "high" has an opportunity to slice a delta-piece
+        // in "low", creating an extra part. (this is true even if the
+        // "low" delta only have one delta-piece, it could be
+        // sliced over and over in more pieces.
+        //
+        // We precise the Vec that collect the result of the combination to the
+        // maximum number of chunk that might be created.
+        let mut chunks =
+            Vec::with_capacity(self.chunks.len() + 2 * other.chunks.len());
 
         // Keep track of each growth/shrinkage resulting from applying a chunk
         // in order to adjust the start/end of subsequent chunks.
