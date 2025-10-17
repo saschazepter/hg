@@ -21,6 +21,7 @@ use crate::errors::HgError;
 use crate::errors::IoErrorContext;
 
 pub mod debug;
+pub mod docket;
 pub mod files;
 pub mod hg_path;
 pub mod path_auditor;
