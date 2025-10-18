@@ -354,16 +354,12 @@ class digestchecker:
                 )
 
 
-try:
-    buffer = buffer  # pytype: disable=name-error
-except NameError:
-
-    def buffer(sliceable, offset=0, length=None):
-        if length is not None:
-            view = memoryview(sliceable)[offset : offset + length]
-        else:
-            view = memoryview(sliceable)[offset:]
-        return view.toreadonly()
+def buffer(sliceable, offset=0, length=None):
+    if length is not None:
+        view = memoryview(sliceable)[offset : offset + length]
+    else:
+        view = memoryview(sliceable)[offset:]
+    return view.toreadonly()
 
 
 _chunksize = 4096
