@@ -101,6 +101,7 @@ class _testrevlog:
         self.feature_config = config.FeatureConfig()
         self._snapshot = set(snapshot)
         self.index = None
+        self._inline = False
 
     def start(self, rev: RevnumT) -> int:
         if rev == nullrev:
@@ -130,6 +131,7 @@ def slicechunk(
     revlog: RevlogT,
     revs: Sequence[RevnumT],
     targetsize: int | None = None,
+    inlined: bool = False,
 ) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
@@ -196,7 +198,9 @@ def slicechunk(
     # * targetsize is used to ensure we stay within specification when reading,
     densityslicing = getattr(revlog.index, 'slicechunktodensity', None)
     if densityslicing is None:
-        densityslicing = lambda x, y, z: _slicechunktodensity(revlog, x, y, z)
+        densityslicing = lambda x, y, z: _slicechunktodensity(
+            revlog, x, y, z, inlined=inlined
+        )
     for chunk in densityslicing(
         revs,
         revlog.data_config.sr_density_threshold,
@@ -369,6 +373,7 @@ def _slicechunktodensity(
     revs: Sequence[RevnumT],
     targetdensity: float = 0.5,
     mingapsize: int = 0,
+    inlined: bool = False,
 ) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
@@ -420,12 +425,16 @@ def _slicechunktodensity(
     """
     start = revlog.start
     length = revlog.length
+    if inlined:
+        entry_size = revlog.index.entry_size
+        base_start = start
+        start = lambda r: entry_size * r + base_start(r)
 
     if len(revs) <= 1:
         yield revs
         return
 
-    deltachainspan = segmentspan(revlog, revs)
+    deltachainspan = segmentspan(revlog, revs, inlined=inlined)
 
     if deltachainspan < mingapsize:
         yield revs
@@ -553,7 +562,9 @@ def _trimchunk(
     return revs[startidx:endidx]
 
 
-def segmentspan(revlog: RevlogT, revs: Sequence[RevnumT]) -> int:
+def segmentspan(
+    revlog: RevlogT, revs: Sequence[RevnumT], inlined: bool = False
+) -> int:
     """Get the byte span of a segment of revisions
 
     revs is a sorted array of revision numbers
@@ -580,7 +591,10 @@ def segmentspan(revlog: RevlogT, revs: Sequence[RevnumT]) -> int:
     if not revs:
         return 0
     end = revlog.end(revs[-1])
-    return end - revlog.start(revs[0])
+    span = end - revlog.start(revs[0])
+    if inlined:
+        span += revlog.index.entry_size * (revs[-1] - revs[0])
+    return span
 
 
 def _textfromdelta(

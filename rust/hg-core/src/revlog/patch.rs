@@ -20,6 +20,7 @@ use byteorder::ByteOrder;
 
 use super::inner_revlog::RevisionBuffer;
 use crate::revlog::RevlogError;
+use crate::utils::u_u32;
 
 /// A piece of data to insert, delete or replace in a Delta
 ///
@@ -121,8 +122,14 @@ impl<'a> Delta<'a> {
             let start = BigEndian::read_u32(&data[0..]);
             let end = BigEndian::read_u32(&data[4..]);
             let len = BigEndian::read_u32(&data[8..]);
+            // bark on end > MAx
             if start > end {
                 return Err(RevlogError::corrupted("patch cannot be decoded"));
+            }
+            let available = data.len() - 12;
+            if len > u_u32(available + 12) {
+                let error = format!("patch insert more data than available: {len} < {available}");
+                return Err(RevlogError::corrupted(error));
             }
             chunks.push(DeltaPiece {
                 start,

@@ -458,17 +458,17 @@ debugdelta chain with sparse read enabled
   >    --config experimental.sparse-read.min-gap-size=0
   0 1
   1 1
-  2 1
-  3 1
-  4 1
-  5 1
+  2 2
+  3 2
+  4 2
+  5 2
   6 1
-  7 1
-  8 1
-  9 1
+  7 3
+  8 2
+  9 3
   10 2 (no-zstd !)
   10 1 (zstd !)
-  11 1
+  11 4
   $ hg --config extensions.strip= strip --no-backup -r 1
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 

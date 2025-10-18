@@ -999,6 +999,7 @@ class _InnerRevlog:
                 self,
                 fetched_revs,
                 targetsize=targetsize,
+                inlined=self.inline,
             )
 
         for revschunk in slicedchunks:

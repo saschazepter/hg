@@ -1887,6 +1887,7 @@ index_segment_span(indexObject *self, Py_ssize_t start_rev, Py_ssize_t end_rev)
 	int64_t start_offset;
 	int64_t end_offset;
 	int end_size;
+	int64_t segment_span;
 	start_offset = index_get_start(self, start_rev);
 	if (start_offset < 0) {
 		return -1;
@@ -1906,7 +1907,11 @@ index_segment_span(indexObject *self, Py_ssize_t start_rev, Py_ssize_t end_rev)
 		             start_rev, end_rev);
 		return -1;
 	}
-	return (end_offset - start_offset) + (int64_t)end_size;
+	segment_span = (end_offset - start_offset) + (int64_t)end_size;
+	if (self->inlined) {
+		segment_span += (end_rev - start_rev) * self->entry_size;
+	}
+	return segment_span;
 }
 
 /* returns endidx so that revs[startidx:endidx] has no empty trailing revs */
@@ -2065,6 +2070,9 @@ static PyObject *index_slicechunktodensity(indexObject *self, PyObject *args)
 		if (revstart < 0) {
 			goto bail;
 		};
+		if (self->inlined) {
+			revstart += revs[i] * self->entry_size;
+		}
 		revsize = index_get_length(self, revs[i]);
 		if (revsize < 0) {
 			goto bail;

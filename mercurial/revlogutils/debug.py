@@ -950,7 +950,7 @@ def debug_delta_chain(
             largestblock = 0
             srchunks = 0
 
-            for revschunk in deltautil.slicechunk(r, chain):
+            for revschunk in deltautil.slicechunk(r, chain, inlined=r._inline):
                 srchunks += 1
                 blkend = start(revschunk[-1]) + length(revschunk[-1])
                 blksize = blkend - start(revschunk[0])
