@@ -297,6 +297,8 @@ pub enum RevlogType {
     Changelog,
     Manifestlog,
     Filelog,
+    /// unknown destination, used by debug command looking at arbitrary file
+    Other,
 }
 
 impl TryFrom<usize> for RevlogType {
@@ -307,6 +309,7 @@ impl TryFrom<usize> for RevlogType {
             1001 => Ok(Self::Changelog),
             1002 => Ok(Self::Manifestlog),
             1003 => Ok(Self::Filelog),
+            1004 => Ok(Self::Other),
             t => Err(HgError::abort(
                 format!("Unknown revlog type {}", t),
                 exit_codes::ABORT,
