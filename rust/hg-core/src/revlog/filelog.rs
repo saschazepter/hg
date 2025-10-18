@@ -282,11 +282,11 @@ impl FilelogRevisionData {
 
     /// Consume the entry, and convert it into data, discarding any metadata,
     /// if present.
-    pub fn into_file_data(self) -> Result<Vec<u8>, HgError> {
+    pub fn into_file_data(self) -> Result<RawData, HgError> {
         if let (FilelogRevisionMetadata(Some(_)), data) = self.split()? {
-            Ok(RawData::from(data).into()) // XXX see the bytes crate
+            Ok(RawData::from(data)) // XXX consider the Bytes crate
         } else {
-            Ok(self.0.into())
+            Ok(self.0)
         }
     }
 }

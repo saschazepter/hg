@@ -17,6 +17,7 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::strings::clean_whitespace;
 use crate::utils::strings::CleanWhitespace;
+use crate::utils::RawData;
 use crate::utils::{self};
 use crate::AncestorsIterator;
 use crate::FastHashMap;
@@ -67,7 +68,7 @@ self_cell!(
     /// A wrapper around [`Lines`] that owns the buffer the lines point into.
     /// The buffer contains the file text processed by [`clean_whitespace`].
     struct OwnedLines {
-        owner: Vec<u8>,
+        owner: RawData,
         #[covariant]
         dependent: Lines,
     }
@@ -76,13 +77,16 @@ self_cell!(
 impl OwnedLines {
     /// Cleans `data` based on `whitespace` and then splits into lines.
     fn split(
-        mut data: Vec<u8>,
+        data: RawData,
         whitespace: Option<CleanWhitespace>,
     ) -> Result<Self, HgError> {
         if let Some(ws) = whitespace {
-            clean_whitespace(&mut data, ws);
+            let mut clean = data.into();
+            clean_whitespace(&mut clean, ws);
+            Self::try_new(RawData::from(clean), |data| bdiff::split_lines(data))
+        } else {
+            Self::try_new(data, |data| bdiff::split_lines(data))
         }
-        Self::try_new(data, |data| bdiff::split_lines(data))
     }
 
     fn get(&self) -> &Lines {
@@ -243,7 +247,7 @@ impl FilelogSet {
         state: &RepoState,
         path: &HgPath,
         revision: RevisionOrWdir,
-    ) -> Result<Option<(FileId, Vec<u8>)>, HgError> {
+    ) -> Result<Option<(FileId, RawData)>, HgError> {
         match revision.exclude_wdir() {
             Some(revision) => {
                 match self.open_at_changelog_rev(state, path, revision)? {
@@ -255,13 +259,13 @@ impl FilelogSet {
                 let fs_path = utils::hg_path::hg_path_to_path_buf(path)?;
                 let maybe_data =
                     state.repo.working_directory_vfs().try_read(fs_path)?;
-                Ok(maybe_data.map(|data| (FileId::Wdir, data)))
+                Ok(maybe_data.map(|data| (FileId::Wdir, RawData::from(data))))
             }
         }
     }
 
     /// Reads the contents of a file by id.
-    fn read(&self, id: RevFileId) -> Result<Vec<u8>, HgError> {
+    fn read(&self, id: RevFileId) -> Result<RawData, HgError> {
         let filelog = &self.get(id.index).filelog;
         filelog.entry(id.revision)?.data()?.into_file_data()
     }
@@ -275,7 +279,7 @@ impl FilelogSet {
         base_path: &HgPath,
         id: FileId,
         follow_copies: bool,
-    ) -> Result<(Vec<FileId>, Option<Vec<u8>>), HgError> {
+    ) -> Result<(Vec<FileId>, Option<RawData>), HgError> {
         let mut parents = Vec::<FileId>::with_capacity(2);
         let id = match id {
             FileId::Rev(id) => id,
