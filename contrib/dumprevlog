@@ -3,6 +3,7 @@
 # $ find .hg/store/ -name "*.i" | xargs dumprevlog > repo.dump
 
 
+import os
 import sys
 from mercurial.node import hex
 from mercurial import (
@@ -23,11 +24,13 @@ for fp in (sys.stdin, sys.stdout, sys.stderr):
 def binopen(path, mode=b'rb'):
     if b'b' not in mode:
         mode = mode + b'b'
-    return open(path, pycompat.sysstr(mode))
+    return open(b"/" + path, pycompat.sysstr(mode))
 
 
 binopen.options = {}
 binopen.filter_name = None
+binopen.base = b"/"
+binopen.read_write = False
 
 
 def printb(data, end=b'\n'):
@@ -36,7 +39,8 @@ def printb(data, end=b'\n'):
 
 
 for f in sys.argv[1:]:
-    localf = encoding.strtolocal(f)
+    abslocal = os.path.abspath(f)
+    localf = encoding.strtolocal(abslocal)[1:]
     if not localf.endswith(b'.i'):
         print("file:", f, file=sys.stderr)
         print("  invalid filename", file=sys.stderr)
