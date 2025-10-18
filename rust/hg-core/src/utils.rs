@@ -294,7 +294,7 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
 /// Represent the data from disk or from a Revision.
 ///
 /// TODO: We should probably use Bytes, from the https://crates.io/crates/bytes
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RawData {
     inner: Arc<Vec<u8>>,
 }

@@ -73,13 +73,13 @@ impl Manifestlog {
         &self,
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
-        let bytes = self.revlog.get_data_for_unchecked_rev(rev)?.into_owned();
+        let bytes = self.revlog.get_data_for_unchecked_rev(rev)?;
         Ok(Manifest { bytes: Box::new(bytes) })
     }
 
     /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
     pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
-        let bytes = self.revlog.get_data(rev)?.into_owned();
+        let bytes = self.revlog.get_data(rev)?;
         Ok(Manifest { bytes: Box::new(bytes) })
     }
 

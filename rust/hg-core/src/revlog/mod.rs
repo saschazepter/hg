@@ -32,7 +32,6 @@ pub mod manifest;
 pub mod options;
 pub mod patch;
 
-use std::borrow::Cow;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::path::Path;
@@ -485,17 +484,17 @@ impl Revlog {
     pub fn get_data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<Cow<[u8]>, RevlogError> {
+    ) -> Result<RawData, RevlogError> {
         if rev == NULL_REVISION.into() {
-            return Ok(Cow::Borrowed(&[]));
+            return Ok(RawData::empty());
         };
         self.get_entry_for_unchecked_rev(rev)?.data()
     }
 
     /// [`Self::get_data_for_unchecked_rev`] for a checked [`Revision`].
-    pub fn get_data(&self, rev: Revision) -> Result<Cow<[u8]>, RevlogError> {
+    pub fn get_data(&self, rev: Revision) -> Result<RawData, RevlogError> {
         if rev == NULL_REVISION {
-            return Ok(Cow::Borrowed(&[]));
+            return Ok(RawData::empty());
         };
         self.get_entry(rev)?.data()
     }
@@ -802,10 +801,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         Ok(())
     }
 
-    fn check_data(
-        &self,
-        data: Cow<'revlog, [u8]>,
-    ) -> Result<Cow<'revlog, [u8]>, RevlogError> {
+    fn check_data(&self, data: RawData) -> Result<RawData, RevlogError> {
         if self.revlog.check_hash(self.p1, self.p2, self.hash.as_bytes(), &data)
         {
             Ok(data)
@@ -825,8 +821,7 @@ impl<'revlog> RevlogEntry<'revlog> {
     }
 
     /// Get the revision data, without checking it integrity
-    fn data_unchecked(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
-        // TODO figure out if there is ever a need for `Cow` here anymore.
+    fn data_unchecked(&self) -> Result<RawData, RevlogError> {
         let mut data = CoreRevisionBuffer::new();
         if self.rev == NULL_REVISION {
             return Ok(data.finish().into());
@@ -849,10 +844,9 @@ impl<'revlog> RevlogEntry<'revlog> {
     }
 
     /// Get the revision data, checking its integrity in the process
-    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
-        // TODO figure out if there is ever a need for `Cow` here anymore.
+    pub fn data(&self) -> Result<RawData, RevlogError> {
         if self.rev == NULL_REVISION {
-            return Ok(b"".into());
+            return Ok(RawData::empty());
         }
         self.check_data(self.data_unchecked()?)
     }

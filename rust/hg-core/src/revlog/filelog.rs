@@ -118,10 +118,10 @@ impl Filelog {
 /// censored node error and either forward it or ignore it according to config.
 fn maybe_ignore_censored_revision(
     irl: &InnerRevlog,
-    data_result: Result<std::borrow::Cow<'_, [u8]>, RevlogError>,
+    data_result: Result<RawData, RevlogError>,
 ) -> Result<FilelogRevisionData, RevlogError> {
     match data_result {
-        Ok(data) => Ok(FilelogRevisionData(RawData::from(data))),
+        Ok(data) => Ok(FilelogRevisionData(data)),
         // Errors other than `HgError` should not happen at this point
         Err(e) => match &e {
             RevlogError::Other(hg_error) => match hg_error {

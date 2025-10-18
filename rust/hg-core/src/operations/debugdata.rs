@@ -39,5 +39,5 @@ pub fn debug_data(
     )?;
     let rev = crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;
     let data = revlog.get_data(rev)?;
-    Ok(data.into_owned())
+    Ok(data.into())
 }
