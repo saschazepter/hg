@@ -557,7 +557,7 @@ impl InnerRevlog {
                 if let Ok(mut cache) = cache.try_write() {
                     for rev in revs.iter() {
                         match cache.get(rev) {
-                            Some(hit) => chunks.push((*rev, hit.to_owned())),
+                            Some(hit) => chunks.push((*rev, hit.clone())),
                             None => fetched_revs.push(*rev),
                         }
                     }
@@ -611,13 +611,13 @@ impl InnerRevlog {
                             is_delta,
                             entry.uncompressed_len(),
                         )?;
-                        Cow::Owned(uncompressed)
+                        RawData::from(uncompressed)
                     } else {
                         // Otherwise just fallback to generic decompression.
-                        self.decompress(bytes)?
+                        RawData::from(self.decompress(bytes)?)
                     };
 
-                    chunks.push((*rev, chunk.into()));
+                    chunks.push((*rev, chunk));
                 }
             }
             Ok(())
