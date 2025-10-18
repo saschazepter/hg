@@ -1898,19 +1898,13 @@ class revlog:
         )
 
         use_rust_index = False
-        rust_applicable = self._nodemap_file is not None
-        rust_applicable = rust_applicable or self.target[0] == KIND_FILELOG
-        rust_applicable = rust_applicable and getattr(
-            self.opener, "rust_compatible", True
-        )
-        if rustrevlog is not None and rust_applicable:
-            # we would like to use the rust_index in all case, especially
-            # because it is necessary for AncestorsIterator and LazyAncestors
-            # since the 6.7 cycle.
-            #
-            # However, the performance impact of inconditionnaly building the
-            # nodemap is currently a problem for non-persistent nodemap
-            # repository.
+        is_changelog = self.target[0] == KIND_CHANGELOG
+        may_rust = getattr(self.opener, "rust_compatible", True)
+        # we still avoid rust for inlined changelog as this create some issues.
+        #
+        # (See failure in test-split-legacy-inline-changelog.t)
+        may_rust = may_rust and not (self._inline and is_changelog)
+        if rustrevlog is not None and may_rust:
             use_rust_index = True
 
             if self._format_version != REVLOGV1:

@@ -114,7 +114,8 @@ Test SEGV caused by bad revision passed to reachableroots() (issue4775):
   10000: head out of range
   -2: head out of range
   -10000: head out of range
-  None: (an integer is required( .got type NoneType.)?|'NoneType' object cannot be interpreted as an integer) (re)
+  None: (an integer is required( .got type NoneType.)?|'NoneType' object cannot be interpreted as an integer) (re) (no-rust !)
+  None: failed to extract field PyRevision.0 (rust !)
   good roots:
   0: [0]
   1: [1]

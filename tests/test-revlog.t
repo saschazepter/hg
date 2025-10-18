@@ -52,7 +52,8 @@ Test for CVE-2016-3630
   >>> tvfs.options = {b'revlogv1': True}
   >>> rl = revlog.revlog(tvfs, target=(KIND_OTHER, b'test'), radix=b'a')
   >>> rl.revision(1)
-  mpatchError(*'patch cannot be decoded'*) (glob)
+  mpatchError(*'patch cannot be decoded'*) (glob) (no-rust !)
+  RevlogError(b'abort: corrupted revlog, patch insert more data than available: 4294967295 < 0') (rust !)
 
   $ cd ..
 
