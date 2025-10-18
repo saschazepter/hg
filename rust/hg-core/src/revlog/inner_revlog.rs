@@ -195,9 +195,24 @@ impl InnerRevlog {
     }
 
     /// Set the "last revision cache" content
-    pub fn set_rev_cache(&self, rev: Revision, data: CachedBytes) {
+    pub fn set_rev_cache(&self, rev: Revision, data: ForeignBytes) {
         let mut last_revision_cache =
             self.last_revision_cache.lock().expect("propagate mutex panic");
+        let data = CachedBytes::Foreign(data);
+        *last_revision_cache = Some(SingleRevisionCache { rev, data });
+    }
+
+    /// Set the "last revision cache" content from a Rust native type
+    pub fn set_rev_cache_native(&self, rev: Revision, data: &RawData) {
+        let mut last_revision_cache =
+            self.last_revision_cache.lock().expect("propagate mutex panic");
+        if let Some(cached) = &*last_revision_cache {
+            // same a Arc clone when possible
+            if cached.rev == rev {
+                return;
+            }
+        }
+        let data = CachedBytes::Native(data.clone());
         *last_revision_cache = Some(SingleRevisionCache { rev, data });
     }
 
@@ -1348,7 +1363,24 @@ impl InnerRevlog {
 type UncompressedChunkCache =
     RwLock<LruMap<Revision, RawData, ByTotalChunksSize>>;
 
-type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
+type ForeignBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
+
+#[derive(Clone)]
+enum CachedBytes {
+    Foreign(ForeignBytes),
+    Native(RawData),
+}
+
+impl std::ops::Deref for CachedBytes {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Foreign(data) => data,
+            Self::Native(data) => data,
+        }
+    }
+}
 
 /// The revision and data for the last revision we've seen. Speeds up
 /// a lot of sequential operations of the revlog.
@@ -1358,12 +1390,26 @@ type CachedBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync>;
 #[derive(Clone)]
 pub struct SingleRevisionCache {
     pub rev: Revision,
-    pub(super) data: CachedBytes,
+    data: CachedBytes,
 }
 
 impl SingleRevisionCache {
     pub(super) fn as_delta_base(&self) -> (Revision, &[u8]) {
-        (self.rev, self.data.as_ref())
+        match &self.data {
+            CachedBytes::Foreign(data) => (self.rev, data.as_ref()),
+            CachedBytes::Native(data) => (self.rev, data.as_ref()),
+        }
+    }
+
+    /// return a RawData if available
+    pub(super) fn as_data(&self) -> RawData {
+        match &self.data {
+            CachedBytes::Foreign(data) => {
+                let data: &[u8] = data;
+                RawData::from(data)
+            }
+            CachedBytes::Native(data) => data.clone(),
+        }
     }
 }
 

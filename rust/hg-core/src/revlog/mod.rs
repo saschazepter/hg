@@ -35,7 +35,6 @@ pub mod patch;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
 
 use self::nodemap_docket::NodeMapDocket;
 use crate::dyn_bytes::DynBytes;
@@ -782,7 +781,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         let cached_rev = self.revlog.get_rev_cache();
         if let Some(ref cached) = cached_rev {
             if cached.rev == self.rev {
-                return Ok(RawData::from(cached.data.to_vec()));
+                return Ok(cached.as_data());
             }
         }
         let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
@@ -809,7 +808,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         data.resize(size);
         patch::build_data_from_deltas(&mut data, base_text, deltas)?;
         let raw_text: RawData = data.finish().into();
-        self.revlog.set_rev_cache(self.rev, Arc::new(raw_text.clone()));
+        self.revlog.set_rev_cache_native(self.rev, &raw_text);
         Ok(raw_text)
     }
 
