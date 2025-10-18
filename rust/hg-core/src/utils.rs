@@ -317,12 +317,12 @@ impl ByTotalChunksSize {
         Self { total_chunks_size: 0, max_chunks_size, resize_factor }
     }
 
-    /// If `new_max` is larger than the current maximum, update the maximum to
-    /// be larger than `new_max` by [`Self::resize_factor`]
+    /// Make sure the cache can contains "factor" time the largest content
+    /// associated with it.
     pub fn maybe_grow_max(&mut self, new_max: usize) {
-        if new_max > self.max_chunks_size {
-            // Too big to add even if the cache is empty, so grow the cache
-            self.max_chunks_size = new_max * self.resize_factor
+        let candidate = new_max * self.resize_factor;
+        if candidate > self.max_chunks_size {
+            self.max_chunks_size = candidate;
         }
     }
 }
