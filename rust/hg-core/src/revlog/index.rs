@@ -27,6 +27,7 @@ use crate::revlog::node::NULL_NODE;
 use crate::revlog::node::STORED_NODE_ID_BYTES;
 use crate::revlog::Revision;
 use crate::revlog::NULL_REVISION;
+use crate::utils::u32_u;
 use crate::BaseRevision;
 use crate::FastHashMap;
 use crate::Graph;
@@ -1057,11 +1058,13 @@ impl Index {
             return 0;
         }
         let last_rev = revs[revs.len() - 1];
-        let last_entry = &self.get_entry(last_rev);
-        let end = last_entry.offset() + last_entry.compressed_len() as usize;
-        let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
-        let first_entry = self.get_entry(*first_rev);
-        let start = first_entry.offset();
+        let last_entry = self.get_entry(last_rev);
+        let last_start = self.start(last_rev, &last_entry);
+        let end = last_start + u32_u(last_entry.compressed_len());
+
+        let first_rev = revs[0];
+        let first_entry = self.get_entry(first_rev);
+        let start = self.start(first_rev, &first_entry);
         end - start
     }
 
