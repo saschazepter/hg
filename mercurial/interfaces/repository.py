@@ -1737,6 +1737,9 @@ class imanifestlog(Protocol):
     tree manifests.
     """
 
+    # TODO: fix the upgrade engine code that references this
+    _rootstore: Any
+
     nodeconstants: NodeConstants
     """nodeconstants used by the current repository."""
 
@@ -1972,6 +1975,8 @@ class IRepo(Protocol):
 
     narrowpats: Any  # TODO: add type hints
     """Matcher patterns for this repository's narrowspec."""
+
+    is_narrow: bool
 
     @abc.abstractmethod
     def narrowmatch(self, match=None, includeexact=False):
