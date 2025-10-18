@@ -670,61 +670,65 @@ impl InnerRevlog {
         } else {
             self.slice_chunk(fetched_revs, target_size)?
         };
+        if !sliced_chunks.is_empty() {
+            self.with_read(|| {
+                for revs_chunk in sliced_chunks {
+                    let first_rev = revs_chunk[0];
+                    // Skip trailing revisions with empty diff
+                    let last_rev_idx = revs_chunk
+                        .iter()
+                        .rposition(|r| self.data_compressed_length(*r) != 0)
+                        .unwrap_or(revs_chunk.len() - 1);
 
-        self.with_read(|| {
-            for revs_chunk in sliced_chunks {
-                let first_rev = revs_chunk[0];
-                // Skip trailing revisions with empty diff
-                let last_rev_idx = revs_chunk
-                    .iter()
-                    .rposition(|r| self.data_compressed_length(*r) != 0)
-                    .unwrap_or(revs_chunk.len() - 1);
+                    let last_rev = revs_chunk[last_rev_idx];
 
-                let last_rev = revs_chunk[last_rev_idx];
+                    let (offset, data) =
+                        self.get_segment_for_revs(first_rev, last_rev)?;
 
-                let (offset, data) =
-                    self.get_segment_for_revs(first_rev, last_rev)?;
+                    let revs_chunk = &revs_chunk[..=last_rev_idx];
 
-                let revs_chunk = &revs_chunk[..=last_rev_idx];
+                    for rev in revs_chunk {
+                        let chunk_start = self.data_start(*rev);
+                        let chunk_length = self.data_compressed_length(*rev);
+                        // TODO revlogv2 should check the compression mode
+                        let bytes =
+                            &data[chunk_start - offset..][..chunk_length];
+                        let chunk = if !bytes.is_empty()
+                            && bytes[0] == ZSTD_BYTE
+                        {
+                            // If we're using `zstd`, we want to try a more
+                            // specialized decompression
+                            let entry = self.index.get_entry(*rev);
+                            let is_delta = entry
+                                .base_revision_or_base_of_delta_chain()
+                                != (*rev).into();
+                            let uncompressed = uncompressed_zstd_data(
+                                bytes,
+                                is_delta,
+                                entry.uncompressed_len(),
+                            )?;
+                            RawData::from(uncompressed)
+                        } else {
+                            // Otherwise just fallback to generic decompression.
+                            RawData::from(self.decompress(bytes)?)
+                        };
 
-                for rev in revs_chunk {
-                    let chunk_start = self.data_start(*rev);
-                    let chunk_length = self.data_compressed_length(*rev);
-                    // TODO revlogv2 should check the compression mode
-                    let bytes = &data[chunk_start - offset..][..chunk_length];
-                    let chunk = if !bytes.is_empty() && bytes[0] == ZSTD_BYTE {
-                        // If we're using `zstd`, we want to try a more
-                        // specialized decompression
-                        let entry = self.index.get_entry(*rev);
-                        let is_delta = entry
-                            .base_revision_or_base_of_delta_chain()
-                            != (*rev).into();
-                        let uncompressed = uncompressed_zstd_data(
-                            bytes,
-                            is_delta,
-                            entry.uncompressed_len(),
-                        )?;
-                        RawData::from(uncompressed)
-                    } else {
-                        // Otherwise just fallback to generic decompression.
-                        RawData::from(self.decompress(bytes)?)
-                    };
+                        chunks.push((*rev, chunk));
+                    }
+                }
+                Ok(())
+            })?;
 
-                    chunks.push((*rev, chunk));
+            if let Some(Ok(mut cache)) =
+                self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
+            {
+                for (rev, chunk) in chunks.iter().skip(already_cached) {
+                    cache.insert(*rev, chunk.clone());
                 }
             }
-            Ok(())
-        })?;
-
-        if let Some(Ok(mut cache)) =
-            self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
-        {
-            for (rev, chunk) in chunks.iter().skip(already_cached) {
-                cache.insert(*rev, chunk.clone());
-            }
+            // Use stable sort here since it's *mostly* sorted
+            chunks.sort_by(|a, b| a.0.cmp(&b.0));
         }
-        // Use stable sort here since it's *mostly* sorted
-        chunks.sort_by(|a, b| a.0.cmp(&b.0));
         Ok(chunks.into_iter().map(|(_r, chunk)| chunk).collect())
     }
 
