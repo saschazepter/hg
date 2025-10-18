@@ -561,8 +561,8 @@ class verifier:
                         self._err(linkrev_msg, problem.error, f)
                     else:
                         raise error.ProgrammingError(
-                            b'problem instance does not set warning or error '
-                            b'attribute: %s' % problem.msg
+                            'problem instance does not set warning or error '
+                            'attribute: %s' % repr(problem)
                         )
 
             seen = {}
