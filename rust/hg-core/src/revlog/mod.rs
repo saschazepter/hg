@@ -791,12 +791,24 @@ impl<'revlog> RevlogEntry<'revlog> {
         let (chunks, stopped) =
             self.revlog.chunks_for_chain(self.revision(), stop_rev)?;
         let (base_text, deltas) = if stopped {
-            let base_text = cache.expect("cannot stop without a cache").1;
+            if chunks.is_empty() {
+                // The revision is equivalent to another one, just return the
+                // equivalent one.
+                let cache_value =
+                    cached_rev.expect("cannot stop without a cache");
+                let raw_text = cache_value.as_data();
+                self.revlog.set_rev_cache_native(self.rev, &raw_text);
+                return Ok(raw_text);
+            }
+            let cache_value = cache.expect("cannot stop without a cache");
+            let base_text = cache_value.1;
             (base_text, &chunks[..])
         } else {
             let base_text = &chunks[0];
             let deltas = &chunks[1..];
             if deltas.is_empty() {
+                // The revision is equivalent to another one, just return the
+                // equivalent one.
                 return Ok(chunks
                     .into_iter()
                     .next()
