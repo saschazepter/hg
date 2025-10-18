@@ -35,6 +35,7 @@ use super::node::NULL_NODE;
 use super::options::RevlogDataConfig;
 use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
+use super::patch;
 use super::BaseRevision;
 use super::Revision;
 use super::RevlogEntry;
@@ -531,7 +532,22 @@ impl InnerRevlog {
         if let Some(size) = raw_size {
             self.seen_file_size(u32_u(size));
         }
-        entry.rawdata(cache, get_buffer)?;
+        let stop_rev = cache.map(|(r, _)| r);
+        let (deltas, stopped) = self.chunks_for_chain(rev, stop_rev)?;
+        let (base_text, deltas) = if stopped {
+            (cache.expect("last revision should be cached").1, &deltas[..])
+        } else {
+            let (buf, deltas) = deltas.split_at(1);
+            (buf[0].as_ref(), deltas)
+        };
+        let size = entry
+            .uncompressed_len()
+            .map(|l| l as usize)
+            .unwrap_or(base_text.len());
+        get_buffer(size, &mut |buf| {
+            patch::build_data_from_deltas(buf, base_text, deltas)?;
+            Ok(())
+        })?;
         Ok(())
     }
 

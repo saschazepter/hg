@@ -739,42 +739,6 @@ impl<'revlog> RevlogEntry<'revlog> {
         (self.flags & (REVIDX_KNOWN_FLAGS ^ REVISION_FLAG_ELLIPSIS)) != 0
     }
 
-    /// The data for this entry, after resolving deltas if any.
-    /// Non-Python callers should probably call [`Self::data`] instead.
-    fn rawdata<G, T>(
-        &self,
-        cache: Option<(Revision, &[u8])>,
-        with_buffer: G,
-    ) -> Result<(), RevlogError>
-    where
-        G: FnOnce(
-            usize,
-            &mut dyn FnMut(
-                &mut dyn RevisionBuffer<Target = T>,
-            ) -> Result<(), RevlogError>,
-        ) -> Result<(), RevlogError>,
-    {
-        let stop_rev = cache.map(|(r, _)| r);
-        let (deltas, stopped) =
-            self.revlog.chunks_for_chain(self.revision(), stop_rev)?;
-        let (base_text, deltas) = if stopped {
-            (cache.expect("last revision should be cached").1, &deltas[..])
-        } else {
-            let (buf, deltas) = deltas.split_at(1);
-            (buf[0].as_ref(), deltas)
-        };
-
-        let size = self
-            .uncompressed_len()
-            .map(|l| l as usize)
-            .unwrap_or(base_text.len());
-        with_buffer(size, &mut |buf| {
-            patch::build_data_from_deltas(buf, base_text, deltas)?;
-            Ok(())
-        })?;
-        Ok(())
-    }
-
     fn check_data(&self, data: RawData) -> Result<RawData, RevlogError> {
         if self.revlog.check_hash(self.p1, self.p2, self.hash.as_bytes(), &data)
         {
@@ -807,13 +771,18 @@ impl<'revlog> RevlogEntry<'revlog> {
             )
             .into());
         }
-        self.rawdata(None, |size, f| {
-            // Pre-allocate the expected size (received from the index)
-            data.resize(size);
-            // Actually fill the buffer
-            f(&mut data)?;
-            Ok(())
-        })?;
+        let (deltas, stopped) =
+            self.revlog.chunks_for_chain(self.revision(), None)?;
+        assert!(!stopped);
+        let base_text = &deltas[0];
+        let deltas = &deltas[1..];
+        let size = self
+            .uncompressed_len()
+            .map(|l| l as usize)
+            .unwrap_or(base_text.len());
+
+        data.resize(size);
+        patch::build_data_from_deltas(&mut data, base_text, deltas)?;
         Ok(data.finish().into())
     }
 
