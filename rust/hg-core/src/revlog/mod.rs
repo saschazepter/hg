@@ -781,7 +781,9 @@ impl<'revlog> RevlogEntry<'revlog> {
         let cached_rev = self.revlog.get_rev_cache();
         if let Some(ref cached) = cached_rev {
             if cached.rev == self.rev {
-                return Ok(cached.as_data());
+                let raw_text = cached.as_data();
+                self.revlog.set_rev_cache_native(self.rev, &raw_text);
+                return Ok(raw_text);
             }
         }
         let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
