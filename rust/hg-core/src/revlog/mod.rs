@@ -529,24 +529,6 @@ impl Revlog {
     ) -> bool {
         self.inner.check_hash(p1, p2, expected, data)
     }
-
-    /// Build the full data of a revision out its snapshot
-    /// and its deltas.
-    fn build_data_from_deltas<T>(
-        buffer: &mut dyn RevisionBuffer<Target = T>,
-        snapshot: &[u8],
-        deltas: &[impl AsRef<[u8]>],
-    ) -> Result<(), RevlogError> {
-        if deltas.is_empty() {
-            buffer.extend_from_slice(snapshot);
-            return Ok(());
-        }
-        let patches: Result<Vec<_>, _> =
-            deltas.iter().map(|d| patch::Delta::new(d.as_ref())).collect();
-        let patch = patch::fold_deltas(&patches?);
-        patch.apply(buffer, snapshot);
-        Ok(())
-    }
 }
 
 pub struct RawdataBuf {
@@ -787,7 +769,7 @@ impl<'revlog> RevlogEntry<'revlog> {
             .map(|l| l as usize)
             .unwrap_or(base_text.len());
         with_buffer(size, &mut |buf| {
-            Revlog::build_data_from_deltas(buf, base_text, deltas)?;
+            patch::build_data_from_deltas(buf, base_text, deltas)?;
             Ok(())
         })?;
         Ok(())

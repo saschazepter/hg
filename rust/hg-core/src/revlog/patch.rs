@@ -285,6 +285,24 @@ pub fn fold_deltas<'a>(lists: &[Delta<'a>]) -> Delta<'a> {
     }
 }
 
+/// Build the full data of a revision out its snapshot
+/// and its deltas.
+pub fn build_data_from_deltas<T>(
+    buffer: &mut dyn RevisionBuffer<Target = T>,
+    snapshot: &[u8],
+    deltas: &[impl AsRef<[u8]>],
+) -> Result<(), RevlogError> {
+    if deltas.is_empty() {
+        buffer.extend_from_slice(snapshot);
+        return Ok(());
+    }
+    let patches: Result<Vec<_>, _> =
+        deltas.iter().map(|d| Delta::new(d.as_ref())).collect();
+    let patch = fold_deltas(&patches?);
+    patch.apply(buffer, snapshot);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use rand::prelude::*;

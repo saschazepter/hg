@@ -616,12 +616,12 @@ mod tests {
     use super::*;
     use crate::revlog::inner_revlog::CoreRevisionBuffer;
     use crate::revlog::inner_revlog::RevisionBuffer;
-    use crate::revlog::Revlog;
+    use crate::revlog::patch;
 
     /// Check that applying the diff from m1 to m2 is the same as m2
     fn identity_check(m1: &[u8], m2: &[u8], delta: &[u8]) {
         let mut computed_m2 = CoreRevisionBuffer::new();
-        Revlog::build_data_from_deltas(&mut computed_m2, m1, &[delta]).unwrap();
+        patch::build_data_from_deltas(&mut computed_m2, m1, &[delta]).unwrap();
         assert_eq!(
             String::from_utf8_lossy(&computed_m2.finish()),
             String::from_utf8_lossy(m2)
