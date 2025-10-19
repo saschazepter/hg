@@ -14,6 +14,8 @@ from typing import (
     Protocol,
 )
 
+from . import matcher
+
 
 class IHooks(Protocol):
     """A collection of hook functions that can be used to extend a
@@ -173,6 +175,16 @@ class ISubRepo(Protocol):
     """A generic subrepo object"""
 
     _relpath: bytes
+
+    @abc.abstractmethod
+    def archive(
+        self,
+        opener,
+        prefix: bytes,
+        match: matcher.MatcherT,
+        decode: bool = True,
+    ) -> int:
+        ...
 
     @abc.abstractmethod
     def dirty(self, ignoreupdate: bool = False, missing: bool = False):
