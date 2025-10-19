@@ -753,7 +753,7 @@ impl InnerRevlog {
                 extra_delta,
             )?;
 
-            let p = state.prepare()?;
+            let p: diff::Prepared<'_, PlainDeltaPiece> = state.prepare()?;
 
             let common_buff;
             let old_buff;

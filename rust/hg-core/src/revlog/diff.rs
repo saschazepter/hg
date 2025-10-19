@@ -323,15 +323,17 @@ pub(super) struct RevDeltaState<'irl> {
 
 /// hold the necessary reference to compute the delta between two content (from
 /// a `RevDeltaState`)
-pub(super) struct Prepared<'state> {
+pub(super) struct Prepared<'state, D>
+where
+    D: patch::DeltaPiece<'state>,
+{
     pub(super) common_rev: Revision,
     pub(super) base_text: &'state [u8],
-    pub(super) common_delta:
-        patch::Delta<'state, patch::PlainDeltaPiece<'state>>,
+    pub(super) common_delta: patch::Delta<'state, D>,
     pub(super) common_size: u32,
-    pub(super) old_delta: patch::Delta<'state, patch::PlainDeltaPiece<'state>>,
+    pub(super) old_delta: patch::Delta<'state, D>,
     pub(super) old_size: u32,
-    pub(super) new_delta: patch::Delta<'state, patch::PlainDeltaPiece<'state>>,
+    pub(super) new_delta: patch::Delta<'state, D>,
     pub(super) new_size: u32,
 }
 
@@ -407,9 +409,12 @@ impl<'irl> RevDeltaState<'irl> {
     }
 
     /// Return the core element to compute a delta from two common delta chain.
-    pub(super) fn prepare(
+    pub(super) fn prepare<D>(
         &'irl mut self,
-    ) -> Result<Prepared<'irl>, RevlogError> {
+    ) -> Result<Prepared<'irl, D>, RevlogError>
+    where
+        D: patch::DeltaPiece<'irl>,
+    {
         // determine the base_text and when the delta start in the chunks
         let (base_text, chain_start): (&[u8], usize) =
             if let Some(cache) = &self.cache {
@@ -423,17 +428,20 @@ impl<'irl> RevDeltaState<'irl> {
         let mut old_deltas = Vec::with_capacity(self.chunk_counts.1);
         let mut new_deltas = Vec::with_capacity(self.chunk_counts.2);
         let chains = [&mut common_deltas, &mut old_deltas, &mut new_deltas];
-        for (chunk, src) in std::iter::zip(
+        for (idx, (chunk, src)) in std::iter::zip(
             &self.chunks[chain_start..],
             &self.chunk_users[chain_start..],
-        ) {
-            let d = patch::Delta::new(chunk)?;
+        )
+        .enumerate()
+        {
+            let d = patch::Delta::new_rich(u_u32(idx + 1), chunk)?;
             let c: usize = (*src).into();
             chains[c].push(d)
         }
         // inject the extra delta if any
         if let Some(delta) = &self.extra_delta {
-            let d = patch::Delta::new(delta)?;
+            let extra_id = u_u32(self.chunks.len() + 1);
+            let d = patch::Delta::new_rich(extra_id, delta)?;
             new_deltas.push(d)
         }
         // get common base_text, delta, and size
