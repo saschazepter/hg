@@ -524,6 +524,16 @@ pub(super) fn manifest_delta_with_offset(
     m2: &[u8],
 ) -> Vec<u8> {
     let mut delta = vec![];
+    write_manifest_delta_with_offset(offset, m1, m2, &mut delta);
+    delta
+}
+
+pub(super) fn write_manifest_delta_with_offset(
+    offset: u32,
+    m1: &[u8],
+    m2: &[u8],
+    delta: &mut Vec<u8>,
+) {
     // our current work position in the two manifest
     let mut m1_offset = offset;
     let mut m2_offset = 0u32;
@@ -537,7 +547,7 @@ pub(super) fn manifest_delta_with_offset(
                 m2_offset += size;
                 // We have a common block so any existing cursor need flushing
                 if let Some(change) = cursor.take() {
-                    change.into_piece().write(&mut delta);
+                    change.into_piece().write(delta);
                 }
             }
             Section::Changed(size_1, size_2) => {
@@ -559,9 +569,8 @@ pub(super) fn manifest_delta_with_offset(
         }
     }
     if let Some(change) = cursor.take() {
-        change.into_piece().write(&mut delta);
+        change.into_piece().write(delta);
     };
-    delta
 }
 
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
