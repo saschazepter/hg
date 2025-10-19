@@ -307,9 +307,17 @@ pub(super) struct RevDeltaState<'irl> {
     common_rev: Revision,
     old_rev: Revision,
     new_rev: Revision,
-    common_chunks: Vec<RawData>,
-    old_chain: Vec<RawData>,
-    new_chain: Vec<RawData>,
+    /// All the bytes used in the combined delta chain
+    chunks: Vec<RawData>,
+    /// The chain associated with each chunks in "chunks
+    /// 0: common chain
+    /// 1: old chain
+    /// 2: new chain
+    chunk_users: Vec<u8>,
+    /// The number of chunks in each chain
+    ///
+    /// (common, old, new)
+    chunk_counts: (usize, usize, usize),
 }
 
 /// hold the necessary reference to compute the delta between two content (from
@@ -350,32 +358,38 @@ impl<'irl> RevDeltaState<'irl> {
         let size_c = rev_size(entry_c);
         let size_1 = rev_size(entry_1);
         let size_2 = rev_size(entry_2);
-        let t_size_1 = Some(size_1 as u64 * 4);
-        let t_size_2 = Some(size_2 as u64 * 4);
+        let t_size = Some((size_1 as u64 + size_2 as u64) * 4);
         irl.seen_file_size(u32_u(size_c.max(size_1.max(size_2))));
 
-        let (cache, cached_skip) = if let Some(cached_idx) = cached_idx {
+        // Merge the two delta chain into a single Vec
+        //
+        // This allow for fetching all of them in one go. We add a "user" value
+        // next to it to be able to know if a chunk is to be used for
+        // the common chain, the old chain or the new chain.
+        let (cache, common_start) = if let Some(cached_idx) = cached_idx {
             (cache, cached_idx + 1)
         } else {
             (None, 0)
         };
+        let chain_1_cnt = delta_chain_1.len() - common_count;
+        let chain_2_cnt = delta_chain_2.len() - common_count;
+        let common_cnt = common_count - common_start;
+        let fetch_cnt = common_cnt + chain_1_cnt + chain_2_cnt;
 
-        let mut common_chunks;
-        let old_chain;
-        if cached_skip == common_count {
-            common_chunks = vec![];
-            old_chain = irl.chunks(&delta_chain_1[cached_skip..], t_size_1)?;
-        } else {
-            common_chunks =
-                irl.chunks(&delta_chain_1[cached_skip..], t_size_1)?;
-            if common_count == common_chunks.len() {
-                old_chain = vec![];
-            } else {
-                old_chain = common_chunks.split_off(common_count - cached_skip);
-            }
-        }
+        let mut all_revs = Vec::with_capacity(fetch_cnt);
+        all_revs.extend(
+            (delta_chain_1[common_start..common_count]).iter().map(|r| (*r, 0)),
+        );
+        all_revs
+            .extend((delta_chain_1[common_count..]).iter().map(|r| (*r, 1)));
+        all_revs
+            .extend((delta_chain_2[common_count..]).iter().map(|r| (*r, 2)));
+        // sort them as `irl.chunks` expect them to to be sorted
+        all_revs.sort();
 
-        let new_chain = irl.chunks(&delta_chain_2[common_count..], t_size_2)?;
+        let fetch_revs: Vec<_> = all_revs.iter().map(|(r, _)| *r).collect();
+        let chunk_users: Vec<_> = all_revs.iter().map(|(_, u)| *u).collect();
+        let chunks = irl.chunks(&fetch_revs, t_size)?;
 
         Ok(Self {
             irl,
@@ -383,9 +397,9 @@ impl<'irl> RevDeltaState<'irl> {
             common_rev,
             old_rev: rev_1,
             new_rev: rev_2,
-            common_chunks,
-            old_chain,
-            new_chain,
+            chunks,
+            chunk_users,
+            chunk_counts: (common_cnt, chain_1_cnt, chain_2_cnt),
         })
     }
 
@@ -393,18 +407,28 @@ impl<'irl> RevDeltaState<'irl> {
     pub(super) fn prepare(
         &'irl mut self,
     ) -> Result<Prepared<'irl>, RevlogError> {
-        // determine the base_text and delta for the common part
-        let (base_text, common_chain): (&[u8], &[RawData]) =
+        // determine the base_text and when the delta start in the chunks
+        let (base_text, chain_start): (&[u8], usize) =
             if let Some(cache) = &self.cache {
-                (cache, &self.common_chunks)
+                (cache, 0)
             } else {
-                let (base, chain): (&RawData, &[RawData]) =
-                    self.common_chunks.split_first().expect("empty chain?");
-                (base, chain)
+                (&self.chunks[0], 1)
             };
 
+        // gather delta from all chains.
+        let mut common_deltas = Vec::with_capacity(self.chunk_counts.0);
+        let mut old_deltas = Vec::with_capacity(self.chunk_counts.1);
+        let mut new_deltas = Vec::with_capacity(self.chunk_counts.2);
+        let chains = [&mut common_deltas, &mut old_deltas, &mut new_deltas];
+        for (chunk, src) in std::iter::zip(
+            &self.chunks[chain_start..],
+            &self.chunk_users[chain_start..],
+        ) {
+            let d = patch::Delta::new(chunk)?;
+            let c: usize = (*src).into();
+            chains[c].push(d)
+        }
         // get common base_text, delta, and size
-        let common_deltas = patch::deltas(common_chain)?;
         let common_delta = patch::fold_deltas(&common_deltas);
         let size_c: u32 = self
             .irl
@@ -416,8 +440,8 @@ impl<'irl> RevDeltaState<'irl> {
                 assert!(patched_size >= 0);
                 patched_size as u32
             });
+
         // old delta and size
-        let old_deltas = patch::deltas(&self.old_chain)?;
         let old_delta = patch::fold_deltas(&old_deltas);
         let size_old: u32 = self
             .irl
@@ -429,7 +453,6 @@ impl<'irl> RevDeltaState<'irl> {
                 patched_size as u32
             });
         // new delta and size
-        let new_deltas = patch::deltas(&self.new_chain)?;
         let new_delta = patch::fold_deltas(&new_deltas);
         let size_new: u32 = self
             .irl
