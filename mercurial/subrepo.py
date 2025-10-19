@@ -61,7 +61,9 @@ if typing.TYPE_CHECKING:
         IO,
         Iterable,
         Iterator,
+        Literal,
         TypeVar,
+        overload,
     )
     from .interfaces.types import (
         HgPathT,
@@ -1304,7 +1306,7 @@ class svnsubrepo(abstractsubrepo):
             env[b'LANG'] = lc_all
             del env[b'LC_ALL']
         env[b'LC_MESSAGES'] = b'C'
-        p = subprocess.Popen(
+        p = subprocess.Popen[bytes](
             pycompat.rapply(procutil.tonativestr, cmd),
             bufsize=-1,
             close_fds=procutil.closefds,
@@ -1626,15 +1628,87 @@ class gitsubrepo(abstractsubrepo):
             return b'warning'
         return b'ok'
 
-    def _gitcommand(self, commands, env=None, stream=False):
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def _gitcommand(
+            self, commands: list[bytes], env=None, stream: Literal[False] = ...
+        ) -> bytes:
+            ...
+
+        @overload
+        def _gitcommand(
+            self, commands: list[bytes], env=None, stream: Literal[True] = ...
+        ) -> IO[bytes]:
+            ...
+
+    def _gitcommand(
+        self, commands: list[bytes], env=None, stream: bool = False
+    ) -> bytes | IO[bytes]:
         return self._gitdir(commands, env=env, stream=stream)[0]
 
-    def _gitdir(self, commands, env=None, stream=False):
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def _gitdir(
+            self, commands: list[bytes], env=None, stream: Literal[False] = ...
+        ) -> tuple[bytes, int]:
+            ...
+
+        @overload
+        def _gitdir(
+            self, commands: list[bytes], env=None, stream: Literal[True] = ...
+        ) -> tuple[IO[bytes], None]:
+            ...
+
+        @overload
+        def _gitdir(
+            self, commands: list[bytes], env=None, stream: bool = False
+        ) -> tuple[bytes, int] | tuple[IO[bytes], None]:
+            ...
+
+    def _gitdir(
+        self, commands: list[bytes], env=None, stream: bool = False
+    ) -> tuple[bytes, int] | tuple[IO[bytes], None]:
         return self._gitnodir(
             commands, env=env, stream=stream, cwd=self._abspath
         )
 
-    def _gitnodir(self, commands, env=None, stream=False, cwd=None):
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def _gitnodir(
+            self,
+            commands: list[bytes],
+            env=None,
+            stream: Literal[False] = ...,
+            cwd=None,
+        ) -> tuple[bytes, int]:
+            ...
+
+        @overload
+        def _gitnodir(
+            self,
+            commands: list[bytes],
+            env=None,
+            stream: Literal[True] = ...,
+            cwd=None,
+        ) -> tuple[IO[bytes], None]:
+            ...
+
+        @overload
+        def _gitnodir(
+            self,
+            commands: list[bytes],
+            env=None,
+            stream: bool = False,
+            cwd=None,
+        ) -> tuple[bytes, int] | tuple[IO[bytes], None]:
+            ...
+
+    def _gitnodir(
+        self, commands: list[bytes], env=None, stream: bool = False, cwd=None
+    ) -> tuple[bytes, int] | tuple[IO[bytes], None]:
         """Calls the git command
 
         The methods tries to call the git command. versions prior to 1.6.0
@@ -1662,7 +1736,7 @@ class gitsubrepo(abstractsubrepo):
             # On Windows, prevent command prompts windows from popping up when
             # running in pythonw.
             extrakw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW')
-        p = subprocess.Popen(
+        p = subprocess.Popen[bytes](
             pycompat.rapply(
                 procutil.tonativestr, [self._gitexecutable] + commands
             ),
