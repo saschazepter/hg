@@ -206,13 +206,12 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
         offset: u32,
     ) {
         let mut last: usize = 0;
-        for PlainDeltaPiece { start, end, data } in self.chunks.iter() {
-            let o_start =
-                (start - offset).try_into().expect("16 bits computer");
+        for p in self.chunks.iter() {
+            let o_start = u32_u(p.start() - offset);
             let slice = &initial[last..o_start];
             buffer.extend_from_slice(slice);
-            buffer.extend_from_slice(data);
-            last = (end - offset).try_into().expect("16 bits computer");
+            buffer.extend_from_slice(p.data());
+            last = u32_u(p.end() - offset);
         }
         buffer.extend_from_slice(&initial[last..]);
     }
@@ -261,11 +260,14 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
 
         // For each chunk of `other`, chunks of `self` are processed
         // until they start after the end of the current chunk.
-        for PlainDeltaPiece { start, end, data } in other.chunks.iter() {
+        for p in other.chunks.iter() {
+            let start = p.start();
+            let end = p.end();
+            let data = p.data();
             // Add chunks of `self` that start before this chunk of `other`
             // without overlap.
             while pos < self.chunks.len()
-                && self.chunks[pos].end_offset_by(offset) <= *start
+                && self.chunks[pos].end_offset_by(offset) <= start
             {
                 let first = self.chunks[pos].clone();
                 offset += first.len_diff();
@@ -278,13 +280,13 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             // The left-most part of data is added as an insertion chunk.
             // The right-most part data is kept in the chunk.
             if pos < self.chunks.len()
-                && self.chunks[pos].start_offset_by(offset) < *start
+                && self.chunks[pos].start_offset_by(offset) < start
             {
                 let first = &mut self.chunks[pos];
 
-                let (data_left, data_right) = first.data.split_at(
-                    (*start - first.start_offset_by(offset)) as usize,
-                );
+                let (data_left, data_right) = first
+                    .data()
+                    .split_at((start - first.start_offset_by(offset)) as usize);
                 let left = PlainDeltaPiece {
                     start: first.start,
                     end: first.start,
@@ -313,7 +315,7 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             // Discard the chunks of `self` that are totally overridden
             // by the current chunk of `other`
             while pos < self.chunks.len()
-                && self.chunks[pos].end_offset_by(next_offset) <= *end
+                && self.chunks[pos].end_offset_by(next_offset) <= end
             {
                 let first = &self.chunks[pos];
                 next_offset += first.len_diff();
@@ -323,12 +325,12 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
             // Truncate the left-most part of chunk of `self` that overlaps
             // the current chunk of `other`.
             if pos < self.chunks.len()
-                && self.chunks[pos].start_offset_by(next_offset) < *end
+                && self.chunks[pos].start_offset_by(next_offset) < end
             {
                 let first = &mut self.chunks[pos];
 
                 let how_much_to_discard =
-                    *end - first.start_offset_by(next_offset);
+                    end - first.start_offset_by(next_offset);
 
                 first.data = &first.data[(how_much_to_discard as usize)..];
 
@@ -337,8 +339,8 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
 
             // Add the chunk of `other` with adjusted position.
             chunks.push(PlainDeltaPiece {
-                start: (*start as i32 - offset) as u32,
-                end: (*end as i32 - next_offset) as u32,
+                start: (start as i32 - offset) as u32,
+                end: (end as i32 - next_offset) as u32,
                 data,
             });
 
