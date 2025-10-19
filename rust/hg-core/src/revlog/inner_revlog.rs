@@ -23,6 +23,7 @@ use super::compression::ZlibCompressor;
 use super::compression::ZstdCompressor;
 use super::compression::ZLIB_BYTE;
 use super::compression::ZSTD_BYTE;
+use super::diff;
 use super::diff::text_delta_with_offset;
 use super::file_io::DelayedBuffer;
 use super::file_io::FileHandle;
@@ -31,6 +32,7 @@ use super::file_io::WriteHandles;
 use super::index::Index;
 use super::index::IndexHeader;
 use super::index::INDEX_ENTRY_SIZE;
+use super::manifest;
 use super::manifest::manifest_delta_with_offset;
 use super::node::NODE_BYTES_LENGTH;
 use super::node::NULL_NODE;
@@ -38,9 +40,6 @@ use super::options::RevlogDataConfig;
 use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
 use super::patch;
-use super::patch::apply_chain;
-use super::patch::deltas;
-use super::patch::fold_deltas;
 use super::patch::DeltaPiece;
 use super::patch::PlainDeltaPiece;
 use super::BaseRevision;
@@ -662,97 +661,43 @@ impl InnerRevlog {
         // This case might happen when the revision are different, the only
         // difference between them are empty delta (that got filtered
         // when building the delta chain.
-        if common_count == delta_chain_1.len()
+        let delta = if common_count == delta_chain_1.len()
             && common_count == delta_chain_2.len()
         {
-            return Ok(vec![]);
-        }
-
-        // We need to define a handful of variable here.
-        //
-        // They will be optionally initialized in one of the branch below, but
-        // they need to live longer than the branch. See actual usage
-        // for details.
-        let cow_1;
-        let cow_2;
-        let chain_0;
-        let data_c;
-        let vec_1;
-        let vec_2;
-        // The delta chain of the two revisions are distinct, we must "fallback"
-        // on doing a normal delta computation on the two full text.
-        let (offset, old_data, new_data) = if common_count == 0 {
-            cow_1 = entry_1.data_unchecked()?;
-            cow_2 = entry_2.data_unchecked()?;
-            (0, cow_1.as_ref(), cow_2.as_ref())
-        } else {
-            // The delta chain of the two revision have a common prefix.
-            //
-            // We use this to optimize the delta computation:
-            // * We fetch the chunks for the common part only once.
-            // * We fold the delta for the common part only once.
-            // * We detect the window of data affected by any of the other
-            //   chain.
-            // * We only build the associated section from the old and new side.
-            // * We only diff that section that might contains difference.
-            //
-            //   (We could do more)
-            let higher_common_rev = delta_chain_1[common_count - 1];
-            let entry_c = self.get_entry(higher_common_rev)?;
-            let rev_size =
-                |e: &RevlogEntry| e.uncompressed_len().unwrap_or(0u32);
-
-            // estimate the total chunks size from the revisions size
-            let size_c = rev_size(&entry_c);
-            let size_1 = rev_size(entry_1);
-            let size_2 = rev_size(entry_2);
-            let t_size_1 = Some(size_1 as u64 * 4);
-            let t_size_2 = Some(size_2 as u64 * 4);
-            self.seen_file_size(u32_u(size_c.max(size_1.max(size_2))));
-
-            // Get all the relevant data chunks from disk and chunk cache:
-            let base_text;
-            let common_chain;
-            let old_chain;
-            let new_chain;
-            if let Some(cached_idx) = cached_idx {
-                base_text = cached.expect("cached_idx without cache?").1;
-                let cached_skip = cached_idx + 1;
-                chain_0 =
-                    self.chunks(&delta_chain_1[cached_skip..], t_size_1)?;
-                (common_chain, old_chain) =
-                    chain_0.split_at((common_count) - cached_skip);
-                new_chain =
-                    self.chunks(&delta_chain_2[common_count..], t_size_2)?;
+            vec![]
+        } else if common_count == 0 {
+            let old_data = entry_1.data_unchecked()?;
+            let new_data = entry_2.data_unchecked()?;
+            // Actually compute the delta we are looking for
+            if self.revlog_type == RevlogType::Manifestlog {
+                manifest::manifest_delta(&old_data, &new_data)
             } else {
-                chain_0 = self.chunks(&delta_chain_1, t_size_1)?;
-                let (head, deltas_1) =
-                    chain_0.split_first().expect("empty chain?");
-                (common_chain, old_chain) = deltas_1.split_at(common_count - 1);
-                new_chain =
-                    self.chunks(&delta_chain_2[common_count..], t_size_2)?;
-                base_text = head.as_ref();
+                diff::text_delta(&old_data, &new_data)
             }
+        } else {
+            let mut state = diff::RevDeltaState::new(
+                self,
+                cached_entry,
+                common_count,
+                cached_idx,
+                delta_chain_1,
+                delta_chain_2,
+            )?;
 
-            // Build the two sections of text we need to diff
-            //
-            // Whever a delta-chain is empty, we directly re-use the base to
-            // avoid useless copy in memory.
-            let old_deltas = deltas(old_chain)?;
-            let old_delta = fold_deltas(&old_deltas);
-            let new_deltas = deltas(&new_chain)?;
-            let new_delta = fold_deltas(&new_deltas);
+            let p = state.prepare()?;
 
-            // build the common part (if ≠ from base)
-            let (start, end) = affected_range(&old_delta, &new_delta);
+            let common_buff;
+            let old_buff;
+            let new_buff;
 
-            let skipped_size = if let Some(size) = entry_c.uncompressed_len() {
-                size - (end - start)
-            } else {
-                0
-            };
-            let common_radix: &[u8] = if common_chain.is_empty() {
-                &base_text[u32_u(start)..u32_u(end)]
+            // find the commonly affected part
+            let (start, end) = affected_range(&p.old_delta, &p.new_delta);
+
+            let skipped_size = p.common_size - (end - start);
+
+            // build the common part (if ≠ from base
+            let common_radix: &[u8] = if p.common_delta.is_empty() {
+                &p.base_text[u32_u(start)..u32_u(end)]
             } else {
                 // TODO: We could only restore the affected windows in the
                 // common text.
@@ -763,44 +708,44 @@ impl InnerRevlog {
                 // benchmark, so it is a worthy pursuit, but it need to be done
                 // carefully while considering benchmark for
                 // high level operation.
-                data_c = RawData::from(apply_chain(
-                    base_text,
-                    common_chain,
-                    size_c,
-                )?);
-                self.set_rev_cache_native(higher_common_rev, &data_c);
-                &data_c[u32_u(start)..u32_u(end)]
+                common_buff = RawData::from(p.common_delta.as_applied(
+                    p.base_text,
+                    0,
+                    p.common_size,
+                ));
+                self.set_rev_cache_native(p.common_rev, &common_buff);
+                &common_buff[u32_u(start)..u32_u(end)]
             };
+
             // build the old text (if ≠ common)
-            let old_text = if old_chain.is_empty() {
+            let old_data = if p.old_delta.is_empty() {
                 common_radix
             } else {
-                vec_1 = old_delta.as_applied(
+                old_buff = p.old_delta.as_applied(
                     common_radix,
                     start,
-                    size_1 - skipped_size,
+                    p.old_size - skipped_size,
                 );
-                &vec_1[..]
+                &old_buff
             };
             // build the new text (if ≠ common)
-            let new_text = if new_chain.is_empty() {
+            let new_data = if p.new_delta.is_empty() {
                 common_radix
             } else {
-                vec_2 = new_delta.as_applied(
+                new_buff = p.new_delta.as_applied(
                     common_radix,
                     start,
-                    size_2 - skipped_size,
+                    p.new_size - skipped_size,
                 );
-                &vec_2[..]
+                &new_buff
             };
-            (start, old_text, new_text)
-        };
 
-        // Actually compute the delta we are looking for
-        let delta = if self.revlog_type == RevlogType::Manifestlog {
-            manifest_delta_with_offset(offset, old_data, new_data)
-        } else {
-            text_delta_with_offset(offset, old_data, new_data)
+            // Actually compute the delta we are looking for
+            if self.revlog_type == RevlogType::Manifestlog {
+                manifest_delta_with_offset(start, old_data, new_data)
+            } else {
+                text_delta_with_offset(start, old_data, new_data)
+            }
         };
         Ok(delta)
     }

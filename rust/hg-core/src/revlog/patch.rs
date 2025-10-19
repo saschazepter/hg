@@ -245,6 +245,18 @@ impl<'a, P> Delta<'a, P>
 where
     P: DeltaPiece<'a>,
 {
+    /// True if this piece replace nothing with nothing
+    ///
+    /// Such pieces don't carry information and can be ignored.
+    pub(super) fn is_empty(&self) -> bool {
+        self.chunks.is_empty()
+    }
+
+    /// full text size change implied by this Delta
+    pub(super) fn len_diff(&self) -> i32 {
+        self.chunks.iter().map(|p| p.len_diff()).sum()
+    }
+
     /// Apply the Delta to some Full-Text,
     pub fn apply<T>(
         &self,
