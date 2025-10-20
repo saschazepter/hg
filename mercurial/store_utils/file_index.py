@@ -215,7 +215,7 @@ class FileIndex(int_file_index.IFileIndex):
             self._meta_file_path(),
             self._tree_file_path(),
         ]
-        return paths
+        return [p for p in paths if p is not None]
 
     def debug_docket(self) -> dict[str, typing.Any]:
         return attr.asdict(self._docket)
