@@ -335,6 +335,11 @@ impl InnerRevlog {
     }
 
     #[getter]
+    fn has_revdiff_extra(&self) -> bool {
+        true
+    }
+
+    #[getter]
     fn canonical_index_file(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
@@ -705,12 +710,14 @@ impl InnerRevlog {
         })
     }
 
-    /// return a binary delta between two revisions
+    /// return a binary delta between two revisions (with an optional extra
+    /// delta)
     fn rev_diff(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         rev_1: PyRevision,
         rev_2: PyRevision,
+        extra_delta: Option<&[u8]>,
     ) -> PyResult<Py<PyBytes>> {
         let rev_1: UncheckedRevision = rev_1.into();
         let rev_2: UncheckedRevision = rev_2.into();
@@ -718,8 +725,12 @@ impl InnerRevlog {
             let idx = &irl.index;
             let rev_1 = check_revision(idx, rev_1)?;
             let rev_2 = check_revision(idx, rev_2)?;
-            let bytes =
-                irl.rev_delta(rev_1, rev_2).map_err(revlog_error_from_msg)?;
+            let bytes = if let Some(delta) = extra_delta {
+                irl.rev_delta_extra(rev_1, rev_2, delta)
+                    .map_err(revlog_error_from_msg)?
+            } else {
+                irl.rev_delta(rev_1, rev_2).map_err(revlog_error_from_msg)?
+            };
             let py_bytes: Py<PyBytes> = PyBytes::new(py, &bytes).unbind();
             Ok(py_bytes)
         })

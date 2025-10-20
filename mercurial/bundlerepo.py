@@ -23,6 +23,9 @@ from .node import (
     hex,
     nullrev,
 )
+from .interfaces.types import (
+    RevnumT,
+)
 
 from . import (
     bundle2,
@@ -156,7 +159,12 @@ class bundlerevlog(revlog.revlog):
         self.bundle.seek(self.start(rev))
         return self.bundle.read(self.length(rev))
 
-    def revdiff(self, rev1, rev2):
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
         """return or calculate a delta between two revisions"""
         if rev1 > self.repotiprev and rev2 > self.repotiprev:
             # hot path for bundle
@@ -164,9 +172,19 @@ class bundlerevlog(revlog.revlog):
             if revb == rev1:
                 return self._chunk(rev2)
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
-            return revlog.revlog.revdiff(self, rev1, rev2)
+            return revlog.revlog.revdiff(self, rev1, rev2, extra_delta)
 
-        return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
+        old = self.rawdata(rev1, validate=False)
+        new = self.rawdata(rev2, validate=False)
+        if extra_delta is not None:
+            base = new
+            new = mdiff.full_text_from_delta(
+                extra_delta,
+                len(new),
+                lambda: base,
+            )
+
+        return self._diff_fn(old, new)
 
     def _rawtext(self, node, rev):
         if rev is None:

@@ -57,6 +57,7 @@ use crate::exit_codes;
 use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
 use crate::utils::u32_u;
+use crate::utils::u_i32;
 use crate::utils::ByTotalChunksSize;
 use crate::utils::RawData;
 use crate::vfs::Vfs;
@@ -572,7 +573,61 @@ impl InnerRevlog {
         Ok(())
     }
 
-    /// return a binary delta between two revisions
+    /// return a binary delta between two revisions + another delta
+    ///
+    /// The other delta is applied on rev_2.
+    pub fn rev_delta_extra(
+        &self,
+        rev_1: Revision,
+        rev_2: Revision,
+        delta: &[u8],
+    ) -> Result<Vec<u8>, RevlogError> {
+        let old_entry = self.get_entry(rev_1)?;
+        let old_empty = old_entry.uncompressed_len().is_some_and(|s| s == 0);
+
+        if rev_2 == NULL_REVISION || old_empty {
+            // restore the full text from the patch
+            let base_text = self.get_entry(rev_2)?.data_unchecked()?;
+            let d = patch::Delta::new(delta)?;
+            let target_size = u_i32(base_text.len()) + d.len_diff();
+            assert!(target_size > 0);
+            let target_size = target_size as u32;
+            let new_data = d.as_applied(&base_text, 0, target_size);
+
+            Ok(if old_empty {
+                // if the old version is empty, we can create a trivial "replace
+                // all" delta
+                let mut delta = vec![];
+                let patch = PlainDeltaPiece {
+                    start: 0,
+                    end: 0,
+                    data: new_data.as_ref(),
+                };
+                patch.write(&mut delta);
+                delta
+            } else {
+                // NULL_REVISION don't have a delta chain, this might confuse
+                // [`Self::rev_delta_non_null`] So deal with the
+                // diffing here.
+                assert!(rev_2 == NULL_REVISION);
+                let old_data = old_entry.data_unchecked()?;
+                if self.revlog_type == RevlogType::Manifestlog {
+                    manifest::manifest_delta(&old_data, &new_data)
+                } else {
+                    diff::text_delta(&old_data, &new_data)
+                }
+            })
+        } else {
+            assert!(
+                !delta.is_empty(),
+                "empty delta passed to `rev_delta_extra`"
+            );
+            self.rev_delta_non_null(rev_1, rev_2, Some(delta))
+        }
+    }
+
+    /// return a binary delta between two revisions (and an optional extra
+    /// delta)
     pub fn rev_delta(
         &self,
         rev_1: Revision,
@@ -614,7 +669,7 @@ impl InnerRevlog {
                 patch.write(&mut delta);
                 Ok(delta)
             }
-            (old, new) => self.rev_delta_non_null(old, new),
+            (old, new) => self.rev_delta_non_null(old, new, None),
         }
     }
 
@@ -623,6 +678,7 @@ impl InnerRevlog {
         &self,
         rev_1: Revision,
         rev_2: Revision,
+        extra_delta: Option<&[u8]>,
     ) -> Result<Vec<u8>, RevlogError> {
         // Search for common part in the delta chain of the two revisions
         //
@@ -664,10 +720,22 @@ impl InnerRevlog {
         let delta = if common_count == delta_chain_1.len()
             && common_count == delta_chain_2.len()
         {
-            vec![]
+            match extra_delta {
+                None => vec![],
+                Some(delta) => delta.into(),
+            }
         } else if common_count == 0 {
             let old_data = entry_1.data_unchecked()?;
-            let new_data = entry_2.data_unchecked()?;
+            let new_data = if let Some(delta) = extra_delta {
+                let base_text = entry_2.data_unchecked()?;
+                let d = patch::Delta::new(delta)?;
+                let target_size = u_i32(base_text.len()) + d.len_diff();
+                assert!(target_size > 0);
+                let target_size = target_size as u32;
+                d.as_applied(&base_text, 0, target_size).into()
+            } else {
+                entry_2.data_unchecked()?
+            };
             // Actually compute the delta we are looking for
             if self.revlog_type == RevlogType::Manifestlog {
                 manifest::manifest_delta(&old_data, &new_data)
@@ -682,6 +750,7 @@ impl InnerRevlog {
                 cached_idx,
                 delta_chain_1,
                 delta_chain_2,
+                extra_delta,
             )?;
 
             let p = state.prepare()?;

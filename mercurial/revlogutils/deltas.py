@@ -67,6 +67,7 @@ from ..utils import storageutil
 
 from . import (
     CachedDelta as CachedDeltaT,
+    IDeltaCache,
     config,
     flagutil,
     revisioninfo as RevisionInfoT,
@@ -1453,6 +1454,76 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         return True
 
 
+class DeltaCache(IDeltaCache):
+    """Cache delta we already computed against various base for a unique revision
+
+    This cache is used to pick the best available delta to use the rev-diff +
+    extra delta optimization.
+
+    TODO: the amound of cached delta is currently unbounded, we should probably
+    add some limit, but this probably requires collaboration with the active
+    DeltaSearch to know the best strategy to select which delta are no longer relevant
+
+    Since the feature is currently only used with the rust code, this is not seen as a blocker.
+
+    This is a good candidate to be reimplemented in Rust, as it mostly contains
+    content from Rust and its content will mostly be used from Rust anyway.
+    """
+
+    def __init__(self, get_chain: Callable[[int], tuple[list[int], bool]]):
+        self._get_chain = get_chain
+        self._deltas: dict[int, bytes] = {}
+        self._chains: dict[int, list[int]] = {}
+
+    def add(self, base: int, delta: bytes):
+        """register a new known delta against `base`"""
+        if base > 0:
+            self._deltas[base] = delta
+
+    def best_for(self, target: int) -> None | tuple[int, bytes]:
+        """Find (target, delta) pair to pre-seed a delta computation against `target`
+
+        The returned delta target will use a delta chain compatible with
+        `target`. If known can be found, return None.
+        """
+        if target < 0:
+            return None
+        if (delta := self._deltas.get(target)) is not None:
+            return (target, delta)
+        base_chain = self._chains.get(target)
+        if base_chain is None:
+            c, _s = self._get_chain(target)
+            base_chain = self._chains[target] = c
+
+        current_best = None
+        for other in self._deltas:
+            other_chain = self._chains.get(other)
+            if other_chain is None:
+                c, _s = self._get_chain(other)
+                other_chain = self._chains[other] = c
+            assert base_chain is not None
+            assert other_chain is not None
+            common_count = 0
+            for x, y in zip(base_chain, other_chain):
+                if x != y:
+                    break
+                common_count += 1
+            if common_count > 0:
+                if current_best is None:
+                    current_best = (common_count, other)
+                elif common_count > current_best[0]:
+                    current_best = (common_count, other)
+                elif common_count == current_best[0] and len(
+                    self._chains[other]
+                ) < len(self._chains[current_best[1]]):
+                    current_best = (common_count, other)
+        if current_best is None:
+            return None
+        else:
+            best_base = current_best[1]
+            return (best_base, self._deltas[best_base])
+
+
 class SnapshotCache:
     __slots__ = ('snapshots', '_start_rev', '_end_rev')
 
@@ -1630,17 +1701,43 @@ class deltacomputer:
 
     def _builddeltadiff(self, base: RevnumT, revinfo: RevisionInfoT) -> bytes:
         revlog = self.revlog
-        t = self.buildtext(revinfo)
+        validate = self.revlog.delta_config.validate_base
+        # initialize the cache from the revinfo if it is empty
+        if (
+            not validate
+            and revinfo.cache is None
+            and revinfo.has_cached_delta
+            and self.revlog.has_revdiff_extra
+        ):
+            self.decompress_cached(revinfo.cachedelta)
+            revinfo.cache = DeltaCache(self.revlog._deltachain)
+            revinfo.cache.add(
+                revinfo.cachedelta.base, revinfo.cachedelta.u_delta
+            )
         if revlog.iscensored(base):
+            t = self.buildtext(revinfo)
             # deltas based on a censored revision must replace the
             # full content in one patch, so delta works everywhere
             header = mdiff.replacediffheader(revlog.rawsize(base), len(t))
             delta = header + t
+        elif (
+            not validate
+            and revinfo.cache is not None
+            and (reusable := revinfo.cache.best_for(base)) is not None
+        ):
+            delta_base, u_delta = reusable
+            delta = revlog.revdiff(
+                base,
+                delta_base,
+                u_delta,
+            )
+
         else:
-            validate = self.revlog.delta_config.validate_base
+            t = self.buildtext(revinfo)
             ptext = revlog.rawdata(base, validate=validate)
             delta = revlog._diff_fn(ptext, t)
-
+        if revinfo.cache is not None:
+            revinfo.cache.add(base, delta)
         return delta
 
     def _fold_chain(

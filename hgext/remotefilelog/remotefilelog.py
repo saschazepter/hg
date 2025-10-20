@@ -16,7 +16,10 @@ from typing import (
 
 from mercurial.node import bin
 from mercurial.i18n import _
-from mercurial.interfaces.types import OutboundRevisionT
+from mercurial.interfaces.types import (
+    OutboundRevisionT,
+    RevnumT,
+)
 from mercurial.revlogutils.constants import (
     META_MARKER,
     META_MARKER_SIZE,
@@ -347,11 +350,22 @@ class remotefilelog:
                 protocol_flags=0,
             )
 
-    def revdiff(self, node1, node2):
-        return mdiff.textdiff(
-            self.rawdata(node1, validate=False),
-            self.rawdata(node2, validate=False),
-        )
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
+        old = self.rawdata(rev1, validate=False)
+        new = self.rawdata(rev2, validate=False)
+        if extra_delta is not None:
+            base = new
+            new = mdiff.full_text_from_delta(
+                extra_delta,
+                len(new),
+                lambda: base,
+            )
+        return mdiff.storage_diff(old, new)
 
     def lookup(self, node):
         if len(node) == 40:

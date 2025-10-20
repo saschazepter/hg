@@ -17,6 +17,9 @@ import contextlib
 import typing
 
 from .i18n import _
+from .interfaces.types import (
+    RevnumT,
+)
 
 from . import (
     changelog,
@@ -146,7 +149,12 @@ class unionrevlog(revlog.revlog):
             return super()._inner._chunk(rev)
         return self.revlog2._chunk(self.node(rev))
 
-    def revdiff(self, rev1, rev2):
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
         """return or calculate a delta between two revisions"""
         if rev1 > self.repotiprev and rev2 > self.repotiprev:
             return self.revlog2.revdiff(
@@ -156,7 +164,16 @@ class unionrevlog(revlog.revlog):
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
             return super().revdiff(rev1, rev2)
 
-        return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
+        old = self.rawdata(rev1, validate=False)
+        new = self.rawdata(rev2, validate=False)
+        if extra_delta is not None:
+            base = new
+            new = mdiff.full_text_from_delta(
+                extra_delta,
+                len(new),
+                lambda: base,
+            )
+        return self._diff_fn(old, new)
 
     def _revisiondata(self, nodeorrev, raw=False, validate=True):
         if isinstance(nodeorrev, int):

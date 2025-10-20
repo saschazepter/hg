@@ -25,6 +25,7 @@ from typing import (
 from .i18n import _
 from .interfaces.types import (
     MatcherT,
+    RevnumT,
 )
 from .node import (
     bin,
@@ -1949,8 +1950,13 @@ class manifestrevlog(repository.imanifeststorage):
     def rawdata(self, node):
         return self._revlog.rawdata(node)
 
-    def revdiff(self, rev1, rev2):
-        return self._revlog.revdiff(rev1, rev2)
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
+        return self._revlog.revdiff(rev1, rev2, extra_delta)
 
     def cmp(self, node, text):
         return self._revlog.cmp(node, text)

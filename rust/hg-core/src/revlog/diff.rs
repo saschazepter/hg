@@ -318,6 +318,7 @@ pub(super) struct RevDeltaState<'irl> {
     ///
     /// (common, old, new)
     chunk_counts: (usize, usize, usize),
+    extra_delta: Option<&'irl [u8]>,
 }
 
 /// hold the necessary reference to compute the delta between two content (from
@@ -342,6 +343,7 @@ impl<'irl> RevDeltaState<'irl> {
         cached_idx: Option<usize>,
         delta_chain_1: Vec<Revision>,
         delta_chain_2: Vec<Revision>,
+        extra_delta: Option<&'irl [u8]>,
     ) -> Result<Self, RevlogError> {
         let common_rev = delta_chain_1[common_count - 1];
         // note: rev_# might be different than the source if empty delta where
@@ -400,6 +402,7 @@ impl<'irl> RevDeltaState<'irl> {
             chunks,
             chunk_users,
             chunk_counts: (common_cnt, chain_1_cnt, chain_2_cnt),
+            extra_delta,
         })
     }
 
@@ -427,6 +430,11 @@ impl<'irl> RevDeltaState<'irl> {
             let d = patch::Delta::new(chunk)?;
             let c: usize = (*src).into();
             chains[c].push(d)
+        }
+        // inject the extra delta if any
+        if let Some(delta) = &self.extra_delta {
+            let d = patch::Delta::new(delta)?;
+            new_deltas.push(d)
         }
         // get common base_text, delta, and size
         let common_delta = patch::fold_deltas(&common_deltas);

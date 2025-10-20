@@ -339,6 +339,9 @@ class _InnerRevlog:
     boundaries are arbitrary and based on what we can delegate to Rust.
     """
 
+    has_revdiff_extra = False
+    """does this inner revlog support revdiff with an extra patch"""
+
     opener: vfsmod.vfs
     _default_compression_header: i_comp.RevlogCompHeader
 
@@ -1092,13 +1095,21 @@ class _InnerRevlog:
         self.cache_revision_text(rev, rawtext, False)
         return (rev, rawtext, False)
 
-    def rev_diff(self, rev_1: RevnumT, rev_2: RevnumT) -> bytes:
+    def rev_diff(
+        self,
+        rev_1: RevnumT,
+        rev_2: RevnumT,
+        extra_delta: bytes | None = None,
+    ) -> bytes:
         """return the diff between two revisions
 
         The revision are expected to have nothing altering them (censoring,
         flag processors, ...) (at least until the inner revlog has the tool to
         be responsible for them)
         """
+        if extra_delta is not None:
+            msg = b"no support for rev_diff with extra_delta in Python"
+            raise error.ProgrammingError(msg)
         return self._diff_fn(
             self.raw_text(rev_1)[1],
             self.raw_text(rev_2)[1],
@@ -2003,6 +2014,7 @@ class revlog:
                 use_persistent_nodemap=self._nodemap_file is not None,
                 encoding=encoding,
             )
+            assert self._inner.has_revdiff_extra
             self.index = RustIndexProxy(self._inner)
             self._register_nodemap_info(self.index)
             self.uses_rust = True
@@ -2964,13 +2976,28 @@ class revlog:
             raise error.ProgrammingError(b'revision %d not a snapshot')
         return len(self._inner._deltachain(rev)[0]) - 1
 
-    def revdiff(self, rev1, rev2):
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
         """return or calculate a delta between two revisions
 
         The delta calculated is in binary form and is intended to be written to
         revlog data directly. So this function needs raw revision data.
+
+        If `extra_delta` is specified, it will be applied on `rev2` before
+        computing the delta.
         """
-        if rev1 != nullrev and self.deltaparent(rev2) == rev1:
+        # treat empty delta as no delta as it won't modify its base
+        if extra_delta is not None and not extra_delta:
+            extra_delta = None
+        if (
+            rev1 != nullrev
+            and self.deltaparent(rev2) == rev1
+            and extra_delta is None
+        ):
             return bytes(self._inner._chunk(rev2))
         elif (
             self._large_file_enabled
@@ -2978,13 +3005,21 @@ class revlog:
             or self.iscensored(rev2)
             or (self.flags(rev1) & ~REVIDX_NEUTRAL_FLAGS)
             or (self.flags(rev2) & ~REVIDX_NEUTRAL_FLAGS)
+            or (extra_delta is not None and not self.has_revdiff_extra)
         ):
-            return self._diff_fn(
-                self.rawdata(rev1, validate=False),
-                self.rawdata(rev2, validate=False),
-            )
+            old = self.rawdata(rev1, validate=False)
+            new = self.rawdata(rev2, validate=False)
+            if extra_delta is not None:
+                base = new
+                new = mdiff.full_text_from_delta(
+                    extra_delta,
+                    len(new),
+                    lambda: base,
+                )
+
+            return self._diff_fn(old, new)
         else:
-            return self._inner.rev_diff(rev1, rev2)
+            return self._inner.rev_diff(rev1, rev2, extra_delta)
 
     def revision(self, nodeorrev):
         """return an uncompressed revision of a given node or revision
@@ -3148,6 +3183,11 @@ class revlog:
             ):
                 raise error.CensoredNodeError(self.display_id, node, text)
             raise
+
+    @property
+    def has_revdiff_extra(self):
+        """True if this revlog can use the "rev-diff-extra" fast path"""
+        return self._inner.has_revdiff_extra and not self._large_file_enabled
 
     @property
     def _split_index_file(self):

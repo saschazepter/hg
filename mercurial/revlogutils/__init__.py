@@ -7,8 +7,11 @@
 
 from __future__ import annotations
 
+import abc
+
 from typing import (
     Optional,
+    Protocol,
     TYPE_CHECKING,
 )
 
@@ -126,6 +129,30 @@ class CachedDelta:
     fulltext_length = attr.ib(type=Optional[int], default=None)
     """length of the full text created by this patch"""
 
+    @property
+    def has_delta(self):
+        """True if a compressed or uncompressed delta is available"""
+        return self.u_delta is not None or self.c_delta is not None
+
+
+class IDeltaCache(Protocol):
+    """Cache delta we already computed against various base for a unique revision
+
+    This cache is used to pick the best available delta to use the rev-diff +
+    extra delta optimization."""
+
+    @abc.abstractmethod
+    def add(self, base: RevnumT, delta: bytes) -> None:
+        """register a new known delta against `base`"""
+
+    @abc.abstractmethod
+    def best_for(self, target: RevnumT) -> None | tuple[int, bytes]:
+        """Find (base, delta) pair to pre-seed a delta computation against `target`
+
+        The returned delta base will use a delta chain compatible with
+        `target`. If none can be found, return None.
+        """
+
 
 @attr.s(slots=True)
 class revisioninfo:
@@ -146,6 +173,12 @@ class revisioninfo:
     textlen = attr.ib(type=int)
     cachedelta = attr.ib(type=Optional[CachedDelta])
     flags = attr.ib(type=int)
+    cache = attr.ib(type=Optional[IDeltaCache], default=None)
+
+    @property
+    def has_cached_delta(self):
+        """True if an compressed or uncompressed delta is available"""
+        return self.cachedelta is not None and self.cachedelta.has_delta
 
 
 @attr.s(slots=True)
