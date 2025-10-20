@@ -36,10 +36,10 @@ OFFLINE=
 
 ifeq ($(OFFLINE),1)
 OFFLINE_UV_OPTION=--offline
-CARGO_NET_OFFLINE?=1
+CARGO_NET_OFFLINE?=true
 else
 OFFLINE_UV_OPTION=
-CARGO_NET_OFFLINE?=
+CARGO_NET_OFFLINE?=false
 endif
 
 PIP_OPTIONS_PURE=--config-settings --global-option="$(PURE)"
