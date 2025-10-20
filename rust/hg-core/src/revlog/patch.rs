@@ -26,6 +26,17 @@ use crate::utils::u_u32;
 
 /// A piece of data to insert, delete or replace in a Delta
 pub(super) trait DeltaPiece<'a>: Clone {
+    /// build a DeltaPiece from extra information
+    ///
+    /// The implementation is free to discard the information it doesn't need.
+    fn new_rich(
+        src: SrcToken,
+        start: u32,
+        end: u32,
+        data_pos: u32,
+        data: &'a [u8],
+    ) -> Self;
+
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32;
 
@@ -120,6 +131,16 @@ pub(crate) struct PlainDeltaPiece<'a> {
 }
 
 impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
+    fn new_rich(
+        _src: SrcToken,
+        start: u32,
+        end: u32,
+        _data_pos: u32,
+        data: &'a [u8],
+    ) -> Self {
+        Self { start, end, data }
+    }
+
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32 {
         self.start
@@ -219,6 +240,16 @@ impl RichDeltaPiece<'_> {
 }
 
 impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
+    fn new_rich(
+        src: SrcToken,
+        start: u32,
+        end: u32,
+        data_pos: u32,
+        data: &'a [u8],
+    ) -> Self {
+        let inner = PlainDeltaPiece::new_rich(src, start, end, data_pos, data);
+        Self { inner, src, data_pos }
+    }
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32 {
         self.inner.start()
@@ -283,8 +314,21 @@ where
 impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
     /// Create a `Delta` from bytes.
     pub fn new(data: &'a [u8]) -> Result<Self, RevlogError> {
+        Self::new_rich(u32::MAX, data)
+    }
+}
+
+impl<'a, D> Delta<'a, D>
+where
+    D: DeltaPiece<'a>,
+{
+    pub fn new_rich(
+        src: SrcToken,
+        data: &'a [u8],
+    ) -> Result<Self, RevlogError> {
         let mut chunks = vec![];
         let mut data = data;
+        let mut data_pos = 0u32;
         while !data.is_empty() {
             let start = BigEndian::read_u32(&data[0..]);
             let end = BigEndian::read_u32(&data[4..]);
@@ -298,14 +342,17 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
                 let error = format!("patch insert more data than available: {len} < {available}");
                 return Err(RevlogError::corrupted(error));
             }
-            let d = PlainDeltaPiece {
+            let d = D::new_rich(
+                src,
                 start,
                 end,
-                data: &data[12..12 + (len as usize)],
-            };
+                data_pos,
+                &data[12..12 + (len as usize)],
+            );
             if !d.is_empty() {
                 chunks.push(d);
             }
+            data_pos += len;
             data = &data[12 + (len as usize)..];
         }
         Ok(Delta { chunks, phantom: std::marker::PhantomData })
@@ -313,10 +360,8 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
 
     /// Creates a patch for a full snapshot, going from nothing to `data`.
     pub fn full_snapshot(data: &'a [u8]) -> Self {
-        Self {
-            chunks: vec![PlainDeltaPiece { start: 0, end: 0, data }],
-            phantom: std::marker::PhantomData,
-        }
+        let d = D::new_rich(0, 0, 0, 0, data);
+        Self { chunks: vec![d], phantom: std::marker::PhantomData }
     }
 }
 
