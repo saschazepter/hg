@@ -22,6 +22,9 @@ FileTokenT = int_file_index.FileTokenT
 
 V1_FORMAT_MARKER = b"fileindex-v1"
 
+EMPTY_TREE_BYTES = b"\x00\x00"
+"""A serialized empty file index tree."""
+
 
 @attr.s(slots=True)
 class Docket:
@@ -48,7 +51,7 @@ class Docket:
     # Used size of the meta file in bytes.
     meta_file_size = attr.ib(type=int, default=0)
     # Used size of tree file in bytes.
-    tree_file_size = attr.ib(type=int, default=0)
+    tree_file_size = attr.ib(type=int, default=len(EMPTY_TREE_BYTES))
     # List file path ID.
     list_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Reserved for future use.
@@ -204,8 +207,7 @@ class TreeNodeHeader:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
-EMPTY_TREE_BYTES = TreeNodeHeader(flags=0, num_children=0).serialize()
-"""A serialized empty file index tree."""
+assert EMPTY_TREE_BYTES == TreeNodeHeader(flags=0, num_children=0).serialize()
 
 
 TREE_NODE_FLAG_HAS_TOKEN = 0x01

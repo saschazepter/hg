@@ -17,7 +17,7 @@ Create a new repo with the file index
   list_file_size: 0
   reserved_revlog_size: 0
   meta_file_size: 0
-  tree_file_size: 0
+  tree_file_size: 2
   list_file_id: 00000000
   reserved_revlog_id: 00000000
   meta_file_id: 00000000
