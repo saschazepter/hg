@@ -314,7 +314,13 @@ where
     /// In this method, self is the "low" delta applying so a "base", and
     /// `other` is the "high" delta, apply to the result of applying "low"
     /// on "base".
-    fn combine(&mut self, other: &mut Self) -> Self {
+    pub(super) fn combine(&mut self, other: &mut Self) -> Self {
+        if self.chunks.is_empty() {
+            return other.clone();
+        } else if other.chunks.is_empty() {
+            return self.clone();
+        }
+
         // every delta-piece in "high" has an opportunity to slice a delta-piece
         // in "low", creating an extra part. (this is true even if the
         // "low" delta only have one delta-piece, it could be
