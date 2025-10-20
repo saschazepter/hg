@@ -691,7 +691,10 @@ impl InnerRevlog {
             let new_buff;
 
             // find the commonly affected part
-            let (start, end) = affected_range(&p.old_delta, &p.new_delta);
+            let Some((start, end)) = affected_range(&p.old_delta, &p.new_delta)
+            else {
+                return Ok(vec![]);
+            };
 
             let skipped_size = p.common_size - (end - start);
 
@@ -1555,20 +1558,20 @@ impl InnerRevlog {
 pub(super) fn affected_range<'a, P>(
     left: &super::patch::Delta<'a, P>,
     right: &super::patch::Delta<'a, P>,
-) -> (u32, u32)
+) -> Option<(u32, u32)>
 where
     P: DeltaPiece<'a>,
 {
     match (&left.chunks[..], &right.chunks[..]) {
-        ([], []) => unreachable!("identical chain handled earlier"),
-        ([], chain) => (chain[0].start(), chain[chain.len() - 1].end()),
-        (chain, []) => (chain[0].start(), chain[chain.len() - 1].end()),
+        ([], []) => None, // both delta chain cancelled themself out eventually
+        ([], chain) => Some((chain[0].start(), chain[chain.len() - 1].end())),
+        (chain, []) => Some((chain[0].start(), chain[chain.len() - 1].end())),
         (old_chain, new_chain) => {
             let start = old_chain[0].start().min(new_chain[0].start());
             let end = old_chain[old_chain.len() - 1]
                 .end()
                 .max(new_chain[new_chain.len() - 1].end());
-            (start, end)
+            Some((start, end))
         }
     }
 }
