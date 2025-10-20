@@ -209,12 +209,13 @@ class FileIndex(int_file_index.IFileIndex):
             self._add_file_generator(tr)
 
     def data_files(self) -> list[HgPathT]:
-        return [
+        paths = [
             b"fileindex",
             self._list_file_path(),
             self._meta_file_path(),
             self._tree_file_path(),
         ]
+        return paths
 
     def debug_docket(self) -> dict[str, typing.Any]:
         return attr.asdict(self._docket)
@@ -296,28 +297,37 @@ class FileIndex(int_file_index.IFileIndex):
                 return file_index_util.Docket()
         return file_index_util.Docket.parse_from(data)
 
-    def _list_file_path(self) -> HgPathT:
-        return b"fileindex-list." + self._docket.list_file_id
+    def _list_file_path(self) -> HgPathT | None:
+        id = self._docket.list_file_id
+        if id == docketmod.UNSET_UID:
+            return None
+        return b"fileindex-list." + id
 
-    def _meta_file_path(self) -> HgPathT:
-        return b"fileindex-meta." + self._docket.meta_file_id
+    def _meta_file_path(self) -> HgPathT | None:
+        id = self._docket.meta_file_id
+        if id == docketmod.UNSET_UID:
+            return None
+        return b"fileindex-meta." + id
 
-    def _tree_file_path(self) -> HgPathT:
-        return b"fileindex-tree." + self._docket.tree_file_id
+    def _tree_file_path(self) -> HgPathT | None:
+        id = self._docket.tree_file_id
+        if id == docketmod.UNSET_UID:
+            return None
+        return b"fileindex-tree." + id
 
     @propertycache
     def _list_file(self) -> memoryview:
-        docket = self._docket
-        if docket.list_file_id == docketmod.UNSET_UID:
+        path = self._list_file_path()
+        if path is None:
             return util.buffer(b"")
-        return self._mapfile(self._list_file_path(), docket.list_file_size)
+        return self._mapfile(path, self._docket.list_file_size)
 
     @propertycache
     def _meta_file(self) -> memoryview:
-        docket = self._docket
-        if docket.meta_file_id == docketmod.UNSET_UID:
+        path = self._meta_file_path()
+        if path is None:
             return util.buffer(b"")
-        return self._mapfile(self._meta_file_path(), docket.meta_file_size)
+        return self._mapfile(path, self._docket.meta_file_size)
 
     @propertycache
     def _meta_array(self) -> file_index_util.MetadataArray:
@@ -326,10 +336,10 @@ class FileIndex(int_file_index.IFileIndex):
     @propertycache
     def _tree_file(self) -> memoryview:
         testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
-        docket = self._docket
-        if docket.meta_file_id == docketmod.UNSET_UID:
+        path = self._tree_file_path()
+        if path is None:
             return util.buffer(file_index_util.EMPTY_TREE_BYTES)
-        return self._mapfile(self._tree_file_path(), docket.tree_file_size)
+        return self._mapfile(path, self._docket.tree_file_size)
 
     def _invalidate_caches(self):
         util.clearcachedproperty(self, b"_list_file")
@@ -348,39 +358,45 @@ class FileIndex(int_file_index.IFileIndex):
 
     def _open_list_file(self, new: bool, tr: TransactionT) -> BinaryIO:
         docket = self._docket
+        path = self._list_file_path()
         if new:
-            if docket.list_file_id != docketmod.UNSET_UID:
-                self._add_to_garbage.append(self._list_file_path())
+            if path is not None:
+                self._add_to_garbage.append(path)
             docket.list_file_id = docketmod.make_uid()
             docket.list_file_size = 0
-            return self._open_new(self._list_file_path(), tr)
-        return self._open_for_appending(
-            self._list_file_path(), docket.list_file_size
-        )
+            path = self._list_file_path()
+            assert path is not None
+            return self._open_new(path, tr)
+        assert path is not None
+        return self._open_for_appending(path, docket.list_file_size)
 
     def _open_meta_file(self, new: bool, tr: TransactionT) -> BinaryIO:
         docket = self._docket
+        path = self._meta_file_path()
         if new:
-            if docket.meta_file_id != docketmod.UNSET_UID:
-                self._add_to_garbage.append(self._meta_file_path())
+            if path is not None:
+                self._add_to_garbage.append(path)
             docket.meta_file_id = docketmod.make_uid()
             docket.meta_file_size = 0
-            return self._open_new(self._meta_file_path(), tr)
-        return self._open_for_appending(
-            self._meta_file_path(), docket.meta_file_size
-        )
+            path = self._meta_file_path()
+            assert path is not None
+            return self._open_new(path, tr)
+        assert path is not None
+        return self._open_for_appending(path, docket.meta_file_size)
 
     def _open_tree_file(self, new: bool, tr: TransactionT) -> BinaryIO:
         docket = self._docket
+        path = self._tree_file_path()
         if new:
-            if docket.tree_file_id != docketmod.UNSET_UID:
-                self._add_to_garbage.append(self._tree_file_path())
+            if path is not None:
+                self._add_to_garbage.append(path)
             docket.tree_file_id = docketmod.make_uid()
             docket.tree_file_size = 0
-            return self._open_new(self._tree_file_path(), tr)
-        return self._open_for_appending(
-            self._tree_file_path(), docket.tree_file_size
-        )
+            path = self._tree_file_path()
+            assert path is not None
+            return self._open_new(path, tr)
+        assert path is not None
+        return self._open_for_appending(path, docket.tree_file_size)
 
     def _open_new(self, path: HgPathT, tr: TransactionT) -> BinaryIO:
         """Open a new file for writing.
