@@ -152,7 +152,7 @@ class FileIndex(int_file_index.IFileIndex):
             token = FileTokenT(self._token_count())
             self._add_paths.append(path)
             self._add_map[path] = token
-            self._register_write(tr)
+            self._add_file_generator(tr)
         return token
 
     def remove(self, path: HgPathT, tr: TransactionT):
@@ -162,15 +162,7 @@ class FileIndex(int_file_index.IFileIndex):
         if token is None:
             raise ValueError("path not in file index")
         self._remove_tokens.add(token)
-        self._register_write(tr)
-
-    def _register_write(self, tr: TransactionT):
-        # If there are external hooks, both callbacks run:
-        # - pending: write data files, and write docket with ".pending" suffix
-        # - finalize: write docket again without suffix
-        # Otherwise, only the finalize callback runs and we do everything then.
-        tr.addpending(b"fileindex", self._add_file_generator)
-        tr.addfinalize(b"fileindex", self._add_file_generator)
+        self._add_file_generator(tr)
 
     def vacuum(self, tr: TransactionT):
         if self._add_paths:
@@ -245,7 +237,8 @@ class FileIndex(int_file_index.IFileIndex):
             (b"fileindex",),
             lambda f: self._write(f, tr),
             location=b"store",
-            # Need post_finalize since we call this in an addfinalize callback.
+            # Need post_finalize since we do garbage_collect in an addfinalize
+            # callback, and we want to write the docket after that.
             post_finalize=True,
         )
 
