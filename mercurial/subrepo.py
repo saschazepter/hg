@@ -1771,7 +1771,7 @@ class gitsubrepo(abstractsubrepo):
     def _gitmissing(self) -> bool:
         return not self.wvfs.exists(b'.git')
 
-    def _gitstate(self):
+    def _gitstate(self) -> bytes:
         return self._gitcommand([b'rev-parse', b'HEAD'])
 
     def _gitcurrentbranch(self) -> bytes | None:
@@ -1803,7 +1803,9 @@ class gitsubrepo(abstractsubrepo):
         this command looks at file contents and updates the stat."""
         self._gitcommand([b'update-index', b'-q', b'--refresh'])
 
-    def _gitbranchmap(self):
+    def _gitbranchmap(
+        self,
+    ) -> tuple[dict[bytes, bytes], dict[bytes, list[bytes]]]:
         """returns 2 things:
         a map from git branch to revision
         a map from revision to branches"""
@@ -1989,7 +1991,7 @@ class gitsubrepo(abstractsubrepo):
             rawcheckout()
 
     @annotatesubrepoerror
-    def commit(self, text: bytes, user: bytes, date):
+    def commit(self, text: bytes, user: bytes, date) -> bytes:
         if self._gitmissing():
             raise error.Abort(_(b"subrepo %s is missing") % self._relpath)
         cmd = [b'commit', b'-a', b'-m', text]
