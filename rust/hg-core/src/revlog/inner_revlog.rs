@@ -754,33 +754,11 @@ impl InnerRevlog {
 
             let p: diff::Prepared<'_, patch::RichDeltaPiece> =
                 state.prepare()?;
-
-            let common_buff;
-            // build the common part (if ≠ from base
-            let common_radix: &[u8] = if p.common_delta.is_empty() {
-                p.base_text
-            } else {
-                // TODO: We could only restore the affected windows in the
-                // common text. Or restore nothing at all and directly work on
-                // the patches.
-                //
-                // However it means we can no longer cache the result which has
-                // a negative effect of some benchmark.
-                // Restoring only the windows can have positive effect on
-                // benchmark, so it is a worthy pursuit, but it need to be done
-                // carefully while considering benchmark for
-                // high level operation.
-                common_buff = RawData::from(p.common_delta.as_applied(
-                    p.base_text,
-                    0,
-                    p.common_size,
-                ));
-                self.set_rev_cache_native(p.common_rev, &common_buff);
-                &common_buff
-            };
-
-            let iter_old = p.old_delta.into_iter_from_base(common_radix);
-            let iter_new = p.new_delta.into_iter_from_base(common_radix);
+            let common_2 = p.common_delta.clone();
+            let new_delta = common_2.combine(p.new_delta);
+            let old_delta = p.common_delta.combine(p.old_delta);
+            let iter_old = old_delta.into_iter_from_base(p.base_text);
+            let iter_new = new_delta.into_iter_from_base(p.base_text);
             manifest::manifest_delta_from_patches(iter_old, iter_new)
         } else {
             let mut state = diff::RevDeltaState::new(
