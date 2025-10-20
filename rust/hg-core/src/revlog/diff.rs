@@ -437,7 +437,7 @@ impl<'irl> RevDeltaState<'irl> {
             new_deltas.push(d)
         }
         // get common base_text, delta, and size
-        let common_delta = patch::fold_deltas(&common_deltas);
+        let common_delta = patch::fold_deltas(common_deltas);
         let size_c: u32 = self
             .irl
             .get_entry(self.common_rev)?
@@ -450,7 +450,7 @@ impl<'irl> RevDeltaState<'irl> {
             });
 
         // old delta and size
-        let old_delta = patch::fold_deltas(&old_deltas);
+        let old_delta = patch::fold_deltas(old_deltas);
         let size_old: u32 = self
             .irl
             .get_entry(self.old_rev)?
@@ -461,7 +461,7 @@ impl<'irl> RevDeltaState<'irl> {
                 patched_size as u32
             });
         // new delta and size
-        let new_delta = patch::fold_deltas(&new_deltas);
+        let new_delta = patch::fold_deltas(new_deltas);
         let size_new: u32 = self
             .irl
             .get_entry(self.new_rev)?

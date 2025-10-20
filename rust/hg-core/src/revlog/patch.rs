@@ -438,20 +438,27 @@ where
 /// Content from different Delta will still appears in different
 /// DeltaPiece, so the result if not "minimal". However it is "optiomized"
 /// in terms of application as it only contains non overlapping DeltaPiece.
-pub(super) fn fold_deltas<'a, P>(lists: &[Delta<'a, P>]) -> Delta<'a, P>
+pub(super) fn fold_deltas<'a, P>(deltas: Vec<Delta<'a, P>>) -> Delta<'a, P>
 where
     P: DeltaPiece<'a>,
 {
-    if lists.len() <= 1 {
-        if lists.is_empty() {
-            Delta::empty()
-        } else {
-            lists[0].clone()
-        }
+    let full_size = deltas.len();
+    let mut deltas = deltas.into_iter();
+    fold_deltas_inner(&mut deltas, full_size)
+}
+
+fn fold_deltas_inner<'a, P, I>(deltas: &mut I, size: usize) -> Delta<'a, P>
+where
+    P: DeltaPiece<'a>,
+    I: ExactSizeIterator<Item = Delta<'a, P>>,
+{
+    if size <= 1 {
+        deltas.next().unwrap_or_else(|| Delta::empty())
     } else {
-        let (left, right) = lists.split_at(lists.len() / 2);
-        let left_res = fold_deltas(left);
-        let right_res = fold_deltas(right);
+        let left_size = size / 2;
+        let right_size = size - left_size;
+        let left_res = fold_deltas_inner(deltas, left_size);
+        let right_res = fold_deltas_inner(deltas, right_size);
         left_res.combine(right_res)
     }
 }
@@ -468,7 +475,7 @@ pub fn build_data_from_deltas<T>(
         return Ok(());
     }
     let patches = self::deltas(deltas);
-    let patch = fold_deltas(&patches?);
+    let patch = fold_deltas(patches?);
     patch.apply(buffer, snapshot);
     Ok(())
 }
@@ -494,7 +501,7 @@ where
     D: AsRef<[u8]>,
 {
     let deltas = deltas(delta_chain)?;
-    let projected = fold_deltas(&deltas[..]);
+    let projected = fold_deltas(deltas);
     Ok(projected.as_applied(full_text, 0, target_size))
 }
 
