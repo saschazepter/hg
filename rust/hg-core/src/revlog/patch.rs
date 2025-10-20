@@ -549,6 +549,41 @@ where
     }
 }
 
+impl<'a> Delta<'a, RichDeltaPiece<'a>> {
+    pub(super) fn into_iter_from_base(
+        self,
+        initial: &'a [u8],
+    ) -> impl Iterator<Item = RichDeltaPiece<'a>> {
+        let mut chunks = self.chunks.into_iter();
+        let mut next = chunks.next();
+        let mut last: usize = 0;
+
+        std::iter::from_fn(move || {
+            if let Some(current) = &next {
+                let o_start = u32_u(current.start());
+                if last < o_start {
+                    let data = &initial[last..o_start];
+                    let pos = last;
+                    last = o_start;
+                    Some(RichDeltaPiece::new_rich(0, 0, 0, u_u32(pos), data))
+                } else {
+                    last = u32_u(current.end());
+                    let ret = next.take().expect("in a Some(_) close");
+                    next = chunks.next();
+                    Some(ret)
+                }
+            } else if last < initial.len() {
+                let data = &initial[last..];
+                let pos = last;
+                last = initial.len();
+                Some(RichDeltaPiece::new_rich(0, 0, 0, u_u32(pos), data))
+            } else {
+                None
+            }
+        })
+    }
+}
+
 /// Combine a list of Deltas into a single Delta "optimized".
 ///
 /// Content from different Delta will still appears in different
