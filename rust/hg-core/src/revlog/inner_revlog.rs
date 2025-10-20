@@ -33,7 +33,6 @@ use super::index::Index;
 use super::index::IndexHeader;
 use super::index::INDEX_ENTRY_SIZE;
 use super::manifest;
-use super::manifest::manifest_delta_with_offset;
 use super::node::NODE_BYTES_LENGTH;
 use super::node::NULL_NODE;
 use super::options::RevlogDataConfig;
@@ -742,6 +741,47 @@ impl InnerRevlog {
             } else {
                 diff::text_delta(&old_data, &new_data)
             }
+        } else if self.revlog_type == RevlogType::Manifestlog {
+            let mut state = diff::RevDeltaState::new(
+                self,
+                cached_entry,
+                common_count,
+                cached_idx,
+                delta_chain_1,
+                delta_chain_2,
+                extra_delta,
+            )?;
+
+            let p: diff::Prepared<'_, patch::RichDeltaPiece> =
+                state.prepare()?;
+
+            let common_buff;
+            // build the common part (if ≠ from base
+            let common_radix: &[u8] = if p.common_delta.is_empty() {
+                p.base_text
+            } else {
+                // TODO: We could only restore the affected windows in the
+                // common text. Or restore nothing at all and directly work on
+                // the patches.
+                //
+                // However it means we can no longer cache the result which has
+                // a negative effect of some benchmark.
+                // Restoring only the windows can have positive effect on
+                // benchmark, so it is a worthy pursuit, but it need to be done
+                // carefully while considering benchmark for
+                // high level operation.
+                common_buff = RawData::from(p.common_delta.as_applied(
+                    p.base_text,
+                    0,
+                    p.common_size,
+                ));
+                self.set_rev_cache_native(p.common_rev, &common_buff);
+                &common_buff
+            };
+
+            let iter_old = p.old_delta.into_iter_from_base(common_radix);
+            let iter_new = p.new_delta.into_iter_from_base(common_radix);
+            manifest::manifest_delta_from_patches(iter_old, iter_new)
         } else {
             let mut state = diff::RevDeltaState::new(
                 self,
@@ -811,13 +851,7 @@ impl InnerRevlog {
                 );
                 &new_buff
             };
-
-            // Actually compute the delta we are looking for
-            if self.revlog_type == RevlogType::Manifestlog {
-                manifest_delta_with_offset(start, old_data, new_data)
-            } else {
-                text_delta_with_offset(start, old_data, new_data)
-            }
+            text_delta_with_offset(start, old_data, new_data)
         };
         Ok(delta)
     }
