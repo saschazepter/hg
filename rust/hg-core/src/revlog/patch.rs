@@ -43,6 +43,11 @@ pub(super) trait DeltaPiece<'a>: Clone {
         self.end() - self.start()
     }
 
+    /// Length of the replaced date.
+    fn is_empty(&self) -> bool {
+        self.replaced_len() == 0 && self.size() == 0
+    }
+
     /// Length difference between the replacing data and the replaced data.
     fn len_diff(&self) -> i32 {
         self.size() as i32 - self.replaced_len() as i32
@@ -222,11 +227,14 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
                 let error = format!("patch insert more data than available: {len} < {available}");
                 return Err(RevlogError::corrupted(error));
             }
-            chunks.push(PlainDeltaPiece {
+            let d = PlainDeltaPiece {
                 start,
                 end,
                 data: &data[12..12 + (len as usize)],
-            });
+            };
+            if !d.is_empty() {
+                chunks.push(d);
+            }
             data = &data[12 + (len as usize)..];
         }
         Ok(Delta { chunks, phantom: std::marker::PhantomData })
