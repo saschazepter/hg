@@ -40,15 +40,6 @@
   > EOF
 #endif
 
-#if fileindex rust
-The file index is not implemented in Rust yet, so let's skip this test. We could
-just run it anyway and it would use the Python code. However, enabling the file
-index has the side effect of disabling the Rust revlog index, which only
-supports FnCacheVfs. And it's not worth editing all the test output to account
-for that when we'll have a Rust file index soon anyway.
-  $ exit 80
-#endif
-
 Test creating a consuming stream bundle v2 and v3
 
   $ getmainid() {

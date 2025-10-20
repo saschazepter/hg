@@ -68,20 +68,33 @@ pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
             join_display(&missing, ", ")
         )));
     }
+    let has_fncache = reqs.contains(FNCACHE_REQUIREMENT);
+    let has_fileindex = reqs.contains(FILEINDEX_V1_REQUIREMENT);
+    if !(has_fncache ^ has_fileindex) {
+        return Err(HgError::unsupported(format!(
+            "bad requirements, need exactly one of {} or {}",
+            FNCACHE_REQUIREMENT, FILEINDEX_V1_REQUIREMENT
+        )));
+    }
     let has_dotencode = reqs.contains(DOTENCODE_REQUIREMENT);
     let has_plainencode = reqs.contains(PLAIN_ENCODE_REQUIREMENT);
-    if !(has_dotencode ^ has_plainencode) {
+    if has_fncache && !(has_dotencode ^ has_plainencode) {
         return Err(HgError::unsupported(format!(
             "bad requirements, need exactly one of {} or {}",
             DOTENCODE_REQUIREMENT, PLAIN_ENCODE_REQUIREMENT
+        )));
+    }
+    if has_fileindex && has_dotencode {
+        return Err(HgError::unsupported(format!(
+            "bad requirements, {} and {} are mutually exclusive",
+            FILEINDEX_V1_REQUIREMENT, DOTENCODE_REQUIREMENT
         )));
     }
     Ok(())
 }
 
 /// rhg does not support repositories that are *missing* any of these features
-const REQUIRED: &[&str] =
-    &[REVLOGV1_REQUIREMENT, STORE_REQUIREMENT, FNCACHE_REQUIREMENT];
+const REQUIRED: &[&str] = &[REVLOGV1_REQUIREMENT, STORE_REQUIREMENT];
 
 /// rhg supports repository with or without these
 const SUPPORTED: &[&str] = &[
@@ -104,6 +117,8 @@ const SUPPORTED: &[&str] = &[
     NARROW_REQUIREMENT,
     // rhg doesn't care about bookmarks at all yet
     BOOKMARKS_IN_STORE_REQUIREMENT,
+    FNCACHE_REQUIREMENT,
+    FILEINDEX_V1_REQUIREMENT,
     PLAIN_ENCODE_REQUIREMENT,
     DOTENCODE_REQUIREMENT,
 ];
@@ -115,6 +130,7 @@ pub const GENERALDELTA_REQUIREMENT: &str = "generaldelta";
 pub const DOTENCODE_REQUIREMENT: &str = "dotencode";
 pub const STORE_REQUIREMENT: &str = "store";
 pub const FNCACHE_REQUIREMENT: &str = "fncache";
+pub const FILEINDEX_V1_REQUIREMENT: &str = "exp-fileindex-v1";
 pub const PLAIN_ENCODE_REQUIREMENT: &str =
     "exp-very-fragile-and-unsafe-plain-store-encoding";
 
@@ -229,15 +245,31 @@ mod tests {
     #[test]
     fn test_check() {
         // minimum reqs
-        assert!(check(&create_reqs(&[PLAIN_ENCODE_REQUIREMENT])).is_ok());
-        assert!(check(&create_reqs(&[DOTENCODE_REQUIREMENT])).is_ok());
+        assert!(check(&create_reqs(&[
+            FNCACHE_REQUIREMENT,
+            PLAIN_ENCODE_REQUIREMENT
+        ]))
+        .is_ok());
+        assert!(check(&create_reqs(&[
+            FNCACHE_REQUIREMENT,
+            DOTENCODE_REQUIREMENT
+        ]))
+        .is_ok());
+        assert!(check(&create_reqs(&[
+            FILEINDEX_V1_REQUIREMENT,
+            PLAIN_ENCODE_REQUIREMENT
+        ]))
+        .is_ok());
+        assert!(check(&create_reqs(&[FILEINDEX_V1_REQUIREMENT])).is_ok());
         // all supported reqs
         let mut reqs = create_reqs(SUPPORTED);
+        reqs.remove(FILEINDEX_V1_REQUIREMENT);
         reqs.remove(PLAIN_ENCODE_REQUIREMENT);
         assert!(check(&reqs).is_ok());
 
         // no mutually exclusive reqs
         assert!(check(&create_reqs(&[
+            FNCACHE_REQUIREMENT,
             DOTENCODE_REQUIREMENT,
             PLAIN_ENCODE_REQUIREMENT
         ]))

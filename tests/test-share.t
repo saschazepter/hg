@@ -60,15 +60,8 @@ Test the --share-source option for `hg root`
    }
   ]
 
-TODO: make rhg support file index
-#if fileindex rhg
-  $ RHG_ON_UNSUPPORTED=abort hg root --share-source
-  unsupported feature: bad requirements, need exactly one of exp-very-fragile-and-unsafe-plain-store-encoding or dotencode
-  [252]
-#else
   $ RHG_ON_UNSUPPORTED=abort hg root --share-source
   $TESTTMP/repo1
-#endif
   $ hg root --share-source -T json | sed 's|\\\\|\\|g'
   [
    {
@@ -115,7 +108,6 @@ share shouldn't have a full cache dir, original repo should
   checklink (symlink no-rust !)
   checklink-target (symlink no-rust !)
   manifestfulltextcache (no-rust !)
-  manifestfulltextcache (fileindex rust known-bad-output !)
   $ ls -1 ../repo1/.hg/cache
   branch2-served
   rbc-names-v2

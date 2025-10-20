@@ -17,6 +17,7 @@ from ..interfaces.types import HgPathT, TransactionT
 from ..utils import docket as docketmod
 from .. import (
     error,
+    policy,
     pycompat,
     testing,
     ui as uimod,
@@ -32,6 +33,8 @@ if typing.TYPE_CHECKING:
 
 FileTokenT = int_file_index.FileTokenT
 VacuumMode = int_file_index.VacuumMode
+
+rustmod = policy.importrust("file_index")
 
 # Minimum size of the tree file in bytes before auto-vacuuming starts.
 #
@@ -484,6 +487,10 @@ class FileIndex(int_file_index.IFileIndex):
         docket.tree_root_pointer = serialized.tree_root_pointer
         docket.tree_unused_bytes = serialized.tree_unused_bytes
         docket.reserved_flags = 0
+
+
+if rustmod is not None:
+    FileIndex = rustmod.FileIndex
 
 
 # See debug_file_index in mercurial/debugcommands.py for the opts.

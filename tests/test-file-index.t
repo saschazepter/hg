@@ -626,3 +626,94 @@ Finally, upgrade back to fileindex
   $ hg debug::file-index
   0: f1
   1: f2
+
+Test compatiblity of Python and Rust implementations
+----------------------------------------------------
+
+#if rust
+
+  $ hg init repocompat --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repocompat
+
+Add files with Python, read with Rust
+  $ touch file0
+  $ HGMODULEPOLICY=py hg commit -qAm 0
+  $ hg debug::file-index
+  0: file0
+  $ hg debug::file-index --docket
+  marker: fileindex-v1
+  list_file_size: 6
+  reserved_revlog_size: 0
+  meta_file_size: 8
+  tree_file_size: 18
+  list_file_id: * (glob)
+  reserved_revlog_id: 00000000
+  meta_file_id: * (glob)
+  tree_file_id: * (glob)
+  tree_root_pointer: 0
+  tree_unused_bytes: 0
+  reserved_revlog_unused: 0
+  reserved_flags: 0
+  garbage_entries: 0
+  $ hg debug::file-index --tree
+  00000000:
+      "file0" -> 0000000c
+  0000000c: token = 0
+
+Vacuum with Python, GC with Rust
+  $ HGMODULEPOLICY=py hg debug::file-index --vacuum
+  vacuumed tree: 18 bytes => 18 bytes (saved 0.0%)
+  $ hg debug::file-index --docket -T '{garbage_entries % "{path}\n"}'
+  fileindex-tree.* (glob)
+  $ ls .hg/store/fileindex-tree.*
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  $ hg debug::file-index --gc
+  $ ls .hg/store/fileindex-tree.*
+  .hg/store/fileindex-tree.* (glob)
+
+Add files with Rust, read with Python
+  $ touch file1
+  $ hg commit -qAm 1
+  $ HGMODULEPOLICY=py hg debug::file-index
+  0: file0
+  1: file1
+  $ HGMODULEPOLICY=py hg debug::file-index --docket
+  marker: fileindex-v1
+  list_file_size: 12
+  reserved_revlog_size: 0
+  meta_file_size: 16
+  tree_file_size: 58
+  list_file_id: * (glob)
+  reserved_revlog_id: 00000000
+  meta_file_id: * (glob)
+  tree_file_id: * (glob)
+  tree_root_pointer: 18
+  tree_unused_bytes: 12
+  reserved_revlog_unused: 0
+  reserved_flags: 0
+  garbage_entries: 0
+  $ HGMODULEPOLICY=py hg debug::file-index --tree
+  00000012:
+      "file" -> 0000001e
+  0000001e:
+      "0" -> 0000000c
+      "1" -> 00000034
+  0000000c: token = 0
+  00000034: token = 1
+
+Vacuum with Rust, GC with Python
+  $ hg debug::file-index --vacuum
+  vacuumed tree: 58 bytes => 46 bytes (saved 20.7%)
+  $ HGMODULEPOLICY=py hg debug::file-index --docket -T '{garbage_entries % "{path}\n"}'
+  fileindex-tree.* (glob)
+  $ ls .hg/store/fileindex-tree.*
+  .hg/store/fileindex-tree.* (glob)
+  .hg/store/fileindex-tree.* (glob)
+  $ HGMODULEPOLICY=py hg debug::file-index --gc
+  $ ls .hg/store/fileindex-tree.*
+  .hg/store/fileindex-tree.* (glob)
+
+  $ cd ..
+
+#endif

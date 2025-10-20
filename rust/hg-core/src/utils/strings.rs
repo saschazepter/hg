@@ -112,6 +112,11 @@ where
     result
 }
 
+/// Returns the length of the common prefix of two strings.
+pub fn common_prefix_length(xs: &[u8], ys: &[u8]) -> usize {
+    xs.iter().zip(ys).take_while(|(x, y)| x == y).count()
+}
+
 pub trait SliceExt {
     fn trim_end(&self) -> &Self;
     fn trim_start(&self) -> &Self;
