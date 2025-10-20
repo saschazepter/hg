@@ -32,6 +32,13 @@
   > EOF
 #endif
 
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
 Initialize repository
 
   $ hg init server

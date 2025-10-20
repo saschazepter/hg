@@ -1,3 +1,10 @@
+#if no-rust
+  $ cat << EOF >> $HGRCPATH
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
 Test the basics
 ---------------
 
@@ -634,6 +641,10 @@ Test compatiblity of Python and Rust implementations
 
   $ hg init repocompat --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repocompat
+  $ cat << EOF >> .hg/hgrc
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
 
 Add files with Python, read with Rust
   $ touch file0

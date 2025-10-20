@@ -14,6 +14,13 @@
   > EOF
 #endif
 
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
   $ cat > nlinks.py <<EOF
   > import sys
   > from mercurial import pycompat, util

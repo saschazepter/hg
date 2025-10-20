@@ -36,6 +36,8 @@ VacuumMode = int_file_index.VacuumMode
 
 rustmod = policy.importrust("file_index")
 
+HAS_FAST_FILE_INDEX = rustmod is not None
+
 # Minimum size of the tree file in bytes before auto-vacuuming starts.
 #
 # The value was picked by adding files one by one in individual transaction.

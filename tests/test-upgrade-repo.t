@@ -6,6 +6,7 @@
   > revlog-compression=zlib
   > [storage]
   > dirstate-v2.slow-path=allow
+  > fileindex.slow-path=allow
   > EOF
 
 store and revlogv1 are required in source

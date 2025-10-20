@@ -8,6 +8,10 @@ Check simple exchange behavior
 Pusher and pushed have sidedata enabled
 ---------------------------------------
 
+  $ cat << EOF >> $HGRCPATH
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
   $ hg init sidedata-source --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data
   $ cat << EOF >> sidedata-source/.hg/hgrc
   > [extensions]

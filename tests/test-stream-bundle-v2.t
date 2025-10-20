@@ -40,6 +40,13 @@
   > EOF
 #endif
 
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
 Test creating a consuming stream bundle v2 and v3
 
   $ getmainid() {

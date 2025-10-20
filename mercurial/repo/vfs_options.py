@@ -90,6 +90,35 @@ def resolve_store_vfs_options(ui, requirements, features):
             value = fallback
         options[b'fileindex-max-unused-percentage'] = value
 
+        slow_path = ui.config(b'storage', b'fileindex.slow-path')
+        if slow_path == b'default':
+            slow_path = ui.config(b'storage', b'all-slow-path')
+        if slow_path not in (b'allow', b'warn', b'abort'):
+            default = ui.config_default(b'storage', b'all-slow-path')
+            msg = _(b'unknown value for config "fileindex.slow-path": "%s"\n')
+            ui.warn(msg % slow_path)
+            if not ui.quiet:
+                ui.warn(_(b'falling back to default value: %s\n') % default)
+            slow_path = default
+
+        msg = _(
+            b"accessing `fileindex` repository without associated "
+            b"fast implementation."
+        )
+        hint = _(
+            b"check `hg help config.format.exp-use-fileindex-v1` "
+            b"for details"
+        )
+        if not file_index.HAS_FAST_FILE_INDEX:
+            if slow_path == b'warn':
+                msg = b"warning: " + msg + b'\n'
+                ui.warn(msg)
+                if not ui.quiet:
+                    hint = b'(' + hint + b')\n'
+                    ui.warn(hint)
+            if slow_path == b'abort':
+                raise error.Abort(msg, hint=hint)
+
         options[b'fileindex-gc-retention-seconds'] = ui.configint(
             b'storage', b'fileindex.gc-retention-seconds'
         )

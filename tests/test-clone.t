@@ -12,6 +12,13 @@
   > EOF
 #endif
 
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
 Prepare repo a:
 
   $ hg init a

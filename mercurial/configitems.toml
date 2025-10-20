@@ -2567,6 +2567,24 @@ the number of transactions and is not influenced by the current time.
 """
 
 [[items]]
+section = "storage"
+name = "fileindex.slow-path"
+default = "default"
+experimental = true  # experimental as long as format.exp-use-fileindex-v1 is.
+documentation = """Control the behavior of Mercurial when using a repository
+with the "fileindex-v1" feature with an installation of Mercurial without a fast
+implementation for the feature:
+
+``allow``: Silently use the slower implementation to access the repository.
+``warn``: Warn, but use the slower implementation to access the repository.
+``default``: use value from the `storage.all-slow-path` value.
+``abort``: Prevent access to such repositories. (This is the default)
+
+For details on the "fileindex-v1" feature, see:
+:hg:`help config.format.exp-use-fileindex-v1`.
+"""
+
+[[items]]
 section = "subrepos"
 name = "allowed"
 default-type = "dynamic"  # to make backporting simpler
