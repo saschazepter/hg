@@ -346,6 +346,12 @@ where
         // Keep track of the chunk of self.chunks to process.
         let mut pos = 0;
 
+        let mut push = |p: P| {
+            if !p.is_empty() {
+                chunks.push(p);
+            }
+        };
+
         // For each chunk of `other`, chunks of `self` are processed
         // until they start after the end of the current chunk.
         for high in other.chunks.iter() {
@@ -356,7 +362,7 @@ where
             {
                 let first = self.chunks[pos].clone();
                 offset += first.len_diff();
-                chunks.push(first);
+                push(first);
                 pos += 1;
             }
 
@@ -372,7 +378,7 @@ where
                 let left = current.cut_at(cut_point);
                 offset += left.len_diff();
 
-                chunks.push(left);
+                push(left);
 
                 // There is no index incrementation because the right-most part
                 // needs further examination.
@@ -409,7 +415,7 @@ where
             }
 
             // Add the chunk of `other` with adjusted position.
-            chunks.push(high.apply_offset(offset, next_offset));
+            push(high.apply_offset(offset, next_offset));
 
             // Go back to normal offset tracking for the next `o` chunk
             offset = next_offset;
@@ -417,7 +423,7 @@ where
 
         // Add remaining chunks of `self`.
         for elt in &self.chunks[pos..] {
-            chunks.push(elt.clone());
+            push(elt.clone());
         }
         Delta { chunks, phantom: std::marker::PhantomData }
     }
