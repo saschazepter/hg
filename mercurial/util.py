@@ -41,6 +41,7 @@ import warnings
 
 from typing import (
     Any,
+    AnyStr,
     BinaryIO,
     Callable,
     Iterable,
@@ -242,17 +243,18 @@ if _dowarn:
     )
 
 
-def nouideprecwarn(msg: bytes, version: bytes, stacklevel: int = 1) -> None:
+_hint = "(compatibility will be dropped after Mercurial-%s, update your code.)"
+
+
+def nouideprecwarn(msg: AnyStr, version: AnyStr, stacklevel: int = 1) -> None:
     """Issue an python native deprecation warning
 
     This is a noop outside of tests, use 'ui.deprecwarn' when possible.
     """
     if _dowarn:
-        msg += (
-            b"\n(compatibility will be dropped after Mercurial-%s,"
-            b" update your code.)"
-        ) % version
-        warnings.warn(pycompat.sysstr(msg), DeprecationWarning, stacklevel + 1)
+        wmsg = pycompat.sysstr(msg) + "\n"
+        wmsg += _hint % pycompat.sysstr(version)
+        warnings.warn(wmsg, DeprecationWarning, stacklevel + 1)
         # on python 3 with chg, we will need to explicitly flush the output
         sys.stderr.flush()
 
