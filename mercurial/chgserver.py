@@ -446,7 +446,7 @@ class chgcmdserver(commandserver.server):
             # to see output immediately on pager, the mode stays unchanged
             # when client re-attached. ferr is unchanged because it should
             # be unbuffered no matter if it is a tty or not.
-            if fn == b'ferr':
+            if fn == 'ferr':
                 newfp = fp
             else:
                 # On Python 3, the standard library doesn't offer line-buffered
@@ -497,7 +497,7 @@ class chgcmdserver(commandserver.server):
                     b'chgserver',
                     b'got %s while duplicating %s\n',
                     stringutil.forcebytestr(err),
-                    fn,
+                    stringutil.forcebytestr(fn),
                 )
             setattr(self, cn, ch)
             setattr(ui, fn, fp)
