@@ -78,6 +78,7 @@ if typing.TYPE_CHECKING:
     from typing import (
         Any,
         Callable,
+        Final,
     )
     from io import (
         RawIOBase,
@@ -366,7 +367,7 @@ class channeledsystem:
             raise error.ProgrammingError(b'invalid S channel type: %s' % type)
 
 
-_iochannels = [
+_iochannels: Final[list[tuple[str, str, str]]] = [
     # server.ch, ui.fp, mode
     ('cin', 'fin', 'rb'),
     ('cout', 'fout', 'wb'),
