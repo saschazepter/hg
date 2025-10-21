@@ -243,6 +243,21 @@ if _dowarn:
     )
 
 
+def deprecated(msg: str, version: str) -> Callable[[_C], _C]:
+    """Decorate (or manually wrap) a method to issue a deprecation warning."""
+
+    def decorator(func: _C) -> _C:
+        def wrapper(*args, **kwargs):
+            nouideprecwarn(
+                pycompat.sysbytes(msg), pycompat.sysbytes(version), 2
+            )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 _hint = "(compatibility will be dropped after Mercurial-%s, update your code.)"
 
 
