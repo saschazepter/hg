@@ -253,6 +253,11 @@ impl<'a, P> Delta<'a, P>
 where
     P: DeltaPiece<'a>,
 {
+    /// Create and empty Delta
+    pub fn empty() -> Self {
+        Self { chunks: vec![], phantom: std::marker::PhantomData }
+    }
+
     /// True if this piece replace nothing with nothing
     ///
     /// Such pieces don't carry information and can be ignored.
@@ -439,7 +444,7 @@ where
 {
     if lists.len() <= 1 {
         if lists.is_empty() {
-            Delta { chunks: vec![], phantom: std::marker::PhantomData }
+            Delta::empty()
         } else {
             lists[0].clone()
         }
