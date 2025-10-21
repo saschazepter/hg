@@ -586,7 +586,7 @@ class chgcmdserver(commandserver.server):
         """Change umask"""
         data = self._readstr()
         if len(data) != 4:
-            raise ValueError(b'invalid mask length in setumask2 request')
+            raise ValueError('invalid mask length in setumask2 request')
         self._setumask(data)
 
     def _setumask(self, data):
@@ -615,7 +615,7 @@ class chgcmdserver(commandserver.server):
         try:
             newenv = dict(s.split(b'=', 1) for s in l)
         except ValueError:
-            raise ValueError(b'unexpected value in setenv request')
+            raise ValueError('unexpected value in setenv request')
         self.ui.log(b'chgserver', b'setenv: %r\n', sorted(newenv.keys()))
 
         encoding.environ.clear()
