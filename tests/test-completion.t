@@ -82,6 +82,7 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::clonebundle-manifest
   debug::fast-upgrade
   debug::file-index
   debug::revlog-reencoded-delta-info
@@ -287,6 +288,7 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::clonebundle-manifest: stream, raw
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta

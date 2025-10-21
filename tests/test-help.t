@@ -1008,6 +1008,8 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::clonebundle-manifest
+                 fetch a display a clone bundle manifest from a peer
    debug::fast-upgrade
                  (no help text available)
    debug::file-index
