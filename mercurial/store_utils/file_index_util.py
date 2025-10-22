@@ -35,9 +35,9 @@ class Docket:
             [
                 ">",
                 f"{len(V1_FORMAT_MARKER)}s",
-                "4I",
-                f"{docket.UID_SIZE}s" * 4,
-                "5I",
+                "4I",  # file sizes
+                f"{docket.UID_SIZE}s" * 4,  # file IDs
+                "4I",  # other integers
             ]
         )
     )
@@ -76,14 +76,9 @@ class Docket:
         """Parse a file index docket from bytes."""
         if len(data) < cls.STRUCT.size:
             raise error.CorruptedState("file index docket file too short")
-        *fields, num_garbage_entries = cls.STRUCT.unpack_from(data)
-        garbage_entries = []
-        offset = cls.STRUCT.size
-        for _ in range(num_garbage_entries):
-            entry = GarbageEntry.parse_from(data[offset:])
-            offset += entry.size
-            garbage_entries.append(entry)
-        docket = cls(*fields, garbage_entries=garbage_entries)
+        fields = cls.STRUCT.unpack_from(data)
+        garbage_list = GarbageList.parse_from(data[cls.STRUCT.size :])
+        docket = cls(*fields, garbage_entries=garbage_list.entries)
         if docket.marker != V1_FORMAT_MARKER:
             raise error.CorruptedState("file index docket has wrong marker")
         docket.reserved_flags = 0
@@ -91,28 +86,83 @@ class Docket:
 
     def serialize(self) -> bytes:
         """Serialize the file index docket to bytes."""
-        *fields, garbage_entries = attr.astuple(self, recurse=False)
-        num_garbage_entries = len(self.garbage_entries)
-        return self.STRUCT.pack(*fields, num_garbage_entries) + b"".join(
-            entry.serialize() for entry in garbage_entries
-        )
+        *fields, _garbage_entries = attr.astuple(self, recurse=False)
+        fixed = self.STRUCT.pack(*fields)
+        garbage = GarbageList(self.garbage_entries).serialize()
+        return fixed + garbage
 
 
 @attr.s(slots=True)
-class GarbageEntryHeader:
-    """An garbage entry header in the docket."""
+class GarbageList:
+    """The garbage list parsed from the docket.
 
-    STRUCT = struct.Struct(">HIH")
+    It consists of a header, an index of fixed size entries, and a buffer of
+    paths that the index entries point into.
+    """
+
+    entries = attr.ib(type=list["GarbageEntry"])
+
+    @classmethod
+    def parse_from(cls, data: memoryview) -> GarbageList:
+        header = GarbageListHeader.parse_from(data)
+        rest = data[GarbageListHeader.STRUCT.size :]
+        num = header.num_entries
+        index = itertools.islice(GarbageIndexEntry.iter_parse(rest), num)
+        rest = rest[GarbageIndexEntry.STRUCT.size * num :]
+        path_buf = rest[: header.path_buf_size]
+        return cls(
+            [GarbageEntry.from_index(entry, path_buf) for entry in index]
+        )
+
+    def serialize(self) -> bytes:
+        path_buf = b"".join(entry.path + b"\x00" for entry in self.entries)
+        header = GarbageListHeader(
+            num_entries=len(self.entries), path_buf_size=len(path_buf)
+        )
+        result = header.serialize()
+        offset = 0
+        for entry in self.entries:
+            result += entry.to_index(offset).serialize()
+            offset += len(entry.path) + 1
+        result += path_buf
+        return result
+
+
+@attr.s(slots=True)
+class GarbageListHeader:
+    """Header of the garbage list in the docket."""
+
+    STRUCT = struct.Struct(">II")
+
+    num_entries = attr.ib(type=int)
+    path_buf_size = attr.ib(type=int)
+
+    @classmethod
+    def parse_from(cls, data: memoryview) -> GarbageListHeader:
+        return cls(*cls.STRUCT.unpack_from(data))
+
+    def serialize(self) -> bytes:
+        return self.STRUCT.pack(*attr.astuple(self))
+
+
+@attr.s(slots=True)
+class GarbageIndexEntry:
+    """An entry in the garbage list index in the docket."""
+
+    STRUCT = struct.Struct(">HIIH")
 
     ttl = attr.ib(type=int)
     timestamp = attr.ib(type=int)
-    length = attr.ib(type=int)
+    path_offset = attr.ib(type=int)
+    path_length = attr.ib(type=int)
 
     @classmethod
-    def parse_from(cls, data: memoryview) -> GarbageEntryHeader:
-        return cls(*cls.STRUCT.unpack_from(data))
+    def iter_parse(cls, data: memoryview) -> Iterator[GarbageIndexEntry]:
+        # iter_unpack checks it's a multiple, even though we're not reading all.
+        end = len(data) - len(data) % cls.STRUCT.size
+        return (cls(*fields) for fields in cls.STRUCT.iter_unpack(data[:end]))
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
@@ -125,19 +175,22 @@ class GarbageEntry:
     path = attr.ib(type=bytes)
 
     @classmethod
-    def parse_from(cls, data: memoryview) -> GarbageEntry:
-        header = GarbageEntryHeader.parse_from(data)
-        rest = data[GarbageEntryHeader.STRUCT.size :]
-        path = rest[: header.length]
-        return cls(header.ttl, header.timestamp, path)
+    def from_index(
+        cls, entry: GarbageIndexEntry, path_buf: memoryview
+    ) -> GarbageEntry:
+        return cls(
+            ttl=entry.ttl,
+            timestamp=entry.timestamp,
+            path=path_buf[entry.path_offset :][: entry.path_length],
+        )
 
-    @property
-    def size(self):
-        return GarbageEntryHeader.STRUCT.size + len(self.path)
-
-    def serialize(self):
-        header = GarbageEntryHeader(self.ttl, self.timestamp, len(self.path))
-        return header.serialize() + self.path
+    def to_index(self, offset: int) -> GarbageIndexEntry:
+        return GarbageIndexEntry(
+            ttl=self.ttl,
+            timestamp=self.timestamp,
+            path_offset=offset,
+            path_length=len(self.path),
+        )
 
 
 @attr.s(slots=True)

@@ -259,9 +259,11 @@ where the corresponding data file is stored. For example, if the list file ID is
 
 * Offset 76: Number of garbage entries as a 32-bit big-endian integer.
 
-* Offset 80:
-  Garbage entries, packed contiguously. Each has the following variable-size
-  layout:
+* Offset 80: Size of the garbage path buffer in bytes, as a 32-bit big-endian
+  integer.
+
+* Offset 84:
+  Array of garbage entries. Each has the following 12-byte layout:
 
   * Offset 0:
     Time-to-live (TTL) as a 16-bit big-endian integer. This is the remaining
@@ -270,9 +272,14 @@ where the corresponding data file is stored. For example, if the list file ID is
     Timestamp when the entry was added, in seconds since the Unix epoch, as a
     32-bit big-endian integer.
   * Offset 6:
-    Length of the path in bytes, as a 16-bit big-endian integer.
+    Offset of the path within the path buffer, as a 32-bit big-endian integer.
   * Offset 8:
-    The path to be deleted, relative to `.hg/store/`.
+    Length of the path in bytes, as a 16-bit big-endian integer.
+
+* Next offset (84 + 12 * number of garbage entries):
+  The garbage path buffer, containing file paths relative to `.hg/store/`
+  terminated by null bytes, one after the other. The presence of the null bytes
+  is optional and should not be relied on.
 
 The list file format
 ---------------------
