@@ -475,12 +475,12 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         vec.push(StatusPath { path, copy_source });
     }
 
-    fn read_dir(
+    fn read_dir<'a>(
         &self,
         hg_path: &HgPath,
-        fs_path: &Path,
+        fs_path: &'a Path,
         is_at_repo_root: bool,
-    ) -> Result<Vec<DirEntry>, ()> {
+    ) -> Result<ReadDirResponse<'a>, ()> {
         DirEntry::read_dir(fs_path, is_at_repo_root)
             .map_err(|error| self.io_error(error, hg_path))
     }
@@ -635,22 +635,24 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             });
         }
 
-        let readdir_succeeded;
-        let mut fs_entries = if let Ok(entries) = self.read_dir(
-            directory_hg_path,
-            &directory_entry.fs_path,
-            is_at_repo_root,
-        ) {
-            readdir_succeeded = true;
-            entries
-        } else {
-            // Treat an unreadable directory (typically because of insufficient
-            // permissions) like an empty directory. `self.read_dir` has
-            // already called `self.io_error` so a warning will be emitted.
-            // We still need to remember that there was an error so that we
-            // know not to cache this result.
-            readdir_succeeded = false;
-            Vec::new()
+        let (mut fs_entries, readdir_succeeded, is_nested_repo) = match self
+            .read_dir(
+                directory_hg_path,
+                &directory_entry.fs_path,
+                is_at_repo_root,
+            ) {
+            Ok(ReadDirResponse::NestedRepo) => (Vec::new(), true, true),
+            Ok(ReadDirResponse::Dir(entries)) => (entries, true, false),
+            _ => {
+                // Treat an unreadable directory (typically because of
+                // insufficient permissions) like an empty
+                // directory. `self.read_dir` has already called
+                // `self.io_error` so a warning will be emitted.
+                // We still need to remember that there was an error so that we
+                // know not to cache this result.
+
+                (Vec::new(), false, false)
+            }
         };
 
         // `merge_join_by` requires both its input iterators to be sorted:
@@ -721,10 +723,14 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         .try_reduce(RecursiveResponse::identity, |a, b| {
             Ok(RecursiveResponse::combine(a, b))
         })
-        .map(|response| RecursiveResponse {
-            ignored_or_dirstate: response.ignored_or_dirstate
-                && readdir_succeeded,
-            ..response
+        .map(|response| {
+            RecursiveResponse::combine(
+                response,
+                RecursiveResponse {
+                    ignored_or_dirstate: readdir_succeeded,
+                    subtree_will_be_purged: !is_nested_repo,
+                },
+            )
         })
     }
 
@@ -1086,7 +1092,10 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             };
             let subtree_will_be_purged =
                 match self.read_dir(&hg_path, &fs_entry.fs_path, false) {
-                    Ok(children_fs_entries) if traverse_children => {
+                    Ok(ReadDirResponse::NestedRepo) => false,
+                    Ok(ReadDirResponse::Dir(children_fs_entries))
+                        if traverse_children =>
+                    {
                         children_fs_entries
                             .par_iter()
                             .map(|child_fs_entry| {
@@ -1216,6 +1225,11 @@ struct DirEntry<'a> {
     file_type: FakeFileType,
 }
 
+enum ReadDirResponse<'a> {
+    NestedRepo,
+    Dir(Vec<DirEntry<'a>>),
+}
+
 impl DirEntry<'_> {
     /// Returns **unsorted** entries in the given directory, with name,
     /// metadata and file type.
@@ -1223,9 +1237,12 @@ impl DirEntry<'_> {
     /// If a `.hg` sub-directory is encountered:
     ///
     /// * At the repository root, ignore that sub-directory
-    /// * Elsewhere, we’re listing the content of a sub-repo. Return an empty
-    ///   list instead.
-    fn read_dir(path: &Path, is_at_repo_root: bool) -> io::Result<Vec<Self>> {
+    /// * Elsewhere, we’re listing the content of a sub-repo. Returns
+    ///   NestedRepo.
+    fn read_dir(
+        path: &Path,
+        is_at_repo_root: bool,
+    ) -> io::Result<ReadDirResponse> {
         // `read_dir` returns a "not found" error for the empty path
         let at_cwd = path == Path::new("");
         let read_dir_path = if at_cwd { Path::new(".") } else { path };
@@ -1252,7 +1269,7 @@ impl DirEntry<'_> {
                 } else if file_type.is_dir() {
                     // A .hg sub-directory at another location means a subrepo,
                     // skip it entirely.
-                    return Ok(Vec::new());
+                    return Ok(ReadDirResponse::NestedRepo);
                 }
             }
             let full_path = if at_cwd {
@@ -1270,7 +1287,7 @@ impl DirEntry<'_> {
                 file_type,
             })
         }
-        Ok(results)
+        Ok(ReadDirResponse::Dir(results))
     }
 
     fn symlink_metadata(&self) -> Result<std::fs::Metadata, std::io::Error> {

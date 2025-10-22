@@ -361,3 +361,19 @@ Test some --confirm case that ended crashing
   $ hg purge --confirm --all --files
 
   $ cd ..
+
+Test purge should not remove nested repos
+  $ cd t
+  $ hg init nested
+  $ hg init double/nested
+
+  $ hg purge -p
+  $ hg purge
+
+  $ ls -A nested
+  .hg
+  $ ls -A double/nested
+  .hg
+
+  $ rm -r nested double
+  $ cd ..
