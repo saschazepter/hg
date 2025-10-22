@@ -1453,13 +1453,24 @@ class FileIndexStore(basicstore):
     opened for writing.
     """
 
-    def __init__(self, ui: uimod.ui, path, vfstype, try_pending: bool):
+    def __init__(
+        self,
+        ui: uimod.ui,
+        path: bytes,
+        vfstype,
+        encoding: Encoding,
+        try_pending: bool,
+    ):
         """
         If try_pending is True, tries to open the file index written by a
         transaction that is still pending. This is used for hooks.
         """
+        if encoding not in (Encoding.DOTENCODE, Encoding.PLAIN):
+            raise error.ProgrammingError(
+                b"FileIndexStore only supports dotencode or plain encoding"
+            )
         self._ui = ui
-        self.encode = _pathencode
+        self.encode = vfsmod.FILTER_BY_NAME[encoding._value_]
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
         self.pathsep = self.path + b'/'

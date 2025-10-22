@@ -970,7 +970,12 @@ def makestore(
             return storemod.fncachestore(path, vfstype, encoding)
 
         if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
-            return storemod.FileIndexStore(ui, path, vfstype, try_pending)
+            encoding = storemod.Encoding.DOTENCODE
+            if requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
+                encoding = storemod.Encoding.PLAIN
+            return storemod.FileIndexStore(
+                ui, path, vfstype, encoding, try_pending
+            )
 
         return storemod.encodedstore(path, vfstype)
 

@@ -97,7 +97,11 @@ def new_repo_requirements(ui, createopts):
             msg = _(b'"plain encoding" requires using the store')
             hint = _(b'set "format.usestore=yes"')
             raise error.Abort(msg, hint=hint)
-        if requirementsmod.FNCACHE_REQUIREMENT not in requirements:
+        if not (
+            requirementsmod.FNCACHE_REQUIREMENT in requirements
+            or requirementsmod.FILEINDEXV1_REQUIREMENT in requirements
+        ):
+            # TODO: suggest file index when it's stable.
             msg = _(b'"plain encoding" requires using the fncache')
             hint = _(b'set "format.usefncache=yes"')
             raise error.Abort(msg, hint=hint)
