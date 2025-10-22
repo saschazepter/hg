@@ -134,14 +134,14 @@ class httpv1protocolhandler(wireprototypes.baseprotocolhandler):
             self._ui.fout = oldout
             self._ui.ferr = olderr
 
-    def client(self):
+    def client(self) -> bytes:
         return b'remote:%s:%s:%s' % (
             self._req.urlscheme,
             urlreq.quote(self._req.remotehost or b''),
             urlreq.quote(self._req.remoteuser or b''),
         )
 
-    def addcapabilities(self, repo, caps):
+    def addcapabilities(self, repo: RepoT, caps):
         caps.append(b'batch')
 
         caps.append(
@@ -170,7 +170,7 @@ class httpv1protocolhandler(wireprototypes.baseprotocolhandler):
 
         return caps
 
-    def checkperm(self, perm):
+    def checkperm(self, perm: bytes) -> None:
         return self._checkperm(perm)
 
 
@@ -446,17 +446,17 @@ class sshv1protocolhandler(wireprototypes.baseprotocolhandler):
     def mayberedirectstdio(self):
         yield None
 
-    def client(self):
+    def client(self) -> bytes:
         client = encoding.environ.get(b'SSH_CLIENT', b'').split(b' ', 1)[0]
         return b'remote:ssh:' + client
 
-    def addcapabilities(self, repo, caps):
+    def addcapabilities(self, repo: RepoT, caps):
         if self.name == wireprototypes.SSHV1:
             caps.append(b'protocaps')
         caps.append(b'batch')
         return caps
 
-    def checkperm(self, perm):
+    def checkperm(self, perm: bytes) -> None:
         pass
 
 
