@@ -33,8 +33,6 @@ if typing.TYPE_CHECKING:
 FileTokenT = int_file_index.FileTokenT
 VacuumMode = int_file_index.VacuumMode
 
-propertycache = util.propertycache
-
 # Minimum size of the tree file in bytes before auto-vacuuming starts.
 #
 # The value was picked by adding files one by one in individual transaction.
@@ -88,7 +86,6 @@ class FileIndex(int_file_index.IFileIndex):
             raise error.ProgrammingError(b"invalid max_unused_ratio")
         self._ui = ui
         self._opener = opener
-        self._try_pending = try_pending
         self._vacuum_mode = vacuum_mode
         self._max_unused_ratio = max_unused_ratio
         self._gc_retention_s = gc_retention_s
@@ -98,6 +95,8 @@ class FileIndex(int_file_index.IFileIndex):
         self._add_map: dict[HgPathT, FileTokenT] = {}
         self._remove_tokens: set[FileTokenT] = set()
         self._add_to_garbage: list[HgPathT] = []
+        self._docket = FileIndex._load_docket(opener, try_pending)
+        self._load_data_files()
 
     def _token_count(self) -> int:
         return len(self._meta_array) + len(self._add_paths)
@@ -249,7 +248,7 @@ class FileIndex(int_file_index.IFileIndex):
             self._add_paths.clear()
             self._add_map.clear()
             self._remove_tokens.clear()
-            self._invalidate_caches()
+            self._load_data_files()
             self._force_vacuum = False
         if self._add_to_garbage:
             ttl = INITIAL_GARBAGE_TTL
@@ -277,15 +276,15 @@ class FileIndex(int_file_index.IFileIndex):
             return unused / size >= self._max_unused_ratio
         raise error.ProgrammingError(b"invalid file index vacuum mode")
 
-    @propertycache
-    def _docket(self) -> file_index_util.Docket:
+    @staticmethod
+    def _load_docket(opener, try_pending: bool) -> file_index_util.Docket:
         data = None
-        if self._try_pending:
+        if try_pending:
             # Written by transaction.writepending.
-            data = self._opener.tryread(b"fileindex.pending")
+            data = opener.tryread(b"fileindex.pending")
         if not data:
             try:
-                data = self._opener.read(b"fileindex")
+                data = opener.read(b"fileindex")
             except FileNotFoundError:
                 return file_index_util.Docket()
         return file_index_util.Docket.parse_from(data)
@@ -308,37 +307,32 @@ class FileIndex(int_file_index.IFileIndex):
             return None
         return b"fileindex-tree." + id
 
-    @propertycache
-    def _list_file(self) -> memoryview:
+    def _load_data_files(self):
+        self._list_file = self._load_list_file()
+        self._meta_array = self._load_meta_array()
+        self._tree_file = self._load_tree_file()
+
+    def _load_list_file(self) -> memoryview:
         path = self._list_file_path()
         if path is None:
             return util.buffer(b"")
         return self._mapfile(path, self._docket.list_file_size)
 
-    @propertycache
-    def _meta_file(self) -> memoryview:
+    def _load_meta_file(self) -> memoryview:
         path = self._meta_file_path()
         if path is None:
             return util.buffer(b"")
         return self._mapfile(path, self._docket.meta_file_size)
 
-    @propertycache
-    def _meta_array(self) -> file_index_util.MetadataArray:
-        return file_index_util.MetadataArray(self._meta_file)
+    def _load_meta_array(self) -> file_index_util.MetadataArray:
+        return file_index_util.MetadataArray(self._load_meta_file())
 
-    @propertycache
-    def _tree_file(self) -> memoryview:
+    def _load_tree_file(self) -> memoryview:
         testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
         path = self._tree_file_path()
         if path is None:
             return util.buffer(file_index_util.EMPTY_TREE_BYTES)
         return self._mapfile(path, self._docket.tree_file_size)
-
-    def _invalidate_caches(self):
-        util.clearcachedproperty(self, b"_list_file")
-        util.clearcachedproperty(self, b"_meta_file")
-        util.clearcachedproperty(self, b"_meta_array")
-        util.clearcachedproperty(self, b"_tree_file")
 
     def _mapfile(self, path: bytes, size: int) -> memoryview:
         """Read a file up to the given size using mmap if possible."""
