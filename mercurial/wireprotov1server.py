@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import binascii
 import os
+import typing
 
 from .i18n import _
 from .node import hex
@@ -39,6 +40,14 @@ from .exchanges import (
     bundle_cache as bundle_cache_util,
     bundle_caps,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
+
+    _C = TypeVar("_C", bound=Callable)
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -143,7 +152,11 @@ def bundle1allowed(repo, action):
 commands = wireprototypes.commanddict()
 
 
-def wireprotocommand(name, args=None, permission=b'push'):
+def wireprotocommand(
+    name: bytes,
+    args: bytes | None = None,
+    permission: bytes = b'push',
+) -> Callable[[_C], _C]:
     """Decorator to declare a wire protocol command.
 
     ``name`` is the name of the wire protocol command being provided.
