@@ -84,7 +84,6 @@ class FileIndex(int_file_index.IFileIndex):
         """
         if not 0 <= max_unused_ratio <= 100:
             raise error.ProgrammingError(b"invalid max_unused_ratio")
-        self._ui = ui
         self._opener = opener
         self._vacuum_mode = vacuum_mode
         self._max_unused_ratio = max_unused_ratio
@@ -96,6 +95,7 @@ class FileIndex(int_file_index.IFileIndex):
         self._remove_tokens: set[FileTokenT] = set()
         self._add_to_garbage: list[HgPathT] = []
         self._docket = FileIndex._load_docket(opener, try_pending)
+        testing.wait_on_cfg(ui, b"fileindex.pre-read-data-files")
         self._load_data_files()
 
     def _token_count(self) -> int:
@@ -328,7 +328,6 @@ class FileIndex(int_file_index.IFileIndex):
         return file_index_util.MetadataArray(self._load_meta_file())
 
     def _load_tree_file(self) -> memoryview:
-        testing.wait_on_cfg(self._ui, b"fileindex.pre-read-tree-file")
         path = self._tree_file_path()
         if path is None:
             return util.buffer(file_index_util.EMPTY_TREE_BYTES)

@@ -709,11 +709,11 @@ default=20
 
 [[items]]
 section = 'devel'
-name = 'sync.fileindex.pre-read-tree-file'
+name = 'sync.fileindex.pre-read-data-files'
 
 [[items]]
 section = 'devel'
-name = 'sync.fileindex.pre-read-tree-file-timeout'
+name = 'sync.fileindex.pre-read-data-files-timeout'
 default = 20
 
 [[items]]
