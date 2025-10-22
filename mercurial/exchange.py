@@ -42,6 +42,9 @@ from . import (
     util,
     wireprototypes,
 )
+from .exchanges import (
+    bundle_caps,
+)
 from .utils import (
     hashutil,
     stringutil,
@@ -1211,7 +1214,9 @@ def _pushbundle2(pushop):
 
     # create reply capability
     capsblob = bundle2.encodecaps(
-        bundle2.getrepocaps(pushop.repo, allowpushback=pushback, role=b'client')
+        bundle_caps.get_repo_caps(
+            pushop.repo, allowpushback=pushback, role=b'client'
+        )
     )
     bundler.newpart(b'replycaps', data=capsblob)
     replyhandlers = []
@@ -2388,7 +2393,7 @@ def _computeellipsis(repo, common, heads, known, match, depth=None):
 def caps20to10(repo, role):
     """return a set with appropriate options to use bundle20 during getbundle"""
     caps = {b'HG20'}
-    capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo, role=role))
+    capsblob = bundle2.encodecaps(bundle_caps.get_repo_caps(repo, role=role))
     caps.add(b'bundle2=' + urlreq.quote(capsblob))
     return caps
 

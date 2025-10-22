@@ -78,6 +78,7 @@ from .branching import (
 from .configuration import rcutil
 from .exchanges import (
     bundle_cache,
+    bundle_caps,
 )
 from .interfaces import (
     repository,
@@ -1277,7 +1278,7 @@ class localrepository(_localrepo_base_classes):
         if self.ui.configbool(b'experimental', b'bundle2-advertise'):
             caps = set(caps)
             capsblob = bundle2.encodecaps(
-                bundle2.getrepocaps(self, role=b'client')
+                bundle_caps.get_repo_caps(self, role=b'client')
             )
             caps.add(b'bundle2=' + urlreq.quote(capsblob))
         if self.ui.configbool(b'experimental', b'narrow'):

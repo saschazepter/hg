@@ -1835,7 +1835,9 @@ def addpartbundlestream2(
         hint = _(b'the client seems buggy')
         raise error.Abort(msg, hint=hint)
     client_supported = set(bundler.capabilities[b'stream'])
-    server_supported = set(getrepocaps(repo, role=b'client').get(b'stream', []))
+    server_supported = set(
+        bundle_caps.get_repo_caps(repo, role=b'client').get(b'stream', [])
+    )
     common_supported = client_supported & server_supported
     if not common_supported:
         msg = _(b'no common supported version with the client: %s; %s')

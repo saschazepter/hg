@@ -35,7 +35,10 @@ from .utils import (
     procutil,
     stringutil,
 )
-from .exchanges import bundle_cache as bundle_cache_util
+from .exchanges import (
+    bundle_cache as bundle_cache_util,
+    bundle_caps,
+)
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -377,7 +380,9 @@ def _capabilities(repo, proto):
         else:
             caps.append(b'streamreqs=%s' % b','.join(sorted(requiredformats)))
     if repo.ui.configbool(b'experimental', b'bundle2-advertise'):
-        capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo, role=b'server'))
+        capsblob = bundle2.encodecaps(
+            bundle_caps.get_repo_caps(repo, role=b'server')
+        )
         caps.append(b'bundle2=' + urlreq.quote(capsblob))
     caps.append(b'unbundle=%s' % b','.join(bundle2.bundlepriority))
 

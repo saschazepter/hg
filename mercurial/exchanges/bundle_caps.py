@@ -21,7 +21,7 @@ from .. import (
 
 
 # These are only the static capabilities.
-# Check the 'getrepocaps' function for the rest.
+# Check the 'get_repo_caps' function for the rest.
 capabilities: Capabilities = {
     b'HG20': (),
     b'bookmarks': (),
