@@ -43,6 +43,16 @@ pub fn u_i32(i: usize) -> i32 {
     i.try_into().expect("value too large for a i32")
 }
 
+#[inline(always)]
+pub fn u16_u(i: u16) -> usize {
+    i as usize
+}
+
+#[inline(always)]
+pub fn u_u16(i: usize) -> u16 {
+    i.try_into().expect("value too large for a u16")
+}
+
 pub fn current_dir() -> Result<std::path::PathBuf, HgError> {
     std::env::current_dir().map_err(|error| HgError::IoError {
         error,
