@@ -66,6 +66,7 @@ from .revlogutils.constants import (
     META_MARKER_SIZE,
     RANK_UNKNOWN,
     REVIDX_DEFAULT_FLAGS,
+    REVIDX_DELTA_INFO_FLAGS,
     REVIDX_DELTA_IS_SNAPSHOT,
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
@@ -3625,9 +3626,12 @@ class revlog:
             sidedata_offset = 0
 
         # drop previouly existing flags
-        flags &= ~REVIDX_DELTA_IS_SNAPSHOT
-        if self.delta_config.delta_info and deltainfo.snapshotdepth is not None:
-            flags |= REVIDX_DELTA_IS_SNAPSHOT
+        flags &= ~REVIDX_DELTA_INFO_FLAGS
+        if self.delta_config.delta_info:
+            if deltainfo.snapshotdepth is not None:
+                flags |= REVIDX_DELTA_IS_SNAPSHOT
+            if deltainfo.quality is not None:
+                flags |= deltainfo.quality.to_v1_flags()
 
         rank = RANK_UNKNOWN
         if self.feature_config.compute_rank:

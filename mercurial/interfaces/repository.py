@@ -78,6 +78,37 @@ FILEREVISION_FLAG_HASMETA = 1 << 11  # used only by filelog
 # XXX the two above could be combined in one
 REVISION_FLAG_DELTA_IS_SNAPSHOT = 1 << 10
 
+REVISION_FLAG_DELTA_HAS_QUALITY = 1 << 9
+"""Set when an index entry carry delta quality information"""
+
+REVISION_FLAG_DELTA_IS_GOOD = 1 << 8
+"""The stored delta was considered good at computation time
+
+This usually imply that delta folding was used to optimize this delta, but
+doesn't account for that folding being stopped "early" by encountering a
+snapshot.
+"""
+
+REVISION_FLAG_DELTA_P1_IS_SMALL = 1 << 7
+"""First parent provided a "smaller" delta
+
+Can be set at the same time as REVISION_FLAG_DELTA_P2_IS_SMALL when
+both parent provide delta of about the same size.
+
+This doesn't account for potential better result of folding patches from one
+parent or the other.
+"""
+
+REVISION_FLAG_DELTA_P2_IS_SMALL = 1 << 6
+"""Second parent provided a "smaller" delta
+
+Can be set at the same time as REVISION_FLAG_DELTA_P1_IS_SMALL when
+both parent provide delta of about the same size.
+
+This doesn't account for potential better result of folding patches from one
+parent or the other.
+"""
+
 REVISION_FLAGS_KNOWN = (
     REVISION_FLAG_CENSORED
     | REVISION_FLAG_ELLIPSIS
@@ -85,6 +116,10 @@ REVISION_FLAGS_KNOWN = (
     | REVISION_FLAG_HASCOPIESINFO
     | FILEREVISION_FLAG_HASMETA
     | REVISION_FLAG_DELTA_IS_SNAPSHOT
+    | REVISION_FLAG_DELTA_HAS_QUALITY
+    | REVISION_FLAG_DELTA_IS_GOOD
+    | REVISION_FLAG_DELTA_P1_IS_SMALL
+    | REVISION_FLAG_DELTA_P2_IS_SMALL
 )
 
 CG_DELTAMODE_STD = b'default'
@@ -528,6 +563,26 @@ class iverifyproblem(Protocol):
 
     ``None`` means the problem doesn't apply to a single revision.
     """
+
+
+class IDeltaQuality(Protocol):
+    GOOD_FACTOR = 1.05
+    """The "Good" threshold compared to the smallest parent size
+
+    Number arbitrarily picked.
+    """
+
+    """Information about the quality of a delta"""
+    is_good: bool
+    """the delta is considered good"""
+    p1_good: bool
+    """first parent is a good source of quality delta"""
+    p2_good: bool
+    """second parent is a good source of quality delta"""
+
+    @abc.abstractmethod
+    def to_v1_flags(self) -> int:
+        """return the quality as index flag for revlog v1"""
 
 
 class IInboundRevision(Protocol):

@@ -85,6 +85,29 @@ def entry(
 
 
 @attr.s(slots=True)
+class DeltaQuality(repository.IDeltaQuality):
+    """Information about the quality of a delta"""
+
+    is_good = attr.ib(type=bool, default=False)
+    """the delta is considered good"""
+    p1_small = attr.ib(type=bool, default=False)
+    """delta vs first parent produce a smaller delta"""
+    p2_small = attr.ib(type=bool, default=False)
+    """delta vs second parent produce a smaller delta"""
+
+    def to_v1_flags(self) -> int:
+        """serialize this information to revlog index flag"""
+        flags = repository.REVISION_FLAG_DELTA_HAS_QUALITY
+        if self.is_good:
+            flags |= repository.REVISION_FLAG_DELTA_IS_GOOD
+        if self.p1_small:
+            flags |= repository.REVISION_FLAG_DELTA_P1_IS_SMALL
+        if self.p2_small:
+            flags |= repository.REVISION_FLAG_DELTA_P2_IS_SMALL
+        return flags
+
+
+@attr.s(slots=True)
 class CachedDelta:
     base = attr.ib(type=RevnumT)
     """The revision number of the revision on which the delta apply on"""
@@ -174,6 +197,26 @@ class revisioninfo:
     cachedelta = attr.ib(type=Optional[CachedDelta])
     flags = attr.ib(type=int)
     cache = attr.ib(type=Optional[IDeltaCache], default=None)
+    tracked_parent_size = attr.ib(type=bool, default=False)
+    """True if the parent delta-size will be set
+
+    The parent delta-size might still be None after this if doing a delta
+    against them was hopeless.
+    """
+
+    p1_delta_u_size = attr.ib(type=Optional[int], default=None)
+    """The size of the uncompreseed delta against each p2, when applicable.
+
+    Use to determine if a delta is of "good quality" and which parent was the
+    best option.
+    """
+
+    p2_delta_u_size = attr.ib(type=Optional[int], default=None)
+    """The size of the uncompressed delta against each p1, when applicable.
+
+    Use to determine if a delta is of "good quality" and which parent was the
+    best option.
+    """
 
     @property
     def has_cached_delta(self):

@@ -504,13 +504,13 @@ Test uncopy on committed copies
   92988ecec422f81a0282fa84f92b1e0d  clone1-cg4/.hg/store/data/a.i
 
   $ md5sum.py part2/.hg/store/data/foo.i clone2*/.hg/store/data/foo.i
-  6215a0485af5ac8095073971b4150cf8  part2/.hg/store/data/foo.i
-  6215a0485af5ac8095073971b4150cf8  clone2-cg3/.hg/store/data/foo.i
-  6215a0485af5ac8095073971b4150cf8  clone2-cg4/.hg/store/data/foo.i
+  9feac37c4617f1fb57763b4909949835  part2/.hg/store/data/foo.i
+  9feac37c4617f1fb57763b4909949835  clone2-cg3/.hg/store/data/foo.i
+  9feac37c4617f1fb57763b4909949835  clone2-cg4/.hg/store/data/foo.i
   $ md5sum.py part2/.hg/store/data/bar.i clone2*/.hg/store/data/bar.i
-  57c6e58fbdde0f250629b2a9c71650fa  part2/.hg/store/data/bar.i
-  57c6e58fbdde0f250629b2a9c71650fa  clone2-cg3/.hg/store/data/bar.i
-  57c6e58fbdde0f250629b2a9c71650fa  clone2-cg4/.hg/store/data/bar.i
+  e830bd90a8c26363969697285899f376  part2/.hg/store/data/bar.i
+  e830bd90a8c26363969697285899f376  clone2-cg3/.hg/store/data/bar.i
+  e830bd90a8c26363969697285899f376  clone2-cg4/.hg/store/data/bar.i
   $ md5sum.py part2/.hg/store/data/baz.i clone2*/.hg/store/data/baz.i
   669c207ec134b978e6e04535384e0273  part2/.hg/store/data/baz.i
   669c207ec134b978e6e04535384e0273  clone2-cg3/.hg/store/data/baz.i

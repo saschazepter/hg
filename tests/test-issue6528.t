@@ -688,19 +688,21 @@ Upgrading to a revlog format with explicit meta flag tracking
   $ hg debugrevlogindex a.txt --format 1
      rev flag     size   link     p1     p2       nodeid
        0 0400       12      0     -1     -1 38ecb501c5f4
-       1 0400       14      1      0     -1 dd95142cd79c
-       2 0c00       82      4     -1     -1 24eaeb9b60a2
-       3 0400       19      5      2     -1 359eaa70a265
+       1 0780       14      1      0     -1 dd95142cd79c
+       2 0c00       82      4     -1     -1 24eaeb9b60a2 (pure !)
+       2 0e00       82      4     -1     -1 24eaeb9b60a2 (no-pure !)
+       3 0600       19      5      2     -1 359eaa70a265
   $ hg debugrevlogindex b.txt --format 1
      rev flag     size   link     p1     p2       nodeid
        0 0c00       80      2     -1     -1 05b806ebe5ea
        1 0800       82      3      0     -1 a58b36ad6b65
-       2 0c00       82      6     -1     -1 216a5fe8b8ed
+       2 0c00       82      6     -1     -1 216a5fe8b8ed (pure !)
+       2 0e00       82      6     -1     -1 216a5fe8b8ed (no-pure !)
        3 0800       85      7      2     -1 ea4f2f2463cc
   $ hg debugrevlogindex C.txt --format 1
      rev flag     size   link     p1     p2       nodeid
        0 0400       12      4     -1     -1 38ecb501c5f4
-       1 0400       14      5      0     -1 dd95142cd79c
+       1 0780       14      5      0     -1 dd95142cd79c
 
   $ hg debugrevlogindex D.txt --format 1
      rev flag     size   link     p1     p2       nodeid

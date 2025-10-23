@@ -49,7 +49,9 @@ from ..interfaces.types import (
 
 
 from ..thirdparty import attr
-from ..interfaces import compression
+from ..interfaces import (
+    compression,
+)
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -67,6 +69,7 @@ from ..utils import storageutil
 
 from . import (
     CachedDelta as CachedDeltaT,
+    DeltaQuality,
     IDeltaCache,
     config,
     flagutil,
@@ -642,7 +645,7 @@ def _textfromdelta(
     return fulltext
 
 
-@attr.s(slots=True, frozen=True)
+@attr.s(slots=True)
 class _DeltaInfo:
     distance = attr.ib(type=int)
     """The distance (in bytes) from the start to the end of the chain"""
@@ -662,6 +665,49 @@ class _DeltaInfo:
     """level of this snapshot (if this is snapshot)"""
     u_data = attr.ib(default=None, type=Optional[bytes])
     """the uncompressed data (when available)"""
+
+    quality = attr.ib(
+        default=None,
+        type=Optional[DeltaQuality],
+    )
+
+    def set_quality_info(self, revinfo: RevisionInfoT):
+        """Set the quality information for this delta if any
+
+        This usually have to be done after creating the _DeltaInfo because we
+        need size information from both parents to be able to set them.
+        """
+        if self.quality is not None:
+            return
+        if not revinfo.tracked_parent_size:
+            return
+        if self.u_data is None:
+            return
+
+        p1_size = revinfo.p1_delta_u_size
+        p2_size = revinfo.p2_delta_u_size
+        if p1_size is None and p2_size is None:
+            best_parent_size = None
+        elif p2_size is None:
+            best_parent_size = p1_size
+        elif p1_size is None:
+            best_parent_size = p2_size
+        else:
+            best_parent_size = min(p1_size, p2_size)
+
+        is_good = False
+        p1_small = False
+        p2_small = False
+        if best_parent_size is not None:
+            good_threshold = int(best_parent_size * DeltaQuality.GOOD_FACTOR)
+            is_good = len(self.u_data) <= good_threshold
+            if p1_size is not None:
+                p1_small = p1_size <= good_threshold
+            if p2_size is not None:
+                p2_small = p2_size <= good_threshold
+
+        q = DeltaQuality(is_good=is_good, p1_small=p1_small, p2_small=p2_small)
+        self.quality = q
 
 
 def drop_u_compression(delta: _DeltaInfo) -> _DeltaInfo:
@@ -713,6 +759,7 @@ class _BaseDeltaSearch(abc.ABC):
     here.
     """
 
+    track_good_delta = False
     optimize_by_folding = False
 
     def __init__(
@@ -1165,6 +1212,19 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             # snapshot phase.
             and self.current_stage in (_STAGE.PARENTS, _STAGE.CACHED)
         )
+
+    @property
+    def track_good_delta(self):
+        return (
+            self._may_optimize_by_folding
+            and self.revlog.delta_config.delta_both_parents
+        )
+
+    def _iter_parents(self) -> Iterator[Sequence[RevnumT]]:
+        # exclude already lazy tested base if any
+        if self.track_good_delta:
+            self.revinfo.tracked_parent_size = True
+        yield from super()._iter_parents()
 
     def is_good_delta_info(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the given delta is good.
@@ -1831,6 +1891,7 @@ class deltacomputer:
                 msg %= (base, target_rev)
                 raise error.ProgrammingError(msg)
 
+        p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
         # determine snapshot level when relevant.
         snapshotdepth = None
         if revlog.delta_config.sparse_revlog and deltabase == nullrev:
@@ -1838,7 +1899,6 @@ class deltacomputer:
         elif revlog.delta_config.sparse_revlog and as_snapshot:
             # if the base is one of p1 or p2, why are we even here ? This
             # doesn't look like a snapshot and we ignores it.
-            p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
             if deltabase not in (p1, p2):
                 if not revlog.issnapshot(deltabase):
                     # can't create a snapshot on a non-snapshot, abort.
@@ -1980,6 +2040,10 @@ class deltacomputer:
                     self._write_debug(msg)
 
             if optimize_by_folding is not None:
+                if deltabase == p1:
+                    revinfo.p1_delta_u_size = len(delta)
+                elif deltabase == p2:
+                    revinfo.p2_delta_u_size = len(delta)
                 new_delta_base = delta_fold.optimize_base(
                     delta,
                     self._iter_fold_candidates(deltabase),
@@ -2060,6 +2124,11 @@ class deltacomputer:
             rawtext = self.buildtext(revinfo)
             data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
+        quality = None
+        # if the full text is empty, doing full text is optimal already and
+        # delta against parent are useless.
+        if compresseddeltalen == 0:
+            quality = DeltaQuality(is_good=True)
         deltabase = chainbase = curr
         snapshotdepth = 0
         chainlen = 1
@@ -2074,6 +2143,7 @@ class deltacomputer:
             chainlen=chainlen,
             compresseddeltalen=compresseddeltalen,
             snapshotdepth=snapshotdepth,
+            quality=quality,
         )
 
     def finddeltainfo(
@@ -2143,6 +2213,7 @@ class deltacomputer:
                 dbg['type'] = b"full"
                 dbg['snapshot-depth'] = 0
                 self._dbg_process_data(dbg)
+            deltainfo.set_quality_info(revinfo)
             return deltainfo
 
         deltainfo = None
@@ -2213,6 +2284,10 @@ class deltacomputer:
                     else:
                         dbg['snapshot-depth'] = snapshotdepth
                     self._dbg_process_data(dbg)
+                # We do not inherit quality here because forcily reusing delta
+                # usually create weird chain and its usage is discouraged when
+                # a revlog use format that support delta-info flags anyway.
+                deltainfo.quality = None
                 return deltainfo
 
         # count the number of different delta we tried (for debug purpose)
@@ -2328,13 +2403,7 @@ class deltacomputer:
                     delta_start = util.timer()
 
                 fold_tolerance = None
-                if (
-                    self.revlog.delta_config.delta_info
-                    # currently only optimize during parent search and
-                    # cache reuse. Consider also using this during the
-                    # snapshot phase.
-                    and search.current_stage in (_STAGE.PARENTS, _STAGE.CACHED)
-                ):
+                if search.optimize_by_folding:
                     fold_tolerance = (
                         self.revlog.delta_config.delta_fold_tolerance
                     )
@@ -2419,6 +2488,8 @@ class deltacomputer:
             else:
                 dbg['snapshot-depth'] = -1
             self._dbg_process_data(dbg)
+
+        deltainfo.set_quality_info(revinfo)
         return deltainfo
 
     def _one_dbg_data(self) -> dict:
