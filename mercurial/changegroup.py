@@ -54,7 +54,7 @@ from . import (
 from .interfaces import (
     changegroup as i_cg,
     compression as i_comp,
-    repository,
+    repository as i_repo,
 )
 from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
@@ -1303,8 +1303,8 @@ def _resolvenarrowrevisioninfo(
 
 
 def deltagroup(
-    repo: repository.IRepo,
-    store: repository.IDeltaEmittingStore,
+    repo: i_repo.IRepo,
+    store: i_repo.IDeltaEmittingStore,
     nodes: list[NodeIdT],
     ischangelog: bool,
     # a node → link node function
@@ -1418,13 +1418,13 @@ def deltagroup(
         msg = _(b"""config "devel.bundle.delta" as unknown value: %s""")
         repo.ui.warn(msg % configtarget)
 
-    deltamode = repository.CG_DELTAMODE_STD
+    deltamode = i_repo.CG_DELTAMODE_STD
     if forcedeltaparentprev or configtarget == b'prev':
-        deltamode = repository.CG_DELTAMODE_PREV
+        deltamode = i_repo.CG_DELTAMODE_PREV
     elif configtarget == b'p1':
-        deltamode = repository.CG_DELTAMODE_P1
+        deltamode = i_repo.CG_DELTAMODE_P1
     elif configtarget == b'full':
-        deltamode = repository.CG_DELTAMODE_FULL
+        deltamode = i_repo.CG_DELTAMODE_FULL
 
     kwargs = {}
     if filelog_hasmeta:
@@ -1453,7 +1453,7 @@ def deltagroup(
                 p1node, p2node = adjustedparents[revision.node]
                 revision.p1node = p1node
                 revision.p2node = p2node
-                revision.flags |= repository.REVISION_FLAG_ELLIPSIS
+                revision.flags |= i_repo.REVISION_FLAG_ELLIPSIS
 
         else:
             linknode = lookup(revision.node)
