@@ -47,33 +47,10 @@ pub(crate) fn load_if_exists(
 }
 
 pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
-    let mut repo_reqs = reqs.clone();
-
-    // Check mutually exclusive, but required pairs
-    let mut one_of_reqs_used = vec![];
-    for (left, right) in ONE_OF {
-        let has_left = repo_reqs.contains(*left);
-        let has_right = repo_reqs.contains(*right);
-        if !(has_left ^ has_right) {
-            return Err(HgError::unsupported(format!(
-                "bad requirements, need exactly one of {} or {}",
-                left, right
-            )));
-        }
-        if has_left {
-            repo_reqs.remove(*left);
-            one_of_reqs_used.push(left);
-        } else {
-            repo_reqs.remove(*right);
-            one_of_reqs_used.push(right);
-        }
-    }
-
-    let unknown: Vec<_> = repo_reqs
+    let unknown: Vec<_> = reqs
         .iter()
         .map(String::as_str)
         .filter(|feature| {
-            // `ONE_OF` has been checked and relevant reqs removed
             !REQUIRED.contains(feature) && !SUPPORTED.contains(feature)
         })
         .collect();
@@ -83,17 +60,20 @@ pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
             join_display(&unknown, ", ")
         )));
     }
-    let missing: Vec<_> = REQUIRED
-        .iter()
-        .filter(|feature| {
-            !one_of_reqs_used.contains(feature)
-                && !repo_reqs.contains(**feature)
-        })
-        .collect();
+    let missing: Vec<_> =
+        REQUIRED.iter().filter(|&&feature| !reqs.contains(feature)).collect();
     if !missing.is_empty() {
         return Err(HgError::unsupported(format!(
             "repository is missing feature required by this Mercurial: {}",
             join_display(&missing, ", ")
+        )));
+    }
+    let has_dotencode = reqs.contains(DOTENCODE_REQUIREMENT);
+    let has_plainencode = reqs.contains(PLAIN_ENCODE_REQUIREMENT);
+    if !(has_dotencode ^ has_plainencode) {
+        return Err(HgError::unsupported(format!(
+            "bad requirements, need exactly one of {} or {}",
+            DOTENCODE_REQUIREMENT, PLAIN_ENCODE_REQUIREMENT
         )));
     }
     Ok(())
@@ -124,11 +104,9 @@ const SUPPORTED: &[&str] = &[
     NARROW_REQUIREMENT,
     // rhg doesn't care about bookmarks at all yet
     BOOKMARKS_IN_STORE_REQUIREMENT,
+    PLAIN_ENCODE_REQUIREMENT,
+    DOTENCODE_REQUIREMENT,
 ];
-
-/// rhg supports repositories with exactly one within each pair
-const ONE_OF: &[(&str, &str)] =
-    &[(PLAIN_ENCODE_REQUIREMENT, DOTENCODE_REQUIREMENT)];
 
 // Copied from mercurial/requirements.py:
 
@@ -255,7 +233,7 @@ mod tests {
         assert!(check(&create_reqs(&[DOTENCODE_REQUIREMENT])).is_ok());
         // all supported reqs
         let mut reqs = create_reqs(SUPPORTED);
-        reqs.insert(DOTENCODE_REQUIREMENT.to_string());
+        reqs.remove(PLAIN_ENCODE_REQUIREMENT);
         assert!(check(&reqs).is_ok());
 
         // no mutually exclusive reqs
