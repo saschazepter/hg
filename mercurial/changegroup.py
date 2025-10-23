@@ -323,9 +323,11 @@ class WireDeltaCompression(enum.IntEnum):
 
     @staticmethod
     def accepted(
-        caps: Collection[bytes],
+        caps: Collection[bytes] | None,
     ) -> frozenset[i_comp.RevlogCompHeader]:
         """return accepted compression from a bundle capability set"""
+        if caps is None:
+            return frozenset()
         b2caps = urlutil.b2_caps_from_bundle_caps(caps)
         cap_set = b2caps.get(b'delta-compression', ())
         accepted = set()
