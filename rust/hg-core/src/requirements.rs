@@ -101,7 +101,7 @@ pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
 
 /// rhg does not support repositories that are *missing* any of these features
 const REQUIRED: &[&str] =
-    &[REVLOGV1_REQUIREMENT, STORE_REQUIREMENT, FNCACHE_REQUIRMENT];
+    &[REVLOGV1_REQUIREMENT, STORE_REQUIREMENT, FNCACHE_REQUIREMENT];
 
 /// rhg supports repository with or without these
 const SUPPORTED: &[&str] = &[
@@ -136,7 +136,7 @@ pub const DIRSTATE_V2_REQUIREMENT: &str = "dirstate-v2";
 pub const GENERALDELTA_REQUIREMENT: &str = "generaldelta";
 pub const DOTENCODE_REQUIREMENT: &str = "dotencode";
 pub const STORE_REQUIREMENT: &str = "store";
-pub const FNCACHE_REQUIRMENT: &str = "fncache";
+pub const FNCACHE_REQUIREMENT: &str = "fncache";
 pub const PLAIN_ENCODE_REQUIREMENT: &str =
     "exp-very-fragile-and-unsafe-plain-store-encoding";
 
