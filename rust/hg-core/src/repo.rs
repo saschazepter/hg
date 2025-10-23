@@ -278,13 +278,14 @@ impl Repo {
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
         let repo_reqs = self.requirements();
+        let dotencode = repo_reqs.contains(DOTENCODE_REQUIREMENT);
         let plain_encoding = repo_reqs.contains(PLAIN_ENCODE_REQUIREMENT);
-        let encoding = if repo_reqs.contains(DOTENCODE_REQUIREMENT) {
+        let encoding = if plain_encoding {
             // checked before but doesn't hurt too much to check
-            assert!(!plain_encoding);
-            PathEncoding::DotEncode
-        } else if plain_encoding {
+            assert!(!dotencode);
             PathEncoding::Plain
+        } else if dotencode {
+            PathEncoding::DotEncode
         } else {
             unreachable!("invalid store encoding")
         };
