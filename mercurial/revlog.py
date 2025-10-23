@@ -4359,7 +4359,6 @@ class revlog:
             from_storage = (baserev == deltaparentrev) and (
                 deltamode != repository.CG_DELTAMODE_PREV
             )
-            snap_lvl = None
             if baserev == nullrev:
                 snap_lvl = 0
             elif from_storage and self.issnapshot(rev):
