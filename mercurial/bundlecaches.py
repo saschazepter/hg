@@ -403,7 +403,11 @@ digest_regex = re.compile(b'^[a-z0-9]+:[0-9a-f]+(,[a-z0-9]+:[0-9a-f]+)*$')
 
 
 def filterclonebundleentries(
-    repo, entries, streamclonerequested=False, pullbundles=False
+    repo,
+    entries,
+    streamclonerequested=False,
+    pullbundles=False,
+    store_fingerprint=None,
 ):
     """Remove incompatible clone bundle manifest entries.
 
@@ -423,6 +427,17 @@ def filterclonebundleentries(
             repo.ui.debug(
                 b'filtering %s because not a supported clonebundle scheme\n'
                 % url
+            )
+            continue
+
+        expected_fingerprint = entry.get(b"STORE-FINGERPRINT")
+        if (
+            store_fingerprint != expected_fingerprint
+            and expected_fingerprint is not None
+        ):
+            repo.ui.debug(
+                b'filtering %s because not the correct store fingerprint '
+                b'(expected %s)\n' % (url, expected_fingerprint)
             )
             continue
 

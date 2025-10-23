@@ -2936,8 +2936,12 @@ def _maybeapplyclonebundle(pullop):
         )
         return
 
+    store_fingerprint = None
     entries = bundlecaches.filterclonebundleentries(
-        repo, entries, streamclonerequested=pullop.streamclonerequested
+        repo,
+        entries,
+        streamclonerequested=pullop.streamclonerequested,
+        store_fingerprint=store_fingerprint,
     )
 
     if not entries:
