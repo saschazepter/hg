@@ -1526,6 +1526,11 @@ def istreemanifest(repo) -> bool:
     return requirementsmod.TREEMANIFEST_REQUIREMENT in repo.requirements
 
 
+def use_delta_info(repo) -> bool:
+    """returns whether the repository is delta_info in its revlog"""
+    return requirementsmod.DELTA_INFO_REQUIREMENT in repo.requirements
+
+
 def writereporequirements(repo, requirements=None, maywritestore=True) -> None:
     """writes requirements for the repo
 

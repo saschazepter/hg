@@ -1051,13 +1051,11 @@ able to stream its delta as is.
   > *:pulled-delta-reuse-policy = try-base
   > EOF
 
-XXX - changegroup-v4 should be enabled by default when delta-info-flag is used
 XXX - disabling the delta-parent reuse for now as it seems to get confuse about snapshot status.
 #if delta-info-flags
   $ cat << EOF >> $HGRCPATH
   > [path]
   > *:pulled-delta-reuse-policy = default
-  > changegroup4 = yes
   > EOF
 #endif
 

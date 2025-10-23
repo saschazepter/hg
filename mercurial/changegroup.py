@@ -2569,7 +2569,10 @@ def allsupportedversions(repo):
         needv03 = True
     if not needv03:
         versions.discard(b'03')
-    want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    if repo.ui.config_is_set(b'experimental', b'changegroup4'):
+        want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    else:
+        want_v4 = scmutil.use_delta_info(repo)
     if not want_v4:
         versions.discard(b'04')
     want_v5 = (
