@@ -75,8 +75,19 @@ _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
 # node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
-# node p1node p2node basenode linknode flags snapshot_level raw_size compression delta_flag
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbIBB")
+# node
+# p1node
+# p2node
+# basenode
+# linknode
+# flags
+# snapshot_level
+# raw_size
+# compression
+# delta_flag
+# storage_base_node
+# storage_snapshot_level
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbIBB20sb")
 _CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
@@ -389,6 +400,8 @@ class _DeltaHeader:
     raw_text_size = attr.ib(type=Optional[int], default=None)
     compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
     quality = attr.ib(type=Optional[i_repo.IDeltaQuality], default=None)
+    storage_delta_base = attr.ib(type=Optional[NodeIdT], default=None)
+    storage_snapshot_level = attr.ib(type=Optional[int], default=None)
 
 
 class cg1unpacker(i_cg.IChangeGroupUnpacker):
@@ -536,6 +549,8 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
             compression=header.compression,
+            other_storage_delta_base=header.storage_delta_base,
+            other_storage_snapshot_level=header.storage_snapshot_level,
         )
 
     def getchunks(self):
@@ -1056,6 +1071,7 @@ class cg4unpacker(cg3unpacker):
     - "hasmeta" flag for filelog
     - snapshot level
     - delta quality
+    - delta base and snapshot level in the source storage
     """
 
     deltaheader = _CHANGEGROUPV4_DELTA_HEADER
@@ -1080,6 +1096,8 @@ class cg4unpacker(cg3unpacker):
             raw_size,
             encoded_comp,
             protocol_flags,
+            stored_base,
+            stored_snap_lvl,
         ) = headertuple
         wire_comp = WireDeltaCompression(encoded_comp)
         if snapshot_level < -1:
@@ -1099,6 +1117,8 @@ class cg4unpacker(cg3unpacker):
             compression=wire_comp.to_revlog_compression(),
             protocol_flags=protocol_flags,
             quality=quality,
+            storage_delta_base=stored_base,
+            storage_snapshot_level=stored_snap_lvl,
         )
 
 
@@ -2479,6 +2499,15 @@ class ChangeGroupPacker04(cgpacker):
             d.raw_revision_size,
             wire_comp,
             protocol_flags,
+            # TODO: When d.basenode == d.storage_delta_base, serializing
+            # these is redundant. So we could save space by only included them
+            # when they differ having a variable size header.
+            #
+            # However I suspect that compression may very well deal with this
+            # for use, so let duplicate the information and see what happens in
+            # practice.
+            d.stored_delta_base,
+            d.stored_snapshot_level,
         )
 
     def __init__(
