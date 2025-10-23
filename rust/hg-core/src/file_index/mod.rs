@@ -41,6 +41,9 @@ use crate::vfs::VfsImpl;
 mod mutable_tree;
 mod on_disk;
 
+#[cfg(test)]
+mod tests;
+
 /// Minimum size of the tree file in bytes before auto-vacuuming starts.
 ///
 /// The value was picked by adding files one by one in individual transaction.

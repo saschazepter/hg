@@ -28,7 +28,7 @@ use crate::utils::u_u16;
 use crate::utils::u_u32;
 
 /// Error type for file index corruption.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     BadFormatMarker,
     DocketFileEof,
