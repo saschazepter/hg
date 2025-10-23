@@ -155,11 +155,7 @@ def new_repo_requirements(ui, createopts):
     if ui.configbool(b'format', b'use-dirstate-v2'):
         requirements.add(requirementsmod.DIRSTATE_V2_REQUIREMENT)
 
-    # experimental config: format.exp-use-hasmeta-flag
-    if ui.configbool(b'format', b'exp-use-hasmeta-flag'):
-        requirements.add(requirementsmod.FILELOG_METAFLAG_REQUIREMENT)
-
-    # experimental config: format.exp-use-hasmeta-flag
+    # experimental config: format.exp-use-delta-info-flags
     if ui.configbool(b'format', b'exp-use-delta-info-flags'):
         requirements.add(requirementsmod.DELTA_INFO_REQUIREMENT)
 

@@ -378,32 +378,6 @@ class sharesafe(requirementformatvariant):
 
 
 @registerformatvariant
-class hasmeta_filelog(requirementformatvariant):
-    name: ClassVar[bytes] = b'hasmeta_flag'
-
-    _requirement: ClassVar[
-        RequirementT
-    ] = requirements.FILELOG_METAFLAG_REQUIREMENT
-
-    default: ClassVar[bool] = False
-
-    description: ClassVar[bytes] = _(
-        b'copy metadata in filelog uses a fragile marking and some cases '
-        b'require unpacking file content to determine if copy information '
-        b'exists.'
-    )
-
-    upgrademessage: ClassVar[bytes] = _(
-        b'A dedicated index flag marks file revisions with copy information.'
-    )
-
-    # upgrade only needs to process the filelogs
-    touches_filelogs: ClassVar[bool] = True
-    touches_manifests: ClassVar[bool] = False
-    touches_changelog: ClassVar[bool] = False
-
-
-@registerformatvariant
 class sparserevlog(requirementformatvariant):
     name: ClassVar[bytes] = b'sparserevlog'
 
@@ -439,7 +413,10 @@ class delta_info_flags(requirementformatvariant):
 
     description: ClassVar[bytes] = _(
         b'Store information about stored delta in the index to help optimize '
-        b'local and remote delta chain.'
+        b'local and remote delta chain and stop using a fragile marking to '
+        b'signal copy metadata presence that requires copy metadata in '
+        b'filelog uses a fragile marking and some cases require unpacking file'
+        b' content to determine if copy information exists in some case.'
     )
 
     upgrademessage: ClassVar[bytes] = _(
@@ -1174,7 +1151,6 @@ def supportremovedrequirements(
         requirements.DIRSTATE_TRACKED_HINT_V1,
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
-        requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
         requirements.PLAIN_ENCODE_REQUIREMENT,
         requirements.REVLOGV1_REQUIREMENT,
@@ -1211,7 +1187,6 @@ def supporteddestrequirements(repo: RepoT) -> RequirementSetT:
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
         requirements.FILEINDEXV1_REQUIREMENT,
-        requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
         requirements.NARROW_REQUIREMENT,
@@ -1252,7 +1227,6 @@ def allowednewrequirements(repo: RepoT) -> RequirementSetT:
         requirements.DIRSTATE_V2_REQUIREMENT,
         requirements.DOTENCODE_REQUIREMENT,
         requirements.FILEINDEXV1_REQUIREMENT,
-        requirements.FILELOG_METAFLAG_REQUIREMENT,
         requirements.FNCACHE_REQUIREMENT,
         requirements.GENERALDELTA_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,

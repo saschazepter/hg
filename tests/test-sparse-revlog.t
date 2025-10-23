@@ -237,7 +237,7 @@ sanity check the change pattern
   $ cat ../revlog-stats-reference.txt
   format : 1
   flags  : generaldelta (flagless !)
-  flags  : generaldelta, delta-info (delta-info-flags !)
+  flags  : generaldelta, hasmeta, delta-info (delta-info-flags !)
   
   revisions     :     5001
       merges    :      625 (12.50%)
@@ -1195,7 +1195,7 @@ Upgrading to/from delta-info-flags
   +++ ../revlog-stats-post-upgrade.txt* (glob)
   @@ -1,5 +1,5 @@
    format : 1
-  -flags  : generaldelta, delta-info
+  -flags  : generaldelta, hasmeta, delta-info
   +flags  : generaldelta
    
    revisions     :     5001
@@ -1305,7 +1305,7 @@ Upgrading to/from delta-info-flags
   @@ -1,5 +1,5 @@
    format : 1
   -flags  : generaldelta
-  +flags  : generaldelta, delta-info
+  +flags  : generaldelta, hasmeta, delta-info
    
    revisions     :     5001
        merges    :      625 (12.50%)

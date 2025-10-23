@@ -151,11 +151,9 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
     if requirementsmod.GENERALDELTA_REQUIREMENT in requirements:
         options[b'generaldelta'] = True
 
-    if requirementsmod.FILELOG_METAFLAG_REQUIREMENT in requirements:
-        options[b'filelog_hasmeta_flag'] = True
-
     if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
         options[b'delta-info-flags'] = True
+        options[b'filelog_hasmeta_flag'] = True
 
     # experimental config: format.chunkcachesize
     chunkcachesize = ui.configint(b'format', b'chunkcachesize')

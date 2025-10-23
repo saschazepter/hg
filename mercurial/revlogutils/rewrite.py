@@ -947,15 +947,17 @@ def _find_all_snapshots(rl):
     return snapshots
 
 
-def quick_upgrade(rl, upgrade_meta, upgrade_delta_info):
+def quick_upgrade(rl):
     assert rl._format_flags & constants.FLAG_GENERALDELTA
 
+    upgrade_meta = True
     if rl.target[0] != constants.KIND_FILELOG:
         upgrade_meta = False
 
     if upgrade_meta and rl._format_flags & constants.FLAG_FILELOG_META:
         upgrade_meta = False
 
+    upgrade_delta_info = True
     if rl.target[0] not in (constants.KIND_FILELOG, constants.KIND_MANIFESTLOG):
         upgrade_delta_info = False
 

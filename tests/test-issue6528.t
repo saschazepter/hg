@@ -617,11 +617,11 @@ And that the repair command find issue to fix.
 Upgrading to explicit meta flags
 --------------------------------
 
-  $ hg init upgrade-to-has-meta --config format.exp-use-hasmeta-flag=no
+  $ hg init upgrade-to-has-meta --config format.exp-use-delta-info-flags=no
   $ cd upgrade-to-has-meta
-  $ hg debugformat hasmeta_flag
+  $ hg debugformat delta-info-flags
   format-variant                 repo
-  hasmeta_flag:                    no
+  delta-info-flags:                no
 
   $ hg unbundle "$TESTDIR"/bundles/issue6528.hg-v2 --config storage.revlog.issue6528.fix-incoming=no
   adding changesets
@@ -669,41 +669,42 @@ That we do see the symptoms of the bug
 
 Upgrading to a revlog format with explicit meta flag tracking
 
-  $ hg debugupgraderepo --run --config format.exp-use-hasmeta-flag=yes --quiet
+  $ hg debugupgraderepo --run --config format.exp-use-delta-info-flags=yes --quiet
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     added: exp-filelog-metaflag
+     added: exp-delta-info-revlog
   
   processed revlogs:
     - all-filelogs
+    - manifest
   
-  $ hg debugformat hasmeta_flag
+  $ hg debugformat delta-info-flags
   format-variant                 repo
-  hasmeta_flag:                   yes
+  delta-info-flags:               yes
 
 
   $ hg debugrevlogindex a.txt --format 1
      rev flag     size   link     p1     p2       nodeid
-       0 0000       12      0     -1     -1 38ecb501c5f4
-       1 0000       14      1      0     -1 dd95142cd79c
-       2 0800       82      4     -1     -1 24eaeb9b60a2
-       3 0000       19      5      2     -1 359eaa70a265
+       0 0400       12      0     -1     -1 38ecb501c5f4
+       1 0400       14      1      0     -1 dd95142cd79c
+       2 0c00       82      4     -1     -1 24eaeb9b60a2
+       3 0400       19      5      2     -1 359eaa70a265
   $ hg debugrevlogindex b.txt --format 1
      rev flag     size   link     p1     p2       nodeid
-       0 0800       80      2     -1     -1 05b806ebe5ea
+       0 0c00       80      2     -1     -1 05b806ebe5ea
        1 0800       82      3      0     -1 a58b36ad6b65
-       2 0800       82      6     -1     -1 216a5fe8b8ed
+       2 0c00       82      6     -1     -1 216a5fe8b8ed
        3 0800       85      7      2     -1 ea4f2f2463cc
   $ hg debugrevlogindex C.txt --format 1
      rev flag     size   link     p1     p2       nodeid
-       0 0000       12      4     -1     -1 38ecb501c5f4
-       1 0000       14      5      0     -1 dd95142cd79c
+       0 0400       12      4     -1     -1 38ecb501c5f4
+       1 0400       14      5      0     -1 dd95142cd79c
 
   $ hg debugrevlogindex D.txt --format 1
      rev flag     size   link     p1     p2       nodeid
-       0 0800       80      6     -1     -1 2a8d3833f2fb
+       0 0c00       80      6     -1     -1 2a8d3833f2fb
        1 0800       82      7      0     -1 2a80419dfc31
 
 We no longer see the bug
@@ -713,26 +714,27 @@ We no longer see the bug
     a.txt
   R a.txt
   $ hg debugrevlog b.txt | grep flags
-  flags  : generaldelta, hasmeta
+  flags  : generaldelta, hasmeta, delta-info
   $ hg debugrevlog D.txt | grep flags
-  flags  : generaldelta, hasmeta
+  flags  : generaldelta, hasmeta, delta-info
   $ hg status
 
 Downgrading does not regress
 
-  $ hg debugupgraderepo --run --config format.exp-use-hasmeta-flag=no --quiet
+  $ hg debugupgraderepo --run --config format.exp-use-delta-info-flags=no --quiet
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     removed: exp-filelog-metaflag
+     removed: exp-delta-info-revlog
   
   processed revlogs:
     - all-filelogs
+    - manifest
   
-  $ hg debugformat hasmeta_flag
+  $ hg debugformat delta-info-flags
   format-variant                 repo
-  hasmeta_flag:                    no
+  delta-info-flags:                no
 
   $ hg debugrevlogindex a.txt --format 1
      rev flag     size   link     p1     p2       nodeid
@@ -770,7 +772,7 @@ Downgrading does not regress
 
 upgrading with fast upgrade
 
-  $ hg debugrequires | grep flag
+  $ hg debugrequires | grep delta-info
   [1]
   $ hg debugrevlog a.txt | grep flags
   flags  : generaldelta
@@ -786,8 +788,8 @@ upgrading with fast upgrade
   adding delta-info flag to filelogs and manifests
   upgraded 5 filelog
 
-  $ hg debugrequires | grep flag
-  exp-filelog-metaflag
+  $ hg debugrequires | grep delta-info
+  exp-delta-info-revlog
   $ hg debugrevlog a.txt | grep flags
   flags  : generaldelta, hasmeta, delta-info
   $ hg debugrevlog b.txt | grep flags

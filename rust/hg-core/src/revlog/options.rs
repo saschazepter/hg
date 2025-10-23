@@ -13,7 +13,6 @@ use crate::config::ResourceProfileValue;
 use crate::errors::HgError;
 use crate::requirements::CHANGELOGV2_REQUIREMENT;
 use crate::requirements::DELTA_INFO_REQUIREMENT;
-use crate::requirements::FILELOG_METAFLAG_REQUIREMENT;
 use crate::requirements::GENERALDELTA_REQUIREMENT;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::requirements::NODEMAP_REQUIREMENT;
@@ -435,7 +434,7 @@ impl RevlogFeatureConfig {
         Ok(Self {
             compression_engine: CompressionConfig::new(config, requirements)?,
             enable_ellipsis: requirements.contains(NARROW_REQUIREMENT),
-            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            hasmeta_flag: requirements.contains(DELTA_INFO_REQUIREMENT),
             ignore_filelog_censored_revisions,
             ..Default::default()
         })
@@ -450,24 +449,23 @@ pub fn default_revlog_options(
     revlog_type: RevlogType,
 ) -> Result<RevlogOpenOptions, HgError> {
     let is_changelog = revlog_type == RevlogType::Changelog;
-    let version = if is_changelog
-        && requirements.contains(CHANGELOGV2_REQUIREMENT)
-    {
-        let compute_rank =
-            config.get_bool(b"experimental", b"changelog-v2.compute-rank")?;
-        RevlogVersionOptions::ChangelogV2 { compute_rank }
-    } else if requirements.contains(REVLOGV2_REQUIREMENT) {
-        RevlogVersionOptions::V2
-    } else if requirements.contains(REVLOGV1_REQUIREMENT) {
-        RevlogVersionOptions::V1 {
-            general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
-            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
-            delta_info: requirements.contains(DELTA_INFO_REQUIREMENT),
-            inline: !is_changelog,
-        }
-    } else {
-        RevlogVersionOptions::V0
-    };
+    let version =
+        if is_changelog && requirements.contains(CHANGELOGV2_REQUIREMENT) {
+            let compute_rank = config
+                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
+            RevlogVersionOptions::ChangelogV2 { compute_rank }
+        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
+            RevlogVersionOptions::V2
+        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
+            RevlogVersionOptions::V1 {
+                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
+                hasmeta_flag: requirements.contains(DELTA_INFO_REQUIREMENT),
+                delta_info: requirements.contains(DELTA_INFO_REQUIREMENT),
+                inline: !is_changelog,
+            }
+        } else {
+            RevlogVersionOptions::V0
+        };
     Ok(RevlogOpenOptions {
         version,
         // We don't need to dance around the slow path like in the Python

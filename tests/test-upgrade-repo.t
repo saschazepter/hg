@@ -223,7 +223,6 @@ An upgrade of a repository created with recommended settings only suggests optim
   fragile-plain-encode:            no
   generaldelta:                   yes
   share-safe:                     yes
-  hasmeta_flag:                    no
   sparserevlog:                   yes
   delta-info-flags:                no
   persistent-nodemap:              no (no-rust !)
@@ -244,7 +243,6 @@ An upgrade of a repository created with recommended settings only suggests optim
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -266,7 +264,6 @@ An upgrade of a repository created with recommended settings only suggests optim
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -288,7 +285,6 @@ An upgrade of a repository created with recommended settings only suggests optim
   [formatvariant.name.uptodate|fragile-plain-encode:          ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|generaldelta:                  ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|share-safe:                    ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
-  [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|sparserevlog:                  ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|delta-info-flags:              ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|persistent-nodemap:            ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
@@ -349,12 +345,6 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "share-safe",
     "repo": true
-   },
-   {
-    "config": false,
-    "default": false,
-    "name": "hasmeta_flag",
-    "repo": false
    },
    {
     "config": true,
@@ -571,7 +561,6 @@ Various sub-optimal detections work
   fragile-plain-encode:            no
   generaldelta:                    no
   share-safe:                      no
-  hasmeta_flag:                    no
   sparserevlog:                    no
   delta-info-flags:                no
   persistent-nodemap:              no
@@ -591,7 +580,6 @@ Various sub-optimal detections work
   fragile-plain-encode:            no     no      no
   generaldelta:                    no    yes     yes
   share-safe:                      no    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                    no    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -613,7 +601,6 @@ Various sub-optimal detections work
   fragile-plain-encode:            no     no      no
   generaldelta:                    no     no     yes
   share-safe:                      no    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                    no     no     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -635,7 +622,6 @@ Various sub-optimal detections work
   [formatvariant.name.uptodate|fragile-plain-encode:          ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|generaldelta:                  ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.mismatchconfig|share-safe:                    ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
-  [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|sparserevlog:                  ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.uptodate|delta-info-flags:              ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|persistent-nodemap:            ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
@@ -1892,7 +1878,7 @@ upgrade
   flags  : inline, generaldelta, delta-info
   $ hg debugrevlog foo | grep -E 'flags|format'
   format : 1
-  flags  : inline, generaldelta, delta-info
+  flags  : inline, generaldelta, hasmeta, delta-info
 
 downgrade
 
@@ -1914,7 +1900,7 @@ downgrade
   flags  : inline, generaldelta, delta-info
   $ hg debugrevlog foo | grep -E 'flags|format'
   format : 1
-  flags  : inline, generaldelta, delta-info
+  flags  : inline, generaldelta, hasmeta, delta-info
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
   >    --config format.exp-use-delta-info-flags=no
@@ -2082,7 +2068,6 @@ upgrade
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -2135,7 +2120,6 @@ downgrade
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -2190,7 +2174,6 @@ upgrade from hgrc
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)

@@ -186,10 +186,6 @@ pub const CHANGELOGV2_REQUIREMENT: &str = "exp-changelog-v2";
 #[allow(unused)]
 pub const SPARSEREVLOG_REQUIREMENT: &str = "sparserevlog";
 
-/// The filelog uses explicit flag in the index to mark file revision that
-/// contains metadata.
-pub const FILELOG_METAFLAG_REQUIREMENT: &str = "exp-filelog-metaflag";
-
 /// Revlog stores extra information about delta
 #[allow(unused)]
 pub const DELTA_INFO_REQUIREMENT: &str = "exp-delta-info-revlog";

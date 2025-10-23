@@ -3,12 +3,12 @@
 #if meta-flag
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-hasmeta-flag=yes
+  > exp-use-delta-info-flags=yes
   > EOF
 #else
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-hasmeta-flag=no
+  > exp-use-delta-info-flags=no
   > EOF
 #endif
 
@@ -102,9 +102,9 @@ this should show the rename information in the metadata
 
 #if meta-flag
   $ md5sum.py .hg/store/data/b.i
-  20472919b624970ca611b84700c72304  .hg/store/data/b.i
+  152daea7c98c398cf7a70300bb823e94  .hg/store/data/b.i
   $ hg debugrevlog b | grep flags
-  flags  : inline, generaldelta, hasmeta
+  flags  : inline, generaldelta, hasmeta, delta-info
 #else
   $ md5sum.py .hg/store/data/b.i
   44913824c8f5890ae218f9829535922e  .hg/store/data/b.i
@@ -495,30 +495,30 @@ Test uncopy on committed copies
 
 #if meta-flag
   $ md5sum.py part1/.hg/store/data/b.i clone1*/.hg/store/data/b.i
-  20472919b624970ca611b84700c72304  part1/.hg/store/data/b.i
-  20472919b624970ca611b84700c72304  clone1-cg3/.hg/store/data/b.i
-  20472919b624970ca611b84700c72304  clone1-cg4/.hg/store/data/b.i
+  152daea7c98c398cf7a70300bb823e94  part1/.hg/store/data/b.i
+  152daea7c98c398cf7a70300bb823e94  clone1-cg3/.hg/store/data/b.i
+  152daea7c98c398cf7a70300bb823e94  clone1-cg4/.hg/store/data/b.i
   $ md5sum.py part1/.hg/store/data/a.i clone1*/.hg/store/data/a.i
-  24d79f4139052e75e98742bd9e9c774a  part1/.hg/store/data/a.i
-  24d79f4139052e75e98742bd9e9c774a  clone1-cg3/.hg/store/data/a.i
-  24d79f4139052e75e98742bd9e9c774a  clone1-cg4/.hg/store/data/a.i
+  92988ecec422f81a0282fa84f92b1e0d  part1/.hg/store/data/a.i
+  92988ecec422f81a0282fa84f92b1e0d  clone1-cg3/.hg/store/data/a.i
+  92988ecec422f81a0282fa84f92b1e0d  clone1-cg4/.hg/store/data/a.i
 
   $ md5sum.py part2/.hg/store/data/foo.i clone2*/.hg/store/data/foo.i
-  651dc40f4d89883b9d0bfb1ffaa3d617  part2/.hg/store/data/foo.i
-  651dc40f4d89883b9d0bfb1ffaa3d617  clone2-cg3/.hg/store/data/foo.i
-  651dc40f4d89883b9d0bfb1ffaa3d617  clone2-cg4/.hg/store/data/foo.i
+  6215a0485af5ac8095073971b4150cf8  part2/.hg/store/data/foo.i
+  6215a0485af5ac8095073971b4150cf8  clone2-cg3/.hg/store/data/foo.i
+  6215a0485af5ac8095073971b4150cf8  clone2-cg4/.hg/store/data/foo.i
   $ md5sum.py part2/.hg/store/data/bar.i clone2*/.hg/store/data/bar.i
-  b52f445dd407671a6277ce4dbcffb992  part2/.hg/store/data/bar.i
-  b52f445dd407671a6277ce4dbcffb992  clone2-cg3/.hg/store/data/bar.i
-  b52f445dd407671a6277ce4dbcffb992  clone2-cg4/.hg/store/data/bar.i
+  57c6e58fbdde0f250629b2a9c71650fa  part2/.hg/store/data/bar.i
+  57c6e58fbdde0f250629b2a9c71650fa  clone2-cg3/.hg/store/data/bar.i
+  57c6e58fbdde0f250629b2a9c71650fa  clone2-cg4/.hg/store/data/bar.i
   $ md5sum.py part2/.hg/store/data/baz.i clone2*/.hg/store/data/baz.i
-  525c4d70b3f86d77993391629985e62b  part2/.hg/store/data/baz.i
-  525c4d70b3f86d77993391629985e62b  clone2-cg3/.hg/store/data/baz.i
-  525c4d70b3f86d77993391629985e62b  clone2-cg4/.hg/store/data/baz.i
+  669c207ec134b978e6e04535384e0273  part2/.hg/store/data/baz.i
+  669c207ec134b978e6e04535384e0273  clone2-cg3/.hg/store/data/baz.i
+  669c207ec134b978e6e04535384e0273  clone2-cg4/.hg/store/data/baz.i
   $ md5sum.py part2/.hg/store/data/qux.i clone2*/.hg/store/data/qux.i
-  003ccc7043b63c06e93fdce109b10417  part2/.hg/store/data/qux.i
-  003ccc7043b63c06e93fdce109b10417  clone2-cg3/.hg/store/data/qux.i
-  003ccc7043b63c06e93fdce109b10417  clone2-cg4/.hg/store/data/qux.i
+  21a3aea21d539df4c1631df4d07ad8a3  part2/.hg/store/data/qux.i
+  21a3aea21d539df4c1631df4d07ad8a3  clone2-cg3/.hg/store/data/qux.i
+  21a3aea21d539df4c1631df4d07ad8a3  clone2-cg4/.hg/store/data/qux.i
 #else
   $ md5sum.py part1/.hg/store/data/b.i clone1*/.hg/store/data/b.i
   44913824c8f5890ae218f9829535922e  part1/.hg/store/data/b.i

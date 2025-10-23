@@ -80,10 +80,6 @@ REVLOGV2_REQUIREMENT: Final[RequirementT] = b'exp-revlogv2.2'
 # This is why once a repository has enabled sparse-read, it becomes required.
 SPARSEREVLOG_REQUIREMENT: Final[RequirementT] = b'sparserevlog'
 
-# The filelog uses explicit flag in the index to mark file revision that
-# contains metadata.
-FILELOG_METAFLAG_REQUIREMENT: Final[RequirementT] = b'exp-filelog-metaflag'
-
 # revlogs holds information about their delta. Especially, snapshot are
 # explicitly flag as such.
 DELTA_INFO_REQUIREMENT: Final[RequirementT] = b'exp-delta-info-revlog'
