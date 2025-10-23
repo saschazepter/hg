@@ -242,6 +242,8 @@ class OutboundRevision(repository.IOutboundRevision):
     snapshot_level = attr.ib(default=None, type=Optional[int])
     compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
     quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)
+    stored_delta_base = attr.ib(type=Optional[NodeIdT], default=None)
+    stored_snapshot_level = attr.ib(type=Optional[int], default=None)
 
 
 @attr.s(frozen=True)
@@ -4358,19 +4360,18 @@ class revlog:
             from_storage = (baserev == deltaparentrev) and (
                 deltamode != repository.CG_DELTAMODE_PREV
             )
-            if baserev == nullrev:
-                snap_lvl = 0
-            elif from_storage and self.issnapshot(rev):
-                # If baserev != deltaparentrev we recomputed it, so it is not a
-                # snapshot
-                snap_lvl = self.snapshotdepth(rev)
+            stored_base = self.node(deltaparentrev)
+            if self.issnapshot(rev):
+                stored_snap_lvl = self.snapshotdepth(rev)
             else:
-                snap_lvl = -1
-
+                stored_snap_lvl = -1
             if from_storage:
                 quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+                snap_lvl = stored_snap_lvl
             else:
                 quality = None
+                snap_lvl = -1
+
             # flag about the delta they are transmitted through the
             # OutboundRevision and can be dropped here.
             flags &= ~REVIDX_DELTA_INFO_FLAGS
@@ -4390,6 +4391,8 @@ class revlog:
                 snapshot_level=snap_lvl,
                 compression=comp,
                 quality=quality,
+                stored_delta_base=stored_base,
+                stored_snapshot_level=stored_snap_lvl,
             )
 
             prevrev = rev

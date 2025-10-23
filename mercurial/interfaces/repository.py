@@ -715,6 +715,14 @@ class IOutboundRevision(Protocol):
     Set to None if no information is available about snapshot level.
     """
 
+    stored_delta_base: NodeIdT | None
+    """The delta base used by the storage from which this revision is emitted
+    """
+
+    stored_snapshot_level: NodeIdT | None
+    """The snapshot level of this rev in the storage from which it is emitted
+    """
+
 
 class IDeltaEmittingStore(Protocol):
     """A storage class capable of emitting OutboundRevisionT
