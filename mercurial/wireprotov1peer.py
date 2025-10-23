@@ -349,7 +349,7 @@ class wirepeer(
 
     def clonebundles(self):
         if self.capable(b'clonebundles_manifest'):
-            return self._call(b'clonebundles_manifest')
+            return self._call(b'clonebundles_manifest', store_fingerprint=b'1')
         else:
             self.requirecap(b'clonebundles', _(b'clone bundles'))
             return self._call(b'clonebundles')
