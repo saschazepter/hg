@@ -1050,7 +1050,10 @@ class cg3unpacker(cg2unpacker):
 class cg4unpacker(cg3unpacker):
     """Changegroup 4 support more advanced flag for each delta.
 
+    - exchange of full-text without wrapping in a delta
+    - exchange compressed delta and full text
     - "hasmeta" flag for filelog
+    - snapshot level
     """
 
     deltaheader = _CHANGEGROUPV4_DELTA_HEADER
