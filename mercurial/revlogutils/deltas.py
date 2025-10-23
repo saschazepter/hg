@@ -713,6 +713,8 @@ class _BaseDeltaSearch(abc.ABC):
     here.
     """
 
+    optimize_by_folding = False
+
     def __init__(
         self,
         revlog: RevlogT,
@@ -1147,6 +1149,22 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
 class _SparseDeltaSearch(_GeneralDeltaSearch):
     """Delta search variants for sparse-revlog"""
+
+    @property
+    def _may_optimize_by_folding(self):
+        # XXX consider only using the Python folding code when explicitly
+        # requested as it is slower than the Rust code.
+        return self.revlog.delta_config.delta_info
+
+    @property
+    def optimize_by_folding(self):
+        return (
+            self._may_optimize_by_folding
+            # currently only optimize during parent search and
+            # cache reuse. Consider also using this during the
+            # snapshot phase.
+            and self.current_stage in (_STAGE.PARENTS, _STAGE.CACHED)
+        )
 
     def is_good_delta_info(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the given delta is good.
