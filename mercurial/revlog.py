@@ -41,6 +41,11 @@ from .node import (
     wdirrev,
 )
 from .i18n import _
+from .interfaces.types import (
+    NodeIdT,
+    OutboundRevisionT,
+    RevnumT,
+)
 from .revlogutils.constants import (
     ALL_KINDS,
     CHANGELOGV2,
@@ -95,12 +100,6 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
     from .pure.parsers import BaseIndexObject
-
-    from .interfaces.types import (
-        NodeIdT,
-        OutboundRevisionT,
-        RevnumT,
-    )
 
 from . import (
     ancestor,
