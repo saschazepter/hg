@@ -374,6 +374,8 @@ def parse_clonebundle_manifest_line(
                 bundlespec = parsebundlespec(repo, value)
                 attrs[b'COMPRESSION'] = bundlespec.compression
                 attrs[b'VERSION'] = bundlespec.version
+                if sf := bundlespec.params.get(b"store-fingerprint"):
+                    attrs[b'STORE-FINGERPRINT'] = sf
             except error.InvalidBundleSpecification:
                 pass
             except error.UnsupportedBundleSpecification:

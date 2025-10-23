@@ -336,6 +336,11 @@ def clonebundles(repo, proto):
     for line in manifest_lines:
         if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
             continue
+        parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
+        if parsed is not None and parsed.get(b'STORE-FINGERPRINT'):
+            # Filter out fingerprinted clonebundles for older clients that
+            # can't understand them
+            continue
         modified_manifest.append(line)
     modified_manifest.append(b'')
     return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
