@@ -1240,13 +1240,33 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
 
     @property
     def optimize_by_folding(self):
-        return (
-            self._may_optimize_by_folding
-            # currently only optimize during parent search and
-            # cache reuse. Consider also using this during the
-            # snapshot phase.
-            and self.current_stage in (_STAGE.PARENTS, _STAGE.CACHED)
-        )
+        if not self._may_optimize_by_folding:
+            return False
+        # TODO: currently only optimize during parent search and
+        # cache reuse. Consider also using this during the
+        # snapshot phase.
+        if self.current_stage == _STAGE.PARENTS:
+            return True
+        # Avoid folding if we may reuse a compressed delta
+        #
+        # TODO: add configuration and finer behavior here
+        if self.current_stage != _STAGE.CACHED:
+            return False
+        cache = self.revinfo.cachedelta
+        assert cache is not None
+        assert len(self._internal_group) == 1
+        cache_base = self._internal_group[0]
+        if cache_base != cache.base:
+            # We will have to uncompress the delta, we can fold the result.
+            return True
+        # the cache delta is uncompressed
+        elif (
+            cache.compression is None
+            or cache.compression == compression.REVLOG_COMP_NONE
+        ):
+            return True
+        # this is compressed cached delta we might use, do not try to fold it.
+        return False
 
     @property
     def track_good_delta(self):
