@@ -106,6 +106,16 @@ class DeltaQuality(repository.IDeltaQuality):
             flags |= repository.REVISION_FLAG_DELTA_P2_IS_SMALL
         return flags
 
+    @staticmethod
+    def from_v1_flags(flags) -> DeltaQuality | None:
+        if not flags & repository.REVISION_FLAG_DELTA_HAS_QUALITY:
+            return None
+        return DeltaQuality(
+            is_good=bool(flags & repository.REVISION_FLAG_DELTA_IS_GOOD),
+            p1_small=bool(flags & repository.REVISION_FLAG_DELTA_P1_IS_SMALL),
+            p2_small=bool(flags & repository.REVISION_FLAG_DELTA_P2_IS_SMALL),
+        )
+
 
 @attr.s(slots=True)
 class CachedDelta:

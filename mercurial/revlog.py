@@ -4214,7 +4214,25 @@ class revlog:
                 # should be close to this revision content.
                 #
                 # note: we could optimize between p1 and p2 in merges cases.
-                if is_usable_base(p1rev):
+                rev_flags = self.flags(rev)
+                quality = revlogutils.DeltaQuality.from_v1_flags(rev_flags)
+                if (
+                    quality is not None
+                    and quality.p1_small
+                    and is_usable_base(p1rev)
+                ):
+                    if debug_info is not None:
+                        debug_delta_source = "p1"
+                    baserev = p1rev
+                if (
+                    quality is not None
+                    and quality.p2_small
+                    and is_usable_base(p2rev)
+                ):
+                    if debug_info is not None:
+                        debug_delta_source = "p2"
+                    baserev = p2rev
+                elif is_usable_base(p1rev):
                     if debug_info is not None:
                         debug_delta_source = "p1"
                     baserev = p1rev
