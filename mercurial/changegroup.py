@@ -388,6 +388,7 @@ class _DeltaHeader:
     snapshot_level = attr.ib(type=Optional[int], default=None)
     raw_text_size = attr.ib(type=Optional[int], default=None)
     compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
+    quality = attr.ib(type=Optional[i_repo.IDeltaQuality], default=None)
 
 
 class cg1unpacker(i_cg.IChangeGroupUnpacker):
@@ -1054,6 +1055,7 @@ class cg4unpacker(cg3unpacker):
     - exchange compressed delta and full text
     - "hasmeta" flag for filelog
     - snapshot level
+    - delta quality
     """
 
     deltaheader = _CHANGEGROUPV4_DELTA_HEADER
@@ -1082,6 +1084,9 @@ class cg4unpacker(cg3unpacker):
         wire_comp = WireDeltaCompression(encoded_comp)
         if snapshot_level < -1:
             snapshot_level = None
+        quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+        flags &= ~revlog_constants.REVIDX_DELTA_INFO_FLAGS
+
         return _DeltaHeader(
             node=node,
             p1=p1,
@@ -1093,6 +1098,7 @@ class cg4unpacker(cg3unpacker):
             raw_text_size=raw_size,
             compression=wire_comp.to_revlog_compression(),
             protocol_flags=protocol_flags,
+            quality=quality,
         )
 
 
@@ -2459,13 +2465,16 @@ class ChangeGroupPacker04(cgpacker):
         protocol_flags = 0
         if d.delta is None and d.revision is not None:
             protocol_flags |= storageutil.CG_FLAG_FULL_TEXT
+        flags = d.flags
+        if d.quality is not None:
+            flags |= d.quality.to_v1_flags()
         return _CHANGEGROUPV4_DELTA_HEADER.pack(
             d.node,
             d.p1node,
             d.p2node,
             d.basenode,
             d.linknode,
-            d.flags,
+            flags,
             snap_lvl,
             d.raw_revision_size,
             wire_comp,
