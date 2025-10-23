@@ -980,8 +980,43 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         if (
             self.cachedelta is None
             or self.cachedelta.reuse_policy <= DELTA_BASE_REUSE_NO
-            or not self._pre_filter_rev(self.cachedelta.base)
         ):
+            return False
+        # We actually received two bases information
+        #
+        # - cachedelta.base:
+        #       The base of the cached delta available in the cache
+        # - cachedelta.other_storage_delta_base:
+        #       The base of the delta stored at the source
+        #
+        # If the two value are different, this means the source decided it
+        # could not reuse its storage. And we have a dilema
+        #
+        # - using the available delta might skip a delta computation,
+        #   saving CPU right now. However it will lead to more divergence
+        #   between the source delta-tree and our delta-tree. Such
+        #   divergence might lead to a large amount of CPU being
+        #   continuously used in the future.
+        #
+        # - using the remote base will help keep the delta tree in sync,
+        #   but will result in a delta computation being triggered right
+        #   now.  Delta computation are significantly less expensive in
+        #   Rust than in Python. However it is still cheaper to not
+        #   recompute anything.
+        #
+        # Given how much trouble delta-tree divergence is in practice, we
+        # pick the stored base for the "cached" round. This won't change
+        # anything then this also match the delta we received, which is the
+        # common case anyway.
+        #
+        # TODO: we probably want some sort of configuration to control that
+        # behavior.
+        other_store_base = self.cachedelta.other_storage_delta_base
+        if other_store_base is not None:
+            cache_base = other_store_base
+        else:
+            cache_base = self.cachedelta.base
+        if not self._pre_filter_rev(cache_base):
             return False
         # First we try to reuse a the delta contained in the bundle.  (or
         # from the source revlog)
@@ -1509,15 +1544,20 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             return False
         cachedelta = self.revinfo.cachedelta
         assert cachedelta is not None
+        cache_base = self._internal_group[0]
+        if cachedelta.other_storage_delta_base == cache_base:
+            snap_lvl = cachedelta.other_storage_snapshot_level
+        else:
+            snap_lvl = cachedelta.snapshot_level
         # is this cached delta a snapshot ?
-        if cachedelta.snapshot_level is not None:
-            self.current_group_is_snapshot = cachedelta.snapshot_level >= 0
-        elif cachedelta.base == nullrev:
+        if snap_lvl is not None:
+            self.current_group_is_snapshot = snap_lvl >= 0
+        elif cache_base == nullrev:
             self.current_group_is_snapshot = True
-        elif any(cachedelta.base == x for x in self._parents_and_sames()):
+        elif any(cache_base == x for x in self._parents_and_sames()):
             # if this is a delta against a parent, this isn't a snapshot
             self.current_group_is_snapshot = False
-        elif self.revlog.issnapshot(cachedelta.base):
+        elif self.revlog.issnapshot(cache_base):
             # otherwise, if this apply to something that is a snapshot
             self.current_group_is_snapshot = True
         elif self.revlog.delta_config.filter_suspicious_delta:
