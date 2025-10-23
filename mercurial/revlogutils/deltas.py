@@ -1909,6 +1909,7 @@ class deltacomputer:
         delta = None
         header = None
         data = None
+        quality = None
         if revinfo.cachedelta:
             cachebase = revinfo.cachedelta.base
             # check if the diff still apply
@@ -1947,6 +1948,8 @@ class deltacomputer:
                 if data is None:
                     self.decompress_cached(revinfo.cachedelta)
                     delta = revinfo.cachedelta.u_delta
+                # TODO add a config to control this reuse
+                quality = revinfo.cachedelta.quality
 
         if data is None:
             # Can we use a size estimate for something ?
@@ -2098,6 +2101,7 @@ class deltacomputer:
             chainlen=chainlen,
             compresseddeltalen=compresseddeltalen,
             snapshotdepth=snapshotdepth,
+            quality=quality,
         )
 
     def _fullsnapshotinfo(

@@ -162,6 +162,8 @@ class CachedDelta:
     fulltext_length = attr.ib(type=Optional[int], default=None)
     """length of the full text created by this patch"""
 
+    quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)
+
     @property
     def has_delta(self):
         """True if a compressed or uncompressed delta is available"""

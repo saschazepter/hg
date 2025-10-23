@@ -4642,6 +4642,7 @@ class revlog:
                             c_full_text = bytes(chunk)
                         else:
                             c_delta = bytes(chunk)
+                        quality = revlogutils.DeltaQuality.from_v1_flags(flags)
                         cachedelta = revlogutils.CachedDelta(
                             base=dp,
                             c_delta=c_delta,
@@ -4650,6 +4651,7 @@ class revlog:
                             reuse_policy=delta_base_reuse,
                             snapshot_level=snapshotdepth,
                             fulltext_length=self.size(rev),
+                            quality=quality,
                         )
 
                 sidedata = None
