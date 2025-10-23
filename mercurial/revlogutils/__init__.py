@@ -264,3 +264,4 @@ class InboundRevision(repository.IInboundRevision):
     compression = attr.ib(default=None, type=Optional[i_comp.RevlogCompHeader])
     has_censor_flag = attr.ib(default=False, type=bool)
     has_filelog_hasmeta_flag = attr.ib(default=False, type=bool)
+    quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)

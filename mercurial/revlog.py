@@ -242,6 +242,7 @@ class OutboundRevision(repository.IOutboundRevision):
     linknode = attr.ib(default=None, type=Optional[bytes])
     snapshot_level = attr.ib(default=None, type=Optional[int])
     compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
+    quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)
 
 
 @attr.s(frozen=True)
@@ -3865,6 +3866,7 @@ class revlog:
                             reuse_policy=delta_base_reuse_policy,
                             snapshot_level=data.snapshot_level,
                             fulltext_length=data.raw_text_size,
+                            quality=data.quality,
                         )
                     else:
                         cached = revlogutils.CachedDelta(
@@ -3874,6 +3876,7 @@ class revlog:
                             reuse_policy=delta_base_reuse_policy,
                             snapshot_level=data.snapshot_level,
                             fulltext_length=data.raw_text_size,
+                            quality=data.quality,
                         )
 
                     text = data.raw_text
@@ -4353,15 +4356,26 @@ class revlog:
                 # Computers and removers can return flags to add and/or remove
                 flags = flags | sidedata_flags[0] & ~sidedata_flags[1]
 
+            from_storage = (baserev == deltaparentrev) and (
+                deltamode != repository.CG_DELTAMODE_PREV
+            )
             snap_lvl = None
             if baserev == nullrev:
                 snap_lvl = 0
-            elif baserev == deltaparentrev and self.issnapshot(rev):
+            elif from_storage and self.issnapshot(rev):
                 # If baserev != deltaparentrev we recomputed it, so it is not a
                 # snapshot
                 snap_lvl = self.snapshotdepth(rev)
             else:
                 snap_lvl = -1
+
+            if from_storage:
+                quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+            else:
+                quality = None
+            # flag about the delta they are transmitted through the
+            # OutboundRevision and can be dropped here.
+            flags &= ~REVIDX_DELTA_INFO_FLAGS
 
             yield OutboundRevision(
                 node=node,
@@ -4377,6 +4391,7 @@ class revlog:
                 protocol_flags=protocol_flags,
                 snapshot_level=snap_lvl,
                 compression=comp,
+                quality=quality,
             )
 
             prevrev = rev

@@ -606,6 +606,9 @@ class IInboundRevision(Protocol):
     delta: bytes
     """the serialized delta"""
 
+    quality: IDeltaQuality | None
+    """quality information about the incoming delta/raw_text if any"""
+
     flags: int
     """revision flags"""
 
@@ -689,6 +692,9 @@ class IOutboundRevision(Protocol):
 
     Stored in the bdiff delta format.
     """
+
+    quality: IDeltaQuality | None
+    """quality information about the incoming delta/raw_text if any"""
 
     compression: i_comp.RevlogCompHeader | None
     """When set, the delta/revision send is a compressed delta"""
