@@ -3858,6 +3858,17 @@ class revlog:
                     # generation so the revision data can always be handled as raw
                     # by the flagprocessor.
 
+                    # if the base used in the source storage was provided, we
+                    # need to translate it to a local revision number (or
+                    # filter it out if we don't know it)
+                    osdb_node = data.other_storage_delta_base
+                    ossl = data.other_storage_snapshot_level
+                    osdb_rev = None
+                    if osdb_node is not None:
+                        osdb_rev = self.index.get_rev(osdb_node)
+                    if osdb_rev is None:
+                        ossl = None
+
                     if data.compression is not None:
                         cached = revlogutils.CachedDelta(
                             base=baserev,
@@ -3868,6 +3879,8 @@ class revlog:
                             snapshot_level=data.snapshot_level,
                             fulltext_length=data.raw_text_size,
                             quality=data.quality,
+                            other_storage_delta_base=osdb_rev,
+                            other_storage_snapshot_level=ossl,
                         )
                     else:
                         cached = revlogutils.CachedDelta(
@@ -3878,6 +3891,8 @@ class revlog:
                             snapshot_level=data.snapshot_level,
                             fulltext_length=data.raw_text_size,
                             quality=data.quality,
+                            other_storage_delta_base=osdb_rev,
+                            other_storage_snapshot_level=ossl,
                         )
 
                     text = data.raw_text
@@ -4668,6 +4683,8 @@ class revlog:
                             snapshot_level=snapshotdepth,
                             fulltext_length=self.size(rev),
                             quality=quality,
+                            other_storage_delta_base=dp,
+                            other_storage_snapshot_level=snapshotdepth,
                         )
 
                 sidedata = None

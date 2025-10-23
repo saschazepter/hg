@@ -164,6 +164,12 @@ class CachedDelta:
 
     quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)
 
+    other_storage_delta_base = attr.ib(type=Optional[RevnumT], default=None)
+    """The delta base used in the storage that emitted this delta"""
+
+    other_storage_snapshot_level = attr.ib(type=Optional[int], default=None)
+    """The snapshot level used in the storage that emitted this delta"""
+
     @property
     def has_delta(self):
         """True if a compressed or uncompressed delta is available"""
@@ -265,3 +271,9 @@ class InboundRevision(repository.IInboundRevision):
     has_censor_flag = attr.ib(default=False, type=bool)
     has_filelog_hasmeta_flag = attr.ib(default=False, type=bool)
     quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)
+
+    other_storage_delta_base = attr.ib(type=Optional[NodeIdT], default=None)
+    """The delta base used in the storage that emitted this delta"""
+
+    other_storage_snapshot_level = attr.ib(type=Optional[int], default=None)
+    """The snapshot level used in the storage that emitted this delta"""

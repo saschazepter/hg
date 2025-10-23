@@ -633,6 +633,12 @@ class IInboundRevision(Protocol):
     has_filelog_hasmeta_flag: bool
     """set when the incoming has "has_meta" information available"""
 
+    other_storage_delta_base: NodeIdT | None
+    """The delta base used in the storage that emitted this delta"""
+
+    other_storage_snapshot_level: int | None
+    """The snapshot level used in the storage that emitted this delta"""
+
 
 class IOutboundRevision(Protocol):
     """Represents a delta between one revision and another.
