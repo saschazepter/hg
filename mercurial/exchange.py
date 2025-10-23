@@ -43,6 +43,7 @@ from . import (
     obsolete,
     obsutil,
     phases,
+    policy,
     pushkey,
     pycompat,
     scmutil,
@@ -63,6 +64,8 @@ from .interfaces import (
     exchange as i_exc,
     repository,
 )
+
+shapemod = policy.importrust("shape")
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -2937,6 +2940,13 @@ def _maybeapplyclonebundle(pullop):
         return
 
     store_fingerprint = None
+    if pullop.includepats or pullop.excludepats:
+        # This can still return None if any pat is not `path:`.
+        # Should we warn/error?
+        store_fingerprint = shapemod.fingerprint_for_patterns(
+            pullop.includepats, pullop.excludepats
+        )
+
     entries = bundlecaches.filterclonebundleentries(
         repo,
         entries,
