@@ -13,6 +13,7 @@ from typing import (
     cast,
 )
 
+
 from .i18n import _
 
 from .thirdparty import attr
@@ -21,6 +22,7 @@ from .thirdparty import attr
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
+    from .interfaces.types import RepoT
 
 from . import (
     error,
@@ -344,32 +346,39 @@ def parseclonebundlesmanifest(repo, s):
     """
     m = []
     for line in s.splitlines():
-        fields = line.split()
-        if not fields:
-            continue
-        attrs = {b'URL': fields[0]}
-        for rawattr in fields[1:]:
-            key, value = rawattr.split(b'=', 1)
-            key = util.urlreq.unquote(key)
-            value = util.urlreq.unquote(value)
-            attrs[key] = value
-
-            # Parse BUNDLESPEC into components. This makes client-side
-            # preferences easier to specify since you can prefer a single
-            # component of the BUNDLESPEC.
-            if key == b'BUNDLESPEC':
-                try:
-                    bundlespec = parsebundlespec(repo, value)
-                    attrs[b'COMPRESSION'] = bundlespec.compression
-                    attrs[b'VERSION'] = bundlespec.version
-                except error.InvalidBundleSpecification:
-                    pass
-                except error.UnsupportedBundleSpecification:
-                    pass
-
-        m.append(attrs)
-
+        attrs = parse_clonebundle_manifest_line(repo, line)
+        if attrs is not None:
+            m.append(attrs)
     return m
+
+
+def parse_clonebundle_manifest_line(
+    repo: RepoT, line: bytes
+) -> dict[bytes, bytes] | None:
+    fields = line.split()
+    if not fields:
+        return
+
+    attrs = {b'URL': fields[0]}
+    for rawattr in fields[1:]:
+        key, value = rawattr.split(b'=', 1)
+        key = util.urlreq.unquote(key)
+        value = util.urlreq.unquote(value)
+        attrs[key] = value
+
+        # Parse BUNDLESPEC into components. This makes client-side
+        # preferences easier to specify since you can prefer a single
+        # component of the BUNDLESPEC.
+        if key == b'BUNDLESPEC':
+            try:
+                bundlespec = parsebundlespec(repo, value)
+                attrs[b'COMPRESSION'] = bundlespec.compression
+                attrs[b'VERSION'] = bundlespec.version
+            except error.InvalidBundleSpecification:
+                pass
+            except error.UnsupportedBundleSpecification:
+                pass
+    return attrs
 
 
 def isstreamclonespec(bundlespec):
