@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from ..i18n import _
-
+from ..interfaces.types import (
+    RepoT,
+    UiT,
+)
 from ..node import nullrev
 from .. import (
     bundle2,
@@ -21,7 +24,7 @@ from ..repo import (
 from ..utils import urlutil
 
 
-def bundle(ui, repo, fname, *dests, **opts):
+def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
     revs = None
     if 'rev' in opts:
         revstrings = opts['rev']
