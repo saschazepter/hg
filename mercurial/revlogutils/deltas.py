@@ -1256,19 +1256,27 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         assert cache is not None
         assert len(self._internal_group) == 1
         cache_base = self._internal_group[0]
-        if not self.revlog.delta_config.lazy_compression:
-            return True
-        if cache_base != cache.base:
-            # We will have to uncompress the delta, we can fold the result.
-            return True
-        # the cache delta is uncompressed
-        elif (
-            cache.compression is None
-            or cache.compression == compression.REVLOG_COMP_NONE
-        ):
-            return True
-        # this is compressed cached delta we might use, do not try to fold it.
-        return False
+        # We use fold based optimization during the cached stage in two case:
+        #
+        # cache_base != cache.base :
+        #
+        #   Since the input delta is not the one we are about to test, we won't
+        #   reuse it, so we can try optimizing the delta we will compute from
+        #   it.
+        #
+        # cache.compression is None :
+        #
+        #   We have an uncompressed delta we will have to work on by trying
+        #   compression, so trying to fold it first doesn't adds a huge
+        #   overhead.
+        #   This is also usually not associated with a delta we know to be from
+        #   the source storage. So working harder on it make sense.
+        #
+        # Otherwise, the compressed delta might be used as is and we should not
+        # try to fold it.
+        return (not self.revlog.delta_config.lazy_compression) or (
+            cache_base != cache.base or cache.compression is None
+        )
 
     @property
     def track_good_delta(self):
