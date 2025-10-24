@@ -63,6 +63,10 @@ from .interfaces import (
 
 
 class bundlerevlog(revlog.revlog):
+    # XXX this work around the buggy baserev in bundle revlog,
+    # We should fix that instead
+    may_emit_compressed = False
+
     def __init__(
         self,
         opener: typing.Any,

@@ -1459,6 +1459,10 @@ class revlog:
     # use by large file to signal it might affect some filelog
     _large_file_enabled = False
 
+    # XXX this work around the buggy baserev in bundle revlog,
+    # We should fix that instead
+    may_emit_compressed = True
+
     opener: vfsmod.vfs
 
     _docket_file: bytes | None
@@ -4254,6 +4258,7 @@ class revlog:
                         baserevisionsize = self.rawsize(baserev)
                 elif (
                     accepted_compression
+                    and self.may_emit_compressed
                     and deltamode != repository.CG_DELTAMODE_PREV
                     and baserev == deltaparentrev
                 ):
