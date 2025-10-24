@@ -2219,7 +2219,7 @@ class revlog:
         # fast path: if no "read" flag processor could change the content,
         # size is rawsize. note: ELLIPSIS is known to not change the content.
         flags = self.flags(rev)
-        if flags & (flagutil.REVIDX_KNOWN_FLAGS ^ REVIDX_ELLIPSIS) == 0:
+        if flags & ~REVIDX_NEUTRAL_FLAGS == 0:
             return self.rawsize(rev)
 
         return len(self.revision(rev))
