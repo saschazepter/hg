@@ -2501,8 +2501,21 @@ def getbundlechunks(
 
 
 @getbundle2partsgenerator(b'stream')
-def _getbundlestream2(bundler, repo, *args, **kwargs):
-    return bundle2.addpartbundlestream2(bundler, repo, **kwargs)
+def _getbundlestream2(
+    bundler,
+    repo: RepoT,
+    *args,
+    includepats: list[bytes] | None = None,
+    excludepats: list[bytes] | None = None,
+    **kwargs,
+):
+    return bundle2.addpartbundlestream2(
+        bundler,
+        repo,
+        includepats=includepats,
+        excludepats=excludepats,
+        **kwargs,
+    )
 
 
 @getbundle2partsgenerator(b'changegroup')
