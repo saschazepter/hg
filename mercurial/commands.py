@@ -6198,6 +6198,9 @@ def serve(ui, repo: RepoT | None, __dispatch__, **opts):
         assert repo is not None  # help pytype
 
         accesshidden = False
+        # This should be checking for --hidden, but the dispatch logic filters
+        # the option out. Substitute the effect of the implicit use of
+        # repo.unfiltered() in _dispatch_post_cwd instead.
         if repo.filtername is None:
             allow = ui.configlist(
                 b'experimental', b'server.allow-hidden-access'
