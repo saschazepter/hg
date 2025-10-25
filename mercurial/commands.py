@@ -3867,6 +3867,12 @@ def import_(ui, repo, patch1=None, *patches, **opts):
             _(b'a specific branch you would like to pull'),
             _(b'BRANCH'),
         ),
+        (
+            b'',
+            b'remote-hidden',
+            False,
+            _(b"include changesets hidden on the remote (EXPERIMENTAL)"),
+        ),
     ]
     + logopts
     + remoteopts

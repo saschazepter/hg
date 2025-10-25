@@ -64,7 +64,12 @@ def _incoming(
                 normpath = posixpath.normpath
             p.path = normpath(b'%s/%s' % (p.path, subpath))
             peer_path = url = bytes(p)
-    other = repo_factory.peer(repo, opts, peer_path)
+    other = repo_factory.peer(
+        repo,
+        opts,
+        peer_path,
+        remotehidden=opts[b'remote_hidden'],
+    )
     cleanupfn = other.close
     try:
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(url))
