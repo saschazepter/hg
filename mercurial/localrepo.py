@@ -350,10 +350,8 @@ class localpeer(peer.Peer, repository.ipeercommands):
 
         if caps is None:
             caps = moderncaps.copy()
-        if remotehidden:
-            self._repo = repo.filtered(b'served.hidden')
-        else:
-            self._repo = repo.filtered(b'served')
+        view = peer.server_filtername(repo, remotehidden)
+        self._repo = repo.filtered(view)
         if repo._wanted_sidedata:
             formatted = bundle2.format_remote_wanted_sidedata(repo)
             caps.add(b'exp-wanted-sidedata=' + formatted)
