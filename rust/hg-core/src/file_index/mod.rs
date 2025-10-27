@@ -603,8 +603,8 @@ impl<'a> Iterator for PathTokenIter<'a> {
     type Item = Result<(&'a HgPath, FileToken), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let len = self.inner.len();
-        while u32_u(self.index) < len {
+        let len = self.inner.token_count();
+        while self.index < len {
             let token = FileToken(self.index);
             self.index += 1;
             match self.inner.get_path(token) {

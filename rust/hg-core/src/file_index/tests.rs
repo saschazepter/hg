@@ -168,8 +168,7 @@ fn test_remove_some() {
     assert_eq!(file_index.add(bar).unwrap(), (FileToken(1), true));
     file_index.write(&mut FakeTransaction).unwrap();
     file_index.remove(foo).unwrap();
-    // TODO: this should pass
-    // check_paths(&file_index, &[(1, bar)]);
+    check_paths(&file_index, &[(1, bar)]);
     file_index.write(&mut FakeTransaction).unwrap();
     check_paths(&file_index, &[(0, bar)]);
 }
