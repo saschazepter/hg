@@ -728,3 +728,75 @@ Vacuum with Rust, GC with Python
   $ cd ..
 
 #endif
+
+Test various prefix tree structures
+-----------------------------------
+
+  $ hg init repotree --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repotree
+
+Paths with distinct prefix
+  $ touch foo bar
+  $ hg commit -qAm 0
+  $ hg debug::file-index --tree
+  00000000:
+      "bar" -> 0000001c
+      "foo" -> 00000016
+  0000001c: token = 0
+  00000016: token = 1
+  $ hg debug::file-index --path foo
+  1: foo
+  $ hg debug::file-index --path bar
+  0: bar
+  $ hg debug::file-index --path baz
+  abort: path baz is not in the file index
+  [10]
+
+Paths with a common prefix
+  $ touch fun
+  $ hg commit -qAm 1
+  $ hg debug::file-index --tree
+  00000022:
+      "bar" -> 0000001c
+      "f" -> 00000038
+  0000001c: token = 0
+  00000038:
+      "oo" -> 00000016
+      "un" -> 0000004e
+  00000016: token = 1
+  0000004e: token = 2
+  $ hg debug::file-index --path foo
+  1: foo
+  $ hg debug::file-index --path fun
+  2: fun
+  $ hg debug::file-index --path f
+  abort: path f is not in the file index
+  [10]
+
+Paths where one is a prefix of the other
+  $ touch food
+  $ hg commit -qAm 2
+  $ hg debug::file-index --tree
+  00000054:
+      "bar" -> 0000001c
+      "f" -> 0000006a
+  0000001c: token = 0
+  0000006a:
+      "oo" -> 00000080
+      "un" -> 0000004e
+  00000080: token = 1
+      "d" -> 00000090
+  00000090: token = 3
+  0000004e: token = 2
+  $ hg debug::file-index --path foo
+  1: foo
+  $ hg debug::file-index --path food
+  3: food
+  $ hg debug::file-index --path fo
+  abort: path fo is not in the file index
+  [10]
+  $ hg debug::file-index --path foods
+  abort: path foods is not in the file index
+  [10]
+
+  $ cd ..
