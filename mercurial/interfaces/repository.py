@@ -2028,6 +2028,10 @@ class IRepo(Protocol):
     Note: the leading `_` is a bit weird, as this is accessed in various places
     """
 
+    mergestate: NeedsTypeHint
+    """hold information about any in progress merge
+    """
+
     @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
