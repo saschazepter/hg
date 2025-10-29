@@ -12,6 +12,10 @@ import re
 import typing
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from .node import (
     hex,
     nullid,
@@ -1322,7 +1326,7 @@ def bookmark(ui, repo, *names, **opts):
     _(b'[-fC] [NAME]'),
     helpcategory=command.CATEGORY_CHANGE_ORGANIZATION,
 )
-def branch(ui, repo, label=None, **opts):
+def branch(ui: UiT, repo: RepoT, label: bytes | None = None, **opts):
     """set or show the current branch name
 
     .. note::
