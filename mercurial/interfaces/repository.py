@@ -2015,6 +2015,13 @@ class IRepo(Protocol):
     information.
     """
 
+    _bookmarks: NeedsTypeHint
+    """hold the bookmarks.
+
+    Note: the leading `_` is wrong as this not really a private
+    information.
+    """
+
     @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
