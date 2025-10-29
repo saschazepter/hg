@@ -13,6 +13,9 @@ import random
 import re
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+)
 from .node import (
     bin,
     nullrev,
@@ -87,7 +90,7 @@ predicate = registrar.revsetpredicate(
 # helpers
 
 
-def _getrevsource(repo, r):
+def _getrevsource(repo: RepoT, r):
     extra = repo[r].extra()
     for label in (b'source', b'transplant_source', b'rebase_source'):
         if label in extra:
@@ -103,7 +106,7 @@ def _sortedb(xs):
 
 
 @predicate(b'_destupdate')
-def _destupdate(repo, subset, x):
+def _destupdate(repo: RepoT, subset, x):
     # experimental revset for update destination
     args = getargsdict(x, b'limit', b'clean')
     return subset & baseset(
@@ -112,7 +115,7 @@ def _destupdate(repo, subset, x):
 
 
 @predicate(b'_destmerge')
-def _destmerge(repo, subset, x):
+def _destmerge(repo: RepoT, subset, x):
     # experimental revset for merge destination
     sourceset = None
     if x is not None:
@@ -121,7 +124,7 @@ def _destmerge(repo, subset, x):
 
 
 @predicate(b'adds(pattern)', safe=True, weight=30)
-def adds(repo, subset, x):
+def adds(repo: RepoT, subset, x):
     """Changesets that add a file matching pattern.
 
     The pattern without explicit kind like ``glob:`` is expected to be
@@ -134,7 +137,7 @@ def adds(repo, subset, x):
 
 
 @predicate(b'ancestor(*changeset)', safe=True, weight=0.5)
-def ancestor(repo, subset, x):
+def ancestor(repo: RepoT, subset, x):
     """A greatest common ancestor of the changesets.
 
     Accepts 0 or more changesets.
@@ -156,7 +159,12 @@ def ancestor(repo, subset, x):
 
 
 def _ancestors(
-    repo, subset, x, followfirst=False, startdepth=None, stopdepth=None
+    repo: RepoT,
+    subset,
+    x,
+    followfirst=False,
+    startdepth=None,
+    stopdepth=None,
 ):
     heads = getset(repo, fullreposet(repo), x)
     if not heads:
@@ -166,7 +174,7 @@ def _ancestors(
 
 
 @predicate(b'ancestors(set[, depth])', safe=True)
-def ancestors(repo, subset, x):
+def ancestors(repo: RepoT, subset, x):
     """Changesets that are ancestors of changesets in set, including the
     given changesets themselves.
 
@@ -198,14 +206,14 @@ def ancestors(repo, subset, x):
 
 
 @predicate(b'_firstancestors', safe=True)
-def _firstancestors(repo, subset, x):
+def _firstancestors(repo: RepoT, subset, x):
     # ``_firstancestors(set)``
     # Like ``ancestors(set)`` but follows only the first parents.
     return _ancestors(repo, subset, x, followfirst=True)
 
 
 @predicate(b'author(string)', safe=True, weight=10)
-def author(repo, subset, x):
+def author(repo: RepoT, subset, x):
     """Alias for ``user(string)``."""
     # i18n: "author" is a keyword
     n = getstring(x, _(b"author requires a string"))
@@ -216,7 +224,7 @@ def author(repo, subset, x):
 
 
 @predicate(b'bisect(string)', safe=True)
-def bisect(repo, subset, x):
+def bisect(repo: RepoT, subset, x):
     """Changesets marked in the specified bisect status:
 
     - ``good``, ``bad``, ``skip``: csets explicitly marked as good/bad/skip
@@ -236,12 +244,12 @@ def bisect(repo, subset, x):
 # Backward-compatibility
 # - no help entry so that we do not advertise it any more
 @predicate(b'bisected', safe=True)
-def bisected(repo, subset, x):
+def bisected(repo: RepoT, subset, x):
     return bisect(repo, subset, x)
 
 
 @predicate(b'bookmark([name])', safe=True)
-def bookmark(repo, subset, x):
+def bookmark(repo: RepoT, subset, x):
     """The named bookmark or all bookmarks.
 
     Pattern matching is supported for `name`. See :hg:`help revisions.patterns`.
@@ -279,7 +287,7 @@ def bookmark(repo, subset, x):
 
 
 @predicate(b'branch(string or set)', safe=True, weight=10)
-def branch(repo, subset, x):
+def branch(repo: RepoT, subset, x):
     """
     All changesets belonging to the given branch or the branches of the given
     changesets.
@@ -331,7 +339,7 @@ def branch(repo, subset, x):
 
 
 @predicate(b'phasedivergent()', safe=True)
-def phasedivergent(repo, subset, x):
+def phasedivergent(repo: RepoT, subset, x):
     """Mutable changesets marked as successors of public changesets.
 
     Only non-public and non-obsolete changesets can be `phasedivergent`.
@@ -344,7 +352,7 @@ def phasedivergent(repo, subset, x):
 
 
 @predicate(b'bundle()', safe=True)
-def bundle(repo, subset, x):
+def bundle(repo: RepoT, subset, x):
     """Changesets in the bundle.
 
     Bundle must be specified by the -R option."""
@@ -356,7 +364,7 @@ def bundle(repo, subset, x):
     return subset & bundlerevs
 
 
-def checkstatus(repo, subset, pat, field):
+def checkstatus(repo: RepoT, subset, pat, field):
     """Helper for status-related revsets (adds, removes, modifies).
     The field parameter says which kind is desired.
     """
@@ -393,7 +401,7 @@ def checkstatus(repo, subset, pat, field):
     )
 
 
-def _children(repo, subset, parentset):
+def _children(repo: RepoT, subset, parentset):
     if not parentset:
         return baseset()
     cs = set()
@@ -411,7 +419,7 @@ def _children(repo, subset, parentset):
 
 
 @predicate(b'children(set)', safe=True)
-def children(repo, subset, x):
+def children(repo: RepoT, subset, x):
     """Child changesets of changesets in set."""
     s = getset(repo, fullreposet(repo), x)
     cs = _children(repo, subset, s)
@@ -419,7 +427,7 @@ def children(repo, subset, x):
 
 
 @predicate(b'closed()', safe=True, weight=10)
-def closed(repo, subset, x):
+def closed(repo: RepoT, subset, x):
     """Changeset is closed."""
     # i18n: "closed" is a keyword
     getargs(x, 0, 0, _(b"closed takes no arguments"))
@@ -430,7 +438,7 @@ def closed(repo, subset, x):
 
 # for internal use
 @predicate(b'_commonancestorheads(set)', safe=True)
-def _commonancestorheads(repo, subset, x):
+def _commonancestorheads(repo: RepoT, subset, x):
     # This is an internal method is for quickly calculating "heads(::x and
     # ::y)"
 
@@ -443,7 +451,7 @@ def _commonancestorheads(repo, subset, x):
 
 
 @predicate(b'commonancestors(set)', safe=True)
-def commonancestors(repo, subset, x):
+def commonancestors(repo: RepoT, subset, x):
     """Changesets that are ancestors of every changeset in set."""
     startrevs = getset(repo, fullreposet(repo), x, order=anyorder)
     if not startrevs:
@@ -454,7 +462,7 @@ def commonancestors(repo, subset, x):
 
 
 @predicate(b'conflictlocal()', safe=True)
-def conflictlocal(repo, subset, x):
+def conflictlocal(repo: RepoT, subset, x):
     """The local side of the merge, if currently in an unresolved merge.
 
     "merge" here includes merge conflicts from e.g. 'hg rebase' or 'hg graft'.
@@ -469,7 +477,7 @@ def conflictlocal(repo, subset, x):
 
 
 @predicate(b'conflictother()', safe=True)
-def conflictother(repo, subset, x):
+def conflictother(repo: RepoT, subset, x):
     """The other side of the merge, if currently in an unresolved merge.
 
     "merge" here includes merge conflicts from e.g. 'hg rebase' or 'hg graft'.
@@ -483,7 +491,7 @@ def conflictother(repo, subset, x):
 
 
 @predicate(b'contains(pattern)', weight=100)
-def contains(repo, subset, x):
+def contains(repo: RepoT, subset, x):
     """The revision's manifest contains a file matching pattern (but might not
     modify it). See :hg:`help patterns` for information about file patterns.
 
@@ -511,7 +519,7 @@ def contains(repo, subset, x):
 
 
 @predicate(b'converted([id])', safe=True)
-def converted(repo, subset, x):
+def converted(repo: RepoT, subset, x):
     """Changesets converted from the given identifier in the old repository if
     present, or all converted changesets if no identifier is specified.
     """
@@ -536,7 +544,7 @@ def converted(repo, subset, x):
 
 
 @predicate(b'date(interval)', safe=True, weight=10)
-def date(repo, subset, x):
+def date(repo: RepoT, subset, x):
     """Changesets within the interval, see :hg:`help dates`."""
     # i18n: "date" is a keyword
     ds = getstring(x, _(b"date requires a string"))
@@ -547,7 +555,7 @@ def date(repo, subset, x):
 
 
 @predicate(b'desc(string)', safe=True, weight=10)
-def desc(repo, subset, x):
+def desc(repo: RepoT, subset, x):
     """Search commit message for string. The match is case-insensitive.
 
     Pattern matching is supported for `string`. See
@@ -564,7 +572,12 @@ def desc(repo, subset, x):
 
 
 def _descendants(
-    repo, subset, x, followfirst=False, startdepth=None, stopdepth=None
+    repo: RepoT,
+    subset,
+    x,
+    followfirst=False,
+    startdepth=None,
+    stopdepth=None,
 ):
     roots = getset(repo, fullreposet(repo), x)
     if not roots:
@@ -574,7 +587,7 @@ def _descendants(
 
 
 @predicate(b'descendants(set[, depth])', safe=True)
-def descendants(repo, subset, x):
+def descendants(repo: RepoT, subset, x):
     """Changesets which are descendants of changesets in set, including the
     given changesets themselves.
 
@@ -603,19 +616,23 @@ def descendants(repo, subset, x):
             raise error.ParseError(_(b"negative depth"))
         stopdepth = n + 1
     return _descendants(
-        repo, subset, args[b'set'], startdepth=startdepth, stopdepth=stopdepth
+        repo,
+        subset,
+        args[b'set'],
+        startdepth=startdepth,
+        stopdepth=stopdepth,
     )
 
 
 @predicate(b'_firstdescendants', safe=True)
-def _firstdescendants(repo, subset, x):
+def _firstdescendants(repo: RepoT, subset, x):
     # ``_firstdescendants(set)``
     # Like ``descendants(set)`` but follows only the first parents.
     return _descendants(repo, subset, x, followfirst=True)
 
 
 @predicate(b'destination([set])', safe=True, weight=10)
-def destination(repo, subset, x):
+def destination(repo: RepoT, subset, x):
     """Changesets that were created by a graft, transplant or rebase operation,
     with the given revisions specified as the source.  Omitting the optional set
     is the same as passing all().
@@ -663,7 +680,7 @@ def destination(repo, subset, x):
 
 
 @predicate(b'diffcontains(pattern)', weight=110)
-def diffcontains(repo, subset, x):
+def diffcontains(repo: RepoT, subset, x):
     """Search revision differences for when the pattern was added or removed.
 
     The pattern may be a substring literal or a regular expression. See
@@ -705,7 +722,7 @@ def diffcontains(repo, subset, x):
 
 
 @predicate(b'contentdivergent()', safe=True)
-def contentdivergent(repo, subset, x):
+def contentdivergent(repo: RepoT, subset, x):
     """
     Final successors of changesets with an alternative set of final
     successors. (EXPERIMENTAL)
@@ -717,7 +734,7 @@ def contentdivergent(repo, subset, x):
 
 
 @predicate(b'expectsize(set[, size])', safe=True, takeorder=True)
-def expectsize(repo, subset, x, order):
+def expectsize(repo: RepoT, subset, x, order):
     """Return the given revset if size matches the revset size.
     Abort if the revset doesn't expect given size.
     size can either be an integer range or an integer.
@@ -761,7 +778,7 @@ def expectsize(repo, subset, x, order):
 
 
 @predicate(b'extdata(source)', safe=False, weight=100)
-def extdata(repo, subset, x):
+def extdata(repo: RepoT, subset, x):
     """Changesets in the specified extdata source. (EXPERIMENTAL)"""
     # i18n: "extdata" is a keyword
     args = getargsdict(x, b'extdata', b'source')
@@ -775,7 +792,7 @@ def extdata(repo, subset, x):
 
 
 @predicate(b'extinct()', safe=True)
-def extinct(repo, subset, x):
+def extinct(repo: RepoT, subset, x):
     """Obsolete changesets with obsolete descendants only. (EXPERIMENTAL)"""
     # i18n: "extinct" is a keyword
     getargs(x, 0, 0, _(b"extinct takes no arguments"))
@@ -784,7 +801,7 @@ def extinct(repo, subset, x):
 
 
 @predicate(b'extra(label, [value])', safe=True)
-def extra(repo, subset, x):
+def extra(repo: RepoT, subset, x):
     """Changesets with the given label in the extra metadata, with the given
     optional value.
 
@@ -818,7 +835,7 @@ def extra(repo, subset, x):
 
 
 @predicate(b'filelog(pattern)', safe=True)
-def filelog(repo, subset, x):
+def filelog(repo: RepoT, subset, x):
     """Changesets connected to the specified filelog.
 
     For performance reasons, visits only revisions mentioned in the file-level
@@ -882,12 +899,12 @@ def filelog(repo, subset, x):
 
 
 @predicate(b'first(set, [n])', safe=True, takeorder=True, weight=0)
-def first(repo, subset, x, order):
+def first(repo: RepoT, subset, x, order):
     """An alias for limit()."""
     return limit(repo, subset, x, order)
 
 
-def _follow(repo, subset, x, name, followfirst=False):
+def _follow(repo: RepoT, subset, x, name, followfirst=False):
     args = getargsdict(x, name, b'file startrev')
     revs = None
     if b'startrev' in args:
@@ -915,7 +932,7 @@ def _follow(repo, subset, x, name, followfirst=False):
 
 
 @predicate(b'follow([file[, startrev]])', safe=True)
-def follow(repo, subset, x):
+def follow(repo: RepoT, subset, x):
     """
     An alias for ``::.`` (ancestors of the working directory's first parent).
     If file pattern is specified, the histories of files matching given
@@ -925,7 +942,7 @@ def follow(repo, subset, x):
 
 
 @predicate(b'_followfirst', safe=True)
-def _followfirst(repo, subset, x):
+def _followfirst(repo: RepoT, subset, x):
     # ``followfirst([file[, startrev]])``
     # Like ``follow([file[, startrev]])`` but follows only the first parent
     # of every revisions or files revisions.
@@ -936,7 +953,7 @@ def _followfirst(repo, subset, x):
     b'followlines(file, fromline:toline[, startrev=., descend=False])',
     safe=True,
 )
-def followlines(repo, subset, x):
+def followlines(repo: RepoT, subset, x):
     """Changesets modifying `file` in line range ('fromline', 'toline').
 
     Line range corresponds to 'file' content at 'startrev' and should hence be
@@ -1006,7 +1023,7 @@ def followlines(repo, subset, x):
 
 
 @predicate(b'nodefromfile(path)')
-def nodefromfile(repo, subset, x):
+def nodefromfile(repo: RepoT, subset, x):
     """Read a list of nodes from the file at `path`.
 
     This applies `id(LINE)` to each line of the file.
@@ -1031,7 +1048,7 @@ def nodefromfile(repo, subset, x):
 
 
 @predicate(b'all()', safe=True)
-def getall(repo, subset, x):
+def getall(repo: RepoT, subset, x):
     """All changesets, the same as ``0:tip``."""
     # i18n: "all" is a keyword
     getargs(x, 0, 0, _(b"all takes no arguments"))
@@ -1039,7 +1056,7 @@ def getall(repo, subset, x):
 
 
 @predicate(b'grep(regex)', weight=10)
-def grep(repo, subset, x):
+def grep(repo: RepoT, subset, x):
     """Like ``keyword(string)`` but accepts a regex. Use ``grep(r'...')``
     to ensure special escape characters are handled correctly. Unlike
     ``keyword(string)``, the match is case-sensitive.
@@ -1063,7 +1080,7 @@ def grep(repo, subset, x):
 
 
 @predicate(b'_matchfiles', safe=True)
-def _matchfiles(repo, subset, x):
+def _matchfiles(repo: RepoT, subset, x):
     # _matchfiles takes a revset list of prefixed arguments:
     #
     #   [p:foo, i:bar, x:baz]
@@ -1154,7 +1171,7 @@ def _matchfiles(repo, subset, x):
 
 
 @predicate(b'file(pattern)', safe=True, weight=10)
-def hasfile(repo, subset, x):
+def hasfile(repo: RepoT, subset, x):
     """Changesets affecting files matched by pattern.
 
     For a faster but less accurate result, consider using ``filelog()``
@@ -1168,7 +1185,7 @@ def hasfile(repo, subset, x):
 
 
 @predicate(b'head()', safe=True)
-def head(repo, subset, x):
+def head(repo: RepoT, subset, x):
     """Changeset is a named branch head."""
     # i18n: "head" is a keyword
     getargs(x, 0, 0, _(b"head takes no arguments"))
@@ -1180,7 +1197,7 @@ def head(repo, subset, x):
 
 
 @predicate(b'heads(set)', safe=True, takeorder=True)
-def heads(repo, subset, x, order):
+def heads(repo: RepoT, subset, x, order):
     """Members of set with no children in set."""
     # argument set should never define order
     if order == defineorder:
@@ -1201,7 +1218,7 @@ def heads(repo, subset, x, order):
 
 
 @predicate(b'hidden()', safe=True)
-def hidden(repo, subset, x):
+def hidden(repo: RepoT, subset, x):
     """Hidden changesets."""
     # i18n: "hidden" is a keyword
     getargs(x, 0, 0, _(b"hidden takes no arguments"))
@@ -1210,7 +1227,7 @@ def hidden(repo, subset, x):
 
 
 @predicate(b'keyword(string)', safe=True, weight=10)
-def keyword(repo, subset, x):
+def keyword(repo: RepoT, subset, x):
     """Search commit message, user name, and names of changed files for
     string. The match is case-insensitive.
 
@@ -1231,7 +1248,7 @@ def keyword(repo, subset, x):
 
 
 @predicate(b'limit(set[, n[, offset]])', safe=True, takeorder=True, weight=0)
-def limit(repo, subset, x, order):
+def limit(repo: RepoT, subset, x, order):
     """First n members of set, defaulting to 1, starting from offset."""
     args = getargsdict(x, b'limit', b'set n offset')
     if b'set' not in args:
@@ -1255,7 +1272,7 @@ def limit(repo, subset, x, order):
 
 
 @predicate(b'last(set, [n])', safe=True, takeorder=True)
-def last(repo, subset, x, order):
+def last(repo: RepoT, subset, x, order):
     """Last n members of set, defaulting to 1."""
     # i18n: "last" is a keyword
     l = getargs(x, 1, 2, _(b"last requires one or two arguments"))
@@ -1275,7 +1292,7 @@ def last(repo, subset, x, order):
 
 
 @predicate(b'max(set)', safe=True)
-def maxrev(repo, subset, x):
+def maxrev(repo: RepoT, subset, x):
     """Changeset with highest revision number in set."""
     os = getset(repo, fullreposet(repo), x)
     try:
@@ -1290,7 +1307,7 @@ def maxrev(repo, subset, x):
 
 
 @predicate(b'merge()', safe=True)
-def merge(repo, subset, x):
+def merge(repo: RepoT, subset, x):
     """Changeset is a merge changeset."""
     # i18n: "merge" is a keyword
     getargs(x, 0, 0, _(b"merge takes no arguments"))
@@ -1306,7 +1323,7 @@ def merge(repo, subset, x):
 
 
 @predicate(b'branchpoint()', safe=True)
-def branchpoint(repo, subset, x):
+def branchpoint(repo: RepoT, subset, x):
     """Changesets with more than one child."""
     # i18n: "branchpoint" is a keyword
     getargs(x, 0, 0, _(b"branchpoint takes no arguments"))
@@ -1327,7 +1344,7 @@ def branchpoint(repo, subset, x):
 
 
 @predicate(b'min(set)', safe=True)
-def minrev(repo, subset, x):
+def minrev(repo: RepoT, subset, x):
     """Changeset with lowest revision number in set."""
     os = getset(repo, fullreposet(repo), x)
     try:
@@ -1342,7 +1359,7 @@ def minrev(repo, subset, x):
 
 
 @predicate(b'modifies(pattern)', safe=True, weight=30)
-def modifies(repo, subset, x):
+def modifies(repo: RepoT, subset, x):
     """Changesets modifying files matched by pattern.
 
     The pattern without explicit kind like ``glob:`` is expected to be
@@ -1355,7 +1372,7 @@ def modifies(repo, subset, x):
 
 
 @predicate(b'named(namespace)')
-def named(repo, subset, x):
+def named(repo: RepoT, subset, x):
     """The changesets in a given namespace.
 
     Pattern matching is supported for `namespace`. See
@@ -1392,7 +1409,7 @@ def named(repo, subset, x):
     return subset & names
 
 
-def _node(repo, n):
+def _node(repo: RepoT, n):
     """process a node input"""
     rn = None
     if len(n) == 2 * repo.nodeconstants.nodelen:
@@ -1415,7 +1432,7 @@ def _node(repo, n):
 
 
 @predicate(b'id(string)', safe=True)
-def node_(repo, subset, x):
+def node_(repo: RepoT, subset, x):
     """Revision non-ambiguously specified by the given hex string prefix."""
     # i18n: "id" is a keyword
     l = getargs(x, 1, 1, _(b"id requires one argument"))
@@ -1430,7 +1447,7 @@ def node_(repo, subset, x):
 
 
 @predicate(b'none()', safe=True)
-def none(repo, subset, x):
+def none(repo: RepoT, subset, x):
     """No changesets."""
     # i18n: "none" is a keyword
     getargs(x, 0, 0, _(b"none takes no arguments"))
@@ -1438,7 +1455,7 @@ def none(repo, subset, x):
 
 
 @predicate(b'obsolete()', safe=True)
-def obsolete(repo, subset, x):
+def obsolete(repo: RepoT, subset, x):
     """Mutable changeset with a newer version. (EXPERIMENTAL)"""
     # i18n: "obsolete" is a keyword
     getargs(x, 0, 0, _(b"obsolete takes no arguments"))
@@ -1447,7 +1464,7 @@ def obsolete(repo, subset, x):
 
 
 @predicate(b'only(set, [set])', safe=True)
-def only(repo, subset, x):
+def only(repo: RepoT, subset, x):
     """Changesets that are ancestors of the first set that are not ancestors
     of any other head in the repo. If a second set is specified, the result
     is ancestors of the first set that are not ancestors of the second set
@@ -1477,7 +1494,7 @@ def only(repo, subset, x):
 
 
 @predicate(b'origin([set])', safe=True)
-def origin(repo, subset, x):
+def origin(repo: RepoT, subset, x):
     """
     Changesets that were specified as a source for the grafts, transplants or
     rebases that created the given revisions.  Omitting the optional set is the
@@ -1510,7 +1527,7 @@ def origin(repo, subset, x):
 
 
 @predicate(b'outgoing([path])', safe=False, weight=10)
-def outgoing(repo, subset, x):
+def outgoing(repo: RepoT, subset, x):
     """Changesets not found in the specified destination repository, or the
     default push location.
 
@@ -1551,7 +1568,7 @@ def outgoing(repo, subset, x):
 
 
 @predicate(b'parents([set])', safe=True)
-def parents(repo, subset, x):
+def parents(repo: RepoT, subset, x):
     """
     The set of all parents for all changesets in set, or the working directory.
     """
@@ -1571,26 +1588,26 @@ def parents(repo, subset, x):
     return subset & ps
 
 
-def _phase(repo, subset, *targets):
+def _phase(repo: RepoT, subset, *targets):
     """helper to select all rev in <targets> phases"""
     return repo._phasecache.getrevset(repo, targets, subset)
 
 
 @predicate(b'_internal()', safe=True)
-def _internal(repo, subset, x):
+def _internal(repo: RepoT, subset, x):
     getargs(x, 0, 0, _(b"_internal takes no arguments"))
     return _phase(repo, subset, *phases.all_internal_phases)
 
 
 @predicate(b'_phase(idx)', safe=True)
-def phase(repo, subset, x):
+def phase(repo: RepoT, subset, x):
     l = getargs(x, 1, 1, b"_phase requires one argument")
     target = getinteger(l[0], b"_phase expects a number")
     return _phase(repo, subset, target)
 
 
 @predicate(b'draft()', safe=True)
-def draft(repo, subset, x):
+def draft(repo: RepoT, subset, x):
     """Changeset in draft phase."""
     # i18n: "draft" is a keyword
     getargs(x, 0, 0, _(b"draft takes no arguments"))
@@ -1599,7 +1616,7 @@ def draft(repo, subset, x):
 
 
 @predicate(b'secret()', safe=True)
-def secret(repo, subset, x):
+def secret(repo: RepoT, subset, x):
     """Changeset in secret phase."""
     # i18n: "secret" is a keyword
     getargs(x, 0, 0, _(b"secret takes no arguments"))
@@ -1608,7 +1625,7 @@ def secret(repo, subset, x):
 
 
 @predicate(b'stack([revs])', safe=True)
-def stack(repo, subset, x):
+def stack(repo: RepoT, subset, x):
     """Experimental revset for the stack of changesets or working directory
     parent. (EXPERIMENTAL)
     """
@@ -1624,7 +1641,7 @@ def stack(repo, subset, x):
 
 
 @predicate(b'present(set)', safe=True, takeorder=True)
-def present(repo, subset, x, order):
+def present(repo: RepoT, subset, x, order):
     """An empty set, if any revision in set isn't found; otherwise,
     all revisions in set.
 
@@ -1640,14 +1657,14 @@ def present(repo, subset, x, order):
 
 # for internal use
 @predicate(b'_notpublic', safe=True)
-def _notpublic(repo, subset, x):
+def _notpublic(repo: RepoT, subset, x):
     getargs(x, 0, 0, b"_notpublic takes no arguments")
     return _phase(repo, subset, *phases.not_public_phases)
 
 
 # for internal use
 @predicate(b'_phaseandancestors(phasename, set)', safe=True)
-def _phaseandancestors(repo, subset, x):
+def _phaseandancestors(repo: RepoT, subset, x):
     # equivalent to (phasename() & ancestors(set)) but more efficient
     # phasename could be one of 'draft', 'secret', or '_notpublic'
     args = getargs(x, 2, 2, b"_phaseandancestors requires two arguments")
@@ -1678,7 +1695,7 @@ def _phaseandancestors(repo, subset, x):
 
 
 @predicate(b'public()', safe=True)
-def public(repo, subset, x):
+def public(repo: RepoT, subset, x):
     """Changeset in public phase."""
     # i18n: "public" is a keyword
     getargs(x, 0, 0, _(b"public takes no arguments"))
@@ -1686,7 +1703,7 @@ def public(repo, subset, x):
 
 
 @predicate(b'remote([id [,path]])', safe=False)
-def remote(repo, subset, x):
+def remote(repo: RepoT, subset, x):
     """Local revision that corresponds to the given identifier in a
     remote repository, if present. Here, the '.' identifier is a
     synonym for the current local branch.
@@ -1720,7 +1737,7 @@ def remote(repo, subset, x):
 
 
 @predicate(b'removes(pattern)', safe=True, weight=30)
-def removes(repo, subset, x):
+def removes(repo: RepoT, subset, x):
     """Changesets which remove files matching pattern.
 
     The pattern without explicit kind like ``glob:`` is expected to be
@@ -1733,7 +1750,7 @@ def removes(repo, subset, x):
 
 
 @predicate(b'rev(number)', safe=True)
-def rev(repo, subset, x):
+def rev(repo: RepoT, subset, x):
     """Revision with the given numeric identifier."""
     try:
         return _rev(repo, subset, x)
@@ -1742,7 +1759,7 @@ def rev(repo, subset, x):
 
 
 @predicate(b'_rev(number)', safe=True)
-def _rev(repo, subset, x):
+def _rev(repo: RepoT, subset, x):
     # internal version of "rev(x)" that raise error if "x" is invalid
     # i18n: "rev" is a keyword
     l = getargs(x, 1, 1, _(b"rev requires one argument"))
@@ -1761,7 +1778,7 @@ def _rev(repo, subset, x):
 
 
 @predicate(b'revset(set)', safe=True, takeorder=True)
-def revsetpredicate(repo, subset, x, order):
+def revsetpredicate(repo: RepoT, subset, x, order):
     """Strictly interpret the content as a revset.
 
     The content of this special predicate will be strictly interpreted as a
@@ -1772,7 +1789,7 @@ def revsetpredicate(repo, subset, x, order):
 
 
 @predicate(b'matching(revision [, field])', safe=True)
-def matching(repo, subset, x):
+def matching(repo: RepoT, subset, x):
     """Changesets in which a given set of fields match the set of fields in the
     selected revision or set.
 
@@ -1902,7 +1919,7 @@ def matching(repo, subset, x):
 
 
 @predicate(b'reverse(set)', safe=True, takeorder=True, weight=0)
-def reverse(repo, subset, x, order):
+def reverse(repo: RepoT, subset, x, order):
     """Reverse order of set."""
     l = getset(repo, subset, x, order)
     if order == defineorder:
@@ -1911,7 +1928,7 @@ def reverse(repo, subset, x, order):
 
 
 @predicate(b'roots(set)', safe=True)
-def roots(repo, subset, x):
+def roots(repo: RepoT, subset, x):
     """Changesets in set with no parent changeset in set."""
     s = getset(repo, fullreposet(repo), x)
     parents = repo.changelog.parentrevs
@@ -2017,7 +2034,7 @@ def _getsortargs(x):
 @predicate(
     b'sort(set[, [-]key... [, ...]])', safe=True, takeorder=True, weight=10
 )
-def sort(repo, subset, x, order):
+def sort(repo: RepoT, subset, x, order):
     """Sort set by keys. The default sort order is ascending, specify a key
     as ``-key`` to sort in descending order.
 
@@ -2082,7 +2099,7 @@ def sort(repo, subset, x, order):
 
 
 @predicate(b'subrepo([pattern])')
-def subrepo(repo, subset, x):
+def subrepo(repo: RepoT, subset, x):
     """Changesets that add, modify or remove the given subrepo.  If no subrepo
     pattern is named, any subrepo changes are returned.
     """
@@ -2126,7 +2143,7 @@ def subrepo(repo, subset, x):
     return subset.filter(matches, condrepr=(b'<subrepo %r>', pat))
 
 
-def _mapbynodefunc(repo, s, f):
+def _mapbynodefunc(repo: RepoT, s, f):
     """(repo, smartset, [node] -> [node]) -> smartset
 
     Helper method to map a smartset to another smartset given a function only
@@ -2142,7 +2159,7 @@ def _mapbynodefunc(repo, s, f):
 
 
 @predicate(b'successors(set)', safe=True)
-def successors(repo, subset, x):
+def successors(repo: RepoT, subset, x):
     """All successors for set, including the given set themselves.
     (EXPERIMENTAL)"""
     s = getset(repo, fullreposet(repo), x)
@@ -2165,7 +2182,7 @@ def _substringmatcher(pattern, casesensitive=True):
 
 
 @predicate(b'tag([name])', safe=True)
-def tag(repo, subset, x):
+def tag(repo: RepoT, subset, x):
     """The specified tag by name, or all tagged revisions if no name is given.
 
     Pattern matching is supported for `name`. See
@@ -2197,12 +2214,12 @@ def tag(repo, subset, x):
 
 
 @predicate(b'tagged', safe=True)
-def tagged(repo, subset, x):
+def tagged(repo: RepoT, subset, x):
     return tag(repo, subset, x)
 
 
 @predicate(b'orphan()', safe=True)
-def orphan(repo, subset, x):
+def orphan(repo: RepoT, subset, x):
     """Non-obsolete changesets with obsolete ancestors. (EXPERIMENTAL)"""
     # i18n: "orphan" is a keyword
     getargs(x, 0, 0, _(b"orphan takes no arguments"))
@@ -2211,7 +2228,7 @@ def orphan(repo, subset, x):
 
 
 @predicate(b'unstable()', safe=True)
-def unstable(repo, subset, x):
+def unstable(repo: RepoT, subset, x):
     """Changesets with instabilities. (EXPERIMENTAL)"""
     # i18n: "unstable" is a keyword
     getargs(x, 0, 0, b'unstable takes no arguments')
@@ -2223,7 +2240,7 @@ def unstable(repo, subset, x):
 
 
 @predicate(b'user(string)', safe=True, weight=10)
-def user(repo, subset, x):
+def user(repo: RepoT, subset, x):
     """User name contains string. The match is case-insensitive.
 
     Pattern matching is supported for `string`. See
@@ -2233,7 +2250,7 @@ def user(repo, subset, x):
 
 
 @predicate(b'wdir()', safe=True, weight=0)
-def wdir(repo, subset, x):
+def wdir(repo: RepoT, subset, x):
     """Working directory. (EXPERIMENTAL)"""
     # i18n: "wdir" is a keyword
     getargs(x, 0, 0, _(b"wdir takes no arguments"))
@@ -2242,7 +2259,7 @@ def wdir(repo, subset, x):
     return baseset()
 
 
-def _orderedlist(repo, subset, x):
+def _orderedlist(repo: RepoT, subset, x):
     s = getstring(x, b"internal error")
     if not s:
         return baseset()
@@ -2276,7 +2293,7 @@ def _orderedlist(repo, subset, x):
 
 # for internal use
 @predicate(b'_list', safe=True, takeorder=True)
-def _list(repo, subset, x, order):
+def _list(repo: RepoT, subset, x, order):
     if order == followorder:
         # slow path to take the subset order
         return subset & _orderedlist(repo, fullreposet(repo), x)
@@ -2284,7 +2301,7 @@ def _list(repo, subset, x, order):
         return _orderedlist(repo, subset, x)
 
 
-def _orderedintlist(repo, subset, x):
+def _orderedintlist(repo: RepoT, subset, x):
     s = getstring(x, b"internal error")
     if not s:
         return baseset()
@@ -2295,7 +2312,7 @@ def _orderedintlist(repo, subset, x):
 
 # for internal use
 @predicate(b'_intlist', safe=True, takeorder=True, weight=0)
-def _intlist(repo, subset, x, order):
+def _intlist(repo: RepoT, subset, x, order):
     if order == followorder:
         # slow path to take the subset order
         return subset & _orderedintlist(repo, fullreposet(repo), x)
@@ -2303,7 +2320,7 @@ def _intlist(repo, subset, x, order):
         return _orderedintlist(repo, subset, x)
 
 
-def _orderedhexlist(repo, subset, x):
+def _orderedhexlist(repo: RepoT, subset, x):
     s = getstring(x, b"internal error")
     if not s:
         return baseset()
@@ -2315,7 +2332,7 @@ def _orderedhexlist(repo, subset, x):
 
 # for internal use
 @predicate(b'_hexlist', safe=True, takeorder=True)
-def _hexlist(repo, subset, x, order):
+def _hexlist(repo: RepoT, subset, x, order):
     if order == followorder:
         # slow path to take the subset order
         return subset & _orderedhexlist(repo, fullreposet(repo), x)
