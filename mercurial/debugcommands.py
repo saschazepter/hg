@@ -29,6 +29,10 @@ import sys
 import time
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from .node import (
     bin,
     hex,
@@ -2621,7 +2625,7 @@ def debugmergestate(ui, repo, *args, **opts):
 
 
 @command(b'debugnamecomplete', [], _(b'NAME...'))
-def debugnamecomplete(ui, repo, *args):
+def debugnamecomplete(ui: UiT, repo: RepoT, *args):
     '''complete "names" - tags, open branch names, bookmark names'''
 
     names = set()
