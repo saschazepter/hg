@@ -2022,6 +2022,12 @@ class IRepo(Protocol):
     information.
     """
 
+    _tagscache: NeedsTypeHint
+    """hold the tags information.
+
+    Note: the leading `_` is a bit weird, as this is accessed in various places
+    """
+
     @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
