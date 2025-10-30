@@ -12,6 +12,10 @@ from .node import (
     hex,
     short,
 )
+
+from .interfaces.types import (
+    UnbundleOpT,
+)
 from . import (
     bookmarks,
     bundle2,
@@ -83,7 +87,7 @@ def parthandler(parttype, params=()):
         b'targetphase',
     ),
 )
-def handlechangegroup(op, inpart):
+def handlechangegroup(op: UnbundleOpT, inpart):
     """apply a changegroup part on the repo"""
     tr = op.gettransaction()
     unpackerversion = inpart.params.get(b'version', b'01')
@@ -147,7 +151,7 @@ _remotechangegroupparams = tuple(
 
 
 @parthandler(b'remote-changegroup', _remotechangegroupparams)
-def handleremotechangegroup(op, inpart):
+def handleremotechangegroup(op: UnbundleOpT, inpart):
     """apply a bundle10 on the repo, given an url and validation information
 
     All the information about the remote bundle to import are given as
@@ -231,7 +235,7 @@ def handleremotechangegroup(op, inpart):
 
 
 @parthandler(b'reply:changegroup', (b'return', b'in-reply-to'))
-def handlereplychangegroup(op, inpart):
+def handlereplychangegroup(op: UnbundleOpT, inpart):
     ret = int(inpart.params[b'return'])
     replyto = int(inpart.params[b'in-reply-to'])
     op.records.add(b'changegroup', {b'return': ret}, replyto)
@@ -276,7 +280,7 @@ def handlecheckbookmarks(op, inpart):
 
 
 @parthandler(b'check:heads')
-def handlecheckheads(op, inpart):
+def handlecheckheads(op: UnbundleOpT, inpart):
     """check that head of the repo did not change
 
     This is used to detect a push race when using unbundle.
@@ -297,7 +301,7 @@ def handlecheckheads(op, inpart):
 
 
 @parthandler(b'check:updated-heads')
-def handlecheckupdatedheads(op, inpart):
+def handlecheckupdatedheads(op: UnbundleOpT, inpart):
     """check for race on the heads touched by a push
 
     This is similar to 'check:heads' but focus on the heads actually updated
@@ -329,7 +333,7 @@ def handlecheckupdatedheads(op, inpart):
 
 
 @parthandler(b'check:phases')
-def handlecheckphases(op, inpart):
+def handlecheckphases(op: UnbundleOpT, inpart):
     """check that phase boundaries of the repository did not change
 
     This is used to detect a push race.
@@ -355,14 +359,14 @@ def handlecheckphases(op, inpart):
 
 
 @parthandler(b'output')
-def handleoutput(op, inpart):
+def handleoutput(op: UnbundleOpT, inpart):
     """forward output captured on the server to the client"""
     for line in inpart.read().splitlines():
         op.ui.status(_(b'remote: %s\n') % line)
 
 
 @parthandler(b'replycaps')
-def handlereplycaps(op, inpart):
+def handlereplycaps(op: UnbundleOpT, inpart):
     """Notify that a reply bundle should be created
 
     The payload contains the capabilities information for the reply"""
@@ -372,7 +376,7 @@ def handlereplycaps(op, inpart):
 
 
 @parthandler(b'error:abort', (b'message', b'hint'))
-def handleerrorabort(op, inpart):
+def handleerrorabort(op: UnbundleOpT, inpart):
     """Used to transmit abort error over the wire"""
     raise bundle2.AbortFromPart(
         inpart.params[b'message'], hint=inpart.params.get(b'hint')
@@ -383,7 +387,7 @@ def handleerrorabort(op, inpart):
     b'error:pushkey',
     (b'namespace', b'key', b'new', b'old', b'ret', b'in-reply-to'),
 )
-def handleerrorpushkey(op, inpart):
+def handleerrorpushkey(op: UnbundleOpT, inpart):
     """Used to transmit failure of a mandatory pushkey over the wire"""
     kwargs = {}
     for name in (b'namespace', b'key', b'new', b'old', b'ret'):
@@ -396,7 +400,7 @@ def handleerrorpushkey(op, inpart):
 
 
 @parthandler(b'error:unsupportedcontent', (b'parttype', b'params'))
-def handleerrorunsupportedcontent(op, inpart):
+def handleerrorunsupportedcontent(op: UnbundleOpT, inpart):
     """Used to transmit unknown content error over the wire"""
     kwargs = {}
     parttype = inpart.params.get(b'parttype')
@@ -410,13 +414,13 @@ def handleerrorunsupportedcontent(op, inpart):
 
 
 @parthandler(b'error:pushraced', (b'message',))
-def handleerrorpushraced(op, inpart):
+def handleerrorpushraced(op: UnbundleOpT, inpart):
     """Used to transmit push race error over the wire"""
     raise error.ResponseError(_(b'push failed:'), inpart.params[b'message'])
 
 
 @parthandler(b'listkeys', (b'namespace',))
-def handlelistkeys(op, inpart):
+def handlelistkeys(op: UnbundleOpT, inpart):
     """retrieve pushkey namespace content stored in a bundle2"""
     namespace = inpart.params[b'namespace']
     r = pushkey.decodekeys(inpart.read())
@@ -424,7 +428,7 @@ def handlelistkeys(op, inpart):
 
 
 @parthandler(b'pushkey', (b'namespace', b'key', b'old', b'new'))
-def handlepushkey(op, inpart):
+def handlepushkey(op: UnbundleOpT, inpart):
     """process a pushkey request"""
     dec = pushkey.decode
     namespace = dec(inpart.params[b'namespace'])
@@ -523,14 +527,14 @@ def handlebookmark(op, inpart):
 
 
 @parthandler(b'phase-heads')
-def handlephases(op, inpart):
+def handlephases(op: UnbundleOpT, inpart):
     """apply phases from bundle part to repo"""
     headsbyphase = phases.binarydecode(inpart)
     phases.updatephases(op.repo.unfiltered(), op.gettransaction, headsbyphase)
 
 
 @parthandler(b'reply:pushkey', (b'return', b'in-reply-to'))
-def handlepushkeyreply(op, inpart):
+def handlepushkeyreply(op: UnbundleOpT, inpart):
     """retrieve the result of a pushkey request"""
     ret = int(inpart.params[b'return'])
     partid = int(inpart.params[b'in-reply-to'])
@@ -538,7 +542,7 @@ def handlepushkeyreply(op, inpart):
 
 
 @parthandler(b'obsmarkers')
-def handleobsmarker(op, inpart):
+def handleobsmarker(op: UnbundleOpT, inpart):
     """add a stream of obsmarkers to the repo"""
     tr = op.gettransaction()
     markerdata = inpart.read()
@@ -565,7 +569,7 @@ def handleobsmarker(op, inpart):
 
 
 @parthandler(b'reply:obsmarkers', (b'new', b'in-reply-to'))
-def handleobsmarkerreply(op, inpart):
+def handleobsmarkerreply(op: UnbundleOpT, inpart):
     """retrieve the result of a pushkey request"""
     ret = int(inpart.params[b'new'])
     partid = int(inpart.params[b'in-reply-to'])
@@ -573,7 +577,7 @@ def handleobsmarkerreply(op, inpart):
 
 
 @parthandler(b'hgtagsfnodes')
-def handlehgtagsfnodes(op, inpart):
+def handlehgtagsfnodes(op: UnbundleOpT, inpart):
     """Applies .hgtags fnodes cache entries to the local repo.
 
     Payload is pairs of 20 byte changeset nodes and filenodes.
@@ -598,7 +602,7 @@ def handlehgtagsfnodes(op, inpart):
 
 
 @parthandler(b'cache:rev-branch-cache')
-def handlerbc(op, inpart):
+def handlerbc(op: UnbundleOpT, inpart):
     """Legacy part, ignored for compatibility with bundles from or
     for Mercurial before 5.7. Newer Mercurial computes the cache
     efficiently enough during unbundling that the additional transfer
@@ -606,7 +610,7 @@ def handlerbc(op, inpart):
 
 
 @parthandler(b'pushvars')
-def bundle2getvars(op, part):
+def bundle2getvars(op: UnbundleOpT, part):
     '''unbundle a bundle2 containing shellvars on the server'''
     # An option to disable unbundling on server-side for security reasons
     if op.ui.configbool(b'push', b'pushvars.server'):
@@ -621,7 +625,7 @@ def bundle2getvars(op, part):
 
 
 @parthandler(b'stream2', (b'requirements', b'filecount', b'bytecount'))
-def handlestreamv2bundle(op, part):
+def handlestreamv2bundle(op: UnbundleOpT, part):
     requirements = util.urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
     filecount = int(part.params[b'filecount'])
@@ -637,7 +641,7 @@ def handlestreamv2bundle(op, part):
 
 
 @parthandler(b'stream3-exp', (b'requirements',))
-def handlestreamv3bundle(op, part):
+def handlestreamv3bundle(op: UnbundleOpT, part):
     requirements = util.urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
 
