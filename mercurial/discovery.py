@@ -28,6 +28,9 @@ from . import (
     treediscovery,
     util,
 )
+from .interfaces import (
+    exchange as i_exc,
+)
 
 
 def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
@@ -75,7 +78,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
     return (list(common), anyinc, heads or list(srvheads))
 
 
-class outgoing:
+class outgoing(i_exc.IOutgoing):
     """Represents the result of a findcommonoutgoing() call.
 
     Members:

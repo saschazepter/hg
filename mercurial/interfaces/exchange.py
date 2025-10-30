@@ -15,6 +15,28 @@ from . import (
 )
 
 
+class IOutgoing(Protocol):
+    """Represents the result of a findcommonoutgoing() call."""
+
+    ancestorsof: list[i_base.NodeIdT]
+    """a list of the nodes whose ancestors are included in the
+    outgoing operation."""
+
+    missing: list[i_base.NodeIdT]
+    """list of those ancestors of ancestorsof that are present in
+    local but not in remote."""
+
+    common: set[i_base.RevnumT]
+    """contains revs common between the local and the remote
+    repository (at least all of those that are ancestors of ancestorsof)."""
+
+    commonheads: list[i_base.RevnumT]
+    """list of heads of `common`."""
+
+    excluded: list[i_base.NodeIdT]
+    """the list of missing changeset that shouldn't be sent remotely."""
+
+
 class IRemotePhasesSummary(Protocol):
     """summarize phase information on the remote side"""
 
