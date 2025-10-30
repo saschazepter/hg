@@ -131,7 +131,7 @@ impl LazyAncestors {
         mut slf: PyRefMut<'_, Self>,
         obj: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
-        PyRevision::extract_bound(obj).map_or(Ok(false), |rev| {
+        PyRevision::extract(obj.into()).map_or(Ok(false), |rev| {
             // Safety: we don't leak the "faked" reference out of
             // `SharedByPyObject`
             let mut inner = unsafe { slf.inner.try_borrow_mut(obj.py()) }?;

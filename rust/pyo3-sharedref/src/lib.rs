@@ -468,7 +468,7 @@ impl Drop for BorrowPyShared<'_> {
 /// See [`Self::try_borrow_mut()`] for an example of the kind of trouble that
 /// can arise.
 pub struct SharedByPyObject<T: ?Sized> {
-    owner: PyObject,
+    owner: Py<PyAny>,
     state: &'static PySharedState,
     /// Generation counter of data `T` captured when SharedByPyObject is
     /// created.

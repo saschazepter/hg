@@ -23,14 +23,14 @@ use pyo3::types::PyDictMethods;
 /// Helper trait for configuration dicts
 ///
 /// In Mercurial, it is customary for such dicts to have bytes keys.
-trait ConfigPyDict<'a, 'py: 'a, D: FromPyObject<'py>> {
+trait ConfigPyDict<'a, 'py: 'a, D: FromPyObject<'py, 'py>> {
     fn extract_item(&'a self, key: &[u8]) -> PyResult<Option<D>>;
 }
 
 impl<'a, 'py, D> ConfigPyDict<'a, 'py, D> for Bound<'py, PyDict>
 where
     'py: 'a,
-    D: FromPyObject<'py>,
+    D: FromPyObjectOwned<'py>,
 {
     fn extract_item(&'a self, key: &[u8]) -> PyResult<Option<D>> {
         let py_item = self.get_item(PyBytes::new(self.py(), key))?;
@@ -39,7 +39,7 @@ where
                 if value.is_none() {
                     Ok(None)
                 } else {
-                    Ok(Some(value.extract()?))
+                    Ok(Some(value.extract().map_err(Into::into)?))
                 }
             }
             None => Ok(None),
@@ -59,7 +59,8 @@ where
 /// compiler: "returns a value referencing data owned by the current function"
 macro_rules! extract_attr {
     ($obj: expr, $attr: expr) => {
-        $obj.getattr(intern!($obj.py(), $attr)).and_then(|a| a.extract())
+        $obj.getattr(intern!($obj.py(), $attr))
+            .and_then(|a| a.extract().map_err(Into::into))
     };
 }
 
