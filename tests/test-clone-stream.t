@@ -168,7 +168,7 @@ based clone with a warning.
     delta-compression
       none
       zlib
-      zstd
+      zstd (zstd !)
     digests
       md5
       sha1

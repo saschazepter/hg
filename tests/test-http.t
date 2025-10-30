@@ -336,20 +336,20 @@ test http authentication
   list of changesets:
   7f4e523d01f2cc3765ac8934da3d14db775ff872
   bundle2-output-bundle: "HG20", 5 parts total
-  bundle2-output-part: "replycaps" 243 bytes payload
+  bundle2-output-part: "replycaps" * bytes payload (glob)
   bundle2-output-part: "check:phases" 24 bytes payload
   bundle2-output-part: "check:updated-heads" streamed payload
   bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
   bundle2-output-part: "phase-heads" 24 bytes payload
   sending unbundle command
-  sending 1069 bytes
+  sending * bytes (glob)
   devel-peer-request: POST http://localhost:$HGPORT2/?cmd=unbundle
-  devel-peer-request:   Content-length 1069
+  devel-peer-request:   Content-length * (glob)
   devel-peer-request:   Content-type application/mercurial-0.1
   devel-peer-request:   Vary X-HgArg-1,X-HgProto-1
   devel-peer-request:   X-hgproto-1 0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull
   devel-peer-request:   16 bytes of commands arguments in headers
-  devel-peer-request:   1069 bytes of data
+  devel-peer-request:   * bytes of data (glob)
   devel-peer-request:   finished in *.???? seconds (200) (glob)
   bundle2-input-bundle: no-transaction
   bundle2-input-part: "reply:changegroup" (advisory) (params: 0 advisory) supported

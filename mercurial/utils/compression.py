@@ -233,7 +233,7 @@ class compressormanager:
             delta_comps.add(b'zlib')
         # for some reason, pytype consider that `_zstdengine` is undefined so
         # using the plain name for now…
-        if b'zstd' in self:
+        if b'zstd' in self and self[b'zstd'].available():
             delta_comps.add(b'zstd')
         return tuple(sorted(delta_comps))
 
