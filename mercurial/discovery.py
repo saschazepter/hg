@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-
 import functools
 
 from typing import (
@@ -18,6 +17,7 @@ from typing import (
 from .i18n import _
 from .interfaces.types import (
     NodeIdT,
+    PeerT,
     PushOpT,
     RepoT,
 )
@@ -44,7 +44,13 @@ from .interfaces import (
 )
 
 
-def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
+def findcommonincoming(
+    repo: RepoT,
+    remote: PeerT,
+    heads: list[NodeIdT] | None = None,
+    force: bool = False,
+    ancestorsof: Collection[NodeIdT] | None = None,
+) -> tuple[list[NodeIdT], bool | Collection[NodeIdT], Collection[NodeIdT]]:
     """Return a tuple (common, anyincoming, heads) used to identify the common
     subset of nodes between repo and remote.
 
@@ -72,6 +78,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
     if heads:
         knownnode = repo.changelog.hasnode  # no nodemap until it is filtered
         if all(knownnode(h) for h in heads):
+            assert heads is not None
             return (heads, False, heads)
 
     res = setdiscovery.findcommonheads(
@@ -112,7 +119,11 @@ class outgoing(i_exc.IOutgoing):
     by discovery."""
 
     def __init__(
-        self, repo, commonheads=None, ancestorsof=None, missingroots=None
+        self,
+        repo: RepoT,
+        commonheads: Collection[NodeIdT] | None = None,
+        ancestorsof: Collection[NodeIdT] | None = None,
+        missingroots: Collection[NodeIdT] | None = None,
     ):
         # at most one of them must not be set
         if commonheads is not None and missingroots is not None:
@@ -192,8 +203,16 @@ class outgoing(i_exc.IOutgoing):
 
 
 def findcommonoutgoing(
-    repo, other, onlyheads=None, force=False, commoninc=None, portable=False
-):
+    repo: RepoT,
+    other: PeerT,
+    onlyheads: Collection[NodeIdT] | None = None,
+    force: bool = False,
+    commoninc: tuple[
+        Collection[NodeIdT], bool | Collection[NodeIdT], Collection[NodeIdT]
+    ]
+    | None = None,
+    portable: bool = False,
+) -> i_exc.IOutgoing:
     """Return an outgoing instance to identify the nodes present in repo but
     not in other.
 
@@ -379,7 +398,7 @@ def _oldheadssummary(
     return {None: (oldheads, newheads, unsynced, [])}
 
 
-def _nowarnheads(pushop):
+def _nowarnheads(pushop: PushOpT) -> set[bytes]:
     # Compute newly pushed bookmarks. We don't warn about bookmarked heads.
     repo = pushop.repo.unfiltered()
     remote = pushop.remote
@@ -414,7 +433,7 @@ def _nowarnheads(pushop):
     return bookmarkedheads
 
 
-def checkheads(pushop):
+def checkheads(pushop: PushOpT) -> None:
     """Check that a push won't add any outgoing head
 
     raise StateError error and display ui message as needed.
@@ -561,7 +580,11 @@ def checkheads(pushop):
         raise error.StateError(errormsg, hint=hint)
 
 
-def _postprocessobsolete(pushop, futurecommon, candidate_newhs):
+def _postprocessobsolete(
+    pushop: PushOpT,
+    futurecommon: Collection[NodeIdT],
+    candidate_newhs: Collection[NodeIdT],
+) -> tuple[set[bytes], set[bytes]]:
     """post process the list of new heads with obsolescence information
 
     Exists as a sub-function to contain the complexity and allow extensions to
@@ -652,7 +675,7 @@ def _postprocessobsolete(pushop, futurecommon, candidate_newhs):
     return newhs, discarded
 
 
-def pushingmarkerfor(obsstore, ispushed, node):
+def pushingmarkerfor(obsstore, ispushed, node: NodeIdT) -> bool:
     """true if some markers are to be pushed for node
 
     We cannot just look in to the pushed obsmarkers from the pushop because
