@@ -59,7 +59,10 @@ from .utils import (
     stringutil,
     urlutil,
 )
-from .interfaces import repository
+from .interfaces import (
+    exchange as i_exc,
+    repository,
+)
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -266,7 +269,7 @@ def _forcebundle1(op):
     return forcebundle1 or not op.remote.capable(b'bundle2')
 
 
-class pushoperation:
+class pushoperation(i_exc.IPushOperation):
     """A object that represent a single push operation
 
     Its purpose is to carry push related state and very common operations.
@@ -348,7 +351,7 @@ class pushoperation:
         # an iterable of pushvars or None
         self.pushvars: dict[bytes, bytes] | None = pushvars
         # publish pushed changesets
-        self.publish = publish
+        self.publish: bool = publish
 
     @util.propertycache
     def futureheads(self):
@@ -1477,7 +1480,7 @@ def _pushbookmark(pushop):
                 pushop.bkresult = 1
 
 
-class pulloperation:
+class pulloperation(i_exc.IPullOperation):
     """A object that represent a single pull operation
 
     It purpose is to carry pull related state and very common operation.

@@ -13,7 +13,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import (
+    Any,
+    Dict,
+    List,
+    Tuple,
+    Union,
+)
+
+Capabilities = Dict[bytes, Union[List[bytes], Tuple[bytes, ...]]]
 
 NeedsTypeHint = Any
 """A custom version of Any to signal a that Any was used temporarily

@@ -18,6 +18,7 @@ from typing import (
 
 from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     CallbackCategoryT,
+    Capabilities,
     FsPathT,
     HgPathT,
     NeedsTypeHint,
@@ -35,6 +36,7 @@ from . import (
     bundle,
     config,
     context,
+    exchange,
     matcher,
     misc,
     repository,
@@ -43,8 +45,6 @@ from . import (
     ui as uimod,
 )
 
-
-Capabilities = dict[bytes, Union[list[bytes], tuple[bytes, ...]]]
 ChangeContextT = context.IChangeContext
 
 CfgRemapT = config.CfgRemapT
@@ -76,6 +76,8 @@ PathT = misc.IPath
 
 OutboundRevisionT = repository.IOutboundRevision
 InboundRevisionT = repository.IInboundRevision
+PushOpT = exchange.IPushOperation
+PullOpT = exchange.IPullOperation
 
 StatusT = status.Status
 SubrepoT = misc.ISubRepo
