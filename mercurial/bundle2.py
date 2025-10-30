@@ -243,7 +243,7 @@ def _makefpartparamsizes(nbparams):
 parthandlermapping = tables.bundle2_part_handler_mapping
 
 
-class unbundlerecords:
+class unbundlerecords(i_exch.IUnbundleRecords):
     """keep record of what happens during and unbundle
 
     New records are added using `records.add('cat', obj)`. Where 'cat' is a

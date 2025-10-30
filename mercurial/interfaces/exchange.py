@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import abc
 from typing import (
+    Any,
     Collection,
     Iterator,
     Protocol,
@@ -356,3 +357,47 @@ class IBundle20(Protocol):
 
         This is meant to be used during error handling to make sure we preserve
         server output"""
+
+
+class IUnbundleRecords(Protocol):
+    """keep record of what happens during and unbundle
+
+    New records are added using `records.add('cat', obj)`. Where 'cat' is a
+    category of record and obj is an arbitrary object.
+
+    `records['cat']` will return all entries of this category 'cat'.
+
+    Iterating on the object itself will yield `('category', obj)` tuples
+    for all entries.
+
+    All iterations happens in chronological order.
+    """
+
+    @abc.abstractmethod
+    def add(
+        self, category: bytes, entry: Any, inreplyto: int | None = None
+    ) -> None:
+        """add a new record of a given category.
+
+        The entry can then be retrieved in the list returned by
+        self['category']."""
+
+    @abc.abstractmethod
+    def getreplies(self, partid) -> "IUnbundleRecords":
+        """get the records that are replies to a specific part"""
+
+    @abc.abstractmethod
+    def __getitem__(self, cat: bytes) -> Collection[Any]:
+        """return all records in a given category"""
+
+    @abc.abstractmethod
+    def __iter__(self) -> tuple[bytes, Any]:
+        """iter over every records a ('cat', obj)"""
+
+    @abc.abstractmethod
+    def __len__(self) -> int:
+        """Number of records"""
+
+    @abc.abstractmethod
+    def __bool__(self) -> bool:
+        """True if the records hold any information"""
