@@ -183,7 +183,7 @@ from .utils import (
 )
 from .interfaces import (
     bundle as i_bundle,
-    repository,
+    repository as i_repo,
 )
 
 if typing.TYPE_CHECKING:
@@ -1719,7 +1719,7 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
                     b'%d' % target_phase,
                     mandatory=False,
                 )
-    if repository.REPO_FEATURE_SIDE_DATA in repo.features:
+    if i_repo.REPO_FEATURE_SIDE_DATA in repo.features:
         part.addparam(b'exp-sidedata', b'1')
 
     if opts.get(b'tagsfnodescache', True):
@@ -2031,7 +2031,7 @@ def widen_bundle(
         part.addparam(b'version', cgversion)
         if scmutil.istreemanifest(repo):
             part.addparam(b'treemanifest', b'1')
-    if repository.REPO_FEATURE_SIDE_DATA in repo.features:
+    if i_repo.REPO_FEATURE_SIDE_DATA in repo.features:
         part.addparam(b'exp-sidedata', b'1')
         wanted = format_remote_wanted_sidedata(repo)
         part.addparam(b'exp-wanted-sidedata', wanted)
