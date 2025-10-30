@@ -183,6 +183,7 @@ from .utils import (
 )
 from .interfaces import (
     bundle as i_bundle,
+    exchange as i_exch,
     repository as i_repo,
 )
 
@@ -992,7 +993,7 @@ def processcompression(unbundler, param, value):
         unbundler._compressed = True
 
 
-class bundlepart:
+class bundlepart(i_exch.IBundlePart):
     """A bundle2 part contains application level payload
 
     The part `type` is used to route the part to the application level

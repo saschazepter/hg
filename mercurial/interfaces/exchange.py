@@ -8,6 +8,7 @@ from __future__ import annotations
 import abc
 from typing import (
     Collection,
+    Iterator,
     Protocol,
 )
 
@@ -252,3 +253,54 @@ class IPushOperation(Protocol):
 
     publish: bool
     """publish pushed changesets"""
+
+
+class IBundlePart(Protocol):
+    """A bundle2 part contains application level payload
+
+    The part `type` is used to route the part to the application level
+    handler.
+
+    The part payload is contained in ``part.data``. It could be raw bytes or a
+    generator of byte chunks.
+
+    You can add parameters to the part using the ``addparam`` method.
+    Parameters can be either mandatory (default) or advisory. Remote side
+    should be able to safely ignore the advisory ones.
+
+    Both data and parameters cannot be modified after the generation has begun.
+    """
+
+    id: bytes | None
+    type: bytes
+    mandatory: bool
+    data: bytes
+    mandatoryparams: dict[bytes, bytes]
+    advisoryparams: dict[bytes, bytes]
+
+    @abc.abstractmethod
+    def copy(self) -> "IBundlePart":
+        """return a copy of the part
+
+        The new part have the very same content but no partid assigned yet.
+        Parts with generated data cannot be copied."""
+
+    @abc.abstractmethod
+    def addparam(
+        self,
+        name: bytes,
+        value: bytes = b'',
+        mandatory: bool = True,
+    ) -> None:
+        """add a parameter to the part
+
+        If 'mandatory' is set to True, the remote handler must claim support
+        for this parameter or the unbundling will be aborted.
+
+        The 'name' and 'value' cannot exceed 255 bytes each.
+        """
+
+    @abc.abstractmethod
+    def getchunks(self, ui) -> Iterator[bytes]:
+        """Yield bytes that containt the part header and payload"""
+        ...
