@@ -624,7 +624,7 @@ bundletypes = {
 bundlepriority = [b'HG10GZ', b'HG10BZ', b'HG10UN']
 
 
-class bundle20:
+class bundle20(i_exch.IBundle20):
     """represent an outgoing bundle2 container
 
     Use the `addparam` method to add stream level parameter. and `newpart` to

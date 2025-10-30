@@ -304,3 +304,55 @@ class IBundlePart(Protocol):
     def getchunks(self, ui) -> Iterator[bytes]:
         """Yield bytes that containt the part header and payload"""
         ...
+
+
+class IBundle20(Protocol):
+    """represent an outgoing Bundle20 container
+
+    Use the `addparam` method to add stream level parameter. and `newpart` to
+    populate it. Then call `getchunks` to retrieve all the binary chunks of
+    data that compose the bundle2 container."""
+
+    capabilities: i_base.Capabilities
+    prefercompressed: bool
+    nbparts: int
+
+    @abc.abstractmethod
+    def setcompression(
+        self,
+        alg: bytes | None,
+        compopts: dict | None = None,
+    ) -> None:
+        """setup core part compression to <alg>"""
+
+    @abc.abstractmethod
+    def addparam(self, name: bytes, value: None | bytes = None) -> None:
+        """add a stream level parameter"""
+
+    @abc.abstractmethod
+    def addpart(self, part: IBundlePart) -> None:
+        """add a new part to the bundle2 container
+
+        Parts contains the actual applicative payload."""
+
+    @abc.abstractmethod
+    def newpart(self, typeid: bytes, *args, **kwargs) -> IBundlePart:
+        """create a new part and add it to the containers
+
+        As the part is directly added to the containers. For now, this means
+        that any failure to properly initialize the part after calling
+        ``newpart`` should result in a failure of the whole bundling process.
+
+        You can still fall back to manually create and add if you need better
+        control."""
+
+    @abc.abstractmethod
+    def getchunks(self) -> Iterator[bytes]:
+        """yield the content of this bundle as bytes"""
+
+    @abc.abstractmethod
+    def salvageoutput(self) -> Collection[IBundlePart]:
+        """return a list with a copy of all output parts in the bundle
+
+        This is meant to be used during error handling to make sure we preserve
+        server output"""
