@@ -135,6 +135,9 @@ from . import (
     txnutil,
     util,
 )
+from .interfaces import (
+    exchange as i_exc,
+)
 
 Phaseroots = dict[int, set[int]]
 PhaseSets = dict[int, set[int]]
@@ -1164,7 +1167,7 @@ def analyze_remote_phases(
     return public_heads, draft_roots
 
 
-class RemotePhasesSummary:
+class RemotePhasesSummary(i_exc.IRemotePhasesSummary):
     """summarize phase information on the remote side
 
     :publishing: True is the remote is publishing
