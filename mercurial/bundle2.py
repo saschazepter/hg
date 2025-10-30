@@ -160,6 +160,8 @@ from .i18n import _
 from .interfaces.types import (
     Capabilities,
     MatcherT,
+    RepoT,
+    UnbundleOpT,
 )
 from . import (
     changegroup,
@@ -502,13 +504,13 @@ def processbundle(
     return op
 
 
-def processparts(repo, op, unbundler):
+def processparts(repo: RepoT, op: UnbundleOpT, unbundler):
     with partiterator(repo, op, unbundler) as parts:
         for part in parts:
             _processpart(op, part)
 
 
-def process_changegroup(op, cg, tr, source, url, **kwargs):
+def process_changegroup(op: UnbundleOpT, cg, tr, source, url, **kwargs):
     if op.remote is not None and op.remote.path is not None:
         remote_path = op.remote.path
         kwargs = kwargs.copy()
@@ -523,7 +525,7 @@ def process_changegroup(op, cg, tr, source, url, **kwargs):
     return ret
 
 
-def _gethandler(op, part):
+def _gethandler(op: UnbundleOpT | interruptoperation, part):
     status = b'unknown'  # used by debug output
     try:
         handler = parthandlermapping.get(part.type)
@@ -565,7 +567,7 @@ def _gethandler(op, part):
     return handler
 
 
-def _processpart(op, part):
+def _processpart(op: UnbundleOpT | interruptoperation, part):
     """process a single part from a bundle
 
     The part is guaranteed to have been fully consumed when the function exits
@@ -588,7 +590,11 @@ def _processpart(op, part):
         if output is not None:
             output = op.ui.popbuffer()
         if output:
-            outpart = op.reply.newpart(b'output', data=output, mandatory=False)
+            # The `is None` case is tested early and won't walk in this branch.
+            # the assert helps pytype
+            reply = op.reply
+            assert reply is not None
+            outpart = reply.newpart(b'output', data=output, mandatory=False)
             outpart.addparam(
                 b'in-reply-to', pycompat.bytestr(part.id), mandatory=False
             )
@@ -1286,7 +1292,7 @@ class interruptoperation:
 
     def __init__(self, ui):
         self.ui = ui
-        self.reply = None
+        self.reply: None = None
         self.captureoutput = False
 
     @property
