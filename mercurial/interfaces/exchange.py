@@ -401,3 +401,40 @@ class IUnbundleRecords(Protocol):
     @abc.abstractmethod
     def __bool__(self) -> bool:
         """True if the records hold any information"""
+
+
+class IUnbundleOperation(Protocol):
+    """an object that represents the processing of a single
+
+    Its purpose is to carry unbundle-related objects and states.
+
+    A new object should be created at the beginning of each bundle processing.
+    The object is to be returned by the processing function.
+
+    The object has very little content now it will ultimately contain:
+    * an access to the repo the bundle is applied to,
+    * a ui object,
+    * a way to retrieve a transaction to add changes to the repo,
+    * a way to record the result of processing each part,
+    * a way to construct a bundle response when applicable.
+    """
+
+    repo: i_repo.IRepo
+    ui: i_base.UiT
+    source = bytes
+    records: IUnbundleRecords
+    remote: i_repo.peer | None
+    reply: IBundle20 | None
+    captureoutput: bool
+    modes: dict[int, int]
+
+    @abc.abstractmethod
+    def gettransaction(self) -> i_tr.ITransaction:
+        """return an active transaction to unbundle into"""
+
+    @abc.abstractmethod
+    def addhookargs(self, hookargs: dict[bytes, bytes]):
+        """add new hook args
+
+        Can only be called before the transaction start.
+        """

@@ -78,6 +78,7 @@ OutboundRevisionT = repository.IOutboundRevision
 InboundRevisionT = repository.IInboundRevision
 PushOpT = exchange.IPushOperation
 PullOpT = exchange.IPullOperation
+UnbundleOpT = exchange.IUnbundleOperation
 
 StatusT = status.Status
 SubrepoT = misc.ISubRepo

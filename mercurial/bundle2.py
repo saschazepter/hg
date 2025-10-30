@@ -291,7 +291,7 @@ class unbundlerecords(i_exch.IUnbundleRecords):
     __bool__ = __nonzero__
 
 
-class bundleoperation:
+class bundleoperation(i_exch.IUnbundleOperation):
     """an object that represents a single bundling process
 
     Its purpose is to carry unbundle-related objects and states.
