@@ -7,9 +7,20 @@
 
 from __future__ import annotations
 
+
 import functools
 
+from typing import (
+    Collection,
+    Optional,
+)
+
 from .i18n import _
+from .interfaces.types import (
+    NodeIdT,
+    PushOpT,
+    RepoT,
+)
 from .node import (
     hex,
     short,
@@ -249,7 +260,13 @@ def findcommonoutgoing(
     return og
 
 
-def _headssummary(pushop):
+_OneSumT = tuple[
+    Optional[list[NodeIdT]], list[NodeIdT], list[NodeIdT], list[NodeIdT]
+]
+HeadSummaryT = dict[bytes, _OneSumT]
+
+
+def _headssummary(pushop: PushOpT) -> HeadSummaryT:
     """compute a summary of branch and heads status before and after push
 
     return {'branch': ([remoteheads], [newheads],
@@ -266,7 +283,7 @@ def _headssummary(pushop):
     remote = pushop.remote
     outgoing = pushop.outgoing
     cl = repo.changelog
-    headssum = {}
+    headssum: HeadSummaryT = {}
     missingctx = set()
     # A. Create set of branches involved in the push.
     branches = set()
@@ -291,12 +308,12 @@ def _headssummary(pushop):
                 known.append(h)
             else:
                 unsynced.append(h)
-        headssum[branch] = (known, list(known), unsynced)
+        headssum[branch] = (known, list(known), unsynced, [])
 
     # B. add new branch data
     for branch in branches:
         if branch not in headssum:
-            headssum[branch] = (None, [], [])
+            headssum[branch] = (None, [], [], [])
 
     # C. Update newmap with outgoing changes.
     # This will possibly add new heads and remove existing ones.
@@ -315,7 +332,6 @@ def _headssummary(pushop):
         for l in items:
             if l is not None:
                 l.sort()
-        headssum[branch] = items + ([],)
 
     # If there are no obsstore, no post processing are needed.
     if repo.obsstore:
@@ -335,7 +351,12 @@ def _headssummary(pushop):
     return headssum
 
 
-def _oldheadssummary(repo, remoteheads, outgoing, inc=False):
+def _oldheadssummary(
+    repo: RepoT,
+    remoteheads: Collection[NodeIdT],
+    outgoing: i_exc.IOutgoing,
+    inc: bool = False,
+) -> dict[None, _OneSumT]:
     """Compute branchmapsummary for repo without branchmap support"""
 
     # 1-4b. old servers: Check for new topological heads.
@@ -352,7 +373,7 @@ def _oldheadssummary(repo, remoteheads, outgoing, inc=False):
     newheads = sorted(c.node() for c in r)
     # set some unsynced head to issue the "unsynced changes" warning
     if inc:
-        unsynced = [None]
+        unsynced = [repo.nullid]
     else:
         unsynced = []
     return {None: (oldheads, newheads, unsynced, [])}
