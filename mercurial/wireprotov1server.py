@@ -325,10 +325,10 @@ def clonebundles(repo, proto):
     This version filtered out new url scheme (like peer-bundle-cache://) to
     avoid confusion in older clients.
     """
-    manifest_contents = bundle_cache_util.get_manifest(repo)
+    manifest_lines = bundle_cache_util.get_manifest_lines(repo)
     # Filter out peer-bundle-cache:// entries
     modified_manifest = []
-    for line in manifest_contents.splitlines():
+    for line in manifest_lines:
         if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
             continue
         modified_manifest.append(line)
@@ -350,8 +350,8 @@ def clonebundles_2(repo, proto, args):
     in case a client does not support them.
     Otherwise, older clients would retrieve and error out on those.
     """
-    manifest_contents = bundle_cache_util.get_manifest(repo)
-    return wireprototypes.bytesresponse(manifest_contents)
+    manifest_lines = bundle_cache_util.get_manifest_lines(repo)
+    return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
 
 wireprotocaps = [

@@ -10,8 +10,9 @@ from __future__ import annotations
 CB_MANIFEST_FILE = b'clonebundles.manifest'
 
 
-def get_manifest(repo) -> bytes:
-    """get the bundle manifest to be served to a client from a server"""
+def get_manifest_lines(repo) -> list[bytes]:
+    """get the lines of the bundle manifest to be served to a client
+    from a server"""
     raw_text = repo.vfs.tryread(CB_MANIFEST_FILE)
     entries = [e.split(b' ', 1) for e in raw_text.splitlines()]
 
@@ -23,7 +24,7 @@ def get_manifest(repo) -> bytes:
         else:
             line = b"%s %s\n" % (url, e[1])
         new_lines.append(line)
-    return b''.join(new_lines)
+    return new_lines
 
 
 def alter_bundle_url(repo, url: bytes) -> bytes:
