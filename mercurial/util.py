@@ -232,7 +232,7 @@ if _dowarn:
         'ignore', 'bad escape', DeprecationWarning, 'mercurial'
     )
     warnings.filterwarnings(
-        'ignore', 'invalid escape sequence', DeprecationWarning, 'mercurial'
+        'ignore', '(.*)invalid escape sequence', DeprecationWarning, 'mercurial'
     )
     # TODO: reinvent imp.is_frozen()
     warnings.filterwarnings(
