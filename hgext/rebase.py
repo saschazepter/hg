@@ -550,7 +550,7 @@ class rebaseruntime:
         with repo.ui.configoverride(overrides, b'rebase'):
             if self.inmemory:
                 newnode = commitmemorynode(
-                    repo,
+                    self._repo,
                     wctx=self.wctx,
                     extra=extra,
                     commitmsg=commitmsg,
@@ -560,7 +560,7 @@ class rebaseruntime:
                 )
             else:
                 newnode = commitnode(
-                    repo,
+                    self._repo,
                     extra=extra,
                     commitmsg=commitmsg,
                     editor=editor,
