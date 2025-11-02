@@ -491,6 +491,7 @@ test-3.14-c:
     image: "$HG_CI_REG/hg-core-test-py314:$HG_CI_IMAGE_TAG"
     variables:
         PYTHON: python3.14
+        SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MERCURIAL: "9.9.9"
     needs:
       - job: trigger-pycompat
       - job: build-c-wheel-libc
@@ -521,6 +522,7 @@ test-3.14-rust:
             - BUILD_PY_ID: "cp314-cp314"
     variables:
         PYTHON: python3.14
+        SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MERCURIAL: "9.9.9"
 
 check-pytype:
     extends: .all
