@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import multiprocessing
 import struct
+import sys
 
 from .node import nullrev
 from . import (
@@ -857,6 +858,9 @@ def _get_worker_sidedata_adder(srcrepo, destrepo):
     from . import worker
 
     nbworkers = worker._numworkers(srcrepo.ui)
+
+    if sys.version_info >= (3, 14):
+        multiprocessing.set_start_method('fork')
 
     tokens = multiprocessing.BoundedSemaphore(nbworkers * BUFF_PER_WORKER)
     revsq = multiprocessing.Queue()
