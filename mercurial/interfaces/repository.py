@@ -2037,7 +2037,11 @@ class IRepo(Protocol):
         """Close the handle on this repository."""
 
     @abc.abstractmethod
-    def peer(self, path=None) -> peer:
+    def peer(
+        self,
+        path: misc.IPath | None = None,
+        remotehidden: bool = False,
+    ) -> peer:
         """Obtain an object conforming to the ``peer`` interface."""
 
     @abc.abstractmethod
