@@ -40,6 +40,15 @@ dynamic = ["version"]
 home = "https://mercurial-scm.org/"
 download_url = "https://mercurial-scm.org/release/"
 
+[project.optional-dependencies]
+# This is currently only useful for --pure install.
+# However it is is really handy there as it let a pure install access zstd
+# compressed repositories. And such repository have been the default format for
+# years.
+zstd = [
+    "zstandard"
+]
+
 
 [tool.setuptools]
 # no automatic include
