@@ -2,6 +2,13 @@
 
   $ NO_FALLBACK="env RHG_ON_UNSUPPORTED=abort"
 
+#if no-rust
+It is possible to run a `rhg` backed by any `hg` including ones without support
+for rust extensions. We still want to be able to use rust related feature in that case.
+  $ echo "[storage]" >> $HGRCPATH
+  $ echo "all-slow-path=allow" >> $HGRCPATH
+#endif
+
 Unimplemented command
   $ $NO_FALLBACK rhg unimplemented-command
   unsupported feature: error: unrecognized subcommand 'unimplemented-command'
@@ -379,7 +386,7 @@ Requirements
   dotencode
   fncache
   generaldelta
-  persistent-nodemap
+  persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
   revlogv1
   share-safe
