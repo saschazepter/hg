@@ -49,6 +49,10 @@ if typing.TYPE_CHECKING:
 
     _C = TypeVar("_C", bound=Callable)
 
+    from .interfaces.types import (
+        RepoT,
+    )
+
 urlerr = util.urlerr
 urlreq = util.urlreq
 
@@ -261,7 +265,7 @@ def between(repo, proto, pairs):
 
 
 @wireprotocommand(b'branchmap', permission=b'pull')
-def branchmap(repo, proto):
+def branchmap(repo: RepoT, proto):
     branchmap = repo.branchmap()
     heads = []
     for branch, nodes in branchmap.items():
