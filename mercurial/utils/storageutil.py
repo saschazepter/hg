@@ -467,7 +467,7 @@ def emitrevisions(
             # be close to this revision content.
             #
             # note: we could optimize between p1 and p2 in merges cases.
-            elif is_usable_base(p1rev):
+            if is_usable_base(p1rev):
                 if debug_info is not None:
                     debug_delta_source = "p1"
                 baserev = p1rev
