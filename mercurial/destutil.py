@@ -8,6 +8,9 @@
 from __future__ import annotations
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+)
 from . import bookmarks, error, obsutil, scmutil, stack
 
 
@@ -98,7 +101,7 @@ def _destupdatebook(repo, clean):
     return node, movemark, activemark
 
 
-def _destupdatebranch(repo, clean):
+def _destupdatebranch(repo: RepoT, clean):
     """decide on an update destination from current branch
 
     This ignores closed branch heads.
