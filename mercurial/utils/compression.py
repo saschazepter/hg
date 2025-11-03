@@ -14,6 +14,7 @@ from typing import Iterator
 from .. import (
     error,
     i18n,
+    policy,
     pycompat,
 )
 from . import stringutil
@@ -708,14 +709,7 @@ class _zstdengine(compressionengine):
     def _module(self):
         # Not all installs have the zstd module available. So defer importing
         # until first access.
-        try:
-            from .. import zstd  # pytype: disable=import-error
-
-            # Force delayed import.
-            zstd.__version__
-            return zstd
-        except ImportError:
-            return None
+        return policy.get_zstd()
 
     def available(self):
         return bool(self._module)

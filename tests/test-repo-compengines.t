@@ -1,3 +1,20 @@
+Check control over zstd import
+
+#if zstd
+  $ hg debuginstall | grep "checking available compression engines" | grep zstd | f --line-count
+  line-count=2
+
+  $ HGZSTDPOLICY=none hg debuginstall | grep "checking available compression engines" | grep zstd |  f --line-count
+  line-count=0
+#else
+  $ hg debuginstall | grep "checking available compression engines" | grep zstd |  f --line-count
+  line-count=0
+  $ HGZSTDPOLICY=vendored hg debuginstall >/dev/null
+  abort: cannot import name 'zstd' from 'mercurial' (*/mercurial/__init__.py) (glob)
+  [255]
+#endif
+
+
 A new repository uses zlib storage, which doesn't need a requirement
 
   $ cat << EOF >> $HGRCPATH

@@ -136,7 +136,7 @@ testpats = [
         (r'echo -n', "don't use 'echo -n', use printf"),
         (
             r'(^|\|\s*)\bwc\b[^|]*$\n(?!.*\(re\))',
-            r'filter wc output (use "\s*42 (re)")',
+            r'use `f --line-count` or filter wc output (use "\s*42 (re)")',
         ),
         (r'head -c', "don't use 'head -c', use 'dd'"),
         (r'tail -n', "don't use the '-n' option to tail, just use '-<num>'"),

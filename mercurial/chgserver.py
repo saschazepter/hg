@@ -116,7 +116,7 @@ _configsectionitems = [
 _envre = re.compile(
     br'''\A(?:
     CHGHG
-    |HG(?:DEMANDIMPORT|EMITWARNINGS|MODULEPOLICY|PROF|RCPATH)?
+    |HG(?:DEMANDIMPORT|EMITWARNINGS|(MODULE|ZSTD)POLICY|PROF|RCPATH)?
     |HG(?:ENCODING|PLAIN).*
     |LANG(?:UAGE)?
     |LC_.*

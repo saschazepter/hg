@@ -42,6 +42,7 @@ will likely receive warnings about a direct import.
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
   mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
   mercurial/metadata.py:*: function level import: mercurial.worker (glob)
+  mercurial/policy.py:*: function level import: mercurial.zstd (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprofcalltree (glob)
   mercurial/profiling.py:*: function level import: mercurial.statprof (glob)
@@ -59,10 +60,6 @@ will likely receive warnings about a direct import.
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.incoming (glob)
   mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.clone (glob)
   mercurial/templatekw.py:*: function level import: mercurial.cmdutil (glob)
-  mercurial/utils/compression.py:*: function level import: mercurial.zstd (glob)
-  mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
-  mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
-  mercurial/wireprotoframing.py:*: function level import: mercurial.zstd (glob)
   Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
   Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
   Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__

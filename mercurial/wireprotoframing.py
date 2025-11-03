@@ -31,6 +31,7 @@ if typing.TYPE_CHECKING:
 from . import (
     encoding,
     error,
+    policy,
     util,
 )
 from .utils import (
@@ -787,8 +788,8 @@ class zlibdecoder(Decoder):
 
 class zstdbaseencoder(Encoder):
     def __init__(self, level: int) -> None:
-        from . import zstd  # pytype: disable=import-error
-
+        zstd = policy.get_zstd()
+        assert zstd is not None
         self._zstd = zstd
         cctx = zstd.ZstdCompressor(level=level)
         self._compressor = cctx.compressobj()
@@ -815,7 +816,8 @@ class zstd8mbencoder(zstdbaseencoder):
 
 class zstdbasedecoder(Decoder):
     def __init__(self, maxwindowsize: int) -> None:
-        from . import zstd  # pytype: disable=import-error
+        zstd = policy.get_zstd()
+        assert zstd is not None
 
         dctx = zstd.ZstdDecompressor(max_window_size=maxwindowsize)
         self._decompressor = dctx.decompressobj()
@@ -850,15 +852,10 @@ def populatestreamencoders() -> None:
     if STREAM_ENCODERS:
         return
 
-    try:
-        from . import zstd  # pytype: disable=import-error
-
-        zstd.__version__
-    except ImportError:
-        zstd = None
+    zstd = policy.get_zstd()
 
     # zstandard is fastest and is preferred.
-    if zstd:
+    if zstd is not None:
         STREAM_ENCODERS[b'zstd-8mb'] = (zstd8mbencoder, zstd8mbdecoder)
         STREAM_ENCODERS_ORDER.append(b'zstd-8mb')
 

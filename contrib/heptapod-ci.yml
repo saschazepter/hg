@@ -311,6 +311,18 @@ test-pure:
     variables:
         FLAVOR: "--pure"
 
+test-pure-zstd:
+    extends: test-pure
+    image: "$HG_CI_REG/hg-core-test-zstd:$HG_CI_IMAGE_TAG"
+    rules:
+    - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
+      when: on_success
+      needs:
+        - trigger-nightly-build
+    - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+      when: manual
+      allow_failure: true
+
 .test-rust:
     extends: .runtests-no-check
     variables:
@@ -728,6 +740,7 @@ test-result-linux-main:
     - test-c
     - test-chg
     - test-pure
+    - test-pure-zstd
     - test-rhg
     - test-rust
 
