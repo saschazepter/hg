@@ -21,6 +21,9 @@ from .node import (
     nullrev,
     short,
 )
+from .interfaces.types import (
+    RepoT,
+)
 from .i18n import _
 from .revlogutils.constants import ENTRY_NODE_ID
 from . import (
@@ -663,7 +666,15 @@ def tag(repo, names, node, message, local, user, date, editor=False):
 
 
 def _tag(
-    repo, names, node, message, local, user, date, extra=None, editor=False
+    repo: RepoT,
+    names,
+    node,
+    message,
+    local,
+    user,
+    date,
+    extra=None,
+    editor=False,
 ):
     if isinstance(names, bytes):
         names = (names,)
