@@ -227,10 +227,8 @@ class _BaseBranchCache(i_repo.IBranchMap):
     def __contains__(self, key):
         return key in self._entries
 
-    def iteritems(self):
+    def items(self):
         return self._entries.items()
-
-    items = iteritems
 
     def hasbranch(self, label):
         """checks whether a branch of this name exists or not"""
@@ -681,11 +679,9 @@ class _LocalBranchCache(_BaseBranchCache):
         self._verifybranch(key)
         return super().__contains__(key)
 
-    def iteritems(self):
+    def items(self):
         self._verifyall()
-        return super().iteritems()
-
-    items = iteritems
+        return super().items()
 
     def iterheads(self):
         """returns all the heads"""
