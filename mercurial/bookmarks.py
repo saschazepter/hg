@@ -15,6 +15,9 @@ from .node import (
     hex,
     short,
 )
+from .interfaces.types import (
+    RepoT,
+)
 from . import (
     encoding,
     error,
@@ -72,7 +75,7 @@ class bmstore:
     .hg/bookmarks. The mapping is stored as {name: nodeid}.
     """
 
-    def __init__(self, repo):
+    def __init__(self, repo: RepoT):
         self._repo = repo
         self._refmap = refmap = {}  # refspec: node
         self._nodemap = nodemap = {}  # node: sorted([refspec, ...])
