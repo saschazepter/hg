@@ -961,13 +961,10 @@ def unzip_understands_symlinks():
 
 @check("zstd", "zstd Python module available")
 def has_zstd():
-    try:
-        import mercurial.zstd
-
-        del mercurial.zstd
-        return True
-    except ImportError:
-        return False
+    return matchoutput(
+        'hg debuginstall',
+        br'checking available compression engines.*zstd',
+    )
 
 
 @check("devfull", "/dev/full special file")
