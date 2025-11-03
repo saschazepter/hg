@@ -227,10 +227,17 @@ def pyspy_profile(ui, fp):
     if format:
         cmd.extend(["--format", format])
 
+    env = encoding.environ.copy()
+
+    # If RUST_LOG is set, it's intended for hg Rust code, not py-spy.
+    # Unset the var to get the default behavior (only logging errors).
+    env.pop("RUST_LOG", None)
+
     proc = subprocess.Popen(
         cmd,
         pass_fds={fd},
         stdout=subprocess.PIPE,
+        env=env,
     )
 
     _ = proc.stdout.readline()
