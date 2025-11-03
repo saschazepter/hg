@@ -20,6 +20,8 @@ from ..i18n import _
 from ..node import hex
 from ..interfaces.types import (
     Capabilities,
+    PeerT,
+    RepoT,
 )
 from .. import (
     encoding,
@@ -982,10 +984,12 @@ class path(int_misc.IPath):
         return d
 
 
-def add_branch_revs(lrepo, other, branches, revs, remotehidden=False):
+def add_branch_revs(
+    lrepo: RepoT, other: RepoT | PeerT, branches, revs, remotehidden=False
+):
     if hasattr(other, 'peer'):
         # a courtesy to callers using a localrepo for other
-        peer = other.peer(remotehidden=remotehidden)
+        peer: PeerT = other.peer(remotehidden=remotehidden)
     else:
         peer = other
     hashbranch, branches = branches
