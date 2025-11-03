@@ -393,9 +393,9 @@ fn convert_debug_tree_node_iter_item(
     py: Python,
     item: Result<DebugTreeNode, hg::file_index::Error>,
 ) -> PyResult<Option<Py<PyTuple>>> {
-    let (pointer, token, edges) = item.map_err(file_index_error)?;
-    let token = token.map(|token| token.0);
-    Ok(Some((pointer, token, edges).into_pyobject(py)?.unbind()))
+    let DebugTreeNode { pointer, token, label, children } =
+        item.map_err(file_index_error)?;
+    Ok(Some((pointer, token.0, label, children).into_pyobject(py)?.unbind()))
 }
 
 pub fn init_module<'py>(

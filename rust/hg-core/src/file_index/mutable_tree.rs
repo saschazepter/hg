@@ -2,76 +2,58 @@
 //! tree file from [`super::on_disk`]. It is used for building the tree file
 //! from scratch and for appending to it.
 
-use bytes_cast::unaligned::U32Be;
 use bytes_cast::BytesCast as _;
+use itertools::Itertools;
 
 use super::on_disk::Error;
 use super::on_disk::FileIndexView;
-use super::on_disk::TreeEdge;
+use super::on_disk::LabelPosition;
 use super::on_disk::TreeNode;
 use super::FileToken;
 use crate::file_index::on_disk::NodePointer;
-use crate::file_index::on_disk::TreeNodeFlags;
 use crate::file_index::on_disk::TreeNodeHeader;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::common_prefix_length;
-use crate::utils::strings::SliceExt as _;
 use crate::utils::u32_u;
 use crate::utils::u_u32;
 
 /// Mutable version of [`TreeNode`].
 struct MutableTreeNode<'a> {
     /// See [`TreeNode::token`].
-    token: Option<FileToken>,
-    /// Edges to children of this node.
-    edges: Vec<MutableTreeEdge<'a>>,
-}
-
-impl<'a> MutableTreeNode<'a> {
-    /// Creates an empty [`MutableTreeNode`].
-    fn empty() -> Self {
-        Self { token: None, edges: Vec::new() }
-    }
-
-    /// Converts a [`TreeNode`] to a [`MutableTreeNode`].
-    fn new(
-        file_index: &FileIndexView<'a>,
-        node: TreeNode<'a>,
-    ) -> Result<Self, Error> {
-        Ok(Self {
-            token: node.token,
-            edges: node
-                .edges
-                .iter()
-                .map(|&edge| MutableTreeEdge::new(file_index, edge))
-                .collect::<Result<_, _>>()?,
-        })
-    }
-}
-
-/// Mutable version of [`TreeEdge`].
-struct MutableTreeEdge<'a> {
-    /// The label of this edge.
+    token: FileToken,
+    /// The label of this node.
     label: &'a [u8],
-    /// Offset of [`Self::label`] in the list file.
-    label_offset: u32,
-    /// Pointer to the child node.
-    node_pointer: MutableTreeNodePointer,
+    /// Children of this node.
+    children: Vec<MutableTreeChild>,
 }
 
-impl<'a> MutableTreeEdge<'a> {
-    /// Converts a [`TreeEdge`] to a [`MutableTreeEdge`].
-    fn new(
-        file_index: &FileIndexView<'a>,
-        edge: TreeEdge,
-    ) -> Result<Self, Error> {
-        Ok(MutableTreeEdge {
-            label: file_index.read_span(edge.label())?,
-            label_offset: edge.label_offset.get(),
-            node_pointer: MutableTreeNodePointer::OffsetOnDisk(
-                edge.node_pointer.get(),
-            ),
-        })
+impl MutableTreeNode<'_> {
+    /// Like [`TreeNode::find_child`] but returns the child as well.
+    fn find_child(&self, char: u8) -> Option<(usize, &MutableTreeChild)> {
+        self.children.iter().find_position(|child| child.char == char)
+    }
+}
+
+/// A child of a [`MutableTreeNode`].
+#[derive(Copy, Clone)]
+struct MutableTreeChild {
+    /// First character of the child node's label.
+    char: u8,
+    /// Pointer to the child node.
+    pointer: MutableTreeNodePointer,
+}
+
+impl MutableTreeChild {
+    /// Converts the children of a [`TreeNode`] to [`MutableTreeChild`].
+    fn new_vec(node: TreeNode<'_>) -> Vec<Self> {
+        node.child_chars
+            .iter()
+            .zip(node.child_ptrs)
+            .map(|(&char, ptr)| MutableTreeChild {
+                char,
+                pointer: MutableTreeNodePointer::OffsetOnDisk(ptr.get()),
+            })
+            .collect()
     }
 }
 
@@ -84,6 +66,25 @@ enum MutableTreeNodePointer {
     OffsetOnDisk(u32),
 }
 
+impl<'a> MutableTreeNode<'a> {
+    /// Creates a leaf [`MutableTreeNode`].
+    fn leaf(token: FileToken, label: &'a [u8]) -> Self {
+        Self { token, label, children: Vec::new() }
+    }
+
+    /// Converts a [`TreeNode`] to a [`MutableTreeNode`].
+    fn new(
+        file_index: FileIndexView<'a>,
+        node: TreeNode<'a>,
+        position: LabelPosition,
+    ) -> Result<Self, Error> {
+        let span = file_index.read_label(&node, position)?;
+        let label = file_index.read_span(span)?;
+        let children = MutableTreeChild::new_vec(node);
+        Ok(Self { token: node.token, label, children })
+    }
+}
+
 /// An in-memory prefix tree that can be serialized to a tree file.
 pub struct MutableTree<'a> {
     /// Base file index we are appending to.
@@ -92,12 +93,9 @@ pub struct MutableTree<'a> {
     nodes: Vec<MutableTreeNode<'a>>,
     /// Number of nodes copied from [`Self::base`].
     num_copied_nodes: usize,
-    /// Number of nodes copied from [`Self::base`] where the token is set.
-    num_copied_tokens: usize,
-    /// Number of edges copied from [`Self::base`].
-    /// These are the edges that use [`MutableTreeNodePointer::OffsetOnDisk`].
-    num_copied_edges: usize,
-    /// Number of paths added to the tree.
+    /// Number of children copied from [`Self::base`].
+    num_copied_children: usize,
+    /// Number of new paths added.
     num_paths_added: usize,
 }
 
@@ -115,37 +113,36 @@ pub struct SerializedMutableTree {
 
 impl<'a> MutableTree<'a> {
     /// Creates a new [`MutableTree`] for writing a new tree file.
-    pub fn empty(num_paths_estimate: usize) -> Result<Self, Error> {
+    pub fn empty(num_paths_estimate: usize) -> Self {
         Self::new(FileIndexView::empty(), num_paths_estimate)
     }
 
-    /// Creates a new [`MutableTree`] for appending to an existing tree file.
+    /// Creates a new [`MutableTree`] for appending to `base`.
     pub fn with_base(
         base: FileIndexView<'a>,
         num_new_paths_estimate: usize,
-    ) -> Result<Self, Error> {
+    ) -> Self {
         Self::new(base, num_new_paths_estimate)
     }
 
-    fn new(
-        base: FileIndexView<'a>,
-        num_new_paths_estimate: usize,
-    ) -> Result<Self, Error> {
+    fn new(base: FileIndexView<'a>, num_new_paths_estimate: usize) -> Self {
         // Estimate the number of new nodes to be double the number of paths.
         let mut nodes = Vec::with_capacity(num_new_paths_estimate * 2);
-        let root = MutableTreeNode::new(&base, base.root)?;
+        let root = MutableTreeNode {
+            token: base.root.token,
+            label: b"",
+            children: MutableTreeChild::new_vec(base.root),
+        };
         let num_copied_nodes = if base.tree_file.is_empty() { 0 } else { 1 };
-        let num_copied_edges = root.edges.len();
-        assert!(root.token.is_none());
+        let num_copied_ptrs = root.children.len();
         nodes.push(root);
-        Ok(Self {
+        Self {
             base,
             nodes,
             num_copied_nodes,
-            num_copied_tokens: 0,
-            num_copied_edges,
+            num_copied_children: num_copied_ptrs,
             num_paths_added: 0,
-        })
+        }
     }
 
     /// Returns the number of paths in this tree, including the base.
@@ -153,106 +150,100 @@ impl<'a> MutableTree<'a> {
         self.base.len() + self.num_paths_added
     }
 
-    /// Copies the node at the given tree file offset into a new
-    /// [`MutableTreeNode`], and returns its index.
-    fn copy_node_at(&mut self, offset: u32) -> Result<usize, Error> {
+    /// Copies the node at the given pointer and label position into a new
+    /// [`MutableTreeNode`] if necessary, and returns its index and label.
+    fn copy_node_at(
+        &mut self,
+        pointer: MutableTreeNodePointer,
+        position: LabelPosition,
+    ) -> Result<(usize, &[u8]), Error> {
+        let offset = match pointer {
+            MutableTreeNodePointer::Index(index) => {
+                let index = u32_u(index);
+                return Ok((index, self.nodes[index].label));
+            }
+            MutableTreeNodePointer::OffsetOnDisk(offset) => offset,
+        };
         let node = self.base.read_node(offset)?;
         self.num_copied_nodes += 1;
-        self.num_copied_edges += node.edges.len();
-        if node.token.is_some() {
-            self.num_copied_tokens += 1;
-        }
+        self.num_copied_children += node.child_ptrs.len();
+        let node = MutableTreeNode::new(self.base, node, position)?;
+        let label = node.label;
         let node_index = self.nodes.len();
-        self.nodes.push(MutableTreeNode::new(&self.base, node)?);
-        Ok(node_index)
+        self.nodes.push(node);
+        Ok((node_index, label))
     }
 
     /// Inserts `(path, token)` into the tree.
-    /// `path_offset` is the offset of `path` in the list file.
     /// Path must be nonempty, not contain "\x00", and not be already inserted.
     pub fn insert(
         &mut self,
         path: &'a HgPath,
         token: FileToken,
-        path_offset: u32,
     ) -> Result<(), Error> {
         assert!(!path.is_empty());
-        let mut remainder = path.as_bytes();
+        let path = path.as_bytes();
+        let mut position: LabelPosition = 0;
         let mut node_index = 0;
-        'outer: loop {
-            for (i, edge) in self.nodes[node_index].edges.iter().enumerate() {
-                if let Some(suffix) = remainder.drop_prefix(edge.label) {
-                    remainder = suffix;
-                    let new_node_index = match edge.node_pointer {
-                        MutableTreeNodePointer::Index(index) => u32_u(index),
-                        MutableTreeNodePointer::OffsetOnDisk(offset) => {
-                            self.copy_node_at(offset)?
-                        }
-                    };
-                    self.nodes[node_index].edges[i].node_pointer =
-                        MutableTreeNodePointer::Index(u_u32(new_node_index));
-                    node_index = new_node_index;
-                    continue 'outer;
-                }
+        while let Some((i, child)) =
+            self.nodes[node_index].find_child(path[position])
+        {
+            let (child_index, label) =
+                self.copy_node_at(child.pointer, position)?;
+            let child_pointer =
+                MutableTreeNodePointer::Index(u_u32(child_index));
+            let remainder = &path[position..];
+            let length = common_prefix_length(remainder, label);
+            let label_len = label.len(); // work around lifetime issues
+            if length != label_len {
+                let child_label = &mut self.nodes[child_index].label;
+                *child_label = &child_label[length..];
+                let intermediate_node = MutableTreeNode {
+                    token,
+                    label: &remainder[..length],
+                    children: vec![MutableTreeChild {
+                        char: child_label[0],
+                        pointer: child_pointer,
+                    }],
+                };
+                let intermediate_index = self.nodes.len();
+                self.nodes.push(intermediate_node);
+                self.nodes[node_index].children[i].pointer =
+                    MutableTreeNodePointer::Index(u_u32(intermediate_index));
+                node_index = intermediate_index;
+                position += length;
+                break;
             }
-            break;
-        }
-        let initial_nodes_len = self.nodes.len();
-        let common_prefix_edge = 'outer: {
-            if !remainder.is_empty() {
-                for edge in &mut self.nodes[node_index].edges {
-                    match common_prefix_length(remainder, edge.label) {
-                        0 => {}
-                        length => break 'outer Some((length, edge)),
-                    }
-                }
+            self.nodes[node_index].children[i].pointer = child_pointer;
+            node_index = child_index;
+            position += label_len;
+            if position == path.len() {
+                break;
             }
-            None
-        };
-        let consumed = u_u32(path.len() - remainder.len());
-        let mut label_offset = path_offset + consumed;
-        if let Some((length, edge)) = common_prefix_edge {
-            // Can't use nodes.len() here due to borrowing edge.
-            node_index = initial_nodes_len;
-            let edge_to_intermediate_node = MutableTreeEdge {
-                label: &remainder[..length],
-                // We arbitrarily choose label_offset (prefix from new path)
-                // here instead of edge.label_offset (prefix from old path).
-                label_offset,
-                node_pointer: MutableTreeNodePointer::Index(u_u32(node_index)),
-            };
-            let edge_to_old_node = MutableTreeEdge {
-                label: &edge.label[length..],
-                label_offset: edge.label_offset + u_u32(length),
-                node_pointer: edge.node_pointer,
-            };
-            let intermediate_node =
-                MutableTreeNode { token: None, edges: vec![edge_to_old_node] };
-            *edge = edge_to_intermediate_node;
-            self.nodes.push(intermediate_node);
-            remainder = &remainder[length..];
-            label_offset += u_u32(length);
         }
-        if !remainder.is_empty() {
+        let mut remainder = &path[position..];
+        while !remainder.is_empty() {
+            let clamped_length: u8 =
+                remainder.len().try_into().unwrap_or(u8::MAX);
+            let (label, after_label) =
+                remainder.split_at(clamped_length as usize);
+            remainder = after_label;
             let new_node_index = self.nodes.len();
             let node = &mut self.nodes[node_index];
             node_index = new_node_index;
-            node.edges.push(MutableTreeEdge {
-                label: remainder,
-                label_offset,
-                node_pointer: MutableTreeNodePointer::Index(u_u32(node_index)),
+            node.children.push(MutableTreeChild {
+                char: label[0],
+                pointer: MutableTreeNodePointer::Index(u_u32(new_node_index)),
             });
             // We need edges.len() to fit in TreeNodeHeader::num_children which
             // is a u8. There can be at most 256 because a 257th would share at
             // least 1 byte prefix with another edge and so never get created.
             // Since hg paths do not allow "\x00", "\r", and "\n", the maximum
             // is actually 253. Assert on 255 because that's all we rely on.
-            assert!(node.edges.len() <= 255);
-            self.nodes.push(MutableTreeNode::empty());
+            assert!(node.children.len() <= 255);
+            self.nodes.push(MutableTreeNode::leaf(token, label));
         }
-        let node = &mut self.nodes[node_index];
-        assert_eq!(node.token, None, "path was already inserted");
-        node.token = Some(token);
+        self.nodes[node_index].token = token;
         self.num_paths_added += 1;
         Ok(())
     }
@@ -268,80 +259,66 @@ impl<'a> MutableTree<'a> {
         // Terminology: final = old + additional = old + (copied + fresh).
         let old_size = u_u32(self.base.tree_file.len());
         let num_additional_nodes = self.nodes.len();
-        let num_additional_tokens =
-            self.num_copied_tokens + self.num_paths_added;
         let num_fresh_nodes = num_additional_nodes - self.num_copied_nodes;
         let root_is_fresh = self.num_copied_nodes == 0;
-        // There is a fresh edge for every fresh node except the root.
-        let num_fresh_edges = if root_is_fresh {
+        // There is a fresh child for every fresh node except the root.
+        let num_fresh_children = if root_is_fresh {
             num_fresh_nodes - 1
         } else {
             num_fresh_nodes
         };
-        let num_additional_edges = self.num_copied_edges + num_fresh_edges;
-        let additional_size = // (comment to improve formatting)
-            num_additional_nodes * std::mem::size_of::<TreeNodeHeader>()
-            + num_additional_tokens * std::mem::size_of::<FileToken>()
-            + num_additional_edges * std::mem::size_of::<TreeEdge>();
+        let num_additional_children =
+            self.num_copied_children + num_fresh_children;
+        const NODE_SIZE: usize = std::mem::size_of::<TreeNodeHeader>();
+        const CHILD_SIZE: usize =
+            std::mem::size_of::<u8>() + std::mem::size_of::<NodePointer>();
+        let additional_size = num_additional_nodes * NODE_SIZE
+            + num_additional_children * CHILD_SIZE;
         let final_size = old_size + u_u32(additional_size);
         let mut buffer = Vec::<u8>::with_capacity(additional_size);
         let mut stack = vec![(0, 0)];
-        const UNSET_POINTER: NodePointer = NodePointer::MAX;
+        const N: usize = std::mem::size_of::<NodePointer>();
+        const UNSET_POINTER: [u8; N] = [0xff; N];
         while let Some((index, fixup_offset)) = stack.pop() {
             if index != 0 {
-                // Fix up `TreeEdge::node_pointer` in the incoming edge.
-                const N: usize = std::mem::size_of::<NodePointer>();
+                // Fix up the incoming pointer.
                 let current_offset: [u8; N] =
                     (old_size + u_u32(buffer.len())).to_be_bytes();
                 let dest = &mut buffer[fixup_offset..fixup_offset + N];
-                debug_assert_eq!(
-                    NodePointer::from_be_bytes(dest.try_into().unwrap()),
-                    UNSET_POINTER
-                );
+                debug_assert_eq!(dest, UNSET_POINTER);
                 dest.copy_from_slice(&current_offset);
             }
             let node = &self.nodes[index];
+            let num_children = node.children.len();
             let num_children: u8 =
-                node.edges.len().try_into().expect(
-                    "MutableTree should guarantee edges.len() fits in u8",
-                );
-            let flags = match node.token {
-                None => TreeNodeFlags::empty(),
-                Some(_) => TreeNodeFlags::HAS_TOKEN,
-            };
-            let header = TreeNodeHeader::new(flags, num_children);
+                num_children.try_into().expect("num children should fit in u8");
+            let label_length = node.label.len();
+            let label_length: u8 =
+                label_length.try_into().expect("label length should fit in u8");
+            let header =
+                TreeNodeHeader::new(node.token, label_length, num_children);
             buffer.extend_from_slice(header.as_bytes());
-            if let Some(token) = node.token {
-                let token: U32Be = token.0.into();
-                buffer.extend_from_slice(token.as_bytes());
+            for child in &node.children {
+                buffer.push(child.char);
             }
-            for edge in &node.edges {
-                let label_length: u16 = edge.label.len().try_into().expect(
-                    "MutableTree should guarantee label.len() fits in u16",
-                );
-                let node_pointer = match edge.node_pointer {
+            for child in &node.children {
+                let ptr_bytes = match child.pointer {
                     MutableTreeNodePointer::Index(index) => {
-                        let fixup_offset = buffer.len()
-                            + std::mem::offset_of!(TreeEdge, node_pointer);
+                        let fixup_offset = buffer.len();
                         stack.push((u32_u(index), fixup_offset));
                         UNSET_POINTER
                     }
-                    MutableTreeNodePointer::OffsetOnDisk(offset) => offset,
+                    MutableTreeNodePointer::OffsetOnDisk(offset) => {
+                        offset.to_be_bytes()
+                    }
                 };
-                let edge_value = TreeEdge {
-                    label_offset: edge.label_offset.into(),
-                    label_length: label_length.into(),
-                    node_pointer: node_pointer.into(),
-                };
-                buffer.extend_from_slice(edge_value.as_bytes());
+                buffer.extend_from_slice(&ptr_bytes);
             }
         }
         assert_eq!(buffer.len(), additional_size);
         let old_unused_bytes = self.base.tree_unused_bytes;
-        let additional_unused_bytes = // (comment to improve formatting)
-            self.num_copied_nodes * std::mem::size_of::<TreeNodeHeader>()
-            + self.num_copied_edges * std::mem::size_of::<TreeEdge>()
-            + self.num_copied_tokens * std::mem::size_of::<FileToken>();
+        let additional_unused_bytes = self.num_copied_nodes * NODE_SIZE
+            + self.num_copied_children * CHILD_SIZE;
         let final_unused_bytes =
             old_unused_bytes + u_u32(additional_unused_bytes);
         assert!(final_unused_bytes <= old_size);

@@ -337,42 +337,29 @@ this unused space exceeds a threshold, we rebuild the tree file from scratch.
 Note that we don't do this process for each individual insertion, but only when
 we flush the current inserted batch to disk.
 
-All edges in the tree have a nonempty string *label*. All nodes in the tree
-represent a *prefix*, obtained by concatenating labels from the root to the
-node. When the prefix is equal to a path in the file index, the node stores a
-token. This is true for all leaf nodes, and for some internal nodes.
+Each node has a string *label*, and a *prefix* obtained by concatenating labels
+from the root to the node. The node does not store its label directly, only its
+first character, its length, and a file token. The label is a substring of the
+file path associated with the token, where the starting index is obtained by
+adding label lengths from the root to the node.
 
-For each node, there must not be a common prefix among any pair of its edges.
-This limits the number of edges to 255 based on initial bytes 0x01 to 0xff,
-since paths cannot contain null bytes. This limit allows us to store the number
-of edges in an 8-bit integer.
+There must not be a common prefix between any pair of sibling node labels. This
+limits the number of children to 256 based on initial bytes 0x00 to 0xff, and
+further to 253 since "\n", "\r", and "\0" are forbidden in file paths. This
+limit allows us to store the number of children in an 8-bit integer.
 
-Each node consists of a 2-byte or 6-byte header followed by an array of 10-byte
-edges. The node header has the following layout:
+Each node has the following 6-byte header:
 
-* Offset 0:
-  Flags, stored as an 8-bit integer. The following bits are used:
+* Offset 0: Token as a 32-bit big-endian integer.
+* Offset 4: Label length as an 8-bit integer. Must be nonzero.
+* Offset 5: Number of children as an 8-bit integer.
 
-  * Bitmask 0x01: Token bit. If set, this node stores a token.
-  * Other bits: Currently ignored, and reset to 0 when rewriting a node.
-
-* Offset 1:
-  The number of edges as an 8-bit integer.
-  This is zero for leaf nodes.
-
-* Offset 2:
-  If the token bit is set: The token as a 32-bit big-endian integer.
-
-Each edge has the following 10-byte layout:
-
-* Offset 0:
-  Pseudo-pointer to the start of the edge label, counted in bytes from the start
-  of the list file, as a 32-bit big-endian integer.
-
-* Offset 4:
-  Length of the edge label in bytes, as a 16-bit big-endian integer.
-  Must be nonzero.
+The header is followed by two arrays:
 
 * Offset 6:
-  Pseudo-pointer to the child node, counted in bytes from the start of the tree
-  file, as a 32-bit big-endian integer.
+  For each child, its label's first character as an 8-bit integer.
+  As explained above, these characters are all distinct.
+
+* Next offset (6 + number of children):
+  For each child, a pseudo-pointer to the child node, counting in bytes from the
+  start of the tree file, as a 32-bit big-endian integer.

@@ -57,6 +57,18 @@ const INITIAL_GARBAGE_TTL: u16 = 2;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FileToken(pub u32);
 
+impl FileToken {
+    /// Returns an invalid sentinel token for the root node.
+    fn root() -> Self {
+        Self(u32::MAX)
+    }
+
+    /// Returns true if this is a valid token.
+    fn is_valid(&self) -> bool {
+        self.0 >> 31 == 0
+    }
+}
+
 /// Values of the config `devel.fileindex.vacuum-mode`.
 #[derive(Debug, Copy, Clone, Default)]
 pub enum VacuumMode {
@@ -423,7 +435,7 @@ impl FileIndex {
         let files = VfsDataFiles { list_file, meta_file, tree_file };
         if removing {
             assert!(add_paths.is_empty(), "cannot add and remove in same txn");
-            let tree = MutableTree::empty(on_disk.len() - remove_tokens.len())?;
+            let tree = MutableTree::empty(on_disk.len() - remove_tokens.len());
             let add_paths = on_disk.iter().filter_map(|result| match result {
                 Ok((_, token)) if remove_tokens.contains(&token) => None,
                 Ok((info, _)) => Some(Ok(info.path())),
@@ -432,14 +444,14 @@ impl FileIndex {
             return Self::write_data_impl(docket, tree, add_paths, files);
         }
         let tree = if vacuum {
-            let mut tree = MutableTree::empty(on_disk.len() + add_paths.len())?;
+            let mut tree = MutableTree::empty(on_disk.len() + add_paths.len());
             for (i, info) in on_disk.meta_array.iter().enumerate() {
                 let path = HgPath::new(on_disk.read_span(info.path())?);
-                tree.insert(path, FileToken(u_u32(i)), info.offset.get())?;
+                tree.insert(path, FileToken(u_u32(i)))?;
             }
             tree
         } else {
-            MutableTree::with_base(*on_disk, add_paths.len())?
+            MutableTree::with_base(*on_disk, add_paths.len())
         };
         let add_paths = add_paths.iter().map(|path| Ok(path.deref()));
         Self::write_data_impl(docket, tree, add_paths, files)
@@ -472,7 +484,7 @@ impl FileIndex {
             meta_file
                 .write_all(metadata.as_bytes())
                 .when_writing_file(&meta_file_path)?;
-            tree.insert(path, FileToken(u_u32(i)), list_file_size)?;
+            tree.insert(path, FileToken(u_u32(i)))?;
             list_file_size += u_u32(path.len() + 1);
             meta_file_size += u_u32(std::mem::size_of::<Metadata>());
         }

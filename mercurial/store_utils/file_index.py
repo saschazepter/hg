@@ -235,7 +235,10 @@ class FileIndex(int_file_index.IFileIndex):
                 yield from recur(edge.node_pointer)
 
         if len(tree) > 0:
+            # TODO: Update Python implementation to the new format.
+            # pytype: disable=bad-return-type
             yield from recur(self._docket.tree_root_pointer)
+            # pytype: enable=bad-return-type
 
     def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
@@ -556,13 +559,10 @@ def debug_file_index(ui, repo, **opts):
                     fm_garbage.startitem()
                     fm_garbage.data(**entry)
     elif choice == b"tree":
-        for pointer, token, edges in fileindex.debug_iter_tree_nodes():
-            token_str = b""
-            if token is not None:
-                token_str = b" token = %d" % token
-            ui.write(b"%08x:%s\n" % (pointer, token_str))
-            for label, pointer in edges:
-                ui.write(b'    "%s" -> %08x\n' % (label, pointer))
+        for ptr, token, label, children in fileindex.debug_iter_tree_nodes():
+            ui.write(b"%08x: \"%s\" (%d)\n" % (ptr, label, token))
+            for char, ptr in children:
+                ui.write(b'    "%s" -> %08x\n' % (char, ptr))
     elif choice == b"path":
         path = opts[choice]
         token = fileindex.get_token(path)
