@@ -77,8 +77,8 @@ impl AncestorsIterator {
 #[pyclass(sequence)]
 struct LazyAncestors {
     inner: SharedByPyObject<VCGLazyAncestors<PySharedIndex>>,
-    proxy_index: PyObject,
-    initrevs: PyObject,
+    proxy_index: Py<PyAny>,
+    initrevs: Py<PyAny>,
     stoprev: PyRevision,
     inclusive: bool,
 }
@@ -153,7 +153,7 @@ impl LazyAncestors {
 #[pyclass]
 struct MissingAncestors {
     inner: SharedByPyObject<CoreMissing<PySharedIndex>>,
-    proxy_index: PyObject,
+    proxy_index: Py<PyAny>,
 }
 
 #[pymethods]

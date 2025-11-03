@@ -172,7 +172,7 @@ impl PySnapshotsCache<'_, '_> {
         value: BaseRevision,
     ) -> PyResult<()> {
         match self.0.get_item(rev)? {
-            Some(obj) => obj.downcast::<PySet>()?.add(value),
+            Some(obj) => obj.cast::<PySet>()?.add(value),
             None => {
                 let set = PySet::new(self.0.py(), vec![value])?;
                 self.0.set_item(rev, set)
@@ -209,7 +209,7 @@ impl PyFileHandle {
         Self { inner_file: handle }
     }
 
-    fn tell(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn tell(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let locals = PyDict::new(py);
         locals.set_item("os", py.import("os")?)?;
         locals.set_item("fd", self.inner_file)?;
@@ -231,12 +231,12 @@ impl PyFileHandle {
 pub(crate) struct InnerRevlog {
     pub(crate) irl: PyShareable<CoreInnerRevlog>,
     nt: RwLock<Option<CoreNodeTree>>,
-    docket: Option<PyObject>,
+    docket: Option<Py<PyAny>>,
     // Holds a reference to the mmap'ed persistent nodemap data
     nodemap_mmap: Option<PyBuffer<u8>>,
     // Holds a reference to the mmap'ed persistent index data
     index_mmap: Option<PyBuffer<u8>>,
-    revision_cache: Option<PyObject>,
+    revision_cache: Option<Py<PyAny>>,
     head_revs_py_list: Option<Py<PyList>>,
     head_node_ids_py_list: Option<Py<PyList>>,
     use_persistent_nodemap: bool,
@@ -382,7 +382,7 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         rev: PyRevision,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         if let Some(tuple) = slf.borrow().inner_get_cached_text(py, rev)? {
             return tuple.into_py_any(py);
         }
@@ -422,7 +422,7 @@ impl InnerRevlog {
         rev: PyRevision,
     ) -> Result<Option<Py<PyTuple>>, PyErr> {
         if let Some(cache) = &self.revision_cache {
-            let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+            let tuple: &Bound<'_, PyTuple> = cache.cast_bound(py)?;
             let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
             if rev == cached_rev {
                 let a = tuple.as_unbound();
@@ -447,7 +447,7 @@ impl InnerRevlog {
         let replace = match &mut self_ref.revision_cache {
             None => true,
             Some(cache) => {
-                let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+                let tuple: &Bound<'_, PyTuple> = cache.cast_bound(py)?;
                 let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
                 let validated: bool = tuple.get_item(2)?.extract()?;
                 rev != cached_rev || !validated
@@ -488,7 +488,7 @@ impl InnerRevlog {
     ) -> PyResult<()> {
         let mut self_ref = slf.borrow_mut();
         let clear = if let Some(cache) = &self_ref.revision_cache {
-            let tuple: &Bound<'_, PyTuple> = cache.downcast_bound(py)?;
+            let tuple: &Bound<'_, PyTuple> = cache.cast_bound(py)?;
             let cached_rev: PyRevision = tuple.get_item(0)?.extract()?;
             rev == cached_rev
         } else {
@@ -536,7 +536,7 @@ impl InnerRevlog {
     fn _writinghandles(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         Self::with_core_read(slf, |_self_ref, irl| {
             let handles = irl.python_writing_handles();
             match handles.as_ref() {
@@ -564,7 +564,7 @@ impl InnerRevlog {
         })
     }
 
-    fn clear_cache(slf: &Bound<'_, Self>) -> PyResult<PyObject> {
+    fn clear_cache(slf: &Bound<'_, Self>) -> PyResult<Py<PyAny>> {
         assert!(!Self::is_delaying(slf)?);
         let mut self_ref = slf.borrow_mut();
         self_ref.revision_cache.take();
@@ -577,7 +577,7 @@ impl InnerRevlog {
         })
     }
 
-    fn seen_file_size(slf: &Bound<'_, Self>, size: u32) -> PyResult<PyObject> {
+    fn seen_file_size(slf: &Bound<'_, Self>, size: u32) -> PyResult<Py<PyAny>> {
         Self::with_core_read(slf, |_self_ref, irl| {
             irl.seen_file_size(u32_u(size));
             Ok(slf.py().None())
@@ -588,7 +588,7 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         rev: PyRevision,
         data: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let data = PyBuffer::<u8>::get(data)?.to_vec(slf.py())?;
         Self::with_core_read(slf, |_self_ref, irl| {
             if let Some(rev) = irl.index.check_revision(rev.into()) {
@@ -642,7 +642,7 @@ impl InnerRevlog {
     fn split_inline(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
-        tr: PyObject,
+        tr: Py<PyAny>,
         header: i32,
         new_index_file_path: Option<&Bound<'_, PyBytes>>,
     ) -> PyResult<Py<PyBytes>> {
@@ -752,14 +752,14 @@ impl InnerRevlog {
     fn write_entry(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
-        transaction: PyObject,
+        transaction: Py<PyAny>,
         entry: &Bound<'_, PyBytes>,
         data: &Bound<'_, PyTuple>,
         // TODO remove and also from Python
-        _link: PyObject,
+        _link: Py<PyAny>,
         offset: usize,
         // Other underscore args are for revlog-v2, which is unimplemented
-        _sidedata: PyObject,
+        _sidedata: Py<PyAny>,
         _sidedata_offset: u64,
         index_end: Option<u64>,
         data_end: Option<u64>,
@@ -768,9 +768,9 @@ impl InnerRevlog {
         Self::with_core_write(slf, |_self_ref, mut irl| {
             let transaction = PyTransaction::new(transaction);
             let header = data.get_borrowed_item(0)?;
-            let header = header.downcast::<PyBytes>()?;
+            let header = header.cast::<PyBytes>()?;
             let data = data.get_borrowed_item(1)?;
-            let data = data.downcast::<PyBytes>()?;
+            let data = data.cast::<PyBytes>()?;
             let (idx_pos, data_pos) = irl
                 .write_entry(
                     transaction,
@@ -847,7 +847,7 @@ impl InnerRevlog {
     #[pyo3(signature = (transaction, data_end=None, sidedata_end=None))]
     fn writing(
         slf: &Bound<'_, Self>,
-        transaction: PyObject,
+        transaction: Py<PyAny>,
         data_end: Option<usize>,
         sidedata_end: Option<usize>,
     ) -> PyResult<WritingContextManager> {
@@ -982,7 +982,7 @@ impl InnerRevlog {
         let start = if let Ok(rev) = arg.extract() {
             UncheckedRevision(rev)
         } else {
-            // here we could downcast to `PySlice` and use `indices()`, *but*
+            // here we could cast to `PySlice` and use `indices()`, *but*
             // the PyO3 based version could not do that, and
             // `indices()` does some resolving that makes it not equivalent,
             // e.g., `idx[-1::]` has `start=0`. As we are currently in
@@ -1012,7 +1012,7 @@ impl InnerRevlog {
     fn _index_ancestors(
         slf: &Bound<'_, Self>,
         revs: &Bound<'_, PyTuple>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         Self::with_index_read(slf, |idx| {
             let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
             Ok(PyList::new(
@@ -1319,7 +1319,7 @@ impl InnerRevlog {
         revs: &Bound<'_, PyAny>,
         target_density: f64,
         min_gap_size: usize,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         Self::with_index_read(slf, |idx| {
             let revs: Vec<_> = rev_pyiter_collect(revs, idx)?;
             let as_nested_vec =
@@ -1349,7 +1349,7 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         key: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         Self::with_index_read(slf, |idx| {
             match key.extract::<BaseRevision>() {
                 Ok(key_as_int) => {
@@ -1371,7 +1371,7 @@ impl InnerRevlog {
                         .unbind())
                 }
                 // Case when key is a binary Node ID (lame: we're re-unlocking)
-                _ => Self::_index_get_rev(slf, key.downcast::<PyBytes>()?)?
+                _ => Self::_index_get_rev(slf, key.cast::<PyBytes>()?)?
                     .map_or_else(
                         || Ok(py.None()),
                         |py_rev| Ok(py_rev.into_pyobject(py)?.unbind().into()),
@@ -1414,7 +1414,7 @@ impl InnerRevlog {
     fn _index_nodemap_data_incremental(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mut self_ref = slf.borrow_mut();
         let docket = &mut self_ref.docket;
         let docket = match docket.as_ref() {
@@ -1453,7 +1453,7 @@ impl InnerRevlog {
         py: Python<'_>,
         docket: &Bound<'_, PyAny>,
         nm_data: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         // Safety: we keep the buffer around inside the class as `nodemap_mmap`
         let (buf, bytes) = unsafe { take_buffer_with_slice(nm_data)? };
         let len = buf.item_count();
@@ -1657,7 +1657,7 @@ impl NodeTree {
     // `py_rust_index_to_graph`
     fn new(index_proxy: &Bound<'_, PyAny>) -> PyResult<Self> {
         let py_irl = index_proxy.getattr("inner")?;
-        let py_irl_ref = py_irl.downcast::<InnerRevlog>()?.borrow();
+        let py_irl_ref = py_irl.cast::<InnerRevlog>()?.borrow();
         let shareable_irl = &py_irl_ref.irl;
 
         // Safety: the owner is the actual one and we do not leak any

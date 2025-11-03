@@ -34,7 +34,7 @@ pub struct Dirs {
 impl Dirs {
     #[new]
     fn new(map: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if map.downcast::<PyDict>().is_ok() {
+        if map.cast::<PyDict>().is_ok() {
             return Err(PyTypeError::new_err(
                 "pathutil.dirs() with a dict should only be used by the \
                  Python dirstatemap and should not be used \

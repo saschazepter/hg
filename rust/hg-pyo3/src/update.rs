@@ -48,7 +48,7 @@ pub fn update_from_null(
     to: BaseRevision,
     dirstate: &Bound<'_, DirstateMap>,
     num_cpus: Option<usize>,
-    on_warnings: PyObject,
+    on_warnings: Py<PyAny>,
     devel_abort_dirstate: bool,
     ignored_conflict: &Bound<'_, PyBytes>,
     unknown_conflict: &Bound<'_, PyBytes>,
@@ -133,7 +133,7 @@ pub fn update_from_clean(
     devel_abort_dirstate: bool,
     orig_backup_path: Option<&[u8]>,
     atomic_file: bool,
-    on_warnings: PyObject,
+    on_warnings: Py<PyAny>,
     ignored_conflict: &Bound<'_, PyBytes>,
     unknown_conflict: &Bound<'_, PyBytes>,
 ) -> PyResult<(usize, usize, usize, usize, usize)> {

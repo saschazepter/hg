@@ -14,7 +14,6 @@ use pyo3::types::PyTuple;
 use pyo3::Bound;
 use pyo3::Py;
 use pyo3::PyAny;
-use pyo3::PyObject;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3_sharedref::SharedByPyObject;
@@ -74,7 +73,7 @@ impl PartialDiscovery {
         &mut self,
         py: Python,
         commons: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let commons = self.pyiter_to_vec(commons)?;
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
@@ -87,7 +86,7 @@ impl PartialDiscovery {
         &mut self,
         py: Python,
         missings: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let missings = self.pyiter_to_vec(missings)?;
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
@@ -100,13 +99,13 @@ impl PartialDiscovery {
         &mut self,
         py: Python,
         sample: &Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mut missing: Vec<Revision> = vec![];
         let mut common: Vec<Revision> = vec![];
         for info in sample.try_iter()? {
             // info is a pair (Revision, bool)
             let info = info?;
-            let info = info.downcast::<PyTuple>()?;
+            let info = info.cast::<PyTuple>()?;
             let rev: PyRevision = info.get_item(0)?.extract()?;
             // This is fine since we're just using revisions as integers
             // for the purposes of discovery

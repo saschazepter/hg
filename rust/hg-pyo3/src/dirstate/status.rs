@@ -90,13 +90,11 @@ fn collect_kindpats(
 
             Ok(FilePattern::new(
                 parse_pattern_syntax_kind(
-                    py_syntax.downcast::<PyBytes>()?.as_bytes(),
+                    py_syntax.cast::<PyBytes>()?.as_bytes(),
                 )
                 .map_err(|e| handle_fallback(StatusError::Pattern(e)))?,
-                py_pattern.downcast::<PyBytes>()?.as_bytes(),
-                get_path_from_bytes(
-                    py_source.downcast::<PyBytes>()?.as_bytes(),
-                ),
+                py_pattern.cast::<PyBytes>()?.as_bytes(),
+                get_path_from_bytes(py_source.cast::<PyBytes>()?.as_bytes()),
             ))
         })
         .collect()
@@ -201,7 +199,7 @@ pub(super) fn status(
         .try_iter()?
         .map(|res| {
             let ob = res?;
-            let file = ob.downcast::<PyBytes>()?.as_bytes();
+            let file = ob.cast::<PyBytes>()?.as_bytes();
             Ok(get_path_from_bytes(file).to_owned())
         })
         .collect();

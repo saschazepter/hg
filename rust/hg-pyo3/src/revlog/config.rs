@@ -68,15 +68,15 @@ macro_rules! extract_attr {
 // hard, I'm guessing it's due to different compilation stages, etc.).
 // So manually generate all three caches and use them in
 // `with_filelog_cache`.
-static DELTA_CONFIG_CACHE: OnceLock<(PyObject, RevlogDeltaConfig)> =
+static DELTA_CONFIG_CACHE: OnceLock<(Py<PyAny>, RevlogDeltaConfig)> =
     OnceLock::new();
-static DATA_CONFIG_CACHE: OnceLock<(PyObject, RevlogDataConfig)> =
+static DATA_CONFIG_CACHE: OnceLock<(Py<PyAny>, RevlogDataConfig)> =
     OnceLock::new();
-static FEATURE_CONFIG_CACHE: OnceLock<(PyObject, RevlogFeatureConfig)> =
+static FEATURE_CONFIG_CACHE: OnceLock<(Py<PyAny>, RevlogFeatureConfig)> =
     OnceLock::new();
 
 /// TODO don't do this and build a `Config` in Rust, expose it to Python and
-/// downcast it (after refactoring Python to re-use the same config objects?).
+/// cast it (after refactoring Python to re-use the same config objects?).
 ///
 /// Cache the first conversion from Python of filelog config. Other
 /// revlog types are not cached.
@@ -88,7 +88,7 @@ static FEATURE_CONFIG_CACHE: OnceLock<(PyObject, RevlogFeatureConfig)> =
 fn with_filelog_config_cache<T: Copy>(
     py_config: &Bound<'_, PyAny>,
     revlog_type: RevlogType,
-    cache: &OnceLock<(PyObject, T)>,
+    cache: &OnceLock<(Py<PyAny>, T)>,
     callback: impl Fn() -> PyResult<T>,
 ) -> PyResult<T> {
     let mut was_cached = false;

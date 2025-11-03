@@ -17,8 +17,8 @@ impl Owner {
 fn with_setup(
     test: impl FnOnce(Python<'_>, &Bound<'_, Owner>) -> PyResult<()>,
 ) -> PyResult<()> {
-    pyo3::prepare_freethreaded_python();
-    Python::with_gil(|py| {
+    Python::initialize();
+    Python::attach(|py| {
         let owner = Bound::new(py, Owner::new("new".to_owned()))?;
         test(py, &owner)
     })

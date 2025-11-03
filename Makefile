@@ -203,8 +203,8 @@ rust-tests:
 .PHONY: cargo-clippy
 cargo-clippy:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) clippy --all \
-		&& $(CARGO) clippy --all --features "full-tracing"
+		&& $(CARGO) clippy --all -- -D warnings \
+		&& $(CARGO) clippy --all --features "full-tracing" -- -D warnings
 
 .PHONY: check-code
 check-code:

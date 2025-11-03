@@ -84,7 +84,7 @@ pub fn py_tuple_to_revision_data_params(
     let offset_or_flags: u64 = tuple.get_item(0)?.extract()?;
     let node_id = tuple
         .get_item(7)?
-        .downcast::<PyBytes>()?
+        .cast::<PyBytes>()?
         .as_bytes()
         .try_into()
         .expect("nodeid should be set");

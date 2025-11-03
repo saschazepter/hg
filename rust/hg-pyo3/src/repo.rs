@@ -8,10 +8,10 @@ use pyo3::PyResult;
 
 use crate::utils::HgPyErrExt;
 
-/// Get a repository from a given [`PyObject`] path, and bubble up any error
+/// Get a repository from a given Python path, and bubble up any error
 /// that comes up.
 pub fn repo_from_path(repo_path: &Bound<'_, PyBytes>) -> PyResult<Repo> {
-    // TODO make the Config a Python class and downcast it here, otherwise we
+    // TODO make the Config a Python class and cast it here, otherwise we
     // lose CLI args and runtime overrides done in Python.
     let config = Config::load_non_repo().into_pyerr(repo_path.py())?;
     let repo = Repo::find(

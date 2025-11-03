@@ -85,8 +85,8 @@ impl CopyMap {
         &self,
         py: Python,
         key: &Bound<'_, PyBytes>,
-        default: Option<PyObject>,
-    ) -> PyResult<Option<PyObject>> {
+        default: Option<Py<PyAny>>,
+    ) -> PyResult<Option<Py<PyAny>>> {
         let key = key.as_bytes();
         self.with_dirstate_map_read(py, |inner_dsm| {
             match inner_dsm
@@ -106,8 +106,8 @@ impl CopyMap {
         &self,
         py: Python,
         key: &Bound<'_, PyBytes>,
-        default: Option<PyObject>,
-    ) -> PyResult<Option<PyObject>> {
+        default: Option<Py<PyAny>>,
+    ) -> PyResult<Option<Py<PyAny>>> {
         let path = HgPath::new(key.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
             match inner_dsm.copy_map_remove(path).map_err(dirstate_v2_error)? {
