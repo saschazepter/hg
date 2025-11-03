@@ -8,6 +8,9 @@
 from __future__ import annotations
 
 from mercurial.i18n import _
+from mercurial.interfaces.types import (
+    RepoT,
+)
 from mercurial import (
     bookmarks,
     cmdutil,
@@ -38,7 +41,7 @@ commitopts3 = [(b'r', b'rev', [], _(b'revision to check'), _(b'REV'))]
     helpcategory=command.CATEGORY_CHANGE_MANAGEMENT,
     inferrepo=True,
 )
-def close_branch(ui, repo, *revs, **opts):
+def close_branch(ui, repo: RepoT, *revs, **opts):
     """close the given head revisions
 
     This is equivalent to checking out each revision in a clean tree and running
