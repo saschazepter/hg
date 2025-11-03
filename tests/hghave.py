@@ -152,6 +152,8 @@ def matchoutput(cmd, regexp: bytes, ignorestatus: bool = False):
     is matched by the supplied regular expression.
     """
     env = environ()
+    # make sure that strict-rhg mode does not interfer with hghave call
+    env['RHG_ON_UNSUPPORTED'] = 'fallback'
 
     r = re.compile(regexp)
     p = subprocess.Popen(
