@@ -3260,7 +3260,7 @@ def grep(ui, repo, pattern, *pats, **opts):
     helpcategory=command.CATEGORY_CHANGE_NAVIGATION,
     intents={INTENT_READONLY},
 )
-def heads(ui, repo, *branchrevs, **opts):
+def heads(ui, repo: RepoT, *branchrevs, **opts):
     """show branch heads
 
     With no arguments, show all open branch heads in the repository.
