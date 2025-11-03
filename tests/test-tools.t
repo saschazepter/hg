@@ -9,6 +9,7 @@ Tests of the file helper tool
     -m, --mode            show file mode
     -l, --links           show number of links
     -s, --size            show size of file
+    --line-count          show line count of file
     -n NEWER, --newer=NEWER
                           check if file is newer (or same)
     -r, --recurse         recurse into directories
