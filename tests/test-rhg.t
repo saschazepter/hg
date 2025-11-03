@@ -563,3 +563,14 @@ Latin-1 is not supported yet
   $ $NO_FALLBACK HGENCODING=latin-1 rhg root
   unsupported feature: HGENCODING value 'latin-1' is not supported
   [252]
+
+
+Cleanup the hgrc from constraint
+================================
+
+(This confuse `hghave` when trying to match line later. This is obviously more
+a bug in `run-tests/hghave` than this specific test, but its easy enough to
+disarm it here.
+
+  $ echo "[extensions]" >> $HGRCPATH
+  $ echo "*:required = no" >> $HGRCPATH
