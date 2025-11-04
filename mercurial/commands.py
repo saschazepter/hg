@@ -1389,8 +1389,9 @@ def branch(ui: UiT, repo: RepoT, label: bytes | None = None, **opts):
             ui.status(_(b'marked working directory as branch %s\n') % label)
 
             # find any open named branches aside from default
-            for n, h, t, c in repo.branchmap().iterbranches():
-                if n != b"default" and not c:
+            bm = repo.branchmap()
+            for bn in bm:
+                if bn != b"default" and bm.hasbranch(bn, open_only=True):
                     return 0
             ui.status(
                 _(
