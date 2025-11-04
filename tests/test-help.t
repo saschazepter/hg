@@ -129,6 +129,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify
@@ -264,6 +266,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify
@@ -628,6 +632,8 @@ Test ambiguous command help
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify
@@ -2693,6 +2699,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   add all new files, delete all missing files
+  </td></tr>
+  <tr><td>
+  <a href="/help/admin::narrow">
+  admin::narrow
+  </a>
+  </td><td>
+  Narrow-related client administration utils.
   </td></tr>
   <tr><td>
   <a href="/help/admin::narrow-server">

@@ -77,6 +77,38 @@ def admin_verify(ui, repo, **opts):
 
 
 @command(
+    b'admin::narrow',
+    [
+        (
+            b'',
+            b'store-fingerprint',
+            None,
+            _(b"get the fingerprint for this repo's store narrospec"),
+        ),
+    ],
+    helpcategory=command.CATEGORY_MAINTENANCE,
+)
+def admin_narrow(ui: UiT, repo: RepoT, **opts):
+    """Narrow-related client administration utils.
+
+    This command is experimental and is subject to change.
+    """
+
+    if shape_mod is None:
+        raise error.Abort(_(b"this command needs the Rust extensions"))
+
+    if not repo.is_narrow:
+        raise error.Abort(_(b"this command only makes sense in a narrow clone"))
+
+    if opts.get("store_fingerprint"):
+        includes, excludes = repo.narrowpats
+        fingerprint = shape_mod.fingerprint_for_patterns(includes, excludes)
+        ui.writenoi18n(b"%s\n" % fingerprint)
+    else:
+        raise error.Abort(_(b"need at least one flag"))
+
+
+@command(
     b'admin::narrow-server',
     [
         (

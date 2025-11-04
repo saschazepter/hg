@@ -2116,6 +2116,10 @@ help/ shows help topics
         "topic": "addremove"
       },
       {
+        "summary": "Narrow-related client administration utils.",
+        "topic": "admin::narrow"
+      },
+      {
         "summary": "Narrow-related server administration utils.",
         "topic": "admin::narrow-server"
       },

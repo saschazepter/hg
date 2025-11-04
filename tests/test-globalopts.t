@@ -381,6 +381,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify
@@ -520,6 +522,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify

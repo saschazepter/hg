@@ -77,6 +77,8 @@ Test hiding some commands (which also happens to hide an entire category).
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify
@@ -220,6 +222,8 @@ Test hiding some topics.
   
   Repository maintenance:
   
+   admin::narrow
+                 Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
    admin::verify
