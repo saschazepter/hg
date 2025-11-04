@@ -492,6 +492,18 @@ impl OwnedFileIndexView {
 }
 
 impl<'on_disk> FileIndexView<'on_disk> {
+    /// Returns a view of an empty file index.
+    pub(super) fn empty() -> Self {
+        Self {
+            list_file: b"",
+            meta_array: &[],
+            tree_file: b"",
+            tree_root_pointer: 0,
+            tree_unused_bytes: 0,
+            root: TreeNode::empty_root(),
+        }
+    }
+
     /// Creates a file index given a docket and file contents. It will only
     /// read file contents up to the "used sizes" stored in the docket.
     fn open(

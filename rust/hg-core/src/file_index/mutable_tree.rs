@@ -86,8 +86,8 @@ enum MutableTreeNodePointer {
 
 /// An in-memory prefix tree that can be serialized to a tree file.
 pub struct MutableTree<'a> {
-    /// If present, we are appending to this file index's tree file.
-    base: Option<&'a FileIndexView<'a>>,
+    /// Base file index we are appending to.
+    base: FileIndexView<'a>,
     /// Additional nodes. The first element is the new root.
     nodes: Vec<MutableTreeNode<'a>>,
     /// Number of nodes copied from [`Self::base`].
@@ -115,66 +115,55 @@ pub struct SerializedMutableTree {
 
 impl<'a> MutableTree<'a> {
     /// Creates a new [`MutableTree`] for writing a new tree file.
-    pub fn empty(num_paths_estimate: usize) -> Self {
-        Self::new(None, MutableTreeNode::empty(), num_paths_estimate)
+    pub fn empty(num_paths_estimate: usize) -> Result<Self, Error> {
+        Self::new(FileIndexView::empty(), num_paths_estimate)
     }
 
     /// Creates a new [`MutableTree`] for appending to an existing tree file.
     pub fn with_base(
-        base: &'a FileIndexView<'a>,
+        base: FileIndexView<'a>,
         num_new_paths_estimate: usize,
     ) -> Result<Self, Error> {
-        Ok(Self::new(
-            Some(base),
-            MutableTreeNode::new(base, base.root)?,
-            num_new_paths_estimate,
-        ))
+        Self::new(base, num_new_paths_estimate)
     }
 
     fn new(
-        base: Option<&'a FileIndexView<'a>>,
-        root: MutableTreeNode<'a>,
+        base: FileIndexView<'a>,
         num_new_paths_estimate: usize,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         // Estimate the number of new nodes to be double the number of paths.
         let mut nodes = Vec::with_capacity(num_new_paths_estimate * 2);
-        let num_copied_nodes =
-            if base.is_some_and(|base| !base.tree_file.is_empty()) {
-                1
-            } else {
-                0
-            };
+        let root = MutableTreeNode::new(&base, base.root)?;
+        let num_copied_nodes = if base.tree_file.is_empty() { 0 } else { 1 };
         let num_copied_edges = root.edges.len();
         assert!(root.token.is_none());
         nodes.push(root);
-        Self {
+        Ok(Self {
             base,
             nodes,
             num_copied_nodes,
             num_copied_tokens: 0,
             num_copied_edges,
             num_paths_added: 0,
-        }
+        })
     }
 
-    /// Returns the number of paths in this tree.
-    /// This includes paths from the base file index, if there is one.
+    /// Returns the number of paths in this tree, including the base.
     pub fn len(&self) -> usize {
-        self.base.map_or(0, |base| base.len()) + self.num_paths_added
+        self.base.len() + self.num_paths_added
     }
 
     /// Copies the node at the given tree file offset into a new
     /// [`MutableTreeNode`], and returns its index.
     fn copy_node_at(&mut self, offset: u32) -> Result<usize, Error> {
-        let file_index = self.base.as_ref().expect("base should be present");
-        let node = file_index.read_node(offset)?;
+        let node = self.base.read_node(offset)?;
         self.num_copied_nodes += 1;
         self.num_copied_edges += node.edges.len();
         if node.token.is_some() {
             self.num_copied_tokens += 1;
         }
         let node_index = self.nodes.len();
-        self.nodes.push(MutableTreeNode::new(file_index, node)?);
+        self.nodes.push(MutableTreeNode::new(&self.base, node)?);
         Ok(node_index)
     }
 
@@ -277,10 +266,7 @@ impl<'a> MutableTree<'a> {
             return None;
         }
         // Terminology: final = old + additional = old + (copied + fresh).
-        let old_size = match self.base {
-            Some(index) => u_u32(index.tree_file.len()),
-            None => 0,
-        };
+        let old_size = u_u32(self.base.tree_file.len());
         let num_additional_nodes = self.nodes.len();
         let num_additional_tokens =
             self.num_copied_tokens + self.num_paths_added;
@@ -351,15 +337,12 @@ impl<'a> MutableTree<'a> {
             }
         }
         assert_eq!(buffer.len(), additional_size);
-        let old_unused_bytes = match self.base {
-            Some(file_index) => file_index.tree_unused_bytes,
-            None => 0,
-        };
+        let old_unused_bytes = self.base.tree_unused_bytes;
         let additional_unused_bytes = // (comment to improve formatting)
             self.num_copied_nodes * std::mem::size_of::<TreeNodeHeader>()
             + self.num_copied_edges * std::mem::size_of::<TreeEdge>()
             + self.num_copied_tokens * std::mem::size_of::<FileToken>();
-        let final_unused_bytes: u32 =
+        let final_unused_bytes =
             old_unused_bytes + u_u32(additional_unused_bytes);
         assert!(final_unused_bytes <= old_size);
         Some(SerializedMutableTree {

@@ -9,7 +9,7 @@ from typing import Iterator, List, Optional
 
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT
-from .. import error
+from .. import error, util
 from ..interfaces import file_index as int_file_index
 from ..utils import docket, stringutil
 
@@ -326,6 +326,16 @@ class Base:
     tree_file = attr.ib(type=memoryview)
     root_node = attr.ib(type=TreeNode)
 
+    @classmethod
+    def empty(cls) -> Base:
+        return cls(
+            docket=Docket(),
+            list_file=util.buffer(b""),
+            meta_array=MetadataArray(util.buffer(b"")),
+            tree_file=util.buffer(b""),
+            root_node=TreeNode.empty_root(),
+        )
+
 
 @attr.s(slots=True)
 class MutableTreeNode:
@@ -461,30 +471,19 @@ class MutableTree:
     """
 
     def __init__(self, base: Base | None):
-        self.base = base
-        if base and len(base.tree_file) > 0:
-            root = MutableTreeNode.copy(base, base.root_node)
-            self.num_copied_nodes = 1
-        else:
-            root = MutableTreeNode(token=None, edges=[])
-            self.num_copied_nodes = 0
+        self.base = base or Base.empty()
+        root = MutableTreeNode.copy(self.base, self.base.root_node)
         self.nodes = [root]
+        self.num_copied_nodes = 1 if len(self.base.tree_file) > 0 else 0
         self.num_copied_edges = len(root.edges)
         self.num_copied_tokens = 0
         self.num_paths_added = 0
 
     def __len__(self) -> int:
-        """Return the number of paths in this tree.
-
-        This includes paths from the base file index, if there is one.
-        """
-        n = self.num_paths_added
-        if self.base:
-            n += len(self.base.meta_array)
-        return n
+        """Return the number of paths in this tree, including the base."""
+        return len(self.base.meta_array) + self.num_paths_added
 
     def _copy_node_at(self, offset) -> int:
-        assert self.base
         node = TreeNode.parse_from(self.base.tree_file[offset:])
         self.num_copied_nodes += 1
         self.num_copied_edges += len(node.edges)
@@ -571,7 +570,7 @@ class MutableTree:
             # If there's only a root node, no need to write anything.
             return None
         # Terminology: final = old + additional = old + (copied + fresh).
-        old_size = self.base.docket.tree_file_size if self.base else 0
+        old_size = self.base.docket.tree_file_size
         num_additional_nodes = len(self.nodes)
         num_additional_tokens = self.num_copied_tokens + self.num_paths_added
         num_fresh_nodes = num_additional_nodes - self.num_copied_nodes
@@ -622,9 +621,7 @@ class MutableTree:
         assert (
             len(buffer) == additional_size
         ), f"buffer size is {len(buffer)}, expected {additional_size}"
-        old_unused_bytes = (
-            self.base.docket.tree_unused_bytes if self.base else 0
-        )
+        old_unused_bytes = self.base.docket.tree_unused_bytes
         additional_unused_bytes = (
             self.num_copied_nodes * TreeNodeHeader.STRUCT.size
             + self.num_copied_edges * TreeEdge.STRUCT.size
