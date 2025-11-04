@@ -12,6 +12,9 @@ import weakref
 
 from concurrent import futures
 from .i18n import _
+from .interfaces.types import (
+    NodeIdT,
+)
 from .node import bin
 from . import (
     bundle2,
@@ -320,6 +323,10 @@ class peerexecutor(repository.ipeercommandexecutor):
                     f.set_result(result)
 
 
+class RemoteBranchMap(dict[bytes, list[NodeIdT]], repository.IBaseBranchMap):
+    """Branch information from a wire-peer"""
+
+
 class wirepeer(
     repository.peer, repository.ipeercommands, repository.ipeerlegacycommands
 ):
@@ -392,7 +399,7 @@ class wirepeer(
     def branchmap(self):
         def decode(d):
             try:
-                branchmap = {}
+                branchmap = RemoteBranchMap()
                 for branchpart in d.splitlines():
                     branchname, branchheads = branchpart.split(b' ', 1)
                     branchname = encoding.tolocal(urlreq.unquote(branchname))

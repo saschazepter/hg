@@ -2469,7 +2469,7 @@ class IBaseBranchMap(Protocol):
         ...
 
     @abc.abstractmethod
-    def items(self) -> Iterator[tuple[bytes, list[NodeIdT]]]:
+    def items(self) -> Iterable[tuple[bytes, list[NodeIdT]]]:
         ...
 
 
