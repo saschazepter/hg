@@ -326,6 +326,10 @@ class peerexecutor(repository.ipeercommandexecutor):
 class RemoteBranchMap(dict[bytes, list[NodeIdT]], repository.IBaseBranchMap):
     """Branch information from a wire-peer"""
 
+    def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
+        """Note: closed is ignored as we don't have the information from the remote"""
+        return self[branch]
+
 
 class wirepeer(
     repository.peer, repository.ipeercommands, repository.ipeerlegacycommands

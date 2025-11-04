@@ -2472,6 +2472,10 @@ class IBaseBranchMap(Protocol):
     def items(self) -> Iterable[tuple[bytes, list[NodeIdT]]]:
         ...
 
+    @abc.abstractmethod
+    def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
+        ...
+
 
 class IBranchMap(IBaseBranchMap, Protocol):
     """A dict like object that hold branches heads cache."""
@@ -2488,10 +2492,6 @@ class IBranchMap(IBaseBranchMap, Protocol):
 
     @abc.abstractmethod
     def iteropen(self, nodes: list[bytes]) -> Iterator[NodeIdT]:
-        ...
-
-    @abc.abstractmethod
-    def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
         ...
 
     @abc.abstractmethod

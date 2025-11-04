@@ -1019,7 +1019,8 @@ def add_branch_revs(
                 raise error.Abort(_(b"dirstate branch not accessible"))
             branch = lrepo.dirstate.branch()
         if branch in branchmap:
-            revs.extend(hex(r) for r in reversed(branchmap[branch]))
+            branch_heads = branchmap.branchheads(branch, closed=True)
+            revs.extend(hex(r) for r in reversed(branch_heads))
             return True
         else:
             return False
