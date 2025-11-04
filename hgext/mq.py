@@ -1581,12 +1581,8 @@ class queue:
         self.checkkeepchanges(keepchanges, force)
         diffopts = self.diffopts()
         with repo.wlock():
-            heads = []
-            for hs in repo.branchmap().iterheads():
-                heads.extend(hs)
-            if not heads:
-                heads = [repo.nullid]
-            if repo.dirstate.p1() not in heads and not exact:
+            p1 = repo.dirstate.p1()
+            if not (repo.branchmap().all_nodes_are_heads([p1]) or exact):
                 self.ui.status(_(b"(working directory not at a head)\n"))
 
             if not self.series:
