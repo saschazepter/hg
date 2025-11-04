@@ -1497,7 +1497,7 @@ Declare the version as supporting this hg version, show regular bts link:
   $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** unknown exception encountered, please report by visiting
-  ** https://mercurial-scm.org/wiki/BugTracker
+  ** https://foss.heptapod.net/mercurial/mercurial-devel/-/issues
   ** Python * (glob)
   ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw 1.0.0
@@ -1509,7 +1509,7 @@ Patch version is ignored during compatibility check
   $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py throw 2>&1 | grep -E '^\*\*'
   ** unknown exception encountered, please report by visiting
-  ** https://mercurial-scm.org/wiki/BugTracker
+  ** https://foss.heptapod.net/mercurial/mercurial-devel/-/issues
   ** Python * (glob)
   ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw 1.0.0

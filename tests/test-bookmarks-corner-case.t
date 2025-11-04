@@ -106,24 +106,16 @@ If two process are pushing we want to make sure the following happens:
 We build a server side extension for this purpose
 
   $ cat > bookrace.py << EOF
-  > import atexit
   > import os
-  > import time
-  > from mercurial import bookmarks, error, extensions
+  > from mercurial import bookmarks, error, extensions, testing
   > 
   > def wait(repo):
-  >     if not os.path.exists('push-A-started'):
+  >     if not os.path.exists(b'push-A-started'):
   >         assert repo._currentlock(repo._lockref) is None
   >         assert repo._currentlock(repo._wlockref) is None
   >         repo.ui.status(b'setting raced push up\n')
-  >         with open('push-A-started', 'w'):
-  >             pass
-  >     clock = 300
-  >     while not os.path.exists('push-B-done'):
-  >         clock -= 1
-  >         if clock <= 0:
-  >             raise error.Abort("race scenario timed out")
-  >         time.sleep(0.1)
+  >         testing.write_file(b'push-A-started')
+  >     testing.wait_file(b'push-B-done', 30)
   > 
   > def reposetup(ui, repo):
   >     class racedrepo(repo.__class__):
@@ -133,10 +125,6 @@ We build a server side extension for this purpose
   >             return super(racedrepo, self)._bookmarks
   >     repo.__class__ = racedrepo
   > 
-  > def e():
-  >     with open('push-A-done', 'w'):
-  >         pass
-  > atexit.register(e)
   > EOF
 
 Actual test
@@ -148,15 +136,11 @@ Start the raced push.
   > [extensions]
   > bookrace=$TESTTMP/bookrace.py
   > EOF
-  $ hg push -R client-A -r book-A >push-output.txt 2>&1 &
+  $ (hg push -R client-A -r book-A >push-output.txt 2>&1 ; touch push-A-done)&
 
 Wait up to 30 seconds for that push to start.
 
-  $ clock=30
-  $ while [ ! -f push-A-started ] && [ $clock -gt 0 ] ; do
-  >    clock=`expr $clock - 1`
-  >    sleep 1
-  > done
+  $ "$RUNTESTDIR/testlib/wait-on-file" 30 push-A-started
 
 Do the other push.
 
@@ -178,12 +162,9 @@ Signal the raced put that we are done (it waits up to 30 seconds).
 
   $ touch push-B-done
 
-Wait for the raced push to finish (with the remaning of the initial 30 seconds).
+Wait for the raced push to finish (30 seconds too)
 
-  $ while [ ! -f push-A-done ] && [ $clock -gt 0 ] ; do
-  >    clock=`expr $clock - 1`
-  >    sleep 1
-  > done
+  $ "$RUNTESTDIR/testlib/wait-on-file" 30 push-A-done
 
 Check raced push output.
 
