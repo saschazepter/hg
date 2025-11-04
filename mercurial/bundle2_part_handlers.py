@@ -320,16 +320,10 @@ def handlecheckupdatedheads(op: UnbundleOpT, inpart):
     if op.ui.configbool(b'experimental', b'bundle2lazylocking'):
         op.gettransaction()
 
-    currentheads = set()
-    for ls in op.repo.branchmap().iterheads():
-        currentheads.update(ls)
-
-    for h in heads:
-        if h not in currentheads:
-            raise error.PushRaced(
-                b'remote repository changed while pushing - '
-                b'please try again'
-            )
+    if not op.repo.branchmap().all_nodes_are_heads(heads):
+        raise error.PushRaced(
+            b'remote repository changed while pushing - ' b'please try again'
+        )
 
 
 @parthandler(b'check:phases')

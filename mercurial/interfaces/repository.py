@@ -2500,6 +2500,10 @@ class IBranchMap(IBaseBranchMap, Protocol):
     def iterheads(self) -> Iterator[list[NodeIdT]]:
         """returns all the heads"""
 
+    @abc.abstractmethod
+    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
+        """True if all the passed nodes are branch heads"""
+
 
 class IBranchMapCache(Protocol):
     """mapping of filtered views of repo with their branchcache"""

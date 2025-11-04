@@ -38,6 +38,7 @@ from .utils import (
 
 if TYPE_CHECKING:
     from .interfaces.types import (
+        NodeIdT,
         RepoT,
     )
 
@@ -214,6 +215,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
             closed_nodes = set()
         self._closednodes = set(closed_nodes)
         self._entries = dict(entries)
+        self._nullid = repo.nullid
 
     def __iter__(self):
         return iter(self._entries)
@@ -263,11 +265,27 @@ class _BaseBranchCache(i_repo.IBranchMap):
         """returns all the heads"""
         return self._entries.values()
 
+    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
+        if nodes == [self._nullid]:
+            # nullid is only a head if the repository is otherwise empty.
+            return not self._entries
+        heads = self._all_head_nodes
+        return all(n in heads for n in nodes)
+
+    @util.propertycache
+    def _all_head_nodes(self) -> set[NodeIdT]:
+        heads = set()
+        for hs in self._entries.values():
+            heads.update(hs)
+        return heads
+
     def update(self, repo, revgen):
         """Given a branchhead cache, self, that may have extra nodes or be
         missing heads, and a generator of nodes that are strictly a superset of
         heads missing, this function updates self to be correct.
         """
+        if '_all_head_nodes' in vars(self):
+            del self._all_head_nodes
         starttime = util.timer()
         cl = repo.changelog
         # Faster than using ctx.obsolete()
@@ -682,6 +700,10 @@ class _LocalBranchCache(_BaseBranchCache):
         """returns all the heads"""
         self._verifyall()
         return super().iterheads()
+
+    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
+        self._verifyall()
+        return super().all_nodes_are_heads(nodes)
 
     def hasbranch(self, label):
         """checks whether a branch of this name exists or not"""
