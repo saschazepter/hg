@@ -1602,12 +1602,15 @@ class localrepository(_localrepo_base_classes):
         be included even if they're outside the narrowspec.
         """
         if match:
-            if includeexact and not self._narrowmatch.always():
+            narrowed = not self._narrowmatch.always()
+            if includeexact and narrowed:
                 # do not exclude explicitly-specified paths so that they can
                 # be warned later on
                 em = matchmod.exact(match.files())
                 nm = matchmod.unionmatcher([self._narrowmatch, em])
                 return matchmod.intersectmatchers(match, nm)
+            if not narrowed:
+                return match
             return matchmod.intersectmatchers(match, self._narrowmatch)
         return self._narrowmatch
 
