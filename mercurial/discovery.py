@@ -468,15 +468,15 @@ def checkheads(pushop: PushOpT) -> None:
     if newbranches and not newbranch:  # new branch requires --new-branch
         branchnames = b', '.join(sorted(newbranches))
         # Calculate how many of the new branches are closed branches
-        closedbranches = set()
-        for tag, heads, tip, isclosed in repo.branchmap().iterbranches():
-            if isclosed:
-                closedbranches.add(tag)
-        closedbranches = closedbranches & set(newbranches)
-        if closedbranches:
+        closed_branches = 0
+        bm = repo.branchmap()
+        for bn in newbranches:
+            if not bm.hasbranch(bn, open_only=True):
+                closed_branches += 1
+        if closed_branches:
             errmsg = _(b"push creates new remote branches: %s (%d closed)") % (
                 branchnames,
-                len(closedbranches),
+                closed_branches,
             )
         else:
             errmsg = _(b"push creates new remote branches: %s") % branchnames
