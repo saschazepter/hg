@@ -218,9 +218,6 @@ class _BaseBranchCache(i_repo.IBranchMap):
     def __iter__(self):
         return iter(self._entries)
 
-    def __setitem__(self, key, value):
-        self._entries[key] = value
-
     def __getitem__(self, key):
         return self._entries[key]
 
@@ -415,7 +412,8 @@ class _BaseBranchCache(i_repo.IBranchMap):
                         ancestors = set(cl.ancestors(uncertain, floorrev))
                         bheadset -= ancestors
             if bheadset:
-                self[branch] = [cl.node(rev) for rev in sorted(bheadset)]
+                node = cl.node
+                self._entries[branch] = [node(rev) for rev in sorted(bheadset)]
 
 
 STATE_CLEAN = 1
