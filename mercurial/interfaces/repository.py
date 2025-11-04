@@ -2032,6 +2032,9 @@ class IRepo(Protocol):
     """hold information about any in progress merge
     """
 
+    _branchcaches: IBranchMapCache
+    """hold branchmak information for each view of the repository"""
+
     @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
@@ -2164,7 +2167,7 @@ class IRepo(Protocol):
         """Return the list of bookmarks pointing to the specified node."""
 
     @abc.abstractmethod
-    def branchmap(self):
+    def branchmap(self) -> IBranchMap:
         """Return a mapping of branch to heads in that branch."""
 
     @abc.abstractmethod
@@ -2450,6 +2453,93 @@ class IRepo(Protocol):
     @abc.abstractmethod
     def register_wanted_sidedata(self, category):
         pass
+
+
+class IBranchMap(Protocol):
+    """A dict like object that hold branches heads cache."""
+
+    @abc.abstractmethod
+    def __iter__(self) -> Iterator[bytes]:
+        ...
+
+    @abc.abstractmethod
+    def __contains__(self, key: bytes) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def items(self) -> Iterator[tuple[bytes, list[NodeIdT]]]:
+        ...
+
+    @abc.abstractmethod
+    def hasbranch(self, label: bytes):
+        """checks whether a branch of this name exists or not"""
+
+    @abc.abstractmethod
+    def branchtip(self, branch: bytes) -> NodeIdT:
+        """Return the tipmost open head on branch head, otherwise return the
+        tipmost closed head on branch.
+        Raise KeyError for unknown branch."""
+
+    @abc.abstractmethod
+    def iteropen(self, nodes: list[bytes]) -> Iterator[NodeIdT]:
+        ...
+
+    @abc.abstractmethod
+    def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
+        ...
+
+    @abc.abstractmethod
+    def iterbranches(
+        self,
+    ) -> Iterator[tuple[bytes, list[NodeIdT], NodeIdT, bool]]:
+        ...
+
+    @abc.abstractmethod
+    def iterheads(self) -> Iterator[list[NodeIdT]]:
+        """returns all the heads"""
+
+
+class IBranchMapCache(Protocol):
+    """mapping of filtered views of repo with their branchcache"""
+
+    @abc.abstractmethod
+    def __getitem__(self, repo: IRepo) -> IBranchMap:
+        ...
+
+    @abc.abstractmethod
+    def update_disk(self, repo: IRepo, detect_pure_topo: bool = False):
+        """ensure and up-to-date cache is (or will be) written on disk
+
+        The cache for this repository view is updated  if needed and written on
+        disk.
+
+        If a transaction is in progress, the writing is schedule to transaction
+        close. See the `BranchMapCache.write_dirty` method.
+
+        This method exist independently of __getitem__ as it is sometime useful
+        to signal that we have no intend to use the data in memory yet.
+        """
+
+    @abc.abstractmethod
+    def updatecache(self, repo: IRepo):
+        """Update the cache for the given filtered view on a repository"""
+
+    @abc.abstractmethod
+    def replace(self, repo: IRepo, remotebranchmap: IBranchMap):
+        """Replace the branchmap cache for a repo with a branch mapping.
+
+        This is likely only called during clone with a branch map from a
+        remote.
+
+        """
+
+    @abc.abstractmethod
+    def clear(self):
+        ...
+
+    @abc.abstractmethod
+    def write_dirty(self, repo: IRepo):
+        ...
 
 
 ilocalrepositorymain = IRepo

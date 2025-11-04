@@ -28,7 +28,9 @@ from . import (
     scmutil,
     util,
 )
-
+from .interfaces import (
+    repository as i_repo,
+)
 from .utils import (
     repoviewutil,
     stringutil,
@@ -42,7 +44,7 @@ if TYPE_CHECKING:
 subsettable = repoviewutil.subsettable
 
 
-class BranchMapCache:
+class BranchMapCache(i_repo.IBranchMapCache):
     """mapping of filtered views of repo with their branchcache"""
 
     def __init__(self):
@@ -187,7 +189,7 @@ def _branchcachedesc(repo):
         return b'branch cache'
 
 
-class _BaseBranchCache:
+class _BaseBranchCache(i_repo.IBranchMap):
     """A dict like object that hold branches heads cache.
 
     This cache is used to avoid costly computations to determine all the

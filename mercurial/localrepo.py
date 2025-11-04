@@ -1996,7 +1996,7 @@ class localrepository(_localrepo_base_classes):
         """return the list of bookmarks pointing to the specified node"""
         return self._bookmarks.names(node)
 
-    def branchmap(self):
+    def branchmap(self) -> repository.IBranchMap:
         """returns a dictionary {branch: [branchheads]} with branchheads
         ordered by increasing revision number"""
         return self._branchcaches[self]
