@@ -276,7 +276,7 @@ class ipeercommands(Protocol):
     """
 
     @abc.abstractmethod
-    def branchmap(self):
+    def branchmap(self) -> IBaseBranchMap:
         """Obtain heads in named branches.
 
         Returns a dict mapping branch name to an iterable of nodes that are
@@ -2455,8 +2455,10 @@ class IRepo(Protocol):
         pass
 
 
-class IBranchMap(Protocol):
-    """A dict like object that hold branches heads cache."""
+class IBaseBranchMap(Protocol):
+    @abc.abstractmethod
+    def __getitem__(self, branch: bytes) -> list[NodeIdT]:
+        ...
 
     @abc.abstractmethod
     def __iter__(self) -> Iterator[bytes]:
@@ -2469,6 +2471,10 @@ class IBranchMap(Protocol):
     @abc.abstractmethod
     def items(self) -> Iterator[tuple[bytes, list[NodeIdT]]]:
         ...
+
+
+class IBranchMap(IBaseBranchMap, Protocol):
+    """A dict like object that hold branches heads cache."""
 
     @abc.abstractmethod
     def hasbranch(self, label: bytes):

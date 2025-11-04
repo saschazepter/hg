@@ -384,7 +384,7 @@ class localpeer(repository.peer, repository.ipeercommands):
 
     # Begin of _basewirecommands interface.
 
-    def branchmap(self):
+    def branchmap(self) -> repository.IBaseBranchMap:
         return self._repo.branchmap()
 
     def get_cached_bundle_inline(self, path):
