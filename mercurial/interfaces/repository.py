@@ -2500,6 +2500,17 @@ class IBranchMap(IBaseBranchMap, Protocol):
         ...
 
     @abc.abstractmethod
+    def branches_info(
+        self,
+        repo: IRepo,
+        branches: set[bytes] | None = None,
+    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
+        """return a list of (name, tip-rev, active, closed)
+
+        If `branches` filter to these branches only.
+        """
+
+    @abc.abstractmethod
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         """True if all the passed nodes are branch heads"""
 

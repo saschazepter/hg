@@ -1453,19 +1453,11 @@ def branches(ui, repo, active=False, closed=False, **opts):
     fm = ui.formatter(b'branches', pycompat.byteskwargs(opts))
     hexfunc = fm.hexfunc
 
-    allheads = set(repo.heads())
-    branches = []
-    for tag, heads, tip, isclosed in repo.branchmap().iterbranches():
-        if selectedbranches is not None and tag not in selectedbranches:
-            continue
-        isactive = False
-        if not isclosed:
-            openheads = set(repo.branchmap().iteropen(heads))
-            isactive = bool(openheads & allheads)
-        branches.append((tag, repo[tip], isactive, not isclosed))
-    branches.sort(key=lambda i: (i[2], i[1].rev(), i[0], i[3]), reverse=True)
+    branches = repo.branchmap().branches_info(repo, branches=selectedbranches)
+    branches.sort(key=lambda i: (i[2], i[1], i[0], i[3]), reverse=True)
 
-    for tag, ctx, isactive, isopen in branches:
+    for tag, rev, isactive, isopen in branches:
+        ctx = repo[rev]
         if active and not isactive:
             continue
         if isactive:
@@ -1485,7 +1477,6 @@ def branches(ui, repo, active=False, closed=False, **opts):
 
         fm.startitem()
         fm.write(b'branch', b'%s', tag, label=label)
-        rev = ctx.rev()
         padsize = max(31 - len(b"%d" % rev) - encoding.colwidth(tag), 0)
         fmt = b' ' * padsize + b' %d:%s'
         fm.condwrite(
