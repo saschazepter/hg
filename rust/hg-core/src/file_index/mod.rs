@@ -23,7 +23,6 @@ use on_disk::Metadata;
 use on_disk::OwnedDataFiles;
 use on_disk::OwnedFileIndexView;
 pub use on_disk::PathInfo;
-use on_disk::EMPTY_TREE_BYTES;
 
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
@@ -139,10 +138,9 @@ impl FileIndex {
         docket: &Docket,
         vfs: &VfsImpl,
     ) -> Result<OwnedFileIndexView, HgError> {
-        let list_file = Self::read_file(vfs, docket.list_file_path(), b"")?;
-        let meta_file = Self::read_file(vfs, docket.meta_file_path(), b"")?;
-        let tree_file =
-            Self::read_file(vfs, docket.tree_file_path(), &EMPTY_TREE_BYTES)?;
+        let list_file = Self::read_file(vfs, docket.list_file_path())?;
+        let meta_file = Self::read_file(vfs, docket.meta_file_path())?;
+        let tree_file = Self::read_file(vfs, docket.tree_file_path())?;
         let files = OwnedDataFiles { list_file, meta_file, tree_file };
         Ok(OwnedFileIndexView::open(docket, files)?)
     }
@@ -172,14 +170,13 @@ impl FileIndex {
     }
 
     /// Reads a file from disk using mmap if possible.
-    /// Returns `default` if the file does not exist.
+    /// Returns empty bytes if the file does not exist.
     fn read_file(
         vfs: &VfsImpl,
         path: Option<PathBuf>,
-        default: &'static [u8],
     ) -> Result<Box<dyn Deref<Target = [u8]> + Send + Sync>, HgError> {
         let Some(path) = path else {
-            return Ok(Box::new(default));
+            return Ok(Box::new(b"".as_slice()));
         };
         if is_on_nfs_mount(&vfs.base) {
             Ok(Box::new(vfs.read(&path)?))
@@ -434,7 +431,7 @@ impl FileIndex {
             });
             return Self::write_data_impl(docket, tree, add_paths, files);
         }
-        let tree = if new_tree {
+        let tree = if vacuum {
             let mut tree = MutableTree::empty(on_disk.len() + add_paths.len());
             for (i, info) in on_disk.meta_array.iter().enumerate() {
                 let path = HgPath::new(on_disk.read_span(info.path())?);
@@ -479,15 +476,16 @@ impl FileIndex {
             list_file_size += u_u32(path.len() + 1);
             meta_file_size += u_u32(std::mem::size_of::<Metadata>());
         }
-        let serialized = tree.serialize();
-        tree_file
-            .write_all(&serialized.bytes)
-            .when_writing_file(&tree_file_path)?;
         docket.header.list_file_size = list_file_size.into();
         docket.header.meta_file_size = meta_file_size.into();
-        docket.header.tree_file_size = serialized.tree_file_size.into();
-        docket.header.tree_root_pointer = serialized.tree_root_pointer.into();
-        docket.header.tree_unused_bytes = serialized.tree_unused_bytes.into();
+        if let Some(out) = tree.serialize() {
+            tree_file
+                .write_all(&out.bytes)
+                .when_writing_file(&tree_file_path)?;
+            docket.header.tree_file_size = out.tree_file_size.into();
+            docket.header.tree_root_pointer = out.tree_root_pointer.into();
+            docket.header.tree_unused_bytes = out.tree_unused_bytes.into();
+        }
         docket.header.reserved_flags = [0; 4];
         Ok(())
     }

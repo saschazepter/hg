@@ -22,9 +22,6 @@ FileTokenT = int_file_index.FileTokenT
 
 V1_FORMAT_MARKER = b"fileindex-v1"
 
-EMPTY_TREE_BYTES = b"\x00\x00"
-"""A serialized empty file index tree."""
-
 
 @attr.s(slots=True)
 class Docket:
@@ -51,7 +48,7 @@ class Docket:
     # Used size of the meta file in bytes.
     meta_file_size = attr.ib(type=int, default=0)
     # Used size of tree file in bytes.
-    tree_file_size = attr.ib(type=int, default=len(EMPTY_TREE_BYTES))
+    tree_file_size = attr.ib(type=int, default=0)
     # List file path ID.
     list_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Reserved for future use.
@@ -260,9 +257,6 @@ class TreeNodeHeader:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
-assert EMPTY_TREE_BYTES == TreeNodeHeader(flags=0, num_children=0).serialize()
-
-
 TREE_NODE_FLAG_HAS_TOKEN = 0x01
 """Bit in TreeNodeHeader.flags indicating it is followed by a 32-bit token."""
 
@@ -302,6 +296,11 @@ class TreeNode:
     token = attr.ib(type=Optional[FileTokenT])
     # Edges pointing to children of this node.
     edges = attr.ib(type=List[TreeEdge])
+
+    @classmethod
+    def empty_root(cls) -> TreeNode:
+        """Return a root node for an empty tree."""
+        return cls(token=None, edges=[])
 
     @classmethod
     def parse_from(cls, data: memoryview) -> TreeNode:
@@ -463,7 +462,7 @@ class MutableTree:
 
     def __init__(self, base: Base | None):
         self.base = base
-        if base:
+        if base and len(base.tree_file) > 0:
             root = MutableTreeNode.copy(base, base.root_node)
             self.num_copied_nodes = 1
         else:
@@ -566,7 +565,11 @@ class MutableTree:
         node.token = token
         self.num_paths_added += 1
 
-    def serialize(self) -> SerializedMutableTree:
+    def serialize(self) -> SerializedMutableTree | None:
+        assert len(self.nodes) > 0, "must have root node"
+        if len(self.nodes) == 1:
+            # If there's only a root node, no need to write anything.
+            return None
         # Terminology: final = old + additional = old + (copied + fresh).
         old_size = self.base.docket.tree_file_size if self.base else 0
         num_additional_nodes = len(self.nodes)
@@ -582,7 +585,6 @@ class MutableTree:
             + num_additional_tokens * TOKEN_STRUCT.size
         )
         final_size = old_size + additional_size
-        empty_tree = self.base is None and len(self.nodes) == 1
         buffer = bytearray()
         stack = [(0, 0)]
         UNSET_POINTER = 0xFFFFFFFF
@@ -598,8 +600,7 @@ class MutableTree:
             num_children = len(node.edges)
             flags = 0 if node.token is None else TREE_NODE_FLAG_HAS_TOKEN
             header = TreeNodeHeader(flags, num_children)
-            if not empty_tree:
-                assert not (flags == 0 and num_children == 0)
+            assert not (flags == 0 and num_children == 0)
             buffer.extend(header.serialize())
             if node.token is not None:
                 buffer.extend(TOKEN_STRUCT.pack(node.token))

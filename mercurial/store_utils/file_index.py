@@ -232,7 +232,8 @@ class FileIndex(int_file_index.IFileIndex):
             for edge in node.edges:
                 yield from recur(edge.node_pointer)
 
-        yield from recur(self._docket.tree_root_pointer)
+        if len(tree) > 0:
+            yield from recur(self._docket.tree_root_pointer)
 
     def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
@@ -316,9 +317,12 @@ class FileIndex(int_file_index.IFileIndex):
         self._list_file = self._load_list_file()
         self._meta_array = self._load_meta_array()
         self._tree_file = self._load_tree_file()
-        self._root_node = file_index_util.TreeNode.parse_from(
-            self._tree_file[self._docket.tree_root_pointer :]
-        )
+        if len(self._tree_file) == 0:
+            self._root_node = file_index_util.TreeNode.empty_root()
+        else:
+            self._root_node = file_index_util.TreeNode.parse_from(
+                self._tree_file[self._docket.tree_root_pointer :]
+            )
 
     def _load_list_file(self) -> memoryview:
         path = self._list_file_path()
@@ -338,7 +342,7 @@ class FileIndex(int_file_index.IFileIndex):
     def _load_tree_file(self) -> memoryview:
         path = self._tree_file_path()
         if path is None:
-            return util.buffer(file_index_util.EMPTY_TREE_BYTES)
+            return util.buffer(b"")
         return self._mapfile(path, self._docket.tree_file_size)
 
     def _mapfile(self, path: bytes, size: int) -> memoryview:
@@ -445,10 +449,11 @@ class FileIndex(int_file_index.IFileIndex):
         """Write all data files and update self._docket."""
         docket = self._docket
         removing = bool(self._remove_tokens)
+        vacuum = self._should_vacuum()
         new_list = docket.list_file_id == docketmod.UNSET_UID or removing
         new_meta = docket.meta_file_id == docketmod.UNSET_UID or removing
         new_tree = docket.tree_file_id == docketmod.UNSET_UID or removing
-        new_tree = new_tree or self._should_vacuum()
+        new_tree = new_tree or vacuum
         with (
             self._open_list_file(new_list, tr) as list_file,
             self._open_meta_file(new_meta, tr) as meta_file,
@@ -464,7 +469,7 @@ class FileIndex(int_file_index.IFileIndex):
                     docket, tree, add_paths, list_file, meta_file, tree_file
                 )
                 return
-            if new_tree:
+            if vacuum:
                 tree = file_index_util.MutableTree(base=None)
                 for token, meta in enumerate(self._meta_array):
                     path = bytes(self._read_span(meta.offset, meta.length))
@@ -503,11 +508,12 @@ class FileIndex(int_file_index.IFileIndex):
             docket.list_file_size += len(path) + 1
             docket.meta_file_size += file_index_util.Metadata.STRUCT.size
             token += 1
-        serialized = tree.serialize()
-        tree_file.write(serialized.bytes)
-        docket.tree_file_size = serialized.tree_file_size
-        docket.tree_root_pointer = serialized.tree_root_pointer
-        docket.tree_unused_bytes = serialized.tree_unused_bytes
+        out = tree.serialize()
+        if out is not None:
+            tree_file.write(out.bytes)
+            docket.tree_file_size = out.tree_file_size
+            docket.tree_root_pointer = out.tree_root_pointer
+            docket.tree_unused_bytes = out.tree_unused_bytes
         docket.reserved_flags = 0
 
 
@@ -575,7 +581,10 @@ def debug_file_index(ui, repo, **opts):
             with repo.transaction(b"fileindex-vacuum") as tr:
                 fileindex.vacuum(tr)
             new_size = fileindex.debug_tree_file_size()
-        percent = (old_size - new_size) / old_size * 100
+        if old_size == 0:
+            percent = 0
+        else:
+            percent = (old_size - new_size) / old_size * 100
         msg = _(b"vacuumed tree: %s => %s (saved %.01f%%)\n")
         msg %= util.bytecount(old_size), util.bytecount(new_size), percent
         ui.write(msg)

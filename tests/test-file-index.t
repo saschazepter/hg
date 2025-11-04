@@ -24,7 +24,7 @@ Create a new repo with the file index
   list_file_size: 0
   reserved_revlog_size: 0
   meta_file_size: 0
-  tree_file_size: 2
+  tree_file_size: 0
   list_file_id: 00000000
   reserved_revlog_id: 00000000
   meta_file_id: 00000000
@@ -35,7 +35,6 @@ Create a new repo with the file index
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
-  00000000:
 Add a file
   $ touch file
   $ hg add file
@@ -184,10 +183,10 @@ immediately). Use --path because it causes a lookup in the tree file.
 Vacuum empty tree (no data files)
   $ hg init $TESTTMP/repoempty --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ hg -R $TESTTMP/repoempty debug::file-index --vacuum
-  vacuumed tree: 2 bytes => 2 bytes (saved 0.0%)
+  vacuumed tree: 0 bytes => 0 bytes (saved 0.0%)
 Vacuum empty tree again (data files exist)
   $ hg -R $TESTTMP/repoempty debug::file-index --vacuum
-  vacuumed tree: 2 bytes => 2 bytes (saved 0.0%)
+  vacuumed tree: 0 bytes => 0 bytes (saved 0.0%)
 
 Test cleaning up old files
 --------------------------

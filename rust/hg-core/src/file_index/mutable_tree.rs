@@ -138,7 +138,12 @@ impl<'a> MutableTree<'a> {
     ) -> Self {
         // Estimate the number of new nodes to be double the number of paths.
         let mut nodes = Vec::with_capacity(num_new_paths_estimate * 2);
-        let num_copied_nodes = if base.is_some() { 1 } else { 0 };
+        let num_copied_nodes =
+            if base.is_some_and(|base| !base.tree_file.is_empty()) {
+                1
+            } else {
+                0
+            };
         let num_copied_edges = root.edges.len();
         assert!(root.token.is_none());
         nodes.push(root);
@@ -264,7 +269,13 @@ impl<'a> MutableTree<'a> {
     }
 
     /// Serializes the tree to bytes, ready to be written to disk.
-    pub fn serialize(&self) -> SerializedMutableTree {
+    /// Returns `None` if there is nothing to write.
+    pub fn serialize(&self) -> Option<SerializedMutableTree> {
+        assert!(!self.nodes.is_empty(), "must have root node");
+        if self.nodes.len() == 1 {
+            // If there's only a root node, no need to write anything.
+            return None;
+        }
         // Terminology: final = old + additional = old + (copied + fresh).
         let old_size = match self.base {
             Some(index) => u_u32(index.tree_file.len()),
@@ -351,11 +362,11 @@ impl<'a> MutableTree<'a> {
         let final_unused_bytes: u32 =
             old_unused_bytes + u_u32(additional_unused_bytes);
         assert!(final_unused_bytes <= old_size);
-        SerializedMutableTree {
+        Some(SerializedMutableTree {
             bytes: buffer,
             tree_root_pointer: old_size,
             tree_file_size: final_size,
             tree_unused_bytes: final_unused_bytes,
-        }
+        })
     }
 }

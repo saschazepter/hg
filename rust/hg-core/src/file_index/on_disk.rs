@@ -178,7 +178,7 @@ impl Default for Docket {
                 list_file_size: 0.into(),
                 reserved_revlog_size: 0.into(),
                 meta_file_size: 0.into(),
-                tree_file_size: u_u32(EMPTY_TREE_BYTES.len()).into(),
+                tree_file_size: 0.into(),
                 list_file_id: FileUid::unset(),
                 reserved_revlog_id: FileUid::unset(),
                 meta_file_id: FileUid::unset(),
@@ -372,6 +372,13 @@ pub(super) struct TreeNode<'on_disk> {
     pub(super) edges: &'on_disk [TreeEdge],
 }
 
+impl TreeNode<'_> {
+    /// Returns a root node for an empty tree.
+    fn empty_root() -> Self {
+        Self { token: None, edges: &[] }
+    }
+}
+
 /// A node header in the tree file.
 #[derive(Debug, BytesCast, Copy, Clone)]
 #[repr(C)]
@@ -381,10 +388,6 @@ pub(super) struct TreeNodeHeader {
     /// Number of [`TreeEdge`] values that follow.
     pub(super) num_children: u8,
 }
-
-/// A serialized empty file index tree.
-/// It contains a single root [`TreeNodeHeader`] with 0 for flags and children.
-pub const EMPTY_TREE_BYTES: [u8; 2] = [0, 0];
 
 impl TreeNodeHeader {
     pub(super) fn new(flags: TreeNodeFlags, num_children: u8) -> Self {
@@ -522,7 +525,10 @@ impl<'on_disk> FileIndexView<'on_disk> {
             tree_file,
             tree_root_pointer,
             tree_unused_bytes,
-            root: Self::read_node_from(tree_file, tree_root_pointer)?,
+            root: match tree_file.len() {
+                0 => TreeNode::empty_root(),
+                _ => Self::read_node_from(tree_file, tree_root_pointer)?,
+            },
         })
     }
 
@@ -640,7 +646,11 @@ impl<'on_disk> FileIndexView<'on_disk> {
 
     /// Iterates over tree nodes, for debug output.
     pub fn debug_iter_tree_nodes(&self) -> DebugTreeNodeIter<'on_disk> {
-        DebugTreeNodeIter { inner: *self, stack: vec![self.tree_root_pointer] }
+        let stack = match self.tree_file.len() {
+            0 => vec![],
+            _ => vec![self.tree_root_pointer],
+        };
+        DebugTreeNodeIter { inner: *self, stack }
     }
 }
 
