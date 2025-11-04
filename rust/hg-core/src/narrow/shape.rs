@@ -1,8 +1,10 @@
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 
 use itertools::Itertools;
 use sha2::Digest;
@@ -25,14 +27,14 @@ use crate::utils::hg_path::HgPathBuf;
 /// It is used to create a normalized representation of potentially nested
 /// include and exclude patterns to uniquely identify semantically equivalent
 /// rules, as well as generating an associated file matcher.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ShardTreeNode {
     /// The path (rooted by `b""`) that this node concerns
     path: ZeroPath,
     /// Whether this path is included or excluded
     included: bool,
     /// The set of child nodes (describing rules for sub-paths)
-    children: Vec<Rc<RefCell<ShardTreeNode>>>,
+    children: Vec<Arc<PanickingRwLock<ShardTreeNode>>>,
 }
 
 impl ShardTreeNode {
@@ -80,32 +82,35 @@ impl ShardTreeNode {
             .into_iter()
             .chain(include_paths.iter().chain(exclude_paths.iter()))
             .map(|path| {
-                Rc::new(RefCell::new(Self {
-                    path: path.to_owned(),
-                    included: include_paths.contains(path),
+                Arc::new(PanickingRwLock::new(Self {
+                    path: ZeroPath::new(path.as_ref()),
+                    included: includes.contains(path.as_ref()),
                     children: vec![],
                 }))
             })
-            .sorted_by(|a, b| a.borrow().path.cmp(&b.borrow().path));
+            .sorted_by(|a, b| a.read().path.cmp(&b.read().path));
 
-        let mut stack: Vec<Rc<RefCell<ShardTreeNode>>> = vec![];
+        // Create the tree by looping over the nodes and keeping track of
+        // where we are in the recursion via a stack
+        let mut stack: Vec<Arc<PanickingRwLock<Self>>> = vec![];
         for node in nodes {
             while !stack.is_empty()
                 && !node
-                    .borrow()
-                    .sub_path_of(&stack.last().expect("not empty").borrow())
+                    .read()
+                    .sub_path_of(&stack.last().expect("not empty").read())
             {
                 stack.pop();
             }
             if let Some(last) = stack.last_mut() {
-                if last.borrow().included != node.borrow().included {
-                    last.borrow_mut().children.push(node.clone());
+                // Only insert children that are not redundant
+                if last.read().included != node.read().included {
+                    last.write().children.push(node.clone());
                 }
             }
             stack.push(node);
         }
         let root = stack.into_iter().next().expect("should have one element");
-        let root = Rc::into_inner(root)
+        let root = Arc::into_inner(root)
             .expect("should have only one ref")
             .into_inner();
 
@@ -134,12 +139,12 @@ impl ShardTreeNode {
             return top_matcher;
         }
         let sub_matcher = if self.children.len() == 1 {
-            self.children[0].borrow().matcher(root_path)
+            self.children[0].read().matcher(root_path)
         } else {
             let subs: Vec<_> = self
                 .children
                 .iter()
-                .map(|child| child.borrow().matcher(root_path))
+                .map(|child| child.read().matcher(root_path))
                 .collect();
             Box::new(UnionMatcher::new(subs)) as Box<dyn Matcher + Send>
         };
@@ -175,7 +180,7 @@ impl ShardTreeNode {
         }
 
         for child in self.children.iter() {
-            let (sub_includes, sub_excludes) = child.borrow().flat();
+            let (sub_includes, sub_excludes) = child.read().flat();
             includes.extend(sub_includes);
             excludes.extend(sub_excludes);
         }
@@ -298,5 +303,34 @@ impl From<&ZeroPath> for HgPathBuf {
             }
         }
         path.into()
+    }
+}
+
+#[derive(Debug)]
+/// Quality-of-life struct to help with unwrapping panics by default.
+/// We only need a [`RwLock`] to work around the borrow checker for the tree
+/// structure (RefCell wouldn't work because we need to be [`Sync`] + [`Send`]),
+/// we don't *actually* do anything concurrent, so this is fine if the
+/// implementation is correct, which it would break very loudly if it weren't.
+struct PanickingRwLock<T: ?Sized>(RwLock<T>);
+
+impl<T> PanickingRwLock<T> {
+    pub fn new(inner: T) -> Self {
+        Self(RwLock::new(inner))
+    }
+
+    pub fn read(&self) -> RwLockReadGuard<T> {
+        self.0.read().expect("propagate panic")
+    }
+
+    pub fn write(&self) -> RwLockWriteGuard<T> {
+        self.0.write().expect("propagate panic")
+    }
+
+    pub fn into_inner(self) -> T
+    where
+        T: Sized,
+    {
+        self.0.into_inner().expect("propagate panic")
     }
 }
