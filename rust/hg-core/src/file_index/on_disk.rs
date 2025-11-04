@@ -520,13 +520,9 @@ impl<'on_disk> FileIndexView<'on_disk> {
         if meta_file.len() % META_SIZE != 0 {
             return Err(Error::BadMetaFilesize);
         }
-        let (meta_array, rest) = Metadata::slice_from_bytes(
-            meta_file,
-            meta_file.len() / META_SIZE,
-        )
-        .expect(
-            "slice_from_bytes check_mul cannot fail since size came from u32",
-        );
+        let (meta_array, rest) =
+            Metadata::slice_from_bytes(meta_file, meta_file.len() / META_SIZE)
+                .expect("cannot fail since len comes from actual size");
         // There cannot be extra bytes because we checked the remainder above.
         assert!(rest.is_empty());
         let tree_root_pointer = docket.header.tree_root_pointer.get();
@@ -646,13 +642,9 @@ impl<'on_disk> FileIndexView<'on_disk> {
         } else {
             (None, rest)
         };
-        let (edges, _rest) = TreeEdge::slice_from_bytes(
-            rest,
-            header.num_children as usize,
-        )
-        .expect(
-            "slice_from_bytes check_mul cannot fail since size came from u32",
-        );
+        let (edges, _rest) =
+            TreeEdge::slice_from_bytes(rest, header.num_children as usize)
+                .or(Err(Error::TreeFileEof))?;
         Ok(TreeNode { token, edges })
     }
 
