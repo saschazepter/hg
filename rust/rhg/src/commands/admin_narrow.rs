@@ -36,7 +36,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let repo = invocation.repo?;
     if !repo.has_narrow() {
         return Err(CommandError::abort(
-            "abort: repo does not have narrow enabled",
+            "abort: this command only makes sense in a narrow clone",
         ));
     }
     let spec = store_spec(repo)?;
@@ -54,6 +54,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let mut stdout = invocation.ui.stdout_buffer();
     stdout.write_all(&tree.fingerprint().to_hex_bytes())?;
+    stdout.write_all(b"\n")?;
     stdout.flush()?;
 
     Ok(())
