@@ -2497,10 +2497,6 @@ class IBranchMap(IBaseBranchMap, Protocol):
         ...
 
     @abc.abstractmethod
-    def iterheads(self) -> Iterator[list[NodeIdT]]:
-        """returns all the heads"""
-
-    @abc.abstractmethod
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         """True if all the passed nodes are branch heads"""
 

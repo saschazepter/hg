@@ -261,10 +261,6 @@ class _BaseBranchCache(i_repo.IBranchMap):
         for bn, heads in self.items():
             yield (bn, heads) + self._branchtip(heads)
 
-    def iterheads(self):
-        """returns all the heads"""
-        return self._entries.values()
-
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         if nodes == [self._nullid]:
             # nullid is only a head if the repository is otherwise empty.
@@ -695,11 +691,6 @@ class _LocalBranchCache(_BaseBranchCache):
     def items(self):
         self._verifyall()
         return super().items()
-
-    def iterheads(self):
-        """returns all the heads"""
-        self._verifyall()
-        return super().iterheads()
 
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         self._verifyall()
