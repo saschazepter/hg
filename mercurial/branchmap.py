@@ -218,9 +218,6 @@ class _BaseBranchCache(i_repo.IBranchMap):
     def __iter__(self):
         return iter(self._entries)
 
-    def __getitem__(self, key):
-        return self._entries[key]
-
     def __contains__(self, key):
         return key in self._entries
 
@@ -247,7 +244,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
         """Return the tipmost open head on branch head, otherwise return the
         tipmost closed head on branch.
         Raise KeyError for unknown branch."""
-        return self._branchtip(self[branch])[0]
+        return self._branchtip(self._entries[branch])[0]
 
     def iteropen(self, nodes):
         return (n for n in nodes if n not in self._closednodes)
@@ -669,9 +666,9 @@ class _LocalBranchCache(_BaseBranchCache):
             if b not in self._verifiedbranches:
                 self._verifybranch(b)
 
-    def __getitem__(self, key):
-        self._verifybranch(key)
-        return super().__getitem__(key)
+    def branchtip(self, branch):
+        self._verifybranch(branch)
+        return super().branchtip(branch)
 
     def __contains__(self, key):
         self._verifybranch(key)

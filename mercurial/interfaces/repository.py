@@ -2457,10 +2457,6 @@ class IRepo(Protocol):
 
 class IBaseBranchMap(Protocol):
     @abc.abstractmethod
-    def __getitem__(self, branch: bytes) -> list[NodeIdT]:
-        ...
-
-    @abc.abstractmethod
     def __iter__(self) -> Iterator[bytes]:
         ...
 
