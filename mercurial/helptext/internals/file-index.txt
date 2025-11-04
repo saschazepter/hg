@@ -274,7 +274,7 @@ where the corresponding data file is stored. For example, if the list file ID is
     32-bit big-endian integer.
   * Offset 6:
     Offset of the path within the path buffer, as a 32-bit big-endian integer.
-  * Offset 8:
+  * Offset 10:
     Length of the path in bytes, as a 16-bit big-endian integer.
 
 * Next offset (84 + 12 * number of garbage entries):
