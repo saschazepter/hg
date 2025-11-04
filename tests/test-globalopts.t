@@ -381,6 +381,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::narrow-server
+                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -518,6 +520,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::narrow-server
+                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest

@@ -129,6 +129,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::narrow-server
+                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -262,6 +264,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::narrow-server
+                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -624,6 +628,8 @@ Test ambiguous command help
   
   Repository maintenance:
   
+   admin::narrow-server
+                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
   
@@ -2687,6 +2693,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   add all new files, delete all missing files
+  </td></tr>
+  <tr><td>
+  <a href="/help/admin::narrow-server">
+  admin::narrow-server
+  </a>
+  </td><td>
+  Narrow-related server administration utils.
   </td></tr>
   <tr><td>
   <a href="/help/admin::verify">
