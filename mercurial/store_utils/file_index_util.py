@@ -464,7 +464,7 @@ class MutableTree:
         self.nodes = [root]
         self.num_copied_edges = len(root.edges)
         self.num_copied_tokens = 0
-        self.num_new_tokens = 0
+        self.num_paths_added = 0
 
     def _copy_node_at(self, offset) -> int:
         assert self.base
@@ -546,20 +546,22 @@ class MutableTree:
             self.nodes.append(node)
         assert node.token is None, "path was already inserted"
         node.token = token
-        self.num_new_tokens += 1
+        self.num_paths_added += 1
 
     def serialize(self) -> SerializedMutableTree:
+        # Terminology: final = old + additional = old + (copied + fresh).
         old_size = self.base.docket.tree_file_size if self.base else 0
-        # Every new node has an incoming edge except the root.
-        num_uncopied_edges = max(0, self.num_copied_nodes - 1)
-        num_edges = (
-            (self.num_copied_edges - num_uncopied_edges) + len(self.nodes) - 1
-        )
-        num_tokens = self.num_copied_tokens + self.num_new_tokens
+        num_additional_nodes = len(self.nodes)
+        num_additional_tokens = self.num_copied_tokens + self.num_paths_added
+        num_fresh_nodes = num_additional_nodes - self.num_copied_nodes
+        root_is_fresh = self.num_copied_nodes == 0
+        # There is a fresh edge for every fresh node except the root.
+        num_fresh_edges = num_fresh_nodes - (1 if root_is_fresh else 0)
+        num_additional_edges = self.num_copied_edges + num_fresh_edges
         additional_size = (
-            len(self.nodes) * TreeNodeHeader.STRUCT.size
-            + num_edges * TreeEdge.STRUCT.size
-            + num_tokens * TOKEN_STRUCT.size
+            num_additional_nodes * TreeNodeHeader.STRUCT.size
+            + num_additional_edges * TreeEdge.STRUCT.size
+            + num_additional_tokens * TOKEN_STRUCT.size
         )
         final_size = old_size + additional_size
         empty_tree = self.base is None and len(self.nodes) == 1
@@ -609,13 +611,13 @@ class MutableTree:
             + self.num_copied_edges * TreeEdge.STRUCT.size
             + self.num_copied_tokens * TOKEN_STRUCT.size
         )
-        unused_bytes = old_unused_bytes + additional_unused_bytes
-        assert unused_bytes <= old_size
+        final_unused_bytes = old_unused_bytes + additional_unused_bytes
+        assert final_unused_bytes <= old_size
         return SerializedMutableTree(
             bytes=buffer,
             tree_root_pointer=old_size,
             tree_file_size=final_size,
-            tree_unused_bytes=unused_bytes,
+            tree_unused_bytes=final_unused_bytes,
         )
 
     def debug(self):

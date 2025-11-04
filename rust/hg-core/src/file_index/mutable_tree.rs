@@ -97,8 +97,8 @@ pub struct MutableTree<'a> {
     /// Number of edges copied from [`Self::base`].
     /// These are the edges that use [`MutableTreeNodePointer::OffsetOnDisk`].
     num_copied_edges: usize,
-    /// Number of non-copied nodes in [`Self::nodes`] where the token is set.
-    num_new_tokens: usize,
+    /// Number of paths added to the tree.
+    num_paths_added: usize,
 }
 
 /// Result of serializing a [`MutableTree`].
@@ -148,7 +148,7 @@ impl<'a> MutableTree<'a> {
             num_copied_nodes,
             num_copied_tokens: 0,
             num_copied_edges,
-            num_new_tokens: 0,
+            num_paths_added: 0,
         }
     }
 
@@ -160,7 +160,7 @@ impl<'a> MutableTree<'a> {
     /// Returns the number of paths in this tree.
     /// This includes paths from the base file index, if there is one.
     pub fn len(&self) -> usize {
-        self.base.map_or(0, |base| base.len()) + self.num_new_tokens
+        self.base.map_or(0, |base| base.len()) + self.num_paths_added
     }
 
     /// Copies the node at the given tree file offset into a new
@@ -264,25 +264,33 @@ impl<'a> MutableTree<'a> {
         let node = &mut self.nodes[node_index];
         assert_eq!(node.token, None, "path was already inserted");
         node.token = Some(token);
-        self.num_new_tokens += 1;
+        self.num_paths_added += 1;
         Ok(())
     }
 
     /// Serializes the tree to bytes, ready to be written to disk.
     pub fn serialize(&self) -> SerializedMutableTree {
+        // Terminology: final = old + additional = old + (copied + fresh).
         let old_size = match self.base {
             Some(index) => u_u32(index.tree_file.len()),
             None => 0,
         };
-        // Every new node has an incoming edge except the root.
-        let num_uncopied_edges = self.num_copied_nodes.saturating_sub(1);
-        let num_edges =
-            (self.num_copied_edges - num_uncopied_edges) + self.nodes.len() - 1;
-        let num_tokens = self.num_copied_tokens + self.num_new_tokens;
-        let additional_size = self.nodes.len()
-            * std::mem::size_of::<TreeNodeHeader>()
-            + num_edges * std::mem::size_of::<TreeEdge>()
-            + num_tokens * std::mem::size_of::<FileToken>();
+        let num_additional_nodes = self.nodes.len();
+        let num_additional_tokens =
+            self.num_copied_tokens + self.num_paths_added;
+        let num_fresh_nodes = num_additional_nodes - self.num_copied_nodes;
+        let root_is_fresh = self.num_copied_nodes == 0;
+        // There is a fresh edge for every fresh node except the root.
+        let num_fresh_edges = if root_is_fresh {
+            num_fresh_nodes - 1
+        } else {
+            num_fresh_nodes
+        };
+        let num_additional_edges = self.num_copied_edges + num_fresh_edges;
+        let additional_size = // (comment to improve formatting)
+            num_additional_nodes * std::mem::size_of::<TreeNodeHeader>()
+            + num_additional_tokens * std::mem::size_of::<FileToken>()
+            + num_additional_edges * std::mem::size_of::<TreeEdge>();
         let final_size = old_size + u_u32(additional_size);
         let mut buffer = Vec::<u8>::with_capacity(additional_size);
         let mut stack = vec![(0, 0)];
@@ -341,18 +349,18 @@ impl<'a> MutableTree<'a> {
             Some(file_index) => file_index.tree_unused_bytes,
             None => 0,
         };
-        let additional_unused_bytes = self.num_copied_nodes
-            * std::mem::size_of::<TreeNodeHeader>()
+        let additional_unused_bytes = // (comment to improve formatting)
+            self.num_copied_nodes * std::mem::size_of::<TreeNodeHeader>()
             + self.num_copied_edges * std::mem::size_of::<TreeEdge>()
             + self.num_copied_tokens * std::mem::size_of::<FileToken>();
-        let unused_bytes: u32 =
+        let final_unused_bytes: u32 =
             old_unused_bytes + u_u32(additional_unused_bytes);
-        assert!(unused_bytes <= old_size);
+        assert!(final_unused_bytes <= old_size);
         SerializedMutableTree {
             bytes: buffer,
             tree_root_pointer: old_size,
             tree_file_size: final_size,
-            tree_unused_bytes: unused_bytes,
+            tree_unused_bytes: final_unused_bytes,
         }
     }
 }
