@@ -1007,8 +1007,7 @@ def add_branch_revs(lrepo, other, branches, revs, remotehidden=False):
         revs.append(hashbranch)
         return revs, revs[0]
 
-    with peer.commandexecutor() as e:
-        branchmap = e.callcommand(b'branchmap', {}).result()
+    branchmap = peer.branchmap()
 
     def primary(branch):
         if branch == b'.':
