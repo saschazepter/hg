@@ -181,6 +181,14 @@ immediately). Use --path because it causes a lookup in the tree file.
   $ cat $TESTTMP/race-lock.out
   4: anotherfile
 
+Vacuum empty tree (no data files)
+  $ hg init $TESTTMP/repoempty --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg -R $TESTTMP/repoempty debug::file-index --vacuum
+  vacuumed tree: 2 bytes => 2 bytes (saved 0.0%)
+Vacuum empty tree again (data files exist)
+  $ hg -R $TESTTMP/repoempty debug::file-index --vacuum
+  vacuumed tree: 2 bytes => 2 bytes (saved 0.0%)
+
 Test cleaning up old files
 --------------------------
 
