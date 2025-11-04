@@ -1351,7 +1351,7 @@ class localrepository(_localrepo_base_classes):
         Intended to be overwritten by filtered repo."""
         return self
 
-    def filtered(self, name, visibilityexceptions=None):
+    def filtered(self, name, visibilityexceptions=None) -> localrepository:
         """Return a filtered version of a repository
 
         The `name` parameter is the identifier of the requested view. This

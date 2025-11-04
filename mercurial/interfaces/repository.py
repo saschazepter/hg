@@ -2045,7 +2045,7 @@ class IRepo(Protocol):
         """Obtain an unfiltered/raw view of this repo."""
 
     @abc.abstractmethod
-    def filtered(self, name, visibilityexceptions=None):
+    def filtered(self, name, visibilityexceptions=None) -> IRepo:
         """Obtain a named view of this repository."""
 
     obsstore: Any  # TODO: add type hints
