@@ -336,7 +336,15 @@ class localcommandexecutor(repository.ipeercommandexecutor):
 class localpeer(repository.peer, repository.ipeercommands):
     '''peer for a local repo; reflects only the most recent API'''
 
-    def __init__(self, repo, caps=None, path=None, remotehidden=False):
+    _repo: localrepository
+
+    def __init__(
+        self,
+        repo: localrepository,
+        caps=None,
+        path=None,
+        remotehidden=False,
+    ):
         super().__init__(repo.ui, path=path, remotehidden=remotehidden)
 
         if caps is None:
