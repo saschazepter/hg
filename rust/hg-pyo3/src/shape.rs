@@ -25,7 +25,7 @@ use crate::utils::HgPyErrExt;
 
 /// A Rust-backed Shape object that corresponds to a shard marked as a shape
 /// in the `.hg/store/server-shapes` config.
-#[pyclass(frozen)]
+#[pyclass(frozen, name = "Shape")]
 pub struct PyShape {
     inner: Shape,
 }
@@ -65,7 +65,7 @@ impl PyShape {
 }
 
 /// A useful object to query the shapes for this repo's store
-#[pyclass(frozen)]
+#[pyclass(frozen, name = "StoreShards")]
 pub struct PyStoreShards {
     inner: StoreShards,
 }
