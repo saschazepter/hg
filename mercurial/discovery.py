@@ -311,8 +311,7 @@ def _headssummary(pushop: PushOpT) -> HeadSummaryT:
         missingctx.add(ctx)
         branches.add(ctx.branch())
 
-    with remote.commandexecutor() as e:
-        remotemap = e.callcommand(b'branchmap', {}).result()
+    remotemap = remote.branchmap()
 
     knownnode = cl.hasnode  # do not use nodemap until it is filtered
     # A. register remote heads of branches which are in outgoing set
