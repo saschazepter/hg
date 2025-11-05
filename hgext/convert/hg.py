@@ -24,6 +24,9 @@ import re
 import time
 
 from mercurial.i18n import _
+from mercurial.interfaces.types import (
+    RepoT,
+)
 from mercurial.node import (
     bin,
     hex,
@@ -428,8 +431,9 @@ class mercurial_sink(common.converter_sink):
         tagparent = tagparent or self.repo.nullid
 
         oldlines = set()
-        for branch, heads in self.repo.branchmap().items():
-            for h in heads:
+        bm = self.repo.branchmap()
+        for branch in bm:
+            for h in bm.branchheads(branch, closed=True):
                 if b'.hgtags' in self.repo[h]:
                     oldlines.update(
                         set(self.repo[h][b'.hgtags'].data().splitlines(True))
@@ -525,7 +529,7 @@ class mercurial_source(common.converter_source):
         self.ignored = set()
         self.saverev = ui.configbool(b'convert', b'hg.saverev')
         try:
-            self.repo = repo_factory.repository(self.ui, path)
+            self.repo: RepoT = repo_factory.repository(self.ui, path)
             # try to provoke an exception if this isn't really a hg
             # repo, but some other bogus compatible-looking url
             if not self.repo.local():
