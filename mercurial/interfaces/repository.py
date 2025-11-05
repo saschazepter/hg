@@ -2465,10 +2465,6 @@ class IBaseBranchMap(Protocol):
         ...
 
     @abc.abstractmethod
-    def items(self) -> Iterable[tuple[bytes, list[NodeIdT]]]:
-        ...
-
-    @abc.abstractmethod
     def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
         ...
 

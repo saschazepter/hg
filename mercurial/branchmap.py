@@ -224,9 +224,6 @@ class _BaseBranchCache(i_repo.IBranchMap):
     def __contains__(self, key):
         return key in self._entries
 
-    def items(self):
-        return self._entries.items()
-
     def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
         """checks whether a branch of this name exists or not
 
@@ -274,7 +271,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
         info = []
         cl = repo.changelog
         all_heads = set(repo.heads())
-        for name, heads in self.items():
+        for name, heads in self._entries.items():
             if branches is not None and name not in branches:
                 continue
             tip = heads[-1]
@@ -717,10 +714,6 @@ class _LocalBranchCache(_BaseBranchCache):
     def __contains__(self, key):
         self._verifybranch(key)
         return super().__contains__(key)
-
-    def items(self):
-        self._verifyall()
-        return super().items()
 
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         self._verifyall()
