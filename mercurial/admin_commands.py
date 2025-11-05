@@ -169,7 +169,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
     if subcommand is None:
         raise error.InputError("need at least one flag")
 
-    shardset = shape_mod.get_shardset(repo.root)
+    store_shards = shape_mod.get_store_shards(repo.root)
 
     shape_commands = (
         "shape_patterns",
@@ -183,12 +183,12 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             raise error.Abort(
                 _(b"composed shapespec is not implemented (yet)"),
             )
-        shape = shardset.shape(name.decode())
+        shape = store_shards.shape(name.decode())
         if shape is None:
             raise error.Abort(_(b"shape '%s' not found" % name))
 
     if subcommand == "shape_fingerprints":
-        all_shapes = shardset.all_shapes()
+        all_shapes = store_shards.all_shapes()
         for shape in all_shapes:
             # TODO formatter?
             name = shape.name().encode()

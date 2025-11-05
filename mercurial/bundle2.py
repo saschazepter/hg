@@ -1711,8 +1711,8 @@ def write_new_stream_bundle(
     if shape is not None:
         if shape_mod is None:
             raise error.ProgrammingError("shapes are a Rust-only feature")
-        shardset = shape_mod.get_shardset(repo.root)
-        shape_obj = shardset.shape(shape.decode())
+        store_shards = shape_mod.get_store_shards(repo.root)
+        shape_obj = store_shards.shape(shape.decode())
         if shape_obj is None:
             raise error.InputError(b"unknown shape: '%s'" % shape)
         matcher = shape_obj.matcher()

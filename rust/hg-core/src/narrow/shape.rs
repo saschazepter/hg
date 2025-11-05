@@ -66,7 +66,7 @@ impl ShardName {
 }
 
 /// Defines a subset of files in this repo's history.
-/// Shards in a repo's [`ShardSet`] are mutually exclusive.
+/// Shards in a repo's [`StoreShards`] are mutually exclusive.
 ///
 /// This is a "config-facing" or "admin-facing" concept and should not be
 /// apparent to most users.
@@ -86,14 +86,14 @@ pub struct Shard {
 ///
 /// TODO make this self-referencing if all the cloning ends up being expensive
 #[derive(Debug)]
-pub struct ShardSet {
+pub struct StoreShards {
     /// All [`Shard`] in the current repo, mapped by their [`ShardName`]
     shards: FastHashMap<ShardName, Shard>,
     /// All paths explicitly declared by the shards, mapped to their shard
     path_to_shard: FastHashMap<HgPathBuf, Shard>,
 }
 
-impl ShardSet {
+impl StoreShards {
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
         let ShapesConfig { version, mut shards } =
             match repo.store_vfs().try_read("server-shapes")? {
@@ -308,15 +308,15 @@ pub struct Shape {
 impl Shape {
     pub fn new(
         name: ShardName,
-        shard_set: &ShardSet,
+        store_shards: &StoreShards,
         shards: &[&Shard],
     ) -> Result<Self, HgError> {
         let mut expanded_shards = vec![];
         for shard in shards {
             expanded_shards.push(*shard);
-            expanded_shards.extend(shard_set.dependencies(shard)?.values())
+            expanded_shards.extend(store_shards.dependencies(shard)?.values())
         }
-        let tree = ShardTreeNode::from_shards(shard_set, &expanded_shards)?;
+        let tree = ShardTreeNode::from_shards(store_shards, &expanded_shards)?;
         Ok(Self { name, tree })
     }
 
@@ -389,7 +389,7 @@ pub struct ShardTreeNode {
 impl ShardTreeNode {
     /// Create the tree expressed by the server shapes config
     pub fn from_shards<'a>(
-        shard_set: &'a ShardSet,
+        store_shards: &'a StoreShards,
         shards: &[&'a Shard],
     ) -> Result<Self, HgError> {
         let mut shard_paths = HashSet::new();
@@ -397,7 +397,7 @@ impl ShardTreeNode {
         for shard in shards {
             shard_paths.extend(shard.paths.iter().map(|path| path.as_bytes()));
             shard_paths.extend(
-                shard_set
+                store_shards
                     .dependencies(shard)?
                     .values()
                     .flat_map(|shard| &shard.paths)
@@ -406,7 +406,7 @@ impl ShardTreeNode {
         }
         assert!(!shard_paths.is_empty());
         Self::from_paths(
-            shard_set.path_to_shard.keys().map(|path| path.as_bytes()),
+            store_shards.path_to_shard.keys().map(|path| path.as_bytes()),
             shard_paths,
         )
     }

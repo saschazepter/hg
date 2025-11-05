@@ -6,8 +6,8 @@ use hg::file_patterns::parse_one_pattern;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternSyntax;
 use hg::narrow::shape::Shape;
-use hg::narrow::shape::ShardSet;
 use hg::narrow::shape::ShardTreeNode;
+use hg::narrow::shape::StoreShards;
 use hg::utils::strings::SliceExt;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -66,12 +66,12 @@ impl PyShape {
 
 /// A useful object to query the shapes for this repo's store
 #[pyclass(frozen)]
-pub struct PyShardSet {
-    inner: ShardSet,
+pub struct PyStoreShards {
+    inner: StoreShards,
 }
 
 #[pymethods]
-impl PyShardSet {
+impl PyStoreShards {
     /// Return the shape of name `name`, or `None` if it doesn't exist
     pub fn shape(&self, py: Python, name: &str) -> PyResult<Option<PyShape>> {
         self.inner
@@ -92,13 +92,13 @@ impl PyShardSet {
     }
 }
 
-/// Return the shardset for this repository
+/// Return an object useful for querying shapes and shards for this repository
 #[pyfunction]
-pub fn get_shardset(repo_path: &Bound<PyBytes>) -> PyResult<PyShardSet> {
+pub fn get_store_shards(repo_path: &Bound<PyBytes>) -> PyResult<PyStoreShards> {
     let repo = repo_from_path(repo_path)?;
-    let shard_set =
-        ShardSet::from_repo_config(&repo).into_pyerr(repo_path.py())?;
-    Ok(PyShardSet { inner: shard_set })
+    let inner =
+        StoreShards::from_repo_config(&repo).into_pyerr(repo_path.py())?;
+    Ok(PyStoreShards { inner })
 }
 
 /// Return the fingerprint for the given include and exclude patterns. Returns
@@ -142,8 +142,8 @@ pub fn init_module<'py>(
 ) -> PyResult<Bound<'py, PyModule>> {
     let m = new_submodule(py, package, "shape")?;
     m.add_class::<PyShape>()?;
-    m.add_class::<PyShardSet>()?;
-    m.add_function(wrap_pyfunction!(get_shardset, &m)?)?;
+    m.add_class::<PyStoreShards>()?;
+    m.add_function(wrap_pyfunction!(get_store_shards, &m)?)?;
     m.add_function(wrap_pyfunction!(fingerprint_for_patterns, &m)?)?;
 
     Ok(m)
