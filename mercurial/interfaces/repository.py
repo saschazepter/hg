@@ -2477,8 +2477,11 @@ class IBranchMap(IBaseBranchMap, Protocol):
     """A dict like object that hold branches heads cache."""
 
     @abc.abstractmethod
-    def hasbranch(self, label: bytes):
-        """checks whether a branch of this name exists or not"""
+    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
 
     @abc.abstractmethod
     def branchtip(self, branch: bytes) -> NodeIdT:

@@ -226,9 +226,16 @@ class _BaseBranchCache(i_repo.IBranchMap):
     def items(self):
         return self._entries.items()
 
-    def hasbranch(self, label):
-        """checks whether a branch of this name exists or not"""
-        return label in self._entries
+    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
+        if open_only:
+            heads = self._entries.get(label)
+            return bool(heads and not self._branchtip(heads)[1])
+        else:
+            return label in self._entries
 
     def _branchtip(self, heads):
         """Return tuple with last open head in heads and false,
@@ -696,10 +703,13 @@ class _LocalBranchCache(_BaseBranchCache):
         self._verifyall()
         return super().all_nodes_are_heads(nodes)
 
-    def hasbranch(self, label):
-        """checks whether a branch of this name exists or not"""
+    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
         self._verifybranch(label)
-        return super().hasbranch(label)
+        return super().hasbranch(label, open_only=open_only)
 
     def branchheads(self, branch, closed=False):
         self._verifybranch(branch)
