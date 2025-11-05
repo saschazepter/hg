@@ -157,3 +157,71 @@ Test the legacy narrow patterns option
   path:foo/bar/other-secret
   [exclude]
   path:.
+
+Test listing files
+------------------
+
+We don't have files yet
+  $ hg admin::narrow-server --shape-files base
+
+Add files
+  $ mkdir -p foo/bar/other-secret secret dir1
+  $ touch file1 file2 file3 foo/file1 foo/file2 foo/bar/other-secret/secret-file foo/bar/other-secret/secret-file2 dir1/file1 secret/secret-file secret/secret-file2
+  $ hg commit -Aqm0
+
+Test that only matching files are listed
+  $ hg admin::narrow-server --shape-files base
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/file1
+  foo/file2
+  $ hg admin::narrow-server --shape-files other-secret
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+
+  $ hg admin::narrow-server --shape-files base
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/file1
+  foo/file2
+  $ hg admin::narrow-server --shape-files full
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+  foo/file1
+  foo/file2
+  secret/secret-file
+  secret/secret-file2
+  $ hg admin::narrow-server --shape-files full-manual
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+  foo/file1
+  foo/file2
+  secret/secret-file
+  secret/secret-file2
+  $ hg admin::narrow-server --shape-files other-secret
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+
+Test hidden files (warning about files not in the working copy anymore)
+  $ hg rm secret
+  removing secret/secret-file
+  removing secret/secret-file2
+  $ hg commit -Aqm1
+  $ hg admin::narrow-server --shape-files-hidden full
+  secret/secret-file
+  secret/secret-file2
+  $ hg admin::narrow-server --shape-files-hidden full-manual
+  secret/secret-file
+  secret/secret-file2

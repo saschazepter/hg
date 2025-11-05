@@ -121,15 +121,27 @@ def admin_narrow(ui: UiT, repo: RepoT, **opts):
             b'',
             b'shape-patterns',
             b'',
-            _(b'list the path patterns for each shape'),
+            _(b'list the path patterns for the given shape'),
             _(b'SHAPE-PATTERNS'),
         ),
         (
             b'',
             b'shape-narrow-patterns',
             b'',
-            _(b'list the legacy narrow-style patterns for each shape'),
+            _(b'list the legacy narrow-style patterns for the given shape'),
             _(b'SHAPE-NARROW-PATTERNS'),
+        ),
+        (
+            b'',
+            b'shape-files',
+            b'',
+            _(b'list the files covered by the given shape'),
+        ),
+        (
+            b'',
+            b'shape-files-hidden',
+            b'',
+            _(b"list this shape's files that are not in the working copy"),
         ),
     ],
     helpcategory=command.CATEGORY_MAINTENANCE,
@@ -147,14 +159,25 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         raise error.InputError(_(b"repo is narrowed, this is a server command"))
 
     subcommand = cmdutil.check_at_most_one_arg(
-        opts, "shape_fingerprints", "shape_patterns", "shape_narrow_patterns"
+        opts,
+        "shape_fingerprints",
+        "shape_patterns",
+        "shape_narrow_patterns",
+        "shape_files",
+        "shape_files_hidden",
     )
     if subcommand is None:
         raise error.InputError("need at least one flag")
 
     shardset = shape_mod.get_shardset(repo.root)
 
-    if subcommand in ("shape_patterns", "shape_narrow_patterns"):
+    shape_commands = (
+        "shape_patterns",
+        "shape_narrow_patterns",
+        "shape_files",
+        "shape_files_hidden",
+    )
+    if subcommand in shape_commands:
         name = opts[subcommand]
         if b"," in name:
             raise error.Abort(
@@ -200,6 +223,22 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 # compatibility with questionable old choices
                 exclude = exclude if exclude else b"."
                 ui.writenoi18n(b"path:%s\n" % exclude)
+        return
+    elif subcommand in ("shape_files", "shape_files_hidden"):
+        # TODO formatter?
+        list_hidden = subcommand == "shape_files_hidden"
+        matcher = shape.matcher(repo.root)
+        files = []
+        known = set(repo[None].matches(matcher))
+        for entry in repo.store.data_entries(matcher=matcher):
+            if not (entry.is_revlog or entry.is_filelog):
+                continue
+            files.append((entry.target_id, entry.target_id in known))
+        files.sort()
+        for file, known in files:
+            if (list_hidden and not known) or (not list_hidden and known):
+                ui.writenoi18n(b"%s\n" % file)
+        return
     else:
         assert False, "unreachable"
 
