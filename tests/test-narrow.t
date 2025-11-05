@@ -47,11 +47,9 @@
   2: add d2/f
   1: add d1/f
   0: add d0/f
-#if rust
   $ hg admin::narrow --store-fingerprint
   abort: this command only makes sense in a narrow clone
   [255]
-#endif
   $ cd ..
 
 Error if '.' or '..' are in the directory to track.
@@ -98,10 +96,8 @@ Test repo with local changes
   updating to branch default
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd narrow-local-changes
-#if rust
   $ hg admin::narrow --store-fingerprint
   9fdf07af370dd7b5cb4400fcbc9200824f1689632f657d2d87f4b604bf6844b6
-#endif
   $ echo local change >> d0/f
   $ hg ci -m 'local change to d0'
   $ hg co '.^'
@@ -120,10 +116,8 @@ Test repo with local changes
   (use --force-delete-local-changes to ignore)
   [20]
 Check that nothing was removed by the failed attempts
-#if rust
   $ hg admin::narrow --store-fingerprint
   9fdf07af370dd7b5cb4400fcbc9200824f1689632f657d2d87f4b604bf6844b6
-#endif
   $ hg tracked
   I path:d0
   I path:d3
@@ -163,10 +157,8 @@ Force deletion of local changes
   deleting unwanted files from working copy
 
 Change that we've changed the tracked set
-#if rust
   $ hg admin::narrow --store-fingerprint
   739a856516974fdd350764e6d5430eeb39380c5fd6103a727d9d624bb5fa7ba6
-#endif
   $ hg log -T "{rev}: {desc} {outsidenarrow}\n"
   7: local change to d3 
   5: add d10/f outsidenarrow

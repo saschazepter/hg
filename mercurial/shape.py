@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import itertools
+import struct
 import typing
 
 from .thirdparty import attr
@@ -106,14 +108,7 @@ class ShardTreeNode:
         This ensures that the path and its subpath get sorted
         next to each other."""
         path = self.path
-        assert b'\0' not in path
-        assert not path.startswith(b'/')
-        assert not path.endswith(b'/')
-        if not path:
-            path = b'/'
-        else:
-            path = b'/%s/' % path
-        return path.replace(b'/', b'\0')
+        return zero_path(path)
 
     def _sub_path_of(self, other: ShardTreeNode) -> bytes:
         """True if `self` is a sub-path of `other`"""
@@ -132,6 +127,45 @@ class ShardTreeNode:
             inc_paths.update(inc)
             exc_paths.update(exc)
         return frozenset(inc_paths), frozenset(exc_paths)
+
+    def fingerprint(self) -> bytes:
+        """Get the fingerprint for this node. It will return a different hash
+        for a semantically different node, allowing for quick comparison."""
+        includes, excludes = self.flat()
+
+        buf = [b"shape-v1\n"]
+        sorted_paths = sorted(
+            itertools.chain(includes, excludes), key=lambda x: zero_path(x)
+        )
+
+        buf.append(struct.pack(b"<Q", len(sorted_paths)))
+
+        for path in sorted_paths:
+            prefix = b"inc/" if path in includes else b"exc/"
+            buf.append(b"%s%s\n" % (prefix, path))
+
+        return pycompat.sysbytes(hashlib.sha256(b"".join(buf)).hexdigest())
+
+
+def zero_path(path: bytes) -> bytes:
+    assert b'\0' not in path
+    assert not path.startswith(b'/')
+    assert not path.endswith(b'/')
+    if not path:
+        path = b'/'
+    else:
+        path = b'/%s/' % path
+    return path.replace(b'/', b'\0')
+
+
+def fingerprint_for_patterns(
+    include_pats: set[bytes], exclude_pats: set[bytes]
+) -> bytes | None:
+    include_pats = {p.removeprefix(b"path:") for p in include_pats}
+    exclude_pats = {p.removeprefix(b"path:") for p in exclude_pats}
+
+    node = ShardTreeNode.from_patterns(include_pats, exclude_pats)
+    return node.fingerprint()
 
 
 def shard_tree_matcher(

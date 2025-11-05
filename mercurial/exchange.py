@@ -47,6 +47,7 @@ from . import (
     pushkey,
     pycompat,
     scmutil,
+    shape as shapemod,
     streamclone,
     url as urlmod,
     util,
@@ -65,7 +66,8 @@ from .interfaces import (
     repository,
 )
 
-shapemod = policy.importrust("shape")
+if policy.has_rust():
+    shapemod = policy.importrust("shape")
 
 urlerr = util.urlerr
 urlreq = util.urlreq

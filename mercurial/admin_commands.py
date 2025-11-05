@@ -17,6 +17,7 @@ from . import (
     error,
     policy,
     registrar,
+    shape as shapemod,
     tables,
     transaction,
 )
@@ -28,7 +29,10 @@ if typing.TYPE_CHECKING:
         UiT,
     )
 
-shape_mod = policy.importrust("shape")
+
+if policy.has_rust():
+    pure_shapemod = shapemod
+    shapemod = policy.importrust("shape")
 
 
 def init():
@@ -83,7 +87,7 @@ def admin_verify(ui, repo, **opts):
             b'',
             b'store-fingerprint',
             None,
-            _(b"get the fingerprint for this repo's store narrospec"),
+            _(b"get the fingerprint for this repo's store narrowspec"),
         ),
     ],
     helpcategory=command.CATEGORY_MAINTENANCE,
@@ -93,16 +97,12 @@ def admin_narrow(ui: UiT, repo: RepoT, **opts):
 
     This command is experimental and is subject to change.
     """
-
-    if shape_mod is None:
-        raise error.Abort(_(b"this command needs the Rust extensions"))
-
     if not repo.is_narrow:
         raise error.Abort(_(b"this command only makes sense in a narrow clone"))
 
     if opts.get("store_fingerprint"):
         includes, excludes = repo.narrowpats
-        fingerprint = shape_mod.fingerprint_for_patterns(includes, excludes)
+        fingerprint = shapemod.fingerprint_for_patterns(includes, excludes)
         ui.writenoi18n(b"%s\n" % fingerprint)
     else:
         raise error.Abort(_(b"need at least one flag"))
@@ -152,8 +152,16 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
     This command is experimental and is subject to change.
     """
 
-    if shape_mod is None:
+    if not policy.has_rust():
         raise error.Abort(_(b"this command needs the Rust extensions"))
+
+    if typing.TYPE_CHECKING:
+        # Most APIs from `shapemod` are not implemented in Python, only in Rust
+        # So for now the easiest is to just tell pytype to not worry about it.
+        # Since it's FFI, unless we export types from PyO3 (we don't yet)
+        # they can't be used here.
+        global shapemod
+        shapemod = typing.cast(typing.Any, shapemod)
 
     if repo.is_narrow:
         raise error.InputError(_(b"repo is narrowed, this is a server command"))
@@ -169,7 +177,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
     if subcommand is None:
         raise error.InputError("need at least one flag")
 
-    store_shards = shape_mod.get_store_shards(repo.root)
+    store_shards = shapemod.get_store_shards(repo.root)
 
     shape_commands = (
         "shape_patterns",
@@ -201,7 +209,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         exclude_tuples = zip(excludes, itertools.repeat(False))
         paths = sorted(
             itertools.chain(include_tuples, exclude_tuples),
-            key=lambda t: zero_path(t[0]),
+            key=lambda t: pure_shapemod.zero_path(t[0]),
         )
         for path, included in paths:
             prefix = b"inc" if included else b"exc"
@@ -241,15 +249,3 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         return
     else:
         assert False, "unreachable"
-
-
-def zero_path(path):
-    # Temporarily in this module until we get a shape module to host this
-    assert b'\0' not in path
-    assert not path.startswith(b'/')
-    assert not path.endswith(b'/')
-    if not path:
-        path = b'/'
-    else:
-        path = b'/%s/' % path
-    return path.replace(b'/', b'\0')

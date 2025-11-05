@@ -156,6 +156,7 @@ Passing no includes should fall back to regular clone
   $ hg clone ssh://user@dummy/source plain-clone 2>&1 | grep "falling back"
   no compatible clone bundles available on server; falling back to regular clone
   $ rm -rf plain-clone
+
 Test a pure Python client
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source plain-clone 2>&1 | grep "falling back"
   no compatible clone bundles available on server; falling back to regular clone
@@ -164,7 +165,7 @@ Test a pure Python client
   $ cat source/access.log
 
 
-non-narrow streaming cloning
+Non-narrow streaming cloning
 ----------------------------
 
 Passing no includes should fall back to full (non-fingerprinted) streaming clone if available
@@ -172,6 +173,7 @@ Passing no includes should fall back to full (non-fingerprinted) streaming clone
   $ echo "peer-bundle-cache://outfile-shape-full.hg BUNDLESPEC=$bundlespecfull" >> source/.hg/clonebundles.manifest
   $ hg clone ssh://user@dummy/source full-clone | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-full.hg
+
 Test a pure Python client
   $ rm -rf full-clone
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source full-clone | grep "bundle from"
@@ -181,11 +183,21 @@ Test a pure Python client
   $ cat source/error.log
   $ cat source/access.log
 
-narrow + stream cloning
+Narrow + stream cloning
 -----------------------
 
 The right fingerprint should be derived from the narrow patterns, selecting
 the correct narrow stream clone bundle
+
+First with a pure Python client
+
+  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow --include=dir2 | grep "bundle from"
+  applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
+  $ hg admin::narrow -R clone-shaped --store-fingerprint
+  bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
+  $ rm -rf clone-shaped
+
+Then with the Rust client
 
   $ hg clone ssh://user@dummy/source clone-shaped --narrow --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
@@ -221,6 +233,16 @@ The rest works correctly
 
 Testing another shape
 ---------------------
+
+First with a pure Python client
+
+  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped2 --narrow --include=dir2 --include=excluded | grep "bundle from"
+  applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
+  $ hg -R clone-shaped2 admin::narrow --store-fingerprint
+  3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e
+  $ rm -rf clone-shaped2
+
+Then with the Rust client
 
   $ hg clone ssh://user@dummy/source clone-shaped2 --narrow --include=dir2 --include=excluded | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
