@@ -88,6 +88,7 @@ from .revlogutils import (
 if TYPE_CHECKING:
     from .interfaces.types import (
         RepoT,
+        RevnumT,
         StatusT,
     )
     from . import (
@@ -3279,58 +3280,105 @@ def buildcommittext(repo, ctx, subs, extramsg):
     return b"\n".join(edittext)
 
 
-def commitstatus(repo, node, branch, bheads=None, tip=None, **opts):
+class _HeadChange:
+    new_head: bool
+    """a new head is created"""
+
+    reopen: tuple[RevnumT, ...]
+    """parent closed head that we re-open"""
+
+    def __init__(
+        self,
+        new_head: bool = False,
+        reopen: tuple[RevnumT, ...] = (),
+    ):
+        self.new_head = new_head
+        self.reopen = reopen
+
+
+def future_head_change(
+    repo: RepoT,
+    close_branch: bool = False,
+) -> _HeadChange | None:
+    """compute the branch head change to happen if a commit happens
+
+    This is then reused to print message post commit.
+
+    The logic is as follow:
+
+    The message is not printed for initial roots. For the other
+    changesets, it is printed in the following situations:
+
+    Par column: for the 2 parents with ...
+      N: null or no parent
+      B: parent is on another named branch
+      C: parent is a regular non head changeset
+      H: parent was a branch head of the current branch
+    Msg column: whether we print "created new head" message
+    In the following, it is assumed that there already exists some
+    initial branch heads of the current branch, otherwise nothing is
+    printed anyway.
+
+    Par Msg Comment
+    N N  y  additional topo root
+
+    B N  y  additional branch root
+    C N  y  additional topo head
+    H N  n  usual case
+
+    B B  y  weird additional branch root
+    C B  y  branch merge
+    H B  n  merge with named branch
+
+
+    C H  n  merge with a head
+
+    H H  n  head merge: head count decreases
+    """
+    wc = repo[None]
+    branch = wc.branch()
+    has_head_parent = False
+    closed_parent = []
+    bheads = repo.branchheads(branch)
+    for p in wc.parents():
+        if p.branch() != branch:
+            continue
+        if p.closesbranch():
+            closed_parent.append(p.rev())
+        if p.node() in bheads:
+            has_head_parent = True
+    reopen = ()
+    if not close_branch:
+        reopen = tuple(closed_parent)
+
+    new_head = bool(bheads and not has_head_parent)
+
+    if new_head or reopen:
+        return _HeadChange(new_head, reopen)
+    else:
+        return None
+
+
+def commitstatus(
+    repo,
+    node,
+    head_change: _HeadChange | None = None,
+    tip=None,
+    **opts,
+):
     ctx = repo[node]
-    parents = ctx.parents()
 
     if tip is not None and repo.changelog.tip() == tip:
         # avoid reporting something like "committed new head" when
         # recommitting old changesets, and issue a helpful warning
         # for most instances
         repo.ui.warn(_(b"warning: commit already existed in the repository!\n"))
-    elif (
-        not opts.get('amend')
-        and bheads
-        and not any(
-            p.node() in bheads and p.branch() == branch for p in parents
-        )
-    ):
+    elif head_change is not None and head_change.new_head:
         repo.ui.status(_(b'created new head\n'))
-        # The message is not printed for initial roots. For the other
-        # changesets, it is printed in the following situations:
-        #
-        # Par column: for the 2 parents with ...
-        #   N: null or no parent
-        #   B: parent is on another named branch
-        #   C: parent is a regular non head changeset
-        #   H: parent was a branch head of the current branch
-        # Msg column: whether we print "created new head" message
-        # In the following, it is assumed that there already exists some
-        # initial branch heads of the current branch, otherwise nothing is
-        # printed anyway.
-        #
-        # Par Msg Comment
-        # N N  y  additional topo root
-        #
-        # B N  y  additional branch root
-        # C N  y  additional topo head
-        # H N  n  usual case
-        #
-        # B B  y  weird additional branch root
-        # C B  y  branch merge
-        # H B  n  merge with named branch
-        #
-        # C C  y  additional head from merge
-        # C H  n  merge with a head
-        #
-        # H H  n  head merge: head count decreases
 
-    if not opts.get('close_branch') and not opts.get('amend'):
-        for r in parents:
-            if r.closesbranch() and r.branch() == branch:
-                repo.ui.status(
-                    _(b'reopening closed branch head %d\n') % r.rev()
-                )
+    if head_change is not None:
+        for r in head_change.reopen:
+            repo.ui.status(_(b'reopening closed branch head %d\n') % r)
 
     if repo.ui.debugflag:
         repo.ui.write(

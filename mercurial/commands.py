@@ -836,7 +836,6 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
 
     # the backout should appear on the same branch
     branch = repo.dirstate.branch()
-    bheads = repo.branchheads(branch)
     rctx = scmutil.revsingle(repo, hex(parent))
     if not opts.get('merge') and op1 != node:
         with repo.transaction(b"backout"):
@@ -875,6 +874,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
 
     # save to detect changes
     tip = repo.changelog.tip()
+    head_change = cmdutil.future_head_change(repo)
 
     newnode = cmdutil.commit(
         ui, repo, commitfunc, [], pycompat.byteskwargs(opts)
@@ -882,7 +882,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     if not newnode:
         ui.status(_(b"nothing changed\n"))
         return 1
-    cmdutil.commitstatus(repo, newnode, branch, bheads, tip)
+    cmdutil.commitstatus(repo, newnode, head_change, tip)
 
     def nice(node):
         return b'%d:%s' % (repo.changelog.rev(node), short(node))
@@ -1953,12 +1953,17 @@ def _docommit(ui, repo, *pats, **opts):
 
     cmdutil.checkunfinished(repo, commit=True)
 
+    any_close = opts.get('close_branch') or opts.get('force_close_branch')
+    head_change = None
+    if not opts.get('amend'):
+        head_change = cmdutil.future_head_change(repo, any_close)
+
     branch = repo[None].branch()
     bheads = repo.branchheads(branch)
     tip = repo.changelog.tip()
 
     extra = {}
-    if opts.get('close_branch') or opts.get('force_close_branch'):
+    if any_close:
         extra[b'close'] = b'1'
 
         if repo[b'.'].closesbranch():
@@ -2064,7 +2069,7 @@ def _docommit(ui, repo, *pats, **opts):
                 ui.status(_(b"nothing changed\n"))
             return 1
 
-    cmdutil.commitstatus(repo, node, branch, bheads, tip, **opts)
+    cmdutil.commitstatus(repo, node, head_change, tip, **opts)
 
     if not ui.quiet and ui.configbool(b'commands', b'commit.post-status'):
         status(
