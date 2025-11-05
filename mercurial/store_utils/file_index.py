@@ -449,45 +449,62 @@ class FileIndex(int_file_index.IFileIndex):
         new_meta = docket.meta_file_id == docketmod.UNSET_UID or removing
         new_tree = docket.tree_file_id == docketmod.UNSET_UID or removing
         new_tree = new_tree or self._should_vacuum()
-        meta_array = self._meta_array
-        add_paths = self._add_paths
-        if add_paths and removing:
-            raise error.ProgrammingError(b"cannot add and remove in same txn")
-        if removing:
-            meta_array = []
-            add_paths = list(self)
-        if new_tree:
-            tree = file_index_util.MutableTree(base=None)
-            for token, meta in enumerate(meta_array):
-                path = bytes(self._read_span(meta.offset, meta.length))
-                tree.insert(path, FileTokenT(token), meta.offset)
-        else:
-            tree = file_index_util.MutableTree(
-                file_index_util.Base(
-                    docket=docket,
-                    list_file=self._list_file,
-                    meta_array=self._meta_array,
-                    tree_file=self._tree_file,
-                    root_node=self._root_node,
-                )
-            )
         with (
             self._open_list_file(new_list, tr) as list_file,
             self._open_meta_file(new_meta, tr) as meta_file,
+            self._open_tree_file(new_tree, tr) as tree_file,
         ):
-            token = len(tree)
-            for path in add_paths:
-                offset = docket.list_file_size
-                metadata = file_index_util.Metadata.from_path(path, offset)
-                list_file.write(b"%s\x00" % path)
-                meta_file.write(metadata.serialize())
-                tree.insert(path, FileTokenT(token), offset)
-                docket.list_file_size += len(path) + 1
-                docket.meta_file_size += file_index_util.Metadata.STRUCT.size
-                token += 1
+            if removing:
+                msg = b"cannot add and remove in same txn"
+                if self._add_paths:
+                    raise error.ProgrammingError(msg)
+                tree = file_index_util.MutableTree(base=None)
+                add_paths = list(self)
+                FileIndex._write_data_impl(
+                    docket, tree, add_paths, list_file, meta_file, tree_file
+                )
+                return
+            if new_tree:
+                tree = file_index_util.MutableTree(base=None)
+                for token, meta in enumerate(self._meta_array):
+                    path = bytes(self._read_span(meta.offset, meta.length))
+                    tree.insert(path, FileTokenT(token), meta.offset)
+            else:
+                tree = file_index_util.MutableTree(
+                    file_index_util.Base(
+                        docket=docket,
+                        list_file=self._list_file,
+                        meta_array=self._meta_array,
+                        tree_file=self._tree_file,
+                        root_node=self._root_node,
+                    )
+                )
+            FileIndex._write_data_impl(
+                docket, tree, self._add_paths, list_file, meta_file, tree_file
+            )
+
+    @staticmethod
+    def _write_data_impl(
+        docket: file_index_util.Docket,
+        tree: file_index_util.MutableTree,
+        add_paths: list[HgPathT],
+        list_file: BinaryIO,
+        meta_file: BinaryIO,
+        tree_file: BinaryIO,
+    ):
+        """Helper for _write_data."""
+        token = len(tree)
+        for path in add_paths:
+            offset = docket.list_file_size
+            metadata = file_index_util.Metadata.from_path(path, offset)
+            list_file.write(b"%s\x00" % path)
+            meta_file.write(metadata.serialize())
+            tree.insert(path, FileTokenT(token), offset)
+            docket.list_file_size += len(path) + 1
+            docket.meta_file_size += file_index_util.Metadata.STRUCT.size
+            token += 1
         serialized = tree.serialize()
-        with self._open_tree_file(new_tree, tr) as tree_file:
-            tree_file.write(serialized.bytes)
+        tree_file.write(serialized.bytes)
         docket.tree_file_size = serialized.tree_file_size
         docket.tree_root_pointer = serialized.tree_root_pointer
         docket.tree_unused_bytes = serialized.tree_unused_bytes

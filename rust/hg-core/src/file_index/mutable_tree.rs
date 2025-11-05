@@ -152,11 +152,6 @@ impl<'a> MutableTree<'a> {
         }
     }
 
-    /// Returns true if this tree is building on top of a base file index.
-    pub fn has_base(&self) -> bool {
-        self.base.is_some()
-    }
-
     /// Returns the number of paths in this tree.
     /// This includes paths from the base file index, if there is one.
     pub fn len(&self) -> usize {

@@ -412,7 +412,19 @@ impl FileIndex {
         remove_tokens: &HashSet<FileToken>,
         vacuum: bool,
     ) -> Result<(), HgError> {
-        if !remove_tokens.is_empty() {
+        let removing = !remove_tokens.is_empty();
+        let new_list = docket.header.list_file_id.is_unset() || removing;
+        let new_meta = docket.header.meta_file_id.is_unset() || removing;
+        let new_tree = docket.header.tree_file_id.is_unset() || removing;
+        let new_tree = new_tree || vacuum;
+        let timestamp =
+            config.garbage_timestamp.unwrap_or_else(Self::unix_timestamp);
+        let mut opener = FileOpener { docket, vfs, tr, timestamp };
+        let list_file = opener.open_list_file(new_list)?;
+        let meta_file = opener.open_meta_file(new_meta)?;
+        let tree_file = opener.open_tree_file(new_tree)?;
+        let files = VfsDataFiles { list_file, meta_file, tree_file };
+        if removing {
             assert!(add_paths.is_empty(), "cannot add and remove in same txn");
             let tree = MutableTree::empty(on_disk.len() - remove_tokens.len());
             let add_paths = on_disk.iter().filter_map(|result| match result {
@@ -420,11 +432,9 @@ impl FileIndex {
                 Ok((info, _)) => Some(Ok(info.path())),
                 Err(err) => Some(Err(err)),
             });
-            return Self::write_data_impl(
-                docket, vfs, tr, config, tree, add_paths, true,
-            );
+            return Self::write_data_impl(docket, tree, add_paths, files);
         }
-        let tree = if docket.header.tree_file_id.is_unset() || vacuum {
+        let tree = if new_tree {
             let mut tree = MutableTree::empty(on_disk.len() + add_paths.len());
             for (i, info) in on_disk.meta_array.iter().enumerate() {
                 let path = HgPath::new(on_disk.read_span(info.path())?);
@@ -435,34 +445,23 @@ impl FileIndex {
             MutableTree::with_base(on_disk, add_paths.len())?
         };
         let add_paths = add_paths.iter().map(|path| Ok(path.deref()));
-        Self::write_data_impl(docket, vfs, tr, config, tree, add_paths, false)
+        Self::write_data_impl(docket, tree, add_paths, files)
     }
 
-    /// Helper function for [`Self::write_data`].
+    /// Helper function for [`Self::write_data`] to allow the `add_paths`
+    /// iterator to take on different concrete types.
     fn write_data_impl<'a>(
         docket: &mut Docket,
-        vfs: &VfsImpl,
-        tr: &mut impl Transaction,
-        config: &Config,
         mut tree: MutableTree<'a>,
         add_paths: impl Iterator<Item = Result<&'a HgPath, Error>>,
-        removing: bool,
+        VfsDataFiles { list_file, meta_file, mut tree_file }: VfsDataFiles,
     ) -> Result<(), HgError> {
-        let new_list = docket.header.list_file_id.is_unset() || removing;
-        let new_meta = docket.header.meta_file_id.is_unset() || removing;
-        let new_tree = !tree.has_base();
-        let timestamp =
-            config.garbage_timestamp.unwrap_or_else(Self::unix_timestamp);
-        let mut opener = FileOpener { docket, vfs, tr, timestamp };
-        let list_file = opener.open_list_file(new_list)?;
         let list_file_path = normal_path(&list_file).to_owned();
-        let mut list_file = BufWriter::new(list_file);
-        let meta_file = opener.open_meta_file(new_meta)?;
         let meta_file_path = normal_path(&meta_file).to_owned();
-        let mut meta_file = BufWriter::new(meta_file);
-        // The tree file doesn't need buffering since we write it all at once.
-        let mut tree_file = opener.open_tree_file(new_tree)?;
         let tree_file_path = normal_path(&tree_file).to_owned();
+        // The tree file doesn't need buffering since we write it all at once.
+        let mut list_file = BufWriter::new(list_file);
+        let mut meta_file = BufWriter::new(meta_file);
         let token_start = tree.len();
         let mut list_file_size = docket.header.list_file_size.get();
         let mut meta_file_size = docket.header.meta_file_size.get();
@@ -492,6 +491,13 @@ impl FileIndex {
         docket.header.reserved_flags = [0; 4];
         Ok(())
     }
+}
+
+/// VFS file handles for the file index data files.
+struct VfsDataFiles {
+    list_file: VfsFile,
+    meta_file: VfsFile,
+    tree_file: VfsFile,
 }
 
 /// Helper for [`FileIndex::write_data_impl`] to open files for writing.
