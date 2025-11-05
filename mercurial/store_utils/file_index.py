@@ -466,6 +466,7 @@ class FileIndex(int_file_index.IFileIndex):
                 file_index_util.Base(
                     docket=docket,
                     list_file=self._list_file,
+                    meta_array=self._meta_array,
                     tree_file=self._tree_file,
                     root_node=self._root_node,
                 )
@@ -474,7 +475,7 @@ class FileIndex(int_file_index.IFileIndex):
             self._open_list_file(new_list, tr) as list_file,
             self._open_meta_file(new_meta, tr) as meta_file,
         ):
-            token = len(meta_array)
+            token = len(tree)
             for path in add_paths:
                 offset = docket.list_file_size
                 metadata = file_index_util.Metadata.from_path(path, offset)

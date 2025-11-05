@@ -323,6 +323,7 @@ class Base:
 
     docket = attr.ib(type=Docket)
     list_file = attr.ib(type=memoryview)
+    meta_array = attr.ib(type=MetadataArray)
     tree_file = attr.ib(type=memoryview)
     root_node = attr.ib(type=TreeNode)
 
@@ -393,27 +394,33 @@ class MutableTree:
 
     >>> files = [b"foo", b"bar", b"fool", b"baz", b"ba"]
     >>> list_file = b"".join(f + b"\\x00" for f in files)
+    >>> meta_array = []
     >>> t = MutableTree(base=None)
     >>> offset = 0
     >>> t.debug()
     {}
     >>> t.insert(b"foo", 0, offset)
+    >>> meta_array.append(Metadata(offset, len(b"foo"), 0))
     >>> offset += len(b"foo") + 1
     >>> t.debug()
     {b'foo': 0}
     >>> t.insert(b"bar", 1, offset)
+    >>> meta_array.append(Metadata(offset, len(b"bar"), 0))
     >>> offset += len(b"bar") + 1
     >>> t.debug()
     {b'foo': 0, b'bar': 1}
     >>> t.insert(b"fool", 2, offset)
+    >>> meta_array.append(Metadata(offset, len(b"fool"), 0))
     >>> offset += len(b"fool") + 1
     >>> t.debug()
     {b'foo': (0, {b'l': 2}), b'bar': 1}
     >>> t.insert(b"baz", 3, offset)
+    >>> meta_array.append(Metadata(offset, len(b"baz"), 0))
     >>> offset += len(b"baz") + 1
     >>> t.debug()
     {b'foo': (0, {b'l': 2}), b'ba': {b'r': 1, b'z': 3}}
     >>> t.insert(b"ba", 4, offset)
+    >>> meta_array.append(Metadata(offset, len(b"ba"), 0))
     >>> offset += len(b"ba") + 1
     >>> t.debug()
     {b'foo': (0, {b'l': 2}), b'ba': (4, {b'r': 1, b'z': 3})}
@@ -430,6 +437,7 @@ class MutableTree:
     >>> base = Base(
     ...     docket=docket,
     ...     list_file=list_file,
+    ...     meta_array=meta_array,
     ...     tree_file=s.bytes,
     ...     root_node=root_node,
     ... )
@@ -465,6 +473,16 @@ class MutableTree:
         self.num_copied_edges = len(root.edges)
         self.num_copied_tokens = 0
         self.num_paths_added = 0
+
+    def __len__(self) -> int:
+        """Return the number of paths in this tree.
+
+        This includes paths from the base file index, if there is one.
+        """
+        n = self.num_paths_added
+        if self.base:
+            n += len(self.base.meta_array)
+        return n
 
     def _copy_node_at(self, offset) -> int:
         assert self.base
