@@ -6975,7 +6975,7 @@ def summary(ui, repo, **opts):
     _(b'[-f] [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...'),
     helpcategory=command.CATEGORY_CHANGE_ORGANIZATION,
 )
-def tag(ui, repo, name1, *names, **opts):
+def tag(ui, repo: RepoT, name1, *names, **opts):
     """add one or more tags for the current or given revision
 
     Name a particular revision using <name>.
@@ -7061,8 +7061,13 @@ def tag(ui, repo, name1, *names, **opts):
             p1, p2 = repo.dirstate.parents()
             if p2 != repo.nullid:
                 raise error.StateError(_(b'uncommitted merge'))
-            bheads = repo.branchheads()
-            if not opts.get('force') and bheads and p1 not in bheads:
+            branch = repo[None].branch()
+            bm = repo.branchmap()
+            if (
+                not opts.get('force')
+                and bm.hasbranch(branch, open_only=True)
+                and not bm.is_branch_head(branch, p1)
+            ):
                 raise error.InputError(
                     _(
                         b'working directory is not at a branch head '
