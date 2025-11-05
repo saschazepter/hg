@@ -227,7 +227,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
     elif subcommand in ("shape_files", "shape_files_hidden"):
         # TODO formatter?
         list_hidden = subcommand == "shape_files_hidden"
-        matcher = shape.matcher(repo.root)
+        matcher = shape.matcher()
         files = []
         known = set(repo[None].matches(matcher))
         for entry in repo.store.data_entries(matcher=matcher):

@@ -8,7 +8,6 @@ use hg::file_patterns::PatternSyntax;
 use hg::narrow::shape::Shape;
 use hg::narrow::shape::ShardSet;
 use hg::narrow::shape::ShardTreeNode;
-use hg::utils::files::get_path_from_bytes;
 use hg::utils::strings::SliceExt;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -44,9 +43,8 @@ impl PyShape {
     }
 
     /// A matcher for the files that this shape covers
-    pub fn matcher(&self, root_path: &[u8]) -> PyMatcher {
-        let root_path = get_path_from_bytes(root_path);
-        PyMatcher::new(self.inner.matcher(root_path))
+    pub fn matcher(&self) -> PyMatcher {
+        PyMatcher::new(self.inner.matcher())
     }
 
     /// The patterns as expected by legacy narrow code, i.e. a tuple of lists

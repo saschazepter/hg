@@ -1715,9 +1715,7 @@ def write_new_stream_bundle(
         shape_obj = shardset.shape(shape.decode())
         if shape_obj is None:
             raise error.InputError(b"unknown shape: '%s'" % shape)
-        # TODO it's likely we should just pass the repo root to the shape
-        # at creation time.
-        matcher = shape_obj.matcher(repo.root)
+        matcher = shape_obj.matcher()
         fingerprint = shape_obj.fingerprint()
 
     bundle = bundle20(ui, {b"stream": [version]})

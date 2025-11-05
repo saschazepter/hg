@@ -57,7 +57,7 @@ pub fn matcher(
     if let Ok(tree) =
         ShardTreeNode::from_patterns(&include_patterns, &exclude_patterns)
     {
-        let new_matcher = tree.matcher(repo.working_directory_path());
+        let new_matcher = tree.matcher();
         return Ok(new_matcher);
     }
 

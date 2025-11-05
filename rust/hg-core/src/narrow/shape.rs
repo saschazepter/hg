@@ -321,8 +321,8 @@ impl Shape {
     }
 
     /// Returns a [`Matcher`] that expresses the constraints of this shape
-    pub fn matcher(&self, root_path: &Path) -> Box<dyn Matcher + Send> {
-        self.tree.matcher(root_path)
+    pub fn matcher(&self) -> Box<dyn Matcher + Send> {
+        self.tree.matcher()
     }
 
     pub fn store_fingerprint(&self) -> [u8; 32] {
@@ -509,7 +509,7 @@ impl ShardTreeNode {
     }
 
     /// Returns a [`Matcher`] that expresses the constraints of this node
-    pub fn matcher(&self, root_path: &Path) -> Box<dyn Matcher + Send> {
+    pub fn matcher(&self) -> Box<dyn Matcher + Send> {
         let top_matcher = if self.path.is_empty() {
             // We're the root node
             if self.included {
@@ -522,7 +522,7 @@ impl ShardTreeNode {
                 PatternMatcher::new(vec![FilePattern::new(
                     PatternSyntax::Path,
                     HgPathBuf::from(&self.path).as_bytes(),
-                    root_path,
+                    Path::new(".hg/store/server-shapes"),
                 )])
                 .expect("patterns based on paths should always be valid"),
             ) as Box<dyn Matcher + Send>
@@ -531,12 +531,12 @@ impl ShardTreeNode {
             return top_matcher;
         }
         let sub_matcher = if self.children.len() == 1 {
-            self.children[0].read().matcher(root_path)
+            self.children[0].read().matcher()
         } else {
             let subs: Vec<_> = self
                 .children
                 .iter()
-                .map(|child| child.read().matcher(root_path))
+                .map(|child| child.read().matcher())
                 .collect();
             Box::new(UnionMatcher::new(subs)) as Box<dyn Matcher + Send>
         };
