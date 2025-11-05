@@ -1966,6 +1966,7 @@ def _docommit(ui, repo, *pats, **opts):
     if any_close:
         extra[b'close'] = b'1'
 
+        wc_dirty = False
         if repo[b'.'].closesbranch():
             # Not ideal, but let us do an extra status early to prevent early
             # bail out.
@@ -1973,13 +1974,14 @@ def _docommit(ui, repo, *pats, **opts):
                 repo[None], pats, pycompat.byteskwargs(opts)
             )
             s = repo.status(match=matcher)
-            if s.modified or s.added or s.removed:
+            wc_dirty = bool(s.modified or s.added or s.removed)
+            if wc_dirty:
                 bheads = repo.branchheads(branch, closed=True)
             else:
                 msg = _(b'current revision is already a branch closing head')
                 raise error.InputError(msg)
 
-        if not bheads:
+        if not (wc_dirty or repo.branchmap().hasbranch(branch, open_only=True)):
             raise error.InputError(
                 _(b'branch "%s" has no heads to close') % branch
             )
