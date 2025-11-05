@@ -268,8 +268,9 @@ def between(repo, proto, pairs):
 def branchmap(repo: RepoT, proto):
     branchmap = repo.branchmap()
     heads = []
-    for branch, nodes in branchmap.items():
+    for branch in branchmap:
         branchname = urlreq.quote(encoding.fromlocal(branch))
+        nodes = branchmap.branchheads(branch, closed=True)
         branchnodes = wireprototypes.encodelist(nodes)
         heads.append(b'%s %s' % (branchname, branchnodes))
 
