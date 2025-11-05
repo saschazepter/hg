@@ -109,8 +109,8 @@ def activepath(repo, remote):
     # determine the remote path from the repo, if possible; else just
     # use the string given to us
     rpath = remote
-    if local:
-        rpath = util.pconvert(remote._repo.root)
+    if local is not None:
+        rpath = util.pconvert(local.root)
     elif not isinstance(remote, bytes):
         rpath = remote.url()
 
