@@ -316,6 +316,9 @@ class FileIndex(int_file_index.IFileIndex):
         self._list_file = self._load_list_file()
         self._meta_array = self._load_meta_array()
         self._tree_file = self._load_tree_file()
+        self._root_node = file_index_util.TreeNode.parse_from(
+            self._tree_file[self._docket.tree_root_pointer :]
+        )
 
     def _load_list_file(self) -> memoryview:
         path = self._list_file_path()
@@ -423,9 +426,7 @@ class FileIndex(int_file_index.IFileIndex):
     def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
         """Look up a path on disk by token."""
         tree_file = self._tree_file
-        node = file_index_util.TreeNode.parse_from(
-            tree_file[self._docket.tree_root_pointer :]
-        )
+        node = self._root_node
         remainder = path
         while remainder:
             for edge in node.edges:
@@ -466,6 +467,7 @@ class FileIndex(int_file_index.IFileIndex):
                     docket=docket,
                     list_file=self._list_file,
                     tree_file=self._tree_file,
+                    root_node=self._root_node,
                 )
             )
         with (

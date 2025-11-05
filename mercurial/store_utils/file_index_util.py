@@ -324,6 +324,7 @@ class Base:
     docket = attr.ib(type=Docket)
     list_file = attr.ib(type=memoryview)
     tree_file = attr.ib(type=memoryview)
+    root_node = attr.ib(type=TreeNode)
 
 
 @attr.s(slots=True)
@@ -425,7 +426,13 @@ class MutableTree:
     ...     tree_file_size=s.tree_file_size,
     ...     tree_root_pointer=s.tree_root_pointer,
     ... )
-    >>> base = Base(docket=docket, list_file=list_file, tree_file=s.bytes)
+    >>> root_node = TreeNode.parse_from(s.bytes[s.tree_root_pointer:])
+    >>> base = Base(
+    ...     docket=docket,
+    ...     list_file=list_file,
+    ...     tree_file=s.bytes,
+    ...     root_node=root_node,
+    ... )
 
     Then we can create new nodes to append to the serialized tree:
 
@@ -448,15 +455,16 @@ class MutableTree:
 
     def __init__(self, base: Base | None):
         self.base = base
-        self.nodes = []
-        self.num_copied_nodes = 0
-        self.num_copied_edges = 0
+        if base:
+            root = MutableTreeNode.copy(base, base.root_node)
+            self.num_copied_nodes = 1
+        else:
+            root = MutableTreeNode(token=None, edges=[])
+            self.num_copied_nodes = 0
+        self.nodes = [root]
+        self.num_copied_edges = len(root.edges)
         self.num_copied_tokens = 0
         self.num_new_tokens = 0
-        if base:
-            self._copy_node_at(base.docket.tree_root_pointer)
-        else:
-            self.nodes.append(MutableTreeNode(token=None, edges=[]))
 
     def _copy_node_at(self, offset) -> int:
         assert self.base
