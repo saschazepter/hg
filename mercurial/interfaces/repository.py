@@ -2486,6 +2486,19 @@ class IBranchMap(IBaseBranchMap, Protocol):
         Raise KeyError for unknown branch."""
 
     @abc.abstractmethod
+    def branch_tip_from(
+        self,
+        repo: IRepo,
+        branch: bytes,
+        start: RevnumT,
+        closed: bool = False,
+    ) -> RevnumT | None:
+        """the tipmost head rev reachable from a revision for a given branch
+
+        Return None if no head are reachable.
+        """
+
+    @abc.abstractmethod
     def head_count(self, branch: bytes, closed=False) -> int:
         """number of heads on a branch
 

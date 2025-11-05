@@ -261,6 +261,22 @@ class _BaseBranchCache(i_repo.IBranchMap):
         Raise KeyError for unknown branch."""
         return self._branchtip(branch)[0]
 
+    def branch_tip_from(
+        self,
+        repo: RepoT,
+        branch: bytes,
+        start: RevnumT,
+        closed: bool = False,
+    ) -> RevnumT | None:
+        """the tipmost head rev reachable from a revision for a given branch
+
+        Return None if no head are reachable.
+        """
+        if branch not in self:
+            return None
+        heads = self.branchheads(branch, closed=closed)
+        return repo.revs(b'max(%d::(%ln))', start, heads).first()
+
     def head_count(self, branch: bytes, closed=False) -> int:
         """number of heads on a branch
 

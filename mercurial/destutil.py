@@ -109,14 +109,14 @@ def _destupdatebranch(repo: RepoT, clean):
     wc = repo[None]
     movemark = node = None
     currentbranch = wc.branch()
+    p1 = repo[b'.'].rev()
 
     if clean:
         currentbranch = repo[b'.'].branch()
 
-    if currentbranch in repo.branchmap():
-        heads = repo.branchheads(currentbranch)
-        if heads:
-            node = repo.revs(b'max(.::(%ln))', heads).first()
+    bm = repo.branchmap()
+    if currentbranch in bm:
+        node = bm.branch_tip_from(repo, currentbranch, p1)
         if bookmarks.isactivewdirparent(repo):
             movemark = repo[b'.'].node()
     elif currentbranch == b'default' and not wc.p1():
@@ -132,12 +132,11 @@ def _destupdatebranchfallback(repo, clean):
     """decide on an update destination from closed heads in current branch"""
     wc = repo[None]
     currentbranch = wc.branch()
+    p1 = repo[b'.'].rev()
     movemark = None
-    if currentbranch in repo.branchmap():
-        # here, all descendant branch heads are closed
-        heads = repo.branchheads(currentbranch, closed=True)
-        assert heads, b"any branch has at least one head"
-        node = repo.revs(b'max(.::(%ln))', heads).first()
+    bm = repo.branchmap()
+    if currentbranch in bm:
+        node = bm.branch_tip_from(repo, currentbranch, p1, closed=True)
         assert (
             node is not None
         ), b"any revision has at least one descendant branch head"
