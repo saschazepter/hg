@@ -2490,10 +2490,6 @@ class IBranchMap(IBaseBranchMap, Protocol):
         Raise KeyError for unknown branch."""
 
     @abc.abstractmethod
-    def iteropen(self, nodes: list[bytes]) -> Iterator[NodeIdT]:
-        ...
-
-    @abc.abstractmethod
     def branches_info(
         self,
         repo: IRepo,

@@ -256,13 +256,10 @@ class _BaseBranchCache(i_repo.IBranchMap):
         Raise KeyError for unknown branch."""
         return self._branchtip(self._entries[branch])[0]
 
-    def iteropen(self, nodes):
-        return (n for n in nodes if n not in self._closednodes)
-
     def branchheads(self, branch, closed=False):
         heads = self._entries[branch]
         if not closed:
-            heads = list(self.iteropen(heads))
+            heads = [n for n in heads if n not in self._closednodes]
         return heads
 
     def branches_info(
