@@ -176,8 +176,7 @@ def pullremotenames(localrepo: RepoT, remoterepo: PeerT) -> None:
     bmap = {}
     repo = localrepo.unfiltered()
 
-    with remoterepo.commandexecutor() as e:
-        branchmap = e.callcommand(b'branchmap', {}).result()
+    branchmap = remoterepo.branchmap()
 
     for branch, nodes in branchmap.items():
         bmap[branch] = []
