@@ -2634,11 +2634,8 @@ def debugnamecomplete(ui: UiT, repo: RepoT, *args):
     for name, ns in repo.names.items():
         if name != b'branches':
             names.update(ns.listnames(repo))
-    names.update(
-        tag
-        for (tag, heads, tip, closed) in repo.branchmap().iterbranches()
-        if not closed
-    )
+    bm = repo.branchmap()
+    names.update(bn for bn in bm if bm.hasbranch(bn, open_only=True))
     completions = set()
     if not args:
         args = [b'']
