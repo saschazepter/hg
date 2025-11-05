@@ -178,9 +178,9 @@ def pullremotenames(localrepo: RepoT, remoterepo: PeerT) -> None:
 
     branchmap = remoterepo.branchmap()
 
-    for branch, nodes in branchmap.items():
+    for branch in branchmap:
         bmap[branch] = []
-        for node in nodes:
+        for node in branchmap.branchheads(branch, closed=True):
             if node in repo and not repo[node].obsolete():
                 bmap[branch].append(hex(node))
 
