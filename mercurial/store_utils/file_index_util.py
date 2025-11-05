@@ -499,6 +499,7 @@ class MutableTree:
         token: FileTokenT,
         path_offset: int,
     ):
+        assert len(path) != 0
         remainder = path
         node = self.nodes[0]
         while True:

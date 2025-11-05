@@ -149,6 +149,8 @@ class FileIndex(int_file_index.IFileIndex):
                 yield path, FileTokenT(token)
 
     def add(self, path: HgPathT, tr: TransactionT) -> FileTokenT:
+        if len(path) == 0:
+            raise error.ProgrammingError(b"path must be nonempty")
         if self._remove_tokens:
             raise error.ProgrammingError(b"cannot add and remove in same txn")
         token = self.get_token(path)

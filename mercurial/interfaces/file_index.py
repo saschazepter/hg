@@ -120,6 +120,8 @@ class IFileIndex(Protocol):
     def add(self, path: HgPathT, tr: TransactionT) -> FileTokenT:
         """Add a path to the file index and return the new token.
 
+        The path must be nonempty.
+
         If the path already exists in the file index, returns its token.
 
         It is not allowed to call add and remove in the same transaction.
