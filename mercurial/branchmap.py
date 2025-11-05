@@ -265,10 +265,6 @@ class _BaseBranchCache(i_repo.IBranchMap):
             heads = list(self.iteropen(heads))
         return heads
 
-    def iterbranches(self):
-        for bn, heads in self.items():
-            yield (bn, heads) + self._branchtip(heads)
-
     def branches_info(
         self,
         repo: RepoT,

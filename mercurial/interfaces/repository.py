@@ -2494,12 +2494,6 @@ class IBranchMap(IBaseBranchMap, Protocol):
         ...
 
     @abc.abstractmethod
-    def iterbranches(
-        self,
-    ) -> Iterator[tuple[bytes, list[NodeIdT], NodeIdT, bool]]:
-        ...
-
-    @abc.abstractmethod
     def branches_info(
         self,
         repo: IRepo,
