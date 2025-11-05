@@ -1191,7 +1191,7 @@ def head(repo: RepoT, subset, x):
     getargs(x, 0, 0, _(b"head takes no arguments"))
     hs = set()
     cl = repo.changelog
-    for ls in repo.branchmap().iterheads():
+    for _b, ls in repo.branchmap().items():
         hs.update(cl.rev(h) for h in ls)
     return subset & baseset(hs)
 
