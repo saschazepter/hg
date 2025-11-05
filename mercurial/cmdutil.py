@@ -3291,7 +3291,6 @@ def commitstatus(repo, node, branch, bheads=None, tip=None, **opts):
     elif (
         not opts.get('amend')
         and bheads
-        and node not in bheads
         and not any(
             p.node() in bheads and p.branch() == branch for p in parents
         )
