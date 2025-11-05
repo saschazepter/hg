@@ -8,6 +8,15 @@
 
 from __future__ import annotations
 
+from typing import (
+    Iterator,
+)
+
+from .interfaces.types import (
+    NodeIdT,
+    PeerT,
+    RepoT,
+)
 from .node import hex
 
 from . import (
@@ -22,7 +31,10 @@ from .utils import (
 remotenamedir = b'logexchange'
 
 
-def readremotenamefile(repo, filename):
+def readremotenamefile(
+    repo: RepoT,
+    filename: bytes,
+) -> Iterator[tuple[NodeIdT, bytes, bytes]]:
     """
     reads a file from .hg/logexchange/ directory and yields it's content
     filename: the file to be read
@@ -50,7 +62,7 @@ def readremotenamefile(repo, filename):
     f.close()
 
 
-def readremotenames(repo):
+def readremotenames(repo: RepoT) -> Iterator[tuple[NodeIdT, bytes, bytes]]:
     """
     read the details about the remotenames stored in .hg/logexchange/ and
     yields a tuple (node, remotepath, name). It does not yields information
@@ -62,7 +74,12 @@ def readremotenames(repo):
     yield from readremotenamefile(repo, b'branches')
 
 
-def writeremotenamefile(repo, remotepath, names, nametype):
+def writeremotenamefile(
+    repo: RepoT,
+    remotepath: bytes,
+    names: dict[bytes, list[NodeIdT]],
+    nametype: bytes,
+) -> None:
     vfs = vfsmod.vfs(repo.vfs.join(remotenamedir))
     f = vfs(nametype, b'w', atomictemp=True)
     # write the storage version info on top of file
@@ -86,7 +103,12 @@ def writeremotenamefile(repo, remotepath, names, nametype):
     f.close()
 
 
-def saveremotenames(repo, remotepath, branches=None, bookmarks=None):
+def saveremotenames(
+    repo: RepoT,
+    remotepath: bytes,
+    branches: dict[bytes, list[NodeIdT]] | None = None,
+    bookmarks: dict[bytes, list[NodeIdT]] | None = None,
+) -> None:
     """
     save remotenames i.e. remotebookmarks and remotebranches in their
     respective files under ".hg/logexchange/" directory.
@@ -101,7 +123,7 @@ def saveremotenames(repo, remotepath, branches=None, bookmarks=None):
         wlock.release()
 
 
-def activepath(repo, remote):
+def activepath(repo: RepoT, remote: PeerT) -> bytes:
     """returns remote path"""
     # is the remote a local peer
     local = remote.local()
@@ -130,7 +152,7 @@ def activepath(repo, remote):
     return rpath
 
 
-def pullremotenames(localrepo, remoterepo):
+def pullremotenames(localrepo: RepoT, remoterepo: PeerT) -> None:
     """
     pulls bookmarks and branches information of the remote repo during a
     pull or clone operation.
