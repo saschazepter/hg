@@ -809,12 +809,14 @@ def unbundle(repo, proto, heads):
                         part.addparam(b'old', exc.old, mandatory=False)
                     if exc.ret is not None:
                         part.addparam(b'ret', exc.ret, mandatory=False)
-            except error.BundleValueError as exc:
+            except error.BundleUnknownFeatureError as exc:
                 errpart = bundler.newpart(b'error:unsupportedcontent')
                 if exc.parttype is not None:
                     errpart.addparam(b'parttype', exc.parttype)
                 if exc.params:
                     errpart.addparam(b'params', b'\0'.join(exc.params))
+            except error.BundleValueError:
+                errpart = bundler.newpart(b'error:unsupportedcontent')
             except error.Abort as exc:
                 manargs = [(b'message', exc.message)]
                 advargs = []

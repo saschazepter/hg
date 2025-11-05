@@ -51,7 +51,6 @@ pytype --version
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
 # mercurial/win32.py            # [not-callable]
-# mercurial/wireprotov1server.py  # BUG?: BundleValueError handler accesses subclass's attrs
 
 # TODO: use --no-cache on test server?  Caching the files locally helps during
 #       development, but may be a hinderance for CI testing.
@@ -105,7 +104,6 @@ pytype --keep-going --jobs auto \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
     -x mercurial/win32.py \
-    -x mercurial/wireprotov1server.py \
     | ts -i "(%.s)" | ts -s "%.s"
 
 if find .pytype/pyi -name '*.pyi' | xargs grep -ql '# Caught error'; then
