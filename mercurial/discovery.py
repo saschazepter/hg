@@ -315,10 +315,11 @@ def _headssummary(pushop: PushOpT) -> HeadSummaryT:
 
     knownnode = cl.hasnode  # do not use nodemap until it is filtered
     # A. register remote heads of branches which are in outgoing set
-    for branch, heads in remotemap.items():
+    for branch in remotemap:
         # don't add head info about branches which we don't have locally
         if branch not in branches:
             continue
+        heads = remotemap.branchheads(branch, closed=True)
         known = []
         unsynced = []
         for h in heads:
@@ -344,8 +345,8 @@ def _headssummary(pushop: PushOpT) -> HeadSummaryT:
         ),
     )
     newmap.update(repo, (ctx.rev() for ctx in missingctx))
-    for branch, newheads in newmap.items():
-        headssum[branch][1][:] = newheads
+    for branch in newmap:
+        headssum[branch][1][:] = newmap.branchheads(branch, closed=True)
     for branch, items in headssum.items():
         for l in items:
             if l is not None:
