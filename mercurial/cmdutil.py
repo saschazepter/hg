@@ -3325,7 +3325,7 @@ def commitstatus(repo, node, branch, bheads=None, tip=None, **opts):
         #
         # H H  n  head merge: head count decreases
 
-    if not opts.get('close_branch'):
+    if not opts.get('close_branch') and not opts.get('amend'):
         for r in parents:
             if r.closesbranch() and r.branch() == branch:
                 repo.ui.status(
