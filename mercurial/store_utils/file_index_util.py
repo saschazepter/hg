@@ -41,9 +41,9 @@ class Docket:
             [
                 ">",
                 f"{len(V1_FORMAT_MARKER)}s",
-                "4I",  # file sizes
-                f"{docket.UID_SIZE}s" * 4,  # file IDs
-                "4I",  # other integers
+                "3I",  # file sizes
+                f"{docket.UID_SIZE}s" * 3,  # file IDs
+                "3I",  # other integers
             ]
         )
     )
@@ -52,16 +52,12 @@ class Docket:
     marker = attr.ib(type=bytes, default=V1_FORMAT_MARKER)
     # Used size of the list file in bytes.
     list_file_size = attr.ib(type=int, default=0)
-    # Reserved for future use.
-    reserved_revlog_size = attr.ib(type=int, default=0)
     # Used size of the meta file in bytes.
     meta_file_size = attr.ib(type=int, default=0)
     # Used size of tree file in bytes.
     tree_file_size = attr.ib(type=int, default=0)
     # List file path ID.
     list_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
-    # Reserved for future use.
-    reserved_revlog_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Meta file path ID.
     meta_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Tree file path ID.
@@ -70,8 +66,6 @@ class Docket:
     tree_root_pointer = attr.ib(type=NodePointerT, default=0)
     # Number of unused bytes within tree_file_size.
     tree_unused_bytes = attr.ib(type=int, default=0)
-    # Reserved for future use.
-    reserved_revlog_unused = attr.ib(type=int, default=0)
     # Currently unused. Reset to zero when writing the docket.
     reserved_flags = attr.ib(type=int, default=0)
     # Paths to old data files to be removed.

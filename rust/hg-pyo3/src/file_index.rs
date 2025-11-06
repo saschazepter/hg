@@ -207,25 +207,13 @@ impl PyFileIndex {
             let dict = PyDict::new(py);
             dict.set_item("marker", header.marker)?;
             dict.set_item("list_file_size", header.list_file_size.get())?;
-            dict.set_item(
-                "reserved_revlog_size",
-                header.reserved_revlog_size.get(),
-            )?;
             dict.set_item("meta_file_size", header.meta_file_size.get())?;
             dict.set_item("tree_file_size", header.tree_file_size.get())?;
             dict.set_item("list_file_id", header.list_file_id.as_bytes())?;
-            dict.set_item(
-                "reserved_revlog_id",
-                header.reserved_revlog_id.as_bytes(),
-            )?;
             dict.set_item("meta_file_id", header.meta_file_id.as_bytes())?;
             dict.set_item("tree_file_id", header.tree_file_id.as_bytes())?;
             dict.set_item("tree_root_pointer", header.tree_root_pointer.get())?;
             dict.set_item("tree_unused_bytes", header.tree_unused_bytes.get())?;
-            dict.set_item(
-                "reserved_revlog_unused",
-                header.reserved_revlog_unused.get(),
-            )?;
             dict.set_item(
                 "reserved_flags",
                 u32::from_be_bytes(header.reserved_flags),

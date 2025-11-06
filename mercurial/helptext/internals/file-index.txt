@@ -227,25 +227,23 @@ process is appending but has not updated the docket yet). That extra data at the
 end of the files must be ignored.
 
 * Offset 12: The used size of the list file in bytes.
-* Offset 16: (Reserved for future usages)
-* Offset 20: The used size of the meta file in bytes.
-* Offset 24: The used size of the tree file in bytes.
+* Offset 16: The used size of the meta file in bytes.
+* Offset 20: The used size of the tree file in bytes.
 
 The following four "ID" fields are stored as 8-byte strings. They indicate
 where the corresponding data file is stored. For example, if the list file ID is
 "ab19b7c0", then the list file is stored at `.hg/store/fileindex-list.ab19b7c0`.
 
-* Offset 28: The list file ID.
-* Offset 36: (Reserved for future usages)
-* Offset 44: The meta file ID.
-* Offset 52: The tree file ID.
+* Offset 24: The list file ID.
+* Offset 32: The meta file ID.
+* Offset 40: The tree file ID.
 
-* Offset 60: Prefix tree root node address
+* Offset 48: Prefix tree root node address
 
   Pseudo-pointer to the root node in the prefix tree, counted in bytes from the
   start of the tree file, as a 32-bit big-endian integer.
 
-* Offset 64: Amount of "dead" data
+* Offset 52: Amount of "dead" data
 
   How many bytes of the tree file (within its used size) are unused, as a 32-bit
   big-endian integer. When appending to an existing tree file, some existing
@@ -253,17 +251,15 @@ where the corresponding data file is stored. For example, if the list file ID is
   counter is used to decide when to write a new tree file from scratch instead
   of appending to an existing one. Effectively vacuuming the "dead" data.
 
-* Offset 68: (Reserved for future usage)
-
-* Offset 72: Four flag bytes, currently ignored and reset to zero when saving
+* Offset 56: Four flag bytes, currently ignored and reset to zero when saving
   the docket file.
 
-* Offset 76: Number of garbage entries as a 32-bit big-endian integer.
+* Offset 60: Number of garbage entries as a 32-bit big-endian integer.
 
-* Offset 80: Size of the garbage path buffer in bytes, as a 32-bit big-endian
+* Offset 64: Size of the garbage path buffer in bytes, as a 32-bit big-endian
   integer.
 
-* Offset 84:
+* Offset 68:
   Array of garbage entries. Each has the following 12-byte layout:
 
   * Offset 0:
@@ -277,7 +273,7 @@ where the corresponding data file is stored. For example, if the list file ID is
   * Offset 10:
     Length of the path in bytes, as a 16-bit big-endian integer.
 
-* Next offset (84 + 12 * number of garbage entries):
+* Next offset (68 + 12 * number of garbage entries):
   The garbage path buffer, containing file paths relative to `.hg/store/`
   terminated by null bytes, one after the other. The presence of the null bytes
   is optional and should not be relied on.

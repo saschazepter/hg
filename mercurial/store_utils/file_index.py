@@ -51,16 +51,13 @@ INITIAL_GARBAGE_TTL = 2
 DEFAULT_DOCKET_TEMPLATE = b"""\
 marker: {marker}
 list_file_size: {list_file_size}
-reserved_revlog_size: {reserved_revlog_size}
 meta_file_size: {meta_file_size}
 tree_file_size: {tree_file_size}
 list_file_id: {list_file_id}
-reserved_revlog_id: {reserved_revlog_id}
 meta_file_id: {meta_file_id}
 tree_file_id: {tree_file_id}
 tree_root_pointer: {tree_root_pointer}
 tree_unused_bytes: {tree_unused_bytes}
-reserved_revlog_unused: {reserved_revlog_unused}
 reserved_flags: {reserved_flags}
 garbage_entries: {garbage_entries|count}
 {garbage_entries % "- ttl={ttl} timestamp={timestamp} path={path}\n"}\

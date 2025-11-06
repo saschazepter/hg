@@ -22,16 +22,13 @@ Create a new repo with the file index
   $ hg debug::file-index --docket
   marker: fileindex-v1
   list_file_size: 0
-  reserved_revlog_size: 0
   meta_file_size: 0
   tree_file_size: 0
   list_file_id: 00000000
-  reserved_revlog_id: 00000000
   meta_file_id: 00000000
   tree_file_id: 00000000
   tree_root_pointer: 0
   tree_unused_bytes: 0
-  reserved_revlog_unused: 0
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
@@ -71,16 +68,13 @@ Examine the file index structure
   $ hg debug::file-index --docket
   marker: fileindex-v1
   list_file_size: 5
-  reserved_revlog_size: 0
   meta_file_size: 16
   tree_file_size: 11
   list_file_id: * (glob)
-  reserved_revlog_id: 00000000
   meta_file_id: * (glob)
   tree_file_id: * (glob)
   tree_root_pointer: 0
   tree_unused_bytes: 0
-  reserved_revlog_unused: 0
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
@@ -134,9 +128,6 @@ We can format the docket as JSON
     "meta_file_id": "*", (glob)
     "meta_file_size": 40,
     "reserved_flags": 0,
-    "reserved_revlog_id": "00000000",
-    "reserved_revlog_size": 0,
-    "reserved_revlog_unused": 0,
     "tree_file_id": "*", (glob)
     "tree_file_size": 49,
     "tree_root_pointer": 11,
@@ -675,16 +666,13 @@ Add files with Python, read with Rust
   $ hg debug::file-index --docket
   marker: fileindex-v1
   list_file_size: 6
-  reserved_revlog_size: 0
   meta_file_size: 16
   tree_file_size: 11
   list_file_id: * (glob)
-  reserved_revlog_id: 00000000
   meta_file_id: * (glob)
   tree_file_id: * (glob)
   tree_root_pointer: 0
   tree_unused_bytes: 0
-  reserved_revlog_unused: 0
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
@@ -712,16 +700,13 @@ Add files with Rust, read with Python
   $ HGMODULEPOLICY=py hg debug::file-index --docket
   marker: fileindex-v1
   list_file_size: 12
-  reserved_revlog_size: 0
   meta_file_size: 24
   tree_file_size: 38
   list_file_id: * (glob)
-  reserved_revlog_id: 00000000
   meta_file_id: * (glob)
   tree_file_id: * (glob)
   tree_root_pointer: 11
   tree_unused_bytes: 11
-  reserved_revlog_unused: 0
   reserved_flags: 0
   garbage_entries: 0
   $ HGMODULEPOLICY=py hg debug::file-index --tree

@@ -156,16 +156,12 @@ pub struct DocketHeader {
     pub marker: [u8; FORMAT_MARKER.len()],
     /// Used size of the list file in bytes.
     pub list_file_size: U32Be,
-    /// Reserved for future use.
-    pub reserved_revlog_size: U32Be,
     /// Used size of the meta file in bytes.
     pub meta_file_size: U32Be,
     /// Used size of tree file in bytes.
     pub tree_file_size: U32Be,
     /// List file path ID.
     pub list_file_id: FileUid,
-    /// Reserved for future use.
-    pub reserved_revlog_id: FileUid,
     /// Meta file path ID.
     pub meta_file_id: FileUid,
     /// Tree file path ID.
@@ -174,8 +170,6 @@ pub struct DocketHeader {
     pub tree_root_pointer: U32Be,
     /// Number of unused bytes within [`Self::tree_file_size`].
     pub tree_unused_bytes: U32Be,
-    /// Reserved for future use.
-    pub reserved_revlog_unused: U32Be,
     /// Currently unused. Reset to zero when writing the docket.
     pub reserved_flags: [u8; 4],
 }
@@ -186,16 +180,13 @@ impl Default for Docket {
             header: DocketHeader {
                 marker: *FORMAT_MARKER,
                 list_file_size: 0.into(),
-                reserved_revlog_size: 0.into(),
                 meta_file_size: 0.into(),
                 tree_file_size: 0.into(),
                 list_file_id: FileUid::unset(),
-                reserved_revlog_id: FileUid::unset(),
                 meta_file_id: FileUid::unset(),
                 tree_file_id: FileUid::unset(),
                 tree_root_pointer: 0.into(),
                 tree_unused_bytes: 0.into(),
-                reserved_revlog_unused: 0.into(),
                 reserved_flags: [0; 4],
             },
             garbage_entries: Vec::new(),
