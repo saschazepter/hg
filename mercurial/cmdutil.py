@@ -3339,19 +3339,19 @@ def future_head_change(
     branch = wc.branch()
     has_head_parent = False
     closed_parent = []
-    bheads = repo.branchheads(branch)
+    bm = repo.branchmap()
     for p in wc.parents():
         if p.branch() != branch:
             continue
         if p.closesbranch():
             closed_parent.append(p.rev())
-        if p.node() in bheads:
+        if bm.is_branch_head(branch, p.node()):
             has_head_parent = True
     reopen = ()
     if not close_branch:
         reopen = tuple(closed_parent)
 
-    new_head = bool(bheads and not has_head_parent)
+    new_head = not has_head_parent and bm.hasbranch(branch, open_only=True)
 
     if new_head or reopen:
         return _HeadChange(new_head, reopen)
