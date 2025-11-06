@@ -3067,6 +3067,36 @@ def perf_file_index_write(ui, repo, **opts):
         fm.end()
 
 
+@command(b'perf::file-index-vacuum', formatteropts)
+def perf_file_index_vacuum(ui, repo, **opts):
+    """benchmark vacuuming the file index tree file"""
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    with repo.lock(), repo.transaction(b'perf::file-index-vacuum') as tr:
+        fileindex = repo.store.fileindex
+
+        # Back up data files, otherwise the repo could be corrupted if the
+        # command is interrupted, since we delete the initial tree file in s().
+        for path in fileindex.data_files():
+            tr.addbackup(path)
+
+        def s():
+            # GC before each iteration so we don't accumulate lots of tree files.
+            fileindex.garbage_collect(tr, force=True)
+
+        def d():
+            # This just adds a file generator to the transaction. The actual
+            # vacuuming happens when `writepending` runs the generator.
+            fileindex.vacuum(tr)
+            if not tr.writepending():
+                raise error.ProgrammingError(b'vacuum should always write')
+
+        timer(d, setup=s)
+        s()  # final GC to clean up last iteration
+        fm.end()
+
+
 def _bdiffworker(q, blocks, xdiff, ready, done):
     while not done.is_set():
         pair = q.get()
