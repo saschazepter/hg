@@ -37,6 +37,8 @@ perfstatus
   > presleep=0
   > stub=on
   > parentscount=1
+  > [storage]
+  > all-slow-path=allow
   > EOF
   $ hg help -e perf
   perf extension - helper extension to measure performance
@@ -127,6 +129,8 @@ perfstatus
    perf::discovery
                  benchmark discovery between local repo and the peer at given
                  path
+   perf::file-index-read
+                 benchmark looking up paths in the file index tree
    perf::fncacheencode
                  (no help text available)
    perf::fncacheload
@@ -260,6 +264,15 @@ perfstatus
   $ hg perffncachewrite
   $ hg debugrebuildfncache
   fncache already up to date
+
+Temporarily upgrade to file index to test file index commands
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --no-backup --run > /dev/null
+  $ hg perf::file-index-read --seed 0
+  looking up 1 out of 1 paths (random order)
+  $ hg perf::file-index-read --count 100% --order sorted
+  looking up 1 out of 1 paths (sorted order)
+  $ hg debugupgrade --no-backup --run > /dev/null
+
   $ hg perfheads
   $ hg perfignore
   $ hg perfindex

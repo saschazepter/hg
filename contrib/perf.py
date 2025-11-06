@@ -60,6 +60,7 @@ Configurations
 import contextlib
 import functools
 import gc
+import math
 import os
 import random
 import shutil
@@ -2944,6 +2945,53 @@ def perffncacheencode(ui, repo, **opts):
     def d():
         for p in s.fncache.entries:
             s.encode(p)
+
+    timer(d)
+    fm.end()
+
+
+@command(
+    b'perf::file-index-read',
+    formatteropts
+    + [
+        (b'', b'order', b'random', b'order of paths (random, sorted, token)'),
+        (b'', b'count', b'1', b'number (N) or percent (N%) of paths to lookup'),
+        (b'', b'seed', 0, b'seed for --order random'),
+    ],
+)
+def perf_file_index_read(ui, repo, **opts):
+    """benchmark looking up paths in the file index tree"""
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+    fileindex = repo.store.fileindex
+
+    paths = list(fileindex)
+    order = opts[b'order']
+    if order == b'random':
+        random.seed(opts[b'seed'])
+        random.shuffle(paths)
+    elif order == b'sorted':
+        paths.sort()
+    elif order != b'token':
+        raise error.CommandError(b'perf::file-index-read', b'invalid --order')
+
+    count = opts[b'count']
+    if count.endswith(b'%'):
+        # Use ceil to avoid rounding to 0.
+        count = math.ceil(float(count[:-1]) / 100 * len(fileindex))
+    else:
+        count = int(count)
+    if count < 1 or count > len(fileindex):
+        msg = b'count %d out of range' % count
+        raise error.CommandError(b'perf::file-index-read', msg)
+    paths = paths[:count]
+
+    msg = b'looking up %d out of %d paths (%s order)\n'
+    ui.statusnoi18n(msg % (count, len(fileindex), order))
+
+    def d():
+        for path in paths:
+            fileindex.get_token(path)
 
     timer(d)
     fm.end()
