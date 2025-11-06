@@ -559,7 +559,18 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         self._verify_node = verify_node
         # branches for which nodes are verified
         self._verifiedbranches = set()
-        self._node_to_rev: Callable[[bytes], RevnumT] = repo.changelog.rev
+        self._node_to_rev: Callable[[NodeIdT], RevnumT] = repo.changelog.rev
+        # The rev we store come from two sources:
+        # - conversion from a node, so filtered rev will fail here
+        # - the topological heads provided from the repo that are not filtered
+        #
+        # We won't have "filtered node" and can use a faster node → rev method
+        #
+        # (note: having something directly on the index would be even faster)
+        unfi = repo.unfiltered()
+        self._rev_to_node: Callable[[RevnumT], NodeIdT] = unfi.changelog.node
+        self._head_revs: dict[bytes, list[RevnumT]] = {}
+        self._open_head_revs: dict[bytes, list[RevnumT]] = {}
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         raise NotImplementedError
@@ -746,11 +757,14 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             return
         if branch not in self._entries or branch in self._verifiedbranches:
             return
+        # How could we have updated this for non-verified branch?
+        assert branch not in self._head_revs
         n = None
         to_rev = self._node_to_rev
         try:
-            for n in self._entries[branch]:
-                to_rev(n)
+            # We can't simply use self._branch_revs because we want to know
+            # which `n` failed.
+            self._head_revs[branch] = [to_rev(n) for n in self._entries[branch]]
         except LookupError:
             if n is None:
                 raise
@@ -797,9 +811,28 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         Only consider open heads unless `closed` is set to True.
         Return an empty list for unknown branch.
         """
+        self._verifybranch(branch)
+        if closed:
+            return self._branch_revs(branch)
+        revs = self._open_head_revs.get(branch)
+        if revs is None:
+            to_node = self._rev_to_node
+            all_revs = self._branch_revs(branch)
+            # the rev → node conversion is cheaper than the node → rev one, so
+            # it make sense to iterate from the converted revs
+            revs = [r for r in all_revs if to_node(r) not in self._closednodes]
+            self._open_head_revs[branch] = revs
+        return revs
 
-        to_rev = self._node_to_rev
-        return [to_rev(n) for n in self.branchheads(branch, closed=closed)]
+    def _branch_revs(self, branch: bytes) -> list[RevnumT]:
+        """get a revision list for a branch"""
+        revs = self._head_revs.get(branch)
+        if revs is None:
+            to_rev = self._node_to_rev
+            # NOTE: now might also be a good time to fill _open_head_revs
+            revs = [to_rev(n) for n in self._entries[branch]]
+            self._head_revs[branch] = revs
+        return revs
 
     def update(self, repo, revgen):
         assert self._filtername == repo.filtername, (
@@ -808,6 +841,9 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         )
         cl = repo.changelog
         self._node_to_rev = repo.changelog.rev
+        self._rev_to_node = repo.unfiltered().changelog.node
+        self._head_revs.clear()
+        self._open_head_revs.clear()
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
