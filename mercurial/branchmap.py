@@ -559,9 +559,9 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         self._verify_node = verify_node
         # branches for which nodes are verified
         self._verifiedbranches = set()
-        self._hasnode: Callable[[bytes], bool] | None = None
+        self._node_to_rev: Callable[[bytes], RevnumT] | None = None
         if self._verify_node:
-            self._hasnode = repo.changelog.hasnode
+            self._node_to_rev = repo.changelog.rev
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         raise NotImplementedError
@@ -748,11 +748,16 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             return
         if branch not in self._entries or branch in self._verifiedbranches:
             return
-        assert self._hasnode is not None
-        for n in self._entries[branch]:
-            if not self._hasnode(n):
-                _unknownnode(n)
-
+        assert self._node_to_rev is not None
+        n = None
+        to_rev = self._node_to_rev
+        try:
+            for n in self._entries[branch]:
+                to_rev(n)
+        except LookupError:
+            if n is None:
+                raise
+            _unknownnode(n)
         self._verifiedbranches.add(branch)
 
     def _verifyall(self):
@@ -792,7 +797,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         )
         cl = repo.changelog
         if self._verify_node is not None:
-            self._hasnode = cl.hasnode
+            self._node_to_rev = repo.changelog.rev
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
