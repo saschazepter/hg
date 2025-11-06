@@ -11,6 +11,11 @@
   > [format]
   > exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > exp-use-fileindex-v1=no
+  > EOF
 #endif
 
 #if fileindex no-rust
