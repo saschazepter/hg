@@ -31,12 +31,12 @@
 #if fileindex
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-fileindex-v1=yes
+  > use-fileindex-v1=yes
   > EOF
 #else
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-fileindex-v1=no
+  > use-fileindex-v1=no
   > EOF
 #endif
 

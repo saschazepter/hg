@@ -270,7 +270,7 @@ perfstatus
   fncache already up to date
 
 Temporarily upgrade to file index to test file index commands
-  $ hg debugupgrade --config format.exp-use-fileindex-v1=1 --no-backup --run > /dev/null
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --no-backup --run > /dev/null
   $ hg perf::file-index-read --seed 0
   looking up 1 out of 1 paths (random order)
   $ hg perf::file-index-read --count 100% --order sorted

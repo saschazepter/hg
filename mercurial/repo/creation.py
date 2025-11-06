@@ -79,7 +79,7 @@ def new_repo_requirements(ui, createopts):
     requirements = {requirementsmod.REVLOGV1_REQUIREMENT}
     if ui.configbool(b'format', b'usestore'):
         requirements.add(requirementsmod.STORE_REQUIREMENT)
-        if ui.configbool(b'format', b'exp-use-fileindex-v1'):
+        if ui.configbool(b'format', b'use-fileindex-v1'):
             requirements.add(requirementsmod.FILEINDEXV1_REQUIREMENT)
         elif ui.configbool(b'format', b'usefncache'):
             requirements.add(requirementsmod.FNCACHE_REQUIREMENT)
@@ -306,7 +306,7 @@ def check_requirements_compat(ui, requirements):
             raise error.Abort(
                 _(
                     b"cannot create repository with "
-                    b"'format.exp-use-fileindex-v1' and "
+                    b"'format.use-fileindex-v1' and "
                     b"'experimental.treemanifest' both enabled since they are "
                     b"incompatible with each other"
                 )

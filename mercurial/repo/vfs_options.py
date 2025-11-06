@@ -106,8 +106,7 @@ def resolve_store_vfs_options(ui, requirements, features):
             b"fast implementation."
         )
         hint = _(
-            b"check `hg help config.format.exp-use-fileindex-v1` "
-            b"for details"
+            b"check `hg help config.format.use-fileindex-v1` " b"for details"
         )
         if not file_index.HAS_FAST_FILE_INDEX:
             if slow_path == b'warn':
