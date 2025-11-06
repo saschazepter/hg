@@ -2493,6 +2493,16 @@ class IBranchMap(IBaseBranchMap, Protocol):
         """
 
     @abc.abstractmethod
+    def branch_head_revs(
+        self, branch: bytes, closed: bool = False
+    ) -> list[RevnumT]:
+        """return all heads for one branch (as a list of rev)
+
+        Only consider open heads unless `closed` is set to True.
+        Return an empty list for unknown branch.
+        """
+
+    @abc.abstractmethod
     def branches_info(
         self,
         repo: IRepo,
