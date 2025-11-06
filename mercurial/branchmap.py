@@ -300,7 +300,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
         return node in self.branchheads(branch, closed=closed)
 
     def branchheads(self, branch, closed=False):
-        heads = self._entries[branch]
+        heads = self._entries.get(branch, [])
         if not closed:
             open_heads = self._open_entries.get(branch)
             if open_heads is not None:

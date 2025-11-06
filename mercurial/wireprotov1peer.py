@@ -328,7 +328,7 @@ class RemoteBranchMap(dict[bytes, list[NodeIdT]], repository.IBaseBranchMap):
 
     def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
         """Note: closed is ignored as we don't have the information from the remote"""
-        return self[branch]
+        return self.get(branch, [])
 
 
 class wirepeer(
