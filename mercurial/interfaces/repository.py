@@ -2505,6 +2505,18 @@ class IBranchMap(IBaseBranchMap, Protocol):
         return 0 for unknown branch"""
 
     @abc.abstractmethod
+    def is_branch_head(
+        self,
+        branch: bytes,
+        node: NodeIdT,
+        closed: bool = False,
+    ) -> bool:
+        """True if the node is a head for that branch
+
+        Only consider open heads unless `closed` is set to True.
+        """
+
+    @abc.abstractmethod
     def branches_info(
         self,
         repo: IRepo,

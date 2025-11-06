@@ -285,6 +285,20 @@ class _BaseBranchCache(i_repo.IBranchMap):
             return 0
         return len(self.branchheads(branch, closed=closed))
 
+    def is_branch_head(
+        self,
+        branch: bytes,
+        node: NodeIdT,
+        closed: bool = False,
+    ) -> bool:
+        """True if the node is a head for that branch
+
+        Only consider open heads unless `closed` is set to True.
+        """
+        if branch not in self:
+            return False
+        return node in self.branchheads(branch, closed=closed)
+
     def branchheads(self, branch, closed=False):
         heads = self._entries[branch]
         if not closed:
