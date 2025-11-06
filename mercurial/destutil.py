@@ -325,7 +325,7 @@ def _destmergebranch(
                 raise error.ManyMergeDestAbort(msg, hint=hint)
             branch = ctx.branch()
 
-    bheads = repo.branchheads(branch)
+    bheads = repo.branchmap().branchheads(branch)
     onhead = repo.revs(b'%ld and %ln', sourceset, bheads)
     if onheadcheck and not onhead:
         # Case A: working copy if not on a head. (merge only)
