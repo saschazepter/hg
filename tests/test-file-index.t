@@ -9,7 +9,7 @@ Test the basics
 ---------------
 
 Create a new repo with the file index
-  $ hg init repo1 --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repo1 --config format.exp-use-fileindex-v1=1
   $ cd repo1
   $ hg debugrequirements | grep -E 'fncache|dotencode|fileindex'
   exp-fileindex-v1
@@ -173,7 +173,7 @@ immediately). Use --path because it causes a lookup in the tree file.
   5: anotherfile
 
 Vacuum empty tree (no data files)
-  $ hg init $TESTTMP/repoempty --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init $TESTTMP/repoempty --config format.exp-use-fileindex-v1=1
   $ hg -R $TESTTMP/repoempty debug::file-index --vacuum
   vacuumed tree: 0 bytes => 0 bytes (saved 0.0%)
 Vacuum empty tree again (data files exist)
@@ -259,7 +259,7 @@ It only deleted the first entry
 Test removing paths with debugstrip
 -----------------------------------
 
-  $ hg init repostrip --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repostrip --config format.exp-use-fileindex-v1=1
   $ cd repostrip
 
 Start with one file
@@ -329,7 +329,7 @@ Create source repository
   $ cd ..
 
 Set up a narrow clone
-  $ hg clone -q repofull repotracked --narrow --include "" --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg clone -q repofull repotracked --narrow --include "" --config format.exp-use-fileindex-v1=1
   $ cd repotracked
   $ hg debug::file-index
   1: file0
@@ -351,7 +351,7 @@ Test interaction with hooks
 ---------------------------
 
 Access file index in pretxnclose hook
-  $ hg init repohook --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repohook --config format.exp-use-fileindex-v1=1
   $ cd repohook
   $ cat > .hg/hgrc <<EOF
   > [hooks]
@@ -388,7 +388,7 @@ There are a few important things here:
 2. But leave them around long enough so we can rollback after a vacuum.
 3. And in that case, also clean up the file we rolled back from.
 
-  $ hg init repotxn --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repotxn --config format.exp-use-fileindex-v1=1
   $ cd repotxn
 
 Retention is based on time and TTL (a transaction countdown). Disable the
@@ -532,7 +532,7 @@ Removing fncache is not allowed if you aren't upgrading to file index
   [255]
 
 Upgrade empty repo from fncache to fileindex
-  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=1 --run
   note:    selecting all-filelogs for processing to change: dotencode
   note:    selecting all-manifestlogs for processing to change: fncache
   note:    selecting changelog for processing to change: fncache
@@ -620,7 +620,7 @@ Add a file, then upgrade to fileindex
   $ hg ci -m 0
   $ cat .hg/store/fncache | sort
   data/f1.i
-  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=1 --run > /dev/null
   $ test -f .hg/store/fncache
   [1]
   $ hg debug::file-index
@@ -641,7 +641,7 @@ Add another file, then downgrade to fncache
   [20]
 
 Finally, upgrade back to fileindex
-  $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
+  $ hg debugupgrade --config format.exp-use-fileindex-v1=1 --run > /dev/null
   $ hg debug::file-index
   1: f1
   2: f2
@@ -651,7 +651,7 @@ Test compatiblity of Python and Rust implementations
 
 #if rust
 
-  $ hg init repocompat --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repocompat --config format.exp-use-fileindex-v1=1
   $ cd repocompat
   $ cat << EOF >> .hg/hgrc
   > [storage]
@@ -735,7 +735,7 @@ Vacuum with Rust, GC with Python
 Test various prefix tree structures
 -----------------------------------
 
-  $ hg init repotree --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repotree --config format.exp-use-fileindex-v1=1
   $ cd repotree
 
 Paths with distinct prefix
@@ -799,7 +799,7 @@ Paths where one is a prefix of the other
 Test long paths
 ---------------
 
-  $ hg init repolong --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg init repolong --config format.exp-use-fileindex-v1=1
   $ cd repolong
 
 Maximum label length (255)

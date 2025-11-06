@@ -1445,7 +1445,7 @@ default = true
 [[items]]
 section = "format"
 name = "exp-use-fileindex-v1"
-default = ""
+default = false
 experimental = true
 documentation = """use a "file-index" to store the set of files "tracked" in the
 repository store and way to efficiently manipulate these filenames.
@@ -1463,9 +1463,6 @@ This feature is currently experimental and the format is actively developed and
 altered. This should never be used in any kind of real use case, the format is
 unfrozen and will change over time. Repositories using this format will become
 unreadable or corrupted when such changes happen.
-
-For this reason, this format will only be used when this config is set to
-"enable-unstable-format-and-corrupt-my-data".
 """
 
 [[items]]

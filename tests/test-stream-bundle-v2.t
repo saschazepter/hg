@@ -31,7 +31,7 @@
 #if fileindex
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  > exp-use-fileindex-v1=yes
   > EOF
 #else
   $ cat >> $HGRCPATH << EOF
