@@ -217,6 +217,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
         self._closednodes = set(closed_nodes)
         self._entries = dict(entries)
         self._open_entries: dict[bytes, list[NodeIdT]] = {}
+        self._tips: dict[bytes, tuple[NodeIdT, bool]] = {}
         self._nullid = repo.nullid
 
     def __iter__(self):
@@ -231,14 +232,19 @@ class _BaseBranchCache(i_repo.IBranchMap):
         If open_only is set, ignore closed branch
         """
         if open_only:
-            heads = self._entries.get(label)
-            return bool(heads and not self._branchtip(heads)[1])
+            if label not in self._entries:
+                return False
+            return not self._branchtip(label)[1]
         else:
             return label in self._entries
 
-    def _branchtip(self, heads):
+    def _branchtip(self, branch):
         """Return tuple with last open head in heads and false,
         otherwise return last closed head and true."""
+        cached = self._tips.get(branch)
+        if cached is not None:
+            return cached
+        heads = self._entries[branch]
         tip = heads[-1]
         closed = True
         for h in reversed(heads):
@@ -246,13 +252,14 @@ class _BaseBranchCache(i_repo.IBranchMap):
                 tip = h
                 closed = False
                 break
+        self._tips[branch] = (tip, closed)
         return tip, closed
 
     def branchtip(self, branch):
         """Return the tipmost open head on branch head, otherwise return the
         tipmost closed head on branch.
         Raise KeyError for unknown branch."""
-        return self._branchtip(self._entries[branch])[0]
+        return self._branchtip(branch)[0]
 
     def branchheads(self, branch, closed=False):
         heads = self._entries[branch]
@@ -315,6 +322,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
         """
         # clear various caches as we are updating the state
         self._open_entries.clear()
+        self._tips.clear()
         if '_all_head_nodes' in vars(self):
             del self._all_head_nodes
         starttime = util.timer()
