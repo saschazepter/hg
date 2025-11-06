@@ -3291,8 +3291,11 @@ def heads(ui, repo: RepoT, *branchrevs, **opts):
         heads = [repo[h] for h in repo.heads(start)]
     else:
         heads = []
-        for branch in repo.branchmap():
-            heads += repo.branchheads(branch, start, opts.get('closed'))
+        bm = repo.branchmap()
+        for branch in bm:
+            heads += bm.branchheads(branch, closed=opts.get('closed'))
+        if start is not None:
+            heads = repo.revs('%ln and (%n)::', heads, start)
         heads = [repo[h] for h in heads]
 
     if branchrevs:
