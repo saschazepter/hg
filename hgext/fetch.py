@@ -104,7 +104,10 @@ def fetch(ui, repo, source=b'default', **opts):
 
         scmutil.bail_if_changed(repo)
 
-        bheads = repo.branchheads(branch)
+        # fetch apparently checks for "active" head only, since this is
+        # mostly a dead extension, I did not alter this, not optimized the
+        # code much.
+        bheads = repo.branchmap().branchheads(branch)
         bheads = [head for head in bheads if len(repo[head].children()) == 0]
         if len(bheads) > 1:
             raise error.Abort(
@@ -134,7 +137,7 @@ def fetch(ui, repo, source=b'default', **opts):
             return 0
 
         # Is this a simple fast-forward along the current branch?
-        newheads = repo.branchheads(branch)
+        newheads = repo.branchmap().branchheads(branch)
         newchildren = repo.changelog.nodesbetween([parent], newheads)[2]
         if len(newheads) == 1 and len(newchildren):
             if newchildren[0] != parent:
