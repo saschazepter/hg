@@ -191,7 +191,7 @@ def _branchcachedesc(repo):
         return b'branch cache'
 
 
-class _BaseBranchCache(i_repo.IBranchMap):
+class _BaseBranchCache:
     """A dict like object that hold branches heads cache.
 
     This cache is used to avoid costly computations to determine all the
@@ -513,7 +513,7 @@ STATE_INHERITED = 2
 STATE_DIRTY = 3
 
 
-class _LocalBranchCache(_BaseBranchCache):
+class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     """base class of branch-map info for a local repo or repoview"""
 
     _base_filename = None
