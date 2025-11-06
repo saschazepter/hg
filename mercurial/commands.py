@@ -6754,8 +6754,10 @@ def summary(ui, repo, **opts):
         t += _(b' (merge)')
     elif branch != parents[0].branch():
         t += _(b' (new branch)')
-    elif parents[0].closesbranch() and pnode in repo.branchheads(
-        branch, closed=True
+    elif parents[0].closesbranch() and repo.branchmap().is_branch_head(
+        branch,
+        pnode,
+        closed=True,
     ):
         t += _(b' (head closed)')
     elif not (
