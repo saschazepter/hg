@@ -261,6 +261,14 @@ class _BaseBranchCache(i_repo.IBranchMap):
         Raise KeyError for unknown branch."""
         return self._branchtip(branch)[0]
 
+    def head_count(self, branch: bytes, closed=False) -> int:
+        """number of heads on a branch
+
+        return 0 for unknown branch"""
+        if branch not in self:
+            return 0
+        return len(self.branchheads(branch, closed=closed))
+
     def branchheads(self, branch, closed=False):
         heads = self._entries[branch]
         if not closed:

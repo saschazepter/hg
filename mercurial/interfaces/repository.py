@@ -2486,6 +2486,12 @@ class IBranchMap(IBaseBranchMap, Protocol):
         Raise KeyError for unknown branch."""
 
     @abc.abstractmethod
+    def head_count(self, branch: bytes, closed=False) -> int:
+        """number of heads on a branch
+
+        return 0 for unknown branch"""
+
+    @abc.abstractmethod
     def branches_info(
         self,
         repo: IRepo,
