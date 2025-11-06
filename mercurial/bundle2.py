@@ -169,12 +169,14 @@ from . import (
     error,
     obsolete,
     phases,
+    policy,
     pycompat,
     scmutil,
     streamclone,
     tables,
     tags,
     util,
+    vfs as vfsmod,
 )
 from .exchanges import (
     bundle_caps,
@@ -193,6 +195,9 @@ if typing.TYPE_CHECKING:
     from typing import (
         Iterator,
     )
+
+
+shape_mod = policy.importrust("shape")
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -1676,7 +1681,11 @@ def writenewbundle(
         caps[b'obsmarkers'] = (b'V1',)
     if stream_version := opts.get(b'stream', b""):
         return write_new_stream_bundle(
-            repo=repo, version=stream_version, filename=filename, vfs=vfs
+            repo=repo,
+            version=stream_version,
+            filename=filename,
+            vfs=vfs,
+            shape=opts.get(b"shape"),
         )
     else:
         bundle = bundle20(ui, caps)
@@ -1687,11 +1696,38 @@ def writenewbundle(
     return changegroup.writechunks(ui, chunkiter, filename, vfs=vfs)
 
 
-def write_new_stream_bundle(repo, version, filename, vfs):
+def write_new_stream_bundle(
+    repo: RepoT,
+    version: bytes,
+    filename: bytes,
+    vfs: vfsmod.vfs,
+    shape: bytes | None = None,
+):
     ui = repo.ui
 
+    matcher = None
+    fingerprint = None
+
+    if shape is not None:
+        if shape_mod is None:
+            raise error.ProgrammingError("shapes are a Rust-only feature")
+        shardset = shape_mod.get_shardset(repo.root)
+        shape_obj = shardset.shape(shape.decode())
+        if shape_obj is None:
+            raise error.InputError(b"unknown shape: '%s'" % shape)
+        # TODO it's likely we should just pass the repo root to the shape
+        # at creation time.
+        matcher = shape_obj.matcher(repo.root)
+        fingerprint = shape_obj.fingerprint()
+
     bundle = bundle20(ui, {b"stream": [version]})
-    addpartbundlestream2(bundle, repo, stream=True)
+    addpartbundlestream2(
+        bundle,
+        repo,
+        narrow_matcher=matcher,
+        stream=True,
+        store_fingerprint=fingerprint,
+    )
 
     return changegroup.writechunks(ui, bundle.getchunks(), filename, vfs=vfs)
 
@@ -1826,6 +1862,7 @@ def addpartbundlestream2(
     repo,
     narrow_matcher: MatcherT | None = None,
     stream: bool = False,
+    store_fingerprint: bytes | None = None,
     **kwargs,
 ):
     if not stream:
@@ -1888,6 +1925,11 @@ def addpartbundlestream2(
         part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
+        if store_fingerprint is not None:
+            # TODO make mandatory for stream-v3
+            part.addparam(
+                b'store-fingerprint', store_fingerprint, mandatory=False
+            )
     elif version == b"v3-exp":
         it = streamclone.generatev3(repo, narrow_matcher, includeobsmarkers)
         requirements = streamclone.streamed_requirements(repo)

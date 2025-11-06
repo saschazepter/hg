@@ -15,6 +15,7 @@ from .. import (
     discovery,
     error,
     logcmdutil,
+    policy,
     pycompat,
     scmutil,
 )
@@ -22,6 +23,9 @@ from ..repo import (
     factory as repo_factory,
 )
 from ..utils import urlutil
+
+
+shape_mod = policy.importrust("shape")
 
 
 def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
@@ -42,6 +46,23 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
             pycompat.bytestr(e),
             hint=_(b"see 'hg help bundlespec' for supported values for --type"),
         )
+
+    if bundlespec.params.get(b"shape") is not None:
+        if shape_mod is None:
+            raise error.InputError(
+                _(
+                    b"shape bundlespec option is only available"
+                    b" with the Rust extensions"
+                ),
+            )
+        # Give more a helpful error than a programming error later on
+        if bundlespec.params.get(b"stream") is None:
+            raise error.InputError(
+                _(
+                    b"shape bundlespec option is only implemented"
+                    b" for stream bundles"
+                ),
+            )
 
     has_changegroup = bundlespec.params.get(b"changegroup", False)
     cgversion = bundlespec.params[b"cg.version"]
