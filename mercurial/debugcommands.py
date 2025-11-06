@@ -3107,30 +3107,34 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
     """fetch a display a clone bundle manifest from a peer"""
     cmdutil.check_incompatible_arguments(opts, 'raw', ['stream'])
     target = repo_factory.peer(ui, {}, repopath)
-    ui.note(_(b'url: %s\n') % target.url())
-    if not target.capable(b'clonebundles'):
-        ui.error(_(b'clonebundles not supported by peer\n'))
-        return
-    with target.commandexecutor() as e:
-        res = e.callcommand(b'clonebundles', {}).result()
-    if opts['raw']:
-        ui.write(res)
-        if res[-1:] != b'\n':
-            ui.write(b'\n')
-    else:
-        entries = bundlecaches.parseclonebundlesmanifest(target, res)
-        entries = bundlecaches.filterclonebundleentries(
-            target, entries, streamclonerequested=opts['stream']
-        )
-        entries = bundlecaches.sortclonebundleentries(ui, entries)
-        for entry in entries:
-            ui.writenoi18n(b'  URL: %s\n' % (entry.get(b'URL', b''),))
-            for key, value in entry.items():
-                if key == b'URL':
-                    continue
-                if isinstance(value, list):
-                    value = b','.join(value)
-                ui.writenoi18n(b'    %s: %s\n' % (key, value))
+
+    try:
+        ui.note(_(b'url: %s\n') % target.url())
+        if not target.capable(b'clonebundles'):
+            ui.error(_(b'clonebundles not supported by peer\n'))
+            return
+        with target.commandexecutor() as e:
+            res = e.callcommand(b'clonebundles', {}).result()
+        if opts['raw']:
+            ui.write(res)
+            if res[-1:] != b'\n':
+                ui.write(b'\n')
+        else:
+            entries = bundlecaches.parseclonebundlesmanifest(target, res)
+            entries = bundlecaches.filterclonebundleentries(
+                target, entries, streamclonerequested=opts['stream']
+            )
+            entries = bundlecaches.sortclonebundleentries(ui, entries)
+            for entry in entries:
+                ui.writenoi18n(b'  URL: %s\n' % (entry.get(b'URL', b''),))
+                for key, value in entry.items():
+                    if key == b'URL':
+                        continue
+                    if isinstance(value, list):
+                        value = b','.join(value)
+                    ui.writenoi18n(b'    %s: %s\n' % (key, value))
+    finally:
+        target.close()
 
 
 @command(b'debugpushkey', [], _(b'REPO NAMESPACE [KEY OLD NEW]'), norepo=True)
