@@ -1190,11 +1190,9 @@ def head(repo: RepoT, subset, x):
     # i18n: "head" is a keyword
     getargs(x, 0, 0, _(b"head takes no arguments"))
     hs = set()
-    cl = repo.changelog
     bm = repo.branchmap()
     for bn in bm:
-        revs = (cl.rev(h) for h in bm.branchheads(bn, closed=True))
-        hs.update(revs)
+        hs.update(bm.branch_head_revs(bn, closed=True))
     return subset & baseset(hs)
 
 
