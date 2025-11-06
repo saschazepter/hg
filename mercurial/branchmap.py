@@ -529,13 +529,13 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         tiprev: int | None = nullrev,
         key_hashes: tuple[bytes] | None = None,
         closednodes: set[bytes] | None = None,
-        hasnode: Callable[[bytes], bool] | None = None,
         verify_node: bool = False,
         inherited: bool = False,
     ) -> None:
-        """hasnode is a function which can be used to verify whether changelog
-        has a given node or not. If it's not provided, we assume that every node
-        we have exists in changelog"""
+        """If verify_node is set to True,
+
+        the branchmap will check if the node it see exist in the current changelog
+        """
         self._filtername = repo.filtername
         if tipnode is None:
             self.tipnode = repo.nullid
@@ -559,7 +559,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         self._verify_node = verify_node
         # branches for which nodes are verified
         self._verifiedbranches = set()
-        self._hasnode = None
+        self._hasnode: Callable[[bytes], bool] | None = None
         if self._verify_node:
             self._hasnode = repo.changelog.hasnode
 
@@ -791,7 +791,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             repo.filtername,
         )
         cl = repo.changelog
-        if self._hasnode is not None:
+        if self._verify_node is not None:
             self._hasnode = cl.hasnode
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
