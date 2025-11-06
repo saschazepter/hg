@@ -1959,8 +1959,8 @@ def _docommit(ui, repo, *pats, **opts):
         head_change = cmdutil.future_head_change(repo, any_close)
 
     branch = repo[None].branch()
-    bheads = repo.branchheads(branch)
     tip = repo.changelog.tip()
+    p1 = repo[b'.'].node()
 
     extra = {}
     if any_close:
@@ -1974,10 +1974,7 @@ def _docommit(ui, repo, *pats, **opts):
                 repo[None], pats, pycompat.byteskwargs(opts)
             )
             s = repo.status(match=matcher)
-            wc_dirty = bool(s.modified or s.added or s.removed)
-            if wc_dirty:
-                bheads = repo.branchheads(branch, closed=True)
-            else:
+            if not (wc_dirty := bool(s.modified or s.added or s.removed)):
                 msg = _(b'current revision is already a branch closing head')
                 raise error.InputError(msg)
 
@@ -1987,7 +1984,7 @@ def _docommit(ui, repo, *pats, **opts):
             )
         elif (
             branch == repo[b'.'].branch()
-            and repo[b'.'].node() not in bheads
+            and not repo.branchmap().is_branch_head(branch, p1, closed=wc_dirty)
             and not opts.get('force_close_branch')
         ):
             hint = _(
