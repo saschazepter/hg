@@ -2410,10 +2410,6 @@ class IRepo(Protocol):
         """Obtain list of nodes that are DAG heads."""
 
     @abc.abstractmethod
-    def branchheads(self, branch=None, start=None, closed=False):
-        pass
-
-    @abc.abstractmethod
     def branches(self, nodes):
         pass
 

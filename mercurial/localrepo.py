@@ -3317,27 +3317,6 @@ class localrepository(_localrepo_base_classes):
         # sort the output in rev descending order
         return sorted(heads, key=self.changelog.rev, reverse=True)
 
-    def branchheads(self, branch=None, start=None, closed=False):
-        """return a (possibly filtered) list of heads for the given branch
-
-        Heads are returned in topological order, from newest to oldest.
-        If branch is None, use the dirstate branch.
-        If start is not None, return only heads reachable from start.
-        If closed is True, return heads that are marked as closed as well.
-        """
-        if branch is None:
-            branch = self[None].branch()
-        branches = self.branchmap()
-        if not branches.hasbranch(branch):
-            return []
-        # the cache returns heads ordered lowest to highest
-        bheads = list(reversed(branches.branchheads(branch, closed=closed)))
-        if start is not None:
-            # filter out the heads that cannot be reached from startrev
-            fbheads = set(self.changelog.nodesbetween([start], bheads)[2])
-            bheads = [h for h in bheads if h in fbheads]
-        return bheads
-
     def branches(self, nodes):
         if not nodes:
             nodes = [self.changelog.tip()]
