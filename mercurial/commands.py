@@ -6690,7 +6690,7 @@ def summary(ui, repo, **opts):
             )
 
     branch = ctx.branch()
-    bheads = repo.branchheads(branch)
+    bheads = repo.branchmap().branchheads(branch)
     # i18n: column positioning for "hg summary"
     m = _(b'branch: %s\n') % branch
     if branch != b'default':
