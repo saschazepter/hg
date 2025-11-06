@@ -130,7 +130,7 @@ pub const GENERALDELTA_REQUIREMENT: &str = "generaldelta";
 pub const DOTENCODE_REQUIREMENT: &str = "dotencode";
 pub const STORE_REQUIREMENT: &str = "store";
 pub const FNCACHE_REQUIREMENT: &str = "fncache";
-pub const FILEINDEX_V1_REQUIREMENT: &str = "exp-fileindex-v1";
+pub const FILEINDEX_V1_REQUIREMENT: &str = "fileindex-v1";
 pub const PLAIN_ENCODE_REQUIREMENT: &str =
     "exp-very-fragile-and-unsafe-plain-store-encoding";
 

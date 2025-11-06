@@ -12,7 +12,7 @@ Create a new repo with the file index
   $ hg init repo1 --config format.use-fileindex-v1=1
   $ cd repo1
   $ hg debugrequirements | grep -E 'fncache|dotencode|fileindex'
-  exp-fileindex-v1
+  fileindex-v1
   $ hg debugformat --verbose fncache dotencode fileindex
   format-variant                 repo config default
   fncache:                         no    yes     yes
@@ -542,7 +542,7 @@ Upgrade empty repo from fncache to fileindex
   requirements
      preserved: * (glob)
      removed: dotencode, fncache
-     added: exp-fileindex-v1
+     added: fileindex-v1
   
   fileindex-v1
      transactions that add files will be faster in large repos
@@ -568,7 +568,7 @@ You can't roll back the fast path upgrade
 
 Removing file index is not allowed if you aren't downgrading to fncache
   $ hg debugupgrade --config format.usefncache=0 --config format.use-fileindex-v1=0 --run
-  abort: cannot upgrade repository; requirement would be removed: exp-fileindex-v1
+  abort: cannot upgrade repository; requirement would be removed: fileindex-v1
   [255]
 
 Downgrade empty repo to fncache
@@ -581,7 +581,7 @@ Downgrade empty repo to fncache
   
   requirements
      preserved: * (glob)
-     removed: exp-fileindex-v1
+     removed: fileindex-v1
      added: dotencode, fncache
   
   fncache

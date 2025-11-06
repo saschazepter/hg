@@ -31,7 +31,7 @@ PLAIN_ENCODE_REQUIREMENT: Final[
 ] = b"exp-very-fragile-and-unsafe-plain-store-encoding"
 STORE_REQUIREMENT: Final[RequirementT] = b'store'
 FNCACHE_REQUIREMENT: Final[RequirementT] = b'fncache'
-FILEINDEXV1_REQUIREMENT: Final[RequirementT] = b'exp-fileindex-v1'
+FILEINDEXV1_REQUIREMENT: Final[RequirementT] = b'fileindex-v1'
 
 DIRSTATE_TRACKED_HINT_V1: Final[RequirementT] = b'dirstate-tracked-key-v1'
 DIRSTATE_V2_REQUIREMENT: Final[RequirementT] = b'dirstate-v2'

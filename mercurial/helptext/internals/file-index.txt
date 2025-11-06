@@ -26,7 +26,7 @@ The file index supersede the "fncache" feature, see the `Difference with
 FnCache` section for details. It is also currently incompatible with the
 experimental `tree manifest` feature.
 
-This feature is guarded by the `exp-fileindex-v1` requirement. See
+This feature is guarded by the `fileindex-v1` requirement. See
 :hg:`help internals.requirements` for details.
 
 High level design

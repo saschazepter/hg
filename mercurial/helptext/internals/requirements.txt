@@ -40,7 +40,7 @@ The *fncache* repository layout should be used.
 The *fncache* layout hash encodes filenames with long paths and
 encodes reserved filenames.
 
-The ``fncache`` and ``exp-fileindex-v1`` requirements cannot be used together
+The ``fncache`` and ``fileindex-v1`` requirements cannot be used together
 because they have the same purpose. The file index is a replacement for the
 fncache.
 
@@ -77,7 +77,7 @@ The *dotencode* repository layout should be used.
 The *dotencode* layout encodes the first period or space in filenames
 to prevent issues on OS X and Windows.
 
-The ``dotencode`` and ``exp-fileindex-v1`` requirements cannot be used together
+The ``dotencode`` and ``fileindex-v1`` requirements cannot be used together
 because dotencode is specific to the fncache, which the file index replaces.
 
 This requirement is enabled by default when the *store* requirement
@@ -122,7 +122,7 @@ treemanifest
 Denotes that tree manifests are being used. Tree manifests are
 one manifest per directory (as opposed to a single flat manifest).
 
-The ``treemanifest`` and ``exp-fileindex-v1`` requirements cannot be used
+The ``treemanifest`` and ``fileindex-v1`` requirements cannot be used
 together because tree manifests require storing ``meta/`` paths in the fncache,
 and the file index only supports ``data/`` paths.
 
@@ -182,8 +182,8 @@ February 2021). The requirement will only be present on repositories that have
 opted in to this format (by having ``format.use-share-safe=true`` set when
 they were created).
 
-exp-fileindex-v1
-================
+fileindex-v1
+============
 
 The *fileindex* repository layout should be used.
 
@@ -193,16 +193,15 @@ The *fileindex* layout stores all file paths in the repository in
 The *fileindex* layout uses the same encoding for filelog paths as the
 *dotencode* layout, which builds on the *fncache* layout. (In the future, the
 file index will store filelog paths as part of its data structure instead of
-using a fixed encoding. When this is done, the format will be frozen and this
-requirement will be renamed to ``fileindex-v1``.)
+using a fixed encoding. This will be done in a ``fileindex-v2`` requirement.)
 
-The ``exp-fileindex-v1`` requirement cannot be used with any of the following
+The ``fileindex-v1`` requirement cannot be used with any of the following
 requirements:
 
 * ``fncache``, because the file index replaces the fncache.
 * ``dotencode``, because dotencode is specific to the fncache.
 * ``treemanifest``, because the file index does not support ``meta/`` paths.
 
-.. TODO: Uncomment this once we know what release it will be in.
-.. Support for this requirement was added in Mercurial ??? (released ???). The
+.. TODO: Uncomment this once we know the release date.
+.. Support for this requirement was added in Mercurial 7.2 (released ???). The
 .. requirement is currently experimental and is disabled by default.
