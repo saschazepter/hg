@@ -64,6 +64,7 @@ import math
 import os
 import random
 import shutil
+import string
 import struct
 import sys
 import tempfile
@@ -2995,6 +2996,75 @@ def perf_file_index_read(ui, repo, **opts):
 
     timer(d)
     fm.end()
+
+
+@command(
+    b'perf::file-index-write',
+    formatteropts
+    + [
+        (b'', b'count', 1, b'number of paths to write'),
+        (b'', b'seed', 0, b'seed for generating random paths'),
+    ],
+)
+def perf_file_index_write(ui, repo, **opts):
+    """benchmark writing paths to the file index"""
+    from mercurial.interfaces import file_index
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+    random.seed(opts[b'seed'])
+
+    with repo.lock():
+        # Ensure we don't include vacuuming in the measurement.
+        svfs = getsvfs(repo)
+        svfs.options[b'fileindex-vacuum-mode'] = file_index.VacuumMode.NEVER
+        fileindex = repo.store.fileindex
+
+        if len(fileindex) == 0:
+            msg = b'benchmark requires nonempty file index'
+            raise error.CommandError(b'perf::file-index-write', msg)
+
+        paths = set()
+        paths_and_tokens = []
+        ascii_letters = string.ascii_letters.encode('ascii')
+        count = opts[b'count']
+        for i in range(count):
+            token = random.randrange(len(fileindex))
+            existing = fileindex.get_path(token)
+            prefix = existing[: random.randrange(len(existing))]
+            while True:
+                k = random.randrange(1, 20)
+                suffix = bytes(random.choices(ascii_letters, k=k))
+                path = prefix + suffix
+                if path not in fileindex and path not in paths:
+                    break
+            paths.add(path)
+            paths_and_tokens.append((path, len(fileindex) + i))
+
+        paths_str = b''.join(b'\t%s\n' % path for path, _ in paths_and_tokens)
+        ui.notenoi18n(b'adding %d path(s):\n%s' % (count, paths_str))
+
+        def s():
+            nonlocal fileindex
+            # Reload the file index from the non-pending docket to revert the
+            # change. The new paths will still be in the data files, but past
+            # their "used size", so we'll overwrite the same region every time.
+            repo.store.invalidatecaches(clearfilecache=True)
+            fileindex = repo.store.fileindex
+
+        def d():
+            for path, token in paths_and_tokens:
+                if fileindex.add(path, tr) != token:
+                    raise error.ProgrammingError(b'unexpected token')
+            if not tr.writepending():
+                raise error.ProgrammingError(b'add should write')
+
+        tr = repo.transaction(b'perf::file-index-write')
+        try:
+            timer(d, setup=s)
+        finally:
+            tr.abort()
+        fm.end()
 
 
 def _bdiffworker(q, blocks, xdiff, ready, done):

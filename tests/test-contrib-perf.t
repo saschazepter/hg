@@ -131,6 +131,8 @@ perfstatus
                  path
    perf::file-index-read
                  benchmark looking up paths in the file index tree
+   perf::file-index-write
+                 benchmark writing paths to the file index
    perf::fncacheencode
                  (no help text available)
    perf::fncacheload
@@ -271,6 +273,7 @@ Temporarily upgrade to file index to test file index commands
   looking up 1 out of 1 paths (random order)
   $ hg perf::file-index-read --count 100% --order sorted
   looking up 1 out of 1 paths (sorted order)
+  $ hg perf::file-index-write --count 1 --seed 0
   $ hg debugupgrade --no-backup --run > /dev/null
 
   $ hg perfheads
