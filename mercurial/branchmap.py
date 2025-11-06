@@ -216,6 +216,7 @@ class _BaseBranchCache(i_repo.IBranchMap):
             closed_nodes = set()
         self._closednodes = set(closed_nodes)
         self._entries = dict(entries)
+        self._open_entries: dict[bytes, list[NodeIdT]] = {}
         self._nullid = repo.nullid
 
     def __iter__(self):
@@ -256,7 +257,12 @@ class _BaseBranchCache(i_repo.IBranchMap):
     def branchheads(self, branch, closed=False):
         heads = self._entries[branch]
         if not closed:
-            heads = [n for n in heads if n not in self._closednodes]
+            open_heads = self._open_entries.get(branch)
+            if open_heads is not None:
+                heads = open_heads
+            else:
+                heads = [n for n in heads if n not in self._closednodes]
+                self._open_entries[branch] = heads
         return heads
 
     def branches_info(
@@ -307,6 +313,8 @@ class _BaseBranchCache(i_repo.IBranchMap):
         missing heads, and a generator of nodes that are strictly a superset of
         heads missing, this function updates self to be correct.
         """
+        # clear various caches as we are updating the state
+        self._open_entries.clear()
         if '_all_head_nodes' in vars(self):
             del self._all_head_nodes
         starttime = util.timer()
