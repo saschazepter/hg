@@ -4072,7 +4072,7 @@ def hgabortgraft(ui, repo):
         return abortgraft(ui, repo, graftstate)
 
 
-def postincoming(ui, repo, modheads, optupdate, checkout, brev):
+def postincoming(ui, repo: RepoT, modheads, optupdate, checkout, brev):
     """Run after a changegroup has been added via pull/unbundle
 
     This takes arguments below:
@@ -4096,7 +4096,8 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
     if ui.quiet:
         pass  # we won't report anything so the other clause are useless.
     elif modheads is not None and modheads > 1:
-        currentbranchheads = len(repo.branchheads())
+        current_branch = repo[None].branch()
+        currentbranchheads = repo.branchmap().head_count(current_branch)
         if currentbranchheads == modheads:
             ui.status(
                 _(b"(run 'hg heads' to see heads, 'hg merge' to merge)\n")
