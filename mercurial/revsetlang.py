@@ -887,7 +887,8 @@ def _parseargs(expr, args):
             try:
                 ret.append((None, _formatargtype(d, arg)))
             except (TypeError, ValueError):
-                raise error.ParseError(_(b'invalid argument for revspec'))
+                msg = _(b"invalid argument for revspec: %%%s != %r") % (d, arg)
+                raise error.ParseError(msg)
         pos += 1
 
     try:
