@@ -148,6 +148,34 @@ Prepare inline bundles
   > peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=$bundlespec2
   > EOF
 
+Check the resulting manifest
+----------------------------
+
+Define the special set of files included in all shapes.
+  $ hgfiles="--include=.hgignore --include=.hgtags --include=.hgsub --include=.hgsubstate"
+
+
+The raw manifest looks OK
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --raw
+  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;stream=v2;requirements*;store-fingerprint=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
+
+Passing in no includes or excludes shows that all entries are filtered out due to their fingerprints
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep 'correct store fingerprint'
+  filtering peer-bundle-cache://outfile-shape-foobar.hg because not the correct store fingerprint (expected feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
+  filtering peer-bundle-cache://outfile-shape-foobaz.hg because not the correct store fingerprint (expected bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e)
+
+Passing a pattern that matches nothing filters all entries
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=no_match
+
+Passing a matching pattern works
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles
+    URL: peer-bundle-cache://outfile-shape-foobar.hg
+      BUNDLESPEC: none-v2;stream=v2;requirements=*;store-fingerprint=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+      COMPRESSION: none
+      VERSION: v2
+      STORE-FINGERPRINT: feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
+
 Non-streaming, non-narrow cloning
 ---------------------------------
 
@@ -188,9 +216,6 @@ Narrow + stream cloning
 
 The right fingerprint should be derived from the narrow patterns, selecting
 the correct narrow stream clone bundle
-
-Define the special set of files included in all shapes.
-  $ hgfiles="--include=.hgignore --include=.hgtags --include=.hgsub --include=.hgsubstate"
 
 First with a pure Python client
 
