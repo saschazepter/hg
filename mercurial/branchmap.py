@@ -277,14 +277,6 @@ class _BaseBranchCache:
         heads = self.branchheads(branch, closed=closed)
         return repo.revs(b'max(%d::(%ln))', start, heads).first()
 
-    def head_count(self, branch: bytes, closed=False) -> int:
-        """number of heads on a branch
-
-        return 0 for unknown branch"""
-        if branch not in self:
-            return 0
-        return len(self.branchheads(branch, closed=closed))
-
     def is_branch_head(
         self,
         branch: bytes,
@@ -739,6 +731,14 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     def __contains__(self, key):
         self._verifybranch(key)
         return super().__contains__(key)
+
+    def head_count(self, branch: bytes, closed=False) -> int:
+        """number of heads on a branch
+
+        return 0 for unknown branch"""
+        if branch not in self:
+            return 0
+        return len(self.branchheads(branch, closed=closed))
 
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         self._verifyall()
