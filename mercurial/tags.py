@@ -925,8 +925,8 @@ class hgtagsfnodescache:
         # trigger full read with garanteed result.
         #
         # With fast delta computation we force a correct reading whenever we
-        # encounter a snapshot to help steering things toward a correct start
-        # from time to time.
+        # encounter a full snapshot to help steering things toward a correct
+        # start from time to time.
         #
         # As the delta chain construction keep being optimized, it means we
         # will not use delta as often as we could.
@@ -942,7 +942,7 @@ class hgtagsfnodescache:
                 else:
                     # No delta and .hgtags file on this revision.
                     fnode = self._repo.nullid
-        elif base_values and has_fast_delta and not rl.issnapshot(m_rev):
+        elif base_values and has_fast_delta and deltaparent != nullrev:
             parents = [
                 p
                 for p in rl.parentrevs(m_rev)
