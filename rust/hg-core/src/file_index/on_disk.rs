@@ -38,6 +38,7 @@ pub enum Error {
     TreeFileOutOfBounds,
     TreeFileEof,
     BadRootNode,
+    BadLeafLabel,
 }
 
 impl std::fmt::Display for Error {
@@ -72,6 +73,9 @@ impl std::fmt::Display for Error {
             }
             Error::BadRootNode => {
                 write!(f, "invalid root node in tree")
+            }
+            Error::BadLeafLabel => {
+                write!(f, "invalid label for leaf node")
             }
         }
     }
@@ -383,7 +387,7 @@ pub(super) struct TreeNode<'on_disk> {
     /// First character of each child label. These are all distinct.
     pub(super) child_chars: &'on_disk [u8],
     /// Pointers to this node's children.
-    pub(super) child_ptrs: &'on_disk [NodePointerBe],
+    pub(super) child_ptrs: &'on_disk [TaggedNodePointer],
 }
 
 impl TreeNode<'_> {
@@ -430,8 +434,43 @@ impl TreeNodeHeader {
 
 /// Pseudo-pointer to a node in the tree file.
 pub(super) type NodePointer = u32;
-/// Big-endian version of [`NodePointer`].
-pub(super) type NodePointerBe = U32Be;
+
+/// A node pointer where the high bit acts as a tag.
+/// When the bit is 0, it is just a pointer.
+/// When the bit is 1, it directly stores a [`FileToken`] instead.
+#[derive(Debug, BytesCast, Copy, Clone)]
+#[repr(transparent)]
+pub(super) struct TaggedNodePointer(U32Be);
+
+/// Expanded version of [`TaggedNodePointer`].
+#[derive(Debug, Copy, Clone)]
+pub(super) enum PointerOrToken {
+    Pointer(NodePointer),
+    Token(FileToken),
+}
+
+impl TaggedNodePointer {
+    pub(super) fn unpack(self) -> PointerOrToken {
+        let value = self.0.get();
+        let mask = 1 << 31;
+        if value & mask == 0 {
+            PointerOrToken::Pointer(value)
+        } else {
+            PointerOrToken::Token(FileToken(value & !mask))
+        }
+    }
+}
+
+impl PointerOrToken {
+    pub(super) fn pack(self) -> TaggedNodePointer {
+        let mask = 1 << 31;
+        let value = match self {
+            PointerOrToken::Pointer(ptr) => ptr,
+            PointerOrToken::Token(token) => mask | token.0,
+        };
+        TaggedNodePointer(value.into())
+    }
+}
 
 /// The position of a node's label within the file path. This is never stored
 /// explicitly, but calculated by adding up the [`TreeNode::label_length`]
@@ -584,9 +623,9 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let mut position: LabelPosition = 0;
         while let Some(index) = node.find_child(path[position]) {
             let ptr = node.child_ptrs.get(index).ok_or(Error::TreeFileEof)?;
-            let child_node = self.read_node(ptr.get())?;
-            let metadata = self.read_metadata(child_node.token)?;
-            let span = Self::label_span(&child_node, metadata, position);
+            let (child_node, metadata) =
+                self.read_node_metadata(*ptr, position)?;
+            let span = Self::label_span(child_node, metadata, position);
             let label = self.read_span(span)?;
             if !path[position..].starts_with(label) {
                 break;
@@ -634,26 +673,18 @@ impl<'on_disk> FileIndexView<'on_disk> {
             .ok_or(Error::ListFileOutOfBounds)
     }
 
-    /// Reads a [`TreeNode`]'s label from the meta file, given the current
-    /// path position (sum of label lengths of the node's ancestors).
-    pub(super) fn read_label(
-        &self,
-        node: &TreeNode,
-        position: LabelPosition,
-    ) -> Result<Span, Error> {
-        debug_assert!(node.token.is_valid());
-        let metadata = self.read_metadata(node.token)?;
-        Ok(Self::label_span(node, metadata, position))
-    }
-
     /// Reads a [`Metadata`] entry from the meta file by token.
-    fn read_metadata(&self, token: FileToken) -> Result<&Metadata, Error> {
+    pub(super) fn read_metadata(
+        &self,
+        token: FileToken,
+    ) -> Result<&'on_disk Metadata, Error> {
+        debug_assert!(token.is_valid());
         self.meta_array.get(u32_u(token.0)).ok_or(Error::MetaFileOutOfBounds)
     }
 
     /// Constructs a label [`Span`] for a node given its metadata and position.
-    fn label_span(
-        node: &TreeNode,
+    pub(super) fn label_span(
+        node: TreeNode<'_>,
         metadata: &Metadata,
         position: LabelPosition,
     ) -> Span {
@@ -671,6 +702,39 @@ impl<'on_disk> FileIndexView<'on_disk> {
         Self::read_node_from(self.tree_file, ptr)
     }
 
+    /// Reads [`TreeNode`] and [`Metadata`] for a tagged pointer.
+    fn read_node_metadata(
+        &self,
+        ptr: TaggedNodePointer,
+        position: LabelPosition,
+    ) -> Result<(TreeNode<'on_disk>, &'on_disk Metadata), Error> {
+        match ptr.unpack() {
+            PointerOrToken::Pointer(ptr) => {
+                let node = self.read_node(ptr)?;
+                let metadata = self.read_metadata(node.token)?;
+                Ok((node, metadata))
+            }
+            PointerOrToken::Token(token) => {
+                self.read_leaf_node(token, position)
+            }
+        }
+    }
+
+    /// Reads a leaf node by token.
+    pub(super) fn read_leaf_node(
+        &self,
+        token: FileToken,
+        position: LabelPosition,
+    ) -> Result<(TreeNode<'on_disk>, &'on_disk Metadata), Error> {
+        let metadata = self.read_metadata(token)?;
+        let label_length = metadata.length.get() - u_u16(position);
+        let label_length: u8 =
+            label_length.try_into().or(Err(Error::BadLeafLabel))?;
+        let node =
+            TreeNode { token, label_length, child_chars: &[], child_ptrs: &[] };
+        Ok((node, metadata))
+    }
+
     /// Helper for reading a [`TreeNode`] before constructing an instance.
     fn read_node_from(
         tree_file: &'on_disk [u8],
@@ -683,9 +747,11 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let (child_chars, rest) = rest
             .split_at_checked(header.num_children as usize)
             .ok_or(Error::TreeFileEof)?;
-        let (child_ptrs, _rest) =
-            NodePointerBe::slice_from_bytes(rest, header.num_children as usize)
-                .or(Err(Error::TreeFileEof))?;
+        let (child_ptrs, _rest) = TaggedNodePointer::slice_from_bytes(
+            rest,
+            header.num_children as usize,
+        )
+        .or(Err(Error::TreeFileEof))?;
         Ok(TreeNode {
             token: FileToken(header.token.get()),
             label_length: header.label_length,
@@ -716,7 +782,14 @@ pub struct DebugTreeNode<'on_disk> {
     pub token: FileToken,
     pub label: &'on_disk [u8],
     // Use `&[u8; 1]` instead of `u8` to simplify PyO3 conversion.
-    pub children: Vec<(&'on_disk [u8; 1], NodePointer)>,
+    pub children: Vec<(&'on_disk [u8; 1], DebugTreeChild<'on_disk>)>,
+}
+
+/// A debug representation of a file index tree node child.
+#[derive(Copy, Clone)]
+pub enum DebugTreeChild<'on_disk> {
+    Pointer(NodePointer),
+    Leaf(&'on_disk [u8], FileToken),
 }
 
 impl<'on_disk> Iterator for DebugTreeNodeIter<'on_disk> {
@@ -739,16 +812,34 @@ impl<'on_disk> DebugTreeNodeIter<'on_disk> {
         let label = if token == FileToken::root() {
             b""
         } else {
-            self.inner.read_span(self.inner.read_label(&node, position)?)?
+            let metadata = self.inner.read_metadata(token)?;
+            let span = FileIndexView::label_span(node, metadata, position);
+            self.inner.read_span(span)?
         };
+        let position = position + node.label_length as usize;
         let mut children = Vec::with_capacity(node.child_chars.len());
-        for (char, ptr) in node.child_chars.iter().zip(node.child_ptrs) {
-            children.push((std::array::from_ref(char), ptr.get()));
+        for (char, &ptr) in node.child_chars.iter().zip(node.child_ptrs) {
+            let child = match ptr.unpack() {
+                PointerOrToken::Pointer(ptr) => DebugTreeChild::Pointer(ptr),
+                PointerOrToken::Token(token) => {
+                    let (node, metadata) =
+                        self.inner.read_leaf_node(token, position)?;
+                    let span =
+                        FileIndexView::label_span(node, metadata, position);
+                    let label = self.inner.read_span(span)?;
+                    DebugTreeChild::Leaf(label, token)
+                }
+            };
+            children.push((std::array::from_ref(char), child));
         }
-        let child_position = position + node.label_length as usize;
         // Push to stack in reverse order to match Python which uses recursion.
-        for ptr in node.child_ptrs.iter().rev() {
-            self.stack.push((ptr.get(), child_position));
+        for &ptr in node.child_ptrs.iter().rev() {
+            match ptr.unpack() {
+                PointerOrToken::Pointer(ptr) => {
+                    self.stack.push((ptr, position));
+                }
+                PointerOrToken::Token(_) => {}
+            }
         }
         Ok(DebugTreeNode { pointer, token, label, children })
     }

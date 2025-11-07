@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+use hg::file_index::DebugTreeChild;
 use hg::file_index::DebugTreeNode;
 use hg::file_index::DebugTreeNodeIter;
 use hg::file_index::FileIndex;
@@ -395,6 +396,20 @@ fn convert_debug_tree_node_iter_item(
 ) -> PyResult<Option<Py<PyTuple>>> {
     let DebugTreeNode { pointer, token, label, children } =
         item.map_err(file_index_error)?;
+    let children = children
+        .into_iter()
+        .map(|(char, child)| -> Result<(&[u8; 1], Bound<PyAny>), PyErr> {
+            let rhs = match child {
+                DebugTreeChild::Pointer(ptr) => {
+                    ptr.into_pyobject(py)?.into_any()
+                }
+                DebugTreeChild::Leaf(label, token) => {
+                    (label, token.0).into_pyobject(py)?.into_any()
+                }
+            };
+            Ok((char, rhs))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(Some((pointer, token.0, label, children).into_pyobject(py)?.unbind()))
 }
 

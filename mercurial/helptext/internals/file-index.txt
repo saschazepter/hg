@@ -361,5 +361,11 @@ The header is followed by two arrays:
   As explained above, these characters are all distinct.
 
 * Next offset (6 + number of children):
-  For each child, a pseudo-pointer to the child node, counting in bytes from the
-  start of the tree file, as a 32-bit big-endian integer.
+  For each child, a 32-bit big-endian integer value.
+
+  If the high bit is 0, then the value is a pseudo-pointer to the child node,
+  counting in bytes from the start of the tree file.
+
+  If the high bit is 1, then the child is a leaf node and the remaining 31 bits
+  are its token. Its label length is implicit: the label extends to the end of
+  the file path associated with the token.

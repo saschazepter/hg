@@ -506,8 +506,13 @@ def debug_file_index(ui, repo, **opts):
     elif choice == b"tree":
         for ptr, token, label, children in fileindex.debug_iter_tree_nodes():
             ui.write(b"%08x: \"%s\" (%d)\n" % (ptr, label, token))
-            for char, ptr in children:
-                ui.write(b'    "%s" -> %08x\n' % (char, ptr))
+            for char, child in children:
+                if isinstance(child, tuple):
+                    label, token = child
+                    rhs = b'"%s" (%d)' % (label, token)
+                else:
+                    rhs = b"%08x" % child
+                ui.write(b'    "%s" -> %s\n' % (char, rhs))
     elif choice == b"path":
         path = opts[choice]
         token = fileindex.get_token(path)

@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use bytes_cast::BytesCast;
 use indexmap::IndexSet;
 use mutable_tree::MutableTree;
+pub use on_disk::DebugTreeChild;
 pub use on_disk::DebugTreeNode;
 pub use on_disk::DebugTreeNodeIter;
 pub use on_disk::Docket;
@@ -435,7 +436,7 @@ impl FileIndex {
         let files = VfsDataFiles { list_file, meta_file, tree_file };
         if removing {
             assert!(add_paths.is_empty(), "cannot add and remove in same txn");
-            let tree = MutableTree::empty(on_disk.len() - remove_tokens.len());
+            let tree = MutableTree::empty(on_disk.len() - remove_tokens.len())?;
             let add_paths = on_disk.iter().filter_map(|result| match result {
                 Ok((_, token)) if remove_tokens.contains(&token) => None,
                 Ok((info, _)) => Some(Ok(info.path())),
@@ -444,14 +445,14 @@ impl FileIndex {
             return Self::write_data_impl(docket, tree, add_paths, files);
         }
         let tree = if vacuum {
-            let mut tree = MutableTree::empty(on_disk.len() + add_paths.len());
+            let mut tree = MutableTree::empty(on_disk.len() + add_paths.len())?;
             for (i, info) in on_disk.meta_array.iter().enumerate() {
                 let path = HgPath::new(on_disk.read_span(info.path())?);
                 tree.insert(path, FileToken(u_u32(i)))?;
             }
             tree
         } else {
-            MutableTree::with_base(*on_disk, add_paths.len())
+            MutableTree::with_base(*on_disk, add_paths.len())?
         };
         let add_paths = add_paths.iter().map(|path| Ok(path.deref()));
         Self::write_data_impl(docket, tree, add_paths, files)

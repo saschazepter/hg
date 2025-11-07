@@ -35,7 +35,10 @@ if typing.TYPE_CHECKING:
     DebugTreeLabel = bytes
     """A debug representation of a file index node's label."""
 
-    DebugTreeChild = tuple[bytes, DebugTreePointer]
+    DebugTreeLeaf = tuple[DebugTreeLabel, FileTokenT]
+    """A debug representation of a file index tree leaf node."""
+
+    DebugTreeChild = tuple[bytes, DebugTreePointer | DebugTreeLeaf]
     """A debug representation of a file index tree child as (char, pointer)."""
 
     DebugTreeNode = tuple[
