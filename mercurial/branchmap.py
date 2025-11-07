@@ -637,6 +637,20 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
                 fp.write(b"%s %s %s\n" % (hex(node), state, label))
         return nodecount
 
+    def _populate_pure_topo_nodes(self):
+        """Make sure the "pure-topo" branch have its nodes in self._entries"""
+        branch = self._pure_topo_branch
+        if (
+            branch is None
+            or branch in self._entries
+            or branch not in self._head_revs
+        ):
+            return
+        to_node = self._rev_to_node
+        heads = [to_node(r) for r in self._head_revs[branch]]
+        self._entries[branch] = heads
+        self._open_entries[branch] = heads
+
     def _verifybranch(self, branch):
         """verify head nodes for the given branch."""
         if not self._verify_node:
@@ -720,8 +734,22 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             return False
         return node in self.branchheads(branch, closed=closed)
 
+    def __iter__(self):
+        # The "pure-topo" branch migh bot have entry in self._entries, so we
+        # need to yield it manually.
+        #
+        # However, the branchmap might change during the iteration, so check
+        # that before starting iteration.
+        all_branches = list(self._entries.keys())
+        if self._pure_topo_branch is not None:
+            branch = self._pure_topo_branch
+            if branch not in self._entries and branch in self:
+                all_branches.append(branch)
+        yield from all_branches
+
     def __contains__(self, key):
-        if self._pure_topo_branch == key:
+        branch = self._pure_topo_branch
+        if branch == key and branch in self._head_revs:
             return True
         self._verifybranch(key)
         return super().__contains__(key)
@@ -746,6 +774,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
     @util.propertycache
     def _all_head_nodes(self) -> set[NodeIdT]:
+        self._populate_pure_topo_nodes()
         heads = set()
         for hs in self._entries.values():
             heads.update(hs)
@@ -767,6 +796,8 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             return label in self._entries
 
     def branchheads(self, branch, closed=False):
+        if self._pure_topo_branch == branch:
+            self._populate_pure_topo_nodes()
         self._verifybranch(branch)
         return super().branchheads(branch, closed=closed)
 
@@ -797,6 +828,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         """get a revision list for a branch"""
         revs = self._head_revs.get(branch)
         if revs is None:
+            assert self._pure_topo_branch != branch
             to_rev = self._node_to_rev
             # NOTE: now might also be a good time to fill _open_head_revs
             revs = [to_rev(n) for n in self._entries[branch]]
@@ -816,6 +848,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         info = []
         cl = repo.changelog
         all_heads = set(repo.heads())
+        self._populate_pure_topo_nodes()
         for name, heads in self._entries.items():
             if branches is not None and name not in branches:
                 continue
@@ -1173,6 +1206,7 @@ class BranchCacheV3(_LocalBranchCache):
             return
 
         self._ensure_populated(repo)
+        self._populate_pure_topo_nodes()
         self._pure_topo_branch = None
         super()._process_new(
             repo,
@@ -1186,8 +1220,6 @@ class BranchCacheV3(_LocalBranchCache):
         """make sure any lazily loaded values are fully populated"""
         if self._needs_populate:
             assert self._pure_topo_branch is not None
-            cl = repo.changelog
-            to_node = cl.node
             # There are various question we could answer without the full list
             # of heads, so we could delay that computation until requested,
             # however There are other simpler optimization to do first.
@@ -1196,9 +1228,6 @@ class BranchCacheV3(_LocalBranchCache):
             topo_heads = self._get_topo_heads(repo)
             self._head_revs[self._pure_topo_branch] = topo_heads
             self._open_head_revs[self._pure_topo_branch] = topo_heads
-            heads = [to_node(r) for r in topo_heads]
-            self._entries[self._pure_topo_branch] = heads
-            self._open_entries[self._pure_topo_branch] = heads
             self._verifiedbranches.add(self._pure_topo_branch)
             self._needs_populate = False
 
