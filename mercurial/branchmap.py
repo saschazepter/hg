@@ -756,6 +756,8 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
         If open_only is set, ignore closed branch
         """
+        if self._pure_topo_branch == label:
+            return True
         self._verifybranch(label)
         if open_only:
             if label not in self._entries:
