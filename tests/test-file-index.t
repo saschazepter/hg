@@ -1,8 +1,3 @@
-TODO: Re-enable when the inline leaf format is implemented in Python.
-#if no-rust
-  $ exit 80
-#endif
-
 #if no-rust
   $ cat << EOF >> $HGRCPATH
   > [storage]
@@ -646,8 +641,7 @@ Finally, upgrade back to fileindex
 Test compatiblity of Python and Rust implementations
 ----------------------------------------------------
 
-TODO: Re-enable when the inline leaf format is implemented in Python.
-#if rust false
+#if rust
 
   $ hg init repocompat --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repocompat
@@ -666,7 +660,7 @@ Add files with Python, read with Rust
   list_file_size: 6
   reserved_revlog_size: 0
   meta_file_size: 8
-  tree_file_size: 17
+  tree_file_size: 11
   list_file_id: * (glob)
   reserved_revlog_id: 00000000
   meta_file_id: * (glob)
@@ -678,12 +672,11 @@ Add files with Python, read with Rust
   garbage_entries: 0
   $ hg debug::file-index --tree
   00000000: "" (4294967295)
-      "f" -> 0000000b
-  0000000b: "file0" (0)
+      "f" -> "file0" (0)
 
 Vacuum with Python, GC with Rust
   $ HGMODULEPOLICY=py hg debug::file-index --vacuum
-  vacuumed tree: 17 bytes => 17 bytes (saved 0.0%)
+  vacuumed tree: 11 bytes => 11 bytes (saved 0.0%)
   $ hg debug::file-index --docket -T '{garbage_entries % "{path}\n"}'
   fileindex-tree.* (glob)
   $ ls .hg/store/fileindex-tree.*
@@ -704,28 +697,26 @@ Add files with Rust, read with Python
   list_file_size: 12
   reserved_revlog_size: 0
   meta_file_size: 16
-  tree_file_size: 56
+  tree_file_size: 38
   list_file_id: * (glob)
   reserved_revlog_id: 00000000
   meta_file_id: * (glob)
   tree_file_id: * (glob)
-  tree_root_pointer: 17
-  tree_unused_bytes: 17
+  tree_root_pointer: 11
+  tree_unused_bytes: 11
   reserved_revlog_unused: 0
   reserved_flags: 0
   garbage_entries: 0
   $ HGMODULEPOLICY=py hg debug::file-index --tree
-  00000011: "" (4294967295)
-      "f" -> 0000001c
-  0000001c: "file" (1)
-      "0" -> 00000032
-      "1" -> 0000002c
-  00000032: "0" (0)
-  0000002c: "1" (1)
+  0000000b: "" (4294967295)
+      "f" -> 00000016
+  00000016: "file" (1)
+      "0" -> "0" (0)
+      "1" -> "1" (1)
 
 Vacuum with Rust, GC with Python
   $ hg debug::file-index --vacuum
-  vacuumed tree: 56 bytes => 39 bytes (saved 30.4%)
+  vacuumed tree: 38 bytes => 27 bytes (saved 28.9%)
   $ HGMODULEPOLICY=py hg debug::file-index --docket -T '{garbage_entries % "{path}\n"}'
   fileindex-tree.* (glob)
   $ ls .hg/store/fileindex-tree.*

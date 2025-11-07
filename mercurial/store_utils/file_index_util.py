@@ -273,6 +273,43 @@ POINTER_STRUCT = struct.Struct(">I")
 
 
 @attr.s(slots=True)
+class PointerOrToken:
+    """Either a node pointer or a file token."""
+
+    MASK = 1 << 31
+    STRUCT = struct.Struct(">I")
+
+    value = attr.ib(type=int)
+
+    @classmethod
+    def iter_parse(cls, data: memoryview) -> Iterator[PointerOrToken]:
+        # iter_unpack checks it's a multiple, even though we're not reading all.
+        end = len(data) - len(data) % cls.STRUCT.size
+        return (cls(*fields) for fields in cls.STRUCT.iter_unpack(data[:end]))
+
+    def serialize(self) -> bytes:
+        return self.STRUCT.pack(*attr.astuple(self))
+
+    @classmethod
+    def pointer(cls, pointer: NodePointerT) -> PointerOrToken:
+        return cls(pointer)
+
+    @classmethod
+    def token(cls, token: FileTokenT) -> PointerOrToken:
+        return cls(cls.MASK | token)
+
+    def get_pointer(self) -> NodePointerT | None:
+        if self.value & self.MASK == 0:
+            return NodePointerT(self.value)
+        return None
+
+    def get_token(self) -> FileTokenT | None:
+        if self.value & self.MASK != 0:
+            return FileTokenT(self.value & ~self.MASK)
+        return None
+
+
+@attr.s(slots=True)
 class TreeNode:
     """A node parsed from the tree file.
 
@@ -288,8 +325,8 @@ class TreeNode:
     label_length = attr.ib(type=int)
     # First character of each child label. These are all distinct.
     child_chars = attr.ib(type=bytes)
-    # Pointers to this node's children.
-    child_ptrs = attr.ib(type=list[int])
+    # Pointers to this node's children, or tokens for the leaves.
+    child_ptrs = attr.ib(type=list[PointerOrToken])
 
     @classmethod
     def empty_root(cls) -> TreeNode:
@@ -305,11 +342,11 @@ class TreeNode:
         n = header.num_children
         child_chars, rest = bytes(rest[:n]), rest[n:]
         rest = rest[: n * POINTER_STRUCT.size]
-        child_ptrs = [ptr for (ptr,) in POINTER_STRUCT.iter_unpack(rest)]
+        child_ptrs = list(PointerOrToken.iter_parse(rest))
         return cls(header.token, header.label_length, child_chars, child_ptrs)
 
-    def find_child(self, char: int) -> int | None:
-        """Return the child pointer whose label starts with char."""
+    def find_child(self, char: int) -> PointerOrToken | None:
+        """Return the child pointer or token whose label starts with char."""
         try:
             index = self.child_chars.index(char)
         except ValueError:
@@ -381,11 +418,10 @@ class FileIndexView:
         """Look up a token on disk by path."""
         if not path:
             return None
-        tree_file = self.tree_file
         node = self.root
         position = 0
-        while (ptr := node.find_child(path[position])) is not None:
-            child_node = TreeNode.parse_from(tree_file[ptr:])
+        while (child := node.find_child(path[position])) is not None:
+            child_node = self._read_node(child, position)
             label = self._read_label(child_node, position)
             if not path[position:].startswith(label):
                 break
@@ -410,6 +446,24 @@ class FileIndexView:
         metadata = self.meta_array[node.token]
         return self._read_span(metadata.offset + position, node.label_length)
 
+    def _read_node(
+        self, child: PointerOrToken, position: LabelPositionT
+    ) -> TreeNode:
+        """Read a node from a pointer or token."""
+        if (ptr := child.get_pointer()) is not None:
+            return TreeNode.parse_from(self.tree_file[ptr:])
+        if (token := child.get_token()) is not None:
+            return self._read_leaf_node(token, position)
+        raise error.ProgrammingError(b"invalid PointerOrToken")
+
+    def _read_leaf_node(
+        self, token: FileTokenT, position: LabelPositionT
+    ) -> TreeNode:
+        """Read a leaf node by token."""
+        meta = self.meta_array[token]
+        label_length = meta.length - position
+        return TreeNode(token, label_length, b"", [])
+
     def debug_iter_tree_nodes(self) -> Iterator[int_file_index.DebugTreeNode]:
         tree = self.tree_file
 
@@ -419,14 +473,23 @@ class FileIndexView:
                 label = b""
             else:
                 label = bytes(self._read_label(node, position))
-            children = [
-                (bytes([char]), ptr)
-                for char, ptr in zip(node.child_chars, node.child_ptrs)
-            ]
-            yield (pointer, node.token, label, children)
             position += node.label_length
-            for ptr in node.child_ptrs:
-                yield from recur(ptr, position)
+            children = []
+            for char, child in zip(node.child_chars, node.child_ptrs):
+                if (ptr := child.get_pointer()) is not None:
+                    rhs = ptr
+                elif (token := child.get_token()) is not None:
+                    child_node = self._read_leaf_node(token, position)
+                    child_label = self._read_label(child_node, position)
+                    rhs = bytes(child_label), token
+                else:
+                    print(child)
+                    raise error.ProgrammingError(b"invalid PointerOrToken")
+                children.append((bytes([char]), rhs))
+            yield (pointer, node.token, label, children)
+            for child in node.child_ptrs:
+                if (ptr := child.get_pointer()) is not None:
+                    yield from recur(ptr, position)
 
         if len(tree) > 0:
             yield from recur(self.tree_root_pointer, 0)
@@ -536,56 +599,81 @@ class MutableTree:
 
     >>> t = MutableTree(base=base)
     >>> t.debug()
-    {'f': '0x002c', 'b': '0x0010'}
+    {'f': '0x0020', 'b': '0x0010'}
     >>> t.insert(b"other", 5)
     >>> offset += len(b"other") + 1
     >>> t.debug()
-    {'f': '0x002c', 'b': '0x0010', 'o': (b'other', 5)}
+    {'f': '0x0020', 'b': '0x0010', 'o': (b'other', 5)}
     >>> t.insert(b"food", 6)
     >>> offset += len(b"food") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': '0x0037', 'd': (b'd', 6)}), 'b': '0x0010', 'o': (b'other', 5)}
+    {'f': (b'foo', 0, {'l': (b'l', 2), 'd': (b'd', 6)}), 'b': '0x0010', 'o': (b'other', 5)}
     >>> t.insert(b"barn", 7)
     >>> offset += len(b"barn") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': '0x0037', 'd': (b'd', 6)}), 'b': (b'ba', 4, {'r': (b'r', 1, {'n': (b'n', 7)}), 'z': '0x0020'}), 'o': (b'other', 5)}
+    {'f': (b'foo', 0, {'l': (b'l', 2), 'd': (b'd', 6)}), 'b': (b'ba', 4, {'r': (b'r', 1, {'n': (b'n', 7)}), 'z': (b'z', 3)}), 'o': (b'other', 5)}
     """
 
     def __init__(self, base: FileIndexView | None):
         self.base = base or FileIndexView.empty()
         self.nodes: list[MutableTreeNode] = []
+        self.num_internal_nodes = 0
         self.num_copied_nodes = 0
+        self.num_copied_internal_nodes = 0
         self.num_copied_children = 0
         self.num_paths_added = 0
-        self._copy_node(self.base.root, b"")
+        self._copy_node_with_label(self.base.root, 0, b"")
         if len(self.base.tree_file) == 0:
             self.num_copied_nodes = 0
+            self.num_copied_internal_nodes = 0
 
     def __len__(self) -> int:
         """Return the number of paths in this tree, including the base."""
         return len(self.base) + self.num_paths_added
 
-    def _copy_node_at(
-        self, offset: NodePointerT, position: LabelPositionT
-    ) -> int:
-        node = TreeNode.parse_from(self.base.tree_file[offset:])
-        meta = self.base.meta_array[node.token]
-        offset = meta.offset + position
-        label = self.base.list_file[offset:][: node.label_length]
-        return self._copy_node(node, bytes(label))
+    def _copy_node_at(self, ptr: NodePointerT, position: LabelPositionT) -> int:
+        node = TreeNode.parse_from(self.base.tree_file[ptr:])
+        return self._copy_node(node, position)
 
-    def _copy_node(self, node: TreeNode, label: bytes) -> int:
+    def _copy_node(self, node: TreeNode, position: LabelPositionT) -> int:
+        label = bytes(self.base._read_label(node, position))
+        return self._copy_node_with_label(node, position, label)
+
+    def _copy_node_with_label(
+        self, node: TreeNode, position: LabelPositionT, label: bytes
+    ) -> int:
         self.num_copied_nodes += 1
-        self.num_copied_children += len(node.child_ptrs)
-        node_index = len(self.nodes)
-        children = [
-            MutableTreeChild(
-                char=char, node_is_in_memory=False, node_pointer=ptr
-            )
-            for char, ptr in zip(node.child_chars, node.child_ptrs)
-        ]
-        self.nodes.append(MutableTreeNode(node.token, label, children))
-        return node_index
+        if node.child_ptrs:
+            self.num_internal_nodes += 1
+            self.num_copied_internal_nodes += 1
+            self.num_copied_children += len(node.child_ptrs)
+        mutable_node = MutableTreeNode(node.token, label, [])
+        index = len(self.nodes)
+        # Push node first, then children, so root node stays at index 0.
+        self.nodes.append(mutable_node)
+        mutable_node.children = self._copy_node_children(node, position)
+        return index
+
+    def _copy_node_children(
+        self, node: TreeNode, position: LabelPositionT
+    ) -> list[MutableTreeChild]:
+        position += node.label_length
+        children = []
+        for char, child in zip(node.child_chars, node.child_ptrs):
+            if (ptr := child.get_pointer()) is not None:
+                mutable_child = MutableTreeChild(
+                    char=char, node_is_in_memory=False, node_pointer=ptr
+                )
+            elif (token := child.get_token()) is not None:
+                child_node = self.base._read_leaf_node(token, position)
+                index = self._copy_node(child_node, position)
+                mutable_child = MutableTreeChild(
+                    char=char, node_is_in_memory=True, node_pointer=index
+                )
+            else:
+                raise error.ProgrammingError(b"invalid PointerOrToken")
+            children.append(mutable_child)
+        return children
 
     def insert(self, path: HgPathT, token: FileTokenT):
         assert len(path) != 0
@@ -615,6 +703,7 @@ class MutableTree:
                 )
                 intermediate_index = len(self.nodes)
                 self.nodes.append(intermediate_node)
+                self.num_internal_nodes += 1
                 child.node_is_in_memory = True
                 child.node_pointer = intermediate_index
                 node = intermediate_node
@@ -631,6 +720,8 @@ class MutableTree:
         while remainder:
             n = min(len(remainder), 255)
             label, remainder = remainder[:n], remainder[n:]
+            if not node.children:
+                self.num_internal_nodes += 1
             node.children.append(
                 MutableTreeChild(
                     char=label[0],
@@ -651,8 +742,7 @@ class MutableTree:
             return None
         # Terminology: final = old + additional = old + (copied + fresh).
         old_size = len(self.base.tree_file)
-        num_additional_nodes = len(self.nodes)
-        num_fresh_nodes = num_additional_nodes - self.num_copied_nodes
+        num_fresh_nodes = len(self.nodes) - self.num_copied_nodes
         root_is_fresh = self.num_copied_nodes == 0
         # There is a fresh child for every fresh node except the root.
         num_fresh_children = num_fresh_nodes - (1 if root_is_fresh else 0)
@@ -660,7 +750,7 @@ class MutableTree:
         NODE_SIZE = TreeNodeHeader.STRUCT.size
         CHILD_SIZE = 1 + POINTER_STRUCT.size
         additional_size = (
-            num_additional_nodes * NODE_SIZE
+            self.num_internal_nodes * NODE_SIZE
             + num_additional_children * CHILD_SIZE
         )
         final_size = old_size + additional_size
@@ -684,19 +774,23 @@ class MutableTree:
                 buffer.append(child.char)
             for child in node.children:
                 if child.node_is_in_memory:
-                    fixup_offset = len(buffer)
-                    stack.append((child.node_pointer, fixup_offset))
-                    node_pointer = UNSET_POINTER
+                    child_node = self.nodes[child.node_pointer]
+                    if not child_node.children:
+                        token = PointerOrToken.token(child_node.token)
+                        buffer.extend(token.serialize())
+                    else:
+                        fixup_offset = len(buffer)
+                        stack.append((child.node_pointer, fixup_offset))
+                        buffer.extend(POINTER_STRUCT.pack(UNSET_POINTER))
                 else:
-                    node_pointer = child.node_pointer
-                buffer.extend(POINTER_STRUCT.pack(node_pointer))
+                    buffer.extend(POINTER_STRUCT.pack(child.node_pointer))
 
         assert (
             len(buffer) == additional_size
         ), f"buffer size is {len(buffer)}, expected {additional_size}"
         old_unused_bytes = self.base.tree_unused_bytes
         additional_unused_bytes = (
-            self.num_copied_nodes * NODE_SIZE
+            self.num_copied_internal_nodes * NODE_SIZE
             + self.num_copied_children * CHILD_SIZE
         )
         final_unused_bytes = old_unused_bytes + additional_unused_bytes
