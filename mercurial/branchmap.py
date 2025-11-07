@@ -401,6 +401,10 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     _base_filename = None
     _default_key_hashes: tuple[bytes] = cast(tuple[bytes], ())
 
+    # Used by the V3 format, but easier to handle at that level since V2 can
+    # just always take the "not in pure-topo-branch cases"
+    _pure_topo_branch: bytes | None = None
+
     def __init__(
         self,
         repo: RepoT,
@@ -714,6 +718,8 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         return node in self.branchheads(branch, closed=closed)
 
     def __contains__(self, key):
+        if self._pure_topo_branch == key:
+            return True
         self._verifybranch(key)
         return super().__contains__(key)
 
@@ -986,7 +992,7 @@ class BranchCacheV3(_LocalBranchCache):
     _base_filename = b"branch3-exp"
     _default_key_hashes = (None, None)
 
-    def __init__(self, *args, pure_topo_branch=None, **kwargs):
+    def __init__(self, *args, pure_topo_branch: bytes | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self._pure_topo_branch = pure_topo_branch
         self._needs_populate = self._pure_topo_branch is not None
