@@ -732,6 +732,8 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         return 0 for unknown branch"""
         if branch not in self:
             return 0
+        if self._pure_topo_branch == branch:
+            return len(self._head_revs[self._pure_topo_branch])
         return len(self.branchheads(branch, closed=closed))
 
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
