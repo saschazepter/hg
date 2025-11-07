@@ -226,35 +226,6 @@ class _BaseBranchCache:
     def __contains__(self, key):
         return key in self._entries
 
-    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
-        """checks whether a branch of this name exists or not
-
-        If open_only is set, ignore closed branch
-        """
-        if open_only:
-            if label not in self._entries:
-                return False
-            return not self._branchtip(label)[1]
-        else:
-            return label in self._entries
-
-    def _branchtip(self, branch):
-        """Return tuple with last open head in heads and false,
-        otherwise return last closed head and true."""
-        cached = self._tips.get(branch)
-        if cached is not None:
-            return cached
-        heads = self._entries[branch]
-        tip = heads[-1]
-        closed = True
-        for h in reversed(heads):
-            if h not in self._closednodes:
-                tip = h
-                closed = False
-                break
-        self._tips[branch] = (tip, closed)
-        return tip, closed
-
     def branchheads(self, branch, closed=False):
         heads = self._entries.get(branch, [])
         if not closed:
@@ -688,6 +659,23 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             if b not in self._verifiedbranches:
                 self._verifybranch(b)
 
+    def _branchtip(self, branch):
+        """Return tuple with last open head in heads and false,
+        otherwise return last closed head and true."""
+        cached = self._tips.get(branch)
+        if cached is not None:
+            return cached
+        heads = self._entries[branch]
+        tip = heads[-1]
+        closed = True
+        for h in reversed(heads):
+            if h not in self._closednodes:
+                tip = h
+                closed = False
+                break
+        self._tips[branch] = (tip, closed)
+        return tip, closed
+
     def branchtip(self, branch):
         """Return the tipmost open head on branch head, otherwise return the
         tipmost closed head on branch.
@@ -758,7 +746,12 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         If open_only is set, ignore closed branch
         """
         self._verifybranch(label)
-        return super().hasbranch(label, open_only=open_only)
+        if open_only:
+            if label not in self._entries:
+                return False
+            return not self._branchtip(label)[1]
+        else:
+            return label in self._entries
 
     def branchheads(self, branch, closed=False):
         self._verifybranch(branch)
