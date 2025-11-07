@@ -740,7 +740,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         self._verifyall()
         if nodes == [self._nullid]:
             # nullid is only a head if the repository is otherwise empty.
-            return not self._entries
+            return not self._entries and self._pure_topo_branch is None
         heads = self._all_head_nodes
         return all(n in heads for n in nodes)
 
