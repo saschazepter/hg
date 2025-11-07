@@ -7,13 +7,16 @@
 
 from __future__ import annotations
 
+import array
 import binascii
 import errno
 import glob
 import os
 import posixpath
 import re
+import struct
 import subprocess
+import sys
 import typing
 import weakref
 
@@ -448,7 +451,7 @@ def combined_filtered_and_obsolete_hash(
             revs = revs | obs_revs
         revs = sorted(revs)
         if revs:
-            result = _hash_revs(revs)
+            result = _sha1_revs(revs)
             cl._filteredrevs_hashcache[key] = result
     return result
 
@@ -476,9 +479,9 @@ def filtered_and_obsolete_hash(repo, maxrev):
         obs_hash = None
         filtered_revs, obs_revs = _filtered_and_obs_revs(repo, maxrev)
         if filtered_revs:
-            filtered_hash = _hash_revs(filtered_revs)
+            filtered_hash = _crc32_revs(filtered_revs)
         if obs_revs:
-            obs_hash = _hash_revs(obs_revs)
+            obs_hash = _crc32_revs(obs_revs)
         result = (filtered_hash, obs_hash)
         cl._filteredrevs_hashcache[key] = result
     return result
@@ -498,12 +501,39 @@ def _filtered_and_obs_revs(repo, max_rev):
     return (filtered_set, obs_set)
 
 
-def _hash_revs(revs: Iterable[int]) -> bytes:
-    """return a hash from a list of revision numbers"""
+def _sha1_revs(revs: Iterable[int]) -> bytes:
+    """return a hash from a list of revision numbers
+
+    This is the "legacy" version used by branchcache-v2
+    """
     s = hashutil.sha1()
     for rev in revs:
         s.update(b'%d;' % rev)
     return s.digest()
+
+
+def _crc32_revs(revs: Iterable[int]) -> bytes:
+    """return a hash from a list of revision numbers
+
+    This use this good old crc32 the sorted revisions.
+
+    The crc32 is computed on the binary representation of the revision as 32
+    bits signed little endian integer.
+
+    The hashing method is faster the in _old_hash_revs but probably still not
+    great. However it was very easy to hack together quickly, and easy to
+    implement in lower level language.
+
+    crc32 is expected to be widely available in python implementation.
+
+    Return the result as bytes to keep the same signature as _sha1_revs
+    """
+    all = array.array('i', sorted(revs))
+    if sys.byteorder == 'big':
+        # move from the native big endian to little endian
+        all.byteswap()
+    checksum = binascii.crc32(all.tobytes())
+    return struct.pack('>I', checksum)
 
 
 def walkrepos(

@@ -170,7 +170,7 @@ Absolete a couple of changes
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7 topo-mode=pure
+  filtered-hash=1558aca8 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7 topo-mode=pure
   default
 #endif
   $ cd ..
@@ -222,10 +222,10 @@ Revealing tipmost changeset
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp
-  obsolete-hash=b6d2b1f5b70f09c25c835edcae69be35f681605c tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  obsolete-hash=a3f251aa tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   7c29ff2453bf38c75ee8982935739103c38a9284 o default
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 obsolete-hash=ac5282439f301518f362f37547fcd52bcc670373 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  filtered-hash=1558aca8 obsolete-hash=e4f0f7f3 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   7c29ff2453bf38c75ee8982935739103c38a9284 o default
 #endif
 
@@ -245,7 +245,7 @@ Even when computing branches from scratch
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 obsolete-hash=ac5282439f301518f362f37547fcd52bcc670373 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  filtered-hash=1558aca8 obsolete-hash=e4f0f7f3 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   7c29ff2453bf38c75ee8982935739103c38a9284 o default
 #endif
 
@@ -264,7 +264,7 @@ And we can get back to normal
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7 topo-mode=pure
+  filtered-hash=1558aca8 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7 topo-mode=pure
   default
 #endif
 
@@ -312,10 +312,10 @@ Check that revealing an obsolete changeset does not confuse branch computation a
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp
-  obsolete-hash=b6d2b1f5b70f09c25c835edcae69be35f681605c tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  obsolete-hash=a3f251aa tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   7c29ff2453bf38c75ee8982935739103c38a9284 o default
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f1456c0d675980582dda9b8edc7f13f503ce544f obsolete-hash=3e74f5349008671629e39d13d7e00d9ba94c74f7 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  filtered-hash=042f80c0 obsolete-hash=d6b621a1 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
   550bb31f072912453ccbb503de1d554616911e88 o default
 #endif
 
@@ -335,7 +335,7 @@ Even when computing branches from scratch
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f1456c0d675980582dda9b8edc7f13f503ce544f obsolete-hash=3e74f5349008671629e39d13d7e00d9ba94c74f7 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
+  filtered-hash=042f80c0 obsolete-hash=d6b621a1 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7
   550bb31f072912453ccbb503de1d554616911e88 o default
 #endif
 
@@ -354,7 +354,7 @@ And we can get back to normal
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7 topo-mode=pure
+  filtered-hash=1558aca8 tip-node=7c29ff2453bf38c75ee8982935739103c38a9284 tip-rev=7 topo-mode=pure
   default
 #endif
 
@@ -409,7 +409,7 @@ branch head are okay
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  obsolete-hash=ac5282439f301518f362f37547fcd52bcc670373 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  obsolete-hash=e4f0f7f3 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   7c29ff2453bf38c75ee8982935739103c38a9284 o default
 #endif
 
@@ -429,7 +429,7 @@ Even when computing branches from scratch
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  obsolete-hash=ac5282439f301518f362f37547fcd52bcc670373 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  obsolete-hash=e4f0f7f3 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   7c29ff2453bf38c75ee8982935739103c38a9284 o default
 #endif
 
@@ -516,7 +516,7 @@ branch head are okay
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f1456c0d675980582dda9b8edc7f13f503ce544f obsolete-hash=3e74f5349008671629e39d13d7e00d9ba94c74f7 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  filtered-hash=042f80c0 obsolete-hash=d6b621a1 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   550bb31f072912453ccbb503de1d554616911e88 o default
 #endif
 
@@ -536,7 +536,7 @@ Even when computing branches from scratch
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f1456c0d675980582dda9b8edc7f13f503ce544f obsolete-hash=3e74f5349008671629e39d13d7e00d9ba94c74f7 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
+  filtered-hash=042f80c0 obsolete-hash=d6b621a1 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8
   550bb31f072912453ccbb503de1d554616911e88 o default
 #endif
 
@@ -555,7 +555,7 @@ And we can get back to normal
 #else
   $ show_cache
   ##### .hg/cache/branch3-exp-served
-  filtered-hash=f8006d64a10d35c011a5c5fa88be1e25c5929514 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8 topo-mode=pure
+  filtered-hash=1558aca8 tip-node=3d808bbc94408ea19da905596d4079357a1f28be tip-rev=8 topo-mode=pure
   default
 #endif
 
