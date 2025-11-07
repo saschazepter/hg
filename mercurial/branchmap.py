@@ -799,6 +799,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
         If `branches` filter to these branches only.
         """
+        self._verifyall()
         info = []
         cl = repo.changelog
         all_heads = set(repo.heads())
