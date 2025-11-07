@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import struct
 import typing
-from typing import Iterator, List, Optional
+from typing import Iterator, List
 
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT
@@ -19,6 +19,12 @@ if typing.TYPE_CHECKING:
     import attr
 
 FileTokenT = int_file_index.FileTokenT
+
+LabelPositionT = int
+"""The position of a node's label within the file path."""
+
+ROOT_TOKEN = FileTokenT(0xFFFFFFFF)
+"""An invalid sentinel token for the root node."""
 
 V1_FORMAT_MARKER = b"fileindex-v1"
 
@@ -242,11 +248,13 @@ class MetadataArray:
 class TreeNodeHeader:
     """A node header in the tree file."""
 
-    STRUCT = struct.Struct(">2B")
+    STRUCT = struct.Struct(">IBB")
 
-    # Flag byte.
-    flags = attr.ib(type=int)
-    # Number of TreeEdge values that follow.
+    # A token that contains this node's label.
+    token = attr.ib(type=FileTokenT)
+    # The length of this node's label.
+    label_length = attr.ib(type=int)
+    # Number of children.
     num_children = attr.ib(type=int)
 
     @classmethod
@@ -257,63 +265,53 @@ class TreeNodeHeader:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
-TREE_NODE_FLAG_HAS_TOKEN = 0x01
-"""Bit in TreeNodeHeader.flags indicating it is followed by a 32-bit token."""
-
-
-@attr.s(slots=True)
-class TreeEdge:
-    """An edge in the tree file."""
-
-    STRUCT = struct.Struct(">IHI")
-
-    # Pseudo-pointer to the start of this edge's label in the list file.
-    label_offset = attr.ib(type=int)
-    # Length of this edge's label.
-    label_length = attr.ib(type=int)
-    # Pseudo-pointer to the child node in the tree file.
-    node_pointer = attr.ib(type=int)
-
-    @classmethod
-    def iter_parse(cls, data: memoryview) -> Iterator["TreeEdge"]:
-        # iter_unpack checks it's a multiple, even though we're not reading all.
-        end = len(data) - len(data) % cls.STRUCT.size
-        return (cls(*fields) for fields in cls.STRUCT.iter_unpack(data[:end]))
-
-    def serialize(self):
-        return self.STRUCT.pack(*attr.astuple(self))
-
-
-TOKEN_STRUCT = struct.Struct(">I")
-"""A file index token represented as 32-bit big-endian integer."""
+POINTER_STRUCT = struct.Struct(">I")
+"""A file index node pseudo-pointer represented as 32-bit big-endian integer."""
 
 
 @attr.s(slots=True)
 class TreeNode:
-    """A node parsed from the tree file."""
+    """A node parsed from the tree file.
 
-    # Token for this node, if it represents a path in the file index.
-    token = attr.ib(type=Optional[FileTokenT])
-    # Edges pointing to children of this node.
-    edges = attr.ib(type=List[TreeEdge])
+    It stores a token and, indirectly, a label.
+    The label is a substring of the file path corresponding to the token.
+    The substring start position is implicit by summing parent label lengths.
+    The node also stores the first characters of child labels, for performance
+    """
+
+    # A token that contains this node's label.
+    token = attr.ib(type=FileTokenT)
+    # The length of this node's label.
+    label_length = attr.ib(type=int)
+    # First character of each child label. These are all distinct.
+    child_chars = attr.ib(type=bytes)
+    # Pointers to this node's children.
+    child_ptrs = attr.ib(type=list[int])
 
     @classmethod
     def empty_root(cls) -> TreeNode:
         """Return a root node for an empty tree."""
-        return cls(token=None, edges=[])
+        return cls(
+            token=ROOT_TOKEN, label_length=0, child_chars=b"", child_ptrs=[]
+        )
 
     @classmethod
     def parse_from(cls, data: memoryview) -> TreeNode:
         header = TreeNodeHeader.parse_from(data)
         rest = data[TreeNodeHeader.STRUCT.size :]
-        token = None
-        if header.flags & TREE_NODE_FLAG_HAS_TOKEN:
-            token = TOKEN_STRUCT.unpack_from(rest)[0]
-            rest = rest[TOKEN_STRUCT.size :]
-        edges = list(
-            itertools.islice(TreeEdge.iter_parse(rest), header.num_children)
-        )
-        return cls(token, edges)
+        n = header.num_children
+        child_chars, rest = bytes(rest[:n]), rest[n:]
+        rest = rest[: n * POINTER_STRUCT.size]
+        child_ptrs = [ptr for (ptr,) in POINTER_STRUCT.iter_unpack(rest)]
+        return cls(header.token, header.label_length, child_chars, child_ptrs)
+
+    def find_child(self, char: int) -> int | None:
+        """Return the child pointer whose label starts with char."""
+        try:
+            index = self.child_chars.index(char)
+        except ValueError:
+            return None
+        return self.child_ptrs[index]
 
 
 @attr.s(slots=True)
@@ -342,43 +340,31 @@ class MutableTreeNode:
     """Mutable version of `TreeNode`."""
 
     # See TreeNode.token.
-    token = attr.ib(type=Optional[FileTokenT])
-    # Edges to children of this node.
-    edges = attr.ib(type=List["MutableTreeEdge"])
+    token = attr.ib(type=FileTokenT)
+    # The label of this node.
+    label = attr.ib(type=bytes)
+    # Children of this node.
+    children = attr.ib(type=List["MutableTreeChild"])
 
-    @staticmethod
-    def copy(base: Base, node: TreeNode):
-        return MutableTreeNode(
-            token=node.token,
-            edges=[MutableTreeEdge.copy(base, edge) for edge in node.edges],
-        )
+    def find_child(self, char: int) -> MutableTreeChild | None:
+        """Return the child whose label starts with char."""
+        for child in self.children:
+            if child.char == char:
+                return child
+        return None
 
 
 @attr.s(slots=True)
-class MutableTreeEdge:
-    """Mutable version of `TreeEdge`."""
+class MutableTreeChild:
+    """A child of a `MutableTreeNode`."""
 
-    # The label of this edge.
-    label = attr.ib(type=bytes)
-    # Offset of label in the list file.
-    label_offset = attr.ib(type=int)
+    # First character of the child node's label.
+    char = attr.ib(type=int)
     # If True, node_pointer is an index into MutableTree.nodes.
     # If False, node_pointer is an offset into MutableTree.base.tree_file.
     node_is_in_memory = attr.ib(type=bool)
     # Pointer to the child node.
     node_pointer = attr.ib(type=int)
-
-    @staticmethod
-    def copy(base: Base, edge: TreeEdge):
-        return MutableTreeEdge(
-            label=base.list_file[edge.label_offset :][: edge.label_length],
-            label_offset=edge.label_offset,
-            node_is_in_memory=False,
-            node_pointer=edge.node_pointer,
-        )
-
-
-NODE_POINTER_STRUCT = struct.Struct(">I")
 
 
 @attr.s(slots=True)
@@ -408,31 +394,31 @@ class MutableTree:
     >>> offset = 0
     >>> t.debug()
     {}
-    >>> t.insert(b"foo", 0, offset)
+    >>> t.insert(b"foo", 0)
     >>> meta_array.append(Metadata(offset, len(b"foo"), 0))
     >>> offset += len(b"foo") + 1
     >>> t.debug()
-    {b'foo': 0}
-    >>> t.insert(b"bar", 1, offset)
+    {'f': (b'foo', 0)}
+    >>> t.insert(b"bar", 1)
     >>> meta_array.append(Metadata(offset, len(b"bar"), 0))
     >>> offset += len(b"bar") + 1
     >>> t.debug()
-    {b'foo': 0, b'bar': 1}
-    >>> t.insert(b"fool", 2, offset)
+    {'f': (b'foo', 0), 'b': (b'bar', 1)}
+    >>> t.insert(b"fool", 2)
     >>> meta_array.append(Metadata(offset, len(b"fool"), 0))
     >>> offset += len(b"fool") + 1
     >>> t.debug()
-    {b'foo': (0, {b'l': 2}), b'bar': 1}
-    >>> t.insert(b"baz", 3, offset)
+    {'f': (b'foo', 0, {'l': (b'l', 2)}), 'b': (b'bar', 1)}
+    >>> t.insert(b"baz", 3)
     >>> meta_array.append(Metadata(offset, len(b"baz"), 0))
     >>> offset += len(b"baz") + 1
     >>> t.debug()
-    {b'foo': (0, {b'l': 2}), b'ba': {b'r': 1, b'z': 3}}
-    >>> t.insert(b"ba", 4, offset)
+    {'f': (b'foo', 0, {'l': (b'l', 2)}), 'b': (b'ba', 3, {'r': (b'r', 1), 'z': (b'z', 3)})}
+    >>> t.insert(b"ba", 4)
     >>> meta_array.append(Metadata(offset, len(b"ba"), 0))
     >>> offset += len(b"ba") + 1
     >>> t.debug()
-    {b'foo': (0, {b'l': 2}), b'ba': (4, {b'r': 1, b'z': 3})}
+    {'f': (b'foo', 0, {'l': (b'l', 2)}), 'b': (b'ba', 4, {'r': (b'r', 1), 'z': (b'z', 3)})}
 
     Then we can serialize it:
 
@@ -455,113 +441,109 @@ class MutableTree:
 
     >>> t = MutableTree(base=base)
     >>> t.debug()
-    {b'foo': '0x003c', b'ba': '0x0016'}
-    >>> t.insert(b"other", 5, offset)
+    {'f': '0x002c', 'b': '0x0010'}
+    >>> t.insert(b"other", 5)
     >>> offset += len(b"other") + 1
     >>> t.debug()
-    {b'foo': '0x003c', b'ba': '0x0016', b'other': 5}
-    >>> t.insert(b"food", 6, offset)
+    {'f': '0x002c', 'b': '0x0010', 'o': (b'other', 5)}
+    >>> t.insert(b"food", 6)
     >>> offset += len(b"food") + 1
     >>> t.debug()
-    {b'foo': (0, {b'l': '0x004c', b'd': 6}), b'ba': '0x0016', b'other': 5}
-    >>> t.insert(b"barn", 7, offset)
+    {'f': (b'foo', 0, {'l': '0x0037', 'd': (b'd', 6)}), 'b': '0x0010', 'o': (b'other', 5)}
+    >>> t.insert(b"barn", 7)
     >>> offset += len(b"barn") + 1
     >>> t.debug()
-    {b'foo': (0, {b'l': '0x004c', b'd': 6}), b'ba': (4, {b'r': (1, {b'n': 7}), b'z': '0x0030'}), b'other': 5}
+    {'f': (b'foo', 0, {'l': '0x0037', 'd': (b'd', 6)}), 'b': (b'ba', 4, {'r': (b'r', 1, {'n': (b'n', 7)}), 'z': '0x0020'}), 'o': (b'other', 5)}
     """
 
     def __init__(self, base: Base | None):
         self.base = base or Base.empty()
-        root = MutableTreeNode.copy(self.base, self.base.root_node)
-        self.nodes = [root]
-        self.num_copied_nodes = 1 if len(self.base.tree_file) > 0 else 0
-        self.num_copied_edges = len(root.edges)
-        self.num_copied_tokens = 0
+        self.nodes: list[MutableTreeNode] = []
+        self.num_copied_nodes = 0
+        self.num_copied_children = 0
         self.num_paths_added = 0
+        self._copy_node(self.base.root_node, b"")
+        if len(self.base.tree_file) == 0:
+            self.num_copied_nodes = 0
 
     def __len__(self) -> int:
         """Return the number of paths in this tree, including the base."""
         return len(self.base.meta_array) + self.num_paths_added
 
-    def _copy_node_at(self, offset) -> int:
+    def _copy_node_at(self, offset: int, position: LabelPositionT) -> int:
         node = TreeNode.parse_from(self.base.tree_file[offset:])
+        meta = self.base.meta_array[node.token]
+        offset = meta.offset + position
+        label = self.base.list_file[offset:][: node.label_length]
+        return self._copy_node(node, bytes(label))
+
+    def _copy_node(self, node: TreeNode, label: bytes) -> int:
         self.num_copied_nodes += 1
-        self.num_copied_edges += len(node.edges)
-        if node.token is not None:
-            self.num_copied_tokens += 1
+        self.num_copied_children += len(node.child_ptrs)
         node_index = len(self.nodes)
-        self.nodes.append(MutableTreeNode.copy(self.base, node))
+        children = [
+            MutableTreeChild(
+                char=char, node_is_in_memory=False, node_pointer=ptr
+            )
+            for char, ptr in zip(node.child_chars, node.child_ptrs)
+        ]
+        self.nodes.append(MutableTreeNode(node.token, label, children))
         return node_index
 
-    def insert(
-        self,
-        path: HgPathT,
-        token: FileTokenT,
-        path_offset: int,
-    ):
+    def insert(self, path: HgPathT, token: FileTokenT):
         assert len(path) != 0
-        remainder = path
         node = self.nodes[0]
-        while True:
-            for edge in node.edges:
-                if remainder.startswith(edge.label):
-                    remainder = remainder[len(edge.label) :]
-                    if not edge.node_is_in_memory:
-                        edge.node_pointer = self._copy_node_at(
-                            edge.node_pointer
-                        )
-                        edge.node_is_in_memory = True
-                    node = self.nodes[edge.node_pointer]
-                    # Break, skipping else clause and continuing while loop.
-                    break
+        position = 0
+        while (child := node.find_child(path[position])) is not None:
+            if child.node_is_in_memory:
+                child_index = child.node_pointer
             else:
+                child_index = self._copy_node_at(child.node_pointer, position)
+            child_node = self.nodes[child_index]
+            label = child_node.label
+            remainder = path[position:]
+            length = len(stringutil.common_prefix(remainder, label))
+            if length != len(label):
+                child_node.label = label[length:]
+                intermediate_node = MutableTreeNode(
+                    token=token,
+                    label=remainder[:length],
+                    children=[
+                        MutableTreeChild(
+                            char=child_node.label[0],
+                            node_is_in_memory=True,
+                            node_pointer=child_index,
+                        )
+                    ],
+                )
+                intermediate_index = len(self.nodes)
+                self.nodes.append(intermediate_node)
+                child.node_is_in_memory = True
+                child.node_pointer = intermediate_index
+                node = intermediate_node
+                position += length
                 break
-        common = None
-        if remainder:
-            for i, edge in enumerate(node.edges):
-                prefix = stringutil.common_prefix(remainder, edge.label)
-                if prefix:
-                    common = i, edge, prefix
-                    break
-        consumed = len(path) - len(remainder)
-        label_offset = path_offset + consumed
-        if common:
-            i, edge, prefix = common
-            edge_to_intermediate_node = MutableTreeEdge(
-                label=prefix,
-                # We arbitrarily choose label_offset (prefix from new path)
-                # here instead of edge.label_offset (prefix from old path).
-                label_offset=label_offset,
-                node_is_in_memory=True,
-                node_pointer=len(self.nodes),
-            )
-            edge_to_old_node = MutableTreeEdge(
-                label=edge.label[len(prefix) :],
-                label_offset=edge.label_offset + len(prefix),
-                node_is_in_memory=edge.node_is_in_memory,
-                node_pointer=edge.node_pointer,
-            )
-            intermediate_node = MutableTreeNode(
-                token=None, edges=[edge_to_old_node]
-            )
-            node.edges[i] = edge_to_intermediate_node
-            self.nodes.append(intermediate_node)
-            node = intermediate_node
-            remainder = remainder[len(prefix) :]
-            label_offset += len(prefix)
-        if remainder:
-            node.edges.append(
-                MutableTreeEdge(
-                    label=remainder,
-                    label_offset=label_offset,
+            child.node_is_in_memory = True
+            child.node_pointer = child_index
+            node = child_node
+            assert len(label) > 0
+            position += len(label)
+            if position == len(path):
+                break
+        remainder = path[position:]
+        while remainder:
+            n = min(len(remainder), 255)
+            label, remainder = remainder[:n], remainder[n:]
+            node.children.append(
+                MutableTreeChild(
+                    char=label[0],
                     node_is_in_memory=True,
                     node_pointer=len(self.nodes),
                 )
             )
-            assert len(node.edges) <= 255
-            node = MutableTreeNode(token=None, edges=[])
+            assert len(node.children) <= 255
+            node = MutableTreeNode(token=token, label=label, children=[])
             self.nodes.append(node)
-        assert node.token is None, "path was already inserted"
         node.token = token
         self.num_paths_added += 1
 
@@ -573,16 +555,16 @@ class MutableTree:
         # Terminology: final = old + additional = old + (copied + fresh).
         old_size = self.base.docket.tree_file_size
         num_additional_nodes = len(self.nodes)
-        num_additional_tokens = self.num_copied_tokens + self.num_paths_added
         num_fresh_nodes = num_additional_nodes - self.num_copied_nodes
         root_is_fresh = self.num_copied_nodes == 0
-        # There is a fresh edge for every fresh node except the root.
-        num_fresh_edges = num_fresh_nodes - (1 if root_is_fresh else 0)
-        num_additional_edges = self.num_copied_edges + num_fresh_edges
+        # There is a fresh child for every fresh node except the root.
+        num_fresh_children = num_fresh_nodes - (1 if root_is_fresh else 0)
+        num_additional_children = self.num_copied_children + num_fresh_children
+        NODE_SIZE = TreeNodeHeader.STRUCT.size
+        CHILD_SIZE = 1 + POINTER_STRUCT.size
         additional_size = (
-            num_additional_nodes * TreeNodeHeader.STRUCT.size
-            + num_additional_edges * TreeEdge.STRUCT.size
-            + num_additional_tokens * TOKEN_STRUCT.size
+            num_additional_nodes * NODE_SIZE
+            + num_additional_children * CHILD_SIZE
         )
         final_size = old_size + additional_size
         buffer = bytearray()
@@ -591,42 +573,34 @@ class MutableTree:
         while stack:
             index, fixup_offset = stack.pop()
             if index != 0:
-                # Fix up `TreeEdge.node_pointer` in the incoming edge.
+                # Fix up the incoming pointer.
                 current_offset = old_size + len(buffer)
-                NODE_POINTER_STRUCT.pack_into(
-                    buffer, fixup_offset, current_offset
-                )
+                POINTER_STRUCT.pack_into(buffer, fixup_offset, current_offset)
             node = self.nodes[index]
-            num_children = len(node.edges)
-            flags = 0 if node.token is None else TREE_NODE_FLAG_HAS_TOKEN
-            header = TreeNodeHeader(flags, num_children)
-            assert not (flags == 0 and num_children == 0)
+            header = TreeNodeHeader(
+                token=node.token,
+                label_length=len(node.label),
+                num_children=len(node.children),
+            )
             buffer.extend(header.serialize())
-            if node.token is not None:
-                buffer.extend(TOKEN_STRUCT.pack(node.token))
-            for edge in node.edges:
-                if edge.node_is_in_memory:
-                    # The field offset of TreeEdge.node_pointer is 6 bytes.
-                    fixup_offset = len(buffer) + 6
-                    stack.append((edge.node_pointer, fixup_offset))
+            for child in node.children:
+                buffer.append(child.char)
+            for child in node.children:
+                if child.node_is_in_memory:
+                    fixup_offset = len(buffer)
+                    stack.append((child.node_pointer, fixup_offset))
                     node_pointer = UNSET_POINTER
                 else:
-                    node_pointer = edge.node_pointer
-                edge_value = TreeEdge(
-                    label_offset=edge.label_offset,
-                    label_length=len(edge.label),
-                    node_pointer=node_pointer,
-                )
-                buffer.extend(edge_value.serialize())
+                    node_pointer = child.node_pointer
+                buffer.extend(POINTER_STRUCT.pack(node_pointer))
 
         assert (
             len(buffer) == additional_size
         ), f"buffer size is {len(buffer)}, expected {additional_size}"
         old_unused_bytes = self.base.docket.tree_unused_bytes
         additional_unused_bytes = (
-            self.num_copied_nodes * TreeNodeHeader.STRUCT.size
-            + self.num_copied_edges * TreeEdge.STRUCT.size
-            + self.num_copied_tokens * TOKEN_STRUCT.size
+            self.num_copied_nodes * NODE_SIZE
+            + self.num_copied_children * CHILD_SIZE
         )
         final_unused_bytes = old_unused_bytes + additional_unused_bytes
         assert final_unused_bytes <= old_size
@@ -640,18 +614,18 @@ class MutableTree:
     def debug(self):
         """Return a dict representation for debugging."""
 
-        def recur(pointer, in_memory=True):
-            if not in_memory:
-                return f"{pointer:#06x}"
-            node = self.nodes[pointer]
-            edges = {
-                e.label: recur(e.node_pointer, e.node_is_in_memory)
-                for e in node.edges
-            }
-            if node.token is not None and node.edges:
-                return (node.token, edges)
-            if node.token is not None:
-                return node.token
-            return edges
+        def recur(children: list[MutableTreeChild]):
+            result = {}
+            for child in children:
+                if child.node_is_in_memory:
+                    node = self.nodes[child.node_pointer]
+                    if node.children:
+                        val = (node.label, node.token, recur(node.children))
+                    else:
+                        val = (node.label, node.token)
+                else:
+                    val = f"{child.node_pointer:#06x}"
+                result[chr(child.char)] = val
+            return result
 
-        return recur(0)
+        return recur(self.nodes[0].children)
