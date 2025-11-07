@@ -666,6 +666,9 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     def _branchtip(self, branch):
         """Return tuple with last open head in heads and false,
         otherwise return last closed head and true."""
+        if self._pure_topo_branch == branch:
+            tip_rev = self._head_revs[self._pure_topo_branch][-1]
+            return (self._rev_to_node(tip_rev), False)
         cached = self._tips.get(branch)
         if cached is not None:
             return cached
