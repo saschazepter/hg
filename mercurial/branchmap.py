@@ -261,22 +261,6 @@ class _BaseBranchCache:
         Raise KeyError for unknown branch."""
         return self._branchtip(branch)[0]
 
-    def branch_tip_from(
-        self,
-        repo: RepoT,
-        branch: bytes,
-        start: RevnumT,
-        closed: bool = False,
-    ) -> RevnumT | None:
-        """the tipmost head rev reachable from a revision for a given branch
-
-        Return None if no head are reachable.
-        """
-        if branch not in self:
-            return None
-        heads = self.branchheads(branch, closed=closed)
-        return repo.revs(b'max(%d::(%ln))', start, heads).first()
-
     def is_branch_head(
         self,
         branch: bytes,
@@ -727,6 +711,22 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     def branchtip(self, branch):
         self._verifybranch(branch)
         return super().branchtip(branch)
+
+    def branch_tip_from(
+        self,
+        repo: RepoT,
+        branch: bytes,
+        start: RevnumT,
+        closed: bool = False,
+    ) -> RevnumT | None:
+        """the tipmost head rev reachable from a revision for a given branch
+
+        Return None if no head are reachable.
+        """
+        if branch not in self:
+            return None
+        heads = self.branchheads(branch, closed=closed)
+        return repo.revs(b'max(%d::(%ln))', start, heads).first()
 
     def __contains__(self, key):
         self._verifybranch(key)
