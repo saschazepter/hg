@@ -330,6 +330,11 @@ class FileIndex(int_file_index.IFileIndex):
             self._root_node = file_index_util.TreeNode.parse_from(
                 self._tree_file[self._docket.tree_root_pointer :]
             )
+        if (
+            self._root_node.token != file_index_util.ROOT_TOKEN
+            or self._root_node.label_length != 0
+        ):
+            raise error.CorruptedState("invalid file index root node")
 
     def _load_list_file(self) -> memoryview:
         path = self._list_file_path()

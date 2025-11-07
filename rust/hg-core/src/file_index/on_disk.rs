@@ -37,6 +37,7 @@ pub enum Error {
     MetaFileOutOfBounds,
     TreeFileOutOfBounds,
     TreeFileEof,
+    BadRootNode,
 }
 
 impl std::fmt::Display for Error {
@@ -68,6 +69,9 @@ impl std::fmt::Display for Error {
             }
             Error::TreeFileEof => {
                 write!(f, "unexpected EOF while parsing tree file")
+            }
+            Error::BadRootNode => {
+                write!(f, "invalid root node in tree")
             }
         }
     }
@@ -525,16 +529,20 @@ impl<'on_disk> FileIndexView<'on_disk> {
         assert!(rest.is_empty());
         let tree_root_pointer = docket.header.tree_root_pointer.get();
         let tree_unused_bytes = docket.header.tree_unused_bytes.get();
+        let root = match tree_file.len() {
+            0 => TreeNode::empty_root(),
+            _ => Self::read_node_from(tree_file, tree_root_pointer)?,
+        };
+        if root.token != FileToken::root() || root.label_length != 0 {
+            return Err(Error::BadRootNode);
+        }
         Ok(Self {
             list_file,
             meta_array,
             tree_file,
             tree_root_pointer,
             tree_unused_bytes,
-            root: match tree_file.len() {
-                0 => TreeNode::empty_root(),
-                _ => Self::read_node_from(tree_file, tree_root_pointer)?,
-            },
+            root,
         })
     }
 
