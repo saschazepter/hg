@@ -339,20 +339,6 @@ class _BaseBranchCache:
             info.append((name, cl.rev(tip), is_active, is_open))
         return info
 
-    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
-        if nodes == [self._nullid]:
-            # nullid is only a head if the repository is otherwise empty.
-            return not self._entries
-        heads = self._all_head_nodes
-        return all(n in heads for n in nodes)
-
-    @util.propertycache
-    def _all_head_nodes(self) -> set[NodeIdT]:
-        heads = set()
-        for hs in self._entries.values():
-            heads.update(hs)
-        return heads
-
     def update(self, repo, revgen):
         """Given a branchhead cache, self, that may have extra nodes or be
         missing heads, and a generator of nodes that are strictly a superset of
@@ -361,8 +347,6 @@ class _BaseBranchCache:
         # clear various caches as we are updating the state
         self._open_entries.clear()
         self._tips.clear()
-        if '_all_head_nodes' in vars(self):
-            del self._all_head_nodes
         starttime = util.timer()
         cl = repo.changelog
         # Faster than using ctx.obsolete()
@@ -787,7 +771,18 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
     def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         self._verifyall()
-        return super().all_nodes_are_heads(nodes)
+        if nodes == [self._nullid]:
+            # nullid is only a head if the repository is otherwise empty.
+            return not self._entries
+        heads = self._all_head_nodes
+        return all(n in heads for n in nodes)
+
+    @util.propertycache
+    def _all_head_nodes(self) -> set[NodeIdT]:
+        heads = set()
+        for hs in self._entries.values():
+            heads.update(hs)
+        return heads
 
     def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
         """checks whether a branch of this name exists or not
@@ -844,6 +839,8 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         self._rev_to_node = repo.unfiltered().changelog.node
         self._head_revs.clear()
         self._open_head_revs.clear()
+        if '_all_head_nodes' in vars(self):
+            del self._all_head_nodes
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
