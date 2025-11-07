@@ -1175,7 +1175,14 @@ class BranchCacheV3(_LocalBranchCache):
             assert self._pure_topo_branch is not None
             cl = repo.changelog
             to_node = cl.node
+            # There are various question we could answer without the full list
+            # of heads, so we could delay that computation until requested,
+            # however There are other simpler optimization to do first.
+            #
+            # Feel free to take that step.
             topo_heads = self._get_topo_heads(repo)
+            self._head_revs[self._pure_topo_branch] = topo_heads
+            self._open_head_revs[self._pure_topo_branch] = topo_heads
             heads = [to_node(r) for r in topo_heads]
             self._entries[self._pure_topo_branch] = heads
             self._open_entries[self._pure_topo_branch] = heads
