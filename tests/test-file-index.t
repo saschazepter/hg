@@ -807,3 +807,67 @@ Paths where one is a prefix of the other
   [10]
 
   $ cd ..
+
+Test long paths
+---------------
+
+  $ hg init repolong --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repolong
+
+Maximum label length (255)
+  $ path=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  $ echo ${#path}
+  255
+  $ mkdir -p $(dirname $path)
+  $ touch $path
+  $ hg commit -qAm 3
+  $ hg debug::file-index --path $path
+  0: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  $ hg debug::file-index --tree
+  00000000: "" (4294967295)
+      "a" -> 0000000b
+  0000000b: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0)
+
+Go past the maximum label length once
+  $ path=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
+  $ echo ${#path}
+  256
+  $ mkdir -p $(dirname $path)
+  $ touch $path
+  $ hg commit -qAm 4
+  $ hg debug::file-index --path $path
+  1: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
+  $ hg debug::file-index --tree
+  00000011: "" (4294967295)
+      "a" -> 0000000b
+      "b" -> 00000021
+  0000000b: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0)
+  00000021: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (1)
+      "X" -> 0000002c
+  0000002c: "X" (1)
+
+Go past the maximum label length twice
+  $ path=ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
+  $ echo ${#path}
+  511
+  $ mkdir -p $(dirname $path)
+  $ touch $path
+  $ hg commit -qAm 4
+  $ hg debug::file-index --path $path
+  2: ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
+  $ hg debug::file-index --tree
+  00000032: "" (4294967295)
+      "a" -> 0000000b
+      "b" -> 00000021
+      "c" -> 00000047
+  0000000b: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0)
+  00000021: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (1)
+      "X" -> 0000002c
+  0000002c: "X" (1)
+  00000047: "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (2)
+      "/" -> 00000052
+  00000052: "/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (2)
+      "Z" -> 0000005d
+  0000005d: "Z" (2)
+
+  $ cd ..
