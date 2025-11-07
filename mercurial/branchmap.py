@@ -1092,7 +1092,7 @@ class BranchCacheV3(_LocalBranchCache):
     `BranchCacheV3._process_new` for details.
     """
 
-    _base_filename = b"branch3-exp"
+    _base_filename = b"branch3"
     _default_key_hashes = (None, None)
 
     _pure_topo_branch: bytes | None

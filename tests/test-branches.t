@@ -20,7 +20,7 @@
   > [experimental]
   > branch-cache-v3=yes
   > EOF
-  $ CACHE_PREFIX=branch3-exp
+  $ CACHE_PREFIX=branch3
 #else
   $ cat <<EOF >> $HGRCPATH
   > [experimental]
@@ -1464,7 +1464,7 @@ Unbundling revision should warm the served cache
   updating to branch A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #if v3
-  $ cat branchmap-update-01/.hg/cache/branch3-exp-base
+  $ cat branchmap-update-01/.hg/cache/branch3-base
   tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
   A
 #else
@@ -1480,7 +1480,7 @@ Unbundling revision should warm the served cache
   new changesets a3b807b3ff0b:71ca9a6d524e (2 drafts)
   (run 'hg update' to get a working copy)
 #if v3
-  $ cat branchmap-update-01/.hg/cache/branch3-exp-served
+  $ cat branchmap-update-01/.hg/cache/branch3-served
   tip-node=71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 tip-rev=3 topo-mode=pure
   A
 #else
@@ -1510,7 +1510,7 @@ aborted Unbundle should not update the on disk cache
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 #if v3
-  $ cat branchmap-update-02/.hg/cache/branch3-exp-base
+  $ cat branchmap-update-02/.hg/cache/branch3-base
   tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
   A
 #else
@@ -1527,7 +1527,7 @@ aborted Unbundle should not update the on disk cache
   abort: pretxnclose hook failed
   [40]
 #if v3
-  $ cat branchmap-update-02/.hg/cache/branch3-exp-base
+  $ cat branchmap-update-02/.hg/cache/branch3-base
   tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
   A
 #else
@@ -1565,7 +1565,7 @@ The repository is in a pure-topo state
 
 #if v3
   $ show_cache
-  ##### .hg/cache/branch3-exp-base
+  ##### .hg/cache/branch3-base
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
@@ -1614,12 +1614,12 @@ output must remain correct, and the branch is not in a topo-head state
 
 #if v3
   $ show_cache
-  ##### .hg/cache/branch3-exp-base
+  ##### .hg/cache/branch3-base
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-served
+  ##### .hg/cache/branch3-served
   tip-node=db99163c2f3fc6ff219f3e3c071543cd3b9dddc8 tip-rev=5
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
@@ -1681,12 +1681,12 @@ We re-open the top head
   B                              1:0bc7d348d965 (inactive)
 #if v3
   $ show_cache
-  ##### .hg/cache/branch3-exp-base
+  ##### .hg/cache/branch3-base
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-served
+  ##### .hg/cache/branch3-served
   tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=mixed
   A
   
@@ -1742,12 +1742,12 @@ This should be detected by now
 
 #if v3
   $ show_cache
-  ##### .hg/cache/branch3-exp-base
+  ##### .hg/cache/branch3-base
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-served
+  ##### .hg/cache/branch3-served
   tip-node=aa41ed5f1e512b754a138d564455ddd6017b7d34 tip-rev=9 topo-mode=mixed
   A
   C
@@ -1796,12 +1796,12 @@ And this is preserved over further update
 
 #if v3
   $ show_cache
-  ##### .hg/cache/branch3-exp-base
+  ##### .hg/cache/branch3-base
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-served
+  ##### .hg/cache/branch3-served
   tip-node=b3ad80eaca8a572cbca78ef07ece1013ead0707a tip-rev=10 topo-mode=mixed
   A
   C
