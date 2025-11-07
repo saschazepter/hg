@@ -255,12 +255,6 @@ class _BaseBranchCache:
         self._tips[branch] = (tip, closed)
         return tip, closed
 
-    def branchtip(self, branch):
-        """Return the tipmost open head on branch head, otherwise return the
-        tipmost closed head on branch.
-        Raise KeyError for unknown branch."""
-        return self._branchtip(branch)[0]
-
     def branchheads(self, branch, closed=False):
         heads = self._entries.get(branch, [])
         if not closed:
@@ -695,8 +689,11 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
                 self._verifybranch(b)
 
     def branchtip(self, branch):
+        """Return the tipmost open head on branch head, otherwise return the
+        tipmost closed head on branch.
+        Raise KeyError for unknown branch."""
         self._verifybranch(branch)
-        return super().branchtip(branch)
+        return self._branchtip(branch)[0]
 
     def branch_tip_from(
         self,
