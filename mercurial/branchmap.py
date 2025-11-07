@@ -1178,6 +1178,7 @@ class BranchCacheV3(_LocalBranchCache):
             topo_heads = self._get_topo_heads(repo)
             heads = [to_node(r) for r in topo_heads]
             self._entries[self._pure_topo_branch] = heads
+            self._verifiedbranches.add(self._pure_topo_branch)
             self._needs_populate = False
 
     def _detect_pure_topo(self, repo) -> None:
