@@ -106,14 +106,16 @@ def warm_cache(repo):
         entries = enumerate(repo.changelog.index)
         node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
 
-        for node, rev in node_revs:
-            fnode = fnodescache.getfnode(node=node, rev=rev)
-            if fnode != repo.nullid:
-                if fnode not in validated_fnodes:
-                    if flog.hasnode(fnode):
-                        validated_fnodes.add(fnode)
-                    else:
-                        unknown_entries.add(node)
+        rl = repo.manifestlog.getstorage(b'').get_revlog()
+        with rl.reading():
+            for node, rev in node_revs:
+                fnode = fnodescache.getfnode(node=node, rev=rev)
+                if fnode != repo.nullid:
+                    if fnode not in validated_fnodes:
+                        if flog.hasnode(fnode):
+                            validated_fnodes.add(fnode)
+                        else:
+                            unknown_entries.add(node)
 
         if unknown_entries:
             fnodescache.refresh_invalid_nodes(unknown_entries)
