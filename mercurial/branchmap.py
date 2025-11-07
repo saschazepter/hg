@@ -261,20 +261,6 @@ class _BaseBranchCache:
         Raise KeyError for unknown branch."""
         return self._branchtip(branch)[0]
 
-    def is_branch_head(
-        self,
-        branch: bytes,
-        node: NodeIdT,
-        closed: bool = False,
-    ) -> bool:
-        """True if the node is a head for that branch
-
-        Only consider open heads unless `closed` is set to True.
-        """
-        if branch not in self:
-            return False
-        return node in self.branchheads(branch, closed=closed)
-
     def branchheads(self, branch, closed=False):
         heads = self._entries.get(branch, [])
         if not closed:
@@ -727,6 +713,20 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             return None
         heads = self.branchheads(branch, closed=closed)
         return repo.revs(b'max(%d::(%ln))', start, heads).first()
+
+    def is_branch_head(
+        self,
+        branch: bytes,
+        node: NodeIdT,
+        closed: bool = False,
+    ) -> bool:
+        """True if the node is a head for that branch
+
+        Only consider open heads unless `closed` is set to True.
+        """
+        if branch not in self:
+            return False
+        return node in self.branchheads(branch, closed=closed)
 
     def __contains__(self, key):
         self._verifybranch(key)
