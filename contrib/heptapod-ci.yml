@@ -769,13 +769,13 @@ test-result-linux-main:
     - test-c
     - test-chg
     - test-pure
-    - test-pure-zstd
     - test-rhg
     - test-rust
 
 test-result-linux-py-a:
   extends: .sink
   needs:
+    - test-pure-zstd
     - test-3.9-c
     - test-3.9-rust
     - test-3.10-c
