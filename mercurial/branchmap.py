@@ -310,35 +310,6 @@ class _BaseBranchCache:
                 self._open_entries[branch] = heads
         return heads
 
-    def branches_info(
-        self,
-        repo: RepoT,
-        branches: set[bytes] | None = None,
-    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
-        """return a list of (name, tip-rev, active, closed)
-
-        If `branches` filter to these branches only.
-        """
-        info = []
-        cl = repo.changelog
-        all_heads = set(repo.heads())
-        for name, heads in self._entries.items():
-            if branches is not None and name not in branches:
-                continue
-            tip = heads[-1]
-            is_open = False
-            is_active = False
-            for h in reversed(heads):
-                if h not in self._closednodes:
-                    if not is_open:
-                        tip = h
-                        is_open = True
-                    if h in all_heads:
-                        is_active = True
-                        break
-            info.append((name, cl.rev(tip), is_active, is_open))
-        return info
-
     def update(self, repo, revgen):
         """Given a branchhead cache, self, that may have extra nodes or be
         missing heads, and a generator of nodes that are strictly a superset of
@@ -828,6 +799,35 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             revs = [to_rev(n) for n in self._entries[branch]]
             self._head_revs[branch] = revs
         return revs
+
+    def branches_info(
+        self,
+        repo: RepoT,
+        branches: set[bytes] | None = None,
+    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
+        """return a list of (name, tip-rev, active, closed)
+
+        If `branches` filter to these branches only.
+        """
+        info = []
+        cl = repo.changelog
+        all_heads = set(repo.heads())
+        for name, heads in self._entries.items():
+            if branches is not None and name not in branches:
+                continue
+            tip = heads[-1]
+            is_open = False
+            is_active = False
+            for h in reversed(heads):
+                if h not in self._closednodes:
+                    if not is_open:
+                        tip = h
+                        is_open = True
+                    if h in all_heads:
+                        is_active = True
+                        break
+            info.append((name, cl.rev(tip), is_active, is_open))
+        return info
 
     def update(self, repo, revgen):
         assert self._filtername == repo.filtername, (
