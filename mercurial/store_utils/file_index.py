@@ -224,7 +224,10 @@ class FileIndex(int_file_index.IFileIndex):
     def debug_iter_tree_nodes(self) -> Iterator[int_file_index.DebugTreeNode]:
         tree = self._tree_file
 
-        def recur(pointer: int, position: int):
+        def recur(
+            pointer: file_index_util.NodePointerT,
+            position: file_index_util.LabelPositionT,
+        ):
             node = file_index_util.TreeNode.parse_from(tree[pointer:])
             if node.token == file_index_util.ROOT_TOKEN:
                 label = b""

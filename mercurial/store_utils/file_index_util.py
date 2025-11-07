@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import struct
 import typing
-from typing import Iterator, List
+from typing import Iterator, List, Union
 
 from ..thirdparty import attr
 from ..interfaces.types import HgPathT
@@ -19,6 +19,9 @@ if typing.TYPE_CHECKING:
     import attr
 
 FileTokenT = int_file_index.FileTokenT
+
+NodePointerT = int
+"""A pseudo-pointer to a node in the tree file."""
 
 LabelPositionT = int
 """The position of a node's label within the file path."""
@@ -64,7 +67,7 @@ class Docket:
     # Tree file path ID.
     tree_file_id = attr.ib(type=bytes, default=docket.UNSET_UID)
     # Pseudo-pointer to the root node in the tree file.
-    tree_root_pointer = attr.ib(type=int, default=0)
+    tree_root_pointer = attr.ib(type=NodePointerT, default=0)
     # Number of unused bytes within tree_file_size.
     tree_unused_bytes = attr.ib(type=int, default=0)
     # Reserved for future use.
@@ -364,7 +367,7 @@ class MutableTreeChild:
     # If False, node_pointer is an offset into MutableTree.base.tree_file.
     node_is_in_memory = attr.ib(type=bool)
     # Pointer to the child node.
-    node_pointer = attr.ib(type=int)
+    node_pointer = attr.ib(type=Union[NodePointerT, int])
 
 
 @attr.s(slots=True)
@@ -377,7 +380,7 @@ class SerializedMutableTree:
     # New total size of the tree file.
     tree_file_size = attr.ib(type=int)
     # New root node offset.
-    tree_root_pointer = attr.ib(type=int)
+    tree_root_pointer = attr.ib(type=NodePointerT)
     # New total number of unused bytes.
     tree_unused_bytes = attr.ib(type=int)
 
@@ -470,7 +473,9 @@ class MutableTree:
         """Return the number of paths in this tree, including the base."""
         return len(self.base.meta_array) + self.num_paths_added
 
-    def _copy_node_at(self, offset: int, position: LabelPositionT) -> int:
+    def _copy_node_at(
+        self, offset: NodePointerT, position: LabelPositionT
+    ) -> int:
         node = TreeNode.parse_from(self.base.tree_file[offset:])
         meta = self.base.meta_array[node.token]
         offset = meta.offset + position
