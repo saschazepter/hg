@@ -314,6 +314,13 @@ def display_unbundle_debug_info(ui, debug_info):
                 _dbg_ubdl_line(ui, 3, b'cached', t[tc], td, b"total")
 
 
+_NAME_TO_REVLOG_COMP = {
+    b'none': i_comp.REVLOG_COMP_NONE,
+    b'zlib': i_comp.REVLOG_COMP_ZLIB,
+    b'zstd': i_comp.REVLOG_COMP_ZSTD,
+}
+
+
 class WireDeltaCompression(enum.IntEnum):
     """encode the compression of a delta over the wire
 
@@ -342,13 +349,20 @@ class WireDeltaCompression(enum.IntEnum):
         b2caps = urlutil.b2_caps_from_bundle_caps(caps)
         cap_set = b2caps.get(b'delta-compression', ())
         accepted = set()
-        if b'none' in cap_set:
-            accepted.add(i_comp.REVLOG_COMP_NONE)
-        if b'zlib' in cap_set:
-            accepted.add(i_comp.REVLOG_COMP_ZLIB)
-        if b'zstd' in cap_set:
-            accepted.add(i_comp.REVLOG_COMP_ZSTD)
+        for cap in cap_set:
+            if (rl_cmp := _NAME_TO_REVLOG_COMP.get(cap)) is not None:
+                accepted.add(rl_cmp)
         return frozenset(accepted)
+
+    @staticmethod
+    def filter_known(
+        caps: Collection[bytes] | None,
+    ) -> set[bytes]:
+        if caps is None:
+            return set()
+        b2caps = urlutil.b2_caps_from_bundle_caps(caps)
+        cap_set = b2caps.get(b'delta-compression', ())
+        return set(c for c in cap_set if c in _NAME_TO_REVLOG_COMP)
 
     @classmethod
     def from_revlog_compression(
@@ -2763,11 +2777,20 @@ def makechangegroup(
         fastpath=fastpath,
         bundlecaps=bundlecaps,
     )
+    extras = {b'clcount': len(outgoing.missing)}
+    # This is fairly basic and signal what compression -might- be used, and not
+    # which one is actually used, but this will be good enough for now.
+    delta_comp = WireDeltaCompression.filter_known(bundlecaps)
+    if delta_comp:
+        if requirements.REVLOG_COMPRESSION_ZSTD not in repo.requirements:
+            delta_comp.discard(b"zstd")
+        if delta_comp:
+            extras[b'delta-compression'] = delta_comp
     return getunbundler(
         version,
         util.chunkbuffer(cgstream),
         None,
-        {b'clcount': len(outgoing.missing)},
+        extras=extras,
     )
 
 

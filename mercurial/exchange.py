@@ -109,7 +109,10 @@ def readbundle(ui, fh, fname, vfs=None):
 def _format_params(params):
     parts = []
     for key, value in sorted(params.items()):
-        value = urlreq.quote(value)
+        if isinstance(value, list):
+            value = b','.join(urlreq.quote(v) for v in value)
+        else:
+            value = urlreq.quote(value)
         parts.append(b"%s=%s" % (key, value))
     return b';'.join(parts)
 
@@ -166,6 +169,8 @@ def getbundlespec(ui, fh):
                         % version,
                         hint=_(b'try upgrading your Mercurial client'),
                     )
+                if (dcomp := part.params.get(b'delta-compression')) is not None:
+                    params[b'cg.delta-compression'] = dcomp.split(b',')
             elif part.type == b'stream2' and version is None:
                 # A stream2 part requires to be part of a v2 bundle
                 requirements = urlreq.unquote(part.params[b'requirements'])

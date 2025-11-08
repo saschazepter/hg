@@ -1743,12 +1743,35 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
         cgversion = opts.get(b'cg.version')
         if cgversion is None:
             cgversion = changegroup.safeversion(repo)
-        cg = changegroup.makechangegroup(repo, outgoing, cgversion, source)
+        delta_comp = opts.get(b'cg.delta-compression')
+        if delta_comp is not None:
+            delta_comp = delta_comp.split(b',')
+
+        bundlecaps = None
+        if delta_comp is not None and cgversion in (b'04',):
+            b2_caps = {b'delta-compression': delta_comp}
+            bin_caps = encodecaps(b2_caps)
+            bundlecaps = {b'bundle2=' + urlreq.quote(bin_caps)}
+        cg = changegroup.makechangegroup(
+            repo,
+            outgoing,
+            cgversion,
+            source,
+            bundlecaps=bundlecaps,
+        )
         part = bundler.newpart(b'changegroup', data=cg.getchunks())
         part.addparam(b'version', cg.version)
         if b'clcount' in cg.extras:
             part.addparam(
                 b'nbchanges', b'%d' % cg.extras[b'clcount'], mandatory=False
+            )
+        if b'delta-compression' in cg.extras:
+            # Making the parameter advisory as bad compression will be caught
+            # later down the road (I am not sure about it)
+            part.addparam(
+                b'delta-compression',
+                b','.join(sorted(cg.extras[b'delta-compression'])),
+                mandatory=False,
             )
         if opts.get(b'phases'):
             target_phase = phases.draft
