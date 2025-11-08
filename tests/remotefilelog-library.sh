@@ -9,8 +9,6 @@ rebase=
 strip=
 [server]
 preferuncompressed=True
-[experimental]
-changegroup3=True
 [rebase]
 singletransaction=True
 EOF

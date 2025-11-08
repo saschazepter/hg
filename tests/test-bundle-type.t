@@ -578,7 +578,7 @@ test invalid bundle type
 
 Test controlling the changegroup version
 
-  $ hg -R t1 bundle --config experimental.changegroup3=yes -a -t v2 ./v2-cg-default.hg
+  $ hg -R t1 bundle -a -t v2 ./v2-cg-default.hg
   7 changesets found
   $ hg debugbundle ./v2-cg-default.hg --part-type changegroup
   Stream params: {Compression: BZ}
@@ -592,7 +592,7 @@ Test controlling the changegroup version
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   $ hg debugbundle ./v2-cg-default.hg --spec
   bzip2-v2
-  $ hg -R t1 bundle --config experimental.changegroup3=yes -a -t 'v2;cg.version=02' ./v2-cg-02.hg
+  $ hg -R t1 bundle -a -t 'v2;cg.version=02' ./v2-cg-02.hg
   7 changesets found
   $ hg debugbundle ./v2-cg-02.hg --part-type changegroup
   Stream params: {Compression: BZ}
@@ -606,7 +606,7 @@ Test controlling the changegroup version
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   $ hg debugbundle ./v2-cg-02.hg --spec
   bzip2-v2
-  $ hg -R t1 bundle --config experimental.changegroup3=yes -a -t 'v2;cg.version=03' ./v2-cg-03.hg
+  $ hg -R t1 bundle -a -t 'v2;cg.version=03' ./v2-cg-03.hg
   7 changesets found
   $ hg debugbundle ./v2-cg-03.hg --part-type changegroup
   Stream params: {Compression: BZ}

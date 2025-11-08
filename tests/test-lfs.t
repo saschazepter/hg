@@ -1220,8 +1220,6 @@ Unbundling adds a requirement to a non-lfs repo, if necessary.
 
   $ hg init no_lfs
   $ cat >> no_lfs/.hg/hgrc <<EOF
-  > [experimental]
-  > changegroup3 = True
   > [extensions]
   > lfs=!
   > EOF

@@ -2596,22 +2596,6 @@ _packermap: dict[
 
 def allsupportedversions(repo):
     versions = set(_packermap.keys())
-    needv03 = False
-    if (
-        repo.ui.configbool(b'experimental', b'changegroup3')
-        or repo.ui.configbool(b'experimental', b'treemanifest')
-        or scmutil.istreemanifest(repo)
-    ):
-        # we keep version 03 because we need to to exchange treemanifest data
-        #
-        # we also keep vresion 01 and 02, because it is possible for repo to
-        # contains both normal and tree manifest at the same time. so using
-        # older version to pull data is viable
-        #
-        # (or even to push subset of history)
-        needv03 = True
-    if not needv03:
-        versions.discard(b'03')
     if repo.ui.config_is_set(b'experimental', b'changegroup4'):
         want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
     else:

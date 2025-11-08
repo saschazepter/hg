@@ -859,11 +859,6 @@ name = "bundlecompthreads.zstd"
 
 [[items]]
 section = "experimental"
-name = "changegroup3"
-default = true
-
-[[items]]
-section = "experimental"
 name = "changegroup4"
 default = false
 

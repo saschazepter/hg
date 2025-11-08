@@ -370,10 +370,6 @@ Pushing from treemanifest repo to an empty repo makes that a treemanifest repo
 
   $ cd ..
   $ hg init empty-repo
-  $ cat << EOF >> empty-repo/.hg/hgrc
-  > [experimental]
-  > changegroup3=yes
-  > EOF
   $ hg debugrequires -R empty-repo | grep treemanifest
   [1]
   $ hg push -R repo -r 0 empty-repo
@@ -636,7 +632,6 @@ Test cloning a treemanifest repo over http.
 
 We can clone even with the knob turned off and we'll get a treemanifest repo.
   $ hg clone --config experimental.treemanifest=False \
-  >   --config experimental.changegroup3=True \
   >   http://localhost:$HGPORT deepclone
   requesting all changes
   adding changesets
@@ -678,7 +673,6 @@ Verify passes.
 
 Create clones using old repo formats to use in later tests
   $ hg clone --config format.usestore=False \
-  >   --config experimental.changegroup3=True \
   >   http://localhost:$HGPORT deeprepo-basicstore
   requesting all changes
   adding changesets
@@ -696,7 +690,6 @@ Create clones using old repo formats to use in later tests
   $ cat port-1-hg.pid >> $DAEMON_PIDS
 
   $ hg clone --config format.usefncache=False \
-  >   --config experimental.changegroup3=True \
   >   http://localhost:$HGPORT deeprepo-encodedstore
   requesting all changes
   adding changesets
@@ -726,7 +719,7 @@ Local clone with fncachestore
   $ hg -R local-clone-fncachestore verify -q
 
 Stream clone with basicstore
-  $ hg clone --config experimental.changegroup3=True --stream -U \
+  $ hg clone --stream -U \
   >   http://localhost:$HGPORT1 stream-clone-basicstore
   streaming all changes
   * files to transfer, * of data (glob)
@@ -735,7 +728,7 @@ Stream clone with basicstore
   $ cat port-1-errors.log
 
 Stream clone with encodedstore
-  $ hg clone --config experimental.changegroup3=True --stream -U \
+  $ hg clone --stream -U \
   >   http://localhost:$HGPORT2 stream-clone-encodedstore
   streaming all changes
   * files to transfer, * of data (glob)
@@ -744,7 +737,7 @@ Stream clone with encodedstore
   $ cat port-2-errors.log
 
 Stream clone with fncachestore
-  $ hg clone --config experimental.changegroup3=True --stream -U \
+  $ hg clone --stream -U \
   >   http://localhost:$HGPORT stream-clone-fncachestore
   streaming all changes
   * files to transfer, * of data (glob)
