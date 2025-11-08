@@ -10,6 +10,8 @@ basic setup
   $ cat << EOF >> $HGRCPATH
   > [debug]
   > revlog.debug-delta=yes
+  > [storage]
+  > revlog.reuse-external-delta-compression = no
   > EOF
 
 #if delta-info-flags

@@ -49,6 +49,7 @@ To update the md5, invoke the script without --validate
   > revlog.optimize-delta-parent-choice = yes
   > revlog.reuse-external-delta-parent = no
   > revlog.reuse-external-delta = no
+  > revlog.reuse-external-delta-compression = no
   > delta-fold-estimate = always
   > EOF
 
