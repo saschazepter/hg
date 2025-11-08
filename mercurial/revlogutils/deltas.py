@@ -1256,6 +1256,8 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
         assert cache is not None
         assert len(self._internal_group) == 1
         cache_base = self._internal_group[0]
+        if not self.revlog.delta_config.lazy_compression:
+            return True
         if cache_base != cache.base:
             # We will have to uncompress the delta, we can fold the result.
             return True
