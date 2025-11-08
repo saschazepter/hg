@@ -317,25 +317,119 @@ class TreeNode:
         return self.child_ptrs[index]
 
 
-@attr.s(slots=True)
-class Base:
-    """Base information that `MutableTree` builds on."""
+@attr.s(slots=True, init=False)
+class FileIndexView:
+    """Read-only view of the file index."""
 
-    docket = attr.ib(type=Docket)
     list_file = attr.ib(type=memoryview)
     meta_array = attr.ib(type=MetadataArray)
     tree_file = attr.ib(type=memoryview)
-    root_node = attr.ib(type=TreeNode)
+    tree_root_pointer = attr.ib(type=NodePointerT)
+    tree_unused_bytes = attr.ib(type=int)
+    root = attr.ib(type=TreeNode)
 
     @classmethod
-    def empty(cls) -> Base:
+    def empty(cls) -> FileIndexView:
+        """Return a view of an empty file index."""
         return cls(
             docket=Docket(),
             list_file=util.buffer(b""),
-            meta_array=MetadataArray(util.buffer(b"")),
+            meta_file=util.buffer(b""),
             tree_file=util.buffer(b""),
-            root_node=TreeNode.empty_root(),
         )
+
+    def __init__(
+        self,
+        docket: Docket,
+        list_file: memoryview,
+        meta_file: memoryview,
+        tree_file: memoryview,
+    ):
+        """Creates a file index view given a docket and file contents."""
+        # Unlike in Rust we don't limit files to their docket "use size" fields
+        # because that is already done before calling this method.
+        # TODO: Make the implementations more consistent on this point.
+        if len(tree_file) == 0:
+            root = TreeNode.empty_root()
+        else:
+            root = TreeNode.parse_from(tree_file[docket.tree_root_pointer :])
+        if root.token != ROOT_TOKEN or root.label_length != 0:
+            raise error.CorruptedState("invalid file index root node")
+        self.list_file = list_file
+        self.meta_array = MetadataArray(meta_file)
+        self.tree_file = tree_file
+        self.tree_root_pointer = docket.tree_root_pointer
+        self.tree_unused_bytes = docket.tree_unused_bytes
+        self.root = root
+
+    def __len__(self) -> int:
+        """Return the number of paths in the file index."""
+        return len(self.meta_array)
+
+    def items(self) -> Iterator[tuple[HgPathT, FileTokenT]]:
+        """Iterate the file index entries as (path, token)."""
+        for token, meta in enumerate(self.meta_array):
+            path = self._read_span(meta.offset, meta.length)
+            yield bytes(path), FileTokenT(token)
+
+    def get_path(self, token: FileTokenT) -> HgPathT | None:
+        """Look up a path on disk by token."""
+        meta = self.meta_array[token]
+        return bytes(self._read_span(meta.offset, meta.length))
+
+    def get_token(self, path: HgPathT) -> FileTokenT | None:
+        """Look up a token on disk by path."""
+        if not path:
+            return None
+        tree_file = self.tree_file
+        node = self.root
+        position = 0
+        while (ptr := node.find_child(path[position])) is not None:
+            child_node = TreeNode.parse_from(tree_file[ptr:])
+            label = self._read_label(child_node, position)
+            if not path[position:].startswith(label):
+                break
+            assert len(label) > 0
+            position += len(label)
+            if position == len(path):
+                token = child_node.token
+                if len(path) == self.meta_array[token].length:
+                    return token
+                break
+            node = child_node
+        return None
+
+    def _read_span(self, offset: int, length: int) -> memoryview:
+        """Read a span of bytes from the list file."""
+        return self.list_file[offset : offset + length]
+
+    def _read_label(
+        self, node: TreeNode, position: LabelPositionT
+    ) -> memoryview:
+        """Read a node's label from the list file via the meta file."""
+        metadata = self.meta_array[node.token]
+        return self._read_span(metadata.offset + position, node.label_length)
+
+    def debug_iter_tree_nodes(self) -> Iterator[int_file_index.DebugTreeNode]:
+        tree = self.tree_file
+
+        def recur(pointer: NodePointerT, position: LabelPositionT):
+            node = TreeNode.parse_from(tree[pointer:])
+            if node.token == ROOT_TOKEN:
+                label = b""
+            else:
+                label = bytes(self._read_label(node, position))
+            children = [
+                (bytes([char]), ptr)
+                for char, ptr in zip(node.child_chars, node.child_ptrs)
+            ]
+            yield (pointer, node.token, label, children)
+            position += node.label_length
+            for ptr in node.child_ptrs:
+                yield from recur(ptr, position)
+
+        if len(tree) > 0:
+            yield from recur(self.tree_root_pointer, 0)
 
 
 @attr.s(slots=True)
@@ -431,13 +525,11 @@ class MutableTree:
     ...     tree_file_size=s.tree_file_size,
     ...     tree_root_pointer=s.tree_root_pointer,
     ... )
-    >>> root_node = TreeNode.parse_from(s.bytes[s.tree_root_pointer:])
-    >>> base = Base(
+    >>> base = FileIndexView(
     ...     docket=docket,
     ...     list_file=list_file,
-    ...     meta_array=meta_array,
+    ...     meta_file=b"".join(m.serialize() for m in meta_array),
     ...     tree_file=s.bytes,
-    ...     root_node=root_node,
     ... )
 
     Then we can create new nodes to append to the serialized tree:
@@ -459,19 +551,19 @@ class MutableTree:
     {'f': (b'foo', 0, {'l': '0x0037', 'd': (b'd', 6)}), 'b': (b'ba', 4, {'r': (b'r', 1, {'n': (b'n', 7)}), 'z': '0x0020'}), 'o': (b'other', 5)}
     """
 
-    def __init__(self, base: Base | None):
-        self.base = base or Base.empty()
+    def __init__(self, base: FileIndexView | None):
+        self.base = base or FileIndexView.empty()
         self.nodes: list[MutableTreeNode] = []
         self.num_copied_nodes = 0
         self.num_copied_children = 0
         self.num_paths_added = 0
-        self._copy_node(self.base.root_node, b"")
+        self._copy_node(self.base.root, b"")
         if len(self.base.tree_file) == 0:
             self.num_copied_nodes = 0
 
     def __len__(self) -> int:
         """Return the number of paths in this tree, including the base."""
-        return len(self.base.meta_array) + self.num_paths_added
+        return len(self.base) + self.num_paths_added
 
     def _copy_node_at(
         self, offset: NodePointerT, position: LabelPositionT
@@ -558,7 +650,7 @@ class MutableTree:
             # If there's only a root node, no need to write anything.
             return None
         # Terminology: final = old + additional = old + (copied + fresh).
-        old_size = self.base.docket.tree_file_size
+        old_size = len(self.base.tree_file)
         num_additional_nodes = len(self.nodes)
         num_fresh_nodes = num_additional_nodes - self.num_copied_nodes
         root_is_fresh = self.num_copied_nodes == 0
@@ -602,7 +694,7 @@ class MutableTree:
         assert (
             len(buffer) == additional_size
         ), f"buffer size is {len(buffer)}, expected {additional_size}"
-        old_unused_bytes = self.base.docket.tree_unused_bytes
+        old_unused_bytes = self.base.tree_unused_bytes
         additional_unused_bytes = (
             self.num_copied_nodes * NODE_SIZE
             + self.num_copied_children * CHILD_SIZE

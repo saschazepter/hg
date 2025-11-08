@@ -104,7 +104,7 @@ class FileIndex(int_file_index.IFileIndex):
         self._load_data_files()
 
     def _token_count(self) -> int:
-        return len(self._meta_array) + len(self._add_paths)
+        return len(self._on_disk) + len(self._add_paths)
 
     def has_token(self, token: FileTokenT) -> bool:
         return (
@@ -118,16 +118,16 @@ class FileIndex(int_file_index.IFileIndex):
     def get_path(self, token: FileTokenT) -> HgPathT | None:
         if not self.has_token(token):
             return None
-        n = len(self._meta_array)
+        n = len(self._on_disk)
         if token < n:
-            return self._get_path_on_disk(token)
+            return self._on_disk.get_path(token)
         return self._add_paths[token - n]
 
     def get_token(self, path: HgPathT) -> FileTokenT | None:
         token = self._add_map.get(path)
         if token is not None:
             return token
-        token = self._get_token_on_disk(path)
+        token = self._on_disk.get_token(path)
         if token in self._remove_tokens:
             return None
         return token
@@ -222,28 +222,7 @@ class FileIndex(int_file_index.IFileIndex):
         return self._docket.tree_file_size
 
     def debug_iter_tree_nodes(self) -> Iterator[int_file_index.DebugTreeNode]:
-        tree = self._tree_file
-
-        def recur(
-            pointer: file_index_util.NodePointerT,
-            position: file_index_util.LabelPositionT,
-        ):
-            node = file_index_util.TreeNode.parse_from(tree[pointer:])
-            if node.token == file_index_util.ROOT_TOKEN:
-                label = b""
-            else:
-                label = bytes(self._read_label(node, position))
-            children = [
-                (bytes([char]), ptr)
-                for char, ptr in zip(node.child_chars, node.child_ptrs)
-            ]
-            yield (pointer, node.token, label, children)
-            position += node.label_length
-            for ptr in node.child_ptrs:
-                yield from recur(ptr, position)
-
-        if len(tree) > 0:
-            yield from recur(self._docket.tree_root_pointer, 0)
+        return self._on_disk.debug_iter_tree_nodes()
 
     def _add_file_generator(self, tr: TransactionT):
         """Add a file generator for writing the file index."""
@@ -324,20 +303,12 @@ class FileIndex(int_file_index.IFileIndex):
         return b"fileindex-tree." + id
 
     def _load_data_files(self):
-        self._list_file = self._load_list_file()
-        self._meta_array = self._load_meta_array()
-        self._tree_file = self._load_tree_file()
-        if len(self._tree_file) == 0:
-            self._root_node = file_index_util.TreeNode.empty_root()
-        else:
-            self._root_node = file_index_util.TreeNode.parse_from(
-                self._tree_file[self._docket.tree_root_pointer :]
-            )
-        if (
-            self._root_node.token != file_index_util.ROOT_TOKEN
-            or self._root_node.label_length != 0
-        ):
-            raise error.CorruptedState("invalid file index root node")
+        self._on_disk = file_index_util.FileIndexView(
+            self._docket,
+            self._load_list_file(),
+            self._load_meta_file(),
+            self._load_tree_file(),
+        )
 
     def _load_list_file(self) -> memoryview:
         path = self._list_file_path()
@@ -433,46 +404,6 @@ class FileIndex(int_file_index.IFileIndex):
         f.seek(used_size)
         return f
 
-    def _read_span(self, offset: int, length: int) -> memoryview:
-        """Read a span of bytes from the list file."""
-        return self._list_file[offset : offset + length]
-
-    def _read_label(
-        self,
-        node: file_index_util.TreeNode,
-        position: file_index_util.LabelPositionT,
-    ) -> memoryview:
-        """Read a node's label from the list file via the meta file."""
-        metadata = self._meta_array[node.token]
-        return self._read_span(metadata.offset + position, node.label_length)
-
-    def _get_path_on_disk(self, token: FileTokenT) -> HgPathT:
-        """Look up a path on disk by token."""
-        meta = self._meta_array[token]
-        return bytes(self._read_span(meta.offset, meta.length))
-
-    def _get_token_on_disk(self, path: HgPathT) -> FileTokenT | None:
-        """Look up a path on disk by token."""
-        if not path:
-            return None
-        tree_file = self._tree_file
-        node = self._root_node
-        position = 0
-        while (ptr := node.find_child(path[position])) is not None:
-            child_node = file_index_util.TreeNode.parse_from(tree_file[ptr:])
-            label = self._read_label(child_node, position)
-            if not path[position:].startswith(label):
-                break
-            assert len(label) > 0
-            position += len(label)
-            if position == len(path):
-                token = child_node.token
-                if len(path) == self._meta_array[token].length:
-                    return token
-                break
-            node = child_node
-        return None
-
     def _write_data(self, tr: TransactionT):
         """Write all data files and update self._docket."""
         docket = self._docket
@@ -499,19 +430,10 @@ class FileIndex(int_file_index.IFileIndex):
                 return
             if vacuum:
                 tree = file_index_util.MutableTree(base=None)
-                for token, meta in enumerate(self._meta_array):
-                    path = bytes(self._read_span(meta.offset, meta.length))
+                for path, token in self._on_disk.items():
                     tree.insert(path, FileTokenT(token))
             else:
-                tree = file_index_util.MutableTree(
-                    file_index_util.Base(
-                        docket=docket,
-                        list_file=self._list_file,
-                        meta_array=self._meta_array,
-                        tree_file=self._tree_file,
-                        root_node=self._root_node,
-                    )
-                )
+                tree = file_index_util.MutableTree(self._on_disk)
             FileIndex._write_data_impl(
                 docket, tree, self._add_paths, list_file, meta_file, tree_file
             )
