@@ -2596,12 +2596,6 @@ _packermap: dict[
 
 def allsupportedversions(repo):
     versions = set(_packermap.keys())
-    if repo.ui.config_is_set(b'experimental', b'changegroup4'):
-        want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
-    else:
-        want_v4 = scmutil.use_delta_info(repo)
-    if not want_v4:
-        versions.discard(b'04')
     want_v5 = (
         repo.ui.configbool(b'experimental', b'changegroup5')
         or requirements.REVLOGV2_REQUIREMENT in repo.requirements
@@ -2614,7 +2608,20 @@ def allsupportedversions(repo):
 
 # Changegroup versions that can be applied to the repo
 def supportedincomingversions(repo):
-    return allsupportedversions(repo)
+    versions = allsupportedversions(repo)
+    # Using changegroupv4 is most useful when the receiving end support
+    # delta-info flags. So we don't advertise support for it by default unless
+    # explicitly specified.
+    #
+    # (It is supported for outgoing bundle unconditionnaly so that we won't
+    # need to manually enable it for bundle or pushing it)
+    if repo.ui.config_is_set(b'experimental', b'changegroup4'):
+        want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    else:
+        want_v4 = scmutil.use_delta_info(repo)
+    if not want_v4:
+        versions.discard(b'04')
+    return versions
 
 
 # Changegroup versions that can be created from the repo
@@ -2643,9 +2650,21 @@ def supportedoutgoingversions(repo):
 
 
 def localversion(repo):
-    # Finds the best version to use for bundles that are meant to be used
-    # locally, such as those from strip and shelve, and temporary bundles.
-    return max(supportedoutgoingversions(repo))
+    """Finds the best version to use for "local bundles"
+
+    "Local bundles"  are meant to be used locally, such as those from strip and
+    shelve, and temporary bundles.
+    """
+    versions = allsupportedversions(repo)
+    # only use changegroup4 if explicitly requested or if using a format that
+    # directly benefit from it.
+    if repo.ui.config_is_set(b'experimental', b'changegroup4'):
+        want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    else:
+        want_v4 = scmutil.use_delta_info(repo)
+    if not want_v4:
+        versions.discard(b'04')
+    return max(versions)
 
 
 def safeversion(repo):
