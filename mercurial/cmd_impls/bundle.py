@@ -172,7 +172,7 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
     if cgversion == b'01':  # bundle1
         bversion = b'HG10' + bundlespec.wirecompression
         bcompression = None
-    elif cgversion in (b'02', b'03'):
+    elif cgversion in (b'02', b'03', b'04'):
         bversion = b'HG20'
         bcompression = bundlespec.wirecompression
     else:

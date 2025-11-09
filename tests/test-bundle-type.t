@@ -621,6 +621,11 @@ Test controlling the changegroup version
   $ hg debugbundle ./v2-cg-03.hg --spec
   bzip2-v2;cg.version=03
 
+  $ hg -R t1 bundle -a -t 'v2;cg.version=04' ./v2-cg-04.hg
+  7 changesets found
+  $ hg debugbundle ./v2-cg-04.hg --spec
+  bzip2-v2;cg.version=04
+
 tests controlling bundle contents
 =================================
 

@@ -154,7 +154,7 @@ def getbundlespec(ui, fh):
                 cgversion = part.params[b'version']
                 if cgversion in (b'01', b'02'):
                     version = b'v2'
-                elif cgversion in (b'03',):
+                elif cgversion in (b'03', b'04'):
                     version = b'v2'
                     params[b'cg.version'] = cgversion
                 else:
