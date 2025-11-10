@@ -570,6 +570,11 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         )
         # also copy information about the current verification state
         other._verifiedbranches = set(self._verifiedbranches)
+        # and various alternative mapping
+        other._open_entries = self._open_entries.copy()
+        other._head_revs = self._head_revs.copy()
+        other._open_head_revs = self._open_head_revs.copy()
+        other._tips = self._tips.copy()
         return other
 
     def sync_disk(self, repo):
