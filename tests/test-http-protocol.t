@@ -1,5 +1,3 @@
-#require no-chg
-
 persistent-nodemap is not enabled by default. It is not relevant for this test
 so disable it.
 
