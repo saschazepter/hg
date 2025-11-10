@@ -135,6 +135,13 @@ def showchildren(context, mapping):
     )
 
 
+@templatekeyword(b'closesbranch', requires={b'ctx'})
+def show_closes_branch(context, mapping):
+    """ "yes" if this changeset is branch-closing, "no" otherwise"""
+    ctx = context.resource(mapping, b'ctx')
+    return templateutil.wrappedbool(ctx.closesbranch())
+
+
 # Deprecated, but kept alive for help generation a purpose.
 @templatekeyword(b'currentbookmark', requires={b'repo', b'ctx'})
 def showcurrentbookmark(context, mapping):

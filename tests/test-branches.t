@@ -350,6 +350,34 @@ verify update will accept invalid legacy branch names
   close this part branch too
   
   
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} - {closesbranch} {node|short}\n'
+  @  b X - true e3d49c0575d8
+  |
+  | _  b X - true d3f163457ebf
+  | |
+  | o  b   - false bfbe841b666e
+  | |
+  | o  b   - false 5f4061bb3f2a
+  | |
+  o |  b   - false eebb944467c9
+  |/
+  | o  a branch name much longer than the default justification used by branches   - false 10ff5895aa57
+  | |
+  | o  c   - false 589736a22561
+  | |
+  | o  a   - false d8cbc61dbaa6
+  | |
+  o |  b   - false aee39cd168d0
+  | |
+  o |  b   - false ac22033332d1
+  | |
+  | o  a   - false 881fe2b92ad0
+  | |
+  | o  a   - false dd6b440dd85a
+  |/
+  o  default   - false 19709c5a4e75
+  
+
 --- b branch should be inactive
 
   $ hg branches
