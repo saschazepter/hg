@@ -52,9 +52,10 @@ The file-index features revolve around two main concepts:
   file-path within a given repository. The file tokens are local only and not
   consistent between clones.
 
-  In practice, a file index *token* is an unsigned 31-bit integer: it fits in
-  32 bits but we reserve the high bit for other uses. However, this is not a
-  core guarantee for "file-token" and might change in the future.
+  In practice, a file index *token* is a nonzero unsigned 31-bit integer: it
+  fits in 32 bits but we reserve the value 0 and all values with the high bit
+  for other uses. However, this is not a core guarantee for "file-token" and
+  might change in the future.
 
 
 The feature envelop of the file-index is:
@@ -351,8 +352,11 @@ limit allows us to store the number of children in an 8-bit integer.
 Each node has the following 6-byte header:
 
 * Offset 0: Token as a 32-bit big-endian integer.
-* Offset 4: Label length as an 8-bit integer. Must be nonzero.
+* Offset 4: Label length as an 8-bit integer.
 * Offset 5: Number of children as an 8-bit integer.
+
+The root node has token 0 and label length 0. For non-root nodes, the token and
+the label length must be nonzero.
 
 The header is followed by two arrays:
 

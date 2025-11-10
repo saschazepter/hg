@@ -24,6 +24,7 @@ use on_disk::Metadata;
 use on_disk::OwnedDataFiles;
 use on_disk::OwnedFileIndexView;
 pub use on_disk::PathInfo;
+use on_disk::EMPTY_META_BYTES;
 
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
@@ -59,9 +60,9 @@ const INITIAL_GARBAGE_TTL: u16 = 2;
 pub struct FileToken(pub u32);
 
 impl FileToken {
-    /// Returns an invalid sentinel token for the root node.
+    /// Returns a special token for the root node.
     fn root() -> Self {
-        Self(u32::MAX)
+        Self(0)
     }
 
     /// Returns true if this is a valid token.
@@ -210,7 +211,9 @@ impl FileIndex {
 
     /// Returns true if `token` exists in the file index.
     pub fn has_token(&self, token: FileToken) -> bool {
-        token.0 < self.token_count() && !self.remove_tokens.contains(&token)
+        // Start at 1 to exclude root.
+        let in_range = token.0 >= 1 && token.0 < self.token_count();
+        in_range && !self.remove_tokens.contains(&token)
     }
 
     /// Returns true if `path` exists in the file index.
@@ -249,7 +252,8 @@ impl FileIndex {
 
     /// Returns the number of paths in the file index.
     pub fn len(&self) -> usize {
-        u32_u(self.token_count()) - self.remove_tokens.len()
+        // Subtract 1 to exclude root.
+        u32_u(self.token_count()) - self.remove_tokens.len() - 1
     }
 
     /// Returns true if the file index is empty.
@@ -478,6 +482,12 @@ impl FileIndex {
         let token_start = tree.token_count();
         let mut list_file_size = docket.header.list_file_size.get();
         let mut meta_file_size = docket.header.meta_file_size.get();
+        if meta_file_size == 0 {
+            meta_file
+                .write(&EMPTY_META_BYTES)
+                .when_writing_file(&meta_file_path)?;
+            meta_file_size = u_u32(EMPTY_META_BYTES.len());
+        }
         for (i, path_result) in (token_start..).zip(add_paths) {
             let path = path_result?;
             let metadata = Metadata::new(path, list_file_size);

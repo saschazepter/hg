@@ -32,7 +32,6 @@ pub enum Error {
     DocketFileEof,
     DataFileTooSmall,
     BadMetaFilesize,
-    EmptySpan,
     ListFileOutOfBounds,
     MetaFileOutOfBounds,
     TreeFileOutOfBounds,
@@ -56,9 +55,6 @@ impl std::fmt::Display for Error {
             }
             Error::BadMetaFilesize => {
                 write!(f, "meta file 'used size' is not a multiple of the record size")
-            }
-            Error::EmptySpan => {
-                write!(f, "reference to substring of list file has zero length")
             }
             Error::ListFileOutOfBounds => {
                 write!(f, "list file access out of bounds")
@@ -339,6 +335,11 @@ impl Metadata {
     }
 }
 
+/// A serialized empty file index meta file, containing a single entry.
+// TODO: Construct directly and serialize once bytes_cast provides const fns:
+// https://foss.heptapod.net/octobus/rust/bytes-cast/-/merge_requests/2
+pub const EMPTY_META_BYTES: [u8; std::mem::size_of::<Metadata>()] = [0x00; 8];
+
 /// Information about a token's path.
 /// Parsed from [`Metadata`] and resolved to a pointer into the list file.
 pub struct PathInfo<'on_disk> {
@@ -420,7 +421,7 @@ pub(super) struct TreeNodeHeader {
 // TODO: Construct directly and serialize once bytes_cast provides const fns:
 // https://foss.heptapod.net/octobus/rust/bytes-cast/-/merge_requests/2
 pub const EMPTY_TREE_BYTES: [u8; std::mem::size_of::<TreeNodeHeader>()] =
-    [0xff, 0xff, 0xff, 0xff, 0x00, 0x00];
+    [0x00; 6];
 
 impl TreeNodeHeader {
     pub(super) fn new(
@@ -556,6 +557,11 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let list_file = limit(files.list_file, docket.header.list_file_size)?;
         let meta_file = limit(files.meta_file, docket.header.meta_file_size)?;
         let tree_file = limit(files.tree_file, docket.header.tree_file_size)?;
+        let meta_file = if meta_file.is_empty() {
+            &EMPTY_META_BYTES
+        } else {
+            meta_file
+        };
         let tree_file = if tree_file.is_empty() {
             &EMPTY_TREE_BYTES
         } else {
@@ -649,11 +655,12 @@ impl<'on_disk> FileIndexView<'on_disk> {
     }
 
     /// Returns an iterator over `(path, token)` pairs in the file index.
+    /// Excludes the root token.
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<(PathInfo<'on_disk>, FileToken), Error>>
     {
-        self.meta_array.iter().enumerate().map(|(i, metadata)| {
+        self.meta_array.iter().enumerate().skip(1).map(|(i, metadata)| {
             Ok((
                 PathInfo {
                     path: self.read_span(metadata.path())?,
@@ -671,9 +678,6 @@ impl<'on_disk> FileIndexView<'on_disk> {
     ) -> Result<&'on_disk [u8], Error> {
         let offset = u32_u(span.offset);
         let length = u16_u(span.length);
-        if length == 0 {
-            return Err(Error::EmptySpan);
-        }
         self.list_file
             .get(offset..offset + length)
             .ok_or(Error::ListFileOutOfBounds)

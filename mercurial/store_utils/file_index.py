@@ -107,8 +107,9 @@ class FileIndex(int_file_index.IFileIndex):
         return self._on_disk.token_count() + len(self._add_paths)
 
     def has_token(self, token: FileTokenT) -> bool:
+        # Start at 1 to exclude the root.
         return (
-            0 <= token < self._token_count()
+            1 <= token < self._token_count()
             and token not in self._remove_tokens
         )
 
@@ -136,14 +137,16 @@ class FileIndex(int_file_index.IFileIndex):
         return self.has_path(path)
 
     def __len__(self) -> int:
-        return self._token_count() - len(self._remove_tokens)
+        # Subtract 1 to exclude the root.
+        return self._token_count() - len(self._remove_tokens) - 1
 
     def __iter__(self) -> Iterator[HgPathT]:
         for path, _token in self.items():
             yield path
 
     def items(self) -> Iterator[tuple[HgPathT, FileTokenT]]:
-        for token in range(self._token_count()):
+        # Start at 1 to exclude the root.
+        for token in range(1, self._token_count()):
             path = self.get_path(FileTokenT(token))
             if path is not None:
                 yield path, FileTokenT(token)
@@ -453,6 +456,9 @@ class FileIndex(int_file_index.IFileIndex):
         tree_file: BinaryIO,
     ):
         """Helper for _write_data."""
+        if docket.meta_file_size == 0:
+            meta_file.write(file_index_util.EMPTY_META_BYTES)
+            docket.meta_file_size = len(file_index_util.EMPTY_META_BYTES)
         token = tree.token_count()
         for path in add_paths:
             offset = docket.list_file_size

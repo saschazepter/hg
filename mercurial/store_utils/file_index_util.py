@@ -26,8 +26,8 @@ NodePointerT = int
 LabelPositionT = int
 """The position of a node's label within the file path."""
 
-ROOT_TOKEN = FileTokenT(0xFFFFFFFF)
-"""An invalid sentinel token for the root node."""
+ROOT_TOKEN = FileTokenT(0)
+"""A special token for the root node."""
 
 V1_FORMAT_MARKER = b"fileindex-v1"
 
@@ -247,6 +247,12 @@ class MetadataArray:
             yield self[i]
 
 
+EMPTY_META_BYTES = b"\x00\x00\x00\x00\x00\x00\x00\x00"
+"""A serialized empty file index meta file."""
+
+assert EMPTY_META_BYTES == Metadata.from_path(b"", 0).serialize()
+
+
 @attr.s(slots=True)
 class TreeNodeHeader:
     """A node header in the tree file."""
@@ -268,7 +274,7 @@ class TreeNodeHeader:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
-EMPTY_TREE_BYTES = b"\xff\xff\xff\xff\x00\x00"
+EMPTY_TREE_BYTES = b"\x00\x00\x00\x00\x00\x00"
 """A serialized empty file index tree file."""
 
 assert EMPTY_TREE_BYTES == TreeNodeHeader(ROOT_TOKEN, 0, 0).serialize()
@@ -386,6 +392,8 @@ class FileIndexView:
         # Unlike in Rust we don't limit files to their docket "use size" fields
         # because that is already done before calling this method.
         # TODO: Make the implementations more consistent on this point.
+        if len(meta_file) == 0:
+            meta_file = util.buffer(EMPTY_META_BYTES)
         if len(tree_file) == 0:
             tree_file = util.buffer(EMPTY_TREE_BYTES)
         root = TreeNode.parse_from(tree_file[docket.tree_root_pointer :])
@@ -406,8 +414,13 @@ class FileIndexView:
         return len(self.meta_array)
 
     def items(self) -> Iterator[tuple[HgPathT, FileTokenT]]:
-        """Iterate the file index entries as (path, token)."""
-        for token, meta in enumerate(self.meta_array):
+        """Iterate the file index entries as (path, token).
+
+        Excludes the root token.
+        """
+        iterator = enumerate(self.meta_array)
+        next(iterator)  # skip root
+        for token, meta in iterator:
             path = self._read_span(meta.offset, meta.length)
             yield bytes(path), FileTokenT(token)
 
@@ -550,36 +563,36 @@ class MutableTree:
 
     >>> files = [b"foo", b"bar", b"fool", b"baz", b"ba"]
     >>> list_file = b"".join(f + b"\\x00" for f in files)
-    >>> meta_array = []
+    >>> meta_array = [Metadata.from_path(b"", 0)]
     >>> t = MutableTree(base=None)
     >>> offset = 0
     >>> t.debug()
     {}
-    >>> t.insert(b"foo", 0)
+    >>> t.insert(b"foo", 1)
     >>> meta_array.append(Metadata(offset, len(b"foo"), 0))
     >>> offset += len(b"foo") + 1
     >>> t.debug()
-    {'f': (b'foo', 0)}
-    >>> t.insert(b"bar", 1)
+    {'f': (b'foo', 1)}
+    >>> t.insert(b"bar", 2)
     >>> meta_array.append(Metadata(offset, len(b"bar"), 0))
     >>> offset += len(b"bar") + 1
     >>> t.debug()
-    {'f': (b'foo', 0), 'b': (b'bar', 1)}
-    >>> t.insert(b"fool", 2)
+    {'f': (b'foo', 1), 'b': (b'bar', 2)}
+    >>> t.insert(b"fool", 3)
     >>> meta_array.append(Metadata(offset, len(b"fool"), 0))
     >>> offset += len(b"fool") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': (b'l', 2)}), 'b': (b'bar', 1)}
-    >>> t.insert(b"baz", 3)
+    {'f': (b'foo', 1, {'l': (b'l', 3)}), 'b': (b'bar', 2)}
+    >>> t.insert(b"baz", 4)
     >>> meta_array.append(Metadata(offset, len(b"baz"), 0))
     >>> offset += len(b"baz") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': (b'l', 2)}), 'b': (b'ba', 3, {'r': (b'r', 1), 'z': (b'z', 3)})}
-    >>> t.insert(b"ba", 4)
+    {'f': (b'foo', 1, {'l': (b'l', 3)}), 'b': (b'ba', 4, {'r': (b'r', 2), 'z': (b'z', 4)})}
+    >>> t.insert(b"ba", 5)
     >>> meta_array.append(Metadata(offset, len(b"ba"), 0))
     >>> offset += len(b"ba") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': (b'l', 2)}), 'b': (b'ba', 4, {'r': (b'r', 1), 'z': (b'z', 3)})}
+    {'f': (b'foo', 1, {'l': (b'l', 3)}), 'b': (b'ba', 5, {'r': (b'r', 2), 'z': (b'z', 4)})}
 
     Then we can serialize it:
 
@@ -601,18 +614,18 @@ class MutableTree:
     >>> t = MutableTree(base=base)
     >>> t.debug()
     {'f': '0x0020', 'b': '0x0010'}
-    >>> t.insert(b"other", 5)
+    >>> t.insert(b"other", 6)
     >>> offset += len(b"other") + 1
     >>> t.debug()
-    {'f': '0x0020', 'b': '0x0010', 'o': (b'other', 5)}
-    >>> t.insert(b"food", 6)
+    {'f': '0x0020', 'b': '0x0010', 'o': (b'other', 6)}
+    >>> t.insert(b"food", 7)
     >>> offset += len(b"food") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': (b'l', 2), 'd': (b'd', 6)}), 'b': '0x0010', 'o': (b'other', 5)}
-    >>> t.insert(b"barn", 7)
+    {'f': (b'foo', 1, {'l': (b'l', 3), 'd': (b'd', 7)}), 'b': '0x0010', 'o': (b'other', 6)}
+    >>> t.insert(b"barn", 8)
     >>> offset += len(b"barn") + 1
     >>> t.debug()
-    {'f': (b'foo', 0, {'l': (b'l', 2), 'd': (b'd', 6)}), 'b': (b'ba', 4, {'r': (b'r', 1, {'n': (b'n', 7)}), 'z': (b'z', 3)}), 'o': (b'other', 5)}
+    {'f': (b'foo', 1, {'l': (b'l', 3), 'd': (b'd', 7)}), 'b': (b'ba', 5, {'r': (b'r', 2, {'n': (b'n', 8)}), 'z': (b'z', 4)}), 'o': (b'other', 6)}
     """
 
     def __init__(self, base: FileIndexView | None):

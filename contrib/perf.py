@@ -3026,10 +3026,11 @@ def perf_file_index_write(ui, repo, **opts):
 
         paths = set()
         paths_and_tokens = []
+        token_count = len(fileindex) + 1
         ascii_letters = string.ascii_letters.encode('ascii')
         count = opts[b'count']
         for i in range(count):
-            token = random.randrange(len(fileindex))
+            token = random.randrange(1, token_count)
             existing = fileindex.get_path(token)
             prefix = existing[: random.randrange(len(existing))]
             while True:
@@ -3039,7 +3040,7 @@ def perf_file_index_write(ui, repo, **opts):
                 if path not in fileindex and path not in paths:
                     break
             paths.add(path)
-            paths_and_tokens.append((path, len(fileindex) + i))
+            paths_and_tokens.append((path, token_count + i))
 
         paths_str = b''.join(b'\t%s\n' % path for path, _ in paths_and_tokens)
         ui.notenoi18n(b'adding %d path(s):\n%s' % (count, paths_str))

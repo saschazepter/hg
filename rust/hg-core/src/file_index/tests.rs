@@ -66,10 +66,10 @@ fn test_empty() {
 fn test_single() {
     let (mut file_index, _temp_dir) = create_file_index().unwrap();
     let foo = HgPath::new(b"foo");
-    assert_eq!(file_index.add(foo).unwrap(), (FileToken(0), true));
-    check_paths(&file_index, &[(0, foo)]);
+    assert_eq!(file_index.add(foo).unwrap(), (FileToken(1), true));
+    check_paths(&file_index, &[(1, foo)]);
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, foo)]);
+    check_paths(&file_index, &[(1, foo)]);
 }
 
 #[test]
@@ -79,15 +79,15 @@ fn test_multiple_write_together() {
     let bb = HgPath::new(b"bb");
     let ccc = HgPath::new(b"ccc");
 
-    assert_eq!(file_index.add(a).unwrap(), (FileToken(0), true));
-    check_paths(&file_index, &[(0, a)]);
-    assert_eq!(file_index.add(bb).unwrap(), (FileToken(1), true));
-    check_paths(&file_index, &[(0, a), (1, bb)]);
-    assert_eq!(file_index.add(ccc).unwrap(), (FileToken(2), true));
-    check_paths(&file_index, &[(0, a), (1, bb), (2, ccc)]);
+    assert_eq!(file_index.add(a).unwrap(), (FileToken(1), true));
+    check_paths(&file_index, &[(1, a)]);
+    assert_eq!(file_index.add(bb).unwrap(), (FileToken(2), true));
+    check_paths(&file_index, &[(1, a), (2, bb)]);
+    assert_eq!(file_index.add(ccc).unwrap(), (FileToken(3), true));
+    check_paths(&file_index, &[(1, a), (2, bb), (3, ccc)]);
 
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, a), (1, bb), (2, ccc)]);
+    check_paths(&file_index, &[(1, a), (2, bb), (3, ccc)]);
 }
 
 #[test]
@@ -97,15 +97,15 @@ fn test_multiple_write_separately() {
     let bb = HgPath::new(b"bb");
     let ccc = HgPath::new(b"ccc");
 
-    assert_eq!(file_index.add(a).unwrap(), (FileToken(0), true));
+    assert_eq!(file_index.add(a).unwrap(), (FileToken(1), true));
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, a)]);
-    assert_eq!(file_index.add(bb).unwrap(), (FileToken(1), true));
+    check_paths(&file_index, &[(1, a)]);
+    assert_eq!(file_index.add(bb).unwrap(), (FileToken(2), true));
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, a), (1, bb)]);
-    assert_eq!(file_index.add(ccc).unwrap(), (FileToken(2), true));
+    check_paths(&file_index, &[(1, a), (2, bb)]);
+    assert_eq!(file_index.add(ccc).unwrap(), (FileToken(3), true));
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, a), (1, bb), (2, ccc)]);
+    check_paths(&file_index, &[(1, a), (2, bb), (3, ccc)]);
 }
 
 #[test]
@@ -116,27 +116,27 @@ fn test_maximum_path_length_in_memory() {
     const MAX_LENGTH: usize = 4096 * 4;
     let path: &Vec<_> = &(0..MAX_LENGTH).map(|i| (i % 256) as u8).collect();
     let path = HgPath::new(path);
-    assert_eq!(file_index.add(path).unwrap(), (FileToken(0), true));
+    assert_eq!(file_index.add(path).unwrap(), (FileToken(1), true));
 
-    check_paths(&file_index, &[(0, path)]);
+    check_paths(&file_index, &[(1, path)]);
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, path)]);
+    check_paths(&file_index, &[(1, path)]);
 }
 
 #[test]
 fn test_add_existing_path() {
     let (mut file_index, _temp_dir) = create_file_index().unwrap();
     let foo = HgPath::new(b"foo");
-    assert_eq!(file_index.add(foo).unwrap(), (FileToken(0), true));
-    assert_eq!(file_index.add(foo).unwrap(), (FileToken(0), false));
+    assert_eq!(file_index.add(foo).unwrap(), (FileToken(1), true));
+    assert_eq!(file_index.add(foo).unwrap(), (FileToken(1), false));
     file_index.write(&mut FakeTransaction).unwrap();
-    assert_eq!(file_index.add(foo).unwrap(), (FileToken(0), false));
+    assert_eq!(file_index.add(foo).unwrap(), (FileToken(1), false));
 }
 
 #[test]
 fn test_get_path_none() {
     let (file_index, _temp_dir) = create_file_index().unwrap();
-    assert_eq!(file_index.get_path(FileToken(0)).unwrap(), None);
+    assert_eq!(file_index.get_path(FileToken(1)).unwrap(), None);
     assert_eq!(file_index.get_path(FileToken(u32::MAX)).unwrap(), None);
 }
 
@@ -151,7 +151,7 @@ fn test_get_token_none() {
 fn test_remove_all() {
     let (mut file_index, _temp_dir) = create_file_index().unwrap();
     let foo = HgPath::new(b"foo");
-    assert_eq!(file_index.add(foo).unwrap(), (FileToken(0), true));
+    assert_eq!(file_index.add(foo).unwrap(), (FileToken(1), true));
     file_index.write(&mut FakeTransaction).unwrap();
     file_index.remove(foo).unwrap();
     check_paths(&file_index, &[]);
@@ -164,11 +164,11 @@ fn test_remove_some() {
     let (mut file_index, _temp_dir) = create_file_index().unwrap();
     let foo = HgPath::new(b"foo");
     let bar = HgPath::new(b"bar");
-    assert_eq!(file_index.add(foo).unwrap(), (FileToken(0), true));
-    assert_eq!(file_index.add(bar).unwrap(), (FileToken(1), true));
+    assert_eq!(file_index.add(foo).unwrap(), (FileToken(1), true));
+    assert_eq!(file_index.add(bar).unwrap(), (FileToken(2), true));
     file_index.write(&mut FakeTransaction).unwrap();
     file_index.remove(foo).unwrap();
-    check_paths(&file_index, &[(1, bar)]);
+    check_paths(&file_index, &[(2, bar)]);
     file_index.write(&mut FakeTransaction).unwrap();
-    check_paths(&file_index, &[(0, bar)]);
+    check_paths(&file_index, &[(1, bar)]);
 }

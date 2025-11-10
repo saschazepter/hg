@@ -35,7 +35,7 @@ Create a new repo with the file index
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
-  00000000: "" (4294967295)
+  00000000: "" (0)
 Add a file
   $ touch file
   $ hg add file
@@ -50,18 +50,21 @@ Confirm it's in the file index, not the fncache
   .hg/store/fileindex-meta.* (glob)
   .hg/store/fileindex-tree.* (glob)
   $ hg debug::file-index
-  0: file
+  1: file
 
 Look up by path and by token
   $ hg debug::file-index --path file
-  0: file
-  $ hg debug::file-index --token 0
-  0: file
+  1: file
+  $ hg debug::file-index --token 1
+  1: file
   $ hg debug::file-index --path nonexistent
   abort: path nonexistent is not in the file index
   [10]
-  $ hg debug::file-index --token 1
-  abort: token 1 is not in the file index
+  $ hg debug::file-index --token 0
+  abort: token 0 is not in the file index
+  [10]
+  $ hg debug::file-index --token 2
+  abort: token 2 is not in the file index
   [10]
 
 Examine the file index structure
@@ -69,7 +72,7 @@ Examine the file index structure
   marker: fileindex-v1
   list_file_size: 5
   reserved_revlog_size: 0
-  meta_file_size: 8
+  meta_file_size: 16
   tree_file_size: 11
   list_file_id: * (glob)
   reserved_revlog_id: 00000000
@@ -81,8 +84,8 @@ Examine the file index structure
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
-  00000000: "" (4294967295)
-      "f" -> "file" (0)
+  00000000: "" (0)
+      "f" -> "file" (1)
 
 Add more files
   $ touch fi filename other
@@ -92,22 +95,22 @@ Add more files
   adding other
   $ hg commit -m 1
   $ hg debug::file-index
-  0: file
-  1: fi
-  2: filename
-  3: other
+  1: file
+  2: fi
+  3: filename
+  4: other
   $ hg debug::file-index --path filename
-  2: filename
+  3: filename
   $ hg debug::file-index --token 3
-  3: other
+  3: filename
   $ hg debug::file-index --tree
-  0000000b: "" (4294967295)
+  0000000b: "" (0)
       "f" -> 0000001b
-      "o" -> "other" (3)
-  0000001b: "fi" (1)
+      "o" -> "other" (4)
+  0000001b: "fi" (2)
       "l" -> 00000026
-  00000026: "le" (0)
-      "n" -> "name" (2)
+  00000026: "le" (1)
+      "n" -> "name" (3)
 
 Test debug-revlog-stats to exercise walking the store.
   $ hg debug-revlog-stats --filelog
@@ -129,7 +132,7 @@ We can format the docket as JSON
     "list_file_size": 23,
     "marker": "fileindex-v1",
     "meta_file_id": "*", (glob)
-    "meta_file_size": 32,
+    "meta_file_size": 40,
     "reserved_flags": 0,
     "reserved_revlog_id": "00000000",
     "reserved_revlog_size": 0,
@@ -176,7 +179,7 @@ immediately). Use --path because it causes a lookup in the tree file.
   $ touch $TESTTMP/race-lock
   $ wait
   $ cat $TESTTMP/race-lock.out
-  4: anotherfile
+  5: anotherfile
 
 Vacuum empty tree (no data files)
   $ hg init $TESTTMP/repoempty --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
@@ -272,7 +275,7 @@ Start with one file
   $ touch file0
   $ hg ci -qAm 0
   $ hg debug::file-index
-  0: file0
+  1: file0
 
 Strip to remove the file
   $ hg debugstrip -q -r 0
@@ -282,19 +285,19 @@ Add the file back
   $ touch file0
   $ hg ci -qAm 0
   $ hg debug::file-index
-  0: file0
+  1: file0
 
 Add another file
   $ touch file1
   $ hg ci -qAm 1
   $ hg debug::file-index
-  0: file0
-  1: file1
+  1: file0
+  2: file1
 
 Strip to remove only the second file
   $ hg debugstrip -q -r 1
   $ hg debug::file-index
-  0: file0
+  1: file0
 
 Add two more files
   $ touch file1
@@ -303,15 +306,15 @@ Add two more files
   $ touch file2
   $ hg ci -qAm 2
   $ hg debug::file-index
-  0: file0
-  1: file1
-  2: file2
+  1: file0
+  2: file1
+  3: file2
 
 Strip to remove the middle file
   $ hg debugstrip -q -r 1
   $ hg debug::file-index
-  0: file0
-  1: file2
+  1: file0
+  2: file2
 
 Strip to remove the remaining files
   $ hg debugstrip -q -r 0
@@ -338,13 +341,13 @@ Set up a narrow clone
   $ hg clone -q repofull repotracked --narrow --include "" --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repotracked
   $ hg debug::file-index
-  0: file0
-  1: file1
+  1: file0
+  2: file1
 
 Test excluding file0
   $ hg tracked -q --addexclude file0
   $ hg debug::file-index
-  0: file1
+  1: file1
 
 Test excluding file1 too
   $ hg tracked -q --addexclude file1
@@ -371,7 +374,7 @@ Access file index in pretxnclose hook
   committing manifest
   committing changelog
   running hook pretxnclose: hg debug::file-index
-  0: file
+  1: file
   committed changeset 0:* (glob)
 
   $ cd ..
@@ -420,7 +423,7 @@ Set up the following tests so we are adding to a nonempty file index
   $ touch file2
   $ original_id=$(hg debug::file-index --docket -T '{tree_file_id}')
   $ hg debug::file-index
-  0: file
+  1: file
 
 Manual rollback, same file
   $ hg commit -qAm 1 --config devel.fileindex.vacuum-mode=never
@@ -429,7 +432,7 @@ Manual rollback, same file
   working directory now based on revision 0
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
+  1: file
   $ ls .hg/store/fileindex-*
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
@@ -442,7 +445,7 @@ Manual rollback, new file
   working directory now based on revision 0
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
+  1: file
   $ ls .hg/store/fileindex-*
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
@@ -456,7 +459,7 @@ Abort transaction, same file
   [255]
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
+  1: file
   $ ls .hg/store/fileindex-*
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
@@ -470,7 +473,7 @@ Abort transaction, new file
   [255]
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
+  1: file
   $ ls .hg/store/fileindex-*
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
@@ -483,14 +486,14 @@ Recover transaction, same file
   exit=255 (chg !)
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
-  1: file2
+  1: file
+  2: file2
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
+  1: file
   $ ls .hg/store/fileindex-*
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
@@ -504,14 +507,14 @@ Recover transaction, new file
   exit=255 (chg !)
   $ test "$id" != "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
-  1: file2
+  1: file
+  2: file2
   $ hg recover
   rolling back interrupted transaction
   (verify step skipped, run `hg verify` to check your repository content)
   $ test "$id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
-  0: file
+  1: file
   $ ls .hg/store/fileindex-*
   .hg/store/fileindex-list.* (glob)
   .hg/store/fileindex-meta.* (glob)
@@ -630,7 +633,7 @@ Add a file, then upgrade to fileindex
   $ test -f .hg/store/fncache
   [1]
   $ hg debug::file-index
-  0: f1
+  1: f1
 
 Add another file, then downgrade to fncache
   $ touch f2
@@ -649,8 +652,8 @@ Add another file, then downgrade to fncache
 Finally, upgrade back to fileindex
   $ hg debugupgrade --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data --run > /dev/null
   $ hg debug::file-index
-  0: f1
-  1: f2
+  1: f1
+  2: f2
 
 Test compatiblity of Python and Rust implementations
 ----------------------------------------------------
@@ -668,12 +671,12 @@ Add files with Python, read with Rust
   $ touch file0
   $ HGMODULEPOLICY=py hg commit -qAm 0
   $ hg debug::file-index
-  0: file0
+  1: file0
   $ hg debug::file-index --docket
   marker: fileindex-v1
   list_file_size: 6
   reserved_revlog_size: 0
-  meta_file_size: 8
+  meta_file_size: 16
   tree_file_size: 11
   list_file_id: * (glob)
   reserved_revlog_id: 00000000
@@ -685,8 +688,8 @@ Add files with Python, read with Rust
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
-  00000000: "" (4294967295)
-      "f" -> "file0" (0)
+  00000000: "" (0)
+      "f" -> "file0" (1)
 
 Vacuum with Python, GC with Rust
   $ HGMODULEPOLICY=py hg debug::file-index --vacuum
@@ -704,13 +707,13 @@ Add files with Rust, read with Python
   $ touch file1
   $ hg commit -qAm 1
   $ HGMODULEPOLICY=py hg debug::file-index
-  0: file0
-  1: file1
+  1: file0
+  2: file1
   $ HGMODULEPOLICY=py hg debug::file-index --docket
   marker: fileindex-v1
   list_file_size: 12
   reserved_revlog_size: 0
-  meta_file_size: 16
+  meta_file_size: 24
   tree_file_size: 38
   list_file_id: * (glob)
   reserved_revlog_id: 00000000
@@ -722,11 +725,11 @@ Add files with Rust, read with Python
   reserved_flags: 0
   garbage_entries: 0
   $ HGMODULEPOLICY=py hg debug::file-index --tree
-  0000000b: "" (4294967295)
+  0000000b: "" (0)
       "f" -> 00000016
-  00000016: "file" (1)
-      "0" -> "0" (0)
-      "1" -> "1" (1)
+  00000016: "file" (2)
+      "0" -> "0" (1)
+      "1" -> "1" (2)
 
 Vacuum with Rust, GC with Python
   $ hg debug::file-index --vacuum
@@ -754,13 +757,13 @@ Paths with distinct prefix
   $ touch foo bar
   $ hg commit -qAm 0
   $ hg debug::file-index --tree
-  00000000: "" (4294967295)
-      "b" -> "bar" (0)
-      "f" -> "foo" (1)
+  00000000: "" (0)
+      "b" -> "bar" (1)
+      "f" -> "foo" (2)
   $ hg debug::file-index --path foo
-  1: foo
+  2: foo
   $ hg debug::file-index --path bar
-  0: bar
+  1: bar
   $ hg debug::file-index --path baz
   abort: path baz is not in the file index
   [10]
@@ -769,16 +772,16 @@ Paths with a common prefix
   $ touch fun
   $ hg commit -qAm 1
   $ hg debug::file-index --tree
-  00000010: "" (4294967295)
-      "b" -> "bar" (0)
+  00000010: "" (0)
+      "b" -> "bar" (1)
       "f" -> 00000020
-  00000020: "f" (2)
-      "o" -> "oo" (1)
-      "u" -> "un" (2)
+  00000020: "f" (3)
+      "o" -> "oo" (2)
+      "u" -> "un" (3)
   $ hg debug::file-index --path foo
-  1: foo
+  2: foo
   $ hg debug::file-index --path fun
-  2: fun
+  3: fun
   $ hg debug::file-index --path f
   abort: path f is not in the file index
   [10]
@@ -787,18 +790,18 @@ Paths where one is a prefix of the other
   $ touch food
   $ hg commit -qAm 2
   $ hg debug::file-index --tree
-  00000030: "" (4294967295)
-      "b" -> "bar" (0)
+  00000030: "" (0)
+      "b" -> "bar" (1)
       "f" -> 00000040
-  00000040: "f" (2)
+  00000040: "f" (3)
       "o" -> 00000050
-      "u" -> "un" (2)
-  00000050: "oo" (1)
-      "d" -> "d" (3)
+      "u" -> "un" (3)
+  00000050: "oo" (2)
+      "d" -> "d" (4)
   $ hg debug::file-index --path foo
-  1: foo
+  2: foo
   $ hg debug::file-index --path food
-  3: food
+  4: food
   $ hg debug::file-index --path fo
   abort: path fo is not in the file index
   [10]
@@ -822,10 +825,10 @@ Maximum label length (255)
   $ touch $path
   $ hg commit -qAm 3
   $ hg debug::file-index --path $path
-  0: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  1: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   $ hg debug::file-index --tree
-  00000000: "" (4294967295)
-      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0)
+  00000000: "" (0)
+      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (1)
 
 Go past the maximum label length once
   $ path=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
@@ -835,13 +838,13 @@ Go past the maximum label length once
   $ touch $path
   $ hg commit -qAm 4
   $ hg debug::file-index --path $path
-  1: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
+  2: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
   $ hg debug::file-index --tree
-  0000000b: "" (4294967295)
-      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0)
+  0000000b: "" (0)
+      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (1)
       "b" -> 0000001b
-  0000001b: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (1)
-      "X" -> "X" (1)
+  0000001b: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (2)
+      "X" -> "X" (2)
 
 Go past the maximum label length twice
   $ path=ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
@@ -851,17 +854,17 @@ Go past the maximum label length twice
   $ touch $path
   $ hg commit -qAm 4
   $ hg debug::file-index --path $path
-  2: ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
+  3: ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
   $ hg debug::file-index --tree
-  00000026: "" (4294967295)
-      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0)
+  00000026: "" (0)
+      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (1)
       "b" -> 0000001b
       "c" -> 0000003b
-  0000001b: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (1)
-      "X" -> "X" (1)
-  0000003b: "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (2)
+  0000001b: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (2)
+      "X" -> "X" (2)
+  0000003b: "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (3)
       "/" -> 00000046
-  00000046: "/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (2)
-      "Z" -> "Z" (2)
+  00000046: "/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (3)
+      "Z" -> "Z" (3)
 
   $ cd ..
