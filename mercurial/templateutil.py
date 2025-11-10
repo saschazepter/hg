@@ -122,6 +122,56 @@ class mappable:  # pytype: disable=ignored-metaclass
         """Create a single template mapping representing this"""
 
 
+class wrappedbool(wrapped):
+    """Wrapper for boolean value
+
+    Makes `tobool(…)` works as expected while still controlling the "string"
+    output.
+    """
+
+    def __init__(self, value):
+        self._value = bool(value)
+
+    def contains(self, context, mapping, item):
+        raise error.ParseError(_(b'boolean string'))
+
+    def getmember(self, context, mapping, key):
+        raise error.ParseError(
+            _(b'%r is not a dictionary') % pycompat.bytestr(self._value)
+        )
+
+    def getmin(self, context, mapping):
+        raise error.ParseError(_(b'boolean string'))
+
+    def getmax(self, context, mapping):
+        raise error.ParseError(_(b'boolean string'))
+
+    def _getby(self, context, mapping, func):
+        raise error.ParseError(_(b'boolean string'))
+
+    def filter(self, context, mapping, select):
+        raise error.ParseError(
+            _(b'%r is not filterable') % pycompat.bytestr(self._value)
+        )
+
+    def itermaps(self, context):
+        raise error.ParseError(
+            _(b'%r is not iterable of mappings') % pycompat.bytestr(self._value)
+        )
+
+    def join(self, context, mapping, sep):
+        return joinitems(self.tovalue(context, mapping), sep)
+
+    def show(self, context, mapping):
+        return self.tovalue(context, mapping)
+
+    def tobool(self, context, mapping):
+        return self._value
+
+    def tovalue(self, context, mapping):
+        return b"true" if self._value else b"false"
+
+
 class wrappedbytes(wrapped):
     """Wrapper for byte string"""
 
@@ -957,6 +1007,8 @@ def evalboolean(context, mapping, arg):
             thing = stringutil.parsebool(data)
     else:
         thing = func(context, mapping, data)
+    if hasattr(thing, 'tobool'):
+        return thing.tobool(context, mapping)
     return makewrapped(context, mapping, thing).tobool(context, mapping)
 
 
