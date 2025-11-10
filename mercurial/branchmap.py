@@ -1166,6 +1166,8 @@ class BranchCacheV3(_LocalBranchCache):
             touched_branch.add(branch)
         to_rev = cl.index.rev
         for branch in touched_branch:
+            # XXX getting a rev from a node is expensive so this sorting is not
+            # ideal.
             self._entries[branch].sort(key=to_rev)
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
