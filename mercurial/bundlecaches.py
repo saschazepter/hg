@@ -373,6 +373,9 @@ def parse_clonebundle_manifest_line(
             try:
                 bundlespec = parsebundlespec(repo, value)
                 attrs[b'COMPRESSION'] = bundlespec.compression
+                raw_dc = bundlespec.params.get(b"delta-compression")
+                if raw_dc is not None:
+                    attrs[b'DELTA-COMPRESSION'] = raw_dc.split(b',')
                 attrs[b'VERSION'] = bundlespec.version
                 if sf := bundlespec.params.get(b"store-fingerprint"):
                     attrs[b'STORE-FINGERPRINT'] = sf
@@ -428,6 +431,17 @@ def filterclonebundleentries(
                 b'filtering %s because not a supported clonebundle scheme\n'
                 % url
             )
+            continue
+
+        supported = util.compengines.supported_wire_delta_compression()
+        unknown_compression = None
+        for c in entry.get(b'DELTA-COMPRESSION', []):
+            if c not in supported:
+                unknown_compression = c
+                break
+        if unknown_compression is not None:
+            msg = b'filtering %s because delta-compression is not supported: %s'
+            repo.ui.debug(msg % (url, unknown_compression))
             continue
 
         expected_fingerprint = entry.get(b"STORE-FINGERPRINT")

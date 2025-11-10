@@ -3128,6 +3128,8 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
             for key, value in entry.items():
                 if key == b'URL':
                     continue
+                if isinstance(value, list):
+                    value = b','.join(value)
                 ui.writenoi18n(b'    %s: %s\n' % (key, value))
 
 

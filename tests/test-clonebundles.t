@@ -537,6 +537,46 @@ Stream bundle spec with unknown requirements should be filtered out
   added 2 changesets with 2 changes to 2 files
   new changesets 53245c60e682:aaff8d2ffbbf
 
+
+Filtering unsupported delta-compression away
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://no-comp.entry BUNDLESPEC=none-v2;cg.version=04
+  > http://non-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none
+  > http://zlib-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib
+  > http://zstd-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd
+  > http://unknown-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd,babar
+  > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://no-comp.entry BUNDLESPEC=none-v2;cg.version=04
+  http://non-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none
+  http://zlib-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib
+  http://zstd-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd
+  http://unknown-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd,babar
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://no-comp.entry
+      BUNDLESPEC: none-v2;cg.version=04
+      COMPRESSION: none
+      VERSION: v2
+    URL: http://non-comp.entry
+      BUNDLESPEC: none-v2;cg.version=04;delta-compression=none
+      COMPRESSION: none
+      DELTA-COMPRESSION: none
+      VERSION: v2
+    URL: http://zlib-comp.entry
+      BUNDLESPEC: none-v2;cg.version=04;delta-compression=none,zlib
+      COMPRESSION: none
+      DELTA-COMPRESSION: none,zlib
+      VERSION: v2
+    URL: http://zstd-comp.entry (zstd !)
+      BUNDLESPEC: none-v2;cg.version=04;delta-compression=none,zlib,zstd (zstd !)
+      COMPRESSION: none (zstd !)
+      DELTA-COMPRESSION: none,zlib,zstd (zstd !)
+      VERSION: v2 (zstd !)
+
+Testing preferences configuration
+---------------------------------
+
 Set up manifest for testing preferences
 (Remember, the TYPE does not have to match reality - the URL is
 important)
@@ -1128,5 +1168,3 @@ file content should work
 
   $ hg  cat -r tip A | wc -l
   \s*100001 (re)
-
-
