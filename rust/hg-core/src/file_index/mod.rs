@@ -224,13 +224,13 @@ impl FileIndex {
             return Ok(None);
         }
         let index = u32_u(token.0);
-        let len = self.on_disk().len();
-        if index < len {
+        let count = self.on_disk().len();
+        if index < count {
             return self.on_disk().get_path(token);
         }
         Ok(Some(
             self.add_paths
-                .get_index(index - len)
+                .get_index(index - count)
                 .expect("should exist since has_token returned true"),
         ))
     }
@@ -238,7 +238,8 @@ impl FileIndex {
     /// Looks up a token by path.
     pub fn get_token(&self, path: &HgPath) -> Result<Option<FileToken>, Error> {
         if let Some(index) = self.add_paths.get_index_of(path) {
-            return Ok(Some(FileToken(u_u32(self.on_disk().len() + index))));
+            let count = self.on_disk().len();
+            return Ok(Some(FileToken(u_u32(count + index))));
         };
         Ok(self
             .on_disk()
@@ -436,7 +437,8 @@ impl FileIndex {
         let files = VfsDataFiles { list_file, meta_file, tree_file };
         if removing {
             assert!(add_paths.is_empty(), "cannot add and remove in same txn");
-            let tree = MutableTree::empty(on_disk.len() - remove_tokens.len())?;
+            let num_paths = on_disk.len() - remove_tokens.len();
+            let tree = MutableTree::empty(num_paths)?;
             let add_paths = on_disk.iter().filter_map(|result| match result {
                 Ok((_, token)) if remove_tokens.contains(&token) => None,
                 Ok((info, _)) => Some(Ok(info.path())),
@@ -445,10 +447,11 @@ impl FileIndex {
             return Self::write_data_impl(docket, tree, add_paths, files);
         }
         let tree = if vacuum {
-            let mut tree = MutableTree::empty(on_disk.len() + add_paths.len())?;
-            for (i, info) in on_disk.meta_array.iter().enumerate() {
-                let path = HgPath::new(on_disk.read_span(info.path())?);
-                tree.insert(path, FileToken(u_u32(i)))?;
+            let num_paths = on_disk.len() + add_paths.len();
+            let mut tree = MutableTree::empty(num_paths)?;
+            for result in on_disk.iter() {
+                let (info, token) = result?;
+                tree.insert(info.path(), token)?;
             }
             tree
         } else {
@@ -622,8 +625,8 @@ impl<'a> Iterator for PathTokenIter<'a> {
     type Item = Result<(&'a HgPath, FileToken), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let len = self.inner.token_count();
-        while self.index < len {
+        let count = self.inner.token_count();
+        while self.index < count {
             let token = FileToken(self.index);
             self.index += 1;
             match self.inner.get_path(token) {
