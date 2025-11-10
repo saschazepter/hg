@@ -2763,8 +2763,9 @@ class localrepository(_localrepo_base_classes):
 
         if repository.CACHE_REV_BRANCH in caches:
             rbc = unfi.revbranchcache()
-            for r in unfi.changelog:
-                rbc.branchinfo(r)
+            with unfi.changelog.reading():
+                for r in unfi.changelog:
+                    rbc.branchinfo(r)
             rbc.write()
 
         if repository.CACHE_FULL_MANIFEST in caches:
