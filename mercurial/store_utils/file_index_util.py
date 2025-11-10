@@ -493,8 +493,7 @@ class FileIndexView:
                 if (ptr := child.get_pointer()) is not None:
                     yield from recur(ptr, position)
 
-        if self.tree_file_size > 0:
-            yield from recur(self.tree_root_pointer, 0)
+        yield from recur(self.tree_root_pointer, 0)
 
 
 @attr.s(slots=True)

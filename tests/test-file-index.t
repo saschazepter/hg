@@ -35,6 +35,7 @@ Create a new repo with the file index
   reserved_flags: 0
   garbage_entries: 0
   $ hg debug::file-index --tree
+  00000000: "" (4294967295)
 Add a file
   $ touch file
   $ hg add file

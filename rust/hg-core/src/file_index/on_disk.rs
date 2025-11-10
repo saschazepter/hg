@@ -768,10 +768,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
 
     /// Iterates over tree nodes, for debug output.
     pub fn debug_iter_tree_nodes(&self) -> DebugTreeNodeIter<'on_disk> {
-        let stack = match self.tree_file_size {
-            0 => vec![],
-            _ => vec![(self.tree_root_pointer, 0)],
-        };
+        let stack = vec![(self.tree_root_pointer, 0)];
         DebugTreeNodeIter { inner: *self, stack }
     }
 }
