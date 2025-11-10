@@ -312,6 +312,12 @@ Strip to remove the middle file
   0: file0
   1: file2
 
+Strip to remove the remaining files
+  $ hg debugstrip -q -r 0
+  $ hg debug::file-index
+  $ hg debug::file-index --docket -T 'size={tree_file_size}, root={tree_root_pointer}\n'
+  size=0, root=11 (known-bad-output !)
+
   $ cd ..
 
 Test removing paths with tracked
