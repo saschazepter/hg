@@ -1,4 +1,3 @@
-#require no-chg
 
   $ hg init repo
   $ cd repo
