@@ -1,6 +1,20 @@
 Testing changing branch on commits
 ==================================
 
+#testcases bm-v2 bm-v3
+
+#if bm-v3
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=yes
+  > EOF
+#else
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=no
+  > EOF
+#endif
+
 Setup
 
   $ cat >> $HGRCPATH << EOF
