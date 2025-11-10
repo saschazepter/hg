@@ -3110,6 +3110,8 @@ class localrepository(_localrepo_base_classes):
         if not force:
             match.bad = fail
 
+        ui = self.ui
+
         # lock() for recent changelog (see issue4368)
         with self.wlock(), self.lock():
             wctx = self[None]
@@ -3131,7 +3133,7 @@ class localrepository(_localrepo_base_classes):
 
             # check subrepos
             subs, commitsubs, newstate = subrepoutil.precommit(
-                self.ui, wctx, status, match, force=force
+                ui, wctx, status, match, force=force
             )
 
             # make sure all explicit patterns are matched
@@ -3146,10 +3148,8 @@ class localrepository(_localrepo_base_classes):
             mergeutil.checkunresolved(ms)
 
             # internal config: ui.allowemptycommit
-            if cctx.isempty() and not self.ui.configbool(
-                b'ui', b'allowemptycommit'
-            ):
-                self.ui.debug(b'nothing to commit, clearing merge state\n')
+            if cctx.isempty() and not ui.configbool(b'ui', b'allowemptycommit'):
+                ui.debug(b'nothing to commit, clearing merge state\n')
                 ms.reset()
                 return None
 
@@ -3170,7 +3170,7 @@ class localrepository(_localrepo_base_classes):
                 uipathfn = scmutil.getuipathfn(self)
                 for s in sorted(commitsubs):
                     sub = wctx.sub(s)
-                    self.ui.status(
+                    ui.status(
                         _(b'committing subrepository %s\n')
                         % uipathfn(subrepoutil.subrelpath(sub))
                     )
@@ -3192,10 +3192,10 @@ class localrepository(_localrepo_base_classes):
                     ms.reset()
             except:  # re-raises
                 if edited:
-                    self.ui.write(
+                    ui.write(
                         _(b'note: commit message saved in %s\n') % msg_path
                     )
-                    self.ui.write(
+                    ui.write(
                         _(
                             b"note: use 'hg commit --logfile "
                             b"%s --edit' to reuse it\n"
