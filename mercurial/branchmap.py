@@ -1155,8 +1155,12 @@ class BranchCacheV3(_LocalBranchCache):
         obsrevs = obsolete.getrevs(repo, b'obsolete')
         to_node = cl.node
         touched_branch = set()
-        for head in self._get_topo_heads(repo):
+        closed_size = len(self._closednodes)
+        any_obs = False
+        topo_heads = self._get_topo_heads(repo)
+        for head in topo_heads:
             if head in obsrevs:
+                any_obs = True
                 continue
             node = to_node(head)
             branch, closed = getbranchinfo(head)
@@ -1164,6 +1168,23 @@ class BranchCacheV3(_LocalBranchCache):
             if closed:
                 self._closednodes.add(node)
             touched_branch.add(branch)
+        # If we did not encountered any obsolete or topological heads closed
+        # head and saw only one branch, we are in a pure topo case.
+        #
+        # What about non-topo head you might ask ? Well if all the topological
+        # heads an open, non-obsolete, heads of that branch, no other revisions
+        # might be a topological heads.
+        if (
+            (not any_obs)
+            and len(self._closednodes) == closed_size
+            and len(touched_branch) == 1
+        ):
+            assert len(self._entries[branch]) == len(topo_heads)
+            self._pure_topo_branch = branch
+            self._head_revs[branch] = topo_heads
+            self._open_head_revs[branch] = topo_heads
+            self._tips[branch] = (self._entries[branch][-1], False)
+            self._verifiedbranches.add(branch)
         to_rev = cl.index.rev
         for branch in touched_branch:
             # XXX getting a rev from a node is expensive so this sorting is not
