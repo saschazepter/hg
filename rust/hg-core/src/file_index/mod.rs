@@ -555,6 +555,8 @@ where
             self.add_to_garbage(path);
             self.docket.header.tree_file_id = FileUid::random();
             self.docket.header.tree_file_size = 0.into();
+            self.docket.header.tree_root_pointer = 0.into();
+            self.docket.header.tree_unused_bytes = 0.into();
             let path = self.docket.tree_file_path().expect("just set the id");
             return self.open_new(&path);
         }

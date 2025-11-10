@@ -379,6 +379,8 @@ class FileIndex(int_file_index.IFileIndex):
                 self._add_to_garbage.append(path)
             docket.tree_file_id = docketmod.make_uid()
             docket.tree_file_size = 0
+            docket.tree_root_pointer = 0
+            docket.tree_unused_bytes = 0
             path = self._tree_file_path()
             assert path is not None
             return self._open_new(path, tr)
