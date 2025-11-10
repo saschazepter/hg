@@ -484,10 +484,7 @@ class FileIndexView:
 
         def recur(pointer: NodePointerT, position: LabelPositionT):
             node = TreeNode.parse_from(tree[pointer:])
-            if node.token == ROOT_TOKEN:
-                label = b""
-            else:
-                label = bytes(self._read_label(node, position))
+            label = bytes(self._read_label(node, position))
             position += node.label_length
             children = []
             for char, child in zip(node.child_chars, node.child_ptrs):
@@ -636,7 +633,7 @@ class MutableTree:
         self.num_copied_internal_nodes = 0
         self.num_copied_children = 0
         self.num_paths_added = 0
-        self._copy_node_with_label(self.base.root, 0, b"")
+        self._copy_node(self.base.root, 0)
         if self.base.tree_file_size == 0:
             self.num_copied_nodes = 0
             self.num_copied_internal_nodes = 0
@@ -650,17 +647,12 @@ class MutableTree:
         return self._copy_node(node, position)
 
     def _copy_node(self, node: TreeNode, position: LabelPositionT) -> int:
-        label = bytes(self.base._read_label(node, position))
-        return self._copy_node_with_label(node, position, label)
-
-    def _copy_node_with_label(
-        self, node: TreeNode, position: LabelPositionT, label: bytes
-    ) -> int:
         self.num_copied_nodes += 1
         if node.child_ptrs:
             self.num_internal_nodes += 1
             self.num_copied_internal_nodes += 1
             self.num_copied_children += len(node.child_ptrs)
+        label = bytes(self.base._read_label(node, position))
         mutable_node = MutableTreeNode(node.token, label, [])
         index = len(self.nodes)
         # Push node first, then children, so root node stays at index 0.

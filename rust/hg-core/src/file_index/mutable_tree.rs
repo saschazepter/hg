@@ -111,7 +111,7 @@ impl<'a> MutableTree<'a> {
         num_new_paths_estimate: usize,
     ) -> Result<Self, Error> {
         let mut tree = Self::new_impl(base, num_new_paths_estimate)?;
-        tree.copy_node_with_label(base.root, 0, b"")?;
+        tree.copy_node(base.root, 0)?;
         if base.tree_file_size == 0 {
             tree.num_copied_nodes = 0;
             tree.num_copied_internal_nodes = 0;
@@ -164,32 +164,22 @@ impl<'a> MutableTree<'a> {
         node: TreeNode<'a>,
         position: LabelPosition,
     ) -> Result<(usize, &[u8]), Error> {
-        let metadata = self.base.read_metadata(node.token)?;
-        let span = FileIndexView::label_span(node, metadata, position);
-        let label = self.base.read_span(span)?;
-        let index = self.copy_node_with_label(node, position, label)?;
-        Ok((index, label))
-    }
-
-    fn copy_node_with_label(
-        &mut self,
-        node: TreeNode<'a>,
-        position: LabelPosition,
-        label: &'a [u8],
-    ) -> Result<usize, Error> {
         self.num_copied_nodes += 1;
         if !node.child_ptrs.is_empty() {
             self.num_internal_nodes += 1;
             self.num_copied_internal_nodes += 1;
             self.num_copied_children += node.child_ptrs.len();
         }
+        let metadata = self.base.read_metadata(node.token)?;
+        let span = FileIndexView::label_span(node, metadata, position);
+        let label = self.base.read_span(span)?;
         let mutable_node =
             MutableTreeNode { token: node.token, label, children: Vec::new() };
         let index = self.nodes.len();
         // Push node first, then children, so root node stays at index 0.
         self.nodes.push(mutable_node);
         self.nodes[index].children = self.copy_node_children(node, position)?;
-        Ok(index)
+        Ok((index, label))
     }
 
     /// Converts the children of a node to [`MutableTreeChild`]. If any are

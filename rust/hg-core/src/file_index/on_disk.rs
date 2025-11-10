@@ -816,13 +816,9 @@ impl<'on_disk> DebugTreeNodeIter<'on_disk> {
     ) -> Result<DebugTreeNode<'on_disk>, Error> {
         let node = self.inner.read_node(pointer)?;
         let token = node.token;
-        let label = if token == FileToken::root() {
-            b""
-        } else {
-            let metadata = self.inner.read_metadata(token)?;
-            let span = FileIndexView::label_span(node, metadata, position);
-            self.inner.read_span(span)?
-        };
+        let metadata = self.inner.read_metadata(token)?;
+        let span = FileIndexView::label_span(node, metadata, position);
+        let label = self.inner.read_span(span)?;
         let position = position + node.label_length as usize;
         let mut children = Vec::with_capacity(node.child_chars.len());
         for (char, &ptr) in node.child_chars.iter().zip(node.child_ptrs) {
