@@ -79,7 +79,7 @@ Check for server shapes config errors
   > requires = ["recursive"]
   > EOF
   $ hg admin::narrow-server --shape-fingerprints
-  config error: shard 'recursive' creates a cycle with 'recursive'
+  config error: shards form a cycle: recursive->recursive
   [30]
 
   $ cat > .hg/store/server-shapes <<EOF
@@ -89,10 +89,13 @@ Check for server shapes config errors
   > requires = ["cyclic2"]
   > [[shards]]
   > name = "cyclic2"
+  > requires = ["cyclic3"]
+  > [[shards]]
+  > name = "cyclic3"
   > requires = ["cyclic1"]
   > EOF
   $ hg admin::narrow-server --shape-fingerprints
-  config error: shard 'cyclic2' creates a cycle with 'cyclic1'
+  config error: shards form a cycle: cyclic1->cyclic2->cyclic3->cyclic1
   [30]
 
 Normal cases

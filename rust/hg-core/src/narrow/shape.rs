@@ -281,43 +281,43 @@ impl StoreShards {
         Ok(None)
     }
 
+    /// Gather all recursive dependent shards for `shard`
     fn dependencies<'a>(
         &'a self,
         shard: &'a Shard,
     ) -> Result<FastHashMap<&'a ShardName, &'a Shard>, HgError> {
+        let mut acc = FastHashMap::default();
+        self.dependencies_from(shard, &[], &mut acc)?;
+        Ok(acc)
+    }
+
+    /// Gather all recursive dependent shards for `shard`, given that the path
+    /// through dependencies is `from` (to detect cycles) and we should
+    /// accumulate the dependencies in `acc`.
+    fn dependencies_from<'a>(
+        &'a self,
+        shard: &'a Shard,
+        from: &[&'a ShardName],
+        acc: &mut FastHashMap<&'a ShardName, &'a Shard>,
+    ) -> Result<(), HgError> {
         // TODO cache dependencies?
-        let mut all = FastHashMap::default();
-
         for name in &shard.requires {
-            let mut to_visit = vec![name];
-            let mut visited = HashSet::new();
-            visited.insert(name);
-
-            while let Some(name) = to_visit.pop() {
-                let current_shard = &self.shards[name];
-
-                for direct_dependency in &current_shard.requires {
-                    let new_visit = visited.insert(direct_dependency);
-                    if !new_visit {
-                        return Err(HgError::abort(
-                            format!(
-                                "shard '{}' creates a cycle with '{}'",
-                                name, direct_dependency
-                            ),
-                            exit_codes::CONFIG_ERROR_ABORT,
-                            None,
-                        ));
-                    };
-
-                    to_visit.push(direct_dependency);
-                }
+            if from.contains(&name) {
+                let cycle = from.iter().join("->");
+                return Err(HgError::abort(
+                    format!("shards form a cycle: {}->{}", cycle, name),
+                    exit_codes::CONFIG_ERROR_ABORT,
+                    None,
+                ));
             }
-            all.extend(
-                visited.into_iter().map(|name| (name, &self.shards[name])),
-            );
+            let sub_shard = &self.shards[name];
+            acc.insert(name, sub_shard);
+            let mut from = from.to_vec();
+            from.push(name);
+            self.dependencies_from(sub_shard, &from, acc)?;
         }
 
-        Ok(all)
+        Ok(())
     }
 }
 
