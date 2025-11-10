@@ -38,6 +38,7 @@ pub enum Error {
     TreeFileOutOfBounds,
     TreeFileEof,
     BadRootNode,
+    BadSingletonTree,
     BadLeafLabel,
 }
 
@@ -73,6 +74,9 @@ impl std::fmt::Display for Error {
             }
             Error::BadRootNode => {
                 write!(f, "invalid root node in tree")
+            }
+            Error::BadSingletonTree => {
+                write!(f, "invalid singleton tree")
             }
             Error::BadLeafLabel => {
                 write!(f, "invalid label for leaf node")
@@ -574,6 +578,9 @@ impl<'on_disk> FileIndexView<'on_disk> {
         };
         if root.token != FileToken::root() || root.label_length != 0 {
             return Err(Error::BadRootNode);
+        }
+        if !tree_file.is_empty() && root.child_ptrs.is_empty() {
+            return Err(Error::BadSingletonTree);
         }
         Ok(Self {
             list_file,

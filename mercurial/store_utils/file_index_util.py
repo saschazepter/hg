@@ -392,6 +392,8 @@ class FileIndexView:
             root = TreeNode.parse_from(tree_file[docket.tree_root_pointer :])
         if root.token != ROOT_TOKEN or root.label_length != 0:
             raise error.CorruptedState("invalid file index root node")
+        if len(tree_file) > 0 and len(root.child_ptrs) == 0:
+            raise error.CorruptedState("invalid file index singleton tree")
         self.list_file = list_file
         self.meta_array = MetadataArray(meta_file)
         self.tree_file = tree_file
