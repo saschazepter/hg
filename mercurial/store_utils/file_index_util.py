@@ -401,8 +401,8 @@ class FileIndexView:
         self.tree_unused_bytes = docket.tree_unused_bytes
         self.root = root
 
-    def __len__(self) -> int:
-        """Return the number of paths in the file index."""
+    def token_count(self) -> int:
+        """Return the number of tokens in the file index."""
         return len(self.meta_array)
 
     def items(self) -> Iterator[tuple[HgPathT, FileTokenT]]:
@@ -628,9 +628,9 @@ class MutableTree:
             self.num_copied_nodes = 0
             self.num_copied_internal_nodes = 0
 
-    def __len__(self) -> int:
-        """Return the number of paths in this tree, including the base."""
-        return len(self.base) + self.num_paths_added
+    def token_count(self) -> int:
+        """Return the number of distinct tokens in this tree and its base."""
+        return self.base.token_count() + self.num_paths_added
 
     def _copy_node_at(self, ptr: NodePointerT, position: LabelPositionT) -> int:
         node = TreeNode.parse_from(self.base.tree_file[ptr:])

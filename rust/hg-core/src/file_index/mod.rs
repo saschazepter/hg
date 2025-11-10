@@ -202,10 +202,10 @@ impl FileIndex {
         self.on_disk.borrow_dependent()
     }
 
-    /// Returns the number of tokens allocated (equivalently, the value to be
-    /// used for the next token).
+    /// Returns the number of tokens in the file index.
+    /// This is also the value to be used for the next token.
     fn token_count(&self) -> u32 {
-        u_u32(self.on_disk().len() + self.add_paths.len())
+        u_u32(self.on_disk().token_count() + self.add_paths.len())
     }
 
     /// Returns true if `token` exists in the file index.
@@ -224,7 +224,7 @@ impl FileIndex {
             return Ok(None);
         }
         let index = u32_u(token.0);
-        let count = self.on_disk().len();
+        let count = self.on_disk().token_count();
         if index < count {
             return self.on_disk().get_path(token);
         }
@@ -238,7 +238,7 @@ impl FileIndex {
     /// Looks up a token by path.
     pub fn get_token(&self, path: &HgPath) -> Result<Option<FileToken>, Error> {
         if let Some(index) = self.add_paths.get_index_of(path) {
-            let count = self.on_disk().len();
+            let count = self.on_disk().token_count();
             return Ok(Some(FileToken(u_u32(count + index))));
         };
         Ok(self
@@ -437,7 +437,7 @@ impl FileIndex {
         let files = VfsDataFiles { list_file, meta_file, tree_file };
         if removing {
             assert!(add_paths.is_empty(), "cannot add and remove in same txn");
-            let num_paths = on_disk.len() - remove_tokens.len();
+            let num_paths = on_disk.token_count() - remove_tokens.len();
             let tree = MutableTree::empty(num_paths)?;
             let add_paths = on_disk.iter().filter_map(|result| match result {
                 Ok((_, token)) if remove_tokens.contains(&token) => None,
@@ -447,7 +447,7 @@ impl FileIndex {
             return Self::write_data_impl(docket, tree, add_paths, files);
         }
         let tree = if vacuum {
-            let num_paths = on_disk.len() + add_paths.len();
+            let num_paths = on_disk.token_count() + add_paths.len();
             let mut tree = MutableTree::empty(num_paths)?;
             for result in on_disk.iter() {
                 let (info, token) = result?;
@@ -475,7 +475,7 @@ impl FileIndex {
         // The tree file doesn't need buffering since we write it all at once.
         let mut list_file = BufWriter::new(list_file);
         let mut meta_file = BufWriter::new(meta_file);
-        let token_start = tree.len();
+        let token_start = tree.token_count();
         let mut list_file_size = docket.header.list_file_size.get();
         let mut meta_file_size = docket.header.meta_file_size.get();
         for (i, path_result) in (token_start..).zip(add_paths) {

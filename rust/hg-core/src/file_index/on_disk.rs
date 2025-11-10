@@ -591,8 +591,8 @@ impl<'on_disk> FileIndexView<'on_disk> {
         })
     }
 
-    /// Returns the number of paths in the file index.
-    pub fn len(&self) -> usize {
+    /// Returns the number of tokens in the file index.
+    pub fn token_count(&self) -> usize {
         self.meta_array.len()
     }
 

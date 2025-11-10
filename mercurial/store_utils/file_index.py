@@ -104,7 +104,7 @@ class FileIndex(int_file_index.IFileIndex):
         self._load_data_files()
 
     def _token_count(self) -> int:
-        return len(self._on_disk) + len(self._add_paths)
+        return self._on_disk.token_count() + len(self._add_paths)
 
     def has_token(self, token: FileTokenT) -> bool:
         return (
@@ -118,7 +118,7 @@ class FileIndex(int_file_index.IFileIndex):
     def get_path(self, token: FileTokenT) -> HgPathT | None:
         if not self.has_token(token):
             return None
-        n = len(self._on_disk)
+        n = self._on_disk.token_count()
         if token < n:
             return self._on_disk.get_path(token)
         return self._add_paths[token - n]
@@ -453,7 +453,7 @@ class FileIndex(int_file_index.IFileIndex):
         tree_file: BinaryIO,
     ):
         """Helper for _write_data."""
-        token = len(tree)
+        token = tree.token_count()
         for path in add_paths:
             offset = docket.list_file_size
             metadata = file_index_util.Metadata.from_path(path, offset)

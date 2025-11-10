@@ -135,9 +135,9 @@ impl<'a> MutableTree<'a> {
         })
     }
 
-    /// Returns the number of paths in this tree, including the base.
-    pub fn len(&self) -> usize {
-        self.base.len() + self.num_paths_added
+    /// Returns the number of distinct tokens in this tree and its base.
+    pub fn token_count(&self) -> usize {
+        self.base.token_count() + self.num_paths_added
     }
 
     /// Copies the node if it is on disk. Returns the node's index and label.
