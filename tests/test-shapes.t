@@ -225,3 +225,27 @@ Test hidden files (warning about files not in the working copy anymore)
   $ hg admin::narrow-server --shape-files-hidden full-manual
   secret/secret-file
   secret/secret-file2
+
+We also list hidden files in `--shape-files`
+  $ hg admin::narrow-server --shape-files full
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+  foo/file1
+  foo/file2
+  secret/secret-file
+  secret/secret-file2
+  $ hg admin::narrow-server --shape-files full-manual
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+  foo/file1
+  foo/file2
+  secret/secret-file
+  secret/secret-file2

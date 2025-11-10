@@ -244,8 +244,9 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             files.append((entry.target_id, entry.target_id in known))
         files.sort()
         for file, known in files:
-            if (list_hidden and not known) or (not list_hidden and known):
-                ui.writenoi18n(b"%s\n" % file)
+            if list_hidden and known:
+                continue
+            ui.writenoi18n(b"%s\n" % file)
         return
     else:
         assert False, "unreachable"
