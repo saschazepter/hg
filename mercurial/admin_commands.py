@@ -195,58 +195,59 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         if shape is None:
             raise error.Abort(_(b"shape '%s' not found" % name))
 
-    if subcommand == "shape_fingerprints":
-        all_shapes = store_shards.all_shapes()
-        for shape in all_shapes:
+    if True:
+        if subcommand == "shape_fingerprints":
+            all_shapes = store_shards.all_shapes()
+            for shape in all_shapes:
+                # TODO formatter?
+                name = shape.name().encode()
+                ui.writenoi18n(b"%s %s\n" % (shape.fingerprint(), name))
+            return
+        elif subcommand == "shape_patterns":
             # TODO formatter?
-            name = shape.name().encode()
-            ui.writenoi18n(b"%s %s\n" % (shape.fingerprint(), name))
-        return
-    elif subcommand == "shape_patterns":
-        # TODO formatter?
-        includes, excludes = shape.patterns()
-        include_tuples = zip(includes, itertools.repeat(True))
-        exclude_tuples = zip(excludes, itertools.repeat(False))
-        paths = sorted(
-            itertools.chain(include_tuples, exclude_tuples),
-            key=lambda t: pure_shapemod.zero_path(t[0]),
-        )
-        for path, included in paths:
-            prefix = b"inc" if included else b"exc"
-            ui.writenoi18n(b"%s:/%s\n" % (prefix, path))
+            includes, excludes = shape.patterns()
+            include_tuples = zip(includes, itertools.repeat(True))
+            exclude_tuples = zip(excludes, itertools.repeat(False))
+            paths = sorted(
+                itertools.chain(include_tuples, exclude_tuples),
+                key=lambda t: pure_shapemod.zero_path(t[0]),
+            )
+            for path, included in paths:
+                prefix = b"inc" if included else b"exc"
+                ui.writenoi18n(b"%s:/%s\n" % (prefix, path))
 
-        return
-    elif subcommand == "shape_narrow_patterns":
-        # TODO formatter?
-        includes, excludes = shape.patterns()
-        if includes:
-            ui.writenoi18n(b"[include]\n")
-            for include in includes:
-                # compatibility with questionable old choices
-                include = include if include else b"."
-                ui.writenoi18n(b"path:%s\n" % include)
-        if excludes:
-            ui.writenoi18n(b"[exclude]\n")
-            for exclude in excludes:
-                # compatibility with questionable old choices
-                exclude = exclude if exclude else b"."
-                ui.writenoi18n(b"path:%s\n" % exclude)
-        return
-    elif subcommand in ("shape_files", "shape_files_hidden"):
-        # TODO formatter?
-        list_hidden = subcommand == "shape_files_hidden"
-        matcher = shape.matcher()
-        files = []
-        known = set(repo[None].matches(matcher))
-        for entry in repo.store.data_entries(matcher=matcher):
-            if not (entry.is_revlog or entry.is_filelog):
-                continue
-            files.append((entry.target_id, entry.target_id in known))
-        files.sort()
-        for file, known in files:
-            if list_hidden and known:
-                continue
-            ui.writenoi18n(b"%s\n" % file)
-        return
-    else:
-        assert False, "unreachable"
+            return
+        elif subcommand == "shape_narrow_patterns":
+            # TODO formatter?
+            includes, excludes = shape.patterns()
+            if includes:
+                ui.writenoi18n(b"[include]\n")
+                for include in includes:
+                    # compatibility with questionable old choices
+                    include = include if include else b"."
+                    ui.writenoi18n(b"path:%s\n" % include)
+            if excludes:
+                ui.writenoi18n(b"[exclude]\n")
+                for exclude in excludes:
+                    # compatibility with questionable old choices
+                    exclude = exclude if exclude else b"."
+                    ui.writenoi18n(b"path:%s\n" % exclude)
+            return
+        elif subcommand in ("shape_files", "shape_files_hidden"):
+            # TODO formatter?
+            list_hidden = subcommand == "shape_files_hidden"
+            matcher = shape.matcher()
+            files = []
+            known = set(repo[None].matches(matcher))
+            for entry in repo.store.data_entries(matcher=matcher):
+                if not (entry.is_revlog or entry.is_filelog):
+                    continue
+                files.append((entry.target_id, entry.target_id in known))
+            files.sort()
+            for file, known in files:
+                if list_hidden and known:
+                    continue
+                ui.writenoi18n(b"%s\n" % file)
+            return
+        else:
+            assert False, "unreachable"
