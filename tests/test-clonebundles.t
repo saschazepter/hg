@@ -1,5 +1,3 @@
-#require no-chg
-
 Set up a server
 
   $ hg init server
