@@ -1,4 +1,3 @@
-#require no-chg
 
 #testcases bundle1 bundle2
 
