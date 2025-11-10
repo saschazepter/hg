@@ -4,7 +4,7 @@ Show all commands except debug commands
   add
   addremove
   admin::chainsaw-update
-  admin::narrow
+  admin::narrow-client
   admin::narrow-server
   admin::verify
   annotate
@@ -70,7 +70,7 @@ Show all commands that start with "a"
   add
   addremove
   admin::chainsaw-update
-  admin::narrow
+  admin::narrow-client
   admin::narrow-server
   admin::verify
   annotate
@@ -273,7 +273,7 @@ Show all commands + options
   add: include, exclude, subrepos, dry-run
   addremove: similarity, subrepos, include, exclude, dry-run
   admin::chainsaw-update: purge-unknown, purge-ignored, rev, source, dest, initial-clone-minimal
-  admin::narrow: store-fingerprint
+  admin::narrow-client: store-fingerprint
   admin::narrow-server: shape-fingerprints, shape-patterns, shape-narrow-patterns, shape-files, shape-files-hidden
   admin::verify: check, option
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, line-range, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template

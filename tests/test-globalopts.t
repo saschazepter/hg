@@ -381,7 +381,7 @@ Testing -h/--help:
   
   Repository maintenance:
   
-   admin::narrow
+   admin::narrow-client
                  Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.
@@ -522,7 +522,7 @@ Testing -h/--help:
   
   Repository maintenance:
   
-   admin::narrow
+   admin::narrow-client
                  Narrow-related client administration utils.
    admin::narrow-server
                  Narrow-related server administration utils.

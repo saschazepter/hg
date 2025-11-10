@@ -2117,7 +2117,7 @@ help/ shows help topics
       },
       {
         "summary": "Narrow-related client administration utils.",
-        "topic": "admin::narrow"
+        "topic": "admin::narrow-client"
       },
       {
         "summary": "Narrow-related server administration utils.",

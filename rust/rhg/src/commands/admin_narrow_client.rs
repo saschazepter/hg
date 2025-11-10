@@ -13,7 +13,7 @@ Narrow-related administration utils
 ";
 
 pub fn args() -> clap::Command {
-    clap::command!("admin::narrow")
+    clap::command!("admin::narrow-client")
         .arg(
             Arg::new("store-fingerprint")
                 .long("store-fingerprint")
@@ -23,7 +23,11 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
-#[tracing::instrument(level = "debug", skip_all, name = "rhg admin::narrow")]
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    name = "rhg admin::narrow-client"
+)]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
     let store_fingerprint = args.get_one::<bool>("store-fingerprint");

@@ -193,7 +193,7 @@ First with a pure Python client
 
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
-  $ hg admin::narrow -R clone-shaped --store-fingerprint
+  $ hg admin::narrow-client -R clone-shaped --store-fingerprint
   bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
   $ rm -rf clone-shaped
 
@@ -208,7 +208,7 @@ Then with the Rust client
 
 We make sure that the client has the same fingerprint than the streamclone
 
-  $ hg admin::narrow --store-fingerprint
+  $ hg admin::narrow-client --store-fingerprint
   bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
 
 We make sure that the client has the expected narrowspec
@@ -238,7 +238,7 @@ First with a pure Python client
 
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped2 --narrow --include=dir2 --include=excluded | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
-  $ hg -R clone-shaped2 admin::narrow --store-fingerprint
+  $ hg -R clone-shaped2 admin::narrow-client --store-fingerprint
   3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e
   $ rm -rf clone-shaped2
 
@@ -255,7 +255,7 @@ Then with the Rust client
 
 The client has the same fingerprint than the streamclone
 
-  $ hg admin::narrow --store-fingerprint
+  $ hg admin::narrow-client --store-fingerprint
   3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e
 
 The client has the expected narrowspec

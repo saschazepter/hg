@@ -81,7 +81,7 @@ def admin_verify(ui, repo, **opts):
 
 
 @command(
-    b'admin::narrow',
+    b'admin::narrow-client',
     [
         (
             b'',
@@ -92,7 +92,7 @@ def admin_verify(ui, repo, **opts):
     ],
     helpcategory=command.CATEGORY_MAINTENANCE,
 )
-def admin_narrow(ui: UiT, repo: RepoT, **opts):
+def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
     """Narrow-related client administration utils.
 
     This command is experimental and is subject to change.
