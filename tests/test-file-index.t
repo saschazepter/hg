@@ -320,20 +320,27 @@ Test removing paths with tracked
   $ cp $HGRCPATH hgrc.backup
   $ . "$TESTDIR/narrow-library.sh"
 
+Create source repository
+  $ hg init repofull --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ cd repofull
+  $ touch file0 file1
+  $ hg ci -qAm 0
+  $ cd ..
+
 Set up a narrow clone
-  $ hg clone -q repostrip repotracked --narrow --include "" --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
+  $ hg clone -q repofull repotracked --narrow --include "" --config format.exp-use-fileindex-v1=enable-unstable-format-and-corrupt-my-data
   $ cd repotracked
   $ hg debug::file-index
   0: file0
-  1: file2
+  1: file1
 
 Test excluding file0
   $ hg tracked -q --addexclude file0
   $ hg debug::file-index
-  0: file2
+  0: file1
 
-Test excluding file2 too
-  $ hg tracked -q --addexclude file2
+Test excluding file1 too
+  $ hg tracked -q --addexclude file1
   $ hg debug::file-index
 
   $ cd ..
