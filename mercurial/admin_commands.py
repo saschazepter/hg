@@ -16,6 +16,7 @@ from . import (
     cmdutil,
     error,
     policy,
+    pycompat,
     registrar,
     shape as shapemod,
     tables,
@@ -143,7 +144,8 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
             b'',
             _(b"list this shape's files that are not in the working copy"),
         ),
-    ],
+    ]
+    + cmdutil.formatteropts,
     helpcategory=command.CATEGORY_MAINTENANCE,
 )
 def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
@@ -195,13 +197,17 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         if shape is None:
             raise error.Abort(_(b"shape '%s' not found" % name))
 
-    if True:
+    ui.pager(b"admin::narrow-server")
+    fm_ctx = ui.formatter(b"admin::narrow-server", pycompat.byteskwargs(opts))
+    with fm_ctx as fm:
         if subcommand == "shape_fingerprints":
             all_shapes = store_shards.all_shapes()
             for shape in all_shapes:
-                # TODO formatter?
+                fm.startitem()
                 name = shape.name().encode()
-                ui.writenoi18n(b"%s %s\n" % (shape.fingerprint(), name))
+                fm.write(
+                    b"fingerprint name", b"%s %s\n", shape.fingerprint(), name
+                )
             return
         elif subcommand == "shape_patterns":
             # TODO formatter?
@@ -213,25 +219,33 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 key=lambda t: pure_shapemod.zero_path(t[0]),
             )
             for path, included in paths:
+                fm.startitem()
                 prefix = b"inc" if included else b"exc"
-                ui.writenoi18n(b"%s:/%s\n" % (prefix, path))
+                fm.data(included=included, path=path)
+                fm.plain(b"%s:/%s\n" % (prefix, path))
 
             return
         elif subcommand == "shape_narrow_patterns":
             # TODO formatter?
             includes, excludes = shape.patterns()
             if includes:
-                ui.writenoi18n(b"[include]\n")
+                fm.plain(b"[include]\n")
                 for include in includes:
+                    fm.startitem()
+                    # data before the '.' special case to make it behave the
+                    # same as `inc/exc` patterns
+                    fm.data(included=True, path=include)
                     # compatibility with questionable old choices
                     include = include if include else b"."
-                    ui.writenoi18n(b"path:%s\n" % include)
+                    fm.plain(b"path:%s\n" % include)
             if excludes:
-                ui.writenoi18n(b"[exclude]\n")
+                fm.plain(b"[exclude]\n")
                 for exclude in excludes:
+                    fm.startitem()
                     # compatibility with questionable old choices
+                    fm.data(included=False, path=include)
                     exclude = exclude if exclude else b"."
-                    ui.writenoi18n(b"path:%s\n" % exclude)
+                    fm.plain(b"path:%s\n" % exclude)
             return
         elif subcommand in ("shape_files", "shape_files_hidden"):
             # TODO formatter?
@@ -247,7 +261,14 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             for file, known in files:
                 if list_hidden and known:
                     continue
-                ui.writenoi18n(b"%s\n" % file)
+                fm.startitem()
+                label = (
+                    b"narrow-server.known-path"
+                    if known
+                    else b"narrow-server.hidden-path"
+                )
+                fm.data(is_hidden=not known)
+                fm.write(b"path", b"%s\n", file, label=label)
             return
         else:
             assert False, "unreachable"
