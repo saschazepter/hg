@@ -100,10 +100,13 @@ def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
             newvfs.register_file(newrl._datafile)
 
     if entry.is_filelog:
-        unencodedname = entry.main_file_path()
-        destrepo.svfs.fncache.add(unencodedname)
-        if copydata:
-            destrepo.svfs.fncache.add(unencodedname[:-2] + b'.d')
+        if (fileindex := destrepo.store.fileindex) is not None:
+            fileindex.add(entry.target_id, tr)
+        elif (fncache := destrepo.svfs.fncache) is not None:
+            unencodedname = entry.main_file_path()
+            fncache.add(unencodedname)
+            if copydata:
+                fncache.add(unencodedname[:-2] + b'.d')
 
 
 UPGRADE_CHANGELOG: Final[bytes] = b"changelog"

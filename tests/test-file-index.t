@@ -646,6 +646,22 @@ Finally, upgrade back to fileindex
   1: f1
   2: f2
 
+Test an upgrade, preserving fileindex, that touches filelogs (plain encoding)
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=1 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
+Test an upgrade, preserving fileindex, that does not touch filelogs (exp-changelog-v2)
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-changelog-v2=enable-unstable-format-and-corrupt-my-data --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
 Test compatiblity of Python and Rust implementations
 ----------------------------------------------------
 
