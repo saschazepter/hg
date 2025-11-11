@@ -3184,7 +3184,7 @@ class localrepository(_localrepo_base_classes):
                 self.hook(
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
-                with unfi.transaction(b'commit'):
+                with self.transaction(b'commit'):
                     ret = unfi.commitctx(cctx, True)
                     # update bookmarks, dirstate and mergestate
                     bookmarks.update(self, [p1, p2], ret)

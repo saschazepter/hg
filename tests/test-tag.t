@@ -451,8 +451,7 @@ issue5539: pruned tags do not appear in .hgtags
   089dd20da58cae34165c37b064539c6ac0c6a0dd
   $ hg tag issue5539
   hook: tag changes detected
-  hook: -M 743b3afd5aa69f130c246806e48ad2e699f490d2 issue5539
-  hook: +M 089dd20da58cae34165c37b064539c6ac0c6a0dd issue5539
+  hook: +A 089dd20da58cae34165c37b064539c6ac0c6a0dd issue5539
   $ hg id
   0accf560a709 tip
   $ cat .hgtags
