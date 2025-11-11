@@ -3081,7 +3081,6 @@ class localrepository(_localrepo_base_classes):
                 elif f not in self.dirstate:
                     fail(f, _(b"file not tracked!"))
 
-    @unfilteredmethod
     def commit(
         self,
         text=b"",
@@ -3111,10 +3110,11 @@ class localrepository(_localrepo_base_classes):
             match.bad = fail
 
         ui = self.ui
+        unfi = self.unfiltered()
 
         # lock() for recent changelog (see issue4368)
-        with self.wlock(), self.lock():
-            wctx = self[None]
+        with unfi.wlock(), unfi.lock():
+            wctx = unfi[None]
             merge = len(wctx.parents()) > 1
 
             if not force and merge and not match.always():
@@ -3125,7 +3125,7 @@ class localrepository(_localrepo_base_classes):
                     )
                 )
 
-            status = self.status(match=match, clean=force)
+            status = unfi.status(match=match, clean=force)
             if force:
                 status.modified.extend(
                     status.clean
@@ -3138,13 +3138,13 @@ class localrepository(_localrepo_base_classes):
 
             # make sure all explicit patterns are matched
             if not force:
-                self.checkcommitpatterns(wctx, match, status, fail)
+                unfi.checkcommitpatterns(wctx, match, status, fail)
 
             cctx = context.workingcommitctx(
-                self, status, text, user, date, extra
+                unfi, status, text, user, date, extra
             )
 
-            ms = self.mergestate()
+            ms = unfi.mergestate()
             mergeutil.checkunresolved(ms)
 
             # internal config: ui.allowemptycommit
@@ -3157,17 +3157,17 @@ class localrepository(_localrepo_base_classes):
                 raise error.Abort(_(b"cannot commit merge with missing files"))
 
             if editor:
-                cctx._text = editor(self, cctx, subs)
+                cctx._text = editor(unfi, cctx, subs)
             edited = text != cctx._text
 
             # Save commit message in case this transaction gets rolled back
             # (e.g. by a pretxncommit hook).  Leave the content alone on
             # the assumption that the user will use the same editor again.
-            msg_path = self.savecommitmessage(cctx._text)
+            msg_path = unfi.savecommitmessage(cctx._text)
 
             # commit subs and write new state
             if subs:
-                uipathfn = scmutil.getuipathfn(self)
+                uipathfn = scmutil.getuipathfn(unfi)
                 for s in sorted(commitsubs):
                     sub = wctx.sub(s)
                     ui.status(
@@ -3176,18 +3176,18 @@ class localrepository(_localrepo_base_classes):
                     )
                     sr = sub.commit(cctx._text, user, date)
                     newstate[s] = (newstate[s][0], sr)
-                subrepoutil.writestate(self, newstate)
+                subrepoutil.writestate(unfi, newstate)
 
-            p1, p2 = self.dirstate.parents()
-            hookp1, hookp2 = hex(p1), (hex(p2) if p2 != self.nullid else b'')
+            p1, p2 = unfi.dirstate.parents()
+            hookp1, hookp2 = hex(p1), (hex(p2) if p2 != unfi.nullid else b'')
             try:
-                self.hook(
+                unfi.hook(
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
-                with self.transaction(b'commit'):
-                    ret = self.commitctx(cctx, True)
+                with unfi.transaction(b'commit'):
+                    ret = unfi.commitctx(cctx, True)
                     # update bookmarks, dirstate and mergestate
-                    bookmarks.update(self, [p1, p2], ret)
+                    bookmarks.update(unfi, [p1, p2], ret)
                     cctx.markcommitted(ret)
                     ms.reset()
             except:  # re-raises
@@ -3207,12 +3207,12 @@ class localrepository(_localrepo_base_classes):
         def commithook(unused_success):
             # hack for command that use a temporary commit (eg: histedit)
             # temporary commit got stripped before hook release
-            if self.changelog.hasnode(ret):
-                self.hook(
+            if unfi.changelog.hasnode(ret):
+                unfi.hook(
                     b"commit", node=hex(ret), parent1=hookp1, parent2=hookp2
                 )
 
-        self._afterlock(commithook)
+        unfi._afterlock(commithook)
         return ret
 
     @unfilteredmethod
