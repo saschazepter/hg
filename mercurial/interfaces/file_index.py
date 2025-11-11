@@ -182,6 +182,10 @@ class IFileIndex(Protocol):
         """Return the size of the tree file in bytes, for debug output."""
 
     @abc.abstractmethod
+    def debug_tree_unused_bytes(self) -> int:
+        """Return the unused byte count in the tree file, for debug output."""
+
+    @abc.abstractmethod
     def debug_iter_tree_nodes(self) -> Iterator[DebugTreeNode]:
         """Iterate over tree nodes, for debug output.
 

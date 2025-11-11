@@ -256,6 +256,12 @@ impl PyFileIndex {
         })
     }
 
+    fn debug_tree_unused_bytes(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        Self::with_inner_read(slf, |_self_ref, inner| {
+            Ok(u32_u(inner.docket().header.tree_unused_bytes.get()))
+        })
+    }
+
     fn debug_iter_tree_nodes(
         slf: &Bound<'_, Self>,
     ) -> PyResult<PyDebugTreeNodeIter> {

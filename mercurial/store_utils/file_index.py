@@ -221,6 +221,9 @@ class FileIndex(int_file_index.IFileIndex):
     def debug_tree_file_size(self) -> int:
         return self._docket.tree_file_size
 
+    def debug_tree_unused_bytes(self) -> int:
+        return self._docket.tree_unused_bytes
+
     def debug_iter_tree_nodes(self) -> Iterator[int_file_index.DebugTreeNode]:
         return self._on_disk.debug_iter_tree_nodes()
 
