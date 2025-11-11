@@ -344,6 +344,10 @@ Test excluding file1 too
   $ hg tracked -q --addexclude file1
   $ hg debug::file-index
 
+Test stripping revision that touched excluded files
+  $ hg debugstrip -q -r 0
+  $ hg debug::file-index
+
   $ cd ..
   $ mv hgrc.backup $HGRCPATH
 

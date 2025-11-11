@@ -137,7 +137,7 @@ class IFileIndex(Protocol):
     def remove(self, path: HgPathT, tr: TransactionT):
         """Remove a path from the file index.
 
-        Raises a ValueError if the path is not in the file index.
+        Does nothing if the path is not in the file index.
 
         It is not allowed to call add and remove in the same transaction.
         """

@@ -166,7 +166,7 @@ class FileIndex(int_file_index.IFileIndex):
             raise error.ProgrammingError(b"cannot add and remove in same txn")
         token = self.get_token(path)
         if token is None:
-            raise ValueError("path not in file index")
+            return
         self._remove_tokens.add(token)
         self._add_file_generator(tr)
 

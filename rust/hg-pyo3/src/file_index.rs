@@ -159,8 +159,11 @@ impl PyFileIndex {
         tr: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.remove(HgPath::new(path)).map_err(file_index_error)?;
-            Self::_add_file_generator(slf, tr)?;
+            let removed =
+                inner.remove(HgPath::new(path)).map_err(file_index_error)?;
+            if removed {
+                Self::_add_file_generator(slf, tr)?;
+            }
             Ok(())
         })
     }

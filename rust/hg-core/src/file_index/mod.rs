@@ -282,17 +282,15 @@ impl FileIndex {
     }
 
     /// Removes a path from the file index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the path is not in the file index.
-    pub fn remove(&mut self, path: &HgPath) -> Result<(), Error> {
+    /// Returns true if the path was present in the file index.
+    pub fn remove(&mut self, path: &HgPath) -> Result<bool, Error> {
         assert!(self.add_paths.is_empty(), "cannot add and remove in same txn");
-        let Some(token) = self.get_token(path)? else {
-            panic!("path is not in file index");
-        };
-        self.remove_tokens.insert(token);
-        Ok(())
+        if let Some(token) = self.get_token(path)? {
+            self.remove_tokens.insert(token);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Ensures the next write will vacuum the tree file.
