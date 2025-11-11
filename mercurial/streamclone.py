@@ -535,7 +535,7 @@ def consumev1(
                     # for backwards compat, name was partially encoded
                     path = store.decodedir(name)
                     if fileindex is not None:
-                        radix = store.parse_filelog_radix(name)
+                        radix = store.parse_filelog_radix(path)
                         if radix is not None:
                             fileindex.add(radix, tr)
                     repo.svfs.register_file(path)
