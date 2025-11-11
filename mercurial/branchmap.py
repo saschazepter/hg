@@ -1265,6 +1265,10 @@ class BranchCacheV3(_LocalBranchCache):
                 self._pure_topo_branch = list(newbranches.keys())[0]
                 self._needs_populate = True
                 self._entries.pop(self._pure_topo_branch, None)
+                self._open_entries.pop(self._pure_topo_branch, None)
+                self._head_revs.pop(self._pure_topo_branch, None)
+                self._open_head_revs.pop(self._pure_topo_branch, None)
+                self._tips.pop(self._pure_topo_branch, None)
             return
 
         self._ensure_populated(repo)
