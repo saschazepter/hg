@@ -1035,6 +1035,8 @@ class BranchCacheV3(_LocalBranchCache):
                      ignored by this cache.
     - obsolete-hash: the hash of all non-filtered obsolete revisions (before
                      tip-rev) ignored by this cache.
+    - topo-mode: signal special case regarding the topological heads.
+                 See details below:
 
     The tip-rev is used to know how far behind the value in the file are
     compared to the current repository state.
@@ -1046,9 +1048,20 @@ class BranchCacheV3(_LocalBranchCache):
     This field can be used to avoid changelog reads when determining if a
     branch head closes a branch or not.
 
-    Topological heads are not included in the listing and should be dispatched
-    on the right branch at read time. Obsolete topological heads should be
-    ignored.
+    Topological heads for the current repoview are not included in the listing
+    and should be dispatched on the right branch at read time. Obsolete
+    topological heads should be ignored.
+
+    This logic can be specialized depending of the "topo-mode" value:
+
+    In "pure" mode, all topological heads are: on the same unique branch,
+    non-obsolete, open. This allow for skipping checking the branch information
+    of the topological heads when populating the branchmap. It allow to
+    significantly speedup operation for repository that never used named
+    branch, or stopped using them long ago.
+
+    It also allow to speedup the update process in some case. See
+    `BranchCacheV3._process_new` for details.
     """
 
     _base_filename = b"branch3-exp"
@@ -1242,35 +1255,77 @@ class BranchCacheV3(_LocalBranchCache):
         obs_ignored,
         max_rev,
     ) -> None:
-        if (
-            # note: the check about `obs_ignored` is too strict as the
-            # obsolete revision could be non-topological, but lets keep
-            # things simple for now
-            #
-            # The same apply to `new_closed` if the closed changeset are
-            # not a head, we don't care that it is closed, but lets keep
-            # things simple here too.
-            not (obs_ignored or new_closed)
-            and (
-                not newbranches
-                or (
-                    len(newbranches) == 1
-                    and (
-                        self.tiprev == nullrev
-                        or self._pure_topo_branch in newbranches
-                    )
-                )
-            )
-        ):
-            if newbranches:
-                assert len(newbranches) == 1
-                self._pure_topo_branch = list(newbranches.keys())[0]
-                self._needs_populate = True
-                self._entries.pop(self._pure_topo_branch, None)
-                self._open_entries.pop(self._pure_topo_branch, None)
-                self._head_revs.pop(self._pure_topo_branch, None)
-                self._open_head_revs.pop(self._pure_topo_branch, None)
-                self._tips.pop(self._pure_topo_branch, None)
+        """update the branchmap from a set of new information
+
+        The BranchCacheV3 overlay over _LocalBranchCache is meant to detect
+        "fast path" situation, where the affected revision will not affect
+        any branch heads actually recorded on disk.
+
+        When we successfully detect such case, is allow to keep the
+        BranchCache "shallow loaded", allowing for a quick update of the
+        on-disk branchmap without computing and populating the repository
+        topological heads, speeding up processing.
+
+        Currently such detection focus on the "pure-topo" mode:
+
+            Since all heads of the "pure" branch were topological branches, we
+            know they don't have any children outside of that branch (actually
+            not any children at all).
+
+            So if all the new revision are on the "pure-topo" branch, we know
+            they can only replace topological branches when new topological
+            branches and the branch remained in the same "pure-topo" state.
+
+            We can't blindly use this fast-path is any of the new revisions
+            where obsolete, as they can make their parents branch heads that
+            are non-topological.
+
+            In the same way, if we encounter "closing" head in the new
+            revisions, they might break the "non-closing" definition of the
+            "pure-topo" mode, so we can't blindly use the fast path.
+
+            Note: we currently blindly use the fast path or we don't use it at
+            all. We could have more advance to detect of the "non obsolete" and
+            "non closing" rev actually had an impact but this is not
+            currently the case.
+        """
+        # True if the current branchmap is empty, without any heads
+        empty = self.tiprev == nullrev  # view is empty, no head exists
+
+        # a set of condition that might interfer with the "pure-topo" mode, and
+        # requires to process the upgrade.
+        #
+        # note: the check about `obs_ignored` is too strict as the
+        # obsolete revision could be non-topological, but lets keep
+        # things simple for now
+        #
+        # The same apply to `new_closed` if the closed changeset are
+        # not a head, we don't care that it is closed, but lets keep
+        # things simple here too.
+        pure_blocker = bool(obs_ignored or new_closed)
+
+        # If the update only affect a single branch this variable will hold it.
+        # Set to None otherwise.
+        unique_branch = None
+        if len(newbranches) == 1:
+            unique_branch = list(newbranches)[0]
+
+        # If we are in pure-topo case, set this variable to the said branch
+        pure_topo_branch = None
+
+        if not pure_blocker:
+            if unique_branch is not None:
+                if empty or self._pure_topo_branch == unique_branch:
+                    pure_topo_branch = unique_branch
+
+        if pure_topo_branch is not None:
+            self._pure_topo_branch = pure_topo_branch
+            self._needs_populate = True
+            self._entries.pop(self._pure_topo_branch, None)
+            self._open_entries.pop(self._pure_topo_branch, None)
+            self._head_revs.pop(self._pure_topo_branch, None)
+            self._open_head_revs.pop(self._pure_topo_branch, None)
+            self._tips.pop(self._pure_topo_branch, None)
             return
 
         self._ensure_populated(repo)
