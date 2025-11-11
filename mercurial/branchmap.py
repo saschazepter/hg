@@ -1065,6 +1065,14 @@ class BranchCacheV3(_LocalBranchCache):
         new._needs_populate = self._needs_populate
         return new
 
+    def _verifyall(self):
+        assert not self._needs_populate
+        super()._verifyall()
+
+    def _verifybranch(self, branch: bytes) -> None:
+        assert not self._needs_populate
+        super()._verifybranch(branch)
+
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
         cl = repo.changelog
@@ -1289,6 +1297,7 @@ class BranchCacheV3(_LocalBranchCache):
         if self._pure_topo_branch is not None:
             # we are pure topological already
             return
+        assert not self._needs_populate
         to_node = repo.changelog.node
         topo_heads = [to_node(r) for r in self._get_topo_heads(repo)]
         if any(n in self._closednodes for n in topo_heads):
