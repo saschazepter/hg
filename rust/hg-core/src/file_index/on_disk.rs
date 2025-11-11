@@ -482,6 +482,7 @@ impl PointerOrToken {
 pub(super) type LabelPosition = usize;
 
 /// Data files for creating a [`FileIndexView`].
+#[derive(Default)]
 struct DataFiles<'on_disk> {
     list_file: &'on_disk [u8],
     meta_file: &'on_disk [u8],
@@ -539,14 +540,8 @@ impl OwnedFileIndexView {
 impl<'on_disk> FileIndexView<'on_disk> {
     /// Returns a view of an empty file index.
     pub(super) fn empty() -> Self {
-        Self {
-            list_file: b"",
-            meta_array: &[],
-            tree_file: b"",
-            tree_root_pointer: 0,
-            tree_unused_bytes: 0,
-            root: TreeNode::empty_root(),
-        }
+        Self::open(&Docket::default(), DataFiles::default())
+            .expect("empty file index should be valid")
     }
 
     /// Creates a file index given a docket and file contents. It will only
