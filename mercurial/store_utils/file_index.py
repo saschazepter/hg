@@ -532,14 +532,19 @@ def debug_file_index(ui, repo, **opts):
         ui.write(b"%d: %s\n" % (token, path))
     elif choice == b"vacuum":
         with repo.lock():
+            unused = fileindex.debug_tree_unused_bytes()
             old_size = fileindex.debug_tree_file_size()
             with repo.transaction(b"fileindex-vacuum") as tr:
                 fileindex.vacuum(tr)
             new_size = fileindex.debug_tree_file_size()
+        saved = old_size - new_size
+        if saved != unused:
+            msg = _(b"saved bytes (%d) does not match unused bytes (%d)\n")
+            ui.warn(msg % (saved, unused))
         if old_size == 0:
             percent = 0
         else:
-            percent = (old_size - new_size) / old_size * 100
+            percent = saved / old_size * 100
         msg = _(b"vacuumed tree: %s => %s (saved %.01f%%)\n")
         msg %= util.bytecount(old_size), util.bytecount(new_size), percent
         ui.write(msg)
