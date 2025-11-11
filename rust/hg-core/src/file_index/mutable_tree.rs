@@ -112,7 +112,7 @@ impl<'a> MutableTree<'a> {
     ) -> Result<Self, Error> {
         let mut tree = Self::new_impl(base, num_new_paths_estimate)?;
         tree.copy_node_with_label(base.root, 0, b"")?;
-        if base.tree_file.is_empty() {
+        if base.tree_file_size == 0 {
             tree.num_copied_nodes = 0;
             tree.num_copied_internal_nodes = 0;
         }
@@ -310,7 +310,7 @@ impl<'a> MutableTree<'a> {
             return None;
         }
         // Terminology: final = old + additional = old + (copied + fresh).
-        let old_size = u_u32(self.base.tree_file.len());
+        let old_size = self.base.tree_file_size;
         let num_fresh_nodes = self.nodes.len() - self.num_copied_nodes;
         let root_is_fresh = self.num_copied_nodes == 0;
         // There is a fresh child for every fresh node except the root.

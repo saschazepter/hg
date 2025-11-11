@@ -268,6 +268,12 @@ class TreeNodeHeader:
         return self.STRUCT.pack(*attr.astuple(self))
 
 
+EMPTY_TREE_BYTES = b"\xff\xff\xff\xff\x00\x00"
+"""A serialized empty file index tree file."""
+
+assert EMPTY_TREE_BYTES == TreeNodeHeader(ROOT_TOKEN, 0, 0).serialize()
+
+
 POINTER_STRUCT = struct.Struct(">I")
 """A file index node pseudo-pointer represented as 32-bit big-endian integer."""
 
@@ -329,13 +335,6 @@ class TreeNode:
     child_ptrs = attr.ib(type=list[PointerOrToken])
 
     @classmethod
-    def empty_root(cls) -> TreeNode:
-        """Return a root node for an empty tree."""
-        return cls(
-            token=ROOT_TOKEN, label_length=0, child_chars=b"", child_ptrs=[]
-        )
-
-    @classmethod
     def parse_from(cls, data: memoryview) -> TreeNode:
         header = TreeNodeHeader.parse_from(data)
         rest = data[TreeNodeHeader.STRUCT.size :]
@@ -361,6 +360,7 @@ class FileIndexView:
     list_file = attr.ib(type=memoryview)
     meta_array = attr.ib(type=MetadataArray)
     tree_file = attr.ib(type=memoryview)
+    tree_file_size = attr.ib(type=int)
     tree_root_pointer = attr.ib(type=NodePointerT)
     tree_unused_bytes = attr.ib(type=int)
     root = attr.ib(type=TreeNode)
@@ -387,16 +387,16 @@ class FileIndexView:
         # because that is already done before calling this method.
         # TODO: Make the implementations more consistent on this point.
         if len(tree_file) == 0:
-            root = TreeNode.empty_root()
-        else:
-            root = TreeNode.parse_from(tree_file[docket.tree_root_pointer :])
+            tree_file = util.buffer(EMPTY_TREE_BYTES)
+        root = TreeNode.parse_from(tree_file[docket.tree_root_pointer :])
         if root.token != ROOT_TOKEN or root.label_length != 0:
             raise error.CorruptedState("invalid file index root node")
-        if len(tree_file) > 0 and len(root.child_ptrs) == 0:
+        if docket.tree_file_size > 0 and len(root.child_ptrs) == 0:
             raise error.CorruptedState("invalid file index singleton tree")
         self.list_file = list_file
         self.meta_array = MetadataArray(meta_file)
         self.tree_file = tree_file
+        self.tree_file_size = docket.tree_file_size
         self.tree_root_pointer = docket.tree_root_pointer
         self.tree_unused_bytes = docket.tree_unused_bytes
         self.root = root
@@ -493,7 +493,7 @@ class FileIndexView:
                 if (ptr := child.get_pointer()) is not None:
                     yield from recur(ptr, position)
 
-        if len(tree) > 0:
+        if self.tree_file_size > 0:
             yield from recur(self.tree_root_pointer, 0)
 
 
@@ -625,7 +625,7 @@ class MutableTree:
         self.num_copied_children = 0
         self.num_paths_added = 0
         self._copy_node_with_label(self.base.root, 0, b"")
-        if len(self.base.tree_file) == 0:
+        if self.base.tree_file_size == 0:
             self.num_copied_nodes = 0
             self.num_copied_internal_nodes = 0
 
@@ -743,7 +743,7 @@ class MutableTree:
             # If there's only a root node, no need to write anything.
             return None
         # Terminology: final = old + additional = old + (copied + fresh).
-        old_size = len(self.base.tree_file)
+        old_size = self.base.tree_file_size
         num_fresh_nodes = len(self.nodes) - self.num_copied_nodes
         root_is_fresh = self.num_copied_nodes == 0
         # There is a fresh child for every fresh node except the root.

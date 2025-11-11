@@ -395,16 +395,6 @@ pub(super) struct TreeNode<'on_disk> {
 }
 
 impl TreeNode<'_> {
-    /// Returns a root node for an empty tree.
-    fn empty_root() -> Self {
-        Self {
-            token: FileToken::root(),
-            label_length: 0,
-            child_chars: &[],
-            child_ptrs: &[],
-        }
-    }
-
     /// Returns the index of the child whose label starts with `char`,
     /// or `None` is there is no such child.
     fn find_child(&self, char: u8) -> Option<usize> {
@@ -425,6 +415,12 @@ pub(super) struct TreeNodeHeader {
     /// Number of children.
     pub(super) num_children: u8,
 }
+
+/// A serialized empty file index tree file, containing a single root node.
+// TODO: Construct directly and serialize once bytes_cast provides const fns:
+// https://foss.heptapod.net/octobus/rust/bytes-cast/-/merge_requests/2
+pub const EMPTY_TREE_BYTES: [u8; std::mem::size_of::<TreeNodeHeader>()] =
+    [0xff, 0xff, 0xff, 0xff, 0x00, 0x00];
 
 impl TreeNodeHeader {
     pub(super) fn new(
@@ -505,6 +501,10 @@ pub struct FileIndexView<'on_disk> {
     pub(super) meta_array: &'on_disk [Metadata],
     /// Contents of the tree file.
     pub(super) tree_file: &'on_disk [u8],
+    /// Value of [`DocketHeader::tree_file_size`].
+    /// Usually the same as `self.tree_file.len()`, but for an empty file index
+    /// this will be 0 while `self.tree_file` will contain a default.
+    pub(super) tree_file_size: u32,
     /// Value of [`DocketHeader::tree_root_pointer`].
     pub(super) tree_root_pointer: NodePointer,
     /// Value of [`DocketHeader::tree_unused_bytes`].
@@ -556,6 +556,11 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let list_file = limit(files.list_file, docket.header.list_file_size)?;
         let meta_file = limit(files.meta_file, docket.header.meta_file_size)?;
         let tree_file = limit(files.tree_file, docket.header.tree_file_size)?;
+        let tree_file = if tree_file.is_empty() {
+            &EMPTY_TREE_BYTES
+        } else {
+            tree_file
+        };
         const META_SIZE: usize = std::mem::size_of::<Metadata>();
         if meta_file.len() % META_SIZE != 0 {
             return Err(Error::BadMetaFilesize);
@@ -565,22 +570,21 @@ impl<'on_disk> FileIndexView<'on_disk> {
                 .expect("cannot fail since len comes from actual size");
         // There cannot be extra bytes because we checked the remainder above.
         assert!(rest.is_empty());
+        let tree_file_size = docket.header.tree_file_size.get();
         let tree_root_pointer = docket.header.tree_root_pointer.get();
         let tree_unused_bytes = docket.header.tree_unused_bytes.get();
-        let root = match tree_file.len() {
-            0 => TreeNode::empty_root(),
-            _ => Self::read_node_from(tree_file, tree_root_pointer)?,
-        };
+        let root = Self::read_node_from(tree_file, tree_root_pointer)?;
         if root.token != FileToken::root() || root.label_length != 0 {
             return Err(Error::BadRootNode);
         }
-        if !tree_file.is_empty() && root.child_ptrs.is_empty() {
+        if tree_file_size > 0 && root.child_ptrs.is_empty() {
             return Err(Error::BadSingletonTree);
         }
         Ok(Self {
             list_file,
             meta_array,
             tree_file,
+            tree_file_size,
             tree_root_pointer,
             tree_unused_bytes,
             root,
@@ -764,7 +768,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
 
     /// Iterates over tree nodes, for debug output.
     pub fn debug_iter_tree_nodes(&self) -> DebugTreeNodeIter<'on_disk> {
-        let stack = match self.tree_file.len() {
+        let stack = match self.tree_file_size {
             0 => vec![],
             _ => vec![(self.tree_root_pointer, 0)],
         };
