@@ -1580,6 +1580,17 @@ We close the top head
 output must remain correct, and the branch is not in a topo-head state
 
   $ hg commit --close-branch -m 'close the topo head'
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n' --rev 'public()'
+  o    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
   $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
   @  A X db99163c2f3f
   |
@@ -1600,7 +1611,8 @@ output must remain correct, and the branch is not in a topo-head state
 #if v3
   $ show_cache
   ##### .hg/cache/branch3-exp-base
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-exp-served
@@ -1631,6 +1643,17 @@ We re-open the top head
   reopening closed branch head 5
   $ echo 2 >> foo
   $ hg commit -m 'another commit'
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n' --rev 'public()'
+  o    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
   $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
   @  A   18507f5e8524
   |
@@ -1655,7 +1678,8 @@ We re-open the top head
 #if v3
   $ show_cache
   ##### .hg/cache/branch3-exp-base
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-exp-served

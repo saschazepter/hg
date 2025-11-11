@@ -1219,6 +1219,8 @@ class BranchCacheV3(_LocalBranchCache):
             self._open_head_revs[branch] = topo_heads
             self._tips[branch] = (self._entries[branch][-1], False)
             self._verifiedbranches.add(branch)
+            if self._state == STATE_CLEAN:
+                self._state = STATE_DIRTY
         to_rev = cl.index.rev
         for branch in need_sorting:
             # XXX getting a rev from a node is expensive so this sorting is not
