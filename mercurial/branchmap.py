@@ -1155,6 +1155,7 @@ class BranchCacheV3(_LocalBranchCache):
         obsrevs = obsolete.getrevs(repo, b'obsolete')
         to_node = cl.node
         touched_branch = set()
+        need_sorting = set()
         closed_size = len(self._closednodes)
         any_obs = False
         topo_heads = self._get_topo_heads(repo)
@@ -1164,10 +1165,18 @@ class BranchCacheV3(_LocalBranchCache):
                 continue
             node = to_node(head)
             branch, closed = getbranchinfo(head)
+            pre_add_len = len(touched_branch)
+            touched_branch.add(branch)
+            if pre_add_len != len(touched_branch):  # first sight of this branch
+                if branch not in self._entries:
+                    self._entries[branch] = []
+                else:
+                    # we only need to sort if they were pre-existing value
+                    need_sorting.add(branch)
+
             self._entries.setdefault(branch, []).append(node)
             if closed:
                 self._closednodes.add(node)
-            touched_branch.add(branch)
         # If we did not encountered any obsolete or topological heads closed
         # head and saw only one branch, we are in a pure topo case.
         #
@@ -1186,7 +1195,7 @@ class BranchCacheV3(_LocalBranchCache):
             self._tips[branch] = (self._entries[branch][-1], False)
             self._verifiedbranches.add(branch)
         to_rev = cl.index.rev
-        for branch in touched_branch:
+        for branch in need_sorting:
             # XXX getting a rev from a node is expensive so this sorting is not
             # ideal.
             self._entries[branch].sort(key=to_rev)
