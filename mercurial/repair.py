@@ -228,7 +228,8 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 for fn in files:
                     filelog = repo.file(fn)
                     filelog.strip(striprev, tr)
-                    if fileindex is not None and len(filelog) == 0:
+                    filelog_empty = not filelog
+                    if fileindex is not None and filelog_empty:
                         fileindex.remove(fn, tr)
                 tr.endgroup()
 
