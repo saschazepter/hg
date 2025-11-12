@@ -1197,7 +1197,13 @@ class BranchCacheV3(_LocalBranchCache):
         to_node = repo.changelog.node
         nodecount = 0
         topo_heads = None
-        if self._pure_topo_branch is None:
+        if (
+            # In "pure" mode, we know where all the topo heads are already
+            self._pure_topo_branch is None
+            # If we are not populated yet, so there is not topo-head in the
+            # `_entries` yet.
+            and not self._needs_populate
+        ):
             # we match using node because it is faster to built the set of node
             # than to resolve node → rev later.
             topo_heads = {to_node(r) for r in self._get_topo_heads(repo)}
