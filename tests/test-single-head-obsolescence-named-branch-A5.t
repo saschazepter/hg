@@ -36,6 +36,19 @@ TestCase 5: Obsoleting a merge reveals two heads
 ..     |/
 ..     ●
 
+#testcases bm-v2 bm-v3
+#if bm-v3
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=yes
+  > EOF
+#else
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=no
+  > EOF
+#endif
+
   $ . $TESTDIR/testlib/push-checkheads-util.sh
 
   $ cat >> $HGRCPATH << EOF

@@ -50,6 +50,19 @@ A.3 new branchs created, one pushed.
 ..  * `hg push` will complain about the new head
 ..  * `hg push` should complain about unstable history creation
 
+#testcases bm-v2 bm-v3
+#if bm-v3
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=yes
+  > EOF
+#else
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > branch-cache-v3=no
+  > EOF
+#endif
+
 Setup
 -----
 
