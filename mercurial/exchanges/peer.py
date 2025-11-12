@@ -9,11 +9,13 @@ import abc
 
 from ..i18n import _
 from ..interfaces.types import (
+    RepoT,
     UiT,
 )
 
 from .. import (
     error,
+    repoview,
 )
 from ..interfaces import (
     misc as i_misc,
@@ -69,3 +71,16 @@ class Peer(i_repo.IPeer, abc.ABC):
             )
             % (purpose, name)
         )
+
+
+def server_filtername(repo: RepoT, accesshidden: bool) -> bytes:
+    """return the view to use for a server"""
+    viewconfig = repo.ui.config(b'server', b'view')
+
+    if (
+        accesshidden
+        and viewconfig is not None
+        and viewconfig + b'.hidden' in repoview.filtertable
+    ):
+        viewconfig += b'.hidden'
+    return viewconfig

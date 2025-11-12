@@ -25,7 +25,6 @@ from . import (
     hook,
     pushkey as pushkeymod,
     pycompat,
-    repoview,
     requirements as requirementsmod,
     streamclone,
     util,
@@ -39,6 +38,7 @@ from .utils import (
 from .exchanges import (
     bundle_cache as bundle_cache_util,
     bundle_caps,
+    peer,
 )
 
 if typing.TYPE_CHECKING:
@@ -86,18 +86,8 @@ def getdispatchrepo(repo, proto, command, accesshidden=False):
     extensions that need commands to operate on different repo views under
     specialized circumstances.
     """
-    viewconfig = repo.ui.config(b'server', b'view')
-
-    # Only works if the filter actually supports being upgraded to show hidden
-    # changesets.
-    if (
-        accesshidden
-        and viewconfig is not None
-        and viewconfig + b'.hidden' in repoview.filtertable
-    ):
-        viewconfig += b'.hidden'
-
-    return repo.filtered(viewconfig)
+    view = peer.server_filtername(repo, accesshidden)
+    return repo.filtered(view)
 
 
 def dispatch(repo, proto, command, accesshidden=False):
