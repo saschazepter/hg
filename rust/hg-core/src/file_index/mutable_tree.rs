@@ -295,8 +295,8 @@ impl<'a> MutableTree<'a> {
     pub fn serialize(&self) -> Option<SerializedMutableTree> {
         assert!(!self.nodes.is_empty(), "must have root node");
         assert_eq!(self.nodes[0].token, FileToken::root());
-        if self.nodes.len() == 1 {
-            // If there's only a root node, no need to write anything.
+        if self.num_paths_added == 0 {
+            // No need to write anything.
             return None;
         }
         // Terminology: final = old + additional = old + (copied + fresh).

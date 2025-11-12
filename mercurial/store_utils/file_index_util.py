@@ -737,8 +737,8 @@ class MutableTree:
 
     def serialize(self) -> SerializedMutableTree | None:
         assert len(self.nodes) > 0, "must have root node"
-        if len(self.nodes) == 1:
-            # If there's only a root node, no need to write anything.
+        if self.num_paths_added == 0:
+            # No need to write anything.
             return None
         # Terminology: final = old + additional = old + (copied + fresh).
         old_size = self.base.tree_file_size
