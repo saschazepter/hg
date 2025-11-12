@@ -3114,7 +3114,7 @@ class localrepository(_localrepo_base_classes):
 
         # lock() for recent changelog (see issue4368)
         with self.wlock(), self.lock():
-            wctx = unfi[None]
+            wctx = self[None]
             merge = len(wctx.parents()) > 1
 
             if not force and merge and not match.always():
@@ -3125,7 +3125,7 @@ class localrepository(_localrepo_base_classes):
                     )
                 )
 
-            status = unfi.status(match=match, clean=force)
+            status = self.status(match=match, clean=force)
             if force:
                 status.modified.extend(
                     status.clean
@@ -3138,13 +3138,13 @@ class localrepository(_localrepo_base_classes):
 
             # make sure all explicit patterns are matched
             if not force:
-                unfi.checkcommitpatterns(wctx, match, status, fail)
+                self.checkcommitpatterns(wctx, match, status, fail)
 
             cctx = context.workingcommitctx(
                 unfi, status, text, user, date, extra
             )
 
-            ms = unfi.mergestate()
+            ms = self.mergestate()
             mergeutil.checkunresolved(ms)
 
             # internal config: ui.allowemptycommit
@@ -3178,8 +3178,8 @@ class localrepository(_localrepo_base_classes):
                     newstate[s] = (newstate[s][0], sr)
                 subrepoutil.writestate(unfi, newstate)
 
-            p1, p2 = unfi.dirstate.parents()
-            hookp1, hookp2 = hex(p1), (hex(p2) if p2 != unfi.nullid else b'')
+            p1, p2 = self.dirstate.parents()
+            hookp1, hookp2 = hex(p1), (hex(p2) if p2 != self.nullid else b'')
             try:
                 unfi.hook(
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
