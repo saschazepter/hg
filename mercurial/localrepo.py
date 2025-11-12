@@ -3141,7 +3141,7 @@ class localrepository(_localrepo_base_classes):
                 self.checkcommitpatterns(wctx, match, status, fail)
 
             cctx = context.workingcommitctx(
-                unfi, status, text, user, date, extra
+                self, status, text, user, date, extra
             )
 
             ms = self.mergestate()
