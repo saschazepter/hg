@@ -308,9 +308,13 @@ impl<'a> MutableTree<'a> {
     ) -> Result<Option<SerializedMutableTree>, Error> {
         assert!(!self.nodes.is_empty(), "must have root node");
         assert_eq!(self.nodes[0].token, FileToken::root());
+        let mode = match self.base.tree_file_size {
+            // Always treat the first write as an append.
+            0 => SerializeMode::Append,
+            _ => mode,
+        };
         let vacuum = mode == SerializeMode::Vacuum;
-        let need_to_write = self.num_paths_added > 0
-            || (vacuum && self.base.tree_file_size > 0);
+        let need_to_write = self.num_paths_added > 0 || vacuum;
         if !need_to_write {
             return Ok(None);
         }
