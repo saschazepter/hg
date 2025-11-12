@@ -13,6 +13,13 @@ import enum
 class DeltaBaseReusePolicy(enum.IntEnum):
     """What should be done with a cached delta and its base ?"""
 
+    NO_DELTA = -1
+    """reuse neither the delta base nor the delta
+
+    Ignore the cache when considering candidates and don't reuse the delta
+    itself if givent the chance.
+    """
+
     NO = 0
     """Ignore the cache when considering candidates.
 

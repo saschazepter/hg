@@ -380,6 +380,8 @@ SPARSE_REVLOG_MAX_CHAIN_LENGTH = 1000
 
 ### What should be done with a cached delta and its base ?
 
+DELTA_REUSE_NO = revlog_t.DeltaBaseReusePolicy.NO_DELTA
+
 # Ignore the cache when considering candidates.
 #
 # The cached delta might be used, but the delta base will not be scheduled for

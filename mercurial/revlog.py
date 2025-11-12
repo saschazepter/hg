@@ -4652,44 +4652,45 @@ class revlog:
                     sidedata=sidedata,
                 )
             else:
-                if destrevlog.delta_config.lazy_delta:
-                    if (
-                        self.delta_config.general_delta
-                        and self.delta_config.lazy_delta_base
-                    ):
-                        delta_base_reuse = DELTA_BASE_REUSE_TRY
-                    else:
-                        delta_base_reuse = DELTA_BASE_REUSE_NO
+                if not destrevlog.delta_config.lazy_delta:
+                    delta_base_reuse = DELTA_BASE_REUSE_NO
+                elif (
+                    self.delta_config.general_delta
+                    and self.delta_config.lazy_delta_base
+                ):
+                    delta_base_reuse = DELTA_BASE_REUSE_TRY
+                else:
+                    delta_base_reuse = DELTA_BASE_REUSE_NO
 
-                    if self.issnapshot(rev):
-                        snapshotdepth = self.snapshotdepth(rev)
+                if self.issnapshot(rev):
+                    snapshotdepth = self.snapshotdepth(rev)
+                else:
+                    snapshotdepth = -1
+                if not self.iscensored(rev):
+                    dp = self.deltaparent(rev)
+                    # note: we can blindy reuse the compression during
+                    # `_clone`, because if we can read the source revlog it
+                    # mean we know about that compression for the
+                    # destination too, (even if we might not reuse it).
+                    comp, chunk = self.raw_comp_chunk(rev)
+                    c_delta = c_full_text = None
+                    if dp == nullrev:
+                        c_full_text = bytes(chunk)
                     else:
-                        snapshotdepth = -1
-                    if not self.iscensored(rev):
-                        dp = self.deltaparent(rev)
-                        # note: we can blindy reuse the compression during
-                        # `_clone`, because if we can read the source revlog it
-                        # mean we know about that compression for the
-                        # destination too, (even if we might not reuse it).
-                        comp, chunk = self.raw_comp_chunk(rev)
-                        c_delta = c_full_text = None
-                        if dp == nullrev:
-                            c_full_text = bytes(chunk)
-                        else:
-                            c_delta = bytes(chunk)
-                        quality = revlogutils.DeltaQuality.from_v1_flags(flags)
-                        cachedelta = revlogutils.CachedDelta(
-                            base=dp,
-                            c_delta=c_delta,
-                            c_full_text=c_full_text,
-                            compression=comp,
-                            reuse_policy=delta_base_reuse,
-                            snapshot_level=snapshotdepth,
-                            fulltext_length=self.size(rev),
-                            quality=quality,
-                            other_storage_delta_base=dp,
-                            other_storage_snapshot_level=snapshotdepth,
-                        )
+                        c_delta = bytes(chunk)
+                    quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+                    cachedelta = revlogutils.CachedDelta(
+                        base=dp,
+                        c_delta=c_delta,
+                        c_full_text=c_full_text,
+                        compression=comp,
+                        reuse_policy=delta_base_reuse,
+                        snapshot_level=snapshotdepth,
+                        fulltext_length=self.size(rev),
+                        quality=quality,
+                        other_storage_delta_base=dp,
+                        other_storage_snapshot_level=snapshotdepth,
+                    )
 
                 sidedata = None
                 if cachedelta is None:

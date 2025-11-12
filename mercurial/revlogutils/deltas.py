@@ -34,6 +34,7 @@ from .constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_FORCE,
     DELTA_BASE_REUSE_NO,
+    DELTA_REUSE_NO,
     KIND_CHANGELOG,
     KIND_FILELOG,
     KIND_MANIFESTLOG,
@@ -1982,6 +1983,8 @@ class deltacomputer:
         quality = None
         if revinfo.cachedelta:
             cachebase = revinfo.cachedelta.base
+            policy = revinfo.cachedelta.reuse_policy
+            lazy_delta = self.revlog.delta_config.lazy_delta
             # check if the diff still apply
             currentbase = cachebase
             while (
@@ -1990,8 +1993,8 @@ class deltacomputer:
                 and self.revlog.length(currentbase) == 0
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
-            if self.revlog.delta_config.lazy_delta and currentbase == base:
-                if revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE:
+            if lazy_delta and currentbase == base and policy <= DELTA_REUSE_NO:
+                if policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
                     # let's ignore foldin there.
                     #
