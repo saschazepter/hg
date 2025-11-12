@@ -3181,7 +3181,7 @@ class localrepository(_localrepo_base_classes):
             p1, p2 = self.dirstate.parents()
             hookp1, hookp2 = hex(p1), (hex(p2) if p2 != self.nullid else b'')
             try:
-                unfi.hook(
+                self.hook(
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
                 with unfi.transaction(b'commit'):
@@ -3207,12 +3207,12 @@ class localrepository(_localrepo_base_classes):
         def commithook(unused_success):
             # hack for command that use a temporary commit (eg: histedit)
             # temporary commit got stripped before hook release
-            if unfi.changelog.hasnode(ret):
-                unfi.hook(
+            if self.changelog.hasnode(ret):
+                self.hook(
                     b"commit", node=hex(ret), parent1=hookp1, parent2=hookp2
                 )
 
-        unfi._afterlock(commithook)
+        self._afterlock(commithook)
         return ret
 
     @unfilteredmethod
