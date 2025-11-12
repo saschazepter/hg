@@ -108,14 +108,22 @@ fn test_multiple_write_separately() {
     check_paths(&file_index, &[(1, a), (2, bb), (3, ccc)]);
 }
 
+/// Returns a valid path of length `len`.
+fn path_of_length(len: usize) -> HgPathBuf {
+    let char = |i| match (i & 0xff) as u8 {
+        b'\0' | b'\n' | b'\r' => 1,
+        c => c,
+    };
+    HgPathBuf::from_bytes(&(0..len).map(char).collect::<Vec<_>>())
+}
+
 #[test]
-fn test_maximum_path_length_in_memory() {
+fn test_maximum_path_length() {
     let (mut file_index, _temp_dir) = create_file_index().unwrap();
     // This is the maximum length allowed by mercurial/cext/pathencode.c
     // and by rust/hg-core/src/revlog/path_encode.rs.
     const MAX_LENGTH: usize = 4096 * 4;
-    let path: &Vec<_> = &(0..MAX_LENGTH).map(|i| (i % 256) as u8).collect();
-    let path = HgPath::new(path);
+    let path = &path_of_length(MAX_LENGTH);
     assert_eq!(file_index.add(path).unwrap(), (FileToken(1), true));
 
     check_paths(&file_index, &[(1, path)]);
