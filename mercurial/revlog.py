@@ -4458,6 +4458,9 @@ class revlog:
            Deltas will never be reused. This is the slowest mode of execution.
            This mode can be used to recompute deltas (e.g. if the diff/delta
            algorithm changes).
+
+           This also unconditionnaly disable the re-use "as is" of compressed
+           delta from storage.
         DELTAREUSEFULLADD
            Revision will be re-added as if their were new content. This is
            slower than DELTAREUSEALWAYS but allow more mechanism to kicks in.
@@ -4517,6 +4520,7 @@ class revlog:
             elif deltareuse == self.DELTAREUSENEVER:
                 destrevlog.delta_config.lazy_delta_base = False
                 destrevlog.delta_config.lazy_delta = False
+                destrevlog.delta_config.lazy_compression = False
 
             delta_both_parents = (
                 forcedeltabothparents or old_delta_config.delta_both_parents
