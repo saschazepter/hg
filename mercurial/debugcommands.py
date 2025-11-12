@@ -3136,10 +3136,9 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
 
             includes = opts.get("include")
             excludes = opts.get("exclude")
-            if includes is not None or excludes is not None:
-                includes = includes or set()
-                excludes = excludes or set()
             fingerprint = shape_mod.fingerprint_for_patterns(includes, excludes)
+            includes = set(includes) if includes else set()
+            excludes = set(excludes) if excludes else set()
             entries = bundlecaches.filterclonebundleentries(
                 target,
                 entries,
