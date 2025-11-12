@@ -3104,6 +3104,21 @@ User interface controls.
     - ``low``: reduces memory usage when possible at the cost of overall
       performance.
 
+``resources.bandwidth``
+    How aggressive Mercurial can be in terms of bandwidth usage:
+
+    Currently recognised values are::
+
+    - ``default``: the default value, inherits the value from `usage.resources`,
+
+    - ``high``: allows for more aggressive bandwidth usage to improve overall
+      performance,
+
+    - ``medium``:  aims at a moderate bandwidth usage,
+
+    - ``low``: reduces bandwidth usage when possible at the cost of overall
+      performance.
+
 
 ``command-templates``
 ---------------------

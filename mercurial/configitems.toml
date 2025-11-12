@@ -2933,6 +2933,20 @@ Currently recognised values are:
 - low:     reduces memory usage when possible at the cost of overall performance.
 """
 
+
+[[items]]
+section = "usage"
+name = "resources.bandwidth"
+default = "default"
+documentation = """How aggressive Mercurial can be in terms of bandwidth usage:
+
+Currently recognised values are:
+- default: the default value, inherits the value from `usage.resources`,
+- high:    allows for more aggressive bandwidth usage to improve overall performance,
+- medium:  aims at a moderate bandwidth usage,
+- low:     reduces bandwidth usage when possible at the cost of overall performance.
+"""
+
 [[items]]
 section = "verify"
 name = "skipflags"
