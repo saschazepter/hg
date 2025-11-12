@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use bytes_cast::BytesCast;
 use indexmap::IndexSet;
 use mutable_tree::MutableTree;
+use mutable_tree::SerializeMode;
 pub use on_disk::DebugTreeChild;
 pub use on_disk::DebugTreeNode;
 pub use on_disk::DebugTreeNodeIter;
@@ -304,7 +305,11 @@ impl FileIndex {
     pub fn write(&mut self, tr: &mut impl Transaction) -> Result<(), HgError> {
         let clean = self.add_paths.is_empty() && self.remove_tokens.is_empty();
         if !clean || self.force_vacuum {
-            let vacuum = self.should_vacuum();
+            let serialize_mode = if self.should_vacuum() {
+                SerializeMode::Vacuum
+            } else {
+                SerializeMode::Append
+            };
             Self::write_data(
                 &mut self.docket,
                 &self.vfs,
@@ -313,7 +318,7 @@ impl FileIndex {
                 self.on_disk.borrow_dependent(),
                 &self.add_paths,
                 &self.remove_tokens,
-                vacuum,
+                serialize_mode,
             )?;
             self.force_vacuum = false;
             self.add_paths.clear();
@@ -423,13 +428,13 @@ impl FileIndex {
         on_disk: &FileIndexView<'_>,
         add_paths: &IndexSet<HgPathBuf>,
         remove_tokens: &HashSet<FileToken>,
-        vacuum: bool,
+        mode: SerializeMode,
     ) -> Result<(), HgError> {
         let removing = !remove_tokens.is_empty();
         let new_list = docket.header.list_file_id.is_unset() || removing;
         let new_meta = docket.header.meta_file_id.is_unset() || removing;
         let new_tree = docket.header.tree_file_id.is_unset() || removing;
-        let new_tree = new_tree || vacuum;
+        let new_tree = new_tree || mode == SerializeMode::Vacuum;
         let timestamp =
             config.garbage_timestamp.unwrap_or_else(Self::unix_timestamp);
         let mut opener = FileOpener { docket, vfs, tr, timestamp };
@@ -446,11 +451,11 @@ impl FileIndex {
                 Ok((info, _)) => Some(Ok(info.path())),
                 Err(err) => Some(Err(err)),
             });
-            Self::write_data_impl(docket, tree, add_paths, files, false)
+            Self::write_data_impl(docket, tree, add_paths, files, mode)
         } else {
             let tree = MutableTree::with_base(*on_disk, add_paths.len())?;
             let add_paths = add_paths.iter().map(|path| Ok(path.deref()));
-            Self::write_data_impl(docket, tree, add_paths, files, vacuum)
+            Self::write_data_impl(docket, tree, add_paths, files, mode)
         }
     }
 
@@ -461,7 +466,7 @@ impl FileIndex {
         mut tree: MutableTree<'a>,
         add_paths: impl Iterator<Item = Result<&'a HgPath, Error>>,
         VfsDataFiles { list_file, meta_file, mut tree_file }: VfsDataFiles,
-        vacuum: bool,
+        mode: SerializeMode,
     ) -> Result<(), HgError> {
         let list_file_path = normal_path(&list_file).to_owned();
         let meta_file_path = normal_path(&meta_file).to_owned();
@@ -494,7 +499,7 @@ impl FileIndex {
         }
         docket.header.list_file_size = list_file_size.into();
         docket.header.meta_file_size = meta_file_size.into();
-        if let Some(out) = tree.serialize(vacuum)? {
+        if let Some(out) = tree.serialize(mode)? {
             tree_file
                 .write_all(&out.bytes)
                 .when_writing_file(&tree_file_path)?;

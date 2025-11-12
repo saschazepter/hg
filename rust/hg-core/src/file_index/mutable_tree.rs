@@ -92,6 +92,16 @@ pub struct SerializedMutableTree {
     pub tree_unused_bytes: u32,
 }
 
+/// How to serialize a [`MutableTree`].
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum SerializeMode {
+    /// Produce bytes for appending to a (possibly empty) base tree file.
+    Append,
+    /// Produce bytes for creating a new tree file. This includes all the nodes
+    /// from the base tree, vacuumed to eliminate all unused bytes.
+    Vacuum,
+}
+
 impl<'a> MutableTree<'a> {
     /// Creates a new [`MutableTree`] for writing a new tree file.
     pub fn empty(num_paths_estimate: usize) -> Result<Self, Error> {
@@ -290,15 +300,15 @@ impl<'a> MutableTree<'a> {
         Ok(())
     }
 
-    /// Serializes the tree to bytes, ready to be written to disk. If `vacuum`
-    /// is true, serializes the base tree and includes it in the result. Returns
-    /// `None` if there is nothing to write.
+    /// Serializes the tree according to `mode`, producing bytes ready to be
+    /// written to disk. Returns `None` if there is nothing to write.
     pub fn serialize(
         &self,
-        vacuum: bool,
+        mode: SerializeMode,
     ) -> Result<Option<SerializedMutableTree>, Error> {
         assert!(!self.nodes.is_empty(), "must have root node");
         assert_eq!(self.nodes[0].token, FileToken::root());
+        let vacuum = mode == SerializeMode::Vacuum;
         let need_to_write = self.num_paths_added > 0
             || (vacuum && self.base.tree_file_size > 0);
         if !need_to_write {
