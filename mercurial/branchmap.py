@@ -243,8 +243,6 @@ class _BaseBranchCache:
         heads missing, this function updates self to be correct.
         """
         # clear various caches as we are updating the state
-        self._open_entries.clear()
-        self._tips.clear()
         starttime = util.timer()
         cl = repo.changelog
         # Faster than using ctx.obsolete()
@@ -298,6 +296,8 @@ class _BaseBranchCache:
         max_rev,
     ):
         """update the branchmap from a set of new information"""
+        self._open_entries.clear()
+        self._tips.clear()
         # Delay fetching the topological heads until they are needed.
         # A repository without non-continous branches can skip this part.
         topoheads = None
@@ -879,10 +879,6 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         cl = repo.changelog
         self._node_to_rev = repo.changelog.rev
         self._rev_to_node = repo.unfiltered().changelog.node
-        self._head_revs.clear()
-        self._open_head_revs.clear()
-        if '_all_head_nodes' in vars(self):
-            del self._all_head_nodes
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
@@ -914,6 +910,27 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
             #
             # (The cache warming setup by localrepo will update the file later.)
             self.write(repo)
+
+    def _process_new(
+        self,
+        repo,
+        newbranches,
+        new_closed,
+        obs_ignored,
+        max_rev,
+    ) -> None:
+        # clear v3- specific data
+        self._head_revs.clear()
+        self._open_head_revs.clear()
+        if '_all_head_nodes' in vars(self):
+            del self._all_head_nodes
+        return super()._process_new(
+            repo,
+            newbranches,
+            new_closed,
+            obs_ignored,
+            max_rev,
+        )
 
 
 def branch_cache_from_file(repo) -> _LocalBranchCache | None:
