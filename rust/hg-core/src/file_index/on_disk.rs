@@ -146,7 +146,7 @@ impl Docket {
 /// Added at the start of the docket file. This a redundant sanity check more
 /// than an actual "magic number" since `.hg/store/requires` already governs
 /// which format should be used.
-pub(super) const FORMAT_MARKER: &[u8; 12] = b"fileindex-v1";
+pub const FORMAT_MARKER: &[u8; 12] = b"fileindex-v1";
 
 /// The contents of the docket file.
 #[derive(BytesCast, Clone)]
@@ -296,18 +296,18 @@ impl GarbageEntry {
 /// Metadata for a token in the meta file.
 #[derive(Copy, Clone, BytesCast)]
 #[repr(C)]
-pub(super) struct Metadata {
+pub struct Metadata {
     /// Pseudo-pointer to the start of the path in the list file.
-    pub(super) offset: U32Be,
+    pub offset: U32Be,
     /// Length of the path.
-    pub(super) length: U16Be,
+    pub length: U16Be,
     /// Length of the path's dirname prefix, or 0 if there is no slash.
-    pub(super) dirname_length: U16Be,
+    pub dirname_length: U16Be,
 }
 
 impl Metadata {
     /// Creates metadata for `path` stored at `offset` in the list file.
-    pub(super) fn new(path: &HgPath, offset: u32) -> Self {
+    pub fn new(path: &HgPath, offset: u32) -> Self {
         let path_len: u16 =
             path.len().try_into().expect("path len should fit in u16");
         let dirname_len = path.bytes().rposition(|c| *c == b'/').unwrap_or(0);
@@ -321,7 +321,7 @@ impl Metadata {
     }
 
     /// Returns the token's path as a [`Span`].
-    pub(super) fn path(&self) -> Span {
+    pub fn path(&self) -> Span {
         Span { offset: self.offset.get(), length: self.length.get() }
     }
 }
@@ -364,7 +364,7 @@ impl<'a> PathInfo<'a> {
 }
 
 /// A reference to a string in the list file.
-pub(super) struct Span {
+pub struct Span {
     offset: u32,
     length: u16,
 }
@@ -375,15 +375,15 @@ pub(super) struct Span {
 /// The substring start position is implicit by summing parent label lengths.
 /// The node also stores the first characters of child labels, for performance.
 #[derive(Debug, Copy, Clone)]
-pub(super) struct TreeNode<'on_disk> {
+pub struct TreeNode<'on_disk> {
     /// A token that contains this node's label.
-    pub(super) token: FileToken,
+    pub token: FileToken,
     /// The length of this node's label.
-    pub(super) label_length: u8,
+    pub label_length: u8,
     /// First character of each child label. These are all distinct.
-    pub(super) child_chars: &'on_disk [u8],
+    pub child_chars: &'on_disk [u8],
     /// Pointers to this node's children.
-    pub(super) child_ptrs: &'on_disk [TaggedNodePointer],
+    pub child_ptrs: &'on_disk [TaggedNodePointer],
 }
 
 impl TreeNode<'_> {
@@ -399,13 +399,13 @@ impl TreeNode<'_> {
 /// A node header in the tree file.
 #[derive(Debug, BytesCast, Copy, Clone)]
 #[repr(C)]
-pub(super) struct TreeNodeHeader {
+pub struct TreeNodeHeader {
     /// A token that contains this node's label.
     token: U32Be,
     /// The length of this node's label.
     label_length: u8,
     /// Number of children.
-    pub(super) num_children: u8,
+    pub num_children: u8,
 }
 
 /// A serialized empty file index tree file, containing a single root node.
@@ -415,34 +415,30 @@ pub const EMPTY_TREE_BYTES: [u8; std::mem::size_of::<TreeNodeHeader>()] =
     [0x00; 6];
 
 impl TreeNodeHeader {
-    pub(super) fn new(
-        token: FileToken,
-        label_length: u8,
-        num_children: u8,
-    ) -> Self {
+    pub fn new(token: FileToken, label_length: u8, num_children: u8) -> Self {
         Self { token: token.0.into(), label_length, num_children }
     }
 }
 
 /// Pseudo-pointer to a node in the tree file.
-pub(super) type NodePointer = u32;
+pub type NodePointer = u32;
 
 /// A node pointer where the high bit acts as a tag.
 /// When the bit is 0, it is just a pointer.
 /// When the bit is 1, it directly stores a [`FileToken`] instead.
 #[derive(Debug, BytesCast, Copy, Clone)]
 #[repr(transparent)]
-pub(super) struct TaggedNodePointer(U32Be);
+pub struct TaggedNodePointer(U32Be);
 
 /// Expanded version of [`TaggedNodePointer`].
 #[derive(Debug, Copy, Clone)]
-pub(super) enum PointerOrToken {
+pub enum PointerOrToken {
     Pointer(NodePointer),
     Token(FileToken),
 }
 
 impl TaggedNodePointer {
-    pub(super) fn unpack(self) -> PointerOrToken {
+    pub fn unpack(self) -> PointerOrToken {
         let value = self.0.get();
         let mask = 1 << 31;
         if value & mask == 0 {
@@ -454,7 +450,7 @@ impl TaggedNodePointer {
 }
 
 impl PointerOrToken {
-    pub(super) fn pack(self) -> TaggedNodePointer {
+    pub fn pack(self) -> TaggedNodePointer {
         let mask = 1 << 31;
         let value = match self {
             PointerOrToken::Pointer(ptr) => ptr,
@@ -467,7 +463,7 @@ impl PointerOrToken {
 /// The position of a node's label within the file path. This is never stored
 /// explicitly, but calculated by adding up the [`TreeNode::label_length`]
 /// values while descending the tree.
-pub(super) type LabelPosition = usize;
+pub type LabelPosition = usize;
 
 /// Data files for creating a [`FileIndexView`].
 #[derive(Default)]
@@ -478,36 +474,36 @@ struct DataFiles<'on_disk> {
 }
 
 /// Owned version of [`DataFiles`].
-pub(super) struct OwnedDataFiles {
-    pub(super) list_file: Box<dyn Deref<Target = [u8]> + Send + Sync>,
-    pub(super) meta_file: Box<dyn Deref<Target = [u8]> + Send + Sync>,
-    pub(super) tree_file: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+pub struct OwnedDataFiles {
+    pub list_file: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+    pub meta_file: Box<dyn Deref<Target = [u8]> + Send + Sync>,
+    pub tree_file: Box<dyn Deref<Target = [u8]> + Send + Sync>,
 }
 
 /// Read-only view of the file index.
 #[derive(Copy, Clone)]
 pub struct FileIndexView<'on_disk> {
     /// Contents of the list file.
-    pub(super) list_file: &'on_disk [u8],
+    pub list_file: &'on_disk [u8],
     /// Contents of the meta file, cast to a slice of [`Metadata`].
-    pub(super) meta_array: &'on_disk [Metadata],
+    pub meta_array: &'on_disk [Metadata],
     /// Contents of the tree file.
-    pub(super) tree_file: &'on_disk [u8],
+    pub tree_file: &'on_disk [u8],
     /// Value of [`DocketHeader::tree_file_size`].
     /// Usually the same as `self.tree_file.len()`, but for an empty file index
     /// this will be 0 while `self.tree_file` will contain a default.
-    pub(super) tree_file_size: u32,
+    pub tree_file_size: u32,
     /// Value of [`DocketHeader::tree_root_pointer`].
-    pub(super) tree_root_pointer: NodePointer,
+    pub tree_root_pointer: NodePointer,
     /// Value of [`DocketHeader::tree_unused_bytes`].
-    pub(super) tree_unused_bytes: u32,
+    pub tree_unused_bytes: u32,
     /// Root node of the prefix tree.
-    pub(super) root: TreeNode<'on_disk>,
+    pub root: TreeNode<'on_disk>,
 }
 
 self_cell!(
     /// A wrapper around [`FileIndexView`] that owns the data.
-    pub(super) struct OwnedFileIndexView {
+    pub struct OwnedFileIndexView {
         owner: OwnedDataFiles,
         #[covariant]
         dependent: FileIndexView,
@@ -531,7 +527,7 @@ impl OwnedFileIndexView {
 
 impl<'on_disk> FileIndexView<'on_disk> {
     /// Returns a view of an empty file index.
-    pub(super) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self::open(&Docket::default(), DataFiles::default())
             .expect("empty file index should be valid")
     }
@@ -663,10 +659,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
     }
 
     /// Reads a [`Span`] from the list file.
-    pub(super) fn read_span(
-        &self,
-        span: Span,
-    ) -> Result<&'on_disk [u8], Error> {
+    pub fn read_span(&self, span: Span) -> Result<&'on_disk [u8], Error> {
         let offset = u32_u(span.offset);
         let length = u16_u(span.length);
         self.list_file
@@ -675,7 +668,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
     }
 
     /// Reads a [`Metadata`] entry from the meta file by token.
-    pub(super) fn read_metadata(
+    pub fn read_metadata(
         &self,
         token: FileToken,
     ) -> Result<&'on_disk Metadata, Error> {
@@ -684,7 +677,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
     }
 
     /// Constructs a label [`Span`] for a node given its metadata and position.
-    pub(super) fn label_span(
+    pub fn label_span(
         node: TreeNode<'_>,
         metadata: &Metadata,
         position: LabelPosition,
@@ -696,10 +689,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
     }
 
     /// Reads a [`TreeNode`] from the tree file.
-    pub(super) fn read_node(
-        &self,
-        ptr: u32,
-    ) -> Result<TreeNode<'on_disk>, Error> {
+    pub fn read_node(&self, ptr: u32) -> Result<TreeNode<'on_disk>, Error> {
         Self::read_node_from(self.tree_file, ptr)
     }
 
@@ -722,7 +712,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
     }
 
     /// Reads a leaf node by token.
-    pub(super) fn read_leaf_node(
+    pub fn read_leaf_node(
         &self,
         token: FileToken,
         position: LabelPosition,

@@ -16,7 +16,7 @@ use mutable_tree::MutableTree;
 pub use on_disk::DebugTreeChild;
 pub use on_disk::DebugTreeNode;
 pub use on_disk::DebugTreeNodeIter;
-pub use on_disk::Docket;
+use on_disk::Docket;
 pub use on_disk::Error;
 use on_disk::FileIndexView;
 use on_disk::GarbageEntry;
