@@ -1067,14 +1067,37 @@ class BranchCacheV3(_LocalBranchCache):
     _base_filename = b"branch3-exp"
     _default_key_hashes = (None, None)
 
+    _pure_topo_branch: bytes | None
+    """when set the branch is in "pure-topo" mode for that branch
+
+    Having this set implies specific property for all topological heads:
+    - non-obsolete,
+    - open,
+    - on the branch stored in `self._pure_topo_branch`.
+    """
+
+    _topo_only_branches: set[bytes]
+    """The set of branch that are known to only have topological heads
+
+    Having this set does not implies any property for the topological branch
+    themself.  It implies property for each branch in that set.
+
+    If a branch is in that set, it is guaranteed for all heads (closed or not)
+    in that branch to be a topological heads.
+    """
+
     def __init__(self, *args, pure_topo_branch: bytes | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self._pure_topo_branch = pure_topo_branch
+        self._topo_only_branches = set()
+        if self._pure_topo_branch is not None:
+            self._topo_only_branches.add(self._pure_topo_branch)
         self._needs_populate = False
 
     def inherit_for(self, repo):
         new = super().inherit_for(repo)
         new._pure_topo_branch = self._pure_topo_branch
+        new._topo_only_branches = self._topo_only_branches.copy()
         new._needs_populate = self._needs_populate
         return new
 
@@ -1286,6 +1309,7 @@ class BranchCacheV3(_LocalBranchCache):
 
         if pure_topo_branch is not None:
             self._pure_topo_branch = pure_topo_branch
+            self._topo_only_branches = {pure_topo_branch}
             self._needs_populate = True
             self._entries.pop(self._pure_topo_branch, None)
             self._open_entries.pop(self._pure_topo_branch, None)
@@ -1297,6 +1321,7 @@ class BranchCacheV3(_LocalBranchCache):
         self._ensure_populated(repo)
         self._populate_pure_topo_nodes()
         self._pure_topo_branch = None
+        self._topo_only_branches = set()
         super()._process_new(
             repo,
             newbranches,
@@ -1333,7 +1358,7 @@ class BranchCacheV3(_LocalBranchCache):
             obsrevs = obsolete.getrevs(repo, b'obsolete')
             to_node = cl.node
             touched_branch = set()
-            need_sorting = set()
+            topo_only = set()
             closed_size = len(self._closednodes)
             any_obs = False
             for head in topo_heads:
@@ -1350,12 +1375,12 @@ class BranchCacheV3(_LocalBranchCache):
                     # first sight of this branch
                     if branch not in self._entries:
                         self._entries[branch] = []
+                        topo_only.add(branch)
                     else:
                         # the list might come from an inherited value, so we
                         # need to copy the list first.
                         self._entries[branch] = self._entries[branch].copy()
                         # we only need to sort if they were pre-existing value
-                        need_sorting.add(branch)
                 self._entries[branch].append(node)
             # If we did not encountered any obsolete or topological heads
             # closed head and saw only one branch, we are in a pure topo case.
@@ -1367,6 +1392,7 @@ class BranchCacheV3(_LocalBranchCache):
                 (not any_obs)
                 and len(self._closednodes) == closed_size
                 and len(touched_branch) == 1
+                and len(topo_only) == 1
             ):
                 assert len(self._entries[branch]) == len(topo_heads)
                 self._pure_topo_branch = branch
@@ -1374,10 +1400,13 @@ class BranchCacheV3(_LocalBranchCache):
                 self._open_head_revs[branch] = topo_heads
                 self._tips[branch] = (self._entries[branch][-1], False)
                 self._verifiedbranches.add(branch)
+            if self._topo_only_branches != topo_only:
+                self._topo_only_branches = topo_only
                 if self._state == STATE_CLEAN:
                     self._state = STATE_DIRTY
             to_rev = cl.index.rev
-            for branch in need_sorting:
+            # we only need to sort if they were pre-existing value
+            for branch in touched_branch - topo_only:
                 # XXX getting a rev from a node is expensive so this sorting is
                 # not ideal.
                 self._entries[branch].sort(key=to_rev)
@@ -1396,6 +1425,7 @@ class BranchCacheV3(_LocalBranchCache):
         for branch, heads in self._entries.items():
             if heads == topo_heads:
                 self._pure_topo_branch = branch
+                self._topo_only_branches = {branch}
                 self._state = STATE_DIRTY
                 break
 
