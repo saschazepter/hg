@@ -322,6 +322,9 @@ structure from Python code.
   $ hg perfdiscovery -q .
   $ hg perf::phases
 
+  $ hg perf::stream-generate
+  $ hg perf::stream-locked-section
+
 Test run control
 ----------------
 

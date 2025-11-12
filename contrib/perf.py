@@ -2090,18 +2090,22 @@ def _find_stream_generator(version):
     # try to fetch a v2 generator
     generatev2 = getattr(mercurial.streamclone, "generatev2", None)
     if generatev2 is not None:
+        post_0cdf8ccb2204 = "matcher" in getargspec(generatev2).args
+        matcher_args = (None,) if post_0cdf8ccb2204 else (None, None)
 
         def generate(repo):
-            entries, bytes, data = generatev2(repo, None, None, True)
+            entries, bytes, data = generatev2(repo, *matcher_args, True)
             return data
 
         available[b'v2'] = generate
     # try to fetch a v3 generator
     generatev3 = getattr(mercurial.streamclone, "generatev3", None)
     if generatev3 is not None:
+        post_0cdf8ccb2204 = "matcher" in getargspec(generatev2).args
+        matcher_args = (None,) if post_0cdf8ccb2204 else (None, None)
 
         def generate(repo):
-            return generatev3(repo, None, None, True)
+            return generatev3(repo, *matcher_args, True)
 
         available[b'v3-exp'] = generate
 
