@@ -1292,9 +1292,16 @@ class BranchCacheV3(_LocalBranchCache):
             #
             # Feel free to take that step.
             topo_heads = self._get_topo_heads(repo)
-            self._head_revs[self._pure_topo_branch] = topo_heads
-            self._open_head_revs[self._pure_topo_branch] = topo_heads
-            self._verifiedbranches.add(self._pure_topo_branch)
+            branch = self._pure_topo_branch
+            # if we need to populate, there should be nothing already in place.
+            assert branch not in self._entries
+            assert branch not in self._open_entries
+            assert branch not in self._head_revs
+            assert branch not in self._open_head_revs
+            assert branch not in self._tips
+            self._head_revs[branch] = topo_heads
+            self._open_head_revs[branch] = topo_heads
+            self._verifiedbranches.add(branch)
             self._needs_populate = False
 
     def _detect_pure_topo(self, repo) -> None:
