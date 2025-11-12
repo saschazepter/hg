@@ -505,22 +505,32 @@ def debugbundle(ui, bundlepath, all=None, spec=None, **opts):
         _debugchangegroup(ui, gen, all=all, **opts)
 
 
-@command(b'debugcapabilities', [], _(b'PATH'), norepo=True)
-def debugcapabilities(ui, path, **opts):
+@command(
+    b'debugcapabilities',
+    [
+        (b'', b'bundle2-cap', [], _(b'only display the matching capabilities')),
+    ],
+    _(b'PATH'),
+    norepo=True,
+)
+def debugcapabilities(ui, path, bundle2_cap=(), **opts):
     """lists the capabilities of a remote peer"""
     peer = repo_factory.peer(ui, pycompat.byteskwargs(opts), path)
     try:
         caps = peer.capabilities()
-        ui.writenoi18n(b'Main capabilities:\n')
-        for c in sorted(caps):
-            ui.write(b'  %s\n' % c)
+        if not bundle2_cap:
+            ui.writenoi18n(b'Main capabilities:\n')
+            for c in sorted(caps):
+                ui.write(b'  %s\n' % c)
         b2caps = bundle2.bundle2caps(peer)
         if b2caps:
-            ui.writenoi18n(b'Bundle2 capabilities:\n')
+            if not bundle2_cap:
+                ui.writenoi18n(b'Bundle2 capabilities:\n')
             for key, values in sorted(b2caps.items()):
-                ui.write(b'  %s\n' % key)
-                for v in values:
-                    ui.write(b'    %s\n' % v)
+                if (not bundle2_cap) or key in bundle2_cap:
+                    ui.write(b'  %s\n' % key)
+                    for v in values:
+                        ui.write(b'    %s\n' % v)
     finally:
         peer.close()
 

@@ -2410,6 +2410,24 @@ default = 20
 
 [[items]]
 section = "storage"
+name = "revlog.exchange-compressed-delta"
+default = true
+experimental = true
+documentation = """Controls whether the repository might emit or request
+compressed deltas in bundles.
+
+Exchanging deltas in their compressed form results in larger bundles and higher
+bandwidth usage, but reduces CPU usage on both ends and helps the main server
+to use agressive compression levels to share that benefit with ordinary clients
+pulling from them.
+
+Even when activated, the exchange of compressed deltas will only be used if the
+exchange uses a changegroup format that supports it (04 and above) and the
+receiving end supports it.
+"""
+
+[[items]]
+section = "storage"
 name = "revlog.issue6528.fix-incoming"
 default = true
 

@@ -88,3 +88,22 @@ This is what we did to produce the repo in test-revlog-diff-relative-to-nullrev.
   $ hg cat --config rhg.cat=true -r 2 a
   ha
   $ cd ..
+
+Check 'delta-compression' config
+================================
+
+  $ cat << EOF >> ./test2/.hg/hgrc
+  > [storage]
+  > revlog.exchange-compressed-delta=yes
+  > EOF
+  $ hg debugcapabilities ./test2 --bundle2-cap="delta-compression"
+    delta-compression
+      none
+      zlib
+      zstd (zstd !)
+
+  $ cat << EOF >> ./test2/.hg/hgrc
+  > [storage]
+  > revlog.exchange-compressed-delta=no
+  > EOF
+  $ hg debugcapabilities ./test2 --bundle2-cap="delta-compression"
