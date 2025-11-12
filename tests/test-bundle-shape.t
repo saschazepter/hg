@@ -217,8 +217,21 @@ Narrow + stream cloning
 The right fingerprint should be derived from the narrow patterns, selecting
 the correct narrow stream clone bundle
 
-First with a pure Python client
+Test that if no fingerprints match, we don't clone anything
 
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=notexist
+    URL: peer-bundle-cache://outfile-shape-full.hg (known-bad-output !)
+      BUNDLESPEC: none-v2;stream=v2;requirements=* (glob) (known-bad-output !)
+      COMPRESSION: none (known-bad-output !)
+      VERSION: v2 (known-bad-output !)
+
+  $ hg clone ssh://user@dummy/source clone-shaped --narrow --include=notexist | grep "bundle from"
+  applying clone bundle from peer-bundle-cache://outfile-shape-full.hg (known-bad-output !)
+  $ rm -rf clone-shaped
+
+Test matching fingerprints
+
+First with a Python client
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow $hgfiles --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
   $ hg admin::narrow-client -R clone-shaped --store-fingerprint
