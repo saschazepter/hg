@@ -3113,7 +3113,7 @@ class localrepository(_localrepo_base_classes):
         unfi = self.unfiltered()
 
         # lock() for recent changelog (see issue4368)
-        with unfi.wlock(), unfi.lock():
+        with self.wlock(), self.lock():
             wctx = unfi[None]
             merge = len(wctx.parents()) > 1
 
