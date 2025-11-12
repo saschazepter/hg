@@ -1,6 +1,8 @@
 #testcases mmap nommap
 #testcases v2 v3
 
+  $ . $TESTDIR/testlib/common.sh
+
 #if mmap
   $ cat <<EOF >> $HGRCPATH
   > [storage]
@@ -1705,8 +1707,9 @@ We re-open the top head
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-exp-served
-  tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=pure
+  tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=mixed
   A
+  
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
 #else
@@ -1721,4 +1724,129 @@ We re-open the top head
   18507f5e85242640bb3f97ea2087ec574c1f78e1 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#endif
+
+
+Automatic detection of the mixed mode for branchmap v3
+======================================================
+
+Let's open branch C alongside branch A
+
+  $ hg up C
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ mkcommit C1
+  $ mkcommit C2
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @  C   aa41ed5f1e51
+  |
+  o  C   e29f33a0e41f
+  |
+  | o  A   18507f5e8524
+  | |
+  | o  A   117ef0aff623
+  | |
+  | _  A X db99163c2f3f
+  | |
+  | o  A   4bf67499b70a
+  |/|
+  o |  C   4a546028fa8f
+  | |
+  o |  A   a3b807b3ff0b
+  | |
+  | o  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+
+This should be detected by now
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-exp-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-exp-immutable
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-exp-served
+  tip-node=aa41ed5f1e512b754a138d564455ddd6017b7d34 tip-rev=9 topo-mode=mixed
+  A
+  C
+  
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  aa41ed5f1e512b754a138d564455ddd6017b7d34 9
+  18507f5e85242640bb3f97ea2087ec574c1f78e1 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  aa41ed5f1e512b754a138d564455ddd6017b7d34 o C
+#endif
+
+And this is preserved over further update
+
+  $ mkcommit C3
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @  C   b3ad80eaca8a
+  |
+  o  C   aa41ed5f1e51
+  |
+  o  C   e29f33a0e41f
+  |
+  | o  A   18507f5e8524
+  | |
+  | o  A   117ef0aff623
+  | |
+  | _  A X db99163c2f3f
+  | |
+  | o  A   4bf67499b70a
+  |/|
+  o |  C   4a546028fa8f
+  | |
+  o |  A   a3b807b3ff0b
+  | |
+  | o  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-exp-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-exp-immutable
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-exp-served
+  tip-node=b3ad80eaca8a572cbca78ef07ece1013ead0707a tip-rev=10 topo-mode=mixed
+  A
+  C
+  
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  b3ad80eaca8a572cbca78ef07ece1013ead0707a 10
+  18507f5e85242640bb3f97ea2087ec574c1f78e1 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  b3ad80eaca8a572cbca78ef07ece1013ead0707a o C
 #endif

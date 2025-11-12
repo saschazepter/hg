@@ -1085,6 +1085,9 @@ class BranchCacheV3(_LocalBranchCache):
     significantly speedup operation for repository that never used named
     branch, or stopped using them long ago.
 
+    In "mixed" mode, some topological heads might be obsolete or closed, but
+    there exists some branches were all heads are topological.
+
     It also allow to speedup the update process in some case. See
     `BranchCacheV3._process_new` for details.
     """
@@ -1111,11 +1114,21 @@ class BranchCacheV3(_LocalBranchCache):
     in that branch to be a topological heads.
     """
 
-    def __init__(self, *args, pure_topo_branch: bytes | None = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        pure_topo_branch: bytes | None = None,
+        topo_only: set[bytes] | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._pure_topo_branch = pure_topo_branch
-        self._topo_only_branches = set()
+        if topo_only is not None:
+            self._topo_only_branches: set[bytes] = topo_only
+        else:
+            self._topo_only_branches = set()
         if self._pure_topo_branch is not None:
+            assert topo_only is None
             self._topo_only_branches.add(self._pure_topo_branch)
         self._needs_populate = False
         self._needs_populate_topo_only = False
@@ -1163,11 +1176,19 @@ class BranchCacheV3(_LocalBranchCache):
                 cache_keys[b"obsolete-hash"] = hex(self.key_hashes[1])
         if self._pure_topo_branch is not None:
             cache_keys[b"topo-mode"] = b"pure"
+        elif self._topo_only_branches:
+            cache_keys[b"topo-mode"] = b"mixed"
         pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
         fp.write(b" ".join(pieces) + b'\n')
         if self._pure_topo_branch is not None:
             label = encoding.fromlocal(self._pure_topo_branch)
             fp.write(label + b'\n')
+        elif self._topo_only_branches:
+            for branch in sorted(self._topo_only_branches):
+                label = encoding.fromlocal(branch)
+                fp.write(label + b'\n')
+            # write an empty line to signal the end of topo-only branch
+            fp.write(b'\n')
 
     def _write_heads(self, repo, fp) -> int:
         """write list of heads to a file
@@ -1211,7 +1232,7 @@ class BranchCacheV3(_LocalBranchCache):
         args = {}
         filtered_hash = None
         obsolete_hash = None
-        has_pure_topo_heads = False
+        topo_mode = None
         for k, v in cache_keys.items():
             if k == b"tip-rev":
                 args["tiprev"] = int(v)
@@ -1223,7 +1244,9 @@ class BranchCacheV3(_LocalBranchCache):
                 obsolete_hash = bin(v)
             elif k == b"topo-mode":
                 if v == b"pure":
-                    has_pure_topo_heads = True
+                    topo_mode = "pure"
+                elif v == b"mixed":
+                    topo_mode = "mixed"
                 else:
                     msg = b"unknown topo-mode: %r" % v
                     raise ValueError(msg)
@@ -1231,9 +1254,16 @@ class BranchCacheV3(_LocalBranchCache):
                 msg = b"unknown cache key: %r" % k
                 raise ValueError(msg)
         args["key_hashes"] = (filtered_hash, obsolete_hash)
-        if has_pure_topo_heads:
+        if topo_mode == "pure":
             pure_line = next(lineiter).rstrip(b'\n')
             args["pure_topo_branch"] = encoding.tolocal(pure_line)
+        elif topo_mode == "mixed":
+            topo_only = set()
+            while line := next(lineiter).rstrip(b'\n'):
+                branch = encoding.tolocal(line)
+                topo_only.add(branch)
+            if topo_only:
+                args["topo_only"] = topo_only
         return args
 
     def _load_heads(self, repo, lineiter):
