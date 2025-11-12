@@ -43,6 +43,7 @@ class ShardTreeNode:
         """Transform includes and excludes into a compact tree of those rules."""
         # Need to include everything by default
         root_path = [b""]
+
         if b"" in includes or b"." in includes or not includes:
             # `clone` passes `path:.` by default which
             # is supposed to include everything. This is the wrong API IMO

@@ -38,7 +38,17 @@ lazy_static! {
     /// Only lower case ASCII alpha num, `-` and `.`
     static ref SHARD_NAME_REGEX: Regex =
         Regex::new(r"^[-\.[[:lower:]][[:digit:]]]+$").unwrap();
+
+    /// Special files that need to be included in every single shape
+    static ref HG_FILES_SHARD_PATHS: Vec<String> = vec![
+        ".hgignore".to_string(),
+        ".hgtags".to_string(),
+        ".hgsub".to_string(),
+        ".hgsubstate".to_string(),
+    ];
 }
+
+const HG_FILES_SHARD: &str = ".hg-files";
 
 /// Canonical name within a repo for a [`Shard`].
 /// Is restricted in which bytes can be used, see [`Self::new`].
@@ -156,6 +166,14 @@ impl StoreShards {
                     .collect(),
             ),
         });
+        // This shard is included in all other shards. Having a shape that
+        // doesn't include those special files seems like an anti-feature.
+        shards.push(ShardConfig {
+            name: HG_FILES_SHARD.to_string(),
+            paths: Some(HG_FILES_SHARD_PATHS.clone()),
+            shape: false,
+            requires: None,
+        });
         let reserved_range = shards_len_before..shards.len();
         let mut path_to_shard = FastHashMap::default();
         let mut validated_shards = FastHashMap::default();
@@ -179,7 +197,9 @@ impl StoreShards {
         shards: &mut FastHashMap<ShardName, Shard>,
     ) -> Result<(), HgError> {
         let ShardConfig { name, shape, paths, requires } = shard_config;
-        if user_provided && matches!(name.as_str(), "base" | "full") {
+        if user_provided
+            && matches!(name.as_str(), "base" | "full" | HG_FILES_SHARD)
+        {
             let msg = format!("shard name '{}' is reserved", &name);
             return Err(HgError::abort(
                 msg,
@@ -219,7 +239,14 @@ impl StoreShards {
             }
         }
 
-        let mut requires_names = vec![];
+        let mut requires_names = if name != HG_FILES_SHARD {
+            let hg_files_shard_name =
+                ShardName::new(HG_FILES_SHARD.to_string())
+                    .expect("valid shard name");
+            vec![hg_files_shard_name]
+        } else {
+            vec![]
+        };
         if let Some(requirements) = requires {
             for requirement in requirements {
                 let name = ShardName::new(requirement)?;

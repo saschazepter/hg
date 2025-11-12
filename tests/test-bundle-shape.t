@@ -108,12 +108,12 @@ Test with a known shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobar" outfile-shape-foobar.hg
 
   $ hg debugbundle outfile-shape-foobar.hg | grep -E 'store-fingerprint: [0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 10, requirements: *, store-fingerprint: bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb} (mandatory: True) (glob)
+  stream2 -- {bytecount: *, filecount: 10, requirements: *, store-fingerprint: feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726} (mandatory: True) (glob)
 
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobaz" outfile-shape-foobaz.hg
 
   $ hg debugbundle outfile-shape-foobaz.hg | grep -E 'store-fingerprint: [0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: 3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e} (mandatory: True) (glob)
+  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e} (mandatory: True) (glob)
 
 Test cloning
 ============
@@ -131,14 +131,14 @@ Prepare inline bundles
 
   $ bundlespec="$(hg debugbundle --spec outfile-shape-foobar.hg)"
   $ echo $bundlespec
-  none-v2;stream=v2;requirements*;store-fingerprint=bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb (glob)
+  none-v2;stream=v2;requirements*;store-fingerprint=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
   $ bundlespec2="$(hg debugbundle --spec outfile-shape-foobaz.hg)"
   $ echo $bundlespec2
-  none-v2;stream=v2;requirements*;store-fingerprint=3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e (glob)
+  none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
 
   $ bundlespecfull="$(hg debugbundle --spec outfile-shape-full.hg)"
   $ echo $bundlespec2
-  none-v2;stream=v2;requirements*;store-fingerprint=3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e (glob)
+  none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
 
   $ mkdir source/.hg/bundle-cache
   $ mv outfile-shape-*.hg source/.hg/bundle-cache/
@@ -189,17 +189,20 @@ Narrow + stream cloning
 The right fingerprint should be derived from the narrow patterns, selecting
 the correct narrow stream clone bundle
 
+Define the special set of files included in all shapes.
+  $ hgfiles="--include=.hgignore --include=.hgtags --include=.hgsub --include=.hgsubstate"
+
 First with a pure Python client
 
-  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow --include=dir2 | grep "bundle from"
+  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow $hgfiles --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
   $ hg admin::narrow-client -R clone-shaped --store-fingerprint
-  bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
+  feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
   $ rm -rf clone-shaped
 
 Then with the Rust client
 
-  $ hg clone ssh://user@dummy/source clone-shaped --narrow --include=dir2 | grep "bundle from"
+  $ hg clone ssh://user@dummy/source clone-shaped --narrow $hgfiles --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
   $ cd clone-shaped
   $ hg debug-revlog-stats --filelogs -T'{revlog_target}\n'
@@ -209,11 +212,15 @@ Then with the Rust client
 We make sure that the client has the same fingerprint than the streamclone
 
   $ hg admin::narrow-client --store-fingerprint
-  bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
+  feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
 
 We make sure that the client has the expected narrowspec
 
   $ hg tracked
+  I path:.hgignore
+  I path:.hgsub
+  I path:.hgsubstate
+  I path:.hgtags
   I path:dir2
 
 Accessing a file outside of the shape is not possible
@@ -236,15 +243,15 @@ Testing another shape
 
 First with a pure Python client
 
-  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped2 --narrow --include=dir2 --include=excluded | grep "bundle from"
+  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped2 --narrow $hgfiles --include=dir2 --include=excluded | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
   $ hg -R clone-shaped2 admin::narrow-client --store-fingerprint
-  3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e
+  bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
   $ rm -rf clone-shaped2
 
 Then with the Rust client
 
-  $ hg clone ssh://user@dummy/source clone-shaped2 --narrow --include=dir2 --include=excluded | grep "bundle from"
+  $ hg clone ssh://user@dummy/source clone-shaped2 --narrow --include=dir2 $hgfiles --include=excluded | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
   $ cd clone-shaped2
   $ hg debug-revlog-stats --filelogs -T'{revlog_target}\n'
@@ -256,11 +263,15 @@ Then with the Rust client
 The client has the same fingerprint than the streamclone
 
   $ hg admin::narrow-client --store-fingerprint
-  3976dad0c75f0e606ade473a3f698f9afbd8229c0c3b76aac18a524cbcb18b5e
+  bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
 
 The client has the expected narrowspec
 
   $ hg tracked
+  I path:.hgignore
+  I path:.hgsub
+  I path:.hgsubstate
+  I path:.hgtags
   I path:dir2
   I path:excluded
 

@@ -125,7 +125,7 @@ that shards not declared as shapes (here "secret") is not listed
   a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5 base
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full-manual
-  7933c8969f86272e8bf29d3554b29372dc6a9c756e651847256078c35bb6a038 other-secret
+  3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6 other-secret
 
 Check that we generate the correct narrow patterns for every shape
 
@@ -139,6 +139,10 @@ Check that we generate the correct narrow patterns for every shape
   inc:/
   $ hg admin::narrow-server --shape-patterns other-secret
   exc:/
+  inc:/.hgignore
+  inc:/.hgsub
+  inc:/.hgsubstate
+  inc:/.hgtags
   inc:/foo/bar/other-secret
 
 Test the legacy narrow patterns option
@@ -157,6 +161,10 @@ Test the legacy narrow patterns option
   path:.
   $ hg admin::narrow-server --shape-narrow-patterns other-secret
   [include]
+  path:.hgignore
+  path:.hgsub
+  path:.hgsubstate
+  path:.hgtags
   path:foo/bar/other-secret
   [exclude]
   path:.
