@@ -1295,19 +1295,35 @@ name = "exp-use-copies-side-data-changeset"
 default = false
 experimental = true
 
-# Experimental TODOs:
+# Experimental feature TODO:
 #
-# * code for fast upgrade
-# * make sure that a full pull works fine with the `try-base` policy
-# * more flag around delta quality (maybe)
-# * rust support
-# * c support
+# The format is now frozen, but the feature is worth a bit more attention.
+#
+# * checking the performance without rust
+# * easily accessible fast upgrade
 # * updated delta strategie if relevant
 [[items]]
 section = "format"
-name = "exp-use-delta-info-flags"
+name = "use-delta-info-flags"
 default = false
 experimental = true
+documentation = """Store more information through flags in the revlog's index.
+
+These flags allow for more efficient data access, data exchange and
+data storage in general.
+
+In particular, one can expect better performance for the following categories of
+commands for repositories using this format can expect better performance than
+ones using older formats:
+
+- `hg status --copies --rev X`
+- `hg diff`
+- `hg merge`
+- `hg clone`
+- `hg pull`
+- `hg push`
+- `hg unbundle`
+"""
 
 # Experimental TODOs:
 # * actually checks if nothing -unexpected- break

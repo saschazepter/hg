@@ -1640,6 +1640,8 @@ Separate sections from subsections
   
       "usefncache"
   
+      "use-delta-info-flags"
+  
       "use-dirstate-v2"
   
       "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories"

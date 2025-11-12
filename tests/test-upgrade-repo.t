@@ -1776,7 +1776,7 @@ Check upgrading a sparse-revlog repository
 Check that we can add the sparse-revlog format requirement
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
-  >    --config format.exp-use-delta-info-flags=no
+  >    --config format.use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
@@ -1802,7 +1802,7 @@ Check that we can add the sparse-revlog format requirement
 Check that we can remove the sparse-revlog format requirement
   $ hg  debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=no \
-  >    --config format.exp-use-delta-info-flags=no
+  >    --config format.use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
@@ -1848,12 +1848,12 @@ upgrade
   flags  : inline, generaldelta
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
-  >    --config format.exp-use-delta-info-flags=yes
+  >    --config format.use-delta-info-flags=yes
   upgrade will perform the following actions:
   
   requirements
      preserved: dotencode, fncache, generaldelta,( persistent-nodemap,)? revlogv1, share-safe, store (re)
-     added: exp-delta-info-revlog, sparserevlog
+     added: delta-info-revlog, sparserevlog
   
   processed revlogs:
     - all-filelogs
@@ -1861,8 +1861,8 @@ upgrade
     - manifest
   
   $ hg debugrequires
+  delta-info-revlog
   dotencode
-  exp-delta-info-revlog
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -1883,8 +1883,8 @@ upgrade
 downgrade
 
   $ hg debugrequires
+  delta-info-revlog
   dotencode
-  exp-delta-info-revlog
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -1903,12 +1903,12 @@ downgrade
   flags  : inline, generaldelta, hasmeta, delta-info
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
-  >    --config format.exp-use-delta-info-flags=no
+  >    --config format.use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
      preserved: dotencode, fncache, generaldelta,( persistent-nodemap,)? revlogv1, share-safe, sparserevlog, store (re)
-     removed: exp-delta-info-revlog
+     removed: delta-info-revlog
   
   processed revlogs:
     - all-filelogs

@@ -188,7 +188,7 @@ pub const SPARSEREVLOG_REQUIREMENT: &str = "sparserevlog";
 
 /// Revlog stores extra information about delta
 #[allow(unused)]
-pub const DELTA_INFO_REQUIREMENT: &str = "exp-delta-info-revlog";
+pub const DELTA_INFO_REQUIREMENT: &str = "delta-info-revlog";
 
 /// A repository with the the copies-sidedata-changeset requirement will store
 /// copies related information in changeset's sidedata.

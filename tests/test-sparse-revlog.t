@@ -57,14 +57,14 @@ To update the md5, invoke the script without --validate
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=yes
+  > use-delta-info-flags=yes
   > EOF
 
 #else
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=no
+  > use-delta-info-flags=no
   > EOF
 
 #endif
@@ -1169,13 +1169,13 @@ Upgrading to/from delta-info-flags
   $ hg debugrevlog * > ../revlog-stats-pre-upgrade.txt
   $ hg debugupgraderepo --quiet --run \
   >   --optimize re-delta-all \
-  >   --config format.exp-use-delta-info-flags=$UPGRADE_TO
+  >   --config format.use-delta-info-flags=$UPGRADE_TO
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     removed: exp-delta-info-revlog (delta-info-flags !)
-     added: exp-delta-info-revlog (flagless !)
+     removed: delta-info-revlog (delta-info-flags !)
+     added: delta-info-revlog (flagless !)
   
   optimisations: re-delta-all
   

@@ -82,7 +82,7 @@ SPARSEREVLOG_REQUIREMENT: Final[RequirementT] = b'sparserevlog'
 
 # revlogs holds information about their delta. Especially, snapshot are
 # explicitly flag as such.
-DELTA_INFO_REQUIREMENT: Final[RequirementT] = b'exp-delta-info-revlog'
+DELTA_INFO_REQUIREMENT: Final[RequirementT] = b'delta-info-revlog'
 
 # A repository with the the copies-sidedata-changeset requirement will store
 # copies related information in changeset's sidedata.

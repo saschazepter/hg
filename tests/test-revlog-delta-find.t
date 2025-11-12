@@ -18,14 +18,14 @@ basic setup
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=yes
+  > use-delta-info-flags=yes
   > EOF
 
 #else
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=no
+  > use-delta-info-flags=no
   > EOF
 
 #endif
@@ -360,7 +360,7 @@ Even if requested to be used, some of the delta in the revlog cannot be stored o
   $ hg init \
   >    --config format.usegeneraldelta=no \
   >    --config format.sparse-revlog=no \
-  >    --config format.exp-use-delta-info-flags=no \
+  >    --config format.use-delta-info-flags=no \
   >    local-forced-full-p1-no-gd
   $ hg debugformat -R local-forced-full-p1-no-gd generaldelta
   format-variant                 repo

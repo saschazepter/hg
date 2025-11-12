@@ -3,12 +3,12 @@
 #if meta-flag
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=yes
+  > use-delta-info-flags=yes
   > EOF
 #else
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=no
+  > use-delta-info-flags=no
   > EOF
 #endif
 

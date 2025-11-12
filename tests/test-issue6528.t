@@ -617,7 +617,7 @@ And that the repair command find issue to fix.
 Upgrading to explicit meta flags
 --------------------------------
 
-  $ hg init upgrade-to-has-meta --config format.exp-use-delta-info-flags=no
+  $ hg init upgrade-to-has-meta --config format.use-delta-info-flags=no
   $ cd upgrade-to-has-meta
   $ hg debugformat delta-info-flags
   format-variant                 repo
@@ -669,12 +669,12 @@ That we do see the symptoms of the bug
 
 Upgrading to a revlog format with explicit meta flag tracking
 
-  $ hg debugupgraderepo --run --config format.exp-use-delta-info-flags=yes --quiet
+  $ hg debugupgraderepo --run --config format.use-delta-info-flags=yes --quiet
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     added: exp-delta-info-revlog
+     added: delta-info-revlog
   
   processed revlogs:
     - all-filelogs
@@ -723,12 +723,12 @@ We no longer see the bug
 
 Downgrading does not regress
 
-  $ hg debugupgraderepo --run --config format.exp-use-delta-info-flags=no --quiet
+  $ hg debugupgraderepo --run --config format.use-delta-info-flags=no --quiet
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     removed: exp-delta-info-revlog
+     removed: delta-info-revlog
   
   processed revlogs:
     - all-filelogs
@@ -791,7 +791,7 @@ upgrading with fast upgrade
   upgraded 5 filelog
 
   $ hg debugrequires | grep delta-info
-  exp-delta-info-revlog
+  delta-info-revlog
   $ hg debugrevlog a.txt | grep flags
   flags  : generaldelta, hasmeta, delta-info
   $ hg debugrevlog b.txt | grep flags
