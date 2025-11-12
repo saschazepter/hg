@@ -84,6 +84,7 @@ from . import (
     revsetlang,
     scmutil,
     setdiscovery,
+    shape as shape_mod,
     simplemerge,
     sshpeer,
     sslutil,
@@ -3099,7 +3100,8 @@ def debugpickmergetool(ui, repo, *pats, **opts):
             False,
             _(b'show the raw manifest instead of parsing and filtering it'),
         ),
-    ],
+    ]
+    + cmdutil.walkopts,
     _(b'REPO'),
     norepo=True,
 )
@@ -3121,8 +3123,18 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
                 ui.write(b'\n')
         else:
             entries = bundlecaches.parseclonebundlesmanifest(target, res)
+
+            includes = opts.get("include")
+            excludes = opts.get("exclude")
+            if includes is not None or excludes is not None:
+                includes = includes or set()
+                excludes = excludes or set()
+            fingerprint = shape_mod.fingerprint_for_patterns(includes, excludes)
             entries = bundlecaches.filterclonebundleentries(
-                target, entries, streamclonerequested=opts['stream']
+                target,
+                entries,
+                streamclonerequested=opts['stream'],
+                store_fingerprint=fingerprint,
             )
             entries = bundlecaches.sortclonebundleentries(ui, entries)
             for entry in entries:
