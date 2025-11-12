@@ -290,17 +290,23 @@ impl<'a> MutableTree<'a> {
         Ok(())
     }
 
-    /// Serializes the tree to bytes, ready to be written to disk.
-    /// Returns `None` if there is nothing to write.
-    pub fn serialize(&self) -> Option<SerializedMutableTree> {
+    /// Serializes the tree to bytes, ready to be written to disk. If `vacuum`
+    /// is true, serializes the base tree and includes it in the result. Returns
+    /// `None` if there is nothing to write.
+    pub fn serialize(
+        &self,
+        vacuum: bool,
+    ) -> Result<Option<SerializedMutableTree>, Error> {
         assert!(!self.nodes.is_empty(), "must have root node");
         assert_eq!(self.nodes[0].token, FileToken::root());
-        if self.num_paths_added == 0 {
-            // No need to write anything.
-            return None;
+        let need_to_write = self.num_paths_added > 0
+            || (vacuum && self.base.tree_file_size > 0);
+        if !need_to_write {
+            return Ok(None);
         }
         // Terminology: final = old + additional = old + (copied + fresh).
-        let old_size = self.base.tree_file_size;
+        let old_size = u32_u(self.base.tree_file_size);
+        let old_unused_bytes = u32_u(self.base.tree_unused_bytes);
         let num_fresh_nodes = self.nodes.len() - self.num_copied_nodes;
         let root_is_fresh = self.num_copied_nodes == 0;
         // There is a fresh child for every fresh node except the root.
@@ -316,16 +322,29 @@ impl<'a> MutableTree<'a> {
             + std::mem::size_of::<TaggedNodePointer>();
         let additional_size = self.num_internal_nodes * NODE_SIZE
             + num_additional_children * CHILD_SIZE;
-        let final_size = old_size + u_u32(additional_size);
-        let mut buffer = Vec::<u8>::with_capacity(additional_size);
-        let mut stack = vec![(0, 0)];
+        let final_size = if vacuum {
+            let num_fresh_internal_nodes =
+                self.num_internal_nodes - self.num_copied_internal_nodes;
+            old_size.saturating_sub(old_unused_bytes)
+                + num_fresh_internal_nodes * NODE_SIZE
+                + num_fresh_children * CHILD_SIZE
+        } else {
+            old_size + additional_size
+        };
+        let capacity = if vacuum { final_size } else { additional_size };
+        let mut buffer = Vec::<u8>::with_capacity(capacity);
+        let base_offset = if vacuum { 0 } else { old_size };
         const N: usize = std::mem::size_of::<NodePointer>();
         const UNSET_POINTER: [u8; N] = [0xff; N];
-        while let Some((index, fixup_offset)) = stack.pop() {
+        // Stack of (pointer in tree file, incoming edge offset).
+        let mut ptr_stack = vec![];
+        // Stack of (index in self.nodes, incoming edge offset).
+        let mut idx_stack = vec![(0, 0)];
+        while let Some((index, fixup_offset)) = idx_stack.pop() {
             if index != 0 {
                 // Fix up the incoming pointer.
                 let current_offset: [u8; N] =
-                    (old_size + u_u32(buffer.len())).to_be_bytes();
+                    u_u32(base_offset + buffer.len()).to_be_bytes();
                 let dest = &mut buffer[fixup_offset..fixup_offset + N];
                 debug_assert_eq!(dest, UNSET_POINTER);
                 dest.copy_from_slice(&current_offset);
@@ -344,6 +363,7 @@ impl<'a> MutableTree<'a> {
                 buffer.push(child.char);
             }
             for child in &node.children {
+                let fixup_offset = buffer.len();
                 match child.pointer {
                     MutableTreeNodePointer::Index(index) => {
                         let child_node = &self.nodes[index as usize];
@@ -351,30 +371,80 @@ impl<'a> MutableTree<'a> {
                             let token = PointerOrToken::Token(child_node.token);
                             buffer.extend_from_slice(token.pack().as_bytes());
                         } else {
-                            let fixup_offset = buffer.len();
-                            stack.push((u32_u(index), fixup_offset));
+                            idx_stack.push((u32_u(index), fixup_offset));
                             buffer.extend_from_slice(&UNSET_POINTER);
                         }
                     }
                     MutableTreeNodePointer::OffsetOnDisk(offset) => {
-                        buffer.extend_from_slice(&offset.to_be_bytes())
+                        if vacuum {
+                            ptr_stack.push((offset, fixup_offset));
+                            buffer.extend_from_slice(&UNSET_POINTER);
+                        } else {
+                            buffer.extend_from_slice(&offset.to_be_bytes())
+                        }
                     }
                 };
             }
         }
         assert_eq!(buffer.len(), additional_size);
-        let old_unused_bytes = self.base.tree_unused_bytes;
-        let additional_unused_bytes = // (comment to improve formatting)
-            self.num_copied_internal_nodes * NODE_SIZE
-            + self.num_copied_children * CHILD_SIZE;
-        let final_unused_bytes =
-            old_unused_bytes + u_u32(additional_unused_bytes);
-        assert!(final_unused_bytes <= old_size);
-        Some(SerializedMutableTree {
+        if !vacuum {
+            let additional_unused_bytes = // (comment to improve formatting)
+                self.num_copied_internal_nodes * NODE_SIZE
+                + self.num_copied_children * CHILD_SIZE;
+            let final_unused_bytes = old_unused_bytes + additional_unused_bytes;
+            assert!(final_unused_bytes <= old_size);
+            return Ok(Some(SerializedMutableTree {
+                bytes: buffer,
+                tree_root_pointer: u_u32(old_size),
+                tree_file_size: u_u32(final_size),
+                tree_unused_bytes: u_u32(final_unused_bytes),
+            }));
+        }
+        let tree_file = self.base.tree_file;
+        while let Some((ptr, fixup_offset)) = ptr_stack.pop() {
+            // Fix up the incoming pointer.
+            let current_offset: [u8; N] = u_u32(buffer.len()).to_be_bytes();
+            let dest = &mut buffer[fixup_offset..fixup_offset + N];
+            debug_assert_eq!(dest, UNSET_POINTER);
+            dest.copy_from_slice(&current_offset);
+            let slice = tree_file
+                .get(u32_u(ptr)..)
+                .ok_or(Error::TreeFileOutOfBounds)?;
+            let (header, _) = TreeNodeHeader::from_bytes(slice)
+                .or(Err(Error::TreeFileEof))?;
+            let num_children = header.num_children as usize;
+            let (header_and_chars, rest) = slice
+                .split_at_checked(
+                    std::mem::size_of::<TreeNodeHeader>() + num_children,
+                )
+                .ok_or(Error::TreeFileEof)?;
+            buffer.extend_from_slice(header_and_chars);
+            let (child_ptrs, _) =
+                TaggedNodePointer::slice_from_bytes(rest, num_children)
+                    .or(Err(Error::TreeFileEof))?;
+            for &value in child_ptrs {
+                match value.unpack() {
+                    PointerOrToken::Pointer(child_ptr) => {
+                        let fixup_offset = buffer.len();
+                        ptr_stack.push((child_ptr, fixup_offset));
+                        buffer.extend_from_slice(&UNSET_POINTER);
+                    }
+                    PointerOrToken::Token(_) => {
+                        buffer.extend_from_slice(value.as_bytes())
+                    }
+                }
+            }
+        }
+        // Only debug assert because this relies on the tree_unused_bytes in the
+        // docket being accurate. It should be, but it's not worth an assertion
+        // failure in production if it isn't.
+        let actual_final_size = buffer.len();
+        debug_assert_eq!(actual_final_size, final_size);
+        Ok(Some(SerializedMutableTree {
             bytes: buffer,
-            tree_root_pointer: old_size,
-            tree_file_size: final_size,
-            tree_unused_bytes: final_unused_bytes,
-        })
+            tree_root_pointer: 0,
+            tree_file_size: u_u32(actual_final_size),
+            tree_unused_bytes: 0,
+        }))
     }
 }

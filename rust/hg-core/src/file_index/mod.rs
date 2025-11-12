@@ -446,21 +446,12 @@ impl FileIndex {
                 Ok((info, _)) => Some(Ok(info.path())),
                 Err(err) => Some(Err(err)),
             });
-            return Self::write_data_impl(docket, tree, add_paths, files);
-        }
-        let tree = if vacuum {
-            let num_paths = on_disk.token_count() + add_paths.len();
-            let mut tree = MutableTree::empty(num_paths)?;
-            for result in on_disk.iter() {
-                let (info, token) = result?;
-                tree.insert(info.path(), token)?;
-            }
-            tree
+            Self::write_data_impl(docket, tree, add_paths, files, false)
         } else {
-            MutableTree::with_base(*on_disk, add_paths.len())?
-        };
-        let add_paths = add_paths.iter().map(|path| Ok(path.deref()));
-        Self::write_data_impl(docket, tree, add_paths, files)
+            let tree = MutableTree::with_base(*on_disk, add_paths.len())?;
+            let add_paths = add_paths.iter().map(|path| Ok(path.deref()));
+            Self::write_data_impl(docket, tree, add_paths, files, vacuum)
+        }
     }
 
     /// Helper function for [`Self::write_data`] to allow the `add_paths`
@@ -470,6 +461,7 @@ impl FileIndex {
         mut tree: MutableTree<'a>,
         add_paths: impl Iterator<Item = Result<&'a HgPath, Error>>,
         VfsDataFiles { list_file, meta_file, mut tree_file }: VfsDataFiles,
+        vacuum: bool,
     ) -> Result<(), HgError> {
         let list_file_path = normal_path(&list_file).to_owned();
         let meta_file_path = normal_path(&meta_file).to_owned();
@@ -502,7 +494,7 @@ impl FileIndex {
         }
         docket.header.list_file_size = list_file_size.into();
         docket.header.meta_file_size = meta_file_size.into();
-        if let Some(out) = tree.serialize() {
+        if let Some(out) = tree.serialize(vacuum)? {
             tree_file
                 .write_all(&out.bytes)
                 .when_writing_file(&tree_file_path)?;
