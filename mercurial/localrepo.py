@@ -3167,7 +3167,7 @@ class localrepository(_localrepo_base_classes):
 
             # commit subs and write new state
             if subs:
-                uipathfn = scmutil.getuipathfn(unfi)
+                uipathfn = scmutil.getuipathfn(self)
                 for s in sorted(commitsubs):
                     sub = wctx.sub(s)
                     ui.status(
@@ -3176,7 +3176,7 @@ class localrepository(_localrepo_base_classes):
                     )
                     sr = sub.commit(cctx._text, user, date)
                     newstate[s] = (newstate[s][0], sr)
-                subrepoutil.writestate(unfi, newstate)
+                subrepoutil.writestate(self, newstate)
 
             p1, p2 = self.dirstate.parents()
             hookp1, hookp2 = hex(p1), (hex(p2) if p2 != self.nullid else b'')
