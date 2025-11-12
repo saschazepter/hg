@@ -3187,7 +3187,7 @@ class localrepository(_localrepo_base_classes):
                 with unfi.transaction(b'commit'):
                     ret = unfi.commitctx(cctx, True)
                     # update bookmarks, dirstate and mergestate
-                    bookmarks.update(unfi, [p1, p2], ret)
+                    bookmarks.update(self, [p1, p2], ret)
                     cctx.markcommitted(ret)
                     ms.reset()
             except:  # re-raises
