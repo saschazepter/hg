@@ -181,12 +181,12 @@ Non-streaming, non-narrow cloning
 
 Passing no includes should fall back to regular clone
 
-  $ hg clone ssh://user@dummy/source plain-clone 2>&1 | grep "falling back"
+  $ hg clone ssh://user@dummy/source plain-clone 2>&1 --narrow | grep "falling back"
   no compatible clone bundles available on server; falling back to regular clone
   $ rm -rf plain-clone
 
 Test a pure Python client
-  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source plain-clone 2>&1 | grep "falling back"
+  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source --narrow plain-clone 2>&1 | grep "falling back"
   no compatible clone bundles available on server; falling back to regular clone
 
   $ cat source/error.log
@@ -204,7 +204,7 @@ Passing no includes should fall back to full (non-fingerprinted) streaming clone
 
 Test a pure Python client
   $ rm -rf full-clone
-  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source full-clone | grep "bundle from"
+  $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source --narrow full-clone | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-full.hg
 
 
@@ -220,13 +220,9 @@ the correct narrow stream clone bundle
 Test that if no fingerprints match, we don't clone anything
 
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=notexist
-    URL: peer-bundle-cache://outfile-shape-full.hg (known-bad-output !)
-      BUNDLESPEC: none-v2;stream=v2;requirements=* (glob) (known-bad-output !)
-      COMPRESSION: none (known-bad-output !)
-      VERSION: v2 (known-bad-output !)
 
-  $ hg clone ssh://user@dummy/source clone-shaped --narrow --include=notexist | grep "bundle from"
-  applying clone bundle from peer-bundle-cache://outfile-shape-full.hg (known-bad-output !)
+  $ hg clone ssh://user@dummy/source clone-shaped --narrow --include=notexist 2>&1 | grep "falling back"
+  no compatible clone bundles available on server; falling back to regular clone
   $ rm -rf clone-shaped
 
 Test matching fingerprints
