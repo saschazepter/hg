@@ -129,10 +129,6 @@ the extension is unknown.
   
   Repository maintenance:
   
-   admin::narrow-client
-                 Narrow-related client administration utils.
-   admin::narrow-server
-                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -266,10 +262,6 @@ the extension is unknown.
   
   Repository maintenance:
   
-   admin::narrow-client
-                 Narrow-related client administration utils.
-   admin::narrow-server
-                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -632,10 +624,6 @@ Test ambiguous command help
   
   Repository maintenance:
   
-   admin::narrow-client
-                 Narrow-related client administration utils.
-   admin::narrow-server
-                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
   
@@ -2705,14 +2693,14 @@ Dish up an empty repo; serve it cold.
   admin::narrow-client
   </a>
   </td><td>
-  Narrow-related client administration utils.
+  Narrow-related client administration utils. (EXPERIMENTAL)
   </td></tr>
   <tr><td>
   <a href="/help/admin::narrow-server">
   admin::narrow-server
   </a>
   </td><td>
-  Narrow-related server administration utils.
+  Narrow-related server administration utils. (EXPERIMENTAL)
   </td></tr>
   <tr><td>
   <a href="/help/admin::verify">

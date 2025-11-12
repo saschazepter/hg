@@ -77,10 +77,6 @@ Test hiding some commands (which also happens to hide an entire category).
   
   Repository maintenance:
   
-   admin::narrow-client
-                 Narrow-related client administration utils.
-   admin::narrow-server
-                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -222,10 +218,6 @@ Test hiding some topics.
   
   Repository maintenance:
   
-   admin::narrow-client
-                 Narrow-related client administration utils.
-   admin::narrow-server
-                 Narrow-related server administration utils.
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest

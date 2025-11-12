@@ -2116,11 +2116,11 @@ help/ shows help topics
         "topic": "addremove"
       },
       {
-        "summary": "Narrow-related client administration utils.",
+        "summary": "Narrow-related client administration utils. (EXPERIMENTAL)",
         "topic": "admin::narrow-client"
       },
       {
-        "summary": "Narrow-related server administration utils.",
+        "summary": "Narrow-related server administration utils. (EXPERIMENTAL)",
         "topic": "admin::narrow-server"
       },
       {

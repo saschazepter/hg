@@ -94,7 +94,7 @@ def admin_verify(ui, repo, **opts):
     helpcategory=command.CATEGORY_MAINTENANCE,
 )
 def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
-    """Narrow-related client administration utils.
+    """Narrow-related client administration utils. (EXPERIMENTAL)
 
     This command is experimental and is subject to change.
     """
@@ -149,7 +149,7 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
     helpcategory=command.CATEGORY_MAINTENANCE,
 )
 def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
-    """Narrow-related server administration utils.
+    """Narrow-related server administration utils. (EXPERIMENTAL)
 
     This command is experimental and is subject to change.
     """

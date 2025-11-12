@@ -9,7 +9,7 @@ use crate::error::CommandError;
 use crate::ui::print_warnings;
 
 pub const HELP_TEXT: &str = "
-Narrow-related administration utils
+Narrow-related administration utils (EXPERIMENTAL)
 ";
 
 pub fn args() -> clap::Command {
