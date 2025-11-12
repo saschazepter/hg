@@ -3157,13 +3157,13 @@ class localrepository(_localrepo_base_classes):
                 raise error.Abort(_(b"cannot commit merge with missing files"))
 
             if editor:
-                cctx._text = editor(unfi, cctx, subs)
+                cctx._text = editor(self, cctx, subs)
             edited = text != cctx._text
 
             # Save commit message in case this transaction gets rolled back
             # (e.g. by a pretxncommit hook).  Leave the content alone on
             # the assumption that the user will use the same editor again.
-            msg_path = unfi.savecommitmessage(cctx._text)
+            msg_path = self.savecommitmessage(cctx._text)
 
             # commit subs and write new state
             if subs:
