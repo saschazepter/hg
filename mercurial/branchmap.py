@@ -1070,7 +1070,7 @@ class BranchCacheV3(_LocalBranchCache):
     def __init__(self, *args, pure_topo_branch: bytes | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self._pure_topo_branch = pure_topo_branch
-        self._needs_populate = self._pure_topo_branch is not None
+        self._needs_populate = False
 
     def inherit_for(self, repo):
         new = super().inherit_for(repo)
@@ -1185,60 +1185,7 @@ class BranchCacheV3(_LocalBranchCache):
         """fully loads the branchcache by reading from the file using the line
         iterator passed"""
         super()._load_heads(repo, lineiter)
-        if self._pure_topo_branch is not None:
-            # no need to read the repository heads, we know their value already.
-            return
-        cl = repo.changelog
-        getbranchinfo = repo.revbranchcache().branchinfo
-        obsrevs = obsolete.getrevs(repo, b'obsolete')
-        to_node = cl.node
-        touched_branch = set()
-        need_sorting = set()
-        closed_size = len(self._closednodes)
-        any_obs = False
-        topo_heads = self._get_topo_heads(repo)
-        for head in topo_heads:
-            if head in obsrevs:
-                any_obs = True
-                continue
-            node = to_node(head)
-            branch, closed = getbranchinfo(head)
-            pre_add_len = len(touched_branch)
-            touched_branch.add(branch)
-            if pre_add_len != len(touched_branch):  # first sight of this branch
-                if branch not in self._entries:
-                    self._entries[branch] = []
-                else:
-                    # we only need to sort if they were pre-existing value
-                    need_sorting.add(branch)
-
-            self._entries.setdefault(branch, []).append(node)
-            if closed:
-                self._closednodes.add(node)
-        # If we did not encountered any obsolete or topological heads closed
-        # head and saw only one branch, we are in a pure topo case.
-        #
-        # What about non-topo head you might ask ? Well if all the topological
-        # heads an open, non-obsolete, heads of that branch, no other revisions
-        # might be a topological heads.
-        if (
-            (not any_obs)
-            and len(self._closednodes) == closed_size
-            and len(touched_branch) == 1
-        ):
-            assert len(self._entries[branch]) == len(topo_heads)
-            self._pure_topo_branch = branch
-            self._head_revs[branch] = topo_heads
-            self._open_head_revs[branch] = topo_heads
-            self._tips[branch] = (self._entries[branch][-1], False)
-            self._verifiedbranches.add(branch)
-            if self._state == STATE_CLEAN:
-                self._state = STATE_DIRTY
-        to_rev = cl.index.rev
-        for branch in need_sorting:
-            # XXX getting a rev from a node is expensive so this sorting is not
-            # ideal.
-            self._entries[branch].sort(key=to_rev)
+        self._needs_populate = True
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         """return the cache key hashes that match this repoview state"""
@@ -1288,6 +1235,16 @@ class BranchCacheV3(_LocalBranchCache):
             all. We could have more advance to detect of the "non obsolete" and
             "non closing" rev actually had an impact but this is not
             currently the case.
+
+        Note that if the branchmap wasn't in a "pure-topo" mode, this update
+        might detect such situation while populating the branchmap before
+        update and detect such fast-path anyway.
+
+        However, no work is currently do to detect that the branchmap is in
+        "pure-topo" mode -after- the update. We only detect that the
+        "pure-topo" mode is garanteed to be preserved. The detection of the
+        "pure-topo" mode will happens later, the next time that branchmap is
+        loaded.
         """
         # True if the current branchmap is empty, without any heads
         empty = self.tiprev == nullrev  # view is empty, no head exists
@@ -1317,6 +1274,15 @@ class BranchCacheV3(_LocalBranchCache):
             if unique_branch is not None:
                 if empty or self._pure_topo_branch == unique_branch:
                     pure_topo_branch = unique_branch
+                if self._pure_topo_branch is None:
+                    # The populate might detect a "pure-topo" mode,
+                    #
+                    # In such case, we check it that "pure-topo" mode remains
+                    # in place now because the fallback logical would wipe that
+                    # detection out before calling super()._process_new()
+                    self._ensure_populated(repo)
+                    if self._pure_topo_branch == unique_branch:
+                        pure_topo_branch = unique_branch
 
         if pure_topo_branch is not None:
             self._pure_topo_branch = pure_topo_branch
@@ -1341,8 +1307,10 @@ class BranchCacheV3(_LocalBranchCache):
 
     def _ensure_populated(self, repo):
         """make sure any lazily loaded values are fully populated"""
-        if self._needs_populate:
-            assert self._pure_topo_branch is not None
+        if not self._needs_populate:
+            return
+        topo_heads = self._get_topo_heads(repo)
+        if self._pure_topo_branch is not None:
             # There are various question we could answer without the full list
             # of heads, so we could delay that computation until requested,
             # however There are other simpler optimization to do first.
@@ -1359,12 +1327,67 @@ class BranchCacheV3(_LocalBranchCache):
             self._head_revs[branch] = topo_heads
             self._open_head_revs[branch] = topo_heads
             self._verifiedbranches.add(branch)
-            self._needs_populate = False
+        else:
+            cl = repo.changelog
+            getbranchinfo = repo.revbranchcache().branchinfo
+            obsrevs = obsolete.getrevs(repo, b'obsolete')
+            to_node = cl.node
+            touched_branch = set()
+            need_sorting = set()
+            closed_size = len(self._closednodes)
+            any_obs = False
+            for head in topo_heads:
+                if head in obsrevs:
+                    any_obs = True
+                    continue
+                node = to_node(head)
+                branch, closed = getbranchinfo(head)
+                if closed:
+                    self._closednodes.add(node)
+                pre_add_len = len(touched_branch)
+                touched_branch.add(branch)
+                if pre_add_len != len(touched_branch):
+                    # first sight of this branch
+                    if branch not in self._entries:
+                        self._entries[branch] = []
+                    else:
+                        # the list might come from an inherited value, so we
+                        # need to copy the list first.
+                        self._entries[branch] = self._entries[branch].copy()
+                        # we only need to sort if they were pre-existing value
+                        need_sorting.add(branch)
+                self._entries[branch].append(node)
+            # If we did not encountered any obsolete or topological heads
+            # closed head and saw only one branch, we are in a pure topo case.
+            #
+            # What about non-topo head you might ask ? Well if all the
+            # topological heads an open, non-obsolete, heads of that branch, no
+            # other revisions might be a topological heads.
+            if (
+                (not any_obs)
+                and len(self._closednodes) == closed_size
+                and len(touched_branch) == 1
+            ):
+                assert len(self._entries[branch]) == len(topo_heads)
+                self._pure_topo_branch = branch
+                self._head_revs[branch] = topo_heads
+                self._open_head_revs[branch] = topo_heads
+                self._tips[branch] = (self._entries[branch][-1], False)
+                self._verifiedbranches.add(branch)
+                if self._state == STATE_CLEAN:
+                    self._state = STATE_DIRTY
+            to_rev = cl.index.rev
+            for branch in need_sorting:
+                # XXX getting a rev from a node is expensive so this sorting is
+                # not ideal.
+                self._entries[branch].sort(key=to_rev)
+        self._needs_populate = False
 
     def _detect_pure_topo(self, repo) -> None:
         if self._pure_topo_branch is not None:
             # we are pure topological already
             return
+        self._ensure_populated(repo)
         assert not self._needs_populate
         to_node = repo.changelog.node
         topo_heads = [to_node(r) for r in self._get_topo_heads(repo)]
