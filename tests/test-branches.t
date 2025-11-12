@@ -1570,16 +1570,6 @@ The repository is in a pure-topo state
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-immutable
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
-  A
-  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
-  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-served
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
-  A
-  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
-  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
 #else
   $ show_cache
   ##### .hg/cache/branch2-base
@@ -1625,11 +1615,6 @@ output must remain correct, and the branch is not in a topo-head state
 #if v3
   $ show_cache
   ##### .hg/cache/branch3-exp-base
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
-  A
-  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
-  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-immutable
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
@@ -1701,11 +1686,6 @@ We re-open the top head
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-immutable
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
-  A
-  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
-  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-exp-served
   tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=mixed
   A
@@ -1767,11 +1747,6 @@ This should be detected by now
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-immutable
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
-  A
-  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
-  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-exp-served
   tip-node=aa41ed5f1e512b754a138d564455ddd6017b7d34 tip-rev=9 topo-mode=mixed
   A
@@ -1822,11 +1797,6 @@ And this is preserved over further update
 #if v3
   $ show_cache
   ##### .hg/cache/branch3-exp-base
-  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
-  A
-  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
-  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
-  ##### .hg/cache/branch3-exp-immutable
   tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
   A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B

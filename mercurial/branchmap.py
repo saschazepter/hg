@@ -1531,21 +1531,36 @@ class BranchCacheV3(_LocalBranchCache):
         self._needs_populate_topo_only = False
 
     def _detect_pure_topo(self, repo) -> None:
-        if self._pure_topo_branch is not None:
-            # we are pure topological already
+        if self._topo_only_branches:
+            # if this set is non-empty, the data we have comes from disk and
+            # the pure-topo case was detected as load time.
+            #
+            # There is nothing we can do.
             return
         self._ensure_populated(repo)
+        if self._topo_only_branches:
+            # the _ensure_populated ran a detection again, so we can trust that
+            # instead.
+            return
         assert not self._needs_populate
         to_node = repo.changelog.node
-        topo_heads = [to_node(r) for r in self._get_topo_heads(repo)]
-        if any(n in self._closednodes for n in topo_heads):
-            return
+        topo_heads = {to_node(r) for r in self._get_topo_heads(repo)}
+
+        topo_only = set()
         for branch, heads in self._entries.items():
-            if heads == topo_heads:
+            if heads and set(heads).issubset(topo_heads):
+                topo_only.add(branch)
+
+        if topo_only:
+            self._state = STATE_DIRTY
+        self._topo_only_branches = topo_only
+        if len(topo_only) == 1:
+            candidate = list(topo_only)[0]
+            heads = self._entries[candidate]
+            if len(topo_heads) == len(heads) and all(
+                n in self._closednodes for n in topo_heads
+            ):
                 self._pure_topo_branch = branch
-                self._topo_only_branches = {branch}
-                self._state = STATE_DIRTY
-                break
 
 
 class remotebranchcache(_BaseBranchCache):
