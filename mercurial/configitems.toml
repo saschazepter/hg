@@ -2518,6 +2518,18 @@ with the one used by the revlog.
 
 [[items]]
 section = "storage"
+name = "revlog.record-delta-quality"
+default = true
+experimental = true
+documentation = """When set, record information about the quality of the stored
+delta compared to the delta we could obtain from the parent.
+
+Only affects revlogs using a format capable of storing such information (like a
+revlog using delta-info-flags).
+"""
+
+[[items]]
+section = "storage"
 name = "revlog.validate-delta-base"
 default = false
 documentation = """Validate the integrity of bases when computing deltas.

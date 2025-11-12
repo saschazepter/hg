@@ -256,6 +256,9 @@ pub struct RevlogDeltaConfig {
     /// Store additionnal information about delta in the index
     /// (and adjust delta computation to leverage it)
     pub delta_info: bool,
+    /// Actually persist quality information when available an supported by the
+    /// revlog.
+    pub store_quality: bool,
     /// Maximum length of a delta chain
     pub max_chain_len: Option<u64>,
     /// Maximum distance between a delta chain's start and end
@@ -356,6 +359,9 @@ impl RevlogDeltaConfig {
         delta_config.delta_info = delta_config.general_delta
             && requirements.contains(DELTA_INFO_REQUIREMENT);
 
+        delta_config.store_quality =
+            config.get_bool(b"storage", b"revlog.record-delta-quality")?;
+
         delta_config.max_chain_len =
             config.get_byte_size_no_default(b"format", b"maxchainlen")?;
 
@@ -385,6 +391,7 @@ impl Default for RevlogDeltaConfig {
             general_delta: Default::default(),
             sparse_revlog: Default::default(),
             delta_info: Default::default(),
+            store_quality: true,
             max_chain_len: Default::default(),
             max_deltachain_span: Default::default(),
             upper_bound_comp: Default::default(),

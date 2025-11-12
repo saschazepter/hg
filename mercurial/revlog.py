@@ -3632,7 +3632,10 @@ class revlog:
         if self.delta_config.delta_info:
             if deltainfo.snapshotdepth is not None:
                 flags |= REVIDX_DELTA_IS_SNAPSHOT
-            if deltainfo.quality is not None:
+            if (
+                deltainfo.quality is not None
+                and self.delta_config.store_quality
+            ):
                 flags |= deltainfo.quality.to_v1_flags()
 
         rank = RANK_UNKNOWN

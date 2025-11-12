@@ -125,6 +125,7 @@ pub fn extract_delta_config(
             general_delta: extract_attr!(conf, "general_delta")?,
             sparse_revlog: extract_attr!(conf, "sparse_revlog")?,
             delta_info: extract_attr!(conf, "delta_info")?,
+            store_quality: extract_attr!(conf, "store_quality")?,
             max_chain_len: extract_attr!(conf, "max_chain_len")?,
             max_deltachain_span: if max_deltachain_span < 0 {
                 None

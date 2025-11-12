@@ -119,6 +119,8 @@ class DeltaConfig(_Config):
     sparse_revlog = attr.ib(default=False, type=bool)
     # index contains extra delta information
     delta_info = attr.ib(default=False)
+    # store delta quality information when possible
+    store_quality = attr.ib(default=True, type=bool)
     # maximum length of a delta chain
     max_chain_len = attr.ib(default=None, type=Optional[int])
     # Maximum distance between delta chain base start and end
