@@ -118,6 +118,21 @@ fn path_of_length(len: usize) -> HgPathBuf {
 }
 
 #[test]
+fn test_maximum_label_length() {
+    let (mut file_index, _temp_dir) = create_file_index().unwrap();
+    let path1 = &path_of_length(255); // maximum for on node
+    let path2 = &path_of_length(255 + 1); // requires two nodes
+    let path3 = &path_of_length(255 * 2 + 1); // requires three nodes
+    assert_eq!(file_index.add(path1).unwrap(), (FileToken(1), true));
+    assert_eq!(file_index.add(path2).unwrap(), (FileToken(2), true));
+    assert_eq!(file_index.add(path3).unwrap(), (FileToken(3), true));
+
+    check_paths(&file_index, &[(1, path1), (2, path2), (3, path3)]);
+    file_index.write(&mut FakeTransaction).unwrap();
+    check_paths(&file_index, &[(1, path1), (2, path2), (3, path3)]);
+}
+
+#[test]
 fn test_maximum_path_length() {
     let (mut file_index, _temp_dir) = create_file_index().unwrap();
     // This is the maximum length allowed by mercurial/cext/pathencode.c

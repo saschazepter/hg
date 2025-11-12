@@ -821,55 +821,13 @@ Test long paths
 
   $ hg init repolong --config format.use-fileindex-v1=1
   $ cd repolong
-
-Maximum label length (255)
-  $ path=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  $ path=$("$PYTHON" -c 'print("long/" * 99 + "f.txt")')
   $ echo ${#path}
-  255
+  500
   $ mkdir -p $(dirname $path)
   $ touch $path
-  $ hg commit -qAm 3
-  $ hg debug::file-index --path $path
-  1: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  $ hg debug::file-index --tree
-  00000000: "" (0)
-      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (1)
-
-Go past the maximum label length once
-  $ path=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
-  $ echo ${#path}
-  256
-  $ mkdir -p $(dirname $path)
-  $ touch $path
-  $ hg commit -qAm 4
-  $ hg debug::file-index --path $path
-  2: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbX
-  $ hg debug::file-index --tree
-  0000000b: "" (0)
-      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (1)
-      "b" -> 0000001b
-  0000001b: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (2)
-      "X" -> "X" (2)
-
-Go past the maximum label length twice
-  $ path=ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
-  $ echo ${#path}
-  511
-  $ mkdir -p $(dirname $path)
-  $ touch $path
-  $ hg commit -qAm 4
-  $ hg debug::file-index --path $path
-  3: ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccZ
-  $ hg debug::file-index --tree
-  00000026: "" (0)
-      "a" -> "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (1)
-      "b" -> 0000001b
-      "c" -> 0000003b
-  0000001b: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" (2)
-      "X" -> "X" (2)
-  0000003b: "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (3)
-      "/" -> 00000046
-  00000046: "/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" (3)
-      "Z" -> "Z" (3)
+  $ hg commit -qAm 0
+  $ hg debug::file-index --path $path | sed "s|$path|\$path|"
+  1: $path
 
   $ cd ..
