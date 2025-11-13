@@ -450,11 +450,8 @@ def filterclonebundleentries(
         )
         fingerprints_differ = store_fingerprint != expected_fingerprint
         if fingerprint_cannot_match or fingerprints_differ:
-            expected_fingerprint = (
-                expected_fingerprint
-                if expected_fingerprint is not None
-                else b"none"
-            )
+            if expected_fingerprint is None:
+                expected_fingerprint = b"none"
             repo.ui.debug(
                 b'filtering %s because not the correct store fingerprint '
                 b'(expected %s)\n' % (url, expected_fingerprint)
