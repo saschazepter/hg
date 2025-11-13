@@ -179,6 +179,10 @@ def debugstrip(ui, repo, *revs, **opts):
 
     Return 0 on success.
     """
+    return _strip_command(ui, repo, *revs, **opts, permit_empty_revset=True)
+
+
+def _strip_command(ui, repo, *revs, **opts):
     opts = pycompat.byteskwargs(opts)
     backup = True
     if opts.get(b'no_backup') or opts.get(b'nobackup'):
@@ -216,6 +220,8 @@ def debugstrip(ui, repo, *revs, **opts):
                     ui.write(_(b"bookmark '%s' deleted\n") % bookmark)
 
         if not revs:
+            if opts[b'permit_empty_revset']:
+                return 0
             raise error.Abort(_(b'empty revision set'))
 
         descendants = set(cl.descendants(revs))
