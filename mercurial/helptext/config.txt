@@ -979,36 +979,7 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
     Hide message when performing such automatic upgrade.
 
 ``use-dirstate-tracked-hint``
-    Enable or disable the writing of "tracked key" file alongside the dirstate.
-    (default to disabled)
-
-    That "tracked-hint" can help external automations to detect changes to the
-    set of tracked files. (i.e the result of `hg files` or `hg status -macd`)
-
-    The tracked-hint is written in a new `.hg/dirstate-tracked-hint`. That file
-    contains two lines:
-    - the first line is the file version (currently: 1),
-    - the second line contains the "tracked-hint".
-    That file is written right after the dirstate is written.
-
-    The tracked-hint changes whenever the set of file tracked in the dirstate
-    changes. The general idea is:
-    - if the hint is identical, the set of tracked file SHOULD be identical,
-    - if the hint is different, the set of tracked file MIGHT be different.
-
-    The "hint is identical" case uses `SHOULD` as the dirstate and the hint file
-    are two distinct files and therefore that cannot be read or written to in an
-    atomic way. If the key is identical, nothing garantees that the dirstate is
-    not updated right after the hint file. This is considered a negligible
-    limitation for the intended usecase. It is actually possible to prevent this
-    race by taking the repository lock during read operations.
-
-    They are two "ways" to use this feature:
-
-    1) monitoring changes to the `.hg/dirstate-tracked-hint`, if the file
-    changes, the tracked set might have changed.
-
-    2) storing the value and comparing it to a later value.
+    :config-doc:`format.use-dirstate-tracked-hint`
 
 
 ``use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories``
