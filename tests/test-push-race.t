@@ -80,18 +80,7 @@ A set of extension and shell functions ensures this scheduling.
   > EOF
 
   $ waiton () {
-  >     # wait for a file to be created (then delete it)
-  >     count=100
-  >     while [ ! -f $1 ] ;
-  >     do
-  >         sleep 0.1;
-  >         count=`expr $count - 1`;
-  >         if [ $count -lt 0 ];
-  >         then
-  >              break
-  >         fi;
-  >     done
-  >     [ -f $1 ] || echo "ready file still missing: $1"
+  >     "$RUNTESTDIR/testlib/wait-on-file" 10 $1
   >     rm -f $1
   > }
 
