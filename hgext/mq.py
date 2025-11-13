@@ -81,7 +81,6 @@ from mercurial import (
     encoding,
     error,
     extensions,
-    hg,
     localrepo,
     lock as lockmod,
     logcmdutil,
@@ -89,6 +88,7 @@ from mercurial import (
     phases,
     pycompat,
     registrar,
+    repo as repo_utils,
     revsetlang,
     scmutil,
     smartset,
@@ -96,6 +96,16 @@ from mercurial import (
     subrepoutil,
     util,
     vfs as vfsmod,
+)
+from mercurial.cmd_impls import (
+    clone as clone_impl,
+    update as up_impl,
+)
+from mercurial.main_script import (
+    cmd_finder,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     dateutil,
@@ -865,11 +875,11 @@ class queue:
         self.ui.warn(_(b"patch didn't work out, merging %s\n") % patch)
 
         # apply failed, strip away that rev and merge.
-        hg.clean(repo, head)
+        up_impl.clean(repo, head)
         strip(self.ui, repo, [n], update=False, backup=False)
 
         ctx = repo[rev]
-        ret = hg.merge(ctx, remind=False)
+        ret = up_impl.merge(ctx, remind=False)
         if ret:
             raise error.Abort(_(b"update returned %d") % ret)
         n = newcommit(repo, None, ctx.description(), ctx.user(), force=True)
@@ -1571,12 +1581,8 @@ class queue:
         self.checkkeepchanges(keepchanges, force)
         diffopts = self.diffopts()
         with repo.wlock():
-            heads = []
-            for hs in repo.branchmap().iterheads():
-                heads.extend(hs)
-            if not heads:
-                heads = [repo.nullid]
-            if repo.dirstate.p1() not in heads and not exact:
+            p1 = repo.dirstate.p1()
+            if not (repo.branchmap().all_nodes_are_heads([p1]) or exact):
                 self.ui.status(_(b"(working directory not at a head)\n"))
 
             if not self.series:
@@ -1649,7 +1655,7 @@ class queue:
                         _(b"%s does not have a parent recorded") % root
                     )
                 if not repo[target] == repo[b'.']:
-                    hg.update(repo, target)
+                    up_impl.update(repo, target)
 
             if move:
                 if not patch:
@@ -1820,7 +1826,7 @@ class queue:
                 )
 
             # we know there are no local changes, so we can make a simplified
-            # form of hg.update.
+            # form of up_impl.update.
             if update:
                 qp = self.qparents(repo, rev)
                 ctx = repo[qp]
@@ -2258,7 +2264,7 @@ class queue:
                 b'mqpager',
             )
         if create or os.path.isdir(self.join(b".hg")):
-            return hg.repository(ui, path=self.path, create=create)
+            return repo_factory.repository(ui, path=self.path, create=create)
 
     def restore(self, repo, rev, delete=None, qupdate=None):
         desc = repo[rev].description().strip()
@@ -2313,7 +2319,7 @@ class queue:
                 if not r:
                     self.ui.warn(_(b"unable to load queue repository\n"))
                     return 1
-                hg.clean(r, qpp[0])
+                up_impl.clean(r, qpp[0])
 
     def save(self, repo, msg=None):
         if not self.applied:
@@ -2530,7 +2536,7 @@ class queue:
                     if filename == b'-':
                         text = self.ui.fin.read()
                     else:
-                        fp = hg.openpath(self.ui, filename)
+                        fp = scmutil.open_path(self.ui, filename)
                         text = fp.read()
                         fp.close()
                 except OSError:
@@ -2852,9 +2858,9 @@ def clone(ui, source, dest=None, **opts):
 
     # main repo (destination and sources)
     if dest is None:
-        dest = hg.defaultdest(source)
+        dest = clone_impl.default_dest(source)
     source_path = urlutil.get_clone_path_obj(ui, source)
-    sr = hg.peer(ui, opts, source_path)
+    sr = repo_factory.peer(ui, opts, source_path)
 
     # patches repo (source only)
     if opts.get(b'patches'):
@@ -2863,7 +2869,7 @@ def clone(ui, source, dest=None, **opts):
         # XXX path: we should turn this into a path object
         patches_path = patchdir(sr)
     try:
-        hg.peer(ui, opts, patches_path)
+        repo_factory.peer(ui, opts, patches_path)
     except error.RepoError:
         raise error.Abort(
             _(b'versioned patch repository not found (see init --mq)')
@@ -2873,7 +2879,7 @@ def clone(ui, source, dest=None, **opts):
         repo = sr.local()
         if repo.mq.applied and repo[qbase].phase() != phases.secret:
             qbase = repo.mq.applied[0].node
-            if not hg.islocal(dest):
+            if not repo_factory.is_local(dest):
                 heads = set(repo.heads())
                 destrev = list(heads.difference(repo.heads(qbase)))
                 destrev.append(repo.changelog.parents(qbase)[0])
@@ -2884,7 +2890,7 @@ def clone(ui, source, dest=None, **opts):
             pass
 
     ui.note(_(b'cloning main repository\n'))
-    sr, dr = hg.clone(
+    sr, dr = clone_impl.clone(
         ui,
         opts,
         sr.url(),
@@ -2896,7 +2902,7 @@ def clone(ui, source, dest=None, **opts):
     )
 
     ui.note(_(b'cloning patch repository\n'))
-    hg.clone(
+    clone_impl.clone(
         ui,
         opts,
         opts.get(b'patches') or patchdir(sr),
@@ -2918,7 +2924,7 @@ def clone(ui, source, dest=None, **opts):
             strip(ui, repo, [qbase], update=False, backup=None)
         if not opts.get(b'noupdate'):
             ui.note(_(b'updating destination repository\n'))
-            hg.update(repo, repo.changelog.tip())
+            up_impl.update(repo, repo.changelog.tip())
 
 
 @command(
@@ -4201,17 +4207,17 @@ def mqinit(orig, ui, *args, **kwargs):
 
     if args:
         repopath = args[0]
-        if not hg.islocal(repopath):
+        if not repo_factory.is_local(repopath):
             raise error.Abort(
                 _(b'only a local queue repository may be initialized')
             )
     else:
-        repopath = cmdutil.findrepo(encoding.getcwd())
+        repopath = repo_utils.find_repo(encoding.getcwd())
         if not repopath:
             raise error.Abort(
                 _(b'there is no Mercurial repository here (.hg not found)')
             )
-    repo = hg.repository(ui, repopath)
+    repo = repo_factory.repository(ui, repopath)
     return qinit(ui, repo, True)
 
 
@@ -4275,7 +4281,7 @@ def extsetup(ui):
 
     def dotable(cmdtable):
         for cmd, entry in cmdtable.items():
-            cmd = cmdutil.parsealiases(cmd)[0]
+            cmd = cmd_finder.parse_aliases(cmd)[0]
             func = entry[0]
             if func.norepo:
                 continue

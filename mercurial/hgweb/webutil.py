@@ -35,8 +35,8 @@ from .. import (
     pathutil,
     pycompat,
     scmutil,
+    tables,
     templatefilters,
-    templatekw,
     templateutil,
     ui as uimod,
     util,
@@ -343,18 +343,19 @@ def branchentries(repo, stripecount, limit=0):
     tips = []
     heads = repo.heads()
     parity = paritygen(stripecount)
-    sortkey = lambda item: (not item[1], item[0].rev())
+    sortkey = lambda item: (not item.closesbranch(), item.rev())
 
     def entries(context):
         count = 0
         if not tips:
-            for tag, hs, tip, closed in repo.branchmap().iterbranches():
-                tips.append((repo[tip], closed))
-        for ctx, closed in sorted(tips, key=sortkey, reverse=True):
+            bm = repo.branchmap()
+            for bn in bm:
+                tips.append(repo[bm.branchtip(bn)])
+        for ctx in sorted(tips, key=sortkey, reverse=True):
             if limit > 0 and count >= limit:
                 return
             count += 1
-            if closed:
+            if ctx.closesbranch():
                 status = b'closed'
             elif ctx.node() not in heads:
                 status = b'inactive'
@@ -439,7 +440,8 @@ def formatlinerange(fromline, toline):
 
 def _succsandmarkersgen(context, mapping):
     repo = context.resource(mapping, b'repo')
-    itemmappings = templatekw.showsuccsandmarkers(context, mapping)
+    show_succs_and_markers = tables.template_keyword_table[b'succsandmarkers']
+    itemmappings = show_succs_and_markers(context, mapping)
     for item in itemmappings.tovalue(context, mapping):
         item[b'successors'] = _siblings(
             repo[successor] for successor in item[b'successors']
@@ -950,6 +952,6 @@ def getwebsubs(repo):
 
 
 def getgraphnode(repo, ctx):
-    return templatekw.getgraphnodecurrent(
+    return templateutil.get_graph_node_current(
         repo, ctx, {}
-    ) + templatekw.getgraphnodesymbol(ctx)
+    ) + templateutil.get_graph_node_symbol(ctx)

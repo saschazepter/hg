@@ -223,7 +223,6 @@ from mercurial import (
     error,
     exchange,
     extensions,
-    hg,
     logcmdutil,
     merge as mergemod,
     mergestate as mergestatemod,
@@ -236,6 +235,15 @@ from mercurial import (
     scmutil,
     state as statemod,
     util,
+)
+from mercurial.cmd_impls import (
+    update as up_impl,
+)
+from mercurial.merge_utils import (
+    update as update_util,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     dateutil,
@@ -576,7 +584,7 @@ class histeditaction:
         repo = self.repo
         rulectx = repo[self.node]
         with repo.ui.silent():
-            hg.update(repo, self.state.parentctxnode, quietempty=True)
+            up_impl.update(repo, self.state.parentctxnode, quietempty=True)
         stats = applychanges(repo.ui, repo, rulectx, {})
         repo.dirstate.setbranch(rulectx.branch(), repo.currenttransaction())
         if stats.unresolvedcount:
@@ -655,7 +663,7 @@ def applychanges(ui, repo, ctx, opts):
         # just applies changes on parent for editing
         with ui.silent():
             cmdutil.revert(ui, repo, ctx, all=True)
-            stats = mergemod.updateresult(0, 0, 0, 0)
+            stats = update_util.UpdateResult(0, 0, 0, 0)
     else:
         try:
             # ui.forcemerge is an internal variable, do not document
@@ -809,7 +817,7 @@ class edit(histeditaction):
     def run(self):
         repo = self.repo
         rulectx = repo[self.node]
-        hg.update(repo, self.state.parentctxnode, quietempty=True)
+        up_impl.update(repo, self.state.parentctxnode, quietempty=True)
         applychanges(repo.ui, repo, rulectx, {})
         hint = _(b'to edit %s, `hg histedit --continue` after making changes')
         raise error.InterventionRequired(
@@ -1051,8 +1059,13 @@ def findoutgoing(ui, repo, remote=None, force=False, opts=None):
 
     ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
 
-    revs, checkout = hg.addbranchrevs(repo, repo, (path.branch, []), None)
-    other = hg.peer(repo, opts, path)
+    revs, checkout = urlutil.add_branch_revs(
+        repo,
+        repo,
+        (path.branch, []),
+        None,
+    )
+    other = repo_factory.peer(repo, opts, path)
 
     if revs:
         revs = [repo.lookup(rev) for rev in revs]
@@ -1730,7 +1743,7 @@ def _chistedit(ui, repo, state, freeargs, opts):
         keep = opts.get(b'keep')
         revs = opts.get(b'rev', [])[:]
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
         revs.extend(freeargs)
         if not revs:
@@ -2130,7 +2143,7 @@ def _finishhistedit(ui, repo, state, fm):
         for k, v in mapping.items()
         if has_node(k) and all(has_node(n) for n in v)
     }
-    scmutil.cleanupnodes(repo, mapping, b'histedit')
+    cmdutil.cleanup_nodes(repo, mapping, b'histedit')
     hf = fm.hexfunc
     fl = fm.formatlist
     fd = fm.formatdict
@@ -2160,7 +2173,7 @@ def _aborthistedit(ui, repo, state, nobackup=False):
         # Recover our old commits if necessary
         if not state.topmost in repo and state.backupfile:
             backupfile = repo.vfs.join(state.backupfile)
-            f = hg.openpath(ui, backupfile)
+            f = scmutil.open_path(ui, backupfile)
             gen = exchange.readbundle(ui, f, backupfile)
             with repo.transaction(b'histedit.abort') as tr:
                 bundle2.applybundle(
@@ -2179,7 +2192,7 @@ def _aborthistedit(ui, repo, state, nobackup=False):
             state.parentctxnode,
             leafs | tmpnodes,
         ):
-            hg.clean(repo, state.topmost, show_stats=True, quietempty=True)
+            up_impl.clean(repo, state.topmost, show_stats=True, quietempty=True)
         cleanupnode(ui, repo, tmpnodes, nobackup=nobackup)
         cleanupnode(ui, repo, leafs, nobackup=nobackup)
     except Exception:
@@ -2227,7 +2240,7 @@ def _newhistedit(ui, repo, state, revs, freeargs, opts):
     force = opts.get(b'force')
 
     cmdutil.checkunfinished(repo)
-    cmdutil.bailifchanged(repo)
+    scmutil.bail_if_changed(repo)
 
     topmost = repo.dirstate.p1()
     if outg:

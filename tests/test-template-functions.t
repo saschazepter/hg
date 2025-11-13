@@ -1323,7 +1323,7 @@ Invalid arguments passed to revset()
   hg: parse error: incomplete revspec format character
   [10]
   $ hg log -T '{revset("%d", 'foo')}\n'
-  hg: parse error: invalid argument for revspec
+  hg: parse error: invalid argument for revspec: %d != b''
   [10]
   $ hg log -T '{revset("%ld", files)}\n'
   hg: parse error: invalid argument for revspec
@@ -1332,13 +1332,13 @@ Invalid arguments passed to revset()
   hg: parse error: invalid argument for revspec
   [10]
   $ hg log -T '{revset("%b", 'foo')}\n'
-  hg: parse error: invalid argument for revspec
+  hg: parse error: invalid argument for revspec: %b != b''
   [10]
   $ hg log -T '{revset("%lb", files)}\n'
   hg: parse error: invalid argument for revspec
   [10]
   $ hg log -T '{revset("%r", 0)}\n'
-  hg: parse error: invalid argument for revspec
+  hg: parse error: invalid argument for revspec: %r != 0
   [10]
 
 Invalid operation on revset()

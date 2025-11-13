@@ -25,12 +25,14 @@ from mercurial import (
     context,
     error,
     exthelper,
-    hg,
     lock,
     logcmdutil,
     match as matchmod,
     scmutil,
     util,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import hashutil
 
@@ -94,14 +96,14 @@ def lfconvert(ui, src, dest, *pats, **opts):
         tolfile = True
         size = lfutil.getminsize(ui, True, opts.get('size'), default=None)
 
-    if not hg.islocal(src):
+    if not repo_factory.is_local(src):
         raise error.Abort(_(b'%s is not a local Mercurial repo') % src)
-    if not hg.islocal(dest):
+    if not repo_factory.is_local(dest):
         raise error.Abort(_(b'%s is not a local Mercurial repo') % dest)
 
-    rsrc = hg.repository(ui, src)
+    rsrc = repo_factory.repository(ui, src)
     ui.status(_(b'initializing destination %s\n') % dest)
-    rdst = hg.repository(ui, dest, create=True)
+    rdst = repo_factory.repository(ui, dest, create=True)
 
     success = False
     dstwlock = dstlock = None

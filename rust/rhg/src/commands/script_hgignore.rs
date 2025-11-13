@@ -14,6 +14,7 @@ Some options might be missing, check the list below.
 
 pub fn args() -> clap::Command {
     clap::command!("script::hgignore")
+        .args_override_self(true)
     .arg(
         Arg::new("print-re")
             .help("Print the regular expression that matches all ignored files.")

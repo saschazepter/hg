@@ -21,6 +21,7 @@ import contextlib
 import errno
 import gc
 import hashlib
+import importlib
 import io
 import itertools
 import locale
@@ -40,6 +41,7 @@ import warnings
 
 from typing import (
     Any,
+    AnyStr,
     BinaryIO,
     Callable,
     Iterable,
@@ -83,12 +85,15 @@ assert [
 ]
 
 if typing.TYPE_CHECKING:
+    import types
     from typing import (
         ParamSpec,
     )
     from typing_extensions import (
         Self,
     )
+
+    _C = TypeVar('_C', bound=Callable)
 
     _Tcow = TypeVar('_Tcow', bound="cow")
     _P = ParamSpec('_P')
@@ -227,7 +232,7 @@ if _dowarn:
         'ignore', 'bad escape', DeprecationWarning, 'mercurial'
     )
     warnings.filterwarnings(
-        'ignore', 'invalid escape sequence', DeprecationWarning, 'mercurial'
+        'ignore', '(.*)invalid escape sequence', DeprecationWarning, 'mercurial'
     )
     # TODO: reinvent imp.is_frozen()
     warnings.filterwarnings(
@@ -238,17 +243,33 @@ if _dowarn:
     )
 
 
-def nouideprecwarn(msg: bytes, version: bytes, stacklevel: int = 1) -> None:
+def deprecated(msg: str, version: str) -> Callable[[_C], _C]:
+    """Decorate (or manually wrap) a method to issue a deprecation warning."""
+
+    def decorator(func: _C) -> _C:
+        def wrapper(*args, **kwargs):
+            nouideprecwarn(
+                pycompat.sysbytes(msg), pycompat.sysbytes(version), 2
+            )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+_hint = "(compatibility will be dropped after Mercurial-%s, update your code.)"
+
+
+def nouideprecwarn(msg: AnyStr, version: AnyStr, stacklevel: int = 1) -> None:
     """Issue an python native deprecation warning
 
     This is a noop outside of tests, use 'ui.deprecwarn' when possible.
     """
     if _dowarn:
-        msg += (
-            b"\n(compatibility will be dropped after Mercurial-%s,"
-            b" update your code.)"
-        ) % version
-        warnings.warn(pycompat.sysstr(msg), DeprecationWarning, stacklevel + 1)
+        wmsg = pycompat.sysstr(msg) + "\n"
+        wmsg += _hint % pycompat.sysstr(version)
+        warnings.warn(wmsg, DeprecationWarning, stacklevel + 1)
         # on python 3 with chg, we will need to explicitly flush the output
         sys.stderr.flush()
 
@@ -350,16 +371,12 @@ class digestchecker:
                 )
 
 
-try:
-    buffer = buffer  # pytype: disable=name-error
-except NameError:
-
-    def buffer(sliceable, offset=0, length=None):
-        if length is not None:
-            view = memoryview(sliceable)[offset : offset + length]
-        else:
-            view = memoryview(sliceable)[offset:]
-        return view.toreadonly()
+def buffer(sliceable, offset=0, length=None):
+    if length is not None:
+        view = memoryview(sliceable)[offset : offset + length]
+    else:
+        view = memoryview(sliceable)[offset:]
+    return view.toreadonly()
 
 
 _chunksize = 4096
@@ -1219,12 +1236,14 @@ def makeloggingsocket(
 def version() -> bytes:
     """Return version information if available."""
     try:
-        from . import __version__  # pytype: disable=import-error
-
-        # setuptools-scm uses py3 str
-        return __version__.version.encode()
+        # use importlib to prevent pytype to see the dependencies and
+        # invalidate the cache on every rebuild (like… any test run).
+        __version__ = importlib.import_module('mercurial.__version__')
     except ImportError:
         return b'unknown'
+    else:
+        # setuptools-scm uses py3 str
+        return __version__.version.encode()
 
 
 def versiontuple(v=None, n=4):
@@ -1314,7 +1333,7 @@ def versiontuple(v=None, n=4):
     raise error.ProgrammingError(b"invalid version part request: %d" % n)
 
 
-def cachefunc(func):
+def cachefunc(func: _C) -> _C:
     '''cache the result of function calls'''
     # XXX doesn't handle keywords args
     if func.__code__.co_argcount == 0:
@@ -1807,7 +1826,7 @@ class lrucachedict:
             n = n.prev
 
 
-def lrucachefunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
+def lrucachefunc(func: _C) -> _C:
     '''cache most recent results of function calls'''
     cache = {}
     order = collections.deque()
@@ -1824,7 +1843,7 @@ def lrucachefunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
             return cache[arg]
 
     else:
-        # TODO: type with _P.args when pytype supports it
+
         def f(*args):
             if args not in cache:
                 if len(cache) > 20:
@@ -1971,7 +1990,7 @@ def pathto(root: bytes, n1: bytes, n2: bytes) -> bytes:
     return pycompat.ossep.join(([b'..'] * len(a)) + b) or b'.'
 
 
-def checksignature(func, depth=1):
+def checksignature(func: _C, depth: int = 1) -> _C:
     '''wrap a function with code to check for calling errors'''
 
     def check(*args, **kwargs):
@@ -2216,17 +2235,13 @@ def checkwinfilename(path: bytes) -> bytes | None:
             )
 
 
-timer = getattr(time, "perf_counter", None)
+timer = time.perf_counter
 
 if pycompat.iswindows:
     checkosfilename = checkwinfilename
-    if not timer:
-        timer = time.clock  # pytype: disable=module-attr
 else:
     # mercurial.windows doesn't have platform.checkosfilename
     checkosfilename = platform.checkosfilename  # pytype: disable=module-attr
-    if not timer:
-        timer = time.time
 
 
 def makelock(info: bytes, pathname: bytes) -> None:
@@ -3167,7 +3182,7 @@ def timedcm(whencefmt, *whenceargs):
 timedcm._nested = 0
 
 
-def timed(func: Callable[_P, _R]) -> Callable[_P, _R]:
+def timed(func: _C) -> _C:
     """Report the execution time of a function call to stderr.
 
     During development, use as a decorator when you need to measure
@@ -3178,7 +3193,6 @@ def timed(func: Callable[_P, _R]) -> Callable[_P, _R]:
         pass
     """
 
-    # TODO: type with _P.args, _P.kwargs when pytype supports it
     def wrapper(*args, **kwargs):
         with timedcm(pycompat.bytestr(func.__name__)) as time_stats:
             result = func(*args, **kwargs)
@@ -3502,3 +3516,23 @@ def rust_tracing_span(name: str):
         trace_span = tracer.span
 
     return trace_span(name)
+
+
+def load_path(path: bytes, module_name: str) -> types.ModuleType:
+    module_name = module_name.replace('.', '_')
+    path = normpath(expandpath(path))
+    path = pycompat.fsdecode(path)
+    if os.path.isdir(path):
+        # module/__init__.py style
+        init_py_path = os.path.join(path, '__init__.py')
+        if not os.path.exists(init_py_path):
+            raise ImportError("No module named '%s'" % os.path.basename(path))
+        path = init_py_path
+
+    loader = importlib.machinery.SourceFileLoader(module_name, path)
+    spec = importlib.util.spec_from_file_location(module_name, loader=loader)
+    assert spec is not None  # help Pytype
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module

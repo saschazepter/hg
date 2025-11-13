@@ -123,8 +123,8 @@ impl DirstateMap {
     fn get(
         slf: &Bound<'_, Self>,
         key: &Bound<'_, PyBytes>,
-        default: Option<PyObject>,
-    ) -> PyResult<Option<PyObject>> {
+        default: Option<Py<PyAny>>,
+    ) -> PyResult<Option<Py<PyAny>>> {
         let path = HgPath::new(key.as_bytes());
 
         Self::with_inner_read(slf, |_self_ref, inner| {
@@ -421,7 +421,7 @@ impl DirstateMap {
         slf: &Bound<'_, Self>,
         py: Python,
         all: bool,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         Self::with_inner_read(slf, |_self_ref, inner| {
             // the iterator returned by `debug_iter()` does not
             // implement ExactSizeIterator, which is needed by

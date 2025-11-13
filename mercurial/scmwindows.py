@@ -15,7 +15,9 @@ from . import (
 )
 
 if TYPE_CHECKING:
-    from . import ui as uimod
+    from .interfaces.types import (
+        UiT,
+    )
 
 # MS-DOS 'more' is the only pager available by default on Windows.
 fallbackpager = b'more'
@@ -113,5 +115,5 @@ def _legacy_expanduser(path: bytes) -> bytes:
     return userhome + path[i:]
 
 
-def termsize(ui: uimod.ui) -> tuple[int, int]:
+def termsize(ui: UiT) -> tuple[int, int]:
     return win32.termsize()

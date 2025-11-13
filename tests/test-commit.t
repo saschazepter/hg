@@ -646,9 +646,10 @@ Test making empty commits
 verify pathauditor blocks evil filepaths
   $ cat > evil-commit.py <<EOF
   > from mercurial import context, hg, ui as uimod
+  > from mercurial.repo import factory
   > notrc = u".h\u200cg".encode('utf-8') + b'/hgrc'
   > u = uimod.ui.load()
-  > r = hg.repository(u, b'.')
+  > r = factory.repository(u, b'.')
   > def filectxfn(repo, memctx, path):
   >     return context.memfilectx(repo, memctx, path,
   >         b'[hooks]\nupdate = echo owned')
@@ -670,10 +671,11 @@ verify pathauditor blocks evil filepaths
   $ hg rollback -f
   repository tip rolled back to revision 2 (undo commit)
   $ cat > evil-commit.py <<EOF
-  > from mercurial import context, hg, ui as uimod
+  > from mercurial import context, ui as uimod
+  > from mercurial.repo import factory
   > notrc = b"HG~1/hgrc"
   > u = uimod.ui.load()
-  > r = hg.repository(u, b'.')
+  > r = factory.repository(u, b'.')
   > def filectxfn(repo, memctx, path):
   >     return context.memfilectx(repo, memctx, path,
   >         b'[hooks]\nupdate = echo owned')
@@ -689,10 +691,11 @@ verify pathauditor blocks evil filepaths
   $ hg rollback -f
   repository tip rolled back to revision 2 (undo commit)
   $ cat > evil-commit.py <<EOF
-  > from mercurial import context, hg, ui as uimod
+  > from mercurial import context, ui as uimod
+  > from mercurial.repo import factory
   > notrc = b"HG8B6C~2/hgrc"
   > u = uimod.ui.load()
-  > r = hg.repository(u, b'.')
+  > r = factory.repository(u, b'.')
   > def filectxfn(repo, memctx, path):
   >     return context.memfilectx(repo, memctx, path,
   >         b'[hooks]\nupdate = echo owned')

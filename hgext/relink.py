@@ -15,9 +15,11 @@ import stat
 from mercurial.i18n import _
 from mercurial import (
     error,
-    hg,
     registrar,
     util,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     stringutil,
@@ -67,7 +69,7 @@ def relink(ui, repo, origin=None, **opts):
     if origin is None and b'default-relink' in ui.paths:
         origin = b'default-relink'
     path = urlutil.get_unique_pull_path_obj(b'relink', ui, origin)
-    src = hg.repository(repo.baseui, path.loc)
+    src = repo_factory.repository(repo.baseui, path.loc)
     ui.status(_(b'relinking %s to %s\n') % (src.store.path, repo.store.path))
     if repo.root == src.root:
         ui.status(_(b'there is nothing to relink\n'))

@@ -236,7 +236,7 @@ mod ffi {
     }
 
     #[link(name = "bdiff", kind = "static")]
-    extern "C" {
+    unsafe extern "C" {
         /// Splits `a` into lines. On success, stores a pointer to an array of
         /// lines in `*lr` and returns its length. On failure, returns
         /// -1. The caller is responsible for freeing the array.

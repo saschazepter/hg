@@ -17,27 +17,34 @@ from mercurial.node import (
 )
 from mercurial import (
     bundle2,
-    cmdutil,
     commands,
     discovery,
     encoding,
     error,
     exchange,
     extensions,
-    hg,
     narrowspec,
     pathutil,
     pycompat,
     registrar,
     repair,
     repoview,
-    requirements,
+    scmutil,
     sparse,
     util,
     wireprototypes,
 )
+from mercurial.cmd_impls import (
+    update as up_impl,
+)
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import (
     urlutil,
+)
+from mercurial.narrow import (
+    working_copy as narrow_wc,
 )
 
 table = {}
@@ -140,7 +147,7 @@ def clonenarrowcmd(orig, ui, repo, *args, **opts):
 def pullnarrowcmd(orig, ui, repo, *args, **opts):
     """Wraps pull command to allow modifying narrow spec."""
     wrappedextraprepare = util.nullcontextmanager()
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
 
         def pullbundle2extraprepare_widen(orig, pullop, kwargs):
             orig(pullop, kwargs)
@@ -157,7 +164,7 @@ def pullnarrowcmd(orig, ui, repo, *args, **opts):
 
 def archivenarrowcmd(orig, ui, repo, *args, **opts):
     """Wraps archive command to narrow the default includes."""
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
         repo_includes, repo_excludes = repo.narrowpats
         includes = set(opts.get('include', []))
         excludes = set(opts.get('exclude', []))
@@ -173,7 +180,7 @@ def archivenarrowcmd(orig, ui, repo, *args, **opts):
 
 def pullbundle2extraprepare(orig, pullop, kwargs):
     repo = pullop.repo
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
+    if not repo.is_narrow:
         return orig(pullop, kwargs)
 
     if wireprototypes.NARROWCAP not in pullop.remote.capabilities():
@@ -280,7 +287,7 @@ def _narrow(
                         visibletostrip,
                     )
                 )
-                hg.clean(repo, urev)
+                up_impl.clean(repo, urev)
             overrides = {(b'devel', b'strip-obsmarkers'): False}
             if backup:
                 ui.status(_(b'moving unwanted changesets to backup\n'))
@@ -290,12 +297,12 @@ def _narrow(
                 repair.strip(ui, unfi, tostrip, topic=b'narrow', backup=backup)
 
         todelete = []
+        to_remove_from_file_index = []
         for entry in repo.store.data_entries():
-            if not entry.is_revlog:
-                continue
             if entry.is_filelog:
                 if not newmatch(entry.target_id):
-                    for file_ in entry.files():
+                    to_remove_from_file_index.append(entry.target_id)
+                    for file_ in entry.files(repo.svfs):
                         todelete.append(file_.unencoded_path)
             elif entry.is_manifestlog:
                 dir = entry.target_id[:-1]
@@ -309,15 +316,20 @@ def _narrow(
                     if visit == b'all':
                         break
                 if not include:
-                    for file_ in entry.files():
+                    for file_ in entry.files(repo.svfs):
                         todelete.append(file_.unencoded_path)
 
         repo.destroying()
 
-        with repo.transaction(b'narrowing'):
+        with repo.transaction(b'narrowing') as tr:
             # Update narrowspec before removing revlogs, so repo won't be
             # corrupt in case of crash
             repo.setnarrowpats(newincludes, newexcludes)
+
+            fileindex = repo.store.fileindex
+            if fileindex:
+                for path in to_remove_from_file_index:
+                    fileindex.remove(path, tr)
 
             for f in todelete:
                 ui.status(_(b'deleting %s\n') % f)
@@ -326,7 +338,7 @@ def _narrow(
 
             ui.status(_(b'deleting unwanted files from working copy\n'))
             with repo.dirstate.changing_parents(repo):
-                narrowspec.updateworkingcopy(repo, assumeclean=True)
+                narrow_wc.update_working_copy(repo, assumeclean=True)
                 narrowspec.copytoworkingcopy(repo)
 
         repo.destroyed()
@@ -431,7 +443,7 @@ def _widen(
             repo
         ):
             repo.setnewnarrowpats()
-            narrowspec.updateworkingcopy(repo)
+            narrow_wc.update_working_copy(repo)
             narrowspec.copytoworkingcopy(repo)
 
 
@@ -513,7 +525,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     add --addinclude, --addexclude rules in bulk. Like the other include and
     exclude switches, the changes are applied immediately.
     """
-    if requirements.NARROW_REQUIREMENT not in repo.requirements:
+    if not repo.is_narrow:
         raise error.InputError(
             _(
                 b'the tracked command is only supported on '
@@ -600,7 +612,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
             with repo.transaction(b'narrow-wc'), repo.dirstate.changing_parents(
                 repo
             ):
-                narrowspec.updateworkingcopy(repo)
+                narrow_wc.update_working_copy(repo)
                 narrowspec.copytoworkingcopy(repo)
             return 0
 
@@ -608,14 +620,14 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
             ui.status(_(b"nothing to widen or narrow\n"))
             return 0
 
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
         # Find the revisions we have in common with the remote. These will
         # be used for finding local-only changes for narrowing. They will
         # also define the set of revisions to update for widening.
         path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
-        remote = hg.peer(repo, pycompat.byteskwargs(opts), path)
+        remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
 
         try:
             # check narrow support before doing anything if widening needs to be

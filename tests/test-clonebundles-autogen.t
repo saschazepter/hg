@@ -1,6 +1,4 @@
 
-#require no-chg
-
 initial setup
 
   $ hg init server

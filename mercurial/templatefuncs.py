@@ -25,7 +25,6 @@ from . import (
     revsetlang,
     scmutil,
     templatefilters,
-    templatekw,
     templateutil,
     util,
 )
@@ -472,7 +471,7 @@ def latesttag(context, mapping, args):
     pattern = None
     if len(args) == 1:
         pattern = evalstring(context, mapping, args[0])
-    return templatekw.showlatesttags(context, mapping, pattern)
+    return templateutil.show_latest_tags(context, mapping, pattern)
 
 
 @templatefunc(b'localdate(date[, tz])')

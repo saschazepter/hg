@@ -513,7 +513,7 @@ class bzmysql(bzaccess):
         user = self.ui.config(b'bugzilla', b'user')
         passwd = self.ui.config(b'bugzilla', b'password')
         db = self.ui.config(b'bugzilla', b'db')
-        timeout = int(self.ui.config(b'bugzilla', b'timeout'))
+        timeout = self.ui.configint(b'bugzilla', b'timeout')
         self.ui.note(
             _(b'connecting to %s:%s as %s, password %s\n')
             % (host, db, user, b'*' * len(passwd))
@@ -1192,7 +1192,7 @@ class bugzilla:
         def webroot(root):
             """strip leading prefix of repo root and turn into
             url-safe path."""
-            count = int(self.ui.config(b'bugzilla', b'strip'))
+            count = self.ui.configint(b'bugzilla', b'strip')
             root = util.pconvert(root)
             while count > 0:
                 c = root.find(b'/')

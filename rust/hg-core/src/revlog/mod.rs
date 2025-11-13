@@ -6,6 +6,7 @@
 //! Mercurial concepts for handling revision history
 
 pub mod deltas;
+pub mod diff;
 pub mod node;
 pub mod nodemap;
 mod nodemap_docket;
@@ -31,7 +32,6 @@ pub mod manifest;
 pub mod options;
 pub mod patch;
 
-use std::borrow::Cow;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::path::Path;
@@ -45,6 +45,8 @@ use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
+use crate::utils::u32_u;
+use crate::utils::RawData;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -95,6 +97,12 @@ impl format_bytes::DisplayBytes for Revision {
     Ord,
 )]
 pub struct UncheckedRevision(pub BaseRevision);
+
+impl UncheckedRevision {
+    pub fn is_nullrev(&self) -> bool {
+        self.0 == -1
+    }
+}
 
 impl format_bytes::DisplayBytes for UncheckedRevision {
     fn display_bytes(
@@ -214,8 +222,8 @@ pub trait RevlogIndex {
         self.len() == 0
     }
 
-    /// Return a reference to the Node or `None` for `NULL_REVISION`
-    fn node(&self, rev: Revision) -> Option<&Node>;
+    /// Return a reference to the Node
+    fn node(&self, rev: Revision) -> &Node;
 
     /// Return a [`Revision`] if `rev` is a valid revision number for this
     /// index.
@@ -239,6 +247,10 @@ const REVISION_FLAG_EXTSTORED: u16 = 1 << 13;
 const REVISION_FLAG_HASCOPIESINFO: u16 = 1 << 12;
 const REVISION_FLAG_HASMETA: u16 = 1 << 11;
 const REVISION_FLAG_DELTA_IS_SNAPSHOT: u16 = 1 << 10;
+const REVISION_FLAG_DELTA_HAS_QUALITY: u16 = 1 << 9;
+const REVISION_FLAG_DELTA_IS_GOOD: u16 = 1 << 8;
+const REVISION_FLAG_DELTA_P1_IS_SMALL: u16 = 1 << 7;
+const REVISION_FLAG_DELTA_P2_IS_SMALL: u16 = 1 << 6;
 
 // Keep this in sync with REVIDX_KNOWN_FLAGS in
 // mercurial/revlogutils/flagutil.py
@@ -247,7 +259,11 @@ const REVIDX_KNOWN_FLAGS: u16 = REVISION_FLAG_CENSORED
     | REVISION_FLAG_EXTSTORED
     | REVISION_FLAG_HASCOPIESINFO
     | REVISION_FLAG_HASMETA
-    | REVISION_FLAG_DELTA_IS_SNAPSHOT;
+    | REVISION_FLAG_DELTA_IS_SNAPSHOT
+    | REVISION_FLAG_DELTA_HAS_QUALITY
+    | REVISION_FLAG_DELTA_IS_GOOD
+    | REVISION_FLAG_DELTA_P1_IS_SMALL
+    | REVISION_FLAG_DELTA_P2_IS_SMALL;
 
 const NULL_REVLOG_ENTRY_FLAGS: u16 = 0;
 
@@ -289,6 +305,8 @@ pub enum RevlogType {
     Changelog,
     Manifestlog,
     Filelog,
+    /// unknown destination, used by debug command looking at arbitrary file
+    Other,
 }
 
 impl TryFrom<usize> for RevlogType {
@@ -299,6 +317,7 @@ impl TryFrom<usize> for RevlogType {
             1001 => Ok(Self::Changelog),
             1002 => Ok(Self::Manifestlog),
             1003 => Ok(Self::Filelog),
+            1004 => Ok(Self::Other),
             t => Err(HgError::abort(
                 format!("Unknown revlog type {}", t),
                 exit_codes::ABORT,
@@ -397,10 +416,7 @@ impl Revlog {
     /// Returns the node ID for the given revision number, if it exists in this
     /// revlog
     pub fn node_from_rev(&self, rev: Revision) -> &Node {
-        match self.index().get_entry(rev) {
-            None => &NULL_NODE,
-            Some(entry) => entry.hash(),
-        }
+        self.index().get_entry(rev).hash()
     }
 
     /// Like [`Self::node_from_rev`] but checks `rev` first.
@@ -461,9 +477,7 @@ impl Revlog {
         rev: Revision,
         linked_revlog: &Self,
     ) -> Result<Revision, RevlogError> {
-        let Some(entry) = self.index().get_entry(rev) else {
-            return Ok(NULL_REVISION);
-        };
+        let entry = self.index().get_entry(rev);
         linked_revlog.index().check_revision(entry.link_revision()).ok_or_else(
             || {
                 RevlogError::corrupted(format!(
@@ -482,17 +496,17 @@ impl Revlog {
     pub fn get_data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<Cow<[u8]>, RevlogError> {
+    ) -> Result<RawData, RevlogError> {
         if rev == NULL_REVISION.into() {
-            return Ok(Cow::Borrowed(&[]));
+            return Ok(RawData::empty());
         };
         self.get_entry_for_unchecked_rev(rev)?.data()
     }
 
     /// [`Self::get_data_for_unchecked_rev`] for a checked [`Revision`].
-    pub fn get_data(&self, rev: Revision) -> Result<Cow<[u8]>, RevlogError> {
+    pub fn get_data(&self, rev: Revision) -> Result<RawData, RevlogError> {
         if rev == NULL_REVISION {
-            return Ok(Cow::Borrowed(&[]));
+            return Ok(RawData::empty());
         };
         self.get_entry(rev)?.data()
     }
@@ -504,7 +518,7 @@ impl Revlog {
         rev: Revision,
     ) -> Result<RawdataBuf, RevlogError> {
         let index = self.index();
-        let entry = index.get_entry(rev).expect("rev should not be null");
+        let entry = index.get_entry(rev);
         let delta_base = entry.base_revision_or_base_of_delta_chain();
         let base = if UncheckedRevision::from(rev) == delta_base {
             None
@@ -527,37 +541,21 @@ impl Revlog {
     ) -> bool {
         self.inner.check_hash(p1, p2, expected, data)
     }
-
-    /// Build the full data of a revision out its snapshot
-    /// and its deltas.
-    fn build_data_from_deltas<T>(
-        buffer: &mut dyn RevisionBuffer<Target = T>,
-        snapshot: &[u8],
-        deltas: &[impl AsRef<[u8]>],
-    ) -> Result<(), RevlogError> {
-        if deltas.is_empty() {
-            buffer.extend_from_slice(snapshot);
-            return Ok(());
-        }
-        let patches: Result<Vec<_>, _> =
-            deltas.iter().map(|d| patch::PatchList::new(d.as_ref())).collect();
-        let patch = patch::fold_patch_lists(&patches?);
-        patch.apply(buffer, snapshot);
-        Ok(())
-    }
 }
 
 pub struct RawdataBuf {
     // If `Some`, data is a delta.
     base: Option<UncheckedRevision>,
-    data: std::sync::Arc<[u8]>,
+    data: RawData,
 }
 
-impl RawdataBuf {
-    fn as_patch_list(&self) -> Result<patch::PatchList, RevlogError> {
+impl<'a> RawdataBuf {
+    fn as_delta(
+        &'a self,
+    ) -> Result<patch::Delta<'a, patch::PlainDeltaPiece<'a>>, RevlogError> {
         match self.base {
-            None => Ok(patch::PatchList::full_snapshot(&self.data)),
-            Some(_) => patch::PatchList::new(&self.data),
+            None => Ok(patch::Delta::full_snapshot(&self.data)),
+            Some(_) => patch::Delta::new(&self.data),
         }
     }
 }
@@ -755,54 +753,7 @@ impl<'revlog> RevlogEntry<'revlog> {
         (self.flags & (REVIDX_KNOWN_FLAGS ^ REVISION_FLAG_ELLIPSIS)) != 0
     }
 
-    /// The data for this entry, after resolving deltas if any.
-    /// Non-Python callers should probably call [`Self::data`] instead.
-    fn rawdata<G, T>(
-        &self,
-        stop_rev: Option<(Revision, &[u8])>,
-        with_buffer: G,
-    ) -> Result<(), RevlogError>
-    where
-        G: FnOnce(
-            usize,
-            &mut dyn FnMut(
-                &mut dyn RevisionBuffer<Target = T>,
-            ) -> Result<(), RevlogError>,
-        ) -> Result<(), RevlogError>,
-    {
-        let (delta_chain, stopped) = self
-            .revlog
-            .delta_chain(self.revision(), stop_rev.map(|(r, _)| r))?;
-        let target_size =
-            self.uncompressed_len().map(|raw_size| 4 * raw_size as u64);
-
-        let deltas = self.revlog.chunks(delta_chain, target_size)?;
-
-        let (base_text, deltas) = if stopped {
-            (
-                stop_rev.as_ref().expect("last revision should be cached").1,
-                &deltas[..],
-            )
-        } else {
-            let (buf, deltas) = deltas.split_at(1);
-            (buf[0].as_ref(), deltas)
-        };
-
-        let size = self
-            .uncompressed_len()
-            .map(|l| l as usize)
-            .unwrap_or(base_text.len());
-        with_buffer(size, &mut |buf| {
-            Revlog::build_data_from_deltas(buf, base_text, deltas)?;
-            Ok(())
-        })?;
-        Ok(())
-    }
-
-    fn check_data(
-        &self,
-        data: Cow<'revlog, [u8]>,
-    ) -> Result<Cow<'revlog, [u8]>, RevlogError> {
+    fn check_data(&self, data: RawData) -> Result<RawData, RevlogError> {
         if self.revlog.check_hash(self.p1, self.p2, self.hash.as_bytes(), &data)
         {
             Ok(data)
@@ -821,19 +772,11 @@ impl<'revlog> RevlogEntry<'revlog> {
         }
     }
 
-    pub fn data(&self) -> Result<Cow<'revlog, [u8]>, RevlogError> {
-        // TODO figure out if there is ever a need for `Cow` here anymore.
-        let mut data = CoreRevisionBuffer::new();
+    /// Get the revision data, without checking it integrity
+    fn data_unchecked(&self) -> Result<RawData, RevlogError> {
         if self.rev == NULL_REVISION {
-            return Ok(data.finish().into());
+            return Ok(RawData::empty());
         }
-        self.rawdata(None, |size, f| {
-            // Pre-allocate the expected size (received from the index)
-            data.resize(size);
-            // Actually fill the buffer
-            f(&mut data)?;
-            Ok(())
-        })?;
         if self.is_censored() {
             return Err(HgError::CensoredNodeError(
                 *self.node(),
@@ -841,7 +784,67 @@ impl<'revlog> RevlogEntry<'revlog> {
             )
             .into());
         }
-        self.check_data(data.finish().into())
+        let raw_size = self.uncompressed_len();
+        if let Some(size) = raw_size {
+            if size == 0 {
+                return Ok(RawData::empty());
+            }
+            self.revlog.seen_file_size(u32_u(size));
+        }
+        let cached_rev = self.revlog.get_rev_cache();
+        if let Some(ref cached) = cached_rev {
+            if cached.rev == self.rev {
+                let raw_text = cached.as_data();
+                self.revlog.set_rev_cache_native(self.rev, &raw_text);
+                return Ok(raw_text);
+            }
+        }
+        let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
+        let stop_rev = cache.map(|(r, _)| r);
+        let (chunks, stopped) =
+            self.revlog.chunks_for_chain(self.revision(), stop_rev)?;
+        let (base_text, deltas) = if stopped {
+            if chunks.is_empty() {
+                // The revision is equivalent to another one, just return the
+                // equivalent one.
+                let cache_value =
+                    cached_rev.expect("cannot stop without a cache");
+                let raw_text = cache_value.as_data();
+                self.revlog.set_rev_cache_native(self.rev, &raw_text);
+                return Ok(raw_text);
+            }
+            let cache_value = cache.expect("cannot stop without a cache");
+            let base_text = cache_value.1;
+            (base_text, &chunks[..])
+        } else {
+            let base_text = &chunks[0];
+            let deltas = &chunks[1..];
+            if deltas.is_empty() {
+                // The revision is equivalent to another one, just return the
+                // equivalent one.
+                return Ok(chunks
+                    .into_iter()
+                    .next()
+                    .expect("the base must exists"));
+            }
+            (base_text.as_ref(), deltas)
+        };
+        let size = raw_size.map(|l| l as usize).unwrap_or(base_text.len());
+
+        let mut data = CoreRevisionBuffer::new();
+        data.resize(size);
+        patch::build_data_from_deltas(&mut data, base_text, deltas)?;
+        let raw_text: RawData = data.finish().into();
+        self.revlog.set_rev_cache_native(self.rev, &raw_text);
+        Ok(raw_text)
+    }
+
+    /// Get the revision data, checking its integrity in the process
+    pub fn data(&self) -> Result<RawData, RevlogError> {
+        if self.rev == NULL_REVISION {
+            return Ok(RawData::empty());
+        }
+        self.check_data(self.data_unchecked()?)
     }
 }
 

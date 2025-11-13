@@ -112,6 +112,11 @@ where
     result
 }
 
+/// Returns the length of the common prefix of two strings.
+pub fn common_prefix_length(xs: &[u8], ys: &[u8]) -> usize {
+    xs.iter().zip(ys).take_while(|(x, y)| x == y).count()
+}
+
 pub trait SliceExt {
     fn trim_end(&self) -> &Self;
     fn trim_start(&self) -> &Self;
@@ -121,6 +126,7 @@ pub trait SliceExt {
     fn drop_prefix(&self, needle: &Self) -> Option<&Self>;
     fn split_2(&self, separator: u8) -> Option<(&[u8], &[u8])>;
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])>;
+    fn to_hex_bytes(&self) -> Vec<u8>;
 }
 
 impl SliceExt for [u8] {
@@ -183,6 +189,14 @@ impl SliceExt for [u8] {
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])> {
         find_slice_in_slice(self, separator)
             .map(|pos| (&self[..pos], &self[pos + separator.len()..]))
+    }
+
+    fn to_hex_bytes(&self) -> Vec<u8> {
+        let mut hex = Vec::with_capacity(self.len() * 2);
+        for byte in self {
+            write!(hex, "{:02x}", byte).unwrap();
+        }
+        hex
     }
 }
 
@@ -436,7 +450,7 @@ mod tests {
     fn test_expand_vars() {
         // Modifying process-global state in a test isn’t great,
         // but hopefully this won’t collide with anything.
-        std::env::set_var("TEST_EXPAND_VAR", "1");
+        unsafe { std::env::set_var("TEST_EXPAND_VAR", "1") };
         assert_eq!(
             expand_vars(b"before/$TEST_EXPAND_VAR/after"),
             &b"before/1/after"[..]

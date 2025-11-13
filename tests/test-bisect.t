@@ -463,8 +463,9 @@ test bisecting command
   $ cat > "$TESTTMP/script.py" <<EOF
   > #!$PYTHON
   > import sys
-  > from mercurial import hg, ui as uimod
-  > repo = hg.repository(uimod.ui.load(), b'.')
+  > from mercurial import ui as uimod
+  > from mercurial.repo import factory
+  > repo = factory.repository(uimod.ui.load(), b'.')
   > if repo[b'.'].rev() < 6:
   >     sys.exit(1)
   > EOF

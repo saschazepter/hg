@@ -23,7 +23,7 @@ use crate::revlog::InnerRevlog;
 use crate::revlog::PySharedIndex;
 
 #[allow(unused)]
-pub fn print_python_trace(py: Python) -> PyResult<PyObject> {
+pub fn print_python_trace(py: Python) -> PyResult<Py<PyAny>> {
     eprintln!("===============================");
     eprintln!("Printing Python stack from Rust");
     eprintln!("===============================");
@@ -66,7 +66,7 @@ pub fn py_rust_index_to_graph(
     index_proxy: &Bound<'_, PyAny>,
 ) -> PyResult<SharedByPyObject<PySharedIndex>> {
     let py_irl = index_proxy.getattr("inner")?;
-    let py_irl_ref = py_irl.downcast::<InnerRevlog>()?.borrow();
+    let py_irl_ref = py_irl.cast::<InnerRevlog>()?.borrow();
     let shareable_irl = &py_irl_ref.irl;
 
     // Safety: the owner is the actual one and we do not leak any
@@ -196,7 +196,7 @@ where
         );
         let pybytes = Bound::from_owned_ptr_or_err(py, pyptr)
             .map_err(|e| HgError::abort_simple(e.to_string()))?
-            .downcast_into_unchecked();
+            .cast_into_unchecked();
         let buffer: *mut u8 = pyo3::ffi::PyBytes_AsString(pyptr).cast();
         debug_assert!(!buffer.is_null());
         let mut rev_buf = PyRevisionBuffer::new(pybytes.unbind(), buffer, len);
@@ -523,7 +523,7 @@ pub fn handle_warnings(
     py: Python<'_>,
     warning_context: HgWarningContext,
     working_directory: &Path,
-    on_warnings: PyObject,
+    on_warnings: Py<PyAny>,
 ) -> PyResult<()> {
     let py_warnings =
         hg_warnings_to_py_warnings(py, warning_context, working_directory)?;

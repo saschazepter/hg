@@ -11,7 +11,7 @@ use hg::dirstate::DirstateMapError;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::exit_codes;
-use hg::filepatterns::PatternError;
+use hg::file_patterns::PatternError;
 use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;

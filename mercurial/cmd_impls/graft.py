@@ -16,6 +16,7 @@ from .. import (
     error,
     logcmdutil,
     merge as mergemod,
+    scmutil,
     state as statemod,
 )
 
@@ -127,7 +128,7 @@ def _process_args(
     else:
         cmdutil.checkunfinished(repo)
         if not opts.get('to'):
-            cmdutil.bailifchanged(repo)
+            scmutil.bail_if_changed(repo)
         revs = logcmdutil.revrange(repo, revs)
 
     for o in (

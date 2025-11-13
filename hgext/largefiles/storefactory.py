@@ -8,8 +8,10 @@ import re
 from mercurial.i18n import _
 from mercurial import (
     error,
-    hg,
     util,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     urlutil,
@@ -49,11 +51,11 @@ def openstore(repo=None, remote=None, put=False, ui=None):
                 ui,
                 b'default',
             )
-            remote = hg.peer(repo or ui, {}, path)
+            remote = repo_factory.peer(repo or ui, {}, path)
         elif path.loc == b'default-push' or path.loc == b'default':
             remote = repo
         else:
-            remote = hg.peer(repo or ui, {}, path)
+            remote = repo_factory.peer(repo or ui, {}, path)
 
     # The path could be a scheme so use Mercurial's normal functionality
     # to resolve the scheme to a repository and use its path

@@ -1,7 +1,7 @@
 [package]
 name = "hg-pyo3"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lints]
 workspace = true
@@ -16,7 +16,7 @@ full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 default = ["extension-module"]
 
 [dependencies]
-pyo3 = { version = "0.24" }
+pyo3 = { version = "0.27.1" }
 pyo3-sharedref = { path = "../pyo3-sharedref" }
 hg-core = { path = "../hg-core" }
 format-bytes = "0.3.0"

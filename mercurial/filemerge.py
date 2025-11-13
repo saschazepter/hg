@@ -27,8 +27,8 @@ from . import (
     registrar,
     scmutil,
     simplemerge,
+    tables,
     tagmerge,
-    templatekw,
     templater,
     templateutil,
     util,
@@ -659,9 +659,7 @@ def _idump(repo, mynode, local, other, base, toolconf, backup):
     a = _workingpath(repo, local.fctx)
     fd = local.fctx.path()
 
-    from . import context
-
-    if isinstance(local.fctx, context.overlayworkingfilectx):
+    if local.fctx.in_memory:
         raise error.InMemoryMergeConflictsError(
             b'in-memory merge does not support the :dump tool.'
         )
@@ -743,7 +741,10 @@ def _describemerge(ui, repo, mynode, fcl, fcb, fco, env, toolpath, args):
     # things for us to import cmdutil.
     tres = formatter.templateresources(ui, repo)
     t = formatter.maketemplater(
-        ui, tmpl, defaults=templatekw.keywords, resources=tres
+        ui,
+        tmpl,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
     ui.status(t.renderdefault(props))
 
@@ -835,11 +836,8 @@ def _xmerge(repo, mynode, local, other, base, toolconf, backup):
             )
             r = 0
             try:
-                # avoid cycle cmdutil->merge->filemerge->extensions->cmdutil
-                from . import extensions
-
                 mod_name = 'hgmerge.%s' % pycompat.sysstr(tool)
-                mod = extensions.loadpath(toolpath, mod_name)
+                mod = util.load_path(toolpath, mod_name)
             except Exception:
                 raise error.Abort(
                     _(b"loading python merge script failed: %s") % toolpath
@@ -850,11 +848,13 @@ def _xmerge(repo, mynode, local, other, base, toolconf, backup):
                     _(b"%s does not have function: %s") % (toolpath, scriptfn)
                 )
             argslist = procutil.shellsplit(args)
-            # avoid cycle cmdutil->merge->filemerge->hook->extensions->cmdutil
-            from . import hook
 
-            ret, raised = hook.pythonhook(
-                ui, repo, b"merge", toolpath, mergefn, {b'args': argslist}, True
+            ret, raised = repo.python_hook(
+                b"merge",
+                toolpath,
+                mergefn,
+                {b'args': argslist},
+                True,
             )
             if raised:
                 r = 1
@@ -882,7 +882,10 @@ def _populate_label_details(repo, inputs, tool=None):
     template = templater.unquotestring(template)
     tres = formatter.templateresources(ui, repo)
     tmpl = formatter.maketemplater(
-        ui, template, defaults=templatekw.keywords, resources=tres
+        ui,
+        template,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
 
     for input in inputs:
@@ -921,9 +924,8 @@ def _makebackup(repo, ui, fcd):
         return None
     # TODO: Break this import cycle somehow. (filectx -> ctx -> fileset ->
     # merge -> filemerge). (I suspect the fileset import is the weakest link)
-    from . import context
 
-    if isinstance(fcd, context.overlayworkingfilectx):
+    if fcd.in_memory:
         # If we're merging in-memory, we're free to put the backup anywhere.
         fd, backup = pycompat.mkstemp(b'hg-merge-backup')
         with os.fdopen(fd, 'wb') as f:
@@ -932,8 +934,7 @@ def _makebackup(repo, ui, fcd):
         backup = scmutil.backuppath(ui, repo, fcd.path())
         a = _workingpath(repo, fcd)
         util.copyfile(a, backup)
-
-    return context.arbitraryfilectx(backup, repo=repo)
+    return fcd.new_arbitrary(backup)
 
 
 @contextlib.contextmanager

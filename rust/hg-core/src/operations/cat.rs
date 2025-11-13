@@ -17,13 +17,14 @@ use crate::revlog::manifest::ManifestEntry;
 use crate::revlog::Node;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPath;
+use crate::utils::RawData;
 
 pub struct CatOutput<'a> {
     /// Whether any file in the manifest matched the paths given as CLI
     /// arguments
     pub found_any: bool,
     /// The contents of matching files, in manifest order
-    pub results: Vec<(&'a HgPath, Vec<u8>)>,
+    pub results: Vec<(&'a HgPath, RawData)>,
     /// Which of the CLI arguments did not match any manifest file
     pub missing: Vec<&'a HgPath>,
     /// The node ID that the given revset was resolved to
@@ -88,7 +89,7 @@ pub fn cat<'a>(
         return Err(HgError::unsupported("cat wdir not implemented").into());
     };
     let manifest = repo.manifest_for_rev(rev.into())?;
-    let mut results: Vec<(&'a HgPath, Vec<u8>)> = vec![];
+    let mut results: Vec<(&'a HgPath, RawData)> = vec![];
     let node = *repo.changelog()?.node_from_rev(rev);
     let mut found_any = false;
 

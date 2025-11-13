@@ -347,7 +347,7 @@ before the graft
 when stripping is required
   $ hg graft -r 4 -r 5
   grafting 4:863a25e1a9ea "added x"
-  grafting 5:36b793615f78 "added foo to c" (tip)
+  grafting 5:36b793615f78 "added foo to c"
   merging c
   warning: conflicts while merging c! (edit, then use 'hg resolve --mark')
   abort: unresolved conflicts, can't continue
@@ -421,7 +421,7 @@ when some of the changesets became public
 
   $ hg graft -r 4 -r 5
   grafting 4:863a25e1a9ea "added x"
-  grafting 5:36b793615f78 "added foo to c" (tip)
+  grafting 5:36b793615f78 "added foo to c"
   merging c
   warning: conflicts while merging c! (edit, then use 'hg resolve --mark')
   abort: unresolved conflicts, can't continue

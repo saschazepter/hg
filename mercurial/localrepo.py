@@ -30,7 +30,6 @@ from . import (
     bookmarks,
     branchmap,
     bundle2,
-    bundlecaches,
     changegroup,
     color,
     commit,
@@ -53,12 +52,11 @@ from . import (
     obsolete,
     pathutil,
     phases,
-    policy,
     pushkey,
     pycompat,
+    repo as repomod,
     repoview,
     requirements as requirementsmod,
-    revlog,
     revset,
     revsetlang,
     scmutil,
@@ -68,6 +66,7 @@ from . import (
     tags as tagsmod,
     transaction,
     txnutil,
+    ui as uimod,
     util,
     vfs as vfsmod,
     wireprototypes,
@@ -77,25 +76,34 @@ from .branching import (
     rev_cache as rev_branch_cache,
 )
 from .configuration import rcutil
+from .exchanges import (
+    bundle_caps,
+    peer,
+)
 from .interfaces import (
     repository,
 )
-
+from .upgrade_utils import auto_upgrade, share_safe as share_safe_upgrade
 from .utils import (
     hashutil,
     procutil,
     stringutil,
     urlutil,
 )
+from .repo import (
+    creation,
+    requirements as req_util,
+    vfs_options as vfs_opts,
+)
 
 from .revlogutils import (
     concurrency_checker as revlogchecker,
-    config as revlog_config,
     constants as revlogconst,
 )
 
 if typing.TYPE_CHECKING:
     from typing import (
+        Any,
         Callable,
         TypeVar,
         overload,
@@ -105,6 +113,7 @@ if typing.TYPE_CHECKING:
 
     from .interfaces.types import (
         FileStorageT,
+        FsPathT,
         HgPathT,
         MatcherT,
         NodeIdT,
@@ -113,6 +122,7 @@ if typing.TYPE_CHECKING:
         TransactionT,
     )
 
+    _C = TypeVar('_C', bound=Callable)
     _IdentityCtxT = TypeVar("_IdentityCtxT", bound=context.basectx)
 
 
@@ -124,10 +134,7 @@ RE_SKIP_DIRSTATE_ROLLBACK = re.compile(
     b"^((dirstate|narrowspec.dirstate).*|branch$)"
 )
 
-# set of (path, vfs-location) tuples. vfs-location is:
-# - 'plain for vfs relative paths
-# - '' for svfs relative paths
-_cachedfiles = set()
+cachedfiles = repomod.cachedfiles
 
 
 class _basefilecache(scmutil.filecache):
@@ -154,7 +161,7 @@ class repofilecache(_basefilecache):
     def __init__(self, *paths):
         super().__init__(*paths)
         for path in paths:
-            _cachedfiles.add((path, b'plain'))
+            cachedfiles.add((path, b'plain'))
 
     def join(self, obj, fname):
         return obj.vfs.join(fname)
@@ -166,7 +173,7 @@ class storecache(_basefilecache):
     def __init__(self, *paths):
         super().__init__(*paths)
         for path in paths:
-            _cachedfiles.add((path, b''))
+            cachedfiles.add((path, b''))
 
     def join(self, obj, fname):
         return obj.sjoin(fname)
@@ -177,8 +184,8 @@ class changelogcache(storecache):
 
     def __init__(self):
         super().__init__()
-        _cachedfiles.add((b'00changelog.i', b''))
-        _cachedfiles.add((b'00changelog.n', b''))
+        cachedfiles.add((b'00changelog.i', b''))
+        cachedfiles.add((b'00changelog.n', b''))
 
     def tracked_paths(self, obj):
         paths = [self.join(obj, b'00changelog.i')]
@@ -192,8 +199,8 @@ class manifestlogcache(storecache):
 
     def __init__(self):
         super().__init__()
-        _cachedfiles.add((b'00manifest.i', b''))
-        _cachedfiles.add((b'00manifest.n', b''))
+        cachedfiles.add((b'00manifest.i', b''))
+        cachedfiles.add((b'00manifest.n', b''))
 
     def tracked_paths(self, obj):
         paths = [self.join(obj, b'00manifest.i')]
@@ -205,13 +212,18 @@ class manifestlogcache(storecache):
 class mixedrepostorecache(_basefilecache):
     """filecache for a mix files in .hg/store and outside"""
 
-    def __init__(self, *pathsandlocations):
-        # scmutil.filecache only uses the path for passing back into our
-        # join(), so we can safely pass a list of paths and locations
-        super().__init__(*pathsandlocations)
-        _cachedfiles.update(pathsandlocations)
+    paths_and_locations: tuple[tuple[bytes, bytes]]
 
-    def join(self, obj, fnameandlocation):
+    def __init__(self, *pathsandlocations: tuple[bytes, bytes]):
+        # make the super class typing happy
+        self.paths = tuple(p for (p, l) in pathsandlocations)
+        self.paths_and_locations = pathsandlocations
+        cachedfiles.update(pathsandlocations)
+
+    def tracked_paths(self, obj) -> list[bytes]:
+        return [self.join(obj, path) for path in self.paths_and_locations]
+
+    def join(self, obj, fnameandlocation) -> bytes:
         fname, location = fnameandlocation
         if location == b'plain':
             return obj.vfs.join(fname)
@@ -256,7 +268,7 @@ def hasunfilteredcache(repo, name):
     return name in vars(repo.unfiltered())
 
 
-def unfilteredmethod(orig):
+def unfilteredmethod(orig: _C) -> _C:
     """decorate method that always need to be run on unfiltered version"""
 
     @functools.wraps(orig)
@@ -322,18 +334,24 @@ class localcommandexecutor(repository.ipeercommandexecutor):
         self._closed = True
 
 
-class localpeer(repository.peer, repository.ipeercommands):
+class localpeer(peer.Peer, repository.ipeercommands):
     '''peer for a local repo; reflects only the most recent API'''
 
-    def __init__(self, repo, caps=None, path=None, remotehidden=False):
+    _repo: localrepository
+
+    def __init__(
+        self,
+        repo: localrepository,
+        caps=None,
+        path=None,
+        remotehidden=False,
+    ):
         super().__init__(repo.ui, path=path, remotehidden=remotehidden)
 
         if caps is None:
             caps = moderncaps.copy()
-        if remotehidden:
-            self._repo = repo.filtered(b'served.hidden')
-        else:
-            self._repo = repo.filtered(b'served')
+        view = peer.server_filtername(repo, remotehidden)
+        self._repo = repo.filtered(view)
         if repo._wanted_sidedata:
             formatted = bundle2.format_remote_wanted_sidedata(repo)
             caps.add(b'exp-wanted-sidedata=' + formatted)
@@ -365,7 +383,7 @@ class localpeer(repository.peer, repository.ipeercommands):
 
     # Begin of _basewirecommands interface.
 
-    def branchmap(self):
+    def branchmap(self) -> repository.IBaseBranchMap:
         return self._repo.branchmap()
 
     def get_cached_bundle_inline(self, path):
@@ -373,7 +391,8 @@ class localpeer(repository.peer, repository.ipeercommands):
         raise NotImplementedError
 
     def clonebundles(self):
-        return bundlecaches.get_manifest(self._repo)
+        # not needed with local peer
+        raise NotImplementedError
 
     def debugwireargs(self, one, two, three=None, four=None, five=None):
         """Used to test argument passing over the wire"""
@@ -510,71 +529,17 @@ class locallegacypeer(localpeer, repository.ipeerlegacycommands):
     # End of baselegacywirecommands interface.
 
 
-# Functions receiving (ui, features) that extensions can register to impact
-# the ability to load repositories with custom requirements. Only
-# functions defined in loaded extensions are called.
-#
-# The function receives a set of requirement strings that the repository
-# is capable of opening. Functions will typically add elements to the
-# set to reflect that the extension knows how to handle that requirements.
-featuresetupfuncs = set()
-
-
-def _getsharedvfs(hgvfs, requirements):
-    """returns the vfs object pointing to root of shared source
-    repo for a shared repository
-
-    hgvfs is vfs pointing at .hg/ of current repo (shared one)
-    requirements is a set of requirements of current repo (shared one)
-    """
-    # The ``shared`` or ``relshared`` requirements indicate the
-    # store lives in the path contained in the ``.hg/sharedpath`` file.
-    # This is an absolute path for ``shared`` and relative to
-    # ``.hg/`` for ``relshared``.
-    sharedpath = hgvfs.read(b'sharedpath').rstrip(b'\n')
-    if requirementsmod.RELATIVE_SHARED_REQUIREMENT in requirements:
-        sharedpath = util.normpath(hgvfs.join(sharedpath))
-
-    sharedvfs = vfsmod.vfs(sharedpath, realpath=True)
-
-    if not sharedvfs.exists():
-        raise error.RepoError(
-            _(b'.hg/sharedpath points to nonexistent directory %s')
-            % sharedvfs.base
-        )
-    return sharedvfs
+# offered for backwards compatibility
+featuresetupfuncs = req_util.feature_setup_funcs
 
 
 def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
     Given arguments needed to construct a local repository, this function
-    performs various early repository loading functionality (such as
-    reading the ``.hg/requires`` and ``.hg/hgrc`` files), validates that
-    the repository can be opened, derives a type suitable for representing
-    that repository, and returns an instance of it.
-
-    The returned object conforms to the ``repository.completelocalrepository``
-    interface.
-
-    The repository type is derived by calling a series of factory functions
-    for each aspect/interface of the final repository. These are defined by
-    ``REPO_INTERFACES``.
-
-    Each factory function is called to produce a type implementing a specific
-    interface. The cumulative list of returned types will be combined into a
-    new type and that type will be instantiated to represent the local
-    repository.
-
-    The factory functions each receive various state that may be consulted
-    as part of deriving a type.
-
-    Extensions should wrap these factory functions to customize repository type
-    creation. Note that an extension's wrapped function may be called even if
-    that extension is not loaded for the repo being constructed. Extensions
-    should check if their ``__name__`` appears in the
-    ``extensionmodulenames`` set passed to the factory function and no-op if
-    not.
+    performs various early repository loading functionality (such as reading
+    the ``.hg/requires`` and ``.hg/hgrc`` files), validates that the repository
+    can be opened, and returns an install of `localrepository`.
     """
     ui = baseui.copy()
     # Prevent copying repo configuration.
@@ -614,7 +579,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     storevfs = None
     if shared:
         # This is a shared repo
-        sharedvfs = _getsharedvfs(hgvfs, requirements)
+        sharedvfs = rcutil.get_shared_vfs(hgvfs, requirements)
         storevfs = vfsmod.vfs(sharedvfs.join(b'store'))
     else:
         storevfs = vfsmod.vfs(hgvfs.join(b'store'))
@@ -623,7 +588,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # there exists a `.hg/store/requires` too and we should read it
     # NOTE: presence of SHARESAFE_REQUIREMENT imply that store requirement
     # is present. We never write SHARESAFE_REQUIREMENT for a repo if store
-    # is not present, refer checkrequirementscompat() for that
+    # is not present, refer check_requirements_compat() for that
     #
     # However, if SHARESAFE_REQUIREMENT is not present, it means that the
     # repository was shared the old way. We check the share source .hg/requires
@@ -650,10 +615,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 b'allow',
                 b'downgrade-abort',
             ):
-                # prevent cyclic import localrepo -> upgrade -> localrepo
-                from . import upgrade
-
-                upgrade.downgrade_share_to_non_safe(
+                share_safe_upgrade.downgrade_share_to_non_safe(
                     ui,
                     hgvfs,
                     sharedvfs,
@@ -694,10 +656,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 b'allow',
                 b'upgrade-abort',
             ):
-                # prevent cyclic import localrepo -> upgrade -> localrepo
-                from . import upgrade
-
-                upgrade.upgrade_share_to_safe(
+                share_safe_upgrade.upgrade_share_to_safe(
                     ui,
                     hgvfs,
                     storevfs,
@@ -732,10 +691,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         extensions.loadall(ui)
         extensions.populateui(ui)
 
-    # Set of module names of extensions loaded for this repository.
-    extensionmodulenames = {m.__name__ for n, m in extensions.extensions(ui)}
-
-    supportedrequirements = gathersupportedrequirements(ui)
+    supportedrequirements = req_util.gather_supported_requirements(ui)
 
     # We first validate the requirements are known.
     ensurerequirementsrecognized(requirements, supportedrequirements)
@@ -743,18 +699,24 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # Then we validate that the known set is reasonable to use together.
     ensurerequirementscompatible(ui, requirements)
 
-    # TODO there are unhandled edge cases related to opening repositories with
-    # shared storage. If storage is shared, we should also test for requirements
-    # compatibility in the pointed-to repo. This entails loading the .hg/hgrc in
-    # that repo, as that repo may load extensions needed to open it. This is a
-    # bit complicated because we don't want the other hgrc to overwrite settings
-    # in this hgrc.
+    # WARNING: Without `share-safe`, there are unhandled edge cases related to
+    # opening repositories with shared storage. If storage is shared, we should
+    # also test for requirements compatibility in the pointed-to repo. This
+    # entails loading the .hg/hgrc in that repo, as that repo may load
+    # extensions needed to open it. This is a bit complicated because we don't
+    # want the other hgrc to overwrite settings in this hgrc.
     #
-    # This bug is somewhat mitigated by the fact that we copy the .hg/requires
-    # file when sharing repos. But if a requirement is added after the share is
-    # performed, thereby introducing a new requirement for the opener, we may
-    # will not see that and could encounter a run-time error interacting with
-    # that shared store since it has an unknown-to-us requirement.
+    # This bug should not exist when `share-safe` is used. Share-safe
+    # repository use a common storage for the store requirements and distinct
+    # configuration files exist for the part that should be shared and the part
+    # that isn't shared.
+    #
+    # Without share-safe, this bug is somewhat mitigated by the fact that we
+    # copy the .hg/requires file when sharing repos. But if a requirement is
+    # added after the share is performed, thereby introducing a new requirement
+    # for the opener, we may will not see that and could encounter a run-time
+    # error interacting with that shared store since it has an unknown-to-us
+    # requirement.
 
     # At this point, we know we should be capable of opening the repository.
     # Now get on with doing that.
@@ -766,6 +728,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # `relshared` requirements are present, this indicates current repository
     # is a share and store exists in path mentioned in `.hg/sharedpath`
     if shared:
+        assert sharedvfs is not None
         storebasepath = sharedvfs.base
         cachepath = sharedvfs.join(b'cache')
         features.add(repository.REPO_FEATURE_SHARED_STORAGE)
@@ -778,14 +741,20 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # requirements. The store interface abstracts differences across all
     # of them.
     store = makestore(
+        ui,
         requirements,
         storebasepath,
         lambda base: vfsmod.vfs(base, cacheaudited=True),
+        try_pending=txnutil.mayhavepending(wdirvfs.base),
     )
     hgvfs.createmode = store.createmode
 
     storevfs = store.vfs
-    storevfs.options = resolvestorevfsoptions(ui, requirements, features)
+    storevfs.options = vfs_opts.resolve_store_vfs_options(
+        ui,
+        requirements,
+        features,
+    )
 
     if (
         requirementsmod.REVLOGV2_REQUIREMENT in requirements
@@ -795,6 +764,12 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         # the revlogv2 docket introduced race condition that we need to fix
         features.discard(repository.REPO_FEATURE_STREAM_CLONE)
 
+    # We can add the feature without the extensions here because the lack of
+    # support for the requirement will lead to a crash later if the extension
+    # is missing.
+    if requirementsmod.LFS_REQUIREMENT in requirements:
+        features.add(repository.REPO_FEATURE_LFS)
+
     # The cache vfs is used to manage cache files.
     cachevfs = vfsmod.vfs(cachepath, cacheaudited=True)
     cachevfs.createmode = store.createmode
@@ -802,51 +777,11 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     wcachevfs = vfsmod.vfs(wcachepath, cacheaudited=True)
     wcachevfs.createmode = store.createmode
 
-    # Now resolve the type for the repository object. We do this by repeatedly
-    # calling a factory function to produces types for specific aspects of the
-    # repo's operation. The aggregate returned types are used as base classes
-    # for a dynamically-derived type, which will represent our new repository.
+    # This is always active in practice
+    features.add(repository.REPO_FEATURE_REVLOG_FILE_STORAGE)
+    features.add(repository.REPO_FEATURE_STREAM_CLONE)
 
-    bases = []
-    extrastate = {}
-
-    for iface, fn in REPO_INTERFACES:
-        # We pass all potentially useful state to give extensions tons of
-        # flexibility.
-        typ = fn()(
-            ui=ui,
-            intents=intents,
-            requirements=requirements,
-            features=features,
-            wdirvfs=wdirvfs,
-            hgvfs=hgvfs,
-            store=store,
-            storevfs=storevfs,
-            storeoptions=storevfs.options,
-            cachevfs=cachevfs,
-            wcachevfs=wcachevfs,
-            extensionmodulenames=extensionmodulenames,
-            extrastate=extrastate,
-            baseclasses=bases,
-        )
-
-        if not isinstance(typ, type):
-            raise error.ProgrammingError(
-                b'unable to construct type for %s' % iface
-            )
-
-        bases.append(typ)
-
-    # type() allows you to use characters in type names that wouldn't be
-    # recognized as Python symbols in source code. We abuse that to add
-    # rich information about our constructed repo.
-    name = pycompat.sysstr(
-        b'derivedrepo:%s<%s>' % (wdirvfs.base, b','.join(sorted(requirements)))
-    )
-
-    cls = type(name, tuple(bases), {})
-
-    return cls(
+    return localrepository(
         baseui=baseui,
         ui=ui,
         origroot=path,
@@ -938,30 +873,6 @@ def afterhgrcload(ui, wdirvfs, hgvfs, requirements):
                 ui.setconfig(b'extensions', name, b'', source=b'autoload')
 
 
-def gathersupportedrequirements(ui):
-    """Determine the complete set of recognized requirements."""
-    # Start with all requirements supported by this file.
-    supported = set(localrepository._basesupported)
-
-    # Execute ``featuresetupfuncs`` entries if they belong to an extension
-    # relevant to this ui instance.
-    modules = {m.__name__ for n, m in extensions.extensions(ui)}
-
-    for fn in featuresetupfuncs:
-        if fn.__module__ in modules:
-            fn(ui, supported)
-
-    # Add derived requirements from registered compression engines.
-    for name in util.compengines:
-        engine = util.compengines[name]
-        if engine.available() and engine.revlogheader():
-            supported.add(b'exp-compression-%s' % name)
-            if engine.name() == b'zstd':
-                supported.add(requirementsmod.REVLOG_COMPRESSION_ZSTD)
-
-    return supported
-
-
 def ensurerequirementsrecognized(requirements, supported):
     """Validate that a set of local requirements is recognized.
 
@@ -1018,17 +929,47 @@ def ensurerequirementscompatible(ui, requirements):
             )
         )
 
+    if (
+        requirementsmod.DOTENCODE_REQUIREMENT in requirements
+        and requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements
+    ):
+        raise error.RepoError(
+            _(
+                b'bad requirements, cannot use both "dotencode" '
+                b'and "plain encoding"'
+            )
+        )
 
-def makestore(requirements, path, vfstype):
-    """Construct a storage object for a repository."""
+    if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+        for req in [
+            requirementsmod.FNCACHE_REQUIREMENT,
+            requirementsmod.DOTENCODE_REQUIREMENT,
+            requirementsmod.TREEMANIFEST_REQUIREMENT,
+        ]:
+            if req in requirements:
+                msg = _(
+                    b"repository is using '%s' and 'fileindex-v1' which "
+                    b"are incompatible with each other"
+                )
+                msg %= req
+                raise error.RepoError(msg)
+
+
+def makestore(
+    ui: uimod.ui,
+    requirements: set[bytes],
+    path: FsPathT,
+    vfstype: Callable[..., vfsmod.abstractvfs],
+    try_pending: bool,
+):
+    """Construct a storage object for a repository.
+
+    If try_pending is True, tries to load store metadata from pending files
+    (that were written by another hg process in a pending transaction).
+    """
     if requirementsmod.STORE_REQUIREMENT in requirements:
         if requirementsmod.FNCACHE_REQUIREMENT in requirements:
             if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
-                if requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
-                    msg = _(
-                        b'bad requirements, cannot use both "dotencode" and "plain encoding"'
-                    )
-                    raise error.RepoError(msg)
                 encoding = storemod.Encoding.DOTENCODE
             elif requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
                 encoding = storemod.Encoding.PLAIN
@@ -1036,352 +977,23 @@ def makestore(requirements, path, vfstype):
                 encoding = storemod.Encoding.HYBRID
             return storemod.fncachestore(path, vfstype, encoding)
 
+        if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
+            encoding = storemod.Encoding.DOTENCODE
+            if requirementsmod.PLAIN_ENCODE_REQUIREMENT in requirements:
+                encoding = storemod.Encoding.PLAIN
+            return storemod.FileIndexStore(
+                ui, path, vfstype, encoding, try_pending
+            )
+
         return storemod.encodedstore(path, vfstype)
 
     return storemod.basicstore(path, vfstype)
 
 
-def resolvestorevfsoptions(ui, requirements, features):
-    """Resolve the options to pass to the store vfs opener.
-
-    The returned dict is used to influence behavior of the storage layer.
-    """
-    options = {}
-
-    if requirementsmod.TREEMANIFEST_REQUIREMENT in requirements:
-        options[b'treemanifest'] = True
-
-    # experimental config: format.manifestcachesize
-    manifestcachesize = ui.configint(b'format', b'manifestcachesize')
-    if manifestcachesize is not None:
-        options[b'manifestcachesize'] = manifestcachesize
-
-    # In the absence of another requirement superseding a revlog-related
-    # requirement, we have to assume the repo is using revlog version 0.
-    # This revlog format is super old and we don't bother trying to parse
-    # opener options for it because those options wouldn't do anything
-    # meaningful on such old repos.
-    if (
-        requirementsmod.REVLOGV1_REQUIREMENT in requirements
-        or requirementsmod.REVLOGV2_REQUIREMENT in requirements
-    ):
-        options.update(resolverevlogstorevfsoptions(ui, requirements, features))
-    else:  # explicitly mark repo as using revlogv0
-        options[b'revlogv0'] = True
-
-    if requirementsmod.COPIESSDC_REQUIREMENT in requirements:
-        options[b'copies-storage'] = b'changeset-sidedata'
-    else:
-        writecopiesto = ui.config(b'experimental', b'copies.write-to')
-        copiesextramode = (b'changeset-only', b'compatibility')
-        if writecopiesto in copiesextramode:
-            options[b'copies-storage'] = b'extra'
-
-    return options
-
-
-def resolverevlogstorevfsoptions(ui, requirements, features):
-    """Resolve opener options specific to revlogs."""
-
-    options = {}
-    options[b'flagprocessors'] = {}
-
-    feature_config = options[b'feature-config'] = revlog_config.FeatureConfig()
-    data_config = options[b'data-config'] = revlog_config.DataConfig()
-    delta_config = options[b'delta-config'] = revlog_config.DeltaConfig()
-
-    if requirementsmod.REVLOGV1_REQUIREMENT in requirements:
-        options[b'revlogv1'] = True
-    if requirementsmod.REVLOGV2_REQUIREMENT in requirements:
-        options[b'revlogv2'] = True
-    if requirementsmod.CHANGELOGV2_REQUIREMENT in requirements:
-        options[b'changelogv2'] = True
-        cmp_rank = ui.configbool(b'experimental', b'changelog-v2.compute-rank')
-        options[b'changelogv2.compute-rank'] = cmp_rank
-
-    if requirementsmod.GENERALDELTA_REQUIREMENT in requirements:
-        options[b'generaldelta'] = True
-
-    if requirementsmod.FILELOG_METAFLAG_REQUIREMENT in requirements:
-        options[b'filelog_hasmeta_flag'] = True
-
-    if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
-        options[b'delta-info-flags'] = True
-
-    # experimental config: format.chunkcachesize
-    chunkcachesize = ui.configint(b'format', b'chunkcachesize')
-    if chunkcachesize is not None:
-        data_config.chunk_cache_size = chunkcachesize
-
-    memory_profile = scmutil.get_resource_profile(ui, b'memory')
-    if memory_profile >= scmutil.RESOURCE_MEDIUM:
-        data_config.uncompressed_cache_count = 10_000
-        data_config.uncompressed_cache_factor = 4
-        if memory_profile >= scmutil.RESOURCE_HIGH:
-            data_config.uncompressed_cache_factor = 10
-
-    delta_config.delta_both_parents = ui.configbool(
-        b'storage', b'revlog.optimize-delta-parent-choice'
-    )
-    delta_config.candidate_group_chunk_size = ui.configint(
-        b'storage',
-        b'revlog.delta-parent-search.candidate-group-chunk-size',
-    )
-    delta_config.debug_delta = ui.configbool(b'debug', b'revlog.debug-delta')
-
-    issue6528 = ui.configbool(b'storage', b'revlog.issue6528.fix-incoming')
-    options[b'issue6528.fix-incoming'] = issue6528
-
-    lazydelta = ui.configbool(b'storage', b'revlog.reuse-external-delta')
-    lazydeltabase = False
-    if lazydelta:
-        lazydeltabase = ui.configbool(
-            b'storage', b'revlog.reuse-external-delta-parent'
-        )
-        if lazydeltabase is None:
-            lazydeltabase = not scmutil.gddeltaconfig(ui)
-    delta_config.lazy_delta = lazydelta
-    delta_config.lazy_delta_base = lazydeltabase
-    delta_config.filter_suspicious_delta = not ui.configbool(
-        b'storage',
-        b'revlog.reuse-external-suspicious-delta-parent',
-    )
-
-    chainspan = ui.configbytes(b'experimental', b'maxdeltachainspan')
-    if 0 <= chainspan:
-        delta_config.max_deltachain_span = chainspan
-
-    has_populate = util.has_mmap_populate()
-    if ui.configbool(b'storage', b'revlog.mmap.index', has_populate):
-        data_config.mmap_index_threshold = ui.configbytes(
-            b'storage',
-            b'revlog.mmap.index:size-threshold',
-        )
-
-    withsparseread = ui.configbool(b'experimental', b'sparse-read')
-    srdensitythres = float(
-        ui.config(b'experimental', b'sparse-read.density-threshold')
-    )
-    srmingapsize = ui.configbytes(b'experimental', b'sparse-read.min-gap-size')
-    data_config.with_sparse_read = withsparseread
-    data_config.sr_density_threshold = srdensitythres
-    data_config.sr_min_gap_size = srmingapsize
-
-    sparserevlog = requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements
-    delta_config.sparse_revlog = sparserevlog
-    if sparserevlog:
-        options[b'generaldelta'] = True
-        data_config.with_sparse_read = True
-
-    maxchainlen = None
-    if sparserevlog:
-        maxchainlen = revlogconst.SPARSE_REVLOG_MAX_CHAIN_LENGTH
-    # experimental config: format.maxchainlen
-    maxchainlen = ui.configint(b'format', b'maxchainlen', maxchainlen)
-    if maxchainlen is not None:
-        delta_config.max_chain_len = maxchainlen
-
-    file_comp_ratio = ui.configint(
-        b'storage', b'filelog.expected-max-compression-ratio'
-    )
-    if file_comp_ratio > 0:
-        delta_config.file_max_comp_ratio = file_comp_ratio
-
-    use_folding = ui.config(
-        b'storage',
-        b'delta-fold-estimate',
-    )
-    if use_folding == b"always":
-        delta_config.delta_fold_estimate = True
-    if use_folding == b"when-fast":
-        delta_config.delta_fold_estimate = policy.has_rust()
-    elif use_folding == b"never":
-        delta_config.delta_fold_estimate = False
-
-    fold_tolerance = ui.configint(
-        b'storage',
-        b'delta-fold-tolerance-percentage',
-    )
-    if fold_tolerance < 0:
-        delta_config.delta_fold_tolerance = None
-    else:
-        delta_config.delta_fold_tolerance = float((100 + fold_tolerance) / 100)
-
-    for r in requirements:
-        # we allow multiple compression engine requirement to co-exist because
-        # strickly speaking, revlog seems to support mixed compression style.
-        #
-        # The compression used for new entries will be "the last one"
-        prefix = r.startswith
-        if prefix(b'revlog-compression-') or prefix(b'exp-compression-'):
-            feature_config.compression_engine = r.split(b'-', 2)[2]
-
-    zlib_level = ui.configint(b'storage', b'revlog.zlib.level')
-    if zlib_level is not None:
-        if not (0 <= zlib_level <= 9):
-            msg = _(b'invalid value for `storage.revlog.zlib.level` config: %d')
-            raise error.Abort(msg % zlib_level)
-    feature_config.compression_engine_options[b'zlib.level'] = zlib_level
-    zstd_level = ui.configint(b'storage', b'revlog.zstd.level')
-    if zstd_level is not None:
-        if not (0 <= zstd_level <= 22):
-            msg = _(b'invalid value for `storage.revlog.zstd.level` config: %d')
-            raise error.Abort(msg % zstd_level)
-    feature_config.compression_engine_options[b'zstd.level'] = zstd_level
-
-    if requirementsmod.NARROW_REQUIREMENT in requirements:
-        feature_config.enable_ellipsis = True
-
-    if ui.config(b"censor", b"policy") == b"ignore":
-        feature_config.ignore_filelog_censored_revisions = True
-
-    if ui.configbool(b'experimental', b'rust.index'):
-        options[b'rust.index'] = True
-    if requirementsmod.NODEMAP_REQUIREMENT in requirements:
-        slow_path = ui.config(
-            b'storage', b'revlog.persistent-nodemap.slow-path'
-        )
-        if slow_path == b'default':
-            slow_path = ui.config(b'storage', b'all-slow-path')
-        if slow_path not in (b'allow', b'warn', b'abort'):
-            default = ui.config_default(b'storage', b'all-slow-path')
-            msg = _(
-                b'unknown value for config '
-                b'"storage.revlog.persistent-nodemap.slow-path": "%s"\n'
-            )
-            ui.warn(msg % slow_path)
-            if not ui.quiet:
-                ui.warn(_(b'falling back to default value: %s\n') % default)
-            slow_path = default
-
-        msg = _(
-            b"accessing `persistent-nodemap` repository without associated "
-            b"fast implementation."
-        )
-        hint = _(
-            b"check `hg help config.format.use-persistent-nodemap` "
-            b"for details"
-        )
-        if not revlog.HAS_FAST_PERSISTENT_NODEMAP:
-            if slow_path == b'warn':
-                msg = b"warning: " + msg + b'\n'
-                ui.warn(msg)
-                if not ui.quiet:
-                    hint = b'(' + hint + b')\n'
-                    ui.warn(hint)
-            if slow_path == b'abort':
-                raise error.Abort(msg, hint=hint)
-        options[b'persistent-nodemap'] = True
-    if requirementsmod.DIRSTATE_V2_REQUIREMENT in requirements:
-        slow_path = ui.config(b'storage', b'dirstate-v2.slow-path')
-        if slow_path == b'default':
-            slow_path = ui.config(b'storage', b'all-slow-path')
-        if slow_path not in (b'allow', b'warn', b'abort'):
-            default = ui.config_default(b'storage', b'all-slow-path')
-            msg = _(b'unknown value for config "dirstate-v2.slow-path": "%s"\n')
-            ui.warn(msg % slow_path)
-            if not ui.quiet:
-                ui.warn(_(b'falling back to default value: %s\n') % default)
-            slow_path = default
-
-        msg = _(
-            b"accessing `dirstate-v2` repository without associated "
-            b"fast implementation."
-        )
-        hint = _(
-            b"check `hg help config.format.use-dirstate-v2` " b"for details"
-        )
-        if not dirstate.HAS_FAST_DIRSTATE_V2:
-            if slow_path == b'warn':
-                msg = b"warning: " + msg + b'\n'
-                ui.warn(msg)
-                if not ui.quiet:
-                    hint = b'(' + hint + b')\n'
-                    ui.warn(hint)
-            if slow_path == b'abort':
-                raise error.Abort(msg, hint=hint)
-    if ui.configbool(b'storage', b'revlog.persistent-nodemap.mmap'):
-        options[b'persistent-nodemap.mmap'] = True
-    if ui.configbool(b'devel', b'persistent-nodemap'):
-        options[b'devel-force-nodemap'] = True
-
-    delta_config.validate_base = ui.configbool(
-        b'storage', b'revlog.validate-delta-base'
-    )
-
-    return options
-
-
-def makemain(**kwargs):
-    """Produce a type conforming to ``ilocalrepositorymain``."""
-    return localrepository
-
-
-class revlogfilestorage(repository.ilocalrepositoryfilestorage):
-    """File storage when using revlogs."""
-
-    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
-        if path.startswith(b'/'):
-            path = path[1:]
-
-        try_split = (
-            self.currenttransaction() is not None
-            or txnutil.mayhavepending(self.root)
-        )
-
-        return filelog.filelog(
-            self.svfs, path, writable=writable, try_split=try_split
-        )
-
-
-class revlognarrowfilestorage(repository.ilocalrepositoryfilestorage):
-    """File storage when using revlogs and narrow files."""
-
-    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
-        if path.startswith(b'/'):
-            path = path[1:]
-
-        try_split = (
-            self.currenttransaction() is not None
-            or txnutil.mayhavepending(self.root)
-        )
-        return filelog.narrowfilelog(
-            self.svfs,
-            path,
-            self._storenarrowmatch,
-            writable=writable,
-            try_split=try_split,
-        )
-
-
-def makefilestorage(requirements, features, **kwargs):
-    """Produce a type conforming to ``ilocalrepositoryfilestorage``."""
-    features.add(repository.REPO_FEATURE_REVLOG_FILE_STORAGE)
-    features.add(repository.REPO_FEATURE_STREAM_CLONE)
-
-    if requirementsmod.NARROW_REQUIREMENT in requirements:
-        return revlognarrowfilestorage
-    else:
-        return revlogfilestorage
-
-
-# List of repository interfaces and factory functions for them. Each
-# will be called in order during ``makelocalrepository()`` to iteratively
-# derive the final type for a local repository instance. We capture the
-# function as a lambda so we don't hold a reference and the module-level
-# functions can be wrapped.
-REPO_INTERFACES = [
-    (repository.ilocalrepositorymain, lambda: makemain),
-    (repository.ilocalrepositoryfilestorage, lambda: makefilestorage),
-]
-
 _localrepo_base_classes = object
 
 if typing.TYPE_CHECKING:
-    _localrepo_base_classes = [
-        repository.ilocalrepositorymain,
-        repository.ilocalrepositoryfilestorage,
-    ]
+    _localrepo_base_classes = repository.IRepo
 
 
 class localrepository(_localrepo_base_classes):
@@ -1391,41 +1003,17 @@ class localrepository(_localrepo_base_classes):
 
     Constructed on its own, instances of this class are not usable as
     repository objects. To obtain a usable repository object, call
-    ``hg.repository()``, ``localrepo.instance()``, or
+    ``repo.factory.repository()``, ``localrepo.instance()``, or
     ``localrepo.makelocalrepository()``. The latter is the lowest-level.
     ``instance()`` adds support for creating new repositories.
-    ``hg.repository()`` adds more extension integration, including calling
-    ``reposetup()``. Generally speaking, ``hg.repository()`` should be
-    used.
+    ``repo.factory.repository()`` adds more extension integration, including
+    calling ``reposetup()``. Generally speaking, ``repo.factory.repository()``
+    should be used.
     """
 
     _transref: _weakref.ReferenceType[TransactionT] | None
 
-    _basesupported = {
-        requirementsmod.ARCHIVED_PHASE_REQUIREMENT,
-        requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT,
-        requirementsmod.CHANGELOGV2_REQUIREMENT,
-        requirementsmod.COPIESSDC_REQUIREMENT,
-        requirementsmod.DELTA_INFO_REQUIREMENT,
-        requirementsmod.DIRSTATE_TRACKED_HINT_V1,
-        requirementsmod.DIRSTATE_V2_REQUIREMENT,
-        requirementsmod.DOTENCODE_REQUIREMENT,
-        requirementsmod.PLAIN_ENCODE_REQUIREMENT,
-        requirementsmod.FILELOG_METAFLAG_REQUIREMENT,
-        requirementsmod.FNCACHE_REQUIREMENT,
-        requirementsmod.GENERALDELTA_REQUIREMENT,
-        requirementsmod.INTERNAL_PHASE_REQUIREMENT,
-        requirementsmod.NODEMAP_REQUIREMENT,
-        requirementsmod.RELATIVE_SHARED_REQUIREMENT,
-        requirementsmod.REVLOGV1_REQUIREMENT,
-        requirementsmod.REVLOGV2_REQUIREMENT,
-        requirementsmod.SHARED_REQUIREMENT,
-        requirementsmod.SHARESAFE_REQUIREMENT,
-        requirementsmod.SPARSEREVLOG_REQUIREMENT,
-        requirementsmod.SPARSE_REQUIREMENT,
-        requirementsmod.STORE_REQUIREMENT,
-        requirementsmod.TREEMANIFEST_REQUIREMENT,
-    }
+    _basesupported = req_util.BASE_SUPPORTED
 
     # list of prefix for file which can be written without 'wlock'
     # Extensions should extend this list when needed
@@ -1445,6 +1033,8 @@ class localrepository(_localrepo_base_classes):
         b'bisect.state',
     }
 
+    is_bundle_repo = False
+
     def __init__(
         self,
         baseui,
@@ -1463,9 +1053,9 @@ class localrepository(_localrepo_base_classes):
     ):
         """Create a new local repository instance.
 
-        Most callers should use ``hg.repository()``, ``localrepo.instance()``,
-        or ``localrepo.makelocalrepository()`` for obtaining a new repository
-        object.
+        Most callers should use ``repo.factory.repository()``,
+        ``localrepo.instance()``, or ``localrepo.makelocalrepository()`` for
+        obtaining a new repository object.
 
         Arguments:
 
@@ -1551,10 +1141,7 @@ class localrepository(_localrepo_base_classes):
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
         ):
-            if hasattr(self.svfs, 'vfs'):  # this is filtervfs
-                self.svfs.vfs.audit = self._getsvfsward(self.svfs.vfs.audit)
-            else:  # standard vfs
-                self.svfs.audit = self._getsvfsward(self.svfs.audit)
+            self.svfs.audit = self._getsvfsward(self.svfs.audit)
 
         self._dirstatevalidatewarned = False
 
@@ -1562,7 +1149,9 @@ class localrepository(_localrepo_base_classes):
         self._revbranchcache = None
         self._filterpats = {}
         self._datafilters = {}
-        self._transref = self._lockref = self._wlockref = None
+        self._transref: weakref.ref[TransactionT] | None = None
+        self._wlockref: weakref.ref[lockmod.lock] | None = None
+        self._lockref: weakref.ref[lockmod.lock] | None = None
 
         # A cache for various files under .hg/ that tracks file changes,
         # (used by the filecache decorator)
@@ -1655,7 +1244,7 @@ class localrepository(_localrepo_base_classes):
 
         return checkvfs
 
-    def _getsvfsward(self, origfunc):
+    def _getsvfsward(self, origfunc: pathutil.PathAuditT):
         """build a ward for self.svfs"""
         rref = weakref.ref(self)
 
@@ -1696,7 +1285,7 @@ class localrepository(_localrepo_base_classes):
         if self.ui.configbool(b'experimental', b'bundle2-advertise'):
             caps = set(caps)
             capsblob = bundle2.encodecaps(
-                bundle2.getrepocaps(self, role=b'client')
+                bundle_caps.get_repo_caps(self, role=b'client')
             )
             caps.add(b'bundle2=' + urlreq.quote(capsblob))
         if self.ui.configbool(b'experimental', b'narrow'):
@@ -1769,7 +1358,7 @@ class localrepository(_localrepo_base_classes):
         Intended to be overwritten by filtered repo."""
         return self
 
-    def filtered(self, name, visibilityexceptions=None):
+    def filtered(self, name, visibilityexceptions=None) -> localrepository:
         """Return a filtered version of a repository
 
         The `name` parameter is the identifier of the requested view. This
@@ -1878,6 +1467,35 @@ class localrepository(_localrepo_base_classes):
     def manifestlog(self):
         return self.store.manifestlog(self, self._storenarrowmatch)
 
+    def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
+        if path.startswith(b'/'):
+            path = path[1:]
+
+        tr = self.currenttransaction()
+        try_split = tr is not None or txnutil.mayhavepending(self.root)
+
+        if writable:
+            radix = self.store.filelog_radix_for_writing(path, tr)
+        else:
+            radix = self.store.filelog_radix_for_reading(path)
+        if self.is_narrow:
+            return filelog.narrowfilelog(
+                self.svfs,
+                path,
+                radix,
+                self._storenarrowmatch,
+                writable=writable,
+                try_split=try_split,
+            )
+        else:
+            return filelog.filelog(
+                self.svfs,
+                path,
+                radix,
+                writable=writable,
+                try_split=try_split,
+            )
+
     @unfilteredpropertycache
     def dirstate(self):
         if self._dirstate is None:
@@ -1939,6 +1557,9 @@ class localrepository(_localrepo_base_classes):
                 )
             return self.nullid
 
+    def mergestate(self):
+        return mergestatemod.mergestate.read(self)
+
     @storecache(narrowspec.FILENAME)
     def narrowpats(self):
         """matcher patterns for this repository's narrowspec
@@ -1951,16 +1572,20 @@ class localrepository(_localrepo_base_classes):
             val = narrowspec.load(self)
         return val
 
+    @unfilteredpropertycache
+    def is_narrow(self) -> bool:
+        return requirementsmod.NARROW_REQUIREMENT in self.requirements
+
     @storecache(narrowspec.FILENAME)
     def _storenarrowmatch(self):
-        if requirementsmod.NARROW_REQUIREMENT not in self.requirements:
+        if not self.is_narrow:
             return matchmod.always()
         include, exclude = self.narrowpats
         return narrowspec.match(self.root, include=include, exclude=exclude)
 
     @storecache(narrowspec.FILENAME)
     def _narrowmatch(self):
-        if requirementsmod.NARROW_REQUIREMENT not in self.requirements:
+        if not self.is_narrow:
             return matchmod.always()
         narrowspec.checkworkingcopynarrowspec(self)
         include, exclude = self.narrowpats
@@ -1976,12 +1601,15 @@ class localrepository(_localrepo_base_classes):
         be included even if they're outside the narrowspec.
         """
         if match:
-            if includeexact and not self._narrowmatch.always():
+            narrowed = not self._narrowmatch.always()
+            if includeexact and narrowed:
                 # do not exclude explicitly-specified paths so that they can
                 # be warned later on
                 em = matchmod.exact(match.files())
                 nm = matchmod.unionmatcher([self._narrowmatch, em])
                 return matchmod.intersectmatchers(match, nm)
+            if not narrowed:
+                return match
             return matchmod.intersectmatchers(match, self._narrowmatch)
         return self._narrowmatch
 
@@ -2077,7 +1705,7 @@ class localrepository(_localrepo_base_classes):
         def __getitem__(self, changeid: _IdentityCtxT) -> _IdentityCtxT:
             ...
 
-    def __getitem__(self, changeid):
+    def __getitem__(self, changeid: Any) -> Any:
         # dealing with special cases
         if changeid is None:
             return context.workingctx(self)
@@ -2087,11 +1715,14 @@ class localrepository(_localrepo_base_classes):
         # dealing with multiple revisions
         if isinstance(changeid, slice):
             # wdirrev isn't contiguous so the slice shouldn't include it
-            return [
-                self[i]
-                for i in range(*changeid.indices(len(self)))
-                if i not in self.changelog.filteredrevs
-            ]
+            start, stop, stride = changeid.indices(len(self))
+            filtered = self.changelog.filteredrevs
+            revs = (i for i in range(start, stop, stride) if i not in filtered)
+            # pytype is confused about the signature of __getitem__
+            #
+            # pytype: disable=unsupported-operands
+            return [self[r] for r in revs]
+            # pytype: enable=unsupported-operands
 
         # dealing with some special values
         quick_access = self._quick_access_changeid.get(changeid)
@@ -2247,6 +1878,15 @@ class localrepository(_localrepo_base_classes):
         """
         return hook.hook(self.ui, self, name, throw, **args)
 
+    def python_hook(self, name, *args, **kwargs):
+        """Call a python hook, passing this repo instance.
+
+        This a convenience method to aid invoking hooks. Extensions likely
+        won't call this unless they have registered a custom hook or are
+        replacing code that is expected to call a hook.
+        """
+        return hook.pythonhook(self.ui, self, name, *args, **kwargs)
+
     @filteredpropertycache
     def _tagscache(self):
         """Returns a tagscache object that contains various tags related
@@ -2358,7 +1998,7 @@ class localrepository(_localrepo_base_classes):
         """return the list of bookmarks pointing to the specified node"""
         return self._bookmarks.names(node)
 
-    def branchmap(self):
+    def branchmap(self) -> repository.IBranchMap:
         """returns a dictionary {branch: [branchheads]} with branchheads
         ordered by increasing revision number"""
         return self._branchcaches[self]
@@ -2443,6 +2083,60 @@ class localrepository(_localrepo_base_classes):
             p2 = self.nullid
         self[None].setparents(p1, p2)
         self._quick_access_changeid_invalidate()
+
+    def memctx(
+        self,
+        parents,
+        text: bytes,
+        files,
+        filectxfn,
+        user: bytes | None = None,
+        date=None,
+        extra=None,
+        branch: bytes | None = None,
+        editor=None,
+    ) -> context.memctx:
+        """create a new memctx using this repository
+
+        Exists to make it easy to create a memctx in any logic that already
+        deals with context or repository, without having to import the context
+        module, creating potential cycles."""
+        return context.memctx(
+            repo=self,
+            parents=parents,
+            text=text,
+            files=files,
+            filectxfn=filectxfn,
+            user=user,
+            date=date,
+            extra=extra,
+            branch=branch,
+            editor=editor,
+        )
+
+    def memfilectx(
+        self,
+        changectx,
+        path: bytes,
+        data: bytes,
+        islink: bool = False,
+        isexec: bool = False,
+        copysource: bytes | None = None,
+    ) -> context.memfilectx:
+        """create a new memfilectx using this repository
+
+        Exists to make it easy to create a memctx in any logic that already
+        deals with context or repository, without having to import the context
+        module, creating potential cycles."""
+        return context.memfilectx(
+            repo=self,
+            changectx=changectx,
+            path=path,
+            data=data,
+            islink=islink,
+            isexec=isexec,
+            copysource=copysource,
+        )
 
     def filectx(self, path: bytes, changeid=None, fileid=None, changectx=None):
         """changeid must be a changeset revision, if specified.
@@ -2638,7 +2332,7 @@ class localrepository(_localrepo_base_classes):
         if desc != b'strip' and shouldtracktags:
             oldheads = self.changelog.headrevs()
 
-            def tracktags(tr2):
+            def tracktags(tr2: TransactionT):
                 repo = reporef()
                 assert repo is not None  # help pytype
                 oldfnodes = tagsmod.fnoderevs(repo.ui, repo, oldheads)
@@ -2657,7 +2351,7 @@ class localrepository(_localrepo_base_classes):
                         # is close (for txnclose hooks)
                         tagsmod.writediff(changesfile, changes)
 
-        def validate(tr2):
+        def validate(tr2: TransactionT):
             """will run pre-closing hooks"""
             # XXX the transaction API is a bit lacking here so we take a hacky
             # path for now
@@ -2695,9 +2389,9 @@ class localrepository(_localrepo_base_classes):
                 )
             if hook.hashook(repo.ui, b'pretxnclose-bookmark'):
                 for name, (old, new) in sorted(
-                    tr.changes[b'bookmarks'].items()
+                    tr2.changes[b'bookmarks'].items()
                 ):
-                    args = tr.hookargs.copy()
+                    args = tr2.hookargs.copy()
                     args.update(bookmarks.preparehookargs(name, old, new))
                     repo.hook(
                         b'pretxnclose-bookmark',
@@ -2706,9 +2400,9 @@ class localrepository(_localrepo_base_classes):
                     )
             if hook.hashook(repo.ui, b'pretxnclose-phase'):
                 cl = repo.unfiltered().changelog
-                for revs, (old, new) in tr.changes[b'phases']:
+                for revs, (old, new) in tr2.changes[b'phases']:
                     for rev in revs:
-                        args = tr.hookargs.copy()
+                        args = tr2.hookargs.copy()
                         node = hex(cl.node(rev))
                         args.update(phases.preparehookargs(node, old, new))
                         repo.hook(
@@ -2721,7 +2415,7 @@ class localrepository(_localrepo_base_classes):
                 b'pretxnclose', throw=True, **pycompat.strkwargs(tr.hookargs)
             )
 
-        def releasefn(tr, success):
+        def releasefn(tr: TransactionT, success):
             repo = reporef()
             if repo is None:
                 # If the repo has been GC'd (and this release function is being
@@ -2751,11 +2445,12 @@ class localrepository(_localrepo_base_classes):
             self.store.createmode,
             validator=validate,
             releasefn=releasefn,
-            checkambigfiles=_cachedfiles,
+            checkambigfiles=cachedfiles,
             name=desc,
+            debug_abort=self.ui.config(b'devel', b'debug.abort-transaction'),
         )
-        for vfs_id, path in self._journalfiles():
-            tr.add_journal(vfs_id, path)
+        for vfs, path in self._journalfiles():
+            tr.add_journal(vfs, path)
         tr.changes[b'origrepolen'] = len(self)
         tr.changes[b'obsmarkers'] = set()
         tr.changes[b'phases'] = []
@@ -2764,10 +2459,8 @@ class localrepository(_localrepo_base_classes):
         tr.hookargs[b'txnid'] = txnid
         tr.hookargs[b'txnname'] = desc
         tr.hookargs[b'changes'] = tr.changes
-        # note: writing the fncache only during finalize mean that the file is
-        # outdated when running hooks. As fncache is used for streaming clone,
-        # this is not expected to break anything that happen during the hooks.
-        tr.addfinalize(b'flush-fncache', self.store.write)
+
+        self.store.schedule_write(tr)
 
         def txnclosehook(tr2):
             """To be run if transaction is successful, will schedule a hook run"""
@@ -2778,13 +2471,14 @@ class localrepository(_localrepo_base_classes):
             hookargs = tr2.hookargs
 
             def hookfunc(unused_success):
+                tr3: TransactionT = tr
                 repo = reporef()
                 assert repo is not None  # help pytype
 
                 if hook.hashook(repo.ui, b'txnclose-bookmark'):
-                    bmchanges = sorted(tr.changes[b'bookmarks'].items())
+                    bmchanges = sorted(tr3.changes[b'bookmarks'].items())
                     for name, (old, new) in bmchanges:
-                        args = tr.hookargs.copy()
+                        args = tr3.hookargs.copy()
                         args.update(bookmarks.preparehookargs(name, old, new))
                         repo.hook(
                             b'txnclose-bookmark',
@@ -2795,11 +2489,11 @@ class localrepository(_localrepo_base_classes):
                 if hook.hashook(repo.ui, b'txnclose-phase'):
                     cl = repo.unfiltered().changelog
                     phasemv = sorted(
-                        tr.changes[b'phases'], key=lambda r: r[0][0]
+                        tr3.changes[b'phases'], key=lambda r: r[0][0]
                     )
                     for revs, (old, new) in phasemv:
                         for rev in revs:
-                            args = tr.hookargs.copy()
+                            args = tr3.hookargs.copy()
                             node = hex(cl.node(rev))
                             args.update(phases.preparehookargs(node, old, new))
                             repo.hook(
@@ -2891,7 +2585,7 @@ class localrepository(_localrepo_base_classes):
                     vfsmap,
                     b"journal",
                     self.ui.warn,
-                    checkambigfiles=_cachedfiles,
+                    checkambigfiles=cachedfiles,
                 )
                 self.invalidate()
                 return True
@@ -2962,7 +2656,7 @@ class localrepository(_localrepo_base_classes):
             vfsmap,
             b'undo',
             ui.warn,
-            checkambigfiles=_cachedfiles,
+            checkambigfiles=cachedfiles,
             skip_journal_pattern=skip_journal_pattern,
         )
         self.invalidate()
@@ -3059,8 +2753,6 @@ class localrepository(_localrepo_base_classes):
         if repository.CACHE_MANIFESTLOG_CACHE in caches:
             self.manifestlog.update_caches(transaction=tr)
             for entry in self.store.walk():
-                if not entry.is_revlog:
-                    continue
                 if not entry.is_manifestlog:
                     continue
                 manifestrevlog = entry.get_revlog_instance(self).get_revlog()
@@ -3069,8 +2761,9 @@ class localrepository(_localrepo_base_classes):
 
         if repository.CACHE_REV_BRANCH in caches:
             rbc = unfi.revbranchcache()
-            for r in unfi.changelog:
-                rbc.branchinfo(r)
+            with unfi.changelog.reading():
+                for r in unfi.changelog:
+                    rbc.branchinfo(r)
             rbc.write()
 
         if repository.CACHE_FULL_MANIFEST in caches:
@@ -3167,7 +2860,7 @@ class localrepository(_localrepo_base_classes):
             # TODO: Changing contents of store outside transaction
             # causes inconsistency. We should make in-memory store
             # changes detectable, and abort if changed.
-            self.store.invalidatecaches()
+            self.store.invalidatecaches(clearfilecache=clearfilecache)
 
     def invalidateall(self):
         """Fully invalidates both store and non-store parts, causing the
@@ -3194,7 +2887,7 @@ class localrepository(_localrepo_base_classes):
         acquirefn,
         desc,
         steal_from=None,
-    ):
+    ) -> lockmod.lock:
         timeout = 0
         warntimeout = 0
         if wait:
@@ -3238,15 +2931,16 @@ class localrepository(_localrepo_base_classes):
 
         The callback will be executed when the outermost lock is released
         (with wlock being higher level than 'lock')."""
-        for ref in (self._wlockref, self._lockref):
-            l = ref and ref()
-            if l and l.held:
-                l.postrelease.append(callback)
-                break
+        wlock = self.currentwlock()
+        lock = self.currentlock()
+        if wlock is not None and wlock.held:
+            wlock.postrelease.append(callback)
+        elif lock is not None and lock.held:
+            lock.postrelease.append(callback)
         else:  # no lock have been found.
             callback(True)
 
-    def lock(self, wait=True, steal_from=None):
+    def lock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
         stripping). If you are opening a transaction, get a lock as well.)
@@ -3281,7 +2975,7 @@ class localrepository(_localrepo_base_classes):
         self._lockref = weakref.ref(l)
         return l
 
-    def wlock(self, wait=True, steal_from=None):
+    def wlock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the non-store parts of the repository (everything under
         .hg except .hg/store) and return a weak reference to the lock.
 
@@ -3340,20 +3034,22 @@ class localrepository(_localrepo_base_classes):
         self._wlockref = weakref.ref(l)
         return l
 
-    def _currentlock(self, lockref):
+    def _currentlock(
+        self,
+        lockref: weakref.ref[lockmod.lock] | None,
+    ) -> lockmod.lock | None:
         """Returns the lock if it's held, or None if it's not."""
-        if lockref is None:
+        if lockref is None or (l := lockref()) is None:
             return None
-        l = lockref()
-        if l is None or not l.held:
+        if not l.held:
             return None
         return l
 
-    def currentwlock(self):
+    def currentwlock(self) -> lockmod.lock | None:
         """Returns the wlock if it's held, or None if it's not."""
         return self._currentlock(self._wlockref)
 
-    def currentlock(self):
+    def currentlock(self) -> lockmod.lock | None:
         """Returns the lock if it's held, or None if it's not."""
         return self._currentlock(self._lockref)
 
@@ -3362,7 +3058,7 @@ class localrepository(_localrepo_base_classes):
         wctx,
         match: MatcherT,
         status: StatusT,
-        fail: Callable[[bytes], bytes],
+        fail: Callable[[bytes, bytes], bytes],
     ) -> None:
         """check for commit arguments that aren't committable"""
         if match.isexact() or match.prefix():
@@ -3385,7 +3081,6 @@ class localrepository(_localrepo_base_classes):
                 elif f not in self.dirstate:
                     fail(f, _(b"file not tracked!"))
 
-    @unfilteredmethod
     def commit(
         self,
         text=b"",
@@ -3414,6 +3109,9 @@ class localrepository(_localrepo_base_classes):
         if not force:
             match.bad = fail
 
+        ui = self.ui
+        unfi = self.unfiltered()
+
         # lock() for recent changelog (see issue4368)
         with self.wlock(), self.lock():
             wctx = self[None]
@@ -3435,7 +3133,7 @@ class localrepository(_localrepo_base_classes):
 
             # check subrepos
             subs, commitsubs, newstate = subrepoutil.precommit(
-                self.ui, wctx, status, match, force=force
+                ui, wctx, status, match, force=force
             )
 
             # make sure all explicit patterns are matched
@@ -3446,14 +3144,12 @@ class localrepository(_localrepo_base_classes):
                 self, status, text, user, date, extra
             )
 
-            ms = mergestatemod.mergestate.read(self)
+            ms = self.mergestate()
             mergeutil.checkunresolved(ms)
 
             # internal config: ui.allowemptycommit
-            if cctx.isempty() and not self.ui.configbool(
-                b'ui', b'allowemptycommit'
-            ):
-                self.ui.debug(b'nothing to commit, clearing merge state\n')
+            if cctx.isempty() and not ui.configbool(b'ui', b'allowemptycommit'):
+                ui.debug(b'nothing to commit, clearing merge state\n')
                 ms.reset()
                 return None
 
@@ -3474,7 +3170,7 @@ class localrepository(_localrepo_base_classes):
                 uipathfn = scmutil.getuipathfn(self)
                 for s in sorted(commitsubs):
                     sub = wctx.sub(s)
-                    self.ui.status(
+                    ui.status(
                         _(b'committing subrepository %s\n')
                         % uipathfn(subrepoutil.subrelpath(sub))
                     )
@@ -3489,17 +3185,17 @@ class localrepository(_localrepo_base_classes):
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
                 with self.transaction(b'commit'):
-                    ret = self.commitctx(cctx, True)
+                    ret = unfi.commitctx(cctx, True)
                     # update bookmarks, dirstate and mergestate
                     bookmarks.update(self, [p1, p2], ret)
                     cctx.markcommitted(ret)
                     ms.reset()
             except:  # re-raises
                 if edited:
-                    self.ui.write(
+                    ui.write(
                         _(b'note: commit message saved in %s\n') % msg_path
                     )
-                    self.ui.write(
+                    ui.write(
                         _(
                             b"note: use 'hg commit --logfile "
                             b"%s --edit' to reuse it\n"
@@ -3571,10 +3267,17 @@ class localrepository(_localrepo_base_classes):
         clean: bool = False,
         unknown: bool = False,
         listsubrepos: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         '''a convenience method that calls node1.status(node2)'''
         return self[node1].status(
-            node2, match, ignored, clean, unknown, listsubrepos
+            node2,
+            match,
+            ignored,
+            clean,
+            unknown,
+            listsubrepos,
+            empty_dirs_keep_files,
         )
 
     def addpostdsstatus(self, ps):
@@ -3616,27 +3319,6 @@ class localrepository(_localrepo_base_classes):
         heads = self.changelog.heads(start)
         # sort the output in rev descending order
         return sorted(heads, key=self.changelog.rev, reverse=True)
-
-    def branchheads(self, branch=None, start=None, closed=False):
-        """return a (possibly filtered) list of heads for the given branch
-
-        Heads are returned in topological order, from newest to oldest.
-        If branch is None, use the dirstate branch.
-        If start is not None, return only heads reachable from start.
-        If closed is True, return heads that are marked as closed as well.
-        """
-        if branch is None:
-            branch = self[None].branch()
-        branches = self.branchmap()
-        if not branches.hasbranch(branch):
-            return []
-        # the cache returns heads ordered lowest to highest
-        bheads = list(reversed(branches.branchheads(branch, closed=closed)))
-        if start is not None:
-            # filter out the heads that cannot be reached from startrev
-            fbheads = set(self.changelog.nodesbetween([start], bheads)[2])
-            bheads = [h for h in bheads if h in fbheads]
-        return bheads
 
     def branches(self, nodes):
         if not nodes:
@@ -3779,7 +3461,6 @@ def undoname(fn: bytes) -> bytes:
 
 def instance(ui, path: bytes, create, intents=None, createopts=None):
     # prevent cyclic import localrepo -> upgrade -> localrepo
-    from . import upgrade
 
     localpath = urlutil.urllocalpath(path)
     if create:
@@ -3789,7 +3470,7 @@ def instance(ui, path: bytes, create, intents=None, createopts=None):
         return makelocalrepository(ui, localpath, intents=intents)
 
     repo = repo_maker()
-    repo = upgrade.may_auto_upgrade(repo, repo_maker)
+    repo = auto_upgrade.may_auto_upgrade(repo, repo_maker)
     return repo
 
 
@@ -3797,313 +3478,49 @@ def islocal(path: bytes) -> bool:
     return True
 
 
-def defaultcreateopts(ui, createopts=None):
-    """Populate the default creation options for a repository.
-
-    A dictionary of explicitly requested creation options can be passed
-    in. Missing keys will be populated.
-    """
-    createopts = dict(createopts or {})
-
-    if b'backend' not in createopts:
-        # experimental config: storage.new-repo-backend
-        createopts[b'backend'] = ui.config(b'storage', b'new-repo-backend')
-
-    return createopts
+def defaultcreateopts(ui, *args, **kwargs):
+    msg = (
+        b'`defaultcreateopts(...)` moved to '
+        b'`repo.creation.default_create_opts(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
+    return creation.default_create_opts(ui, *args, **kwargs)
 
 
-def clone_requirements(ui, createopts, srcrepo):
-    """clone the requirements of a local repo for a local clone
-
-    The store requirements are unchanged while the working copy requirements
-    depends on the configuration
-    """
-    target_requirements = set()
-    if not srcrepo.requirements:
-        # this is a legacy revlog "v0" repository, we cannot do anything fancy
-        # with it.
-        return target_requirements
-    createopts = defaultcreateopts(ui, createopts=createopts)
-    for r in newreporequirements(ui, createopts):
-        if r in requirementsmod.WORKING_DIR_REQUIREMENTS:
-            target_requirements.add(r)
-
-    for r in srcrepo.requirements:
-        if r not in requirementsmod.WORKING_DIR_REQUIREMENTS:
-            target_requirements.add(r)
-    return target_requirements
+def filterknowncreateopts(ui, *args, **kwargs):
+    msg = (
+        b'`filterknowncreateopts(...)` moved to '
+        b'`repo.creation.filter_known_create_opts(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
+    return creation.filter_known_create_opts(ui, *args, **kwargs)
 
 
-def newreporequirements(ui, createopts):
-    """Determine the set of requirements for a new local repository.
-
-    Extensions can wrap this function to specify custom requirements for
-    new repositories.
-    """
-
-    if b'backend' not in createopts:
-        raise error.ProgrammingError(
-            b'backend key not present in createopts; '
-            b'was defaultcreateopts() called?'
-        )
-
-    if createopts[b'backend'] != b'revlogv1':
-        raise error.Abort(
-            _(
-                b'unable to determine repository requirements for '
-                b'storage backend: %s'
-            )
-            % createopts[b'backend']
-        )
-
-    requirements = {requirementsmod.REVLOGV1_REQUIREMENT}
-    if ui.configbool(b'format', b'usestore'):
-        requirements.add(requirementsmod.STORE_REQUIREMENT)
-        if ui.configbool(b'format', b'usefncache'):
-            requirements.add(requirementsmod.FNCACHE_REQUIREMENT)
-            if ui.configbool(b'format', b'dotencode'):
-                requirements.add(requirementsmod.DOTENCODE_REQUIREMENT)
-
-    if ui.configbool(
-        b'format',
-        b'exp-use-very-fragile-and-unsafe-plain-store-encoding',
-    ):
-        if requirementsmod.STORE_REQUIREMENT not in requirements:
-            msg = _(b'"plain encoding" requires using the store')
-            hint = _(b'set "format.usestore=yes"')
-            raise error.Abort(msg, hint=hint)
-        if requirementsmod.FNCACHE_REQUIREMENT not in requirements:
-            msg = _(b'"plain encoding" requires using the fncache')
-            hint = _(b'set "format.usefncache=yes"')
-            raise error.Abort(msg, hint=hint)
-        if requirementsmod.DOTENCODE_REQUIREMENT in requirements:
-            msg = _(b'"plain encoding" is incompatible with dotencode')
-            hint = _(b'set "format.dotencode=no"')
-            raise error.Abort(msg, hint=hint)
-        requirements.add(requirementsmod.PLAIN_ENCODE_REQUIREMENT)
-
-    compengines = ui.configlist(b'format', b'revlog-compression')
-    for compengine in compengines:
-        if compengine in util.compengines:
-            engine = util.compengines[compengine]
-            if engine.available() and engine.revlogheader():
-                break
-    else:
-        raise error.Abort(
-            _(
-                b'compression engines %s defined by '
-                b'format.revlog-compression not available'
-            )
-            % b', '.join(b'"%s"' % e for e in compengines),
-            hint=_(
-                b'run "hg debuginstall" to list available '
-                b'compression engines'
-            ),
-        )
-
-    # zlib is the historical default and doesn't need an explicit requirement.
-    if compengine == b'zstd':
-        requirements.add(b'revlog-compression-zstd')
-    elif compengine != b'zlib':
-        requirements.add(b'exp-compression-%s' % compengine)
-
-    enabled_gd = scmutil.gdinitconfig(ui)
-    if enabled_gd:
-        requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
-    if ui.configbool(b'format', b'sparse-revlog'):
-        explicit_gd = scmutil.explicit_gd_config(ui)
-        explicit_sr = ui.config_is_set(b'format', b'sparse-revlog')
-        # If sparse-revlog is implicitly added, but generaldelta is explicitly
-        # disabled, prioritize the explicit config and disable sparse-revlog
-        #
-        # If sparse-revlog is explicitly set, respect it enable sparse-revlog
-        # anyway (force enabling general delta in the process).
-        if explicit_sr or not explicit_gd or enabled_gd:
-            requirements.add(requirementsmod.SPARSEREVLOG_REQUIREMENT)
-
-    # experimental config: format.use-dirstate-v2
-    # Keep this logic in sync with `has_dirstate_v2()` in `tests/hghave.py`
-    if ui.configbool(b'format', b'use-dirstate-v2'):
-        requirements.add(requirementsmod.DIRSTATE_V2_REQUIREMENT)
-
-    # experimental config: format.exp-use-hasmeta-flag
-    if ui.configbool(b'format', b'exp-use-hasmeta-flag'):
-        requirements.add(requirementsmod.FILELOG_METAFLAG_REQUIREMENT)
-
-    # experimental config: format.exp-use-hasmeta-flag
-    if ui.configbool(b'format', b'exp-use-delta-info-flags'):
-        requirements.add(requirementsmod.DELTA_INFO_REQUIREMENT)
-
-    # enforce requirement dependencies
-    #
-    # note: In practice this mean we don't need to explicitly use the
-    # "generaldelta" requirement for repository that already have the
-    # "sparserevlog" requirement, etc…
-    #
-    # In practice this has been the case for a while and older clients might
-    # rely on it. The redundancy does not hurt for now, but we could consider
-    # using such implicit approach for newly introduced requirements.
-    if requirementsmod.DELTA_INFO_REQUIREMENT in requirements:
-        requirements.add(requirementsmod.SPARSEREVLOG_REQUIREMENT)
-    if requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements:
-        requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
-
-    # experimental config: format.exp-use-copies-side-data-changeset
-    if ui.configbool(b'format', b'exp-use-copies-side-data-changeset'):
-        requirements.add(requirementsmod.CHANGELOGV2_REQUIREMENT)
-        requirements.add(requirementsmod.COPIESSDC_REQUIREMENT)
-    if ui.configbool(b'experimental', b'treemanifest'):
-        requirements.add(requirementsmod.TREEMANIFEST_REQUIREMENT)
-
-    changelogv2 = ui.config(b'format', b'exp-use-changelog-v2')
-    if changelogv2 == b'enable-unstable-format-and-corrupt-my-data':
-        requirements.add(requirementsmod.CHANGELOGV2_REQUIREMENT)
-
-    revlogv2 = ui.config(b'experimental', b'revlogv2')
-    if revlogv2 == b'enable-unstable-format-and-corrupt-my-data':
-        requirements.discard(requirementsmod.REVLOGV1_REQUIREMENT)
-        requirements.add(requirementsmod.REVLOGV2_REQUIREMENT)
-    # experimental config: format.internal-phase
-    if ui.configbool(b'format', b'use-internal-phase'):
-        requirements.add(requirementsmod.INTERNAL_PHASE_REQUIREMENT)
-
-    # experimental config: format.exp-archived-phase
-    if ui.configbool(b'format', b'exp-archived-phase'):
-        requirements.add(requirementsmod.ARCHIVED_PHASE_REQUIREMENT)
-
-    if createopts.get(b'narrowfiles'):
-        requirements.add(requirementsmod.NARROW_REQUIREMENT)
-
-    if createopts.get(b'lfs'):
-        requirements.add(b'lfs')
-
-    if ui.configbool(b'format', b'bookmarks-in-store'):
-        requirements.add(requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT)
-
-    # The feature is disabled unless a fast implementation is available.
-    persistent_nodemap_default = policy.importrust('revlog') is not None
-    if ui.configbool(
-        b'format', b'use-persistent-nodemap', persistent_nodemap_default
-    ):
-        requirements.add(requirementsmod.NODEMAP_REQUIREMENT)
-
-    # if share-safe is enabled, let's create the new repository with the new
-    # requirement
-    if ui.configbool(b'format', b'use-share-safe'):
-        requirements.add(requirementsmod.SHARESAFE_REQUIREMENT)
-
-    # if we are creating a share-repo¹  we have to handle requirement
-    # differently.
-    #
-    # [1] (i.e. reusing the store from another repository, just having a
-    # working copy)
-    if b'sharedrepo' in createopts:
-        source_requirements = set(createopts[b'sharedrepo'].requirements)
-
-        if requirementsmod.SHARESAFE_REQUIREMENT not in source_requirements:
-            # share to an old school repository, we have to copy the
-            # requirements and hope for the best.
-            requirements = source_requirements
-        else:
-            # We have control on the working copy only, so "copy" the non
-            # working copy part over, ignoring previous logic.
-            to_drop = set()
-            for req in requirements:
-                if req in requirementsmod.WORKING_DIR_REQUIREMENTS:
-                    continue
-                if req in source_requirements:
-                    continue
-                to_drop.add(req)
-            requirements -= to_drop
-            requirements |= source_requirements
-
-        if createopts.get(b'sharedrelative'):
-            requirements.add(requirementsmod.RELATIVE_SHARED_REQUIREMENT)
-        else:
-            requirements.add(requirementsmod.SHARED_REQUIREMENT)
-
-    if ui.configbool(b'format', b'use-dirstate-tracked-hint'):
-        version = ui.configint(b'format', b'use-dirstate-tracked-hint.version')
-        msg = _(b"ignoring unknown tracked key version: %d\n")
-        hint = _(
-            b"see `hg help config.format.use-dirstate-tracked-hint-version"
-        )
-        if version != 1:
-            ui.warn(msg % version, hint=hint)
-        else:
-            requirements.add(requirementsmod.DIRSTATE_TRACKED_HINT_V1)
-
-    return requirements
+def clone_requirements(ui, *args, **kwargs):
+    msg = (
+        b'`clone_requirements(...)` moved to '
+        b'`repo.creation.clone_requirements(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
+    return creation.clone_requirements(ui, *args, **kwargs)
 
 
-def checkrequirementscompat(ui, requirements):
-    """Checks compatibility of repository requirements enabled and disabled.
-
-    Returns a set of requirements which needs to be dropped because dependend
-    requirements are not enabled. Also warns users about it"""
-
-    dropped = set()
-
-    if requirementsmod.STORE_REQUIREMENT not in requirements:
-        if requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT in requirements:
-            ui.warn(
-                _(
-                    b'ignoring enabled \'format.bookmarks-in-store\' config '
-                    b'beacuse it is incompatible with disabled '
-                    b'\'format.usestore\' config\n'
-                )
-            )
-            dropped.add(requirementsmod.BOOKMARKS_IN_STORE_REQUIREMENT)
-
-        if (
-            requirementsmod.SHARED_REQUIREMENT in requirements
-            or requirementsmod.RELATIVE_SHARED_REQUIREMENT in requirements
-        ):
-            raise error.Abort(
-                _(
-                    b"cannot create shared repository as source was created"
-                    b" with 'format.usestore' config disabled"
-                )
-            )
-
-        if requirementsmod.SHARESAFE_REQUIREMENT in requirements:
-            if ui.hasconfig(b'format', b'use-share-safe'):
-                msg = _(
-                    b"ignoring enabled 'format.use-share-safe' config because "
-                    b"it is incompatible with disabled 'format.usestore'"
-                    b" config\n"
-                )
-                ui.warn(msg)
-            dropped.add(requirementsmod.SHARESAFE_REQUIREMENT)
-
-    return dropped
+def newreporequirements(ui, *args, **kwargs):
+    msg = (
+        b'`newreporequirements(...)` moved to '
+        b'`repo.creation.new_repo_requirements(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
+    return creation.new_repo_requirements(ui, *args, **kwargs)
 
 
-def filterknowncreateopts(ui, createopts):
-    """Filters a dict of repo creation options against options that are known.
-
-    Receives a dict of repo creation options and returns a dict of those
-    options that we don't know how to handle.
-
-    This function is called as part of repository creation. If the
-    returned dict contains any items, repository creation will not
-    be allowed, as it means there was a request to create a repository
-    with options not recognized by loaded code.
-
-    Extensions can wrap this function to filter out creation options
-    they know how to handle.
-    """
-    known = {
-        b'backend',
-        b'lfs',
-        b'narrowfiles',
-        b'sharedrepo',
-        b'sharedrelative',
-        b'shareditems',
-        b'shallowfilestore',
-    }
-
-    return {k: v for k, v in createopts.items() if k not in known}
+def checkrequirementscompat(ui, *args, **kwargs):
+    msg = (
+        b'`checkrequirementscompat(...)` moved to '
+        b'`repo.creation.check_requirements_compat(...)`'
+    )
+    ui.deprecwarn(msg, b'7.3')
+    return creation.check_requirements_compat(ui, *args, **kwargs)
 
 
 def createrepository(ui, path: bytes, createopts=None, requirements=None):
@@ -4142,13 +3559,13 @@ def createrepository(ui, path: bytes, createopts=None, requirements=None):
             raise error.ProgrammingError(msg)
         createopts = {}
     else:
-        createopts = defaultcreateopts(ui, createopts=createopts)
+        createopts = creation.default_create_opts(ui, createopts=createopts)
 
-        unknownopts = filterknowncreateopts(ui, createopts)
+        unknownopts = creation.filter_known_create_opts(ui, createopts)
 
         if not isinstance(unknownopts, dict):
             raise error.ProgrammingError(
-                b'filterknowncreateopts() did not return a dict'
+                b'filter_known_create_opts() did not return a dict'
             )
 
         if unknownopts:
@@ -4161,8 +3578,8 @@ def createrepository(ui, path: bytes, createopts=None, requirements=None):
                 hint=_(b'is a required extension not loaded?'),
             )
 
-        requirements = newreporequirements(ui, createopts=createopts)
-        requirements -= checkrequirementscompat(ui, requirements)
+        requirements = creation.new_repo_requirements(ui, createopts=createopts)
+        requirements -= creation.check_requirements_compat(ui, requirements)
 
     wdirvfs = vfsmod.vfs(path, expandpath=True, realpath=True)
 

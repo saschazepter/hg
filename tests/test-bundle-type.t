@@ -578,7 +578,7 @@ test invalid bundle type
 
 Test controlling the changegroup version
 
-  $ hg -R t1 bundle --config experimental.changegroup3=yes -a -t v2 ./v2-cg-default.hg
+  $ hg -R t1 bundle -a -t v2 ./v2-cg-default.hg
   7 changesets found
   $ hg debugbundle ./v2-cg-default.hg --part-type changegroup
   Stream params: {Compression: BZ}
@@ -592,7 +592,7 @@ Test controlling the changegroup version
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   $ hg debugbundle ./v2-cg-default.hg --spec
   bzip2-v2
-  $ hg -R t1 bundle --config experimental.changegroup3=yes -a -t 'v2;cg.version=02' ./v2-cg-02.hg
+  $ hg -R t1 bundle -a -t 'v2;cg.version=02' ./v2-cg-02.hg
   7 changesets found
   $ hg debugbundle ./v2-cg-02.hg --part-type changegroup
   Stream params: {Compression: BZ}
@@ -606,7 +606,7 @@ Test controlling the changegroup version
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   $ hg debugbundle ./v2-cg-02.hg --spec
   bzip2-v2
-  $ hg -R t1 bundle --config experimental.changegroup3=yes -a -t 'v2;cg.version=03' ./v2-cg-03.hg
+  $ hg -R t1 bundle -a -t 'v2;cg.version=03' ./v2-cg-03.hg
   7 changesets found
   $ hg debugbundle ./v2-cg-03.hg --part-type changegroup
   Stream params: {Compression: BZ}
@@ -620,6 +620,52 @@ Test controlling the changegroup version
       b9f5f740a8cd76700020e3903ee55ecff78bd3e5
   $ hg debugbundle ./v2-cg-03.hg --spec
   bzip2-v2;cg.version=03
+
+Test changegroupv4 variants
+---------------------------
+
+without compressed delta
+
+  $ hg -R t1 bundle -a -t 'v2;cg.version=04' ./v2-cg-04.hg
+  7 changesets found
+  $ hg debugbundle ./v2-cg-04.hg --spec
+  bzip2-v2;cg.version=04
+
+with uncompressed delta only
+
+  $ FOO=1 hg -R t1 bundle -a -t 'v2;cg.version=04;cg.delta-compression=none' ./v2-cg-04-un-comp.hg
+  7 changesets found
+  $ hg debugbundle ./v2-cg-04-un-comp.hg --spec
+  bzip2-v2;cg.delta-compression=none;cg.version=04
+
+with uncompressed and zlib delta only
+
+  $ hg -R t1 bundle -a -t 'v2;cg.version=04;cg.delta-compression=none,zlib' ./v2-cg-04-un-zlib-comp.hg
+  7 changesets found
+  $ hg debugbundle ./v2-cg-04-un-zlib-comp.hg --spec
+  bzip2-v2;cg.delta-compression=none,zlib;cg.version=04
+
+
+with uncompressed, zlib and zstd delta
+
+  $ hg -R t1 bundle -a -t 'v2;cg.version=04;cg.delta-compression=none,zlib,zstd' ./v2-cg-04-any-comp.hg
+  7 changesets found
+  $ hg -R t1 debugformat compression
+  format-variant                 repo
+  compression:                    zlib (no-zstd !)
+  compression:                    zstd (zstd !)
+  compression-level:              default
+  $ hg debugbundle ./v2-cg-04-any-comp.hg --spec
+  bzip2-v2;cg.delta-compression=none,zlib;cg.version=04 (no-zstd !)
+  bzip2-v2;cg.delta-compression=none,zlib,zstd;cg.version=04 (zstd !)
+
+
+with unknown compression
+
+  $ hg -R t1 bundle -a -t 'v2;cg.version=04;cg.delta-compression=xxx,yyy' ./v2-cg-04-xx-comp.hg
+  7 changesets found
+  $ hg debugbundle ./v2-cg-04-xx-comp.hg --spec
+  bzip2-v2;cg.version=04
 
 tests controlling bundle contents
 =================================

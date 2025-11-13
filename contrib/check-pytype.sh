@@ -43,30 +43,14 @@ pytype --version
 # hgext/narrow/narrowbundle2.py # [attribute-error]
 # hgext/narrow/narrowcommands.py    # [attribute-error], [name-error]
 # hgext/rebase.py               # [attribute-error]
-# hgext/remotefilelog/basepack.py   # [attribute-error], [wrong-arg-count]
-# hgext/remotefilelog/basestore.py  # [attribute-error]
-# hgext/remotefilelog/contentstore.py   # [missing-parameter], [wrong-keyword-args], [attribute-error]
-# hgext/remotefilelog/fileserverclient.py  # [attribute-error]
-# hgext/remotefilelog/shallowbundle.py     # [attribute-error]
-# hgext/remotefilelog/remotefilectx.py  # [module-attr] (This is an actual bug)
 # hgext/zeroconf/__init__.py    # bytes vs str; tests fail on macOS
 #
 # mercurial/context.py          # many [attribute-error]
-# mercurial/crecord.py          # tons of [attribute-error], [module-attr]
 # mercurial/debugcommands.py    # [wrong-arg-types]
-# mercurial/dispatch.py         # initstdio: No attribute ... on TextIO [attribute-error]
-# mercurial/exchange.py         # [attribute-error]
-# mercurial/hgweb/hgweb_mod.py  # [attribute-error], [name-error], [wrong-arg-types]
-# mercurial/hgweb/server.py     # [attribute-error], [name-error], [module-attr]
-# mercurial/hgweb/wsgicgi.py    # confused values in os.environ
-# mercurial/httppeer.py         # [attribute-error], [wrong-arg-types]
-# mercurial/keepalive.py        # [attribute-error]
-# mercurial/localrepo.py        # [attribute-error]
 # mercurial/minirst.py          # [unsupported-operands], [attribute-error]
 # mercurial/repoview.py         # [attribute-error]
 # mercurial/testing/storage.py  # tons of [attribute-error]
 # mercurial/win32.py            # [not-callable]
-# mercurial/wireprotov1server.py  # BUG?: BundleValueError handler accesses subclass's attrs
 
 # TODO: use --no-cache on test server?  Caching the files locally helps during
 #       development, but may be a hinderance for CI testing.
@@ -112,30 +96,14 @@ pytype --keep-going --jobs auto \
     -x hgext/narrow/narrowbundle2.py \
     -x hgext/narrow/narrowcommands.py \
     -x hgext/rebase.py \
-    -x hgext/remotefilelog/basepack.py \
-    -x hgext/remotefilelog/basestore.py \
-    -x hgext/remotefilelog/contentstore.py \
-    -x hgext/remotefilelog/fileserverclient.py \
-    -x hgext/remotefilelog/remotefilectx.py \
-    -x hgext/remotefilelog/shallowbundle.py \
     -x hgext/zeroconf/__init__.py \
     -x mercurial/context.py \
-    -x mercurial/crecord.py \
     -x mercurial/debugcommands.py \
-    -x mercurial/dispatch.py \
-    -x mercurial/exchange.py \
-    -x mercurial/hgweb/hgweb_mod.py \
-    -x mercurial/hgweb/server.py \
-    -x mercurial/hgweb/wsgicgi.py \
-    -x mercurial/httppeer.py \
-    -x mercurial/keepalive.py \
-    -x mercurial/localrepo.py \
     -x mercurial/minirst.py \
     -x mercurial/repoview.py \
     -x mercurial/testing/storage.py \
     -x mercurial/thirdparty \
     -x mercurial/win32.py \
-    -x mercurial/wireprotov1server.py \
     | ts -i "(%.s)" | ts -s "%.s"
 
 if find .pytype/pyi -name '*.pyi' | xargs grep -ql '# Caught error'; then

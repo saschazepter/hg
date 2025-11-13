@@ -1,4 +1,3 @@
-#require no-chg
 
 #testcases bundle1 bundle2
 
@@ -549,5 +548,68 @@ Pushing via hgwebdir works
   remote: added 1 changesets with 1 changes to 1 files
 
   $ killdaemons.py
+
+
+Missing web configuration
+=========================
+
+Show behavior with an invalid filesystem path.  The aborts happen before
+daemonizing, but the kill is in place in case something goes awry.
+
+Case 1: missing path component with a double glob
+  $ cat > web-enoent.conf << EOF
+  > [paths]
+  > / = missing/**
+  > EOF
+
+  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid
+  abort: $ENOENT$: '$TESTTMP/hgwebdir-local/missing'
+  [255]
+  $ killdaemons.py hg.pid
+
+Case 2: missing path component with a single glob
+  $ cat > web-enoent.conf << EOF
+  > [paths]
+  > / = missing/*
+  > EOF
+
+  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid
+  abort: $ENOENT$: '$TESTTMP/hgwebdir-local/missing'
+  [255]
+  $ killdaemons.py hg.pid
+
+Case 3: missing path component of a vanilla path
+  $ cat > web-enoent.conf << EOF
+  > [paths]
+  > /missing = missing
+  > EOF
+
+  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
+  abort: filesystem path is not a repository: 'missing'
+  (this was mapped to server path 'missing')
+  [10]
+
+Path exists, but is not a repo
+  $ mkdir -p missing
+  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
+  abort: filesystem path is not a repository: 'missing'
+  (this was mapped to server path 'missing')
+  [10]
+
+What happens when we fake a repo?  Looks like we get something repo-adjacent,
+but not initialized on disk.
+
+  $ mkdir -p missing/.hg
+  $ hg serve --web-conf web-enoent.conf -p $HGPORT -d --pid-file hg.pid -E errors.log
+
+  $ hg id http://localhost:$HGPORT/missing
+  000000000000
+  $ find missing/.hg | sort
+  missing/.hg
+
+  $ killdaemons.py hg.pid
+
+  $ cat errors.log | "$PYTHON" $TESTDIR/filtertraceback.py
+  $ rm -f errors.log
 
   $ cd ..

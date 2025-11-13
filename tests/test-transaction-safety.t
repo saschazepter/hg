@@ -17,6 +17,8 @@ Test transaction safety
   $ cat << EOF >> $HGRCPATH
   > [experimental]
   > revlogv2=enable-unstable-format-and-corrupt-my-data
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 
 #endif

@@ -17,10 +17,12 @@ import contextlib
 import typing
 
 from .i18n import _
+from .interfaces.types import (
+    RevnumT,
+)
 
 from . import (
     changelog,
-    cmdutil,
     encoding,
     error,
     filelog,
@@ -28,6 +30,7 @@ from . import (
     manifest,
     mdiff,
     pathutil,
+    repo as repo_utils,
     revlog,
     util,
     vfs as vfsmod,
@@ -74,7 +77,7 @@ class unionrevlog(revlog.revlog):
             # rev numbers - in revlog2, very different from self.rev
             (
                 _start,
-                _csize,
+                csize,
                 rsize,
                 base,
                 linkrev,
@@ -111,7 +114,7 @@ class unionrevlog(revlog.revlog):
             # I have no idea if csize is valid in the base revlog context.
             e = (
                 flags,
-                -1,
+                csize,
                 rsize,
                 base,
                 link,
@@ -146,7 +149,12 @@ class unionrevlog(revlog.revlog):
             return super()._inner._chunk(rev)
         return self.revlog2._chunk(self.node(rev))
 
-    def revdiff(self, rev1, rev2):
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
         """return or calculate a delta between two revisions"""
         if rev1 > self.repotiprev and rev2 > self.repotiprev:
             return self.revlog2.revdiff(
@@ -156,7 +164,16 @@ class unionrevlog(revlog.revlog):
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
             return super().revdiff(rev1, rev2)
 
-        return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
+        old = self.rawdata(rev1, validate=False)
+        new = self.rawdata(rev2, validate=False)
+        if extra_delta is not None:
+            base = new
+            new = mdiff.full_text_from_delta(
+                extra_delta,
+                len(new),
+                lambda: base,
+            )
+        return self._diff_fn(old, new)
 
     def _revisiondata(self, nodeorrev, raw=False, validate=True):
         if isinstance(nodeorrev, int):
@@ -173,6 +190,15 @@ class unionrevlog(revlog.revlog):
         else:
             func = super()._revisiondata
         return func(node, raw=raw)
+
+    def issnapshot(self, rev):
+        if rev > self.repotiprev:
+            return False
+        is_snap = super().issnapshot(rev)
+        if 'issnapshot' in vars(self):
+            # drop the fast access setup by the subclass
+            del self.issnapshot
+        return is_snap
 
     def addrevision(
         self,
@@ -236,9 +262,10 @@ class unionfilelog(filelog.filelog):
     repotiprev: int
     revlog2: revlog.revlog
 
-    def __init__(self, opener, path, opener2, linkmapper, repo):
-        filelog.filelog.__init__(self, opener, path, writable=False)
-        filelog2 = filelog.filelog(opener2, path, writable=False)
+    def __init__(self, opener, path, radix, opener2, linkmapper, repo):
+        filelog.filelog.__init__(self, opener, path, radix, writable=False)
+        # XXX reusing the same radix here will be a problem
+        filelog2 = filelog.filelog(opener2, path, radix, writable=False)
         self._revlog = unionrevlog(
             opener, self._revlog.radix, filelog2._revlog, linkmapper
         )
@@ -304,8 +331,14 @@ class unionrepository(_union_repo_baseclass):
         return self._url
 
     def file(self, f):
+        radix = self.store.filelog_radix_for_reading(f)
         return unionfilelog(
-            self.svfs, f, self.repo2.svfs, self.unfiltered()._clrev, self
+            self.svfs,
+            f,
+            radix,
+            self.repo2.svfs,
+            self.unfiltered()._clrev,
+            self,
         )
 
     def close(self):
@@ -327,7 +360,7 @@ def instance(ui, path, create, intents=None, createopts=None):
     parentpath = ui.config(b"bundle", b"mainreporoot")
     if not parentpath:
         # try to find the correct path to the working directory repo
-        parentpath = cmdutil.findrepo(encoding.getcwd())
+        parentpath = repo_utils.find_repo(encoding.getcwd())
         if parentpath is None:
             parentpath = b''
     if parentpath:

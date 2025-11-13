@@ -13,7 +13,21 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import (
+    Any,
+    Dict,
+    List,
+    Tuple,
+    Union,
+)
+
+Capabilities = Dict[bytes, Union[List[bytes], Tuple[bytes, ...]]]
+
+NeedsTypeHint = Any
+"""A custom version of Any to signal a that Any was used temporarily
+
+Feel free to turn occurrences of this in proper typing.
+"""
 
 UserMsgT = bytes
 """Text (maybe) displayed to the user."""
@@ -28,9 +42,6 @@ FsPathT = bytes
 # useful to richer annotations.
 NodeIdT = bytes
 """a nodeid identifier"""
-
-# TODO: create a Protocol class,
-RepoT = Any
 
 # TODO: create a Protocol class,
 RevlogT = Any

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import binascii
 import os
+import typing
 
 from .i18n import _
 from .node import hex
@@ -24,7 +25,6 @@ from . import (
     hook,
     pushkey as pushkeymod,
     pycompat,
-    repoview,
     requirements as requirementsmod,
     streamclone,
     util,
@@ -35,6 +35,23 @@ from .utils import (
     procutil,
     stringutil,
 )
+from .exchanges import (
+    bundle_cache as bundle_cache_util,
+    bundle_caps,
+    peer,
+)
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
+
+    _C = TypeVar("_C", bound=Callable)
+
+    from .interfaces.types import (
+        RepoT,
+    )
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -69,18 +86,8 @@ def getdispatchrepo(repo, proto, command, accesshidden=False):
     extensions that need commands to operate on different repo views under
     specialized circumstances.
     """
-    viewconfig = repo.ui.config(b'server', b'view')
-
-    # Only works if the filter actually supports being upgraded to show hidden
-    # changesets.
-    if (
-        accesshidden
-        and viewconfig is not None
-        and viewconfig + b'.hidden' in repoview.filtertable
-    ):
-        viewconfig += b'.hidden'
-
-    return repo.filtered(viewconfig)
+    view = peer.server_filtername(repo, accesshidden)
+    return repo.filtered(view)
 
 
 def dispatch(repo, proto, command, accesshidden=False):
@@ -139,7 +146,11 @@ def bundle1allowed(repo, action):
 commands = wireprototypes.commanddict()
 
 
-def wireprotocommand(name, args=None, permission=b'push'):
+def wireprotocommand(
+    name: bytes,
+    args: bytes | None = None,
+    permission: bytes = b'push',
+) -> Callable[[_C], _C]:
     """Decorator to declare a wire protocol command.
 
     ``name`` is the name of the wire protocol command being provided.
@@ -244,11 +255,12 @@ def between(repo, proto, pairs):
 
 
 @wireprotocommand(b'branchmap', permission=b'pull')
-def branchmap(repo, proto):
+def branchmap(repo: RepoT, proto):
     branchmap = repo.branchmap()
     heads = []
-    for branch, nodes in branchmap.items():
+    for branch in branchmap:
         branchname = urlreq.quote(encoding.fromlocal(branch))
+        nodes = branchmap.branchheads(branch, closed=True)
         branchnodes = wireprototypes.encodelist(nodes)
         heads.append(b'%s %s' % (branchname, branchnodes))
 
@@ -308,11 +320,16 @@ def clonebundles(repo, proto):
     This version filtered out new url scheme (like peer-bundle-cache://) to
     avoid confusion in older clients.
     """
-    manifest_contents = bundlecaches.get_manifest(repo)
+    manifest_lines = bundle_cache_util.get_manifest_lines(repo)
     # Filter out peer-bundle-cache:// entries
     modified_manifest = []
-    for line in manifest_contents.splitlines():
+    for line in manifest_lines:
         if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
+            continue
+        parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
+        if parsed is not None and parsed.get(b'STORE-FINGERPRINT'):
+            # Filter out fingerprinted clonebundles for older clients that
+            # can't understand them
             continue
         modified_manifest.append(line)
     modified_manifest.append(b'')
@@ -333,8 +350,8 @@ def clonebundles_2(repo, proto, args):
     in case a client does not support them.
     Otherwise, older clients would retrieve and error out on those.
     """
-    manifest_contents = bundlecaches.get_manifest(repo)
-    return wireprototypes.bytesresponse(manifest_contents)
+    manifest_lines = bundle_cache_util.get_manifest_lines(repo)
+    return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
 
 wireprotocaps = [
@@ -376,7 +393,9 @@ def _capabilities(repo, proto):
         else:
             caps.append(b'streamreqs=%s' % b','.join(sorted(requiredformats)))
     if repo.ui.configbool(b'experimental', b'bundle2-advertise'):
-        capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo, role=b'server'))
+        capsblob = bundle2.encodecaps(
+            bundle_caps.get_repo_caps(repo, role=b'server')
+        )
         caps.append(b'bundle2=' + urlreq.quote(capsblob))
     caps.append(b'unbundle=%s' % b','.join(bundle2.bundlepriority))
 
@@ -786,12 +805,14 @@ def unbundle(repo, proto, heads):
                         part.addparam(b'old', exc.old, mandatory=False)
                     if exc.ret is not None:
                         part.addparam(b'ret', exc.ret, mandatory=False)
-            except error.BundleValueError as exc:
+            except error.BundleUnknownFeatureError as exc:
                 errpart = bundler.newpart(b'error:unsupportedcontent')
                 if exc.parttype is not None:
                     errpart.addparam(b'parttype', exc.parttype)
                 if exc.params:
                     errpart.addparam(b'params', b'\0'.join(exc.params))
+            except error.BundleValueError:
+                errpart = bundler.newpart(b'error:unsupportedcontent')
             except error.Abort as exc:
                 manargs = [(b'message', exc.message)]
                 advargs = []

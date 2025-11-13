@@ -100,6 +100,8 @@ def visit(opts, filenames, outfile):
                     facts.append(
                         b'older than %s' % opts.newer.encode('utf8', 'replace')
                     )
+        if opts.line_count and content is not None:
+            facts.append(b'line-count=%d' % len(content.splitlines()))
         if opts.md5 and content is not None:
             h = hashlib.md5(content)
             facts.append(b'md5=%s' % binascii.hexlify(h.digest())[: opts.bytes])
@@ -176,6 +178,9 @@ if __name__ == "__main__":
     )
     parser.add_option(
         "-s", "--size", action="store_true", help="show size of file"
+    )
+    parser.add_option(
+        "", "--line-count", action="store_true", help="show line count of file"
     )
     parser.add_option(
         "-n", "--newer", action="store", help="check if file is newer (or same)"

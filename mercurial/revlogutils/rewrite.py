@@ -53,12 +53,9 @@ from . import (
 )
 
 
-def v1_censor(rl, tr, censor_nodes, tombstone=b''):
+def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
     """censors a revision in a "version 1" revlog"""
     assert rl._format_version == constants.REVLOGV1, rl._format_version
-
-    # avoid cycle
-    from .. import revlog
 
     censor_revs = {rl.rev(node) for node in censor_nodes}
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
@@ -68,7 +65,7 @@ def v1_censor(rl, tr, censor_nodes, tombstone=b''):
     # revlogs on transaction close.
     #
     # This is a bit dangerous. We could easily have a mismatch of state.
-    newrl = revlog.revlog(
+    newrl = revlog_cls(
         rl.opener,
         target=rl.target,
         radix=rl.radix,
@@ -750,7 +747,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
             if not line:
                 continue
             filenodes, filename = line.split(b' ', 1)
-            fl = repo.file(filename, writable=True)
+            fl = repo.file(filename, writable=not dry_run)
             to_fix = {
                 fl.rev(binascii.unhexlify(n)) for n in filenodes.split(b',')
             }
@@ -831,12 +828,14 @@ def filter_delta_issue6528(revlog, deltas_iter):
 def repair_issue6528(
     ui, repo, dry_run=False, to_report=None, from_report=None, paranoid=False
 ):
+    readonly = dry_run or to_report
+
     @contextlib.contextmanager
     def context():
-        if dry_run or to_report:  # No need for locking
+        if readonly:  # No need for locking
             yield
         else:
-            with repo.wlock(), repo.lock():
+            with repo.wlock(), repo.lock(), repo.transaction(b'issue6528'):
                 yield
 
     if from_report:
@@ -846,9 +845,7 @@ def repair_issue6528(
 
     with context():
         files = list(
-            entry
-            for entry in repo.store.data_entries()
-            if entry.is_revlog and entry.is_filelog
+            entry for entry in repo.store.data_entries() if entry.is_filelog
         )
 
         progress = ui.makeprogress(
@@ -861,7 +858,7 @@ def repair_issue6528(
         for entry in files:
             progress.increment()
             filename = entry.target_id
-            fl = repo.file(entry.target_id, writable=not dry_run)
+            fl = repo.file(entry.target_id, writable=not readonly)
 
             # Set of filerevs (or hex filenodes if `to_report`) that need fixing
             to_fix = set()
@@ -950,15 +947,17 @@ def _find_all_snapshots(rl):
     return snapshots
 
 
-def quick_upgrade(rl, upgrade_meta, upgrade_delta_info):
+def quick_upgrade(rl):
     assert rl._format_flags & constants.FLAG_GENERALDELTA
 
+    upgrade_meta = True
     if rl.target[0] != constants.KIND_FILELOG:
         upgrade_meta = False
 
     if upgrade_meta and rl._format_flags & constants.FLAG_FILELOG_META:
         upgrade_meta = False
 
+    upgrade_delta_info = True
     if rl.target[0] not in (constants.KIND_FILELOG, constants.KIND_MANIFESTLOG):
         upgrade_delta_info = False
 

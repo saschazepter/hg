@@ -43,6 +43,7 @@
 
 
 #ifdef __APPLE__
+#include <crt_externs.h>
 #include <sys/attr.h>
 #include <sys/vnode.h>
 #endif
@@ -696,10 +697,123 @@ bail:
 #if defined(HAVE_SETPROCTITLE)
 /* setproctitle is the first choice - available in FreeBSD */
 #define SETPROCNAME_USE_SETPROCTITLE
+#elif (defined(__linux__) || defined(__APPLE__))
+/* rewrite the argv buffer in place - works in Linux and OS X */
+#define SETPROCNAME_USE_ARGVREWRITE
 #else
 #define SETPROCNAME_USE_NONE
 #endif
 #endif /* ndef SETPROCNAME_USE_NONE */
+
+#ifdef SETPROCNAME_USE_ARGVREWRITE
+
+/* Find the start of argv buffer (argv[0]) and its size */
+static void getarg0size(char **argstart, size_t *argsize) {
+#ifdef __APPLE__
+	/* osx: crt_externs keeps a copy of argc, argv */
+	int argc = *_NSGetArgc();
+	char **argv = *_NSGetArgv();
+	char *argvend, *argvstart;
+	size_t argvsize = 0;
+	int i;
+	argvend = argvstart = argv[0];
+	for (i = 0; i < argc; ++i) {
+		if (argv[i] > argvend || argv[i] < argvstart)
+			break; /* not continuous */
+		size_t len = strlen(argv[i]);
+		argvend = argv[i] + len + 1 /* '\0' */;
+	}
+	if (argvend > argvstart) /* sanity check */
+		argvsize = argvend - argvstart;
+	*argstart = argvstart;
+	*argsize = argvsize;
+#else
+	/* On Linux >= 3.5, fields 48 and 49 of `/proc/self/stat` are pointers
+	 * to the start and end of the argument values respectively.
+	 *
+	 * (See `man 5 proc` for details.) */
+	char buf[4096];
+	FILE *fp;
+	unsigned long start = 0, end = 0;
+	fp = fopen("/proc/self/stat", "r");
+	if (!fp) {
+		return;
+	}
+	if (!fgets(buf, sizeof(buf), fp)) {
+		fclose(fp);
+		return;
+	}
+	fclose(fp);
+	size_t len = strlen(buf);
+	/* `fgets` should have read up to the trailing newline. */
+	if (len > 0 && buf[len-1] != '\n') {
+		return;
+	}
+	/* Skip past the `comm` field (enclosed in parens). */
+	char *s = strrchr(buf, ')');
+	if (!s) {
+		return;
+	}
+	s++;
+	/* Format specifiers for each field are listed in `man 5 proc`. */
+	if (sscanf(s,
+			" %*c"   /*  3. state */
+			" %*d"   /*  4. ppid */
+			" %*d"   /*  5. pgrp */
+			" %*d"   /*  6. session */
+			" %*d"   /*  7. tty_nr */
+			" %*d"   /*  8. tpdig */
+			" %*u"   /*  9. flags */
+			" %*lu"  /* 10. minflt */
+			" %*lu"  /* 11. cminflt */
+			" %*lu"  /* 12. majflt */
+			" %*lu"  /* 13. cmajflt */
+			" %*lu"  /* 14. utime */
+			" %*lu"  /* 15. stime */
+			" %*ld"  /* 16. cutime */
+			" %*ld"  /* 17. cstime */
+			" %*ld"  /* 18. priority */
+			" %*ld"  /* 19. nice */
+			" %*ld"  /* 20. num_threads */
+			" %*ld"  /* 21. itrealvalue */
+			" %*llu" /* 22. starttime */
+			" %*lu"  /* 23. vsize */
+			" %*ld"  /* 24. rss */
+			" %*lu"  /* 25. rsslim */
+			" %*lu"  /* 26. startcode */
+			" %*lu"  /* 27. endcode */
+			" %*lu"  /* 28. startstack */
+			" %*lu"  /* 29. kstkesp */
+			" %*lu"  /* 30. kstkeip */
+			" %*lu"  /* 31. signal */
+			" %*lu"  /* 32. blocked */
+			" %*lu"  /* 33. sigignore */
+			" %*lu"  /* 34. sigcatch */
+			" %*lu"  /* 35. wchan */
+			" %*lu"  /* 36. nswap */
+			" %*lu"  /* 37. cnswap */
+			" %*d"   /* 38. exit_signal */
+			" %*d"   /* 39. processor */
+			" %*u"   /* 40. rt_priority */
+			" %*u"   /* 41. policy */
+			" %*llu" /* 42. delayacct_blkio_ticks */
+			" %*lu"  /* 43. guest_time */
+			" %*ld"  /* 44. cguest_time */
+			" %*lu"  /* 45. start_data */
+			" %*lu"  /* 46. end_data */
+			" %*lu"  /* 47. start_brk */
+			" %lu"   /* 48. arg_start */
+			" %lu",  /* 49. arg_end */
+			&start,
+			&end) == 2) {
+		*argstart = (char*)start;
+		*argsize = end - start;
+	}
+#endif
+}
+
+#endif /* def SETPROCNAME_USE_ARGVREWRITE */
+
 
 #ifndef SETPROCNAME_USE_NONE
 static PyObject *setprocname(PyObject *self, PyObject *args)
@@ -710,6 +824,21 @@ static PyObject *setprocname(PyObject *self, PyObject *args)
 
 #if defined(SETPROCNAME_USE_SETPROCTITLE)
 	setproctitle("%s", name);
+#elif defined(SETPROCNAME_USE_ARGVREWRITE)
+	{
+		static char *argvstart = NULL;
+		static size_t argvsize = 0;
+		if (argvstart == NULL && argvsize == 0) {
+			argvsize = 1; /* do not try to obtain arg0 again */
+			getarg0size(&argvstart, &argvsize);
+		}
+
+		if (argvstart && argvsize > 1) {
+			int n = snprintf(argvstart, argvsize, "%s", name);
+			if (n >= 0 && (size_t)n < argvsize)
+				memset(argvstart + n, 0, argvsize - n);
+		}
+	}
 #endif
 
 	Py_RETURN_NONE;

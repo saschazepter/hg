@@ -9,29 +9,27 @@ from __future__ import annotations
 
 import os
 import re
-import sys
+import typing
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from .node import (
     hex,
     nullid,
-    nullrev,
     short,
     wdirrev,
 )
 from . import (
-    admin_commands as admin_commands_mod,
     archival,
     bookmarks,
-    bundle2,
-    bundlecaches,
-    changegroup,
+    cmd_impls,
     cmdutil,
     context as contextmod,
     copies,
-    debugcommands as debugcommandsmod,
     destutil,
-    diffutil,
     discovery,
     encoding,
     error,
@@ -54,21 +52,36 @@ from . import (
     phases,
     pycompat,
     registrar,
+    repo as repo_utils,
     revsetlang,
     rewriteutil,
     scmutil,
     server,
     shelve as shelvemod,
     state as statemod,
+    tables,
     tags as tagsmod,
     util,
     verify as verifymod,
     wireprotoserver,
 )
 
-from .cmd_impls import graft as graft_impl
+from .cmd_impls import (
+    bundle as bundle_impl,
+    clone as clone_impl,
+    graft as graft_impl,
+    incoming as inc_impl,
+    outgoing as out_impl,
+    update as up_impl,
+)
 from .configuration import (
     command as config_command,
+)
+from .main_script import (
+    cmd_finder,
+)
+from .repo import (
+    factory as repo_factory,
 )
 from .utils import (
     dateutil,
@@ -76,105 +89,53 @@ from .utils import (
     stringutil,
     urlutil,
 )
+from .merge_utils import (
+    diff as diff_util,
+)
 
-table = {}
-table.update(debugcommandsmod.command._table)
-table.update(admin_commands_mod.command._table)
 
-command = registrar.command(table)
+if typing.TYPE_CHECKING:
+    from typing import Final
+
+    from .interfaces.types import (
+        RepoT,
+    )
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
+command = registrar.command(tables.command_table)
+
+# offered for backward compatibility
+table = tables.command_table
+
+
 INTENT_READONLY = registrar.INTENT_READONLY
 
-# common command options
 
-globalopts = [
-    (
-        b'R',
-        b'repository',
-        b'',
-        _(b'repository root directory or name of overlay bundle file'),
-        _(b'REPO'),
-    ),
-    (b'', b'cwd', b'', _(b'change working directory'), _(b'DIR')),
-    (
-        b'y',
-        b'noninteractive',
-        None,
-        _(
-            b'do not prompt, automatically pick the first choice for all prompts'
-        ),
-    ),
-    (b'q', b'quiet', None, _(b'suppress output')),
-    (b'v', b'verbose', None, _(b'enable additional output')),
-    (
-        b'',
-        b'color',
-        b'',
-        # i18n: 'always', 'auto', 'never', and 'debug' are keywords
-        # and should not be translated
-        _(b"when to colorize (boolean, always, auto, never, or debug)"),
-        _(b'TYPE'),
-    ),
-    (
-        b'',
-        b'config',
-        [],
-        _(b'set/override config option (use \'section.name=value\')'),
-        _(b'CONFIG'),
-    ),
-    (
-        b'',
-        b'config-file',
-        [],
-        _(b'load config file to set/override config options'),
-        _(b'HGRC'),
-    ),
-    (b'', b'debug', None, _(b'enable debugging output')),
-    (b'', b'debugger', None, _(b'start debugger')),
-    (
-        b'',
-        b'encoding',
-        encoding.encoding,
-        _(b'set the charset encoding'),
-        _(b'ENCODE'),
-    ),
-    (
-        b'',
-        b'encodingmode',
-        encoding.encodingmode,
-        _(b'set the charset encoding mode'),
-        _(b'MODE'),
-    ),
-    (b'', b'traceback', None, _(b'always print a traceback on exception')),
-    (b'', b'time', None, _(b'time how long the command takes')),
-    (b'', b'profile', None, _(b'print command execution profile')),
-    (b'', b'version', None, _(b'output version information and exit')),
-    (b'h', b'help', None, _(b'display help and exit')),
-    (b'', b'hidden', False, _(b'consider hidden changesets')),
-    (
-        b'',
-        b'pager',
-        b'auto',
-        _(b"when to paginate (boolean, always, auto, or never)"),
-        _(b'TYPE'),
-    ),
-]
-
-dryrunopts = cmdutil.dryrunopts
-remoteopts = cmdutil.remoteopts
-walkopts = cmdutil.walkopts
-commitopts = cmdutil.commitopts
-commitopts2 = cmdutil.commitopts2
-commitopts3 = cmdutil.commitopts3
-formatteropts = cmdutil.formatteropts
-templateopts = cmdutil.templateopts
-logopts = cmdutil.logopts
-diffopts = cmdutil.diffopts
-diffwsopts = cmdutil.diffwsopts
-diffopts2 = cmdutil.diffopts2
-mergetoolopts = cmdutil.mergetoolopts
-similarityopts = cmdutil.similarityopts
-subrepoopts = cmdutil.subrepoopts
-debugrevlogopts = cmdutil.debugrevlogopts
+globalopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.global_opts
+dryrunopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.dry_run_opts
+confirmopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.confirm_opts
+remoteopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.remote_opts
+walkopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.walk_opts
+commitopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts
+commitopts2: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts2
+commitopts3: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts3
+formatteropts: Final[cmd_impls.CmdOptionsT] = cmd_impls.formatter_opts
+templateopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.template_opts
+logopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.log_opts
+diffopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_opts
+diffwsopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_ws_opts
+diffopts2: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_opts2
+mergetoolopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.merge_tool_opts
+similarityopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.similarity_opts
+subrepoopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.subrepo_opts
+debugrevlogopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.debug_revlog_opts
 
 # Commands start here, listed alphabetically
 
@@ -844,7 +805,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         opts['date'] = dateutil.parsedate(date)
 
     cmdutil.checkunfinished(repo)
-    cmdutil.bailifchanged(repo)
+    scmutil.bail_if_changed(repo)
     ctx = logcmdutil.revsingle(repo, rev)
     node = ctx.node()
 
@@ -875,7 +836,6 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
 
     # the backout should appear on the same branch
     branch = repo.dirstate.branch()
-    bheads = repo.branchheads(branch)
     rctx = scmutil.revsingle(repo, hex(parent))
     if not opts.get('merge') and op1 != node:
         with repo.transaction(b"backout"):
@@ -883,14 +843,14 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
             with ui.configoverride(overrides, b'backout'):
                 stats = mergemod.back_out(ctx, parent=repo[parent])
             repo.setparents(op1, op2)
-        hg._showstats(repo, stats)
+        up_impl.show_stats(repo, stats)
         if stats.unresolvedcount:
             repo.ui.status(
                 _(b"use 'hg resolve' to retry unresolved file merges\n")
             )
             return 1
     else:
-        hg.clean(repo, node, show_stats=False)
+        up_impl.clean(repo, node, show_stats=False)
         repo.dirstate.setbranch(branch, repo.currenttransaction())
         cmdutil.revert(ui, repo, rctx)
 
@@ -914,6 +874,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
 
     # save to detect changes
     tip = repo.changelog.tip()
+    head_change = cmdutil.future_head_change(repo)
 
     newnode = cmdutil.commit(
         ui, repo, commitfunc, [], pycompat.byteskwargs(opts)
@@ -921,7 +882,7 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
     if not newnode:
         ui.status(_(b"nothing changed\n"))
         return 1
-    cmdutil.commitstatus(repo, newnode, branch, bheads, tip)
+    cmdutil.commitstatus(repo, newnode, head_change, tip)
 
     def nice(node):
         return b'%d:%s' % (repo.changelog.rev(node), short(node))
@@ -931,11 +892,11 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
         % (nice(newnode), nice(node))
     )
     if opts.get('merge') and op1 != node:
-        hg.clean(repo, op1, show_stats=False)
+        up_impl.clean(repo, op1, show_stats=False)
         ui.status(_(b'merging with changeset %s\n') % nice(newnode))
         overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
         with ui.configoverride(overrides, b'backout'):
-            return hg.merge(repo[b'tip'])
+            return up_impl.merge(repo[b'tip'])
     return 0
 
 
@@ -1121,8 +1082,8 @@ def bisect(
         if noupdate:
             return
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
-        return hg.clean(repo, node, show_stats=show_stats)
+        scmutil.bail_if_changed(repo)
+        return up_impl.clean(repo, node, show_stats=show_stats)
 
     displayer = logcmdutil.changesetdisplayer(ui, repo, {})
 
@@ -1365,7 +1326,7 @@ def bookmark(ui, repo, *names, **opts):
     _(b'[-fC] [NAME]'),
     helpcategory=command.CATEGORY_CHANGE_ORGANIZATION,
 )
-def branch(ui, repo, label=None, **opts):
+def branch(ui: UiT, repo: RepoT, label: bytes | None = None, **opts):
     """set or show the current branch name
 
     .. note::
@@ -1428,8 +1389,9 @@ def branch(ui, repo, label=None, **opts):
             ui.status(_(b'marked working directory as branch %s\n') % label)
 
             # find any open named branches aside from default
-            for n, h, t, c in repo.branchmap().iterbranches():
-                if n != b"default" and not c:
+            bm = repo.branchmap()
+            for bn in bm:
+                if bn != b"default" and bm.hasbranch(bn, open_only=True):
                     return 0
             ui.status(
                 _(
@@ -1491,19 +1453,11 @@ def branches(ui, repo, active=False, closed=False, **opts):
     fm = ui.formatter(b'branches', pycompat.byteskwargs(opts))
     hexfunc = fm.hexfunc
 
-    allheads = set(repo.heads())
-    branches = []
-    for tag, heads, tip, isclosed in repo.branchmap().iterbranches():
-        if selectedbranches is not None and tag not in selectedbranches:
-            continue
-        isactive = False
-        if not isclosed:
-            openheads = set(repo.branchmap().iteropen(heads))
-            isactive = bool(openheads & allheads)
-        branches.append((tag, repo[tip], isactive, not isclosed))
-    branches.sort(key=lambda i: (i[2], i[1].rev(), i[0], i[3]), reverse=True)
+    branches = repo.branchmap().branches_info(repo, branches=selectedbranches)
+    branches.sort(key=lambda i: (i[2], i[1], i[0], i[3]), reverse=True)
 
-    for tag, ctx, isactive, isopen in branches:
+    for tag, rev, isactive, isopen in branches:
+        ctx = repo[rev]
         if active and not isactive:
             continue
         if isactive:
@@ -1523,7 +1477,6 @@ def branches(ui, repo, active=False, closed=False, **opts):
 
         fm.startitem()
         fm.write(b'branch', b'%s', tag, label=label)
-        rev = ctx.rev()
         padsize = max(31 - len(b"%d" % rev) - encoding.colwidth(tag), 0)
         fmt = b' ' * padsize + b' %d:%s'
         fm.condwrite(
@@ -1620,182 +1573,7 @@ def bundle(ui, repo, fname, *dests, **opts):
     Returns 0 on success, 1 if no changes found.
     """
 
-    revs = None
-    if 'rev' in opts:
-        revstrings = opts['rev']
-        revs = logcmdutil.revrange(repo, revstrings)
-        if revstrings and not revs:
-            raise error.InputError(_(b'no commits to bundle'))
-
-    bundletype = opts.get('type', b'bzip2').lower()
-    try:
-        bundlespec = bundlecaches.parsebundlespec(
-            repo, bundletype, strict=False
-        )
-    except error.UnsupportedBundleSpecification as e:
-        raise error.InputError(
-            pycompat.bytestr(e),
-            hint=_(b"see 'hg help bundlespec' for supported values for --type"),
-        )
-
-    has_changegroup = bundlespec.params.get(b"changegroup", False)
-    cgversion = bundlespec.params[b"cg.version"]
-
-    # Packed bundles are a pseudo bundle format for now.
-    if cgversion == b's1':
-        raise error.InputError(
-            _(b'packed bundles cannot be produced by "hg bundle"'),
-            hint=_(b"use 'hg debugcreatestreamclonebundle'"),
-        )
-    base_opt = opts.get('base')
-    if opts.get('all'):
-        if dests:
-            raise error.InputError(
-                _(b"--all is incompatible with specifying destinations")
-            )
-        if base_opt:
-            ui.warn(_(b"ignoring --base because --all was specified\n"))
-        if opts.get('exact'):
-            ui.warn(_(b"ignoring --exact because --all was specified\n"))
-        base = [nullrev]
-    elif opts.get('exact'):
-        if dests:
-            raise error.InputError(
-                _(b"--exact is incompatible with specifying destinations")
-            )
-        if base_opt:
-            ui.warn(_(b"ignoring --base because --exact was specified\n"))
-        base = repo.revs(b'parents(%ld) - %ld', revs, revs)
-        if not base:
-            base = [nullrev]
-    elif base_opt:
-        base = logcmdutil.revrange(repo, base_opt)
-        if not base:
-            # base specified, but nothing was selected
-            base = [nullrev]
-    else:
-        base = None
-    supported_cg_versions = changegroup.supportedoutgoingversions(repo)
-    if has_changegroup and cgversion not in supported_cg_versions:
-        raise error.Abort(
-            _(b"repository does not support bundle version %s") % cgversion
-        )
-
-    if base is not None:
-        if dests:
-            raise error.InputError(
-                _(b"--base is incompatible with specifying destinations")
-            )
-        cl = repo.changelog
-        common = [cl.node(rev) for rev in base]
-        heads = [cl.node(r) for r in revs] if revs else None
-        outgoing = discovery.outgoing(repo, common, heads)
-        missing = outgoing.missing
-        excluded = outgoing.excluded
-    else:
-        missing = set()
-        excluded = set()
-        for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, pycompat.byteskwargs(opts), path)
-            if revs is not None:
-                hex_revs = [repo[r].hex() for r in revs]
-            else:
-                hex_revs = None
-            branches = (path.branch, [])
-            head_revs, checkout = hg.addbranchrevs(
-                repo, repo, branches, hex_revs
-            )
-            heads = (
-                head_revs
-                and pycompat.maplist(repo.lookup, head_revs)
-                or head_revs
-            )
-            outgoing = discovery.findcommonoutgoing(
-                repo,
-                other,
-                onlyheads=heads,
-                force=opts.get('force'),
-                portable=True,
-            )
-            missing.update(outgoing.missing)
-            excluded.update(outgoing.excluded)
-
-    if not missing:
-        scmutil.nochangesfound(ui, repo, not base and excluded)
-        return 1
-
-    # internal changeset are internal implementation details that should not
-    # leave the repository. Bundling with `hg bundle` create such risk.
-    bundled_internal = repo.revs(b"%ln and _internal()", missing)
-    if bundled_internal:
-        msg = _(b"cannot bundle internal changesets")
-        hint = _(b"%d internal changesets selected") % len(bundled_internal)
-        raise error.Abort(msg, hint=hint)
-
-    if heads:
-        outgoing = discovery.outgoing(
-            repo, missingroots=missing, ancestorsof=heads
-        )
-    else:
-        outgoing = discovery.outgoing(repo, missingroots=missing)
-    outgoing.excluded = sorted(excluded)
-
-    if cgversion == b'01':  # bundle1
-        bversion = b'HG10' + bundlespec.wirecompression
-        bcompression = None
-    elif cgversion in (b'02', b'03'):
-        bversion = b'HG20'
-        bcompression = bundlespec.wirecompression
-    else:
-        raise error.ProgrammingError(
-            b'bundle: unexpected changegroup version %s' % cgversion
-        )
-
-    # TODO compression options should be derived from bundlespec parsing.
-    # This is a temporary hack to allow adjusting bundle compression
-    # level without a) formalizing the bundlespec changes to declare it
-    # b) introducing a command flag.
-    compopts = {}
-    complevel = ui.configint(
-        b'experimental', b'bundlecomplevel.' + bundlespec.compression
-    )
-    if complevel is None:
-        complevel = ui.configint(b'experimental', b'bundlecomplevel')
-    if complevel is not None:
-        compopts[b'level'] = complevel
-
-    compthreads = ui.configint(
-        b'experimental', b'bundlecompthreads.' + bundlespec.compression
-    )
-    if compthreads is None:
-        compthreads = ui.configint(b'experimental', b'bundlecompthreads')
-    if compthreads is not None:
-        compopts[b'threads'] = compthreads
-
-    # Bundling of obsmarker and phases is optional as not all clients
-    # support the necessary features.
-    cfg = ui.configbool
-    obsolescence_cfg = cfg(b'experimental', b'evolution.bundle-obsmarker')
-    bundlespec.set_param(b'obsolescence', obsolescence_cfg, overwrite=False)
-    obs_mand_cfg = cfg(b'experimental', b'evolution.bundle-obsmarker:mandatory')
-    bundlespec.set_param(
-        b'obsolescence-mandatory', obs_mand_cfg, overwrite=False
-    )
-    if not bundlespec.params.get(b'phases', False):
-        phases_cfg = cfg(b'experimental', b'bundle-phases')
-        bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
-
-    bundle2.writenewbundle(
-        ui,
-        repo,
-        b'bundle',
-        fname,
-        bversion,
-        outgoing,
-        bundlespec.params,
-        compression=bcompression,
-        compopts=compopts,
-    )
+    return bundle_impl.bundle(ui, repo, fname, *dests, **opts)
 
 
 @command(
@@ -2032,7 +1810,7 @@ def clone(ui, source, dest=None, **opts):
     # --include/--exclude can come from narrow or sparse.
     includepats, excludepats = None, None
 
-    # hg.clone() differentiates between None and an empty set. So make sure
+    # clone() differentiates between None and an empty set. So make sure
     # patterns are sets if narrow is requested without patterns.
     if opts.get('narrow'):
         includepats = set()
@@ -2043,13 +1821,17 @@ def clone(ui, source, dest=None, **opts):
         if opts.get('exclude'):
             excludepats = narrowspec.parsepatterns(opts.get('exclude'))
 
-    r = hg.clone(
+    stream = opts.get('stream')
+    if stream is None:
+        stream = opts.get('uncompressed')
+
+    r = clone_impl.clone(
         ui,
         pycompat.byteskwargs(opts),
         source,
         dest,
         pull=opts.get('pull'),
-        stream=opts.get('stream') or opts.get('uncompressed'),
+        stream=stream,
         revs=opts.get('rev'),
         update=opts.get('updaterev') or not opts.get('noupdate'),
         branch=opts.get('branch'),
@@ -2171,14 +1953,20 @@ def _docommit(ui, repo, *pats, **opts):
 
     cmdutil.checkunfinished(repo, commit=True)
 
+    any_close = opts.get('close_branch') or opts.get('force_close_branch')
+    head_change = None
+    if not opts.get('amend'):
+        head_change = cmdutil.future_head_change(repo, any_close)
+
     branch = repo[None].branch()
-    bheads = repo.branchheads(branch)
     tip = repo.changelog.tip()
+    p1 = repo[b'.'].node()
 
     extra = {}
-    if opts.get('close_branch') or opts.get('force_close_branch'):
+    if any_close:
         extra[b'close'] = b'1'
 
+        wc_dirty = False
         if repo[b'.'].closesbranch():
             # Not ideal, but let us do an extra status early to prevent early
             # bail out.
@@ -2186,19 +1974,17 @@ def _docommit(ui, repo, *pats, **opts):
                 repo[None], pats, pycompat.byteskwargs(opts)
             )
             s = repo.status(match=matcher)
-            if s.modified or s.added or s.removed:
-                bheads = repo.branchheads(branch, closed=True)
-            else:
+            if not (wc_dirty := bool(s.modified or s.added or s.removed)):
                 msg = _(b'current revision is already a branch closing head')
                 raise error.InputError(msg)
 
-        if not bheads:
+        if not (wc_dirty or repo.branchmap().hasbranch(branch, open_only=True)):
             raise error.InputError(
                 _(b'branch "%s" has no heads to close') % branch
             )
         elif (
             branch == repo[b'.'].branch()
-            and repo[b'.'].node() not in bheads
+            and not repo.branchmap().is_branch_head(branch, p1, closed=wc_dirty)
             and not opts.get('force_close_branch')
         ):
             hint = _(
@@ -2282,7 +2068,7 @@ def _docommit(ui, repo, *pats, **opts):
                 ui.status(_(b"nothing changed\n"))
             return 1
 
-    cmdutil.commitstatus(repo, node, branch, bheads, tip, **opts)
+    cmdutil.commitstatus(repo, node, head_change, tip, **opts)
 
     if not ui.quiet and ui.configbool(b'commands', b'commit.post-status'):
         status(
@@ -2496,7 +2282,7 @@ def copy(ui, repo, *pats, **opts):
 )
 def debugcommands(ui, cmd=b'', *args):
     """list all available commands and options"""
-    for cmd, vals in sorted(table.items()):
+    for cmd, vals in sorted(tables.command_table.items()):
         cmd = cmd.split(b'|')[0]
         opts = b', '.join([i[1] for i in vals[1]])
         ui.write(b'%s: %s\n' % (cmd, opts))
@@ -2514,9 +2300,13 @@ def debugcomplete(ui, cmd=b'', **opts):
 
     if opts.get('options'):
         options = []
-        otables = [globalopts]
+        otables = [cmdutil.globalopts]
         if cmd:
-            aliases, entry = cmdutil.findcmd(cmd, table, False)
+            aliases, entry = cmd_finder.find_cmd(
+                cmd,
+                tables.command_table,
+                False,
+            )
             otables.append(entry[1])
         for t in otables:
             for o in t:
@@ -2528,7 +2318,9 @@ def debugcomplete(ui, cmd=b'', **opts):
         ui.write(b"%s\n" % b"\n".join(options))
         return
 
-    cmdlist, unused_allcmds = cmdutil.findpossible(cmd, table)
+    cmdlist, unused_allcmds = cmd_finder.find_possible(
+        cmd, tables.command_table
+    )
     if ui.verbose:
         cmdlist = [b' '.join(c[0]) for c in cmdlist.values()]
     ui.write(b"%s\n" % b"\n".join(sorted(cmdlist)))
@@ -2637,7 +2429,7 @@ def diff(ui, repo, *pats, **opts):
     if change:
         repo = scmutil.unhidehashlikerevs(repo, [change], b'nowarn')
         ctx2 = logcmdutil.revsingle(repo, change, None)
-        ctx1 = diffutil.diff_parent(ctx2)
+        ctx1 = diff_util.diff_parent(ctx2)
     elif from_rev or to_rev:
         repo = scmutil.unhidehashlikerevs(
             repo, [from_rev] + [to_rev], b'nowarn'
@@ -3464,7 +3256,7 @@ def grep(ui, repo, pattern, *pats, **opts):
     helpcategory=command.CATEGORY_CHANGE_NAVIGATION,
     intents={INTENT_READONLY},
 )
-def heads(ui, repo, *branchrevs, **opts):
+def heads(ui, repo: RepoT, *branchrevs, **opts):
     """show branch heads
 
     With no arguments, show all open branch heads in the repository.
@@ -3499,8 +3291,11 @@ def heads(ui, repo, *branchrevs, **opts):
         heads = [repo[h] for h in repo.heads(start)]
     else:
         heads = []
-        for branch in repo.branchmap():
-            heads += repo.branchheads(branch, start, opts.get('closed'))
+        bm = repo.branchmap()
+        for branch in bm:
+            heads += bm.branchheads(branch, closed=opts.get('closed'))
+        if start is not None:
+            heads = repo.revs('%ln and (%n)::', heads, start)
         heads = [repo[h] for h in heads]
 
     if branchrevs:
@@ -3579,8 +3374,7 @@ def help_(ui, name=None, **opts):
     if ui.verbose:
         keep.append(b'verbose')
 
-    commands = sys.modules[__name__]
-    formatted = help.formattedhelp(ui, commands, name, keep=keep, **opts)
+    formatted = help.formattedhelp(ui, name, keep=keep, **opts)
     ui.pager(b'help')
     ui.write(formatted)
 
@@ -3675,10 +3469,10 @@ def identify(
         if source:
             path = urlutil.get_unique_pull_path_obj(b'identify', ui, source)
             # only pass ui when no repo
-            peer = hg.peer(repo or ui, opts, path)
+            peer = repo_factory.peer(repo or ui, opts, path)
             repo = peer.local()
             branches = (path.branch, [])
-            revs, checkout = hg.addbranchrevs(repo, peer, branches, None)
+            revs, checkout = urlutil.add_branch_revs(repo, peer, branches, None)
 
         fm = ui.formatter(b'identify', opts)
         fm.startitem()
@@ -3985,7 +3779,7 @@ def import_(ui, repo, patch1=None, *patches, **opts):
         if update:
             cmdutil.checkunfinished(repo)
             if exact or not opts.get('force'):
-                cmdutil.bailifchanged(repo)
+                scmutil.bail_if_changed(repo)
 
         if not opts.get('no_commit'):
             lock = repo.lock
@@ -4003,7 +3797,11 @@ def import_(ui, repo, patch1=None, *patches, **opts):
                 else:
                     patchurl = os.path.join(base, patchurl)
                     ui.status(_(b'applying %s\n') % patchurl)
-                    patchfile = hg.openpath(ui, patchurl, sendaccept=False)
+                    patchfile = scmutil.open_path(
+                        ui,
+                        patchurl,
+                        sendaccept=False,
+                    )
 
                 haspatch = False
                 for hunk in patch.split(patchfile):
@@ -4015,7 +3813,7 @@ def import_(ui, repo, patch1=None, *patches, **opts):
                             parents,
                             pycompat.byteskwargs(opts),
                             msgs,
-                            hg.clean,
+                            up_impl.clean,
                         )
                     if msg:
                         haspatch = True
@@ -4068,6 +3866,12 @@ def import_(ui, repo, patch1=None, *patches, **opts):
             [],
             _(b'a specific branch you would like to pull'),
             _(b'BRANCH'),
+        ),
+        (
+            b'',
+            b'remote-hidden',
+            False,
+            _(b"include changesets hidden on the remote (EXPERIMENTAL)"),
         ),
     ]
     + logopts
@@ -4140,7 +3944,9 @@ def incoming(ui, repo, source=b"default", **opts):
                 ui, repo, revdag, displayer, graphmod.asciiedges
             )
 
-        hg._incoming(display, lambda: 1, ui, repo, source, opts, buffered=True)
+        inc_impl._incoming(
+            display, lambda: 1, ui, repo, source, opts, buffered=True
+        )
         return 0
 
     cmdutil.check_incompatible_arguments(opts, b'subrepos', [b'bundle'])
@@ -4149,7 +3955,7 @@ def incoming(ui, repo, source=b"default", **opts):
         srcs = urlutil.get_pull_paths(repo, ui, [source])
         for path in srcs:
             # XXX the "branches" options are not used. Should it be used?
-            other = hg.peer(repo, opts, path)
+            other = repo_factory.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
@@ -4164,7 +3970,7 @@ def incoming(ui, repo, source=b"default", **opts):
             finally:
                 other.close()
 
-    return hg.incoming(ui, repo, source, opts)
+    return inc_impl.incoming(ui, repo, source, opts)
 
 
 @command(
@@ -4175,7 +3981,7 @@ def incoming(ui, repo, source=b"default", **opts):
     helpbasic=True,
     norepo=True,
 )
-def init(ui, dest=b".", **opts):
+def _init(ui, dest=b".", **opts):
     """create a new repository in the given directory
 
     Initialize a new repository in the given directory. If the given
@@ -4190,7 +3996,7 @@ def init(ui, dest=b".", **opts):
     """
     opts = pycompat.byteskwargs(opts)
     path = urlutil.get_clone_path_obj(ui, dest)
-    peer = hg.peer(ui, opts, path, create=True)
+    peer = repo_factory.peer(ui, opts, path, create=True)
     peer.close()
 
 
@@ -4673,7 +4479,7 @@ def merge(ui, repo, node=None, **opts):
             )
         if node:
             raise error.InputError(_(b"cannot specify a node with --abort"))
-        return hg.abortmerge(repo.ui, repo)
+        return up_impl.abort_merge(repo.ui, repo)
 
     if opts.get('rev') and node:
         raise error.InputError(_(b"please specify just one revision"))
@@ -4716,7 +4522,7 @@ def merge(ui, repo, node=None, **opts):
     with ui.configoverride(overrides, b'merge'):
         force = opts.get('force')
         labels = [b'working copy', b'merge rev', b'common ancestor']
-        return hg.merge(ctx, force=force, labels=labels)
+        return up_impl.merge(ctx, force=force, labels=labels)
 
 
 statemod.addunfinished(
@@ -4725,7 +4531,7 @@ statemod.addunfinished(
     clearable=True,
     allowcommit=True,
     cmdmsg=_(b'outstanding uncommitted merge'),
-    abortfunc=hg.abortmerge,
+    abortfunc=up_impl.abort_merge,
     statushint=_(
         b'To continue:    hg commit\nTo abort:       hg merge --abort'
     ),
@@ -4804,7 +4610,7 @@ def outgoing(ui, repo, *dests, **opts):
     opts = pycompat.byteskwargs(opts)
     if opts.get(b'bookmarks'):
         for path in urlutil.get_push_paths(repo, ui, dests):
-            other = hg.peer(repo, opts, path)
+            other = repo_factory.peer(repo, opts, path)
             try:
                 if b'bookmarks' not in other.listkeys(b'namespaces'):
                     ui.warn(_(b"remote doesn't support bookmarks\n"))
@@ -4817,7 +4623,7 @@ def outgoing(ui, repo, *dests, **opts):
             finally:
                 other.close()
 
-    return hg.outgoing(ui, repo, dests, opts)
+    return out_impl.outgoing(ui, repo, dests, opts)
 
 
 @command(
@@ -5171,7 +4977,7 @@ def pull(ui, repo, *sources, **opts):
     for path in urlutil.get_pull_paths(repo, ui, sources):
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         ui.flush()
-        other = hg.peer(
+        other = repo_factory.peer(
             repo,
             pycompat.byteskwargs(opts),
             path,
@@ -5180,7 +4986,7 @@ def pull(ui, repo, *sources, **opts):
         update_conflict = None
         try:
             branches = (path.branch, opts.get('branch', []))
-            revs, checkout = hg.addbranchrevs(
+            revs, checkout = urlutil.add_branch_revs(
                 repo,
                 other,
                 branches,
@@ -5252,7 +5058,7 @@ def pull(ui, repo, *sources, **opts):
                     checkout = repo.unfiltered().changelog.rev(checkout)
 
                     # order below depends on implementation of
-                    # hg.addbranchrevs(). opts['bookmark'] is ignored,
+                    # urlutil.add_branch_revs(). opts['bookmark'] is ignored,
                     # because 'checkout' is determined without it.
                     if opts.get('rev'):
                         brev = opts['rev'][0]
@@ -5516,10 +5322,13 @@ def push(ui, repo, *dests, **opts):
         dest = path.loc
         branches = (path.branch, opts.get(b'branch') or [])
         ui.status(_(b'pushing to %s\n') % urlutil.hidepassword(dest))
-        revs, checkout = hg.addbranchrevs(
-            repo, repo, branches, opts.get(b'rev')
+        revs, checkout = urlutil.add_branch_revs(
+            repo,
+            repo,
+            branches,
+            opts.get(b'rev'),
         )
-        other = hg.peer(repo, opts, dest)
+        other = repo_factory.peer(repo, opts, dest)
 
         try:
             if revs:
@@ -6256,8 +6065,8 @@ def root(ui, repo, **opts):
     if use_share_source:
         # building a full repositry seems overkill and might have side effect,
         # so we just do path manipulation instead.
-        w_path = cmdutil.findrepo(repo.spath)
-        r_path = os.path.join(cmdutil.findrepo(repo.spath), b'.hg/')
+        w_path = repo_utils.find_repo(repo.spath)
+        r_path = os.path.join(repo_utils.find_repo(repo.spath), b'.hg/')
 
     opts = pycompat.byteskwargs(opts)
     with ui.formatter(b'root', opts) as fm:
@@ -6354,8 +6163,9 @@ def root(ui, repo, **opts):
     helpcategory=command.CATEGORY_REMOTE_REPO_MANAGEMENT,
     helpbasic=True,
     optionalrepo=True,
+    need_dispatcher=True,
 )
-def serve(ui, repo, **opts):
+def serve(ui, repo: RepoT | None, __dispatch__, **opts):
     """start stand-alone webserver
 
     Start a local HTTP repository browser and pull server. You can use
@@ -6390,7 +6200,13 @@ def serve(ui, repo, **opts):
             raise error.RepoError(
                 _(b"there is no Mercurial repository here (.hg not found)")
             )
+
+        assert repo is not None  # help pytype
+
         accesshidden = False
+        # This should be checking for --hidden, but the dispatch logic filters
+        # the option out. Substitute the effect of the implicit use of
+        # repo.unfiltered() in _dispatch_post_cwd instead.
         if repo.filtername is None:
             allow = ui.configlist(
                 b'experimental', b'server.allow-hidden-access'
@@ -6412,7 +6228,7 @@ def serve(ui, repo, **opts):
         s.serve_forever()
         return
 
-    service = server.createservice(ui, repo, opts)
+    service = server.createservice(ui, repo, opts, dispatch=__dispatch__)
     return server.runservice(opts, initfn=service.init, runfn=service.run)
 
 
@@ -6886,7 +6702,7 @@ def summary(ui, repo, **opts):
             )
 
     branch = ctx.branch()
-    bheads = repo.branchheads(branch)
+    bheads = repo.branchmap().branchheads(branch)
     # i18n: column positioning for "hg summary"
     m = _(b'branch: %s\n') % branch
     if branch != b'default':
@@ -6950,8 +6766,10 @@ def summary(ui, repo, **opts):
         t += _(b' (merge)')
     elif branch != parents[0].branch():
         t += _(b' (new branch)')
-    elif parents[0].closesbranch() and pnode in repo.branchheads(
-        branch, closed=True
+    elif parents[0].closesbranch() and repo.branchmap().is_branch_head(
+        branch,
+        pnode,
+        closed=True,
     ):
         t += _(b' (head closed)')
     elif not (
@@ -7046,13 +6864,13 @@ def summary(ui, repo, **opts):
         path = urlutil.get_unique_pull_path_obj(b'summary', ui, b'default')
         sbranch = path.branch
         try:
-            other = hg.peer(repo, {}, path)
+            other = repo_factory.peer(repo, {}, path)
         except error.RepoError:
             if opts.get('remote'):
                 raise
             return path.loc, sbranch, None, None, None
         branches = (path.branch, [])
-        revs, checkout = hg.addbranchrevs(repo, other, branches, None)
+        revs, checkout = urlutil.add_branch_revs(repo, other, branches, None)
         if revs:
             revs = [other.lookup(rev) for rev in revs]
         ui.debug(b'comparing with %s\n' % urlutil.hidepassword(path.loc))
@@ -7082,10 +6900,14 @@ def summary(ui, repo, **opts):
         else:
             dest = b'default'
             dbranch = None
-        revs, checkout = hg.addbranchrevs(repo, repo, (dbranch, []), None)
+        revs, checkout = urlutil.add_branch_revs(
+            repo, repo, (dbranch, []), None
+        )
         if source != dest:
             try:
-                dother = hg.peer(repo, {}, path if path is not None else dest)
+                dother = repo_factory.peer(
+                    repo, {}, path if path is not None else dest
+                )
             except error.RepoError:
                 if opts.get('remote'):
                     raise
@@ -7167,7 +6989,7 @@ def summary(ui, repo, **opts):
     _(b'[-f] [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...'),
     helpcategory=command.CATEGORY_CHANGE_ORGANIZATION,
 )
-def tag(ui, repo, name1, *names, **opts):
+def tag(ui, repo: RepoT, name1, *names, **opts):
     """add one or more tags for the current or given revision
 
     Name a particular revision using <name>.
@@ -7253,8 +7075,13 @@ def tag(ui, repo, name1, *names, **opts):
             p1, p2 = repo.dirstate.parents()
             if p2 != repo.nullid:
                 raise error.StateError(_(b'uncommitted merge'))
-            bheads = repo.branchheads()
-            if not opts.get('force') and bheads and p1 not in bheads:
+            branch = repo[None].branch()
+            bm = repo.branchmap()
+            if (
+                not opts.get('force')
+                and bm.hasbranch(branch, open_only=True)
+                and not bm.is_branch_head(branch, p1)
+            ):
                 raise error.InputError(
                     _(
                         b'working directory is not at a branch head '
@@ -7618,8 +7445,13 @@ def update(ui, repo, node=None, **opts):
         hidden = ctx.hidden()
         overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
         with ui.configoverride(overrides, b'update'):
-            ret = hg.updatetotally(
-                ui, repo, rev, brev, clean=clean, updatecheck=updatecheck
+            ret = up_impl.update_totally(
+                ui,
+                repo,
+                rev,
+                brev,
+                clean=clean,
+                updatecheck=updatecheck,
             )
         if hidden:
             ctxstr = ctx.hex()[:12]
@@ -7728,14 +7560,3 @@ def version_(ui, **opts):
                 fn.plain(b"\n")
     fn.end()
     fm.end()
-
-
-def loadcmdtable(ui, name, cmdtable):
-    """Load command functions from specified cmdtable"""
-    overrides = [cmd for cmd in cmdtable if cmd in table]
-    if overrides:
-        ui.warn(
-            _(b"extension '%s' overrides commands: %s\n")
-            % (name, b" ".join(overrides))
-        )
-    table.update(cmdtable)

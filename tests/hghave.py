@@ -152,6 +152,8 @@ def matchoutput(cmd, regexp: bytes, ignorestatus: bool = False):
     is matched by the supplied regular expression.
     """
     env = environ()
+    # make sure that strict-rhg mode does not interfer with hghave call
+    env['RHG_ON_UNSUPPORTED'] = 'fallback'
 
     r = re.compile(regexp)
     p = subprocess.Popen(
@@ -959,13 +961,10 @@ def unzip_understands_symlinks():
 
 @check("zstd", "zstd Python module available")
 def has_zstd():
-    try:
-        import mercurial.zstd
-
-        del mercurial.zstd
-        return True
-    except ImportError:
-        return False
+    return matchoutput(
+        'hg debuginstall',
+        br'checking available compression engines.*zstd',
+    )
 
 
 @check("devfull", "/dev/full special file")
@@ -1045,7 +1044,7 @@ def has_extraextensions():
 
 @check('dirstate-v2', 'using the v2 format of .hg/dirstate')
 def has_dirstate_v2():
-    # Keep this logic in sync with `newreporequirements()` in `mercurial/localrepo.py`
+    # Keep this logic in sync with `new_repo_requirements()` in `mercurial/repo/creation.py`
     return matchoutput(
         'hg config format.use-dirstate-v2', b'(?i)1|yes|true|on|always'
     )

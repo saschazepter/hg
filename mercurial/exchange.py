@@ -9,11 +9,26 @@ from __future__ import annotations
 
 import collections
 import weakref
+from typing import (
+    Any,
+    Collection,
+)
 
 from .i18n import _
 from .node import (
     hex,
     nullrev,
+)
+from .interfaces.types import (
+    ChangeContextT,
+    MatcherT,
+    NodeIdT,
+    PathT,
+    PeerT,
+    RepoT,
+    RevnumT,
+    TransactionT,
+    UiT,
 )
 from . import (
     bookmarks as bookmod,
@@ -28,21 +43,31 @@ from . import (
     obsolete,
     obsutil,
     phases,
+    policy,
     pushkey,
     pycompat,
-    requirements,
     scmutil,
+    shape as shapemod,
     streamclone,
     url as urlmod,
     util,
     wireprototypes,
+)
+from .exchanges import (
+    bundle_caps,
 )
 from .utils import (
     hashutil,
     stringutil,
     urlutil,
 )
-from .interfaces import repository
+from .interfaces import (
+    exchange as i_exc,
+    repository,
+)
+
+if policy.has_rust():
+    shapemod = policy.importrust("shape")
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -84,7 +109,10 @@ def readbundle(ui, fh, fname, vfs=None):
 def _format_params(params):
     parts = []
     for key, value in sorted(params.items()):
-        value = urlreq.quote(value)
+        if isinstance(value, list):
+            value = b','.join(urlreq.quote(v) for v in value)
+        else:
+            value = urlreq.quote(value)
         parts.append(b"%s=%s" % (key, value))
     return b';'.join(parts)
 
@@ -129,7 +157,7 @@ def getbundlespec(ui, fh):
                 cgversion = part.params[b'version']
                 if cgversion in (b'01', b'02'):
                     version = b'v2'
-                elif cgversion in (b'03',):
+                elif cgversion in (b'03', b'04'):
                     version = b'v2'
                     params[b'cg.version'] = cgversion
                 else:
@@ -141,11 +169,18 @@ def getbundlespec(ui, fh):
                         % version,
                         hint=_(b'try upgrading your Mercurial client'),
                     )
+                if (dcomp := part.params.get(b'delta-compression')) is not None:
+                    params[b'cg.delta-compression'] = dcomp.split(b',')
             elif part.type == b'stream2' and version is None:
                 # A stream2 part requires to be part of a v2 bundle
                 requirements = urlreq.unquote(part.params[b'requirements'])
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
+                store_fingerprint = part.params.get(b"store-fingerprint")
+                if store_fingerprint is not None:
+                    # TODO make this function more generic and stop hardcoding
+                    fmt = (params, store_fingerprint)
+                    params = b"%s;store-fingerprint=%s" % fmt
                 return b'none-v2;stream=v2;%s' % params
             elif part.type == b'stream3-exp' and version is None:
                 # A stream3 part requires to be part of a v2 bundle
@@ -249,7 +284,7 @@ def _forcebundle1(op):
     return forcebundle1 or not op.remote.capable(b'bundle2')
 
 
-class pushoperation:
+class pushoperation(i_exc.IPushOperation):
     """A object that represent a single push operation
 
     Its purpose is to carry push related state and very common operations.
@@ -270,34 +305,34 @@ class pushoperation:
         pushvars=None,
     ):
         # repo we push from
-        self.repo = repo
-        self.ui = repo.ui
+        self.repo: RepoT = repo
+        self.ui: UiT = repo.ui
         # repo we push to
-        self.remote = remote
+        self.remote: PeerT = remote
         # force option provided
-        self.force = force
+        self.force: bool = force
         # revs to be pushed (None is "all")
-        self.revs = revs
+        self.revs: None | Collection[RevnumT] = revs
         # bookmark explicitly pushed
-        self.bookmarks = bookmarks
+        self.bookmarks: Collection[bytes] = bookmarks
         # allow push of new branch
-        self.newbranch = newbranch
+        self.newbranch: bool = newbranch
         # step already performed
         # (used to check what steps have been already performed through bundle2)
-        self.stepsdone = set()
+        self.stepsdone: set[bytes] = set()
         # Integer version of the changegroup push result
         # - None means nothing to push
         # - 0 means HTTP error
         # - 1 means we pushed and remote head count is unchanged *or*
         #   we have outgoing changesets but refused to push
         # - other values as described by addchangegroup()
-        self.cgresult = None
-        # Boolean value for the bookmark push
-        self.bkresult = None
+        self.cgresult: int | None = None
+        # integer value for the bookmark push
+        self.bkresult: int | None = None
         # discover.outgoing object (contains common and outgoing data)
-        self.outgoing = None
+        self.outgoing: discovery.outgoing = None
         # all remote topological heads before the push
-        self.remoteheads = None
+        self.remoteheads: Collection[NodeIdT] | None = None
         # Details of the remote branch pre and post push
         #
         # mapping: {'branch': ([remoteheads],
@@ -310,28 +345,28 @@ class pushoperation:
         # - newheads: the new remote heads (known locally) with outgoing pushed
         # - unsyncedheads: the list of remote heads unknown locally.
         # - discardedheads: the list of remote heads made obsolete by the push
-        self.pushbranchmap = None
+        self.pushbranchmap: dict[bytes, list[bytes]] | None = None
         # testable as a boolean indicating if any nodes are missing locally.
-        self.incoming = None
+        self.incoming: bool | None = None
         # summary of the remote phase situation
-        self.remotephases = None
+        self.remotephases: phases.RemotePhasesSummary | None = None
         # phases changes that must be pushed along side the changesets
-        self.outdatedphases = None
+        self.outdatedphases: list[ChangeContextT] | None = None
         # phases changes that must be pushed if changeset push fails
-        self.fallbackoutdatedphases = None
+        self.fallbackoutdatedphases: list[ChangeContextT] | None = None
         # outgoing obsmarkers
         self.outobsmarkers = set()
         # outgoing bookmarks, list of (bm, oldnode | '', newnode | '')
-        self.outbookmarks = []
+        self.outbookmarks: list[tuple[bytes, bytes, bytes]] = []
         # transaction manager
-        self.trmanager = None
+        self.trmanager: transactionmanager | None = None
         # map { pushkey partid -> callback handling failure}
         # used to handle exception from mandatory pushkey part failure
-        self.pkfailcb = {}
+        self.pkfailcb: dict = {}
         # an iterable of pushvars or None
-        self.pushvars = pushvars
+        self.pushvars: dict[bytes, bytes] | None = pushvars
         # publish pushed changesets
-        self.publish = publish
+        self.publish: bool = publish
 
     @util.propertycache
     def futureheads(self):
@@ -1206,7 +1241,9 @@ def _pushbundle2(pushop):
 
     # create reply capability
     capsblob = bundle2.encodecaps(
-        bundle2.getrepocaps(pushop.repo, allowpushback=pushback, role=b'client')
+        bundle_caps.get_repo_caps(
+            pushop.repo, allowpushback=pushback, role=b'client'
+        )
     )
     bundler.newpart(b'replycaps', data=capsblob)
     replyhandlers = []
@@ -1458,7 +1495,7 @@ def _pushbookmark(pushop):
                 pushop.bkresult = 1
 
 
-class pulloperation:
+class pulloperation(i_exc.IPullOperation):
     """A object that represent a single pull operation
 
     It purpose is to carry pull related state and very common operation.
@@ -1466,6 +1503,9 @@ class pulloperation:
     A new should be created at the beginning of each pull and discarded
     afterward.
     """
+
+    stepsdone: set[bytes]
+    trmanager: transactionmanager | None
 
     def __init__(
         self,
@@ -1482,45 +1522,45 @@ class pulloperation:
         path=None,
     ):
         # repo we pull into
-        self.repo = repo
+        self.repo: RepoT = repo
         # repo we pull from
-        self.remote = remote
+        self.remote: PeerT = remote
         # path object used to build this remote
         #
         # Ideally, the remote peer would carry that directly.
-        self.remote_path = path
+        self.remote_path: PathT = path
         # revision we try to pull (None is "all")
-        self.heads = heads
+        self.heads: Collection[RevnumT] | None = heads
         # bookmark pulled explicitly
-        self.explicitbookmarks = [
+        self.explicitbookmarks: Collection[bytes] = [
             repo._bookmarks.expandname(bookmark) for bookmark in bookmarks
         ]
         # do we force pull?
-        self.force = force
+        self.force: bool = force
         # whether a streaming clone was requested
-        self.streamclonerequested = streamclonerequested
+        self.streamclonerequested: bool = streamclonerequested
         # transaction manager
-        self.trmanager = None
+        self.trmanager: transactionmanager = None
         # set of common changeset between local and remote before pull
-        self.common = None
+        self.common: set[NodeIdT] | None = None
         # set of pulled head
-        self.rheads = None
+        self.rheads: set[NodeIdT] = None
         # list of missing changeset to fetch remotely
-        self.fetch = None
+        self.fetch: set[NodeIdT] = None
         # remote bookmarks data
-        self.remotebookmarks = remotebookmarks
+        self.remotebookmarks: dict[bytes, NodeIdT] = remotebookmarks
         # result of changegroup pulling (used as return code by pull)
-        self.cgresult = None
+        self.cgresult: int = None
         # list of step already done
-        self.stepsdone = set()
+        self.stepsdone: set[bytes] = set()
         # Whether we attempted a clone from pre-generated bundles.
-        self.clonebundleattempted = False
+        self.clonebundleattempted: bool = False
         # Set of file patterns to include.
-        self.includepats = includepats
+        self.includepats: set[bytes] = includepats
         # Set of file patterns to exclude.
-        self.excludepats = excludepats
+        self.excludepats: set[bytes] = excludepats
         # Number of ancestor changesets to pull from each pulled head.
-        self.depth = depth
+        self.depth: int | None = depth
 
     @util.propertycache
     def pulledsubset(self):
@@ -1617,7 +1657,7 @@ def _fullpullbundle2(repo, pullop):
         old_heads = unficl.heads()
         clstart = len(unficl)
         _pullbundle2(pullop)
-        if requirements.NARROW_REQUIREMENT in repo.requirements:
+        if repo.is_narrow:
             # XXX narrow clones filter the heads on the server side during
             # XXX getbundle and result in partial replies as well.
             # XXX Disable pull bundles in this case as band aid to avoid
@@ -1632,18 +1672,20 @@ def _fullpullbundle2(repo, pullop):
         pullop.rheads = set(pullop.rheads) - pullop.common
 
 
-def add_confirm_callback(repo, pullop):
+def add_confirm_callback(repo: RepoT, pullop: pulloperation):
     """adds a finalize callback to transaction which can be used to show stats
     to user and confirm the pull before committing transaction"""
 
+    assert pullop.trmanager is not None
     tr = pullop.trmanager.transaction()
     scmutil.registersummarycallback(
         repo, tr, txnname=b'pull', as_validator=True
     )
-    reporef = weakref.ref(repo.unfiltered())
+    reporef: weakref.ref[RepoT] = weakref.ref(repo.unfiltered())
 
     def prompt(tr):
         repo = reporef()
+        assert repo is not None
         cm = _(b'accept incoming changes (yn)?$$ &Yes $$ &No')
         if repo.ui.promptchoice(cm):
             raise error.Abort(b"user aborted")
@@ -1862,11 +1904,14 @@ def _pulldiscoverychangegroup(pullop):
     pullop.rheads = rheads
 
 
-def _pullbundle2(pullop):
+def _pullbundle2(pullop: pulloperation):
     """pull data using bundle2
 
     For now, the only supported data are changegroup."""
-    kwargs = {b'bundlecaps': caps20to10(pullop.repo, role=b'client')}
+    # XXX use typed dict
+    kwargs: dict[bytes, Any] = {
+        b'bundlecaps': caps20to10(pullop.repo, role=b'client'),
+    }
 
     # make ui easier to access
     ui = pullop.repo.ui
@@ -1929,13 +1974,16 @@ def _pullbundle2(pullop):
             # make sure to always includes bookmark data when migrating
             # `hg incoming --bundle` to using this function.
             pullop.stepsdone.add(b'request-bookmarks')
-            kwargs.setdefault(b'listkeys', []).append(b'bookmarks')
+            lk_arg = kwargs.setdefault(b'listkeys', [])
+            assert lk_arg is not None
+            lk_arg.append(b'bookmarks')
 
     # If this is a full pull / clone and the server supports the clone bundles
     # feature, tell the server whether we attempted a clone bundle. The
     # presence of this flag indicates the client supports clone bundles. This
     # will enable the server to treat clients that support clone bundles
     # differently from those that don't.
+    assert pullop.common is not None
     if (
         pullop.remote.capable(b'clonebundles')
         and pullop.heads is None
@@ -2372,7 +2420,7 @@ def _computeellipsis(repo, common, heads, known, match, depth=None):
 def caps20to10(repo, role):
     """return a set with appropriate options to use bundle20 during getbundle"""
     caps = {b'HG20'}
-    capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo, role=role))
+    capsblob = bundle2.encodecaps(bundle_caps.get_repo_caps(repo, role=role))
     caps.add(b'bundle2=' + urlreq.quote(capsblob))
     return caps
 
@@ -2462,11 +2510,7 @@ def getbundlechunks(
 
     # bundle20 case
     info[b'bundleversion'] = 2
-    b2caps = {}
-    for bcaps in bundlecaps:
-        if bcaps.startswith(b'bundle2='):
-            blob = urlreq.unquote(bcaps[len(b'bundle2=') :])
-            b2caps.update(bundle2.decodecaps(blob))
+    b2caps = urlutil.b2_caps_from_bundle_caps(bundlecaps)
     bundler = bundle2.bundle20(repo.ui, b2caps)
 
     kwargs[b'heads'] = heads
@@ -2490,8 +2534,28 @@ def getbundlechunks(
 
 
 @getbundle2partsgenerator(b'stream')
-def _getbundlestream2(bundler, repo, *args, **kwargs):
-    return bundle2.addpartbundlestream2(bundler, repo, **kwargs)
+def _getbundlestream2(
+    bundler,
+    repo: RepoT,
+    *args,
+    includepats: list[bytes] | None = None,
+    excludepats: list[bytes] | None = None,
+    **kwargs,
+):
+    # The bundle2 layer expects a matcher to work with
+    narrow_matcher: MatcherT | None = None
+    if includepats or excludepats:
+        narrow_matcher = narrowspec.match(
+            repo.root, include=includepats, exclude=excludepats
+        )
+    return bundle2.addpartbundlestream2(
+        bundler,
+        repo,
+        includepats=includepats,
+        excludepats=excludepats,
+        narrow_matcher=narrow_matcher,
+        **kwargs,
+    )
 
 
 @getbundle2partsgenerator(b'changegroup')
@@ -2761,8 +2825,10 @@ def unbundle(repo, cg, heads, source, url):
     If the push was raced as PushRaced exception is raised."""
     r = 0
     # need a transaction when processing a bundle2 stream
-    # [wlock, lock, tr] - needs to be an array so nested functions can modify it
-    lockandtr = [None, None, None]
+    # [wlock, lock] - needs to be an array so nested functions can modify it
+    lock_cache: list[lockmod.lock | None] = [None, None]
+    # [transaction] - needs to be an array so nested functions can modify it
+    tr_cache: list[TransactionT | None] = [None]
     recordout = None
     # quick fix for output mismatch with bundle2 in 3.4
     captureoutput = repo.ui.configbool(
@@ -2785,16 +2851,19 @@ def unbundle(repo, cg, heads, source, url):
             r = None
             try:
 
-                def gettransaction():
-                    if not lockandtr[2]:
+                def gettransaction() -> TransactionT:
+                    if tr_cache[0] is not None:
+                        tr = tr_cache[0]
+                    else:
                         if not bookmod.bookmarksinstore(repo):
-                            lockandtr[0] = repo.wlock()
-                        lockandtr[1] = repo.lock()
-                        lockandtr[2] = repo.transaction(source)
-                        lockandtr[2].hookargs[b'source'] = source
-                        lockandtr[2].hookargs[b'url'] = url
-                        lockandtr[2].hookargs[b'bundle2'] = b'1'
-                    return lockandtr[2]
+                            lock_cache[0] = repo.wlock()
+                        lock_cache[1] = repo.lock()
+                        tr = tr_cache[0] = repo.transaction(source)
+                        tr.hookargs[b'source'] = source
+                        tr.hookargs[b'url'] = url
+                        tr.hookargs[b'bundle2'] = b'1'
+                    assert tr is not None
+                    return tr
 
                 # Do greedy locking by default until we're satisfied with lazy
                 # locking.
@@ -2819,8 +2888,9 @@ def unbundle(repo, cg, heads, source, url):
                         def recordout(output):
                             r.newpart(b'output', data=output, mandatory=False)
 
-                if lockandtr[2] is not None:
-                    lockandtr[2].close()
+                tr = tr_cache[0]
+                if tr is not None:
+                    tr.close()
             except BaseException as exc:
                 exc.duringunbundle2 = True
                 if captureoutput and r is not None:
@@ -2834,7 +2904,7 @@ def unbundle(repo, cg, heads, source, url):
 
                 raise
     finally:
-        lockmod.release(lockandtr[2], lockandtr[1], lockandtr[0])
+        lockmod.release(tr_cache[0], lock_cache[1], lock_cache[0])
         if recordout is not None:
             recordout(repo.ui.popbuffer())
     return r
@@ -2876,8 +2946,19 @@ def _maybeapplyclonebundle(pullop):
         )
         return
 
+    store_fingerprint = None
+    if pullop.includepats or pullop.excludepats:
+        # This can still return None if any pat is not `path:`.
+        # Should we warn/error?
+        store_fingerprint = shapemod.fingerprint_for_patterns(
+            pullop.includepats, pullop.excludepats
+        )
+
     entries = bundlecaches.filterclonebundleentries(
-        repo, entries, streamclonerequested=pullop.streamclonerequested
+        repo,
+        entries,
+        streamclonerequested=pullop.streamclonerequested,
+        store_fingerprint=store_fingerprint,
     )
 
     if not entries:

@@ -93,6 +93,21 @@ You can then add extensions to that install using
 
   $ pipx inject mercurial hg-foo
 
+Using uv tool
+-------------
+
+Using `uv tool` is another efficient way to get an isolated installation of
+mercurial available for a user or globally.
+
+  $ uv tool install mercurial \
+        --no-binary \
+        --no-cache \
+        --config-setting=--build-option=--rust
+
+You can bring extensions along using the `--with` flag. For example
+
+  $ uv tool install mercurial --with hg-evolve [...]
+
 From your distribution
 ----------------------
 

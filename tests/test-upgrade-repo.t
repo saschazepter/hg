@@ -6,6 +6,7 @@
   > revlog-compression=zlib
   > [storage]
   > dirstate-v2.slow-path=allow
+  > fileindex.slow-path=allow
   > EOF
 
 store and revlogv1 are required in source
@@ -215,13 +216,13 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat
   format-variant                 repo
   fncache:                        yes
+  fileindex-v1:                    no
   dirstate-v2:                     no
   tracked-hint:                    no
   dotencode:                      yes
   fragile-plain-encode:            no
   generaldelta:                   yes
   share-safe:                     yes
-  hasmeta_flag:                    no
   sparserevlog:                   yes
   delta-info-flags:                no
   persistent-nodemap:              no (no-rust !)
@@ -235,13 +236,13 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat --verbose
   format-variant                 repo config default
   fncache:                        yes    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -256,13 +257,13 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat --verbose --config format.usefncache=no
   format-variant                 repo config default
   fncache:                        yes     no     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes     no     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -277,13 +278,13 @@ An upgrade of a repository created with recommended settings only suggests optim
   $ hg debugformat --verbose --config format.usefncache=no --color=debug
   format-variant                 repo config default
   [formatvariant.name.mismatchconfig|fncache:                       ][formatvariant.repo.mismatchconfig| yes][formatvariant.config.special|     no][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|fileindex-v1:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|dirstate-v2:                   ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|tracked-hint:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchconfig|dotencode:                     ][formatvariant.repo.mismatchconfig| yes][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.uptodate|fragile-plain-encode:          ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|generaldelta:                  ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|share-safe:                    ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
-  [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|sparserevlog:                  ][formatvariant.repo.uptodate| yes][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|delta-info-flags:              ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|persistent-nodemap:            ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
@@ -302,6 +303,12 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "fncache",
     "repo": true
+   },
+   {
+    "config": false,
+    "default": false,
+    "name": "fileindex-v1",
+    "repo": false
    },
    {
     "config": false,
@@ -338,12 +345,6 @@ An upgrade of a repository created with recommended settings only suggests optim
     "default": true,
     "name": "share-safe",
     "repo": true
-   },
-   {
-    "config": false,
-    "default": false,
-    "name": "hasmeta_flag",
-    "repo": false
    },
    {
     "config": true,
@@ -415,6 +416,9 @@ An upgrade of a repository created with recommended settings only suggests optim
   
   additional optimizations are available by specifying "--optimize <name>":
   
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
+  
   re-delta-parent
      deltas within internal storage will be recalculated to choose an optimal base revision where this was not already done; the size of the repository may shrink and various operations may become faster; the first time this optimization is performed could slow down upgrade execution considerably; subsequent invocations should not run noticeably slower
   
@@ -458,6 +462,9 @@ An upgrade of a repository created with recommended settings only suggests optim
   
   additional optimizations are available by specifying "--optimize <name>":
   
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
+  
   re-delta-multibase
      deltas within internal storage will be recalculated against multiple base revision and the smallest difference will be used; the size of the repository may shrink significantly when there are many merges; this optimization will slow down execution in proportion to the number of merges in the repository and the amount of files in the repository; this slow down should not be significant unless there are tens of thousands of files and thousands of merges
   
@@ -489,6 +496,9 @@ modern form of the option
     - manifest
   
   additional optimizations are available by specifying "--optimize <name>":
+  
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
   
   re-delta-multibase
      deltas within internal storage will be recalculated against multiple base revision and the smallest difference will be used; the size of the repository may shrink significantly when there are many merges; this optimization will slow down execution in proportion to the number of merges in the repository and the amount of files in the repository; this slow down should not be significant unless there are tens of thousands of files and thousands of merges
@@ -544,13 +554,13 @@ Various sub-optimal detections work
   $ hg debugformat
   format-variant                 repo
   fncache:                         no
+  fileindex-v1:                    no
   dirstate-v2:                     no
   tracked-hint:                    no
   dotencode:                       no
   fragile-plain-encode:            no
   generaldelta:                    no
   share-safe:                      no
-  hasmeta_flag:                    no
   sparserevlog:                    no
   delta-info-flags:                no
   persistent-nodemap:              no
@@ -563,13 +573,13 @@ Various sub-optimal detections work
   $ hg debugformat --verbose
   format-variant                 repo config default
   fncache:                         no    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                       no    yes     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                    no    yes     yes
   share-safe:                      no    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                    no    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -584,13 +594,13 @@ Various sub-optimal detections work
   $ hg debugformat --verbose --config format.usegeneraldelta=no
   format-variant                 repo config default
   fncache:                         no    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                       no    yes     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                    no     no     yes
   share-safe:                      no    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                    no     no     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -605,13 +615,13 @@ Various sub-optimal detections work
   $ hg debugformat --verbose --config format.usegeneraldelta=no --color=debug
   format-variant                 repo config default
   [formatvariant.name.mismatchconfig|fncache:                       ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
+  [formatvariant.name.uptodate|fileindex-v1:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|dirstate-v2:                   ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|tracked-hint:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchconfig|dotencode:                     ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
   [formatvariant.name.uptodate|fragile-plain-encode:          ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|generaldelta:                  ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.mismatchconfig|share-safe:                    ][formatvariant.repo.mismatchconfig|  no][formatvariant.config.default|    yes][formatvariant.default|     yes]
-  [formatvariant.name.uptodate|hasmeta_flag:                  ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.mismatchdefault|sparserevlog:                  ][formatvariant.repo.mismatchdefault|  no][formatvariant.config.special|     no][formatvariant.default|     yes]
   [formatvariant.name.uptodate|delta-info-flags:              ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no]
   [formatvariant.name.uptodate|persistent-nodemap:            ][formatvariant.repo.uptodate|  no][formatvariant.config.default|     no][formatvariant.default|      no] (no-rust !)
@@ -643,7 +653,7 @@ Various sub-optimal detections work
      old shared repositories do not share source repository requirements and config. This leads to various problems when the source repository format is upgraded or some new extensions are enabled.
   
   sparserevlog
-     in order to limit disk reading and memory usage on older version, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severly limit Mercurial ability to build good chain of delta resulting is much more storage space being taken and limit reusability of on disk delta during exchange.
+     in order to limit disk reading and memory usage on older versions, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severely limit Mercurial's ability to build a good chain of delta resulting in much more storage space being taken, and limit reusability of on disk delta during exchange.
   
   persistent-nodemap (rust !)
      persist the node -> rev mapping on disk to speedup lookup (rust !)
@@ -669,7 +679,7 @@ Various sub-optimal detections work
      Upgrades a repository to share-safe format so that future shares of this repository share its requirements and configs.
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   persistent-nodemap (rust !)
      Speedup revision lookup by node id. (rust !)
@@ -680,6 +690,9 @@ Various sub-optimal detections work
     - manifest
   
   additional optimizations are available by specifying "--optimize <name>":
+  
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
   
   re-delta-parent
      deltas within internal storage will be recalculated to choose an optimal base revision where this was not already done; the size of the repository may shrink and various operations may become faster; the first time this optimization is performed could slow down upgrade execution considerably; subsequent invocations should not run noticeably slower
@@ -744,7 +757,7 @@ Check that disabling general-delta also disable sparse-revlog
      old shared repositories do not share source repository requirements and config. This leads to various problems when the source repository format is upgraded or some new extensions are enabled.
   
   sparserevlog
-     in order to limit disk reading and memory usage on older version, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severly limit Mercurial ability to build good chain of delta resulting is much more storage space being taken and limit reusability of on disk delta during exchange.
+     in order to limit disk reading and memory usage on older versions, the span of a delta chain from its root to its end is limited, whatever the relevant data in this span. This can severely limit Mercurial's ability to build a good chain of delta resulting in much more storage space being taken, and limit reusability of on disk delta during exchange.
   
   persistent-nodemap (rust !)
      persist the node -> rev mapping on disk to speedup lookup (rust !)
@@ -772,7 +785,7 @@ Check that disabling general-delta also disable sparse-revlog
      Upgrades a repository to share-safe format so that future shares of this repository share its requirements and configs.
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   persistent-nodemap (rust !)
      Speedup revision lookup by node id. (rust !)
@@ -783,6 +796,9 @@ Check that disabling general-delta also disable sparse-revlog
     - manifest
   
   additional optimizations are available by specifying "--optimize <name>":
+  
+  re-delta-quick
+     deltas within internal storage will be reprocessed with minimal overhead, deltas already in store will be reused as often as possible. This provides a way to smooth out potential problematic deltas while avoiding deeper but slower optimization that might not be necessary
   
   re-delta-parent
      deltas within internal storage will be recalculated to choose an optimal base revision where this was not already done; the size of the repository may shrink and various operations may become faster; the first time this optimization is performed could slow down upgrade execution considerably; subsequent invocations should not run noticeably slower
@@ -856,13 +872,31 @@ make sure we have a .d file
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (384 bytes in store; 238 bytes tracked data)
-  finished migrating 3 manifest revisions across 1 manifests; change in size: -17 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: -17 bytes
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              384 bytes
+       tracked-size:            238 bytes
+       size-change:             -17 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -960,7 +994,7 @@ unless --no-backup is passed
      added: sparserevlog
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   processed revlogs:
     - all-filelogs
@@ -973,13 +1007,31 @@ unless --no-backup is passed
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1015,18 +1067,36 @@ We can restrict optimization to some revlog:
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   blindly copying data/FooBarDirectory.d/f1.i containing 1 revisions
   blindly copying data/f0.i containing 1 revisions
   blindly copying data/f2.i containing 1 revisions
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   cloning 3 revisions from 00manifest.i
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   blindly copying 00changelog.i containing 3 revisions
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1089,18 +1159,36 @@ Check we can select negatively
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   blindly copying 00manifest.i containing 3 revisions
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1135,18 +1223,36 @@ Check that we can select changelog only
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   blindly copying data/FooBarDirectory.d/f1.i containing 1 revisions
   blindly copying data/f0.i containing 1 revisions
   blindly copying data/f2.i containing 1 revisions
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   blindly copying 00manifest.i containing 3 revisions
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1181,18 +1287,36 @@ Check that we can select filelog only
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   blindly copying 00manifest.i containing 3 revisions
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   blindly copying 00changelog.i containing 3 revisions
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1251,18 +1375,36 @@ Check you can't skip revlog clone during important format downgrade
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   cloning 3 revisions from 00manifest.i
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1291,7 +1433,7 @@ Check you can't skip revlog clone during important format upgrade
   optimisations: re-delta-parent
   
   sparserevlog
-     Revlog supports delta chain with more unused data between payload. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with server.
+     Revlog supports delta chain with more unused data between payloads. These gaps will be skipped at read time. This allows for better delta chains, making a better compression and faster exchange with the server.
   
   re-delta-parent
      deltas within internal storage will choose a new base revision if needed
@@ -1307,18 +1449,36 @@ Check you can't skip revlog clone during important format upgrade
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 519 KB in store; 1.05 MB tracked data
-  migrating 3 filelogs containing 3 revisions (518 KB in store; 1.05 MB tracked data)
+  migrating filelogs:
+       revlog-count:              3
+       total-revisions:           3
+       store-size:              518 KB
+       tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
   cloning 1 revisions from data/f2.i
-  finished migrating 3 filelog revisions across 3 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 3 revisions (367 bytes in store; 238 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              367 bytes
+       tracked-size:            238 bytes
   cloning 3 revisions from 00manifest.i
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (394 bytes in store; 199 bytes tracked data)
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              394 bytes
+       tracked-size:            199 bytes
   cloning 3 revisions from 00changelog.i
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: 0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           5
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1365,13 +1525,31 @@ store files with special filenames aren't encoded during copy
   (it is safe to interrupt this process any time before data migration completes)
   migrating 3 total revisions (1 in filelogs, 1 in manifests, 1 in changelog)
   migrating 301 bytes in store; 107 bytes tracked data
-  migrating 1 filelogs containing 1 revisions (64 bytes in store; 0 bytes tracked data)
-  finished migrating 1 filelog revisions across 1 filelogs; change in size: 0 bytes
-  migrating 1 manifests containing 1 revisions (110 bytes in store; 45 bytes tracked data)
-  finished migrating 1 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 1 revisions (127 bytes in store; 62 bytes tracked data)
-  finished migrating 1 changelog revisions; change in size: 0 bytes
-  finished migrating 3 total revisions; total change in store size: 0 bytes
+  migrating filelogs:
+       revlog-count:              1
+       total-revisions:           1
+       store-size:               64 bytes
+       tracked-size:              0 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           1
+       store-size:              110 bytes
+       tracked-size:             45 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           1
+       store-size:              127 bytes
+       tracked-size:             62 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           3
+       total-revisions:           3
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying .XX_special_filename
   copying phaseroots
   copying requires
@@ -1529,13 +1707,31 @@ repository config is taken in account
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
   migrating 1019 bytes in store; 882 bytes tracked data
-  migrating 1 filelogs containing 3 revisions (320 bytes in store; 573 bytes tracked data)
-  finished migrating 3 filelog revisions across 1 filelogs; change in size: -9 bytes
-  migrating 1 manifests containing 3 revisions (333 bytes in store; 138 bytes tracked data)
-  finished migrating 3 manifest revisions across 1 manifests; change in size: 0 bytes
-  migrating changelog containing 3 revisions (366 bytes in store; 171 bytes tracked data)
-  finished migrating 3 changelog revisions; change in size: 0 bytes
-  finished migrating 9 total revisions; total change in store size: -9 bytes
+  migrating filelogs:
+       revlog-count:              1
+       total-revisions:           3
+       store-size:              320 bytes
+       tracked-size:            573 bytes
+       size-change:              -9 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating manifest:
+       filelog-count:             1
+       total-revisions:           3
+       store-size:              333 bytes
+       tracked-size:            138 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  migrating changelog:
+       total-revisions:           3
+       store-size:              366 bytes
+       tracked-size:            171 bytes
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
+  finished migrating:
+       total-revlog   :           3
+       total-revisions:           9
+       size-change:               0 bytes
+       elapsed-time:      [0-9 ]{9} seconds (re)
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1580,7 +1776,7 @@ Check upgrading a sparse-revlog repository
 Check that we can add the sparse-revlog format requirement
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
-  >    --config format.exp-use-delta-info-flags=no
+  >    --config format.use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
@@ -1606,7 +1802,7 @@ Check that we can add the sparse-revlog format requirement
 Check that we can remove the sparse-revlog format requirement
   $ hg  debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=no \
-  >    --config format.exp-use-delta-info-flags=no
+  >    --config format.use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
@@ -1652,12 +1848,12 @@ upgrade
   flags  : inline, generaldelta
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
-  >    --config format.exp-use-delta-info-flags=yes
+  >    --config format.use-delta-info-flags=yes
   upgrade will perform the following actions:
   
   requirements
      preserved: dotencode, fncache, generaldelta,( persistent-nodemap,)? revlogv1, share-safe, store (re)
-     added: exp-delta-info-revlog, sparserevlog
+     added: delta-info-revlog, sparserevlog
   
   processed revlogs:
     - all-filelogs
@@ -1665,8 +1861,8 @@ upgrade
     - manifest
   
   $ hg debugrequires
+  delta-info-revlog
   dotencode
-  exp-delta-info-revlog
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -1682,13 +1878,13 @@ upgrade
   flags  : inline, generaldelta, delta-info
   $ hg debugrevlog foo | grep -E 'flags|format'
   format : 1
-  flags  : inline, generaldelta, delta-info
+  flags  : inline, generaldelta, hasmeta, delta-info
 
 downgrade
 
   $ hg debugrequires
+  delta-info-revlog
   dotencode
-  exp-delta-info-revlog
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -1704,15 +1900,15 @@ downgrade
   flags  : inline, generaldelta, delta-info
   $ hg debugrevlog foo | grep -E 'flags|format'
   format : 1
-  flags  : inline, generaldelta, delta-info
+  flags  : inline, generaldelta, hasmeta, delta-info
   $ hg debugupgraderepo --run --quiet \
   >    --config format.sparse-revlog=yes \
-  >    --config format.exp-use-delta-info-flags=no
+  >    --config format.use-delta-info-flags=no
   upgrade will perform the following actions:
   
   requirements
      preserved: dotencode, fncache, generaldelta,( persistent-nodemap,)? revlogv1, share-safe, sparserevlog, store (re)
-     removed: exp-delta-info-revlog
+     removed: delta-info-revlog
   
   processed revlogs:
     - all-filelogs
@@ -1851,11 +2047,11 @@ upgrade
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
-     preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: revlogv1
-     added: exp-revlogv2.2
+     preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
+     preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
+     preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
+     removed: dotencode, fncache, revlogv1
+     added: exp-revlogv2.2, fileindex-v1
   
   processed revlogs:
     - all-filelogs
@@ -1864,14 +2060,14 @@ upgrade
   
   $ hg debugformat -v
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
+  fncache:                         no    yes     yes
+  fileindex-v1:                   yes     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
+  dotencode:                       no    yes     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -1884,9 +2080,8 @@ upgrade
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
   $ hg debugrequires
-  dotencode
   exp-revlogv2.2
-  fncache
+  fileindex-v1
   generaldelta
   persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
@@ -1904,11 +2099,11 @@ downgrade
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
-     preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: exp-revlogv2.2
-     added: revlogv1
+     preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
+     preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
+     preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
+     removed: exp-revlogv2.2, fileindex-v1
+     added: dotencode, fncache, revlogv1
   
   processed revlogs:
     - all-filelogs
@@ -1918,13 +2113,13 @@ downgrade
   $ hg debugformat -v
   format-variant                 repo config default
   fncache:                        yes    yes     yes
+  fileindex-v1:                    no     no      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
   dotencode:                      yes    yes     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -1958,11 +2153,11 @@ upgrade from hgrc
   upgrade will perform the following actions:
   
   requirements
-     preserved: dotencode, fncache, generaldelta, share-safe, sparserevlog, store (no-zstd !)
-     preserved: dotencode, fncache, generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
-     preserved: dotencode, fncache, generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: revlogv1
-     added: exp-revlogv2.2
+     preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
+     preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
+     preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
+     removed: dotencode, fncache, revlogv1
+     added: exp-revlogv2.2, fileindex-v1
   
   processed revlogs:
     - all-filelogs
@@ -1971,14 +2166,14 @@ upgrade from hgrc
   
   $ hg debugformat -v
   format-variant                 repo config default
-  fncache:                        yes    yes     yes
+  fncache:                         no     no     yes
+  fileindex-v1:                   yes    yes      no
   dirstate-v2:                     no     no      no
   tracked-hint:                    no     no      no
-  dotencode:                      yes    yes     yes
+  dotencode:                       no     no     yes
   fragile-plain-encode:            no     no      no
   generaldelta:                   yes    yes     yes
   share-safe:                     yes    yes     yes
-  hasmeta_flag:                    no     no      no
   sparserevlog:                   yes    yes     yes
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
@@ -1991,9 +2186,8 @@ upgrade from hgrc
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
   $ hg debugrequires
-  dotencode
   exp-revlogv2.2
-  fncache
+  fileindex-v1
   generaldelta
   persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)

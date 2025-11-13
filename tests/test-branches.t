@@ -1,6 +1,8 @@
 #testcases mmap nommap
 #testcases v2 v3
 
+  $ . $TESTDIR/testlib/common.sh
+
 #if mmap
   $ cat <<EOF >> $HGRCPATH
   > [storage]
@@ -18,12 +20,21 @@
   > [experimental]
   > branch-cache-v3=yes
   > EOF
+  $ CACHE_PREFIX=branch3
 #else
   $ cat <<EOF >> $HGRCPATH
   > [experimental]
   > branch-cache-v3=no
   > EOF
+  $ CACHE_PREFIX=branch2
 #endif
+
+  $ show_cache() {
+  >     for cache_file in .hg/cache/$CACHE_PREFIX*; do
+  >         echo "##### $cache_file"
+  >         cat $cache_file
+  >     done
+  > }
 
   $ hg init a
   $ cd a
@@ -350,6 +361,34 @@ verify update will accept invalid legacy branch names
   close this part branch too
   
   
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} - {closesbranch} {node|short}\n'
+  @  b X - true e3d49c0575d8
+  |
+  | _  b X - true d3f163457ebf
+  | |
+  | o  b   - false bfbe841b666e
+  | |
+  | o  b   - false 5f4061bb3f2a
+  | |
+  o |  b   - false eebb944467c9
+  |/
+  | o  a branch name much longer than the default justification used by branches   - false 10ff5895aa57
+  | |
+  | o  c   - false 589736a22561
+  | |
+  | o  a   - false d8cbc61dbaa6
+  | |
+  o |  b   - false aee39cd168d0
+  | |
+  o |  b   - false ac22033332d1
+  | |
+  | o  a   - false 881fe2b92ad0
+  | |
+  | o  a   - false dd6b440dd85a
+  |/
+  o  default   - false 19709c5a4e75
+  
+
 --- b branch should be inactive
 
   $ hg branches
@@ -1425,7 +1464,7 @@ Unbundling revision should warm the served cache
   updating to branch A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #if v3
-  $ cat branchmap-update-01/.hg/cache/branch3-exp-base
+  $ cat branchmap-update-01/.hg/cache/branch3-base
   tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
   A
 #else
@@ -1441,7 +1480,7 @@ Unbundling revision should warm the served cache
   new changesets a3b807b3ff0b:71ca9a6d524e (2 drafts)
   (run 'hg update' to get a working copy)
 #if v3
-  $ cat branchmap-update-01/.hg/cache/branch3-exp-served
+  $ cat branchmap-update-01/.hg/cache/branch3-served
   tip-node=71ca9a6d524ed3c2a215119b2086ac3b8c4c8286 tip-rev=3 topo-mode=pure
   A
 #else
@@ -1471,7 +1510,7 @@ aborted Unbundle should not update the on disk cache
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 #if v3
-  $ cat branchmap-update-02/.hg/cache/branch3-exp-base
+  $ cat branchmap-update-02/.hg/cache/branch3-base
   tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
   A
 #else
@@ -1488,11 +1527,296 @@ aborted Unbundle should not update the on disk cache
   abort: pretxnclose hook failed
   [40]
 #if v3
-  $ cat branchmap-update-02/.hg/cache/branch3-exp-base
+  $ cat branchmap-update-02/.hg/cache/branch3-base
   tip-node=99ba08759bc7f6fdbe5304e83d0387f35c082479 tip-rev=1 topo-mode=pure
   A
 #else
   $ cat branchmap-update-02/.hg/cache/branch2-base
   99ba08759bc7f6fdbe5304e83d0387f35c082479 1
   99ba08759bc7f6fdbe5304e83d0387f35c082479 o A
+#endif
+
+
+Automatic detection of the pure-topo mode for branchmap v3
+==========================================================
+
+The repository is in a pure-topo state
+(even if the branch cache did not noticed it yet, which is fine)
+
+  $ cd branchmap-testing4-clone
+  $ hg update A
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg debugupdatecache # make sure previous event doesn't influence the test
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+  $ hg branches
+  A                              4:4bf67499b70a
+  C                              3:4a546028fa8f (inactive)
+  B                              1:0bc7d348d965 (inactive)
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#endif
+
+We close the top head
+
+output must remain correct, and the branch is not in a topo-head state
+
+  $ hg commit --close-branch -m 'close the topo head'
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n' --rev 'public()'
+  o    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @  A X db99163c2f3f
+  |
+  o    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+  $ hg branches
+  C                              3:4a546028fa8f (inactive)
+  B                              1:0bc7d348d965 (inactive)
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=db99163c2f3fc6ff219f3e3c071543cd3b9dddc8 tip-rev=5
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  db99163c2f3fc6ff219f3e3c071543cd3b9dddc8 5
+  db99163c2f3fc6ff219f3e3c071543cd3b9dddc8 c A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#endif
+
+
+We re-open the top head
+(we do a couple of commit to give the cache time to detect that this is pure-topo mode).
+
+  $ echo 1 >> foo
+  $ hg add foo
+  $ hg commit -m 'reopen'
+  reopening closed branch head 5
+  $ echo 2 >> foo
+  $ hg commit -m 'another commit'
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n' --rev 'public()'
+  o    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @  A   18507f5e8524
+  |
+  o  A   117ef0aff623
+  |
+  _  A X db99163c2f3f
+  |
+  o    A   4bf67499b70a
+  |\
+  | o  C   4a546028fa8f
+  | |
+  | o  A   a3b807b3ff0b
+  | |
+  o |  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+  $ hg branches
+  A                              7:18507f5e8524
+  C                              3:4a546028fa8f (inactive)
+  B                              1:0bc7d348d965 (inactive)
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=mixed
+  A
+  
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  18507f5e85242640bb3f97ea2087ec574c1f78e1 7
+  18507f5e85242640bb3f97ea2087ec574c1f78e1 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#endif
+
+
+Automatic detection of the mixed mode for branchmap v3
+======================================================
+
+Let's open branch C alongside branch A
+
+  $ hg up C
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ mkcommit C1
+  $ mkcommit C2
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @  C   aa41ed5f1e51
+  |
+  o  C   e29f33a0e41f
+  |
+  | o  A   18507f5e8524
+  | |
+  | o  A   117ef0aff623
+  | |
+  | _  A X db99163c2f3f
+  | |
+  | o  A   4bf67499b70a
+  |/|
+  o |  C   4a546028fa8f
+  | |
+  o |  A   a3b807b3ff0b
+  | |
+  | o  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+
+This should be detected by now
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=aa41ed5f1e512b754a138d564455ddd6017b7d34 tip-rev=9 topo-mode=mixed
+  A
+  C
+  
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  aa41ed5f1e512b754a138d564455ddd6017b7d34 9
+  18507f5e85242640bb3f97ea2087ec574c1f78e1 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  aa41ed5f1e512b754a138d564455ddd6017b7d34 o C
+#endif
+
+And this is preserved over further update
+
+  $ mkcommit C3
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @  C   b3ad80eaca8a
+  |
+  o  C   aa41ed5f1e51
+  |
+  o  C   e29f33a0e41f
+  |
+  | o  A   18507f5e8524
+  | |
+  | o  A   117ef0aff623
+  | |
+  | _  A X db99163c2f3f
+  | |
+  | o  A   4bf67499b70a
+  |/|
+  o |  C   4a546028fa8f
+  | |
+  o |  A   a3b807b3ff0b
+  | |
+  | o  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=b3ad80eaca8a572cbca78ef07ece1013ead0707a tip-rev=10 topo-mode=mixed
+  A
+  C
+  
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  b3ad80eaca8a572cbca78ef07ece1013ead0707a 10
+  18507f5e85242640bb3f97ea2087ec574c1f78e1 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  b3ad80eaca8a572cbca78ef07ece1013ead0707a o C
 #endif

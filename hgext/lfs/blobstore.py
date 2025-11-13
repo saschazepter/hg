@@ -41,6 +41,9 @@ _lfsre = re.compile(br'\A[a-f0-9]{64}\Z')
 
 
 class lfsvfs(vfsmod.vfs):
+    def __init__(self, base: bytes) -> None:
+        super().__init__(base, expandpath=True, realpath=True)
+
     def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         """split the path at first two characters, like: XX/XXXXX..."""
         if not _lfsre.match(path):
@@ -382,8 +385,7 @@ class _gitlfsremote:
             response = pycompat.json_loads(rawjson)
         except ValueError:
             raise LfsRemoteError(
-                _(b'LFS server returns invalid JSON: %s')
-                % rawjson.encode("utf-8")
+                _(b'LFS server returns invalid JSON: %s') % rawjson
             )
 
         if self.ui.debugflag:
@@ -509,7 +511,7 @@ class _gitlfsremote:
                 request.add_header('Content-Length', request.data.length)
 
             with contextlib.closing(self.urlopener.open(request)) as res:
-                contentlength = res.info().get(b"content-length")
+                contentlength = res.info().get("content-length")
                 ui = self.ui  # Shorten debug lines
                 if self.ui.debugflag:
                     ui.debug(b'Status: %d\n' % res.status)

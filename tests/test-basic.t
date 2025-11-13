@@ -93,9 +93,12 @@ This command is ancient:
 Verify that updating to revision 0 via commands.update() works properly
 
   $ cat <<EOF > update_to_rev0.py
-  > from mercurial import commands, hg, ui as uimod
+  > from mercurial import commands, ui as uimod
+  > from mercurial.repo import (
+  >    factory as repo_factory,
+  > )
   > myui = uimod.ui.load()
-  > repo = hg.repository(myui, path=b'.')
+  > repo = repo_factory.repository(myui, path=b'.')
   > commands.update(myui, repo, rev=b"0")
   > EOF
   $ hg up null

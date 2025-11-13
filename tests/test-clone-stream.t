@@ -1,6 +1,7 @@
 #require serve no-chg
 
 #testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
+#testcases fncache fileindex
 
 #if stream-legacy
   $ cat << EOF >> $HGRCPATH
@@ -16,6 +17,25 @@
   $ cat << EOF >> $HGRCPATH
   > [experimental]
   > stream-v3 = yes
+  > EOF
+#endif
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 #endif
 
@@ -145,6 +165,10 @@ based clone with a warning.
       03
     checkheads
       related
+    delta-compression
+      none
+      zlib
+      zstd (zstd !)
     digests
       md5
       sha1
@@ -260,6 +284,26 @@ The alias flag should trigger a stream clone too.
   stream-cloned * files / * KB in * seconds (* */sec) (glob)
   searching for changes (stream-legacy !)
   no changes found (stream-legacy !)
+
+Stream clones can be disabled
+-----------------------------
+
+--no-stream and --no-uncompressed do not get a stream clone.
+
+  $ hg clone --no-uncompressed -U http://localhost:$HGPORT clone1-regular1
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:5223b5e3265f
+  $ hg clone --no-stream -U http://localhost:$HGPORT clone1-regular2
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:5223b5e3265f
 
 Clone with background file closing enabled
 -------------------------------------------

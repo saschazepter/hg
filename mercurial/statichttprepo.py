@@ -28,6 +28,9 @@ from . import (
     util,
     vfs as vfsmod,
 )
+from .repo import (
+    requirements as repo_req,
+)
 from .utils import (
     urlutil,
 )
@@ -170,13 +173,13 @@ class statichttppeer(localrepo.localpeer):
         return False
 
 
-class statichttprepository(
-    localrepo.localrepository, localrepo.revlogfilestorage
-):
+class statichttprepository(localrepo.localrepository):
     supported = localrepo.localrepository._basesupported
 
     manifestlog: manifest.manifestlog
     sjoin: Callable[[bytes], bytes]
+
+    is_static_http_repository = True
 
     def __init__(self, ui, path):
         self._url = path
@@ -214,7 +217,7 @@ class statichttprepository(
             storevfs = vfsclass(self.vfs.join(b'store'))
             requirements |= set(storevfs.read(b'requires').splitlines())
 
-        supportedrequirements = localrepo.gathersupportedrequirements(ui)
+        supportedrequirements = repo_req.gather_supported_requirements(ui)
         localrepo.ensurerequirementsrecognized(
             requirements, supportedrequirements
         )
@@ -223,7 +226,9 @@ class statichttprepository(
         self.nullid = self.nodeconstants.nullid
 
         # setup store
-        self.store = localrepo.makestore(requirements, self.path, vfsclass)
+        self.store = localrepo.makestore(
+            ui, requirements, self.path, vfsclass, try_pending=False
+        )
         self.spath = self.store.path
         self.svfs = self.store.opener
         # We can't use Rust because the Rust code cannot cope with the

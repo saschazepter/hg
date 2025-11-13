@@ -287,7 +287,7 @@ static PyObject *dirstate_item_v2_data(dirstateItemObject *self)
 #endif
 	return Py_BuildValue("iiii", flags, self->size, self->mtime_s,
 	                     self->mtime_ns);
-};
+}
 
 static PyObject *dirstate_item_mtime_likely_equal_to(dirstateItemObject *self,
                                                      PyObject *other)
@@ -317,7 +317,7 @@ static PyObject *dirstate_item_mtime_likely_equal_to(dirstateItemObject *self,
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 /* This will never change since it's bound to V1
  */
@@ -413,7 +413,7 @@ static PyObject *dirstate_item_from_v2_meth(PyTypeObject *subtype,
 		}
 	}
 	return (PyObject *)t;
-};
+}
 
 /* This means the next status call will have to actually check its content
    to make sure it is correct. */
@@ -511,23 +511,23 @@ static PyMethodDef dirstate_item_methods[] = {
 static PyObject *dirstate_item_get_mode(dirstateItemObject *self)
 {
 	return PyLong_FromLong(dirstate_item_c_v1_mode(self));
-};
+}
 
 static PyObject *dirstate_item_get_size(dirstateItemObject *self)
 {
 	return PyLong_FromLong(dirstate_item_c_v1_size(self));
-};
+}
 
 static PyObject *dirstate_item_get_mtime(dirstateItemObject *self)
 {
 	return PyLong_FromLong(dirstate_item_c_v1_mtime(self));
-};
+}
 
 static PyObject *dirstate_item_get_state(dirstateItemObject *self)
 {
 	char state = dirstate_item_c_v1_state(self);
 	return PyBytes_FromStringAndSize(&state, 1);
-};
+}
 
 static PyObject *dirstate_item_get_has_fallback_exec(dirstateItemObject *self)
 {
@@ -536,7 +536,7 @@ static PyObject *dirstate_item_get_has_fallback_exec(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_fallback_exec(dirstateItemObject *self)
 {
@@ -549,7 +549,7 @@ static PyObject *dirstate_item_get_fallback_exec(dirstateItemObject *self)
 	} else {
 		Py_RETURN_NONE;
 	}
-};
+}
 
 static int dirstate_item_set_fallback_exec(dirstateItemObject *self,
                                            PyObject *value)
@@ -565,7 +565,7 @@ static int dirstate_item_set_fallback_exec(dirstateItemObject *self,
 		}
 	}
 	return 0;
-};
+}
 
 static PyObject *
 dirstate_item_get_has_fallback_symlink(dirstateItemObject *self)
@@ -575,7 +575,7 @@ dirstate_item_get_has_fallback_symlink(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_fallback_symlink(dirstateItemObject *self)
 {
@@ -588,7 +588,7 @@ static PyObject *dirstate_item_get_fallback_symlink(dirstateItemObject *self)
 	} else {
 		Py_RETURN_NONE;
 	}
-};
+}
 
 static int dirstate_item_set_fallback_symlink(dirstateItemObject *self,
                                               PyObject *value)
@@ -604,7 +604,7 @@ static int dirstate_item_set_fallback_symlink(dirstateItemObject *self,
 		}
 	}
 	return 0;
-};
+}
 
 static PyObject *dirstate_item_get_tracked(dirstateItemObject *self)
 {
@@ -613,7 +613,7 @@ static PyObject *dirstate_item_get_tracked(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 static PyObject *dirstate_item_get_p1_tracked(dirstateItemObject *self)
 {
 	if (self->flags & dirstate_flag_p1_tracked) {
@@ -621,7 +621,7 @@ static PyObject *dirstate_item_get_p1_tracked(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_added(dirstateItemObject *self)
 {
@@ -630,7 +630,7 @@ static PyObject *dirstate_item_get_added(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_p2_info(dirstateItemObject *self)
 {
@@ -640,7 +640,7 @@ static PyObject *dirstate_item_get_p2_info(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_modified(dirstateItemObject *self)
 {
@@ -649,7 +649,7 @@ static PyObject *dirstate_item_get_modified(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_from_p2(dirstateItemObject *self)
 {
@@ -658,7 +658,7 @@ static PyObject *dirstate_item_get_from_p2(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_maybe_clean(dirstateItemObject *self)
 {
@@ -671,7 +671,7 @@ static PyObject *dirstate_item_get_maybe_clean(dirstateItemObject *self)
 	} else {
 		Py_RETURN_TRUE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_any_tracked(dirstateItemObject *self)
 {
@@ -680,7 +680,7 @@ static PyObject *dirstate_item_get_any_tracked(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyObject *dirstate_item_get_removed(dirstateItemObject *self)
 {
@@ -689,7 +689,7 @@ static PyObject *dirstate_item_get_removed(dirstateItemObject *self)
 	} else {
 		Py_RETURN_FALSE;
 	}
-};
+}
 
 static PyGetSetDef dirstate_item_getset[] = {
     {"mode", (getter)dirstate_item_get_mode, NULL, "mode", NULL},

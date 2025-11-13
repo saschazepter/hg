@@ -33,10 +33,12 @@ from . import (
     repoview,
     scmutil,
     sparse,
-    subrepo,
     subrepoutil,
     testing,
     util,
+)
+from .interfaces import (
+    context as i_context,
 )
 from .utils import (
     dag_util,
@@ -59,6 +61,28 @@ if typing.TYPE_CHECKING:
 
 propertycache = util.propertycache
 
+# The `subrepo` and `nullsubrepo` function exists to avoid an circular import
+# between `mercurial.context` and `mercurial.subrepo`. They are set to real
+# value by the `subrepo` module itself when initializing. The
+# `mercurial.initialization` module make sure `mercurial.subrepo` is run early.
+
+
+# XXX should -> SubrepoT once the Protocol has some content
+def make_subrepo(
+    ctx: basectx,
+    path: bytes,
+    allowwdir: bool = False,
+    allowcreate: bool = True,
+):
+    msg = b"using the `context` module before `subrepo` initialization"
+    raise error.ProgrammingError(msg)
+
+
+# XXX should -> SubrepoT once the Protocol has some content
+def make_null_subrepo(ctx: basectx, path: bytes, pctx: basectx):
+    msg = b"using the `context` module before `subrepo` initialization"
+    raise error.ProgrammingError(msg)
+
 
 class basectx(abc.ABC):
     """A basectx object represents the common logic for its children:
@@ -67,6 +91,8 @@ class basectx(abc.ABC):
                 be committed,
     memctx: a context that represents changes in-memory and can also
             be committed."""
+
+    in_memory = False
 
     def __init__(self, repo):
         self._repo = repo
@@ -137,6 +163,7 @@ class basectx(abc.ABC):
         listignored: bool,
         listclean: bool,
         listunknown: bool,
+        empty_dirs_keep_files: bool,
     ) -> StatusT:
         """build a status with respect to another context"""
         # Load earliest manifest first for caching reasons. More specifically,
@@ -344,16 +371,16 @@ class basectx(abc.ABC):
 
     def sub(self, path: bytes, allowcreate: bool = True):
         '''return a subrepo for the stored revision of path, never wdir()'''
-        return subrepo.subrepo(self, path, allowcreate=allowcreate)
+        return make_subrepo(self, path, allowcreate=allowcreate)
 
     def nullsub(self, path: bytes, pctx):
-        return subrepo.nullsubrepo(self, path, pctx)
+        return make_null_subrepo(self, path, pctx)
 
     def workingsub(self, path: bytes):
         """return a subrepo for the stored revision, or wdir if this is a wdir
         context.
         """
-        return subrepo.subrepo(self, path, allowwdir=True)
+        return make_subrepo(self, path, allowwdir=True)
 
     def match(
         self,
@@ -426,6 +453,7 @@ class basectx(abc.ABC):
         listclean: bool = False,
         listunknown: bool = False,
         listsubrepos: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         """return status of files between two nodes or node and working
         directory.
@@ -469,7 +497,13 @@ class basectx(abc.ABC):
         match = ctx2._matchstatus(ctx1, match)
         r = scmutil.status([], [], [], [], [], [], [])
         r = ctx2._buildstatus(
-            ctx1, r, match, listignored, listclean, listunknown
+            ctx1,
+            r,
+            match,
+            listignored,
+            listclean,
+            listunknown,
+            empty_dirs_keep_files,
         )
 
         if reversed:
@@ -534,7 +568,7 @@ class basectx(abc.ABC):
         )
 
 
-class changectx(basectx):
+class changectx(basectx, i_context.IChangeContext):
     """A changecontext object makes access to data related to a particular
     changeset convenient. It represents a read-only context already present in
     the repo."""
@@ -842,6 +876,12 @@ class changectx(basectx):
     def matches(self, match):
         return self.walk(match)
 
+    def p1_overlay(self) -> overlayworkingctx:
+        """create a overlayworkingctx based on this changectx's p1"""
+        wctx = overlayworkingctx(self.repo())
+        wctx.setbase(self.p1())
+        return wctx
+
 
 class basefilectx(abc.ABC):
     """A filecontext object represents the common logic for its children:
@@ -858,6 +898,8 @@ class basefilectx(abc.ABC):
     # local repo ops.
     _repo: LocalRepoCompleteT
     _path: bytes
+
+    in_memory = False
 
     @abc.abstractmethod
     def data(self) -> bytes:
@@ -1313,6 +1355,10 @@ class basefilectx(abc.ABC):
         """
         return self._repo.wwritedata(self.path(), self.data())
 
+    def new_arbitrary(self, path):
+        """return a new arbitraryfilectx object at <path>"""
+        return arbitraryfilectx(path, repo=self.repo())
+
 
 class filectx(basefilectx):
     """A filecontext object makes access to data related to a particular
@@ -1616,7 +1662,7 @@ class committablectx(basectx):
         return False
 
 
-class workingctx(committablectx):
+class workingctx(committablectx, i_context.IWorkingContext):
     """A workingctx object makes access to data related to
     the current working directory convenient.
     date - any valid date string or (unixtime, offset), or None.
@@ -1742,6 +1788,17 @@ class workingctx(committablectx):
         return workingfilectx(
             self._repo, path, workingctx=self, filelog=filelog
         )
+
+    def use_rust_status(self) -> bool:
+        """Returns whether we can run the Rust version of the status algorithm
+        in this context."""
+        subrepos = False
+        if b'.hgsub' in self:
+            # We need to make sure we actually have a subrepo otherwise we
+            # would skip using Rust for nothing
+            subrepos = bool(self.substate)
+
+        return self._repo.dirstate.use_rust_status(subrepos)
 
     def dirty(
         self,
@@ -1984,6 +2041,7 @@ class workingctx(committablectx):
         ignored: bool = False,
         clean: bool = False,
         unknown: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         '''Gets the status from the dirstate -- internal use only.'''
         subrepos = []
@@ -1992,7 +2050,12 @@ class workingctx(committablectx):
         dirstate = self._repo.dirstate
         with dirstate.running_status(self._repo):
             cmp, s, mtime_boundary = dirstate.status(
-                match, subrepos, ignored=ignored, clean=clean, unknown=unknown
+                match,
+                subrepos,
+                ignored=ignored,
+                clean=clean,
+                unknown=unknown,
+                empty_dirs_keep_files=empty_dirs_keep_files,
             )
 
             # check for any possibly clean files
@@ -2084,6 +2147,7 @@ class workingctx(committablectx):
         listignored: bool,
         listclean: bool,
         listunknown: bool,
+        empty_dirs_keep_files: bool,
     ) -> StatusT:
         """build a status with respect to another context
 
@@ -2092,14 +2156,22 @@ class workingctx(committablectx):
         building a new manifest if self (working directory) is not comparing
         against its parent (repo['.']).
         """
-        s = self._dirstatestatus(match, listignored, listclean, listunknown)
+        s = self._dirstatestatus(
+            match, listignored, listclean, listunknown, empty_dirs_keep_files
+        )
         # Filter out symlinks that, in the case of FAT32 and NTFS filesystems,
         # might have accidentally ended up with the entire contents of the file
         # they are supposed to be linking to.
         s.modified[:] = self._filtersuspectsymlink(s.modified)
         if other != self._repo[b'.']:
             s = super()._buildstatus(
-                other, s, match, listignored, listclean, listunknown
+                other,
+                s,
+                match,
+                listignored,
+                listclean,
+                listunknown,
+                empty_dirs_keep_files,
             )
         return s
 
@@ -2165,7 +2237,7 @@ class workingctx(committablectx):
     def mergestate(self, clean: bool = False):
         if clean:
             return mergestatemod.mergestate.clean(self._repo)
-        return mergestatemod.mergestate.read(self._repo)
+        return self._repo.mergestate()
 
 
 class committablefilectx(basefilectx):
@@ -2357,6 +2429,8 @@ class overlayworkingctx(committablectx):
     is `False`, the file was deleted.
     """
 
+    in_memory = True
+
     def __init__(self, repo) -> None:
         super().__init__(repo)
         self.clean()
@@ -2514,7 +2588,7 @@ class overlayworkingctx(committablectx):
     def _auditconflicts(self, path: bytes) -> None:
         """Replicates conflict checks done by wvfs.write().
 
-        Since we never write to the filesystem and never call `applyupdates` in
+        Since we never write to the filesystem and never call `apply_updates` in
         IMM, we'll never check that a path is actually writable -- e.g., because
         it adds `a/foo`, but `a` is actually a file in the other commit.
         """
@@ -2776,6 +2850,8 @@ class overlayworkingfilectx(committablefilectx):
     """Wrap a ``workingfilectx`` but intercepts all writes into an in-memory
     cache, which can be flushed through later by calling ``flush()``."""
 
+    in_memory = True
+
     def __init__(
         self,
         repo: LocalRepoCompleteT,
@@ -2840,7 +2916,7 @@ class overlayworkingfilectx(committablefilectx):
         pass
 
 
-class workingcommitctx(workingctx):
+class workingcommitctx(workingctx, i_context.IWorkingCommitContext):
     """A workingcommitctx object makes access to data related to
     the revision being committed convenient.
 
@@ -2865,6 +2941,7 @@ class workingcommitctx(workingctx):
         ignored: bool = False,
         clean: bool = False,
         unknown: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         """Return matched files only in ``self._status``
 
@@ -2990,6 +3067,8 @@ class memctx(committablectx):
     # Extensions that need to retain compatibility across Mercurial 3.1 can use
     # this field to determine what to do in filectxfn.
     _returnnoneformissingfiles = True
+
+    in_memory = True
 
     def __init__(
         self,

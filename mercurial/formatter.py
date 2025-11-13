@@ -128,8 +128,8 @@ if typing.TYPE_CHECKING:
 from . import (
     error,
     pycompat,
+    tables,
     templatefilters,
-    templatekw,
     templater,
     templateutil,
     util,
@@ -503,9 +503,9 @@ class templateformatter(baseformatter):
         self._t = loadtemplater(
             ui,
             spec,
-            defaults=templatekw.keywords,
+            defaults=tables.template_keyword_table,
             resources=templateresources(ui),
-            cache=templatekw.defaulttempl,
+            cache=tables.default_templates,
         )
         if overridetemplates:
             self._t.cache.update(overridetemplates)

@@ -13,6 +13,7 @@ from typing import (
     cast,
 )
 
+
 from .i18n import _
 
 from .thirdparty import attr
@@ -21,6 +22,7 @@ from .thirdparty import attr
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
+    from .interfaces.types import RepoT
 
 from . import (
     error,
@@ -29,37 +31,16 @@ from . import (
     url as urlmod,
     util,
 )
+from .exchanges import bundle_cache
+from .repo import (
+    requirements as repo_req,
+)
 from .utils import stringutil
 
 urlreq = util.urlreq
 
-CB_MANIFEST_FILE = b'clonebundles.manifest'
+CB_MANIFEST_FILE = bundle_cache.CB_MANIFEST_FILE
 CLONEBUNDLESCHEME = b"peer-bundle-cache://"
-
-
-def get_manifest(repo) -> bytes:
-    """get the bundle manifest to be served to a client from a server"""
-    raw_text = repo.vfs.tryread(CB_MANIFEST_FILE)
-    entries = [e.split(b' ', 1) for e in raw_text.splitlines()]
-
-    new_lines = []
-    for e in entries:
-        url = alter_bundle_url(repo, e[0])
-        if len(e) == 1:
-            line = url + b'\n'
-        else:
-            line = b"%s %s\n" % (url, e[1])
-        new_lines.append(line)
-    return b''.join(new_lines)
-
-
-def alter_bundle_url(repo, url: bytes) -> bytes:
-    """a function that exist to help extension and hosting to alter the url
-
-    This will typically be used to inject authentication information in the url
-    of cached bundles."""
-    return url
-
 
 SUPPORTED_CLONEBUNDLE_SCHEMES = [
     b"http://",
@@ -108,15 +89,6 @@ class bundlespec:
             parts.append(b'%s=%s' % (param, value))
         return b';'.join(parts)
 
-
-# Maps bundle version human names to changegroup versions.
-_bundlespeccgversions = {
-    b'v1': b'01',
-    b'v2': b'02',
-    b'v3': b'03',
-    b'packed1': b's1',
-    b'bundle2': b'02',  # legacy
-}
 
 # Maps bundle version with content opts to choose which part to bundle
 _bundlespeccontentopts: dict[bytes, dict[bytes, bool | bytes]] = {
@@ -272,7 +244,12 @@ def parsebundlespec(repo, spec, strict=True):
     if b'-' in pre_args:
         compression, version = spec.split(b'-', 1)
 
-        if compression not in util.compengines.supportedbundlenames:
+        if (
+            compression not in util.compengines.supportedbundlenames
+            or not util.compengines[
+                util.compengines._bundlenames[compression]
+            ].available()
+        ):
             raise error.UnsupportedBundleSpecification(
                 _(b'%s compression is not supported') % compression
             )
@@ -327,10 +304,7 @@ def parsebundlespec(repo, spec, strict=True):
         relevant_reqs = (
             requirements - requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
         )
-        # avoid cycle (not great for pytype)
-        from . import localrepo
-
-        supported_req = localrepo.gathersupportedrequirements(repo.ui)
+        supported_req = repo_req.gather_supported_requirements(repo.ui)
         missing_reqs = relevant_reqs - supported_req
         if missing_reqs:
             raise error.UnsupportedBundleSpecification(
@@ -372,32 +346,44 @@ def parseclonebundlesmanifest(repo, s):
     """
     m = []
     for line in s.splitlines():
-        fields = line.split()
-        if not fields:
-            continue
-        attrs = {b'URL': fields[0]}
-        for rawattr in fields[1:]:
-            key, value = rawattr.split(b'=', 1)
-            key = util.urlreq.unquote(key)
-            value = util.urlreq.unquote(value)
-            attrs[key] = value
-
-            # Parse BUNDLESPEC into components. This makes client-side
-            # preferences easier to specify since you can prefer a single
-            # component of the BUNDLESPEC.
-            if key == b'BUNDLESPEC':
-                try:
-                    bundlespec = parsebundlespec(repo, value)
-                    attrs[b'COMPRESSION'] = bundlespec.compression
-                    attrs[b'VERSION'] = bundlespec.version
-                except error.InvalidBundleSpecification:
-                    pass
-                except error.UnsupportedBundleSpecification:
-                    pass
-
-        m.append(attrs)
-
+        attrs = parse_clonebundle_manifest_line(repo, line)
+        if attrs is not None:
+            m.append(attrs)
     return m
+
+
+def parse_clonebundle_manifest_line(
+    repo: RepoT, line: bytes
+) -> dict[bytes, bytes] | None:
+    fields = line.split()
+    if not fields:
+        return
+
+    attrs = {b'URL': fields[0]}
+    for rawattr in fields[1:]:
+        key, value = rawattr.split(b'=', 1)
+        key = util.urlreq.unquote(key)
+        value = util.urlreq.unquote(value)
+        attrs[key] = value
+
+        # Parse BUNDLESPEC into components. This makes client-side
+        # preferences easier to specify since you can prefer a single
+        # component of the BUNDLESPEC.
+        if key == b'BUNDLESPEC':
+            try:
+                bundlespec = parsebundlespec(repo, value)
+                attrs[b'COMPRESSION'] = bundlespec.compression
+                raw_dc = bundlespec.params.get(b"delta-compression")
+                if raw_dc is not None:
+                    attrs[b'DELTA-COMPRESSION'] = raw_dc.split(b',')
+                attrs[b'VERSION'] = bundlespec.version
+                if sf := bundlespec.params.get(b"store-fingerprint"):
+                    attrs[b'STORE-FINGERPRINT'] = sf
+            except error.InvalidBundleSpecification:
+                pass
+            except error.UnsupportedBundleSpecification:
+                pass
+    return attrs
 
 
 def isstreamclonespec(bundlespec):
@@ -420,7 +406,11 @@ digest_regex = re.compile(b'^[a-z0-9]+:[0-9a-f]+(,[a-z0-9]+:[0-9a-f]+)*$')
 
 
 def filterclonebundleentries(
-    repo, entries, streamclonerequested=False, pullbundles=False
+    repo,
+    entries,
+    streamclonerequested=False,
+    pullbundles=False,
+    store_fingerprint=None,
 ):
     """Remove incompatible clone bundle manifest entries.
 
@@ -443,6 +433,31 @@ def filterclonebundleentries(
             )
             continue
 
+        supported = util.compengines.supported_wire_delta_compression()
+        unknown_compression = None
+        for c in entry.get(b'DELTA-COMPRESSION', []):
+            if c not in supported:
+                unknown_compression = c
+                break
+        if unknown_compression is not None:
+            msg = b'filtering %s because delta-compression is not supported: %s'
+            repo.ui.debug(msg % (url, unknown_compression))
+            continue
+
+        expected_fingerprint = entry.get(b"STORE-FINGERPRINT")
+        fingerprint_cannot_match = (
+            store_fingerprint is not None and expected_fingerprint is None
+        )
+        fingerprints_differ = store_fingerprint != expected_fingerprint
+        if fingerprint_cannot_match or fingerprints_differ:
+            if expected_fingerprint is None:
+                expected_fingerprint = b"none"
+            repo.ui.debug(
+                b'filtering %s because not the correct store fingerprint '
+                b'(expected %s)\n' % (url, expected_fingerprint)
+            )
+            continue
+
         spec = entry.get(b'BUNDLESPEC')
         if spec:
             try:
@@ -450,9 +465,20 @@ def filterclonebundleentries(
 
                 # If a stream clone was requested, filter out non-streamclone
                 # entries.
-                if streamclonerequested and not isstreamclonespec(bundlespec):
+                if isstreamclonespec(bundlespec):
+                    if (
+                        streamclonerequested is not None
+                        and not streamclonerequested
+                    ):
+                        repo.ui.debug(
+                            b'filtering %s because it is a stream clonebundle\n'
+                            % url
+                        )
+                        continue
+                elif streamclonerequested:
                     repo.ui.debug(
-                        b'filtering %s because not a stream clone\n' % url
+                        b'filtering %s because it is not a stream clonebundle\n'
+                        % url
                     )
                     continue
 

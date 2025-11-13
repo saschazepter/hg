@@ -41,6 +41,7 @@ Config
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import os
 import re
@@ -48,6 +49,7 @@ import socket
 import stat
 import struct
 import time
+import typing
 
 from .i18n import _
 from .node import hex
@@ -61,11 +63,32 @@ from . import (
     util,
 )
 
+from .main_script import (
+    options as args_util,
+    paths as local_util,
+)
 from .utils import (
     hashutil,
     procutil,
     stringutil,
 )
+
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+        Final,
+    )
+    from io import (
+        RawIOBase,
+    )
+    from socket import socket as Socket
+    from .interfaces.types import (
+        RepoSetupFnT,
+        RepoT,
+        UiT,
+    )
 
 
 def _hashlist(items):
@@ -75,7 +98,7 @@ def _hashlist(items):
 
 # sensitive config sections affecting confighash
 _configsections = [
-    b'alias',  # affects global state commands.table
+    b'alias',  # affects global state tables.command_table
     b'diff-tools',  # affects whether gui or not in extdiff's uisetup
     b'eol',  # uses setconfig('eol', ...)
     b'extdiff',  # uisetup will register new commands
@@ -92,17 +115,17 @@ _configsectionitems = [
 # sensitive environment variables affecting confighash
 _envre = re.compile(
     br'''\A(?:
-                    CHGHG
-                    |HG(?:DEMANDIMPORT|EMITWARNINGS|MODULEPOLICY|PROF|RCPATH)?
-                    |HG(?:ENCODING|PLAIN).*
-                    |LANG(?:UAGE)?
-                    |LC_.*
-                    |LD_.*
-                    |PATH
-                    |PYTHON.*
-                    |TERM(?:INFO)?
-                    |TZ
-                    )\Z''',
+    CHGHG
+    |HG(?:DEMANDIMPORT|EMITWARNINGS|(MODULE|ZSTD)POLICY|PROF|RCPATH)?
+    |HG(?:ENCODING|PLAIN).*
+    |LANG(?:UAGE)?
+    |LC_.*
+    |LD_.*
+    |PATH
+    |PYTHON.*
+    |TERM(?:INFO)?
+    |TZ
+    )\Z''',
     re.X,
 )
 
@@ -148,11 +171,13 @@ def _getmtimepaths(ui):
     """
     modules = [m for n, m in extensions.extensions(ui)]
     try:
-        from . import __version__  # pytype: disable=import-error
-
-        modules.append(__version__)
+        # use importlib to prevent pytype to see the dependencies and
+        # invalidate the cache on every rebuild (like… any test run).
+        __version__ = importlib.import_module('mercurial.__version__')
     except ImportError:
         pass
+    else:
+        modules.append(__version__)
     files = []
     if pycompat.sysexecutable:
         files.append(pycompat.sysexecutable)
@@ -254,8 +279,6 @@ def _newchgui(srcui, csystem, attachio):
 
 
 def _loadnewui(srcui, args, cdebug):
-    from . import dispatch  # avoid cycle
-
     newui = srcui.__class__.load()
     for a in ['fin', 'fout', 'ferr', 'environ']:
         setattr(newui, a, getattr(srcui, a))
@@ -263,9 +286,9 @@ def _loadnewui(srcui, args, cdebug):
         newui._csystem = srcui._csystem
 
     # command line args
-    options = dispatch._earlyparseopts(newui, args)
-    dispatch._parse_config_files(newui, args, options[b'config_file'])
-    dispatch._parseconfig(newui, options[b'config'])
+    options = args_util.early_parse_opts(newui, args)
+    args_util.parse_config_files_opts(newui, args, options[b'config_file'])
+    args_util.parse_config_opts(newui, options[b'config'])
 
     # stolen from tortoisehg.util.copydynamicconfig()
     for section, name, value in srcui.walkconfig():
@@ -279,7 +302,7 @@ def _loadnewui(srcui, args, cdebug):
     cwd = options[b'cwd']
     cwd = os.path.realpath(cwd) if cwd else None
     rpath = options[b'repository']
-    path, newlui = dispatch._getlocal(newui, rpath, wd=cwd)
+    path, newlui = local_util.get_local(newui, rpath, wd=cwd)
 
     extensions.populateui(newui)
     commandserver.setuplogging(newui, fp=cdebug)
@@ -344,7 +367,7 @@ class channeledsystem:
             raise error.ProgrammingError(b'invalid S channel type: %s' % type)
 
 
-_iochannels = [
+_iochannels: Final[list[tuple[str, str, str]]] = [
     # server.ch, ui.fp, mode
     ('cin', 'fin', 'rb'),
     ('cout', 'fout', 'wb'),
@@ -354,13 +377,23 @@ _iochannels = [
 
 class chgcmdserver(commandserver.server):
     def __init__(
-        self, ui, repo, fin, fout, sock, prereposetups, hashstate, baseaddress
+        self,
+        ui: UiT,
+        repo: RepoT,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        sock: Socket,
+        dispatch: Callable,
+        prereposetups: list[RepoSetupFnT] | None,
+        hashstate: hashstate,
+        baseaddress: bytes,
     ):
         super().__init__(
             _newchgui(ui, channeledsystem(fin, fout, b'S'), self.attachio),
             repo,
             fin,
             fout,
+            dispatch,
             prereposetups,
         )
         self.clientsock = sock
@@ -414,7 +447,7 @@ class chgcmdserver(commandserver.server):
             # to see output immediately on pager, the mode stays unchanged
             # when client re-attached. ferr is unchanged because it should
             # be unbuffered no matter if it is a tty or not.
-            if fn == b'ferr':
+            if fn == 'ferr':
                 newfp = fp
             else:
                 # On Python 3, the standard library doesn't offer line-buffered
@@ -465,7 +498,7 @@ class chgcmdserver(commandserver.server):
                     b'chgserver',
                     b'got %s while duplicating %s\n',
                     stringutil.forcebytestr(err),
-                    fn,
+                    stringutil.forcebytestr(fn),
                 )
             setattr(self, cn, ch)
             setattr(ui, fn, fp)
@@ -554,7 +587,7 @@ class chgcmdserver(commandserver.server):
         """Change umask"""
         data = self._readstr()
         if len(data) != 4:
-            raise ValueError(b'invalid mask length in setumask2 request')
+            raise ValueError('invalid mask length in setumask2 request')
         self._setumask(data)
 
     def _setumask(self, data):
@@ -583,7 +616,7 @@ class chgcmdserver(commandserver.server):
         try:
             newenv = dict(s.split(b'=', 1) for s in l)
         except ValueError:
-            raise ValueError(b'unexpected value in setenv request')
+            raise ValueError('unexpected value in setenv request')
         self.ui.log(b'chgserver', b'setenv: %r\n', sorted(newenv.keys()))
 
         encoding.environ.clear()
@@ -634,8 +667,9 @@ class chgunixservicehandler:
     _baseaddress: bytes | None
     _realaddress: bytes | None
 
-    def __init__(self, ui):
+    def __init__(self, ui: UiT, dispatch: Callable):
         self.ui = ui
+        self._dispatch = dispatch
 
         self._hashstate = None
         self._baseaddress = None
@@ -720,20 +754,33 @@ class chgunixservicehandler:
     def newconnection(self):
         self._lastactive = time.time()
 
-    def createcmdserver(self, repo, conn, fin, fout, prereposetups):
+    def createcmdserver(
+        self,
+        repo: RepoT,
+        conn: Socket,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        prereposetups: list[RepoSetupFnT] | None,
+    ):
         return chgcmdserver(
             self.ui,
             repo,
             fin,
             fout,
             conn,
+            self._dispatch,
             prereposetups,
             self._hashstate,
             self._baseaddress,
         )
 
 
-def chgunixservice(ui, repo, opts):
+def chgunixservice(
+    ui: UiT,
+    repo: RepoT | None,
+    opts: dict[bytes, Any],
+    dispatch: Callable,
+) -> commandserver.unixforkingservice:
     # CHGINTERNALMARK is set by chg client. It is an indication of things are
     # started by chg so other code can do things accordingly, like disabling
     # demandimport or detecting chg client started by chg client. When executed
@@ -755,5 +802,11 @@ def chgunixservice(ui, repo, opts):
     if repo:
         # one chgserver can serve multiple repos. drop repo information
         ui.setconfig(b'bundle', b'mainreporoot', b'', b'repo')
-    h = chgunixservicehandler(ui)
-    return commandserver.unixforkingservice(ui, repo=None, opts=opts, handler=h)
+    h = chgunixservicehandler(ui, dispatch)
+    return commandserver.unixforkingservice(
+        ui,
+        repo=None,
+        opts=opts,
+        handler=h,
+        dispatch=dispatch,
+    )

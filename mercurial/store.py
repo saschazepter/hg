@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import abc
 import collections
+import contextlib
 import enum
 import functools
 import os
@@ -16,8 +18,11 @@ import stat
 import typing
 
 from typing import (
+    Collection,
     Generator,
     Iterator,
+    Protocol,
+    Tuple,
 )
 
 from .i18n import _
@@ -34,6 +39,14 @@ from .revlogutils.constants import (
     KIND_CHANGELOG,
     KIND_FILELOG,
     KIND_MANIFESTLOG,
+    RevlogKindT,
+)
+from .interfaces.types import (
+    HgPathT,
+    RepoT,
+    RevlogT,
+    RevnumT,
+    TransactionT,
 )
 from . import (
     changelog,
@@ -42,16 +55,31 @@ from . import (
     manifest,
     policy,
     pycompat,
+    repo as repomod,
     revlog as revlogmod,
+    scmutil,
+    ui as uimod,
     util,
     vfs as vfsmod,
 )
 from .utils import hashutil
+from .store_utils import file_index as file_index_mod
 
 parsers = policy.importmod('parsers')
 # how much bytes should be read from fncache in one read
 # It is done to prevent loading large fncache files into memory
 fncache_chunksize = 10**6
+
+RE_FILELOG_RADIX = re.compile(br'^data/(.*)\.i$')
+RE_FNCACHE_FILE = re.compile(br'^(data|meta)/.*\.[id]$')
+
+
+def parse_filelog_radix(path: HgPathT):
+    """If the path is a filelog index file, returns the radix."""
+    match = RE_FILELOG_RADIX.match(path)
+    if match:
+        return match.group(1)
+    return None
 
 
 def _match_tracked_entry(entry: BaseStoreEntry, matcher):
@@ -75,12 +103,13 @@ def _match_tracked_entry(entry: BaseStoreEntry, matcher):
     raise error.ProgrammingError(b"cannot process entry %r" % entry)
 
 
-class Encoding(enum.IntEnum):
-    HYBRID = enum.auto()
-    DOTENCODE = enum.auto()
-    PLAIN = enum.auto()
+class Encoding(enum.Enum):
+    HYBRID = "hybrid"
+    DOTENCODE = "dot-encode"
+    PLAIN = "plain"
 
 
+@vfsmod.filter("plain")
 def _plain_encode(path: bytes) -> bytes:
     """A very basic encoding that encode (almost) nothing
 
@@ -132,7 +161,9 @@ def _encodedir(path):
     )
 
 
-encodedir = getattr(parsers, 'encodedir', _encodedir)
+encodedir = vfsmod.filter('encode-dir')(
+    getattr(parsers, 'encodedir', _encodedir)
+)
 
 
 def decodedir(path):
@@ -229,6 +260,7 @@ def _buildencodefun():
 _encodefname, _decodefname = _buildencodefun()
 
 
+@vfsmod.filter("encode-filename")
 def encodefilename(s):
     """
     >>> encodefilename(b'foo.i/bar.d/bla.hg/hi:world?/HELLO')
@@ -412,9 +444,12 @@ def _pathencode(path):
     return res
 
 
-_pathencode = getattr(parsers, 'pathencode', _pathencode)
+_pathencode = vfsmod.filter("dot-encode")(
+    getattr(parsers, 'pathencode', _pathencode)
+)
 
 
+@vfsmod.filter("hybrid")
 def _plainhybridencode(f):
     return _hybridencode(f, False)
 
@@ -429,6 +464,54 @@ def _calcmode(vfs):
     except OSError:
         mode = None
     return mode
+
+
+class IVolatileManager(Protocol):
+    """Interface of object Managing  temporary backups of volatile files
+
+    (used during stream clone)
+
+    This class will keep open file handles for the volatile files, writing the
+    smaller ones on disk if the number of open file handles grow too much.
+
+    This should be used as a Python context, the file handles and copies will
+    be discarded when exiting the context.
+
+    The preservation can be done by calling the object on the real path
+    (encoded full path).
+
+    Valid filehandles for any file should be retrieved by calling `open(path)`.
+    """
+
+    @abc.abstractmethod
+    def __enter__(self):
+        ...
+
+    @abc.abstractmethod
+    def __exit__(self, *args, **kwars):
+        """discard all backups"""
+
+    @abc.abstractmethod
+    def __call__(self, src: bytes) -> None:
+        """preserve the volatile file at src"""
+
+    @abc.abstractmethod
+    def try_keep(self, src: bytes) -> int | None:
+        """record a volatile file and returns it size
+
+        return None if the file does not exists.
+
+        Used for cache file that are not lock protected.
+        """
+
+    @abc.abstractmethod
+    @contextlib.contextmanager
+    def open(self, src: bytes):
+        """open an unencoded path
+
+        This access previously preserved volatile files, directly access the
+        file when it wasn't marked as volatile.
+        """
 
 
 _data = [
@@ -535,6 +618,9 @@ class StoreFile:
         return (self.unencoded_path, s, size)
 
 
+_StreamsT = Collection[Tuple[bytes, Iterator[bytes], int]]
+
+
 @attr.s(slots=True, init=False)
 class BaseStoreEntry:
     """An entry in the store
@@ -543,31 +629,43 @@ class BaseStoreEntry:
 
     maybe_volatile = True
 
-    def files(self) -> list[StoreFile]:
+    is_revlog: bool = False
+    is_changelog: bool = False
+    is_manifestlog: bool = False
+    is_filelog: bool = False
+
+    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
+        """Return the files in vfs backing this entry.
+
+        Assumes the same vfs is passed every time, so it can cache the result.
+        """
         raise NotImplementedError
 
     def get_streams(
         self,
-        repo=None,
-        vfs=None,
-        volatiles=None,
-        max_changeset=None,
-        preserve_file_count=False,
-    ):
+        repo: RepoT | None = None,
+        vfs: vfsmod.vfs | None = None,
+        volatiles: IVolatileManager | None = None,
+        max_changeset: RevnumT | None = None,
+        preserve_file_count: bool = False,
+    ) -> _StreamsT:
         """return a list of data stream associated to files for this entry
 
         return [(unencoded_file_path, content_iterator, content_size), …]
         """
         assert vfs is not None
-        return [f.get_stream(vfs, volatiles) for f in self.files()]
+        return [f.get_stream(vfs, volatiles) for f in self.files(vfs)]
 
-    def preserve_volatiles(self, vfs, volatiles):
+    def preserve_volatiles(
+        self, vfs: vfsmod.vfs, volatiles: IVolatileManager
+    ) -> None:
         """Use a VolatileManager to preserve the state of any volatile file
 
-        This is useful for code that need a consistent view of the content like stream clone.
+        This is useful for code that need a consistent view of the content like
+        stream clone.
         """
         if self.maybe_volatile:
-            for f in self.files():
+            for f in self.files(vfs):
                 if f.is_volatile:
                     volatiles(vfs.join(f.unencoded_path))
 
@@ -575,8 +673,6 @@ class BaseStoreEntry:
 @attr.s(slots=True, init=False)
 class SimpleStoreEntry(BaseStoreEntry):
     """A generic entry in the store"""
-
-    is_revlog = False
 
     maybe_volatile = attr.ib()
     _entry_path = attr.ib()
@@ -586,9 +682,9 @@ class SimpleStoreEntry(BaseStoreEntry):
 
     def __init__(
         self,
-        entry_path,
-        is_volatile=False,
-        file_size=None,
+        entry_path: HgPathT,
+        is_volatile: bool = False,
+        file_size: int | None = None,
     ):
         super().__init__()
         self._entry_path = entry_path
@@ -597,7 +693,7 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._files = None
         self.maybe_volatile = is_volatile
 
-    def files(self) -> list[StoreFile]:
+    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
         if self._files is None:
             self._files = [
                 StoreFile(
@@ -624,73 +720,87 @@ class RevlogStoreEntry(BaseStoreEntry):
 
     def __init__(
         self,
-        revlog_type,
-        path_prefix,
-        target_id,
-        details,
+        revlog_type: RevlogKindT,
+        path_prefix: HgPathT,
+        target_id: HgPathT,
+        details: dict | None,
     ):
         super().__init__()
         self.revlog_type = revlog_type
         self.target_id = target_id
         self._path_prefix = path_prefix
-        assert b'.i' in details, (path_prefix, details)
-        for ext in details:
-            if ext.endswith(REVLOG_FILES_VOLATILE_EXT):
-                self.maybe_volatile = True
-                break
-        else:
-            self.maybe_volatile = False
+        self.maybe_volatile = False
+        if details is not None:
+            assert b'.i' in details, (path_prefix, details)
+            for ext in details:
+                if ext.endswith(REVLOG_FILES_VOLATILE_EXT):
+                    self.maybe_volatile = True
+                    break
         self._details = details
         self._files = None
 
     @property
-    def is_changelog(self):
+    def is_changelog(self) -> bool:
         return self.revlog_type == KIND_CHANGELOG
 
     @property
-    def is_manifestlog(self):
+    def is_manifestlog(self) -> bool:
         return self.revlog_type == KIND_MANIFESTLOG
 
     @property
-    def is_filelog(self):
+    def is_filelog(self) -> bool:
         return self.revlog_type == KIND_FILELOG
 
     def main_file_path(self):
         """unencoded path of the main revlog file"""
         return self._path_prefix + b'.i'
 
-    def files(self) -> list[StoreFile]:
+    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
         if self._files is None:
             self._files = []
-            for ext in sorted(self._details, key=_ext_key):
-                path = self._path_prefix + ext
-                file_size = self._details[ext]
-                # files that are "volatile" and might change between
-                # listing and streaming
-                #
-                # note: the ".nd" file are nodemap data and won't "change"
-                # but they might be deleted.
-                volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
-                f = StoreFile(path, file_size, volatile)
-                self._files.append(f)
+            if self._details is None:
+                # XXX Once we store the radix in the file index, we will have to
+                # deal with it here.
+                index_path = self.main_file_path()
+                self._files.append(StoreFile(index_path))
+                with vfs(index_path) as fp:
+                    for s in revlogmod.revlog.suffix_from_index(fp):
+                        self._files.append(StoreFile(self._path_prefix + s))
+            else:
+                for ext in sorted(self._details, key=_ext_key):
+                    path = self._path_prefix + ext
+                    file_size = self._details[ext]
+                    # files that are "volatile" and might change between
+                    # listing and streaming
+                    #
+                    # note: the ".nd" file are nodemap data and won't "change"
+                    # but they might be deleted.
+                    volatile = ext.endswith(REVLOG_FILES_VOLATILE_EXT)
+                    f = StoreFile(path, file_size, volatile)
+                    self._files.append(f)
         return self._files
 
     def get_streams(
         self,
-        repo=None,
-        vfs=None,
-        volatiles=None,
-        max_changeset=None,
-        preserve_file_count=False,
-    ):
-        pre_sized = all(f.has_size for f in self.files())
-        if pre_sized and (
-            repo is None
-            or max_changeset is None
-            # This use revlog-v2, ignore for now
-            or any(k.endswith(b'.idx') for k in self._details.keys())
-            # This is not inline, no race expected
-            or b'.d' in self._details
+        repo: RepoT | None = None,
+        vfs: vfsmod.vfs | None = None,
+        volatiles: IVolatileManager | None = None,
+        max_changeset: RevnumT | None = None,
+        preserve_file_count: bool = False,
+    ) -> _StreamsT:
+        files = self.files(vfs)
+        pre_sized = all(f.has_size for f in files)
+        if (
+            pre_sized
+            and self._details is not None
+            and (
+                repo is None
+                or max_changeset is None
+                # This use revlog-v2, ignore for now
+                or any(k.endswith(b'.idx') for k in self._details.keys())
+                # This is not inline, no race expected
+                or b'.d' in self._details
+            )
         ):
             return super().get_streams(
                 repo=repo,
@@ -702,7 +812,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         elif not preserve_file_count:
             stream = [
                 f.get_stream(vfs, volatiles)
-                for f in self.files()
+                for f in files
                 if not f.unencoded_path.endswith((b'.i', b'.d'))
             ]
             rl = self.get_revlog_instance(repo).get_revlog()
@@ -711,12 +821,12 @@ class RevlogStoreEntry(BaseStoreEntry):
             return stream
 
         name_to_size = {}
-        for f in self.files():
+        for f in files:
             name_to_size[f.unencoded_path] = f.file_size(None)
 
         stream = [
             f.get_stream(vfs, volatiles)
-            for f in self.files()
+            for f in files
             if not f.unencoded_path.endswith(b'.i')
         ]
 
@@ -759,7 +869,6 @@ class RevlogStoreEntry(BaseStoreEntry):
             if index_file is not None:
                 index_file.close()
 
-        files = self.files()
         assert len(stream) == len(files), (
             stream,
             files,
@@ -768,7 +877,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         )
         return stream
 
-    def get_revlog_instance(self, repo, writable=False):
+    def get_revlog_instance(self, repo, writable=False) -> RevlogT:
         """Obtain a revlog instance from this store entry
 
         An instance of the appropriate class is returned.
@@ -781,7 +890,17 @@ class RevlogStoreEntry(BaseStoreEntry):
                 repo.nodeconstants, repo.svfs, tree=mandir
             )
         else:
-            return filelog.filelog(repo.svfs, self.target_id, writable=writable)
+            if writable:
+                tr = repo.currenttransaction()
+                radix = repo.store.filelog_radix_for_writing(self.target_id, tr)
+            else:
+                radix = repo.store.filelog_radix_for_reading(self.target_id)
+            return filelog.filelog(
+                repo.svfs,
+                self.target_id,
+                radix=radix,
+                writable=writable,
+            )
 
 
 def _gather_revlog(files_data):
@@ -827,6 +946,9 @@ def _ext_key(ext):
 
 class basicstore:
     '''base class for local repository stores'''
+
+    fncache = None
+    fileindex = None
 
     def __init__(self, path: bytes, vfstype) -> None:
         vfs = vfstype(path)
@@ -968,10 +1090,15 @@ class basicstore:
     def copylist(self):
         return _data
 
-    def write(self, tr):
-        pass
+    def schedule_write(self, tr):
+        """Schedule writing this store's metadata as part of the transaction.
 
-    def invalidatecaches(self):
+        This does not write anything immediately. It just registers callbacks on
+        the transaction that run when it is pending and/or finalized. See
+        subclass implementations for their specific writing pattern.
+        """
+
+    def invalidatecaches(self, clearfilecache: bool):
         pass
 
     def markremoved(self, fn):
@@ -987,6 +1114,25 @@ class basicstore:
         if not path.endswith(b"/"):
             path = path + b"/"
         return self.vfs.exists(path)
+
+    def filelog_radix_for_reading(self, filename: bytes):
+        """Return the radix for reading an existing filelog."""
+        return b'/'.join((b'data', filename))
+
+    def filelog_radix_for_writing(self, filename: bytes, tr: TransactionT):
+        """Return the radix for writing to a (possibly new) filelog.
+
+        It is important to call this instead of filelog_radix_for_reading when
+        opening a writable filelog, because the store needs to be able to keep
+        track of when new filelogs are created.
+        """
+        if tr is None:
+            msg = (
+                b'tried to get radix for writable filelog without '
+                b'transaction: %s' % filename
+            )
+            raise error.ProgrammingError(msg)
+        return b'/'.join((b'data', filename))
 
 
 class encodedstore(basicstore):
@@ -1164,28 +1310,14 @@ class _fncachevfs(vfsmod.proxyvfs):
     def __init__(self, vfs, fnc, encode):
         vfsmod.proxyvfs.__init__(self, vfs)
         self.fncache: fncache = fnc
+        name = getattr(encode, "filter_name", None)
+        if name is None:
+            name = vfsmod._NAME_BY_FILTER[encode]
+        self.filter_name = name
         self.encode = encode
-        self.uses_dotencode = encode is _pathencode
-        self.uses_plain_encode = encode is _plain_encode
 
     def __call__(self, path, mode=b'r', *args, **kw):
         encoded = self.encode(path)
-        if (
-            mode not in (b'r', b'rb')
-            and (path.startswith(b'data/') or path.startswith(b'meta/'))
-            and is_revlog_file(path)
-        ):
-            # do not trigger a fncache load when adding a file that already is
-            # known to exist.
-            notload = not self.fncache.is_loaded and (
-                # if the file has size zero, it should be considered as missing.
-                # Such zero-size files are the result of truncation when a
-                # transaction is aborted.
-                self.vfs.exists(encoded)
-                and self.vfs.stat(encoded).st_size
-            )
-            if not notload:
-                self.fncache.add(path)
         return self.vfs(encoded, mode, *args, **kw)
 
     def join(self, path: bytes | None, *insidef: bytes) -> bytes:
@@ -1196,23 +1328,15 @@ class _fncachevfs(vfsmod.proxyvfs):
         else:
             return self.vfs.join(path, *insidef)
 
-    def register_file(self, path):
+    def register_file(self, path: HgPathT):
         """generic hook point to lets fncache steer its stew"""
-        if path.startswith(b'data/') or path.startswith(b'meta/'):
+        if RE_FNCACHE_FILE.match(path):
             self.fncache.add(path)
 
 
 class fncachestore(basicstore):
     def __init__(self, path: bytes, vfstype, encoding: Encoding) -> None:
-        if encoding == Encoding.DOTENCODE:
-            encode = _pathencode
-        elif encoding == Encoding.HYBRID:
-            encode = _plainhybridencode
-        elif encoding == Encoding.PLAIN:
-            encode = _plain_encode
-        else:
-            assert False, encoding
-        self.encode = encode
+        self.encode = vfsmod.FILTER_BY_NAME[encoding._value_]
         vfs = vfstype(path + b'/store')
         self.path = vfs.base
         self.pathsep = self.path + b'/'
@@ -1221,7 +1345,7 @@ class fncachestore(basicstore):
         self.rawvfs = vfs
         fnc = fncache(vfs)
         self.fncache = fnc
-        self.vfs = _fncachevfs(vfs, fnc, encode)
+        self.vfs = _fncachevfs(vfs, fnc, self.encode)
         self.opener = self.vfs
 
     def join(self, f: bytes) -> bytes:
@@ -1260,27 +1384,21 @@ class fncachestore(basicstore):
                 yield entry
 
     def copylist(self):
-        d = (
-            b'bookmarks',
-            b'narrowspec',
-            b'data',
-            b'meta',
-            b'dh',
-            b'fncache',
-            b'phaseroots',
-            b'obsstore',
-            b'00manifest.d',
-            b'00manifest.i',
-            b'00changelog.d',
-            b'00changelog.i',
-            b'requires',
-        )
+        d = _data + [b'dh', b'fncache']
         return [b'requires', b'00changelog.i'] + [b'store/' + f for f in d]
 
-    def write(self, tr):
-        self.fncache.write(tr)
+    def schedule_write(self, tr):
+        """Schedule writing this store's metadata as part of the transaction.
 
-    def invalidatecaches(self):
+        This just adds a callback to write the fncache on transaction finalize.
+
+        Since it only writes out on finalize, this means the fncache is outdated
+        when running hooks. As fncache is used for streaming clone, this is not
+        expected to break anything that happen during the hooks.
+        """
+        tr.addfinalize(b'flush-fncache', self.fncache.write)
+
+    def invalidatecaches(self, clearfilecache: bool):
         self.fncache.entries = None
         self.fncache.addls = set()
 
@@ -1309,3 +1427,105 @@ class fncachestore(basicstore):
             if e.startswith(path) and self._exists(e):
                 return True
         return False
+
+
+class storecache(scmutil.filecache):
+    """A decorator for mtime-based caching of files in .hg/store.
+
+    Intended usage is @storecache(b"filename") for a method that reads from
+    .hg/store/filename. Similar to storecache in localrepo.py, but does not
+    assume the class is a localrepository.
+    """
+
+    def __init__(self, *paths):
+        super().__init__(*paths)
+        for path in paths:
+            repomod.cachedfiles.add((path, b''))
+
+    def join(self, obj, fname):
+        return obj.pathsep + fname
+
+
+class FileIndexStore(basicstore):
+    """A store that keeps track of files in a file index.
+
+    This store owns the file index, and adds paths to it when filelogs are
+    opened for writing.
+    """
+
+    def __init__(
+        self,
+        ui: uimod.ui,
+        path: bytes,
+        vfstype,
+        encoding: Encoding,
+        try_pending: bool,
+    ):
+        """
+        If try_pending is True, tries to open the file index written by a
+        transaction that is still pending. This is used for hooks.
+        """
+        if encoding not in (Encoding.DOTENCODE, Encoding.PLAIN):
+            raise error.ProgrammingError(
+                b"FileIndexStore only supports dotencode or plain encoding"
+            )
+        self._ui = ui
+        self.encode = vfsmod.FILTER_BY_NAME[encoding._value_]
+        vfs = vfstype(path + b'/store')
+        self.path = vfs.base
+        self.pathsep = self.path + b'/'
+        self.createmode = _calcmode(vfs)
+        vfs.createmode = self.createmode
+        self.rawvfs = vfs
+        self.vfs = vfsmod.filtervfs(vfs, self.encode)
+        self.opener = self.vfs
+        self._try_pending = try_pending
+        self._filecache = {}  # used by @storecache
+
+    @storecache(b'fileindex')
+    def fileindex(self):
+        opts = self.vfs.options
+        return file_index_mod.FileIndex(
+            self._ui,
+            self.rawvfs,
+            try_pending=self._try_pending,
+            vacuum_mode=opts[b'fileindex-vacuum-mode'],
+            max_unused_ratio=opts[b'fileindex-max-unused-percentage'] / 100,
+            gc_retention_s=opts[b'fileindex-gc-retention-seconds'],
+            garbage_timestamp=opts[b'fileindex-garbage-timestamp'],
+        )
+
+    def join(self, f):
+        return self.pathsep + self.encode(f)
+
+    def filelog_radix_for_writing(self, filename, tr):
+        self.fileindex.add(filename, tr)
+        return super().filelog_radix_for_writing(filename, tr)
+
+    def data_entries(
+        self, matcher=None, undecodable=None
+    ) -> Generator[BaseStoreEntry, None, None]:
+        # XXX Sorting takes 2s on large repo. Can we skip it?
+        for path in sorted(self.fileindex):
+            entry = RevlogStoreEntry(KIND_FILELOG, b'data/' + path, path, None)
+            if _match_tracked_entry(entry, matcher):
+                yield entry
+
+    def copylist(self):
+        d = _data + [b'dh'] + self.fileindex.data_files()
+        return [b'requires', b'00changelog.i'] + [b'store/' + f for f in d]
+
+    def schedule_write(self, tr):
+        """Schedule garbage collection for the file index.
+
+        The file index automatically ensures it gets written if paths are added
+        or removed. However, we run garbage collection on every transaction so
+        that old data files are deleted in a predictable and timely manner.
+        """
+        tr.addfinalize(b'fileindex-gc', self.fileindex.garbage_collect)
+
+    def invalidatecaches(self, clearfilecache: bool):
+        if clearfilecache:
+            self._filecache.pop(b'fileindex', None)
+        if 'fileindex' in vars(self):
+            del self.fileindex

@@ -5,7 +5,6 @@ from . import (
     bookmarks as bookmarksmod,
     cmdutil,
     error,
-    hg,
     lock as lockmod,
     logcmdutil,
     mergestate as mergestatemod,
@@ -13,19 +12,30 @@ from . import (
     registrar,
     repair,
     scmutil,
+    tables,
 )
+from .cmd_impls import (
+    update as up_impl,
+)
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
 
 release = lockmod.release
 
-cmdtable = {}
-command = registrar.command(cmdtable)
+command = registrar.command(tables.command_table)
 
 
 def checklocalchanges(repo, force=False):
     s = repo.status()
     if not force:
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
     else:
         cmdutil.checkunfinished(repo, skipmerge=True)
     return s
@@ -68,7 +78,7 @@ def strip(
         if update:
             checklocalchanges(repo, force=force)
             urev = _findupdatetarget(repo, revs)
-            hg.clean(repo, urev)
+            up_impl.clean(repo, urev)
             repo.dirstate.write(repo.currenttransaction())
 
         if soft:
@@ -110,13 +120,6 @@ def strip(
             ),
         ),
         (b'', b'no-backup', None, _(b'do not save backup bundle')),
-        (
-            b'',
-            b'nobackup',
-            None,
-            _(b'do not save backup bundle (DEPRECATED)'),
-        ),
-        (b'n', b'', None, _(b'ignored  (DEPRECATED)')),
         (
             b'k',
             b'keep',
@@ -169,6 +172,10 @@ def debugstrip(ui, repo, *revs, **opts):
 
     Return 0 on success.
     """
+    return _strip_command(ui, repo, *revs, **opts, permit_empty_revset=True)
+
+
+def _strip_command(ui, repo, *revs, **opts):
     opts = pycompat.byteskwargs(opts)
     backup = True
     if opts.get(b'no_backup') or opts.get(b'nobackup'):
@@ -206,6 +213,8 @@ def debugstrip(ui, repo, *revs, **opts):
                     ui.write(_(b"bookmark '%s' deleted\n") % bookmark)
 
         if not revs:
+            if opts[b'permit_empty_revset']:
+                return 0
             raise error.Abort(_(b'empty revision set'))
 
         descendants = set(cl.descendants(revs))

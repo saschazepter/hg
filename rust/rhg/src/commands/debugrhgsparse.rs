@@ -13,6 +13,7 @@ pub const HELP_TEXT: &str = "";
 
 pub fn args() -> clap::Command {
     clap::command!("debugrhgsparse")
+        .args_override_self(true)
         .arg(
             clap::Arg::new("files")
                 .value_name("FILES")

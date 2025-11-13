@@ -8,10 +8,10 @@ use format_bytes::DisplayBytes;
 
 use crate::errors::HgError;
 use crate::exit_codes::STATE_ERROR;
-use crate::filepatterns::parse_pattern_file_contents;
-use crate::filepatterns::IgnorePattern;
-use crate::filepatterns::PatternError;
-use crate::filepatterns::PatternSyntax;
+use crate::file_patterns::parse_pattern_file_contents;
+use crate::file_patterns::FilePattern;
+use crate::file_patterns::PatternError;
+use crate::file_patterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
@@ -432,7 +432,7 @@ fn force_include_matcher(
         temp_includes
             .iter()
             .map(|include| {
-                IgnorePattern::new(PatternSyntax::Path, include, Path::new(""))
+                FilePattern::new(PatternSyntax::Path, include, Path::new(""))
             })
             .collect(),
     )?;

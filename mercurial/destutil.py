@@ -8,6 +8,9 @@
 from __future__ import annotations
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+)
 from . import bookmarks, error, obsutil, scmutil, stack
 
 
@@ -98,7 +101,7 @@ def _destupdatebook(repo, clean):
     return node, movemark, activemark
 
 
-def _destupdatebranch(repo, clean):
+def _destupdatebranch(repo: RepoT, clean):
     """decide on an update destination from current branch
 
     This ignores closed branch heads.
@@ -106,14 +109,14 @@ def _destupdatebranch(repo, clean):
     wc = repo[None]
     movemark = node = None
     currentbranch = wc.branch()
+    p1 = repo[b'.'].rev()
 
     if clean:
         currentbranch = repo[b'.'].branch()
 
-    if currentbranch in repo.branchmap():
-        heads = repo.branchheads(currentbranch)
-        if heads:
-            node = repo.revs(b'max(.::(%ln))', heads).first()
+    bm = repo.branchmap()
+    if currentbranch in bm:
+        node = bm.branch_tip_from(repo, currentbranch, p1)
         if bookmarks.isactivewdirparent(repo):
             movemark = repo[b'.'].node()
     elif currentbranch == b'default' and not wc.p1():
@@ -129,12 +132,11 @@ def _destupdatebranchfallback(repo, clean):
     """decide on an update destination from closed heads in current branch"""
     wc = repo[None]
     currentbranch = wc.branch()
+    p1 = repo[b'.'].rev()
     movemark = None
-    if currentbranch in repo.branchmap():
-        # here, all descendant branch heads are closed
-        heads = repo.branchheads(currentbranch, closed=True)
-        assert heads, b"any branch has at least one head"
-        node = repo.revs(b'max(.::(%ln))', heads).first()
+    bm = repo.branchmap()
+    if currentbranch in bm:
+        node = bm.branch_tip_from(repo, currentbranch, p1, closed=True)
         assert (
             node is not None
         ), b"any revision has at least one descendant branch head"
@@ -323,7 +325,7 @@ def _destmergebranch(
                 raise error.ManyMergeDestAbort(msg, hint=hint)
             branch = ctx.branch()
 
-    bheads = repo.branchheads(branch)
+    bheads = repo.branchmap().branchheads(branch)
     onhead = repo.revs(b'%ld and %ln', sourceset, bheads)
     if onheadcheck and not onhead:
         # Case A: working copy if not on a head. (merge only)
@@ -440,8 +442,8 @@ def _statusotherbook(ui, repo):
 
 def _statusotherbranchheads(ui, repo):
     currentbranch = repo.dirstate.branch()
-    allheads = repo.branchheads(currentbranch, closed=True)
-    heads = repo.branchheads(currentbranch)
+    allheads = repo.branchmap().branchheads(currentbranch, closed=True)
+    heads = repo.branchmap().branchheads(currentbranch)
     if repo.revs(b'%ln and parents()', allheads):
         # we are on a head, even though it might be closed
         #

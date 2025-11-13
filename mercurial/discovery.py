@@ -9,7 +9,18 @@ from __future__ import annotations
 
 import functools
 
+from typing import (
+    Collection,
+    Optional,
+)
+
 from .i18n import _
+from .interfaces.types import (
+    NodeIdT,
+    PeerT,
+    PushOpT,
+    RepoT,
+)
 from .node import (
     hex,
     short,
@@ -28,9 +39,18 @@ from . import (
     treediscovery,
     util,
 )
+from .interfaces import (
+    exchange as i_exc,
+)
 
 
-def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
+def findcommonincoming(
+    repo: RepoT,
+    remote: PeerT,
+    heads: list[NodeIdT] | None = None,
+    force: bool = False,
+    ancestorsof: Collection[NodeIdT] | None = None,
+) -> tuple[list[NodeIdT], bool | Collection[NodeIdT], Collection[NodeIdT]]:
     """Return a tuple (common, anyincoming, heads) used to identify the common
     subset of nodes between repo and remote.
 
@@ -58,6 +78,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
     if heads:
         knownnode = repo.changelog.hasnode  # no nodemap until it is filtered
         if all(knownnode(h) for h in heads):
+            assert heads is not None
             return (heads, False, heads)
 
     res = setdiscovery.findcommonheads(
@@ -75,7 +96,7 @@ def findcommonincoming(repo, remote, heads=None, force=False, ancestorsof=None):
     return (list(common), anyinc, heads or list(srvheads))
 
 
-class outgoing:
+class outgoing(i_exc.IOutgoing):
     """Represents the result of a findcommonoutgoing() call.
 
     Members:
@@ -98,7 +119,11 @@ class outgoing:
     by discovery."""
 
     def __init__(
-        self, repo, commonheads=None, ancestorsof=None, missingroots=None
+        self,
+        repo: RepoT,
+        commonheads: Collection[NodeIdT] | None = None,
+        ancestorsof: Collection[NodeIdT] | None = None,
+        missingroots: Collection[NodeIdT] | None = None,
     ):
         # at most one of them must not be set
         if commonheads is not None and missingroots is not None:
@@ -178,8 +203,16 @@ class outgoing:
 
 
 def findcommonoutgoing(
-    repo, other, onlyheads=None, force=False, commoninc=None, portable=False
-):
+    repo: RepoT,
+    other: PeerT,
+    onlyheads: Collection[NodeIdT] | None = None,
+    force: bool = False,
+    commoninc: tuple[
+        Collection[NodeIdT], bool | Collection[NodeIdT], Collection[NodeIdT]
+    ]
+    | None = None,
+    portable: bool = False,
+) -> i_exc.IOutgoing:
     """Return an outgoing instance to identify the nodes present in repo but
     not in other.
 
@@ -246,7 +279,13 @@ def findcommonoutgoing(
     return og
 
 
-def _headssummary(pushop):
+_OneSumT = tuple[
+    Optional[list[NodeIdT]], list[NodeIdT], list[NodeIdT], list[NodeIdT]
+]
+HeadSummaryT = dict[bytes, _OneSumT]
+
+
+def _headssummary(pushop: PushOpT) -> HeadSummaryT:
     """compute a summary of branch and heads status before and after push
 
     return {'branch': ([remoteheads], [newheads],
@@ -263,7 +302,7 @@ def _headssummary(pushop):
     remote = pushop.remote
     outgoing = pushop.outgoing
     cl = repo.changelog
-    headssum = {}
+    headssum: HeadSummaryT = {}
     missingctx = set()
     # A. Create set of branches involved in the push.
     branches = set()
@@ -272,15 +311,15 @@ def _headssummary(pushop):
         missingctx.add(ctx)
         branches.add(ctx.branch())
 
-    with remote.commandexecutor() as e:
-        remotemap = e.callcommand(b'branchmap', {}).result()
+    remotemap = remote.branchmap()
 
     knownnode = cl.hasnode  # do not use nodemap until it is filtered
     # A. register remote heads of branches which are in outgoing set
-    for branch, heads in remotemap.items():
+    for branch in remotemap:
         # don't add head info about branches which we don't have locally
         if branch not in branches:
             continue
+        heads = remotemap.branchheads(branch, closed=True)
         known = []
         unsynced = []
         for h in heads:
@@ -288,12 +327,12 @@ def _headssummary(pushop):
                 known.append(h)
             else:
                 unsynced.append(h)
-        headssum[branch] = (known, list(known), unsynced)
+        headssum[branch] = (known, list(known), unsynced, [])
 
     # B. add new branch data
     for branch in branches:
         if branch not in headssum:
-            headssum[branch] = (None, [], [])
+            headssum[branch] = (None, [], [], [])
 
     # C. Update newmap with outgoing changes.
     # This will possibly add new heads and remove existing ones.
@@ -306,13 +345,12 @@ def _headssummary(pushop):
         ),
     )
     newmap.update(repo, (ctx.rev() for ctx in missingctx))
-    for branch, newheads in newmap.items():
-        headssum[branch][1][:] = newheads
+    for branch in newmap:
+        headssum[branch][1][:] = newmap.branchheads(branch, closed=True)
     for branch, items in headssum.items():
         for l in items:
             if l is not None:
                 l.sort()
-        headssum[branch] = items + ([],)
 
     # If there are no obsstore, no post processing are needed.
     if repo.obsstore:
@@ -332,7 +370,12 @@ def _headssummary(pushop):
     return headssum
 
 
-def _oldheadssummary(repo, remoteheads, outgoing, inc=False):
+def _oldheadssummary(
+    repo: RepoT,
+    remoteheads: Collection[NodeIdT],
+    outgoing: i_exc.IOutgoing,
+    inc: bool = False,
+) -> dict[None, _OneSumT]:
     """Compute branchmapsummary for repo without branchmap support"""
 
     # 1-4b. old servers: Check for new topological heads.
@@ -349,13 +392,13 @@ def _oldheadssummary(repo, remoteheads, outgoing, inc=False):
     newheads = sorted(c.node() for c in r)
     # set some unsynced head to issue the "unsynced changes" warning
     if inc:
-        unsynced = [None]
+        unsynced = [repo.nullid]
     else:
         unsynced = []
     return {None: (oldheads, newheads, unsynced, [])}
 
 
-def _nowarnheads(pushop):
+def _nowarnheads(pushop: PushOpT) -> set[bytes]:
     # Compute newly pushed bookmarks. We don't warn about bookmarked heads.
     repo = pushop.repo.unfiltered()
     remote = pushop.remote
@@ -390,7 +433,7 @@ def _nowarnheads(pushop):
     return bookmarkedheads
 
 
-def checkheads(pushop):
+def checkheads(pushop: PushOpT) -> None:
     """Check that a push won't add any outgoing head
 
     raise StateError error and display ui message as needed.
@@ -425,15 +468,15 @@ def checkheads(pushop):
     if newbranches and not newbranch:  # new branch requires --new-branch
         branchnames = b', '.join(sorted(newbranches))
         # Calculate how many of the new branches are closed branches
-        closedbranches = set()
-        for tag, heads, tip, isclosed in repo.branchmap().iterbranches():
-            if isclosed:
-                closedbranches.add(tag)
-        closedbranches = closedbranches & set(newbranches)
-        if closedbranches:
+        closed_branches = 0
+        bm = repo.branchmap()
+        for bn in newbranches:
+            if not bm.hasbranch(bn, open_only=True):
+                closed_branches += 1
+        if closed_branches:
             errmsg = _(b"push creates new remote branches: %s (%d closed)") % (
                 branchnames,
-                len(closedbranches),
+                closed_branches,
             )
         else:
             errmsg = _(b"push creates new remote branches: %s") % branchnames
@@ -537,7 +580,11 @@ def checkheads(pushop):
         raise error.StateError(errormsg, hint=hint)
 
 
-def _postprocessobsolete(pushop, futurecommon, candidate_newhs):
+def _postprocessobsolete(
+    pushop: PushOpT,
+    futurecommon: Collection[NodeIdT],
+    candidate_newhs: Collection[NodeIdT],
+) -> tuple[set[bytes], set[bytes]]:
     """post process the list of new heads with obsolescence information
 
     Exists as a sub-function to contain the complexity and allow extensions to
@@ -628,7 +675,7 @@ def _postprocessobsolete(pushop, futurecommon, candidate_newhs):
     return newhs, discarded
 
 
-def pushingmarkerfor(obsstore, ispushed, node):
+def pushingmarkerfor(obsstore, ispushed, node: NodeIdT) -> bool:
     """true if some markers are to be pushed for node
 
     We cannot just look in to the pushed obsmarkers from the pushop because

@@ -155,7 +155,7 @@ class command(_funcregistrarbase):
 
     The `inferrepo` argument defines whether to try to find a repository from
     the command line arguments. If True, arguments will be examined for
-    potential repository locations. See ``findrepo()``. If a repository is
+    potential repository locations. See ``find_repo()``. If a repository is
     found, it will be used and passed to the decorated function.
 
     The `intents` argument defines a set of intended actions or capabilities
@@ -169,6 +169,9 @@ class command(_funcregistrarbase):
     If `helpcategory` is set (usually to one of the constants in the help
     module), the command will be displayed under that category in the help's
     list of commands.
+
+    If `need_dispatcher` is True, the command will receive the
+    `dispatch.dispatch` function through a "__dispatch__" argument.
 
     The following intents are defined:
 
@@ -219,6 +222,7 @@ class command(_funcregistrarbase):
         intents=None,
         helpcategory=None,
         helpbasic=False,
+        need_dispatcher=False,
     ):
         func.norepo = norepo
         func.optionalrepo = optionalrepo
@@ -226,6 +230,7 @@ class command(_funcregistrarbase):
         func.intents = intents or set()
         func.helpcategory = helpcategory
         func.helpbasic = helpbasic
+        func.need_dispatcher = need_dispatcher
         if synopsis:
             self._table[name] = func, list(options), synopsis
         else:
@@ -286,10 +291,28 @@ class revsetpredicate(_funcregistrarbase):
     _getname = _funcregistrarbase._parsefuncdecl
     _docformat = b"``%s``\n    %s"
 
-    def _extrasetup(self, name, func, safe=False, takeorder=False, weight=1):
+    def __init__(
+        self, table: dict | None = None, safe_set: set[bytes] | None = None
+    ):
+        if (table is not None and safe_set is None) or (
+            table is None and safe_set is not None
+        ):
+            msg = b"should provide both table and safe_set or neither"
+            raise error.ProgrammingError(msg)
+        elif table is None:
+            safe_set = set()
+        assert safe_set is not None  # help pytype
+        super().__init__(table)
+        self._safe_set: set[bytes] = safe_set
+
+    def _extrasetup(
+        self, name: bytes, func, safe=False, takeorder=False, weight=1
+    ):
         func._safe = safe
         func._takeorder = takeorder
         func._weight = weight
+        if safe:
+            self._safe_set.add(name)
 
 
 class filesetpredicate(_funcregistrarbase):

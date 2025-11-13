@@ -29,6 +29,10 @@ import sys
 import time
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from .node import (
     bin,
     hex,
@@ -38,6 +42,7 @@ from .node import (
 from . import (
     ancestor,
     bundle2,
+    bundlecaches,
     bundlerepo,
     changegroup,
     cmdutil,
@@ -55,7 +60,6 @@ from . import (
     filemerge,
     filesetlang,
     formatter,
-    hg,
     httppeer,
     localrepo,
     lock as lockmod,
@@ -80,11 +84,12 @@ from . import (
     revsetlang,
     scmutil,
     setdiscovery,
+    shape as shape_mod,
     simplemerge,
     sshpeer,
     sslutil,
     streamclone,
-    strip,
+    tables,
     tags as tagsmod,
     templater,
     treediscovery,
@@ -97,6 +102,9 @@ from . import (
     wireprotoserver,
 )
 from .interfaces import repository
+from .repo import (
+    factory as repo_factory,
+)
 from .stabletailgraph import stabletailsort
 from .utils import (
     cborutil,
@@ -106,19 +114,25 @@ from .utils import (
     stringutil,
     urlutil,
 )
-
 from .revlogutils import (
     debug as revlog_debug,
     nodemap,
     rewrite,
     sidedata,
 )
+from .store_utils import file_index
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
 
 release = lockmod.release
 
-table = {}
-table.update(strip.command._table)
-command = registrar.command(table)
+command = registrar.command(tables.command_table)
 
 
 @command(b'debugancestor', [], _(b'[INDEX] REV1 REV2'), optionalrepo=True)
@@ -162,7 +176,7 @@ def debugantivirusrunning(ui, repo):
 @command(b'debugapplystreamclonebundle', [], b'FILE')
 def debugapplystreamclonebundle(ui, repo, fname):
     """apply a stream clone bundle file"""
-    f = hg.openpath(ui, fname)
+    f = scmutil.open_path(ui, fname)
     gen = exchange.readbundle(ui, f, fname)
     gen.apply(repo)
 
@@ -479,7 +493,7 @@ def _debugbundle2(ui, gen, all=None, **opts):
 )
 def debugbundle(ui, bundlepath, all=None, spec=None, **opts):
     """lists the contents of a bundle"""
-    with hg.openpath(ui, bundlepath) as f:
+    with scmutil.open_path(ui, bundlepath) as f:
         if spec:
             spec = exchange.getbundlespec(ui, f)
             ui.write(b'%s\n' % spec)
@@ -491,22 +505,32 @@ def debugbundle(ui, bundlepath, all=None, spec=None, **opts):
         _debugchangegroup(ui, gen, all=all, **opts)
 
 
-@command(b'debugcapabilities', [], _(b'PATH'), norepo=True)
-def debugcapabilities(ui, path, **opts):
+@command(
+    b'debugcapabilities',
+    [
+        (b'', b'bundle2-cap', [], _(b'only display the matching capabilities')),
+    ],
+    _(b'PATH'),
+    norepo=True,
+)
+def debugcapabilities(ui, path, bundle2_cap=(), **opts):
     """lists the capabilities of a remote peer"""
-    peer = hg.peer(ui, pycompat.byteskwargs(opts), path)
+    peer = repo_factory.peer(ui, pycompat.byteskwargs(opts), path)
     try:
         caps = peer.capabilities()
-        ui.writenoi18n(b'Main capabilities:\n')
-        for c in sorted(caps):
-            ui.write(b'  %s\n' % c)
+        if not bundle2_cap:
+            ui.writenoi18n(b'Main capabilities:\n')
+            for c in sorted(caps):
+                ui.write(b'  %s\n' % c)
         b2caps = bundle2.bundle2caps(peer)
         if b2caps:
-            ui.writenoi18n(b'Bundle2 capabilities:\n')
+            if not bundle2_cap:
+                ui.writenoi18n(b'Bundle2 capabilities:\n')
             for key, values in sorted(b2caps.items()):
-                ui.write(b'  %s\n' % key)
-                for v in values:
-                    ui.write(b'    %s\n' % v)
+                if (not bundle2_cap) or key in bundle2_cap:
+                    ui.write(b'  %s\n' % key)
+                    for v in values:
+                        ui.write(b'    %s\n' % v)
     finally:
         peer.close()
 
@@ -800,7 +824,7 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     Output can be templatized. Available template keywords are:
 
-    :``rev``:       revision number
+    :``rev``:       revision number (or node)
     :``p1``:        parent 1 revision number (for reference)
     :``p2``:        parent 2 revision number (for reference)
 
@@ -881,10 +905,6 @@ def debugdeltachain(ui, repo, file_=None, **opts):
 
     The sparse read can be enabled with experimental.sparse-read = True
     """
-    revs = None
-    revs_opt = opts.pop('rev', [])
-    if revs_opt:
-        revs = [int(r) for r in revs_opt]
 
     all_info = opts.pop('all_info', False)
     size_info = opts.pop('size_info', None)
@@ -900,6 +920,12 @@ def debugdeltachain(ui, repo, file_=None, **opts):
     revlog = cmdutil.openrevlog(
         repo, b'debugdeltachain', file_, pycompat.byteskwargs(opts)
     )
+
+    revs = None
+    revs_opt = opts.pop('rev', [])
+    if revs_opt:
+        revs = [revlog.rev(revlog.lookup(r)) for r in revs_opt]
+
     fm = ui.formatter(b'debugdeltachain', pycompat.byteskwargs(opts))
 
     lines = revlog_debug.debug_delta_chain(
@@ -1175,7 +1201,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             b'debugdiscovery', ui, remoteurl
         )
         branches = (path.branch, [])
-        remote = hg.peer(repo, pycompat.byteskwargs(opts), path)
+        remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
         ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
     else:
         branches = (None, [])
@@ -1246,7 +1272,12 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
             )
             return common, hds
 
-    remoterevs, _checkout = hg.addbranchrevs(repo, remote, branches, revs=None)
+    remoterevs, _checkout = urlutil.add_branch_revs(
+        repo,
+        remote,
+        branches,
+        revs=None,
+    )
     localrevs = opts['rev']
 
     fm = ui.formatter(b'debugdiscovery', pycompat.byteskwargs(opts))
@@ -1765,7 +1796,7 @@ def debuggetbundle(ui, repopath, bundlepath, head=None, common=None, **opts):
     Every ID must be a full-length hex node id string. Saves the bundle to the
     given file.
     """
-    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
+    repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     if not repo.capable(b'getbundle'):
         raise error.Abort(b"getbundle() not supported by target repository")
     args = {}
@@ -2277,7 +2308,7 @@ def debugknown(ui, repopath, *ids, **opts):
     Every ID must be a full-length hex node id string. Returns a list of 0s
     and 1s indicating unknown/known.
     """
-    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
+    repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     if not repo.capable(b'known'):
         raise error.Abort(b"known() not supported by target repository")
     flags = repo.known([bin(s) for s in ids])
@@ -2504,7 +2535,7 @@ def debugmergestate(ui, repo, *args, **opts):
     was chosen."""
 
     if ui.verbose:
-        ms = mergestatemod.mergestate(repo)
+        ms = repo.mergestate()
 
         # sort so that reasonable information is on top
         v1records = ms._readrecordsv1()
@@ -2538,7 +2569,7 @@ def debugmergestate(ui, repo, *args, **opts):
             b'{extras % "extra: {file} ({key} = {value})\n"}'
         )
 
-    ms = mergestatemod.mergestate.read(repo)
+    ms = repo.mergestate()
 
     fm = ui.formatter(b'debugmergestate', pycompat.byteskwargs(opts))
     fm.startitem()
@@ -2605,7 +2636,7 @@ def debugmergestate(ui, repo, *args, **opts):
 
 
 @command(b'debugnamecomplete', [], _(b'NAME...'))
-def debugnamecomplete(ui, repo, *args):
+def debugnamecomplete(ui: UiT, repo: RepoT, *args):
     '''complete "names" - tags, open branch names, bookmark names'''
 
     names = set()
@@ -2614,11 +2645,8 @@ def debugnamecomplete(ui, repo, *args):
     for name, ns in repo.names.items():
         if name != b'branches':
             names.update(ns.listnames(repo))
-    names.update(
-        tag
-        for (tag, heads, tip, closed) in repo.branchmap().iterbranches()
-        if not closed
-    )
+    bm = repo.branchmap()
+    names.update(bn for bn in bm if bm.hasbranch(bn, open_only=True))
     completions = set()
     if not args:
         args = [b'']
@@ -2972,7 +3000,7 @@ def debugpeer(ui, path):
     }
 
     with ui.configoverride(overrides):
-        peer = hg.peer(ui, {}, path)
+        peer = repo_factory.peer(ui, {}, path)
 
         try:
             local = peer.local() is not None
@@ -3072,6 +3100,66 @@ def debugpickmergetool(ui, repo, *pats, **opts):
             ui.write(b'%s = %s\n' % (path, tool))
 
 
+@command(
+    b'debug::clonebundle-manifest',
+    [
+        (b'', b'stream', None, _(b'disply stream bundle only')),
+        (
+            b'',
+            b'raw',
+            False,
+            _(b'show the raw manifest instead of parsing and filtering it'),
+        ),
+    ]
+    + cmdutil.walkopts,
+    _(b'REPO'),
+    norepo=True,
+)
+def debug_clonebundle_manifest(ui, repopath, **opts):
+    """fetch a display a clone bundle manifest from a peer"""
+    cmdutil.check_incompatible_arguments(opts, 'raw', ['stream'])
+    target = repo_factory.peer(ui, {}, repopath)
+
+    try:
+        ui.note(_(b'url: %s\n') % target.url())
+        if not target.capable(b'clonebundles'):
+            ui.error(_(b'clonebundles not supported by peer\n'))
+            return
+        with target.commandexecutor() as e:
+            res = e.callcommand(b'clonebundles', {}).result()
+        if opts['raw']:
+            ui.write(res)
+            if res[-1:] != b'\n':
+                ui.write(b'\n')
+        else:
+            entries = bundlecaches.parseclonebundlesmanifest(target, res)
+
+            includes = set(opts.get("include"))
+            excludes = set(opts.get("exclude"))
+            fingerprint = None
+            if includes or excludes:
+                fingerprint = shape_mod.fingerprint_for_patterns(
+                    includes, excludes
+                )
+            entries = bundlecaches.filterclonebundleentries(
+                target,
+                entries,
+                streamclonerequested=opts['stream'],
+                store_fingerprint=fingerprint,
+            )
+            entries = bundlecaches.sortclonebundleentries(ui, entries)
+            for entry in entries:
+                ui.writenoi18n(b'  URL: %s\n' % (entry.get(b'URL', b''),))
+                for key, value in entry.items():
+                    if key == b'URL':
+                        continue
+                    if isinstance(value, list):
+                        value = b','.join(value)
+                    ui.writenoi18n(b'    %s: %s\n' % (key, value))
+    finally:
+        target.close()
+
+
 @command(b'debugpushkey', [], _(b'REPO NAMESPACE [KEY OLD NEW]'), norepo=True)
 def debugpushkey(ui, repopath, namespace, *keyinfo, **opts):
     """access the pushkey key/value protocol
@@ -3082,7 +3170,7 @@ def debugpushkey(ui, repopath, namespace, *keyinfo, **opts):
     Reports success or failure.
     """
 
-    target = hg.peer(ui, {}, repopath)
+    target = repo_factory.peer(ui, {}, repopath)
     try:
         if keyinfo:
             key, old, new = keyinfo
@@ -3205,6 +3293,35 @@ def debugrebuilddirstate(ui, repo, rev, **opts):
 def debugrebuildfncache(ui, repo, **opts):
     """rebuild the fncache file"""
     repair.rebuildfncache(ui, repo, opts.get("only_data"))
+
+
+@command(
+    b'debug::file-index',
+    [
+        (b'', b'docket', None, _(b'dump docket file')),
+        (b'T', b'template', b'', _(b'template for --docket')),
+        (b'', b'tree', None, _(b'dump tree file')),
+        (b'p', b'path', b'', _(b'look up path'), _(b'PATH')),
+        (b't', b'token', b'', _(b'look up token'), _(b'TOKEN')),
+        (b'', b'vacuum', None, _(b'vacuum the tree file')),
+        (b'', b'gc', None, _(b'run garbage collection')),
+    ],
+)
+def debug_file_index(ui, repo, **opts):
+    """inspect or manipulate the file index
+
+    There are two options relating to cleaning up the file index:
+
+    * With --vacuum, this command rewrites the tree file more compactly, saving
+      the result with a different filename. This also happens automatically
+      during commit based on the config storage.fileindex.max-unused-percentage.
+
+    * With --gc, this command deletes old data files that are no longer needed,
+      such as the old tree file left behind by --vacuum. This also happens
+      automatically during every hg transaction, but only after a retention
+      period has elapsed and a certain number of transactions have occurred.
+    """
+    file_index.debug_file_index(ui, repo, **opts)
 
 
 @command(
@@ -3809,14 +3926,14 @@ def debugbackupbundle(ui, repo, *pats, **opts):
             source,
         )
         try:
-            other = hg.peer(repo, pycompat.byteskwargs(opts), path)
+            other = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
         except error.LookupError as ex:
             msg = _(b"\nwarning: unable to open bundle %s") % path.loc
             hint = _(b"\n(missing parent rev %s)\n") % short(ex.name)
             ui.warn(msg, hint=hint)
             continue
         branches = (path.branch, opts.get('branch', []))
-        revs, checkout = hg.addbranchrevs(
+        revs, checkout = urlutil.add_branch_revs(
             repo, other, branches, opts.get("rev")
         )
 
@@ -3838,7 +3955,7 @@ def debugbackupbundle(ui, repo, *pats, **opts):
                 with repo.lock(), repo.transaction(b"unbundle") as tr:
                     if scmutil.isrevsymbol(other, recovernode):
                         ui.status(_(b"Unbundling %s\n") % (recovernode))
-                        f = hg.openpath(ui, path.loc)
+                        f = scmutil.open_path(ui, path.loc)
                         gen = exchange.readbundle(ui, f, path.loc)
                         if isinstance(gen, bundle2.unbundle20):
                             bundle2.applybundle(
@@ -4356,7 +4473,7 @@ def debugwhyunstable(ui, repo, rev):
     norepo=True,
 )
 def debugwireargs(ui, repopath, *vals, **opts):
-    repo = hg.peer(ui, pycompat.byteskwargs(opts), repopath)
+    repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     try:
         for opt in cmdutil.remoteopts:
             del opts[pycompat.sysstr(opt[1])]
@@ -4713,7 +4830,7 @@ def debugwireproto(ui, repo, path=None, **opts):
             )
 
     elif path:
-        # We bypass hg.peer() so we can proxy the sockets.
+        # We bypass repo_factory.peer() so we can proxy the sockets.
         # TODO consider not doing this because we skip
         # ``hg.wirepeersetupfuncs`` and potentially other useful functionality.
         u = urlutil.url(path)
@@ -4981,6 +5098,7 @@ def debugwireproto(ui, repo, path=None, **opts):
         (b'', b'start-rev', b"", _(b'start at rev')),
         (b'', b'stop-rev', b"", _(b'stop at rev')),
         (b'', b'delete', True, _(b'delete the result')),
+        (b'', b'report', True, _(b'report statistic about the result')),
         (
             b'',
             b'reuse-stored-delta',
@@ -4999,6 +5117,7 @@ def debug_reencoder_revlog(
     stop_rev=None,
     delete=True,
     reuse_stored_delta=True,
+    report=True,
     **opts,
 ):
     """show revlog statistic if delta where to be reencoded
@@ -5021,6 +5140,7 @@ def debug_reencoder_revlog(
         stop_rev=stop_rev,
         delete=delete,
         reuse_delta=reuse_stored_delta,
+        report=report,
     )
 
 
@@ -5034,43 +5154,26 @@ def fast_upgrade(ui, repo, *patterns, **opts):
     with repo.wlock(), repo.lock():
         new_requirements = repo.requirements
 
-        if requirements.FILELOG_METAFLAG_REQUIREMENT not in new_requirements:
-            new_requirements.add(requirements.FILELOG_METAFLAG_REQUIREMENT)
-            upgrade_meta = True
-        else:
-            upgrade_meta = False
-
         if requirements.DELTA_INFO_REQUIREMENT not in new_requirements:
             new_requirements.add(requirements.DELTA_INFO_REQUIREMENT)
-            upgrade_delta_info = True
         else:
-            upgrade_delta_info = False
-
-        if not (upgrade_meta or upgrade_delta_info):
             ui.warnnoi18n(b"nothing to do")
             return 0
 
-        assert upgrade_meta or upgrade_delta_info
-        if upgrade_meta:
-            ui.statusnoi18n(b"adding has-meta flag filelogs\n")
-        if upgrade_delta_info:
-            msg = b"adding delta-info flag to filelogs and manifests\n"
-            ui.statusnoi18n(msg)
+        ui.statusnoi18n(b"adding has-meta flag filelogs\n")
+        msg = b"adding delta-info flag to filelogs and manifests\n"
+        ui.statusnoi18n(msg)
 
         scmutil.writereporequirements(repo, new_requirements)
         all_revlog = [
-            e
-            for e in repo.store.walk()
-            if e.is_revlog
-            and (upgrade_delta_info or e.is_filelog)
-            and not e.is_changelog
+            e for e in repo.store.walk() if e.is_revlog and not e.is_changelog
         ]
         with ui.makeprogress(
             b"upgrade", unit=_(b'revlog'), total=len(all_revlog)
         ) as p:
             for entry in all_revlog:
                 rl = entry.get_revlog_instance(repo)._revlog
-                rewrite.quick_upgrade(rl, upgrade_meta, upgrade_delta_info)
+                rewrite.quick_upgrade(rl)
                 count += 1
                 p.increment()
     ui.statusnoi18n(b"upgraded %d filelog\n" % count)

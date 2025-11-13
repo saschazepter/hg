@@ -8,6 +8,8 @@ Check data can be written/read from sidedata
   $ cat << EOF >> $HGRCPATH
   > [extensions]
   > testsidedata=$TESTDIR/testlib/ext-sidedata.py
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 
   $ hg init test-sidedata --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data

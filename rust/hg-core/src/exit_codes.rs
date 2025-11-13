@@ -6,6 +6,9 @@ pub const OK: ExitCode = 0;
 /// Generic abort
 pub const ABORT: ExitCode = 255;
 
+/// Indicates that the user made an error in their input
+pub const INPUT_ERROR: ExitCode = 10;
+
 // Abort when there is a config related error
 pub const CONFIG_ERROR_ABORT: ExitCode = 30;
 

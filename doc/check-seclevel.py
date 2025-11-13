@@ -17,9 +17,12 @@ from mercurial import (
     commands,
     extensions,
     help,
+    initialization,
     minirst,
     ui as uimod,
 )
+
+initialization.init()
 
 table = commands.table
 helptable = help.helptable

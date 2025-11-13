@@ -7,11 +7,21 @@
 
 from __future__ import annotations
 
+import abc
+import enum
+import io
 import os
 import struct
 import weakref
 
-from typing import Iterator
+from typing import (
+    Callable,
+    Collection,
+    Iterator,
+    Optional,
+    TYPE_CHECKING,
+    cast,
+)
 
 from .i18n import _
 from .node import (
@@ -20,9 +30,15 @@ from .node import (
     short,
 )
 from .interfaces.types import (
-    RevisionDeltaT,
+    MatcherT,
+    NeedsTypeHint,
+    NodeIdT,
+    OutboundRevisionT,
+    RepoT,
+    RevnumT,
 )
 
+from .thirdparty import attr
 from . import (
     error,
     match as matchmod,
@@ -35,17 +51,43 @@ from . import (
     util,
 )
 
-from .interfaces import repository
+from .interfaces import (
+    changegroup as i_cg,
+    compression as i_comp,
+    repository as i_repo,
+)
 from .revlogutils import sidedata as sidedatamod
 from .revlogutils import constants as revlog_constants
-from .utils import storageutil
+from .utils import (
+    storageutil,
+    urlutil,
+)
+
+# Force pytype to use the non-vendored package
+if TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
+# small type alias to help type some function
+LookupFnT = Callable[[NodeIdT], NodeIdT]
 
 _CHANGEGROUPV1_DELTA_HEADER = struct.Struct(b"20s20s20s20s")
 _CHANGEGROUPV2_DELTA_HEADER = struct.Struct(b"20s20s20s20s20s")
 # node p1node p2node basenode linknode flags
 _CHANGEGROUPV3_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sH")
-# node p1node p2node basenode linknode flags snapshot_level
-_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHb")
+# node
+# p1node
+# p2node
+# basenode
+# linknode
+# flags
+# snapshot_level
+# raw_size
+# compression
+# delta_flag
+# storage_base_node
+# storage_snapshot_level
+_CHANGEGROUPV4_DELTA_HEADER = struct.Struct(b">20s20s20s20s20sHbIBB20sb")
 _CHANGEGROUPV5_DELTA_HEADER = struct.Struct(b">B20s20s20s20s20sH")
 
 LFS_REQUIREMENT = b'lfs'
@@ -272,7 +314,111 @@ def display_unbundle_debug_info(ui, debug_info):
                 _dbg_ubdl_line(ui, 3, b'cached', t[tc], td, b"total")
 
 
-class cg1unpacker:
+_NAME_TO_REVLOG_COMP = {
+    b'none': i_comp.REVLOG_COMP_NONE,
+    b'zlib': i_comp.REVLOG_COMP_ZLIB,
+    b'zstd': i_comp.REVLOG_COMP_ZSTD,
+}
+
+
+class WireDeltaCompression(enum.IntEnum):
+    """encode the compression of a delta over the wire
+
+    Note that NO_COMPRESSION ≠ UNCOMPRESSED.
+
+    NO_COMPRESSION means the incoming delta is uncompressed and we don't have
+    any information about the source compression.
+
+    UNCOMPRESSED means the incoming delta is "compressed" with the "none"
+    compression, with the associated impact on the delta content. It usually
+    imply the delta wasn't compressed in the source storage.
+    """
+
+    NO_COMPRESSION = 0
+    UNCOMPRESSED = 1
+    ZLIB_COMPRESSED = 2
+    ZSTD_COMPRESSED = 3
+
+    @staticmethod
+    def accepted(
+        caps: Collection[bytes] | None,
+    ) -> frozenset[i_comp.RevlogCompHeader]:
+        """return accepted compression from a bundle capability set"""
+        if caps is None:
+            return frozenset()
+        b2caps = urlutil.b2_caps_from_bundle_caps(caps)
+        cap_set = b2caps.get(b'delta-compression', ())
+        accepted = set()
+        for cap in cap_set:
+            if (rl_cmp := _NAME_TO_REVLOG_COMP.get(cap)) is not None:
+                accepted.add(rl_cmp)
+        return frozenset(accepted)
+
+    @staticmethod
+    def filter_known(
+        caps: Collection[bytes] | None,
+    ) -> set[bytes]:
+        if caps is None:
+            return set()
+        b2caps = urlutil.b2_caps_from_bundle_caps(caps)
+        cap_set = b2caps.get(b'delta-compression', ())
+        return set(c for c in cap_set if c in _NAME_TO_REVLOG_COMP)
+
+    @classmethod
+    def from_revlog_compression(
+        cls,
+        revlog_encoding: i_comp.RevlogCompHeader,
+    ) -> WireDeltaCompression:
+        if revlog_encoding is None:
+            return cls.NO_COMPRESSION
+        elif revlog_encoding == i_comp.REVLOG_COMP_NONE:
+            return cls.UNCOMPRESSED
+        elif revlog_encoding == b'u':
+            return cls.UNCOMPRESSED
+        elif revlog_encoding == i_comp.REVLOG_COMP_ZLIB:
+            return cls.ZLIB_COMPRESSED
+        elif revlog_encoding == i_comp.REVLOG_COMP_ZSTD:
+            return cls.ZSTD_COMPRESSED
+        else:
+            raise ValueError("unknown revlog compression: %s", revlog_encoding)
+
+    def to_revlog_compression(self) -> i_comp.RevlogCompHeader | None:
+        if self == self.NO_COMPRESSION:
+            return None
+        elif self == self.UNCOMPRESSED:
+            return i_comp.REVLOG_COMP_NONE
+        elif self == self.ZLIB_COMPRESSED:
+            return i_comp.REVLOG_COMP_ZLIB
+        elif self == self.ZSTD_COMPRESSED:
+            return i_comp.REVLOG_COMP_ZSTD
+        else:
+            assert False, "forgot to implement conversion for %s" % self
+
+
+@attr.s(slots=True)
+class _DeltaHeader:
+    """internal data class to hold information read from the binary header
+
+    Hold default values to be used by older format that don't carry that
+    information.
+    """
+
+    node = attr.ib(type=NodeIdT)
+    p1 = attr.ib(type=NodeIdT)
+    p2 = attr.ib(type=NodeIdT)
+    delta_base = attr.ib(type=NodeIdT)
+    cs = attr.ib(type=NodeIdT)
+    flags = attr.ib(type=int, default=0)
+    protocol_flags = attr.ib(type=int, default=0)
+    snapshot_level = attr.ib(type=Optional[int], default=None)
+    raw_text_size = attr.ib(type=Optional[int], default=None)
+    compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
+    quality = attr.ib(type=Optional[i_repo.IDeltaQuality], default=None)
+    storage_delta_base = attr.ib(type=Optional[NodeIdT], default=None)
+    storage_snapshot_level = attr.ib(type=Optional[int], default=None)
+
+
+class cg1unpacker(i_cg.IChangeGroupUnpacker):
     """Unpacker for cg1 changegroup streams.
 
     A changegroup unpacker handles the framing of the revision data in
@@ -308,7 +454,15 @@ class cg1unpacker:
             alg = b'_truncatedBZ'
 
         compengine = util.compengines.forbundletype(alg)
-        self._stream = compengine.decompressorreader(fh)
+        # Assumes that the result has all io.BytesIO method even when it has
+        # not. This work around the fact the typing does not distinct pure
+        # stream processing (most common case) and the seekable/closable case,
+        # used for bundlerepo & Co.
+        #
+        # This is not ideal and should be improved at some point.
+        stream = compengine.decompressorreader(fh)
+        assert stream is not None
+        self._stream: io.BytesIO = cast(io.BytesIO, stream)
         self._type = alg
         self.extras = extras or {}
         self.callback = None
@@ -357,38 +511,60 @@ class cg1unpacker:
         fname = readexactly(self._stream, l)
         return {b'filename': fname}
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, cs = headertuple
         if prevnode is None:
             deltabase = p1
         else:
             deltabase = prevnode
-        flags = 0
-        protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+        )
 
-    def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
+    def deltachunk(
+        self, prevnode: bytes | None
+    ) -> revlogutils.InboundRevision | None:
         l = self._chunklength()
         if not l:
             return None
         headerdata = readexactly(self._stream, self.deltaheadersize)
         header = self.deltaheader.unpack(headerdata)
-        delta = readexactly(self._stream, l - self.deltaheadersize)
+        chunk = readexactly(self._stream, l - self.deltaheadersize)
         header = self._deltaheader(header, prevnode)
-        node, p1, p2, deltabase, cs, flags, protocol_flags, snap_lvl = header
+        protocol_flags = header.protocol_flags
+        if protocol_flags & storageutil.CG_FLAG_FULL_TEXT:
+            protocol_flags &= ~storageutil.CG_FLAG_FULL_TEXT
+            delta = None
+            text = chunk
+        else:
+            delta = chunk
+            text = None
         return revlogutils.InboundRevision(
-            node,
-            p1,
-            p2,
-            cs,
-            deltabase,
+            header.node,
+            header.p1,
+            header.p2,
+            header.cs,
+            header.delta_base,
             delta,
-            flags,
+            header.flags,
             {},
             protocol_flags,
-            snapshot_level=snap_lvl,
+            snapshot_level=header.snapshot_level,
+            raw_text_size=header.raw_text_size,
+            raw_text=text,
             has_censor_flag=self.has_censor_flag,
             has_filelog_hasmeta_flag=self.has_filelog_hasmeta_flag,
+            compression=header.compression,
+            other_storage_delta_base=header.storage_delta_base,
+            other_storage_snapshot_level=header.storage_snapshot_level,
         )
 
     def getchunks(self):
@@ -821,11 +997,19 @@ class cg2unpacker(cg1unpacker):
     deltaheadersize = deltaheader.size
     version = b'02'
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, deltabase, cs = headertuple
-        flags = 0
-        protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+        )
 
 
 class cg3unpacker(cg2unpacker):
@@ -843,10 +1027,20 @@ class cg3unpacker(cg2unpacker):
 
     has_censor_flag = True
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         node, p1, p2, deltabase, cs, flags = headertuple
-        protocol_flags = 0
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+            flags=flags,
+        )
 
     def _unpackmanifests(
         self,
@@ -886,7 +1080,12 @@ class cg3unpacker(cg2unpacker):
 class cg4unpacker(cg3unpacker):
     """Changegroup 4 support more advanced flag for each delta.
 
+    - exchange of full-text without wrapping in a delta
+    - exchange compressed delta and full text
     - "hasmeta" flag for filelog
+    - snapshot level
+    - delta quality
+    - delta base and snapshot level in the source storage
     """
 
     deltaheader = _CHANGEGROUPV4_DELTA_HEADER
@@ -895,20 +1094,45 @@ class cg4unpacker(cg3unpacker):
 
     has_filelog_hasmeta_flag = True
 
-    def _deltaheader(self, headertuple, prevnode):
-        node, p1, p2, deltabase, cs, flags, snapshot_level = headertuple
-        protocol_flags = 0
-        if snapshot_level < -1:
-            snapshot_level = None
-        return (
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
+        (
             node,
             p1,
             p2,
             deltabase,
             cs,
             flags,
-            protocol_flags,
             snapshot_level,
+            raw_size,
+            encoded_comp,
+            protocol_flags,
+            stored_base,
+            stored_snap_lvl,
+        ) = headertuple
+        wire_comp = WireDeltaCompression(encoded_comp)
+        if snapshot_level < -1:
+            snapshot_level = None
+        quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+        flags &= ~revlog_constants.REVIDX_DELTA_INFO_FLAGS
+
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+            flags=flags,
+            snapshot_level=snapshot_level,
+            raw_text_size=raw_size,
+            compression=wire_comp.to_revlog_compression(),
+            protocol_flags=protocol_flags,
+            quality=quality,
+            storage_delta_base=stored_base,
+            storage_snapshot_level=stored_snap_lvl,
         )
 
 
@@ -922,11 +1146,25 @@ class cg5unpacker(cg3unpacker):
     deltaheadersize = deltaheader.size
     version = b'05'
 
-    def _deltaheader(self, headertuple, prevnode):
+    def _deltaheader(
+        self,
+        headertuple: tuple,
+        prevnode: NodeIdT,
+    ) -> _DeltaHeader:
         protocol_flags, node, p1, p2, deltabase, cs, flags = headertuple
-        return node, p1, p2, deltabase, cs, flags, protocol_flags, None
+        return _DeltaHeader(
+            node=node,
+            p1=p1,
+            p2=p2,
+            delta_base=deltabase,
+            cs=cs,
+            flags=flags,
+            protocol_flags=protocol_flags,
+        )
 
-    def deltachunk(self, prevnode: bytes) -> revlogutils.InboundRevision | None:
+    def deltachunk(
+        self, prevnode: bytes | None
+    ) -> revlogutils.InboundRevision | None:
         res = super().deltachunk(prevnode)
         if res is None:
             return res
@@ -952,7 +1190,7 @@ class headerlessfixup:
         return readexactly(self._fh, n)
 
 
-def _revisiondeltatochunks(repo, delta, headerfn):
+def _revisiondeltatochunks(repo, delta, headerfn, full_text_support=False):
     """Serialize a revisiondelta to changegroup chunks."""
 
     # The captured revision delta may be encoded as a delta against
@@ -963,9 +1201,13 @@ def _revisiondeltatochunks(repo, delta, headerfn):
 
     if delta.delta is not None:
         prefix, data = b'', delta.delta
-    elif delta.basenode == repo.nullid:
+    elif delta.revision is not None:
+        assert delta.basenode == repo.nullid
         data = delta.revision
-        prefix = mdiff.trivialdiffheader(len(data))
+        if full_text_support:
+            prefix = b''  # a flag will be set to signal it a full text
+        else:
+            prefix = mdiff.trivialdiffheader(len(data))
     else:
         data = delta.revision
         prefix = mdiff.replacediffheader(delta.baserevisionsize, len(data))
@@ -1104,21 +1346,25 @@ def _resolvenarrowrevisioninfo(
 
 
 def deltagroup(
-    repo,
-    store,
-    nodes,
-    ischangelog,
-    lookup,
-    forcedeltaparentprev,
-    topic=None,
-    ellipses=False,
-    clrevtolocalrev=None,
-    fullclnodes=None,
-    precomputedellipsis=None,
+    repo: i_repo.IRepo,
+    store: i_repo.IDeltaEmittingStore,
+    nodes: list[NodeIdT],
+    ischangelog: bool,
+    # a node → link node function
+    lookup: LookupFnT,
+    forcedeltaparentprev: bool,
+    topic: bytes | None = None,
+    ellipses: bool = False,
+    clrevtolocalrev: dict[RevnumT, RevnumT] | None = None,
+    fullclnodes: set[NodeIdT] | None = None,
+    precomputedellipsis: i_cg.PreComputedEllipsisT | None = None,
+    # typing: the sidedata_helpers were a bit too hairy to type when this
+    # function was opportunisticly typed. Feel free to fix that.
     sidedata_helpers=None,
-    debug_info=None,
-    filelog_hasmeta=False,
-):
+    debug_info: dict[str, NeedsTypeHint] | None = None,
+    filelog_hasmeta: bool = False,
+    accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
+) -> Iterator[OutboundRevisionT]:
     """Calculate deltas for a set of revisions.
 
     Is a generator of ``revisiondelta`` instances.
@@ -1162,6 +1408,7 @@ def deltagroup(
         filtered = []
         adjustedparents = {}
         linknodes = {}
+        assert clrevtolocalrev is not None
 
         for node in nodes:
             rev = store.rev(node)
@@ -1214,13 +1461,13 @@ def deltagroup(
         msg = _(b"""config "devel.bundle.delta" as unknown value: %s""")
         repo.ui.warn(msg % configtarget)
 
-    deltamode = repository.CG_DELTAMODE_STD
+    deltamode = i_repo.CG_DELTAMODE_STD
     if forcedeltaparentprev or configtarget == b'prev':
-        deltamode = repository.CG_DELTAMODE_PREV
+        deltamode = i_repo.CG_DELTAMODE_PREV
     elif configtarget == b'p1':
-        deltamode = repository.CG_DELTAMODE_P1
+        deltamode = i_repo.CG_DELTAMODE_P1
     elif configtarget == b'full':
-        deltamode = repository.CG_DELTAMODE_FULL
+        deltamode = i_repo.CG_DELTAMODE_FULL
 
     kwargs = {}
     if filelog_hasmeta:
@@ -1234,6 +1481,7 @@ def deltagroup(
         deltamode=deltamode,
         sidedata_helpers=sidedata_helpers,
         debug_info=debug_info,
+        accepted_compression=accepted_compression,
         **kwargs,
     )
 
@@ -1248,7 +1496,7 @@ def deltagroup(
                 p1node, p2node = adjustedparents[revision.node]
                 revision.p1node = p1node
                 revision.p2node = p2node
-                revision.flags |= repository.REVISION_FLAG_ELLIPSIS
+                revision.flags |= i_repo.REVISION_FLAG_ELLIPSIS
 
         else:
             linknode = lookup(revision.node)
@@ -1441,23 +1689,48 @@ def display_bundling_debug_info(
             _dbg_bdl_line(ui, 3, k, v['delta-against-p1'])
 
 
-class cgpacker:
-    def __init__(
+class cgpacker(i_cg.IChangeGroupPacker):
+    _send_full_text: bool = False
+    """Can we send full text without wrapping them in a patch ?"""
+
+    _oldmatcher: MatcherT
+    _matcher: MatcherT
+
+    version: bytes
+    _forcedeltaparentprev: bool
+    _manifestsend: bytes
+    _ellipses: bool
+    _filelog_hasmeta: bool
+
+    # Set of capabilities we can use to build the bundle.
+    _bundlecaps: set
+    _remote_sidedata: set
+    _isshallow: bool
+    _fullclnodes: set[NodeIdT]
+    _accepted_compression: frozenset[i_comp.RevlogCompHeader]
+
+    _precomputedellipsis: i_cg.PreComputedEllipsisT | None
+
+    _repo: RepoT
+
+    _verbosenote: Callable[[bytes], None]
+
+    def _init(
         self,
-        repo,
-        oldmatcher,
-        matcher,
-        version,
-        builddeltaheader,
-        manifestsend,
-        forcedeltaparentprev=False,
-        bundlecaps=None,
-        ellipses=False,
-        shallow=False,
-        ellipsisroots=None,
-        fullnodes=None,
-        remote_sidedata=None,
-        filelog_hasmeta=False,
+        repo: RepoT,
+        oldmatcher: MatcherT,
+        matcher: MatcherT,
+        version: bytes,
+        manifestsend: bytes,
+        forcedeltaparentprev: bool = False,
+        bundlecaps: set | None = None,
+        ellipses: bool = False,
+        shallow: bool = False,
+        ellipsisroots: i_cg.PreComputedEllipsisT | None = None,
+        fullnodes: set[NodeIdT] | None = None,
+        remote_sidedata: set[bytes] | None = None,
+        filelog_hasmeta: bool = False,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         """Given a source repo, construct a bundler.
 
@@ -1503,10 +1776,10 @@ class cgpacker:
 
         self.version = version
         self._forcedeltaparentprev = forcedeltaparentprev
-        self._builddeltaheader = builddeltaheader
         self._manifestsend = manifestsend
         self._ellipses = ellipses
         self._filelog_hasmeta = filelog_hasmeta
+        self._accepted_compression = accepted_compression
 
         # Set of capabilities we can use to build the bundle.
         if bundlecaps is None:
@@ -1516,6 +1789,8 @@ class cgpacker:
             remote_sidedata = set()
         self._remote_sidedata = remote_sidedata
         self._isshallow = shallow
+        if fullnodes is None:
+            fullnodes = set()
         self._fullclnodes = fullnodes
 
         # Maps ellipsis revs to their roots at the changelog level.
@@ -1528,14 +1803,18 @@ class cgpacker:
         else:
             self._verbosenote = lambda s: None
 
+    @abc.abstractmethod
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
+        ...
+
     def generate(
         self,
-        commonrevs,
-        clnodes,
-        fastpathlinkrev,
-        source,
-        changelog=True,
-    ):
+        commonrevs: set[RevnumT],
+        clnodes: list[NodeIdT],
+        fastpathlinkrev: bool,
+        source: bytes,
+        changelog: bool = True,
+    ) -> Iterator[bytes]:
         """Yield a sequence of changegroup byte chunks.
         If changelog is False, changelog data won't be added to changegroup
         """
@@ -1574,7 +1853,10 @@ class cgpacker:
         )
         for delta in deltas:
             for chunk in _revisiondeltatochunks(
-                self._repo, delta, self._builddeltaheader
+                self._repo,
+                delta,
+                self._builddeltaheader,
+                full_text_support=self._send_full_text,
             ):
                 size += len(chunk)
                 yield chunk
@@ -1642,7 +1924,10 @@ class cgpacker:
 
             for delta in deltas:
                 chunks = _revisiondeltatochunks(
-                    self._repo, delta, self._builddeltaheader
+                    self._repo,
+                    delta,
+                    self._builddeltaheader,
+                    full_text_support=self._send_full_text,
                 )
                 for chunk in chunks:
                     size += len(chunk)
@@ -1690,7 +1975,10 @@ class cgpacker:
 
             for delta in deltas:
                 chunks = _revisiondeltatochunks(
-                    self._repo, delta, self._builddeltaheader
+                    self._repo,
+                    delta,
+                    self._builddeltaheader,
+                    full_text_support=self._send_full_text,
                 )
                 for chunk in chunks:
                     size += len(chunk)
@@ -1726,7 +2014,7 @@ class cgpacker:
         generate=True,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> tuple[dict[bytes, NeedsTypeHint], Iterator[OutboundRevisionT]]:
         """Generate data for changelog chunks.
 
         Returns a 2-tuple of a dict containing state and an iterable of
@@ -1764,7 +2052,7 @@ class cgpacker:
                 # this manifest.
                 changedfiles.update(c.files)
 
-            return state, ()
+            return state, iter(())
 
         # Callback for the changelog, used to collect changed files and
         # manifest nodes.
@@ -1822,6 +2110,7 @@ class cgpacker:
             precomputedellipsis=self._precomputedellipsis,
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
+            accepted_compression=self._accepted_compression,
         )
 
         return state, gen
@@ -1837,7 +2126,7 @@ class cgpacker:
         clrevtolocalrev,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> Iterator[tuple[bytes, Iterator[OutboundRevisionT]]]:
         """Returns an iterator of changegroup chunks containing manifests.
 
         `source` is unused here, but is used by extensions like remotefilelog to
@@ -1937,6 +2226,7 @@ class cgpacker:
                 precomputedellipsis=self._precomputedellipsis,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
+                accepted_compression=self._accepted_compression,
             )
 
             if not self._oldmatcher.visitdir(store.tree[:-1]):
@@ -1948,7 +2238,7 @@ class cgpacker:
                 for d in deltas:
                     pass
                 if not tree:
-                    yield tree, []
+                    yield tree, iter([])
 
     def _prunemanifests(self, store, nodes, commonrevs):
         if not self._ellipses:
@@ -1977,7 +2267,7 @@ class cgpacker:
         clrevs,
         sidedata_helpers=None,
         debug_info=None,
-    ):
+    ) -> Iterator[tuple[bytes, Iterator[OutboundRevisionT]]]:
         changedfiles = [
             f
             for f in changedfiles
@@ -2075,6 +2365,7 @@ class cgpacker:
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
                 filelog_hasmeta=self._filelog_hasmeta,
+                accepted_compression=self._accepted_compression,
             )
 
             yield fname, deltas
@@ -2082,157 +2373,189 @@ class cgpacker:
         progress.complete()
 
 
-def _makecg1packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    builddeltaheader = lambda d: _CHANGEGROUPV1_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.linknode
-    )
+class ChangeGroupPacker01(cgpacker):
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
+        return _CHANGEGROUPV1_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.linknode,
+        )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'01',
-        builddeltaheader=builddeltaheader,
-        manifestsend=b'',
-        forcedeltaparentprev=True,
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super()._init(
+            repo,
+            oldmatcher,
+            matcher,
+            b'01',
+            manifestsend=b'',
+            forcedeltaparentprev=True,
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+        )
 
 
-def _makecg2packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    builddeltaheader = lambda d: _CHANGEGROUPV2_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.basenode, d.linknode
-    )
+class ChangeGroupPacker02(cgpacker):
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
+        return _CHANGEGROUPV2_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.basenode,
+            d.linknode,
+        )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'02',
-        builddeltaheader=builddeltaheader,
-        manifestsend=b'',
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super()._init(
+            repo,
+            oldmatcher,
+            matcher,
+            b'02',
+            manifestsend=b'',
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+        )
 
 
-def _makecg3packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
-    builddeltaheader = lambda d: _CHANGEGROUPV3_DELTA_HEADER.pack(
-        d.node, d.p1node, d.p2node, d.basenode, d.linknode, d.flags
-    )
+class ChangeGroupPacker03(cgpacker):
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
+        return _CHANGEGROUPV3_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.basenode,
+            d.linknode,
+            d.flags,
+        )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'03',
-        builddeltaheader=builddeltaheader,
-        manifestsend=closechunk(),
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super()._init(
+            repo,
+            oldmatcher,
+            matcher,
+            b'03',
+            manifestsend=closechunk(),
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+        )
 
 
-def _cg4_delta_header(d: RevisionDeltaT):
-    snap_lvl = -2  # means no-info
-    if d.snapshot_level is not None:
-        snap_lvl = d.snapshot_level
-    return _CHANGEGROUPV4_DELTA_HEADER.pack(
-        d.node,
-        d.p1node,
-        d.p2node,
-        d.basenode,
-        d.linknode,
-        d.flags,
-        snap_lvl,
-    )
-
-
-def _makecg4packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
+class ChangeGroupPacker04(cgpacker):
     """Changegroup 4 support more advanced flag for each delta.
 
     see documentation of cg4unpacker for details.
     """
-    return cgpacker(
+
+    _send_full_text = True
+
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
+        snap_lvl = -2  # means no-info
+        if d.snapshot_level is not None:
+            snap_lvl = d.snapshot_level
+        wire_comp = WireDeltaCompression.from_revlog_compression(d.compression)
+
+        protocol_flags = 0
+        if d.delta is None and d.revision is not None:
+            protocol_flags |= storageutil.CG_FLAG_FULL_TEXT
+        flags = d.flags
+        if d.quality is not None:
+            flags |= d.quality.to_v1_flags()
+        return _CHANGEGROUPV4_DELTA_HEADER.pack(
+            d.node,
+            d.p1node,
+            d.p2node,
+            d.basenode,
+            d.linknode,
+            flags,
+            snap_lvl,
+            d.raw_revision_size,
+            wire_comp,
+            protocol_flags,
+            # TODO: When d.basenode == d.storage_delta_base, serializing
+            # these is redundant. So we could save space by only included them
+            # when they differ having a variable size header.
+            #
+            # However I suspect that compression may very well deal with this
+            # for use, so let duplicate the information and see what happens in
+            # practice.
+            d.stored_delta_base,
+            d.stored_snapshot_level,
+        )
+
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'04',
-        builddeltaheader=_cg4_delta_header,
-        manifestsend=closechunk(),
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-        filelog_hasmeta=True,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super()._init(
+            repo,
+            oldmatcher,
+            matcher,
+            b'04',
+            manifestsend=closechunk(),
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+            filelog_hasmeta=True,
+            accepted_compression=WireDeltaCompression.accepted(bundlecaps),
+        )
 
 
-def _makecg5packer(
-    repo,
-    oldmatcher,
-    matcher,
-    bundlecaps,
-    ellipses=False,
-    shallow=False,
-    ellipsisroots=None,
-    fullnodes=None,
-    remote_sidedata=None,
-):
+class ChangeGroupPacker05(cgpacker):
     # Sidedata is in a separate chunk from the delta to differentiate
     # "raw delta" and sidedata.
-    def builddeltaheader(d):
+    def _builddeltaheader(self, d: OutboundRevisionT) -> bytes:
         return _CHANGEGROUPV5_DELTA_HEADER.pack(
             d.protocol_flags,
             d.node,
@@ -2243,56 +2566,50 @@ def _makecg5packer(
             d.flags,
         )
 
-    return cgpacker(
+    def __init__(
+        self,
         repo,
         oldmatcher,
         matcher,
-        b'05',
-        builddeltaheader=builddeltaheader,
-        manifestsend=closechunk(),
-        bundlecaps=bundlecaps,
-        ellipses=ellipses,
-        shallow=shallow,
-        ellipsisroots=ellipsisroots,
-        fullnodes=fullnodes,
-        remote_sidedata=remote_sidedata,
-    )
+        bundlecaps,
+        ellipses=False,
+        shallow=False,
+        ellipsisroots=None,
+        fullnodes=None,
+        remote_sidedata=None,
+    ):
+        super()._init(
+            repo,
+            oldmatcher,
+            matcher,
+            b'05',
+            manifestsend=closechunk(),
+            bundlecaps=bundlecaps,
+            ellipses=ellipses,
+            shallow=shallow,
+            ellipsisroots=ellipsisroots,
+            fullnodes=fullnodes,
+            remote_sidedata=remote_sidedata,
+        )
 
 
-_packermap = {
-    b'01': (_makecg1packer, cg1unpacker),
+_packermap: dict[
+    bytes, tuple[type[i_cg.IChangeGroupPacker], type[i_cg.IChangeGroupUnpacker]]
+] = {
+    b'01': (ChangeGroupPacker01, cg1unpacker),
     # cg2 adds support for exchanging generaldelta
-    b'02': (_makecg2packer, cg2unpacker),
+    b'02': (ChangeGroupPacker02, cg2unpacker),
     # cg3 adds support for exchanging revlog flags and treemanifests
-    b'03': (_makecg3packer, cg3unpacker),
+    b'03': (ChangeGroupPacker03, cg3unpacker),
     # cg4 adds support for exchanging more advances flags
-    b'04': (_makecg4packer, cg4unpacker),
+    b'04': (ChangeGroupPacker04, cg4unpacker),
     # ch5 adds support for exchanging sidedata
-    b'05': (_makecg5packer, cg5unpacker),
+    b'05': (ChangeGroupPacker05, cg5unpacker),
 }
 
 
 def allsupportedversions(repo):
     versions = set(_packermap.keys())
-    needv03 = False
-    if (
-        repo.ui.configbool(b'experimental', b'changegroup3')
-        or repo.ui.configbool(b'experimental', b'treemanifest')
-        or scmutil.istreemanifest(repo)
-    ):
-        # we keep version 03 because we need to to exchange treemanifest data
-        #
-        # we also keep vresion 01 and 02, because it is possible for repo to
-        # contains both normal and tree manifest at the same time. so using
-        # older version to pull data is viable
-        #
-        # (or even to push subset of history)
-        needv03 = True
-    if not needv03:
-        versions.discard(b'03')
-    want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
-    if not want_v4:
-        versions.discard(b'04')
     want_v5 = (
         repo.ui.configbool(b'experimental', b'changegroup5')
         or requirements.REVLOGV2_REQUIREMENT in repo.requirements
@@ -2305,7 +2622,20 @@ def allsupportedversions(repo):
 
 # Changegroup versions that can be applied to the repo
 def supportedincomingversions(repo):
-    return allsupportedversions(repo)
+    versions = allsupportedversions(repo)
+    # Using changegroupv4 is most useful when the receiving end support
+    # delta-info flags. So we don't advertise support for it by default unless
+    # explicitly specified.
+    #
+    # (It is supported for outgoing bundle unconditionnaly so that we won't
+    # need to manually enable it for bundle or pushing it)
+    if repo.ui.config_is_set(b'experimental', b'changegroup4'):
+        want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    else:
+        want_v4 = scmutil.use_delta_info(repo)
+    if not want_v4:
+        versions.discard(b'04')
+    return versions
 
 
 # Changegroup versions that can be created from the repo
@@ -2319,7 +2649,7 @@ def supportedoutgoingversions(repo):
         # support versions 01 and 02.
         versions.discard(b'01')
         versions.discard(b'02')
-    if requirements.NARROW_REQUIREMENT in repo.requirements:
+    if repo.is_narrow:
         # Versions 01 and 02 don't support revlog flags, and we need to
         # support that for stripping and unbundling to work.
         versions.discard(b'01')
@@ -2334,9 +2664,21 @@ def supportedoutgoingversions(repo):
 
 
 def localversion(repo):
-    # Finds the best version to use for bundles that are meant to be used
-    # locally, such as those from strip and shelve, and temporary bundles.
-    return max(supportedoutgoingversions(repo))
+    """Finds the best version to use for "local bundles"
+
+    "Local bundles"  are meant to be used locally, such as those from strip and
+    shelve, and temporary bundles.
+    """
+    versions = allsupportedversions(repo)
+    # only use changegroup4 if explicitly requested or if using a format that
+    # directly benefit from it.
+    if repo.ui.config_is_set(b'experimental', b'changegroup4'):
+        want_v4 = repo.ui.configbool(b'experimental', b'changegroup4')
+    else:
+        want_v4 = scmutil.use_delta_info(repo)
+    if not want_v4:
+        versions.discard(b'04')
+    return max(versions)
 
 
 def safeversion(repo):
@@ -2361,7 +2703,7 @@ def getbundler(
     ellipsisroots=None,
     fullnodes=None,
     remote_sidedata=None,
-):
+) -> i_cg.IChangeGroupPacker:
     assert version in supportedoutgoingversions(repo)
 
     if matcher is None:
@@ -2401,7 +2743,12 @@ def getbundler(
     )
 
 
-def getunbundler(version, fh, alg, extras=None):
+def getunbundler(
+    version: bytes,
+    fh: io.BytesIO | NeedsTypeHint,
+    alg: bytes | None,
+    extras: dict[bytes, NeedsTypeHint] | None = None,
+) -> i_cg.IChangeGroupUnpacker:
     return _packermap[version][1](fh, alg, extras=extras)
 
 
@@ -2430,11 +2777,20 @@ def makechangegroup(
         fastpath=fastpath,
         bundlecaps=bundlecaps,
     )
+    extras = {b'clcount': len(outgoing.missing)}
+    # This is fairly basic and signal what compression -might- be used, and not
+    # which one is actually used, but this will be good enough for now.
+    delta_comp = WireDeltaCompression.filter_known(bundlecaps)
+    if delta_comp:
+        if requirements.REVLOG_COMPRESSION_ZSTD not in repo.requirements:
+            delta_comp.discard(b"zstd")
+        if delta_comp:
+            extras[b'delta-compression'] = delta_comp
     return getunbundler(
         version,
         util.chunkbuffer(cgstream),
         None,
-        {b'clcount': len(outgoing.missing)},
+        extras=extras,
     )
 
 

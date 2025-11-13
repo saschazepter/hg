@@ -4,6 +4,8 @@ Show all commands except debug commands
   add
   addremove
   admin::chainsaw-update
+  admin::narrow-client
+  admin::narrow-server
   admin::verify
   annotate
   archive
@@ -68,6 +70,8 @@ Show all commands that start with "a"
   add
   addremove
   admin::chainsaw-update
+  admin::narrow-client
+  admin::narrow-server
   admin::verify
   annotate
   archive
@@ -82,7 +86,9 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::clonebundle-manifest
   debug::fast-upgrade
+  debug::file-index
   debug::revlog-reencoded-delta-info
   debug::stable-tail-sort
   debug::stable-tail-sort-leaps
@@ -267,6 +273,8 @@ Show all commands + options
   add: include, exclude, subrepos, dry-run
   addremove: similarity, subrepos, include, exclude, dry-run
   admin::chainsaw-update: purge-unknown, purge-ignored, rev, source, dest, initial-clone-minimal
+  admin::narrow-client: store-fingerprint
+  admin::narrow-server: shape-fingerprints, shape-patterns, shape-narrow-patterns, shape-files, shape-files-hidden, template
   admin::verify: check, option
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, line-range, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
@@ -286,8 +294,10 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::clonebundle-manifest: stream, raw, include, exclude
   debug::fast-upgrade: 
-  debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, reuse-stored-delta
+  debug::file-index: docket, template, tree, path, token, vacuum, gc
+  debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::stable-tail-sort: template
   debug::stable-tail-sort-leaps: template, specific
   debug::unbundle: 
@@ -297,7 +307,7 @@ Show all commands + options
   debugbackupbundle: recover, patch, git, limit, no-merges, stat, graph, style, template
   debugbuilddag: mergeable-file, overwritten-file, new-file, from-existing
   debugbundle: all, part-type, spec
-  debugcapabilities: 
+  debugcapabilities: bundle2-cap
   debugchangedfiles: compute
   debugcheckstate: 
   debugcolor: style
@@ -349,7 +359,7 @@ Show all commands + options
   debugshell: command
   debugsidedata: changelog, manifest, dir
   debugssl: 
-  debugstrip: rev, force, no-backup, nobackup, , keep, bookmark, soft
+  debugstrip: rev, force, no-backup, keep, bookmark, soft
   debugsub: rev
   debugsuccessorssets: closest
   debugtagscache: 
@@ -372,7 +382,7 @@ Show all commands + options
   help: extension, command, keyword, system
   identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, insecure, template
   import: strip, base, secret, edit, force, no-commit, bypass, partial, exact, prefix, import-branch, message, logfile, date, user, similarity
-  incoming: force, newest-first, bundle, rev, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
+  incoming: force, newest-first, bundle, rev, bookmarks, branch, remote-hidden, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
   init: ssh, remotecmd, insecure
   locate: rev, print0, fullpath, include, exclude
   log: follow, follow-first, date, copies, keyword, rev, line-range, removed, only-merges, user, only-branch, branch, bookmark, prune, patch, git, limit, no-merges, stat, graph, style, template, include, exclude

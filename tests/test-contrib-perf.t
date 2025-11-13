@@ -37,6 +37,8 @@ perfstatus
   > presleep=0
   > stub=on
   > parentscount=1
+  > [storage]
+  > all-slow-path=allow
   > EOF
   $ hg help -e perf
   perf extension - helper extension to measure performance
@@ -127,6 +129,12 @@ perfstatus
    perf::discovery
                  benchmark discovery between local repo and the peer at given
                  path
+   perf::file-index-read
+                 benchmark looking up paths in the file index tree
+   perf::file-index-vacuum
+                 benchmark vacuuming the file index tree file
+   perf::file-index-write
+                 benchmark writing paths to the file index
    perf::fncacheencode
                  (no help text available)
    perf::fncacheload
@@ -175,14 +183,16 @@ perfstatus
                  printing of progress bars
    perf::rawfiles
                  (no help text available)
+   perf::revlog-read-revisions
+                 Benchmark reading a series of revisions from a revlog.
+   perf::revlog-revdiff
+                 check how long it take to redelta a set of revision pair
    perf::revlogchunks
                  Benchmark operations on revlog chunks.
    perf::revlogindex
                  Benchmark operations against a revlog index.
    perf::revlogrevision
                  Benchmark obtaining a revlog revision.
-   perf::revlogrevisions
-                 Benchmark reading a series of revisions from a revlog.
    perf::revlogwrite
                  Benchmark writing a series of revisions to a revlog.
    perf::revrange
@@ -258,6 +268,17 @@ perfstatus
   $ hg perffncachewrite
   $ hg debugrebuildfncache
   fncache already up to date
+
+Temporarily upgrade to file index to test file index commands
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --no-backup --run > /dev/null
+  $ hg perf::file-index-read --seed 0
+  looking up 1 out of 1 paths (random order)
+  $ hg perf::file-index-read --count 100% --order sorted
+  looking up 1 out of 1 paths (sorted order)
+  $ hg perf::file-index-write --count 1 --seed 0
+  $ hg perf::file-index-vacuum
+  $ hg debugupgrade --no-backup --run > /dev/null
+
   $ hg perfheads
   $ hg perfignore
   $ hg perfindex
@@ -300,6 +321,9 @@ structure from Python code.
   $ hg perfparents
   $ hg perfdiscovery -q .
   $ hg perf::phases
+
+  $ hg perf::stream-generate
+  $ hg perf::stream-locked-section
 
 Test run control
 ----------------

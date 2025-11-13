@@ -15,8 +15,11 @@ from __future__ import annotations
 
 import errno
 import os
+import signal
+import typing
 
 from typing import (
+    Any,
     Callable,
     Collection,
 )
@@ -27,6 +30,7 @@ from .interfaces.types import (
     HgPathT,
     TransactionT,
     VfsKeyT,
+    VfsT,
 )
 from . import (
     encoding,
@@ -34,8 +38,16 @@ from . import (
     pycompat,
     util,
 )
-from .utils import stringutil
+from .utils import procutil, stringutil
 from .interfaces import transaction as itxn
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
+
+    _C = TypeVar('_C', bound=Callable)
 
 version = 2
 
@@ -43,8 +55,12 @@ GEN_GROUP_ALL = b'all'
 GEN_GROUP_PRE_FINALIZE = b'prefinalize'
 GEN_GROUP_POST_FINALIZE = b'postfinalize'
 
+# Values of the config devel.debug.abort-transaction.
+ABORT_POST_FINALIZE = b'abort-post-finalize'
+KILL_9_POST_FINALIZE = b'kill-9-post-finalize'
 
-def active(func):
+
+def active(func: _C) -> _C:
     def _active(self, *args, **kwds):
         if self._count == 0:
             raise error.ProgrammingError(
@@ -237,11 +253,14 @@ def _playback(
 
 
 class transaction(util.transactional, itxn.ITransaction):
+    _journal_files: list[tuple[VfsT, HgPathT]]
+    _vfsmap: dict[VfsKeyT, VfsT]
+
     def __init__(
         self,
         report,
         opener,
-        vfsmap,
+        vfsmap: dict[VfsKeyT, VfsT],
         journalname,
         undoname=None,
         after=None,
@@ -250,6 +269,7 @@ class transaction(util.transactional, itxn.ITransaction):
         releasefn=None,
         checkambigfiles=None,
         name=b'<unnamed>',
+        debug_abort=b'',
     ):
         """Begin a new transaction
 
@@ -263,6 +283,8 @@ class transaction(util.transactional, itxn.ITransaction):
         `checkambigfiles` is a set of (path, vfs-location) tuples,
         which determine whether file stat ambiguity should be avoided
         for corresponded files.
+
+        `debug_abort` is a value of the config devel.debug.abort-transaction.
         """
         self._count = 1
         self._usages = 1
@@ -290,10 +312,11 @@ class transaction(util.transactional, itxn.ITransaction):
             self._checkambigfiles.update(checkambigfiles)
 
         self._names = [name]
+        self._debug_abort = debug_abort
 
         # A dict dedicated to precisely tracking the changes introduced in the
         # transaction.
-        self.changes = {}
+        self.changes: dict[bytes, Any] = {}  # see comment in ITransaction
 
         # a dict of arguments to be passed to hooks
         self.hookargs = {}
@@ -734,6 +757,11 @@ class transaction(util.transactional, itxn.ITransaction):
             self._finalizecallback = None
             self._generatefiles(group=GEN_GROUP_POST_FINALIZE)
 
+            if self._debug_abort == ABORT_POST_FINALIZE:
+                raise error.Abort(_(b"requested %s" % ABORT_POST_FINALIZE))
+            elif self._debug_abort == KILL_9_POST_FINALIZE:
+                procutil.kill_self(signal.SIGKILL)
+
         self._count -= 1
         if self._count != 0:
             return
@@ -806,8 +834,8 @@ class transaction(util.transactional, itxn.ITransaction):
         self._abort()
 
     @active
-    def add_journal(self, vfs_id: VfsKeyT, path: HgPathT) -> None:
-        self._journal_files.append((vfs_id, path))
+    def add_journal(self, vfs: VfsT, path: HgPathT) -> None:
+        self._journal_files.append((vfs, path))
 
     def _writeundo(self):
         """write transaction data for possible future undo call"""

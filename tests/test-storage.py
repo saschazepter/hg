@@ -1,11 +1,14 @@
 # This test verifies the conformance of various classes to various
 # storage interfaces.
 
+import sys
+
 import silenttestrunner
 
 from mercurial import (
     error,
     filelog,
+    policy,
     revlog,
     transaction,
     ui as uimod,
@@ -22,6 +25,13 @@ try:
 except ImportError:
     zstd = None
 
+
+rustrevlog = policy.importrust('revlog')
+if rustrevlog is not None:
+    msg = "skipped: tests need to be cleaned up before running on Rust revlog"
+    print(msg, file=sys.stderr)
+    sys.exit(80)
+
 STATE = {
     'lastindex': 0,
     'ui': uimod.ui(),
@@ -31,8 +41,9 @@ STATE = {
 
 def makefilefn(self):
     """Factory for filelog instances."""
-    radix = b'filelog-%d' % STATE['lastindex']
-    fl = filelog.filelog(STATE['vfs'], radix, writable=True)
+    path = b'filelog-%d' % STATE['lastindex']
+    radix = b'data/%s' % path
+    fl = filelog.filelog(STATE['vfs'], path, radix, writable=True)
     STATE['lastindex'] += 1
     return fl
 

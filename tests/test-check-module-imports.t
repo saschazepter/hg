@@ -1,7 +1,6 @@
 #require test-repo hg32
 
   $ . "$TESTDIR/helpers-testrepo.sh"
-  $ import_checker="$TESTDIR"/../contrib/import-checker.py
 
   $ cd "$TESTDIR"/..
 
@@ -18,33 +17,52 @@ NOTE: the `hg files` command here only works on files that are known to
 Mercurial. If you add an import of a new file and haven't yet `hg add`ed it, you
 will likely receive warnings about a direct import.
 
-  $ testrepohg files 'set:**.py or grep(r"^#!.*?python")' \
-  > 'glob:tests/**.t' \
-  > -X hgweb.cgi \
-  > -X setup.py \
-  > -X contrib/automation/ \
-  > -X contrib/debugshell.py \
-  > -X contrib/hgweb.fcgi \
-  > -X contrib/packaging/hg-docker \
-  > -X contrib/packaging/hgpackaging/ \
-  > -X contrib/packaging/inno/ \
-  > -X contrib/phab-clean.py \
-  > -X contrib/python-zstandard/ \
-  > -X contrib/win32/hgwebdir_wsgi.py \
-  > -X contrib/perf-utils/perf-revlog-write-plot.py \
-  > -X doc/gendoc.py \
-  > -X doc/hgmanpage.py \
-  > -X i18n/posplit \
-  > -X mercurial/thirdparty \
-  > -X tests/hypothesishelpers.py \
-  > -X tests/test-demandimport.py \
-  > -X tests/test-imports-checker.t \
-  > -X tests/test-verify-repo-operations.py \
-  > -X tests/test-extension.t \
-  > | sed 's-\\-/-g' | "$PYTHON" "$import_checker" -
-  Import cycle: mercurial.bundle2 -> mercurial.streamclone -> mercurial.bundle2
-  Import cycle: mercurial.configuration.rcutil -> mercurial.localrepo -> mercurial.configuration.rcutil
-  Import cycle: mercurial.admin.chainsaw -> mercurial.commands -> mercurial.admin_commands -> mercurial.admin.chainsaw
+  $ bash contrib/check-import
+  mercurial/__main__.py:*: function level import: mercurial.demandimport (glob)
+  mercurial/__main__.py:*: function level import: mercurial.dispatch (glob)
+  mercurial/color.py:*: function level import: mercurial.win32 (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.fileset (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.cext.base85 (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.cext.bdiff (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.cext.mpatch (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.cext.osutil (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.win32 (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.cext (glob)
+  mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
+  mercurial/error.py:*: function level import: mercurial.node.hex (glob)
+  mercurial/error.py:*: function level import: mercurial.node.short (glob)
+  mercurial/extensions.py:*: function level import: mercurial.color (glob)
+  mercurial/extensions.py:*: function level import: mercurial.filemerge (glob)
+  mercurial/extensions.py:*: function level import: mercurial.fileset (glob)
+  mercurial/extensions.py:*: function level import: mercurial.templatefilters (glob)
+  mercurial/extensions.py:*: function level import: mercurial.templatefuncs (glob)
+  mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
+  mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
+  mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
+  mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
+  mercurial/metadata.py:*: function level import: mercurial.worker (glob)
+  mercurial/policy.py:*: function level import: mercurial.zstd (glob)
+  mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
+  mercurial/profiling.py:*: function level import: mercurial.lsprofcalltree (glob)
+  mercurial/profiling.py:*: function level import: mercurial.statprof (glob)
+  mercurial/repoview.py:*: function level import: mercurial.mergestate (glob)
+  mercurial/revlogutils/rewrite.py:*: function level import: mercurial.pure.parsers (glob)
+  mercurial/revlogutils/rewrite.py:*: function level import: mercurial.pure.parsers (glob)
+  mercurial/statprof.py:*: function level import: mercurial.utils.procutil (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.update (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.clone (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.update (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.repo.factory (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.outgoing (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.incoming (glob)
+  mercurial/subrepo.py:*: function level import: mercurial.cmd_impls.clone (glob)
+  mercurial/templatekw.py:*: function level import: mercurial.cmdutil (glob)
+  Import cycle: hgext.convert.convcmd -> hgext.convert.p4 -> hgext.convert.convcmd
+  Import cycle: hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.pybser -> hgext.fsmonitor.pywatchman.load
+  Import cycle: hgext.fsmonitor.pywatchman.__init__ -> hgext.fsmonitor.pywatchman.load -> hgext.fsmonitor.pywatchman.__init__
   [1]
 
 All files that get type checked must have 'from __future__ import annotations'

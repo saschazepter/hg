@@ -768,7 +768,7 @@ unrelated part.
 
 
 
-Use scmutil.cleanupnodes API to create divergence
+Use cmdutil.cleanupnodes API to create divergence
 =================================================
 
   $ hg init cleanupnodes
@@ -782,8 +782,8 @@ Use scmutil.cleanupnodes API to create divergence
   $ hg update -q B1
   $ echo 3 >> B
   $ hg commit --amend -m B2
-  $ cat > $TESTTMP/scmutilcleanup.py <<EOF
-  > from mercurial import registrar, scmutil
+  $ cat > $TESTTMP/cmdutilcleanup.py <<EOF
+  > from mercurial import cmdutil, registrar
   > cmdtable = {}
   > command = registrar.command(cmdtable)
   > @command(b'cleanup')
@@ -795,11 +795,11 @@ Use scmutil.cleanupnodes API to create divergence
   >     with repo.wlock(), repo.lock(), repo.transaction(b'delayedstrip'):
   >         mapping = {node(b'desc(B1)'): [node(b'desc(B3)')],
   >                    node(b'desc(B3)'): [node(b'desc(B4)')]}
-  >         scmutil.cleanupnodes(repo, mapping, b'test')
+  >         cmdutil.cleanup_nodes(repo, mapping, b'test')
   > EOF
 
   $ rm .hg/localtags
-  $ hg cleanup --config extensions.t=$TESTTMP/scmutilcleanup.py
+  $ hg cleanup --config extensions.t=$TESTTMP/cmdutilcleanup.py
   2 new content-divergent changesets
   $ hg log -G -T '{rev}:{node|short} {desc} {instabilities}' -r 'sort(all(), topo)'
   @  5:1a2a9b5b0030 B2 content-divergent

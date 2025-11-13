@@ -18,12 +18,12 @@ from . import (
     encoding,
     error,
     hbisect,
-    i18n,
     obsutil,
     patch,
     pycompat,
     registrar,
     scmutil,
+    tables,
     templateutil,
     util,
 )
@@ -31,6 +31,17 @@ from .utils import (
     stringutil,
     urlutil,
 )
+from .merge_utils import (
+    diff as merge_diff,
+)
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
 
 _hybrid = templateutil.hybrid
 hybriddict = templateutil.hybriddict
@@ -40,111 +51,11 @@ compatlist = templateutil.compatlist
 _showcompatlist = templateutil._showcompatlist
 
 
-def getlatesttags(context, mapping, pattern=None):
-    '''return date, distance and name for the latest tag of rev'''
-    repo = context.resource(mapping, b'repo')
-    ctx = context.resource(mapping, b'ctx')
-    cache = context.resource(mapping, b'cache')
-
-    cachename = b'latesttags'
-    if pattern is not None:
-        cachename += b'-' + pattern
-        match = stringutil.stringmatcher(pattern)[2]
-    else:
-        match = util.always
-
-    if cachename not in cache:
-        # Cache mapping from rev to a tuple with tag date, tag
-        # distance and tag name
-        cache[cachename] = {-1: (0, 0, [b'null'])}
-    latesttags = cache[cachename]
-
-    rev = ctx.rev()
-    todo = [rev]
-    while todo:
-        rev = todo.pop()
-        if rev in latesttags:
-            continue
-        ctx = repo[rev]
-        tags = [
-            t
-            for t in ctx.tags()
-            if (repo.tagtype(t) and repo.tagtype(t) != b'local' and match(t))
-        ]
-        if tags:
-            latesttags[rev] = ctx.date()[0], 0, [t for t in sorted(tags)]
-            continue
-        try:
-            ptags = [latesttags[p.rev()] for p in ctx.parents()]
-            if len(ptags) > 1:
-                if ptags[0][2] == ptags[1][2]:
-                    # The tuples are laid out so the right one can be found by
-                    # comparison in this case.
-                    pdate, pdist, ptag = max(ptags)
-                else:
-
-                    def key(x):
-                        tag = x[2][0]
-                        if ctx.rev() is None:
-                            # only() doesn't support wdir
-                            prevs = [c.rev() for c in ctx.parents()]
-                            changes = repo.revs(b'only(%ld, %s)', prevs, tag)
-                            changessincetag = len(changes) + 1
-                        else:
-                            changes = repo.revs(b'only(%d, %s)', ctx.rev(), tag)
-                            changessincetag = len(changes)
-                        # Smallest number of changes since tag wins. Date is
-                        # used as tiebreaker.
-                        return [-changessincetag, x[0]]
-
-                    pdate, pdist, ptag = max(ptags, key=key)
-            else:
-                pdate, pdist, ptag = ptags[0]
-        except KeyError:
-            # Cache miss - recurse
-            todo.append(rev)
-            todo.extend(p.rev() for p in ctx.parents())
-            continue
-        latesttags[rev] = pdate, pdist + 1, ptag
-    return latesttags[rev]
-
-
-def getlogcolumns():
-    """Return a dict of log column labels"""
-    _ = pycompat.identity  # temporarily disable gettext
-    # i18n: column positioning for "hg log"
-    columns = _(
-        b'bookmark:    %s\n'
-        b'branch:      %s\n'
-        b'changeset:   %s\n'
-        b'copies:      %s\n'
-        b'date:        %s\n'
-        b'extra:       %s=%s\n'
-        b'files+:      %s\n'
-        b'files-:      %s\n'
-        b'files:       %s\n'
-        b'instability: %s\n'
-        b'manifest:    %s\n'
-        b'obsolete:    %s\n'
-        b'parent:      %s\n'
-        b'phase:       %s\n'
-        b'summary:     %s\n'
-        b'tag:         %s\n'
-        b'user:        %s\n'
-    )
-    return dict(
-        zip(
-            [s.split(b':', 1)[0] for s in columns.splitlines()],
-            i18n._(columns).splitlines(True),
-        )
-    )
-
-
 # basic internal templates
 _changeidtmpl = b'{rev}:{node|formatnode}'
 
 # default templates internally used for rendering of lists
-defaulttempl = {
+tables.default_templates = {
     b'parent': _changeidtmpl + b' ',
     b'manifest': _changeidtmpl,
     b'file_copy': b'{name} ({source})',
@@ -152,11 +63,14 @@ defaulttempl = {
     b'extra': b'{key}={value|stringescape}',
 }
 # filecopy is preserved for compatibility reasons
-defaulttempl[b'filecopy'] = defaulttempl[b'file_copy']
+tables.default_templates[b'filecopy'] = tables.default_templates[b'file_copy']
 
 # keywords are callables (see registrar.templatekeyword for details)
-keywords = {}
-templatekeyword = registrar.templatekeyword(keywords)
+templatekeyword = registrar.templatekeyword(tables.template_keyword_table)
+
+# preserved for compatibility reason
+defaulttempl = tables.default_templates
+keywords = tables.template_keyword_table
 
 
 @templatekeyword(b'author', requires={b'ctx'})
@@ -221,6 +135,13 @@ def showchildren(context, mapping):
     )
 
 
+@templatekeyword(b'closesbranch', requires={b'ctx'})
+def show_closes_branch(context, mapping):
+    """ "yes" if this changeset is branch-closing, "no" otherwise"""
+    ctx = context.resource(mapping, b'ctx')
+    return templateutil.wrappedbool(ctx.closesbranch())
+
+
 # Deprecated, but kept alive for help generation a purpose.
 @templatekeyword(b'currentbookmark', requires={b'repo', b'ctx'})
 def showcurrentbookmark(context, mapping):
@@ -271,7 +192,7 @@ def showdiffstat(context, mapping):
     ui = context.resource(mapping, b'ui')
     ctx = context.resource(mapping, b'ctx')
     diffopts = diffutil.diffallopts(ui, {b'noprefix': False})
-    diff = ctx.diff(diffutil.diff_parent(ctx), opts=diffopts)
+    diff = ctx.diff(merge_diff.diff_parent(ctx), opts=diffopts)
     stats = patch.diffstatdata(util.iterlines(diff))
     maxname, maxtotal, adds, removes, binary = patch.diffstatsum(stats)
     return b'%d: +%d/-%d' % (len(stats), adds, removes)
@@ -419,45 +340,7 @@ def showgraphnode(context, mapping):
     repo = context.resource(mapping, b'repo')
     ctx = context.resource(mapping, b'ctx')
     cache = context.resource(mapping, b'cache')
-    return getgraphnode(repo, ctx, cache)
-
-
-def getgraphnode(repo, ctx, cache):
-    return getgraphnodecurrent(repo, ctx, cache) or getgraphnodesymbol(ctx)
-
-
-def getgraphnodecurrent(repo, ctx, cache):
-    wpnodes = repo.dirstate.parents()
-    if wpnodes[1] == repo.nullid:
-        wpnodes = wpnodes[:1]
-    if ctx.node() in wpnodes:
-        return b'@'
-    else:
-        merge_nodes = cache.get(b'merge_nodes')
-        if merge_nodes is None:
-            from . import mergestate as mergestatemod
-
-            mergestate = mergestatemod.mergestate.read(repo)
-            if mergestate.unresolvedcount():
-                merge_nodes = (mergestate.local, mergestate.other)
-            else:
-                merge_nodes = ()
-            cache[b'merge_nodes'] = merge_nodes
-
-        if ctx.node() in merge_nodes:
-            return b'%'
-        return b''
-
-
-def getgraphnodesymbol(ctx):
-    if ctx.obsolete():
-        return b'x'
-    elif ctx.isunstable():
-        return b'*'
-    elif ctx.closesbranch():
-        return b'_'
-    else:
-        return b'o'
+    return templateutil.get_graph_node(repo, ctx, cache)
 
 
 @templatekeyword(b'graphwidth', requires=())
@@ -480,59 +363,21 @@ def showlatesttag(context, mapping):
     tagged ancestor of this changeset.  If no such tags exist, the list
     consists of the single string "null".
     """
-    return showlatesttags(context, mapping, None)
-
-
-def showlatesttags(context, mapping, pattern) -> _hybrid:
-    """helper method for the latesttag keyword and function"""
-    latesttags = getlatesttags(context, mapping, pattern)
-
-    # latesttag[0] is an implementation detail for sorting csets on different
-    # branches in a stable manner- it is the date the tagged cset was created,
-    # not the date the tag was created.  Therefore it isn't made visible here.
-    makemap = lambda v: {
-        b'changes': _showchangessincetag,
-        b'distance': latesttags[1],
-        b'latesttag': v,  # BC with {latesttag % '{latesttag}'}
-        b'tag': v,
-    }
-
-    tags = latesttags[2]
-    f = _showcompatlist(context, mapping, b'latesttag', tags, separator=b':')
-    return _hybrid(f, tags, makemap, pycompat.identity)
+    return templateutil.show_latest_tags(context, mapping, None)
 
 
 @templatekeyword(b'latesttagdistance', requires={b'repo', b'ctx', b'cache'})
 def showlatesttagdistance(context, mapping):
     """Integer. Longest path to the latest tag."""
-    return getlatesttags(context, mapping)[1]
+    return templateutil.get_latest_tags(context, mapping)[1]
 
 
 @templatekeyword(b'changessincelatesttag', requires={b'repo', b'ctx', b'cache'})
 def showchangessincelatesttag(context, mapping):
     """Integer. All ancestors not in the latest tag."""
-    tag = getlatesttags(context, mapping)[2][0]
+    tag = templateutil.get_latest_tags(context, mapping)[2][0]
     mapping = context.overlaymap(mapping, {b'tag': tag})
-    return _showchangessincetag(context, mapping)
-
-
-def _showchangessincetag(context, mapping):
-    repo = context.resource(mapping, b'repo')
-    ctx = context.resource(mapping, b'ctx')
-    offset = 0
-    revs = [ctx.rev()]
-    tag = context.symbol(mapping, b'tag')
-
-    # The only() revset doesn't currently support wdir()
-    if ctx.rev() is None:
-        offset = 1
-        revs = [p.rev() for p in ctx.parents()]
-
-    return len(repo.revs(b'only(%ld, %s)', revs, tag)) + offset
-
-
-# teach templater latesttags.changes is switched to (context, mapping) API
-_showchangessincetag._requires = {b'repo', b'ctx'}
+    return templateutil.show_changes_since_tag(context, mapping)
 
 
 @templatekeyword(b'manifest', requires={b'repo', b'ctx'})
@@ -573,21 +418,6 @@ def showobsfate(context, mapping):
         values.append(v)
 
     return compatlist(context, mapping, b"fate", values)
-
-
-def shownames(context, mapping, namespace):
-    """helper method to generate a template keyword for a namespace"""
-    repo = context.resource(mapping, b'repo')
-    ctx = context.resource(mapping, b'ctx')
-    ns = repo.names.get(namespace)
-    if ns is None:
-        # namespaces.addnamespace() registers new template keyword, but
-        # the registered namespace might not exist in the current repo.
-        return
-    names = ns.names(repo, ctx.node())
-    return compatlist(
-        context, mapping, ns.templatename, names, plural=namespace
-    )
 
 
 @templatekeyword(b'namespaces', requires={b'repo', b'ctx'})
@@ -944,7 +774,7 @@ def showsubrepos(context, mapping):
 @templatekeyword(b'tags', requires={b'repo', b'ctx'})
 def showtags(context, mapping):
     """List of strings. Any tags associated with the changeset."""
-    return shownames(context, mapping, b'tags')
+    return templateutil.show_names(context, mapping, b'tags')
 
 
 @templatekeyword(b'termwidth', requires={b'ui'})
@@ -1020,12 +850,6 @@ def showwhyunstable(context, mapping):
         b'{reason} {node|short}'
     )
     return templateutil.mappinglist(entries, tmpl=tmpl, sep=b'\n')
-
-
-def loadkeyword(ui, extname, registrarobj):
-    """Load template keyword from specified registrarobj"""
-    for name, func in registrarobj._table.items():
-        keywords[name] = func
 
 
 # tell hggettext to extract docstrings from these functions:

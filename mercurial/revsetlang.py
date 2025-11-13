@@ -16,6 +16,7 @@ from . import (
     parser,
     pycompat,
     smartset,
+    tables,
     util,
 )
 from .utils import stringutil
@@ -63,7 +64,7 @@ elements = {
 
 keywords = {b'and', b'or', b'not'}
 
-symbols = {}
+symbols = tables.revset_symbol_table
 
 _quoteletters = {b'"', b"'"}
 _simpleopletters = set(pycompat.iterbytestr(b"()[]#:=,-|&+!~^%"))
@@ -886,7 +887,8 @@ def _parseargs(expr, args):
             try:
                 ret.append((None, _formatargtype(d, arg)))
             except (TypeError, ValueError):
-                raise error.ParseError(_(b'invalid argument for revspec'))
+                msg = _(b"invalid argument for revspec: %%%s != %r") % (d, arg)
+                raise error.ParseError(msg)
         pos += 1
 
     try:

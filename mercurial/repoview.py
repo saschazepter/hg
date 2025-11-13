@@ -12,6 +12,9 @@ import copy
 import weakref
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+)
 from .node import (
     hex,
     nullrev,
@@ -440,7 +443,7 @@ class repoview:
         """Return an unfiltered version of a repo"""
         return self._unfilteredrepo
 
-    def filtered(self, name, visibilityexceptions=None):
+    def filtered(self, name, visibilityexceptions=None) -> RepoT:
         """Return a filtered version of a repository"""
         if name == self.filtername and not visibilityexceptions:
             return self

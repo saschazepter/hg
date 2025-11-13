@@ -9,8 +9,17 @@ from __future__ import annotations
 
 import os
 
+from typing import (
+    Any,
+    Callable,
+)
+
 from .i18n import _
 
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from . import (
     chgserver,
     cmdutil,
@@ -172,17 +181,22 @@ _cmdservicemap = {
 }
 
 
-def _createcmdservice(ui, repo, opts):
+def _createcmdservice(
+    ui: UiT,
+    repo: RepoT | None,
+    opts: dict[bytes, Any],
+    dispatch: Callable,
+):
     mode = opts[b'cmdserver']
     try:
         servicefn = _cmdservicemap[mode]
     except KeyError:
         raise error.Abort(_(b'unknown mode %s') % mode)
     commandserver.setuplogging(ui, repo)
-    return servicefn(ui, repo, opts)
+    return servicefn(ui, repo, opts, dispatch)
 
 
-def _createhgwebservice(ui, repo, opts):
+def _createhgwebservice(ui: UiT, repo: RepoT | None, opts: dict[bytes, Any]):
     # this way we can check if something was given in the command-line
     if opts.get(b'port'):
         opts[b'port'] = urlutil.getport(opts.get(b'port'))
@@ -229,8 +243,13 @@ def _createhgwebservice(ui, repo, opts):
     return hgweb.httpservice(servui, app, opts)
 
 
-def createservice(ui, repo, opts):
+def createservice(
+    ui: UiT,
+    repo: RepoT | None,
+    opts: dict[bytes, Any],
+    dispatch: Callable,
+):
     if opts[b"cmdserver"]:
-        return _createcmdservice(ui, repo, opts)
+        return _createcmdservice(ui, repo, opts, dispatch)
     else:
         return _createhgwebservice(ui, repo, opts)

@@ -1,5 +1,6 @@
 #testcases stream-v2 stream-v3
 #testcases threaded sequential
+#testcases fncache fileindex
 
 #if threaded
   $ cat << EOF >> $HGRCPATH
@@ -24,6 +25,25 @@
   $ cat << EOF >> $HGRCPATH
   > [experimental]
   > stream-v3=yes
+  > EOF
+#endif
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 #endif
 
@@ -475,4 +495,24 @@ test explicite stream request
   updating the branch cache
   (sent 4 HTTP requests and * bytes; received * bytes in responses) (glob)
 
+#endif
+
+Test that bundles with unsupported compression engines are just ignored.
+
+#if stream-v2 no-zstd
+  $ cat > main/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/test-streamv2-zstd.hg BUNDLESPEC=none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
+  > http://localhost:$HGPORT1/test-streamv2-zstd.hg BUNDLESPEC=zstd-v2
+  > EOF
+  $ hg clone http://localhost:$HGPORT stream-clone-bad-compression
+  no compatible clone bundles available on server; falling back to regular clone
+  (you may want to report this to the server operator)
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 5 changesets with 7 changes to 7 files
+  new changesets 426bada5c675:92165ab525bf (5 drafts)
+  updating to branch default
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
 #endif

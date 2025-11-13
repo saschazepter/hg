@@ -13,6 +13,7 @@ import types
 from .i18n import _
 from . import (
     error,
+    i18n,  # used in get_log_columns to bypass some override
     pycompat,
     smartset,
     util,
@@ -119,6 +120,56 @@ class mappable:  # pytype: disable=ignored-metaclass
     @abc.abstractmethod
     def tomap(self, context):
         """Create a single template mapping representing this"""
+
+
+class wrappedbool(wrapped):
+    """Wrapper for boolean value
+
+    Makes `tobool(…)` works as expected while still controlling the "string"
+    output.
+    """
+
+    def __init__(self, value):
+        self._value = bool(value)
+
+    def contains(self, context, mapping, item):
+        raise error.ParseError(_(b'boolean string'))
+
+    def getmember(self, context, mapping, key):
+        raise error.ParseError(
+            _(b'%r is not a dictionary') % pycompat.bytestr(self._value)
+        )
+
+    def getmin(self, context, mapping):
+        raise error.ParseError(_(b'boolean string'))
+
+    def getmax(self, context, mapping):
+        raise error.ParseError(_(b'boolean string'))
+
+    def _getby(self, context, mapping, func):
+        raise error.ParseError(_(b'boolean string'))
+
+    def filter(self, context, mapping, select):
+        raise error.ParseError(
+            _(b'%r is not filterable') % pycompat.bytestr(self._value)
+        )
+
+    def itermaps(self, context):
+        raise error.ParseError(
+            _(b'%r is not iterable of mappings') % pycompat.bytestr(self._value)
+        )
+
+    def join(self, context, mapping, sep):
+        return joinitems(self.tovalue(context, mapping), sep)
+
+    def show(self, context, mapping):
+        return self.tovalue(context, mapping)
+
+    def tobool(self, context, mapping):
+        return self._value
+
+    def tovalue(self, context, mapping):
+        return b"true" if self._value else b"false"
 
 
 class wrappedbytes(wrapped):
@@ -956,6 +1007,8 @@ def evalboolean(context, mapping, arg):
             thing = stringutil.parsebool(data)
     else:
         thing = func(context, mapping, data)
+    if hasattr(thing, 'tobool'):
+        return thing.tobool(context, mapping)
     return makewrapped(context, mapping, thing).tobool(context, mapping)
 
 
@@ -1163,3 +1216,196 @@ def joinitems(itemiter, sep):
         elif sep:
             yield sep
         yield x
+
+
+def get_log_columns():
+    """Return a dict of log column labels"""
+    # Temporarily disable gettext. We want the i18n tooling to pick up the key
+    # and reported them as needing translation, however we don't want the key
+    # to be translated, just the value. So here come this wonderful hack from
+    # c7b45db8f317
+    _ = pycompat.identity
+    # i18n: column positioning for "hg log"
+    raw_columns = _(
+        b'bookmark:    %s\n'
+        b'branch:      %s\n'
+        b'changeset:   %s\n'
+        b'copies:      %s\n'
+        b'date:        %s\n'
+        b'extra:       %s=%s\n'
+        b'files+:      %s\n'
+        b'files-:      %s\n'
+        b'files:       %s\n'
+        b'instability: %s\n'
+        b'manifest:    %s\n'
+        b'obsolete:    %s\n'
+        b'parent:      %s\n'
+        b'phase:       %s\n'
+        b'summary:     %s\n'
+        b'tag:         %s\n'
+        b'user:        %s\n'
+    )
+    columns = [s.split(b':', 1)[0] for s in raw_columns.splitlines()]
+    # explicitly using i18n here to work around the override we did above.
+    translated_columns = i18n._(raw_columns).splitlines(True)
+    return dict(zip(columns, translated_columns))
+
+
+def show_latest_tags(context, mapping, pattern) -> hybrid:
+    """helper method for the latesttag keyword and function"""
+    latesttags = get_latest_tags(context, mapping, pattern)
+
+    # latesttag[0] is an implementation detail for sorting csets on different
+    # branches in a stable manner- it is the date the tagged cset was created,
+    # not the date the tag was created.  Therefore it isn't made visible here.
+    makemap = lambda v: {
+        b'changes': show_changes_since_tag,
+        b'distance': latesttags[1],
+        b'latesttag': v,  # BC with {latesttag % '{latesttag}'}
+        b'tag': v,
+    }
+
+    tags = latesttags[2]
+    f = _showcompatlist(context, mapping, b'latesttag', tags, separator=b':')
+    return hybrid(f, tags, makemap, pycompat.identity)
+
+
+def show_changes_since_tag(context, mapping):
+    repo = context.resource(mapping, b'repo')
+    ctx = context.resource(mapping, b'ctx')
+    offset = 0
+    revs = [ctx.rev()]
+    tag = context.symbol(mapping, b'tag')
+
+    # The only() revset doesn't currently support wdir()
+    if ctx.rev() is None:
+        offset = 1
+        revs = [p.rev() for p in ctx.parents()]
+
+    return len(repo.revs(b'only(%ld, %s)', revs, tag)) + offset
+
+
+def get_latest_tags(context, mapping, pattern=None):
+    '''return date, distance and name for the latest tag of rev'''
+    repo = context.resource(mapping, b'repo')
+    ctx = context.resource(mapping, b'ctx')
+    cache = context.resource(mapping, b'cache')
+
+    cachename = b'latesttags'
+    if pattern is not None:
+        cachename += b'-' + pattern
+        match = stringutil.stringmatcher(pattern)[2]
+    else:
+        match = util.always
+
+    if cachename not in cache:
+        # Cache mapping from rev to a tuple with tag date, tag
+        # distance and tag name
+        cache[cachename] = {-1: (0, 0, [b'null'])}
+    latesttags = cache[cachename]
+
+    rev = ctx.rev()
+    todo = [rev]
+    while todo:
+        rev = todo.pop()
+        if rev in latesttags:
+            continue
+        ctx = repo[rev]
+        tags = [
+            t
+            for t in ctx.tags()
+            if (repo.tagtype(t) and repo.tagtype(t) != b'local' and match(t))
+        ]
+        if tags:
+            latesttags[rev] = ctx.date()[0], 0, [t for t in sorted(tags)]
+            continue
+        try:
+            ptags = [latesttags[p.rev()] for p in ctx.parents()]
+            if len(ptags) > 1:
+                if ptags[0][2] == ptags[1][2]:
+                    # The tuples are laid out so the right one can be found by
+                    # comparison in this case.
+                    pdate, pdist, ptag = max(ptags)
+                else:
+
+                    def key(x):
+                        tag = x[2][0]
+                        if ctx.rev() is None:
+                            # only() doesn't support wdir
+                            prevs = [c.rev() for c in ctx.parents()]
+                            changes = repo.revs(b'only(%ld, %s)', prevs, tag)
+                            changessincetag = len(changes) + 1
+                        else:
+                            changes = repo.revs(b'only(%d, %s)', ctx.rev(), tag)
+                            changessincetag = len(changes)
+                        # Smallest number of changes since tag wins. Date is
+                        # used as tiebreaker.
+                        return [-changessincetag, x[0]]
+
+                    pdate, pdist, ptag = max(ptags, key=key)
+            else:
+                pdate, pdist, ptag = ptags[0]
+        except KeyError:
+            # Cache miss - recurse
+            todo.append(rev)
+            todo.extend(p.rev() for p in ctx.parents())
+            continue
+        latesttags[rev] = pdate, pdist + 1, ptag
+    return latesttags[rev]
+
+
+# teach templater latesttags.changes is switched to (context, mapping) API
+show_changes_since_tag._requires = {b'repo', b'ctx'}
+
+
+def get_graph_node(repo, ctx, cache):
+    return get_graph_node_current(repo, ctx, cache) or get_graph_node_symbol(
+        ctx
+    )
+
+
+def get_graph_node_current(repo, ctx, cache):
+    wpnodes = repo.dirstate.parents()
+    if wpnodes[1] == repo.nullid:
+        wpnodes = wpnodes[:1]
+    if ctx.node() in wpnodes:
+        return b'@'
+    else:
+        merge_nodes = cache.get(b'merge_nodes')
+        if merge_nodes is None:
+            mergestate = repo.mergestate()
+            if mergestate.unresolvedcount():
+                merge_nodes = (mergestate.local, mergestate.other)
+            else:
+                merge_nodes = ()
+            cache[b'merge_nodes'] = merge_nodes
+
+        if ctx.node() in merge_nodes:
+            return b'%'
+        return b''
+
+
+def get_graph_node_symbol(ctx):
+    if ctx.obsolete():
+        return b'x'
+    elif ctx.isunstable():
+        return b'*'
+    elif ctx.closesbranch():
+        return b'_'
+    else:
+        return b'o'
+
+
+def show_names(context, mapping, namespace):
+    """helper method to generate a template keyword for a namespace"""
+    repo = context.resource(mapping, b'repo')
+    ctx = context.resource(mapping, b'ctx')
+    ns = repo.names.get(namespace)
+    if ns is None:
+        # namespaces.addnamespace() registers new template keyword, but
+        # the registered namespace might not exist in the current repo.
+        return
+    names = ns.names(repo, ctx.node())
+    return compatlist(
+        context, mapping, ns.templatename, names, plural=namespace
+    )

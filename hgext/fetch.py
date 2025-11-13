@@ -15,10 +15,16 @@ from mercurial import (
     cmdutil,
     error,
     exchange,
-    hg,
     lock,
     pycompat,
     registrar,
+    scmutil,
+)
+from mercurial.cmd_impls import (
+    update as up_impl,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     dateutil,
@@ -96,9 +102,12 @@ def fetch(ui, repo, source=b'default', **opts):
         wlock = repo.wlock()
         lock = repo.lock()
 
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
-        bheads = repo.branchheads(branch)
+        # fetch apparently checks for "active" head only, since this is
+        # mostly a dead extension, I did not alter this, not optimized the
+        # code much.
+        bheads = repo.branchmap().branchheads(branch)
         bheads = [head for head in bheads if len(repo[head].children()) == 0]
         if len(bheads) > 1:
             raise error.Abort(
@@ -109,7 +118,7 @@ def fetch(ui, repo, source=b'default', **opts):
             )
 
         path = urlutil.get_unique_pull_path_obj(b'fetch', ui, source)
-        other = hg.peer(repo, pycompat.byteskwargs(opts), path)
+        other = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
         ui.status(_(b'pulling from %s\n') % urlutil.hidepassword(path.loc))
         revs = None
         if opts['rev']:
@@ -128,11 +137,11 @@ def fetch(ui, repo, source=b'default', **opts):
             return 0
 
         # Is this a simple fast-forward along the current branch?
-        newheads = repo.branchheads(branch)
+        newheads = repo.branchmap().branchheads(branch)
         newchildren = repo.changelog.nodesbetween([parent], newheads)[2]
         if len(newheads) == 1 and len(newchildren):
             if newchildren[0] != parent:
-                return hg.update(repo, newchildren[0])
+                return up_impl.update(repo, newchildren[0])
             else:
                 return 0
 
@@ -141,7 +150,7 @@ def fetch(ui, repo, source=b'default', **opts):
         newparent = parent
         if newchildren:
             newparent = newchildren[0]
-            hg.clean(repo, newparent)
+            up_impl.clean(repo, newparent)
         newheads = [n for n in newheads if n != newparent]
         if len(newheads) > 1:
             ui.status(
@@ -170,12 +179,12 @@ def fetch(ui, repo, source=b'default', **opts):
                     _(b'updating to %d:%s\n')
                     % (repo.changelog.rev(firstparent), short(firstparent))
                 )
-            hg.clean(repo, firstparent)
+            up_impl.clean(repo, firstparent)
             p2ctx = repo[secondparent]
             ui.status(
                 _(b'merging with %d:%s\n') % (p2ctx.rev(), short(secondparent))
             )
-            err = hg.merge(p2ctx, remind=False)
+            err = up_impl.merge(p2ctx, remind=False)
 
         if not err:
             # we don't translate commit messages

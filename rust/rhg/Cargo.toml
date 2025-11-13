@@ -5,7 +5,7 @@ authors = [
     "Antoine Cezar <antoine.cezar@octobus.net>",
     "Raphaël Gomès <raphael.gomes@octobus.net>",
 ]
-edition = "2021"
+edition = "2024"
 
 [lints]
 workspace = true

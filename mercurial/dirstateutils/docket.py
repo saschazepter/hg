@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import struct
 
-from ..revlogutils import docket as docket_mod
+from ..utils import docket as docket_mod
 from . import v2
 
 V2_FORMAT_MARKER = b"dirstate-v2\n"

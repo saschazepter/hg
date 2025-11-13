@@ -18,6 +18,7 @@ from typing import (
     Any,
     AnyStr,
     BinaryIO,
+    Final,
     Iterable,
     Literal,
     Optional,
@@ -42,6 +43,7 @@ from . import (
     bookmarks,
     bundle2,
     changelog,
+    cmd_impls,
     copies,
     crecord as crecordmod,
     encoding,
@@ -51,7 +53,6 @@ from . import (
     logcmdutil,
     match as matchmod,
     merge as mergemod,
-    mergestate as mergestatemod,
     mergeutil,
     obsolete,
     patch,
@@ -59,18 +60,21 @@ from . import (
     phases,
     pycompat,
     repair,
+    repo as repo_utils,
     revlog,
     rewriteutil,
     scmutil,
     state as statemod,
     streamclone,
     subrepoutil,
-    templatekw,
+    tables,
     templater,
     util,
     vfs as vfsmod,
 )
-
+from .cmd_impls import (
+    update as update_impl,
+)
 from .utils import (
     dateutil,
     stringutil,
@@ -83,6 +87,8 @@ from .revlogutils import (
 
 if TYPE_CHECKING:
     from .interfaces.types import (
+        RepoT,
+        RevnumT,
         StatusT,
     )
     from . import (
@@ -91,194 +97,24 @@ if TYPE_CHECKING:
 
 stringio = util.stringio
 
-# templates of common command options
-
-dryrunopts = [
-    (b'n', b'dry-run', None, _(b'do not perform actions, just print output')),
-]
-
-confirmopts = [
-    (b'', b'confirm', None, _(b'ask before applying actions')),
-]
-
-remoteopts = [
-    (b'e', b'ssh', b'', _(b'specify ssh command to use'), _(b'CMD')),
-    (
-        b'',
-        b'remotecmd',
-        b'',
-        _(b'specify hg command to run on the remote side'),
-        _(b'CMD'),
-    ),
-    (
-        b'',
-        b'insecure',
-        None,
-        _(b'do not verify server certificate (ignoring web.cacerts config)'),
-    ),
-]
-
-walkopts = [
-    (
-        b'I',
-        b'include',
-        [],
-        _(b'include names matching the given patterns'),
-        _(b'PATTERN'),
-    ),
-    (
-        b'X',
-        b'exclude',
-        [],
-        _(b'exclude names matching the given patterns'),
-        _(b'PATTERN'),
-    ),
-]
-
-commitopts = [
-    (b'm', b'message', b'', _(b'use text as commit message'), _(b'TEXT')),
-    (b'l', b'logfile', b'', _(b'read commit message from file'), _(b'FILE')),
-]
-
-commitopts2 = [
-    (
-        b'd',
-        b'date',
-        b'',
-        _(b'record the specified date as commit date'),
-        _(b'DATE'),
-    ),
-    (
-        b'u',
-        b'user',
-        b'',
-        _(b'record the specified user as committer'),
-        _(b'USER'),
-    ),
-]
-
-commitopts3 = [
-    (b'D', b'currentdate', None, _(b'record the current date as commit date')),
-    (b'U', b'currentuser', None, _(b'record the current user as committer')),
-]
-
-formatteropts = [
-    (b'T', b'template', b'', _(b'display with template'), _(b'TEMPLATE')),
-]
-
-templateopts = [
-    (
-        b'',
-        b'style',
-        b'',
-        _(b'display using template map file (DEPRECATED)'),
-        _(b'STYLE'),
-    ),
-    (b'T', b'template', b'', _(b'display with template'), _(b'TEMPLATE')),
-]
-
-logopts = [
-    (b'p', b'patch', None, _(b'show patch')),
-    (b'g', b'git', None, _(b'use git extended diff format')),
-    (b'l', b'limit', b'', _(b'limit number of changes displayed'), _(b'NUM')),
-    (b'M', b'no-merges', None, _(b'do not show merges')),
-    (b'', b'stat', None, _(b'output diffstat-style summary of changes')),
-    (b'G', b'graph', None, _(b"show the revision DAG")),
-] + templateopts
-
-diffopts = [
-    (b'a', b'text', None, _(b'treat all files as text')),
-    (
-        b'g',
-        b'git',
-        None,
-        _(b'use git extended diff format (DEFAULT: diff.git)'),
-    ),
-    (b'', b'binary', None, _(b'generate binary diffs in git mode (default)')),
-    (b'', b'nodates', None, _(b'omit dates from diff headers')),
-]
-
-diffwsopts = [
-    (
-        b'w',
-        b'ignore-all-space',
-        None,
-        _(b'ignore white space when comparing lines'),
-    ),
-    (
-        b'b',
-        b'ignore-space-change',
-        None,
-        _(b'ignore changes in the amount of white space'),
-    ),
-    (
-        b'B',
-        b'ignore-blank-lines',
-        None,
-        _(b'ignore changes whose lines are all blank'),
-    ),
-    (
-        b'Z',
-        b'ignore-space-at-eol',
-        None,
-        _(b'ignore changes in whitespace at EOL'),
-    ),
-]
-
-diffopts2 = (
-    [
-        (b'', b'noprefix', None, _(b'omit a/ and b/ prefixes from filenames')),
-        (
-            b'p',
-            b'show-function',
-            None,
-            _(
-                b'show which function each change is in (DEFAULT: diff.showfunc)'
-            ),
-        ),
-        (b'', b'reverse', None, _(b'produce a diff that undoes the changes')),
-    ]
-    + diffwsopts
-    + [
-        (
-            b'U',
-            b'unified',
-            b'',
-            _(b'number of lines of context to show'),
-            _(b'NUM'),
-        ),
-        (b'', b'stat', None, _(b'output diffstat-style summary of changes')),
-        (
-            b'',
-            b'root',
-            b'',
-            _(b'produce diffs relative to subdirectory'),
-            _(b'DIR'),
-        ),
-    ]
-)
-
-mergetoolopts = [
-    (b't', b'tool', b'', _(b'specify merge tool'), _(b'TOOL')),
-]
-
-similarityopts = [
-    (
-        b's',
-        b'similarity',
-        b'',
-        _(b'guess renamed files by similarity (0<=s<=100)'),
-        _(b'SIMILARITY'),
-    )
-]
-
-subrepoopts = [(b'S', b'subrepos', None, _(b'recurse into subrepositories'))]
-
-debugrevlogopts = [
-    (b'c', b'changelog', False, _(b'open changelog')),
-    (b'm', b'manifest', False, _(b'open manifest')),
-    (b'', b'dir', b'', _(b'open directory manifest')),
-]
+globalopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.global_opts
+dryrunopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.dry_run_opts
+confirmopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.confirm_opts
+remoteopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.remote_opts
+walkopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.walk_opts
+commitopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts
+commitopts2: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts2
+commitopts3: Final[cmd_impls.CmdOptionsT] = cmd_impls.commit_opts3
+formatteropts: Final[cmd_impls.CmdOptionsT] = cmd_impls.formatter_opts
+templateopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.template_opts
+logopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.log_opts
+diffopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_opts
+diffwsopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_ws_opts
+diffopts2: Final[cmd_impls.CmdOptionsT] = cmd_impls.diff_opts2
+mergetoolopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.merge_tool_opts
+similarityopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.similarity_opts
+subrepoopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.subrepo_opts
+debugrevlogopts: Final[cmd_impls.CmdOptionsT] = cmd_impls.debug_revlog_opts
 
 # special string such that everything below this line will be ingored in the
 # editor text
@@ -381,20 +217,6 @@ def newandmodified(chunks):
             newlyaddedandmodifiedfiles.add(chunk.filename())
             alsorestore.update(set(chunk.files()) - {chunk.filename()})
     return newlyaddedandmodifiedfiles, alsorestore
-
-
-def parsealiases(cmd):
-    base_aliases = cmd.split(b"|")
-    all_aliases = set(base_aliases)
-    extra_aliases = []
-    for alias in base_aliases:
-        if b'-' in alias:
-            folded_alias = alias.replace(b'-', b'')
-            if folded_alias not in all_aliases:
-                all_aliases.add(folded_alias)
-                extra_aliases.append(folded_alias)
-    base_aliases.extend(extra_aliases)
-    return base_aliases
 
 
 def setupwrapcolorwrite(ui):
@@ -944,7 +766,7 @@ To mark files as resolved:  hg resolve --mark FILE'''
 def readmorestatus(repo):
     """Returns a morestatus object if the repo has unfinished state."""
     statetuple = statemod.getrepostate(repo)
-    mergestate = mergestatemod.mergestate.read(repo)
+    mergestate = repo.mergestate()
     activemerge = mergestate.active()
     if not statetuple and not activemerge:
         return None
@@ -959,60 +781,192 @@ def readmorestatus(repo):
     )
 
 
-def findpossible(cmd, table, strict=False):
-    """
-    Return cmd -> (aliases, command table entry)
-    for each matching command.
-    Return debug commands (or their aliases) only if no normal command matches.
-    """
-    choice = {}
-    debugchoice = {}
+class _containsnode:
+    """proxy __contains__(node) to container.__contains__ which accepts revs"""
 
-    if cmd in table:
-        # short-circuit exact matches, "log" alias beats "log|history"
-        keys = [cmd]
+    def __init__(self, repo, revcontainer):
+        self._torev = repo.changelog.rev
+        self._revcontains = revcontainer.__contains__
+
+    def __contains__(self, node) -> bool:
+        return self._revcontains(self._torev(node))
+
+
+def cleanup_nodes(
+    repo,
+    replacements,
+    operation,
+    moves=None,
+    metadata=None,
+    fixphase=False,
+    targetphase=None,
+    backup=True,
+) -> None:
+    """do common cleanups when old nodes are replaced by new nodes
+
+    That includes writing obsmarkers or stripping nodes, and moving bookmarks.
+    (we might also want to move working directory parent in the future)
+
+    By default, bookmark moves are calculated automatically from 'replacements',
+    but 'moves' can be used to override that. Also, 'moves' may include
+    additional bookmark moves that should not have associated obsmarkers.
+
+    replacements is {oldnode: [newnode]} or a iterable of nodes if they do not
+    have replacements. operation is a string, like "rebase".
+
+    metadata is dictionary containing metadata to be stored in obsmarker if
+    obsolescence is enabled.
+    """
+    assert fixphase or targetphase is None
+    if not replacements and not moves:
+        return
+
+    # translate mapping's other forms
+    if not hasattr(replacements, 'items'):
+        replacements = {(n,): () for n in replacements}
     else:
-        keys = table.keys()
+        # upgrading non tuple "source" to tuple ones for BC
+        repls = {}
+        for key, value in replacements.items():
+            if not isinstance(key, tuple):
+                key = (key,)
+            repls[key] = value
+        replacements = repls
 
-    allcmds = []
-    for e in keys:
-        aliases = parsealiases(e)
-        allcmds.extend(aliases)
-        found = None
-        if cmd in aliases:
-            found = cmd
-        elif not strict:
-            for a in aliases:
-                if a.startswith(cmd):
-                    found = a
-                    break
-        if found is not None:
-            if aliases[0].startswith(b"debug") or found.startswith(b"debug"):
-                debugchoice[found] = (aliases, table[e])
+    # Unfiltered repo is needed since nodes in replacements might be hidden.
+    unfi = repo.unfiltered()
+
+    # Calculate bookmark movements
+    if moves is None:
+        moves = {}
+        for oldnodes, newnodes in replacements.items():
+            for oldnode in oldnodes:
+                if oldnode in moves:
+                    continue
+                if len(newnodes) > 1:
+                    # usually a split, take the one with biggest rev number
+                    newnode = next(unfi.set(b'max(%ln)', newnodes)).node()
+                elif len(newnodes) == 0:
+                    # move bookmark backwards
+                    allreplaced = []
+                    for rep in replacements:
+                        allreplaced.extend(rep)
+                    roots = list(
+                        unfi.set(b'max((::%n) - %ln)', oldnode, allreplaced)
+                    )
+                    if roots:
+                        newnode = roots[0].node()
+                    else:
+                        newnode = repo.nullid
+                else:
+                    newnode = newnodes[0]
+                moves[oldnode] = newnode
+
+    allnewnodes = [n for ns in replacements.values() for n in ns]
+    toretract = {}
+    toadvance = {}
+    if fixphase:
+        precursors = {}
+        for oldnodes, newnodes in replacements.items():
+            for oldnode in oldnodes:
+                for newnode in newnodes:
+                    precursors.setdefault(newnode, []).append(oldnode)
+
+        allnewnodes.sort(key=lambda n: unfi[n].rev())
+        newphases = {}
+
+        def phase(ctx):
+            return newphases.get(ctx.node(), ctx.phase())
+
+        for newnode in allnewnodes:
+            ctx = unfi[newnode]
+            parentphase = max(phase(p) for p in ctx.parents())
+            if targetphase is None:
+                oldphase = max(
+                    unfi[oldnode].phase() for oldnode in precursors[newnode]
+                )
+                newphase = max(oldphase, parentphase)
             else:
-                choice[found] = (aliases, table[e])
+                newphase = max(targetphase, parentphase)
+            newphases[newnode] = newphase
+            if newphase > ctx.phase():
+                toretract.setdefault(newphase, []).append(newnode)
+            elif newphase < ctx.phase():
+                toadvance.setdefault(newphase, []).append(newnode)
 
-    if not choice and debugchoice:
-        choice = debugchoice
+    with repo.transaction(b'cleanup') as tr:
+        # Move bookmarks
+        bmarks = repo._bookmarks
+        bmarkchanges = []
+        for oldnode, newnode in moves.items():
+            oldbmarks = repo.nodebookmarks(oldnode)
+            if not oldbmarks:
+                continue
+            repo.ui.debug(
+                b'moving bookmarks %r from %s to %s\n'
+                % (
+                    pycompat.rapply(pycompat.maybebytestr, oldbmarks),
+                    hex(oldnode),
+                    hex(newnode),
+                )
+            )
+            # Delete divergent bookmarks being parents of related newnodes
+            deleterevs = repo.revs(
+                b'parents(roots(%ln & (::%n))) - parents(%n)',
+                allnewnodes,
+                newnode,
+                oldnode,
+            )
+            deletenodes = _containsnode(repo, deleterevs)
+            for name in oldbmarks:
+                bmarkchanges.append((name, newnode))
+                for b in bookmarks.divergent2delete(repo, deletenodes, name):
+                    bmarkchanges.append((b, None))
 
-    return choice, allcmds
+        if bmarkchanges:
+            bmarks.applychanges(repo, tr, bmarkchanges)
 
+        for phase, nodes in toretract.items():
+            phases.retractboundary(repo, tr, phase, nodes)
+        for phase, nodes in toadvance.items():
+            phases.advanceboundary(repo, tr, phase, nodes)
 
-def findcmd(cmd, table, strict=True):
-    """Return (aliases, command table entry) for command string."""
-    choice, allcmds = findpossible(cmd, table, strict)
-
-    if cmd in choice:
-        return choice[cmd]
-
-    if len(choice) > 1:
-        clist = sorted(choice)
-        raise error.AmbiguousCommand(cmd, clist)
-
-    if choice:
-        return list(choice.values())[0]
-
-    raise error.UnknownCommand(cmd, allcmds)
+        mayusearchived = repo.ui.config(b'experimental', b'cleanup-as-archived')
+        # Obsolete or strip nodes
+        if obsolete.isenabled(repo, obsolete.createmarkersopt):
+            # If a node is already obsoleted, and we want to obsolete it
+            # without a successor, skip that obssolete request since it's
+            # unnecessary. That's the "if s or not isobs(n)" check below.
+            # Also sort the node in topology order, that might be useful for
+            # some obsstore logic.
+            # NOTE: the sorting might belong to createmarkers.
+            torev = unfi.changelog.rev
+            sortfunc = lambda ns: torev(ns[0][0])
+            rels = []
+            for ns, s in sorted(replacements.items(), key=sortfunc):
+                rel = (tuple(unfi[n] for n in ns), tuple(unfi[m] for m in s))
+                rels.append(rel)
+            if rels:
+                obsolete.createmarkers(
+                    repo, rels, operation=operation, metadata=metadata
+                )
+        elif phases.supportarchived(repo) and mayusearchived:
+            # this assume we do not have "unstable" nodes above the cleaned ones
+            allreplaced = set()
+            for ns in replacements.keys():
+                allreplaced.update(ns)
+            if backup:
+                node = min(allreplaced, key=repo.changelog.rev)
+                repair.backupbundle(
+                    repo, allreplaced, allreplaced, node, operation
+                )
+            phases.retractboundary(repo, tr, phases.archived, allreplaced)
+        else:
+            tostrip = list(n for ns in replacements for n in ns)
+            if tostrip:
+                repair.delayedstrip(
+                    repo.ui, repo, tostrip, operation, backup=backup
+                )
 
 
 def changebranch(ui, repo, revs, label, **opts):
@@ -1020,7 +974,7 @@ def changebranch(ui, repo, revs, label, **opts):
 
     with repo.wlock(), repo.lock(), repo.transaction(b'branches'):
         # abort in case of uncommitted merge or dirty wdir
-        bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
         revs = logcmdutil.revrange(repo, revs)
         if not revs:
             raise error.InputError(b"empty revision set")
@@ -1050,9 +1004,6 @@ def changebranch(ui, repo, revs, label, **opts):
 
         n_branch_changes = 0
         replacements = {}
-        # avoid import cycle mercurial.cmdutil -> mercurial.context ->
-        # mercurial.subrepo -> mercurial.cmdutil
-        from . import context
 
         for rev in revs:
             ctx = repo[rev]
@@ -1100,8 +1051,7 @@ def changebranch(ui, repo, revs, label, **opts):
             else:
                 files = set(ctx.files())
 
-            mc = context.memctx(
-                repo,
+            mc = repo.memctx(
                 (p1, p2),
                 ctx.description(),
                 files,
@@ -1117,9 +1067,7 @@ def changebranch(ui, repo, revs, label, **opts):
             ui.debug(b'new node id is %s\n' % hex(newnode))
 
         # create obsmarkers and move bookmarks
-        scmutil.cleanupnodes(
-            repo, replacements, b'branch-change', fixphase=True
-        )
+        cleanup_nodes(repo, replacements, b'branch-change', fixphase=True)
 
         # move the working copy too
         wctx = repo[None]
@@ -1127,41 +1075,21 @@ def changebranch(ui, repo, revs, label, **opts):
         if len(wctx.parents()) == 1:
             newid = replacements.get(wctx.p1().node())
             if newid is not None:
-                # avoid import cycle mercurial.cmdutil -> mercurial.hg ->
-                # mercurial.cmdutil
-                from . import hg
-
-                hg.update(repo, newid[0], quietempty=True)
+                update_impl.update(repo, newid[0], quietempty=True)
 
         ui.status(_(b"changed branch on %d changesets\n") % n_branch_changes)
 
 
 def findrepo(p: bytes) -> bytes | None:
-    while not os.path.isdir(os.path.join(p, b".hg")):
-        oldp, p = p, os.path.dirname(p)
-        if p == oldp:
-            return None
-
-    return p
+    msg = b'mercurial.cmdutil.findrepo moved to mercurial.repo.find_repo'
+    util.nouideprecwarn(msg, b'7.3')
+    return repo_utils.find_repo(p)
 
 
 def bailifchanged(repo, merge=True, hint=None):
-    """enforce the precondition that working directory must be clean.
-
-    'merge' can be set to false if a pending uncommitted merge should be
-    ignored (such as when 'update --check' runs).
-
-    'hint' is the usual hint given to Abort exception.
-    """
-
-    if merge and repo.dirstate.p2() != repo.nullid:
-        raise error.StateError(_(b'outstanding uncommitted merge'), hint=hint)
-    st = repo.status()
-    if st.modified or st.added or st.removed or st.deleted:
-        raise error.StateError(_(b'uncommitted changes'), hint=hint)
-    ctx = repo[None]
-    for s in sorted(ctx.substate):
-        ctx.sub(s).bailifchanged(hint=hint)
+    msg = b'`cmdutil.bailifchanged(...)` moved to `scmutil.bail_if_changed`'
+    repo.ui.deprecwarn(msg, b'7.3')
+    return scmutil.bail_if_changed(repo, merge=merge, hint=None)
 
 
 def logmessage(ui: uimod.ui, opts: dict[bytes, Any]) -> bytes | None:
@@ -1274,7 +1202,10 @@ def rendertemplate(ctx, tmpl, props=None):
     repo = ctx.repo()
     tres = formatter.templateresources(repo.ui, repo)
     t = formatter.maketemplater(
-        repo.ui, tmpl, defaults=templatekw.keywords, resources=tres
+        repo.ui,
+        tmpl,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
     mapping = {b'ctx': ctx}
     if props:
@@ -1552,12 +1483,8 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
         else:
             if len(ctx.parents()) > 1:
                 raise error.InputError(_(b'cannot unmark copy in merge commit'))
-            # avoid cycle context -> subrepo -> cmdutil
-            from . import context
-
             rewriteutil.precheck(repo, [ctx.rev()], b'uncopy')
-            new_ctx = context.overlayworkingctx(repo)
-            new_ctx.setbase(ctx.p1())
+            new_ctx = ctx.p1_overlay()
             mergemod.graft(repo, ctx, wctx=new_ctx)
 
         match = scmutil.match(ctx, pats, opts)
@@ -1586,9 +1513,7 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
                     with repo.dirstate.changing_parents(repo):
                         scmutil.movedirstate(repo, repo[new_node])
                 replacements = {ctx.node(): [new_node]}
-                scmutil.cleanupnodes(
-                    repo, replacements, b'uncopy', fixphase=True
-                )
+                cleanup_nodes(repo, replacements, b'uncopy', fixphase=True)
 
         return
 
@@ -1646,9 +1571,6 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
                 % (uipathfn(absdest), ctx)
             )
 
-        # avoid cycle context -> subrepo -> cmdutil
-        from . import context
-
         copylist = []
         for pat in pats:
             srcs = walkpat(pat)
@@ -1665,8 +1587,7 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
         if len(copylist) != 1:
             raise error.InputError(_(b'--at-rev requires a single source'))
 
-        new_ctx = context.overlayworkingctx(repo)
-        new_ctx.setbase(ctx.p1())
+        new_ctx = ctx.p1_overlay()
         mergemod.graft(repo, ctx, wctx=new_ctx)
 
         new_ctx.markcopied(absdest, copylist[0])
@@ -1679,7 +1600,7 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
                 with repo.dirstate.changing_parents(repo):
                     scmutil.movedirstate(repo, repo[new_node])
             replacements = {ctx.node(): [new_node]}
-            scmutil.cleanupnodes(repo, replacements, b'copy', fixphase=True)
+            cleanup_nodes(repo, replacements, b'copy', fixphase=True)
 
         return
 
@@ -1986,9 +1907,6 @@ def tryimportone(ui, repo, patchdata, parents, opts, msgs, updatefunc):
     :updatefunc: a function that update a repo to a given node
                  updatefunc(<repo>, <node>)
     """
-    # avoid cycle context -> subrepo -> cmdutil
-    from . import context
-
     tmpname = patchdata.get(b'filename')
     message = patchdata.get(b'message')
     user = opts.get(b'user') or patchdata.get(b'user')
@@ -2155,8 +2073,7 @@ def tryimportone(ui, repo, patchdata, parents, opts, msgs, updatefunc):
                 editor = None
             else:
                 editor = getcommiteditor(editform=b'import.bypass')
-            memctx = context.memctx(
-                repo,
+            memctx = repo.memctx(
                 (p1.node(), p2.node()),
                 message,
                 files=files,
@@ -2458,7 +2375,7 @@ def add(ui, repo, match, prefix, uipathfn, explicitonly, **opts):
     return bad
 
 
-def addwebdirpath(repo, serverpath, webconf):
+def addwebdirpath(repo: RepoT, serverpath, webconf):
     webconf[serverpath] = repo.root
     repo.ui.debug(b'adding %s = %s\n' % (serverpath, repo.root))
 
@@ -2996,9 +2913,6 @@ def samefile(f, ctx1, ctx2):
 
 
 def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
-    # avoid cycle context -> subrepo -> cmdutil
-    from . import context
-
     # amend will reuse the existing user if not specified, but the obsolete
     # marker creation requires that the current user's name is specified.
     if obsolete.isenabled(repo, obsolete.createmarkersopt):
@@ -3069,7 +2983,7 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
             if subs:
                 subrepoutil.writestate(repo, newsubstate)
 
-        ms = mergestatemod.mergestate.read(repo)
+        ms = repo.mergestate()
         mergeutil.checkunresolved(ms)
 
         filestoamend = {f for f in wctx.files() if matcher(f)}
@@ -3116,8 +3030,7 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
                     else:
                         fctx = old.filectx(path)
                     flags = fctx.flags()
-                    mctx = context.memfilectx(
-                        repo,
+                    mctx = repo.memfilectx(
                         ctx_,
                         fctx.path(),
                         fctx.data(),
@@ -3160,8 +3073,7 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
         pureextra = extra.copy()
         extra[b'amend_source'] = old.hex()
 
-        new = context.memctx(
-            repo,
+        new = repo.memctx(
             parents=[base.node(), old.p2().node()],
             text=message,
             files=files,
@@ -3226,7 +3138,7 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
         if opts.get(b'note'):
             obsmetadata = {b'note': encoding.fromlocal(opts[b'note'])}
         backup = ui.configbool(b'rewrite', b'backup-bundle')
-        scmutil.cleanupnodes(
+        cleanup_nodes(
             repo,
             mapping,
             b'amend',
@@ -3368,59 +3280,105 @@ def buildcommittext(repo, ctx, subs, extramsg):
     return b"\n".join(edittext)
 
 
-def commitstatus(repo, node, branch, bheads=None, tip=None, **opts):
+class _HeadChange:
+    new_head: bool
+    """a new head is created"""
+
+    reopen: tuple[RevnumT, ...]
+    """parent closed head that we re-open"""
+
+    def __init__(
+        self,
+        new_head: bool = False,
+        reopen: tuple[RevnumT, ...] = (),
+    ):
+        self.new_head = new_head
+        self.reopen = reopen
+
+
+def future_head_change(
+    repo: RepoT,
+    close_branch: bool = False,
+) -> _HeadChange | None:
+    """compute the branch head change to happen if a commit happens
+
+    This is then reused to print message post commit.
+
+    The logic is as follow:
+
+    The message is not printed for initial roots. For the other
+    changesets, it is printed in the following situations:
+
+    Par column: for the 2 parents with ...
+      N: null or no parent
+      B: parent is on another named branch
+      C: parent is a regular non head changeset
+      H: parent was a branch head of the current branch
+    Msg column: whether we print "created new head" message
+    In the following, it is assumed that there already exists some
+    initial branch heads of the current branch, otherwise nothing is
+    printed anyway.
+
+    Par Msg Comment
+    N N  y  additional topo root
+
+    B N  y  additional branch root
+    C N  y  additional topo head
+    H N  n  usual case
+
+    B B  y  weird additional branch root
+    C B  y  branch merge
+    H B  n  merge with named branch
+
+
+    C H  n  merge with a head
+
+    H H  n  head merge: head count decreases
+    """
+    wc = repo[None]
+    branch = wc.branch()
+    has_head_parent = False
+    closed_parent = []
+    bm = repo.branchmap()
+    for p in wc.parents():
+        if p.branch() != branch:
+            continue
+        if p.closesbranch():
+            closed_parent.append(p.rev())
+        if bm.is_branch_head(branch, p.node()):
+            has_head_parent = True
+    reopen = ()
+    if not close_branch:
+        reopen = tuple(closed_parent)
+
+    new_head = not has_head_parent and bm.hasbranch(branch, open_only=True)
+
+    if new_head or reopen:
+        return _HeadChange(new_head, reopen)
+    else:
+        return None
+
+
+def commitstatus(
+    repo,
+    node,
+    head_change: _HeadChange | None = None,
+    tip=None,
+    **opts,
+):
     ctx = repo[node]
-    parents = ctx.parents()
 
     if tip is not None and repo.changelog.tip() == tip:
         # avoid reporting something like "committed new head" when
         # recommitting old changesets, and issue a helpful warning
         # for most instances
         repo.ui.warn(_(b"warning: commit already existed in the repository!\n"))
-    elif (
-        not opts.get('amend')
-        and bheads
-        and node not in bheads
-        and not any(
-            p.node() in bheads and p.branch() == branch for p in parents
-        )
-    ):
+    elif head_change is not None and head_change.new_head:
         repo.ui.status(_(b'created new head\n'))
-        # The message is not printed for initial roots. For the other
-        # changesets, it is printed in the following situations:
-        #
-        # Par column: for the 2 parents with ...
-        #   N: null or no parent
-        #   B: parent is on another named branch
-        #   C: parent is a regular non head changeset
-        #   H: parent was a branch head of the current branch
-        # Msg column: whether we print "created new head" message
-        # In the following, it is assumed that there already exists some
-        # initial branch heads of the current branch, otherwise nothing is
-        # printed anyway.
-        #
-        # Par Msg Comment
-        # N N  y  additional topo root
-        #
-        # B N  y  additional branch root
-        # C N  y  additional topo head
-        # H N  n  usual case
-        #
-        # B B  y  weird additional branch root
-        # C B  y  branch merge
-        # H B  n  merge with named branch
-        #
-        # C C  y  additional head from merge
-        # C H  n  merge with a head
-        #
-        # H H  n  head merge: head count decreases
 
-    if not opts.get('close_branch'):
-        for r in parents:
-            if r.closesbranch() and r.branch() == branch:
-                repo.ui.status(
-                    _(b'reopening closed branch head %d\n') % r.rev()
-                )
+    if head_change is not None:
+        for r in head_change.reopen:
+            repo.ui.status(_(b'reopening closed branch head %d\n') % r)
 
     if repo.ui.debugflag:
         repo.ui.write(
@@ -3955,11 +3913,6 @@ def _performrevert(
             repo.dirstate.copy(copied[f], f)
 
 
-# a list of (ui, repo, otherpeer, opts, missing) functions called by
-# commands.outgoing.  "missing" is "missing" of the result of
-# "findcommonoutgoing()"
-outgoinghooks = util.hooks()
-
 # a list of (ui, repo) functions called by commands.summary
 summaryhooks = util.hooks()
 
@@ -3977,7 +3930,7 @@ summaryremotehooks = util.hooks()
 def checkunfinished(repo, commit=False, skipmerge=False):
     """Look for an unfinished multistep operation, like graft, and abort
     if found. It's probably good to check this right before
-    bailifchanged().
+    bail_if_changed().
     """
     # Check for non-clearable states first, so things like rebase will take
     # precedence over update.
@@ -4166,7 +4119,7 @@ def hgabortgraft(ui, repo):
         return abortgraft(ui, repo, graftstate)
 
 
-def postincoming(ui, repo, modheads, optupdate, checkout, brev):
+def postincoming(ui, repo: RepoT, modheads, optupdate, checkout, brev):
     """Run after a changegroup has been added via pull/unbundle
 
     This takes arguments below:
@@ -4181,11 +4134,8 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
     if modheads == 0:
         return False
     if optupdate:
-        # avoid circular import
-        from . import hg
-
         try:
-            return hg.updatetotally(ui, repo, checkout, brev)
+            return update_impl.update_totally(ui, repo, checkout, brev)
         except error.UpdateAbort as inst:
             msg = _(b"not updating: %s") % stringutil.forcebytestr(inst)
             hint = inst.hint
@@ -4193,7 +4143,8 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
     if ui.quiet:
         pass  # we won't report anything so the other clause are useless.
     elif modheads is not None and modheads > 1:
-        currentbranchheads = len(repo.branchheads())
+        current_branch = repo[None].branch()
+        currentbranchheads = repo.branchmap().head_count(current_branch)
         if currentbranchheads == modheads:
             ui.status(
                 _(b"(run 'hg heads' to see heads, 'hg merge' to merge)\n")
@@ -4212,12 +4163,9 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
 def unbundle_files(ui, repo, fnames, unbundle_source=b'unbundle'):
     """utility for `hg unbundle` and `hg debug::unbundle`"""
     assert fnames
-    # avoid circular import
-    from . import hg
-
     with repo.lock():
         for fname in fnames:
-            f = hg.openpath(ui, fname)
+            f = scmutil.open_path(ui, fname)
             gen = exchange.readbundle(ui, f, fname)
             if isinstance(gen, streamclone.streamcloneapplier):
                 raise error.InputError(

@@ -12,6 +12,7 @@ import struct
 from mercurial.i18n import _
 from mercurial import (
     bundle2,
+    bundle2_part_handlers,
     changegroup,
     error,
     exchange,
@@ -179,25 +180,7 @@ def generate_ellipses_bundle2_for_widening(
             part.addparam(b'treemanifest', b'1')
 
 
-@bundle2.parthandler(_SPECPART, (_SPECPART_INCLUDE, _SPECPART_EXCLUDE))
-def _handlechangespec_2(op, inpart):
-    # XXX: This bundle2 handling is buggy and should be removed after hg5.2 is
-    # released. New servers will send a mandatory bundle2 part named
-    # 'Narrowspec' and will send specs as data instead of params.
-    # Refer to issue5952 and 6019
-    includepats = set(inpart.params.get(_SPECPART_INCLUDE, b'').splitlines())
-    excludepats = set(inpart.params.get(_SPECPART_EXCLUDE, b'').splitlines())
-    narrowspec.validatepatterns(includepats)
-    narrowspec.validatepatterns(excludepats)
-
-    if not requirements.NARROW_REQUIREMENT in op.repo.requirements:
-        op.repo.requirements.add(requirements.NARROW_REQUIREMENT)
-        scmutil.writereporequirements(op.repo)
-    op.repo.setnarrowpats(includepats, excludepats)
-    narrowspec.copytoworkingcopy(op.repo)
-
-
-@bundle2.parthandler(_RESSPECS)
+@bundle2_part_handlers.parthandler(_RESSPECS)
 def _handlenarrowspecs(op, inpart):
     data = inpart.read()
     inc, exc = data.split(b'\0')
@@ -206,14 +189,15 @@ def _handlenarrowspecs(op, inpart):
     narrowspec.validatepatterns(includepats)
     narrowspec.validatepatterns(excludepats)
 
-    if requirements.NARROW_REQUIREMENT not in op.repo.requirements:
+    if not op.repo.is_narrow:
         op.repo.requirements.add(requirements.NARROW_REQUIREMENT)
+        del op.repo.is_narrow  # refresh the property cache
         scmutil.writereporequirements(op.repo)
     op.repo.setnarrowpats(includepats, excludepats)
     narrowspec.copytoworkingcopy(op.repo)
 
 
-@bundle2.parthandler(_CHANGESPECPART)
+@bundle2_part_handlers.parthandler(_CHANGESPECPART)
 def _handlechangespec(op, inpart):
     repo = op.repo
     cl = repo.changelog

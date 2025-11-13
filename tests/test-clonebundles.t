@@ -1,5 +1,3 @@
-#require no-chg
-
 Set up a server
 
   $ hg init server
@@ -20,6 +18,8 @@ Set up a server
 
 Missing manifest should not result in server lookup
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+  clonebundles not supported by peer
   $ hg --verbose clone -U http://localhost:$HGPORT no-manifest
   requesting all changes
   adding changesets
@@ -31,6 +31,7 @@ Missing manifest should not result in server lookup
 
   $ cat server/access.log
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=aaff8d2ffbbf07a46dd1f05d8ae7877e3f56e2a2&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
 
@@ -38,6 +39,9 @@ Empty manifest file results in retrieval
 (the extension only checks if the manifest file exists)
 
   $ touch server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
   $ hg --verbose clone -U http://localhost:$HGPORT empty-manifest
   no clone bundles available on remote; falling back to regular clone
   requesting all changes
@@ -51,6 +55,10 @@ Empty manifest file results in retrieval
 Manifest file with invalid URL aborts
 
   $ echo 'http://does.not.exist/bundle.hg' > server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://does.not.exist/bundle.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://does.not.exist/bundle.hg
   $ hg clone http://localhost:$HGPORT 404-url
   applying clone bundle from http://does.not.exist/bundle.hg
   error fetching bundle: (.* not known|(\[Errno -?\d+] )?([Nn]o address associated with (host)?name|Temporary failure in name resolution|Name does not resolve)) (re) (no-windows !)
@@ -61,6 +69,9 @@ Manifest file with invalid URL aborts
 
 Manifest file with URL with unknown scheme skips the URL
   $ echo 'weirdscheme://does.not.exist/bundle.hg' > server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  weirdscheme://does.not.exist/bundle.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
   $ hg clone http://localhost:$HGPORT unknown-scheme
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -76,6 +87,10 @@ Manifest file with URL with unknown scheme skips the URL
 Server is not running aborts
 
   $ echo "http://localhost:$HGPORT1/bundle.hg" > server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/bundle.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/bundle.hg
   $ hg clone http://localhost:$HGPORT server-not-runner
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
   error fetching bundle: (.*\$ECONNREFUSED\$|Protocol not supported|(.* )?\$EADDRNOTAVAIL\$|.* No route to host) (re)
@@ -132,6 +147,10 @@ changes. If this output changes, we could break old clients.
   00c0: 78 ed fc d5 76 f1 36 35 dc 05 00 36 ed 5e c7    |x...v.65...6.^.|
 
   $ echo "http://localhost:$HGPORT1/partial.hg" > server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/partial.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/partial.hg
   $ hg clone -U http://localhost:$HGPORT partial-bundle
   applying clone bundle from http://localhost:$HGPORT1/partial.hg
   adding changesets
@@ -209,6 +228,10 @@ by old clients.
   01b0: 33 17 5f 54 00 00 d3 1b 0d 4c                   |3._T.....L|
 
   $ echo "http://localhost:$HGPORT1/full.hg" > server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/full.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/full.hg
   $ hg clone -U http://localhost:$HGPORT full-bundle
   applying clone bundle from http://localhost:$HGPORT1/full.hg
   adding changesets
@@ -244,6 +267,10 @@ Feature works over SSH with inline bundle
   $ mkdir server/.hg/bundle-cache/
   $ cp full.hg server/.hg/bundle-cache/
   $ echo "peer-bundle-cache://full.hg" > server/.hg/clonebundles.manifest
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  peer-bundle-cache://full.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: peer-bundle-cache://full.hg
   $ hg clone -U ssh://user@dummy/server ssh-inline-clone
   applying clone bundle from peer-bundle-cache://full.hg
   adding changesets
@@ -353,6 +380,16 @@ Entry with unknown BUNDLESPEC is filtered and not used
   > http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://bad.entry1 BUNDLESPEC=UNKNOWN
+  http://bad.entry2 BUNDLESPEC=xz-v1
+  http://bad.entry3 BUNDLESPEC=none-v100
+  http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/full.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
   $ hg clone -U http://localhost:$HGPORT filter-unknown-type
   applying clone bundle from http://localhost:$HGPORT1/full.hg
   adding changesets
@@ -370,6 +407,9 @@ Automatic fallback when all entries are filtered
   > http://bad.entry BUNDLESPEC=UNKNOWN
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://bad.entry BUNDLESPEC=UNKNOWN
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
   $ hg clone -U http://localhost:$HGPORT filter-all
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -389,6 +429,13 @@ are not filtered.
   > http://localhost:$HGPORT1/full.hg
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/sni.hg REQUIRESNI=true
+  http://localhost:$HGPORT1/full.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/sni.hg
+      REQUIRESNI: true
+    URL: http://localhost:$HGPORT1/full.hg
   $ hg clone -U http://localhost:$HGPORT sni-supported
   applying clone bundle from http://localhost:$HGPORT1/sni.hg
   adding changesets
@@ -415,6 +462,10 @@ No bundle spec should work
   > http://localhost:$HGPORT1/packed.hg
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/packed.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/packed.hg
   $ hg clone -U http://localhost:$HGPORT stream-clone-no-spec
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
@@ -429,6 +480,13 @@ Bundle spec without parameters should work
   > http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/packed.hg
+      BUNDLESPEC: none-packed1
+      COMPRESSION: none
+      VERSION: packed1
   $ hg clone -U http://localhost:$HGPORT stream-clone-vanilla-spec
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
@@ -443,6 +501,13 @@ Bundle spec with format requirements should work
   > http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv1
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv1
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/packed.hg
+      BUNDLESPEC: none-packed1;requirements=revlogv1
+      COMPRESSION: none
+      VERSION: packed1
   $ hg clone -U http://localhost:$HGPORT stream-clone-supported-requirements
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
@@ -457,6 +522,9 @@ Stream bundle spec with unknown requirements should be filtered out
   > http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv42
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv42
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
   $ hg clone -U http://localhost:$HGPORT stream-clone-unsupported-requirements
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -466,6 +534,46 @@ Stream bundle spec with unknown requirements should be filtered out
   adding file changes
   added 2 changesets with 2 changes to 2 files
   new changesets 53245c60e682:aaff8d2ffbbf
+
+
+Filtering unsupported delta-compression away
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://no-comp.entry BUNDLESPEC=none-v2;cg.version=04
+  > http://non-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none
+  > http://zlib-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib
+  > http://zstd-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd
+  > http://unknown-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd,babar
+  > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://no-comp.entry BUNDLESPEC=none-v2;cg.version=04
+  http://non-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none
+  http://zlib-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib
+  http://zstd-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd
+  http://unknown-comp.entry BUNDLESPEC=none-v2;cg.version=04;delta-compression=none,zlib,zstd,babar
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://no-comp.entry
+      BUNDLESPEC: none-v2;cg.version=04
+      COMPRESSION: none
+      VERSION: v2
+    URL: http://non-comp.entry
+      BUNDLESPEC: none-v2;cg.version=04;delta-compression=none
+      COMPRESSION: none
+      DELTA-COMPRESSION: none
+      VERSION: v2
+    URL: http://zlib-comp.entry
+      BUNDLESPEC: none-v2;cg.version=04;delta-compression=none,zlib
+      COMPRESSION: none
+      DELTA-COMPRESSION: none,zlib
+      VERSION: v2
+    URL: http://zstd-comp.entry (zstd !)
+      BUNDLESPEC: none-v2;cg.version=04;delta-compression=none,zlib,zstd (zstd !)
+      COMPRESSION: none (zstd !)
+      DELTA-COMPRESSION: none,zlib,zstd (zstd !)
+      VERSION: v2 (zstd !)
+
+Testing preferences configuration
+---------------------------------
 
 Set up manifest for testing preferences
 (Remember, the TYPE does not have to match reality - the URL is
@@ -556,6 +664,30 @@ Test where attribute is missing from some entries
   > http://localhost:$HGPORT1/bz2-b.hg BUNDLESPEC=bzip2-v2 extra=b
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
+  http://localhost:$HGPORT1/bz2-a.hg BUNDLESPEC=bzip2-v2
+  http://localhost:$HGPORT1/gz-b.hg BUNDLESPEC=gzip-v2 extra=b
+  http://localhost:$HGPORT1/bz2-b.hg BUNDLESPEC=bzip2-v2 extra=b
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+    URL: http://localhost:$HGPORT1/bz2-a.hg
+      BUNDLESPEC: bzip2-v2
+      COMPRESSION: bzip2
+      VERSION: v2
+    URL: http://localhost:$HGPORT1/gz-b.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      extra: b
+    URL: http://localhost:$HGPORT1/bz2-b.hg
+      BUNDLESPEC: bzip2-v2
+      COMPRESSION: bzip2
+      VERSION: v2
+      extra: b
   $ hg --config ui.clonebundleprefers=extra=b clone -U http://localhost:$HGPORT prefer-partially-defined-attribute
   applying clone bundle from http://localhost:$HGPORT1/gz-b.hg
   adding changesets
@@ -588,6 +720,20 @@ A manifest with just a gzip bundle
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-gzip
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -601,6 +747,10 @@ A manifest with a stream clone but no BUNDLESPEC
   > http://localhost:$HGPORT1/packed.hg
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/packed.hg
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/packed.hg
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-no-bundlespec
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -615,6 +765,18 @@ A manifest with a gzip bundle and a stream clone
   > http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
+  http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+    URL: http://localhost:$HGPORT1/packed.hg
+      BUNDLESPEC: none-packed1
+      COMPRESSION: none
+      VERSION: packed1
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-gzip-packed
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
@@ -630,6 +792,18 @@ A manifest with a gzip bundle and stream clone with supported requirements
   > http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv1
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
+  http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv1
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+    URL: http://localhost:$HGPORT1/packed.hg
+      BUNDLESPEC: none-packed1;requirements=revlogv1
+      COMPRESSION: none
+      VERSION: packed1
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-gzip-packed-requirements
   applying clone bundle from http://localhost:$HGPORT1/packed.hg
   * files to transfer, * bytes of data (glob)
@@ -645,6 +819,14 @@ A manifest with a gzip bundle and a stream clone with unsupported requirements
   > http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv42
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2
+  http://localhost:$HGPORT1/packed.hg BUNDLESPEC=none-packed1;requirements%3Drevlogv42
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
   $ hg clone -U --stream http://localhost:$HGPORT uncompressed-gzip-packed-unsupported-requirements
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
@@ -669,6 +851,13 @@ Test clone bundle retrieved through bundle2
   > largefile://1f74b3d08286b9b3a16fb3fa185dd29219cbc6ae BUNDLESPEC=gzip-v2
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: largefile://1f74b3d08286b9b3a16fb3fa185dd29219cbc6ae
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  largefile://1f74b3d08286b9b3a16fb3fa185dd29219cbc6ae BUNDLESPEC=gzip-v2
   $ hg clone -U http://localhost:$HGPORT largefile-provided --traceback
   applying clone bundle from largefile://1f74b3d08286b9b3a16fb3fa185dd29219cbc6ae
   adding changesets
@@ -693,6 +882,14 @@ on a 32MB system.
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 REQUIREDRAM=12MB
   > EOF
 
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 REQUIREDRAM=12MB
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      REQUIREDRAM: 12MB
   $ hg clone -U --debug --config ui.available-memory=16MB http://localhost:$HGPORT gzip-too-large
   using http://localhost:$HGPORT/
   sending capabilities command
@@ -777,6 +974,14 @@ Testing a clone bundle with digest
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest}
   > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:5f9eac7db9900194be019b465352bcd65982ac6ac4b45edda0a77de7c98f20b9
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha256:5f9eac7db9900194be019b465352bcd65982ac6ac4b45edda0a77de7c98f20b9
   $ hg clone -U http://localhost:$HGPORT digest-valid
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   adding changesets
@@ -791,6 +996,14 @@ Testing a clone bundle with digest
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest_bad}
   > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
   $ hg clone -U  http://localhost:$HGPORT digest-invalid
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   abort: file with digest [0-9a-f]* expected, but [0-9a-f]* found for [0-9]* bytes (re)
@@ -802,6 +1015,18 @@ Testing a clone bundle with digest
   > http://localhost:$HGPORT1/bad-d.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:00,xxx:01
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest_bad}
   > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/bad-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:xx
+  http://localhost:$HGPORT1/bad-b.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:0000
+  http://localhost:$HGPORT1/bad-c.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:0000
+  http://localhost:$HGPORT1/bad-d.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:00,xxx:01
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
   $ hg clone --debug -U  http://localhost:$HGPORT digest-malformed
   using http://localhost:$HGPORT/
   sending capabilities command
@@ -819,6 +1044,14 @@ Testing a clone bundle with digest
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha512:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,sha256:0000000000000000000000000000000000000000000000000000000000000000
   > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha512:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,sha256:0000000000000000000000000000000000000000000000000000000000000000
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha512:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,sha256:0000000000000000000000000000000000000000000000000000000000000000
   $ hg clone -U  http://localhost:$HGPORT digest-preference
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   abort: file with digest 0{64} expected, but [0-9a-f]+ found for [0-9]+ bytes (re)
@@ -933,5 +1166,3 @@ file content should work
 
   $ hg  cat -r tip A | wc -l
   \s*100001 (re)
-
-

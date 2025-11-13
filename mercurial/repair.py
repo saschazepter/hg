@@ -224,8 +224,13 @@ def strip(ui, repo, nodelist, backup=True, topic=b'backup'):
                 cl.strip(striprev, tr)
                 stripmanifest(repo, striprev, tr, files)
 
+                fileindex = repo.store.fileindex
                 for fn in files:
-                    repo.file(fn).strip(striprev, tr)
+                    filelog = repo.file(fn)
+                    filelog.strip(striprev, tr)
+                    filelog_empty = not filelog
+                    if fileindex is not None and filelog_empty:
+                        fileindex.remove(fn, tr)
                 tr.endgroup()
 
                 entries = tr.readjournal()
@@ -450,7 +455,7 @@ def manifestrevlogs(repo):
         # This logic is safe if treemanifest isn't enabled, but also
         # pointless, so we skip it if treemanifest isn't enabled.
         for entry in repo.store.data_entries():
-            if entry.is_revlog and entry.is_manifestlog:
+            if entry.is_manifestlog:
                 yield repo.manifestlog.getstorage(entry.target_id)
 
 

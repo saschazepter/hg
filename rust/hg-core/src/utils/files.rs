@@ -140,7 +140,7 @@ pub fn find_dirs_recursive_no_root<'a>(
     path: &'a HgPath,
 ) -> std::iter::FromFn<impl FnMut() -> Option<&'a HgPath>> {
     let mut positions =
-        path.bytes().enumerate().filter(|(_, &c)| c == b'/').map(|(i, _)| i);
+        path.bytes().enumerate().filter(|&(_, &c)| c == b'/').map(|(i, _)| i);
     std::iter::from_fn(move || {
         let p = positions.next().unwrap_or(path.len());
         if p == path.len() {

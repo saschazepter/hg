@@ -125,7 +125,11 @@ def _p2_node(index, rev, entry, hexfn):
 
 @debug_column(b"full-size", size=20, verbose=True)
 def full_size(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+    size = entry[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+    if size is None:
+        return b"-"
+    else:
+        return b"%d" % size
 
 
 @debug_column(b"delta-base", size=6, verbose=True)
@@ -685,8 +689,8 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
         flags,
     )
 
-    fh = revlog._datafp()
-    deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+    with revlog._datafp() as fh:
+        deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
 
 
 def debug_revlog_stats(
@@ -813,6 +817,8 @@ class DeltaChainAuditor:
 
         chain = self._revlog._deltachain(rev)[0]
 
+        if uncompsize is None:
+            uncompsize = -1
         data = {
             'p1': p1,
             'p2': p2,
@@ -944,7 +950,7 @@ def debug_delta_chain(
             largestblock = 0
             srchunks = 0
 
-            for revschunk in deltautil.slicechunk(r, chain):
+            for revschunk in deltautil.slicechunk(r, chain, inlined=r._inline):
                 srchunks += 1
                 blkend = start(revschunk[-1]) + length(revschunk[-1])
                 blksize = blkend - start(revschunk[0])
@@ -977,6 +983,7 @@ def reencoded_info(
     stop_rev=None,
     delete=True,
     reuse_delta=True,
+    report=True,
 ):
     class _faketr:
         def add(s, x, y, z=None):
@@ -1101,9 +1108,10 @@ def reencoded_info(
                 )
                 p.update(rev)
         rev = None
-        debug_revlog(ui, dest)
+        if report:
+            debug_revlog(ui, dest)
     finally:
-        end = time.time()
+        end = time.monotonic()
         if rev is not None:
             ui.writenoi18n(b"/!\\ interrupted while processing %d\n" % rev)
         ui.writenoi18n(b"duration: %f\n" % (end - start))

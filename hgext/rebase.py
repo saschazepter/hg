@@ -550,7 +550,7 @@ class rebaseruntime:
         with repo.ui.configoverride(overrides, b'rebase'):
             if self.inmemory:
                 newnode = commitmemorynode(
-                    repo,
+                    self._repo,
                     wctx=self.wctx,
                     extra=extra,
                     commitmsg=commitmsg,
@@ -560,7 +560,7 @@ class rebaseruntime:
                 )
             else:
                 newnode = commitnode(
-                    repo,
+                    self._repo,
                     extra=extra,
                     commitmsg=commitmsg,
                     editor=editor,
@@ -646,7 +646,7 @@ class rebaseruntime:
                             )
                         )
                         try:
-                            cmdutil.bailifchanged(repo)
+                            scmutil.bail_if_changed(repo)
                         except error.Abort:
                             clearstatus(repo)
                             clearcollapsemsg(repo)
@@ -1281,7 +1281,7 @@ def _definedestmap(ui, repo, inmemory, destf, srcf, basef, revf, destspace):
 
     cmdutil.checkunfinished(repo)
     if not inmemory:
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
     if ui.configbool(b'commands', b'rebase.requiredest') and not destf:
         raise error.InputError(
@@ -1389,7 +1389,7 @@ def _definedestmap(ui, repo, inmemory, destf, srcf, basef, revf, destspace):
     if inmemory and rebasingwcp:
         # Check these since we did not before.
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
     if not destf:
         dest = repo[_destrebase(repo, rebaseset, destspace=destspace)]
@@ -2103,7 +2103,7 @@ def clearrebased(
         fm.data(nodechanges=nodechanges)
     if keepf:
         replacements = {}
-    scmutil.cleanupnodes(repo, replacements, b'rebase', moves, backup=backup)
+    cmdutil.cleanup_nodes(repo, replacements, b'rebase', moves, backup=backup)
 
 
 def pullrebase(orig, ui, repo, *args, **opts):
@@ -2123,7 +2123,7 @@ def pullrebase(orig, ui, repo, *args, **opts):
                 )
 
             cmdutil.checkunfinished(repo, skipmerge=True)
-            cmdutil.bailifchanged(
+            scmutil.bail_if_changed(
                 repo,
                 hint=_(
                     b'cannot pull with rebase: '

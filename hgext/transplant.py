@@ -29,7 +29,6 @@ from mercurial import (
     cmdutil,
     error,
     exchange,
-    hg,
     logcmdutil,
     match,
     merge,
@@ -37,10 +36,14 @@ from mercurial import (
     pycompat,
     registrar,
     revset,
+    scmutil,
     smartset,
     state as statemod,
     util,
     vfs as vfsmod,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     procutil,
@@ -816,12 +819,12 @@ def _dotransplant(ui, repo, *revs, **opts):
         return tp.stop(ui, repo)
     else:
         cmdutil.checkunfinished(repo)
-        cmdutil.bailifchanged(repo)
+        scmutil.bail_if_changed(repo)
 
     sourcerepo = opts.get(b'source')
     if sourcerepo:
         path = urlutil.get_unique_pull_path_obj(b'transplant', ui, sourcerepo)
-        peer = hg.peer(repo, opts, path)
+        peer = repo_factory.peer(repo, opts, path)
         heads = pycompat.maplist(peer.lookup, opts.get(b'branch', ()))
         target = set(heads)
         for r in revs:

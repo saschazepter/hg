@@ -10,8 +10,10 @@ from mercurial.node import nullrev
 from mercurial import (
     ancestor,
     debugcommands,
-    hg,
     ui as uimod,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 
 
@@ -412,7 +414,7 @@ dagtests = [
 def test_gca():
     u = uimod.ui.load()
     for i, (dag, tests) in enumerate(dagtests):
-        repo = hg.repository(u, b'gca%d' % i, create=1)
+        repo = repo_factory.repository(u, b'gca%d' % i, create=1)
         cl = repo.changelog
         if not hasattr(cl.index, 'ancestors'):
             # C version not available

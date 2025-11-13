@@ -21,13 +21,15 @@ from mercurial import (
     cmdutil,
     commands,
     error,
-    hg,
     logcmdutil,
     registrar,
     revsetlang,
     rewriteutil,
     scmutil,
     util,
+)
+from mercurial.cmd_impls import (
+    update as up_impl,
 )
 
 # allow people to use split without explicitly enabling rebase extension
@@ -104,7 +106,7 @@ def split(ui, repo, *revs, **opts):
             if len(ctx.parents()) > 1:
                 raise error.InputError(_(b'cannot split a merge changeset'))
 
-            cmdutil.bailifchanged(repo)
+            scmutil.bail_if_changed(repo)
 
             # Deactivate bookmark temporarily so it won't get moved
             # unintentionally
@@ -120,7 +122,7 @@ def split(ui, repo, *revs, **opts):
                 # top is None: split failed, need update --clean recovery.
                 # wnode == ctx.node(): wnode split, no need to update.
                 if top is None or wnode != ctx.node():
-                    hg.clean(repo, wnode, show_stats=False)
+                    up_impl.clean(repo, wnode, show_stats=False)
                 if bname:
                     bookmarks.activate(repo, bname)
             if torebase and top:
@@ -132,7 +134,7 @@ def dosplit(ui, repo, tr, ctx, **opts):
 
     # Set working parent to ctx.p1(), and keep working copy as ctx's content
     if ctx.node() != repo.dirstate.p1():
-        hg.clean(repo, ctx.node(), show_stats=False)
+        up_impl.clean(repo, ctx.node(), show_stats=False)
     with repo.dirstate.changing_parents(repo):
         scmutil.movedirstate(repo, ctx.p1())
 
@@ -184,7 +186,7 @@ def dosplit(ui, repo, tr, ctx, **opts):
     if len(committed) != 1 or committed[0].node() != ctx.node():
         # Ensure we don't strip a node if we produce the same commit as already
         # exists
-        scmutil.cleanupnodes(
+        cmdutil.cleanup_nodes(
             repo,
             {ctx.node(): [c.node() for c in committed]},
             operation=b'split',

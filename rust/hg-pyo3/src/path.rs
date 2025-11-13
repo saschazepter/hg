@@ -94,7 +94,7 @@ where
         .try_iter()?
         .map(|p| {
             let path = p?;
-            Ok(HgPathBuf::from_bytes(path.downcast::<PyBytes>()?.as_bytes()))
+            Ok(HgPathBuf::from_bytes(path.cast::<PyBytes>()?.as_bytes()))
         })
         .collect()
 }

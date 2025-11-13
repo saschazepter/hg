@@ -23,12 +23,14 @@ from .node import (
     hex,
     nullrev,
 )
+from .interfaces.types import (
+    RevnumT,
+)
 
 from . import (
     bundle2,
     changegroup,
     changelog,
-    cmdutil,
     discovery,
     encoding,
     error,
@@ -40,6 +42,7 @@ from . import (
     pathutil,
     phases,
     pycompat,
+    repo as repo_utils,
     revlog,
     revlogutils,
     util,
@@ -53,10 +56,24 @@ from .revlogutils import (
     constants as revlog_constants,
 )
 
+from .interfaces import (
+    changegroup as i_cg,
+    compression as i_comp,
+)
+
 
 class bundlerevlog(revlog.revlog):
+    # XXX this work around the buggy baserev in bundle revlog,
+    # We should fix that instead
+    may_emit_compressed = False
+
     def __init__(
-        self, opener: typing.Any, target, radix, cgunpacker, linkmapper
+        self,
+        opener: typing.Any,
+        target,
+        radix,
+        cgunpacker: i_cg.IChangeGroupUnpacker,
+        linkmapper,
     ):
         # TODO: figure out real type of opener
         #
@@ -80,6 +97,9 @@ class bundlerevlog(revlog.revlog):
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
         for deltadata in cgunpacker.deltaiter():
+            baserev = self.rev(deltadata.delta_base)
+            base_size = self.rawsize(baserev)
+            full_size = mdiff.patchedsize(base_size, deltadata.delta)
             size = len(deltadata.delta)
             start = cgunpacker.tell() - size
 
@@ -105,11 +125,11 @@ class bundlerevlog(revlog.revlog):
                     _(b'unknown delta base'),
                 )
 
-            baserev = self.rev(deltadata.delta_base)
             e = revlogutils.entry(
                 flags=deltadata.flags,
                 data_offset=start,
                 data_compressed_length=size,
+                data_uncompressed_length=full_size,
                 data_delta_base=baserev,
                 link_rev=linkrev,
                 parent_rev_1=self.rev(deltadata.p1),
@@ -128,6 +148,12 @@ class bundlerevlog(revlog.revlog):
             with super().reading() as x:
                 yield x
 
+    def raw_comp_chunk(self, rev) -> tuple[i_comp.RevlogCompHeader, bytes]:
+        if rev <= self.repotiprev:
+            return super().raw_comp_chunk(rev)
+        self.bundle.seek(self.start(rev))
+        return (i_comp.REVLOG_COMP_NONE, self.bundle.read(self.length(rev)))
+
     def _chunk(self, rev):
         # Warning: in case of bundle, the diff is against what we stored as
         # delta base, not against rev - 1
@@ -137,7 +163,12 @@ class bundlerevlog(revlog.revlog):
         self.bundle.seek(self.start(rev))
         return self.bundle.read(self.length(rev))
 
-    def revdiff(self, rev1, rev2):
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
         """return or calculate a delta between two revisions"""
         if rev1 > self.repotiprev and rev2 > self.repotiprev:
             # hot path for bundle
@@ -145,9 +176,19 @@ class bundlerevlog(revlog.revlog):
             if revb == rev1:
                 return self._chunk(rev2)
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
-            return revlog.revlog.revdiff(self, rev1, rev2)
+            return revlog.revlog.revdiff(self, rev1, rev2, extra_delta)
 
-        return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
+        old = self.rawdata(rev1, validate=False)
+        new = self.rawdata(rev2, validate=False)
+        if extra_delta is not None:
+            base = new
+            new = mdiff.full_text_from_delta(
+                extra_delta,
+                len(new),
+                lambda: base,
+            )
+
+        return self._diff_fn(old, new)
 
     def _rawtext(self, node, rev):
         if rev is None:
@@ -158,11 +199,9 @@ class bundlerevlog(revlog.revlog):
         iterrev = rev
         # reconstruct the revision if it is from a changegroup
         while iterrev > self.repotiprev:
-            if (
-                self._inner._revisioncache
-                and self._inner._revisioncache[1] == iterrev
-            ):
-                rawtext = self._inner._revisioncache[2]
+            cached = self._inner.get_cached_text(iterrev)
+            if cached is not None:
+                rawtext = cached[1]
                 break
             chain.append(iterrev)
             iterrev = self.index[iterrev][3]
@@ -251,8 +290,8 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
 
 
 class bundlefilelog(filelog.filelog):
-    def __init__(self, opener, path, cgunpacker, linkmapper):
-        filelog.filelog.__init__(self, opener, path, writable=False)
+    def __init__(self, opener, path, radix, cgunpacker, linkmapper):
+        filelog.filelog.__init__(self, opener, path, radix, writable=False)
         self._revlog = bundlerevlog(
             opener,
             # XXX should use the unencoded path
@@ -287,7 +326,7 @@ class bundlephasecache(phases.phasecache):
         self.dirty = True
 
 
-def _getfilestarts(cgunpacker):
+def _getfilestarts(cgunpacker: i_cg.IChangeGroupUnpacker):
     filespos = {}
     for chunkdata in iter(cgunpacker.filelogheader, {}):
         fname = chunkdata[b'filename']
@@ -316,6 +355,8 @@ class bundlerepository(_bundle_repo_baseclass):
     Use instance() or makebundlerepository() to create instances.
     """
 
+    is_bundle_repo = True
+
     def __init__(self, bundlepath, url, tempparent):
         self._tempparent = tempparent
         self._url = url
@@ -325,7 +366,7 @@ class bundlerepository(_bundle_repo_baseclass):
         # dict with the mapping 'filename' -> position in the changegroup.
         self._cgfilespos = {}
         self._bundlefile = None
-        self._cgunpacker = None
+        self._cgunpacker: i_cg.IChangeGroupUnpacker = None
         self.tempfile = None
         f = util.posixfile(bundlepath, b"rb")
         bundle = exchange.readbundle(self.ui, f, bundlepath)
@@ -342,7 +383,7 @@ class bundlerepository(_bundle_repo_baseclass):
                         raise NotImplementedError(
                             b"can't process multiple changegroups"
                         )
-                    cgpart = part
+                    cgpart: bundle2.seekableunbundlepart = part.as_seekable()
                     self._handle_bundle2_cg_part(bundle, part)
 
             if not cgpart:
@@ -362,10 +403,15 @@ class bundlerepository(_bundle_repo_baseclass):
                 _(b'bundle type %r cannot be read') % type(bundle)
             )
 
-    def _handle_bundle1(self, bundle, bundlepath):
+    def _handle_bundle1(self, bundle: changegroup.cg1unpacker, bundlepath):
         if bundle.compressed():
             f = self._writetempbundle(bundle.read, b'.hg10un', header=b'HG10UN')
-            bundle = exchange.readbundle(self.ui, f, bundlepath, self.vfs)
+            bundle: changegroup.cg1unpacker = typing.cast(
+                # XXX: We know what this is as we just wrote it,
+                # using a cast is lazy, but simple. Fix me later.
+                changegroup.cg1unpacker,
+                exchange.readbundle(self.ui, f, bundlepath, self.vfs),
+            )
 
         self._bundlefile = bundle
         self._cgunpacker = bundle
@@ -495,6 +541,8 @@ class bundlerepository(_bundle_repo_baseclass):
         return self._url
 
     def file(self, f, writable=False):
+        assert not writable, "bundlerepository is read-only"
+
         if not self._cgfilespos:
             self._cgunpacker.seek(self.filestart)
             self._cgfilespos = _getfilestarts(self._cgunpacker)
@@ -502,7 +550,14 @@ class bundlerepository(_bundle_repo_baseclass):
         if f in self._cgfilespos:
             self._cgunpacker.seek(self._cgfilespos[f])
             linkmapper = self.unfiltered().changelog.rev
-            return bundlefilelog(self.svfs, f, self._cgunpacker, linkmapper)
+            radix = self.store.filelog_radix_for_reading(f)
+            return bundlefilelog(
+                self.svfs,
+                f,
+                radix,
+                self._cgunpacker,
+                linkmapper,
+            )
         else:
             return super().file(f, writable=writable)
 
@@ -544,7 +599,7 @@ def instance(ui, path, create, intents=None, createopts=None):
     parentpath = ui.config(b"bundle", b"mainreporoot")
     if not parentpath:
         # try to find the correct path to the working directory repo
-        parentpath = cmdutil.findrepo(encoding.getcwd())
+        parentpath = repo_utils.find_repo(encoding.getcwd())
         if parentpath is None:
             parentpath = b''
     if parentpath:

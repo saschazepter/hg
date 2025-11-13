@@ -52,7 +52,8 @@ Test for CVE-2016-3630
   >>> tvfs.options = {b'revlogv1': True}
   >>> rl = revlog.revlog(tvfs, target=(KIND_OTHER, b'test'), radix=b'a')
   >>> rl.revision(1)
-  mpatchError(*'patch cannot be decoded'*) (glob)
+  mpatchError(*'patch cannot be decoded'*) (glob) (no-rust !)
+  RevlogError(b'abort: corrupted revlog, patch insert more data than available: 4294967295 < 0') (rust !)
 
   $ cd ..
 
@@ -87,3 +88,22 @@ This is what we did to produce the repo in test-revlog-diff-relative-to-nullrev.
   $ hg cat --config rhg.cat=true -r 2 a
   ha
   $ cd ..
+
+Check 'delta-compression' config
+================================
+
+  $ cat << EOF >> ./test2/.hg/hgrc
+  > [storage]
+  > revlog.exchange-compressed-delta=yes
+  > EOF
+  $ hg debugcapabilities ./test2 --bundle2-cap="delta-compression"
+    delta-compression
+      none
+      zlib
+      zstd (zstd !)
+
+  $ cat << EOF >> ./test2/.hg/hgrc
+  > [storage]
+  > revlog.exchange-compressed-delta=no
+  > EOF
+  $ hg debugcapabilities ./test2 --bundle2-cap="delta-compression"

@@ -2,6 +2,13 @@
 
   $ NO_FALLBACK="env RHG_ON_UNSUPPORTED=abort"
 
+#if no-rust
+It is possible to run a `rhg` backed by any `hg` including ones without support
+for rust extensions. We still want to be able to use rust related feature in that case.
+  $ echo "[storage]" >> $HGRCPATH
+  $ echo "all-slow-path=allow" >> $HGRCPATH
+#endif
+
 Unimplemented command
   $ $NO_FALLBACK rhg unimplemented-command
   unsupported feature: error: unrecognized subcommand 'unimplemented-command'
@@ -76,14 +83,8 @@ Alias interpolation
 Alias to another alias (can only refer to earlier one)
   $ $NO_FALLBACK rhg foo --config alias.bar=root --config alias.foo=bar
   $TESTTMP/repository
-  $ $NO_FALLBACK rhg foo --config alias.foo=bar --config alias.bar=root
+  $ $NO_FALLBACK rhg foo --config alias.foo=bar --config alias.bar=root 2>&1 | grep "unrecognized subcommand 'bar'"
   unsupported feature: error: unrecognized subcommand 'bar'
-  
-  Usage: rhg [OPTIONS] <COMMAND>
-  
-  For more information, try '--help'.
-  
-  [252]
 
 Unwritable file descriptor
   $ $NO_FALLBACK rhg root > /dev/full
@@ -114,6 +115,18 @@ Listing tracked files from root
 
 Listing tracked files with NUL delimiters.
   $ $NO_FALLBACK rhg files -0 | xargs -0n1
+  file1
+  file2
+  file3
+
+Repeated flag is allowed
+  $ $NO_FALLBACK rhg files -0 -0 | xargs -0n1
+  file1
+  file2
+  file3
+
+Repeating argument takes the last value
+  $ $NO_FALLBACK rhg files --rev '.^' --rev .
   file1
   file2
   file3
@@ -265,6 +278,30 @@ Annotate files
    }
   ]
 
+Purge files
+  $ mkdir -p untracked/inner_untracked
+  $ touch untracked/inner_untracked/file
+  $ mkdir another_dir
+
+  $ $NO_FALLBACK rhg purge -p --no-confirm
+  untracked/inner_untracked/file
+  untracked/inner_untracked
+  untracked
+  another_dir
+  $ $NO_FALLBACK rhg purge -p --files --no-confirm
+  untracked/inner_untracked/file
+  $ $NO_FALLBACK rhg purge -p --dirs --no-confirm
+  another_dir
+  $ $NO_FALLBACK rhg purge -v --no-confirm
+  removing file untracked/inner_untracked/file
+  removing directory untracked/inner_untracked
+  removing directory untracked
+  removing directory another_dir
+
+  $ ls
+  copy_of_original
+  original
+
 Fallback to Python
   $ $NO_FALLBACK rhg cat original --exclude="*.rs"
   unsupported feature: error: unexpected argument '--exclude' found
@@ -349,7 +386,7 @@ Requirements
   dotencode
   fncache
   generaldelta
-  persistent-nodemap
+  persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
   revlogv1
   share-safe
@@ -533,3 +570,14 @@ Latin-1 is not supported yet
   $ $NO_FALLBACK HGENCODING=latin-1 rhg root
   unsupported feature: HGENCODING value 'latin-1' is not supported
   [252]
+
+
+Cleanup the hgrc from constraint
+================================
+
+(This confuse `hghave` when trying to match line later. This is obviously more
+a bug in `run-tests/hghave` than this specific test, but its easy enough to
+disarm it here.
+
+  $ echo "[extensions]" >> $HGRCPATH
+  $ echo "*:required = no" >> $HGRCPATH

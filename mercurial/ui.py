@@ -24,13 +24,18 @@ import typing
 from typing import (
     Any,
     Callable,
+    Iterator,
     NoReturn,
+    Sequence,
     TypeVar,
     Union,
     cast,
     overload,
 )
 
+from .interfaces.types import (
+    HttpPasswordMgrT,
+)
 from .i18n import _
 from .node import hex
 
@@ -56,6 +61,22 @@ from .utils import (
     stringutil,
     urlutil,
 )
+
+if typing.TYPE_CHECKING:
+    import urllib.request
+
+    from typing import (
+        Literal,
+        ParamSpec,
+    )
+
+    from .interfaces.types import (
+        CfgRemapT,
+        CfgSectionsT,
+    )
+
+    _P = ParamSpec("_P")
+    _R = TypeVar("_R")
 
 _ConfigItems = dict[tuple[bytes, bytes], object]  # {(section, name) : value}
 # The **opts args of the various write() methods can be basically anything, but
@@ -178,37 +199,49 @@ default = %s
 }
 
 
-def _maybestrurl(maybebytes):
-    return pycompat.rapply(pycompat.strurl, maybebytes)
-
-
-def _maybebytesurl(maybestr):
-    return pycompat.rapply(pycompat.bytesurl, maybestr)
-
-
-class httppasswordmgrdbproxy:
+class httppasswordmgrdbproxy(HttpPasswordMgrT):
     """Delays loading urllib2 until it's needed."""
 
     def __init__(self) -> None:
         self._mgr = None
 
-    def _get_mgr(self):
+    @staticmethod
+    def _maybestrurl(maybebytes):  # May take bytes|str|composite[bytes|str]
+        return pycompat.rapply(pycompat.strurl, maybebytes)
+
+    @staticmethod
+    def _maybebytesurl(maybestr: tuple[str | None, str | None]):
+        return pycompat.rapply(pycompat.bytesurl, maybestr)
+
+    def _get_mgr(self) -> urllib.request.HTTPPasswordMgrWithDefaultRealm:
         if self._mgr is None:
             self._mgr = urlreq.httppasswordmgrwithdefaultrealm()
         return self._mgr
 
-    def add_password(self, realm, uris, user, passwd):
+    def add_password(
+        self,
+        realm: bytes | str,
+        uris: bytes | str | Sequence[bytes | str],
+        user: bytes | str,
+        passwd: bytes | str,
+    ) -> None:
         return self._get_mgr().add_password(
-            _maybestrurl(realm),
-            _maybestrurl(uris),
-            _maybestrurl(user),
-            _maybestrurl(passwd),
+            self._maybestrurl(realm),
+            self._maybestrurl(uris),
+            self._maybestrurl(user),
+            self._maybestrurl(passwd),
         )
 
-    def find_user_password(self, realm, uri):
+    def find_user_password(
+        self,
+        realm: bytes | str,
+        uri: bytes | str,
+    ) -> tuple[bytes | None, bytes | None]:
         mgr = self._get_mgr()
-        return _maybebytesurl(
-            mgr.find_user_password(_maybestrurl(realm), _maybestrurl(uri))
+        return self._maybebytesurl(
+            mgr.find_user_password(
+                self._maybestrurl(realm), self._maybestrurl(uri)
+            )
         )
 
 
@@ -225,6 +258,17 @@ _reqexithandlers: list = []
 
 
 class ui:
+    callhooks: bool
+    debugflag: bool
+    httppasswordmgrdb: HttpPasswordMgrT
+    insecureconnections: bool
+    logblockedtimes: bool
+    pageractive: bool
+    quiet: bool
+    showtimestamp: bool
+    tracebackflag: bool
+    verbose: bool
+
     def __init__(self, src: ui | None = None) -> None:
         """Create a fresh new ui object if no src given
 
@@ -457,7 +501,12 @@ class ui:
         return False
 
     def read_resource_config(
-        self, name, root=None, trust=False, sections=None, remap=None
+        self,
+        name: tuple[bytes, bytes],
+        root=None,
+        trust: bool = False,
+        sections: CfgSectionsT | None = None,
+        remap: CfgRemapT | None = None,
     ) -> None:
         try:
             fp = resourceutil.open_resource(name[0], name[1])
@@ -471,7 +520,12 @@ class ui:
         )
 
     def readconfig(
-        self, filename, root=None, trust=False, sections=None, remap=None
+        self,
+        filename: bytes,
+        root=None,
+        trust: bool = False,
+        sections: CfgSectionsT | None = None,
+        remap: CfgRemapT | None = None,
     ) -> None:
         try:
             fp = open(filename, 'rb')
@@ -483,7 +537,13 @@ class ui:
         self._readconfig(filename, fp, root, trust, sections, remap)
 
     def _readconfig(
-        self, filename, fp, root=None, trust=False, sections=None, remap=None
+        self,
+        filename: bytes,
+        fp,
+        root=None,
+        trust: bool = False,
+        sections: CfgSectionsT | None = None,
+        remap: CfgRemapT | None = None,
     ) -> None:
         with fp:
             cfg = config.config()
@@ -501,7 +561,7 @@ class ui:
         self._applyconfig(cfg, trusted, root)
 
     def applyconfig(
-        self, configitems: _ConfigItems, source=b"", root=None
+        self, configitems: _ConfigItems, source: bytes = b"", root=None
     ) -> None:
         """Add configitems from a non-file source.  Unlike with ``setconfig()``,
         they can be overridden by subsequent config file reads.  The items are
@@ -518,7 +578,7 @@ class ui:
 
         self._applyconfig(cfg, True, root)
 
-    def _applyconfig(self, cfg, trusted, root) -> None:
+    def _applyconfig(self, cfg, trusted: bool, root) -> None:
         if self.plain():
             for k in (
                 b'debug',
@@ -561,7 +621,7 @@ class ui:
             root = os.path.expanduser(b'~')
         self.fixconfig(root=root)
 
-    def fixconfig(self, root=None, section=None) -> None:
+    def fixconfig(self, root=None, section: bytes | None = None) -> None:
         if section in (None, b'paths'):
             # expand vars and ~
             # translate paths relative to root (or home) into absolute paths
@@ -629,7 +689,7 @@ class ui:
         self._tcfg.restore(data[1])
         self._ucfg.restore(data[2])
 
-    def setconfig(self, section, name, value, source=b'') -> None:
+    def setconfig(self, section, name, value, source: bytes = b'') -> None:
         for cfg in (self._ocfg, self._tcfg, self._ucfg):
             cfg.set(section, name, value, source)
         self.fixconfig(section=section)
@@ -638,10 +698,16 @@ class ui:
     def _data(self, untrusted: bool) -> config.config:
         return self._ucfg if untrusted else self._tcfg
 
-    def configsource(self, section, name, untrusted=False):
+    def configsource(self, section, name, untrusted: bool = False) -> bytes:
         return self._data(untrusted).source(section, name)
 
-    def config(self, section, name, default=_unset, untrusted=False):
+    def config(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """return the plain string version of a config"""
         value = self._config(
             section, name, default=default, untrusted=untrusted
@@ -742,7 +808,13 @@ class ui:
             raise KeyError((section, name))
         return item.default
 
-    def configsuboptions(self, section, name, default=_unset, untrusted=False):
+    def configsuboptions(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """Get a config option and all sub-options.
 
         Some config options have sub-options that are declared with the
@@ -771,7 +843,13 @@ class ui:
 
         return main, sub
 
-    def configpath(self, section, name, default=_unset, untrusted=False):
+    def configpath(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """get a path config item, expanded relative to repo root or config
         file"""
         v = self.config(section, name, default, untrusted)
@@ -784,7 +862,13 @@ class ui:
                 v = os.path.join(base, os.path.expanduser(v))
         return v
 
-    def configbool(self, section, name, default=_unset, untrusted=False):
+    def configbool(
+        self,
+        section,
+        name,
+        default: bool = typing.cast(bool, _unset),
+        untrusted: bool = False,
+    ):
         """parse a configuration element as a boolean
 
         >>> u = ui(); s = b'foo'
@@ -822,7 +906,13 @@ class ui:
         return b
 
     def configwith(
-        self, convert, section, name, default=_unset, desc=None, untrusted=False
+        self,
+        convert,
+        section,
+        name,
+        default=_unset,
+        desc: bytes | None = None,
+        untrusted: bool = False,
     ):
         """parse a configuration element with a conversion function
 
@@ -858,7 +948,13 @@ class ui:
                 _(b"%s.%s is not a valid %s ('%s')") % (section, name, desc, v)
             )
 
-    def configint(self, section, name, default=_unset, untrusted=False):
+    def configint(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """parse a configuration element as an integer
 
         >>> u = ui(); s = b'foo'
@@ -881,7 +977,13 @@ class ui:
             int, section, name, default, b'integer', untrusted
         )
 
-    def configbytes(self, section, name, default=_unset, untrusted=False):
+    def configbytes(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """parse a configuration element as a quantity in bytes
 
         Units can be specified as b (bytes), k or kb (kilobytes), m or
@@ -918,7 +1020,13 @@ class ui:
                 % (section, name, value)
             )
 
-    def configlist(self, section, name, default=_unset, untrusted=False):
+    def configlist(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """parse a configuration element as a list of comma/space separated
         strings
 
@@ -940,7 +1048,13 @@ class ui:
             return []
         return v
 
-    def configdate(self, section, name, default=_unset, untrusted=False):
+    def configdate(
+        self,
+        section,
+        name,
+        default=_unset,
+        untrusted: bool = False,
+    ):
         """parse a configuration element as a tuple of ints
 
         >>> u = ui(); s = b'foo'
@@ -967,14 +1081,19 @@ class ui:
                 itemdefault = item.default
         return itemdefault
 
-    def hasconfig(self, section, name, untrusted=False):
+    def hasconfig(self, section, name, untrusted: bool = False) -> bool:
         return self._data(untrusted).hasitem(section, name)
 
-    def has_section(self, section, untrusted=False):
+    def has_section(self, section, untrusted: bool = False) -> bool:
         '''tell whether section exists in config.'''
         return section in self._data(untrusted)
 
-    def configitems(self, section, untrusted=False, ignoresub=False):
+    def configitems(
+        self,
+        section: bytes,
+        untrusted: bool = False,
+        ignoresub: bool = False,
+    ):
         items = self._data(untrusted).items(section)
         if ignoresub:
             items = [i for i in items if b':' not in i[0]]
@@ -987,7 +1106,11 @@ class ui:
                     )
         return items
 
-    def walkconfig(self, untrusted=False, all_known=False):
+    def walkconfig(
+        self,
+        untrusted: bool = False,
+        all_known: bool = False,
+    ) -> Iterator[tuple[bytes, bytes, Any,]]:
         defined = self._walk_config(untrusted)
         if not all_known:
             yield from defined
@@ -997,19 +1120,27 @@ class ui:
         current_known = next(known, None)
         while current_defined is not None or current_known is not None:
             if current_defined is None:
+                assert current_known is not None
                 yield current_known
                 current_known = next(known, None)
             elif current_known is None:
+                assert current_defined is not None
                 yield current_defined
                 current_defined = next(defined, None)
             elif current_known[0:2] == current_defined[0:2]:
+                assert current_known is not None
+                assert current_defined is not None
                 yield current_defined
                 current_defined = next(defined, None)
                 current_known = next(known, None)
             elif current_known[0:2] < current_defined[0:2]:
+                assert current_known is not None
+                assert current_defined is not None
                 yield current_known
                 current_known = next(known, None)
             else:
+                assert current_known is not None
+                assert current_defined is not None
                 yield current_defined
                 current_defined = next(defined, None)
 
@@ -1027,7 +1158,7 @@ class ui:
                     default = i.default
                 yield section, i.name, default
 
-    def _walk_config(self, untrusted):
+    def _walk_config(self, untrusted: bool):
         cfg = self._data(untrusted)
         for section in cfg.sections():
             for name, value in self.configitems(section, untrusted):
@@ -1066,7 +1197,21 @@ class ui:
             return feature not in exceptions
         return True
 
-    def username(self, acceptempty=False):
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def username(self) -> bytes:
+            ...
+
+        @overload
+        def username(self, acceptempty: Literal[False]) -> bytes:
+            ...
+
+        @overload
+        def username(self, acceptempty: bool) -> bytes | None:
+            ...
+
+    def username(self, acceptempty: bool = False):
         """Return default username to be used in commits.
 
         Searched in this order: $HGUSER, [ui] section of hgrcs, $EMAIL
@@ -1571,7 +1716,12 @@ class ui:
     def _exithandlers(self):
         return _reqexithandlers
 
-    def atexit(self, func, *args, **kwargs):
+    def atexit(
+        self,
+        func: Callable[_P, _R],
+        *args: _P.args,
+        **kwargs: _P.kwargs,
+    ) -> Callable[_P, _R]:
         """register a function to run after dispatching a request
 
         Handlers do not stay registered across request boundaries."""
@@ -1656,7 +1806,7 @@ class ui:
 
         return choseninterface
 
-    def interactive(self):
+    def interactive(self) -> bool:
         """is interactive input allowed?
 
         An interactive session is a session where input can be reasonably read
@@ -1687,7 +1837,7 @@ class ui:
                 pass
         return scmutil.termsize(self)[0]
 
-    def formatted(self):
+    def formatted(self) -> bool:
         """should formatted output be used?
 
         It is often desirable to format the output to suite the output medium.
@@ -2067,7 +2217,7 @@ class ui:
         extensions like chg)"""
         return procutil.system(cmd, environ=environ, cwd=cwd, out=out)
 
-    def traceback(self, exc=None, force: bool = False):
+    def traceback(self, exc=None, force: bool = False) -> bool:
         """print exception traceback if traceback printing enabled or forced.
         only to call in exception handler. returns true if traceback
         printed."""
@@ -2093,7 +2243,7 @@ class ui:
                 self.write_err(encoding.strtolocal(''.join(output)))
         return self.tracebackflag or force
 
-    def geteditor(self):
+    def geteditor(self) -> bytes:
         '''return editor to use'''
         if pycompat.sysplatform == b'plan9':
             # vi is the MIPS instruction simulator on Plan 9. We
@@ -2111,8 +2261,13 @@ class ui:
             editor = b'notepad.exe'
         else:
             editor = b'vi'
-        return encoding.environ.get(b"HGEDITOR") or self.config(
-            b"ui", b"editor", editor
+
+        # Cast to convince pytype that the non-None default value means the
+        # whole statement will return a non-None value somehow.
+        return typing.cast(
+            bytes,
+            encoding.environ.get(b"HGEDITOR")
+            or self.config(b"ui", b"editor", editor),
         )
 
     @util.propertycache

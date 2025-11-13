@@ -8,7 +8,12 @@
 
 from __future__ import annotations
 
+import importlib
 import os
+
+from ..interfaces.types import (
+    RepoT,
+)
 
 from ..i18n import _
 
@@ -19,14 +24,11 @@ from .. import (
 
 from ..utils import procutil
 
-# pytype: disable=pyi-error
 from . import (
-    hgweb_mod,
-    hgwebdir_mod,
+    hgweb_mod_inner as hgweb_mod,
+    hgwebdir_mod_inner as hgwebdir_mod,
     server,
 )
-
-# pytype: enable=pyi-error
 
 
 def hgweb(config, name=None, baseui=None):
@@ -39,6 +41,12 @@ def hgweb(config, name=None, baseui=None):
     - dict of virtual:real pairs (multi-repo view)
     - list of virtual:real tuples (multi-repo view)
     """
+
+    # hgweb.cgi work with this module before access wsgicgi, so we make sure
+    # Mercurial is initialized. This is not ideal, but we can assume that some
+    # old copy pasted hgweb.cgi lives on various website and we do not want to
+    # break them.
+    importlib.import_module('mercurial.initialization').init()
 
     if isinstance(config, str):
         raise error.ProgrammingError(
@@ -116,7 +124,7 @@ class httpservice:
         self.httpd.serve_forever()
 
 
-def createapp(baseui, repo, webconf):
+def createapp(baseui, repo: RepoT | None, webconf):
     if webconf:
         return hgwebdir_mod.hgwebdir(webconf, baseui=baseui)
     else:

@@ -119,6 +119,8 @@ class DeltaConfig(_Config):
     sparse_revlog = attr.ib(default=False, type=bool)
     # index contains extra delta information
     delta_info = attr.ib(default=False)
+    # store delta quality information when possible
+    store_quality = attr.ib(default=True, type=bool)
     # maximum length of a delta chain
     max_chain_len = attr.ib(default=None, type=Optional[int])
     # Maximum distance between delta chain base start and end
@@ -136,6 +138,8 @@ class DeltaConfig(_Config):
     lazy_delta = attr.ib(default=True, type=bool)
     # trust the base of incoming delta by default
     lazy_delta_base = attr.ib(default=False, type=bool)
+    # trust the incoming compression if available (and compatible)
+    lazy_compression = attr.ib(default=True, type=bool)
     # don't used incoming delta if they don't look optimal
     filter_suspicious_delta = attr.ib(default=False, type=bool)
     # check integrity of candidate bases before computing a delta against them

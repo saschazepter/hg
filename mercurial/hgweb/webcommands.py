@@ -29,11 +29,13 @@ from .. import (
     encoding,
     error,
     graphmod,
+    help as helpmod,
     pycompat,
     revset,
     revsetlang,
     scmutil,
     smartset,
+    tables,
     templateutil,
 )
 
@@ -45,7 +47,13 @@ from ..utils import (
 from . import webutil
 
 __all__ = []
-commands = {}
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
 
 
 class webcommand:
@@ -76,7 +84,7 @@ class webcommand:
 
     def __call__(self, func):
         __all__.append(pycompat.sysstr(self.name))
-        commands[self.name] = func
+        tables.webcommand_table[self.name] = func
         return func
 
 
@@ -1528,7 +1536,6 @@ def help(web):
     The ``help`` template will be rendered when requesting help for a topic.
     ``helptopics`` will be rendered for the index of help topics.
     """
-    from .. import commands, help as helpmod  # avoid cycle
 
     topicname = web.req.qsparams.get(b'node')
     if not topicname:
@@ -1540,7 +1547,7 @@ def help(web):
 
         early, other = [], []
         primary = lambda s: s.partition(b'|')[0]
-        for c, e in commands.table.items():
+        for c, e in tables.command_table.items():
             doc = _getdoc(e)
             if b'DEPRECATED' in doc or c.startswith(b'debug'):
                 continue
@@ -1603,7 +1610,7 @@ def help(web):
         subtopic = None
 
     try:
-        doc = helpmod.help_(u, commands, topic, subtopic=subtopic)
+        doc = helpmod.help_(u, topic, subtopic=subtopic)
     except error.Abort:
         raise ErrorResponse(HTTP_NOT_FOUND)
 
@@ -1611,4 +1618,4 @@ def help(web):
 
 
 # tell hggettext to extract docstrings from these functions:
-i18nfunctions = commands.values()
+i18nfunctions = tables.webcommand_table.values()

@@ -13,7 +13,6 @@ use crate::config::ResourceProfileValue;
 use crate::errors::HgError;
 use crate::requirements::CHANGELOGV2_REQUIREMENT;
 use crate::requirements::DELTA_INFO_REQUIREMENT;
-use crate::requirements::FILELOG_METAFLAG_REQUIREMENT;
 use crate::requirements::GENERALDELTA_REQUIREMENT;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::requirements::NODEMAP_REQUIREMENT;
@@ -257,6 +256,9 @@ pub struct RevlogDeltaConfig {
     /// Store additionnal information about delta in the index
     /// (and adjust delta computation to leverage it)
     pub delta_info: bool,
+    /// Actually persist quality information when available an supported by the
+    /// revlog.
+    pub store_quality: bool,
     /// Maximum length of a delta chain
     pub max_chain_len: Option<u64>,
     /// Maximum distance between a delta chain's start and end
@@ -274,6 +276,8 @@ pub struct RevlogDeltaConfig {
     pub lazy_delta: bool,
     /// Trust the base of incoming deltas by default
     pub lazy_delta_base: bool,
+    /// Trust the compression of incoming deltas (when avaiable and compatible)
+    pub lazy_compression: bool,
     /// A theoretical maximum compression ratio for file content
     /// Used to estimate delta size before compression. value <= 0 disable such
     /// estimate.
@@ -330,6 +334,9 @@ impl RevlogDeltaConfig {
         delta_config.lazy_delta = lazy_delta;
         delta_config.lazy_delta_base = lazy_delta_base;
 
+        delta_config.lazy_compression = config
+            .get_bool(b"storage", b"revlog.reuse-external-delta-compression")?;
+
         delta_config.max_deltachain_span =
             match config.get_i64(b"experimental", b"maxdeltachainspan")? {
                 Some(span) => {
@@ -351,6 +358,9 @@ impl RevlogDeltaConfig {
         // not suport general delta.
         delta_config.delta_info = delta_config.general_delta
             && requirements.contains(DELTA_INFO_REQUIREMENT);
+
+        delta_config.store_quality =
+            config.get_bool(b"storage", b"revlog.record-delta-quality")?;
 
         delta_config.max_chain_len =
             config.get_byte_size_no_default(b"format", b"maxchainlen")?;
@@ -377,9 +387,11 @@ impl Default for RevlogDeltaConfig {
         Self {
             delta_both_parents: true,
             lazy_delta: true,
+            lazy_compression: true,
             general_delta: Default::default(),
             sparse_revlog: Default::default(),
             delta_info: Default::default(),
+            store_quality: true,
             max_chain_len: Default::default(),
             max_deltachain_span: Default::default(),
             upper_bound_comp: Default::default(),
@@ -429,7 +441,7 @@ impl RevlogFeatureConfig {
         Ok(Self {
             compression_engine: CompressionConfig::new(config, requirements)?,
             enable_ellipsis: requirements.contains(NARROW_REQUIREMENT),
-            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
+            hasmeta_flag: requirements.contains(DELTA_INFO_REQUIREMENT),
             ignore_filelog_censored_revisions,
             ..Default::default()
         })
@@ -444,24 +456,23 @@ pub fn default_revlog_options(
     revlog_type: RevlogType,
 ) -> Result<RevlogOpenOptions, HgError> {
     let is_changelog = revlog_type == RevlogType::Changelog;
-    let version = if is_changelog
-        && requirements.contains(CHANGELOGV2_REQUIREMENT)
-    {
-        let compute_rank =
-            config.get_bool(b"experimental", b"changelog-v2.compute-rank")?;
-        RevlogVersionOptions::ChangelogV2 { compute_rank }
-    } else if requirements.contains(REVLOGV2_REQUIREMENT) {
-        RevlogVersionOptions::V2
-    } else if requirements.contains(REVLOGV1_REQUIREMENT) {
-        RevlogVersionOptions::V1 {
-            general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
-            hasmeta_flag: requirements.contains(FILELOG_METAFLAG_REQUIREMENT),
-            delta_info: requirements.contains(DELTA_INFO_REQUIREMENT),
-            inline: !is_changelog,
-        }
-    } else {
-        RevlogVersionOptions::V0
-    };
+    let version =
+        if is_changelog && requirements.contains(CHANGELOGV2_REQUIREMENT) {
+            let compute_rank = config
+                .get_bool(b"experimental", b"changelog-v2.compute-rank")?;
+            RevlogVersionOptions::ChangelogV2 { compute_rank }
+        } else if requirements.contains(REVLOGV2_REQUIREMENT) {
+            RevlogVersionOptions::V2
+        } else if requirements.contains(REVLOGV1_REQUIREMENT) {
+            RevlogVersionOptions::V1 {
+                general_delta: requirements.contains(GENERALDELTA_REQUIREMENT),
+                hasmeta_flag: requirements.contains(DELTA_INFO_REQUIREMENT),
+                delta_info: requirements.contains(DELTA_INFO_REQUIREMENT),
+                inline: !is_changelog,
+            }
+        } else {
+            RevlogVersionOptions::V0
+        };
     Ok(RevlogOpenOptions {
         version,
         // We don't need to dance around the slow path like in the Python

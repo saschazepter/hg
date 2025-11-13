@@ -35,7 +35,7 @@ pub fn combine_changeset_copies_wrapper(
     target_rev: PyRevision,
     rev_info: Bound<'_, PyAny>,
     multi_thread: bool,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let py = revs.py();
     let target_rev = Revision(target_rev.0);
     let children_count = children_count
@@ -52,7 +52,7 @@ pub fn combine_changeset_copies_wrapper(
         revs.iter().map(|rev_py| -> PyResult<RevInfo<Py<PyBytes>>> {
             let rev = Revision(rev_py.extract::<PyRevision>()?.0);
             let ret = rev_info.call1((rev_py,))?;
-            let tuple: &Bound<'_, PyTuple> = ret.downcast()?;
+            let tuple: &Bound<'_, PyTuple> = ret.cast()?;
             let p1 = Revision(tuple.get_item(0)?.extract::<PyRevision>()?.0);
             let p2 = Revision(tuple.get_item(1)?.extract::<PyRevision>()?.0);
             let opt_bytes = tuple.get_item(2)?.extract()?;
@@ -133,7 +133,7 @@ pub fn combine_changeset_copies_wrapper(
 
             // We’d prefer to avoid the child thread calling into Python code,
             // but this avoids a potential deadlock on the GIL if it does:
-            py.allow_threads(|| {
+            Python::detach(py, || {
                 rev_info_sender.send((rev, p1, p2, opt_bytes)).expect(
                     "combine_changeset_copies: channel is disconnected",
                 );
@@ -144,7 +144,7 @@ pub fn combine_changeset_copies_wrapper(
         }
         // We’d prefer to avoid the child thread calling into Python code,
         // but this avoids a potential deadlock on the GIL if it does:
-        path_copies = py.allow_threads(|| {
+        path_copies = Python::detach(py, || {
             // Disconnect the channel to signal the child thread to stop:
             // the `for … in rev_info_receiver` loop will end.
             drop(rev_info_sender);

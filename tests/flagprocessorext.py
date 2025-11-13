@@ -56,7 +56,6 @@ def supportedoutgoingversions(orig, repo):
     versions = orig(repo)
     versions.discard(b'01')
     versions.discard(b'02')
-    versions.add(b'03')
     return versions
 
 

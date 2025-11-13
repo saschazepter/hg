@@ -14,6 +14,11 @@ import os
 import re
 import signal
 
+from typing import (
+    Any,
+    Optional,
+)
+
 from .i18n import _
 from . import (
     diffhelper,
@@ -84,6 +89,8 @@ class patchnode:
     (i.e. patchroot, header, hunk, hunkline)
     """
 
+    folded: bool = False
+
     @property
     def content(self):
         return b''
@@ -128,11 +135,7 @@ class patchnode:
 
         If it is not possible to get the next item, return None.
         """
-        try:
-            itemfolded = self.folded
-        except AttributeError:
-            itemfolded = False
-        if skipfolded and itemfolded:
+        if skipfolded and self.folded:
             nextitem = self.nextsibling()
             if nextitem is None:
                 try:
@@ -641,6 +644,15 @@ _headermessages = {  # {operation: text}
 
 
 class curseschunkselector:
+    # Attributes not set by __init__ but by `main`
+    yscreensize: int
+    xscreensize: int
+    initexc: Optional[Exception]
+    # These are actually a `curses.window` object, but since curses is
+    # Optional we can't use it.
+    chunkpad: Any
+    statuswin: Any
+
     def __init__(self, headerlist, ui, operation=None):
         # put the headers into a patch object
         self.headerlist = patch(headerlist)

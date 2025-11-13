@@ -49,10 +49,12 @@ from mercurial.i18n import _
 from mercurial import (
     error,
     extensions,
-    hg,
     pycompat,
     registrar,
     templater,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     urlutil,
@@ -85,7 +87,7 @@ class ShortRepository:
     def make_peer(self, ui, path, *args, **kwargs):
         new_url = self.resolve(path.rawloc)
         path = path.copy(new_raw_location=new_url)
-        cls = hg.peer_schemes.get(path.url.scheme)
+        cls = repo_factory.peer_schemes.get(path.url.scheme)
         if cls is not None:
             return cls.make_peer(ui, path, *args, **kwargs)
         return None
@@ -94,12 +96,12 @@ class ShortRepository:
         url = self.resolve(url)
         u = urlutil.url(url)
         scheme = u.scheme or b'file'
-        if scheme in hg.peer_schemes:
-            cls = hg.peer_schemes[scheme]
-        elif scheme in hg.repo_schemes:
-            cls = hg.repo_schemes[scheme]
+        if scheme in repo_factory.peer_schemes:
+            cls = repo_factory.peer_schemes[scheme]
+        elif scheme in repo_factory.repo_schemes:
+            cls = repo_factory.repo_schemes[scheme]
         else:
-            cls = hg.LocalFactory
+            cls = repo_factory.LocalFactory
         return cls.instance(
             ui, url, create, intents=intents, createopts=createopts
         )
@@ -156,10 +158,10 @@ def extsetup(ui):
     for scheme, url in schemes.items():
         _check_drive_letter(scheme)
         url_scheme = urlutil.url(url).scheme
-        if url_scheme in hg.peer_schemes:
-            hg.peer_schemes[scheme] = ShortRepository(url, scheme, t)
+        if url_scheme in repo_factory.peer_schemes:
+            repo_factory.peer_schemes[scheme] = ShortRepository(url, scheme, t)
         else:
-            hg.repo_schemes[scheme] = ShortRepository(url, scheme, t)
+            repo_factory.repo_schemes[scheme] = ShortRepository(url, scheme, t)
 
     extensions.wrapfunction(urlutil, 'hasdriveletter', hasdriveletter)
 
@@ -168,10 +170,10 @@ def extsetup(ui):
 def expandscheme(ui, url, **opts):
     """given a repo path, provide the scheme-expanded path"""
     scheme = urlutil.url(url).scheme
-    if scheme in hg.peer_schemes:
-        cls = hg.peer_schemes[scheme]
+    if scheme in repo_factory.peer_schemes:
+        cls = repo_factory.peer_schemes[scheme]
     else:
-        cls = hg.repo_schemes.get(scheme)
+        cls = repo_factory.repo_schemes.get(scheme)
     if cls is not None and isinstance(cls, ShortRepository):
         url = cls.resolve(url)
     ui.write(url + b'\n')

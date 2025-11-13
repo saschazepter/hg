@@ -121,7 +121,10 @@ impl ConfigLayer {
     }
 
     /// Returns the keys defined in the given section
-    pub fn iter_keys(&self, section: &[u8]) -> impl Iterator<Item = &[u8]> {
+    pub fn iter_keys(
+        &self,
+        section: &[u8],
+    ) -> impl Iterator<Item = &[u8]> + use<'_> {
         self.sections
             .get(section)
             .into_iter()
@@ -133,7 +136,7 @@ impl ConfigLayer {
     pub fn iter_section<'layer>(
         &'layer self,
         section: &[u8],
-    ) -> impl Iterator<Item = (&'layer [u8], &'layer [u8])> {
+    ) -> impl Iterator<Item = (&'layer [u8], &'layer [u8])> + use<'layer> {
         self.sections
             .get(section)
             .into_iter()

@@ -9,12 +9,16 @@ import bz2
 import collections
 import zlib
 
+from typing import Iterator
+
 from .. import (
     error,
     i18n,
+    policy,
     pycompat,
 )
 from . import stringutil
+from ..interfaces import compression as i_comp
 
 
 _ = i18n._
@@ -57,26 +61,26 @@ class compressormanager:
     """
 
     def __init__(self):
-        self._engines = {}
+        self._engines: dict[bytes, i_comp.ICompressionEngine] = {}
         # Bundle spec human name to engine name.
-        self._bundlenames = {}
+        self._bundlenames: dict[bytes, bytes] = {}
         # Internal bundle identifier to engine name.
-        self._bundletypes = {}
+        self._bundletypes: dict[bytes, bytes] = {}
         # Revlog header to engine name.
-        self._revlogheaders = {}
+        self._revlogheaders: dict[i_comp.RevlogCompHeader, bytes] = {}
         # Wire proto identifier to engine name.
-        self._wiretypes = {}
+        self._wiretypes: dict[bytes, bytes] = {}
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> i_comp.ICompressionEngine:
         return self._engines[key]
 
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         return key in self._engines
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         return iter(self._engines.keys())
 
-    def register(self, engine):
+    def register(self, engine: i_comp.ICompressionEngine):
         """Register a compression engine with the manager.
 
         The argument must be a ``compressionengine`` instance.
@@ -138,14 +142,14 @@ class compressormanager:
         self._engines[name] = engine
 
     @property
-    def supportedbundlenames(self):
+    def supportedbundlenames(self) -> set[bytes]:
         return set(self._bundlenames.keys())
 
     @property
-    def supportedbundletypes(self):
+    def supportedbundletypes(self) -> set[bytes]:
         return set(self._bundletypes.keys())
 
-    def forbundlename(self, bundlename):
+    def forbundlename(self, bundlename) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a bundle name.
 
         Will raise KeyError if the bundle type isn't registered.
@@ -159,7 +163,7 @@ class compressormanager:
             )
         return engine
 
-    def forbundletype(self, bundletype):
+    def forbundletype(self, bundletype) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a bundle type.
 
         Will raise KeyError if the bundle type isn't registered.
@@ -173,7 +177,9 @@ class compressormanager:
             )
         return engine
 
-    def supportedwireengines(self, role, onlyavailable=True):
+    def supportedwireengines(
+        self, role, onlyavailable=True
+    ) -> list[i_comp.ICompressionEngine]:
         """Obtain compression engines that support the wire protocol.
 
         Returns a list of engines in prioritized order, most desired first.
@@ -198,7 +204,7 @@ class compressormanager:
 
         return list(sorted(engines, key=getkey))
 
-    def forwiretype(self, wiretype):
+    def forwiretype(self, wiretype) -> i_comp.ICompressionEngine:
         engine = self._engines[self._wiretypes[wiretype]]
         if not engine.available():
             raise error.Abort(
@@ -206,24 +212,79 @@ class compressormanager:
             )
         return engine
 
-    def forrevlogheader(self, header):
+    def forrevlogheader(
+        self,
+        header: i_comp.RevlogCompHeader,
+    ) -> i_comp.ICompressionEngine:
         """Obtain a compression engine registered to a revlog header.
 
         Will raise KeyError if the revlog header value isn't registered.
         """
         return self._engines[self._revlogheaders[header]]
 
+    def compatible_with(
+        self, header: i_comp.RevlogCompHeader, name: bytes
+    ) -> bool:
+        return self.forrevlogheader(header).name() == name
 
-compengines = compressormanager()
+    def supported_wire_delta_compression(self) -> tuple[bytes]:
+        """the set of supported delta compression"""
+        delta_comps = {b'none'}
+        if _zlibengine.name() in self:
+            delta_comps.add(b'zlib')
+        # for some reason, pytype consider that `_zstdengine` is undefined so
+        # using the plain name for now…
+        if b'zstd' in self and self[b'zstd'].available():
+            delta_comps.add(b'zstd')
+        return tuple(sorted(delta_comps))
 
 
-class compressionengine:
+compengines: compressormanager = compressormanager()
+
+
+def bundlecompressiontopics() -> dict[bytes, object]:
+    """Obtains a list of available bundle compressions for use in help."""
+    # help.makeitemsdocs() expects a dict of names to items with a .__doc__.
+    items: dict[bytes, object] = {}
+
+    # We need to format the docstring. So use a dummy object/type to hold it
+    # rather than mutating the original.
+    class docobject:
+        pass
+
+    for name in compengines:
+        engine = compengines[name]
+
+        if not engine.available():
+            continue
+
+        bt = engine.bundletype()
+        if not bt or not bt[0]:
+            continue
+
+        doc = b'``%s``\n    %s' % (bt[0], pycompat.getdoc(engine.bundletype))
+
+        value = docobject()
+        value.__doc__ = pycompat.sysstr(doc)
+        value._origdoc = engine.bundletype.__doc__
+        value._origfunc = engine.bundletype
+
+        items[bt[0:1]] = value
+
+    return items
+
+
+i18nfunctions = bundlecompressiontopics().values()
+
+
+class compressionengine(i_comp.ICompressionEngine):
     """Base class for compression engines.
 
     Compression engines must implement the interface defined by this class.
     """
 
-    def name(self):
+    @classmethod
+    def name(cls):
         """Returns the name of the compression engine.
 
         This is the key the engine is registered under.
@@ -446,7 +507,8 @@ class _ZstdCompressedStreamReader(_CompressedStreamReader):
 
 
 class _zlibengine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'zlib'
 
     def bundletype(self):
@@ -462,7 +524,7 @@ class _zlibengine(compressionengine):
         return compewireprotosupport(b'zlib', 20, 20)
 
     def revlogheader(self):
-        return b'x'
+        return i_comp.REVLOG_COMP_ZLIB
 
     def compressstream(self, it, opts=None):
         opts = opts or {}
@@ -541,7 +603,8 @@ compengines.register(_zlibengine())
 
 
 class _bz2engine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'bz2'
 
     def bundletype(self):
@@ -581,7 +644,8 @@ compengines.register(_bz2engine())
 
 
 class _truncatedbz2engine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'bz2truncated'
 
     def bundletype(self):
@@ -597,7 +661,8 @@ compengines.register(_truncatedbz2engine())
 
 
 class _noopengine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'none'
 
     def bundletype(self):
@@ -616,7 +681,7 @@ class _noopengine(compressionengine):
     # revlog special cases the uncompressed case, but implementing
     # revlogheader allows forcing uncompressed storage.
     def revlogheader(self):
-        return b'\0'
+        return i_comp.REVLOG_COMP_NONE
 
     def compressstream(self, it, opts=None):
         return it
@@ -636,21 +701,15 @@ compengines.register(_noopengine())
 
 
 class _zstdengine(compressionengine):
-    def name(self):
+    @classmethod
+    def name(cls):
         return b'zstd'
 
     @propertycache
     def _module(self):
         # Not all installs have the zstd module available. So defer importing
         # until first access.
-        try:
-            from .. import zstd  # pytype: disable=import-error
-
-            # Force delayed import.
-            zstd.__version__
-            return zstd
-        except ImportError:
-            return None
+        return policy.get_zstd()
 
     def available(self):
         return bool(self._module)
@@ -673,7 +732,7 @@ class _zstdengine(compressionengine):
         return compewireprotosupport(b'zstd', 50, 50)
 
     def revlogheader(self):
-        return b'\x28'
+        return i_comp.REVLOG_COMP_ZSTD
 
     def compressstream(self, it, opts=None):
         opts = opts or {}
@@ -771,38 +830,3 @@ class _zstdengine(compressionengine):
 
 
 compengines.register(_zstdengine())
-
-
-def bundlecompressiontopics():
-    """Obtains a list of available bundle compressions for use in help."""
-    # help.makeitemsdocs() expects a dict of names to items with a .__doc__.
-    items = {}
-
-    # We need to format the docstring. So use a dummy object/type to hold it
-    # rather than mutating the original.
-    class docobject:
-        pass
-
-    for name in compengines:
-        engine = compengines[name]
-
-        if not engine.available():
-            continue
-
-        bt = engine.bundletype()
-        if not bt or not bt[0]:
-            continue
-
-        doc = b'``%s``\n    %s' % (bt[0], pycompat.getdoc(engine.bundletype))
-
-        value = docobject()
-        value.__doc__ = pycompat.sysstr(doc)
-        value._origdoc = engine.bundletype.__doc__
-        value._origfunc = engine.bundletype
-
-        items[bt[0]] = value
-
-    return items
-
-
-i18nfunctions = bundlecompressiontopics().values()

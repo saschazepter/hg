@@ -1008,8 +1008,12 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::clonebundle-manifest
+                 fetch a display a clone bundle manifest from a peer
    debug::fast-upgrade
                  (no help text available)
+   debug::file-index
+                 inspect or manipulate the file index
    debug::revlog-reencoded-delta-info
                  show revlog statistic if delta where to be reencoded
    debug::stable-tail-sort
@@ -1163,6 +1167,7 @@ internals topic renders index of available sub-topics
        config        Config Registrar
        dirstate-v2   dirstate-v2 file format
        extensions    Extension API
+       file-index    File Index
        mergestate    Mergestate
        requirements  Repository Requirements
        revlogs       Revision Logs
@@ -1634,6 +1639,8 @@ Separate sections from subsections
       "dotencode"
   
       "usefncache"
+  
+      "use-delta-info-flags"
   
       "use-dirstate-v2"
   
@@ -2684,6 +2691,20 @@ Dish up an empty repo; serve it cold.
   add all new files, delete all missing files
   </td></tr>
   <tr><td>
+  <a href="/help/admin::narrow-client">
+  admin::narrow-client
+  </a>
+  </td><td>
+  Narrow-related client administration utils. (EXPERIMENTAL)
+  </td></tr>
+  <tr><td>
+  <a href="/help/admin::narrow-server">
+  admin::narrow-server
+  </a>
+  </td><td>
+  Narrow-related server administration utils. (EXPERIMENTAL)
+  </td></tr>
+  <tr><td>
   <a href="/help/admin::verify">
   admin::verify
   </a>
@@ -3690,6 +3711,13 @@ Sub-topic indexes rendered properly
   </a>
   </td><td>
   Extension API
+  </td></tr>
+  <tr><td>
+  <a href="/help/internals.file-index">
+  file-index
+  </a>
+  </td><td>
+  File Index
   </td></tr>
   <tr><td>
   <a href="/help/internals.mergestate">

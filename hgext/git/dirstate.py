@@ -168,6 +168,7 @@ class gitdirstate(intdirstate.idirstate):
         ignored: bool,
         clean: bool,
         unknown: bool,
+        empty_dirs_keep_files: bool = False,
     ) -> intdirstate.StatusReturnT:
         listclean = clean
         # TODO handling of clean files - can we get that from git.status()?

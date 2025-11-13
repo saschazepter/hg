@@ -1684,7 +1684,7 @@ def phabsend(ui, repo, *revs, **opts):
                         b"not restabilizing unchanged %s\n" % short(old.node()),
                     )
 
-            scmutil.cleanupnodes(repo, mapping, b'phabsend', fixphase=True)
+            cmdutil.cleanup_nodes(repo, mapping, b'phabsend', fixphase=True)
             if wnode in mapping:
                 unfi.setparents(mapping[wnode][0])
 

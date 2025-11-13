@@ -11,6 +11,7 @@ import collections
 import contextlib
 import os
 import stat
+import typing
 import uuid
 
 from typing import (
@@ -49,6 +50,21 @@ from .interfaces import (
     dirstate as intdirstate,
 )
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Callable,
+        TypeVar,
+    )
+
+    # For some reason, pytype got confused by using ParamSpec, and demoted
+    # some (but not all) decorated methods to Callable with no defined args.
+    # This manages to preserve all methods, even including the variable names.
+    _C = TypeVar('_C', bound=Callable)
+    """An unconstrained Callable, for when a method takes a method with any
+    signature, and returns a method with an identical signature.
+    """
+
+
 parsers = policy.importmod('parsers')
 rustmod = policy.importrust('dirstate')
 
@@ -75,7 +91,7 @@ class rootcache(filecache):
         return obj._join(fname)
 
 
-def check_invalidated(func):
+def check_invalidated(func: _C) -> _C:
     """check that the func is called with a non-invalidated dirstate
 
     The dirstate is in an "invalidated state" after an error occured during its
@@ -93,7 +109,7 @@ def check_invalidated(func):
     return wrap
 
 
-def requires_changing_parents(func):
+def requires_changing_parents(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not self.is_changing_parents:
             msg = 'calling `%s` outside of a changing_parents context'
@@ -104,7 +120,7 @@ def requires_changing_parents(func):
     return check_invalidated(wrap)
 
 
-def requires_changing_files(func):
+def requires_changing_files(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not self.is_changing_files:
             msg = 'calling `%s` outside of a `changing_files`'
@@ -115,7 +131,7 @@ def requires_changing_files(func):
     return check_invalidated(wrap)
 
 
-def requires_changing_any(func):
+def requires_changing_any(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not self.is_changing_any:
             msg = 'calling `%s` outside of a changing context'
@@ -126,7 +142,7 @@ def requires_changing_any(func):
     return check_invalidated(wrap)
 
 
-def requires_changing_files_or_status(func):
+def requires_changing_files_or_status(func: _C) -> _C:
     def wrap(self, *args, **kwargs):
         if not (self.is_changing_files or self._running_status > 0):
             msg = (
@@ -777,7 +793,7 @@ class dirstate(intdirstate.idirstate):
         return ret
 
     @requires_changing_files_or_status
-    def set_clean(self, filename, parentfiledata):
+    def set_clean(self, filename: bytes, parentfiledata) -> None:
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
         if not self._map[filename].tracked:
@@ -786,7 +802,7 @@ class dirstate(intdirstate.idirstate):
         self._map.set_clean(filename, mode, size, mtime)
 
     @requires_changing_files_or_status
-    def set_possibly_dirty(self, filename):
+    def set_possibly_dirty(self, filename: bytes) -> None:
         """record that the current state of the file on disk is unknown"""
         self._dirty = True
         self._map.set_possibly_dirty(filename)
@@ -794,9 +810,9 @@ class dirstate(intdirstate.idirstate):
     @requires_changing_parents
     def update_file_p1(
         self,
-        filename,
+        filename: bytes,
         p1_tracked,
-    ):
+    ) -> None:
         """Set a file as tracked in the parent (or not)
 
         This is to be called when adjust the dirstate to a new parent after an history
@@ -834,13 +850,13 @@ class dirstate(intdirstate.idirstate):
     @requires_changing_parents
     def update_file(
         self,
-        filename,
+        filename: bytes,
         wc_tracked,
         p1_tracked,
-        p2_info=False,
-        possibly_dirty=False,
+        p2_info: bool = False,
+        possibly_dirty: bool = False,
         parentfiledata=None,
-    ):
+    ) -> None:
         """update the information about a file in the dirstate
 
         This is to be called when the direstates parent changes to keep track
@@ -1560,7 +1576,14 @@ class dirstate(intdirstate.idirstate):
                     results[next(iv)] = st
         return results
 
-    def _rust_status(self, matcher, list_clean, list_ignored, list_unknown):
+    def _rust_status(
+        self,
+        matcher,
+        list_clean,
+        list_ignored,
+        list_unknown,
+        empty_dirs_keep_files,
+    ):
         if self._sparsematchfn is not None:
             em = matchmod.exact(matcher.files())
             sm = matchmod.unionmatcher([self._sparsematcher, em])
@@ -1587,7 +1610,7 @@ class dirstate(intdirstate.idirstate):
             unknown,
             warnings,
             bad,
-            traversed,
+            empty_dirs,
             dirty,
         ) = rustmod.status(
             self._map._map,
@@ -1599,13 +1622,10 @@ class dirstate(intdirstate.idirstate):
             bool(list_ignored),
             bool(list_unknown),
             bool(matcher.traversedir),
+            bool(empty_dirs_keep_files),
         )
 
         self._dirty |= dirty
-
-        if matcher.traversedir:
-            for dir in traversed:
-                matcher.traversedir(dir)
 
         if self._ui.warn:
             for warning in warnings:
@@ -1622,8 +1642,23 @@ class dirstate(intdirstate.idirstate):
             unknown=unknown,
             ignored=ignored,
             clean=clean,
+            empty_dirs=empty_dirs if matcher.traversedir else None,
         )
         return (lookup, status)
+
+    def use_rust_status(
+        self,
+        subrepos: bool,
+    ) -> bool:
+        if rustmod is None:
+            return False
+        elif self._checkcase:
+            # Case-insensitive filesystems are not handled yet
+            return False
+        elif subrepos:
+            return False
+
+        return True
 
     def status(
         self,
@@ -1632,6 +1667,7 @@ class dirstate(intdirstate.idirstate):
         ignored: bool,
         clean: bool,
         unknown: bool,
+        empty_dirs_keep_files: bool = False,
     ) -> intdirstate.StatusReturnT:
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type
@@ -1658,16 +1694,6 @@ class dirstate(intdirstate.idirstate):
         dmap = self._map
         dmap.preload()
 
-        use_rust = True
-
-        if rustmod is None:
-            use_rust = False
-        elif self._checkcase:
-            # Case-insensitive filesystems are not handled yet
-            use_rust = False
-        elif subrepos:
-            use_rust = False
-
         # Get the time from the filesystem so we can disambiguate files that
         # appear modified in the present or future.
         try:
@@ -1676,10 +1702,14 @@ class dirstate(intdirstate.idirstate):
             # In largefiles or readonly context
             mtime_boundary = None
 
-        if use_rust:
+        if self.use_rust_status(subrepos):
             try:
                 res = self._rust_status(
-                    match, listclean, listignored, listunknown
+                    match,
+                    listclean,
+                    listignored,
+                    listunknown,
+                    empty_dirs_keep_files,
                 )
                 return res + (mtime_boundary,)
             except rustmod.FallbackError:

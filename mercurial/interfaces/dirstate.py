@@ -15,6 +15,10 @@ from typing import (
 )
 
 if typing.TYPE_CHECKING:
+    from ._basetypes import (
+        NeedsTypeHint,
+    )
+
     # Almost all mercurial modules are only imported in the type checking phase
     # to avoid circular imports
     from . import (
@@ -87,6 +91,12 @@ class idirstate(Protocol):
 
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
+
+    _use_dirstate_v2: bool
+
+    @property  # really @util.propertycache
+    def _map(self) -> NeedsTypeHint:
+        pass
 
     # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
     @property
@@ -287,6 +297,12 @@ class idirstate(Protocol):
         pass
 
     @abc.abstractmethod
+    def delete_tracked_hint(self) -> None:
+        """remove the tracked_hint file
+
+        To be used by format downgrades operation"""
+
+    @abc.abstractmethod
     def addparentchangecallback(
         self, category: bytes, callback: AddParentChangeCallbackT
     ) -> None:
@@ -319,6 +335,13 @@ class idirstate(Protocol):
 
         """
 
+    def use_rust_status(
+        self,
+        subrepos: bool,
+    ) -> bool:
+        """True if the method status will be computed using rust code."""
+        return False
+
     @abc.abstractmethod
     def status(
         self,
@@ -327,6 +350,7 @@ class idirstate(Protocol):
         ignored: bool,
         clean: bool,
         unknown: bool,
+        empty_dirs_keep_files: bool,
     ) -> StatusReturnT:
         """Determine the status of the working copy relative to the
         dirstate and return a pair of (unsure, status), where status is of type

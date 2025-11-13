@@ -1,8 +1,28 @@
 #testcases safe normal
+#testcases fncache fileindex
 
 #if safe
   $ echo "[format]"         >> $HGRCPATH
   $ echo "use-share-safe = True" >> $HGRCPATH
+#endif
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
 #endif
 
   $ echo "[extensions]"      >> $HGRCPATH
@@ -355,3 +375,19 @@ Check that (safe) share can control wc-specific format variant at creation time
   $ hg debugformat  -R share-safe-d2 dirstate-v2
   format-variant                 repo
   dirstate-v2:                    yes
+
+Test sharing and unsharing an empty repo
+----------------------------------------
+
+  $ hg init repo-empty
+  $ hg share repo-empty repo-empty-share
+  updating working directory
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R repo-empty-share unshare
+  $ hg -R repo-empty-share verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 0 changesets with 0 changes to 0 files

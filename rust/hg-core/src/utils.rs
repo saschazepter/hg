@@ -7,6 +7,7 @@
 
 //! Contains useful functions, traits, structs, etc. for use in core.
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
@@ -20,10 +21,38 @@ use crate::errors::HgError;
 use crate::errors::IoErrorContext;
 
 pub mod debug;
+pub mod docket;
 pub mod files;
 pub mod hg_path;
 pub mod path_auditor;
 pub mod strings;
+
+#[inline(always)]
+pub fn u32_u(i: u32) -> usize {
+    // XXX I am tempted to just use `as usize` only in debug mode
+    i.try_into()
+        .expect("usize can't hold a u32, are you on a 16 bits computer ?")
+}
+
+#[inline(always)]
+pub fn u_u32(i: usize) -> u32 {
+    i.try_into().expect("value too large for a u32")
+}
+
+#[inline(always)]
+pub fn u_i32(i: usize) -> i32 {
+    i.try_into().expect("value too large for a i32")
+}
+
+#[inline(always)]
+pub fn u16_u(i: u16) -> usize {
+    i as usize
+}
+
+#[inline(always)]
+pub fn u_u16(i: usize) -> u16 {
+    i.try_into().expect("value too large for a u16")
+}
 
 pub fn current_dir() -> Result<std::path::PathBuf, HgError> {
     std::env::current_dir().map_err(|error| HgError::IoError {
@@ -278,6 +307,65 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
     Ok(())
 }
 
+/// Represent the data from disk or from a Revision.
+///
+/// TODO: We should probably use Bytes, from the https://crates.io/crates/bytes
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct RawData {
+    inner: Arc<Vec<u8>>,
+}
+
+impl RawData {
+    pub fn empty() -> Self {
+        Self::from(vec![])
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+}
+
+impl From<Cow<'_, [u8]>> for RawData {
+    fn from(src: Cow<'_, [u8]>) -> Self {
+        Self { inner: src.into_owned().into() }
+    }
+}
+
+impl From<Vec<u8>> for RawData {
+    fn from(src: Vec<u8>) -> Self {
+        Self { inner: src.into() }
+    }
+}
+
+impl From<&[u8]> for RawData {
+    fn from(src: &[u8]) -> Self {
+        Self { inner: src.to_vec().into() }
+    }
+}
+
+impl From<RawData> for Vec<u8> {
+    fn from(src: RawData) -> Self {
+        src.inner.to_vec()
+    }
+}
+
+impl AsRef<[u8]> for RawData {
+    fn as_ref(&self) -> &[u8] {
+        self.inner.as_ref()
+    }
+}
+impl std::ops::Deref for RawData {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
 /// Limits the actual memory usage of all byte slices in its cache. It does not
 /// take into account the size of the map itself.
 ///
@@ -315,7 +403,7 @@ impl ByTotalChunksSize {
     }
 }
 
-impl<K> schnellru::Limiter<K, Arc<[u8]>> for ByTotalChunksSize
+impl<K> schnellru::Limiter<K, RawData> for ByTotalChunksSize
 where
     K: PartialEq + core::fmt::Debug,
 {
@@ -331,8 +419,8 @@ where
         &mut self,
         _length: usize,
         key: Self::KeyToInsert<'_>,
-        value: Arc<[u8]>,
-    ) -> Option<(K, Arc<[u8]>)> {
+        value: RawData,
+    ) -> Option<(K, RawData)> {
         let new_size = value.len();
         self.maybe_grow_max(new_size);
 
@@ -345,8 +433,8 @@ where
         _length: usize,
         old_key: &mut K,
         new_key: Self::KeyToInsert<'_>,
-        old_value: &mut Arc<[u8]>,
-        new_value: &mut Arc<[u8]>,
+        old_value: &mut RawData,
+        new_value: &mut RawData,
     ) -> bool {
         assert_eq!(*old_key, new_key);
 
@@ -357,7 +445,7 @@ where
         true
     }
 
-    fn on_removed(&mut self, _key: &mut K, value: &mut Arc<[u8]>) {
+    fn on_removed(&mut self, _key: &mut K, value: &mut RawData) {
         self.total_chunks_size -= value.len();
     }
 

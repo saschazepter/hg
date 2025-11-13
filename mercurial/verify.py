@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import typing
 
 from .i18n import _
 from .node import short
@@ -16,11 +17,15 @@ from .utils import stringutil
 from . import (
     error,
     pycompat,
-    requirements,
     revlog,
     transaction,
     util,
 )
+
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        RepoT,
+    )
 
 VERIFY_DEFAULT = 0
 VERIFY_FULL = 1
@@ -58,7 +63,7 @@ WARN_NULLID_COPY_SOURCE = _(
 
 
 class verifier:
-    def __init__(self, repo, level=None):
+    def __init__(self, repo: RepoT, level=None):
         self.repo = repo.unfiltered()
         self.ui = repo.ui
         self.match = repo.narrowmatch()
@@ -411,9 +416,9 @@ class verifier:
             revlogv1 = self.revlogv1
             undecodable = []
             for entry in repo.store.data_entries(undecodable=undecodable):
-                for file_ in entry.files():
+                for file_ in entry.files(repo.svfs):
                     f = file_.unencoded_path
-                    size = file_.file_size(repo.store.vfs)
+                    size = file_.file_size(repo.svfs)
                     if (size > 0 or not revlogv1) and f.startswith(b'meta/'):
                         storefiles.add(_normpath(f))
                         subdirs.add(os.path.dirname(f))
@@ -476,16 +481,19 @@ class verifier:
         havemf = self.havemf
         ui.status(_(b"checking files\n"))
 
-        storefiles = set()
-        undecodable = []
-        for entry in repo.store.data_entries(undecodable=undecodable):
-            for file_ in entry.files():
-                size = file_.file_size(repo.store.vfs)
-                f = file_.unencoded_path
-                if (size > 0 or not revlogv1) and f.startswith(b'data/'):
-                    storefiles.add(_normpath(f))
-        for f in undecodable:
-            self._err(None, _(b"cannot decode filename '%s'") % f)
+        if repo.store.fileindex is not None:
+            fileindex_files = set(repo.store.fileindex)
+        elif repo.store.fncache is not None:
+            fncache_files = set()
+            undecodable = []
+            for entry in repo.store.data_entries(undecodable=undecodable):
+                for file_ in entry.files(repo.svfs):
+                    size = file_.file_size(repo.svfs)
+                    f = file_.unencoded_path
+                    if (size > 0 or not revlogv1) and f.startswith(b'data/'):
+                        fncache_files.add(_normpath(f))
+            for f in undecodable:
+                self._err(None, _(b"cannot decode filename '%s'") % f)
 
         state = {
             # TODO this assumes revlog storage for changelog.
@@ -519,14 +527,25 @@ class verifier:
                 self._err(lr, _(b"broken revlog! (%s)") % e, f)
                 continue
 
-            for ff in fl.files():
-                try:
-                    storefiles.remove(ff)
-                except KeyError:
-                    if self.warnorphanstorefiles:
-                        msg = _(b" warning: revlog '%s' not in fncache!")
-                        self._warn(msg % ff)
-                        self.fncachewarned = True
+            if self.warnorphanstorefiles:
+                if repo.store.fileindex is not None:
+                    try:
+                        fileindex_files.remove(f)
+                    except KeyError:
+                        if repo.store.fncache is not None:
+                            msg = _(b" warning: revlog '%s' not in file index!")
+                            self._warn(msg % f)
+                elif repo.store.fncache is not None:
+                    for ff in fl.files():
+                        try:
+                            fncache_files.remove(ff)
+                        except KeyError:
+                            if repo.store.fncache is not None:
+                                msg = _(
+                                    b" warning: revlog '%s' not in fncache!"
+                                )
+                                self._warn(msg % ff)
+                                self.fncachewarned = True
 
             if not len(fl) and (self.havecl or self.havemf):
                 self._err(lr, _(b"empty or missing %s") % f)
@@ -548,8 +567,8 @@ class verifier:
                         self._err(linkrev_msg, problem.error, f)
                     else:
                         raise error.ProgrammingError(
-                            b'problem instance does not set warning or error '
-                            b'attribute: %s' % problem.msg
+                            'problem instance does not set warning or error '
+                            'attribute: %s' % repr(problem)
                         )
 
             seen = {}
@@ -602,8 +621,12 @@ class verifier:
         progress.complete()
 
         if self.warnorphanstorefiles:
-            for f in sorted(storefiles):
-                self._warn(_(b"warning: orphan data file '%s'") % f)
+            if repo.store.fileindex is not None:
+                for f in sorted(fileindex_files):
+                    self._warn(_(b"warning: orphan file index entry '%s'") % f)
+            elif repo.store.fncache is not None:
+                for f in sorted(fncache_files):
+                    self._warn(_(b"warning: orphan data file '%s'") % f)
 
         return len(files), revisions
 
@@ -618,8 +641,7 @@ class verifier:
         m2 = repo[parent2].manifest()
         dirstate_errors = 0
 
-        is_narrow = requirements.NARROW_REQUIREMENT in repo.requirements
-        narrow_matcher = repo.narrowmatch() if is_narrow else None
+        narrow_matcher = repo.narrowmatch() if repo.is_narrow else None
 
         for err in repo.dirstate.verify(m1, m2, parent1, narrow_matcher):
             ui.error(err)

@@ -27,6 +27,7 @@ use crate::revlog::node::NULL_NODE;
 use crate::revlog::node::STORED_NODE_ID_BYTES;
 use crate::revlog::Revision;
 use crate::revlog::NULL_REVISION;
+use crate::utils::u32_u;
 use crate::BaseRevision;
 use crate::FastHashMap;
 use crate::Graph;
@@ -303,17 +304,11 @@ impl Graph for Index {
     #[inline(always)]
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
         let err = || GraphError::ParentOutOfRange(rev);
-        match self.get_entry(rev) {
-            Some(entry) => {
-                // The C implementation checks that the parents are valid
-                // before returning
-                Ok([
-                    self.check_revision(entry.p1()).ok_or_else(err)?,
-                    self.check_revision(entry.p2()).ok_or_else(err)?,
-                ])
-            }
-            None => Ok([NULL_REVISION, NULL_REVISION]),
-        }
+        let entry = self.get_entry(rev);
+        Ok([
+            self.check_revision(entry.p1()).ok_or_else(err)?,
+            self.check_revision(entry.p2()).ok_or_else(err)?,
+        ])
     }
 }
 
@@ -462,11 +457,7 @@ impl Index {
             let candidate_node = if rev == Revision(-1) {
                 NULL_NODE
             } else {
-                let index_entry = self.get_entry(rev).ok_or_else(|| {
-                    HgError::corrupted(
-                        "revlog references a revision not in the index",
-                    )
-                })?;
+                let index_entry = self.get_entry(rev);
                 *index_entry.hash()
             };
             if node == candidate_node {
@@ -518,33 +509,26 @@ impl Index {
     /// The specified revision being of the checked type, it always exists
     /// if it was validated by this index.
     #[inline(always)]
-    pub fn get_entry(&self, rev: Revision) -> Option<IndexEntry> {
+    pub fn get_entry(&self, rev: Revision) -> IndexEntry {
         if rev == NULL_REVISION {
-            return None;
-        }
-        if rev.0 == 0 {
-            Some(IndexEntry { bytes: &self.bytes.first_entry[..] })
+            IndexEntry { bytes: NULL_ENTRY }
+        } else if rev.0 == 0 {
+            IndexEntry { bytes: &self.bytes.first_entry[..] }
+        } else if self.is_inline() {
+            self.get_entry_inline(rev)
         } else {
-            Some(if self.is_inline() {
-                self.get_entry_inline(rev)
-            } else {
-                self.get_entry_separated(rev)
-            })
+            self.get_entry_separated(rev)
         }
     }
 
     /// Return the binary content of the index entry for the given revision
-    ///
-    /// See [`Self::get_entry`] for cases when `None` is returned.
-    pub fn entry_binary(&self, rev: Revision) -> Option<&[u8]> {
-        self.get_entry(rev).map(|e| {
-            let bytes = e.as_bytes();
-            if rev.0 == 0 {
-                &bytes[4..]
-            } else {
-                bytes
-            }
-        })
+    pub fn entry_binary(&self, rev: Revision) -> &[u8] {
+        let bytes = self.get_entry(rev).as_bytes();
+        if rev.0 == 0 {
+            &bytes[4..]
+        } else {
+            bytes
+        }
     }
 
     pub fn entry_as_params(
@@ -552,7 +536,8 @@ impl Index {
         rev: UncheckedRevision,
     ) -> Option<RevisionDataParams> {
         let rev = self.check_revision(rev)?;
-        self.get_entry(rev).map(|e| RevisionDataParams {
+        let e = self.get_entry(rev);
+        Some(RevisionDataParams {
             flags: e.flags(),
             data_offset: if rev.0 == 0 && !self.bytes.is_new() {
                 e.flags() as u64
@@ -599,10 +584,6 @@ impl Index {
         let bytes = &self.bytes[start..end];
 
         IndexEntry { bytes }
-    }
-
-    fn null_entry(&self) -> IndexEntry {
-        IndexEntry { bytes: &[0; INDEX_ENTRY_SIZE] }
     }
 
     /// Return the head revisions of this index
@@ -750,13 +731,17 @@ impl Index {
         stop_rev: Option<Revision>,
     ) -> Result<(Vec<Revision>, bool), HgError> {
         let mut current_rev = rev;
-        let mut entry = self.get_entry(rev).unwrap();
+        let mut entry = self.get_entry(rev);
         let mut chain = vec![];
         let using_general_delta = self.uses_generaldelta();
         while current_rev.0 != entry.base_revision_or_base_of_delta_chain().0
             && stop_rev.map(|r| r != current_rev).unwrap_or(true)
         {
-            chain.push(current_rev);
+            if entry.compressed_len() > 0 {
+                // skip over empty delta, they don't contribute to the restored
+                // content.
+                chain.push(current_rev);
+            }
             let new_rev = if using_general_delta {
                 entry.base_revision_or_base_of_delta_chain()
             } else {
@@ -768,7 +753,7 @@ impl Index {
             if current_rev.0 == NULL_REVISION.0 {
                 break;
             }
-            entry = self.get_entry(current_rev).unwrap()
+            entry = self.get_entry(current_rev);
         }
 
         let stopped = if stop_rev.map(|r| current_rev == r).unwrap_or(false) {
@@ -803,7 +788,6 @@ impl Index {
             }
             let mut base = self
                 .get_entry(Revision(rev))
-                .unwrap()
                 .base_revision_or_base_of_delta_chain();
             if base.0 == rev {
                 base = NULL_REVISION.into();
@@ -885,11 +869,11 @@ impl Index {
         if rev == NULL_REVISION {
             Ok(true)
         } else if self.uses_delta_info() {
-            let entry = self.get_entry(rev).unwrap();
+            let entry = self.get_entry(rev);
             Ok((entry.flags() & REVISION_FLAG_DELTA_IS_SNAPSHOT) != 0)
         } else {
             while rev.0 >= 0 {
-                let entry = self.get_entry(rev).unwrap();
+                let entry = self.get_entry(rev);
                 let mut base = entry.base_revision_or_base_of_delta_chain().0;
                 if base == rev.0 {
                     base = NULL_REVISION.0;
@@ -900,7 +884,8 @@ impl Index {
                 let [mut p1, mut p2] = self
                     .parents(rev)
                     .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
-                while let Some(p1_entry) = self.get_entry(p1) {
+                while p1 != NULL_REVISION {
+                    let p1_entry = self.get_entry(p1);
                     if p1_entry.compressed_len() != 0 || p1.0 == 0 {
                         break;
                     }
@@ -913,7 +898,8 @@ impl Index {
                         RevlogError::InvalidRevision(parent_base.to_string())
                     })?;
                 }
-                while let Some(p2_entry) = self.get_entry(p2) {
+                while p2 != NULL_REVISION {
+                    let p2_entry = self.get_entry(p2);
                     if p2_entry.compressed_len() != 0 || p2.0 == 0 {
                         break;
                     }
@@ -956,32 +942,25 @@ impl Index {
     /// The initial chunk is sliced until the overall density
     /// (payload/chunks-span ratio) is above `target_density`.
     /// No gap smaller than `min_gap_size` is skipped.
-    pub fn slice_chunk_to_density(
-        &self,
-        revs: &[Revision],
+    pub fn slice_chunk_to_density<'a>(
+        &'a self,
+        revs: &'a [Revision],
         target_density: f64,
         min_gap_size: usize,
-    ) -> Vec<Vec<Revision>> {
+    ) -> Vec<&'a [Revision]> {
         if revs.is_empty() {
             return vec![];
         }
         if revs.len() == 1 {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
         let delta_chain_span = self.segment_span(revs);
         if delta_chain_span < min_gap_size {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
-        let entries: Vec<_> = revs
-            .iter()
-            .map(|r| {
-                (*r, self.get_entry(*r).unwrap_or_else(|| self.null_entry()))
-            })
-            .collect();
-
         let mut read_data = delta_chain_span;
         let chain_payload: u32 =
-            entries.iter().map(|(_r, e)| e.compressed_len()).sum();
+            revs.iter().map(|r| self.get_entry(*r).compressed_len()).sum();
         let mut density = if delta_chain_span > 0 {
             chain_payload as f64 / delta_chain_span as f64
         } else {
@@ -989,15 +968,16 @@ impl Index {
         };
 
         if density >= target_density {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
 
         // Store the gaps in a heap to have them sorted by decreasing size
         let mut gaps = Vec::new();
         let mut previous_end = None;
 
-        for (i, (rev, entry)) in entries.iter().enumerate() {
-            let start = self.start(*rev, entry);
+        for (i, rev) in revs.iter().enumerate() {
+            let entry = self.get_entry(*rev);
+            let start = self.start(*rev, &entry);
             let length = entry.compressed_len();
 
             // Skip empty revisions to form larger holes
@@ -1015,7 +995,7 @@ impl Index {
             previous_end = Some(start + length as usize);
         }
         if gaps.is_empty() {
-            return vec![revs.to_owned()];
+            return vec![revs];
         }
         // sort the gaps to pop them from largest to small
         gaps.sort_unstable();
@@ -1048,15 +1028,15 @@ impl Index {
         let mut previous_idx = 0;
         let mut chunks = vec![];
         for idx in selected {
-            let chunk = self.trim_chunk(&entries, previous_idx, idx);
+            let chunk = self.trim_chunk(revs, previous_idx, idx);
             if !chunk.is_empty() {
-                chunks.push(chunk.iter().map(|(rev, _entry)| *rev).collect());
+                chunks.push(chunk);
             }
             previous_idx = idx;
         }
-        let chunk = self.trim_chunk(&entries, previous_idx, entries.len());
+        let chunk = self.trim_chunk(revs, previous_idx, revs.len());
         if !chunk.is_empty() {
-            chunks.push(chunk.iter().map(|(rev, _entry)| *rev).collect());
+            chunks.push(chunk);
         }
 
         chunks
@@ -1076,27 +1056,29 @@ impl Index {
             return 0;
         }
         let last_rev = revs[revs.len() - 1];
-        let last_entry = &self.get_entry(last_rev).unwrap();
-        let end = last_entry.offset() + last_entry.compressed_len() as usize;
-        let first_rev = revs.iter().find(|r| r.0 != NULL_REVISION.0).unwrap();
-        let first_entry = self.get_entry(*first_rev).unwrap();
-        let start = first_entry.offset();
+        let last_entry = self.get_entry(last_rev);
+        let last_start = self.start(last_rev, &last_entry);
+        let end = last_start + u32_u(last_entry.compressed_len());
+
+        let first_rev = revs[0];
+        let first_entry = self.get_entry(first_rev);
+        let start = self.start(first_rev, &first_entry);
         end - start
     }
 
     /// Returns `&revs[startidx..endidx]` without empty trailing revs
     fn trim_chunk<'a>(
         &'a self,
-        revs: &'a [(Revision, IndexEntry)],
+        revs: &'a [Revision],
         start: usize,
         mut end: usize,
-    ) -> &'a [(Revision, IndexEntry<'a>)] {
+    ) -> &'a [Revision] {
         // Trim empty revs at the end, except the very first rev of a chain
         let last_rev = revs[end - 1].0;
-        if last_rev.0 < self.len() as BaseRevision {
+        if last_rev < self.len() as BaseRevision {
             while end > 1
                 && end > start
-                && revs[end - 1].1.compressed_len() == 0
+                && self.get_entry(revs[end - 1]).compressed_len() == 0
             {
                 end -= 1
             }
@@ -1458,21 +1440,13 @@ impl Index {
     pub fn start(&self, rev: Revision, entry: &IndexEntry<'_>) -> usize {
         #[cfg(debug_assertions)]
         {
-            assert_eq!(&self.get_entry(rev).unwrap(), entry);
+            assert_eq!(&self.get_entry(rev), entry);
         }
         let offset = entry.offset();
         if self.is_inline() {
             offset + ((rev.0 as usize + 1) * INDEX_ENTRY_SIZE)
         } else {
             offset
-        }
-    }
-
-    pub(crate) fn make_null_entry(&self) -> IndexEntry<'_> {
-        IndexEntry {
-            bytes: b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0 \
-            \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff \
-            \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
         }
     }
 }
@@ -1778,11 +1752,8 @@ impl super::RevlogIndex for Index {
         self.len()
     }
 
-    fn node(&self, rev: Revision) -> Option<&Node> {
-        if rev == NULL_REVISION {
-            return Some(&NULL_NODE);
-        }
-        self.get_entry(rev).map(|entry| entry.hash())
+    fn node(&self, rev: Revision) -> &Node {
+        self.get_entry(rev).hash()
     }
 }
 
@@ -1790,6 +1761,12 @@ impl super::RevlogIndex for Index {
 pub struct IndexEntry<'a> {
     bytes: &'a [u8],
 }
+
+static NULL_ENTRY: &[u8] = &[
+    0u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 impl<'a> IndexEntry<'a> {
     /// Return the offset of the data.

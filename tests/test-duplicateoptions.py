@@ -1,9 +1,13 @@
 import os
 from mercurial import (
-    commands,
+    cmd_impls,
     extensions,
+    initialization,
+    tables,
     ui as uimod,
 )
+
+initialization.init()
 
 ignore = {b'highlight', b'win32text', b'factotum', b'beautifygraph'}
 
@@ -26,11 +30,11 @@ extensions.populateui(u)
 
 globalshort = set()
 globallong = set()
-for option in commands.globalopts:
+for option in cmd_impls.global_opts:
     option[0] and globalshort.add(option[0])
     option[1] and globallong.add(option[1])
 
-for cmd, entry in commands.table.items():
+for cmd, entry in tables.command_table.items():
     seenshort = globalshort.copy()
     seenlong = globallong.copy()
     for option in entry[1]:

@@ -21,12 +21,17 @@ from .node import (
     nullrev,
     short,
 )
+from .interfaces.types import (
+    RepoT,
+)
 from .i18n import _
 from .revlogutils.constants import ENTRY_NODE_ID
 from . import (
     encoding,
     error,
+    manifest,
     match as matchmod,
+    mdiff,
     scmutil,
     util,
 )
@@ -101,14 +106,16 @@ def warm_cache(repo):
         entries = enumerate(repo.changelog.index)
         node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
 
-        for node, rev in node_revs:
-            fnode = fnodescache.getfnode(node=node, rev=rev)
-            if fnode != repo.nullid:
-                if fnode not in validated_fnodes:
-                    if flog.hasnode(fnode):
-                        validated_fnodes.add(fnode)
-                    else:
-                        unknown_entries.add(node)
+        rl = repo.manifestlog.getstorage(b'').get_revlog()
+        with rl.reading():
+            for node, rev in node_revs:
+                fnode = fnodescache.getfnode(node=node, rev=rev)
+                if fnode != repo.nullid:
+                    if fnode not in validated_fnodes:
+                        if flog.hasnode(fnode):
+                            validated_fnodes.add(fnode)
+                        else:
+                            unknown_entries.add(node)
 
         if unknown_entries:
             fnodescache.refresh_invalid_nodes(unknown_entries)
@@ -663,7 +670,15 @@ def tag(repo, names, node, message, local, user, date, editor=False):
 
 
 def _tag(
-    repo, names, node, message, local, user, date, extra=None, editor=False
+    repo: RepoT,
+    names,
+    node,
+    message,
+    local,
+    user,
+    date,
+    extra=None,
+    editor=False,
 ):
     if isinstance(names, bytes):
         names = (names,)
@@ -878,6 +893,8 @@ class hgtagsfnodescache:
         fnode = None
         cl = self._repo.changelog
         ml = self._repo.manifestlog
+        rl = ml.getstorage(b'').get_revlog()
+        has_fast_delta = rl.has_revdiff_extra
         mctx = ctx.manifestctx()
         base_values = {}
         p1rev, p2rev = cl._uncheckedparentrevs(rev)
@@ -904,10 +921,22 @@ class hgtagsfnodescache:
         #
         # However note that we only consider delta from p1 or p2 because it is
         # far less likely to have a .hgtags delete in a child than missing from
-        # one branch to another. As the delta chain construction keep being
-        # optimized, it means we will not use delta as often as we could.
-        if base_values:
+        # one branch to another.
+        #
+        # Without fast delta computation, it means any non-parent delta will
+        # trigger full read with garanteed result.
+        #
+        # With fast delta computation we force a correct reading whenever we
+        # encounter a full snapshot to help steering things toward a correct
+        # start from time to time.
+        #
+        # As the delta chain construction keep being optimized, it means we
+        # will not use delta as often as we could.
+        m_rev = rl.rev(mctx._node)
+        deltaparent = rl.deltaparent(m_rev)
+        if deltaparent != nullrev and deltaparent in base_values:
             base, m = mctx.read_any_fast_delta(base_values)
+            assert base is not None
             fnode = m.get(b'.hgtags')
             if fnode is None:
                 if base is not None:
@@ -915,6 +944,20 @@ class hgtagsfnodescache:
                 else:
                     # No delta and .hgtags file on this revision.
                     fnode = self._repo.nullid
+        elif base_values and has_fast_delta and deltaparent != nullrev:
+            parents = [
+                p
+                for p in rl.parentrevs(m_rev)
+                if p is not nullrev and p in base_values
+            ]
+            # XXX lazy assumption that the higher parent will be closer
+            # We should pick the parent with the longer common chain,
+            p = max(parents)
+            d = mdiff.patchtext(rl.revdiff(p, m_rev))
+            m = manifest.manifestdict(rl.nodeconstants.nodelen, d)
+            fnode = m.get(b'.hgtags')
+            if fnode is None:
+                fnode = base_values[p]
         else:
             # Populate missing entry.
             try:

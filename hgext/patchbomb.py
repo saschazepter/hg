@@ -89,7 +89,6 @@ from mercurial import (
     encoding,
     error,
     formatter,
-    hg,
     logcmdutil,
     mail,
     patch,
@@ -98,6 +97,9 @@ from mercurial import (
     scmutil,
     templater,
     util,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from mercurial.utils import (
     dateutil,
@@ -828,7 +830,7 @@ def email(ui, repo, *revs, **opts):
     if publicurl:
         repo.ui.debug(b'checking that revision exist in the public repo\n')
         try:
-            publicpeer = hg.peer(repo, {}, publicurl)
+            publicpeer = repo_factory.peer(repo, {}, publicurl)
         except error.RepoError:
             repo.ui.write_err(
                 _(b'unable to access public repo: %s\n') % publicurl

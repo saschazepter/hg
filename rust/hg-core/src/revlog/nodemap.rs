@@ -264,17 +264,15 @@ fn has_prefix_or_none(
     prefix: NodePrefix,
     rev: UncheckedRevision,
 ) -> Result<Option<Revision>, NodeMapError> {
+    if rev.is_nullrev() {
+        return Ok(None);
+    }
     match idx.check_revision(rev) {
-        Some(checked) => idx
-            .node(checked)
-            .ok_or(NodeMapError::RevisionNotInIndex(rev))
-            .map(|node| {
-                if prefix.is_prefix_of(node) {
-                    Some(checked)
-                } else {
-                    None
-                }
-            }),
+        Some(checked) => Ok(if prefix.is_prefix_of(idx.node(checked)) {
+            Some(checked)
+        } else {
+            None
+        }),
         None => Err(NodeMapError::RevisionNotInIndex(rev)),
     }
 }
@@ -321,8 +319,7 @@ pub(super) fn read_persistent_nodemap(
         let mut nodemap =
             NodeTree::load_bytes(Box::new(data), docket.data_length);
         if let Some(valid_tip_rev) = index.check_revision(docket.tip_rev) {
-            let valid_node =
-                index.node(valid_tip_rev) == Some(&docket.tip_node);
+            let valid_node = index.node(valid_tip_rev) == &docket.tip_node;
             if valid_node && (valid_tip_rev.0 as usize) < index.len() {
                 // The index moved forward but wasn't rewritten
                 nodemap
@@ -520,12 +517,15 @@ impl NodeTree {
             self.mutable_block(deepest.block_idx);
 
         if let Element::Rev(old_rev) = deepest.element {
-            let old_node = index
-                .check_revision(old_rev.into())
-                .and_then(|rev| index.node(rev))
-                .ok_or_else(|| {
-                    NodeMapError::RevisionNotInIndex(old_rev.into())
-                })?;
+            let o_rev = match index.check_revision(old_rev.into()) {
+                None => {
+                    return Err(NodeMapError::RevisionNotInIndex(
+                        old_rev.into(),
+                    ))
+                }
+                Some(rev) => rev,
+            };
+            let old_node = index.node(o_rev);
             if old_node == node {
                 return Ok(()); // avoid creating lots of useless blocks
             }
@@ -591,11 +591,7 @@ impl NodeTree {
         for r in (from.0)..index.len() as BaseRevision {
             let rev = Revision(r);
             // in this case node() won't ever return None
-            self.insert(
-                index,
-                index.node(rev).expect("node should exist"),
-                rev,
-            )?;
+            self.insert(index, index.node(rev), rev)?;
         }
         Ok(())
     }
@@ -818,8 +814,8 @@ pub mod tests {
     type TestIndex = HashMap<UncheckedRevision, Node>;
 
     impl RevlogIndex for TestIndex {
-        fn node(&self, rev: Revision) -> Option<&Node> {
-            self.get(&rev.into())
+        fn node(&self, rev: Revision) -> &Node {
+            self.get(&rev.into()).unwrap_or(&NULL_NODE)
         }
 
         fn len(&self) -> usize {
@@ -827,6 +823,10 @@ pub mod tests {
         }
 
         fn check_revision(&self, rev: UncheckedRevision) -> Option<Revision> {
+            if rev.is_nullrev() {
+                // return Some(NULL_REVISION)
+                return None;
+            }
             self.get(&rev).map(|_| Revision(rev.0))
         }
     }

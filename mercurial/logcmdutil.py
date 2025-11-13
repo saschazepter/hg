@@ -33,7 +33,6 @@ if typing.TYPE_CHECKING:
 
 from . import (
     dagop,
-    diffutil,
     error,
     formatter,
     graphmod,
@@ -46,14 +45,18 @@ from . import (
     revsetlang,
     scmutil,
     smartset,
-    templatekw,
+    tables,
     templater,
+    templateutil,
     util,
 )
 from .utils import (
     dag_util,
     dateutil,
     stringutil,
+)
+from .merge_utils import (
+    diff as diff_util,
 )
 
 
@@ -247,7 +250,7 @@ class changesetdiffer:
             ui,
             ctx.repo(),
             diffopts,
-            diffutil.diff_parent(ctx),
+            diff_util.diff_parent(ctx),
             ctx,
             match=self._makefilematcher(ctx),
             stat=stat,
@@ -260,7 +263,7 @@ class changesetdiffer:
             ui,
             ctx.repo(),
             diffopts,
-            diffutil.diff_parent(ctx),
+            diff_util.diff_parent(ctx),
             ctx,
             match=self._makefilematcher(ctx),
             stat=stat,
@@ -309,7 +312,7 @@ class changesetprinter:
         self.hunk = {}
         self.lastheader = None
         self.footer = None
-        self._columns = templatekw.getlogcolumns()
+        self._columns = templateutil.get_log_columns()
 
     def flush(self, ctx):
         rev = ctx.rev()
@@ -461,7 +464,7 @@ class changesetprinter:
         t = formatter.maketemplater(
             self.repo.ui,
             b'{join(obsfate, "\n")}',
-            defaults=templatekw.keywords,
+            defaults=tables.template_keyword_table,
             resources=tres,
         )
         obsfate = t.renderdefault({b'ctx': ctx}).splitlines()
@@ -592,9 +595,9 @@ class changesettemplater(changesetprinter):
         self.t = formatter.loadtemplater(
             ui,
             tmplspec,
-            defaults=templatekw.keywords,
+            defaults=tables.template_keyword_table,
             resources=tres,
-            cache=templatekw.defaulttempl,
+            cache=tables.default_templates,
         )
         self._counter = itertools.count()
 
@@ -1244,7 +1247,7 @@ def getlinerangerevs(repo, userrevs, opts):
 def _graphnodeformatter(ui, displayer):
     spec = ui.config(b'command-templates', b'graphnode')
     if not spec:
-        return templatekw.getgraphnode  # fast path for "{graphnode}"
+        return templateutil.get_graph_node  # fast path for "{graphnode}"
 
     spec = templater.unquotestring(spec)
     if isinstance(displayer, changesettemplater):
@@ -1253,7 +1256,10 @@ def _graphnodeformatter(ui, displayer):
     else:
         tres = formatter.templateresources(ui)
     templ = formatter.maketemplater(
-        ui, spec, defaults=templatekw.keywords, resources=tres
+        ui,
+        spec,
+        defaults=tables.template_keyword_table,
+        resources=tres,
     )
 
     def formatnode(repo, ctx, cache):

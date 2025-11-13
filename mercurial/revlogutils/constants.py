@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import enum
 import struct
 import typing
 
@@ -17,22 +18,30 @@ from typing import (
     TypedDict,
 )
 
-from ..interfaces import repository
+from ..interfaces import (
+    repository,
+    revlog as revlog_t,
+)
 from .. import revlogutils
 
 ### Internal utily constants
 
-KIND_CHANGELOG = 1001  # over 256 to not be comparable with a bytes
-KIND_MANIFESTLOG = 1002
-KIND_FILELOG = 1003
-KIND_OTHER = 1004
 
-ALL_KINDS = {
-    KIND_CHANGELOG,
-    KIND_MANIFESTLOG,
-    KIND_FILELOG,
-    KIND_OTHER,
-}
+class Kind(enum.IntEnum):
+    # we picked number over 256 to not be comparable with a bytes
+    CHANGELOG = 1001
+    MANIFESTLOG = 1002
+    FILELOG = 1003
+    OTHER = 1004
+
+
+# Keep previous name for compatibility
+KIND_CHANGELOG: Kind = Kind.CHANGELOG
+KIND_MANIFESTLOG: Kind = Kind.MANIFESTLOG
+KIND_FILELOG: Kind = Kind.FILELOG
+KIND_OTHER: Kind = Kind.OTHER
+ALL_KINDS: set[Kind] = set(Kind)
+RevlogKindT = Kind
 
 ### Index entry key
 #
@@ -242,6 +251,11 @@ REVIDX_HASMETA = repository.FILEREVISION_FLAG_HASMETA
 # revision is stored as a snapshot-delta
 REVIDX_DELTA_IS_SNAPSHOT = repository.REVISION_FLAG_DELTA_IS_SNAPSHOT
 
+REVIDX_DELTA_QUALITY = repository.REVISION_FLAG_DELTA_HAS_QUALITY
+REVIDX_DELTA_GOOD = repository.REVISION_FLAG_DELTA_IS_GOOD
+REVIDX_DELTA_P1_SMALL = repository.REVISION_FLAG_DELTA_P1_IS_SMALL
+REVIDX_DELTA_P2_SMALL = repository.REVISION_FLAG_DELTA_P2_IS_SMALL
+
 REVIDX_DEFAULT_FLAGS = 0
 # stable order in which flags need to be processed and their processors applied
 REVIDX_FLAGS_ORDER = [
@@ -251,7 +265,24 @@ REVIDX_FLAGS_ORDER = [
     REVIDX_HASCOPIESINFO,
     REVIDX_HASMETA,
     REVIDX_DELTA_IS_SNAPSHOT,
+    REVIDX_DELTA_QUALITY,
+    REVIDX_DELTA_GOOD,
+    REVIDX_DELTA_P1_SMALL,
+    REVIDX_DELTA_P2_SMALL,
 ]
+
+REVIDX_DELTA_INFO_FLAGS = (
+    REVIDX_DELTA_IS_SNAPSHOT
+    | REVIDX_DELTA_QUALITY
+    | REVIDX_DELTA_GOOD
+    | REVIDX_DELTA_P1_SMALL
+    | REVIDX_DELTA_P2_SMALL
+)
+
+# the flags that doesn't alter the revision content
+REVIDX_NEUTRAL_FLAGS = (
+    REVIDX_HASCOPIESINFO | REVIDX_HASMETA | REVIDX_DELTA_INFO_FLAGS
+)
 
 # bitmark for flags that could cause rawdata content change
 REVIDX_RAWTEXT_CHANGING_FLAGS = REVIDX_ISCENSORED | REVIDX_EXTSTORED
@@ -349,18 +380,20 @@ SPARSE_REVLOG_MAX_CHAIN_LENGTH = 1000
 
 ### What should be done with a cached delta and its base ?
 
+DELTA_REUSE_NO = revlog_t.DeltaBaseReusePolicy.NO_DELTA
+
 # Ignore the cache when considering candidates.
 #
 # The cached delta might be used, but the delta base will not be scheduled for
 # usage earlier than in "normal" order.
-DELTA_BASE_REUSE_NO = 0
+DELTA_BASE_REUSE_NO = revlog_t.DeltaBaseReusePolicy.NO
 
 # Prioritize trying the cached delta base
 #
 # The delta base will be tested for validy first. So that the cached deltas get
 # used when possible.
-DELTA_BASE_REUSE_TRY = 1
-DELTA_BASE_REUSE_FORCE = 2
+DELTA_BASE_REUSE_TRY = revlog_t.DeltaBaseReusePolicy.TRY
+DELTA_BASE_REUSE_FORCE = revlog_t.DeltaBaseReusePolicy.FORCE
 
 FILELOG_HASMETA_UPGRADE = 1
 FILELOG_HASMETA_DOWNGRADE = 2

@@ -90,8 +90,8 @@ Check cache pre-warm
   tags2
   tags2-visible
 
-Check that the `served.hidden` repoview
----------------------------------------
+Check that setting `web.view` works
+-----------------------------------
 
   $ hg -R repo-with-hidden serve -p $HGPORT -d --pid-file hg.pid --config web.view=served.hidden
   $ cat hg.pid >> $DAEMON_PIDS
@@ -112,6 +112,69 @@ changesets in secret and higher phases are not visible through hgweb
   revision:    1
   revision:    0
 
+  $ killdaemons.py
+
+Check that `server.view` works
+------------------------------
+
+changesets in secret and higher phases are not visible through `hg serve`
+
+  $ hg -R repo-with-hidden log --template "node:    {node}\\n" --rev "reverse(not secret())"
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+  $ hg -R repo-with-hidden log --template "node:    {node}\\n" --rev "reverse(not secret())" --hidden
+  node:    5d1575e42c25b7f2db75cd4e0b881b1c35158fae
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  node:    be215fbb8c5090028b00154c1fe877ad1b376c61
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+
+  $ hg -R repo-with-hidden serve -p $HGPORT -d --pid-file hg.pid --config server.view=served
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg init fetching-served
+  $ hg incoming -R fetching-served http://localhost:$HGPORT --template "node:    {node}\\n"
+  comparing with http://localhost:$HGPORT/
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  $ hg pull -R fetching-served http://localhost:$HGPORT
+  pulling from http://localhost:$HGPORT/
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 1 files
+  2 new obsolescence markers
+  new changesets 5f354f46e585:c33affeb3f6b (1 drafts)
+  (run 'hg update' to get a working copy)
+  $ hg log -R fetching-served --template "node:    {node}\\n" --hidden
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+  $ killdaemons.py
+
+  $ hg -R repo-with-hidden serve -p $HGPORT -d --pid-file hg.pid --config server.view=served.hidden
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg init fetching-served-hidden
+  $ hg incoming -R fetching-served-hidden http://localhost:$HGPORT --template "node:    {node}\\n"
+  comparing with http://localhost:$HGPORT/
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+  node:    be215fbb8c5090028b00154c1fe877ad1b376c61
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  node:    5d1575e42c25b7f2db75cd4e0b881b1c35158fae
+  $ hg pull -R fetching-served-hidden http://localhost:$HGPORT
+  pulling from http://localhost:$HGPORT/
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 4 changesets with 4 changes to 1 files (+2 heads)
+  2 new obsolescence markers
+  new changesets 5f354f46e585:c33affeb3f6b (1 drafts)
+  (2 other changesets obsolete on arrival)
+  (run 'hg heads' to see heads)
+  $ hg log -R fetching-served-hidden --template "node:    {node}\\n" --hidden
+  node:    5d1575e42c25b7f2db75cd4e0b881b1c35158fae
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  node:    be215fbb8c5090028b00154c1fe877ad1b376c61
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
   $ killdaemons.py
 
 Test --remote-hidden for local peer
@@ -215,6 +278,18 @@ Hidden changeset are still hidden despite being the hidden access request:
 
 Test --remote-hidden for http peer
 ----------------------------------
+
+  $ hg init empty-repo
+  $ hg incoming -R empty-repo http://localhost:$HGPORT --template "node:    {node}\\n"
+  comparing with http://localhost:$HGPORT/
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  $ hg incoming --remote-hidden -R empty-repo http://localhost:$HGPORT --template "node:    {node}\\n"
+  comparing with http://localhost:$HGPORT/
+  node:    5f354f46e5853535841ec7a128423e991ca4d59b
+  node:    be215fbb8c5090028b00154c1fe877ad1b376c61
+  node:    c33affeb3f6b4e9621d1839d6175ddc07708807c
+  node:    5d1575e42c25b7f2db75cd4e0b881b1c35158fae
 
   $ hg clone --pull http://localhost:$HGPORT client-http
   requesting all changes

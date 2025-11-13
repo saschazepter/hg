@@ -296,7 +296,8 @@ impl<'tree, 'on_disk> ChildNodesRef<'tree, 'on_disk> {
     /// Iterate in undefined order
     pub(super) fn iter(
         &self,
-    ) -> impl Iterator<Item = NodeRef<'tree, 'on_disk>> {
+    ) -> impl Iterator<Item = NodeRef<'tree, 'on_disk>> + use<'tree, 'on_disk>
+    {
         match self {
             ChildNodesRef::InMemory(nodes) => itertools::Either::Left(
                 nodes.iter().map(|(k, v)| NodeRef::InMemory(k, v)),
@@ -311,7 +312,7 @@ impl<'tree, 'on_disk> ChildNodesRef<'tree, 'on_disk> {
     pub(super) fn par_iter(
         &self,
     ) -> impl rayon::iter::ParallelIterator<Item = NodeRef<'tree, 'on_disk>>
-    {
+           + use<'tree, 'on_disk> {
         use rayon::prelude::*;
         match self {
             ChildNodesRef::InMemory(nodes) => rayon::iter::Either::Left(

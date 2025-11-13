@@ -310,9 +310,6 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
     def read(self):
         return gittreemanifest(self._repo, self._tree, None)
 
-    def readfast(self, shallow: bool = False):
-        return self.read()
-
     def copy(self):
         # NB: it's important that we return a memgittreemanifestctx
         # because the caller expects a mutable manifest.
@@ -322,9 +319,6 @@ class gittreemanifestctx(repository.imanifestrevisionstored):
         return self.read().find(path)
 
     def node(self) -> bytes:
-        raise NotImplementedError
-
-    def readdelta(self, shallow: bool = False):
         raise NotImplementedError
 
     def read_any_fast_delta(

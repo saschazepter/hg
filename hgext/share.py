@@ -78,6 +78,9 @@ from mercurial import (
     txnutil,
     util,
 )
+from mercurial.cmd_impls import (
+    clone as clone_impl,
+)
 
 cmdtable = {}
 command = registrar.command(cmdtable)
@@ -124,7 +127,7 @@ def share(
        the broken clone to reset it to a changeset that still exists.
     """
 
-    hg.share(
+    clone_impl.share(
         ui,
         source,
         dest=dest,
@@ -145,7 +148,7 @@ def unshare(ui, repo):
     if not repo.shared():
         raise error.Abort(_(b"this is not a shared repo"))
 
-    hg.unshare(ui, repo)
+    clone_impl.unshare(ui, repo)
 
 
 # Wrap clone command to pass auto share options.
@@ -179,7 +182,7 @@ def _hassharedbookmarks(repo):
         shared = repo.vfs.read(b'shared').splitlines()
     except FileNotFoundError:
         return False
-    return hg.sharedbookmarks in shared
+    return clone_impl.sharedbookmarks in shared
 
 
 def getbkfile(orig, repo):

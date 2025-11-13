@@ -32,10 +32,10 @@ algorithms
 
   $ hg debug-revlog-stats
   rev-count   data-size inl type      target 
-          2         138 no  changelog  (no-pure !)
-          2         137 no  changelog  (pure !)
-          2         177 no  manifest   (no-pure !)
-          2         168 no  manifest   (pure !)
+          2         138 no  changelog  (zstd !)
+          2         137 no  changelog  (no-zstd !)
+          2         177 no  manifest   (zstd !)
+          2         168 no  manifest   (no-zstd !)
           2           6 yes file      a
           1           0 yes file      b
           1           0 yes file      folder/c
@@ -45,15 +45,15 @@ Test 'changelog' command argument
 
   $ hg debug-revlog-stats -c
   rev-count   data-size inl type      target 
-          2         138 no  changelog  (no-pure !)
-          2         137 no  changelog  (pure !)
+          2         138 no  changelog  (zstd !)
+          2         137 no  changelog  (no-zstd !)
 
 Test 'manifest' command argument
 
   $ hg debug-revlog-stats -m
   rev-count   data-size inl type      target 
-          2         177 no  manifest   (no-pure !)
-          2         168 no  manifest   (pure !)
+          2         177 no  manifest   (zstd !)
+          2         168 no  manifest   (no-zstd !)
 
 Test 'file' command argument
 
@@ -68,8 +68,8 @@ Test multiple command arguments
 
   $ hg debug-revlog-stats -cm
   rev-count   data-size inl type      target 
-          2         138 no  changelog  (no-pure !)
-          2         137 no  changelog  (pure !)
-          2         177 no  manifest   (no-pure !)
-          2         168 no  manifest   (pure !)
+          2         138 no  changelog  (zstd !)
+          2         137 no  changelog  (no-zstd !)
+          2         177 no  manifest   (zstd !)
+          2         168 no  manifest   (no-zstd !)
 

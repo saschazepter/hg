@@ -48,7 +48,7 @@ pub fn update_from_null(
     to: BaseRevision,
     dirstate: &Bound<'_, DirstateMap>,
     num_cpus: Option<usize>,
-    on_warnings: PyObject,
+    on_warnings: Py<PyAny>,
     devel_abort_dirstate: bool,
     ignored_conflict: &Bound<'_, PyBytes>,
     unknown_conflict: &Bound<'_, PyBytes>,
@@ -110,9 +110,9 @@ pub fn update_from_null(
 #[pyo3(signature = (
     repo_path,
     dirstate,
-    wc_manifest_bytes,
+    wc_manifest,
     target_rev,
-    target_manifest_bytes,
+    target_manifest,
     num_cpus,
     remove_empty_dirs,
     devel_abort_dirstate,
@@ -125,15 +125,15 @@ pub fn update_from_null(
 pub fn update_from_clean(
     repo_path: &Bound<'_, PyBytes>,
     dirstate: &Bound<'_, DirstateMap>,
-    wc_manifest_bytes: Py<PyBytes>,
+    wc_manifest: &Bound<'_, PyAny>,
     target_rev: BaseRevision,
-    target_manifest_bytes: Py<PyBytes>,
+    target_manifest: &Bound<'_, PyAny>,
     num_cpus: Option<usize>,
     remove_empty_dirs: bool,
     devel_abort_dirstate: bool,
     orig_backup_path: Option<&[u8]>,
     atomic_file: bool,
-    on_warnings: PyObject,
+    on_warnings: Py<PyAny>,
     ignored_conflict: &Bound<'_, PyBytes>,
     unknown_conflict: &Bound<'_, PyBytes>,
 ) -> PyResult<(usize, usize, usize, usize, usize)> {
@@ -161,6 +161,12 @@ pub fn update_from_clean(
         unknown_conflict,
     };
     let warning_context = HgWarningContext::new();
+
+    let wc_manifest_bytes =
+        wc_manifest.call_method0("text")?.extract::<Py<PyBytes>>()?;
+
+    let target_manifest_bytes =
+        target_manifest.call_method0("text")?.extract::<Py<PyBytes>>()?;
 
     DirstateMap::with_inner_write(dirstate, |_inner, mut dirstate| {
         let res = with_sigint_wrapper(py, || {

@@ -6,8 +6,11 @@
 from __future__ import annotations
 
 import abc
+import typing
 
 from typing import (
+    Final,
+    Iterator,
     Protocol,
 )
 
@@ -23,13 +26,24 @@ from . import (
 )
 from .utils import compression
 
-# Names of the SSH protocol implementations.
-SSHV1 = b'ssh-v1'
+if typing.TYPE_CHECKING:
+    from .interfaces.compression import (
+        ICompressionEngine,
+    )
+    from .interfaces.types import (
+        NeedsTypeHint,
+        NodeIdT,
+        RepoT,
+        UiT,
+    )
 
-NARROWCAP = b'exp-narrow-1'
-ELLIPSESCAP1 = b'exp-ellipses-1'
-ELLIPSESCAP = b'exp-ellipses-2'
-SUPPORTED_ELLIPSESCAP = (ELLIPSESCAP1, ELLIPSESCAP)
+# Names of the SSH protocol implementations.
+SSHV1: Final[bytes] = b'ssh-v1'
+
+NARROWCAP: Final[bytes] = b'exp-narrow-1'
+ELLIPSESCAP1: Final[bytes] = b'exp-ellipses-1'
+ELLIPSESCAP: Final[bytes] = b'exp-ellipses-2'
+SUPPORTED_ELLIPSESCAP: Final[tuple[bytes, bytes]] = (ELLIPSESCAP1, ELLIPSESCAP)
 
 # All available wire protocol transports.
 TRANSPORTS = {
@@ -47,7 +61,9 @@ TRANSPORTS = {
 class bytesresponse:
     """A wire protocol response consisting of raw bytes."""
 
-    def __init__(self, data):
+    data: bytes
+
+    def __init__(self, data: bytes) -> None:
         self.data = data
 
 
@@ -58,7 +74,9 @@ class ooberror:
     `self.message`.
     """
 
-    def __init__(self, message):
+    message: bytes
+
+    def __init__(self, message: bytes) -> None:
         self.message = message
 
 
@@ -68,7 +86,10 @@ class pushres:
     The call was successful and returned an integer contained in `self.res`.
     """
 
-    def __init__(self, res, output):
+    output: bytes
+    res: int
+
+    def __init__(self, res: int, output: bytes) -> None:
         self.res = res
         self.output = output
 
@@ -79,7 +100,10 @@ class pusherr:
     The call failed. The `self.res` attribute contains the error message.
     """
 
-    def __init__(self, res, output):
+    output: bytes
+    res: bytes
+
+    def __init__(self, res: bytes, output: bytes) -> None:
         self.res = res
         self.output = output
 
@@ -96,7 +120,14 @@ class streamres:
     engine.
     """
 
-    def __init__(self, gen=None, prefer_uncompressed=False):
+    gen: Iterator[bytes] | None
+    prefer_uncompressed: bool
+
+    def __init__(
+        self,
+        gen: Iterator[bytes] | None = None,
+        prefer_uncompressed: bool = False,
+    ) -> None:
         self.gen = gen
         self.prefer_uncompressed = prefer_uncompressed
 
@@ -112,18 +143,20 @@ class streamreslegacy:
     using the application/mercurial-0.1 media type.
     """
 
-    def __init__(self, gen=None):
+    gen: Iterator[bytes] | None
+
+    def __init__(self, gen: Iterator[bytes] | None = None) -> None:
         self.gen = gen
 
 
 # list of nodes encoding / decoding
-def decodelist(l, sep=b' '):
+def decodelist(l: bytes, sep: bytes = b' ') -> list[NodeIdT]:
     if l:
         return [bin(v) for v in l.split(sep)]
     return []
 
 
-def encodelist(l, sep=b' '):
+def encodelist(l: list[bytes], sep: bytes = b' ') -> bytes:
     try:
         return sep.join(map(hex, l))
     except TypeError:
@@ -133,7 +166,7 @@ def encodelist(l, sep=b' '):
 # batched call argument encoding
 
 
-def escapebatcharg(plain):
+def escapebatcharg(plain: bytes) -> bytes:
     return (
         plain.replace(b':', b':c')
         .replace(b',', b':o')
@@ -142,7 +175,7 @@ def escapebatcharg(plain):
     )
 
 
-def unescapebatcharg(escaped):
+def unescapebatcharg(escaped: bytes) -> bytes:
     return (
         escaped.replace(b':e', b'=')
         .replace(b':s', b';')
@@ -162,7 +195,7 @@ def unescapebatcharg(escaped):
 # :csv:   list of values, transmitted as comma-separated values
 # :scsv:  set of values, transmitted as comma-separated values
 # :plain: string with no transformation needed.
-GETBUNDLE_ARGUMENTS = {
+GETBUNDLE_ARGUMENTS: dict[bytes, bytes] = {
     b'heads': b'nodes',
     b'bookmarks': b'boolean',
     b'common': b'nodes',
@@ -234,11 +267,11 @@ class baseprotocolhandler(Protocol):
         """
 
     @abc.abstractmethod
-    def client(self):
+    def client(self) -> bytes:
         """Returns a string representation of this client (as bytes)."""
 
     @abc.abstractmethod
-    def addcapabilities(self, repo, caps):
+    def addcapabilities(self, repo: RepoT, caps):
         """Adds advertised capabilities specific to this protocol.
 
         Receives the list of capabilities collected so far.
@@ -247,7 +280,7 @@ class baseprotocolhandler(Protocol):
         """
 
     @abc.abstractmethod
-    def checkperm(self, perm):
+    def checkperm(self, perm: bytes) -> None:
         """Validate that the client has permissions to perform a request.
 
         The argument is the permission required to proceed. If the client
@@ -262,12 +295,12 @@ class commandentry:
     def __init__(
         self,
         func,
-        args=b'',
+        args: bytes = b'',
         transports=None,
-        permission=b'push',
+        permission: bytes = b'push',
         cachekeyfn=None,
         extracapabilitiesfn=None,
-    ):
+    ) -> None:
         self.func = func
         self.args = args
         self.transports = transports or set()
@@ -304,14 +337,16 @@ class commandentry:
             raise IndexError(b'can only access elements 0 and 1')
 
 
-class commanddict(dict):
+class commanddict(dict[bytes, commandentry]):
     """Container for registered wire protocol commands.
 
     It behaves like a dict. But __setitem__ is overwritten to allow silent
     coercion of values from 2-tuples for API compatibility.
     """
 
-    def __setitem__(self, k, v):
+    def __setitem__(
+        self, k: bytes, v: commandentry | tuple[NeedsTypeHint, NeedsTypeHint]
+    ) -> None:
         if isinstance(v, commandentry):
             pass
         # Cast 2-tuples to commandentry instances.
@@ -341,7 +376,9 @@ class commanddict(dict):
 
         return super().__setitem__(k, v)
 
-    def commandavailable(self, command, proto):
+    def commandavailable(
+        self, command: bytes, proto: baseprotocolhandler
+    ) -> bool:
         """Determine if a command is available for the requested protocol."""
         assert proto.name in TRANSPORTS
 
@@ -356,7 +393,7 @@ class commanddict(dict):
         return True
 
 
-def supportedcompengines(ui, role):
+def supportedcompengines(ui: UiT, role: bytes) -> list[ICompressionEngine]:
     """Obtain the list of supported compression engines for a request."""
     assert role in (compression.CLIENTROLE, compression.SERVERROLE)
 

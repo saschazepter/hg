@@ -17,60 +17,16 @@
 
 from __future__ import annotations
 
-import os
-import random
 import struct
 
-from .. import (
-    encoding,
-    error,
-    node,
-    util,
-)
+from .. import error, util
+from ..utils import docket as docket_mod
 
 from . import (
     constants,
 )
 
-
-def make_uid(id_size=8):
-    """return a new unique identifier.
-
-    The identifier is random and composed of ascii characters."""
-    # size we "hex" the result we need half the number of bits to have a final
-    # uuid of size ID_SIZE
-    return node.hex(os.urandom(id_size // 2))
-
-
-# some special test logic to avoid anoying random output in the test
-stable_docket_file = encoding.environ.get(b'HGTEST_UUIDFILE')
-
-if stable_docket_file:
-
-    def make_uid(id_size=8):
-        try:
-            with open(stable_docket_file, mode='rb') as f:
-                seed = f.read().strip()
-        except FileNotFoundError:
-            seed = b'04'  # chosen by a fair dice roll. garanteed to be random
-        iter_seed = iter(seed)
-        # some basic circular sum hashing on 64 bits
-        int_seed = 0
-        low_mask = int('1' * 35, 2)
-        for i in iter_seed:
-            high_part = int_seed >> 35
-            low_part = (int_seed & low_mask) << 28
-            int_seed = high_part + low_part + i
-        r = random.Random()
-        r.seed(int_seed, version=1)
-        # once we drop python 3.8 support we can simply use r.randbytes
-        raw = r.getrandbits(id_size * 4)
-        assert id_size == 8
-        p = struct.pack('>L', raw)
-        new = node.hex(p)
-        with open(stable_docket_file, 'wb') as f:
-            f.write(new)
-        return new
+make_uid = docket_mod.make_uid
 
 
 # Docket format
@@ -356,8 +312,8 @@ def _parse_old_uids(get_data, count):
     return all_uids
 
 
-def parse_docket(revlog, data, use_pending=False):
-    """given some docket data return a docket object for the given revlog"""
+def parse_docket_args(data):
+    """given some docket data return the argument to initialize a docket"""
     header = S_HEADER.unpack(data[: S_HEADER.size])
 
     # this is a mutable closure capture used in `get_data`
@@ -409,23 +365,43 @@ def parse_docket(revlog, data, use_pending=False):
     pending_sidedata_size = next(iheader)
 
     default_compression_header = next(iheader)
+    return {
+        'version_header': version_header,
+        'index_uuid': index_uuid,
+        'older_index_uuids': older_index_uuids,
+        'data_uuid': data_uuid,
+        'older_data_uuids': older_data_uuids,
+        'sidedata_uuid': sidedata_uuid,
+        'older_sidedata_uuids': older_sidedata_uuids,
+        'index_end': index_size,
+        'pending_index_end': pending_index_size,
+        'data_end': data_size,
+        'pending_data_end': pending_data_size,
+        'sidedata_end': sidedata_size,
+        'pending_sidedata_end': pending_sidedata_size,
+        'default_compression_header': default_compression_header,
+    }
 
+
+def parse_docket(revlog, data, use_pending=False):
+    """given some docket data return a docket object for the given revlog"""
+    args = parse_docket_args(data)
     docket = RevlogDocket(
         revlog,
         use_pending=use_pending,
-        version_header=version_header,
-        index_uuid=index_uuid,
-        older_index_uuids=older_index_uuids,
-        data_uuid=data_uuid,
-        older_data_uuids=older_data_uuids,
-        sidedata_uuid=sidedata_uuid,
-        older_sidedata_uuids=older_sidedata_uuids,
-        index_end=index_size,
-        pending_index_end=pending_index_size,
-        data_end=data_size,
-        pending_data_end=pending_data_size,
-        sidedata_end=sidedata_size,
-        pending_sidedata_end=pending_sidedata_size,
-        default_compression_header=default_compression_header,
+        version_header=args['version_header'],
+        index_uuid=args['index_uuid'],
+        older_index_uuids=args['older_index_uuids'],
+        data_uuid=args['data_uuid'],
+        older_data_uuids=args['older_data_uuids'],
+        sidedata_uuid=args['sidedata_uuid'],
+        older_sidedata_uuids=args['older_sidedata_uuids'],
+        index_end=args['index_end'],
+        pending_index_end=args['pending_index_end'],
+        data_end=args['data_end'],
+        pending_data_end=args['pending_data_end'],
+        sidedata_end=args['sidedata_end'],
+        pending_sidedata_end=args['pending_sidedata_end'],
+        default_compression_header=args['default_compression_header'],
     )
     return docket

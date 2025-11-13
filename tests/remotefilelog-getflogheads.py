@@ -1,7 +1,9 @@
 from mercurial.i18n import _
 from mercurial import (
-    hg,
     registrar,
+)
+from mercurial.repo import (
+    factory,
 )
 from mercurial.utils import (
     urlutil,
@@ -20,7 +22,7 @@ def getflogheads(ui, repo, path):
     """
 
     dest = urlutil.get_unique_pull_path_obj(b'getflogheads', ui)
-    peer = hg.peer(repo, {}, dest)
+    peer = factory.peer(repo, {}, dest)
 
     try:
         flogheads = peer.x_rfl_getflogheads(path)

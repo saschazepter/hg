@@ -460,7 +460,7 @@ Setting up
   > """
   > 
   > from mercurial import error
-  > from mercurial import bundle2
+  > from mercurial import bundle2_part_handlers
   > from mercurial import exchange
   > from mercurial import extensions
   > from mercurial import registrar
@@ -484,7 +484,7 @@ Setting up
   >         # 20 Bytes of crap
   >         bundler.newpart(b'check:heads', data=b'01234567890123456789')
   > 
-  > @bundle2.parthandler(b"test:abort")
+  > @bundle2_part_handlers.parthandler(b"test:abort")
   > def handleabort(op, part):
   >     raise error.Abort(b'Abandon ship!', hint=b"don't panic")
   > 

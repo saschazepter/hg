@@ -11,6 +11,7 @@ With one argument of the form section.name, print just the value of that config 
 
 pub fn args() -> clap::Command {
     clap::command!("config")
+        .args_override_self(true)
         .arg(
             Arg::new("name")
                 .help("the section.name to print")

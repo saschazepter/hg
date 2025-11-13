@@ -105,7 +105,7 @@ def newrevlog(name=b'_testrevlog', recreate=False):
     if recreate:
         tvfs.tryunlink(name + b'.i')
     target = (constants.KIND_OTHER, b'test')
-    rlog = revlog.revlog(tvfs, target=target, radix=name)
+    rlog = revlog.revlog(tvfs, target=target, radix=name, may_inline=False)
     return rlog
 
 
@@ -381,8 +381,11 @@ def slicingtest(rlog):
             result = list(result)
             if result != expected:
                 print('slicing differ:')
-                print('  chain: %s' % chain)
-                print('  target: %s' % target)
+                print('  chain:    %s' % chain)
+                print('  size:     %s' % [rlog.length(r) for r in chain])
+                print('  parents:  %s' % [rlog.deltaparent(r) for r in chain])
+                print('  snapshot: %s' % [rlog.issnapshot(r) for r in chain])
+                print('  target:   %s' % target)
                 print('  expected: %s' % expected)
                 print('  result:   %s' % result)
     finally:

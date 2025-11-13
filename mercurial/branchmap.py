@@ -28,21 +28,25 @@ from . import (
     scmutil,
     util,
 )
-
+from .interfaces import (
+    repository as i_repo,
+)
 from .utils import (
     repoviewutil,
     stringutil,
 )
 
 if TYPE_CHECKING:
-    from . import localrepo
-
-    assert [localrepo]
+    from .interfaces.types import (
+        NodeIdT,
+        RepoT,
+        RevnumT,
+    )
 
 subsettable = repoviewutil.subsettable
 
 
-class BranchMapCache:
+class BranchMapCache(i_repo.IBranchMapCache):
     """mapping of filtered views of repo with their branchcache"""
 
     def __init__(self):
@@ -194,9 +198,12 @@ class _BaseBranchCache:
     branch heads of a repo.
     """
 
+    _care_about_mono_branch: bool = False
+    """if True, check for "mono_branch" case during update"""
+
     def __init__(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         entries: (
             dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
         ) = (),
@@ -212,68 +219,33 @@ class _BaseBranchCache:
             closed_nodes = set()
         self._closednodes = set(closed_nodes)
         self._entries = dict(entries)
+        self._open_entries: dict[bytes, list[NodeIdT]] = {}
+        self._tips: dict[bytes, tuple[NodeIdT, bool]] = {}
+        self._nullid = repo.nullid
 
     def __iter__(self):
         return iter(self._entries)
 
-    def __setitem__(self, key, value):
-        self._entries[key] = value
-
-    def __getitem__(self, key):
-        return self._entries[key]
-
     def __contains__(self, key):
         return key in self._entries
 
-    def iteritems(self):
-        return self._entries.items()
-
-    items = iteritems
-
-    def hasbranch(self, label):
-        """checks whether a branch of this name exists or not"""
-        return label in self._entries
-
-    def _branchtip(self, heads):
-        """Return tuple with last open head in heads and false,
-        otherwise return last closed head and true."""
-        tip = heads[-1]
-        closed = True
-        for h in reversed(heads):
-            if h not in self._closednodes:
-                tip = h
-                closed = False
-                break
-        return tip, closed
-
-    def branchtip(self, branch):
-        """Return the tipmost open head on branch head, otherwise return the
-        tipmost closed head on branch.
-        Raise KeyError for unknown branch."""
-        return self._branchtip(self[branch])[0]
-
-    def iteropen(self, nodes):
-        return (n for n in nodes if n not in self._closednodes)
-
     def branchheads(self, branch, closed=False):
-        heads = self._entries[branch]
+        heads = self._entries.get(branch, [])
         if not closed:
-            heads = list(self.iteropen(heads))
+            open_heads = self._open_entries.get(branch)
+            if open_heads is not None:
+                heads = open_heads
+            else:
+                heads = [n for n in heads if n not in self._closednodes]
+                self._open_entries[branch] = heads
         return heads
-
-    def iterbranches(self):
-        for bn, heads in self.items():
-            yield (bn, heads) + self._branchtip(heads)
-
-    def iterheads(self):
-        """returns all the heads"""
-        return self._entries.values()
 
     def update(self, repo, revgen):
         """Given a branchhead cache, self, that may have extra nodes or be
         missing heads, and a generator of nodes that are strictly a superset of
         heads missing, this function updates self to be correct.
         """
+        # clear various caches as we are updating the state
         starttime = util.timer()
         cl = repo.changelog
         # Faster than using ctx.obsolete()
@@ -283,18 +255,36 @@ class _BaseBranchCache:
         new_closed = set()
         obs_ignored = set()
         getbranchinfo = repo.revbranchcache().branchinfo
+        parentrevs = cl._uncheckedparentrevs
         max_rev = -1
+
+        # True if all revs has parent in the same branch as themselves.
+        # None if we don't care so we did not payed the overhead
+        # False if some revs as parents in another branch
+        mono_branch = None
+        if self._care_about_mono_branch:
+            mono_branch = True
         for r in revgen:
             max_rev = max(max_rev, r)
             if r in obsrevs:
                 # We ignore obsolete changesets as they shouldn't be
                 # considered heads.
                 obs_ignored.add(r)
+                # obsolete changeset does not overide their parent as branch,
+                # so we are no longer "mono_branch" case in spirit
+                mono_branch = False
                 continue
             branch, closesbranch = getbranchinfo(r)
             newbranches.setdefault(branch, []).append(r)
             if closesbranch:
                 new_closed.add(r)
+            # figure out if the update affect more than one branch.
+            if mono_branch:
+                p1, p2 = parentrevs(r)
+                if p1 != nullrev:
+                    mono_branch = branch == getbranchinfo(p1)[0]
+                if p2 != nullrev:
+                    mono_branch = branch == getbranchinfo(p2)[0]
         if max_rev < 0:
             msg = "running branchcache.update without revision to update"
             raise error.ProgrammingError(msg)
@@ -304,6 +294,7 @@ class _BaseBranchCache:
             newbranches,
             new_closed,
             obs_ignored,
+            mono_branch,
             max_rev,
         )
 
@@ -324,9 +315,12 @@ class _BaseBranchCache:
         newbranches,
         new_closed,
         obs_ignored,
+        mono_branch: bool | None,
         max_rev,
     ):
         """update the branchmap from a set of new information"""
+        self._open_entries.clear()
+        self._tips.clear()
         # Delay fetching the topological heads until they are needed.
         # A repository without non-continous branches can skip this part.
         topoheads = None
@@ -415,7 +409,8 @@ class _BaseBranchCache:
                         ancestors = set(cl.ancestors(uncertain, floorrev))
                         bheadset -= ancestors
             if bheadset:
-                self[branch] = [cl.node(rev) for rev in sorted(bheadset)]
+                node = cl.node
+                self._entries[branch] = [node(rev) for rev in sorted(bheadset)]
 
 
 STATE_CLEAN = 1
@@ -423,15 +418,19 @@ STATE_INHERITED = 2
 STATE_DIRTY = 3
 
 
-class _LocalBranchCache(_BaseBranchCache):
+class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     """base class of branch-map info for a local repo or repoview"""
 
     _base_filename = None
     _default_key_hashes: tuple[bytes] = cast(tuple[bytes], ())
 
+    # Used by the V3 format, but easier to handle at that level since V2 can
+    # just always take the "not in pure-topo-branch cases"
+    _pure_topo_branch: bytes | None = None
+
     def __init__(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         entries: (
             dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
         ) = (),
@@ -439,13 +438,13 @@ class _LocalBranchCache(_BaseBranchCache):
         tiprev: int | None = nullrev,
         key_hashes: tuple[bytes] | None = None,
         closednodes: set[bytes] | None = None,
-        hasnode: Callable[[bytes], bool] | None = None,
         verify_node: bool = False,
         inherited: bool = False,
     ) -> None:
-        """hasnode is a function which can be used to verify whether changelog
-        has a given node or not. If it's not provided, we assume that every node
-        we have exists in changelog"""
+        """If verify_node is set to True,
+
+        the branchmap will check if the node it see exist in the current changelog
+        """
         self._filtername = repo.filtername
         if tipnode is None:
             self.tipnode = repo.nullid
@@ -469,9 +468,18 @@ class _LocalBranchCache(_BaseBranchCache):
         self._verify_node = verify_node
         # branches for which nodes are verified
         self._verifiedbranches = set()
-        self._hasnode = None
-        if self._verify_node:
-            self._hasnode = repo.changelog.hasnode
+        self._node_to_rev: Callable[[NodeIdT], RevnumT] = repo.changelog.rev
+        # The rev we store come from two sources:
+        # - conversion from a node, so filtered rev will fail here
+        # - the topological heads provided from the repo that are not filtered
+        #
+        # We won't have "filtered node" and can use a faster node → rev method
+        #
+        # (note: having something directly on the index would be even faster)
+        unfi = repo.unfiltered()
+        self._rev_to_node: Callable[[RevnumT], NodeIdT] = unfi.changelog.node
+        self._head_revs: dict[bytes, list[RevnumT]] = {}
+        self._open_head_revs: dict[bytes, list[RevnumT]] = {}
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         raise NotImplementedError
@@ -585,6 +593,11 @@ class _LocalBranchCache(_BaseBranchCache):
         )
         # also copy information about the current verification state
         other._verifiedbranches = set(self._verifiedbranches)
+        # and various alternative mapping
+        other._open_entries = self._open_entries.copy()
+        other._head_revs = self._head_revs.copy()
+        other._open_head_revs = self._open_head_revs.copy()
+        other._tips = self._tips.copy()
         return other
 
     def sync_disk(self, repo):
@@ -652,17 +665,38 @@ class _LocalBranchCache(_BaseBranchCache):
                 fp.write(b"%s %s %s\n" % (hex(node), state, label))
         return nodecount
 
+    def _populate_pure_topo_nodes(self):
+        """Make sure the "pure-topo" branch have its nodes in self._entries"""
+        branch = self._pure_topo_branch
+        if (
+            branch is None
+            or branch in self._entries
+            or branch not in self._head_revs
+        ):
+            return
+        to_node = self._rev_to_node
+        heads = [to_node(r) for r in self._head_revs[branch]]
+        self._entries[branch] = heads
+        self._open_entries[branch] = heads
+
     def _verifybranch(self, branch):
         """verify head nodes for the given branch."""
         if not self._verify_node:
             return
         if branch not in self._entries or branch in self._verifiedbranches:
             return
-        assert self._hasnode is not None
-        for n in self._entries[branch]:
-            if not self._hasnode(n):
-                _unknownnode(n)
-
+        # How could we have updated this for non-verified branch?
+        assert branch not in self._head_revs
+        n = None
+        to_rev = self._node_to_rev
+        try:
+            # We can't simply use self._branch_revs because we want to know
+            # which `n` failed.
+            self._head_revs[branch] = [to_rev(n) for n in self._entries[branch]]
+        except LookupError:
+            if n is None:
+                raise
+            _unknownnode(n)
         self._verifiedbranches.add(branch)
 
     def _verifyall(self):
@@ -671,33 +705,194 @@ class _LocalBranchCache(_BaseBranchCache):
             if b not in self._verifiedbranches:
                 self._verifybranch(b)
 
-    def __getitem__(self, key):
-        self._verifybranch(key)
-        return super().__getitem__(key)
+    def _branchtip(self, branch):
+        """Return tuple with last open head in heads and false,
+        otherwise return last closed head and true."""
+        if self._pure_topo_branch == branch:
+            tip_rev = self._head_revs[self._pure_topo_branch][-1]
+            return (self._rev_to_node(tip_rev), False)
+        cached = self._tips.get(branch)
+        if cached is not None:
+            return cached
+        heads = self._entries[branch]
+        tip = heads[-1]
+        closed = True
+        for h in reversed(heads):
+            if h not in self._closednodes:
+                tip = h
+                closed = False
+                break
+        self._tips[branch] = (tip, closed)
+        return tip, closed
+
+    def branchtip(self, branch):
+        """Return the tipmost open head on branch head, otherwise return the
+        tipmost closed head on branch.
+        Raise KeyError for unknown branch."""
+        self._verifybranch(branch)
+        return self._branchtip(branch)[0]
+
+    def branch_tip_from(
+        self,
+        repo: RepoT,
+        branch: bytes,
+        start: RevnumT,
+        closed: bool = False,
+    ) -> RevnumT | None:
+        """the tipmost head rev reachable from a revision for a given branch
+
+        Return None if no head are reachable.
+        """
+        if branch not in self:
+            return None
+        heads = self.branchheads(branch, closed=closed)
+        return repo.revs(b'max(%d::(%ln))', start, heads).first()
+
+    def is_branch_head(
+        self,
+        branch: bytes,
+        node: NodeIdT,
+        closed: bool = False,
+    ) -> bool:
+        """True if the node is a head for that branch
+
+        Only consider open heads unless `closed` is set to True.
+        """
+        if branch not in self:
+            return False
+        return node in self.branchheads(branch, closed=closed)
+
+    def __iter__(self):
+        # The "pure-topo" branch migh bot have entry in self._entries, so we
+        # need to yield it manually.
+        #
+        # However, the branchmap might change during the iteration, so check
+        # that before starting iteration.
+        all_branches = list(self._entries.keys())
+        if self._pure_topo_branch is not None:
+            branch = self._pure_topo_branch
+            if branch not in self._entries and branch in self:
+                all_branches.append(branch)
+        yield from all_branches
 
     def __contains__(self, key):
+        branch = self._pure_topo_branch
+        if branch == key and branch in self._head_revs:
+            return True
         self._verifybranch(key)
         return super().__contains__(key)
 
-    def iteritems(self):
+    def head_count(self, branch: bytes, closed=False) -> int:
+        """number of heads on a branch
+
+        return 0 for unknown branch"""
+        if branch not in self:
+            return 0
+        if self._pure_topo_branch == branch:
+            return len(self._head_revs[self._pure_topo_branch])
+        return len(self.branchheads(branch, closed=closed))
+
+    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
         self._verifyall()
-        return super().iteritems()
+        if nodes == [self._nullid]:
+            # nullid is only a head if the repository is otherwise empty.
+            return not self._entries and self._pure_topo_branch is None
+        heads = self._all_head_nodes
+        return all(n in heads for n in nodes)
 
-    items = iteritems
+    @util.propertycache
+    def _all_head_nodes(self) -> set[NodeIdT]:
+        self._populate_pure_topo_nodes()
+        heads = set()
+        for hs in self._entries.values():
+            heads.update(hs)
+        return heads
 
-    def iterheads(self):
-        """returns all the heads"""
-        self._verifyall()
-        return super().iterheads()
+    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
+        """checks whether a branch of this name exists or not
 
-    def hasbranch(self, label):
-        """checks whether a branch of this name exists or not"""
+        If open_only is set, ignore closed branch
+        """
+        if self._pure_topo_branch == label:
+            return True
         self._verifybranch(label)
-        return super().hasbranch(label)
+        if open_only:
+            if label not in self._entries:
+                return False
+            return not self._branchtip(label)[1]
+        else:
+            return label in self._entries
 
     def branchheads(self, branch, closed=False):
+        if self._pure_topo_branch == branch:
+            self._populate_pure_topo_nodes()
         self._verifybranch(branch)
         return super().branchheads(branch, closed=closed)
+
+    def branch_head_revs(
+        self,
+        branch: bytes,
+        closed: bool = False,
+    ) -> list[RevnumT]:
+        """return all heads for one branch (as a list of rev)
+
+        Only consider open heads unless `closed` is set to True.
+        Return an empty list for unknown branch.
+        """
+        self._verifybranch(branch)
+        if closed:
+            return self._branch_revs(branch)
+        revs = self._open_head_revs.get(branch)
+        if revs is None:
+            to_node = self._rev_to_node
+            all_revs = self._branch_revs(branch)
+            # the rev → node conversion is cheaper than the node → rev one, so
+            # it make sense to iterate from the converted revs
+            revs = [r for r in all_revs if to_node(r) not in self._closednodes]
+            self._open_head_revs[branch] = revs
+        return revs
+
+    def _branch_revs(self, branch: bytes) -> list[RevnumT]:
+        """get a revision list for a branch"""
+        revs = self._head_revs.get(branch)
+        if revs is None:
+            assert self._pure_topo_branch != branch
+            to_rev = self._node_to_rev
+            # NOTE: now might also be a good time to fill _open_head_revs
+            revs = [to_rev(n) for n in self._entries[branch]]
+            self._head_revs[branch] = revs
+        return revs
+
+    def branches_info(
+        self,
+        repo: RepoT,
+        branches: set[bytes] | None = None,
+    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
+        """return a list of (name, tip-rev, active, closed)
+
+        If `branches` filter to these branches only.
+        """
+        self._verifyall()
+        info = []
+        cl = repo.changelog
+        all_heads = set(repo.heads())
+        self._populate_pure_topo_nodes()
+        for name, heads in self._entries.items():
+            if branches is not None and name not in branches:
+                continue
+            tip = heads[-1]
+            is_open = False
+            is_active = False
+            for h in reversed(heads):
+                if h not in self._closednodes:
+                    if not is_open:
+                        tip = h
+                        is_open = True
+                    if h in all_heads:
+                        is_active = True
+                        break
+            info.append((name, cl.rev(tip), is_active, is_open))
+        return info
 
     def update(self, repo, revgen):
         assert self._filtername == repo.filtername, (
@@ -705,8 +900,8 @@ class _LocalBranchCache(_BaseBranchCache):
             repo.filtername,
         )
         cl = repo.changelog
-        if self._hasnode is not None:
-            self._hasnode = cl.hasnode
+        self._node_to_rev = repo.changelog.rev
+        self._rev_to_node = repo.unfiltered().changelog.node
         max_rev = super().update(repo, revgen)
         # new tip revision which we found after iterating items from new
         # branches
@@ -738,6 +933,29 @@ class _LocalBranchCache(_BaseBranchCache):
             #
             # (The cache warming setup by localrepo will update the file later.)
             self.write(repo)
+
+    def _process_new(
+        self,
+        repo,
+        newbranches,
+        new_closed,
+        obs_ignored,
+        mono_branch: bool | None,
+        max_rev,
+    ) -> None:
+        # clear v3- specific data
+        self._head_revs.clear()
+        self._open_head_revs.clear()
+        if '_all_head_nodes' in vars(self):
+            del self._all_head_nodes
+        return super()._process_new(
+            repo,
+            newbranches,
+            new_closed,
+            obs_ignored,
+            mono_branch,
+            max_rev,
+        )
 
 
 def branch_cache_from_file(repo) -> _LocalBranchCache | None:
@@ -842,6 +1060,8 @@ class BranchCacheV3(_LocalBranchCache):
                      ignored by this cache.
     - obsolete-hash: the hash of all non-filtered obsolete revisions (before
                      tip-rev) ignored by this cache.
+    - topo-mode: signal special case regarding the topological heads.
+                 See details below:
 
     The tip-rev is used to know how far behind the value in the file are
     compared to the current repository state.
@@ -853,24 +1073,85 @@ class BranchCacheV3(_LocalBranchCache):
     This field can be used to avoid changelog reads when determining if a
     branch head closes a branch or not.
 
-    Topological heads are not included in the listing and should be dispatched
-    on the right branch at read time. Obsolete topological heads should be
-    ignored.
+    Topological heads for the current repoview are not included in the listing
+    and should be dispatched on the right branch at read time. Obsolete
+    topological heads should be ignored.
+
+    This logic can be specialized depending of the "topo-mode" value:
+
+    In "pure" mode, all topological heads are: on the same unique branch,
+    non-obsolete, open. This allow for skipping checking the branch information
+    of the topological heads when populating the branchmap. It allow to
+    significantly speedup operation for repository that never used named
+    branch, or stopped using them long ago.
+
+    In "mixed" mode, some topological heads might be obsolete or closed, but
+    there exists some branches were all heads are topological.
+
+    It also allow to speedup the update process in some case. See
+    `BranchCacheV3._process_new` for details.
     """
 
-    _base_filename = b"branch3-exp"
+    _base_filename = b"branch3"
     _default_key_hashes = (None, None)
 
-    def __init__(self, *args, pure_topo_branch=None, **kwargs):
+    _pure_topo_branch: bytes | None
+    """when set the branch is in "pure-topo" mode for that branch
+
+    Having this set implies specific property for all topological heads:
+    - non-obsolete,
+    - open,
+    - on the branch stored in `self._pure_topo_branch`.
+    """
+
+    _topo_only_branches: set[bytes]
+    """The set of branch that are known to only have topological heads
+
+    Having this set does not implies any property for the topological branch
+    themself.  It implies property for each branch in that set.
+
+    If a branch is in that set, it is guaranteed for all heads (closed or not)
+    in that branch to be a topological heads.
+    """
+
+    def __init__(
+        self,
+        *args,
+        pure_topo_branch: bytes | None = None,
+        topo_only: set[bytes] | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._pure_topo_branch = pure_topo_branch
-        self._needs_populate = self._pure_topo_branch is not None
+        if topo_only is not None:
+            self._topo_only_branches: set[bytes] = topo_only
+        else:
+            self._topo_only_branches = set()
+        if self._pure_topo_branch is not None:
+            assert topo_only is None
+            self._topo_only_branches.add(self._pure_topo_branch)
+        self._needs_populate = False
+        self._needs_populate_topo_only = False
+
+    @property
+    def _care_about_mono_branch(self) -> bool:
+        return self._pure_topo_branch is None
 
     def inherit_for(self, repo):
         new = super().inherit_for(repo)
         new._pure_topo_branch = self._pure_topo_branch
+        new._topo_only_branches = self._topo_only_branches.copy()
         new._needs_populate = self._needs_populate
+        new._needs_populate_topo_only = self._needs_populate_topo_only
         return new
+
+    def _verifyall(self):
+        assert not self._needs_populate
+        super()._verifyall()
+
+    def _verifybranch(self, branch: bytes) -> None:
+        assert not self._needs_populate
+        super()._verifybranch(branch)
 
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
@@ -895,11 +1176,19 @@ class BranchCacheV3(_LocalBranchCache):
                 cache_keys[b"obsolete-hash"] = hex(self.key_hashes[1])
         if self._pure_topo_branch is not None:
             cache_keys[b"topo-mode"] = b"pure"
+        elif self._topo_only_branches:
+            cache_keys[b"topo-mode"] = b"mixed"
         pieces = (b"%s=%s" % i for i in sorted(cache_keys.items()))
         fp.write(b" ".join(pieces) + b'\n')
         if self._pure_topo_branch is not None:
             label = encoding.fromlocal(self._pure_topo_branch)
             fp.write(label + b'\n')
+        elif self._topo_only_branches:
+            for branch in sorted(self._topo_only_branches):
+                label = encoding.fromlocal(branch)
+                fp.write(label + b'\n')
+            # write an empty line to signal the end of topo-only branch
+            fp.write(b'\n')
 
     def _write_heads(self, repo, fp) -> int:
         """write list of heads to a file
@@ -908,13 +1197,20 @@ class BranchCacheV3(_LocalBranchCache):
         to_node = repo.changelog.node
         nodecount = 0
         topo_heads = None
-        if self._pure_topo_branch is None:
+        if (
+            # In "pure" mode, we know where all the topo heads are already
+            self._pure_topo_branch is None
+            # If we are not populated yet, so there is not topo-head in the
+            # `_entries` yet.
+            and not self._needs_populate
+        ):
             # we match using node because it is faster to built the set of node
             # than to resolve node → rev later.
             topo_heads = {to_node(r) for r in self._get_topo_heads(repo)}
         for label, nodes in sorted(self._entries.items()):
-            if label == self._pure_topo_branch:
-                # not need to write anything the header took care of that
+            if label in self._topo_only_branches:
+                # not need to attemps any writing, they all heads of this branch
+                # are topological.
                 continue
             label = encoding.fromlocal(label)
             for node in nodes:
@@ -942,7 +1238,7 @@ class BranchCacheV3(_LocalBranchCache):
         args = {}
         filtered_hash = None
         obsolete_hash = None
-        has_pure_topo_heads = False
+        topo_mode = None
         for k, v in cache_keys.items():
             if k == b"tip-rev":
                 args["tiprev"] = int(v)
@@ -954,7 +1250,9 @@ class BranchCacheV3(_LocalBranchCache):
                 obsolete_hash = bin(v)
             elif k == b"topo-mode":
                 if v == b"pure":
-                    has_pure_topo_heads = True
+                    topo_mode = "pure"
+                elif v == b"mixed":
+                    topo_mode = "mixed"
                 else:
                     msg = b"unknown topo-mode: %r" % v
                     raise ValueError(msg)
@@ -962,35 +1260,23 @@ class BranchCacheV3(_LocalBranchCache):
                 msg = b"unknown cache key: %r" % k
                 raise ValueError(msg)
         args["key_hashes"] = (filtered_hash, obsolete_hash)
-        if has_pure_topo_heads:
+        if topo_mode == "pure":
             pure_line = next(lineiter).rstrip(b'\n')
             args["pure_topo_branch"] = encoding.tolocal(pure_line)
+        elif topo_mode == "mixed":
+            topo_only = set()
+            while line := next(lineiter).rstrip(b'\n'):
+                branch = encoding.tolocal(line)
+                topo_only.add(branch)
+            if topo_only:
+                args["topo_only"] = topo_only
         return args
 
     def _load_heads(self, repo, lineiter):
         """fully loads the branchcache by reading from the file using the line
         iterator passed"""
         super()._load_heads(repo, lineiter)
-        if self._pure_topo_branch is not None:
-            # no need to read the repository heads, we know their value already.
-            return
-        cl = repo.changelog
-        getbranchinfo = repo.revbranchcache().branchinfo
-        obsrevs = obsolete.getrevs(repo, b'obsolete')
-        to_node = cl.node
-        touched_branch = set()
-        for head in self._get_topo_heads(repo):
-            if head in obsrevs:
-                continue
-            node = to_node(head)
-            branch, closed = getbranchinfo(head)
-            self._entries.setdefault(branch, []).append(node)
-            if closed:
-                self._closednodes.add(node)
-            touched_branch.add(branch)
-        to_rev = cl.index.rev
-        for branch in touched_branch:
-            self._entries[branch].sort(key=to_rev)
+        self._needs_populate = True
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         """return the cache key hashes that match this repoview state"""
@@ -1005,69 +1291,276 @@ class BranchCacheV3(_LocalBranchCache):
         newbranches,
         new_closed,
         obs_ignored,
+        mono_branch: bool | None,
         max_rev,
     ) -> None:
-        if (
-            # note: the check about `obs_ignored` is too strict as the
-            # obsolete revision could be non-topological, but lets keep
-            # things simple for now
+        """update the branchmap from a set of new information
+
+        The BranchCacheV3 overlay over _LocalBranchCache is meant to detect
+        "fast path" situation, where the affected revision will not affect
+        any branch heads actually recorded on disk.
+
+        When we successfully detect such case, is allow to keep the
+        BranchCache "shallow loaded", allowing for a quick update of the
+        on-disk branchmap without computing and populating the repository
+        topological heads, speeding up processing.
+
+        The fast path work in two different "topo-mode"
+
+        In the "pure" mode:
+
+            Since all heads of the "pure" branch were topological branches, we
+            know they don't have any children outside of that branch (actually
+            not any children at all).
+
+            So if all the new revision are on the "pure-topo" branch, we know
+            they can only replace topological branches when new topological
+            branches and the branch remained in the same "pure-topo" state.
+
+            We can't blindly use this fast-path is any of the new revisions
+            where obsolete, as they can make their parents branch heads that
+            are non-topological.
+
+            In the same way, if we encounter "closing" head in the new
+            revisions, they might break the "non-closing" definition of the
+            "pure-topo" mode, so we can't blindly use the fast path.
+
+
+        In the "mixed" mode:
+
+            Since some branch have topological heads only, we again known that
+            they don't have any children outside of that branch (actually not
+            any children at all).
+
+            If an incoming revision have the same branch are all its parents.
+            Then it ca only replace a topological head on that branch. (as the
+            parent would shadow a non topological heads).
+
+            So if all incoming revisions have this property and all touched
+            branch only had topological branch, they still only have
+            topological branch and we can fast path the update.
+
+            Again, We can't blindly use this fast-path is any of the new
+            revisions where obsolete, as they can make their parents branch
+            heads that are non-topological.
+
+            However, we don't care about "closing" head in the new revisions as
+            this is not a property tracked by the "mixed" mode.
+
+        Note: we currently blindly use the fast path or we don't use it at
+        all. We could have more advance to detect of the "non obsolete" and
+        "non closing" rev actually had an impact but this is not
+        currently the case.
+
+        Note that if the branchmap wasn't in a noticeable topo-mode, this
+        update might detect such situation while populating the branchmap
+        before update and detect such fast-path anyway.
+
+        However, no work is currently do to detect that the branchmap is in a
+        "topo-mode" -after- the update. We only detect that the "topo-mode" is
+        garanteed to be preserved. The detection of the "topo-mode" will
+        happens later, the next time that branchmap is loaded.
+        """
+        # True if the current branchmap is empty, without any heads
+        empty = self.tiprev == nullrev  # view is empty, no head exists
+
+        # If the update only affect a single branch this variable will hold it.
+        # Set to None otherwise.
+        unique_branch = None
+        if len(newbranches) == 1:
+            unique_branch = list(newbranches)[0]
+        touched = set(newbranches)
+
+        # note: the check about `obs_ignored` is too strict as the
+        # obsolete revision could be non-topological, but lets keep
+        # things simple for now
+        if not obs_ignored:
+            if empty:
+                # If the branchmap was empty, we have many opportunity to
+                # detect a special topo-mode
+                if (not new_closed) and unique_branch is not None:
+                    # If we have a single branch touched (and nothing closed),
+                    # we are in a pure-topo mode.
+                    #
+                    # note: the check about `new_closed` is too strict when the
+                    # closed changeset are not a head, we don't care that it is
+                    # closed, but lets keep things simple here too.
+                    assert self._pure_topo_branch is None
+                    assert not self._topo_only_branches
+                    self._pure_topo_branch = unique_branch
+                    self._topo_only_branches = touched
+                elif mono_branch:
+                    # If all revisions never shadow a head from another branch,
+                    # we are in a "mixed" mode.
+                    self._topo_only_branches = touched
+            elif not self._topo_only_branches:
+                # The populate might detect some topo_only branch
+                #
+                # In such case, we check it that the detected state mode
+                # remains in place now because the fallback logical would
+                # wipe that detection out before calling
+                # super()._process_new()
+                self._ensure_populated(repo)
+
+            # In the "pure-topo" case, we don't care about having the
+            # update "mono-branch" or not as we know all other branches are
+            # explicitly known. However, in the "lesser" fast path, we need
+            # to make sure we did not created a non-topological head in
+            # another branch when updating.
             #
-            # The same apply to `new_closed` if the closed changeset are
-            # not a head, we don't care that it is closed, but lets keep
-            # things simple here too.
-            not (obs_ignored or new_closed)
-            and (
-                not newbranches
-                or (
-                    len(newbranches) == 1
-                    and (
-                        self.tiprev == nullrev
-                        or self._pure_topo_branch in newbranches
-                    )
-                )
-            )
-        ):
-            if newbranches:
-                assert len(newbranches) == 1
-                self._pure_topo_branch = list(newbranches.keys())[0]
-                self._needs_populate = True
-                self._entries.pop(self._pure_topo_branch, None)
-            return
+            # In the mixed case, we can have multiple branch updated and
+            # still fast path as long are they are all "topo-only" and the
+            # update is mono-branch.
+            #
+            # We care about `new_closed` only in the pure-topo base
+            #
+            # note: the check about `new_closed` is too strict when the
+            # closed changeset are not a head, we don't care that it is
+            # closed, but lets keep things simple here too.
+            if self._pure_topo_branch is not None:
+                may_fast_path = (not new_closed) and (unique_branch is not None)
+            else:
+                may_fast_path = mono_branch
+            if may_fast_path and touched.issubset(self._topo_only_branches):
+                self._needs_populate_topo_only = True
+                for branch in self._topo_only_branches:
+                    self._entries.pop(branch, None)
+                    self._open_entries.pop(branch, None)
+                    self._head_revs.pop(branch, None)
+                    self._open_head_revs.pop(branch, None)
+                    self._tips.pop(branch, None)
+                return
 
         self._ensure_populated(repo)
+        self._populate_pure_topo_nodes()
         self._pure_topo_branch = None
+        self._topo_only_branches = set()
         super()._process_new(
             repo,
             newbranches,
             new_closed,
             obs_ignored,
+            mono_branch,
             max_rev,
         )
 
     def _ensure_populated(self, repo):
         """make sure any lazily loaded values are fully populated"""
-        if self._needs_populate:
-            assert self._pure_topo_branch is not None
-            cl = repo.changelog
-            to_node = cl.node
+        if not (self._needs_populate or self._needs_populate_topo_only):
+            return
+        topo_heads = self._get_topo_heads(repo)
+        if self._pure_topo_branch is not None:
+            # There are various question we could answer without the full list
+            # of heads, so we could delay that computation until requested,
+            # however There are other simpler optimization to do first.
+            #
+            # Feel free to take that step.
             topo_heads = self._get_topo_heads(repo)
-            heads = [to_node(r) for r in topo_heads]
-            self._entries[self._pure_topo_branch] = heads
-            self._needs_populate = False
+            branch = self._pure_topo_branch
+            # if we need to populate, there should be nothing already in place.
+            assert branch not in self._entries
+            assert branch not in self._open_entries
+            assert branch not in self._head_revs
+            assert branch not in self._open_head_revs
+            assert branch not in self._tips
+            self._head_revs[branch] = topo_heads
+            self._open_head_revs[branch] = topo_heads
+            self._verifiedbranches.add(branch)
+        else:
+            first_pop = not self._needs_populate_topo_only
+            cl = repo.changelog
+            getbranchinfo = repo.revbranchcache().branchinfo
+            obsrevs = obsolete.getrevs(repo, b'obsolete')
+            to_node = cl.node
+            touched_branch = set()
+            topo_only = set()
+            closed_size = len(self._closednodes)
+            any_obs = False
+            for head in topo_heads:
+                if head in obsrevs:
+                    any_obs = True
+                    continue
+                node = to_node(head)
+                branch, closed = getbranchinfo(head)
+                if closed:
+                    self._closednodes.add(node)
+                pre_add_len = len(touched_branch)
+                touched_branch.add(branch)
+                if not first_pop and branch not in self._topo_only_branches:
+                    continue
+                if pre_add_len != len(touched_branch):
+                    # first sight of this branch
+                    if branch not in self._entries:
+                        self._entries[branch] = []
+                        topo_only.add(branch)
+                    else:
+                        # the list might come from an inherited value, so we
+                        # need to copy the list first.
+                        self._entries[branch] = self._entries[branch].copy()
+                        # we only need to sort if they were pre-existing value
+                self._entries[branch].append(node)
+            # If we did not encountered any obsolete or topological heads
+            # closed head and saw only one branch, we are in a pure topo case.
+            #
+            # What about non-topo head you might ask ? Well if all the
+            # topological heads an open, non-obsolete, heads of that branch, no
+            # other revisions might be a topological heads.
+            if (
+                (not any_obs)
+                and len(self._closednodes) == closed_size
+                and len(touched_branch) == 1
+                and len(topo_only) == 1
+            ):
+                assert len(self._entries[branch]) == len(topo_heads)
+                self._pure_topo_branch = branch
+                self._head_revs[branch] = topo_heads
+                self._open_head_revs[branch] = topo_heads
+                self._tips[branch] = (self._entries[branch][-1], False)
+                self._verifiedbranches.add(branch)
+            if self._topo_only_branches != topo_only:
+                self._topo_only_branches = topo_only
+                if self._state == STATE_CLEAN:
+                    self._state = STATE_DIRTY
+            to_rev = cl.index.rev
+            # we only need to sort if they were pre-existing value
+            for branch in touched_branch - topo_only:
+                # XXX getting a rev from a node is expensive so this sorting is
+                # not ideal.
+                self._entries[branch].sort(key=to_rev)
+        self._needs_populate = False
+        self._needs_populate_topo_only = False
 
     def _detect_pure_topo(self, repo) -> None:
-        if self._pure_topo_branch is not None:
-            # we are pure topological already
+        if self._topo_only_branches:
+            # if this set is non-empty, the data we have comes from disk and
+            # the pure-topo case was detected as load time.
+            #
+            # There is nothing we can do.
             return
+        self._ensure_populated(repo)
+        if self._topo_only_branches:
+            # the _ensure_populated ran a detection again, so we can trust that
+            # instead.
+            return
+        assert not self._needs_populate
         to_node = repo.changelog.node
-        topo_heads = [to_node(r) for r in self._get_topo_heads(repo)]
-        if any(n in self._closednodes for n in topo_heads):
-            return
+        topo_heads = {to_node(r) for r in self._get_topo_heads(repo)}
+
+        topo_only = set()
         for branch, heads in self._entries.items():
-            if heads == topo_heads:
+            if heads and set(heads).issubset(topo_heads):
+                topo_only.add(branch)
+
+        if topo_only:
+            self._state = STATE_DIRTY
+        self._topo_only_branches = topo_only
+        if len(topo_only) == 1:
+            candidate = list(topo_only)[0]
+            heads = self._entries[candidate]
+            if len(topo_heads) == len(heads) and all(
+                n in self._closednodes for n in topo_heads
+            ):
                 self._pure_topo_branch = branch
-                self._state = STATE_DIRTY
-                break
 
 
 class remotebranchcache(_BaseBranchCache):
@@ -1075,7 +1568,7 @@ class remotebranchcache(_BaseBranchCache):
 
     def __init__(
         self,
-        repo: localrepo.localrepository,
+        repo: RepoT,
         entries: (
             dict[bytes, list[bytes]] | Iterable[tuple[bytes, list[bytes]]]
         ) = (),

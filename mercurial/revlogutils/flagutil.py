@@ -12,7 +12,11 @@ from ..i18n import _
 
 from .constants import (
     REVIDX_DEFAULT_FLAGS,
+    REVIDX_DELTA_GOOD,
     REVIDX_DELTA_IS_SNAPSHOT,
+    REVIDX_DELTA_P1_SMALL,
+    REVIDX_DELTA_P2_SMALL,
+    REVIDX_DELTA_QUALITY,
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
     REVIDX_FLAGS_ORDER,
@@ -42,6 +46,10 @@ REVIDX_KNOWN_FLAGS = util.bitsfrom(REVIDX_FLAGS_ORDER)
 # Store flag processors (cf. 'addflagprocessor()' to register)
 flagprocessors = {
     REVIDX_DELTA_IS_SNAPSHOT: None,
+    REVIDX_DELTA_QUALITY: None,
+    REVIDX_DELTA_GOOD: None,
+    REVIDX_DELTA_P1_SMALL: None,
+    REVIDX_DELTA_P2_SMALL: None,
     REVIDX_ISCENSORED: None,
     REVIDX_HASCOPIESINFO: None,
     REVIDX_HASMETA: None,

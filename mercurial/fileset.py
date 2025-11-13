@@ -14,7 +14,6 @@ from . import (
     error,
     filesetlang,
     match as matchmod,
-    mergestate as mergestatemod,
     pycompat,
     registrar,
     scmutil,
@@ -233,7 +232,7 @@ def resolved(mctx, x):
     getargs(x, 0, 0, _(b"resolved takes no arguments"))
     if mctx.ctx.rev() is not None:
         return mctx.never()
-    ms = mergestatemod.mergestate.read(mctx.ctx.repo())
+    ms = mctx.ctx.repo().mergestate()
     return mctx.predicate(
         lambda f: f in ms and ms[f] == b'r', predrepr=b'resolved'
     )
@@ -246,7 +245,7 @@ def unresolved(mctx, x):
     getargs(x, 0, 0, _(b"unresolved takes no arguments"))
     if mctx.ctx.rev() is not None:
         return mctx.never()
-    ms = mergestatemod.mergestate.read(mctx.ctx.repo())
+    ms = mctx.ctx.repo().mergestate()
     return mctx.predicate(
         lambda f: f in ms and ms[f] == b'u', predrepr=b'unresolved'
     )

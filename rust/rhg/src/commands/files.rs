@@ -1,5 +1,5 @@
 use clap::Arg;
-use hg::filepatterns::parse_pattern_args;
+use hg::file_patterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
 use hg::operations::list_revset_tracked_files;
@@ -25,6 +25,7 @@ Returns 0 on success.
 
 pub fn args() -> clap::Command {
     clap::command!("files")
+        .args_override_self(true)
         .arg(
             Arg::new("rev")
                 .help("search the repository as it is in REV")
@@ -101,9 +102,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
             let cwd = hg::utils::current_dir()?;
             let root = repo.working_directory_path();
-            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let file_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
-                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+                hg::matchers::PatternMatcher::new(file_patterns)?;
             Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };

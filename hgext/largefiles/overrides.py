@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import os
+import typing
 
 from mercurial.i18n import _
 
@@ -30,10 +31,10 @@ from mercurial import (
     extensions,
     exthelper,
     filemerge,
-    hg,
     logcmdutil,
     match as matchmod,
     merge,
+    merge_utils,
     mergestate as mergestatemod,
     pathutil,
     pycompat,
@@ -44,6 +45,9 @@ from mercurial import (
     util,
 )
 
+from mercurial.cmd_impls import (
+    clone as clone_impl,
+)
 from mercurial.upgrade_utils import (
     actions as upgrade_actions,
 )
@@ -56,17 +60,23 @@ from . import (
     storefactory,
 )
 
-ACTION_ADD = mergestatemod.ACTION_ADD
-ACTION_DELETED_CHANGED = mergestatemod.ACTION_DELETED_CHANGED
-ACTION_GET = mergestatemod.ACTION_GET
-ACTION_KEEP = mergestatemod.ACTION_KEEP
-ACTION_REMOVE = mergestatemod.ACTION_REMOVE
+if typing.TYPE_CHECKING:
+    from mercurial.interfaces.types import (
+        RepoT,
+        UiT,
+    )
+
+ACTION_ADD = merge_utils.ACTION_ADD
+ACTION_DELETED_CHANGED = merge_utils.ACTION_DELETED_CHANGED
+ACTION_GET = merge_utils.ACTION_GET
+ACTION_KEEP = merge_utils.ACTION_KEEP
+ACTION_REMOVE = merge_utils.ACTION_REMOVE
 
 eh = exthelper.exthelper()
 
 lfstatus = lfutil.lfstatus
 
-MERGE_ACTION_LARGEFILE_MARK_REMOVED = mergestatemod.MergeAction('lfmr')
+MERGE_ACTION_LARGEFILE_MARK_REMOVED = merge_utils.MergeAction(b'lfmr')
 
 # -- Utility functions: commonly/repeatedly needed functionality ---------------
 
@@ -321,7 +331,7 @@ def cmdutilremove(
 
 @eh.wrapfunction(dirstate.dirstate, '_changing')
 @contextlib.contextmanager
-def _changing(orig, self, repo, change_type):
+def _changing(orig, self: dirstate.dirstate, repo: RepoT, change_type):
     pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
     try:
         lfd = getattr(self, '_large_file_dirstate', False)
@@ -342,7 +352,7 @@ def _changing(orig, self, repo, change_type):
 
 @eh.wrapfunction(dirstate.dirstate, 'running_status')
 @contextlib.contextmanager
-def running_status(orig, self, repo):
+def running_status(orig, self: dirstate.dirstate, repo: RepoT):
     pre = sub_dirstate = getattr(self, '_sub_dirstate', None)
     try:
         lfd = getattr(self, '_large_file_dirstate', False)
@@ -594,9 +604,9 @@ def overridecheckunknownfile(
 # default prompt answer is to use the largefile version since it was
 # presumably changed on purpose.
 #
-# Finally, the merge.applyupdates function will then take care of
-# writing the files into the working copy and lfcommands.updatelfiles
-# will update the largefiles.
+# Finally, the merge_utils.update.apply_updates function will then take care of
+# writing the files into the working copy and lfcommands.updatelfiles will
+# update the largefiles.
 @eh.wrapfunction(merge, 'calculateupdates')
 def overridecalculateupdates(
     origfn, repo, p1, p2, pas, branchmerge, force, acceptremote, *args, **kwargs
@@ -1139,7 +1149,7 @@ def pulledrevsetsymbol(repo, subset, x):
 def overrideclone(orig, ui, source, dest=None, **opts):
     d = dest
     if d is None:
-        d = hg.defaultdest(source)
+        d = clone_impl.default_dest(source)
     if opts.get('all_largefiles') and urlutil.url(d).scheme not in (
         b'file',
         None,
@@ -1152,7 +1162,7 @@ def overrideclone(orig, ui, source, dest=None, **opts):
     return orig(ui, source, dest, **opts)
 
 
-@eh.wrapfunction(hg, 'clone')
+@eh.wrapfunction(clone_impl, 'clone')
 def hgclone(orig, ui, opts, *args, **kwargs):
     result = orig(ui, opts, *args, **kwargs)
 
@@ -1197,7 +1207,7 @@ def overriderebasecmd(orig, ui, repo, **opts):
 
 
 @eh.extsetup
-def overriderebase(ui):
+def overriderebase(ui: UiT) -> None:
     try:
         rebase = extensions.find(b'rebase')
     except KeyError:
@@ -1415,11 +1425,11 @@ def hgsubrepoarchive(orig, repo, opener, prefix, match: MatcherT, decode=True):
 
 
 # If a largefile is modified, the change is not reflected in its
-# standin until a commit. cmdutil.bailifchanged() raises an exception
+# standin until a commit. scmutil.bail_if_changed() raises an exception
 # if the repo has uncommitted changes. Wrap it to also check if
 # largefiles were changed. This is used by bisect, backout and fetch.
-@eh.wrapfunction(cmdutil, 'bailifchanged')
-def overridebailifchanged(orig, repo, *args, **kwargs):
+@eh.wrapfunction(scmutil, 'bail_if_changed')
+def overridebailifchanged(orig, repo: RepoT, *args, **kwargs) -> None:
     orig(repo, *args, **kwargs)
     with lfstatus(repo):
         s = repo.status()
@@ -1693,9 +1703,17 @@ def overridepurge(orig, ui, repo, *dirs, **opts):
         clean=False,
         unknown=False,
         listsubrepos=False,
+        empty_dirs_keep_files=False,
     ):
         r = oldstatus(
-            node1, node2, match, ignored, clean, unknown, listsubrepos
+            node1,
+            node2,
+            match,
+            ignored,
+            clean,
+            unknown,
+            listsubrepos,
+            empty_dirs_keep_files,
         )
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         unknown = [

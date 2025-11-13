@@ -1,13 +1,13 @@
 import os
 from mercurial import (
-    hg,
     merge,
     ui as uimod,
 )
+from mercurial.repo import factory
 
 u = uimod.ui.load()
 
-repo = hg.repository(u, b'test1', create=1)
+repo = factory.repository(u, b'test1', create=1)
 os.chdir('test1')
 
 

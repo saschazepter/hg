@@ -15,9 +15,9 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
-use hg::filepatterns::parse_pattern_syntax_kind;
-use hg::filepatterns::IgnorePattern;
-use hg::filepatterns::PatternError;
+use hg::file_patterns::parse_pattern_syntax_kind;
+use hg::file_patterns::FilePattern;
+use hg::file_patterns::PatternError;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::DifferenceMatcher;
 use hg::matchers::FileMatcher;
@@ -78,7 +78,7 @@ fn collect_bad_matches(
 fn collect_kindpats(
     py: Python,
     matcher: &Bound<'_, PyAny>,
-) -> PyResult<Vec<IgnorePattern>> {
+) -> PyResult<Vec<FilePattern>> {
     matcher
         .getattr(intern!(py, "_kindpats"))?
         .try_iter()?
@@ -88,15 +88,13 @@ fn collect_kindpats(
             let py_pattern = k.get_item(1)?;
             let py_source = k.get_item(2)?;
 
-            Ok(IgnorePattern::new(
+            Ok(FilePattern::new(
                 parse_pattern_syntax_kind(
-                    py_syntax.downcast::<PyBytes>()?.as_bytes(),
+                    py_syntax.cast::<PyBytes>()?.as_bytes(),
                 )
                 .map_err(|e| handle_fallback(StatusError::Pattern(e)))?,
-                py_pattern.downcast::<PyBytes>()?.as_bytes(),
-                get_path_from_bytes(
-                    py_source.downcast::<PyBytes>()?.as_bytes(),
-                ),
+                py_pattern.cast::<PyBytes>()?.as_bytes(),
+                get_path_from_bytes(py_source.cast::<PyBytes>()?.as_bytes()),
             ))
         })
         .collect()
@@ -131,9 +129,9 @@ fn extract_matcher(
             // Get the patterns from Python even though most of them are
             // redundant with those we will parse later on, as they include
             // those passed from the command line.
-            let ignore_patterns = collect_kindpats(py, matcher)?;
+            let file_patterns = collect_kindpats(py, matcher)?;
             Ok(Box::new(
-                IncludeMatcher::new(ignore_patterns)
+                IncludeMatcher::new(file_patterns)
                     .map_err(|e| handle_fallback(e.into()))?,
             ))
         }
@@ -193,6 +191,7 @@ pub(super) fn status(
     list_ignored: bool,
     list_unknown: bool,
     collect_traversed_dirs: bool,
+    empty_dirs_keep_files: bool,
 ) -> PyResult<Py<PyTuple>> {
     let root_dir = get_path_from_bytes(root_dir.as_bytes());
 
@@ -200,7 +199,7 @@ pub(super) fn status(
         .try_iter()?
         .map(|res| {
             let ob = res?;
-            let file = ob.downcast::<PyBytes>()?.as_bytes();
+            let file = ob.cast::<PyBytes>()?.as_bytes();
             Ok(get_path_from_bytes(file).to_owned())
         })
         .collect();
@@ -228,6 +227,7 @@ pub(super) fn status(
                 list_unknown,
                 list_copies,
                 collect_traversed_dirs,
+                empty_dirs_keep_files,
             },
             after_status,
         )
@@ -249,7 +249,7 @@ fn build_response(
     let unknown = status_path_py_list(py, &status_res.unknown)?;
     let unsure = status_path_py_list(py, &status_res.unsure)?;
     let bad = collect_bad_matches(py, &status_res.bad)?;
-    let traversed = paths_py_list(py, status_res.traversed.iter())?;
+    let empty_dirs = paths_py_list(py, status_res.empty_dirs.iter())?;
     let py_warnings = hg_warnings_to_py_warnings(py, warnings, root_dir)?;
 
     let response = (
@@ -263,7 +263,7 @@ fn build_response(
         unknown,
         py_warnings,
         bad,
-        traversed,
+        empty_dirs,
         status_res.dirty,
     );
     Ok(response.into_pyobject(py)?.into())

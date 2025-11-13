@@ -1,6 +1,6 @@
 use clap::Arg;
 use hg::dirstate::status::StatusError;
-use hg::filepatterns::RegexCompleteness;
+use hg::file_patterns::RegexCompleteness;
 use hg::matchers::get_ignore_matcher_pre;
 use hg::matchers::ReSyntax;
 use hg::repo::Repo;
@@ -20,13 +20,15 @@ Some options might be missing, check the list below.
 
 pub fn args() -> clap::Command {
     clap::command!("debugignorerhg")
-    .arg(
-        Arg::new("all-patterns")
-            .help("include all patterns, including ones for exact file matches")
-            .short('a')
-            .action(clap::ArgAction::SetTrue)
-            .long("all-patterns"),
-    ).about(HELP_TEXT)
+        .args_override_self(true)
+        .arg(
+            Arg::new("all-patterns")
+                .help("include all patterns, including ones for exact file matches")
+                .short('a')
+                .action(clap::ArgAction::SetTrue)
+                .long("all-patterns"),
+        )
+        .about(HELP_TEXT)
 }
 
 pub enum WhichPatterns {

@@ -14,6 +14,8 @@ from typing import (
     Protocol,
 )
 
+from . import matcher
+
 
 class IHooks(Protocol):
     """A collection of hook functions that can be used to extend a
@@ -140,6 +142,9 @@ class IPath(Protocol):
     branch: bytes
     rawloc: bytes
     loc: bytes
+    bookmarks_mode: bytes
+    # TODO: turn DELTA_REUSE_POLICIES into an enum
+    delta_reuse_policy: None | int
 
     @abc.abstractmethod
     def copy(self, new_raw_location: bytes | None = None) -> IPath:
@@ -166,3 +171,24 @@ class IPath(Protocol):
 
         This is intended to be used for presentation purposes.
         """
+
+
+# XXX this Protocol is a Stub, you can help by expanding it.
+class ISubRepo(Protocol):
+    """A generic subrepo object"""
+
+    _relpath: bytes
+
+    @abc.abstractmethod
+    def archive(
+        self,
+        opener,
+        prefix: bytes,
+        match: matcher.MatcherT,
+        decode: bool = True,
+    ) -> int:
+        ...
+
+    @abc.abstractmethod
+    def dirty(self, ignoreupdate: bool = False, missing: bool = False):
+        ...

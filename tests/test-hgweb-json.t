@@ -2116,6 +2116,14 @@ help/ shows help topics
         "topic": "addremove"
       },
       {
+        "summary": "Narrow-related client administration utils. (EXPERIMENTAL)",
+        "topic": "admin::narrow-client"
+      },
+      {
+        "summary": "Narrow-related server administration utils. (EXPERIMENTAL)",
+        "topic": "admin::narrow-server"
+      },
+      {
         "summary": "verify the integrity of the repository",
         "topic": "admin::verify"
       },

@@ -3,7 +3,8 @@ from __future__ import annotations
 from .i18n import _
 from . import (
     registrar,
-    templatekw,
+    tables,
+    templateutil,
     util,
 )
 
@@ -28,7 +29,7 @@ class namespaces:
 
     def __init__(self):
         self._names = util.sortdict()
-        columns = templatekw.getlogcolumns()
+        columns = templateutil.get_log_columns()
 
         # we need current mercurial named objects (bookmarks, tags, and
         # branches) to be initialized somewhere, so that place is here
@@ -61,7 +62,7 @@ class namespaces:
         )
         self.addnamespace(n)
 
-        bnames = lambda repo: repo.branchmap().keys()
+        bnames = lambda repo: list(repo.branchmap())
         bnamemap = lambda repo, name: tolist(repo.branchtip(name, True))
         bnodemap = lambda repo, node: [repo[node].branch()]
         n = namespace(
@@ -104,12 +105,12 @@ class namespaces:
             self._names[namespace.name] = namespace
 
         # we only generate a template keyword if one does not already exist
-        if namespace.name not in templatekw.keywords:
-            templatekeyword = registrar.templatekeyword(templatekw.keywords)
+        if namespace.name not in tables.template_keyword_table:
+            tk = registrar.templatekeyword(tables.template_keyword_table)
 
-            @templatekeyword(namespace.name, requires={b'repo', b'ctx'})
+            @tk(namespace.name, requires={b'repo', b'ctx'})
             def generatekw(context, mapping):
-                return templatekw.shownames(context, mapping, namespace.name)
+                return templateutil.show_names(context, mapping, namespace.name)
 
     def singlenode(self, repo, name):
         """

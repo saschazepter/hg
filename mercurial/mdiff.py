@@ -37,14 +37,28 @@ from .interfaces import (
 from .utils import dateutil
 
 bdiff: intmod.BDiff = policy.importmod('bdiff')
+rust_diff = policy.importrust('diff')
 mpatch: intmod.MPatch = policy.importmod('mpatch')
 
 blocks = bdiff.blocks
 fixws = bdiff.fixws
 patches = mpatch.patches
 patchedsize = mpatch.patchedsize
-textdiff = bdiff.bdiff
 splitnewlines = bdiff.splitnewlines
+# produce the historic generic diff
+textdiff = bdiff.bdiff
+text_diff = textdiff
+# produce diff using line as boundary
+# diff algorithm optimized for the manifest must be line aligned
+if rust_diff is not None:
+    line_diff = rust_diff.line_diff
+    manifest_diff = rust_diff.manifest_diff
+    storage_diff = rust_diff.line_diff
+else:
+    line_diff = bdiff.line_diff
+    manifest_diff = bdiff.manifest_diff
+    storage_diff = bdiff.storage_diff
+# diff algorithm optimized for storage purpose, might not be line aligned
 
 if typing.TYPE_CHECKING:
     HunkLines = list[bytes]

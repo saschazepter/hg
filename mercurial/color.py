@@ -122,6 +122,7 @@ _defaultstyles = {
     b'ui.error': b'red',
     b'ui.prompt': b'yellow',
     b'log.changeset': b'yellow',
+    b'narrow-server.hidden-path': b'yellow',
     b'patchbomb.finalsummary': b'',
     b'patchbomb.from': b'magenta',
     b'patchbomb.to': b'cyan',

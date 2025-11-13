@@ -59,7 +59,8 @@ verify 7e7d56fe4833 (encoding fallback in branchmap to maintain compatibility wi
 
   $ cat <<EOF > oldhg
   > import threading
-  > from mercurial import dispatch, hg, ui, wireprotoserver
+  > from mercurial import dispatch, ui, wireprotoserver
+  > from mercurial.repo import factory
   > 
   > class StdoutWrapper(object):
   >     def __init__(self, stdout):
@@ -81,7 +82,7 @@ verify 7e7d56fe4833 (encoding fallback in branchmap to maintain compatibility wi
   > myui = ui.ui.load()
   > fout = StdoutWrapper(myui.fout)
   > myui.fout = myui.ferr
-  > repo = hg.repository(myui, b'a')
+  > repo = factory.repository(myui, b'a')
   > wireprotoserver._runsshserver(myui, repo, myui.fin, fout, threading.Event())
   > EOF
   $ echo baz >> b/foo

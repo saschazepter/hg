@@ -21,6 +21,7 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
+use crate::utils::RawData;
 use crate::vfs::VfsImpl;
 use crate::Graph;
 use crate::GraphError;
@@ -117,17 +118,17 @@ impl Filelog {
 /// censored node error and either forward it or ignore it according to config.
 fn maybe_ignore_censored_revision(
     irl: &InnerRevlog,
-    data_result: Result<std::borrow::Cow<'_, [u8]>, RevlogError>,
+    data_result: Result<RawData, RevlogError>,
 ) -> Result<FilelogRevisionData, RevlogError> {
     match data_result {
-        Ok(data) => Ok(FilelogRevisionData(data.into_owned())),
+        Ok(data) => Ok(FilelogRevisionData(data)),
         // Errors other than `HgError` should not happen at this point
         Err(e) => match &e {
             RevlogError::Other(hg_error) => match hg_error {
                 HgError::CensoredNodeError(_, _)
                     if irl.ignore_filelog_censored_revisions() =>
                 {
-                    Ok(FilelogRevisionData(vec![]))
+                    Ok(FilelogRevisionData(RawData::empty()))
                 }
                 _ => Err(e),
             },
@@ -245,7 +246,7 @@ impl FilelogEntry<'_> {
 }
 
 /// The data for one revision in a filelog, uncompressed and delta-resolved.
-pub struct FilelogRevisionData(Vec<u8>);
+pub struct FilelogRevisionData(RawData);
 
 impl FilelogRevisionData {
     /// Split into metadata and data
@@ -281,9 +282,9 @@ impl FilelogRevisionData {
 
     /// Consume the entry, and convert it into data, discarding any metadata,
     /// if present.
-    pub fn into_file_data(self) -> Result<Vec<u8>, HgError> {
+    pub fn into_file_data(self) -> Result<RawData, HgError> {
         if let (FilelogRevisionMetadata(Some(_)), data) = self.split()? {
-            Ok(data.to_owned())
+            Ok(RawData::from(data)) // XXX consider the Bytes crate
         } else {
             Ok(self.0)
         }
@@ -455,21 +456,24 @@ mod tests {
 
     #[test]
     fn test_parse_no_metadata() {
-        let data = FilelogRevisionData(b"data".to_vec());
+        let data = FilelogRevisionData(RawData::from(b"data".to_vec()));
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(fields, Default::default());
     }
 
     #[test]
     fn test_parse_empty_metadata() {
-        let data = FilelogRevisionData(b"\x01\n\x01\ndata".to_vec());
+        let data =
+            FilelogRevisionData(RawData::from(b"\x01\n\x01\ndata".to_vec()));
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(fields, Default::default());
     }
 
     #[test]
     fn test_parse_one_field() {
-        let data = FilelogRevisionData(b"\x01\ncopy: foo\n\x01\ndata".to_vec());
+        let data = FilelogRevisionData(RawData::from(
+            b"\x01\ncopy: foo\n\x01\ndata".to_vec(),
+        ));
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(
             fields,
@@ -483,10 +487,10 @@ mod tests {
     #[test]
     fn test_parse_all_fields() {
         let sha = b"215d5d1546f82a79481eb2df513a7bc341bdf17f";
-        let data = FilelogRevisionData(format_bytes!(
+        let data = FilelogRevisionData(RawData::from(format_bytes!(
             b"\x01\ncensored: \ncopy: foo\ncopyrev: {}\n\x01\ndata",
             sha
-        ));
+        )));
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(
             fields,
@@ -500,8 +504,9 @@ mod tests {
 
     #[test]
     fn test_parse_invalid_metadata() {
-        let data =
-            FilelogRevisionData(b"\x01\nbad: value\n\x01\ndata".to_vec());
+        let data = FilelogRevisionData(RawData::from(
+            b"\x01\nbad: value\n\x01\ndata".to_vec(),
+        ));
         let err = data.metadata().unwrap().parse().unwrap_err();
         assert!(err.to_string().contains("unrecognized key 'bad'"));
     }

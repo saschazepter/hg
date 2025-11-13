@@ -1,5 +1,26 @@
 #require hardlink
 
+#testcases fncache fileindex
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
   $ cat > nlinks.py <<EOF
   > import sys
   > from mercurial import pycompat, util
@@ -51,12 +72,17 @@ Prepare repo r1:
   1 r1/.hg/store/00manifest.i
   1 r1/.hg/store/data/d1/f2.i
   1 r1/.hg/store/data/f1.i
-  1 r1/.hg/store/fncache
+  1 r1/.hg/store/fncache (fncache !)
+  1 r1/.hg/store/fileindex (fileindex !)
+  1 r1/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r1/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r1/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r1/.hg/store/phaseroots
   1 r1/.hg/store/requires
   1 r1/.hg/store/undo
   1 r1/.hg/store/undo.backup.00changelog.n.bck (rust !)
-  1 r1/.hg/store/undo.backup.fncache.bck
+  1 r1/.hg/store/undo.backup.fncache.bck (fncache !)
+  1 r1/.hg/store/undo.backup.fileindex.bck (fileindex !)
   1 r1/.hg/store/undo.backupfiles
 
 
@@ -108,12 +134,17 @@ Repos r1 and r2 should now contain hardlinked files:
   2 r1/.hg/store/00manifest.i
   2 r1/.hg/store/data/d1/f2.i
   2 r1/.hg/store/data/f1.i
-  1 r1/.hg/store/fncache
+  1 r1/.hg/store/fncache (fncache !)
+  1 r1/.hg/store/fileindex (fileindex !)
+  1 r1/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r1/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r1/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r1/.hg/store/phaseroots
   1 r1/.hg/store/requires
   1 r1/.hg/store/undo
   1 r1/.hg/store/undo.backup.00changelog.n.bck (rust !)
-  1 r1/.hg/store/undo.backup.fncache.bck
+  1 r1/.hg/store/undo.backup.fncache.bck (fncache !)
+  1 r1/.hg/store/undo.backup.fileindex.bck (fileindex !)
   1 r1/.hg/store/undo.backupfiles
 
   $ nlinksdir r2/.hg/store
@@ -124,7 +155,11 @@ Repos r1 and r2 should now contain hardlinked files:
   2 r2/.hg/store/00manifest.i
   2 r2/.hg/store/data/d1/f2.i
   2 r2/.hg/store/data/f1.i
-  1 r2/.hg/store/fncache
+  1 r2/.hg/store/fncache (fncache !)
+  1 r2/.hg/store/fileindex (fileindex !)
+  1 r2/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r2/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r2/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r2/.hg/store/requires
 
 Repo r3 should not be hardlinked:
@@ -137,7 +172,11 @@ Repo r3 should not be hardlinked:
   1 r3/.hg/store/00manifest.i
   1 r3/.hg/store/data/d1/f2.i
   1 r3/.hg/store/data/f1.i
-  1 r3/.hg/store/fncache
+  1 r3/.hg/store/fncache (fncache !)
+  1 r3/.hg/store/fileindex (fileindex !)
+  1 r3/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r3/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r3/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r3/.hg/store/phaseroots
   1 r3/.hg/store/requires
   1 r3/.hg/store/undo
@@ -166,7 +205,11 @@ Create a non-inlined filelog in r3:
   1 r3/.hg/store/data/d1/f2.d
   1 r3/.hg/store/data/d1/f2.i
   1 r3/.hg/store/data/f1.i
-  1 r3/.hg/store/fncache
+  1 r3/.hg/store/fncache (fncache !)
+  1 r3/.hg/store/fileindex (fileindex !)
+  1 r3/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r3/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r3/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r3/.hg/store/phaseroots
   1 r3/.hg/store/requires
   1 r3/.hg/store/undo
@@ -196,13 +239,12 @@ Push to repo r1 should break up most hardlinks in r2:
   1 r2/.hg/store/00manifest.i
   1 r2/.hg/store/data/d1/f2.i
   2 r2/.hg/store/data/f1.i
-  [12] r2/\.hg/store/fncache (re)
+  1 r2/\.hg/store/fncache (re) (fncache !)
+  1 r2/.hg/store/fileindex (fileindex !)
+  1 r2/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r2/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r2/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r2/.hg/store/requires
-
-#if hardlink-whitelisted
-  $ nlinksdir r2/.hg/store/fncache
-  1 r2/.hg/store/fncache
-#endif
 
   $ hg -R r2 verify -q
 
@@ -224,13 +266,12 @@ Committing a change to f1 in r1 must break up hardlink f1.i in r2:
   1 r2/.hg/store/00manifest.i
   1 r2/.hg/store/data/d1/f2.i
   1 r2/.hg/store/data/f1.i
-  1 r2/.hg/store/fncache
+  1 r2/.hg/store/fncache (fncache !)
+  1 r2/.hg/store/fileindex (fileindex !)
+  1 r2/.hg/store/fileindex-list.* (glob) (fileindex !)
+  1 r2/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  1 r2/.hg/store/fileindex-tree.* (glob) (fileindex !)
   1 r2/.hg/store/requires
-
-#if hardlink-whitelisted
-  $ nlinksdir r2/.hg/store/fncache
-  1 r2/.hg/store/fncache
-#endif
 
 Create a file which exec permissions we will change
   $ cd r3
@@ -282,7 +323,11 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/data/d1/f2.i
   2 r4/.hg/store/data/f1.i
   2 r4/.hg/store/data/f3.i
-  2 r4/.hg/store/fncache
+  2 r4/.hg/store/fncache (fncache !)
+  2 r4/.hg/store/fileindex (fileindex !)
+  2 r4/.hg/store/fileindex-list.* (glob) (fileindex !)
+  2 r4/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  2 r4/.hg/store/fileindex-tree.* (glob) (fileindex !)
   2 r4/.hg/store/phaseroots
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo
@@ -335,7 +380,11 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   2 r4/.hg/store/data/d1/f2.i
   2 r4/.hg/store/data/f1.i
   2 r4/.hg/store/data/f3.i
-  2 r4/.hg/store/fncache
+  2 r4/.hg/store/fncache (fncache !)
+  2 r4/.hg/store/fileindex (fileindex !)
+  2 r4/.hg/store/fileindex-list.* (glob) (fileindex !)
+  2 r4/.hg/store/fileindex-meta.* (glob) (fileindex !)
+  2 r4/.hg/store/fileindex-tree.* (glob) (fileindex !)
   2 r4/.hg/store/phaseroots
   2 r4/.hg/store/requires
   2 r4/.hg/store/undo

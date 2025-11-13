@@ -66,6 +66,7 @@ def _normalizeblocks(
 
 
 def bdiff(a: bytes, b: bytes) -> bytes:
+    "calculate a binary diff"
     a = bytes(a).splitlines(True)
     b = bytes(b).splitlines(True)
 
@@ -92,6 +93,15 @@ def bdiff(a: bytes, b: bytes) -> bytes:
     return b"".join(bin)
 
 
+def manifest_diff(a: bytes, b: bytes) -> bytes:
+    """compute a diff between two manifests
+
+    This function leverage the manifest structure to compute faster and smaller
+    delta.
+    """
+    return bdiff(a, b)
+
+
 def blocks(a: bytes, b: bytes) -> list[tuple[int, int, int, int]]:
     an = splitnewlines(a)
     bn = splitnewlines(b)
@@ -107,6 +117,21 @@ def fixws(text: bytes, allws: bool) -> bytes:
         text = re.sub(b'[ \t\r]+', b' ', text)
         text = text.replace(b' \n', b'\n')
     return text
+
+
+def storage_diff(old: bytes, new: bytes) -> bytes:
+    """calculate a binary diff optimized for stored and exchanged deltas
+
+    no lines alignement guarantees
+    """
+    return bdiff(old, new)
+
+
+def line_diff(old: bytes, new: bytes) -> bytes:
+    """calculate a binary diff optimized for stored and exchanged deltas
+
+    lines aligned"""
+    return bdiff(old, new)
 
 
 # In order to adhere to the module protocol, these functions must be visible to

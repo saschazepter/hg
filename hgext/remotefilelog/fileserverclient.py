@@ -29,6 +29,7 @@ from mercurial.utils import (
 )
 
 from . import (
+    basestore,
     constants,
     contentstore,
     metadatastore,
@@ -304,6 +305,11 @@ def _getfiles_threaded(
 class fileserverclient:
     """A client for requesting files from the remote file server."""
 
+    datastore: basestore.basestore
+    historystore: basestore.basestore
+    writedata: basestore.basestore
+    writehistory: basestore.basestore
+
     def __init__(self, repo):
         ui = repo.ui
         self.repo = repo
@@ -520,6 +526,9 @@ class fileserverclient:
                 def __init__(self):
                     self.missingids = []
                     self.connected = True
+
+                def connect(self, cmd):  # please pytype
+                    pass
 
                 def close(self):
                     pass

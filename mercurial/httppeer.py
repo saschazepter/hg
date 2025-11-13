@@ -14,7 +14,18 @@ import os
 import struct
 
 from concurrent import futures
+from typing import (
+    Any,
+    Callable,
+    Protocol,
+    TYPE_CHECKING,
+    cast,
+)
 from .i18n import _
+from .interfaces.types import (
+    NeedsTypeHint,
+    UiT,
+)
 from . import (
     bundle2,
     error,
@@ -30,6 +41,10 @@ from .utils import urlutil
 httplib = util.httplib
 urlerr = util.urlerr
 urlreq = util.urlreq
+if TYPE_CHECKING:
+    RequestBuilderT = Callable[
+        [str, None | bytes, dict[str, str]], urlmod.HTTPRequestT
+    ]
 
 
 def encodevalueinheaders(value, header, limit):
@@ -61,8 +76,25 @@ def encodevalueinheaders(value, header, limit):
     return result
 
 
+class _File(Protocol):
+    """Simple protocol class to help typing `_multifile`"""
+
+    def read(self, size: int = -1, /) -> bytes:
+        ...
+
+    def seek(self, offset: int, whence: int = os.SEEK_SET, /) -> None:
+        ...
+
+    length: int
+
+
 class _multifile:
-    def __init__(self, *fileobjs):
+    # pytype is confused by the possible `raise` in `__init__` and need help to
+    # realize these attribute always exists.
+    _index: int
+    _fileobjs: tuple[_File]
+
+    def __init__(self, *fileobjs: _File):
         for f in fileobjs:
             if not hasattr(f, 'length'):
                 raise ValueError(
@@ -76,6 +108,7 @@ class _multifile:
 
     @property
     def length(self):
+        assert self is not None
         return sum(f.length for f in self._fileobjs)
 
     def read(self, amt=None):
@@ -106,16 +139,22 @@ class _multifile:
         self._index = 0
 
 
+class _BytesIO(io.BytesIO):
+    def __init__(self, data, *args, **kwargs):
+        self.length = len(data)
+        super().__init__(data, *args, **kwargs)
+
+
 def makev1commandrequest(
-    ui,
-    requestbuilder,
+    ui: UiT,
+    requestbuilder: RequestBuilderT,
     caps,
-    capablefn,
+    capablefn: Callable[[bytes], bool | bytes],
     repobaseurl,
     cmd,
-    args,
+    args: dict[bytes, Any],
     remotehidden=False,
-):
+) -> tuple[urlmod.HTTPRequestT, bytes, bytes]:
     """Make an HTTP request to run a command for a version 1 client.
 
     ``caps`` is a set of known server capabilities. The value may be
@@ -125,11 +164,13 @@ def makev1commandrequest(
 
     ``cmd``, ``args``, and ``data`` define the command, its arguments, and
     raw data to pass to it.
+
+    Return (request, command_url, command_string)
     """
     if cmd == b'pushkey':
         args[b'data'] = b''
     data = args.pop(b'data', None)
-    headers = args.pop(b'headers', {})
+    headers: dict[str, str] = args.pop(b'headers', {})
 
     ui.debug(b"sending %s command\n" % cmd)
     q = [(b'cmd', cmd)]
@@ -148,20 +189,19 @@ def makev1commandrequest(
             data = strargs
         else:
             if isinstance(data, bytes):
-                i = io.BytesIO(data)
-                i.length = len(data)
-                data = i
-            argsio = io.BytesIO(strargs)
-            argsio.length = len(strargs)
+                data = _BytesIO(data)
+            argsio = _BytesIO(strargs)
             data = _multifile(argsio, data)
-        headers['X-HgArgs-Post'] = b'%d' % len(strargs)
+        headers['X-HgArgs-Post'] = '%d' % len(strargs)
     elif args:
         # Calling self.capable() can infinite loop if we are calling
         # "capabilities". But that command should never accept wire
         # protocol arguments. So this should never happen.
         assert cmd != b'capabilities'
         httpheader = capablefn(b'httpheader')
-        if httpheader:
+        # the hasattr call filter out the `bool` return that `capablefn` may
+        # theorically return.
+        if httpheader and hasattr(httpheader, 'split'):
             headersize = int(httpheader.split(b',', 1)[0])
 
         # Send arguments via HTTP headers.
@@ -196,7 +236,7 @@ def makev1commandrequest(
     mediatypes = set()
     if caps is not None:
         mt = capablefn(b'httpmediatype')
-        if mt:
+        if mt and hasattr(mt, 'split'):
             protoparams.add(b'0.1')
             mediatypes = set(mt.split(b','))
 
@@ -209,10 +249,12 @@ def makev1commandrequest(
         # We /could/ compare supported compression formats and prune
         # non-mutually supported or error if nothing is mutually supported.
         # For now, send the full list to the server and have it error.
-        comps = [
-            e.wireprotosupport().name
-            for e in util.compengines.supportedwireengines(util.CLIENTROLE)
-        ]
+        comps = []
+        for e in util.compengines.supportedwireengines(util.CLIENTROLE):
+            w = e.wireprotosupport()
+            assert w is not None
+            comps.append(w.name)
+
         protoparams.add(b'comp=%s' % b','.join(comps))
 
     if protoparams:
@@ -239,7 +281,11 @@ def makev1commandrequest(
     return req, cu, qs
 
 
-def sendrequest(ui, opener, req):
+def sendrequest(
+    ui: UiT,
+    opener: urlmod.UrlOpenerT,
+    req: urlmod.HTTPRequestT,
+) -> urlmod.HTTPResponseT:
     """Send a prepared HTTP request.
 
     Returns the response object.
@@ -287,19 +333,21 @@ def sendrequest(ui, opener, req):
     try:
         res = opener.open(req)
     except urlerr.httperror as inst:
-        if inst.code == 401:
+        if inst.status == 401:
             raise error.Abort(_(b'authorization failed'))
         raise
     except httplib.HTTPException as inst:
         ui.debug(
             b'http error requesting %s\n'
-            % urlutil.hidepassword(req.get_full_url())
+            % urlutil.hidepassword(pycompat.bytesurl(req.get_full_url()))
         )
         ui.traceback()
         raise OSError(None, inst)
     finally:
         if ui.debugflag and ui.configbool(b'devel', b'debug.peer-request'):
-            code = res.code if res else -1
+            code = -1
+            if res is not None:
+                code = res.status
             dbg(
                 line
                 % b'  finished in %.4f seconds (%d)'
@@ -371,7 +419,9 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
     # generators.
     if version_info == (0, 1):
         if compressible:
-            resp = util.compengines[b'zlib'].decompressorreader(resp)
+            new_resp = util.compengines[b'zlib'].decompressorreader(resp)
+        else:
+            new_resp = resp
 
     elif version_info == (0, 2):
         # application/mercurial-0.2 always identifies the compression
@@ -380,26 +430,37 @@ def parsev1commandresponse(ui, baseurl, requrl, qs, resp, compressible):
         ename = util.readexactly(resp, elen)
         engine = util.compengines.forwiretype(ename)
 
-        resp = engine.decompressorreader(resp)
+        new_resp = engine.decompressorreader(resp)
     else:
         raise error.RepoError(
             _(b"'%s' uses newer protocol %s") % (safeurl, subtype)
         )
 
-    return respurl, proto, resp
+    # pytype get very confused by the "new_resp" variable type and it cause various
+    # problem down the line, making it a Any for now.
+    #
+    # If you are reading this, this "Any" as probably created problem, Sorry.
+    return respurl, proto, cast(NeedsTypeHint, new_resp)
 
 
 class httppeer(wireprotov1peer.wirepeer):
     def __init__(
-        self, ui, path, url, opener, requestbuilder, caps, remotehidden=False
+        self,
+        ui: UiT,
+        path,
+        url,
+        opener: urlmod.UrlOpenerT,
+        requestbuilder: RequestBuilderT,
+        caps,
+        remotehidden: bool = False,
     ):
         super().__init__(ui, path=path, remotehidden=remotehidden)
         self._url = url
         self._caps = caps
         self.limitedarguments = caps is not None and b'httppostargs' not in caps
-        self._urlopener = opener
-        self._requestbuilder = requestbuilder
-        self._remotehidden = remotehidden
+        self._urlopener: urlmod.UrlOpenerT = opener
+        self._requestbuilder: RequestBuilderT = requestbuilder
+        self._remotehidden: bool = remotehidden
 
     def __del__(self):
         for h in self._urlopener.handlers:
@@ -485,9 +546,9 @@ class httppeer(wireprotov1peer.wirepeer):
         # http 1.1 chunked transfer.
 
         types = self.capable(b'unbundle')
-        try:
+        if hasattr(types, 'split'):
             types = types.split(b',')
-        except AttributeError:
+        else:
             # servers older than d1b16a746db6 will send 'unbundle' as a
             # boolean capability. They only support headerless/uncompressed
             # bundles.
@@ -549,6 +610,8 @@ class httppeer(wireprotov1peer.wirepeer):
 class queuedcommandfuture(futures.Future):
     """Wraps result() on command futures to trigger submission on call."""
 
+    _peerexecutor: wireprotov1peer.peerexecutor
+
     def result(self, timeout=None):
         if self.done():
             return futures.Future.result(self, timeout)
@@ -603,6 +666,7 @@ def performhandshake(ui, url, opener, requestbuilder):
     try:
         rawdata = resp.read()
     finally:
+        # pytype get confused by the mixed types
         resp.close()
 
     if not ct.startswith(b'application/mercurial-'):
@@ -614,7 +678,11 @@ def performhandshake(ui, url, opener, requestbuilder):
 
 
 def _make_peer(
-    ui, path, opener=None, requestbuilder=urlreq.request, remotehidden=False
+    ui: UiT,
+    path,
+    opener: urlmod.UrlOpenerT | None = None,
+    requestbuilder: RequestBuilderT = urlreq.request,
+    remotehidden: bool = False,
 ):
     """Construct an appropriate HTTP peer instance.
 
@@ -633,7 +701,9 @@ def _make_peer(
     url, authinfo = path.url.authinfo()
     ui.debug(b'using %s\n' % url)
 
-    opener = opener or urlmod.opener(ui, authinfo)
+    if opener is None:
+        opener = urlmod.opener(ui, authinfo)
+    assert opener is not None
 
     respurl, info = performhandshake(ui, url, opener, requestbuilder)
 

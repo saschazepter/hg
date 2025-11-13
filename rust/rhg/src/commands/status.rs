@@ -18,7 +18,7 @@ use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
-use hg::filepatterns::parse_pattern_args;
+use hg::file_patterns::parse_pattern_args;
 use hg::lock::LockError;
 use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;
@@ -59,6 +59,7 @@ Some options might be missing, check the list below.
 pub fn args() -> clap::Command {
     clap::command!("status")
         .alias("st")
+        .args_override_self(true)
         .about(HELP_TEXT)
         .arg(
             Arg::new("file")
@@ -339,6 +340,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         list_ignored: display_states.ignored,
         list_copies,
         collect_traversed_dirs: false,
+        empty_dirs_keep_files: false,
     };
 
     type StatusResult<'a> = Result<DirstateStatus<'a>, StatusError>;
@@ -500,9 +502,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
             let cwd = hg::utils::current_dir()?;
             let root = repo.working_directory_path();
-            let ignore_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let file_patterns = parse_pattern_args(patterns, &cwd, root)?;
             let files_matcher =
-                hg::matchers::PatternMatcher::new(ignore_patterns)?;
+                hg::matchers::PatternMatcher::new(file_patterns)?;
             Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))
         }
     };

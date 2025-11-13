@@ -27,6 +27,7 @@ from .. import (
 from ..utils import (
     urlutil,
 )
+from . import wsgiheaders
 
 
 class multidict:
@@ -315,8 +316,6 @@ def parserequestfromenv(env, reponame=None, altbaseurl=None, bodyfh=None):
         if k.startswith(b'HTTP_'):
             headers.append((k[len(b'HTTP_') :].replace(b'_', b'-'), v))
 
-    from . import wsgiheaders  # avoid cycle
-
     headers = wsgiheaders.Headers(headers)
 
     # This is kind of a lie because the HTTP header wasn't explicitly
@@ -416,7 +415,6 @@ class wsgiresponse:
         self._startresponse = startresponse
 
         self.status = None
-        from . import wsgiheaders  # avoid cycle
 
         self.headers = wsgiheaders.Headers([])
 

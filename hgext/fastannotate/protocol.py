@@ -18,6 +18,9 @@ from mercurial import (
     wireprotov1peer,
     wireprotov1server,
 )
+from mercurial.repo import (
+    factory as repo_factory,
+)
 from mercurial.utils import (
     urlutil,
 )
@@ -156,7 +159,7 @@ def annotatepeer(repo):
         ui,
         remotedest,
     )
-    peer = hg.peer(ui, {}, remotepath)
+    peer = repo_factory.peer(ui, {}, remotepath)
 
     try:
         yield peer

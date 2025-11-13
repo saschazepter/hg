@@ -10,7 +10,14 @@ import contextlib
 import struct
 import threading
 
+from typing import Iterator
 from .i18n import _
+
+from .interfaces.types import (
+    RepoT,
+)
+
+from .interfaces import compression as i_comp
 from . import (
     encoding,
     error,
@@ -23,6 +30,7 @@ from .utils import (
     compression,
     stringutil,
 )
+from .hgweb import common as hgwebcommon
 
 stringio = util.stringio
 
@@ -126,14 +134,14 @@ class httpv1protocolhandler(wireprototypes.baseprotocolhandler):
             self._ui.fout = oldout
             self._ui.ferr = olderr
 
-    def client(self):
+    def client(self) -> bytes:
         return b'remote:%s:%s:%s' % (
             self._req.urlscheme,
             urlreq.quote(self._req.remotehost or b''),
             urlreq.quote(self._req.remoteuser or b''),
         )
 
-    def addcapabilities(self, repo, caps):
+    def addcapabilities(self, repo: RepoT, caps):
         caps.append(b'batch')
 
         caps.append(
@@ -150,14 +158,19 @@ class httpv1protocolhandler(wireprototypes.baseprotocolhandler):
             repo.ui, compression.SERVERROLE
         )
         if compengines:
-            comptypes = b','.join(
-                urlreq.quote(e.wireprotosupport().name) for e in compengines
-            )
+            # typing don't know that supportedcompengines always have
+            # wireprotosupport set...
+            wps = []
+            for e in compengines:
+                w = e.wireprotosupport()
+                assert w is not None
+                wps.append(w)
+            comptypes = b','.join(urlreq.quote(i.name) for i in wps)
             caps.append(b'compression=%s' % comptypes)
 
         return caps
 
-    def checkperm(self, perm):
+    def checkperm(self, perm: bytes) -> None:
         return self._checkperm(perm)
 
 
@@ -182,7 +195,6 @@ def handlewsgirequest(rctx, req, res, checkperm):
     should stop processing the request, as a response has already been issued.
     """
     # Avoid cycle involving hg module.
-    from .hgweb import common as hgwebcommon
 
     repo = rctx.repo
 
@@ -250,14 +262,16 @@ def _httpresponsetype(ui, proto, prefer_uncompressed):
     if b'0.2' in proto.getprotocaps():
         # All clients are expected to support uncompressed data.
         if prefer_uncompressed:
-            return HGTYPE2, compression._noopengine(), {}
+            return HGTYPE2, compression.compengines[b'none'], {}
 
         # Now find an agreed upon compression format.
         compformats = wireprotov1server.clientcompressionsupport(proto)
         for engine in wireprototypes.supportedcompengines(
             ui, compression.SERVERROLE
         ):
-            if engine.wireprotosupport().name in compformats:
+            w = engine.wireprotosupport()
+            assert w is not None
+            if w.name in compformats:
                 opts = {}
                 level = ui.configint(b'server', b'%slevel' % engine.name())
                 if level is not None:
@@ -276,13 +290,16 @@ def _httpresponsetype(ui, proto, prefer_uncompressed):
 
 
 def _callhttp(repo, req, res, proto, cmd):
-    # Avoid cycle involving hg module.
-    from .hgweb import common as hgwebcommon
-
-    def genversion2(gen, engine, engineopts):
+    def genversion2(
+        gen: Iterator[bytes],
+        engine: i_comp.ICompressionEngine,
+        engineopts: dict,
+    ):
         # application/mercurial-0.2 always sends a payload header
         # identifying the compression engine.
-        name = engine.wireprotosupport().name
+        w = engine.wireprotosupport()
+        assert w is not None
+        name = w.name
         assert 0 < len(name) < 256
         yield struct.pack(b'B', len(name))
         yield name
@@ -429,17 +446,17 @@ class sshv1protocolhandler(wireprototypes.baseprotocolhandler):
     def mayberedirectstdio(self):
         yield None
 
-    def client(self):
+    def client(self) -> bytes:
         client = encoding.environ.get(b'SSH_CLIENT', b'').split(b' ', 1)[0]
         return b'remote:ssh:' + client
 
-    def addcapabilities(self, repo, caps):
+    def addcapabilities(self, repo: RepoT, caps):
         if self.name == wireprototypes.SSHV1:
             caps.append(b'protocaps')
         caps.append(b'batch')
         return caps
 
-    def checkperm(self, perm):
+    def checkperm(self, perm: bytes) -> None:
         pass
 
 
@@ -521,7 +538,7 @@ def _runsshserver(ui, repo, fin, fout, ev, accesshidden=False):
 
 
 class sshserver:
-    def __init__(self, ui, repo, logfh=None, accesshidden=False):
+    def __init__(self, ui, repo: RepoT, logfh=None, accesshidden=False):
         self._ui = ui
         self._repo = repo
         self._accesshidden = accesshidden

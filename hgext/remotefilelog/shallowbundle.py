@@ -18,7 +18,6 @@ from mercurial import (
 )
 from . import (
     constants,
-    remotefilelog,
     shallowutil,
 )
 
@@ -27,42 +26,26 @@ LocalFiles = 1
 AllFiles = 2
 
 
-def shallowgroup(cls, self, nodelist, rlog, lookup, units=None, reorder=None):
-    if not isinstance(rlog, remotefilelog.remotefilelog):
-        yield from super(cls, self).group(nodelist, rlog, lookup, units=units)
-        return
-
-    if len(nodelist) == 0:
-        yield self.close()
-        return
-
-    nodelist = shallowutil.sortnodes(nodelist, rlog.parents)
-
-    # add the parent of the first rev
-    p = rlog.parents(nodelist[0])[0]
-    nodelist.insert(0, p)
-
-    # build deltas
-    for i in range(len(nodelist) - 1):
-        prev, curr = nodelist[i], nodelist[i + 1]
-        linknode = lookup(curr)
-        yield from self.nodechunk(rlog, curr, prev, linknode)
-
-    yield self.close()
-
-
-class shallowcg1packer(changegroup.cgpacker):
-    def generate(self, commonrevs, clnodes, fastpathlinkrev, source, **kwargs):
+class ShallowCGPacker(changegroup.cgpacker):
+    def generate(
+        self,
+        commonrevs,
+        clnodes,
+        fastpathlinkrev,
+        source,
+        changelog=True,
+        **kwargs,
+    ):
         if shallowutil.isenabled(self._repo):
             fastpathlinkrev = False
 
         return super().generate(
-            commonrevs, clnodes, fastpathlinkrev, source, **kwargs
-        )
-
-    def group(self, nodelist, rlog, lookup, units=None, reorder=None):
-        return shallowgroup(
-            shallowcg1packer, self, nodelist, rlog, lookup, units=units
+            commonrevs,
+            clnodes,
+            fastpathlinkrev,
+            source,
+            changelog,
+            **kwargs,
         )
 
     def generatefiles(self, changedfiles, *args, **kwargs):
@@ -87,7 +70,12 @@ class shallowcg1packer(changegroup.cgpacker):
             filestosend = self.shouldaddfilegroups(source)
             if filestosend == NoFiles:
                 changedfiles = list(
+                    # The ``repo`` field is typed on changegroup.cgpacker to be
+                    # a standard repo, but the method is tacked onto the repo
+                    # object in ``makechangegroup()`` below.
+                    # pytype: disable=attribute-error
                     [f for f in changedfiles if not repo.shallowmatch(f)]
+                    # pytype: enable=attribute-error
                 )
 
         return super().generatefiles(changedfiles, *args, **kwargs)
@@ -123,35 +111,6 @@ class shallowcg1packer(changegroup.cgpacker):
 
         return NoFiles
 
-    def prune(self, rlog, missing, commonrevs):
-        if not isinstance(rlog, remotefilelog.remotefilelog):
-            return super().prune(rlog, missing, commonrevs)
-
-        repo = self._repo
-        results = []
-        for fnode in missing:
-            fctx = repo.filectx(rlog.filename, fileid=fnode)
-            if fctx.linkrev() not in commonrevs:
-                results.append(fnode)
-        return results
-
-    def nodechunk(self, revlog, node, prevnode, linknode):
-        prefix = b''
-        if prevnode == revlog.nullid:
-            delta = revlog.rawdata(node)
-            prefix = mdiff.trivialdiffheader(len(delta))
-        else:
-            # Actually uses remotefilelog.revdiff which works on nodes, not revs
-            delta = revlog.revdiff(prevnode, node)
-        p1, p2 = revlog.parents(node)
-        flags = revlog.flags(node)
-        meta = self.builddeltaheader(node, p1, p2, prevnode, linknode, flags)
-        meta += prefix
-        l = len(meta) + len(delta)
-        yield changegroup.chunkheader(l)
-        yield meta
-        yield delta
-
 
 def makechangegroup(orig, repo, outgoing, version, source, *args, **kwargs):
     if not shallowutil.isenabled(repo):
@@ -182,6 +141,16 @@ def makechangegroup(orig, repo, outgoing, version, source, *args, **kwargs):
         return orig(repo, outgoing, version, source, *args, **kwargs)
     finally:
         repo.shallowmatch = original
+
+
+def wrap_bundler(orig, *args, **kwargs):
+    cg = orig(*args, **kwargs)
+
+    class Packer(ShallowCGPacker, cg.__class__):
+        pass
+
+    cg.__class__ = Packer
+    return cg
 
 
 def addchangegroupfiles(

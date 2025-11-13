@@ -38,32 +38,21 @@ assert [
 nullstate = (b'', b'', b'empty')
 
 if typing.TYPE_CHECKING:
-    from . import (
-        context,
-        localrepo,
-        match as matchmod,
-        subrepo,
-        ui as uimod,
-    )
-
     from .interfaces import status as istatus
     from .interfaces.types import (
+        ChangeContextT,
         MatcherT,
+        RepoT,
+        SubrepoT,
+        UiT,
+        WorkingCommitContextT,
+        WorkingContextT,
     )
-
-    # keeps pyflakes happy
-    assert [
-        context,
-        localrepo,
-        matchmod,
-        subrepo,
-        uimod,
-    ]
 
 Substate = dict[bytes, tuple[bytes, bytes, bytes]]
 
 
-def state(ctx: context.changectx, ui: uimod.ui) -> Substate:
+def state(ctx: ChangeContextT, ui: UiT) -> Substate:
     """return a state dict, mapping subrepo paths configured in .hgsub
     to tuple: (source from .hgsub, revision from .hgsubstate, kind
     (key in types dict))
@@ -167,7 +156,7 @@ def state(ctx: context.changectx, ui: uimod.ui) -> Substate:
     return state
 
 
-def writestate(repo: localrepo.localrepository, state: Substate) -> None:
+def writestate(repo: RepoT, state: Substate) -> None:
     """rewrite .hgsubstate in (outer) repo with these subrepo states"""
     lines = [
         b'%s %s\n' % (state[s][1], s)
@@ -178,16 +167,16 @@ def writestate(repo: localrepo.localrepository, state: Substate) -> None:
 
 
 def submerge(
-    repo: localrepo.localrepository,
-    wctx: context.workingctx,
-    mctx: context.changectx,
-    actx: context.changectx,
+    repo: RepoT,
+    wctx: WorkingContextT,
+    mctx: ChangeContextT,
+    actx: ChangeContextT,
     overwrite: bool,
     labels: Any | None = None,
 ) -> Substate:
     # TODO: type the `labels` arg
-    """delegated from merge.applyupdates: merging of .hgsubstate file
-    in working context, merging context and ancestor context"""
+    """delegated from merge_utils.update.apply_updates: merging of .hgsubstate
+    file in working context, merging context and ancestor context"""
     if mctx == actx:  # backwards?
         actx = wctx.p1()
     s1 = wctx.substate
@@ -325,8 +314,8 @@ def submerge(
 
 
 def precommit(
-    ui: uimod.ui,
-    wctx: context.workingcommitctx,
+    ui: UiT,
+    wctx: WorkingCommitContextT,
     status: istatus.Status,
     match: MatcherT,
     force: bool = False,
@@ -429,7 +418,7 @@ def repo_rel_or_abs_source(repo):
     return normalized_path
 
 
-def reporelpath(repo: localrepo.localrepository) -> bytes:
+def reporelpath(repo: RepoT) -> bytes:
     """return path to this (sub)repo as seen from outermost repo"""
     parent = repo
     while hasattr(parent, '_subparent'):
@@ -437,13 +426,13 @@ def reporelpath(repo: localrepo.localrepository) -> bytes:
     return repo.root[len(pathutil.normasprefix(parent.root)) :]
 
 
-def subrelpath(sub: subrepo.abstractsubrepo) -> bytes:
+def subrelpath(sub: SubrepoT) -> bytes:
     """return path to this subrepo as seen from outermost repo"""
     return sub._relpath
 
 
 def _abssource(
-    repo: localrepo.localrepository,
+    repo: RepoT,
     push: bool = False,
     abort: bool = True,
 ) -> bytes | None:
@@ -494,7 +483,7 @@ def _abssource(
         raise error.Abort(_(b"default path for subrepository not found"))
 
 
-def newcommitphase(ui: uimod.ui, ctx: context.changectx) -> int:
+def newcommitphase(ui: UiT, ctx: ChangeContextT) -> int:
     commitphase = phases.newcommitphase(ui)
     substate = getattr(ctx, "substate", None)
     if not substate:

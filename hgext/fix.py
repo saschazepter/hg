@@ -374,7 +374,7 @@ def fix(ui, repo, *pats, **opts):
 
 
 def cleanup(repo, replacements, wdirwritten):
-    """Calls scmutil.cleanupnodes() with the given replacements.
+    """Calls cmdutil.cleanup_nodes() with the given replacements.
 
     "replacements" is a dict from nodeid to nodeid, with one key and one value
     for every revision that was affected by fixing. This is slightly different
@@ -387,7 +387,7 @@ def cleanup(repo, replacements, wdirwritten):
     effects of the command, though we choose not to output anything here.
     """
     replacements = {prec: [succ] for prec, succ in replacements.items()}
-    scmutil.cleanupnodes(repo, replacements, b'fix', fixphase=True)
+    cmdutil.cleanup_nodes(repo, replacements, b'fix', fixphase=True)
 
 
 def getworkqueue(ui, repo, pats, opts, revstofix, basectxs):

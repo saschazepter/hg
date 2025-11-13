@@ -23,7 +23,7 @@ from .i18n import (
     gettext,
 )
 from . import (
-    cmdutil,
+    cmd_impls,
     encoding,
     error,
     extensions,
@@ -34,12 +34,14 @@ from . import (
     pycompat,
     registrar,
     revset,
+    tables,
     templatefilters,
     templatefuncs,
-    templatekw,
     ui as uimod,
 )
-from .hgweb import webcommands
+from .main_script import (
+    cmd_finder,
+)
 from .utils import (
     compression,
     resourceutil,
@@ -202,6 +204,7 @@ def optrst(header: bytes, options, verbose: bool, ui: uimod.ui) -> bytes:
         else:
             shortopt, longopt, default, desc = option
             optlabel = _(b"VALUE")  # default label
+        assert desc is not None
 
         if not verbose and any(w in desc for w in _exclkeywords):
             continue
@@ -285,7 +288,7 @@ def filtertopic(ui: uimod.ui, topic: bytes) -> bool:
 
 
 def topicmatch(
-    ui: uimod.ui, commands, kw: bytes
+    ui: uimod.ui, kw: bytes
 ) -> dict[bytes, list[tuple[bytes, bytes]]]:
     """Return help topics matching kw.
 
@@ -314,7 +317,7 @@ def topicmatch(
             name = names[0]
             if not filtertopic(ui, name):
                 results[b'topics'].append((names[0], header))
-    for cmd, entry in commands.table.items():
+    for cmd, entry in tables.command_table.items():
         if len(entry) == 3:
             summary = entry[2]
         else:
@@ -325,7 +328,7 @@ def topicmatch(
         if kw in cmd or lowercontains(summary) or lowercontains(docs):
             if docs:
                 summary = stringutil.firstline(docs)
-            cmdname = cmdutil.parsealiases(cmd)[0]
+            cmdname = cmd_finder.parse_aliases(cmd)[0]
             if filtercmd(ui, cmdname, func, kw, docs):
                 continue
             results[b'commands'].append((cmdname, summary))
@@ -346,7 +349,7 @@ def topicmatch(
             continue
         for cmd, entry in getattr(mod, 'cmdtable', {}).items():
             if kw in cmd or (len(entry) > 2 and lowercontains(entry[2])):
-                cmdname = cmdutil.parsealiases(cmd)[0]
+                cmdname = cmd_finder.parse_aliases(cmd)[0]
                 func = entry[0]
                 cmddoc = pycompat.getdoc(func)
                 if cmddoc:
@@ -406,6 +409,11 @@ internalstable: list[_HelpEntryNoCategory] = sorted(
             [b'extensions', b'extension'],
             _(b'Extension API'),
             loaddoc(b'extensions', subdir=b'internals'),
+        ),
+        (
+            [b'file-index'],
+            _(b'File Index'),
+            loaddoc(b'file-index', subdir=b'internals'),
         ),
         (
             [b'mergestate'],
@@ -633,7 +641,7 @@ def makeitemsdoc(
     topic: bytes,
     doc: bytes,
     marker: bytes,
-    items: dict[bytes, bytes],
+    items: dict[bytes, object],
     dedent: bool = False,
 ) -> bytes:
     """Extract docstring from the items key to function mapping, build a
@@ -664,7 +672,10 @@ def makeitemsdoc(
 
 
 def addtopicsymbols(
-    topic: bytes, marker: bytes, symbols, dedent: bool = False
+    topic: bytes,
+    marker: bytes,
+    symbols: dict[bytes, object],
+    dedent: bool = False,
 ) -> None:
     def add(ui: uimod.ui, topic: bytes, doc: bytes):
         return makeitemsdoc(ui, topic, doc, marker, symbols, dedent=dedent)
@@ -682,11 +693,18 @@ addtopicsymbols(
     b'merge-tools', b'.. internaltoolsmarker', filemerge.internalsdoc
 )
 addtopicsymbols(b'revisions', b'.. predicatesmarker', revset.symbols)
-addtopicsymbols(b'templates', b'.. keywordsmarker', templatekw.keywords)
+addtopicsymbols(
+    b'templates',
+    b'.. keywordsmarker',
+    tables.template_keyword_table,
+)
 addtopicsymbols(b'templates', b'.. filtersmarker', templatefilters.filters)
 addtopicsymbols(b'templates', b'.. functionsmarker', templatefuncs.funcs)
 addtopicsymbols(
-    b'hgweb', b'.. webcommandsmarker', webcommands.commands, dedent=True
+    b'hgweb',
+    b'.. webcommandsmarker',
+    tables.webcommand_table,
+    dedent=True,
 )
 
 
@@ -749,7 +767,7 @@ def _getcategorizedhelpcmds(
     # Command -> string showing synonyms
     syns = {}
     for c, e in cmdtable.items():
-        fs = cmdutil.parsealiases(c)
+        fs = cmd_finder.parse_aliases(c)
         f = fs[0]
         syns[f] = fs
         func = e[0]
@@ -795,7 +813,6 @@ addtopichook(b'config', inserttweakrc)
 
 def help_(
     ui: uimod.ui,
-    commands,
     name: bytes,
     unknowncmd: bool = False,
     full: bool = True,
@@ -812,14 +829,14 @@ def help_(
 
     def helpcmd(name: bytes, subtopic: bytes | None) -> list[bytes]:
         try:
-            aliases, entry = cmdutil.findcmd(
-                name, commands.table, strict=unknowncmd
+            aliases, entry = cmd_finder.find_cmd(
+                name, tables.command_table, strict=unknowncmd
             )
         except error.AmbiguousCommand as inst:
             # py3 fix: except vars can't be used outside the scope of the
             # except block, nor can be used inside a lambda. python issue4617
             prefix = inst.prefix
-            select = lambda c: cmdutil.parsealiases(c)[0].startswith(prefix)
+            select = lambda c: cmd_finder.parse_aliases(c)[0].startswith(prefix)
             rst = helplist(select)
             return rst
 
@@ -895,7 +912,7 @@ def help_(
         if ui.verbose:
             rst.append(
                 optrst(
-                    _(b"global options"), commands.globalopts, ui.verbose, ui
+                    _(b"global options"), cmd_impls.global_opts, ui.verbose, ui
                 )
             )
 
@@ -914,7 +931,7 @@ def help_(
 
     def helplist(select: _SelectFn | None = None, **opts) -> list[bytes]:
         cats, h, syns = _getcategorizedhelpcmds(
-            ui, commands.table, name, select
+            ui, tables.command_table, name, select
         )
 
         rst = []
@@ -1003,7 +1020,7 @@ def help_(
             rst.append(
                 b'\n%s\n'
                 % optrst(
-                    _(b"global options"), commands.globalopts, ui.verbose, ui
+                    _(b"global options"), cmd_impls.global_opts, ui.verbose, ui
                 )
             )
             if name == b'shortlist':
@@ -1075,7 +1092,7 @@ def help_(
             indicateomitted(rst, omitted)
 
         try:
-            cmdutil.findcmd(name, commands.table)
+            cmd_finder.find_cmd(name, tables.command_table)
             rst.append(
                 _(b"\nuse 'hg help -c %s' to see help for the %s command\n")
                 % (name, name)
@@ -1153,7 +1170,7 @@ def help_(
     rst = []
     kw = opts.get(b'keyword')
     if kw or name is None and any(opts[o] for o in opts):
-        matches = topicmatch(ui, commands, name or b'')
+        matches = topicmatch(ui, name or b'')
         helpareas = []
         if opts.get(b'extension'):
             helpareas += [(b'extensions', _(b'Extensions'))]
@@ -1217,7 +1234,6 @@ def help_(
 
 def formattedhelp(
     ui: uimod.ui,
-    commands,
     fullname: bytes | None,
     keep: Iterable[bytes] | None = None,
     unknowncmd: bool = False,
@@ -1249,7 +1265,6 @@ def formattedhelp(
         textwidth = termwidth
     text = help_(
         ui,
-        commands,
         name,
         fullname=fullname,
         subtopic=subtopic,

@@ -10,10 +10,9 @@ from __future__ import annotations
 import ast
 import collections
 import functools
-import importlib
 import inspect
 import os
-import sys
+import typing
 
 from .i18n import (
     _,
@@ -21,20 +20,46 @@ from .i18n import (
 )
 
 from . import (
-    cmdutil,
     configitems,
     error,
     pycompat,
+    tables,
     util,
 )
 
+from .main_script import (
+    cmd_finder,
+)
 from .utils import stringutil
 
-_extensions = {}
-_disabledextensions = {}
-_aftercallbacks = {}
-_order = []
-_builtin = {
+if typing.TYPE_CHECKING:
+    import types
+
+    from typing import (
+        BinaryIO,
+        Callable,
+        Final,
+        Iterator,
+        Protocol,
+    )
+
+    from .interfaces.types import (
+        NeedsTypeHint,
+        UiT,
+    )
+
+    class _AfterLoadedCb(Protocol):
+        """The signature of the method invoked after loading an extension."""
+
+        def __call__(self, loaded=False):
+            raise NotImplementedError
+
+
+_extensions: Final[dict[bytes, types.ModuleType | None]] = {}
+_disabledextensions: Final[dict[bytes, bytes]] = {}
+_aftercallbacks: Final[dict[bytes, list[_AfterLoadedCb]]] = {}
+_order: Final[list[bytes]] = []
+_builtin: Final[set[bytes]] = {
     b'hbisect',
     b'bookmarks',
     b'color',
@@ -47,10 +72,12 @@ _builtin = {
 }
 
 
-def extensions(ui=None):
+def extensions(
+    ui: UiT | None = None,
+) -> Iterator[tuple[bytes, types.ModuleType]]:
     if ui:
 
-        def enabled(name):
+        def enabled(name: bytes):
             for format in [b'%s', b'hgext.%s']:
                 conf = ui.config(b'extensions', format % name)
                 if conf is not None and not conf.startswith(b'!'):
@@ -64,7 +91,7 @@ def extensions(ui=None):
             yield name, module
 
 
-def find(name):
+def find(name: bytes) -> types.ModuleType:
     '''return module with given extension name'''
     mod = None
     try:
@@ -79,27 +106,7 @@ def find(name):
     return mod
 
 
-def loadpath(path, module_name):
-    module_name = module_name.replace('.', '_')
-    path = util.normpath(util.expandpath(path))
-    path = pycompat.fsdecode(path)
-    if os.path.isdir(path):
-        # module/__init__.py style
-        init_py_path = os.path.join(path, '__init__.py')
-        if not os.path.exists(init_py_path):
-            raise ImportError("No module named '%s'" % os.path.basename(path))
-        path = init_py_path
-
-    loader = importlib.machinery.SourceFileLoader(module_name, path)
-    spec = importlib.util.spec_from_file_location(module_name, loader=loader)
-    assert spec is not None  # help Pytype
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _importh(name):
+def _importh(name: str) -> types.ModuleType:
     """import and return the <name> module"""
     mod = __import__(name)
     components = name.split('.')
@@ -108,13 +115,17 @@ def _importh(name):
     return mod
 
 
-def _importext(name, path=None, reportfunc=None):
-    name = pycompat.fsdecode(name)
+def _importext(
+    name: bytes,
+    path: bytes | None = None,
+    reportfunc: Callable[[Exception, str, str], None] | None = None,
+) -> types.ModuleType:
+    name: str = pycompat.fsdecode(name)
     if path:
         # the module will be loaded in sys.modules
         # choose an unique name so that it doesn't
         # conflicts with other modules
-        mod = loadpath(path, 'hgext.%s' % name)
+        mod = util.load_path(path, 'hgext.%s' % name)
     else:
         try:
             mod = _importh("hgext.%s" % name)
@@ -130,7 +141,12 @@ def _importext(name, path=None, reportfunc=None):
     return mod
 
 
-def _reportimporterror(ui, err, failed, next):
+def _reportimporterror(
+    ui: UiT,
+    err: NeedsTypeHint,
+    failed: NeedsTypeHint,
+    next: NeedsTypeHint,
+) -> None:
     # note: this ui.log happens before --debug is processed,
     #       Use --config ui.debug=1 to see them.
     ui.log(
@@ -144,7 +160,7 @@ def _reportimporterror(ui, err, failed, next):
         ui.traceback()
 
 
-def _rejectunicode(name, xs):
+def _rejectunicode(name: str, xs) -> None:
     if isinstance(xs, (list, set, tuple)):
         for x in xs:
             _rejectunicode(name, x)
@@ -161,10 +177,14 @@ def _rejectunicode(name, xs):
 
 
 # attributes set by registrar.command
-_cmdfuncattrs = ('norepo', 'optionalrepo', 'inferrepo')
+_cmdfuncattrs: Final[tuple[str, str, str]] = (
+    'norepo',
+    'optionalrepo',
+    'inferrepo',
+)
 
 
-def _validatecmdtable(ui, cmdtable):
+def _validatecmdtable(ui: UiT, cmdtable: NeedsTypeHint) -> None:
     """Check if extension commands have required attributes"""
     for c, e in cmdtable.items():
         f = e[0]
@@ -177,7 +197,7 @@ def _validatecmdtable(ui, cmdtable):
         raise error.ProgrammingError(msg, hint=hint)
 
 
-def _validatetables(ui, mod):
+def _validatetables(ui: UiT, mod: types.ModuleType) -> None:
     """Sanity check for loadable tables provided by extension module"""
     for t in ['cmdtable', 'colortable', 'configtable']:
         _rejectunicode(t, getattr(mod, t, {}))
@@ -195,9 +215,14 @@ def _validatetables(ui, mod):
     _validatecmdtable(ui, getattr(mod, 'cmdtable', {}))
 
 
-def load(ui, name, path, loadingtime=None):
+def load(
+    ui: UiT,
+    name: bytes,
+    path: bytes | None,
+    loadingtime: dict[bytes, int] | None = None,
+) -> types.ModuleType | None:
     if name.startswith(b'hgext.') or name.startswith(b'hgext/'):
-        shortname = name[6:]
+        shortname: bytes = name[6:]
     else:
         shortname = name
     if shortname in _builtin:
@@ -246,7 +271,7 @@ def load(ui, name, path, loadingtime=None):
     return mod
 
 
-def _runuisetup(name, ui):
+def _runuisetup(name: bytes, ui: UiT) -> bool:
     uisetup = getattr(_extensions[name], 'uisetup', None)
     if uisetup:
         try:
@@ -259,7 +284,7 @@ def _runuisetup(name, ui):
     return True
 
 
-def _runextsetup(name, ui):
+def _runextsetup(name: bytes, ui: UiT) -> bool:
     extsetup = getattr(_extensions[name], 'extsetup', None)
     if extsetup:
         try:
@@ -272,8 +297,8 @@ def _runextsetup(name, ui):
     return True
 
 
-def loadall(ui, whitelist=None):
-    loadingtime = collections.defaultdict(int)
+def loadall(ui: UiT, whitelist: NeedsTypeHint = None) -> None:
+    loadingtime = collections.defaultdict[bytes, int](int)
     result = ui.configitems(b"extensions")
     if whitelist is not None:
         result = [(k, v) for (k, v) in result if k in whitelist]
@@ -411,16 +436,13 @@ def loadall(ui, whitelist=None):
     # entries could result in double execution. See issue4646.
     _aftercallbacks.clear()
 
-    # delay importing avoids cyclic dependency (especially commands)
+    # delay importing avoids cyclic dependency
     from . import (
         color,
-        commands,
         filemerge,
         fileset,
-        revset,
         templatefilters,
         templatefuncs,
-        templatekw,
     )
 
     # list of (objname, loadermod, loadername) tuple:
@@ -431,14 +453,14 @@ def loadall(ui, whitelist=None):
     #   which takes (ui, extensionname, extraobj) arguments
     ui.log(b'extension', b'- loading extension registration objects\n')
     extraloaders = [
-        ('cmdtable', commands, 'loadcmdtable'),
+        ('cmdtable', tables, 'load_cmd_table'),
         ('colortable', color, 'loadcolortable'),
         ('filesetpredicate', fileset, 'loadpredicate'),
         ('internalmerge', filemerge, 'loadinternalmerge'),
-        ('revsetpredicate', revset, 'loadpredicate'),
+        ('revsetpredicate', tables, 'load_revset_predicates'),
         ('templatefilter', templatefilters, 'loadfilter'),
         ('templatefunc', templatefuncs, 'loadfunction'),
-        ('templatekeyword', templatekw, 'loadkeyword'),
+        ('templatekeyword', tables, 'load_template_keywords'),
     ]
     with util.timedcm('load registration objects') as stats:
         _loadextra(ui, newindex, extraloaders)
@@ -460,7 +482,7 @@ def loadall(ui, whitelist=None):
     ui.log(b'extension', b'extension loading complete\n')
 
 
-def _loadextra(ui, newindex, extraloaders):
+def _loadextra(ui: UiT, newindex: int, extraloaders) -> None:
     for name in _order[newindex:]:
         module = _extensions[name]
         if not module:
@@ -472,7 +494,7 @@ def _loadextra(ui, newindex, extraloaders):
                 getattr(loadermod, loadername)(ui, name, extraobj)
 
 
-def afterloaded(extension, callback):
+def afterloaded(extension: bytes, callback: _AfterLoadedCb) -> None:
     """Run the specified function after a named extension is loaded.
 
     If the named extension is already loaded, the callback will be called
@@ -493,7 +515,7 @@ def afterloaded(extension, callback):
         _aftercallbacks.setdefault(extension, []).append(callback)
 
 
-def populateui(ui):
+def populateui(ui: UiT) -> None:
     """Run extension hooks on the given ui to populate additional members,
     extend the class dynamically, etc.
 
@@ -530,7 +552,7 @@ def bind(func, *args):
     return closure
 
 
-def _updatewrapper(wrap, origfn, unboundwrapper):
+def _updatewrapper(wrap, origfn, unboundwrapper) -> None:
     '''Copy and add some useful attributes to wrapper'''
     try:
         wrap.__name__ = origfn.__name__
@@ -543,7 +565,13 @@ def _updatewrapper(wrap, origfn, unboundwrapper):
     wrap._unboundwrapper = unboundwrapper
 
 
-def wrapcommand(table, command, wrapper, synopsis=None, docstring=None):
+def wrapcommand(
+    table,
+    command: bytes,
+    wrapper,
+    synopsis: bytes | None = None,
+    docstring: str | None = None,
+) -> NeedsTypeHint:
     '''Wrap the command named `command' in table
 
     Replace command in the command table with wrapper. The wrapped command will
@@ -569,11 +597,11 @@ def wrapcommand(table, command, wrapper, synopsis=None, docstring=None):
       local bookmarks.
       """
 
-      extensions.wrapcommand(commands.table, 'bookmarks', exbookmarks,
+      extensions.wrapcommand(tables.command_table, 'bookmarks', exbookmarks,
                              synopsis, docstring)
     '''
     assert callable(wrapper)
-    aliases, entry = cmdutil.findcmd(command, table)
+    aliases, entry = cmd_finder.find_cmd(command, table)
     for alias, e in table.items():
         if e is entry:
             key = alias
@@ -595,7 +623,7 @@ def wrapcommand(table, command, wrapper, synopsis=None, docstring=None):
     return entry
 
 
-def wrapfilecache(cls, propname, wrapper):
+def wrapfilecache(cls, propname: bytes, wrapper) -> None:
     """Wraps a filecache property.
 
     These can't be wrapped using the normal wrapfunction.
@@ -620,7 +648,7 @@ def wrapfilecache(cls, propname, wrapper):
 class wrappedfunction:
     '''context manager for temporarily wrapping a function'''
 
-    def __init__(self, container, funcname: str, wrapper):
+    def __init__(self, container, funcname: str, wrapper) -> None:
         assert callable(wrapper)
         if not isinstance(funcname, str):
             # Keep this compat shim around for older/unmaintained extensions
@@ -694,7 +722,7 @@ def wrapfunction(container, funcname: str, wrapper):
     return origfn
 
 
-def unwrapfunction(container, funcname, wrapper=None):
+def unwrapfunction(container, funcname: str, wrapper=None):
     """undo wrapfunction
 
     If wrappers is None, undo the last wrap. Otherwise removes the wrapper
@@ -715,7 +743,7 @@ def unwrapfunction(container, funcname, wrapper=None):
     return wrapper
 
 
-def getwrapperchain(container, funcname):
+def getwrapperchain(container, funcname: str):
     """get a chain of wrappers of a function
 
     Return a list of functions: [newest wrapper, ..., oldest wrapper, origfunc]
@@ -732,7 +760,7 @@ def getwrapperchain(container, funcname):
     return result
 
 
-def _disabledpaths():
+def _disabledpaths() -> dict[bytes, bytes]:
     '''find paths of disabled extensions. returns a dict of {name: path}'''
     import hgext
 
@@ -770,7 +798,7 @@ def _disabledpaths():
     return exts
 
 
-def _moduledoc(file):
+def _moduledoc(file: BinaryIO) -> bytes | None:
     """return the top-level python documentation for the given file
 
     Loosely inspired by pydoc.source_synopsis(), but rewritten to
@@ -803,7 +831,7 @@ def _moduledoc(file):
     return b''.join(result)
 
 
-def _disabledhelp(path):
+def _disabledhelp(path: bytes) -> bytes | None:
     '''retrieve help synopsis of a disabled extension (without importing)'''
     try:
         with open(path, 'rb') as src:
@@ -817,7 +845,7 @@ def _disabledhelp(path):
         return _(b'(no help text available)')
 
 
-def disabled():
+def disabled() -> dict[bytes, bytes]:
     '''find disabled extensions from hgext. returns a dict of {name: desc}'''
     try:
         from hgext import __index__  # pytype: disable=import-error
@@ -843,7 +871,7 @@ def disabled():
     return exts
 
 
-def disabled_help(name):
+def disabled_help(name: bytes) -> bytes | None:
     """Obtain the full help text for a disabled extension, or None."""
     paths = _disabledpaths()
     if name in paths:
@@ -884,7 +912,7 @@ def _walkcommand(node):
             yield d
 
 
-def _disabledcmdtable(path):
+def _disabledcmdtable(path: bytes):
     """Construct a dummy command table without loading the extension module
 
     This may raise IOError or SyntaxError.
@@ -920,13 +948,19 @@ def _disabledcmdtable(path):
     return cmdtable
 
 
-def _finddisabledcmd(ui, cmd, name, path, strict):
+def _finddisabledcmd(
+    ui: UiT,
+    cmd: bytes,
+    name: bytes,
+    path: bytes,
+    strict: bool,
+) -> tuple[bytes, bytes, bytes | None] | None:
     try:
         cmdtable = _disabledcmdtable(path)
     except (OSError, SyntaxError):
         return
     try:
-        aliases, entry = cmdutil.findcmd(cmd, cmdtable, strict)
+        aliases, entry = cmd_finder.find_cmd(cmd, cmdtable, strict)
     except (error.AmbiguousCommand, error.UnknownCommand):
         return
     for c in aliases:
@@ -939,7 +973,9 @@ def _finddisabledcmd(ui, cmd, name, path, strict):
     return (cmd, name, doc)
 
 
-def disabledcmd(ui, cmd, strict=False):
+def disabledcmd(
+    ui: UiT, cmd: bytes, strict: bool = False
+) -> tuple[bytes, bytes, bytes | None]:
     """find cmd from disabled extensions without importing.
     returns (cmdname, extname, doc)"""
 
@@ -964,12 +1000,18 @@ def disabledcmd(ui, cmd, strict=False):
     raise error.UnknownCommand(cmd)
 
 
-def enabled(shortname=True):
+def enabled(shortname: bool = True) -> dict[bytes, bytes]:
     '''return a dict of {name: desc} of extensions'''
     exts = {}
     for ename, ext in extensions():
-        doc = gettext(ext.__doc__) or _(b'(no help text available)')
-        assert doc is not None  # help pytype
+        # ``gettext()`` handles str docstring input, but it's typed as only
+        # accepting bytes input to catch the more common ``_()`` usage.  The
+        # return is bytes (unless an error occurs), so simply cast to bytes to
+        # fool pytype.
+        doc = gettext(typing.cast(bytes, ext.__doc__)) or _(
+            b'(no help text available)'
+        )
+
         if shortname:
             ename = ename.split(b'.')[-1]
         exts[ename] = stringutil.firstline(doc).strip()
@@ -977,12 +1019,12 @@ def enabled(shortname=True):
     return exts
 
 
-def notloaded():
+def notloaded() -> list[bytes]:
     '''return short names of extensions that failed to load'''
     return [name for name, mod in _extensions.items() if mod is None]
 
 
-def moduleversion(module):
+def moduleversion(module: types.ModuleType) -> bytes:
     '''return version information from given module as a string'''
     if hasattr(module, 'getversion') and callable(module.getversion):
         try:
@@ -1003,6 +1045,6 @@ def moduleversion(module):
     return version
 
 
-def ismoduleinternal(module):
+def ismoduleinternal(module: types.ModuleType) -> bool:
     exttestedwith = getattr(module, 'testedwith', None)
     return exttestedwith == b"ships-with-hg-core"

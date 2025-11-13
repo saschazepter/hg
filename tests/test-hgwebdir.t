@@ -1406,62 +1406,17 @@ test descend = False
   > nostore = $root/nostore
   > inexistent = $root/inexistent
   > EOF
+  $ rm hg.pid
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-8.log
-  $ cat hg.pid >> $DAEMON_PIDS
-
-test inexistent and inaccessible repo should be ignored silently
-
-  $ get-with-headers.py localhost:$HGPORT1 ''
-  200 Script output follows
-  
-  <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-  <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US">
-  <head>
-  <link rel="icon" href="/static/hgicon.png" type="image/png" />
-  <meta name="robots" content="index, nofollow" />
-  <link rel="stylesheet" href="/static/style-paper.css" type="text/css" />
-  <script type="text/javascript" src="/static/mercurial.js"></script>
-  
-  <title>Mercurial repositories index</title>
-  </head>
-  <body>
-  
-  <div class="container">
-  <div class="menu">
-  <a href="https://mercurial-scm.org/">
-  <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
-  </div>
-  <div class="main">
-  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
-  
-  <table class="bigtable">
-      <thead>
-      <tr>
-          <th><a href="?sort=name">Name</a></th>
-          <th><a href="?sort=description">Description</a></th>
-          <th><a href="?sort=contact">Contact</a></th>
-          <th><a href="?sort=lastchange">Last modified</a></th>
-          <th>&nbsp;</th>
-          <th>&nbsp;</th>
-      </tr>
-      </thead>
-      <tbody class="stripes2">
-      
-      </tbody>
-  </table>
-  </div>
-  </div>
-  
-  
-  </body>
-  </html>
-  
+  abort: filesystem path is not a repository: '$TESTTMP/dir/webdir/inexistent'
+  (this was mapped to server path 'inexistent')
+  [10]
+  $ killdaemons.py hg.pid
 
 test listening address/port specified by web-conf (issue4699):
 
-  $ killdaemons.py
-  $ cat >> paths.conf <<EOF
+  $ cat > paths.conf <<EOF
   > [web]
   > address = localhost
   > port = $HGPORT1
@@ -1771,9 +1726,7 @@ paths errors 7
 
   $ cat error-paths-7.log
 
-paths errors 8
-
-  $ cat error-paths-8.log
+paths errors 8 is no more, since the server fails to start
 
 paths errors 9
 

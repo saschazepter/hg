@@ -117,6 +117,9 @@ from mercurial import (
     merge,
     wireprotov1server,
 )
+from mercurial.cmd_impls import (
+    outgoing as out_impl,
+)
 
 from . import (
     lfcommands,
@@ -170,7 +173,7 @@ def _uisetup(ui):
     localrepo.featuresetupfuncs.add(featuresetup)
     hg.wirepeersetupfuncs.append(proto.wirereposetup)
 
-    cmdutil.outgoinghooks.add(b'largefiles', overrides.outgoinghook)
+    out_impl.outgoinghooks.add(b'largefiles', overrides.outgoinghook)
     cmdutil.summaryremotehooks.add(b'largefiles', overrides.summaryremotehook)
 
     # create the new wireproto commands ...

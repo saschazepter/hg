@@ -23,14 +23,14 @@ use pyo3::types::PyDictMethods;
 /// Helper trait for configuration dicts
 ///
 /// In Mercurial, it is customary for such dicts to have bytes keys.
-trait ConfigPyDict<'a, 'py: 'a, D: FromPyObject<'py>> {
+trait ConfigPyDict<'a, 'py: 'a, D: FromPyObject<'py, 'py>> {
     fn extract_item(&'a self, key: &[u8]) -> PyResult<Option<D>>;
 }
 
 impl<'a, 'py, D> ConfigPyDict<'a, 'py, D> for Bound<'py, PyDict>
 where
     'py: 'a,
-    D: FromPyObject<'py>,
+    D: FromPyObjectOwned<'py>,
 {
     fn extract_item(&'a self, key: &[u8]) -> PyResult<Option<D>> {
         let py_item = self.get_item(PyBytes::new(self.py(), key))?;
@@ -39,7 +39,7 @@ where
                 if value.is_none() {
                     Ok(None)
                 } else {
-                    Ok(Some(value.extract()?))
+                    Ok(Some(value.extract().map_err(Into::into)?))
                 }
             }
             None => Ok(None),
@@ -59,7 +59,8 @@ where
 /// compiler: "returns a value referencing data owned by the current function"
 macro_rules! extract_attr {
     ($obj: expr, $attr: expr) => {
-        $obj.getattr(intern!($obj.py(), $attr)).and_then(|a| a.extract())
+        $obj.getattr(intern!($obj.py(), $attr))
+            .and_then(|a| a.extract().map_err(Into::into))
     };
 }
 
@@ -67,15 +68,15 @@ macro_rules! extract_attr {
 // hard, I'm guessing it's due to different compilation stages, etc.).
 // So manually generate all three caches and use them in
 // `with_filelog_cache`.
-static DELTA_CONFIG_CACHE: OnceLock<(PyObject, RevlogDeltaConfig)> =
+static DELTA_CONFIG_CACHE: OnceLock<(Py<PyAny>, RevlogDeltaConfig)> =
     OnceLock::new();
-static DATA_CONFIG_CACHE: OnceLock<(PyObject, RevlogDataConfig)> =
+static DATA_CONFIG_CACHE: OnceLock<(Py<PyAny>, RevlogDataConfig)> =
     OnceLock::new();
-static FEATURE_CONFIG_CACHE: OnceLock<(PyObject, RevlogFeatureConfig)> =
+static FEATURE_CONFIG_CACHE: OnceLock<(Py<PyAny>, RevlogFeatureConfig)> =
     OnceLock::new();
 
 /// TODO don't do this and build a `Config` in Rust, expose it to Python and
-/// downcast it (after refactoring Python to re-use the same config objects?).
+/// cast it (after refactoring Python to re-use the same config objects?).
 ///
 /// Cache the first conversion from Python of filelog config. Other
 /// revlog types are not cached.
@@ -87,7 +88,7 @@ static FEATURE_CONFIG_CACHE: OnceLock<(PyObject, RevlogFeatureConfig)> =
 fn with_filelog_config_cache<T: Copy>(
     py_config: &Bound<'_, PyAny>,
     revlog_type: RevlogType,
-    cache: &OnceLock<(PyObject, T)>,
+    cache: &OnceLock<(Py<PyAny>, T)>,
     callback: impl Fn() -> PyResult<T>,
 ) -> PyResult<T> {
     let mut was_cached = false;
@@ -124,6 +125,7 @@ pub fn extract_delta_config(
             general_delta: extract_attr!(conf, "general_delta")?,
             sparse_revlog: extract_attr!(conf, "sparse_revlog")?,
             delta_info: extract_attr!(conf, "delta_info")?,
+            store_quality: extract_attr!(conf, "store_quality")?,
             max_chain_len: extract_attr!(conf, "max_chain_len")?,
             max_deltachain_span: if max_deltachain_span < 0 {
                 None
@@ -139,6 +141,7 @@ pub fn extract_delta_config(
             debug_delta: extract_attr!(conf, "debug_delta")?,
             lazy_delta: extract_attr!(conf, "lazy_delta")?,
             lazy_delta_base: extract_attr!(conf, "lazy_delta_base")?,
+            lazy_compression: extract_attr!(conf, "lazy_compression")?,
             file_max_comp_ratio: extract_attr!(conf, "file_max_comp_ratio")?,
         };
         Ok(revlog_delta_config)

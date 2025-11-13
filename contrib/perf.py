@@ -60,9 +60,11 @@ Configurations
 import contextlib
 import functools
 import gc
+import math
 import os
 import random
 import shutil
+import string
 import struct
 import sys
 import tempfile
@@ -77,7 +79,6 @@ from mercurial import (
     copies,
     error,
     extensions,
-    hg,
     mdiff,
     merge,
     util,
@@ -122,6 +123,13 @@ try:
 except ImportError:
     profiling = None
 
+try:
+    from mercurial.repo import (
+        factory as repo_factory,
+    )  # since 7.2 (or 44ea08e1193b)
+except ImportError:
+    from mercurial import hg as repo_factory
+
 
 try:
     from mercurial.revlogutils import CachedDelta
@@ -137,7 +145,9 @@ try:
     perf_rl_kind = (revlog_constants.KIND_OTHER, b'created-by-perf')
 
     def revlog(opener, *args, **kwargs):
-        return mercurial.revlog.revlog(opener, perf_rl_kind, *args, **kwargs)
+        if 'target' not in kwargs:
+            kwargs['target'] = perf_rl_kind
+        return mercurial.revlog.revlog(opener, *args, **kwargs)
 
 except (ImportError, AttributeError):
     perf_rl_kind = None
@@ -1162,7 +1172,7 @@ def perfdiscovery(ui, repo, path, **opts):
             path = ui.expandpath(path)
 
     def s():
-        repos[1] = hg.peer(ui, opts, path)
+        repos[1] = repo_factory.peer(ui, opts, path)
 
     def d():
         setdiscovery.findcommonheads(ui, *repos)
@@ -1761,7 +1771,6 @@ def perfphasesremote(ui, repo, dest=None, **opts):
     from mercurial.node import bin
     from mercurial import (
         exchange,
-        hg,
         phases,
     )
 
@@ -1780,7 +1789,7 @@ def perfphasesremote(ui, repo, dest=None, **opts):
     else:
         dest = path.pushloc or path.loc
     ui.statusnoi18n(b'analysing phase of %s\n' % util.hidepassword(dest))
-    other = hg.peer(repo, opts, dest)
+    other = repo_factory.peer(repo, opts, dest)
 
     # easier to perform discovery through the operation
     op = exchange.pushoperation(repo, other)
@@ -2081,18 +2090,22 @@ def _find_stream_generator(version):
     # try to fetch a v2 generator
     generatev2 = getattr(mercurial.streamclone, "generatev2", None)
     if generatev2 is not None:
+        post_0cdf8ccb2204 = "matcher" in getargspec(generatev2).args
+        matcher_args = (None,) if post_0cdf8ccb2204 else (None, None)
 
         def generate(repo):
-            entries, bytes, data = generatev2(repo, None, None, True)
+            entries, bytes, data = generatev2(repo, *matcher_args, True)
             return data
 
         available[b'v2'] = generate
     # try to fetch a v3 generator
     generatev3 = getattr(mercurial.streamclone, "generatev3", None)
     if generatev3 is not None:
+        post_0cdf8ccb2204 = "matcher" in getargspec(generatev2).args
+        matcher_args = (None,) if post_0cdf8ccb2204 else (None, None)
 
         def generate(repo):
-            return generatev3(repo, None, None, True)
+            return generatev3(repo, *matcher_args, True)
 
         available[b'v3-exp'] = generate
 
@@ -2222,11 +2235,6 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
         msg %= _bytestr(exc)
         raise error.Abort(msg)
     try:
-        from mercurial import hg
-    except ImportError as exc:
-        msg %= _bytestr(exc)
-        raise error.Abort(msg)
-    try:
         from mercurial import localrepo
     except ImportError as exc:
         msg %= _bytestr(exc)
@@ -2281,7 +2289,7 @@ def perf_stream_clone_consume(ui, repo, filename, **opts):
         localrepo.createrepository(
             new_ui, tmp_dir, requirements=repo.requirements
         )
-        target = hg.repository(new_ui, tmp_dir)
+        target = repo_factory.repository(new_ui, tmp_dir)
         # we don't need to use a config override here because this is a
         # dedicated UI object for the disposable repository create for the
         # benchmark.
@@ -2425,7 +2433,11 @@ def perfnodelookup(ui, repo, rev, **opts):
     n = scmutil.revsingle(repo, rev).node()
 
     try:
-        cl = revlog(getsvfs(repo), radix=b"00changelog")
+        cl = revlog(
+            getsvfs(repo),
+            radix=b"00changelog",
+            target=(revlog_constants.KIND_CHANGELOG, None),
+        )
     except TypeError:
         cl = revlog(getsvfs(repo), indexfile=b"00changelog.i")
 
@@ -2943,6 +2955,153 @@ def perffncacheencode(ui, repo, **opts):
     fm.end()
 
 
+@command(
+    b'perf::file-index-read',
+    formatteropts
+    + [
+        (b'', b'order', b'random', b'order of paths (random, sorted, token)'),
+        (b'', b'count', b'1', b'number (N) or percent (N%) of paths to lookup'),
+        (b'', b'seed', 0, b'seed for --order random'),
+    ],
+)
+def perf_file_index_read(ui, repo, **opts):
+    """benchmark looking up paths in the file index tree"""
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+    fileindex = repo.store.fileindex
+
+    paths = list(fileindex)
+    order = opts[b'order']
+    if order == b'random':
+        random.seed(opts[b'seed'])
+        random.shuffle(paths)
+    elif order == b'sorted':
+        paths.sort()
+    elif order != b'token':
+        raise error.CommandError(b'perf::file-index-read', b'invalid --order')
+
+    count = opts[b'count']
+    if count.endswith(b'%'):
+        # Use ceil to avoid rounding to 0.
+        count = math.ceil(float(count[:-1]) / 100 * len(fileindex))
+    else:
+        count = int(count)
+    if count < 1 or count > len(fileindex):
+        msg = b'count %d out of range' % count
+        raise error.CommandError(b'perf::file-index-read', msg)
+    paths = paths[:count]
+
+    msg = b'looking up %d out of %d paths (%s order)\n'
+    ui.statusnoi18n(msg % (count, len(fileindex), order))
+
+    def d():
+        for path in paths:
+            fileindex.get_token(path)
+
+    timer(d)
+    fm.end()
+
+
+@command(
+    b'perf::file-index-write',
+    formatteropts
+    + [
+        (b'', b'count', 1, b'number of paths to write'),
+        (b'', b'seed', 0, b'seed for generating random paths'),
+    ],
+)
+def perf_file_index_write(ui, repo, **opts):
+    """benchmark writing paths to the file index"""
+    from mercurial.interfaces import file_index
+
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+    random.seed(opts[b'seed'])
+
+    with repo.lock():
+        # Ensure we don't include vacuuming in the measurement.
+        svfs = getsvfs(repo)
+        svfs.options[b'fileindex-vacuum-mode'] = file_index.VacuumMode.NEVER
+        fileindex = repo.store.fileindex
+
+        if len(fileindex) == 0:
+            msg = b'benchmark requires nonempty file index'
+            raise error.CommandError(b'perf::file-index-write', msg)
+
+        paths = set()
+        paths_and_tokens = []
+        token_count = len(fileindex) + 1
+        ascii_letters = string.ascii_letters.encode('ascii')
+        count = opts[b'count']
+        for i in range(count):
+            token = random.randrange(1, token_count)
+            existing = fileindex.get_path(token)
+            prefix = existing[: random.randrange(len(existing))]
+            while True:
+                k = random.randrange(1, 20)
+                suffix = bytes(random.choices(ascii_letters, k=k))
+                path = prefix + suffix
+                if path not in fileindex and path not in paths:
+                    break
+            paths.add(path)
+            paths_and_tokens.append((path, token_count + i))
+
+        paths_str = b''.join(b'\t%s\n' % path for path, _ in paths_and_tokens)
+        ui.notenoi18n(b'adding %d path(s):\n%s' % (count, paths_str))
+
+        def s():
+            nonlocal fileindex
+            # Reload the file index from the non-pending docket to revert the
+            # change. The new paths will still be in the data files, but past
+            # their "used size", so we'll overwrite the same region every time.
+            repo.store.invalidatecaches(clearfilecache=True)
+            fileindex = repo.store.fileindex
+
+        def d():
+            for path, token in paths_and_tokens:
+                if fileindex.add(path, tr) != token:
+                    raise error.ProgrammingError(b'unexpected token')
+            if not tr.writepending():
+                raise error.ProgrammingError(b'add should write')
+
+        tr = repo.transaction(b'perf::file-index-write')
+        try:
+            timer(d, setup=s)
+        finally:
+            tr.abort()
+        fm.end()
+
+
+@command(b'perf::file-index-vacuum', formatteropts)
+def perf_file_index_vacuum(ui, repo, **opts):
+    """benchmark vacuuming the file index tree file"""
+    opts = _byteskwargs(opts)
+    timer, fm = gettimer(ui, opts)
+
+    with repo.lock(), repo.transaction(b'perf::file-index-vacuum') as tr:
+        fileindex = repo.store.fileindex
+
+        # Back up data files, otherwise the repo could be corrupted if the
+        # command is interrupted, since we delete the initial tree file in s().
+        for path in fileindex.data_files():
+            tr.addbackup(path)
+
+        def s():
+            # GC before each iteration so we don't accumulate lots of tree files.
+            fileindex.garbage_collect(tr, force=True)
+
+        def d():
+            # This just adds a file generator to the transaction. The actual
+            # vacuuming happens when `writepending` runs the generator.
+            fileindex.vacuum(tr)
+            if not tr.writepending():
+                raise error.ProgrammingError(b'vacuum should always write')
+
+        timer(d, setup=s)
+        s()  # final GC to clean up last iteration
+        fm.end()
+
+
 def _bdiffworker(q, blocks, xdiff, ready, done):
     while not done.is_set():
         pair = q.get()
@@ -3305,6 +3464,7 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
     opener = getattr(rl, 'opener')  # trick linter
     # compat with hg <= 5.8
     radix = getattr(rl, 'radix', None)
+    target = getattr(rl, 'target', None)
     indexfile = getattr(rl, '_indexfile', None)
     if indexfile is None:
         # compatibility with <= hg-5.8
@@ -3353,7 +3513,7 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
 
     def constructor():
         if radix is not None:
-            revlog(opener, radix=radix)
+            revlog(opener, radix=radix, target=target)
         else:
             # hg <= 5.8
             revlog(opener, indexfile=indexfile)
@@ -3449,18 +3609,31 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
 
 
 @command(
-    b'perf::revlogrevisions|perfrevlogrevisions',
+    b'perf::revlog-read-revisions|perf::revlogrevisions|perfrevlogrevisions',
     revlogopts
     + formatteropts
     + [
         (b'd', b'dist', 100, b'distance between the revisions'),
         (b's', b'startrev', 0, b'revision to start reading at'),
         (b'', b'reverse', False, b'read in reverse'),
+        (b'', b'checksum', True, b'check-integrity'),
+        (
+            b'',
+            b'reuse-caches',
+            False,
+            b'reuse caches instead of clearing between runs',
+        ),
     ],
     b'-c|-m|FILE',
 )
 def perfrevlogrevisions(
-    ui, repo, file_=None, startrev=0, reverse=False, **opts
+    ui,
+    repo,
+    file_=None,
+    startrev=0,
+    reverse=False,
+    checksum=True,
+    **opts,
 ):
     """Benchmark reading a series of revisions from a revlog.
 
@@ -3470,6 +3643,7 @@ def perfrevlogrevisions(
     The start revision can be defined via ``-s/--startrev``.
     """
     opts = _byteskwargs(opts)
+    use_caches = opts[b'reuse_caches']
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogrevisions', file_, opts)
     rllen = getlen(ui)(rl)
@@ -3478,7 +3652,8 @@ def perfrevlogrevisions(
         startrev = rllen + startrev
 
     def d():
-        rl.clearcaches()
+        if not use_caches:
+            rl.clearcaches()
 
         beginrev = startrev
         endrev = rllen
@@ -3491,10 +3666,111 @@ def perfrevlogrevisions(
         for x in _xrange(beginrev, endrev, dist):
             # Old revisions don't support passing int.
             n = rl.node(x)
-            rl.revision(n)
+            if checksum:
+                rl.revision(n)
+            else:
+                rl.rawdata(n, validate=False)
 
     timer, fm = gettimer(ui, opts)
     timer(d)
+    fm.end()
+
+
+@command(
+    b'perf::revlog-revdiff',
+    revlogopts
+    + formatteropts
+    + [
+        (b'', b'target', [], b'target to diff against (prev, parents)'),
+        (
+            b'',
+            b'filter',
+            [],
+            b'restricting diffing to (storage, common-base, distinct-base)',
+        ),
+        (b'', b'clear-caches', False, b'clear revlog cache between calls'),
+    ],
+    b'-c|-m|FILE',
+)
+def perf_revlog_revdiff(
+    ui, repo, file_=None, startrev=1000, stoprev=-1, **opts
+):
+    """check how long it take to redelta a set of revision pair"""
+    bopts = _byteskwargs(opts)
+    rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, bopts)
+    clear_caches = bopts[b'clear_caches']
+
+    KNOWN_TARGET = {
+        b'prev',
+        b'parents',
+    }
+    if not bopts[b'target']:
+        targets = KNOWN_TARGET
+    else:
+        targets = set()
+        for t in bopts[b'target']:
+            if t not in KNOWN_TARGET:
+                raise error.Abort(b"unknown target: %s" % t)
+            targets.add(t)
+    targets = sorted(targets)
+
+    pairs = set()
+    prev = None
+    # gather possible pairs
+    for rev in rl:
+        if b'prev' in targets and prev is not None:
+            pairs.add((prev, rev))
+        if b'parents' in targets:
+            for p in rl.parentrevs(rev):
+                if p > 0:
+                    pairs.add((p, rev))
+        prev = rev
+
+    selected_filter = bopts[b'filter']
+    if selected_filter:
+        skip_store = b'storage' not in selected_filter
+        skip_same = b'common-base' not in selected_filter
+        skip_other = b'distinct-base' not in selected_filter
+        old_pairs = pairs
+        pairs = []
+        for p in old_pairs:
+            rev_1, rev_2 = p
+            if skip_store and rl.deltaparent(rev_2) == rev_1:
+                continue
+            base_1 = rl._deltachain(rev_1)[0][0]
+            base_2 = rl._deltachain(rev_2)[0][0]
+            if skip_same and base_1 == base_2:
+                continue
+            if skip_other and base_1 != base_2:
+                continue
+            pairs.append(p)
+    pairs = sorted(pairs, key=lambda x: (x[1], x[0]))
+
+    def setup():
+        if clear_caches:
+            rl.index.clearcaches()
+            rl.clearcaches()
+
+    pair_count = len(pairs)
+
+    count = [0]
+
+    def d():
+        count[0] += 1
+        progress = ui.makeprogress(
+            b"rev-diff #%d" % count[0],
+            unit=b'pairs',
+            total=pair_count,
+        )
+        with progress:
+            for idx, (rev_1, rev_2) in enumerate(pairs):
+                rl.revdiff(rev_1, rev_2)
+                # update sparsely toi avoid affecting the timing too much.
+                if (idx % 100) == 0:
+                    progress.increment(100)
+
+    timer, fm = gettimer(ui, bopts)
+    timer(d, setup=setup)
     fm.end()
 
 
@@ -3509,6 +3785,7 @@ def perfrevlogrevisions(
         (b'', b'details', False, b'print timing for every revisions tested'),
         (b'', b'source', b'full', b'the kind of data feed in the revlog'),
         (b'', b'lazydeltabase', True, b'try the provided delta first'),
+        (b'', b'lazy-delta', True, b'try the provided delta first'),
         (b'', b'clear-caches', True, b'clear revlog cache between calls'),
     ],
     b'-c|-m|FILE',
@@ -3534,9 +3811,9 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
 
     * ``run-limits``: disabled use --count instead
     """
-    opts = _byteskwargs(opts)
+    bopts = _byteskwargs(opts)
 
-    rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, opts)
+    rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, bopts)
     rllen = getlen(ui)(rl)
     if startrev < 0:
         startrev = rllen + startrev
@@ -3544,6 +3821,7 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
         stoprev = rllen + stoprev
 
     lazydeltabase = opts['lazydeltabase']
+    lazy_delta = opts['lazy_delta']
     source = opts['source']
     clearcaches = opts['clear_caches']
     validsource = (
@@ -3569,7 +3847,9 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
             startrev,
             stoprev,
             c + 1,
+            max_run=count,
             lazydeltabase=lazydeltabase,
+            lazy_delta=lazy_delta,
             clearcaches=clearcaches,
         )
         allresults.append(timing)
@@ -3595,47 +3875,50 @@ def perfrevlogwrite(ui, repo, file_=None, startrev=1000, stoprev=-1, **opts):
     if opts['details']:
         for idx, item in enumerate(results, 1):
             rev, data = item
-            title = 'revisions #%d of %d, rev %d' % (idx, resultcount, rev)
+            title = b'revisions #%d of %d, rev %d' % (idx, resultcount, rev)
             formatone(fm, data, title=title, displayall=displayall)
 
     # sorts results by median time
     results.sort(key=lambda x: sorted(x[1])[len(x[1]) // 2])
     # list of (name, index) to display)
     relevants = [
-        ("min", 0),
-        ("10%", resultcount * 10 // 100),
-        ("25%", resultcount * 25 // 100),
-        ("50%", resultcount * 70 // 100),
-        ("75%", resultcount * 75 // 100),
-        ("90%", resultcount * 90 // 100),
-        ("95%", resultcount * 95 // 100),
-        ("99%", resultcount * 99 // 100),
-        ("99.9%", resultcount * 999 // 1000),
-        ("99.99%", resultcount * 9999 // 10000),
-        ("99.999%", resultcount * 99999 // 100000),
-        ("max", -1),
+        (b"min", 0),
+        (b"10%", resultcount * 10 // 100),
+        (b"25%", resultcount * 25 // 100),
+        (b"50%", resultcount * 70 // 100),
+        (b"75%", resultcount * 75 // 100),
+        (b"90%", resultcount * 90 // 100),
+        (b"95%", resultcount * 95 // 100),
+        (b"99%", resultcount * 99 // 100),
+        (b"99.9%", resultcount * 999 // 1000),
+        (b"99.99%", resultcount * 9999 // 10000),
+        (b"99.999%", resultcount * 99999 // 100000),
+        (b"max", -1),
     ]
     if not ui.quiet:
         for name, idx in relevants:
             data = results[idx]
-            title = '%s of %d, rev %d' % (name, resultcount, data[0])
+            title = b'%s of %d, rev %d' % (name, resultcount, data[0])
             formatone(fm, data[1], title=title, displayall=displayall)
 
-    # XXX summing that many float will not be very precise, we ignore this fact
-    # for now
+    # summing that many float loose precisions,
+    #
+    # There are advanced technique to reduce this precision lose, but to keep
+    # things simple, we just sort them to make sure we adds the smaller first,
+    # reducing the precision lose.
     totaltime = []
     for item in allresults:
         totaltime.append(
             (
-                sum(x[1][0] for x in item),
-                sum(x[1][1] for x in item),
-                sum(x[1][2] for x in item),
+                sum(sorted(x[1][0] for x in item)),
+                sum(sorted(x[1][1] for x in item)),
+                sum(sorted(x[1][2] for x in item)),
             )
         )
     formatone(
         fm,
         totaltime,
-        title="total time (%d revs)" % resultcount,
+        title=b"total time (%d revs)" % resultcount,
         displayall=displayall,
     )
     fm.end()
@@ -3653,7 +3936,9 @@ def _timeonewrite(
     startrev,
     stoprev,
     runidx=None,
+    max_run=None,
     lazydeltabase=True,
+    lazy_delta=True,
     clearcaches=True,
 ):
     timings = []
@@ -3661,16 +3946,19 @@ def _timeonewrite(
     with _temprevlog(ui, orig, startrev) as dest:
         if hasattr(dest, "delta_config"):
             dest.delta_config.lazy_delta_base = lazydeltabase
+            dest.delta_config.lazy_delta = lazy_delta
         else:
             dest._lazydeltabase = lazydeltabase
         revs = list(orig.revs(startrev, stoprev))
         total = len(revs)
-        topic = 'adding'
-        if runidx is not None:
-            topic += ' (run #%d)' % runidx
+        topic = b'adding'
+        if runidx is not None and max_run is not None:
+            topic += b' (run #%d/%d)' % (runidx, max_run)
+        elif runidx is not None:
+            topic += b' (run #%d)' % runidx
         # Support both old and new progress API
         if util.safehasattr(ui, 'makeprogress'):
-            progress = ui.makeprogress(topic, unit='revs', total=total)
+            progress = ui.makeprogress(topic, unit=b'revs', total=total)
 
             def updateprogress(pos):
                 progress.update(pos)
@@ -3681,20 +3969,21 @@ def _timeonewrite(
         else:
 
             def updateprogress(pos):
-                ui.progress(topic, pos, unit='revs', total=total)
+                ui.progress(topic, pos, unit=b'revs', total=total)
 
             def completeprogress():
-                ui.progress(topic, None, unit='revs', total=total)
+                ui.progress(topic, None, unit=b'revs', total=total)
 
-        for idx, rev in enumerate(revs):
-            updateprogress(idx)
-            addargs, addkwargs = _getrevisionseed(orig, rev, tr, source)
-            if clearcaches:
-                dest.index.clearcaches()
-                dest.clearcaches()
-            with timeone() as r:
-                dest.addrawrevision(*addargs, **addkwargs)
-            timings.append((rev, r[0]))
+        with dest._writing(tr):
+            for idx, rev in enumerate(revs):
+                updateprogress(idx)
+                addargs, addkwargs = _getrevisionseed(orig, rev, tr, source)
+                if clearcaches:
+                    dest.index.clearcaches()
+                    dest.clearcaches()
+                with timeone() as r:
+                    dest.addrawrevision(*addargs, **addkwargs)
+                timings.append((rev, r[0]))
         updateprogress(total)
         completeprogress()
     return timings
@@ -3711,7 +4000,7 @@ def _getrevisionseed(orig, rev, tr, source):
     text = None
 
     if source == b'full':
-        text = orig.revision(rev)
+        text = orig._revisiondata(rev, validate=False)
     elif source == b'parent-1':
         baserev = orig.rev(p1)
         cachedelta = CachedDelta(baserev, orig.revdiff(p1, rev))
@@ -3734,7 +4023,7 @@ def _getrevisionseed(orig, rev, tr, source):
         cachedelta = CachedDelta(baserev, diff)
     elif source == b'storage':
         baserev = orig.deltaparent(rev)
-        cachedelta = CachedDelta(baserev, orig.revdiff(orig.node(baserev), rev))
+        cachedelta = CachedDelta(baserev, orig.revdiff(baserev, rev))
 
     return (
         (text, tr, linkrev, p1, p2),
@@ -3759,18 +4048,18 @@ def _temprevlog(ui, orig, truncaterev):
         indexfile = getattr(orig, 'indexfile')
     origindexpath = orig.opener.join(indexfile)
 
-    datafile = getattr(orig, '_datafile', getattr(orig, 'datafile'))
+    datafile = orig._datafile
     origdatapath = orig.opener.join(datafile)
     radix = b'revlog'
     indexname = b'revlog.i'
     dataname = b'revlog.d'
 
-    tmpdir = tempfile.mkdtemp(prefix='tmp-hgperf-')
+    tmpdir = tempfile.mkdtemp(prefix='tmp-hgperf-').encode('ascii')
     try:
         # copy the data file in a temporary directory
         ui.debug('copying data in %s\n' % tmpdir)
-        destindexpath = os.path.join(tmpdir, 'revlog.i')
-        destdatapath = os.path.join(tmpdir, 'revlog.d')
+        destindexpath = os.path.join(tmpdir, b'revlog.i')
+        destdatapath = os.path.join(tmpdir, b'revlog.d')
         shutil.copyfile(origindexpath, destindexpath)
         shutil.copyfile(origdatapath, destdatapath)
 
@@ -3778,7 +4067,7 @@ def _temprevlog(ui, orig, truncaterev):
         ui.debug('truncating data to be rewritten\n')
         with open(destindexpath, 'ab') as index:
             index.seek(0)
-            index.truncate(truncaterev * orig._io.size)
+            index.truncate(truncaterev * orig.index.entry_size)
         with open(destdatapath, 'ab') as data:
             data.seek(0)
             data.truncate(orig.start(truncaterev))
@@ -3789,7 +4078,13 @@ def _temprevlog(ui, orig, truncaterev):
         vfs.options = getattr(orig.opener, 'options', None)
 
         try:
-            dest = revlog(vfs, radix=radix, **revlogkwargs)
+            dest = revlog(
+                vfs,
+                target=orig.target,
+                radix=radix,
+                writable=True,
+                **revlogkwargs,
+            )
         except TypeError:
             dest = revlog(
                 vfs, indexfile=indexname, datafile=dataname, **revlogkwargs

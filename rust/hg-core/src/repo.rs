@@ -29,6 +29,7 @@ use crate::matchers::get_ignore_function;
 use crate::requirements;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
+use crate::requirements::FILEINDEX_V1_REQUIREMENT;
 use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
@@ -177,7 +178,7 @@ impl Repo {
         // there exists a `.hg/store/requires` too and we should read it
         // NOTE: presence of SHARESAFE_REQUIREMENT imply that store requirement
         // is present. We never write SHARESAFE_REQUIREMENT for a repo if store
-        // is not present, refer checkrequirementscompat() for that
+        // is not present, refer check_requirements_compat() for that
         //
         // However, if SHARESAFE_REQUIREMENT is not present, it means that the
         // repository was shared the old way. We check the share source
@@ -278,13 +279,15 @@ impl Repo {
     /// For accessing repository store files (in `.hg/store`)
     pub fn store_vfs(&self) -> VfsImpl {
         let repo_reqs = self.requirements();
+        let fileindex = repo_reqs.contains(FILEINDEX_V1_REQUIREMENT);
+        let dotencode = repo_reqs.contains(DOTENCODE_REQUIREMENT);
         let plain_encoding = repo_reqs.contains(PLAIN_ENCODE_REQUIREMENT);
-        let encoding = if repo_reqs.contains(DOTENCODE_REQUIREMENT) {
+        let encoding = if plain_encoding {
             // checked before but doesn't hurt too much to check
-            assert!(!plain_encoding);
-            PathEncoding::DotEncode
-        } else if plain_encoding {
+            assert!(!dotencode);
             PathEncoding::Plain
+        } else if fileindex || dotencode {
+            PathEncoding::DotEncode
         } else {
             unreachable!("invalid store encoding")
         };

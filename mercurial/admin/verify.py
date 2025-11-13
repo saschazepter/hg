@@ -12,7 +12,7 @@ import copy
 import functools
 
 from ..i18n import _
-from .. import error, pycompat, registrar, requirements
+from .. import error, pycompat, registrar
 from ..utils import stringutil
 
 
@@ -37,8 +37,7 @@ def check_dirstate(ui, repo, **options):
     m2 = repo[parent2].manifest()
     errors = 0
 
-    is_narrow = requirements.NARROW_REQUIREMENT in repo.requirements
-    narrow_matcher = repo.narrowmatch() if is_narrow else None
+    narrow_matcher = repo.narrowmatch() if repo.is_narrow else None
     for err in repo.dirstate.verify(m1, m2, parent1, narrow_matcher):
         ui.warn(err)
         errors += 1

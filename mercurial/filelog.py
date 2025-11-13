@@ -21,6 +21,7 @@ from . import (
     revlogutils,
 )
 from .interfaces import (
+    compression as i_comp,
     repository,
     types,
 )
@@ -33,6 +34,18 @@ from .revlogutils import (
 
 
 class filelog(repository.ifilestorage):
+    """A revlog that stores the history of a file in the repo.
+
+    All revlogs have a `radix` but it is particularly important for filelogs.
+    Here is an example of all the paths involved in opening a filelog's index:
+
+    - file in repo: "foo/Bar.txt"
+    - radix:        "data/foo/Bar.txt" (see revlog docs on radix)
+    - index file:   "data/foo/Bar.txt.i"
+    - encoded:      "data/foo/_bar.txt.i" (depends on the type of store)
+    - final:        ".hg/store/data/foo/_bar.txt.i"
+    """
+
     _revlog: revlog.revlog
     nullid: bytes
     _fix_issue6528: bool
@@ -41,6 +54,7 @@ class filelog(repository.ifilestorage):
         self,
         opener: types.VfsT,
         path: types.HgPathT,
+        radix: types.HgPathT,
         writable: bool,
         *,
         try_split: bool = False,
@@ -53,7 +67,7 @@ class filelog(repository.ifilestorage):
             opener,
             # XXX should use the unencoded path
             target=(revlog_constants.KIND_FILELOG, path),
-            radix=b'/'.join((b'data', path)),
+            radix=radix,
             censorable=True,
             upperboundcomp=upper_bound_comp,
             canonical_parent_order=False,  # see comment in revlog.py
@@ -148,6 +162,7 @@ class filelog(repository.ifilestorage):
         sidedata_helpers=None,
         debug_info=None,
         use_hasmeta_flag=False,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         all_revision_data = self._revlog.emitrevisions(
             nodes,
@@ -157,6 +172,7 @@ class filelog(repository.ifilestorage):
             deltamode=deltamode,
             sidedata_helpers=sidedata_helpers,
             debug_info=debug_info,
+            accepted_compression=accepted_compression,
         )
         revlog_hasmeta_flag = (
             self._revlog._format_flags & revlog.FLAG_FILELOG_META
@@ -443,8 +459,16 @@ class filelog(repository.ifilestorage):
 class narrowfilelog(filelog):
     """Filelog variation to be used with narrow stores."""
 
-    def __init__(self, opener, path, narrowmatch, writable, *, try_split=False):
-        super().__init__(opener, path, writable=writable, try_split=try_split)
+    def __init__(
+        self, opener, path, radix, narrowmatch, writable, *, try_split=False
+    ):
+        super().__init__(
+            opener,
+            path,
+            radix=radix,
+            writable=writable,
+            try_split=try_split,
+        )
         self._narrowmatch = narrowmatch
 
     def renamed(self, node):

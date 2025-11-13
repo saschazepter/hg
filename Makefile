@@ -11,8 +11,20 @@ export PREFIX=/usr/local
 # Windows ships Python 3 as `python.exe`, which may not be on PATH.  py.exe is.
 ifeq ($(OS),Windows_NT)
 PYTHON?=py -3
+EXE:=.exe
 else
 PYTHON?=python3
+EXE:=
+endif
+
+# to support PYTHON equal to "py -3", "py.exe -3", "3.13" and other strings
+ifneq (,$(findstring py ,$(PYTHON)))
+	PYTHON_FOR_UV=$(shell $(PYTHON) -c "import sys; print(sys.executable)")
+else
+	PYTHON_FOR_UV=$(PYTHON)
+endif
+ifneq (,$(findstring py.exe ,$(PYTHON)))
+	PYTHON_FOR_UV=$(shell $(PYTHON) -c "import sys; print(sys.executable)")
 endif
 
 PYOXIDIZER?=pyoxidizer
@@ -20,6 +32,16 @@ PYOXIDIZER?=pyoxidizer
 $(eval HGROOT := $(shell pwd))
 HGPYTHONS ?= $(HGROOT)/build/pythons
 PURE=
+OFFLINE=
+
+ifeq ($(OFFLINE),1)
+OFFLINE_UV_OPTION=--offline
+CARGO_NET_OFFLINE?=true
+else
+OFFLINE_UV_OPTION=
+CARGO_NET_OFFLINE?=false
+endif
+
 PIP_OPTIONS_PURE=--config-settings --global-option="$(PURE)"
 PIP_OPTIONS_INSTALL=--no-deps --ignore-installed --no-build-isolation
 PIP_PREFIX=$(PREFIX)
@@ -31,7 +53,6 @@ export LC_ALL=C
 TESTFLAGS ?= $(shell echo $$HGTESTFLAGS)
 CARGO = cargo
 
-VENV_NAME=$(shell $(PYTHON) -c "import sys; v = sys.version_info; print(f'.venv_{sys.implementation.name}{v.major}.{v.minor}')")
 PYBINDIRNAME=$(shell $(PYTHON) -c "import os; print('Scripts' if os.name == 'nt' else 'bin')")
 
 .PHONY: help
@@ -62,14 +83,19 @@ help:
 	@echo '  make install PREFIX=/data/local PIP_PREFIX=/data PIP_OPTIONS_INSTALL='
 	@echo
 	@echo 'Example for a local installation (usable in this directory):'
-	@echo '  make local && ./hg version'
+	@echo '  make local && ./hg-local version'
+	@echo
+	@echo 'Example for a local installation in offline mode:'
+	@echo '  make local OFFLINE=1
 
 .PHONY: local
 local:
-	$(PYTHON) -m venv $(VENV_NAME) --clear --upgrade-deps --system-site-packages
-	$(VENV_NAME)/$(PYBINDIRNAME)/python -m \
-	  pip install -e . -v $(PIP_OPTIONS_PURE)
-	env HGRCPATH= $(VENV_NAME)/$(PYBINDIRNAME)/hg version
+	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
+	env CARGO_NET_OFFLINE=$(CARGO_NET_OFFLINE) uv pip install -e . $(OFFLINE_UV_OPTION) \
+	  -p .local-venv/$(PYBINDIRNAME)/python$(EXE) \
+	  -C=--global-option="$(PURE)"
+	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg$(EXE) version
+	test -e .local-venv/$(PYBINDIRNAME)/hg$(EXE) && ln -s -f .local-venv/$(PYBINDIRNAME)/hg$(EXE) hg-local$(EXE)
 
 .PHONY: build-chg
 build-chg:
@@ -92,7 +118,8 @@ cleanbutpackages:
 	rm -rf mercurial.egg-info
 	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
-	rm -rf .venv_*
+	rm -rf .local-venv
+	rm -f hg-local$(EXE)
 	rm -f hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi

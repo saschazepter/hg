@@ -13,9 +13,16 @@ import socket
 
 from typing import (
     Callable,
+    Collection,
 )
 
 from ..i18n import _
+from ..node import hex
+from ..interfaces.types import (
+    Capabilities,
+    PeerT,
+    RepoT,
+)
 from .. import (
     encoding,
     error,
@@ -975,3 +982,87 @@ class path(int_misc.IPath):
             if value is not None:
                 d[subopt] = value
         return d
+
+
+def add_branch_revs(
+    lrepo: RepoT, other: RepoT | PeerT, branches, revs, remotehidden=False
+):
+    if hasattr(other, 'peer'):
+        # a courtesy to callers using a localrepo for other
+        peer: PeerT = other.peer(remotehidden=remotehidden)
+    else:
+        peer = other
+    hashbranch, branches = branches
+    if not hashbranch and not branches:
+        x = revs or None
+        if revs:
+            y = revs[0]
+        else:
+            y = None
+        return x, y
+    if revs:
+        revs = list(revs)
+    else:
+        revs = []
+
+    if not peer.capable(b'branchmap'):
+        if branches:
+            raise error.Abort(_(b"remote branch lookup not supported"))
+        revs.append(hashbranch)
+        return revs, revs[0]
+
+    branchmap = peer.branchmap()
+
+    def primary(branch):
+        if branch == b'.':
+            if not lrepo:
+                raise error.Abort(_(b"dirstate branch not accessible"))
+            branch = lrepo.dirstate.branch()
+        if branch in branchmap:
+            branch_heads = branchmap.branchheads(branch, closed=True)
+            revs.extend(hex(r) for r in reversed(branch_heads))
+            return True
+        else:
+            return False
+
+    for branch in branches:
+        if not primary(branch):
+            raise error.RepoLookupError(_(b"unknown branch '%s'") % branch)
+    if hashbranch:
+        if not primary(hashbranch):
+            revs.append(hashbranch)
+    return revs, revs[0]
+
+
+def decode_b2_caps(blob: bytes) -> Capabilities:
+    """decode a bundle2 caps bytes blob into a dictionary
+
+    The blob is a list of capabilities (one per line)
+    Capabilities may have values using a line of the form::
+
+        capability=value1,value2,value3
+
+    The values are always a list."""
+    caps = {}
+    for line in blob.splitlines():
+        if not line:
+            continue
+        if b'=' not in line:
+            key, vals = line, ()
+        else:
+            key, vals = line.split(b'=', 1)
+            vals = vals.split(b',')
+        key = urlreq.unquote(key)
+        vals = [urlreq.unquote(v) for v in vals]
+        caps[key] = vals
+    return caps
+
+
+def b2_caps_from_bundle_caps(caps: Collection[bytes]) -> Capabilities:
+    """extract bundle2 capabilities from a "bundle-caps" set"""
+    b2caps = {}
+    for bcaps in caps:
+        if bcaps.startswith(b'bundle2='):
+            blob = urlreq.unquote(bcaps[len(b'bundle2=') :])
+            b2caps.update(decode_b2_caps(blob))
+    return b2caps

@@ -16,6 +16,10 @@ from typing import (
 
 from mercurial.node import bin
 from mercurial.i18n import _
+from mercurial.interfaces.types import (
+    OutboundRevisionT,
+    RevnumT,
+)
 from mercurial.revlogutils.constants import (
     META_MARKER,
     META_MARKER_SIZE,
@@ -26,9 +30,6 @@ from mercurial import (
     error,
     mdiff,
     revlog,
-)
-from mercurial.interfaces import (
-    repository,
 )
 from mercurial.utils import storageutil
 from mercurial.revlogutils import flagutil
@@ -313,12 +314,14 @@ class remotefilelog:
         deltamode=None,
         sidedata_helpers=None,
         debug_info=None,
-    ) -> Iterator[repository.irevisiondelta]:
+        accepted_compression=frozenset(),
+    ) -> Iterator[OutboundRevisionT]:
         # we don't use any of these parameters here
         del nodesorder, revisiondata, assumehaveparentrevisions, deltaprevious
         del deltamode
         prevnode = None
         for node in nodes:
+            rev = self.rev(node)
             p1, p2 = self.parents(node)
             if prevnode is None:
                 basenode = prevnode = p1
@@ -330,7 +333,7 @@ class remotefilelog:
             else:
                 revision = self.rawdata(node)
                 delta = None
-            yield revlog.revlogrevisiondelta(
+            yield revlog.OutboundRevision(
                 node=node,
                 p1node=p1,
                 p2node=p2,
@@ -338,6 +341,7 @@ class remotefilelog:
                 basenode=basenode,
                 flags=self.flags(node),
                 baserevisionsize=None,
+                raw_revision_size=self.rawsize(rev),
                 revision=revision,
                 delta=delta,
                 # Sidedata is not supported yet
@@ -346,8 +350,22 @@ class remotefilelog:
                 protocol_flags=0,
             )
 
-    def revdiff(self, node1, node2):
-        return mdiff.textdiff(self.rawdata(node1), self.rawdata(node2))
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
+        old = self.rawdata(rev1, validate=False)
+        new = self.rawdata(rev2, validate=False)
+        if extra_delta is not None:
+            base = new
+            new = mdiff.full_text_from_delta(
+                extra_delta,
+                len(new),
+                lambda: base,
+            )
+        return mdiff.storage_diff(old, new)
 
     def lookup(self, node):
         if len(node) == 40:
@@ -398,7 +416,7 @@ class remotefilelog:
             return rawtext
         return flagutil.processflagsread(self, rawtext, flags)[0]
 
-    def rawdata(self, node):
+    def rawdata(self, node, validate=True):
         return self.revision(node, raw=False)
 
     def ancestormap(self, node):

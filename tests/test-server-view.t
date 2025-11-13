@@ -12,6 +12,10 @@
   comparing with http://foo:***@localhost:$HGPORT/
   r0
   r1
+  $ hg incoming ../test -T '{desc}\n'
+  comparing with ../test
+  r0
+  r1
   $ killdaemons.py
 
   $ cd ..
@@ -19,6 +23,9 @@
   $ cat hg.pid >> $DAEMON_PIDS
   $ hg -R test2 incoming http://foo:xyzzy@localhost:$HGPORT/ -T '{desc}\n'
   comparing with http://foo:***@localhost:$HGPORT/
+  r0
+  $ hg -R test2 --config server.view=immutable  incoming test -T '{desc}\n'
+  comparing with test
   r0
 
 Check same result using `experimental.extra-filter-revs`
@@ -29,6 +36,13 @@ Check same result using `experimental.extra-filter-revs`
   comparing with http://foo:***@localhost:$HGPORT1/
   changeset:   0:1ea73414a91b
   tag:         tip
+  user:        debugbuilddag
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     r0
+  
+  $ hg -R test2 --config experimental.extra-filter-revs='not public()'  incoming test
+  comparing with test
+  changeset:   0:1ea73414a91b
   user:        debugbuilddag
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     r0
@@ -97,6 +111,22 @@ add more content and complexity to the repository too
   $ cat hg2.pid >> $DAEMON_PIDS
   $ hg -R test2 incoming http://foo:xyzzy@localhost:$HGPORT1/ -T '{desc}\n'
   comparing with http://foo:***@localhost:$HGPORT1/
+  r0
+  r1
+  r2
+  r3
+  r4
+  r5
+  r6
+  r7
+  r8
+  r11
+  r12
+
+Note that the option applies to both `test` and `test2` repositories here.
+
+  $ hg -R test2 --config experimental.extra-filter-revs='(desc("re:^r13$") + desc("re:^r10$"))::'  incoming test -T '{desc}\n'
+  comparing with test
   r0
   r1
   r2

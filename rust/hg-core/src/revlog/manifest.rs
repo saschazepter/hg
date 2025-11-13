@@ -1,9 +1,15 @@
+use std::cmp::Ordering as O;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
+use super::diff::lines_prefix_size_low;
+use super::diff::CMP_BLK_SIZE;
+use super::patch::DeltaPiece;
 use super::RevlogType;
 use crate::errors::HgError;
+use crate::revlog::diff::DeltaCursor;
 use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::patch;
 use crate::revlog::Node;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revlog;
@@ -70,13 +76,13 @@ impl Manifestlog {
         &self,
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
-        let bytes = self.revlog.get_data_for_unchecked_rev(rev)?.into_owned();
+        let bytes = self.revlog.get_data_for_unchecked_rev(rev)?;
         Ok(Manifest { bytes: Box::new(bytes) })
     }
 
     /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
     pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
-        let bytes = self.revlog.get_data(rev)?.into_owned();
+        let bytes = self.revlog.get_data(rev)?;
         Ok(Manifest { bytes: Box::new(bytes) })
     }
 
@@ -95,7 +101,7 @@ impl Manifestlog {
             return self.data(rev);
         }
         let mut bytes = vec![];
-        for chunk in self.revlog.get_data_incr(rev)?.as_patch_list()?.chunks {
+        for chunk in self.revlog.get_data_incr(rev)?.as_delta()?.chunks {
             bytes.extend_from_slice(chunk.data);
         }
         Ok(Manifest { bytes: Box::new(bytes) })
@@ -216,57 +222,22 @@ impl Manifest {
         other: &'m2 Manifest,
     ) -> Result<ManifestDiff<'m_any>, HgError> {
         let mut res = Vec::new();
-        let mut left = self.iter().peekable();
-        let mut right = other.iter().peekable();
-
-        loop {
-            match (left.peek(), right.peek()) {
-                (None, None) => break,
-                (Some(Ok(left_entry)), Some(Ok(right_entry))) => {
-                    // Since manifests are sorted, we can determine which
-                    // entry is missing
-                    match left_entry.path.cmp(right_entry.path) {
-                        std::cmp::Ordering::Less => {
-                            // Path missing on the right
-                            res.push((Some(left.next().unwrap()?), None));
-                        }
-                        std::cmp::Ordering::Equal => {
-                            // Same path in both, don't compare the paths again
-                            if left_entry.flags != right_entry.flags
-                                || left_entry.hex_node_id
-                                    != right_entry.hex_node_id
-                            {
-                                res.push((
-                                    Some(left.next().unwrap()?),
-                                    Some(right.next().unwrap()?),
-                                ));
-                            } else {
-                                left.next();
-                                right.next();
-                            }
-                        }
-                        std::cmp::Ordering::Greater => {
-                            // Path missing on the left
-                            res.push((None, Some(right.next().unwrap()?)));
-                        }
+        for lines in SyncLineIterator::new(&self.bytes, &other.bytes) {
+            match lines {
+                (Some(l), None) => res.push((Some(l.into_entry()?), None)),
+                (None, Some(l)) => res.push((None, Some(l.into_entry()?))),
+                (Some(l1), Some(l2)) => {
+                    if l1.data() != l2.data() {
+                        res.push((
+                            Some(l1.into_entry()?),
+                            Some(l2.into_entry()?),
+                        ))
                     }
                 }
-                (Some(Ok(_)), None) => {
-                    // Right manifest is done, the rest are adds
-                    for entry in left {
-                        res.push((Some(entry?), None));
-                    }
-                    break;
-                }
-                (None, Some(Ok(_))) => {
-                    // Left manifest is done, the rest are adds
-                    for entry in right {
-                        res.push((None, Some(entry?)));
-                    }
-                    break;
-                }
-                _ => {}
-            }
+                (None, None) => unreachable!(
+                    "iteration continue despite no remaining lines."
+                ),
+            };
         }
 
         Ok(res)
@@ -315,6 +286,609 @@ impl ManifestFlags {
     fn is_flag(&self, flag: u8) -> bool {
         self.0.map(|f| f == NonZeroU8::new(flag).unwrap()).unwrap_or(false)
     }
+}
+
+/// A manifest line is a Lazy ManifestEntry used during comparison
+#[derive(Copy, Clone)]
+struct ManifestLine<'a> {
+    /// The size of that manifest line
+    line: &'a [u8],
+    /// An optional length of the filename in case it was already computed
+    ///
+    /// A value < 0 means the value is not initialized.
+    filename_len: i32,
+}
+
+impl<'a> ManifestLine<'a> {
+    /// Grabs the next line from a byte slice and returns the line if any,
+    /// with the remainder of the byte slice
+    fn grab_next(data: &'a [u8]) -> (Option<ManifestLine<'a>>, &'a [u8]) {
+        if !data.is_empty() {
+            match memchr::memchr(b'\n', data) {
+                None => (None, data),
+                Some(pos) => (
+                    Some(Self { line: &data[0..pos + 1], filename_len: -1 }),
+                    &data[pos + 1..],
+                ),
+            }
+        } else {
+            (None, data)
+        }
+    }
+
+    /// Size of the line in bytes
+    fn size(&self) -> u32 {
+        self.line.len().try_into().expect("manifest line larger than 4GB?")
+    }
+
+    /// The filename part of that line
+    ///
+    /// When accessing this, the `filename_len` is cached to speedup future
+    /// access to the "data" part.
+    fn filename(&mut self) -> &'a [u8] {
+        if self.filename_len < 0 {
+            self.filename_len = match memchr::memchr(b'\0', self.line) {
+                None => 0, // no file name should not happen treat it as empty
+                Some(pos) => pos.try_into().expect("manifest larger than 2GB?"),
+            };
+        }
+        debug_assert!(self.filename_len > 0);
+        &self.line[0..self.filename_len as usize]
+    }
+
+    /// The non-filename part of this manifest line
+    pub(self) fn data(self) -> &'a [u8] {
+        debug_assert!(self.filename_len > 0);
+        &self.line[self.filename_len as usize..self.line.len() - 1]
+    }
+
+    fn into_entry(self) -> Result<ManifestEntry<'a>, HgError> {
+        if self.line.is_empty() {
+            Err(HgError::corrupted("empty manifest line"))
+        } else if self.line[self.line.len() - 1] != b'\n' {
+            Err(HgError::corrupted("manifest line not terminated by '\\n'"))
+        } else if self.filename_len == 0 {
+            if self.line[0] == b'\0' {
+                Err(HgError::corrupted("manifest entry with empty filename"))
+            } else {
+                Err(HgError::corrupted("manifest entry without \\0 delimiter"))
+            }
+        } else if self.filename_len < 0 {
+            ManifestEntry::from_raw(&self.line[..self.line.len() - 1])
+        } else {
+            let path = &self.line[0..self.filename_len as usize];
+            let (_, rest) = self
+                .data()
+                .split_first()
+                .expect("previously seen \\0 has vanished");
+            Ok(ManifestEntry::from_path_and_rest(path, rest))
+        }
+    }
+}
+
+/// Iterate over two manifests and yield the pair of line associated with each
+/// filename.
+///
+/// If the manifest are not sorted, this is expected to misbehave
+struct SyncLineIterator<'a> {
+    m1_data: &'a [u8],
+    m1_line: Option<ManifestLine<'a>>,
+    m2_data: &'a [u8],
+    m2_line: Option<ManifestLine<'a>>,
+}
+
+impl<'a> SyncLineIterator<'a> {
+    fn new(m1: &'a [u8], m2: &'a [u8]) -> Self {
+        let (m1_line, m1_data) = ManifestLine::grab_next(m1);
+        let (m2_line, m2_data) = ManifestLine::grab_next(m2);
+        Self { m1_data, m1_line, m2_data, m2_line }
+    }
+}
+
+impl<'a> Iterator for SyncLineIterator<'a> {
+    type Item = (Option<ManifestLine<'a>>, Option<ManifestLine<'a>>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = match (&mut self.m1_line, &mut self.m2_line) {
+            (None, None) => (None, None),
+            (Some(line), None) => (Some(*line), None),
+            (None, Some(line)) => (None, Some(*line)),
+            (Some(l1), Some(l2)) => match l1.filename().cmp(l2.filename()) {
+                std::cmp::Ordering::Less => (Some(*l1), None),
+                std::cmp::Ordering::Equal => (Some(*l1), Some(*l2)),
+                std::cmp::Ordering::Greater => (None, Some(*l2)),
+            },
+        };
+        if result.0.is_some() {
+            (self.m1_line, self.m1_data) =
+                ManifestLine::grab_next(self.m1_data);
+        }
+        if result.1.is_some() {
+            (self.m2_line, self.m2_data) =
+                ManifestLine::grab_next(self.m2_data);
+        }
+        match result {
+            (None, None) => None,
+            r => Some(r),
+        }
+    }
+}
+
+/// Result of binary diffing some part of two manifests
+enum Section {
+    /// Content is the same on both side (size of both)
+    Same(u32),
+    /// Content is different on each side, (size of m1, size of m2)
+    Changed(u32, u32),
+}
+
+/// detect the section that are similar or different in two manifest we compare
+fn changed_sections<'a>(
+    m1: &'a [u8],
+    m2: &'a [u8],
+) -> impl Iterator<Item = Section> + 'a {
+    let mut m1 = m1;
+    let mut m2 = m2;
+    let mut same_streak = 0;
+
+    let mut current_iter = None;
+
+    std::iter::from_fn(move || {
+        match (m1, m2) {
+            ([], []) => return None,
+            (tail, []) => {
+                let size = tail.len();
+                m1 = &m1[size..];
+                debug_assert!(m1.is_empty());
+                debug_assert!(m2.is_empty());
+                return Some(Section::Changed(
+                    size.try_into().expect("patch data bigger than 2GB"),
+                    0,
+                ));
+            }
+            ([], tail) => {
+                let size = tail.len();
+                m2 = &m2[size..];
+                debug_assert!(m1.is_empty());
+                debug_assert!(m2.is_empty());
+                return Some(Section::Changed(
+                    0,
+                    size.try_into().expect("patch data bigger than 2GB"),
+                ));
+            }
+            (_, _) => (),
+        }
+        // if we have seen enough "same" content from the iterator, lets try
+        // some SIMD comparison first
+        if same_streak > CMP_BLK_SIZE {
+            current_iter.take();
+        }
+        if current_iter.is_none() {
+            let size = lines_prefix_size_low(m1, m2);
+            if size > 0 {
+                m1 = &m1[size..];
+                m2 = &m2[size..];
+            }
+            // we always create an iterator from there as we should not run
+            // prefix matching again until the difference have been
+            // processed
+            current_iter = Some(SyncLineIterator::new(m1, m2));
+            same_streak = 0;
+            if size > 0 {
+                return Some(Section::Same(size as u32));
+            }
+        }
+        Some(
+            match current_iter
+                .as_mut()
+                .expect("programming error, iterator missing")
+                .next()
+                .expect("attempted iteration on empty manifest")
+            {
+                (Some(l), None) => {
+                    let size = l.size();
+                    m1 = &m1[size as usize..];
+                    Section::Changed(size, 0)
+                }
+                (None, Some(l)) => {
+                    let size = l.size();
+                    m2 = &m2[size as usize..];
+                    Section::Changed(0, size)
+                }
+                (Some(l1), Some(l2)) => {
+                    let l1_size = l1.size();
+                    let l2_size = l2.size();
+                    m1 = &m1[l1_size as usize..];
+                    m2 = &m2[l2_size as usize..];
+                    if l1.data() == l2.data() {
+                        same_streak += l1_size as usize;
+                        debug_assert!(l1_size == l2_size);
+                        Section::Same(l1_size)
+                    } else {
+                        Section::Changed(l1_size, l2_size)
+                    }
+                }
+                (None, None) => unreachable!(
+                    "iteration continue despite no remaining lines."
+                ),
+            },
+        )
+    })
+}
+
+/// Compute a binary delta between two flat manifest texts
+pub fn manifest_delta(m1: &[u8], m2: &[u8]) -> Vec<u8> {
+    manifest_delta_with_offset(0, m1, m2)
+}
+
+pub(super) fn manifest_delta_with_offset(
+    offset: u32,
+    m1: &[u8],
+    m2: &[u8],
+) -> Vec<u8> {
+    let mut delta = vec![];
+    write_manifest_delta_with_offset(offset, m1, m2, &mut delta);
+    delta
+}
+
+pub(super) fn write_manifest_delta_with_offset(
+    offset: u32,
+    m1: &[u8],
+    m2: &[u8],
+    delta: &mut Vec<u8>,
+) {
+    // our current work position in the two manifest
+    let mut m1_offset = offset;
+    let mut m2_offset = 0u32;
+
+    let mut cursor: Option<DeltaCursor> = None;
+
+    for section in changed_sections(m1, m2) {
+        match section {
+            Section::Same(size) => {
+                m1_offset += size;
+                m2_offset += size;
+                // We have a common block so any existing cursor need flushing
+                if let Some(change) = cursor.take() {
+                    change.into_piece().write(delta);
+                }
+            }
+            Section::Changed(size_1, size_2) => {
+                // If a hunk is still around, we must be able to merge with it.
+                if let Some(c) = cursor.as_mut() {
+                    c.extend(size_1, size_2)
+                } else {
+                    cursor = Some(DeltaCursor::new(
+                        m1_offset,
+                        m1_offset + size_1,
+                        m2_offset,
+                        m2_offset + size_2,
+                        m2,
+                    ));
+                }
+                m1_offset += size_1;
+                m2_offset += size_2;
+            }
+        }
+    }
+    if let Some(change) = cursor.take() {
+        change.into_piece().write(delta);
+    };
+}
+
+struct ManifestSection<'a> {
+    chunks: Vec<&'a [u8]>,
+    size: u32,
+    buffer: Vec<u8>,
+}
+
+impl<'a> ManifestSection<'a> {
+    fn new() -> Self {
+        Self { chunks: vec![], size: 0, buffer: vec![] }
+    }
+
+    fn push(&mut self, chunk: &'a [u8]) {
+        self.size += chunk.len() as u32;
+        self.chunks.push(chunk);
+    }
+
+    fn clear(&mut self) {
+        self.size = 0;
+        self.chunks.clear();
+        self.buffer.clear();
+    }
+
+    fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    /// write the delta between these two manifest section in `delta`
+    ///
+    /// - `self` is a section of the "old" manifest
+    /// - `other` is a section of the "new" manifest
+    ///
+    /// The patches are created with a `offset`… offset
+    ///
+    /// return the number of `bytes` in "old", to adjust the offset in the
+    /// caller.
+    fn flush_delta(
+        &mut self,
+        other: &mut Self,
+        offset: usize,
+        delta: &mut Vec<u8>,
+    ) -> usize {
+        let offset = offset as u32;
+        let extra_offset = self.size as usize;
+        match (&self.chunks[..], &other.chunks[..]) {
+            ([], []) => return 0,
+            (_, []) => {
+                // the old section is deleted
+                patch::PlainDeltaPiece {
+                    start: offset,
+                    end: (offset + self.size),
+                    data: &[],
+                }
+                .write(delta);
+            }
+            ([], new) => {
+                // the new content is inserted
+                delta.extend_from_slice(&u32::to_be_bytes(offset));
+                delta.extend_from_slice(&u32::to_be_bytes(offset));
+                delta.extend_from_slice(&u32::to_be_bytes(other.size));
+                for c in new {
+                    delta.extend_from_slice(c);
+                }
+            }
+            (old, new) => {
+                assert!(self.buffer.is_empty());
+                assert!(other.buffer.is_empty());
+                self.buffer.reserve(self.size as usize);
+                for c in old {
+                    self.buffer.extend_from_slice(c);
+                }
+                other.buffer.reserve(other.size as usize);
+                for c in new {
+                    other.buffer.extend_from_slice(c);
+                }
+                write_manifest_delta_with_offset(
+                    offset,
+                    &self.buffer,
+                    &other.buffer,
+                    delta,
+                );
+            }
+        }
+        self.clear();
+        other.clear();
+        assert!(self.is_empty());
+        assert!(other.is_empty());
+        extra_offset
+    }
+}
+
+/// A section of Manifest yield by [`sync_iter`]
+enum SyncSection<'a> {
+    /// bytes only on the Old content
+    Old(&'a [u8]),
+    /// bytes that are the same on both size
+    Identical(usize),
+    /// bytes only in the New content
+    New(&'a [u8]),
+    /// bytes that exist on both side with some overlapping part
+    Overlapping(&'a [u8], &'a [u8]),
+}
+
+fn first_filename(section: &[u8]) -> &[u8] {
+    match memchr::memchr(b'\0', section) {
+        Some(i) => &section[..i],
+        None => {
+            panic!("not a manifest line")
+        }
+    }
+}
+
+fn last_filename(section: &[u8]) -> &[u8] {
+    let file_end =
+        memchr::memrchr(b'\0', section).expect("not a manifest line");
+    match memchr::memchr(b'\r', &section[..file_end]) {
+        Some(i) => &section[i..file_end],
+        None => &section[..file_end],
+    }
+}
+
+/// Iterate over two series of RichDeltaPiece and yield associate SyncSection
+///
+/// the iteration keep data mostly in sync so that common data can be detected
+/// and yielded as [`SyncSection::Identical`]
+fn sync_iter<'a, P>(
+    old_iter: P,
+    new_iter: P,
+) -> impl Iterator<Item = SyncSection<'a>>
+where
+    P: Iterator<Item = patch::RichDeltaPiece<'a>>,
+{
+    use SyncSection as S;
+
+    let mut old_iter = old_iter.filter(|r| r.size() > 0);
+    let mut new_iter = new_iter.filter(|r| r.size() > 0);
+    let mut current_old = old_iter.next();
+    let mut current_new = new_iter.next();
+    std::iter::from_fn(move || {
+        match (&mut current_old, &mut current_new) {
+            (None, None) => None,
+            (Some(old), None) => {
+                let r = S::Old(old.data());
+                current_old = old_iter.next();
+                Some(r)
+            }
+            (None, Some(new)) => {
+                let r = S::New(new.data());
+                current_new = new_iter.next();
+                Some(r)
+            }
+            (Some(old), Some(new)) => {
+                let r = if old.src == new.src {
+                    if old.data_end() <= new.data_start() {
+                        // old fully prior to new
+                        let r = S::Old(old.data());
+                        current_old = old_iter.next();
+                        r
+                    } else if new.data_end() <= old.data_start() {
+                        // new fully prior to old
+                        let r = S::New(new.data());
+                        current_new = new_iter.next();
+                        r
+                    } else {
+                        // there are some overlap
+                        match (
+                            old.data_start().cmp(&new.data_start()),
+                            old.data_end().cmp(&new.data_end()),
+                        ) {
+                            (O::Equal, O::Equal) => {
+                                // both section as identical, return them both
+                                let common_size = old.size();
+                                assert_eq!(old.size(), common_size);
+                                assert_eq!(new.size(), common_size);
+                                let r = S::Identical(common_size as usize);
+                                current_old = old_iter.next();
+                                current_new = new_iter.next();
+                                r
+                            }
+                            (O::Equal, O::Less) => {
+                                // Old is an identical prefix of New
+                                // return the identical section and trim New
+                                let common_size = old.size();
+                                let r = S::Identical(common_size as usize);
+                                new.trim_prefix(common_size);
+                                assert!(new.data_start() <= new.data_end());
+                                current_old = old_iter.next();
+                                assert!(!new.is_empty());
+                                r
+                            }
+                            (O::Equal, O::Greater) => {
+                                // New is an identical prefix of Old
+                                // return the identical section and trim Old
+                                let common_size = new.size();
+                                let r = S::Identical(common_size as usize);
+                                old.trim_prefix(common_size);
+                                assert!(old.data_start() <= old.data_end());
+                                current_new = new_iter.next();
+                                assert!(!old.is_empty());
+                                r
+                            }
+                            (O::Less, _) => {
+                                // Old as a unique prefix, return it and trim
+                                // Old
+                                let prefix =
+                                    new.data_start() - old.data_start();
+                                let r = S::Old(&old.data()[..prefix as usize]);
+                                old.trim_prefix(prefix);
+                                assert!(!old.is_empty());
+                                r
+                            }
+                            (O::Greater, _) => {
+                                // new as a unique prefix, return it and trim
+                                // New
+                                let prefix =
+                                    old.data_start() - new.data_start();
+                                let r = S::New(&new.data()[..prefix as usize]);
+                                new.trim_prefix(prefix);
+                                assert!(!new.is_empty());
+                                r
+                            }
+                        }
+                    }
+                } else {
+                    // iterate things in order to open the opportunity for the
+                    // identical section to line up.
+                    assert!(!new.is_empty());
+                    assert!(!old.is_empty());
+                    let old_data = old.data();
+                    let new_data = new.data();
+                    let last_old = last_filename(old_data);
+                    let first_new = first_filename(new_data);
+                    if last_old < first_new {
+                        let r = S::Old(old_data);
+                        current_old = old_iter.next();
+                        r
+                    } else {
+                        let first_old = first_filename(old_data);
+                        let last_new = last_filename(new_data);
+                        if first_old > last_new {
+                            let r = S::New(new_data);
+                            current_new = new_iter.next();
+                            r
+                        } else {
+                            match last_old.cmp(last_new) {
+                                O::Greater => {
+                                    // New finish before Old
+                                    //
+                                    // The next New might have a common part
+                                    // with current Old,
+                                    // flush just New
+                                    let r = S::New(new_data);
+                                    current_new = new_iter.next();
+                                    r
+                                }
+                                O::Less => {
+                                    // Old finish before New
+                                    //
+                                    // The next Old might have a common part
+                                    // with current New,
+                                    // flush just Old
+                                    let r = S::Old(old_data);
+                                    current_old = old_iter.next();
+                                    r
+                                }
+                                O::Equal => {
+                                    let r = S::Overlapping(old_data, new_data);
+                                    current_old = old_iter.next();
+                                    current_new = new_iter.next();
+                                    r
+                                }
+                            }
+                        }
+                    }
+                };
+                Some(r)
+            }
+        }
+    })
+}
+
+pub(super) fn manifest_delta_from_patches<'a, P>(
+    old_iter: P,
+    new_iter: P,
+) -> Vec<u8>
+where
+    P: Iterator<Item = patch::RichDeltaPiece<'a>>,
+{
+    use SyncSection as S;
+    let mut delta = vec![];
+    let mut old_offset = 0;
+    let mut old_buffer = ManifestSection::new();
+    let mut new_buffer = ManifestSection::new();
+    for section in sync_iter(old_iter, new_iter) {
+        match section {
+            S::Old(data) => old_buffer.push(data),
+            S::New(data) => new_buffer.push(data),
+            S::Overlapping(old, new) => {
+                old_buffer.push(old);
+                new_buffer.push(new);
+            }
+            S::Identical(offset) => {
+                old_offset += old_buffer.flush_delta(
+                    &mut new_buffer,
+                    old_offset,
+                    &mut delta,
+                );
+                old_offset += offset;
+            }
+        }
+    }
+    // flush any potential remains
+    old_buffer.flush_delta(&mut new_buffer, old_offset, &mut delta);
+    delta
 }
 
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
@@ -367,5 +941,130 @@ impl<'a> ManifestEntry<'a> {
 
     pub fn node_id(&self) -> Result<Node, HgError> {
         Node::from_hex_for_repo(self.hex_node_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::revlog::inner_revlog::CoreRevisionBuffer;
+    use crate::revlog::inner_revlog::RevisionBuffer;
+    use crate::revlog::patch;
+
+    /// Check that applying the diff from m1 to m2 is the same as m2
+    fn identity_check(m1: &[u8], m2: &[u8], delta: &[u8]) {
+        let mut computed_m2 = CoreRevisionBuffer::new();
+        patch::build_data_from_deltas(&mut computed_m2, m1, &[delta]).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&computed_m2.finish()),
+            String::from_utf8_lossy(m2)
+        );
+    }
+
+    fn test_roundtrip(m1: &[u8], m2: &[u8]) {
+        let delta = manifest_delta(m1, m2);
+        identity_check(m1, m2, &delta)
+    }
+
+    #[test]
+    fn test_manifest_diff_simple() {
+        let m1 =
+            b"contrib/perf.py\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            contrib/phab-clean.py\0e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        let m2 =
+            b"contrib/perf.py\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            contrib/phab-clean.py\0e14fa8304bb04039a70ccdcfa170715fa2136e47\n";
+
+        // delete all
+        test_roundtrip(&m1[..], &[]);
+
+        // add all content
+        test_roundtrip(&[], &m1[..]);
+        // identical
+        test_roundtrip(&m1[..], &m1[..]);
+        assert_eq!(manifest_delta(&m1[..], &m1[..]).len(), 0);
+        test_roundtrip(&m2[..], &m2[..]);
+        assert_eq!(manifest_delta(&m2[..], &m2[..]).len(), 0);
+
+        // changing a line
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+
+        // changing a line
+        test_roundtrip(&m2[..], &m1[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+    }
+
+    #[test]
+    fn test_manifest_diff_complex() {
+        let m1 = b"a\0abc\nb\0abc\nc\0abc\n";
+
+        // Identical, diff should be empty
+        test_roundtrip(&m1[..], &m1[..]);
+        assert_eq!(manifest_delta(&m1[..], &m1[..]).len(), 0);
+
+        // Removed a path at the start
+        let m2 = b"b\0abc\nc\0abc\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_eq!(manifest_delta(&m1[..], &m2[..]).len(), 12);
+
+        // Removed a path in the middle
+        let m2 = b"a\0abc\nc\0abc\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_eq!(manifest_delta(&m1[..], &m2[..]).len(), 12);
+
+        // Added a path in the middle
+        test_roundtrip(&m2[..], &m1[..]);
+        assert_ne!(manifest_delta(&m2[..], &m1[..]).len(), 0);
+
+        // Changed a node/flag in the middle, should replace
+        let m2 = b"a\0abc\nb\0bcd\nc\0abc\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+    }
+
+    #[test]
+    fn test_manifest_diff_actual_cases() {
+        // Removed two paths in the middle
+        let m1 = b"a.txt\x00b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3\n\
+        aa.txt\x00a4bdc161c8fbb523c9a60409603f8710ff49a571\n\
+        b.txt\x001e88685f5ddec574a34c70af492f95b6debc8741\n\
+        c.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        cc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        d.txt\x001e88685f5ddec574a34c70af492f95b6debc8741\n\
+        e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n";
+        let m2 = b"a.txt\x00b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3\n\
+        aa.txt\x00a4bdc161c8fbb523c9a60409603f8710ff49a571\n\
+        c.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        cc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+
+        // Removed two paths and added one
+        let m2 = b"a.txt\x00b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3\n\
+        aa.txt\x00a4bdc161c8fbb523c9a60409603f8710ff49a571\n\
+        bb.txt\x0004c6faf8a9fdd848a5304dfc1704749a374dff44\n\
+        c.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        cc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        ccc.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n\
+        e.txt\x00149da44f2a4e14f488b7bd4157945a9837408c00\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
+
+        // Updated the last path
+        let m1 = b"bar\x00b004912a8510032a0350a74daa2803dadfb00e12\n\
+        baz\x00354ae8da6e890359ef49ade27b68bbc361f3ca88\n\
+        foo\x0022fb50216c01fd6a604494be1bcb05c8d2d07641\n";
+
+        let m2 = b"bar\x00b004912a8510032a0350a74daa2803dadfb00e12\n\
+        baz\x00354ae8da6e890359ef49ade27b68bbc361f3ca88\n\
+        foo\x00263143458f3c42bd4b185a2dc56c5f1593c17c3f\n";
+        test_roundtrip(&m1[..], &m2[..]);
+        assert_ne!(manifest_delta(&m1[..], &m2[..]).len(), 0);
     }
 }

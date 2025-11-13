@@ -15,12 +15,14 @@ import signal
 import socket
 import struct
 import traceback
+import typing
 
 from .i18n import _
 from . import (
     encoding,
     error,
     loggingutil,
+    main_script,
     pycompat,
     repocache,
     util,
@@ -30,6 +32,22 @@ from .utils import (
     cborutil,
     procutil,
 )
+
+if typing.TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+    )
+    from io import (
+        RawIOBase,
+    )
+    from socket import socket as Socket
+    from .interfaces.types import (
+        NeedsTypeHint,
+        RepoSetupFnT,
+        RepoT,
+        UiT,
+    )
 
 
 class channeledoutput:
@@ -199,8 +217,21 @@ class server:
     based stream to fout.
     """
 
-    def __init__(self, ui, repo, fin, fout, prereposetups=None):
+    _prereposetups: list[RepoSetupFnT] | None
+
+    repo: RepoT | None
+
+    def __init__(
+        self,
+        ui: UiT,
+        repo: RepoT | None,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        dispatch: Callable,
+        prereposetups: list[RepoSetupFnT] | None = None,
+    ) -> None:
         self.cwd = encoding.getcwd()
+        self._dispatch = dispatch
 
         if repo:
             # the ui here is really the repo ui so take its baseui so we don't
@@ -282,15 +313,13 @@ class server:
             return []
 
     def _dispatchcommand(self, req):
-        from . import dispatch  # avoid cycle
-
         if self._shutdown_on_interrupt:
             # no need to restore SIGINT handler as it is unmodified.
-            return dispatch.dispatch(req)
+            return self._dispatch(req)
 
         try:
             signal.signal(signal.SIGINT, self._old_inthandler)
-            return dispatch.dispatch(req)
+            return self._dispatch(req)
         except error.SignalInterrupt:
             # propagate SIGBREAK, SIGHUP, or SIGTERM.
             raise
@@ -310,8 +339,6 @@ class server:
     def runcommand(self):
         """reads a list of \0 terminated arguments, executes
         and writes the return code to the result channel"""
-        from . import dispatch  # avoid cycle
-
         args = self._readlist()
 
         # copy the uis so changes (e.g. --config or --verbose) don't
@@ -335,7 +362,7 @@ class server:
             if not hasattr(self.cin, 'fileno'):
                 ui.setconfig(b'ui', b'nontty', b'true', b'commandserver')
 
-        req = dispatch.request(
+        req = main_script.request(
             args[:],
             copiedui,
             self.repo,
@@ -439,9 +466,16 @@ def setuplogging(ui, repo=None, fp=None):
 
 
 class pipeservice:
-    def __init__(self, ui, repo, opts):
+    def __init__(
+        self,
+        ui: UiT,
+        repo: RepoT,
+        opts: dict[bytes, Any],
+        dispatch: Callable,
+    ) -> None:
         self.ui = ui
         self.repo = repo
+        self._dispatch = dispatch
 
     def init(self):
         pass
@@ -451,7 +485,7 @@ class pipeservice:
         # redirect stdio to null device so that broken extensions or in-process
         # hooks will never cause corruption of channel protocol.
         with ui.protectedfinout() as (fin, fout):
-            sv = server(ui, self.repo, fin, fout)
+            sv = server(ui, self.repo, fin, fout, self._dispatch)
             try:
                 return sv.serve()
             finally:
@@ -476,7 +510,26 @@ def _initworkerprocess():
     random.seed()
 
 
-def _serverequest(ui, repo, conn, createcmdserver, prereposetups):
+def _serverequest(
+    ui: UiT,
+    repo: RepoT | None,
+    conn: Socket,
+    createcmdserver: Callable[
+        [
+            RepoT | None,
+            Socket,
+            NeedsTypeHint,
+            NeedsTypeHint,
+            list[RepoSetupFnT] | None,
+        ],
+        server,
+    ],
+    prereposetups: list[RepoSetupFnT],
+) -> None:
+    # TODO: Figure out the types for these, and adjust the callback signature
+    #  accordingly.  PyCharm thinks these are BufferedReader and BufferedWriter
+    #  respectively.  The lone caller is ``_runworker()``, which passes a
+    #  callback that is typed with ``RawIOBase``.
     fin = conn.makefile('rb')
     fout = conn.makefile('wb')
     sv = None
@@ -520,8 +573,9 @@ class unixservicehandler:
 
     pollinterval = None
 
-    def __init__(self, ui):
+    def __init__(self, ui: UiT, dispatch: Callable) -> None:
         self.ui = ui
+        self._dispatch = dispatch
 
     def bindsocket(self, sock, address):
         util.bindunixsocket(sock, address)
@@ -539,10 +593,17 @@ class unixservicehandler:
     def newconnection(self):
         """Called when main process notices new connection"""
 
-    def createcmdserver(self, repo, conn, fin, fout, prereposetups):
+    def createcmdserver(
+        self,
+        repo: RepoT | None,
+        conn: Socket,
+        fin: RawIOBase,
+        fout: RawIOBase,
+        prereposetups: list[RepoSetupFnT] | None,
+    ):
         """Create new command server instance; called in the process that
         serves for the current connection"""
-        return server(self.ui, repo, fin, fout, prereposetups)
+        return server(self.ui, repo, fin, fout, self._dispatch, prereposetups)
 
 
 class unixforkingservice:
@@ -550,7 +611,14 @@ class unixforkingservice:
     Listens on unix domain socket and forks server per connection
     """
 
-    def __init__(self, ui, repo, opts, handler=None):
+    def __init__(
+        self,
+        ui: UiT,
+        repo: RepoT | None,
+        opts: dict[bytes, Any],
+        dispatch: Callable,
+        handler=None,
+    ) -> None:
         self.ui = ui
         self.repo = repo
         self.address = opts[b'address']
@@ -558,7 +626,7 @@ class unixforkingservice:
             raise error.Abort(_(b'unsupported platform'))
         if not self.address:
             raise error.Abort(_(b'no socket path specified with --address'))
-        self._servicehandler = handler or unixservicehandler(ui)
+        self._servicehandler = handler or unixservicehandler(ui, dispatch)
         self._sock = None
         self._mainipc = None
         self._workeripc = None
@@ -710,11 +778,13 @@ class unixforkingservice:
         finally:
             gc.collect()  # trigger __del__ since worker process uses os._exit
 
-    def _reposetup(self, ui, repo):
+    def _reposetup(self, ui: UiT, repo: RepoT) -> None:
         if not repo.local():
             return
 
         class unixcmdserverrepo(repo.__class__):
+            _cmdserveripc: NeedsTypeHint
+
             def close(self):
                 super().close()
                 try:

@@ -7,14 +7,43 @@
 
 from __future__ import annotations
 
+import itertools
+import typing
+
 from .i18n import _
-from .admin import chainsaw, verify
-from . import error, registrar, transaction
+from .admin import verify
+from . import (
+    cmdutil,
+    error,
+    policy,
+    pycompat,
+    registrar,
+    shape as shapemod,
+    tables,
+    transaction,
+)
 
 
-table = {}
-table.update(chainsaw.command._table)
-command = registrar.command(table)
+if typing.TYPE_CHECKING:
+    from .interfaces.types import (
+        RepoT,
+        UiT,
+    )
+
+
+if policy.has_rust():
+    pure_shapemod = shapemod
+    shapemod = policy.importrust("shape")
+
+
+def init():
+    """noop function that is called to make sure the module is loaded and has
+    registered the necessary items.
+
+    See `mercurial.initialization` for details"""
+
+
+command = registrar.command(tables.command_table)
 
 
 @command(
@@ -50,3 +79,196 @@ def admin_verify(ui, repo, **opts):
         errors = func()
         if errors:
             ui.warn(_(b"found %d errors\n") % errors)
+
+
+@command(
+    b'admin::narrow-client',
+    [
+        (
+            b'',
+            b'store-fingerprint',
+            None,
+            _(b"get the fingerprint for this repo's store narrowspec"),
+        ),
+    ],
+    helpcategory=command.CATEGORY_MAINTENANCE,
+)
+def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
+    """Narrow-related client administration utils. (EXPERIMENTAL)
+
+    This command is experimental and is subject to change.
+    """
+    if not repo.is_narrow:
+        raise error.Abort(_(b"this command only makes sense in a narrow clone"))
+
+    if opts.get("store_fingerprint"):
+        includes, excludes = repo.narrowpats
+        fingerprint = shapemod.fingerprint_for_patterns(includes, excludes)
+        ui.writenoi18n(b"%s\n" % fingerprint)
+    else:
+        raise error.Abort(_(b"need at least one flag"))
+
+
+@command(
+    b'admin::narrow-server',
+    [
+        (
+            b'',
+            b'shape-fingerprints',
+            None,
+            _(b'list the fingerprint for each shape'),
+        ),
+        (
+            b'',
+            b'shape-patterns',
+            b'',
+            _(b'list the path patterns for the given shape'),
+            _(b'SHAPE-PATTERNS'),
+        ),
+        (
+            b'',
+            b'shape-narrow-patterns',
+            b'',
+            _(b'list the legacy narrow-style patterns for the given shape'),
+            _(b'SHAPE-NARROW-PATTERNS'),
+        ),
+        (
+            b'',
+            b'shape-files',
+            b'',
+            _(b'list the files covered by the given shape'),
+        ),
+        (
+            b'',
+            b'shape-files-hidden',
+            b'',
+            _(b"list this shape's files that are not in the working copy"),
+        ),
+    ]
+    + cmdutil.formatteropts,
+    helpcategory=command.CATEGORY_MAINTENANCE,
+)
+def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
+    """Narrow-related server administration utils. (EXPERIMENTAL)
+
+    This command is experimental and is subject to change.
+    """
+
+    if not policy.has_rust():
+        raise error.Abort(_(b"this command needs the Rust extensions"))
+
+    if typing.TYPE_CHECKING:
+        # Most APIs from `shapemod` are not implemented in Python, only in Rust
+        # So for now the easiest is to just tell pytype to not worry about it.
+        # Since it's FFI, unless we export types from PyO3 (we don't yet)
+        # they can't be used here.
+        global shapemod
+        shapemod = typing.cast(typing.Any, shapemod)
+
+    if repo.is_narrow:
+        raise error.InputError(_(b"repo is narrowed, this is a server command"))
+
+    subcommand = cmdutil.check_at_most_one_arg(
+        opts,
+        "shape_fingerprints",
+        "shape_patterns",
+        "shape_narrow_patterns",
+        "shape_files",
+        "shape_files_hidden",
+    )
+    if subcommand is None:
+        raise error.InputError("need at least one flag")
+
+    store_shards = shapemod.get_store_shards(repo.root)
+
+    shape_commands = (
+        "shape_patterns",
+        "shape_narrow_patterns",
+        "shape_files",
+        "shape_files_hidden",
+    )
+    if subcommand in shape_commands:
+        name = opts[subcommand]
+        if b"," in name:
+            raise error.Abort(
+                _(b"composed shapespec is not implemented (yet)"),
+            )
+        shape = store_shards.shape(name.decode())
+        if shape is None:
+            raise error.Abort(_(b"shape '%s' not found" % name))
+
+    ui.pager(b"admin::narrow-server")
+    fm_ctx = ui.formatter(b"admin::narrow-server", pycompat.byteskwargs(opts))
+    with fm_ctx as fm:
+        if subcommand == "shape_fingerprints":
+            all_shapes = store_shards.all_shapes()
+            for shape in all_shapes:
+                fm.startitem()
+                name = shape.name().encode()
+                fm.write(
+                    b"fingerprint name", b"%s %s\n", shape.fingerprint(), name
+                )
+            return
+        elif subcommand == "shape_patterns":
+            # TODO formatter?
+            includes, excludes = shape.patterns()
+            include_tuples = zip(includes, itertools.repeat(True))
+            exclude_tuples = zip(excludes, itertools.repeat(False))
+            paths = sorted(
+                itertools.chain(include_tuples, exclude_tuples),
+                key=lambda t: pure_shapemod.zero_path(t[0]),
+            )
+            for path, included in paths:
+                fm.startitem()
+                prefix = b"inc" if included else b"exc"
+                fm.data(included=included, path=path)
+                fm.plain(b"%s:/%s\n" % (prefix, path))
+
+            return
+        elif subcommand == "shape_narrow_patterns":
+            # TODO formatter?
+            includes, excludes = shape.patterns()
+            if includes:
+                fm.plain(b"[include]\n")
+                for include in includes:
+                    fm.startitem()
+                    # data before the '.' special case to make it behave the
+                    # same as `inc/exc` patterns
+                    fm.data(included=True, path=include)
+                    # compatibility with questionable old choices
+                    include = include if include else b"."
+                    fm.plain(b"path:%s\n" % include)
+            if excludes:
+                fm.plain(b"[exclude]\n")
+                for exclude in excludes:
+                    fm.startitem()
+                    # compatibility with questionable old choices
+                    fm.data(included=False, path=include)
+                    exclude = exclude if exclude else b"."
+                    fm.plain(b"path:%s\n" % exclude)
+            return
+        elif subcommand in ("shape_files", "shape_files_hidden"):
+            # TODO formatter?
+            list_hidden = subcommand == "shape_files_hidden"
+            matcher = shape.matcher()
+            files = []
+            known = set(repo[None].matches(matcher))
+            for entry in repo.store.data_entries(matcher=matcher):
+                if not (entry.is_revlog or entry.is_filelog):
+                    continue
+                files.append((entry.target_id, entry.target_id in known))
+            files.sort()
+            for file, known in files:
+                if list_hidden and known:
+                    continue
+                fm.startitem()
+                label = (
+                    b"narrow-server.known-path"
+                    if known
+                    else b"narrow-server.hidden-path"
+                )
+                fm.data(is_hidden=not known)
+                fm.write(b"path", b"%s\n", file, label=label)
+            return
+        else:
+            assert False, "unreachable"

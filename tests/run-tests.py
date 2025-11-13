@@ -54,7 +54,6 @@ import functools
 import json
 import multiprocessing
 import os
-import pathlib
 import platform
 import queue
 import random
@@ -626,6 +625,12 @@ def getparser():
         "and --with-chg=<testdir>/../contrib/chg/chg if --chg is set",
     )
     hgconf.add_argument(
+        "--py-installer",
+        choices=["auto", "uv", "pip"],
+        default="auto",
+        help="Python installer: auto|uv|pip (default: auto)",
+    )
+    hgconf.add_argument(
         "--ipv6",
         action="store_true",
         help="prefer IPv6 to IPv4 for network related tests",
@@ -668,6 +673,11 @@ def getparser():
         metavar="HG",
         help="test using specified hg script rather than a "
         "temporary installation",
+    )
+    hgconf.add_argument(
+        "--offline",
+        action="store_true",
+        help="Disable network access (requires UV)",
     )
 
     reporting = parser.add_argument_group('Results Reporting')
@@ -764,12 +774,9 @@ def parseargs(args, parser):
             parser.error('--pyoxidized does not work with --local (yet)')
         testdir = os.path.dirname(_sys2bytes(canonpath(sys.argv[0])))
         reporootdir = os.path.dirname(testdir)
-        venv_local = b'.venv_%s%d.%d' % (
-            sys.implementation.name.encode(),
-            sys.version_info.major,
-            sys.version_info.minor,
+        path_local_hg = os.path.join(
+            reporootdir, b'.local-venv', BINDIRNAME, b"hg"
         )
-        path_local_hg = os.path.join(reporootdir, venv_local, BINDIRNAME, b"hg")
         if not os.path.exists(path_local_hg):
             if "HGTEST_REAL_HG" in os.environ:
                 # this file is run from a test (typically test-run-tests.t)
@@ -777,17 +784,9 @@ def parseargs(args, parser):
                 path_local_hg = os.path.join(reporootdir, b"hg")
             else:
                 message = (
-                    f"run-tests.py called with --local but {_bytes2sys(venv_local)} does not exist.\n"
+                    f"run-tests.py called with --local but .local-venv does not exist.\n"
                     f'To create it, run \nmake local PYTHON="{sys.executable}"'
                 )
-                paths_venv = sorted(
-                    pathlib.Path(_bytes2sys(reporootdir)).glob(".venv_*")
-                )
-                if paths_venv:
-                    message += (
-                        "\nAlternatively, call run-tests.py with a Python "
-                        f"corresponding to {[p.name for p in paths_venv]}."
-                    )
                 print(message, file=sys.stderr)
                 sys.exit(1)
 
@@ -3284,18 +3283,6 @@ class TestRunner:
         self._custom_bin_dir = os.path.join(self._hgtmp, b'custom-bin')
         os.makedirs(self._custom_bin_dir)
 
-        # detect and enforce an alternative way to specify rust extension usage
-        if (
-            not (
-                self.options.wheel
-                or self.options.pure
-                or self.options.rust
-                or self.options.no_rust
-            )
-            and os.environ.get("HGWITHRUSTEXT") == "cpython"
-        ):
-            self.options.rust = True
-
         if self.options.with_hg:
             self._installdir = None
             whg = self.options.with_hg
@@ -3348,8 +3335,10 @@ class TestRunner:
             subprocess.run(command_create_venv, check=True)
 
             bindir = b"Scripts" if WINDOWS else b"bin"
+            python = b"python.exe" if WINDOWS else b"python"
+
             self._bindir = os.path.join(self._installdir, bindir)
-            self._python = _bytes2sys(os.path.join(self._bindir, b"python"))
+            self._python = _bytes2sys(os.path.join(self._bindir, python))
             self._pythondir = get_site_packages_dir(self._python)
 
         # Force the use of hg.exe instead of relying on MSYS to recognize hg is
@@ -3359,8 +3348,11 @@ class TestRunner:
         #
         # We do not do it when using wheels and they do not install a .exe.
         if WINDOWS and not self.options.wheel:
-            # Currently no hg.exe without compiler
-            if self.options.pure:
+            # Currently no hg.exe without compiler, unless `run-tests.py` was
+            # invoked without --pure, but then a *.t file invoked it again with
+            # `--pure` (looking at you, test-hghave.t).  In that case, don't
+            # try to run hg.exe.bat.
+            if self.options.pure and not self._hgcommand.endswith(b'.exe'):
                 self._hgcommand += b'.bat'
             elif not self._hgcommand.endswith(b'.exe'):
                 self._hgcommand += b'.exe'
@@ -3453,14 +3445,12 @@ class TestRunner:
         if self.options.pure:
             os.environ["HGTEST_RUN_TESTS_PURE"] = "--pure"
             os.environ["HGMODULEPOLICY"] = "py"
-            os.environ.pop("HGWITHRUSTEXT", None)
         if self.options.rust:
             os.environ["HGMODULEPOLICY"] = "rust+c"
         if self.options.no_rust:
             current_policy = os.environ.get("HGMODULEPOLICY", "")
             if current_policy.startswith("rust+"):
                 os.environ["HGMODULEPOLICY"] = current_policy[len("rust+") :]
-            os.environ.pop("HGWITHRUSTEXT", None)
 
         if self.options.allow_slow_tests:
             os.environ["HGTEST_SLOW"] = "slow"
@@ -3905,11 +3895,33 @@ class TestRunner:
         hgroot = os.path.dirname(os.path.dirname(script))
         self._hgroot = hgroot
         os.chdir(hgroot)
-        cmd = [self._pythonb, b"-m", b"pip", b"install", b"."]
+
+        if self.options.py_installer == "auto":
+            if shutil.which("uv") is None:
+                installer = "pip"
+            else:
+                installer = "uv"
+        else:
+            installer = self.options.py_installer
+
+        if installer == "uv":
+            cmd = [b"uv", b"pip", b"install", b".", b"-p", self._pythonb]
+            if self.options.offline:
+                cmd.append(b"--offline")
+        else:
+            if self.options.offline:
+                sys.stderr.write("fatal: --offline requires UV\n")
+                sys.exit(1)
+            cmd = [self._pythonb, b"-m", b"pip", b"install", b"."]
+
         if setup_opts:
-            cmd.extend(
-                [b"--config-settings", b"--global-option=%s" % setup_opts]
-            )
+            if installer == "uv":
+                cmd.append(b"-C=--global-option=%s" % setup_opts)
+            else:
+                cmd.extend(
+                    [b"--config-settings", b"--global-option=%s" % setup_opts]
+                )
+
         return cmd
 
     def _installhg(self):
@@ -3926,10 +3938,9 @@ class TestRunner:
             install_env["PYTHONUSERBASE"] = _bytes2sys(self._installdir)
 
         installerrs = os.path.join(self._hgtmp, b"install.err")
-        if self.options.pure:
-            install_env.pop('HGWITHRUSTEXT', None)
-        elif self.options.no_rust:
-            install_env.pop('HGWITHRUSTEXT', None)
+
+        if self.options.offline:
+            install_env["CARGO_NET_OFFLINE"] = "1"
 
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:

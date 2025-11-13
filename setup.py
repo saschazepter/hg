@@ -335,26 +335,6 @@ class hgdist(Distribution):
             self, command_obj, option_dict=option_dict
         )
 
-    def parse_command_line(self):
-        ret = Distribution.parse_command_line(self)
-        if not (self.rust or self.no_rust):
-            hgrustext = os.environ.get('HGWITHRUSTEXT')
-            # TODO record it for proper rebuild upon changes
-            # (see mercurial/__modulepolicy__.py)
-            if hgrustext != 'cpython' and hgrustext is not None:
-                if hgrustext:
-                    msg = 'unknown HGWITHRUSTEXT value: %s' % hgrustext
-                    print(msg, file=sys.stderr)
-                hgrustext = None
-            if hgrustext == "cpython":
-                logging.warning(
-                    "HGWITHRUSTEXT is deprecated and \
-                    will be removed in Mercurial 7.1"
-                )
-            self.rust = hgrustext is not None
-            self.no_rust = not self.rust
-        return ret
-
     def has_ext_modules(self):
         # self.ext_modules is emptied in hgbuildpy.finalize_options which is
         # too late for some cases
@@ -996,18 +976,24 @@ packages = [
     'mercurial.branching',
     'mercurial.defaultrc',
     'mercurial.dirstateutils',
+    'mercurial.exchanges',
     'mercurial.helptext',
     'mercurial.helptext.internals',
     'mercurial.hgweb',
     'mercurial.interfaces',
+    'mercurial.main_script',
+    'mercurial.merge_utils',
+    'mercurial.narrow',
     'mercurial.pure',
     'mercurial.stabletailgraph',
+    'mercurial.store_utils',
     'mercurial.templates',
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
     'mercurial.thirdparty.tomli',
     'mercurial.upgrade_utils',
     'mercurial.utils',
+    'mercurial.repo',
     'mercurial.revlogutils',
     'mercurial.testing',
     'hgext',

@@ -159,10 +159,17 @@ from mercurial import (
     repair,
     repoview,
     revset,
+    revset_predicates,
     scmutil,
     smartset,
     streamclone,
     util,
+)
+from mercurial.merge_utils import (
+    update as update_util,
+)
+from mercurial.repo import (
+    factory as repo_factory,
 )
 from . import (
     constants,
@@ -178,6 +185,7 @@ from . import (
     shallowutil,
     shallowverifier,
 )
+
 
 # ensures debug commands are registered
 hgdebugcommands.command
@@ -315,17 +323,18 @@ def uisetup(ui):
     # debugdata needs remotefilelog.len to work
     extensions.wrapcommand(commands.table, b'debugdata', debugdatashallow)
 
-    changegroup.cgpacker = shallowbundle.shallowcg1packer
-
     extensions.wrapfunction(
         changegroup, '_addchangegroupfiles', shallowbundle.addchangegroupfiles
     )
     extensions.wrapfunction(
         changegroup, 'makechangegroup', shallowbundle.makechangegroup
     )
+    extensions.wrapfunction(
+        changegroup, 'getbundler', shallowbundle.wrap_bundler
+    )
     extensions.wrapfunction(localrepo, 'makestore', storewrapper)
     extensions.wrapfunction(exchange, 'pull', exchangepull)
-    extensions.wrapfunction(merge, 'applyupdates', applyupdates)
+    extensions.wrapfunction(update_util, 'apply_updates', apply_updates)
     extensions.wrapfunction(merge, '_checkunknownfiles', checkunknownfiles)
     extensions.wrapfunction(context.workingctx, '_checklookup', checklookup)
     extensions.wrapfunction(scmutil, '_findrenames', findrenames)
@@ -342,8 +351,8 @@ def uisetup(ui):
 
     # disappointing hacks below
     extensions.wrapfunction(scmutil, 'getrenamedfn', getrenamedfn)
-    extensions.wrapfunction(revset, 'filelog', filelogrevset)
-    revset.symbols[b'filelog'] = revset.filelog
+    extensions.wrapfunction(revset_predicates, 'filelog', filelogrevset)
+    revset.symbols[b'filelog'] = revset_predicates.filelog
 
 
 def cloneshallow(orig, ui, repo, *args, **opts):
@@ -473,8 +482,8 @@ def setupclient(ui, repo):
     repo.store = shallowstore.wrapstore(repo.store)
 
 
-def storewrapper(orig, requirements, path, vfstype):
-    s = orig(requirements, path, vfstype)
+def storewrapper(orig, ui, requirements, path, vfstype, try_pending):
+    s = orig(ui, requirements, path, vfstype, try_pending)
     if constants.SHALLOWREPO_REQUIREMENT in requirements:
         s = shallowstore.wrapstore(s)
 
@@ -482,7 +491,7 @@ def storewrapper(orig, requirements, path, vfstype):
 
 
 # prefetch files before update
-def applyupdates(
+def apply_updates(
     orig, repo, mresult, wctx, mctx, overwrite, wantfiledata, **opts
 ):
     if isenabled(repo):
@@ -842,7 +851,7 @@ def gc(ui, *args, **opts):
     repos = []
     for repopath in repopaths:
         try:
-            repo = hg.peer(ui, {}, repopath)
+            repo = repo_factory.peer(ui, {}, repopath)
             repos.append(repo)
 
             repocache = shallowutil.getcachepath(repo.ui, allowempty=True)
@@ -891,7 +900,7 @@ def gcclient(ui, cachepath):
             traceback.print_exc()
             continue
         try:
-            peer = hg.peer(ui, {}, path)
+            peer = repo_factory.peer(ui, {}, path)
             repo = peer._repo
         except error.RepoError:
             continue

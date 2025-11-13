@@ -1,3 +1,24 @@
+#testcases fncache fileindex
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
 Prepare repo a:
 
   $ hg init a
@@ -526,10 +547,12 @@ Issue2267: Error in 1.6 hg.py: TypeError: 'NoneType' object is not
 iterable in addbranchrevs()
 
   $ cat <<EOF > simpleclone.py
-  > from mercurial import hg, ui as uimod
+  > from mercurial import ui as uimod
+  > from mercurial.cmd_impls import clone
+  > from mercurial.repo import factory
   > myui = uimod.ui.load()
-  > repo = hg.repository(myui, b'a')
-  > hg.clone(myui, {}, repo, dest=b"ua")
+  > repo = factory.repository(myui, b'a')
+  > clone.clone(myui, {}, repo, dest=b"ua")
   > EOF
 
   $ "$PYTHON" simpleclone.py
@@ -539,12 +562,16 @@ iterable in addbranchrevs()
   $ rm -r ua
 
   $ cat <<EOF > branchclone.py
-  > from mercurial import extensions, hg, ui as uimod
+  > from mercurial import initialization
+  > initialization.init()
+  > from mercurial import extensions, ui as uimod
+  > from mercurial.cmd_impls import clone
+  > from mercurial.repo import factory
   > myui = uimod.ui.load()
   > extensions.loadall(myui)
   > extensions.populateui(myui)
-  > repo = hg.repository(myui, b'a')
-  > hg.clone(myui, {}, repo, dest=b"ua", branch=[b"stable"])
+  > repo = factory.repository(myui, b'a')
+  > clone.clone(myui, {}, repo, dest=b"ua", branch=[b"stable"])
   > EOF
 
   $ "$PYTHON" branchclone.py

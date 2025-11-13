@@ -11,6 +11,7 @@ from __future__ import annotations
 
 
 import abc
+import binascii
 import collections
 import enum
 import typing
@@ -33,6 +34,7 @@ from .constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_FORCE,
     DELTA_BASE_REUSE_NO,
+    DELTA_REUSE_NO,
     KIND_CHANGELOG,
     KIND_FILELOG,
     KIND_MANIFESTLOG,
@@ -48,6 +50,9 @@ from ..interfaces.types import (
 
 
 from ..thirdparty import attr
+from ..interfaces import (
+    compression,
+)
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -65,6 +70,8 @@ from ..utils import storageutil
 
 from . import (
     CachedDelta as CachedDeltaT,
+    DeltaQuality,
+    IDeltaCache,
     config,
     flagutil,
     revisioninfo as RevisionInfoT,
@@ -99,6 +106,7 @@ class _testrevlog:
         self.feature_config = config.FeatureConfig()
         self._snapshot = set(snapshot)
         self.index = None
+        self._inline = False
 
     def start(self, rev: RevnumT) -> int:
         if rev == nullrev:
@@ -128,6 +136,7 @@ def slicechunk(
     revlog: RevlogT,
     revs: Sequence[RevnumT],
     targetsize: int | None = None,
+    inlined: bool = False,
 ) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
@@ -194,7 +203,9 @@ def slicechunk(
     # * targetsize is used to ensure we stay within specification when reading,
     densityslicing = getattr(revlog.index, 'slicechunktodensity', None)
     if densityslicing is None:
-        densityslicing = lambda x, y, z: _slicechunktodensity(revlog, x, y, z)
+        densityslicing = lambda x, y, z: _slicechunktodensity(
+            revlog, x, y, z, inlined=inlined
+        )
     for chunk in densityslicing(
         revs,
         revlog.data_config.sr_density_threshold,
@@ -367,6 +378,7 @@ def _slicechunktodensity(
     revs: Sequence[RevnumT],
     targetdensity: float = 0.5,
     mingapsize: int = 0,
+    inlined: bool = False,
 ) -> Iterator[Sequence[RevnumT]]:
     """slice revs to reduce the amount of unrelated data to be read from disk.
 
@@ -418,12 +430,16 @@ def _slicechunktodensity(
     """
     start = revlog.start
     length = revlog.length
+    if inlined:
+        entry_size = revlog.index.entry_size
+        base_start = start
+        start = lambda r: entry_size * r + base_start(r)
 
     if len(revs) <= 1:
         yield revs
         return
 
-    deltachainspan = segmentspan(revlog, revs)
+    deltachainspan = segmentspan(revlog, revs, inlined=inlined)
 
     if deltachainspan < mingapsize:
         yield revs
@@ -551,7 +567,9 @@ def _trimchunk(
     return revs[startidx:endidx]
 
 
-def segmentspan(revlog: RevlogT, revs: Sequence[RevnumT]) -> int:
+def segmentspan(
+    revlog: RevlogT, revs: Sequence[RevnumT], inlined: bool = False
+) -> int:
     """Get the byte span of a segment of revisions
 
     revs is a sorted array of revision numbers
@@ -578,7 +596,10 @@ def segmentspan(revlog: RevlogT, revs: Sequence[RevnumT]) -> int:
     if not revs:
         return 0
     end = revlog.end(revs[-1])
-    return end - revlog.start(revs[0])
+    span = end - revlog.start(revs[0])
+    if inlined:
+        span += revlog.index.entry_size * (revs[-1] - revs[0])
+    return span
 
 
 def _textfromdelta(
@@ -625,18 +646,69 @@ def _textfromdelta(
     return fulltext
 
 
-@attr.s(slots=True, frozen=True)
+@attr.s(slots=True)
 class _DeltaInfo:
     distance = attr.ib(type=int)
+    """The distance (in bytes) from the start to the end of the chain"""
     deltalen = attr.ib(type=int)
+    """size of the delta (after compression)"""
     data = attr.ib(type=tuple[bytes, bytes])
+    """The actual content of the delta, either (header, data) or "full\""""
     base = attr.ib(type=RevnumT)
+    """The revision against the delta is built (revnum)"""
     chainbase = attr.ib(type=RevnumT)
+    """The first revision in the delta chain (revnum)"""
     chainlen = attr.ib(type=int)
+    """size of the delta-chain"""
     compresseddeltalen = attr.ib(type=int)
+    """size of all delta in the chain combined (after compression)"""
     snapshotdepth = attr.ib(type=Optional[int])
+    """level of this snapshot (if this is snapshot)"""
     u_data = attr.ib(default=None, type=Optional[bytes])
-    """the uncompressed data"""
+    """the uncompressed data (when available)"""
+
+    quality = attr.ib(
+        default=None,
+        type=Optional[DeltaQuality],
+    )
+
+    def set_quality_info(self, revinfo: RevisionInfoT):
+        """Set the quality information for this delta if any
+
+        This usually have to be done after creating the _DeltaInfo because we
+        need size information from both parents to be able to set them.
+        """
+        if self.quality is not None:
+            return
+        if not revinfo.tracked_parent_size:
+            return
+        if self.u_data is None:
+            return
+
+        p1_size = revinfo.p1_delta_u_size
+        p2_size = revinfo.p2_delta_u_size
+        if p1_size is None and p2_size is None:
+            best_parent_size = None
+        elif p2_size is None:
+            best_parent_size = p1_size
+        elif p1_size is None:
+            best_parent_size = p2_size
+        else:
+            best_parent_size = min(p1_size, p2_size)
+
+        is_good = False
+        p1_small = False
+        p2_small = False
+        if best_parent_size is not None:
+            good_threshold = int(best_parent_size * DeltaQuality.GOOD_FACTOR)
+            is_good = len(self.u_data) <= good_threshold
+            if p1_size is not None:
+                p1_small = p1_size <= good_threshold
+            if p2_size is not None:
+                p2_small = p2_size <= good_threshold
+
+        q = DeltaQuality(is_good=is_good, p1_small=p1_small, p2_small=p2_small)
+        self.quality = q
 
 
 def drop_u_compression(delta: _DeltaInfo) -> _DeltaInfo:
@@ -687,6 +759,9 @@ class _BaseDeltaSearch(abc.ABC):
     note: some of the deltacomputer.finddeltainfo logic should probably move
     here.
     """
+
+    track_good_delta = False
+    optimize_by_folding = False
 
     def __init__(
         self,
@@ -906,8 +981,43 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         if (
             self.cachedelta is None
             or self.cachedelta.reuse_policy <= DELTA_BASE_REUSE_NO
-            or not self._pre_filter_rev(self.cachedelta.base)
         ):
+            return False
+        # We actually received two bases information
+        #
+        # - cachedelta.base:
+        #       The base of the cached delta available in the cache
+        # - cachedelta.other_storage_delta_base:
+        #       The base of the delta stored at the source
+        #
+        # If the two value are different, this means the source decided it
+        # could not reuse its storage. And we have a dilema
+        #
+        # - using the available delta might skip a delta computation,
+        #   saving CPU right now. However it will lead to more divergence
+        #   between the source delta-tree and our delta-tree. Such
+        #   divergence might lead to a large amount of CPU being
+        #   continuously used in the future.
+        #
+        # - using the remote base will help keep the delta tree in sync,
+        #   but will result in a delta computation being triggered right
+        #   now.  Delta computation are significantly less expensive in
+        #   Rust than in Python. However it is still cheaper to not
+        #   recompute anything.
+        #
+        # Given how much trouble delta-tree divergence is in practice, we
+        # pick the stored base for the "cached" round. This won't change
+        # anything then this also match the delta we received, which is the
+        # common case anyway.
+        #
+        # TODO: we probably want some sort of configuration to control that
+        # behavior.
+        other_store_base = self.cachedelta.other_storage_delta_base
+        if other_store_base is not None:
+            cache_base = other_store_base
+        else:
+            cache_base = self.cachedelta.base
+        if not self._pre_filter_rev(cache_base):
             return False
         # First we try to reuse a the delta contained in the bundle.  (or
         # from the source revlog)
@@ -1122,6 +1232,65 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
 
 class _SparseDeltaSearch(_GeneralDeltaSearch):
     """Delta search variants for sparse-revlog"""
+
+    @property
+    def _may_optimize_by_folding(self):
+        # XXX consider only using the Python folding code when explicitly
+        # requested as it is slower than the Rust code.
+        return self.revlog.delta_config.delta_info
+
+    @property
+    def optimize_by_folding(self):
+        if not self._may_optimize_by_folding:
+            return False
+        # TODO: currently only optimize during parent search and
+        # cache reuse. Consider also using this during the
+        # snapshot phase.
+        if self.current_stage == _STAGE.PARENTS:
+            return True
+        # Avoid folding if we may reuse a compressed delta
+        #
+        # TODO: add configuration and finer behavior here
+        if self.current_stage != _STAGE.CACHED:
+            return False
+        cache = self.revinfo.cachedelta
+        assert cache is not None
+        assert len(self._internal_group) == 1
+        cache_base = self._internal_group[0]
+        # We use fold based optimization during the cached stage in two case:
+        #
+        # cache_base != cache.base :
+        #
+        #   Since the input delta is not the one we are about to test, we won't
+        #   reuse it, so we can try optimizing the delta we will compute from
+        #   it.
+        #
+        # cache.compression is None :
+        #
+        #   We have an uncompressed delta we will have to work on by trying
+        #   compression, so trying to fold it first doesn't adds a huge
+        #   overhead.
+        #   This is also usually not associated with a delta we know to be from
+        #   the source storage. So working harder on it make sense.
+        #
+        # Otherwise, the compressed delta might be used as is and we should not
+        # try to fold it.
+        return (not self.revlog.delta_config.lazy_compression) or (
+            cache_base != cache.base or cache.compression is None
+        )
+
+    @property
+    def track_good_delta(self):
+        return (
+            self._may_optimize_by_folding
+            and self.revlog.delta_config.delta_both_parents
+        )
+
+    def _iter_parents(self) -> Iterator[Sequence[RevnumT]]:
+        # exclude already lazy tested base if any
+        if self.track_good_delta:
+            self.revinfo.tracked_parent_size = True
+        yield from super()._iter_parents()
 
     def is_good_delta_info(self, deltainfo: _DeltaInfo) -> bool:
         """Returns True if the given delta is good.
@@ -1406,15 +1575,20 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             return False
         cachedelta = self.revinfo.cachedelta
         assert cachedelta is not None
+        cache_base = self._internal_group[0]
+        if cachedelta.other_storage_delta_base == cache_base:
+            snap_lvl = cachedelta.other_storage_snapshot_level
+        else:
+            snap_lvl = cachedelta.snapshot_level
         # is this cached delta a snapshot ?
-        if cachedelta.snapshot_level is not None:
-            self.current_group_is_snapshot = cachedelta.snapshot_level >= 0
-        elif cachedelta.base == nullrev:
+        if snap_lvl is not None:
+            self.current_group_is_snapshot = snap_lvl >= 0
+        elif cache_base == nullrev:
             self.current_group_is_snapshot = True
-        elif any(cachedelta.base == x for x in self._parents_and_sames()):
+        elif any(cache_base == x for x in self._parents_and_sames()):
             # if this is a delta against a parent, this isn't a snapshot
             self.current_group_is_snapshot = False
-        elif self.revlog.issnapshot(cachedelta.base):
+        elif self.revlog.issnapshot(cache_base):
             # otherwise, if this apply to something that is a snapshot
             self.current_group_is_snapshot = True
         elif self.revlog.delta_config.filter_suspicious_delta:
@@ -1427,6 +1601,76 @@ class _SparseDeltaSearch(_GeneralDeltaSearch):
             # In doubt, lets declare it is not a snapshot.
             self.current_group_is_snapshot = False
         return True
+
+
+class DeltaCache(IDeltaCache):
+    """Cache delta we already computed against various base for a unique revision
+
+    This cache is used to pick the best available delta to use the rev-diff +
+    extra delta optimization.
+
+    TODO: the amound of cached delta is currently unbounded, we should probably
+    add some limit, but this probably requires collaboration with the active
+    DeltaSearch to know the best strategy to select which delta are no longer relevant
+
+    Since the feature is currently only used with the rust code, this is not seen as a blocker.
+
+    This is a good candidate to be reimplemented in Rust, as it mostly contains
+    content from Rust and its content will mostly be used from Rust anyway.
+    """
+
+    def __init__(self, get_chain: Callable[[int], tuple[list[int], bool]]):
+        self._get_chain = get_chain
+        self._deltas: dict[int, bytes] = {}
+        self._chains: dict[int, list[int]] = {}
+
+    def add(self, base: int, delta: bytes):
+        """register a new known delta against `base`"""
+        if base > 0:
+            self._deltas[base] = delta
+
+    def best_for(self, target: int) -> None | tuple[int, bytes]:
+        """Find (target, delta) pair to pre-seed a delta computation against `target`
+
+        The returned delta target will use a delta chain compatible with
+        `target`. If known can be found, return None.
+        """
+        if target < 0:
+            return None
+        if (delta := self._deltas.get(target)) is not None:
+            return (target, delta)
+        base_chain = self._chains.get(target)
+        if base_chain is None:
+            c, _s = self._get_chain(target)
+            base_chain = self._chains[target] = c
+
+        current_best = None
+        for other in self._deltas:
+            other_chain = self._chains.get(other)
+            if other_chain is None:
+                c, _s = self._get_chain(other)
+                other_chain = self._chains[other] = c
+            assert base_chain is not None
+            assert other_chain is not None
+            common_count = 0
+            for x, y in zip(base_chain, other_chain):
+                if x != y:
+                    break
+                common_count += 1
+            if common_count > 0:
+                if current_best is None:
+                    current_best = (common_count, other)
+                elif common_count > current_best[0]:
+                    current_best = (common_count, other)
+                elif common_count == current_best[0] and len(
+                    self._chains[other]
+                ) < len(self._chains[current_best[1]]):
+                    current_best = (common_count, other)
+        if current_best is None:
+            return None
+        else:
+            best_base = current_best[1]
+            return (best_base, self._deltas[best_base])
 
 
 class SnapshotCache:
@@ -1511,6 +1755,60 @@ class deltacomputer:
             self._debug_search = debug_search
         self._debug_info = debug_info
         self._snapshot_cache = SnapshotCache()
+        self._decompressors = {}
+
+    def _get_decompressor(
+        self,
+        t: compression.RevlogCompHeader,
+    ) -> compression.IRevlogCompressor:
+        try:
+            compressor = self._decompressors[t]
+        except KeyError:
+            try:
+                engine = util.compengines.forrevlogheader(t)
+                compressor = engine.revlogcompressor(
+                    self.revlog.feature_config.compression_engine_options
+                )
+                self._decompressors[t] = compressor
+            except KeyError:
+                raise error.RevlogError(
+                    _(b'unknown compression type %s') % binascii.hexlify(t)
+                )
+        return compressor
+
+    def decompress_cached(
+        self,
+        cached: CachedDeltaT,
+    ):
+        """ensure a CachedDeltaT have its `u_delta` argument set"""
+        if cached.u_delta is not None:
+            return
+        if cached.c_delta is None:
+            msg = "CachedDelta as neither `u_delta` nor `c_delta`"
+            raise error.ProgrammingError(msg)
+        # Fast path non compressed input
+        if cached.compression == compression.REVLOG_COMP_NONE:
+            cached.u_delta = cached.c_delta
+        else:
+            decompressor = self._get_decompressor(cached.compression)
+            cached.u_delta = decompressor.decompress(cached.c_delta)
+        assert cached.u_delta is not None, cached
+
+    def decompress_full_cached(
+        self,
+        cached: CachedDeltaT,
+    ):
+        """ensure a CachedDeltaT have its `u_full_text` argument set"""
+        if cached.u_full_text is not None:
+            return
+        if cached.c_full_text is None:
+            msg = "CachedDelta as neither `u_full_text` nor `c_full_text`"
+            raise error.ProgrammingError(msg)
+        if cached.compression == compression.REVLOG_COMP_NONE:
+            cached.u_full_text = cached.c_full_text
+        else:
+            decompressor = self._get_decompressor(cached.compression)
+            cached.u_full_text = decompressor.decompress(cached.c_full_text)
 
     @property
     def _gather_debug(self) -> bool:
@@ -1523,11 +1821,20 @@ class deltacomputer:
         """
         if revinfo.btext is not None:
             return revinfo.btext
+        if revinfo.cachedelta.u_full_text is not None:
+            revinfo.btext = revinfo.cachedelta.u_full_text
+            return revinfo.btext
+        if revinfo.cachedelta.c_full_text is not None:
+            self.decompress_full_cached(revinfo.cachedelta)
+            revinfo.btext = revinfo.cachedelta.u_full_text
+            return revinfo.btext
 
         revlog = self.revlog
         cachedelta = revinfo.cachedelta
         baserev = cachedelta.base
-        delta = cachedelta.delta
+        self.decompress_cached(cachedelta)
+        delta = cachedelta.u_delta
+        assert delta is not None
 
         fulltext = revinfo.btext = _textfromdelta(
             revlog,
@@ -1543,17 +1850,43 @@ class deltacomputer:
 
     def _builddeltadiff(self, base: RevnumT, revinfo: RevisionInfoT) -> bytes:
         revlog = self.revlog
-        t = self.buildtext(revinfo)
+        validate = self.revlog.delta_config.validate_base
+        # initialize the cache from the revinfo if it is empty
+        if (
+            not validate
+            and revinfo.cache is None
+            and revinfo.has_cached_delta
+            and self.revlog.has_revdiff_extra
+        ):
+            self.decompress_cached(revinfo.cachedelta)
+            revinfo.cache = DeltaCache(self.revlog._deltachain)
+            revinfo.cache.add(
+                revinfo.cachedelta.base, revinfo.cachedelta.u_delta
+            )
         if revlog.iscensored(base):
+            t = self.buildtext(revinfo)
             # deltas based on a censored revision must replace the
             # full content in one patch, so delta works everywhere
             header = mdiff.replacediffheader(revlog.rawsize(base), len(t))
             delta = header + t
-        else:
-            validate = self.revlog.delta_config.validate_base
-            ptext = revlog.rawdata(base, validate=validate)
-            delta = mdiff.textdiff(ptext, t)
+        elif (
+            not validate
+            and revinfo.cache is not None
+            and (reusable := revinfo.cache.best_for(base)) is not None
+        ):
+            delta_base, u_delta = reusable
+            delta = revlog.revdiff(
+                base,
+                delta_base,
+                u_delta,
+            )
 
+        else:
+            t = self.buildtext(revinfo)
+            ptext = revlog.rawdata(base, validate=validate)
+            delta = revlog._diff_fn(ptext, t)
+        if revinfo.cache is not None:
+            revinfo.cache.add(base, delta)
         return delta
 
     def _fold_chain(
@@ -1629,6 +1962,7 @@ class deltacomputer:
                 msg %= (base, target_rev)
                 raise error.ProgrammingError(msg)
 
+        p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
         # determine snapshot level when relevant.
         snapshotdepth = None
         if revlog.delta_config.sparse_revlog and deltabase == nullrev:
@@ -1636,7 +1970,6 @@ class deltacomputer:
         elif revlog.delta_config.sparse_revlog and as_snapshot:
             # if the base is one of p1 or p2, why are we even here ? This
             # doesn't look like a snapshot and we ignores it.
-            p1, p2 = revlog.rev(revinfo.p1), revlog.rev(revinfo.p2)
             if deltabase not in (p1, p2):
                 if not revlog.issnapshot(deltabase):
                     # can't create a snapshot on a non-snapshot, abort.
@@ -1645,8 +1978,13 @@ class deltacomputer:
 
         # can we use the cached delta?
         delta = None
+        header = None
+        data = None
+        quality = None
         if revinfo.cachedelta:
             cachebase = revinfo.cachedelta.base
+            policy = revinfo.cachedelta.reuse_policy
+            lazy_delta = self.revlog.delta_config.lazy_delta
             # check if the diff still apply
             currentbase = cachebase
             while (
@@ -1655,9 +1993,8 @@ class deltacomputer:
                 and self.revlog.length(currentbase) == 0
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
-            if self.revlog.delta_config.lazy_delta and currentbase == base:
-                delta = revinfo.cachedelta.delta
-                if revinfo.cachedelta.reuse_policy == DELTA_BASE_REUSE_FORCE:
+            if lazy_delta and currentbase == base and policy <= DELTA_REUSE_NO:
+                if policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
                     # let's ignore foldin there.
                     #
@@ -1665,123 +2002,159 @@ class deltacomputer:
                     # folding the incoming delta should only produce better
                     # chain, so the risk is probably slow.
                     optimize_by_folding = None
+                if (
+                    optimize_by_folding is None
+                    and revlog.delta_config.lazy_compression
+                    and revinfo.cachedelta.c_delta is not None
+                ):
+                    comp = revinfo.cachedelta.compression
+                    if comp == compression.REVLOG_COMP_NONE:
+                        delta = data = revinfo.cachedelta.c_delta
+                        if not data or data.startswith(b'\0'):
+                            header = b''
+                        else:
+                            header = b'u'
+                    elif comp in revlog.compatible_compressions:
+                        header = b''
+                        data = revinfo.cachedelta.c_delta
 
-        # Can we use a size estimate for something ?
-        #
-        # See usage below.
-        use_estimate_size = (
-            revlog.delta_config.upper_bound_comp is not None and snapshotdepth
-        )
+                if data is None:
+                    self.decompress_cached(revinfo.cachedelta)
+                    delta = revinfo.cachedelta.u_delta
+                # TODO add a config to control this reuse
+                quality = revinfo.cachedelta.quality
 
-        # Compute the delta if we could not use an existing one.
-        if delta is not None:
-            delta_size = len(delta)
-        elif (
-            # Try to use delta folding for estimate the final delta size.
+        if data is None:
+            # Can we use a size estimate for something ?
             #
-            # We can do it when
-            # - it is useful
-            use_estimate_size
-            # - the feature is enabled
-            and revlog.delta_config.delta_fold_estimate
-            # - we have a existing delta we could fold
-            and known_delta is not None
-            # - that delta has uncompressed delta we can use
-            #   (we could decompress the data if needed)
-            and known_delta.u_data is not None
-            # - Its base is stored as a delta against our target base
-            #   (we could do it more broadly if our target base is in the
-            #   "known_delta" delta chain. It "just" requires folding more
-            #   deltas)
-            and (fold_chain := self._fold_chain(base, known_delta.base))
-            is not None
-        ):
-            rl = revlog
-            fold_data = [rl.revdiff(rl.deltaparent(r), r) for r in fold_chain]
-            fold_data.append(known_delta.u_data)
-            delta_size = delta_fold.estimate_combined_deltas_size(fold_data)
-        else:
-            delta = self._builddeltadiff(base, revinfo)
-            delta_size = len(delta)
+            # See usage below.
+            use_estimate_size = (
+                revlog.delta_config.upper_bound_comp is not None
+                and snapshotdepth
+            )
 
-        if self._debug_search:
-            if delta is None:
-                estimated = b"estimated-"
+            # Compute the delta if we could not use an existing one.
+            if delta is not None:
+                delta_size = len(delta)
+            elif (
+                # Try to use delta folding for estimate the final delta size.
+                #
+                # We can do it when
+                # - it is useful
+                use_estimate_size
+                # - the feature is enabled
+                and revlog.delta_config.delta_fold_estimate
+                # - we have a existing delta we could fold
+                and known_delta is not None
+                # - that delta has uncompressed delta we can use
+                #   (we could decompress the data if needed)
+                and known_delta.u_data is not None
+                # - Its base is stored as a delta against our target base
+                #   (we could do it more broadly if our target base is in the
+                #   "known_delta" delta chain. It "just" requires folding more
+                #   deltas)
+                and (fold_chain := self._fold_chain(base, known_delta.base))
+                is not None
+            ):
+                rl = revlog
+                fold_data = [
+                    rl.revdiff(rl.deltaparent(r), r) for r in fold_chain
+                ]
+                fold_data.append(known_delta.u_data)
+                delta_size = delta_fold.estimate_combined_deltas_size(fold_data)
             else:
-                estimated = b""
-            msg = b"DBG-DELTAS-SEARCH:     %suncompressed-delta-size=%d\n"
-            msg %= (estimated, delta_size)
-            self._write_debug(msg)
+                delta = self._builddeltadiff(base, revinfo)
+                delta_size = len(delta)
 
-        # Estimate the size of intermediate snapshot need to be smaller than:
-        #
-        #  1) the previous snapshot
-        #  2) <size-of-full-text> / 2 ** (<snapshot-level>)
-        #
-        # This only apply to intermediate snapshot so snapshotdept need to be
-        # neither None (not a snapshot) nor 0 (initial snapshot).
-        if revlog.delta_config.upper_bound_comp is not None and snapshotdepth:
-            lowestrealisticdeltalen = (
-                delta_size // revlog.delta_config.upper_bound_comp
-            )
             if self._debug_search:
-                msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
-                msg %= lowestrealisticdeltalen
+                if delta is None:
+                    estimated = b"estimated-"
+                else:
+                    estimated = b""
+                msg = b"DBG-DELTAS-SEARCH:     %suncompressed-delta-size=%d\n"
+                msg %= (estimated, delta_size)
                 self._write_debug(msg)
 
-            snapshotlimit = revinfo.textlen >> snapshotdepth
-            if snapshotlimit < lowestrealisticdeltalen:
-                if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     DISCARDED (snapshot limit)\n"
-                    self._write_debug(msg)
-                return None
-
-            if revlog.length(base) < lowestrealisticdeltalen:
-                if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
-                    self._write_debug(msg)
-                return None
-
-        # If we still have not delta, finally Compute it delta if we could not use an existing one.
-        if delta is None:
-            delta = self._builddeltadiff(base, revinfo)
-            if self._debug_search:
-                msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
-                msg %= len(delta)
-                self._write_debug(msg)
-
-        if optimize_by_folding is not None:
-            new_delta_base = delta_fold.optimize_base(
-                delta,
-                self._iter_fold_candidates(deltabase),
-                int(len(delta) * optimize_by_folding),
-            )
-
-            if new_delta_base == nullrev:
-                # we collapsed the full stack, lets do a full snapshot
-                if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
-                    msg %= deltabase
-                    self._write_debug(msg)
-                return self._fullsnapshotinfo(
-                    revinfo,
-                    target_rev,
+            # Estimate the size of intermediate snapshot need to be smaller than:
+            #
+            #  1) the previous snapshot
+            #  2) <size-of-full-text> / 2 ** (<snapshot-level>)
+            #
+            # This only apply to intermediate snapshot so snapshotdept need to be
+            # neither None (not a snapshot) nor 0 (initial snapshot).
+            if (
+                revlog.delta_config.upper_bound_comp is not None
+                and snapshotdepth
+            ):
+                lowestrealisticdeltalen = (
+                    delta_size // revlog.delta_config.upper_bound_comp
                 )
-            elif new_delta_base is not None:
-                delta = self._builddeltadiff(new_delta_base, revinfo)
-                base = deltabase = new_delta_base
-                if snapshotdepth is not None:
-                    snapshotdepth = len(revlog._deltachain(base)[0])
                 if self._debug_search:
-                    msg = b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
-                    msg %= deltabase
+                    msg = b"DBG-DELTAS-SEARCH:     projected-lower-size=%d\n"
+                    msg %= lowestrealisticdeltalen
                     self._write_debug(msg)
-                    msg = b"DBG-DELTAS-SEARCH:       delta-size=%d\n"
+
+                snapshotlimit = revinfo.textlen >> snapshotdepth
+                if snapshotlimit < lowestrealisticdeltalen:
+                    if self._debug_search:
+                        msg = b"DBG-DELTAS-SEARCH:     DISCARDED (snapshot limit)\n"
+                        self._write_debug(msg)
+                    return None
+
+                if revlog.length(base) < lowestrealisticdeltalen:
+                    if self._debug_search:
+                        msg = b"DBG-DELTAS-SEARCH:     DISCARDED (prev size)\n"
+                        self._write_debug(msg)
+                    return None
+
+            # If we still have not delta, finally Compute it delta if we could not use an existing one.
+            if delta is None:
+                delta = self._builddeltadiff(base, revinfo)
+                if self._debug_search:
+                    msg = b"DBG-DELTAS-SEARCH:     uncompressed-delta-size=%d\n"
                     msg %= len(delta)
                     self._write_debug(msg)
 
-        # try to compress the delta
-        header, data = revlog._inner.compress(delta)
+            if optimize_by_folding is not None:
+                if deltabase == p1:
+                    revinfo.p1_delta_u_size = len(delta)
+                elif deltabase == p2:
+                    revinfo.p2_delta_u_size = len(delta)
+                new_delta_base = delta_fold.optimize_base(
+                    delta,
+                    self._iter_fold_candidates(deltabase),
+                    int(len(delta) * optimize_by_folding),
+                )
+
+                if new_delta_base == nullrev:
+                    # we collapsed the full stack, lets do a full snapshot
+                    if self._debug_search:
+                        msg = (
+                            b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
+                        )
+                        msg %= deltabase
+                        self._write_debug(msg)
+                    return self._fullsnapshotinfo(
+                        revinfo,
+                        target_rev,
+                    )
+                elif new_delta_base is not None:
+                    delta = self._builddeltadiff(new_delta_base, revinfo)
+                    base = deltabase = new_delta_base
+                    if snapshotdepth is not None:
+                        snapshotdepth = len(revlog._deltachain(base)[0])
+                    if self._debug_search:
+                        msg = (
+                            b"DBG-DELTAS-SEARCH:     optimized-delta-base=%d\n"
+                        )
+                        msg %= deltabase
+                        self._write_debug(msg)
+                        msg = b"DBG-DELTAS-SEARCH:       delta-size=%d\n"
+                        msg %= len(delta)
+                        self._write_debug(msg)
+
+            # try to compress the delta
+            header, data = revlog._inner.compress(delta)
 
         # compute information about the resulting chain
         deltalen = len(header) + len(data)
@@ -1801,6 +2174,7 @@ class deltacomputer:
             chainlen=chainlen,
             compresseddeltalen=compresseddeltalen,
             snapshotdepth=snapshotdepth,
+            quality=quality,
         )
 
     def _fullsnapshotinfo(
@@ -1808,9 +2182,30 @@ class deltacomputer:
         revinfo: RevisionInfoT,
         curr: RevnumT,
     ) -> _DeltaInfo:
-        rawtext = self.buildtext(revinfo)
-        data = self.revlog._inner.compress(rawtext)
+        rawtext = data = None
+        if (
+            revinfo.cachedelta is not None
+            and revinfo.cachedelta.c_full_text is not None
+            and self.revlog.delta_config.lazy_compression
+        ):
+            comp = revinfo.cachedelta.compression
+            if comp == compression.REVLOG_COMP_NONE:
+                rawtext = chunk = revinfo.cachedelta.c_full_text
+                if not chunk or chunk.startswith(b'\0'):
+                    data = (b'', chunk)
+                else:
+                    data = (b'u', chunk)
+            elif comp in self.revlog.compatible_compressions:
+                data = (b'', revinfo.cachedelta.c_full_text)
+        if data is None:
+            rawtext = self.buildtext(revinfo)
+            data = self.revlog._inner.compress(rawtext)
         compresseddeltalen = deltalen = dist = len(data[1]) + len(data[0])
+        quality = None
+        # if the full text is empty, doing full text is optimal already and
+        # delta against parent are useless.
+        if compresseddeltalen == 0:
+            quality = DeltaQuality(is_good=True)
         deltabase = chainbase = curr
         snapshotdepth = 0
         chainlen = 1
@@ -1825,6 +2220,7 @@ class deltacomputer:
             chainlen=chainlen,
             compresseddeltalen=compresseddeltalen,
             snapshotdepth=snapshotdepth,
+            quality=quality,
         )
 
     def finddeltainfo(
@@ -1894,6 +2290,7 @@ class deltacomputer:
                 dbg['type'] = b"full"
                 dbg['snapshot-depth'] = 0
                 self._dbg_process_data(dbg)
+            deltainfo.set_quality_info(revinfo)
             return deltainfo
 
         deltainfo = None
@@ -1911,7 +2308,8 @@ class deltacomputer:
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
-                delta = revinfo.cachedelta.delta
+                self.decompress_cached(cachedelta)
+                delta = revinfo.cachedelta.u_delta
                 header, data = revlog.compress(delta)
                 deltalen = len(header) + len(data)
                 if gather_debug:
@@ -1963,6 +2361,10 @@ class deltacomputer:
                     else:
                         dbg['snapshot-depth'] = snapshotdepth
                     self._dbg_process_data(dbg)
+                # We do not inherit quality here because forcily reusing delta
+                # usually create weird chain and its usage is discouraged when
+                # a revlog use format that support delta-info flags anyway.
+                deltainfo.quality = None
                 return deltainfo
 
         # count the number of different delta we tried (for debug purpose)
@@ -2078,13 +2480,7 @@ class deltacomputer:
                     delta_start = util.timer()
 
                 fold_tolerance = None
-                if (
-                    self.revlog.delta_config.delta_info
-                    # currently only optimize during parent search and
-                    # cache reuse. Consider also using this during the
-                    # snapshot phase.
-                    and search.current_stage in (_STAGE.PARENTS, _STAGE.CACHED)
-                ):
+                if search.optimize_by_folding:
                     fold_tolerance = (
                         self.revlog.delta_config.delta_fold_tolerance
                     )
@@ -2169,6 +2565,8 @@ class deltacomputer:
             else:
                 dbg['snapshot-depth'] = -1
             self._dbg_process_data(dbg)
+
+        deltainfo.set_quality_info(revinfo)
         return deltainfo
 
     def _one_dbg_data(self) -> dict:

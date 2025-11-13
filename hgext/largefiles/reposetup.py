@@ -33,6 +33,8 @@ from . import (
 
 if typing.TYPE_CHECKING:
     from mercurial.interfaces.types import (
+        FileStorageT,
+        HgPathT,
         MatcherT,
         StatusT,
     )
@@ -49,6 +51,17 @@ def reposetup(ui, repo):
         _largefilesenabled = True
 
         lfstatus = False
+
+        def file(self, path: HgPathT, writable: bool = False) -> FileStorageT:
+            fl = super().file(path, writable)
+            fl._revlog._large_file_enabled = True
+            return fl
+
+        @property
+        def manifestlog(self):
+            ml = super().manifestlog
+            ml._rootstore._revlog._large_file_enabled = True
+            return ml
 
         # When lfstatus is set, return a context that gives the names
         # of largefiles instead of their corresponding standins and
@@ -116,6 +129,7 @@ def reposetup(ui, repo):
             clean: bool = False,
             unknown: bool = False,
             listsubrepos: bool = False,
+            empty_dirs_keep_files: bool = False,
         ) -> StatusT:
             listignored, listclean, listunknown = ignored, clean, unknown
             orig = super().status
@@ -128,6 +142,7 @@ def reposetup(ui, repo):
                     listclean,
                     listunknown,
                     listsubrepos,
+                    empty_dirs_keep_files,
                 )
 
             # some calls in this function rely on the old version of status

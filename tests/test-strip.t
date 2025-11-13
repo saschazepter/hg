@@ -504,6 +504,8 @@ verify fncache is kept up-to-date
 
 stripping an empty revset
 
+  $ hg debugstrip "1 and not 1"
+  $ hg strip --permit-empty-revset "1 and not 1"
   $ hg strip "1 and not 1"
   abort: empty revision set
   [255]
@@ -761,10 +763,12 @@ test hg strip -B bookmark
 Make sure no one adds back a -b option:
 
   $ hg strip -b tip
-  hg debugstrip: option -b not recognized
-  hg debugstrip [-k] [-f] [-B bookmark] [-r] REV...
+  hg strip: option -b not recognized
+  hg strip [-k] [-f] [-B bookmark] [-r] REV...
   
-  strip changesets and all their descendants from the repository
+  (no help text available)
+  
+  (use 'hg help -e strip' to show help for the strip extension)
   
   options ([+] can be repeated):
   
@@ -775,9 +779,10 @@ Make sure no one adds back a -b option:
       --no-backup             do not save backup bundle
    -k --keep                  do not modify working directory during strip
    -B --bookmark BOOKMARK [+] remove revs only reachable from given bookmark
+      --permit-empty-revset   return success even if no revision was stripped
       --mq                    operate on patch repository
   
-  (use 'hg debugstrip -h' to show more help)
+  (use 'hg strip -h' to show more help)
   [10]
 
   $ cd ..
@@ -1313,7 +1318,7 @@ Use delayedstrip to strip inside a transaction
   |/
   o  0:426bada5c675 A
   
-Test high-level scmutil.cleanupnodes API
+Test high-level cmdutil.cleanupnodes API
 
   $ cd $TESTTMP/scmutilcleanup
   $ hg debugdrawdag <<'EOS'
@@ -1330,7 +1335,7 @@ Test high-level scmutil.cleanupnodes API
   $ cp -R . ../scmutilcleanup.obsstore
 
   $ cat > $TESTTMP/scmutilcleanup.py <<EOF
-  > from mercurial import registrar, scmutil
+  > from mercurial import cmdutil, registrar
   > cmdtable = {}
   > command = registrar.command(cmdtable)
   > @command(b'testnodescleanup')
@@ -1345,8 +1350,8 @@ Test high-level scmutil.cleanupnodes API
   >                 mapping = {node(b'F'): [node(b'F2')],
   >                            node(b'D'): [node(b'D2')],
   >                            node(b'G'): [node(b'G2')]}
-  >                 scmutil.cleanupnodes(repo, mapping, b'replace')
-  >                 scmutil.cleanupnodes(repo, nodes(b'((B::)+I+Z)-D2-obsolete()'),
+  >                 cmdutil.cleanup_nodes(repo, mapping, b'replace')
+  >                 cmdutil.cleanup_nodes(repo, nodes(b'((B::)+I+Z)-D2-obsolete()'),
   >                                      b'replace')
   > EOF
   $ hg testnodescleanup --config extensions.t=$TESTTMP/scmutilcleanup.py

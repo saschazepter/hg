@@ -14,7 +14,7 @@ from .node import hex
 from . import (
     error,
     match as matchmod,
-    merge as mergemod,
+    merge_utils,
     mergestate as mergestatemod,
     node,
     pathutil,
@@ -24,6 +24,7 @@ from . import (
     util,
 )
 from .utils import hashutil
+from .merge_utils import update as update_util
 
 
 # Whether sparse features are enabled. This variable is intended to be
@@ -282,7 +283,7 @@ def prunetemporaryincludes(repo):
 
     sparsematch = matcher(repo, includetemp=False)
     dirstate = repo.dirstate
-    mresult = mergemod.mergeresult()
+    mresult = merge_utils.MergeResult()
     dropped = []
     tempincludes = readtemporaryincludes(repo)
     for file in tempincludes:
@@ -291,7 +292,7 @@ def prunetemporaryincludes(repo):
             mresult.addfile(file, mergestatemod.ACTION_REMOVE, None, message)
             dropped.append(file)
 
-    mergemod.applyupdates(
+    update_util.apply_updates(
         repo, mresult, repo[None], repo[b'.'], False, wantfiledata=False
     )
 
@@ -442,7 +443,7 @@ def filterupdatesactions(repo, wctx, mctx, branchmerge, mresult):
         addtemporaryincludes(repo, temporaryfiles)
 
         # Add the new files to the working copy so they can be merged, etc
-        tmresult = mergemod.mergeresult()
+        tmresult = merge_utils.MergeResult()
         message = b'temporarily adding to sparse checkout'
         wctxmanifest = repo[None].manifest()
         for file in temporaryfiles:
@@ -456,7 +457,7 @@ def filterupdatesactions(repo, wctx, mctx, branchmerge, mresult):
                 )
 
         with repo.dirstate.changing_parents(repo):
-            mergemod.applyupdates(
+            update_util.apply_updates(
                 repo,
                 tmresult,
                 repo[None],
@@ -529,7 +530,7 @@ def refreshwdir(repo, origstatus, origsparsematch, force=False):
     dropped = []
     mf = ctx.manifest()
     files = set(mf)
-    mresult = mergemod.mergeresult()
+    mresult = merge_utils.MergeResult()
 
     for file in files:
         old = origsparsematch(file)
@@ -575,7 +576,7 @@ def refreshwdir(repo, origstatus, origsparsematch, force=False):
             if old and not new:
                 dropped.append(file)
 
-    mergemod.applyupdates(
+    update_util.apply_updates(
         repo, mresult, repo[None], repo[b'.'], False, wantfiledata=False
     )
 
@@ -842,7 +843,7 @@ def printchanges(
             excludecount,
         )
 
-        # In 'plain' verbose mode, mergemod.applyupdates already outputs what
+        # In 'plain' verbose mode, apply_updates already outputs what
         # files are added or removed outside of the templating formatter
         # framework. No point in repeating ourselves in that case.
         if not fm.isplain():

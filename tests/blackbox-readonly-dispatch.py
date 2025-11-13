@@ -2,6 +2,7 @@ import os
 from mercurial import (
     dispatch,
     extensions,
+    main_script,
     ui as uimod,
 )
 
@@ -14,7 +15,7 @@ def testdispatch(cmd):
     ui = uimod.ui.load()
     extensions.populateui(ui)
     ui.statusnoi18n(b"running: %s\n" % cmd)
-    req = dispatch.request(cmd.split(), ui)
+    req = main_script.request(cmd.split(), ui)
     result = dispatch.dispatch(req)
     ui.statusnoi18n(b"result: %r\n" % result)
 

@@ -8,15 +8,24 @@
 from __future__ import annotations
 
 import stat
+import time
+import typing
 
 from ..i18n import _
+from ..interfaces.types import (
+    RepoT,
+    TransactionT,
+    UiT,
+    VfsT,
+)
+
 from .. import (
     error,
     metadata,
     pycompat,
-    requirements,
     scmutil,
     store,
+    transaction,
     util,
     vfs as vfsmod,
 )
@@ -26,10 +35,17 @@ from ..revlogutils import (
     nodemap,
     sidedata as sidedatamod,
 )
+from ..store_utils import file_index as file_index_mod
 from . import actions as upgrade_actions
 
+if typing.TYPE_CHECKING:
+    from typing import (
+        Final,
+        Iterator,
+    )
 
-def get_sidedata_helpers(srcrepo, dstrepo):
+
+def get_sidedata_helpers(srcrepo: RepoT, dstrepo: RepoT):
     use_w = srcrepo.ui.configbool(b'experimental', b'worker.repository-upgrade')
 
     if use_w and pycompat.isdarwin:
@@ -52,7 +68,7 @@ def get_sidedata_helpers(srcrepo, dstrepo):
     return sidedatamod.get_sidedata_helpers(srcrepo, dstrepo._wanted_sidedata)
 
 
-def _copyrevlog(tr, destrepo, oldrl, entry):
+def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
     """copy all relevant files for `oldrl` into `destrepo` store
 
     Files are copied "as is" without any transformation. The copy is performed
@@ -78,23 +94,31 @@ def _copyrevlog(tr, destrepo, oldrl, entry):
     if copydata:
         util.copyfile(olddata, newdata)
 
-    if entry.is_filelog:
-        unencodedname = entry.main_file_path()
-        destrepo.svfs.fncache.add(unencodedname)
+    if newrl.target != b'':
+        newvfs.register_file(newrl._indexfile)
         if copydata:
-            destrepo.svfs.fncache.add(unencodedname[:-2] + b'.d')
+            newvfs.register_file(newrl._datafile)
+
+    if entry.is_filelog:
+        if (fileindex := destrepo.store.fileindex) is not None:
+            fileindex.add(entry.target_id, tr)
+        elif (fncache := destrepo.svfs.fncache) is not None:
+            unencodedname = entry.main_file_path()
+            fncache.add(unencodedname)
+            if copydata:
+                fncache.add(unencodedname[:-2] + b'.d')
 
 
-UPGRADE_CHANGELOG = b"changelog"
-UPGRADE_MANIFEST = b"manifest"
-UPGRADE_FILELOGS = b"all-filelogs"
+UPGRADE_CHANGELOG: Final[bytes] = b"changelog"
+UPGRADE_MANIFEST: Final[bytes] = b"manifest"
+UPGRADE_FILELOGS: Final[bytes] = b"all-filelogs"
 
-UPGRADE_ALL_REVLOGS = frozenset(
+UPGRADE_ALL_REVLOGS: Final[frozenset[bytes]] = frozenset(
     [UPGRADE_CHANGELOG, UPGRADE_MANIFEST, UPGRADE_FILELOGS]
 )
 
 
-def matchrevlog(revlogfilter, entry):
+def matchrevlog(revlogfilter, entry) -> bool:
     """check if a revlog is selected for cloning.
 
     In other words, are there any updates which need to be done on revlog
@@ -110,12 +134,12 @@ def matchrevlog(revlogfilter, entry):
 
 
 def _perform_clone(
-    ui,
-    dstrepo,
-    tr,
+    ui: UiT,
+    dstrepo: RepoT,
+    tr: TransactionT,
     old_revlog,
     entry,
-    upgrade_op,
+    upgrade_op: upgrade_actions.UpgradeOperation,
     sidedata_helpers,
     oncopiedrevision,
 ):
@@ -146,12 +170,12 @@ def _perform_clone(
 
 
 def _clonerevlogs(
-    ui,
-    srcrepo,
-    dstrepo,
-    tr,
-    upgrade_op,
-):
+    ui: UiT,
+    srcrepo: RepoT,
+    dstrepo: RepoT,
+    tr: TransactionT,
+    upgrade_op: upgrade_actions.UpgradeOperation,
+) -> None:
     """Copy revlogs between 2 repos."""
     revcount = 0
     srcsize = 0
@@ -172,6 +196,7 @@ def _clonerevlogs(
     crawsize = 0
     cdstsize = 0
 
+    total_start_time = time.monotonic()
     alldatafiles = list(srcrepo.store.walk())
     # mapping of data files which needs to be cloned
     # key is unencoded filename
@@ -247,19 +272,15 @@ def _clonerevlogs(
     sidedata_helpers = get_sidedata_helpers(srcrepo, dstrepo)
 
     # Migrating filelogs
-    ui.status(
-        _(
-            b'migrating %d filelogs containing %d revisions '
-            b'(%s in store; %s tracked data)\n'
-        )
-        % (
-            fcount,
-            frevcount,
-            util.bytecount(fsrcsize),
-            util.bytecount(frawsize),
-        )
-    )
+    store_size = tuple(util.bytecount(fsrcsize).split(b' ', 1))
+    tracked_size = tuple(util.bytecount(frawsize).split(b' ', 1))
+    ui.status(_(b'migrating filelogs:\n'))
+    ui.status(_(b'     revlog-count:      %9d\n') % fcount)
+    ui.status(_(b'     total-revisions:   %9d\n') % frevcount)
+    ui.status(_(b'     store-size:        %9s %s\n') % store_size)
+    ui.status(_(b'     tracked-size:      %9s %s\n') % tracked_size)
     progress = srcrepo.ui.makeprogress(_(b'file revisions'), total=frevcount)
+    start_time = time.monotonic()
     for target_id, entry in sorted(filelogs.items()):
         oldrl = entry.get_revlog_instance(srcrepo)
 
@@ -275,32 +296,27 @@ def _clonerevlogs(
         )
         info = newrl.storageinfo(storedsize=True)
         fdstsize += info[b'storedsize'] or 0
-    ui.status(
-        _(
-            b'finished migrating %d filelog revisions across %d '
-            b'filelogs; change in size: %s\n'
-        )
-        % (frevcount, fcount, util.bytecount(fdstsize - fsrcsize))
-    )
-
-    # Migrating manifests
-    ui.status(
-        _(
-            b'migrating %d manifests containing %d revisions '
-            b'(%s in store; %s tracked data)\n'
-        )
-        % (
-            mcount,
-            mrevcount,
-            util.bytecount(msrcsize),
-            util.bytecount(mrawsize),
-        )
-    )
+    end_time = time.monotonic()
+    byte_change = util.bytecount(fdstsize - fsrcsize)
+    amount, unit = byte_change.split(b' ', 1)
+    elapsed = end_time - start_time
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
     if progress:
         progress.complete()
+
+    # Migrating manifests
+    store_size = tuple(util.bytecount(msrcsize).split(b' ', 1))
+    tracked_size = tuple(util.bytecount(mrawsize).split(b' ', 1))
+    ui.status(_(b'migrating manifest:\n'))
+    ui.status(_(b'     filelog-count:     %9d\n') % mcount)
+    ui.status(_(b'     total-revisions:   %9d\n') % mrevcount)
+    ui.status(_(b'     store-size:        %9s %s\n') % store_size)
+    ui.status(_(b'     tracked-size:      %9s %s\n') % tracked_size)
     progress = srcrepo.ui.makeprogress(
         _(b'manifest revisions'), total=mrevcount
     )
+    start_time = time.monotonic()
     for target_id, entry in sorted(manifests.items()):
         oldrl = entry.get_revlog_instance(srcrepo)
         newrl = _perform_clone(
@@ -315,31 +331,26 @@ def _clonerevlogs(
         )
         info = newrl.storageinfo(storedsize=True)
         mdstsize += info[b'storedsize'] or 0
-    ui.status(
-        _(
-            b'finished migrating %d manifest revisions across %d '
-            b'manifests; change in size: %s\n'
-        )
-        % (mrevcount, mcount, util.bytecount(mdstsize - msrcsize))
-    )
-
-    # Migrating changelog
-    ui.status(
-        _(
-            b'migrating changelog containing %d revisions '
-            b'(%s in store; %s tracked data)\n'
-        )
-        % (
-            crevcount,
-            util.bytecount(csrcsize),
-            util.bytecount(crawsize),
-        )
-    )
+    end_time = time.monotonic()
+    byte_change = util.bytecount(mdstsize - msrcsize)
+    amount, unit = byte_change.split(b' ', 1)
+    elapsed = end_time - start_time
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
     if progress:
         progress.complete()
+
+    # Migrating changelog
+    store_size = tuple(util.bytecount(csrcsize).split(b' ', 1))
+    tracked_size = tuple(util.bytecount(crawsize).split(b' ', 1))
+    ui.status(_(b'migrating changelog:\n'))
+    ui.status(_(b'     total-revisions:   %9d\n') % crevcount)
+    ui.status(_(b'     store-size:        %9s %s\n') % store_size)
+    ui.status(_(b'     tracked-size:      %9s %s\n') % tracked_size)
     progress = srcrepo.ui.makeprogress(
         _(b'changelog revisions'), total=crevcount
     )
+    start_time = time.monotonic()
     for target_id, entry in sorted(changelogs.items()):
         oldrl = entry.get_revlog_instance(srcrepo)
         newrl = _perform_clone(
@@ -354,29 +365,32 @@ def _clonerevlogs(
         )
         info = newrl.storageinfo(storedsize=True)
         cdstsize += info[b'storedsize'] or 0
-    progress.complete()
-    ui.status(
-        _(
-            b'finished migrating %d changelog revisions; change in size: '
-            b'%s\n'
-        )
-        % (crevcount, util.bytecount(cdstsize - csrcsize))
-    )
+    end_time = time.monotonic()
+    byte_change = util.bytecount(cdstsize - csrcsize)
+    amount, unit = byte_change.split(b' ', 1)
+    elapsed = end_time - start_time
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
+    if progress:
+        progress.complete()
 
     dstsize = fdstsize + mdstsize + cdstsize
-    ui.status(
-        _(
-            b'finished migrating %d total revisions; total change in store '
-            b'size: %s\n'
-        )
-        % (revcount, util.bytecount(dstsize - srcsize))
-    )
+    revlog_count = fcount + mcount + 1
+    total_end_time = time.monotonic()
+    elapsed = total_end_time - total_start_time
+    amount, unit = byte_change.split(b' ', 1)
+    byte_change = util.bytecount(dstsize - srcsize)
+    ui.status(_(b'finished migrating:\n'))
+    ui.status(_(b'     total-revlog   :   %9d\n') % revlog_count)
+    ui.status(_(b'     total-revisions:   %9d\n') % revcount)
+    ui.status(_(b'     size-change:       %9s %s\n') % (amount, unit))
+    ui.status(_(b'     elapsed-time:      %9.0f seconds\n') % elapsed)
 
 
-def _files_to_copy_post_revlog_clone(srcrepo):
+def _files_to_copy_post_revlog_clone(srcrepo: RepoT) -> Iterator[bytes]:
     """yields files which should be copied to destination after revlogs
     are cloned"""
-    for path, kind, st in sorted(srcrepo.store.vfs.readdir(b'', stat=True)):
+    for path, kind, st in sorted(srcrepo.svfs.readdir(b'', stat=True)):
         # don't copy revlogs as they are already cloned
         if store.is_revlog_file(path):
             continue
@@ -394,7 +408,12 @@ def _files_to_copy_post_revlog_clone(srcrepo):
         yield path
 
 
-def _replacestores(currentrepo, upgradedrepo, backupvfs, upgrade_op):
+def _replacestores(
+    currentrepo: RepoT,
+    upgradedrepo: RepoT,
+    backupvfs: VfsT,
+    upgrade_op: upgrade_actions.UpgradeOperation,
+) -> None:
     """Replace the stores after current repository is upgraded
 
     Creates a backup of current repository store at backup path
@@ -416,15 +435,27 @@ def _replacestores(currentrepo, upgradedrepo, backupvfs, upgrade_op):
     util.rename(upgradedrepo.spath, currentrepo.spath)
 
 
-def finishdatamigration(ui, srcrepo, dstrepo, requirements):
+def finishdatamigration(
+    ui: UiT, srcrepo: RepoT, dstrepo: RepoT, requirements: set[bytes]
+) -> None:
     """Hook point for extensions to perform additional actions during upgrade.
 
     This function is called after revlogs and store files have been copied but
     before the new store is swapped into the original location.
+
+    Extensions can modify the set of requirements, but must be careful to
+    ensure they don't remove ones that really are required in the new
+    repository.  The migration engine will write the requirements out to the
+    ``dstrepo`` at the appropriate point.
     """
 
 
-def upgrade(ui, srcrepo, dstrepo, upgrade_op):
+def upgrade(
+    ui: UiT,
+    srcrepo: RepoT,
+    dstrepo: RepoT,
+    upgrade_op: upgrade_actions.UpgradeOperation,
+) -> bytes | None:
     """Do the low-level work of upgrading a repository.
 
     The upgrade is effectively performed as a copy between a source
@@ -464,6 +495,28 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
         ui.status(_(b'remove dirstate-tracked-hint file\n'))
         upgrade_tracked_hint(ui, srcrepo, upgrade_op, add=False)
         upgrade_op.removed_actions.remove(upgrade_actions.dirstatetrackedkey)
+
+    # Fast path for upgrading from fncache to file index.
+    if upgrade_actions.file_index_v1 in upgrade_op.upgrade_actions:
+        if not {upgrade_actions.fncache, upgrade_actions.dotencode}.issubset(
+            upgrade_op.removed_actions
+        ):
+            raise error.ProgrammingError(
+                b'adding fileindex-v1 must remove fncache and dotencode'
+            )
+
+        other_upgrade = upgrade_op.upgrade_actions.copy()
+        other_remove = upgrade_op.removed_actions.copy()
+        other_upgrade.remove(upgrade_actions.file_index_v1)
+        other_remove.remove(upgrade_actions.fncache)
+        other_remove.remove(upgrade_actions.dotencode)
+        if not (other_upgrade or other_remove):
+            ui.status(_(b'upgrading from fncache to fileindex-v1\n'))
+            upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op)
+
+            upgrade_op.upgrade_actions.remove(upgrade_actions.file_index_v1)
+            upgrade_op.removed_actions.remove(upgrade_actions.fncache)
+            upgrade_op.removed_actions.remove(upgrade_actions.dotencode)
 
     if not (upgrade_op.upgrade_actions or upgrade_op.removed_actions):
         return
@@ -532,7 +585,7 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
             dst = dstrepo.store.rawvfs.join(p)
             util.copyfile(src, dst, copystat=True)
 
-        finishdatamigration(ui, srcrepo, dstrepo, requirements)
+        finishdatamigration(ui, srcrepo, dstrepo, upgrade_op.new_requirements)
 
         ui.status(_(b'data fully upgraded in a temporary repository\n'))
 
@@ -603,7 +656,13 @@ def upgrade(ui, srcrepo, dstrepo, upgrade_op):
     return backuppath
 
 
-def upgrade_dirstate(ui, srcrepo, upgrade_op, old, new):
+def upgrade_dirstate(
+    ui: UiT,
+    srcrepo: RepoT,
+    upgrade_op: upgrade_actions.BaseOperation,
+    old: bytes,
+    new: bytes,
+) -> None:
     if upgrade_op.backup_store:
         backuppath = pycompat.mkdtemp(
             prefix=b'upgradebackup.', dir=srcrepo.path
@@ -645,7 +704,12 @@ def upgrade_dirstate(ui, srcrepo, upgrade_op, old, new):
         scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
 
 
-def upgrade_tracked_hint(ui, srcrepo, upgrade_op, add):
+def upgrade_tracked_hint(
+    ui: UiT,
+    srcrepo: RepoT,
+    upgrade_op: upgrade_actions.BaseOperation,
+    add: bool,
+) -> None:
     if add:
         srcrepo.dirstate._use_tracked_hint = True
         srcrepo.dirstate._dirty = True
@@ -655,3 +719,45 @@ def upgrade_tracked_hint(ui, srcrepo, upgrade_op, add):
         srcrepo.dirstate.delete_tracked_hint()
 
     scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
+
+
+def upgrade_fncache_to_fileindex(
+    ui: UiT, srcrepo: RepoT, upgrade_op: upgrade_actions.UpgradeOperation
+) -> None:
+    if upgrade_op.backup_store:
+        backuppath = pycompat.mkdtemp(
+            prefix=b'upgradebackup.', dir=srcrepo.path
+        )
+        ui.status(_(b'replaced files will be backed up at %s\n') % backuppath)
+        backupvfs_outer = vfsmod.vfs(backuppath)
+        backupvfs_outer.mkdir(b'store')
+        backupvfs = vfsmod.vfs(backupvfs_outer.join(b'store'))
+        util.copyfile(
+            srcrepo.svfs.join(b'requires'), backupvfs.join(b'requires')
+        )
+
+    fileindex = file_index_mod.FileIndex(
+        ui,
+        srcrepo.store.rawvfs,
+        try_pending=False,
+        vacuum_mode=file_index_mod.VacuumMode.NEVER,
+        max_unused_ratio=0,
+        gc_retention_s=0,
+        garbage_timestamp=None,
+    )
+    with srcrepo.transaction(b'upgrade') as tr:
+        for path in srcrepo.store.fncache:
+            radix = store.parse_filelog_radix(path)
+            if radix:
+                fileindex.add(radix, tr)
+
+    transaction.cleanup_undo_files(ui.warn, srcrepo.vfs_map)
+
+    scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
+
+    old_file = b"fncache"
+    if srcrepo.svfs.exists(old_file):
+        if upgrade_op.backup_store:
+            util.rename(srcrepo.svfs.join(old_file), backupvfs.join(old_file))
+        else:
+            srcrepo.svfs.unlink(old_file)

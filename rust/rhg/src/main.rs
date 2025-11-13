@@ -713,14 +713,17 @@ fn exit_no_fallback(
 }
 
 mod commands {
+    pub mod admin_narrow_client;
     pub mod annotate;
     pub mod cat;
     pub mod config;
+    pub mod debug_narrow_fingerprint;
     pub mod debugdata;
     pub mod debugignorerhg;
     pub mod debugrequirements;
     pub mod debugrhgsparse;
     pub mod files;
+    pub mod purge;
     pub mod root;
     pub mod script_hgignore;
     pub mod status;
@@ -794,14 +797,17 @@ impl Subcommands {
 
 fn subcommands() -> Subcommands {
     let subcommands = vec![
+        subcommand!(admin_narrow_client),
         subcommand!(annotate),
         subcommand!(cat),
         subcommand!(debugdata),
+        subcommand!(debug_narrow_fingerprint),
         subcommand!(debugrequirements),
         subcommand!(debugignorerhg),
         subcommand!(debugrhgsparse),
         subcommand!(files),
         subcommand!(root),
+        subcommand!(purge),
         subcommand!(config),
         subcommand!(status),
         subcommand!(script_hgignore),
@@ -988,8 +994,16 @@ impl OnUnsupported {
 /// The `*` extension is an edge-case for config sub-options that apply to all
 /// extensions. For now, only `:required` exists, but that may change in the
 /// future.
-const SUPPORTED_EXTENSIONS: &[&[u8]] =
-    &[b"blackbox", b"share", b"sparse", b"narrow", b"*", b"strip", b"rebase"];
+const SUPPORTED_EXTENSIONS: &[&[u8]] = &[
+    b"blackbox",
+    b"share",
+    b"sparse",
+    b"narrow",
+    b"*",
+    b"strip",
+    b"rebase",
+    b"purge",
+];
 
 fn check_extensions(config: &Config) -> Result<(), CommandError> {
     if let Some(b"*") = config.get(b"rhg", b"ignored-extensions") {

@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import os
 
+from ..i18n import _
 from .. import (
     configuration as conf_mod,
     encoding,
-    localrepo,
+    error,
     pycompat,
     requirements as requirementsmod,
     util,
@@ -136,7 +137,7 @@ def _shared_source_component(path: bytes) -> list[FileRCT]:
             ):
                 return []
             hgvfs = vfs.vfs(os.path.join(path, b".hg"))
-            sharedvfs = localrepo._getsharedvfs(hgvfs, requirements)
+            sharedvfs = get_shared_vfs(hgvfs, requirements)
             return [sharedvfs.join(b"hgrc")]
     except OSError:
         pass
@@ -184,3 +185,27 @@ def defaultpagerenv() -> dict[bytes, bytes]:
 def use_repo_hgrc() -> bool:
     """True if repositories `.hg/hgrc` config should be read"""
     return b'HGRCSKIPREPO' not in encoding.environ
+
+
+def get_shared_vfs(hgvfs, requirements):
+    """returns the vfs object pointing to root of shared source
+    repo for a shared repository
+
+    hgvfs is vfs pointing at .hg/ of current repo (shared one)
+    requirements is a set of requirements of current repo (shared one)
+    """
+    # The ``shared`` or ``relshared`` requirements indicate the
+    # store lives in the path contained in the ``.hg/sharedpath`` file.
+    # This is an absolute path for ``shared`` and relative to
+    # ``.hg/`` for ``relshared``.
+    sharedpath = hgvfs.read(b'sharedpath').rstrip(b'\n')
+    if requirementsmod.RELATIVE_SHARED_REQUIREMENT in requirements:
+        sharedpath = util.normpath(hgvfs.join(sharedpath))
+
+    sharedvfs = vfs.vfs(sharedpath, realpath=True)
+
+    if not sharedvfs.exists():
+        msg = _(b'.hg/sharedpath points to nonexistent directory %s')
+        msg %= sharedvfs.base
+        raise error.RepoError(msg)
+    return sharedvfs

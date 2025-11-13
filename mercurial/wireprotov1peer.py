@@ -12,6 +12,9 @@ import weakref
 
 from concurrent import futures
 from .i18n import _
+from .interfaces.types import (
+    NodeIdT,
+)
 from .node import bin
 from . import (
     bundle2,
@@ -22,6 +25,9 @@ from . import (
     pycompat,
     util,
     wireprototypes,
+)
+from .exchanges import (
+    peer,
 )
 from .interfaces import (
     repository,
@@ -320,8 +326,16 @@ class peerexecutor(repository.ipeercommandexecutor):
                     f.set_result(result)
 
 
+class RemoteBranchMap(dict[bytes, list[NodeIdT]], repository.IBaseBranchMap):
+    """Branch information from a wire-peer"""
+
+    def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
+        """Note: closed is ignored as we don't have the information from the remote"""
+        return self.get(branch, [])
+
+
 class wirepeer(
-    repository.peer, repository.ipeercommands, repository.ipeerlegacycommands
+    peer.Peer, repository.ipeercommands, repository.ipeerlegacycommands
 ):
     """Client-side interface for communicating with a peer repository.
 
@@ -338,7 +352,7 @@ class wirepeer(
 
     def clonebundles(self):
         if self.capable(b'clonebundles_manifest'):
-            return self._call(b'clonebundles_manifest')
+            return self._call(b'clonebundles_manifest', store_fingerprint=b'1')
         else:
             self.requirecap(b'clonebundles', _(b'clone bundles'))
             return self._call(b'clonebundles')
@@ -392,7 +406,7 @@ class wirepeer(
     def branchmap(self):
         def decode(d):
             try:
-                branchmap = {}
+                branchmap = RemoteBranchMap()
                 for branchpart in d.splitlines():
                     branchname, branchheads = branchpart.split(b' ', 1)
                     branchname = encoding.tolocal(urlreq.unquote(branchname))

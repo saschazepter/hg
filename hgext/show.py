@@ -30,7 +30,6 @@ from __future__ import annotations
 from mercurial.i18n import _
 from mercurial.node import nullrev
 from mercurial import (
-    cmdutil,
     commands,
     destutil,
     error,
@@ -43,6 +42,9 @@ from mercurial import (
     revset,
     revsetlang,
     scmutil,
+)
+from mercurial.main_script import (
+    cmd_finder,
 )
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
@@ -271,7 +273,7 @@ def showstack(ui, repo, displayer):
     nodelen = longestshortest(repo, allrevs)
 
     try:
-        cmdutil.findcmd(b'rebase', commands.table)
+        cmd_finder.find_cmd(b'rebase', commands.table)
         haverebase = True
     except (error.AmbiguousCommand, error.UnknownCommand):
         haverebase = False
@@ -468,7 +470,7 @@ def extsetup(ui):
         for view in showview._table:
             name = b'%s%s' % (prefix, view)
 
-            choice, allcommands = cmdutil.findpossible(
+            choice, allcommands = cmd_finder.find_possible(
                 name, commands.table, strict=True
             )
 

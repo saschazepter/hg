@@ -49,6 +49,7 @@ To update the md5, invoke the script without --validate
   > revlog.optimize-delta-parent-choice = yes
   > revlog.reuse-external-delta-parent = no
   > revlog.reuse-external-delta = no
+  > revlog.reuse-external-delta-compression = no
   > delta-fold-estimate = always
   > EOF
 
@@ -56,14 +57,14 @@ To update the md5, invoke the script without --validate
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=yes
+  > use-delta-info-flags=yes
   > EOF
 
 #else
 
   $ cat << EOF >> $HGRCPATH
   > [format]
-  > exp-use-delta-info-flags=no
+  > use-delta-info-flags=no
   > EOF
 
 #endif
@@ -237,7 +238,7 @@ sanity check the change pattern
   $ cat ../revlog-stats-reference.txt
   format : 1
   flags  : generaldelta (flagless !)
-  flags  : generaldelta, delta-info (delta-info-flags !)
+  flags  : generaldelta, hasmeta, delta-info (delta-info-flags !)
   
   revisions     :     5001
       merges    :      625 (12.50%)
@@ -1030,6 +1031,132 @@ Test `debug-delta-find`
   > revlog.reuse-external-delta = no
   > EOF
 
+
+full bundle
+-----------
+
+Pull of everything and check the quality of the result,
+
+Doing a full pull should give use the same result as the pull source as the
+server should be able to encode his chain as is.
+
+  $ hg init ../full-pull
+  $ cd ../full-pull
+
+Here we go ove the default and trust parent choice from the bundle. Since all
+revision are bundled, all delta base should be valid and the server should be
+able to stream its delta as is.
+
+  $ cat << EOF >> .hg/hgrc
+  > [path]
+  > *:pulled-delta-reuse-policy = try-base
+  > EOF
+
+XXX - disabling the delta-parent reuse for now as it seems to get confuse about snapshot status.
+#if delta-info-flags
+  $ cat << EOF >> $HGRCPATH
+  > [path]
+  > *:pulled-delta-reuse-policy = default
+  > EOF
+#endif
+
+pull everything
+
+  $ hg pull ../sparse-repo
+  pulling from ../sparse-repo
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 5001 changesets with 5001 changes to 1 files (+89 heads)
+  new changesets 9706f5af64f4:3bb1647e55b4
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  $ hg up tip
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd ../
+#if delta-info-flags
+  $ f -s */.hg/store/data/*.d
+  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
+  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
+#else
+  $ f -s */.hg/store/data/*.d
+  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
+  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
+#endif
+  $ hg debugrevlog --cwd full-pull SPARSE-REVLOG-TEST-FILE > ./revlog-stats-post-pull.txt
+  $ cmp ./revlog-stats-reference.txt ./revlog-stats-post-pull.txt | diff -u ./revlog-stats-reference.txt ./revlog-stats-post-pull.txt
+
+
+incremental pull
+----------------
+
+pulling every revision ten by ten
+
+  $ hg init incremental-10-pull
+  $ cd incremental-10-pull
+
+Here we go ove the default and trust parent choice from the bundle. Since all
+revision are bundled, all delta base should be valid and the server should be
+able to stream its delta as is.
+
+  $ cat << EOF >> .hg/hgrc
+  > [path]
+  > *:pulled-delta-reuse-policy = try-base
+  > EOF
+
+XXX - changegroup-v4 should be enabled by default when delta-info-flag is used
+#if delta-info-flags
+  $ cat << EOF >> $HGRCPATH
+  > [path]
+  > changegroup4 = yes
+  > EOF
+#endif
+
+pull changeset 10 by 10
+
+  $ $TESTDIR/seq.py 0 `hg log -R ../sparse-repo --rev tip --template '{rev}'` | while
+  >   read rev0;
+  >   read rev1;
+  >   read rev2;
+  >   read rev3;
+  >   read rev4;
+  >   read rev5;
+  >   read rev6;
+  >   read rev7;
+  >   read rev8;
+  >   read rev9;
+  >   do
+  >     hg pull --quiet ../sparse-repo --rev $rev0 --rev $rev1 --rev $rev2 --rev $rev3 --rev $rev4 --rev $rev5 --rev $rev6 --rev $rev7 --rev $rev8 --rev $rev9 || break
+  > done
+  $ hg pull ../sparse-repo
+  pulling from ../sparse-repo
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (-1 heads)
+  new changesets 3bb1647e55b4
+  (run 'hg update' to get a working copy)
+  $ hg up tip
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd ../
+#if delta-info-flags
+  $ f -s */.hg/store/data/*.d
+  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
+  incremental-10-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
+  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
+#else
+  $ f -s */.hg/store/data/*.d
+  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
+  incremental-10-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
+  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
+#endif
+  $ hg debugrevlog --cwd incremental-10-pull SPARSE-REVLOG-TEST-FILE > ./revlog-stats-post-inc-pull.txt
+  $ cmp ./revlog-stats-reference.txt ./revlog-stats-post-inc-pull.txt | diff -u ./revlog-stats-reference.txt ./revlog-stats-post-inc-pull.txt
+
+
+  $ cd ./sparse-repo
+
 Upgrading to/from delta-info-flags
 ==================================
 
@@ -1042,13 +1169,13 @@ Upgrading to/from delta-info-flags
   $ hg debugrevlog * > ../revlog-stats-pre-upgrade.txt
   $ hg debugupgraderepo --quiet --run \
   >   --optimize re-delta-all \
-  >   --config format.exp-use-delta-info-flags=$UPGRADE_TO
+  >   --config format.use-delta-info-flags=$UPGRADE_TO
   upgrade will perform the following actions:
   
   requirements
      preserved: * (glob)
-     removed: exp-delta-info-revlog (delta-info-flags !)
-     added: exp-delta-info-revlog (flagless !)
+     removed: delta-info-revlog (delta-info-flags !)
+     added: delta-info-revlog (flagless !)
   
   optimisations: re-delta-all
   
@@ -1069,7 +1196,7 @@ Upgrading to/from delta-info-flags
   +++ ../revlog-stats-post-upgrade.txt* (glob)
   @@ -1,5 +1,5 @@
    format : 1
-  -flags  : generaldelta, delta-info
+  -flags  : generaldelta, hasmeta, delta-info
   +flags  : generaldelta
    
    revisions     :     5001
@@ -1179,7 +1306,7 @@ Upgrading to/from delta-info-flags
   @@ -1,5 +1,5 @@
    format : 1
   -flags  : generaldelta
-  +flags  : generaldelta, delta-info
+  +flags  : generaldelta, hasmeta, delta-info
    
    revisions     :     5001
        merges    :      625 (12.50%)

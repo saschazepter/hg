@@ -86,7 +86,6 @@ class RustRevlogBasedTestBase(unittest.TestCase):
 
         return self.irl_class()(
             vfs_base=b"Just a path",
-            fncache=None,  # might be enough for now
             vfs_is_readonly=vfs_is_readonly,
             index_data=data,
             index_file=b'test.i',
@@ -100,7 +99,7 @@ class RustRevlogBasedTestBase(unittest.TestCase):
             default_compression_header=None,
             revlog_type=kind,
             use_persistent_nodemap=False,  # until we cook one.
-            use_plain_encoding=False,
+            encoding=0,
         )
 
     def parserustindex(self, data=None):

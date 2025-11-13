@@ -136,7 +136,7 @@ testpats = [
         (r'echo -n', "don't use 'echo -n', use printf"),
         (
             r'(^|\|\s*)\bwc\b[^|]*$\n(?!.*\(re\))',
-            r'filter wc output (use "\s*42 (re)")',
+            r'use `f --line-count` or filter wc output (use "\s*42 (re)")',
         ),
         (r'head -c', "don't use 'head -c', use 'dd'"),
         (r'tail -n', "don't use the '-n' option to tail, just use '-<num>'"),
@@ -404,7 +404,6 @@ commonpypats = [
             'legacy exception syntax; use "as" instead of ","',
         ),
         (r'release\(.*wlock, .*lock\)', "wrong lock release order"),
-        (r'\bdef\s+__bool__\b', "__bool__ should be __nonzero__ in Python 2"),
         (
             r'os\.path\.join\(.*, *(""|\'\')\)',
             "use pathutil.normasprefix(path) instead of os.path.join(path, '')",

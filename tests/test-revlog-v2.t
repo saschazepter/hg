@@ -14,6 +14,8 @@ Can create and open repo with revlog v2 requirement
   $ cat >> $HGRCPATH << EOF
   > [experimental]
   > revlogv2 = enable-unstable-format-and-corrupt-my-data
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 
   $ hg init new-repo

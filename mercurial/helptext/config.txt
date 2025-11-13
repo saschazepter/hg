@@ -884,9 +884,10 @@ A default setting can we set using the special `*` extension key::
 ----------
 
 Configuration that controls the repository format. Newer format options are more
-powerful, but incompatible with some older versions of Mercurial. Format options
-are considered at repository initialization only. You need to make a new clone
-for config changes to be taken into account.
+powerful, but incompatible with some older versions of Mercurial.
+
+Format options are considered at repository initialization only. You need to
+make a new clone for config changes to be taken into account.
 
 For more details about repository format and version compatibility, see
 https://www.mercurial-scm.org/wiki/MissingRequirement
@@ -920,6 +921,9 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
     Repositories with this on-disk format require Mercurial version 1.1.
 
     Enabled by default.
+
+``use-delta-info-flags``
+    :config-doc:`format.use-delta-info-flags`
 
 ``use-dirstate-v2``
     Enable or disable the experimental "dirstate-v2" feature. The dirstate
@@ -975,36 +979,7 @@ https://www.mercurial-scm.org/wiki/MissingRequirement
     Hide message when performing such automatic upgrade.
 
 ``use-dirstate-tracked-hint``
-    Enable or disable the writing of "tracked key" file alongside the dirstate.
-    (default to disabled)
-
-    That "tracked-hint" can help external automations to detect changes to the
-    set of tracked files. (i.e the result of `hg files` or `hg status -macd`)
-
-    The tracked-hint is written in a new `.hg/dirstate-tracked-hint`. That file
-    contains two lines:
-    - the first line is the file version (currently: 1),
-    - the second line contains the "tracked-hint".
-    That file is written right after the dirstate is written.
-
-    The tracked-hint changes whenever the set of file tracked in the dirstate
-    changes. The general idea is:
-    - if the hint is identical, the set of tracked file SHOULD be identical,
-    - if the hint is different, the set of tracked file MIGHT be different.
-
-    The "hint is identical" case uses `SHOULD` as the dirstate and the hint file
-    are two distinct files and therefore that cannot be read or written to in an
-    atomic way. If the key is identical, nothing garantees that the dirstate is
-    not updated right after the hint file. This is considered a negligible
-    limitation for the intended usecase. It is actually possible to prevent this
-    race by taking the repository lock during read operations.
-
-    They are two "ways" to use this feature:
-
-    1) monitoring changes to the `.hg/dirstate-tracked-hint`, if the file
-    changes, the tracked set might have changed.
-
-    2) storing the value and comparing it to a later value.
+    :config-doc:`format.use-dirstate-tracked-hint`
 
 
 ``use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories``
@@ -2339,6 +2314,9 @@ category impact performance and repository size.
 ``revlog.dirstate-v2.slow-path``
     :config-doc:`storage.dirstate-v2.slow-path`
 
+``revlog.exchange-compressed-delta``
+    :config-doc:`storage.revlog.exchange-compressed-delta`
+
 ``revlog.issue6528.fix-incoming``
     Version 5.8 of Mercurial had a bug leading to altering the parent of file
     revision with copy information (or any other metadata) on exchange. This
@@ -2438,6 +2416,9 @@ category impact performance and repository size.
 
     This option is enabled by default. When disabled, it also disables the
     related ``storage.revlog.reuse-external-delta-parent`` option.
+
+``revlog.reuse-external-delta-compression``
+    :config-doc:`storage.revlog.reuse-external-delta-compression`
 
 ``revlog.zlib.level``
     Zlib compression level used when storing data into the repository. Accepted
@@ -3100,6 +3081,21 @@ User interface controls.
     - ``low``: reduces memory usage when possible at the cost of overall
       performance.
 
+``resources.bandwidth``
+    How aggressive Mercurial can be in terms of bandwidth usage:
+
+    Currently recognised values are::
+
+    - ``default``: the default value, inherits the value from `usage.resources`,
+
+    - ``high``: allows for more aggressive bandwidth usage to improve overall
+      performance,
+
+    - ``medium``:  aims at a moderate bandwidth usage,
+
+    - ``low``: reduces bandwidth usage when possible at the cost of overall
+      performance.
+
 
 ``command-templates``
 ---------------------
@@ -3494,3 +3490,12 @@ helps performance.
     Number of threads to process background file closes. Only relevant if
     ``backgroundclose`` is enabled.
     (default: 4)
+
+``parallel-stream-bundle-processing``
+    :config-doc:`worker.parallel-stream-bundle-processing`
+
+``parallel-stream-bundle-processing.memory-target``
+    :config-doc:`worker.parallel-stream-bundle-processing.memory-target`
+
+``parallel-stream-bundle-processing.num-writer``
+    :config-doc:`worker.parallel-stream-bundle-processing.num-writer`

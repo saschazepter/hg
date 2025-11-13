@@ -24,9 +24,11 @@ import weakref
 import zlib
 
 from typing import (
+    BinaryIO,
     Iterable,
     Iterator,
     Optional,
+    cast,
 )
 
 # import stuff from node for others to import from revlog
@@ -39,6 +41,11 @@ from .node import (
     wdirrev,
 )
 from .i18n import _
+from .interfaces.types import (
+    NodeIdT,
+    OutboundRevisionT,
+    RevnumT,
+)
 from .revlogutils.constants import (
     ALL_KINDS,
     CHANGELOGV2,
@@ -47,6 +54,7 @@ from .revlogutils.constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_NO,
     DELTA_BASE_REUSE_TRY,
+    ENTRY_DATA_COMPRESSED_LENGTH,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
@@ -58,9 +66,21 @@ from .revlogutils.constants import (
     INDEX_HEADER,
     KIND_CHANGELOG,
     KIND_FILELOG,
+    KIND_MANIFESTLOG,
     META_MARKER,
     META_MARKER_SIZE,
     RANK_UNKNOWN,
+    REVIDX_DEFAULT_FLAGS,
+    REVIDX_DELTA_INFO_FLAGS,
+    REVIDX_DELTA_IS_SNAPSHOT,
+    REVIDX_ELLIPSIS,
+    REVIDX_EXTSTORED,
+    REVIDX_FLAGS_ORDER,
+    REVIDX_HASCOPIESINFO,
+    REVIDX_HASMETA,
+    REVIDX_ISCENSORED,
+    REVIDX_NEUTRAL_FLAGS,
+    REVIDX_RAWTEXT_CHANGING_FLAGS,
     REVLOGV0,
     REVLOGV1,
     REVLOGV1_FLAGS,
@@ -71,18 +91,8 @@ from .revlogutils.constants import (
     REVLOG_DEFAULT_VERSION,
     SUPPORTED_FLAGS,
 )
-from .revlogutils.flagutil import (
-    REVIDX_DEFAULT_FLAGS,
-    REVIDX_DELTA_IS_SNAPSHOT,
-    REVIDX_ELLIPSIS,
-    REVIDX_EXTSTORED,
-    REVIDX_FLAGS_ORDER,
-    REVIDX_HASCOPIESINFO,
-    REVIDX_HASMETA,
-    REVIDX_ISCENSORED,
-    REVIDX_RAWTEXT_CHANGING_FLAGS,
-)
 from .thirdparty import attr
+from .interfaces import compression as i_comp
 from .revlogutils import config as revlog_config
 
 # Force pytype to use the non-vendored package
@@ -90,10 +100,6 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
     from .pure.parsers import BaseIndexObject
-
-    from .interfaces.types import (
-        NodeIdT,
-    )
 
 from . import (
     ancestor,
@@ -200,20 +206,44 @@ HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
 )
 
 
+def _split_compression(
+    chunk: bytes,
+) -> tuple[i_comp.RevlogCompHeader, bytes]:
+    """split an inline-compressed chunk into a (compression, delta) tuple"""
+    # mostly duplicated from `decompress` for performance reason
+    if not chunk:
+        comp = i_comp.REVLOG_COMP_NONE
+    else:
+        header = chunk[0:1]
+        if header == b'\0':
+            comp = i_comp.REVLOG_COMP_NONE
+        elif header == b'u':
+            comp = i_comp.REVLOG_COMP_NONE
+            chunk = util.buffer(chunk, 1)
+        else:
+            comp = i_comp.RevlogCompHeader(header)
+    return (comp, chunk)
+
+
 @attr.s(slots=True)
-class revlogrevisiondelta(repository.irevisiondelta):
+class OutboundRevision(repository.IOutboundRevision):
     node = attr.ib(type=bytes)
     p1node = attr.ib(type=bytes)
     p2node = attr.ib(type=bytes)
     basenode = attr.ib(type=bytes)
     flags = attr.ib(type=int)
     baserevisionsize = attr.ib(type=Optional[int])
+    raw_revision_size = attr.ib(type=int)
     revision = attr.ib(type=Optional[bytes])
     delta = attr.ib(type=Optional[bytes])
     sidedata = attr.ib(type=Optional[bytes])
     protocol_flags = attr.ib(type=int)
     linknode = attr.ib(default=None, type=Optional[bytes])
     snapshot_level = attr.ib(default=None, type=Optional[int])
+    compression = attr.ib(type=Optional[i_comp.RevlogCompHeader], default=None)
+    quality = attr.ib(type=Optional[repository.IDeltaQuality], default=None)
+    stored_delta_base = attr.ib(type=Optional[NodeIdT], default=None)
+    stored_snapshot_level = attr.ib(type=Optional[int], default=None)
 
 
 @attr.s(frozen=True)
@@ -312,11 +342,16 @@ class _InnerRevlog:
     boundaries are arbitrary and based on what we can delegate to Rust.
     """
 
+    has_revdiff_extra = False
+    """does this inner revlog support revdiff with an extra patch"""
+
     opener: vfsmod.vfs
+    _default_compression_header: i_comp.RevlogCompHeader
 
     def __init__(
         self,
         opener: vfsmod.vfs,
+        target: tuple[int, bytes],
         index,
         index_file,
         data_file,
@@ -326,9 +361,10 @@ class _InnerRevlog:
         delta_config,
         feature_config,
         chunk_cache,
-        default_compression_header,
+        default_compression_header: i_comp.RevlogCompHeader,
     ):
         self.opener = opener
+        self.target = target
         self.index: BaseIndexObject = index
 
         self.index_file = index_file
@@ -343,6 +379,11 @@ class _InnerRevlog:
         self._orig_index_file = None
 
         self._default_compression_header = default_compression_header
+
+        if target[0] == KIND_MANIFESTLOG:
+            self._diff_fn = mdiff.manifest_diff
+        else:
+            self._diff_fn = mdiff.storage_diff
 
         # index
 
@@ -362,9 +403,11 @@ class _InnerRevlog:
         )
 
         # revlog header -> revlog compressor
-        self._decompressors = {}
-        # 3-tuple of (node, rev, text) for a raw revision.
-        self._revisioncache = None
+        self._decompressors: dict[
+            i_comp.RevlogCompHeader, i_comp.IRevlogCompressor
+        ] = {}
+        # 3-tuple of (rev, text, validated) for a raw revision.
+        self._revision_cache: tuple[RevnumT, bytes, bool] = None
 
         # cache some uncompressed chunks
         # rev → uncompressed_chunk
@@ -385,11 +428,61 @@ class _InnerRevlog:
 
     def clear_cache(self):
         assert not self.is_delaying
-        self._revisioncache = None
+        self._revision_cache = None
         if self._uncompressed_chunk_cache is not None:
             self._uncompressed_chunk_cache.clear()
         self._segmentfile.clear_cache()
         self._segmentfile_sidedata.clear_cache()
+
+    def seen_file_size(self, size):
+        """signal that we have seen a file this big
+
+        This might update the limit of underlying cache."""
+        if self._uncompressed_chunk_cache is not None:
+            factor = self.data_config.uncompressed_cache_factor
+            candidate_size = size * factor
+            if candidate_size > self._uncompressed_chunk_cache.maxcost:
+                self._uncompressed_chunk_cache.maxcost = candidate_size
+
+    def record_uncompressed_chunk(self, rev, u_data):
+        """Record the uncompressed raw chunk for rev
+
+        This is a noop if the cache is disabled."""
+        if self._uncompressed_chunk_cache is not None:
+            self._uncompressed_chunk_cache.insert(
+                rev,
+                u_data,
+                cost=len(u_data),
+            )
+
+    def cache_revision_text(self, rev: RevnumT, data: bytes, validated: bool):
+        """cache the full text of a revision (validated or not)"""
+        if (
+            self._revision_cache is None
+            or self._revision_cache[0] != rev
+            or not self._revision_cache[2]
+        ):
+            self._revision_cache = (rev, data, validated)
+
+    def get_cached_text(
+        self,
+        rev: RevnumT,
+    ) -> tuple[RevnumT, bytes, bool] | None:
+        """return a cached value for this revision
+
+        Return None if no value are found.
+        Return (rev, text, validated) if a value is found.
+        """
+        assert rev is not None
+        cache = self._revision_cache
+        if cache is not None and cache[0] == rev:
+            return cache
+
+    def clear_cached_text(self, rev: RevnumT):
+        """drop cached text for a revision"""
+        cache = self._revision_cache
+        if cache is not None and cache[0] == rev:
+            self._revision_cache = None
 
     @property
     def canonical_index_file(self):
@@ -493,7 +586,9 @@ class _InnerRevlog:
         iterrev = rev
         e = index[iterrev]
         while iterrev != e[3] and iterrev != stoprev:
-            chain.append(iterrev)
+            if e[ENTRY_DATA_COMPRESSED_LENGTH] > 0:
+                # skip over empty delta in the chain
+                chain.append(iterrev)
             if generaldelta:
                 iterrev = e[3]
             else:
@@ -525,7 +620,10 @@ class _InnerRevlog:
         c = self._get_decompressor(t)
         return c.decompress
 
-    def _get_decompressor(self, t: bytes):
+    def _get_decompressor(
+        self,
+        t: i_comp.RevlogCompHeader,
+    ) -> i_comp.IRevlogCompressor:
         try:
             compressor = self._decompressors[t]
         except KeyError:
@@ -602,7 +700,7 @@ class _InnerRevlog:
         elif t == b'u':
             return util.buffer(data, 1)
 
-        compressor = self._get_decompressor(t)
+        compressor = self._get_decompressor(cast(i_comp.RevlogCompHeader, t))
 
         return compressor.decompress(data)
 
@@ -912,6 +1010,7 @@ class _InnerRevlog:
                 self,
                 fetched_revs,
                 targetsize=targetsize,
+                inlined=self.inline,
             )
 
         for revschunk in slicedchunks:
@@ -956,11 +1055,13 @@ class _InnerRevlog:
         chunks.sort()
         return [x[1] for x in chunks]
 
-    def raw_text(self, node, rev) -> bytes:
+    def raw_text(self, rev: RevnumT) -> tuple[RevnumT, bytes, bool]:
         """return the possibly unvalidated rawtext for a revision
 
         returns rawtext
         """
+        if rev == nullrev:
+            return (rev, b'', True)
 
         # revision in the cache (could be useful to apply delta)
         cachedrev = None
@@ -968,30 +1069,23 @@ class _InnerRevlog:
         basetext = None
 
         # Check if we have the entry in cache
-        # The cache entry looks like (node, rev, rawtext)
-        if self._revisioncache:
-            cachedrev = self._revisioncache[1]
+        # The cache entry looks like (rev, rawtext, validated)
+        cache = self._revision_cache
+        if cache is not None:
+            if cachedrev == rev:
+                return cache
+            cachedrev = cache[0]
 
         chain, stopped = self._deltachain(rev, stoprev=cachedrev)
         if stopped:
-            basetext = self._revisioncache[2]
-
-        # drop cache to save memory, the caller is expected to
-        # update self._inner._revisioncache after validating the text
-        self._revisioncache = None
+            basetext = cache[1]
 
         targetsize = None
         rawsize = self.index[rev][2]
-        if 0 <= rawsize:
+        if rawsize is not None and 0 <= rawsize:
             targetsize = 4 * rawsize
 
-        if self._uncompressed_chunk_cache is not None:
-            # dynamically update the uncompressed_chunk_cache size to the
-            # largest revision we saw in this revlog.
-            factor = self.data_config.uncompressed_cache_factor
-            candidate_size = rawsize * factor
-            if candidate_size > self._uncompressed_chunk_cache.maxcost:
-                self._uncompressed_chunk_cache.maxcost = candidate_size
+        self.seen_file_size(rawsize)
 
         bins = self._chunks(chain, targetsize=targetsize)
         if basetext is None:
@@ -1000,7 +1094,29 @@ class _InnerRevlog:
 
         rawtext = mdiff.patches(basetext, bins)
         del basetext  # let us have a chance to free memory early
-        return rawtext
+
+        self.cache_revision_text(rev, rawtext, False)
+        return (rev, rawtext, False)
+
+    def rev_diff(
+        self,
+        rev_1: RevnumT,
+        rev_2: RevnumT,
+        extra_delta: bytes | None = None,
+    ) -> bytes:
+        """return the diff between two revisions
+
+        The revision are expected to have nothing altering them (censoring,
+        flag processors, ...) (at least until the inner revlog has the tool to
+        be responsible for them)
+        """
+        if extra_delta is not None:
+            msg = b"no support for rev_diff with extra_delta in Python"
+            raise error.ProgrammingError(msg)
+        return self._diff_fn(
+            self.raw_text(rev_1)[1],
+            self.raw_text(rev_2)[1],
+        )
 
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
@@ -1315,6 +1431,10 @@ class revlog:
     remove data, and can use some simple techniques to avoid the need
     for locking while reading.
 
+    The `radix` is used to derive paths for the index and data files
+    by appending extensions such as ".i". The store vfs is responsible for
+    converting these to concrete paths in the filesystem.
+
     If checkambig, indexfile is opened with checkambig=True at
     writing, to avoid file stat ambiguity.
 
@@ -1339,7 +1459,16 @@ class revlog:
     _flagserrorclass = error.RevlogError
     _inner: _InnerRevlog
 
+    # use by large file to signal it might affect some filelog
+    _large_file_enabled = False
+
+    # XXX this work around the buggy baserev in bundle revlog,
+    # We should fix that instead
+    may_emit_compressed = True
+
     opener: vfsmod.vfs
+
+    _docket_file: bytes | None
 
     @staticmethod
     def is_inline_index(header_bytes):
@@ -1355,7 +1484,32 @@ class revlog:
         features = FEATURES_BY_VERSION[_format_version]
         return features['inline'](_format_flags)
 
-    _docket_file: bytes | None
+    @staticmethod
+    def suffix_from_index(main_fp: BinaryIO) -> Iterator[bytes]:
+        """yield the suffix of extra files part of a revlog
+
+        This is done from an open file descriptor to the revlog main entry poin
+        (index or docket).
+        """
+        header_bytes = main_fp.read(INDEX_HEADER.size)
+        if len(header_bytes) == 0:
+            return
+
+        header = INDEX_HEADER.unpack(header_bytes)[0]
+        _format_flags = header & ~0xFFFF
+        _format_version = header & 0xFFFF
+        if _format_version in (REVLOGV0, REVLOGV1):
+            features = FEATURES_BY_VERSION[_format_version]
+            if not features['inline'](_format_flags):
+                yield b'.d'
+        else:
+            docket_bytes = header_bytes + main_fp.read()
+            d_args = docketutil.parse_docket_args(docket_bytes)
+            yield b'-%s.idx' % d_args['index_uuid']
+            yield b'-%s.dat' % d_args['data_uuid']
+            yield b'-%s.sda' % d_args['sidedata_uuid']
+            # note: the docket might reference old files that we don't really
+            # want to propagate, so we don't list them there.
 
     def __init__(
         self,
@@ -1416,10 +1570,16 @@ class revlog:
         if writable is None:
             if target[0] == KIND_FILELOG:
                 msg = b"filelog need explicit value for `writable` parameter"
-                util.nouideprecwarn(msg, b'7.1')
+                raise error.ProgrammingError(msg)
             self._writable = True
         else:
             self._writable = bool(writable)
+
+        if target[0] == KIND_MANIFESTLOG:
+            self._diff_fn = mdiff.manifest_diff
+        else:
+            self._diff_fn = mdiff.storage_diff
+
         if feature_config is not None:
             self.feature_config = feature_config.copy()
         elif b'feature-config' in self.opener.options:
@@ -1776,36 +1936,20 @@ class revlog:
         )
 
         use_rust_index = False
-        rust_applicable = self._nodemap_file is not None
-        rust_applicable = rust_applicable or self.target[0] == KIND_FILELOG
-        rust_applicable = rust_applicable and getattr(
-            self.opener, "rust_compatible", True
-        )
-        if rustrevlog is not None and rust_applicable:
-            # we would like to use the rust_index in all case, especially
-            # because it is necessary for AncestorsIterator and LazyAncestors
-            # since the 6.7 cycle.
-            #
-            # However, the performance impact of inconditionnaly building the
-            # nodemap is currently a problem for non-persistent nodemap
-            # repository.
+        is_changelog = self.target[0] == KIND_CHANGELOG
+        may_rust = getattr(self.opener, "rust_compatible", True)
+        # we still avoid rust for inlined changelog as this create some issues.
+        #
+        # (See failure in test-split-legacy-inline-changelog.t)
+        may_rust = may_rust and not (self._inline and is_changelog)
+        if rustrevlog is not None and may_rust:
             use_rust_index = True
 
             if self._format_version != REVLOGV1:
                 use_rust_index = False
 
-        if hasattr(self.opener, "fncache"):
-            vfs = self.opener.vfs
-            if (
-                not self.opener.uses_dotencode
-                and not self.opener.uses_plain_encode
-            ):
-                use_rust_index = False
-            if not isinstance(vfs, vfsmod.vfs):
-                # Be cautious since we don't support other vfs
-                use_rust_index = False
-        else:
-            # Rust only supports repos with fncache
+        vfs = self.opener
+        if vfs.filter_name not in (None, 'dot-encode', 'plain'):
             use_rust_index = False
 
         self._parse_index = parse_index_v1
@@ -1847,27 +1991,22 @@ class revlog:
         else:
             default_compression_header = self._docket.default_compression_header
 
+        # not great, but hopefully temporary
+        vfs = self.opener
+        if vfs.filter_name is None:
+            encoding = 0
+        elif vfs.filter_name == 'dot-encode':
+            encoding = 1
+        elif vfs.filter_name == 'plain':
+            encoding = 2
+        elif self.uses_rust:
+            msg = b"rust does support encoding: %s" % vfs.filter_name
+            raise error.ProgrammingError(msg)
+
         if self.uses_rust:
-            vfs_is_readonly = False
-            fncache = None
-
-            if hasattr(self.opener, "vfs"):
-                vfs = self.opener
-                if isinstance(vfs, vfsmod.readonlyvfs):
-                    vfs_is_readonly = True
-                    vfs = vfs.vfs
-                fncache = vfs.fncache
-                vfs = vfs.vfs
-            else:
-                vfs = self.opener
-
-            vfs_base = vfs.base
-            assert fncache is not None, "Rust only supports repos with fncache"
-
             self._inner = rustrevlog.InnerRevlog(
-                vfs_base=vfs_base,
-                fncache=fncache,
-                vfs_is_readonly=vfs_is_readonly,
+                vfs_base=vfs.base,
+                vfs_is_readonly=not vfs.read_write,
                 index_data=index,
                 index_file=self._indexfile,
                 data_file=self._datafile,
@@ -1880,14 +2019,16 @@ class revlog:
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
                 use_persistent_nodemap=self._nodemap_file is not None,
-                use_plain_encoding=self.opener.uses_plain_encode,
+                encoding=encoding,
             )
+            assert self._inner.has_revdiff_extra
             self.index = RustIndexProxy(self._inner)
             self._register_nodemap_info(self.index)
             self.uses_rust = True
         else:
             self._inner = _InnerRevlog(
                 opener=self.opener,
+                target=self.target,
                 index=index,
                 index_file=self._indexfile,
                 data_file=self._datafile,
@@ -2068,7 +2209,7 @@ class revlog:
     def rawsize(self, rev):
         """return the length of the uncompressed text for a given revision"""
         l = self.index[rev][2]
-        if l >= 0:
+        if l is not None and l >= 0:
             return l
 
         t = self.rawdata(rev)
@@ -2079,7 +2220,7 @@ class revlog:
         # fast path: if no "read" flag processor could change the content,
         # size is rawsize. note: ELLIPSIS is known to not change the content.
         flags = self.flags(rev)
-        if flags & (flagutil.REVIDX_KNOWN_FLAGS ^ REVIDX_ELLIPSIS) == 0:
+        if flags & ~REVIDX_NEUTRAL_FLAGS == 0:
             return self.rawsize(rev)
 
         return len(self.revision(rev))
@@ -2842,22 +2983,78 @@ class revlog:
             raise error.ProgrammingError(b'revision %d not a snapshot')
         return len(self._inner._deltachain(rev)[0]) - 1
 
-    def revdiff(self, rev1, rev2):
+    def revdiff(
+        self,
+        rev1: RevnumT,
+        rev2: RevnumT,
+        extra_delta: bytes | None = None,
+    ):
         """return or calculate a delta between two revisions
 
         The delta calculated is in binary form and is intended to be written to
         revlog data directly. So this function needs raw revision data.
-        """
-        if rev1 != nullrev and self.deltaparent(rev2) == rev1:
-            return bytes(self._inner._chunk(rev2))
 
-        return mdiff.textdiff(self.rawdata(rev1), self.rawdata(rev2))
+        If `extra_delta` is specified, it will be applied on `rev2` before
+        computing the delta.
+        """
+        # treat empty delta as no delta as it won't modify its base
+        if extra_delta is not None and not extra_delta:
+            extra_delta = None
+        if (
+            rev1 != nullrev
+            and self.deltaparent(rev2) == rev1
+            and extra_delta is None
+        ):
+            return bytes(self._inner._chunk(rev2))
+        elif (
+            self._large_file_enabled
+            or self.iscensored(rev1)
+            or self.iscensored(rev2)
+            or (self.flags(rev1) & ~REVIDX_NEUTRAL_FLAGS)
+            or (self.flags(rev2) & ~REVIDX_NEUTRAL_FLAGS)
+            or (extra_delta is not None and not self.has_revdiff_extra)
+        ):
+            old = self.rawdata(rev1, validate=False)
+            new = self.rawdata(rev2, validate=False)
+            if extra_delta is not None:
+                base = new
+                new = mdiff.full_text_from_delta(
+                    extra_delta,
+                    len(new),
+                    lambda: base,
+                )
+
+            return self._diff_fn(old, new)
+        else:
+            return self._inner.rev_diff(rev1, rev2, extra_delta)
 
     def revision(self, nodeorrev):
         """return an uncompressed revision of a given node or revision
         number.
         """
         return self._revisiondata(nodeorrev)
+
+    def raw_comp_chunk(self, rev) -> tuple[i_comp.RevlogCompHeader, bytes]:
+        """The raw dat chunk stored for this specific revision
+
+        No decompression is performed, but the applicable compression header is
+        returned.
+        """
+        comp_mode = self.index[rev][10]
+        full_chunk = self._inner.get_segment_for_revs(rev, rev)[1]
+        # note: we can blindy reuse the compression during
+        # `_clone`, because if we can read the source revlog it
+        # mean we know about that compression for the destination
+        # too, (even if we might not reuse it).
+        if comp_mode == COMP_MODE_PLAIN:
+            comp = i_comp.REVLOG_COMP_NONE
+            chunk = full_chunk
+        elif comp_mode == COMP_MODE_INLINE:
+            comp, chunk = _split_compression(full_chunk)
+        elif comp_mode == COMP_MODE_DEFAULT:
+            comp = self._docket.default_compression_header
+            chunk = full_chunk
+        return (comp, chunk)
 
     def sidedata(self, nodeorrev):
         """a map of extra data related to the changeset but not part of the hash
@@ -2878,17 +3075,14 @@ class revlog:
 
         returns (rev, rawtext, validated)
         """
-        # Check if we have the entry in cache
-        # The cache entry looks like (node, rev, rawtext)
-        if self._inner._revisioncache:
-            if self._inner._revisioncache[0] == node:
-                return (rev, self._inner._revisioncache[2], True)
-
         if rev is None:
             rev = self.rev(node)
-
-        text = self._inner.raw_text(node, rev)
-        return (rev, text, False)
+        # Check if we have the entry in cache
+        # The cache entry looks like (node, rev, rawtext)
+        cached = self._inner.get_cached_text(rev)
+        if cached is not None:
+            return cached
+        return self._inner.raw_text(rev)
 
     def _revisiondata(self, nodeorrev, raw=False, validate=True):
         # deal with <nodeorrev> argument type
@@ -2917,7 +3111,10 @@ class revlog:
         # (usually alter its state or content)
         flags = self.flags(rev)
 
-        if validated and flags == REVIDX_DEFAULT_FLAGS:
+        if (
+            validated
+            and (flags & ~REVIDX_NEUTRAL_FLAGS) == REVIDX_DEFAULT_FLAGS
+        ):
             # no extra flags set, no flag processor runs, text = rawtext
             return rawtext
 
@@ -2930,7 +3127,7 @@ class revlog:
         if validate and validatehash:
             self.checkhash(text, node, rev=rev)
         if not validated:
-            self._inner._revisioncache = (node, rev, rawtext)
+            self._inner.cache_revision_text(rev, rawtext, True)
 
         return text
 
@@ -2976,11 +3173,9 @@ class revlog:
                 # revision data is accessed. But this case should be rare and
                 # it is extra work to teach the cache about the hash
                 # verification state.
-                if (
-                    self._inner._revisioncache
-                    and self._inner._revisioncache[0] == node
-                ):
-                    self._inner._revisioncache = None
+                if rev is None:
+                    rev = self.index.rev(node)
+                self._inner.clear_cached_text(rev)
 
                 revornode = rev
                 if revornode is None:
@@ -2995,6 +3190,11 @@ class revlog:
             ):
                 raise error.CensoredNodeError(self.display_id, node, text)
             raise
+
+    @property
+    def has_revdiff_extra(self):
+        """True if this revlog can use the "rev-diff-extra" fast path"""
+        return self._inner.has_revdiff_extra and not self._large_file_enabled
 
     @property
     def _split_index_file(self):
@@ -3087,6 +3287,8 @@ class revlog:
             self._format_flags | self._format_version,
             new_index_file_path=new_index_file_path,
         )
+        if self.target[1] != b'':
+            self.opener.register_file(self._datafile)
 
         self._inline = False
         if new_index_file_path is not None:
@@ -3107,7 +3309,7 @@ class revlog:
         if not self._writable:
             msg = b'try to write in a revlog marked as non-writable: %s'
             msg %= self.display_id
-            util.nouideprecwarn(msg, b'7.1')
+            raise error.ProgrammingError(msg)
         if self._trypending:
             msg = b'try to write in a `trypending` revlog: %s'
             msg %= self.display_id
@@ -3125,6 +3327,14 @@ class revlog:
                 data_end=data_end,
                 sidedata_end=sidedata_end,
             ):
+                # If this is a new revlog, register it to update the potential
+                # fncache
+                if len(self.index) == 0 and self.target[1] != b'':
+                    if self._docket_file is None:
+                        assert self._sidedatafile is None
+                        self.opener.register_file(self._indexfile)
+                        if not self._inline:
+                            self.opener.register_file(self._datafile)
                 yield
                 if self._docket is not None:
                     self._write_docket(transaction)
@@ -3251,6 +3461,19 @@ class revlog:
                 sidedata=sidedata,
             )
 
+    @util.propertycache
+    def compatible_compressions(self) -> set[i_comp.RevlogCompHeader]:
+        """set of compresiosn header compatible with this revlog
+
+        Will be used to validate if an incoming compressed delta maybe used as
+        it or not.
+        """
+        current_name = self.feature_config.compression_engine
+        current_engine = util.compengines[current_name]
+        current_header = current_engine.revlogheader()
+        assert current_header is not None
+        return {i_comp.REVLOG_COMP_NONE, current_header}
+
     def compress(self, data: bytes) -> tuple[bytes, bytes]:
         return self._inner.compress(data)
 
@@ -3322,19 +3545,6 @@ class revlog:
 
         p1r, p2r = self.rev(p1), self.rev(p2)
 
-        # full versions are inserted when the needed deltas
-        # become comparable to the uncompressed text
-        if rawtext is None:
-            assert cachedelta is not None
-            # need rawtext size, before changed by flag processors, which is
-            # the non-raw size. use revlog explicitly to avoid filelog's extra
-            # logic that might remove metadata size.
-            textlen = mdiff.patchedsize(
-                revlog.size(self, cachedelta.base), cachedelta.delta
-            )
-        else:
-            textlen = len(rawtext)
-
         if deltacomputer is None:
             write_debug = None
             if self.delta_config.debug_delta:
@@ -3342,6 +3552,21 @@ class revlog:
             deltacomputer = deltautil.deltacomputer(
                 self, write_debug=write_debug
             )
+
+        # full versions are inserted when the needed deltas
+        # become comparable to the uncompressed text
+        if rawtext is None:
+            assert cachedelta is not None
+            if cachedelta.fulltext_length is not None:
+                textlen = cachedelta.fulltext_length
+            else:
+                # need rawtext size, before changed by flag processors, which is
+                # the non-raw size.
+                base_size = self.size(cachedelta.base)
+                deltacomputer.decompress_cached(cachedelta)  # populate u_delta
+                textlen = mdiff.patchedsize(base_size, cachedelta.u_delta)
+        else:
+            textlen = len(rawtext)
 
         if cachedelta is not None and cachedelta.reuse_policy is None:
             # If the cached delta has no information about how it should be
@@ -3403,9 +3628,15 @@ class revlog:
             sidedata_offset = 0
 
         # drop previouly existing flags
-        flags &= ~REVIDX_DELTA_IS_SNAPSHOT
-        if self.delta_config.delta_info and deltainfo.snapshotdepth is not None:
-            flags |= REVIDX_DELTA_IS_SNAPSHOT
+        flags &= ~REVIDX_DELTA_INFO_FLAGS
+        if self.delta_config.delta_info:
+            if deltainfo.snapshotdepth is not None:
+                flags |= REVIDX_DELTA_IS_SNAPSHOT
+            if (
+                deltainfo.quality is not None
+                and self.delta_config.store_quality
+            ):
+                flags |= deltainfo.quality.to_v1_flags()
 
         rank = RANK_UNKNOWN
         if self.feature_config.compute_rank:
@@ -3460,8 +3691,11 @@ class revlog:
             rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) is bytes:  # only accept immutable objects
-            self._inner._revisioncache = (node, curr, rawtext)
+            self._inner.cache_revision_text(curr, rawtext, False)
         self._chainbasecache[curr] = deltainfo.chainbase
+        self._inner.seen_file_size(textlen)
+        if deltainfo.u_data is not None:
+            self._inner.record_uncompressed_chunk(curr, deltainfo.u_data)
         return curr
 
     def _get_data_offset(self, prev):
@@ -3626,22 +3860,58 @@ class revlog:
                     # We're only using addgroup() in the context of changegroup
                     # generation so the revision data can always be handled as raw
                     # by the flagprocessor.
+
+                    # if the base used in the source storage was provided, we
+                    # need to translate it to a local revision number (or
+                    # filter it out if we don't know it)
+                    osdb_node = data.other_storage_delta_base
+                    ossl = data.other_storage_snapshot_level
+                    osdb_rev = None
+                    if osdb_node is not None:
+                        osdb_rev = self.index.get_rev(osdb_node)
+                    if osdb_rev is None:
+                        ossl = None
+
+                    if data.compression is not None:
+                        cached = revlogutils.CachedDelta(
+                            base=baserev,
+                            c_delta=data.delta,
+                            c_full_text=data.raw_text,
+                            compression=data.compression,
+                            reuse_policy=delta_base_reuse_policy,
+                            snapshot_level=data.snapshot_level,
+                            fulltext_length=data.raw_text_size,
+                            quality=data.quality,
+                            other_storage_delta_base=osdb_rev,
+                            other_storage_snapshot_level=ossl,
+                        )
+                    else:
+                        cached = revlogutils.CachedDelta(
+                            base=baserev,
+                            u_delta=data.delta,
+                            u_full_text=data.raw_text,
+                            reuse_policy=delta_base_reuse_policy,
+                            snapshot_level=data.snapshot_level,
+                            fulltext_length=data.raw_text_size,
+                            quality=data.quality,
+                            other_storage_delta_base=osdb_rev,
+                            other_storage_snapshot_level=ossl,
+                        )
+
+                    text = data.raw_text
+                    if data.compression:
+                        text = None
                     rev = self._addrevision(
                         data.node,
                         # raw text is usually None, but it might have been set
                         # by some pre-processing/checking code.
-                        data.raw_text,
+                        text,
                         transaction,
                         linkmapper(data.link_node),
                         data.p1,
                         data.p2,
                         flags,
-                        revlogutils.CachedDelta(
-                            baserev,
-                            data.delta,
-                            delta_base_reuse_policy,
-                            data.snapshot_level,
-                        ),
+                        cached,
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
                         sidedata=data.sidedata,
@@ -3770,7 +4040,7 @@ class revlog:
 
         return (dd, di)
 
-    def files(self):
+    def files(self, include_old=True):
         """return list of files that compose this revlog"""
         res = [self._indexfile]
         if self._docket_file is None:
@@ -3778,13 +4048,20 @@ class revlog:
                 res.append(self._datafile)
         else:
             res.append(self._docket_file)
-            res.extend(self._docket.old_index_filepaths(include_empty=False))
+            if include_old:
+                res.extend(
+                    self._docket.old_index_filepaths(include_empty=False)
+                )
             if self._docket.data_end:
                 res.append(self._datafile)
-            res.extend(self._docket.old_data_filepaths(include_empty=False))
+            if include_old:
+                res.extend(self._docket.old_data_filepaths(include_empty=False))
             if self._docket.sidedata_end:
                 res.append(self._sidedatafile)
-            res.extend(self._docket.old_sidedata_filepaths(include_empty=False))
+            if include_old:
+                res.extend(
+                    self._docket.old_sidedata_filepaths(include_empty=False)
+                )
         return res
 
     def emitrevisions(
@@ -3796,6 +4073,7 @@ class revlog:
         deltamode=repository.CG_DELTAMODE_STD,
         sidedata_helpers=None,
         debug_info=None,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
     ):
         if nodesorder not in (b'nodes', b'storage', b'linear', None):
             raise error.ProgrammingError(
@@ -3811,26 +4089,331 @@ class revlog:
         ):
             deltamode = repository.CG_DELTAMODE_FULL
 
-        snaplvl = lambda r: self.snapshotdepth(r) if self.issnapshot(r) else -1
-
         with self.reading():
-            return storageutil.emitrevisions(
-                self,
+            return self._emit_revisions(
                 nodes,
                 nodesorder,
-                revlogrevisiondelta,
-                deltaparentfn=self.deltaparent,
-                candeltafn=self._candelta,
-                rawsizefn=self.rawsize,
-                revdifffn=self.revdiff,
-                flagsfn=self.flags,
                 deltamode=deltamode,
                 revisiondata=revisiondata,
                 assumehaveparentrevisions=assumehaveparentrevisions,
                 sidedata_helpers=sidedata_helpers,
                 debug_info=debug_info,
-                snap_lvl_fn=snaplvl,
+                accepted_compression=accepted_compression,
             )
+
+    def _emit_revisions(
+        self,
+        nodes,
+        nodesorder,
+        deltamode=repository.CG_DELTAMODE_STD,
+        revisiondata=False,
+        assumehaveparentrevisions=False,
+        sidedata_helpers=None,
+        debug_info=None,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
+    ) -> Iterator[OutboundRevisionT]:
+        """Generic implementation of ifiledata.emitrevisions().
+
+        Emitting revision data is subtly complex. This function attempts to
+        encapsulate all the logic for doing so in a backend-agnostic way.
+
+        ``nodes``
+           List of revision nodes whose data to emit.
+
+        ``deltamode``
+           constaint on delta to be sent:
+           * CG_DELTAMODE_STD  - normal mode, try to reuse storage deltas,
+           * CG_DELTAMODE_PREV - only delta against "prev",
+           * CG_DELTAMODE_FULL - only issue full snapshot.
+
+           Whether to send fulltext revisions instead of deltas, if allowed.
+
+        ``nodesorder``
+        ``revisiondata``
+        ``assumehaveparentrevisions``
+        ``sidedata_helpers`` (optional)
+            If not None, means that sidedata should be included.
+            See `revlogutil.sidedata.get_sidedata_helpers`.
+
+        ``debug_info`
+            An optionnal dictionnary to gather information about the bundling
+            process (if present, see config: debug.bundling.stats.
+        """
+
+        fnode = self.node
+        frev = self.rev
+        parents = self.parentrevs
+
+        if nodesorder == b'nodes':
+            revs = [frev(n) for n in nodes]
+        elif nodesorder == b'linear':
+            revs = {frev(n) for n in nodes}
+            revs = dagop.linearize(revs, self.parentrevs)
+        else:  # storage and default
+            revs = sorted(frev(n) for n in nodes)
+
+        prevrev = None
+
+        if (
+            deltamode == repository.CG_DELTAMODE_PREV
+            or assumehaveparentrevisions
+        ):
+            prevrev = parents(revs[0])[0]
+
+        # Sets of revs available to delta against.
+        emitted = set()
+        available = set()
+        if assumehaveparentrevisions:
+            common_heads = {p for r in revs for p in parents(r)}
+            common_heads.difference_update(revs)
+            available = self.ancestors(common_heads, inclusive=True)
+
+        def is_usable_base(rev):
+            """Is a delta against this revision usable over the wire"""
+            if rev == nullrev:
+                return False
+            return rev in emitted or rev in available
+
+        for rev in revs:
+            if rev == nullrev:
+                continue
+
+            debug_delta_source = None
+            if debug_info is not None:
+                debug_info['revision-total'] += 1
+
+            node = fnode(rev)
+            p1rev, p2rev = parents(rev)
+
+            if debug_info is not None:
+                if p1rev != p2rev and p1rev != nullrev and p2rev != nullrev:
+                    debug_info['merge-total'] += 1
+
+            deltaparentrev = self.deltaparent(rev)
+            if debug_info is not None:
+                if deltaparentrev == nullrev:
+                    debug_info['available-full'] += 1
+                else:
+                    debug_info['available-delta'] += 1
+
+            # Forced delta against previous mode.
+            if deltamode == repository.CG_DELTAMODE_PREV:
+                if debug_info is not None:
+                    debug_delta_source = "prev"
+                baserev = prevrev
+
+            # We're instructed to send fulltext. Honor that.
+            elif deltamode == repository.CG_DELTAMODE_FULL:
+                if debug_info is not None:
+                    debug_delta_source = "full"
+                baserev = nullrev
+            # We're instructed to use p1. Honor that
+            elif deltamode == repository.CG_DELTAMODE_P1:
+                if debug_info is not None:
+                    debug_delta_source = "p1"
+                baserev = p1rev
+
+            # There is a delta in storage. We try to use that because it
+            # amounts to effectively copying data from storage and is
+            # therefore the fastest.
+            elif is_usable_base(deltaparentrev):
+                if debug_info is not None:
+                    debug_delta_source = "storage"
+                baserev = deltaparentrev
+            elif deltaparentrev == nullrev:
+                if debug_info is not None:
+                    debug_delta_source = "storage"
+                baserev = deltaparentrev
+            else:
+                if deltaparentrev != nullrev and debug_info is not None:
+                    debug_info['denied-base-not-available'] += 1
+                # No guarantee the receiver has the delta parent, or Storage
+                # has a fulltext revision.
+                #
+                # We compute a delta on the fly to send over the wire.
+                #
+                # We start with a try against p1, which in the common case
+                # should be close to this revision content.
+                #
+                # note: we could optimize between p1 and p2 in merges cases.
+                rev_flags = self.flags(rev)
+                quality = revlogutils.DeltaQuality.from_v1_flags(rev_flags)
+                if (
+                    quality is not None
+                    and quality.p1_small
+                    and is_usable_base(p1rev)
+                ):
+                    if debug_info is not None:
+                        debug_delta_source = "p1"
+                    baserev = p1rev
+                if (
+                    quality is not None
+                    and quality.p2_small
+                    and is_usable_base(p2rev)
+                ):
+                    if debug_info is not None:
+                        debug_delta_source = "p2"
+                    baserev = p2rev
+                elif is_usable_base(p1rev):
+                    if debug_info is not None:
+                        debug_delta_source = "p1"
+                    baserev = p1rev
+                # if p1 was not an option, try p2
+                elif is_usable_base(p2rev):
+                    if debug_info is not None:
+                        debug_delta_source = "p2"
+                    baserev = p2rev
+                # Send delta against prev in despair
+                #
+                # using the closest available ancestors first might be better?
+                elif prevrev is not None:
+                    if debug_info is not None:
+                        debug_delta_source = "prev"
+                    baserev = prevrev
+                else:
+                    if debug_info is not None:
+                        debug_delta_source = "full"
+                    baserev = nullrev
+
+            # But we can't actually use our chosen delta base for whatever
+            # reason. Reset to fulltext.
+            if baserev != nullrev and not self._candelta(baserev, rev):
+                if debug_info is not None:
+                    debug_delta_source = "full"
+                    debug_info['denied-delta-candeltafn'] += 1
+                baserev = nullrev
+
+            revision = None
+            delta = None
+            comp = None
+            baserevisionsize = None
+
+            if revisiondata:
+                if self.iscensored(baserev) or self.iscensored(rev):
+                    try:
+                        revision = self.rawdata(node)
+                    except error.CensoredNodeError as e:
+                        if debug_info is not None:
+                            debug_delta_source = "full"
+                            debug_info['denied-delta-not-available'] += 1
+                        revision = e.tombstone
+
+                    if baserev != nullrev:
+                        baserevisionsize = self.rawsize(baserev)
+                elif (
+                    accepted_compression
+                    and self.may_emit_compressed
+                    and deltamode != repository.CG_DELTAMODE_PREV
+                    and baserev == deltaparentrev
+                ):
+                    stored_comp, chunk = self.raw_comp_chunk(rev)
+                    if stored_comp in accepted_compression:
+                        comp = stored_comp
+                        if baserev == nullrev:
+                            revision = bytes(chunk)
+                        else:
+                            delta = bytes(chunk)
+                        emitted.add(rev)
+
+                # if we still not have data, let's fetch some
+                if delta is None and revision is None:
+                    if (
+                        baserev == nullrev
+                        and deltamode != repository.CG_DELTAMODE_PREV
+                    ):
+                        if debug_info is not None:
+                            debug_info['computed-delta'] += 1  # close enough
+                            debug_info['delta-full'] += 1
+                        revision = self.rawdata(node)
+                    else:
+                        if debug_info is not None:
+                            if debug_delta_source == "full":
+                                debug_info['computed-delta'] += 1
+                                debug_info['delta-full'] += 1
+                            elif debug_delta_source == "prev":
+                                debug_info['computed-delta'] += 1
+                                debug_info['delta-against-prev'] += 1
+                            elif debug_delta_source == "p1":
+                                debug_info['computed-delta'] += 1
+                                debug_info['delta-against-p1'] += 1
+                            elif debug_delta_source == "storage":
+                                debug_info['reused-storage-delta'] += 1
+                            else:
+                                assert False, 'unreachable'
+
+                        delta = self.revdiff(baserev, rev)
+                    emitted.add(rev)
+
+            serialized_sidedata = None
+            sidedata_flags = (0, 0)
+            if sidedata_helpers:
+                try:
+                    old_sidedata = self.sidedata(rev)
+                except error.CensoredNodeError:
+                    # skip any potential sidedata of the censored revision
+                    sidedata = {}
+                else:
+                    (
+                        sidedata,
+                        sidedata_flags,
+                    ) = sidedatautil.run_sidedata_helpers(
+                        store=self,
+                        sidedata_helpers=sidedata_helpers,
+                        sidedata=old_sidedata,
+                        rev=rev,
+                    )
+                if sidedata:
+                    serialized_sidedata = sidedatautil.serialize_sidedata(
+                        sidedata
+                    )
+
+            flags = self.flags(rev)
+            protocol_flags = 0
+            if serialized_sidedata:
+                # Advertise that sidedata exists to the other side
+                protocol_flags |= storageutil.CG_FLAG_SIDEDATA
+                # Computers and removers can return flags to add and/or remove
+                flags = flags | sidedata_flags[0] & ~sidedata_flags[1]
+
+            from_storage = (baserev == deltaparentrev) and (
+                deltamode != repository.CG_DELTAMODE_PREV
+            )
+            stored_base = self.node(deltaparentrev)
+            if self.issnapshot(rev):
+                stored_snap_lvl = self.snapshotdepth(rev)
+            else:
+                stored_snap_lvl = -1
+            if from_storage:
+                quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+                snap_lvl = stored_snap_lvl
+            else:
+                quality = None
+                snap_lvl = -1
+
+            # flag about the delta they are transmitted through the
+            # OutboundRevision and can be dropped here.
+            flags &= ~REVIDX_DELTA_INFO_FLAGS
+
+            yield OutboundRevision(
+                node=node,
+                p1node=fnode(p1rev),
+                p2node=fnode(p2rev),
+                basenode=fnode(baserev),
+                flags=flags,
+                baserevisionsize=baserevisionsize,
+                raw_revision_size=self.rawsize(rev),
+                revision=revision,
+                delta=delta,
+                sidedata=serialized_sidedata,
+                protocol_flags=protocol_flags,
+                snapshot_level=snap_lvl,
+                compression=comp,
+                quality=quality,
+                stored_delta_base=stored_base,
+                stored_snapshot_level=stored_snap_lvl,
+            )
+
+            prevrev = rev
 
     DELTAREUSEALWAYS = b'always'
     DELTAREUSESAMEREVS = b'samerevs'
@@ -3846,6 +4429,7 @@ class revlog:
         destrevlog,
         addrevisioncb=None,
         deltareuse=DELTAREUSESAMEREVS,
+        reuse_compression=None,
         forcedeltabothparents=None,
         sidedata_helpers=None,
         hasmeta_change=None,
@@ -3877,6 +4461,9 @@ class revlog:
            Deltas will never be reused. This is the slowest mode of execution.
            This mode can be used to recompute deltas (e.g. if the diff/delta
            algorithm changes).
+
+           This also unconditionnaly disable the re-use "as is" of compressed
+           delta from storage.
         DELTAREUSEFULLADD
            Revision will be re-added as if their were new content. This is
            slower than DELTAREUSEALWAYS but allow more mechanism to kicks in.
@@ -3895,6 +4482,11 @@ class revlog:
         In addition to the delta policy, the ``forcedeltabothparents``
         argument controls whether to force compute deltas against both parents
         for merges. By default, the current default is used.
+
+        If ``reuse_compression`` is True, the cloning process will be provided
+        compressed delta and will reuse them directly when possible. By
+        default, the current default for that revlog is used. (seed the
+        `storage.revlog.reuse-external-delta-compression` config)
 
         See `revlogutil.sidedata.get_sidedata_helpers` for the doc on
         `sidedata_helpers`.
@@ -3931,11 +4523,15 @@ class revlog:
             elif deltareuse == self.DELTAREUSENEVER:
                 destrevlog.delta_config.lazy_delta_base = False
                 destrevlog.delta_config.lazy_delta = False
+                destrevlog.delta_config.lazy_compression = False
 
             delta_both_parents = (
                 forcedeltabothparents or old_delta_config.delta_both_parents
             )
             destrevlog.delta_config.delta_both_parents = delta_both_parents
+
+            if reuse_compression is not None:
+                destrevlog.delta_config.lazy_compression = reuse_compression
 
             with self.reading(), destrevlog._writing(tr):
                 self._clone(
@@ -4059,27 +4655,45 @@ class revlog:
                     sidedata=sidedata,
                 )
             else:
-                if destrevlog.delta_config.lazy_delta:
-                    if (
-                        self.delta_config.general_delta
-                        and self.delta_config.lazy_delta_base
-                    ):
-                        delta_base_reuse = DELTA_BASE_REUSE_TRY
-                    else:
-                        delta_base_reuse = DELTA_BASE_REUSE_NO
+                if not destrevlog.delta_config.lazy_delta:
+                    delta_base_reuse = DELTA_BASE_REUSE_NO
+                elif (
+                    self.delta_config.general_delta
+                    and self.delta_config.lazy_delta_base
+                ):
+                    delta_base_reuse = DELTA_BASE_REUSE_TRY
+                else:
+                    delta_base_reuse = DELTA_BASE_REUSE_NO
 
-                    if self.issnapshot(rev):
-                        snapshotdepth = self.snapshotdepth(rev)
-                    else:
-                        snapshotdepth = -1
+                if self.issnapshot(rev):
+                    snapshotdepth = self.snapshotdepth(rev)
+                else:
+                    snapshotdepth = -1
+                if not self.iscensored(rev):
                     dp = self.deltaparent(rev)
-                    if dp != nullrev:
-                        cachedelta = revlogutils.CachedDelta(
-                            dp,
-                            bytes(self._inner._chunk(rev)),
-                            delta_base_reuse,
-                            snapshotdepth,
-                        )
+                    # note: we can blindy reuse the compression during
+                    # `_clone`, because if we can read the source revlog it
+                    # mean we know about that compression for the
+                    # destination too, (even if we might not reuse it).
+                    comp, chunk = self.raw_comp_chunk(rev)
+                    c_delta = c_full_text = None
+                    if dp == nullrev:
+                        c_full_text = bytes(chunk)
+                    else:
+                        c_delta = bytes(chunk)
+                    quality = revlogutils.DeltaQuality.from_v1_flags(flags)
+                    cachedelta = revlogutils.CachedDelta(
+                        base=dp,
+                        c_delta=c_delta,
+                        c_full_text=c_full_text,
+                        compression=comp,
+                        reuse_policy=delta_base_reuse,
+                        snapshot_level=snapshotdepth,
+                        fulltext_length=self.size(rev),
+                        quality=quality,
+                        other_storage_delta_base=dp,
+                        other_storage_snapshot_level=snapshotdepth,
+                    )
 
                 sidedata = None
                 if cachedelta is None:
@@ -4121,7 +4735,7 @@ class revlog:
                 % self._format_version
             )
         elif self._format_version == REVLOGV1:
-            rewrite.v1_censor(self, tr, censor_nodes, tombstone)
+            rewrite.v1_censor(revlog, self, tr, censor_nodes, tombstone)
         else:
             rewrite.v2_censor(self, tr, censor_nodes, tombstone)
 
@@ -4256,7 +4870,8 @@ class revlog:
 
         if storedsize:
             d[b'storedsize'] = sum(
-                self.opener.stat(path).st_size for path in self.files()
+                self.opener.stat(path).st_size
+                for path in self.files(include_old=False)
             )
 
         return d

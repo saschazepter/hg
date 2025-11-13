@@ -20,9 +20,6 @@ from typing import (
     Protocol,
 )
 
-from ..i18n import _
-from .. import error
-
 if typing.TYPE_CHECKING:
     # We need to fully qualify the set primitive when typing the imanifestdict
     # class, so its set() method doesn't hide the primitive.
@@ -34,12 +31,16 @@ if typing.TYPE_CHECKING:
 
     from ._basetypes import (
         HgPathT,
+        NeedsTypeHint,
+        NodeIdT,
+        RevnumT,
         RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
     )
 
     from . import (
+        compression as i_comp,
         dirstate as intdirstate,
         matcher,
         misc,
@@ -74,6 +75,37 @@ FILEREVISION_FLAG_HASMETA = 1 << 11  # used only by filelog
 # XXX the two above could be combined in one
 REVISION_FLAG_DELTA_IS_SNAPSHOT = 1 << 10
 
+REVISION_FLAG_DELTA_HAS_QUALITY = 1 << 9
+"""Set when an index entry carry delta quality information"""
+
+REVISION_FLAG_DELTA_IS_GOOD = 1 << 8
+"""The stored delta was considered good at computation time
+
+This usually imply that delta folding was used to optimize this delta, but
+doesn't account for that folding being stopped "early" by encountering a
+snapshot.
+"""
+
+REVISION_FLAG_DELTA_P1_IS_SMALL = 1 << 7
+"""First parent provided a "smaller" delta
+
+Can be set at the same time as REVISION_FLAG_DELTA_P2_IS_SMALL when
+both parent provide delta of about the same size.
+
+This doesn't account for potential better result of folding patches from one
+parent or the other.
+"""
+
+REVISION_FLAG_DELTA_P2_IS_SMALL = 1 << 6
+"""Second parent provided a "smaller" delta
+
+Can be set at the same time as REVISION_FLAG_DELTA_P1_IS_SMALL when
+both parent provide delta of about the same size.
+
+This doesn't account for potential better result of folding patches from one
+parent or the other.
+"""
+
 REVISION_FLAGS_KNOWN = (
     REVISION_FLAG_CENSORED
     | REVISION_FLAG_ELLIPSIS
@@ -81,6 +113,10 @@ REVISION_FLAGS_KNOWN = (
     | REVISION_FLAG_HASCOPIESINFO
     | FILEREVISION_FLAG_HASMETA
     | REVISION_FLAG_DELTA_IS_SNAPSHOT
+    | REVISION_FLAG_DELTA_HAS_QUALITY
+    | REVISION_FLAG_DELTA_IS_GOOD
+    | REVISION_FLAG_DELTA_P1_IS_SMALL
+    | REVISION_FLAG_DELTA_P2_IS_SMALL
 )
 
 CG_DELTAMODE_STD = b'default'
@@ -140,6 +176,13 @@ CACHES_ALL = {
 CACHES_POST_CLONE = CACHES_ALL.copy()
 CACHES_POST_CLONE.discard(CACHE_FILE_NODE_TAGS)
 CACHES_POST_CLONE.discard(CACHE_REV_BRANCH)
+
+
+RequirementT = bytes
+"""A single requirement for a repository."""
+
+RequirementSetT = set[RequirementT]
+"""The collection of requirements for a repository."""
 
 
 class _ipeerconnection(Protocol):
@@ -208,6 +251,17 @@ class ipeercapabilities(Protocol):
         """
 
     @abc.abstractmethod
+    def is_capable(self, name: bytes) -> bool:
+        """Determine support for a named capability"""
+
+    @abc.abstractmethod
+    def cap_value(self, name: bytes) -> bytes:
+        """Return the value associated with a capabilities
+
+        return an empty string if the capability is unknown
+        """
+
+    @abc.abstractmethod
     def capabilities(self) -> set[bytes]:
         """Obtain capabilities of the peer.
 
@@ -230,7 +284,7 @@ class ipeercommands(Protocol):
     """
 
     @abc.abstractmethod
-    def branchmap(self):
+    def branchmap(self) -> IBaseBranchMap:
         """Obtain heads in named branches.
 
         Returns a dict mapping branch name to an iterable of nodes that are
@@ -452,8 +506,13 @@ class ipeerrequests(Protocol):
         """
 
 
-# TODO: make this a Protocol class when 3.11 is the minimum supported version?
-class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
+class IPeer(
+    _ipeerconnection,
+    ipeercapabilities,
+    ipeerrequests,
+    ipeercommands,
+    Protocol,
+):
     """Unified interface for peer repositories.
 
     All peer instances must conform to this interface.
@@ -462,39 +521,6 @@ class peer(_ipeerconnection, ipeercapabilities, ipeerrequests):
     limitedarguments: bool = False
     path: misc.IPath | None
     ui: Ui
-
-    def __init__(
-        self,
-        ui: Ui,
-        path: misc.IPath | None = None,
-        remotehidden: bool = False,
-    ) -> None:
-        self.ui = ui
-        self.path = path
-
-    def capable(self, name: bytes) -> bool | bytes:
-        caps = self.capabilities()
-        if name in caps:
-            return True
-
-        name = b'%s=' % name
-        for cap in caps:
-            if cap.startswith(name):
-                return cap[len(name) :]
-
-        return False
-
-    def requirecap(self, name: bytes, purpose: bytes) -> None:
-        if self.capable(name):
-            return
-
-        raise error.CapabilityError(
-            _(
-                b'cannot %s; remote repository does not support the '
-                b'\'%s\' capability'
-            )
-            % (purpose, name)
-        )
 
 
 class iverifyproblem(Protocol):
@@ -519,7 +545,82 @@ class iverifyproblem(Protocol):
     """
 
 
-class irevisiondelta(Protocol):
+class IDeltaQuality(Protocol):
+    GOOD_FACTOR = 1.05
+    """The "Good" threshold compared to the smallest parent size
+
+    Number arbitrarily picked.
+    """
+
+    """Information about the quality of a delta"""
+    is_good: bool
+    """the delta is considered good"""
+    p1_good: bool
+    """first parent is a good source of quality delta"""
+    p2_good: bool
+    """second parent is a good source of quality delta"""
+
+    @abc.abstractmethod
+    def to_v1_flags(self) -> int:
+        """return the quality as index flag for revlog v1"""
+
+
+class IInboundRevision(Protocol):
+    """Data retrieved for a changegroup like data (used in revlog.addgroup)"""
+
+    node: NodeIdT
+    """the revision node"""
+
+    p1: NodeIdT
+    """ first parent of the revision (as node)"""
+
+    p2: NodeIdT
+    """ second parent of the revision (as node)"""
+
+    link_node: NodeIdT
+    """the linkrev information"""
+
+    delta_base: NodeIdT
+    """delta_base"""
+
+    delta: bytes
+    """the serialized delta"""
+
+    quality: IDeltaQuality | None
+    """quality information about the incoming delta/raw_text if any"""
+
+    flags: int
+    """revision flags"""
+
+    sidedata: dict | None
+    """sidedata associate with this revision"""
+
+    protocol_flags: int
+    """internal protocol flag"""
+
+    snapshot_level: int | None
+    """snapshot_level of the sent delta (if available)"""
+
+    raw_text: bytes | None
+    """full text of that revision (if available)"""
+
+    raw_text_size: int | None
+    """full text of that revision (if available)"""
+
+    has_censor_flag: bool
+    """set when the incoming data has censor information available"""
+
+    has_filelog_hasmeta_flag: bool
+    """set when the incoming has "has_meta" information available"""
+
+    other_storage_delta_base: NodeIdT | None
+    """The delta base used in the storage that emitted this delta"""
+
+    other_storage_snapshot_level: int | None
+    """The snapshot level used in the storage that emitted this delta"""
+
+
+class IOutboundRevision(Protocol):
     """Represents a delta between one revision and another.
 
     Instances convey enough information to allow a revision to be exchanged
@@ -541,7 +642,7 @@ class irevisiondelta(Protocol):
     p2node: bytes
     """20 byte node of 2nd parent of this revision."""
 
-    # TODO: is this really optional? revlog.revlogrevisiondelta defaults to None
+    # TODO: is this really optional? revlog.OutboundRevision defaults to None
     linknode: bytes | None
     """20 byte node of the changelog revision this node is linked to."""
 
@@ -564,6 +665,9 @@ class irevisiondelta(Protocol):
     May be ``None`` if ``basenode`` is ``nullid``.
     """
 
+    raw_revision_size: int
+    """Size of this revision raw full-text"""
+
     # TODO: is this really optional? (Seems possible in
     #  storageutil.emitrevisions()).
     revision: bytes | None
@@ -574,6 +678,12 @@ class irevisiondelta(Protocol):
 
     Stored in the bdiff delta format.
     """
+
+    quality: IDeltaQuality | None
+    """quality information about the incoming delta/raw_text if any"""
+
+    compression: i_comp.RevlogCompHeader | None
+    """When set, the delta/revision send is a compressed delta"""
 
     sidedata: bytes | None
     """Raw sidedata bytes for the given revision."""
@@ -590,6 +700,99 @@ class irevisiondelta(Protocol):
 
     Set to None if no information is available about snapshot level.
     """
+
+    stored_delta_base: NodeIdT | None
+    """The delta base used by the storage from which this revision is emitted
+    """
+
+    stored_snapshot_level: NodeIdT | None
+    """The snapshot level of this rev in the storage from which it is emitted
+    """
+
+
+class IDeltaEmittingStore(Protocol):
+    """A storage class capable of emitting OutboundRevisionT
+
+    Typically used to generate a changegroup.
+    """
+
+    @abc.abstractmethod
+    def rev(self, NodeIdT) -> RevnumT:
+        """Obtain the revision number given a node.
+
+        Raises ``error.LookupError`` if the node is not known.
+        """
+
+    @abc.abstractmethod
+    def parentrevs(self, RevnumT) -> tuple[RevnumT, RevnumT]:
+        ...
+
+    @abc.abstractmethod
+    def node(self, RevnumT) -> NodeIdT:
+        ...
+
+    @abc.abstractmethod
+    def emitrevisions(
+        self,
+        nodes: Iterable[NodeIdT],
+        nodesorder: bytes | None = None,
+        revisiondata: bool = False,
+        assumehaveparentrevisions: bool = False,
+        deltamode: bytes = CG_DELTAMODE_STD,
+        # Need typing
+        debug_info=None,
+        # Need typing
+        sidedata_helpers=None,
+        use_hasmeta_flag: bool = False,
+        accepted_compression: frozenset[i_comp.RevlogCompHeader] = frozenset(),
+    ) -> Iterator[IOutboundRevision]:
+        """Produce ``IOutboundRevision`` for revisions.
+
+        Given an iterable of nodes, emits objects conforming to the
+        ``irevisiondelta`` interface that describe revisions in storage.
+
+        This method is a generator.
+
+        The input nodes may be unordered. Implementations must ensure that a
+        node's parents are emitted before the node itself. Transitively, this
+        means that a node may only be emitted once all its ancestors in
+        ``nodes`` have also been emitted.
+
+        By default, emits "index" data (the ``node``, ``p1node``, and
+        ``p2node`` attributes). If ``revisiondata`` is set, revision data
+        will also be present on the emitted objects.
+
+        With default argument values, implementations can choose to emit
+        either fulltext revision data or a delta. When emitting deltas,
+        implementations must consider whether the delta's base revision
+        fulltext is available to the receiver.
+
+        The base revision fulltext is guaranteed to be available if any of
+        the following are met:
+
+        * Its fulltext revision was emitted by this method call.
+        * A delta for that revision was emitted by this method call.
+        * ``assumehaveparentrevisions`` is True and the base revision is a
+          parent of the node.
+
+        ``nodesorder`` can be used to control the order that revisions are
+        emitted. By default, revisions can be reordered as long as they are
+        in DAG topological order (see above). If the value is ``nodes``,
+        the iteration order from ``nodes`` should be used. If the value is
+        ``storage``, then the native order from the backing storage layer
+        is used. (Not all storage layers will have strong ordering and behavior
+        of this mode is storage-dependent.) ``nodes`` ordering can force
+        revisions to be emitted before their ancestors, so consumers should
+        use it with care.
+
+        The ``linknode`` attribute on the returned ``irevisiondelta`` may not
+        be set and it is the caller's responsibility to resolve it, if needed.
+
+        If ``deltamode`` is CG_DELTAMODE_PREV and revision data is requested,
+        all revision data should be emitted as deltas against the revision
+        emitted just prior. The initial revision should be a delta against its
+        1st parent.
+        """
 
 
 class ifilerevisionssequence(Protocol):
@@ -659,6 +862,9 @@ class ifileindex(Protocol):
     * A mapping between revision numbers and nodes.
     * DAG data (storing and querying the relationship between nodes).
     * Metadata to facilitate storage.
+
+    Not to be confused with IFileIndex in mercurial/interfaces/file_index.py,
+    which stores paths of files in the repository.
     """
 
     nullid: bytes
@@ -763,7 +969,7 @@ class ifileindex(Protocol):
         """
 
 
-class ifiledata(Protocol):
+class ifiledata(IDeltaEmittingStore, Protocol):
     """Storage interface for data storage of a specific file.
 
     This complements ``ifileindex`` and provides an interface for accessing
@@ -818,63 +1024,6 @@ class ifiledata(Protocol):
         This takes copy metadata into account.
 
         TODO better document the copy metadata and censoring logic.
-        """
-
-    @abc.abstractmethod
-    def emitrevisions(
-        self,
-        nodes,
-        nodesorder=None,
-        revisiondata=False,
-        assumehaveparentrevisions=False,
-        deltamode=CG_DELTAMODE_STD,
-    ):
-        """Produce ``irevisiondelta`` for revisions.
-
-        Given an iterable of nodes, emits objects conforming to the
-        ``irevisiondelta`` interface that describe revisions in storage.
-
-        This method is a generator.
-
-        The input nodes may be unordered. Implementations must ensure that a
-        node's parents are emitted before the node itself. Transitively, this
-        means that a node may only be emitted once all its ancestors in
-        ``nodes`` have also been emitted.
-
-        By default, emits "index" data (the ``node``, ``p1node``, and
-        ``p2node`` attributes). If ``revisiondata`` is set, revision data
-        will also be present on the emitted objects.
-
-        With default argument values, implementations can choose to emit
-        either fulltext revision data or a delta. When emitting deltas,
-        implementations must consider whether the delta's base revision
-        fulltext is available to the receiver.
-
-        The base revision fulltext is guaranteed to be available if any of
-        the following are met:
-
-        * Its fulltext revision was emitted by this method call.
-        * A delta for that revision was emitted by this method call.
-        * ``assumehaveparentrevisions`` is True and the base revision is a
-          parent of the node.
-
-        ``nodesorder`` can be used to control the order that revisions are
-        emitted. By default, revisions can be reordered as long as they are
-        in DAG topological order (see above). If the value is ``nodes``,
-        the iteration order from ``nodes`` should be used. If the value is
-        ``storage``, then the native order from the backing storage layer
-        is used. (Not all storage layers will have strong ordering and behavior
-        of this mode is storage-dependent.) ``nodes`` ordering can force
-        revisions to be emitted before their ancestors, so consumers should
-        use it with care.
-
-        The ``linknode`` attribute on the returned ``irevisiondelta`` may not
-        be set and it is the caller's responsibility to resolve it, if needed.
-
-        If ``deltamode`` is CG_DELTAMODE_PREV and revision data is requested,
-        all revision data should be emitted as deltas against the revision
-        emitted just prior. The initial revision should be a delta against its
-        1st parent.
         """
 
 
@@ -1323,22 +1472,6 @@ class imanifestrevisionstored(imanifestrevisionbase, Protocol):
     """List of binary nodes that are parents for this manifest revision."""
 
     @abc.abstractmethod
-    def readdelta(self, shallow: bool = False):
-        """Obtain the manifest data structure representing changes from parent.
-
-        This manifest is compared to its 1st parent. A new manifest
-        representing those differences is constructed.
-
-        If `shallow` is True, this will read the delta for this directory,
-        without recursively reading subdirectory manifests. Instead, any
-        subdirectory entry will be reported as it appears in the manifest, i.e.
-        the subdirectory will be reported among files and distinguished only by
-        its 't' flag. This only apply if the underlying manifest support it.
-
-        The returned object conforms to the ``imanifestdict`` interface.
-        """
-
-    @abc.abstractmethod
     def read_any_fast_delta(
         self,
         valid_bases: Collection[int] | None = None,
@@ -1399,13 +1532,6 @@ class imanifestrevisionstored(imanifestrevisionbase, Protocol):
         The returned object conforms to the ``imanifestdict`` interface."""
 
     @abc.abstractmethod
-    def readfast(self, shallow: bool = False):
-        """Calls either ``read()`` or ``readdelta()``.
-
-        The faster of the two options is called.
-        """
-
-    @abc.abstractmethod
     def find(self, key: bytes) -> tuple[bytes, bytes]:
         """Calls ``self.read().find(key)``.
 
@@ -1435,7 +1561,7 @@ class imanifestrevisionwritable(imanifestrevisionbase, Protocol):
         """
 
 
-class imanifeststorage(Protocol):
+class imanifeststorage(IDeltaEmittingStore, Protocol):
     """Storage interface for manifest data."""
 
     nodeconstants: NodeConstants
@@ -1470,13 +1596,6 @@ class imanifeststorage(Protocol):
     @abc.abstractmethod
     def __iter__(self):
         """Iterate over revision numbers for this manifest."""
-
-    @abc.abstractmethod
-    def rev(self, node):
-        """Obtain the revision number given a binary node.
-
-        Raises ``error.LookupError`` if the node is not known.
-        """
 
     @abc.abstractmethod
     def node(self, rev):
@@ -1519,7 +1638,7 @@ class imanifeststorage(Protocol):
         """Obtain raw data for a node."""
 
     @abc.abstractmethod
-    def revdiff(self, rev1, rev2):
+    def revdiff(self, rev1: RevnumT, rev2: RevnumT) -> bytes:
         """Obtain a delta between two revision numbers.
 
         The returned data is the result of ``bdiff.bdiff()`` on the raw
@@ -1531,19 +1650,6 @@ class imanifeststorage(Protocol):
         """Compare fulltext to another revision.
 
         Returns True if the fulltext is different from what is stored.
-        """
-
-    @abc.abstractmethod
-    def emitrevisions(
-        self,
-        nodes,
-        nodesorder=None,
-        revisiondata=False,
-        assumehaveparentrevisions=False,
-    ):
-        """Produce ``irevisiondelta`` describing revisions.
-
-        See the documentation for ``ifiledata`` for more.
         """
 
     @abc.abstractmethod
@@ -1686,6 +1792,9 @@ class imanifestlog(Protocol):
     tree manifests.
     """
 
+    # TODO: fix the upgrade engine code that references this
+    _rootstore: Any
+
     nodeconstants: NodeConstants
     """nodeconstants used by the current repository."""
 
@@ -1746,26 +1855,18 @@ class imanifestlog(Protocol):
         """update whatever cache are relevant for the used storage."""
 
 
-class ilocalrepositoryfilestorage(Protocol):
-    """Local repository sub-interface providing access to tracked file storage.
-
-    This interface defines how a repository accesses storage for a single
-    tracked file path.
-    """
-
-    @abc.abstractmethod
-    def file(self, f: HgPathT, writable: bool = False) -> ifilestorage:
-        """Obtain a filelog for a tracked path.
-
-        The returned type conforms to the ``ifilestorage`` interface.
-        """
+class IRepoFileFn(Protocol):
+    def __call__(self, f: HgPathT, writable: bool = False) -> ifilestorage:
+        """The signature of IRepo.file()."""
 
 
-class ilocalrepositorymain(Protocol):
+class IRepo(Protocol):
     """Main interface for local repositories.
 
     This currently captures the reality of things - not how things should be.
     """
+
+    _wanted_sidedata: Any  # TODO: get this off of the interface
 
     nodeconstants: NodeConstants
     """Constant nodes matching the hash function used by the repository."""
@@ -1773,10 +1874,10 @@ class ilocalrepositorymain(Protocol):
     nullid: bytes
     """null revision for the hash function used by the repository."""
 
-    supported: set[bytes]
+    supported: RequirementSetT
     """Set of requirements that this repo is capable of opening."""
 
-    requirements: set[bytes]
+    requirements: RequirementSetT
     """Set of requirements this repo uses."""
 
     features: set[bytes]
@@ -1881,20 +1982,57 @@ class ilocalrepositorymain(Protocol):
     filecopiesmode: Any  # TODO: add type hints
     """The way files copies should be dealt with in this repo."""
 
+    # XXX We should not have private property as part of the interface
+    #
+    # Tt exists to let extension expand the set easily.
+    _wlockfreeprefix: set[HgPathT]
+    """files and directory that can be accessed without the wlock"""
+
+    _phasecache: NeedsTypeHint
+    """old the phase information.
+
+    Note: the leading `_` is wrong as this is neither a cache nor a private
+    information.
+    """
+
+    _bookmarks: NeedsTypeHint
+    """hold the bookmarks.
+
+    Note: the leading `_` is wrong as this not really a private
+    information.
+    """
+
+    _tagscache: NeedsTypeHint
+    """hold the tags information.
+
+    Note: the leading `_` is a bit weird, as this is accessed in various places
+    """
+
+    mergestate: NeedsTypeHint
+    """hold information about any in progress merge
+    """
+
+    _branchcaches: IBranchMapCache
+    """hold branchmak information for each view of the repository"""
+
     @abc.abstractmethod
     def close(self):
         """Close the handle on this repository."""
 
     @abc.abstractmethod
-    def peer(self, path=None):
+    def peer(
+        self,
+        path: misc.IPath | None = None,
+        remotehidden: bool = False,
+    ) -> IPeer:
         """Obtain an object conforming to the ``peer`` interface."""
 
     @abc.abstractmethod
-    def unfiltered(self):
+    def unfiltered(self) -> IRepo:
         """Obtain an unfiltered/raw view of this repo."""
 
     @abc.abstractmethod
-    def filtered(self, name, visibilityexceptions=None):
+    def filtered(self, name, visibilityexceptions=None) -> IRepo:
         """Obtain a named view of this repository."""
 
     obsstore: Any  # TODO: add type hints
@@ -1909,11 +2047,21 @@ class ilocalrepositorymain(Protocol):
     Provides access to manifests for the repository.
     """
 
+    @abc.abstractmethod
+    def file(self, f: HgPathT, writable: bool = False) -> ifilestorage:
+        """Obtain a filelog for a tracked path.
+
+        The returned type conforms to the ``ifilestorage`` interface.
+        Keep this in sync with ``IRepoFileFn``.
+        """
+
     dirstate: intdirstate.idirstate
     """Working directory state."""
 
     narrowpats: Any  # TODO: add type hints
     """Matcher patterns for this repository's narrowspec."""
+
+    is_narrow: bool
 
     @abc.abstractmethod
     def narrowmatch(self, match=None, includeexact=False):
@@ -1923,8 +2071,9 @@ class ilocalrepositorymain(Protocol):
     def setnarrowpats(self, newincludes, newexcludes):
         """Define the narrowspec for this repository."""
 
+    # XXX We should use overload to type this better.
     @abc.abstractmethod
-    def __getitem__(self, changeid):
+    def __getitem__(self, changeid: Any) -> Any:
         """Try to resolve a changectx."""
 
     @abc.abstractmethod
@@ -1998,7 +2147,7 @@ class ilocalrepositorymain(Protocol):
         """Return the list of bookmarks pointing to the specified node."""
 
     @abc.abstractmethod
-    def branchmap(self):
+    def branchmap(self) -> IBranchMap:
         """Return a mapping of branch to heads in that branch."""
 
     @abc.abstractmethod
@@ -2182,7 +2331,7 @@ class ilocalrepositorymain(Protocol):
         wctx,
         match: matcher.IMatcher,
         status: istatus.Status,
-        fail: Callable[[bytes], bytes],
+        fail: Callable[[bytes, bytes], bytes],
     ) -> None:
         pass
 
@@ -2241,10 +2390,6 @@ class ilocalrepositorymain(Protocol):
         """Obtain list of nodes that are DAG heads."""
 
     @abc.abstractmethod
-    def branchheads(self, branch=None, start=None, closed=False):
-        pass
-
-    @abc.abstractmethod
     def branches(self, nodes):
         pass
 
@@ -2286,9 +2431,135 @@ class ilocalrepositorymain(Protocol):
         pass
 
 
-class completelocalrepository(
-    ilocalrepositorymain,
-    ilocalrepositoryfilestorage,
-    Protocol,
-):
-    """Complete interface for a local repository."""
+class IBaseBranchMap(Protocol):
+    @abc.abstractmethod
+    def __iter__(self) -> Iterator[bytes]:
+        ...
+
+    @abc.abstractmethod
+    def __contains__(self, key: bytes) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def branchheads(self, branch: bytes, closed: bool = False) -> list[NodeIdT]:
+        ...
+
+
+class IBranchMap(IBaseBranchMap, Protocol):
+    """A dict like object that hold branches heads cache."""
+
+    @abc.abstractmethod
+    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
+
+    @abc.abstractmethod
+    def branchtip(self, branch: bytes) -> NodeIdT:
+        """Return the tipmost open head on branch head, otherwise return the
+        tipmost closed head on branch.
+        Raise KeyError for unknown branch."""
+
+    @abc.abstractmethod
+    def branch_tip_from(
+        self,
+        repo: IRepo,
+        branch: bytes,
+        start: RevnumT,
+        closed: bool = False,
+    ) -> RevnumT | None:
+        """the tipmost head rev reachable from a revision for a given branch
+
+        Return None if no head are reachable.
+        """
+
+    @abc.abstractmethod
+    def head_count(self, branch: bytes, closed=False) -> int:
+        """number of heads on a branch
+
+        return 0 for unknown branch"""
+
+    @abc.abstractmethod
+    def is_branch_head(
+        self,
+        branch: bytes,
+        node: NodeIdT,
+        closed: bool = False,
+    ) -> bool:
+        """True if the node is a head for that branch
+
+        Only consider open heads unless `closed` is set to True.
+        """
+
+    @abc.abstractmethod
+    def branch_head_revs(
+        self, branch: bytes, closed: bool = False
+    ) -> list[RevnumT]:
+        """return all heads for one branch (as a list of rev)
+
+        Only consider open heads unless `closed` is set to True.
+        Return an empty list for unknown branch.
+        """
+
+    @abc.abstractmethod
+    def branches_info(
+        self,
+        repo: IRepo,
+        branches: set[bytes] | None = None,
+    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
+        """return a list of (name, tip-rev, active, closed)
+
+        If `branches` filter to these branches only.
+        """
+
+    @abc.abstractmethod
+    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
+        """True if all the passed nodes are branch heads"""
+
+
+class IBranchMapCache(Protocol):
+    """mapping of filtered views of repo with their branchcache"""
+
+    @abc.abstractmethod
+    def __getitem__(self, repo: IRepo) -> IBranchMap:
+        ...
+
+    @abc.abstractmethod
+    def update_disk(self, repo: IRepo, detect_pure_topo: bool = False):
+        """ensure and up-to-date cache is (or will be) written on disk
+
+        The cache for this repository view is updated  if needed and written on
+        disk.
+
+        If a transaction is in progress, the writing is schedule to transaction
+        close. See the `BranchMapCache.write_dirty` method.
+
+        This method exist independently of __getitem__ as it is sometime useful
+        to signal that we have no intend to use the data in memory yet.
+        """
+
+    @abc.abstractmethod
+    def updatecache(self, repo: IRepo):
+        """Update the cache for the given filtered view on a repository"""
+
+    @abc.abstractmethod
+    def replace(self, repo: IRepo, remotebranchmap: IBranchMap):
+        """Replace the branchmap cache for a repo with a branch mapping.
+
+        This is likely only called during clone with a branch map from a
+        remote.
+
+        """
+
+    @abc.abstractmethod
+    def clear(self):
+        ...
+
+    @abc.abstractmethod
+    def write_dirty(self, repo: IRepo):
+        ...
+
+
+ilocalrepositorymain = IRepo
+completelocalrepository = IRepo

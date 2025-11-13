@@ -7,13 +7,16 @@
 
 from __future__ import annotations
 
+import array
 import binascii
 import errno
 import glob
 import os
 import posixpath
 import re
+import struct
 import subprocess
+import sys
 import typing
 import weakref
 
@@ -68,6 +71,7 @@ from .utils import (
     hashutil,
     procutil,
     stringutil,
+    urlutil,
 )
 
 if pycompat.iswindows:
@@ -76,19 +80,34 @@ else:
     from . import scmposix as scmplatform
 
 if typing.TYPE_CHECKING:
-    from . import (
-        ui as uimod,
+    from typing import (
+        Callable,
+        TypeVar,
     )
     from .interfaces.types import (
         LocalRepoMainT,
         MatcherT,
+        RepoT,
         RevsetAliasesT,
+        TransactionT,
+        UiT,
     )
+
+    _C = TypeVar('_C', bound=Callable)
 
 parsers = policy.importmod('parsers')
 rustrevlog = policy.importrust('revlog')
 
 termsize = scmplatform.termsize
+
+
+def open_path(ui, path, sendaccept=True):
+    '''open path with open if local, url.open if remote'''
+    pathurl = urlutil.url(path, parsequery=False, parsefragment=False)
+    if pathurl.islocal():
+        return util.posixfile(pathurl.localpath(), b'rb')
+    else:
+        return url.open(ui, path, sendaccept=sendaccept)
 
 
 @attr.s(slots=True, repr=False)
@@ -106,6 +125,7 @@ class status(istatus.Status):
     unknown = attr.ib(default=attr.Factory(list), type=list[bytes])
     ignored = attr.ib(default=attr.Factory(list), type=list[bytes])
     clean = attr.ib(default=attr.Factory(list), type=list[bytes])
+    empty_dirs = attr.ib(default=attr.Factory(list), type=list[bytes])
 
     def __iter__(self) -> Iterator[list[bytes]]:
         yield self.modified
@@ -149,7 +169,7 @@ def itersubrepos(ctx1, ctx2):
         yield subpath, ctx2.nullsub(subpath, ctx1)
 
 
-def nochangesfound(ui: uimod.ui, repo, excluded=None) -> None:
+def nochangesfound(ui: UiT, repo, excluded=None) -> None:
     """Report no changes for push/pull, excluded is None or a list of
     nodes excluded from the push/pull.
     """
@@ -169,7 +189,7 @@ def nochangesfound(ui: uimod.ui, repo, excluded=None) -> None:
         ui.status(_(b"no changes found\n"))
 
 
-def callcatch(ui: uimod.ui, func: Callable[[], int]) -> int:
+def callcatch(ui: UiT, func: Callable[[], int]) -> int:
     """call func() with global exception handling
 
     return func() if no exception happens. otherwise do some error handling
@@ -291,6 +311,25 @@ def callcatch(ui: uimod.ui, func: Callable[[], int]) -> int:
         return coarse_exit_code
 
 
+def bail_if_changed(repo, merge=True, hint=None):
+    """enforce the precondition that working directory must be clean.
+
+    'merge' can be set to false if a pending uncommitted merge should be
+    ignored (such as when 'update --check' runs).
+
+    'hint' is the usual hint given to Abort exception.
+    """
+
+    if merge and repo.dirstate.p2() != repo.nullid:
+        raise error.StateError(_(b'outstanding uncommitted merge'), hint=hint)
+    st = repo.status()
+    if st.modified or st.added or st.removed or st.deleted:
+        raise error.StateError(_(b'uncommitted changes'), hint=hint)
+    ctx = repo[None]
+    for s in sorted(ctx.substate):
+        ctx.sub(s).bailifchanged(hint=hint)
+
+
 def checknewlabel(repo, lbl: bytes, kind) -> None:
     # Do not use the "kind" parameter in ui output.
     # It makes strings difficult to translate.
@@ -326,7 +365,7 @@ def checkfilename(f: bytes) -> None:
         )
 
 
-def checkportable(ui: uimod.ui, f: bytes) -> None:
+def checkportable(ui: UiT, f: bytes) -> None:
     '''Check if filename f is portable and warn or abort depending on config'''
     checkfilename(f)
     abort, warn = checkportabilityalert(ui)
@@ -339,7 +378,7 @@ def checkportable(ui: uimod.ui, f: bytes) -> None:
             ui.warn(_(b"warning: %s\n") % msg)
 
 
-def checkportabilityalert(ui: uimod.ui) -> tuple[bool, bool]:
+def checkportabilityalert(ui: UiT) -> tuple[bool, bool]:
     """check if the user's config requests nothing, a warning, or abort for
     non-portable filenames"""
     val = ui.config(b'ui', b'portablefilenames')
@@ -355,7 +394,7 @@ def checkportabilityalert(ui: uimod.ui) -> tuple[bool, bool]:
 
 
 class casecollisionauditor:
-    def __init__(self, ui: uimod.ui, abort: bool, dirstate) -> None:
+    def __init__(self, ui: UiT, abort: bool, dirstate) -> None:
         self._ui = ui
         self._abort = abort
         allfiles = b'\0'.join(dirstate)
@@ -412,7 +451,7 @@ def combined_filtered_and_obsolete_hash(
             revs = revs | obs_revs
         revs = sorted(revs)
         if revs:
-            result = _hash_revs(revs)
+            result = _sha1_revs(revs)
             cl._filteredrevs_hashcache[key] = result
     return result
 
@@ -440,9 +479,9 @@ def filtered_and_obsolete_hash(repo, maxrev):
         obs_hash = None
         filtered_revs, obs_revs = _filtered_and_obs_revs(repo, maxrev)
         if filtered_revs:
-            filtered_hash = _hash_revs(filtered_revs)
+            filtered_hash = _crc32_revs(filtered_revs)
         if obs_revs:
-            obs_hash = _hash_revs(obs_revs)
+            obs_hash = _crc32_revs(obs_revs)
         result = (filtered_hash, obs_hash)
         cl._filteredrevs_hashcache[key] = result
     return result
@@ -462,12 +501,39 @@ def _filtered_and_obs_revs(repo, max_rev):
     return (filtered_set, obs_set)
 
 
-def _hash_revs(revs: Iterable[int]) -> bytes:
-    """return a hash from a list of revision numbers"""
+def _sha1_revs(revs: Iterable[int]) -> bytes:
+    """return a hash from a list of revision numbers
+
+    This is the "legacy" version used by branchcache-v2
+    """
     s = hashutil.sha1()
     for rev in revs:
         s.update(b'%d;' % rev)
     return s.digest()
+
+
+def _crc32_revs(revs: Iterable[int]) -> bytes:
+    """return a hash from a list of revision numbers
+
+    This use this good old crc32 the sorted revisions.
+
+    The crc32 is computed on the binary representation of the revision as 32
+    bits signed little endian integer.
+
+    The hashing method is faster the in _old_hash_revs but probably still not
+    great. However it was very easy to hack together quickly, and easy to
+    implement in lower level language.
+
+    crc32 is expected to be widely available in python implementation.
+
+    Return the result as bytes to keep the same signature as _sha1_revs
+    """
+    all = array.array('i', sorted(revs))
+    if sys.byteorder == 'big':
+        # move from the native big endian to little endian
+        all.byteswap()
+    checksum = binascii.crc32(all.tobytes())
+    return struct.pack('>I', checksum)
 
 
 def walkrepos(
@@ -547,7 +613,7 @@ def formatchangeid(ctx) -> bytes:
     return formatrevnode(repo.ui, intrev(ctx), binnode(ctx))
 
 
-def formatrevnode(ui: uimod.ui, rev: int, node: bytes) -> bytes:
+def formatrevnode(ui: UiT, rev: int, node: bytes) -> bytes:
     """Format given revision and node depending on the current verbosity"""
     if ui.debugflag:
         hexfunc = hex
@@ -1094,7 +1160,7 @@ def parsefollowlinespattern(repo, rev, pat: bytes, msg: bytes) -> bytes:
         return files[0]
 
 
-def getorigvfs(ui: uimod.ui, repo):
+def getorigvfs(ui: UiT, repo):
     """return a vfs suitable to save 'orig' file
 
     return None if no special directory is configured"""
@@ -1104,7 +1170,7 @@ def getorigvfs(ui: uimod.ui, repo):
     return vfs.vfs(repo.wvfs.join(origbackuppath))
 
 
-def backuppath(ui: uimod.ui, repo, filepath: bytes) -> bytes:
+def backuppath(ui: UiT, repo, filepath: bytes) -> bytes:
     """customize where working copy backup files (.orig files) are created
 
     Fetch user defined path from config file: [ui] origbackuppath = <path>
@@ -1138,200 +1204,6 @@ def backuppath(ui: uimod.ui, repo, filepath: bytes) -> bytes:
         origvfs.rmtree(filepath, forcibly=True)
 
     return origvfs.join(filepath)
-
-
-class _containsnode:
-    """proxy __contains__(node) to container.__contains__ which accepts revs"""
-
-    def __init__(self, repo, revcontainer):
-        self._torev = repo.changelog.rev
-        self._revcontains = revcontainer.__contains__
-
-    def __contains__(self, node) -> bool:
-        return self._revcontains(self._torev(node))
-
-
-def cleanupnodes(
-    repo,
-    replacements,
-    operation,
-    moves=None,
-    metadata=None,
-    fixphase=False,
-    targetphase=None,
-    backup=True,
-) -> None:
-    """do common cleanups when old nodes are replaced by new nodes
-
-    That includes writing obsmarkers or stripping nodes, and moving bookmarks.
-    (we might also want to move working directory parent in the future)
-
-    By default, bookmark moves are calculated automatically from 'replacements',
-    but 'moves' can be used to override that. Also, 'moves' may include
-    additional bookmark moves that should not have associated obsmarkers.
-
-    replacements is {oldnode: [newnode]} or a iterable of nodes if they do not
-    have replacements. operation is a string, like "rebase".
-
-    metadata is dictionary containing metadata to be stored in obsmarker if
-    obsolescence is enabled.
-    """
-    assert fixphase or targetphase is None
-    if not replacements and not moves:
-        return
-
-    # translate mapping's other forms
-    if not hasattr(replacements, 'items'):
-        replacements = {(n,): () for n in replacements}
-    else:
-        # upgrading non tuple "source" to tuple ones for BC
-        repls = {}
-        for key, value in replacements.items():
-            if not isinstance(key, tuple):
-                key = (key,)
-            repls[key] = value
-        replacements = repls
-
-    # Unfiltered repo is needed since nodes in replacements might be hidden.
-    unfi = repo.unfiltered()
-
-    # Calculate bookmark movements
-    if moves is None:
-        moves = {}
-        for oldnodes, newnodes in replacements.items():
-            for oldnode in oldnodes:
-                if oldnode in moves:
-                    continue
-                if len(newnodes) > 1:
-                    # usually a split, take the one with biggest rev number
-                    newnode = next(unfi.set(b'max(%ln)', newnodes)).node()
-                elif len(newnodes) == 0:
-                    # move bookmark backwards
-                    allreplaced = []
-                    for rep in replacements:
-                        allreplaced.extend(rep)
-                    roots = list(
-                        unfi.set(b'max((::%n) - %ln)', oldnode, allreplaced)
-                    )
-                    if roots:
-                        newnode = roots[0].node()
-                    else:
-                        newnode = repo.nullid
-                else:
-                    newnode = newnodes[0]
-                moves[oldnode] = newnode
-
-    allnewnodes = [n for ns in replacements.values() for n in ns]
-    toretract = {}
-    toadvance = {}
-    if fixphase:
-        precursors = {}
-        for oldnodes, newnodes in replacements.items():
-            for oldnode in oldnodes:
-                for newnode in newnodes:
-                    precursors.setdefault(newnode, []).append(oldnode)
-
-        allnewnodes.sort(key=lambda n: unfi[n].rev())
-        newphases = {}
-
-        def phase(ctx):
-            return newphases.get(ctx.node(), ctx.phase())
-
-        for newnode in allnewnodes:
-            ctx = unfi[newnode]
-            parentphase = max(phase(p) for p in ctx.parents())
-            if targetphase is None:
-                oldphase = max(
-                    unfi[oldnode].phase() for oldnode in precursors[newnode]
-                )
-                newphase = max(oldphase, parentphase)
-            else:
-                newphase = max(targetphase, parentphase)
-            newphases[newnode] = newphase
-            if newphase > ctx.phase():
-                toretract.setdefault(newphase, []).append(newnode)
-            elif newphase < ctx.phase():
-                toadvance.setdefault(newphase, []).append(newnode)
-
-    with repo.transaction(b'cleanup') as tr:
-        # Move bookmarks
-        bmarks = repo._bookmarks
-        bmarkchanges = []
-        for oldnode, newnode in moves.items():
-            oldbmarks = repo.nodebookmarks(oldnode)
-            if not oldbmarks:
-                continue
-            from . import bookmarks  # avoid import cycle
-
-            repo.ui.debug(
-                b'moving bookmarks %r from %s to %s\n'
-                % (
-                    pycompat.rapply(pycompat.maybebytestr, oldbmarks),
-                    hex(oldnode),
-                    hex(newnode),
-                )
-            )
-            # Delete divergent bookmarks being parents of related newnodes
-            deleterevs = repo.revs(
-                b'parents(roots(%ln & (::%n))) - parents(%n)',
-                allnewnodes,
-                newnode,
-                oldnode,
-            )
-            deletenodes = _containsnode(repo, deleterevs)
-            for name in oldbmarks:
-                bmarkchanges.append((name, newnode))
-                for b in bookmarks.divergent2delete(repo, deletenodes, name):
-                    bmarkchanges.append((b, None))
-
-        if bmarkchanges:
-            bmarks.applychanges(repo, tr, bmarkchanges)
-
-        for phase, nodes in toretract.items():
-            phases.retractboundary(repo, tr, phase, nodes)
-        for phase, nodes in toadvance.items():
-            phases.advanceboundary(repo, tr, phase, nodes)
-
-        mayusearchived = repo.ui.config(b'experimental', b'cleanup-as-archived')
-        # Obsolete or strip nodes
-        if obsolete.isenabled(repo, obsolete.createmarkersopt):
-            # If a node is already obsoleted, and we want to obsolete it
-            # without a successor, skip that obssolete request since it's
-            # unnecessary. That's the "if s or not isobs(n)" check below.
-            # Also sort the node in topology order, that might be useful for
-            # some obsstore logic.
-            # NOTE: the sorting might belong to createmarkers.
-            torev = unfi.changelog.rev
-            sortfunc = lambda ns: torev(ns[0][0])
-            rels = []
-            for ns, s in sorted(replacements.items(), key=sortfunc):
-                rel = (tuple(unfi[n] for n in ns), tuple(unfi[m] for m in s))
-                rels.append(rel)
-            if rels:
-                obsolete.createmarkers(
-                    repo, rels, operation=operation, metadata=metadata
-                )
-        elif phases.supportarchived(repo) and mayusearchived:
-            # this assume we do not have "unstable" nodes above the cleaned ones
-            allreplaced = set()
-            for ns in replacements.keys():
-                allreplaced.update(ns)
-            if backup:
-                from . import repair  # avoid import cycle
-
-                node = min(allreplaced, key=repo.changelog.rev)
-                repair.backupbundle(
-                    repo, allreplaced, allreplaced, node, operation
-                )
-            phases.retractboundary(repo, tr, phases.archived, allreplaced)
-        else:
-            from . import repair  # avoid import cycle
-
-            tostrip = list(n for ns in replacements for n in ns)
-            if tostrip:
-                repair.delayedstrip(
-                    repo.ui, repo, tostrip, operation, backup=backup
-                )
 
 
 def addremove(
@@ -1594,7 +1466,7 @@ def getcopiesfn(repo, endrev=None):
 
 
 def dirstatecopy(
-    ui: uimod.ui,
+    ui: UiT,
     repo,
     wctx,
     src,
@@ -1682,6 +1554,11 @@ def filterrequirements(requirements):
 def istreemanifest(repo) -> bool:
     """returns whether the repository is using treemanifest or not"""
     return requirementsmod.TREEMANIFEST_REQUIREMENT in repo.requirements
+
+
+def use_delta_info(repo) -> bool:
+    """returns whether the repository is delta_info in its revlog"""
+    return requirementsmod.DELTA_INFO_REQUIREMENT in repo.requirements
 
 
 def writereporequirements(repo, requirements=None, maywritestore=True) -> None:
@@ -1837,10 +1714,10 @@ class filecache:
     def __init__(self, *paths: bytes) -> None:
         self.paths = paths
 
-    def tracked_paths(self, obj):
+    def tracked_paths(self, obj) -> list[bytes]:
         return [self.join(obj, path) for path in self.paths]
 
-    def join(self, obj, fname: bytes):
+    def join(self, obj, fname: bytes) -> bytes:
         """Used to compute the runtime path of a cached file.
 
         Users should subclass filecache and provide their own version of this
@@ -1970,7 +1847,7 @@ def extdatasource(repo, source: bytes):
 
 
 class progress:
-    ui: uimod.ui
+    ui: UiT
     pos: int | None  # None once complete
     topic: bytes
     unit: bytes
@@ -1979,7 +1856,7 @@ class progress:
 
     def __init__(
         self,
-        ui: uimod.ui,
+        ui: UiT,
         updatebar,
         topic: bytes,
         unit: bytes = b"",
@@ -2038,7 +1915,7 @@ class progress:
             self.ui.debug(b'%s:%s %d%s\n' % (self.topic, item, self.pos, unit))
 
 
-def gdinitconfig(ui: uimod.ui):
+def gdinitconfig(ui: UiT):
     """helper function to know if a repo should be created as general delta"""
     # experimental config: format.generaldelta
     return ui.configbool(b'format', b'generaldelta') or ui.configbool(
@@ -2046,7 +1923,7 @@ def gdinitconfig(ui: uimod.ui):
     )
 
 
-def explicit_gd_config(ui: uimod.ui):
+def explicit_gd_config(ui: UiT):
     """return True if the general delta config is explicitly set"""
     # experimental config: format.generaldelta
     return (ui.config_is_set(b'format', b'generaldelta')) or (
@@ -2054,7 +1931,7 @@ def explicit_gd_config(ui: uimod.ui):
     )
 
 
-def gddeltaconfig(ui: uimod.ui):
+def gddeltaconfig(ui: UiT):
     """helper function to know if incoming deltas should be optimized
 
     The `format.generaldelta` config is an old form of the config that also
@@ -2184,7 +2061,10 @@ _reportstroubledchangesets: bool = True
 
 
 def registersummarycallback(
-    repo, otr, txnname: bytes = b'', as_validator: bool = False
+    repo: RepoT,
+    otr: TransactionT,
+    txnname: bytes = b'',
+    as_validator: bool = False,
 ) -> None:
     """register a callback to issue a summary after the transaction is closed
 
@@ -2197,7 +2077,7 @@ def registersummarycallback(
 
     categories = []
 
-    def reportsummary(func):
+    def reportsummary(func: _C) -> _C:
         """decorator for report callbacks."""
         # The repoview life cycle is shorter than the one of the actual
         # underlying repository. So the filtered object can die before the
@@ -2223,7 +2103,7 @@ def registersummarycallback(
         return wrapped
 
     @reportsummary
-    def reportchangegroup(repo, tr):
+    def reportchangegroup(repo: RepoT, tr: TransactionT) -> None:
         cgchangesets = tr.changes.get(b'changegroup-count-changesets', 0)
         cgrevisions = tr.changes.get(b'changegroup-count-revisions', 0)
         cgfiles = tr.changes.get(b'changegroup-count-files', 0)
@@ -2241,7 +2121,7 @@ def registersummarycallback(
     if txmatch(_reportobsoletedsource):
 
         @reportsummary
-        def reportobsoleted(repo, tr):
+        def reportobsoleted(repo: RepoT, tr: TransactionT) -> None:
             obsoleted = obsutil.getobsoleted(repo, tr)
             newmarkers = len(tr.changes.get(b'obsmarkers', ()))
             if newmarkers:
@@ -2263,7 +2143,7 @@ def registersummarycallback(
             (b'content-divergent', b'contentdivergent'),
         ]
 
-        def getinstabilitycounts(repo):
+        def getinstabilitycounts(repo: RepoT) -> dict[bytes, int]:
             filtered = repo.changelog.filteredrevs
             counts = {}
             for instability, revset in instabilitytypes:
@@ -2275,7 +2155,7 @@ def registersummarycallback(
         oldinstabilitycounts = getinstabilitycounts(repo)
 
         @reportsummary
-        def reportnewinstabilities(repo, tr):
+        def reportnewinstabilities(repo: RepoT, tr: TransactionT) -> None:
             newinstabilitycounts = getinstabilitycounts(repo)
             for instability, revset in instabilitytypes:
                 delta = (
@@ -2289,7 +2169,7 @@ def registersummarycallback(
     if txmatch(_reportnewcssource):
 
         @reportsummary
-        def reportnewcs(repo, tr):
+        def reportnewcs(repo: RepoT, tr: TransactionT) -> None:
             """Report the range of new revisions pulled/unbundled."""
             origrepolen = tr.changes.get(b'origrepolen', len(repo))
             unfi = repo.unfiltered()
@@ -2338,7 +2218,7 @@ def registersummarycallback(
                 repo.ui.status(msg % len(extinctadded))
 
         @reportsummary
-        def reportphasechanges(repo, tr):
+        def reportphasechanges(repo: RepoT, tr: TransactionT) -> None:
             """Report statistics of phase changes for changesets pre-existing
             pull/unbundle.
             """
@@ -2507,7 +2387,7 @@ def format_bookmark_revspec(mark: bytes) -> bytes:
     )
 
 
-def ismember(ui: uimod.ui, username: bytes, userlist: list[bytes]) -> bool:
+def ismember(ui: UiT, username: bytes, userlist: list[bytes]) -> bool:
     """Check if username is a member of userlist.
 
     If userlist has a single '*' member, all users are considered members.
@@ -2530,7 +2410,7 @@ RESOURCE_MAPPING: dict[bytes, int] = {
 DEFAULT_RESOURCE: int = RESOURCE_MEDIUM
 
 
-def get_resource_profile(ui: uimod.ui, dimension: bytes | None = None) -> int:
+def get_resource_profile(ui: UiT, dimension: bytes | None = None) -> int:
     """return the resource profile for a dimension
 
     If no dimension is specified, the generic value is returned"""

@@ -16,93 +16,49 @@ import re
 import signal
 import sys
 import traceback
-
-from typing import (
-    Iterable,
-)
+import typing
 
 from .i18n import _
 
 from hgdemandimport import tracing
 
 from . import (
-    cmdutil,
+    cmd_impls,
     color,
     commands,
-    config as configmod,
     demandimport,
     encoding,
     error,
     extensions,
     fancyopts,
     help,
-    hg,
     hook,
+    initialization,
+    main_script,
     profiling,
     pycompat,
     registrar,
+    repo as repo_utils,
     scmutil,
+    tables,
     ui as uimod,
     util,
 )
-
-from .configuration import rcutil
+from .main_script import (
+    cmd_finder,
+    options as args_util,
+    paths as local_util,
+)
+from .repo import (
+    factory as repo_factory,
+)
 from .utils import (
     procutil,
     stringutil,
-    urlutil,
 )
 
 
-class request:
-    def __init__(
-        self,
-        args,
-        ui=None,
-        repo=None,
-        fin=None,
-        fout=None,
-        ferr=None,
-        fmsg=None,
-        prereposetups=None,
-    ):
-        self.args = args
-        self.ui = ui
-        self.repo = repo
-
-        # input/output/error streams
-        self.fin = fin
-        self.fout = fout
-        self.ferr = ferr
-        # separate stream for status/error messages
-        self.fmsg = fmsg
-
-        # remember options pre-parsed by _earlyparseopts()
-        self.earlyoptions = {}
-
-        # reposetups which run before extensions, useful for chg to pre-fill
-        # low-level repo state (for example, changelog) before extensions.
-        self.prereposetups = prereposetups or []
-
-        # store the parsed and canonical command
-        self.canonical_command = None
-
-    def _runexithandlers(self) -> None:
-        exc = None
-        handlers = self.ui._exithandlers
-        try:
-            while handlers:
-                func, args, kwargs = handlers.pop()
-                try:
-                    func(*args, **kwargs)
-                except:  # re-raises below
-                    if exc is None:
-                        exc = sys.exc_info()[1]
-                    self.ui.warnnoi18n(b'error in exit handlers:\n')
-                    self.ui.traceback(force=True)
-        finally:
-            if exc is not None:
-                raise exc
+initialization.init()
 
 
 def _flushstdio(ui, err):
@@ -139,7 +95,7 @@ def run():
     try:
         initstdio()
         with tracing.log('parse args into request'):
-            req = request(pycompat.sysargv[1:])
+            req = main_script.request(pycompat.sysargv[1:])
 
         status = dispatch(req)
         _silencestdio()
@@ -169,7 +125,7 @@ def initstdio():
         # write_through is new in Python 3.7.
         kwargs = {
             "newline": "\n",
-            "line_buffering": sys.stdout.line_buffering,
+            "line_buffering": bool(sys.stdout.line_buffering),
         }
         if hasattr(sys.stdout, "write_through"):
             # pytype: disable=attribute-error
@@ -182,7 +138,7 @@ def initstdio():
     if sys.stderr is not None:
         kwargs = {
             "newline": "\n",
-            "line_buffering": sys.stderr.line_buffering,
+            "line_buffering": bool(sys.stderr.line_buffering),
         }
         if hasattr(sys.stderr, "write_through"):
             # pytype: disable=attribute-error
@@ -200,7 +156,7 @@ def initstdio():
             sys.stdin.errors,
             # None is universal newlines mode.
             newline=None,
-            line_buffering=sys.stdin.line_buffering,
+            line_buffering=bool(sys.stdin.line_buffering),
         )
 
 
@@ -226,7 +182,7 @@ def _formatargs(args):
     return b' '.join(procutil.shellquote(a) for a in args)
 
 
-def dispatch(req):
+def dispatch(req: main_script.request) -> int:
     """run the command specified in req.args; returns an integer status code"""
     err = None
     try:
@@ -241,7 +197,7 @@ def dispatch(req):
     return status
 
 
-def _rundispatch(req) -> int:
+def _rundispatch(req: main_script.request) -> int:
     with tracing.log('dispatch._rundispatch'):
         if req.ferr:
             ferr = req.ferr
@@ -253,7 +209,8 @@ def _rundispatch(req) -> int:
         try:
             if not req.ui:
                 req.ui = uimod.ui.load()
-            req.earlyoptions.update(_earlyparseopts(req.ui, req.args))
+            early_opts = args_util.early_parse_opts(req.ui, req.args)
+            req.earlyoptions.update(early_opts)
             if req.earlyoptions[b'traceback']:
                 req.ui.setconfig(b'ui', b'traceback', b'on', b'--traceback')
                 encoding.enable_rust_backtrace()
@@ -344,10 +301,14 @@ def _runcatch(req):
             realcmd = None
             try:
                 cmdargs = fancyopts.fancyopts(
-                    req.args[:], commands.globalopts, {}
+                    req.args[:], cmd_impls.global_opts, {}
                 )
                 cmd = cmdargs[0]
-                aliases, entry = cmdutil.findcmd(cmd, commands.table, False)
+                aliases, entry = cmd_finder.find_cmd(
+                    cmd,
+                    tables.command_table,
+                    False,
+                )
                 realcmd = aliases[0]
             except (
                 error.UnknownCommand,
@@ -397,10 +358,12 @@ def _runcatch(req):
 
                 # cmdargs may not have been initialized here (in the case of an
                 # error), so use pycompat.sysargv instead.
-                file_cfgs = _parse_config_files(
+                file_cfgs = args_util.parse_config_files_opts(
                     req.ui, pycompat.sysargv, req.earlyoptions[b'config_file']
                 )
-                cfgs = _parseconfig(req.ui, req.earlyoptions[b'config'])
+                cfgs = args_util.parse_config_opts(
+                    req.ui, req.earlyoptions[b'config']
+                )
 
                 if req.repo:
                     # copy configs that were passed on the cmdline (--config) to
@@ -498,9 +461,7 @@ def _callcatch(ui, func):
         try:
             # check if the command is in a disabled extension
             # (but don't check for extensions themselves)
-            formatted = help.formattedhelp(
-                ui, commands, inst.command, unknowncmd=True
-            )
+            formatted = help.formattedhelp(ui, inst.command, unknowncmd=True)
             ui.warn(nocmdmsg)
             ui.write(formatted)
         except (error.UnknownCommand, error.Abort):
@@ -587,7 +548,7 @@ class cmdalias:
         self.source = source
 
         try:
-            aliases, entry = cmdutil.findcmd(self.name, cmdtable)
+            aliases, entry = cmd_finder.find_cmd(self.name, cmdtable)
             for alias, e in cmdtable.items():
                 if e is entry:
                     self.cmd = alias
@@ -650,7 +611,7 @@ class cmdalias:
         self.givenargs = args
 
         try:
-            tableentry = cmdutil.findcmd(cmd, cmdtable, False)[1]
+            tableentry = cmd_finder.find_cmd(cmd, cmdtable, False)[1]
             if len(tableentry) > 2:
                 self.fn, self.opts, cmdhelp = tableentry
             else:
@@ -716,6 +677,7 @@ class cmdalias:
             'intents': set(),
             'optionalrepo': False,
             'inferrepo': False,
+            'need_dispatcher': False,
         }
         if name not in adefaults:
             raise AttributeError(name)
@@ -814,14 +776,14 @@ def _parse(ui, args):
     cmdoptions = {}
 
     try:
-        args = fancyopts.fancyopts(args, commands.globalopts, options)
+        args = fancyopts.fancyopts(args, cmd_impls.global_opts, options)
     except getopt.GetoptError as inst:
         raise error.CommandError(None, stringutil.forcebytestr(inst))
 
     if args:
         cmd, args = args[0], args[1:]
-        aliases, entry = cmdutil.findcmd(
-            cmd, commands.table, ui.configbool(b"ui", b"strict")
+        aliases, entry = cmd_finder.find_cmd(
+            cmd, tables.command_table, ui.configbool(b"ui", b"strict")
         )
         cmd = aliases[0]
         args = aliasargs(entry[0], args)
@@ -836,14 +798,14 @@ def _parse(ui, args):
         cmd = None
         c = []
 
-    def global_opt_to_fancy_opt(opt_name):
+    def global_opt_to_fancy_opt(opt_name: bytes) -> bytes:
         # fancyopts() does this transform on `options`, but globalopts uses a
         # '-', so that it is displayed in the help and accepted as input that
         # way.
         return opt_name.replace(b'-', b'_')
 
     # combine global options into local
-    for o in commands.globalopts:
+    for o in cmd_impls.global_opts:
         name = global_opt_to_fancy_opt(o[1])
 
         # The fancyopts name is needed for `options`, but the original name
@@ -857,91 +819,12 @@ def _parse(ui, args):
         raise error.CommandError(cmd, stringutil.forcebytestr(inst))
 
     # separate global options back out
-    for o in commands.globalopts:
+    for o in cmd_impls.global_opts:
         n = global_opt_to_fancy_opt(o[1])
         options[n] = cmdoptions[n]
         del cmdoptions[n]
 
     return (cmd, cmd and entry[0] or None, args, options, cmdoptions)
-
-
-def _parseconfig(ui, config):
-    """parse the --config options from the command line"""
-    configs = []
-
-    for cfg in config:
-        try:
-            name, value = (cfgelem.strip() for cfgelem in cfg.split(b'=', 1))
-            section, name = name.split(b'.', 1)
-            if not section or not name:
-                raise IndexError
-            ui.setconfig(section, name, value, b'--config')
-            configs.append((section, name, value))
-        except (IndexError, ValueError):
-            raise error.InputError(
-                _(
-                    b'malformed --config option: %r '
-                    b'(use --config section.name=value)'
-                )
-                % pycompat.bytestr(cfg)
-            )
-
-    return configs
-
-
-def _parse_config_files(
-    ui, cmdargs: list[bytes], config_files: Iterable[bytes]
-) -> list[tuple[bytes, bytes, bytes, bytes]]:
-    """parse the --config-file options from the command line
-
-    A list of tuples containing (section, name, value, source) is returned,
-    in the order they were read.
-    """
-
-    configs: list[tuple[bytes, bytes, bytes, bytes]] = []
-
-    cfg = configmod.config()
-
-    for file in config_files:
-        try:
-            cfg.read(file)
-        except error.ConfigError as e:
-            raise error.InputError(
-                _(b'invalid --config-file content at %s') % e.location,
-                hint=e.message,
-            )
-        except FileNotFoundError:
-            hint = None
-            if b'--cwd' in cmdargs:
-                hint = _(b"this file is resolved before --cwd is processed")
-
-            raise error.InputError(
-                _(b'missing file "%s" for --config-file') % file, hint=hint
-            )
-
-    for section in cfg.sections():
-        for item in cfg.items(section):
-            name = item[0]
-            value = item[1]
-            src = cfg.source(section, name)
-
-            ui.setconfig(section, name, value, src)
-            configs.append((section, name, value, src))
-
-    return configs
-
-
-def _earlyparseopts(ui, args):
-    options = {}
-    fancyopts.fancyopts(
-        args,
-        commands.globalopts,
-        options,
-        gnu=not ui.plain(b'strictflags'),
-        early=True,
-        optaliases={b'repository': [b'repo']},
-    )
-    return options
 
 
 def _earlysplitopts(args):
@@ -999,81 +882,24 @@ def runcommand(lui, repo, cmd, fullargs, ui, options, d, cmdpats, cmdoptions):
     return ret
 
 
-def _get_cwd() -> bytes:
-    """return the path to the current working directory
-
-    raise an Abort error in case of error.
-    """
-    try:
-        return encoding.getcwd()
-    except OSError as e:
-        msg = _(b"error getting current working directory: %s")
-        msg %= encoding.strtolocal(e.strerror)
-        raise error.Abort(msg)
-
-
-def _getlocal(ui, rpath, wd=None):
-    """Return (path, local ui object) for the given target path.
-
-    Takes paths in [cwd]/.hg/hgrc into account."
-    """
-    cwd = _get_cwd()
-    # If using an alternate wd, temporarily switch to it so that relative
-    # paths are resolved correctly during config loading.
-    oldcwd = None
-    try:
-        if wd is None:
-            wd = cwd
-        else:
-            oldcwd = cwd
-            os.chdir(wd)
-
-        path = cmdutil.findrepo(wd) or b""
-        if not path:
-            lui = ui
-        else:
-            lui = ui.copy()
-            if rcutil.use_repo_hgrc():
-                for __, c_type, rc_path in rcutil.repo_components(path):
-                    assert c_type == b'path'
-                    lui.readconfig(rc_path, root=path)
-
-        if rpath:
-            # the specified path, might be defined in the [paths] section of
-            # the local repository. So we had to read the local config first
-            # even if it get overriden here.
-            path_obj = urlutil.get_clone_path_obj(lui, rpath)
-            path = path_obj.rawloc
-            lui = ui.copy()
-            if rcutil.use_repo_hgrc():
-                for __, c_type, rc_path in rcutil.repo_components(path):
-                    assert c_type == b'path'
-                    lui.readconfig(rc_path, root=path)
-    finally:
-        if oldcwd:
-            os.chdir(oldcwd)
-
-    return path, lui
-
-
 def _checkshellalias(lui, ui, args):
     """Return the function to run the shell alias, if it is required"""
     options = {}
 
     try:
-        args = fancyopts.fancyopts(args, commands.globalopts, options)
+        args = fancyopts.fancyopts(args, cmd_impls.global_opts, options)
     except getopt.GetoptError:
         return
 
     if not args:
         return
 
-    cmdtable = commands.table
+    cmdtable = tables.command_table
 
     cmd = args[0]
     try:
         strict = ui.configbool(b"ui", b"strict")
-        aliases, entry = cmdutil.findcmd(cmd, cmdtable, strict)
+        aliases, entry = cmd_finder.find_cmd(cmd, cmdtable, strict)
     except (error.AmbiguousCommand, error.UnknownCommand):
         return
 
@@ -1095,13 +921,7 @@ def _dispatch(req):
     cwd = req.earlyoptions[b'cwd']
     try:
         if cwd:
-            try:
-                old_cwd = encoding.getcwd()
-            except OSError as e:
-                raise error.Abort(
-                    _(b"error getting current working directory: %s")
-                    % encoding.strtolocal(e.strerror)
-                )
+            old_cwd = local_util.get_cwd()
             os.chdir(cwd)
         return _dispatch_post_cwd(req)
     finally:
@@ -1114,7 +934,7 @@ def _dispatch_post_cwd(req):
     ui = req.ui
 
     rpath = req.earlyoptions[b'repository']
-    path, lui = _getlocal(ui, rpath)
+    path, lui = local_util.get_local(ui, rpath)
 
     uis = {ui, lui}
 
@@ -1155,9 +975,9 @@ def _dispatch_post_cwd(req):
 
         # (uisetup and extsetup are handled in extensions.loadall)
 
-        # (reposetup is handled in hg.repository)
+        # (reposetup is handled in repo.factory.repository)
 
-        addaliases(lui, commands.table)
+        addaliases(lui, tables.command_table)
 
         # All aliases and commands are completely defined, now.
         # Check abbreviation/ambiguity of shell alias.
@@ -1182,7 +1002,12 @@ def _dispatch_post_cwd(req):
                 if cause.opt and "config".startswith(cause.opt):
                     # pycompat._getoptbwrapper() decodes bytes with latin-1
                     opt = cause.opt.encode('latin-1')
-                    all_long = {o[1] for o in commands.globalopts}
+
+                    # pytype seems to merge all the types in each tuple index,
+                    # but o[1] is always bytes.
+                    all_long = typing.cast(
+                        set[bytes], {o[1] for o in cmd_impls.global_opts}
+                    )
                     possible = [o for o in all_long if o.startswith(opt)]
 
                     if len(possible) != 1:
@@ -1310,7 +1135,7 @@ def _dispatch_post_cwd(req):
                 repo.ui.fmsg = ui.fmsg
             else:
                 try:
-                    repo = hg.repository(
+                    repo = repo_factory.repository(
                         ui,
                         path=path,
                         presetupfuncs=req.prereposetups,
@@ -1331,7 +1156,7 @@ def _dispatch_post_cwd(req):
                     if not func.optionalrepo:
                         if func.inferrepo and args and not path:
                             # try to infer -R from command args
-                            repos = pycompat.maplist(cmdutil.findrepo, args)
+                            repos = pycompat.maplist(repo_utils.find_repo, args)
                             guess = repos[0]
                             if guess and repos.count(guess) == len(repos):
                                 req.args = [b'--repository', guess] + fullargs
@@ -1357,6 +1182,8 @@ def _dispatch_post_cwd(req):
         msg = _formatargs(fullargs)
         ui.log(b"command", b'%s\n', msg)
         strcmdopt = pycompat.strkwargs(cmdoptions)
+        if func.need_dispatcher:
+            strcmdopt["__dispatch__"] = dispatch
         d = lambda: util.checksignature(func)(ui, *args, **strcmdopt)
         try:
             return runcommand(

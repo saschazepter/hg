@@ -2,6 +2,7 @@ use std::backtrace::Backtrace;
 use std::backtrace::BacktraceStatus;
 use std::fmt;
 use std::fmt::Write;
+use std::path::Path;
 
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
@@ -202,9 +203,9 @@ pub trait IoResultExt<T> {
     /// example.txt” instead of just “File not found”.
     ///
     /// Converts a `Result` with `std::io::Error` into one with `HgError`.
-    fn when_reading_file(self, path: &std::path::Path) -> Result<T, HgError>;
+    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgError>;
 
-    fn when_writing_file(self, path: &std::path::Path) -> Result<T, HgError>;
+    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgError>;
 
     fn with_context(
         self,
@@ -213,12 +214,16 @@ pub trait IoResultExt<T> {
 }
 
 impl<T> IoResultExt<T> for std::io::Result<T> {
-    fn when_reading_file(self, path: &std::path::Path) -> Result<T, HgError> {
-        self.with_context(|| IoErrorContext::ReadingFile(path.to_owned()))
+    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgError> {
+        self.with_context(|| {
+            IoErrorContext::ReadingFile(path.as_ref().to_owned())
+        })
     }
 
-    fn when_writing_file(self, path: &std::path::Path) -> Result<T, HgError> {
-        self.with_context(|| IoErrorContext::WritingFile(path.to_owned()))
+    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgError> {
+        self.with_context(|| {
+            IoErrorContext::WritingFile(path.as_ref().to_owned())
+        })
     }
 
     fn with_context(
