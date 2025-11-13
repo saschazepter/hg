@@ -3134,10 +3134,8 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
         else:
             entries = bundlecaches.parseclonebundlesmanifest(target, res)
 
-            includes = opts.get("include")
-            excludes = opts.get("exclude")
-            includes = set(includes) if includes else set()
-            excludes = set(excludes) if excludes else set()
+            includes = set(opts.get("include"))
+            excludes = set(opts.get("exclude"))
             fingerprint = None
             if includes or excludes:
                 fingerprint = shape_mod.fingerprint_for_patterns(
