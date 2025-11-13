@@ -123,7 +123,7 @@ statistical profiler works
 Various statprof formatters work
 
   $ hg --profile --config profiling.statformat=byline sleep 2>../out || cat ../out
-  $ grep -v _path_stat ../out | head -n 3
+  $ grep -v _path_stat ../out | grep -v "frozen importlib._bootstrap_external" | head -n 3
     %   cumulative      self          
    time    seconds   seconds  name    
   * sleepext_with_a_long_filename.py:*:sleep_for_at_least_one_stat_cycle (glob)
