@@ -741,7 +741,10 @@ default = false
 section = "diff"
 name = "merge"
 default = false
-experimental = true
+documentation = """Show a "merge diff" instead of defaulting to a diff against
+the working directory's first parent. A "merge diff" will diff against the
+conflict regions in the merge, which is very useful to make sense of what
+the merge commit itself has done."""
 
 [[items]]
 section = "email"
