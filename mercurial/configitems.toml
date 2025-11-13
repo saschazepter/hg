@@ -1325,9 +1325,8 @@ ones using older formats:
 - `hg unbundle`
 """
 
-# Experimental TODOs:
-# * actually checks if nothing -unexpected- break
-# * teach the native code (especially rust) about it.
+# This will never get out of experimental and will be removed once the fileindex
+# is able to cover this usecase.
 [[items]]
 section = "format"
 name = "exp-use-very-fragile-and-unsafe-plain-store-encoding"
