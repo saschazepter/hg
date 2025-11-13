@@ -3271,22 +3271,24 @@ default = false
 documentation="""
 Read, parse and write stream bundle in parallel speeding up the process.
 
+Also see `worker.parallel-stream-bundle-processing.memory-target` to control
+the memory usage of the buffers.
+
 Also see `worker.parallel-stream-bundle-processing.num-writer` to control the
 amount of concurrent writers.
 """
-experimental = true
 
 [[items]]
 section = "worker"
 name = "parallel-stream-bundle-processing.num-writer"
 default = 0
-experimental = true
 documentation="""
 Control the number of file being written concurrently when applying a stream
 bundle.
 
 When set to 0, the default, the value used depends on the value of the
 `usage.resources.cpu` configuration:
+
 - low:    1 writer
 - medium: 4 writers (default)
 - high:   8 writers
@@ -3296,14 +3298,15 @@ When set to 0, the default, the value used depends on the value of the
 section = "worker"
 name = "parallel-stream-bundle-processing.memory-target"
 default = 0
-experimental = true
 documentation="""Limit memory usage around this value. This is not a hard target a Mercurial will use a bit more, but this reduce the amount of buffered stream content that we read ahead.
 
 If set to a negative value, the amount of memory used will not be restricted.
 
-When set to 0, the default value depends on the `usage.resources.memory` value.
-- low:    100 MB,
-- medium: 500 MB,
+When set to 0, the default value depends on the value of the
+`usage.resources.memory` configuration:
+
+- low:    100 MB
+- medium: 500 MB (default)
 - high:     2 GB
 """
 

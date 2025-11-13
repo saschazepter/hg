@@ -3519,3 +3519,12 @@ helps performance.
     Number of threads to process background file closes. Only relevant if
     ``backgroundclose`` is enabled.
     (default: 4)
+
+``parallel-stream-bundle-processing``
+    :config-doc:`worker.parallel-stream-bundle-processing`
+
+``parallel-stream-bundle-processing.memory-target``
+    :config-doc:`worker.parallel-stream-bundle-processing.memory-target`
+
+``parallel-stream-bundle-processing.num-writer``
+    :config-doc:`worker.parallel-stream-bundle-processing.num-writer`
