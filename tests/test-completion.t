@@ -359,7 +359,7 @@ Show all commands + options
   debugshell: command
   debugsidedata: changelog, manifest, dir
   debugssl: 
-  debugstrip: rev, force, no-backup, nobackup, , keep, bookmark, soft
+  debugstrip: rev, force, no-backup, keep, bookmark, soft
   debugsub: rev
   debugsuccessorssets: closest
   debugtagscache: 
