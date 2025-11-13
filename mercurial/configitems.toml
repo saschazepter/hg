@@ -1463,17 +1463,17 @@ section = "format"
 name = "use-fileindex-v1"
 default = false
 experimental = true
-documentation = """use a "file-index" to store the set of files "tracked" in the
-repository store and way to efficiently manipulate these filenames.
+documentation = """Use the `file-index` to store the set of files tracked in the
+repository store and efficiently manipulate these filenames.
 
-This format supersedes the `fncache` one and is incompatible with it. The
-"file-index" provides improved performance when adding new files and more
-flexibility that other features rely on.
+This format supersedes the `fncache` and is incompatible with it. The
+`file-index` provides overall improved performance especially when adding
+new files and more flexibility that other features rely on.
 
-This format impacts internal implementation details for the "store" and will not
-affect how a repository interract with other repositories. It has no effect on
+This format impacts internal implementation details for the `store` and will not
+affect how a repository interracts with other repositories. It has no effect on
 the core information stored within the repository and doesn't affect the
-wire prototocol (neither at the changegroup not stream clone level).
+wire prototocol (neither at the changegroup nor stream clone level).
 """
 
 [[items]]
