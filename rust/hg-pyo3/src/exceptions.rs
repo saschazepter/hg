@@ -68,7 +68,7 @@ pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
 }
 
 pub fn revlog_error_bare() -> PyErr {
-    mercurial_py_errors::RevlogError::new_err((None::<String>,))
+    mercurial_py_errors::RevlogError::new_err(("None",))
 }
 
 pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
