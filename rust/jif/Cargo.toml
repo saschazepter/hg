@@ -1,0 +1,15 @@
+[package]
+edition = "2024"
+name = "jif"
+version = "0.1.0"
+description = "A version control system"
+license = "GPL-2.0-or-later"
+keywords = ["VCS", "version-control"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+repository = "https://foss.heptapod.net/mercurial/mercurial-devel"
+
+[lints]
+workspace = true
+
+[dependencies]

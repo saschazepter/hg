@@ -1,6 +1,17 @@
 [workspace]
-members = ["hg-core", "hg-pyo3", "rhg", "pyo3-sharedref", "hg-fuse", "hg-bin"]
-exclude = ["chg", "hgcli"]
+members = [
+    "hg-core",
+    "hg-pyo3",
+    "rhg",
+    "pyo3-sharedref",
+    "hg-fuse",
+    "hg-bin",
+    "jif",
+]
+exclude = [
+    "chg",
+    "hgcli",
+]
 resolver = "3"
 
 [workspace.lints.clippy]
