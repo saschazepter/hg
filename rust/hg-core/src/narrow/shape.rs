@@ -688,7 +688,6 @@ impl ZeroPath {
                 assert_ne!(*byte, b'/');
                 path.push(b'\0');
             }
-            assert_ne!(*byte, b':');
             assert_ne!(*byte, b'\0');
             if idx == bytes.len() - 1 {
                 assert_ne!(*byte, b'/');
@@ -734,7 +733,6 @@ impl From<&ZeroPath> for HgPathBuf {
                 assert_eq!(*byte, b'\0');
                 continue;
             }
-            assert_ne!(*byte, b':');
             assert_ne!(*byte, b'/');
             if idx == bytes.len() - 1 {
                 assert_eq!(*byte, b'\0');
