@@ -15,6 +15,32 @@
 # if you don't want to see a UAC prompt for various installers.
 #
 # The script is tested on Windows 10 and Windows Server 2019 (in EC2).
+#
+# This script can be tested with Docker by installing Docker Desktop, and
+# creating a Dockerfile that looks like this:
+#
+#    $ cat contrib/docker/windows/install-windows-deps-test.Dockerfile
+#    escape=`
+#
+#    FROM "mcr.microsoft.com/windows/servercore:ltsc2025"
+#    SHELL [ `
+#        "powershell.exe", "-Command", `
+#        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';" `
+#    ]
+#
+#    COPY install-windows-dependencies.ps1 "C:/"
+#    COPY vs2022-settings.json "C:/"
+#
+#    RUN powershell.exe -executionpolicy bypass "C:/install-windows-dependencies.ps1"
+#
+# ... and then running this from the repository root:
+#
+#    $ docker build -t install-test -f contrib\docker\windows\install-windows-deps-test.Dockerfile contrib
+#
+# Note that while the script runs quickly, the finalization of the image and the
+# returning of control back to the command prompt takes 2 hours or more.  So, be
+# patient- if hasn't errored out, it's working (silently).
+
 
 $VS_BUILD_TOOLS_URL = "https://download.visualstudio.microsoft.com/download/pr/f2819554-a618-400d-bced-774bb5379965/cc7231dc668ec1fb92f694c66b5d67cba1a9e21127a6e0b31c190f772bd442f2/vs_BuildTools.exe"
 $VS_BUILD_TOOLS_SHA256 = "CC7231DC668EC1FB92F694C66B5D67CBA1A9E21127A6E0B31C190F772BD442F2"
@@ -237,3 +263,5 @@ function Clone-Mercurial-Repo($prefix, $repo_url, $dest) {
 $prefix = "c:\hgdev"
 Install-Dependencies $prefix
 Clone-Mercurial-Repo $prefix "https://foss.heptapod.net/mercurial/mercurial-devel" $prefix\src
+
+Write-Output "Setup is complete.  If a Docker image is building, it may take awhile longer."
