@@ -190,6 +190,7 @@ function Install-Dependencies($prefix) {
     Invoke-Process ${prefix}\python313-x64\python.exe "-m pip install --user pipx"
     Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx ensurepath"
     Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install cibuildwheel==3.3.0"
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install black<24"
 
     Write-Output "installing Visual Studio 2022 Build Tools and SDKs"
     Invoke-Process ${prefix}\assets\vs_buildtools.exe "--quiet --wait --norestart --nocache --channelUri https://aka.ms/vs/17/release/channel --config $PSScriptRoot\vs2022-settings.json"
