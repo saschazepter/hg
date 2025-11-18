@@ -187,6 +187,10 @@ function Install-Dependencies($prefix) {
     Install-Python3 "Python 3.14 32-bit" ${prefix}\assets\python314-x86.exe ${prefix}\python314-x86 ${pip}
     Install-Python3 "Python 3.14 64-bit" ${prefix}\assets\python314-x64.exe ${prefix}\python314-x64 ${pip}
 
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pip install --user pipx"
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx ensurepath"
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install cibuildwheel==3.3.0"
+
     Write-Output "installing Visual Studio 2022 Build Tools and SDKs"
     Invoke-Process ${prefix}\assets\vs_buildtools.exe "--quiet --wait --norestart --nocache --channelUri https://aka.ms/vs/17/release/channel --config $PSScriptRoot\vs2022-settings.json"
 
