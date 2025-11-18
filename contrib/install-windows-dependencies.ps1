@@ -131,6 +131,7 @@ function Install-Python3($name, $installer, $dest, $pip) {
 
     Invoke-Process $installer "/quiet TargetDir=${dest} InstallAllUsers=${allusers} AssociateFiles=0 CompileAll=0 PrependPath=0 Include_doc=0 Include_launcher=1 InstallLauncherAllUsers=1 Include_pip=0 Include_test=0"
     Invoke-Process ${dest}\python.exe $pip
+    Invoke-Process ${dest}\python.exe "-m pip install -U --user setuptools==80.9.0 packaging==25.0"
 }
 
 function Install-Rust($prefix) {
