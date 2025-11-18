@@ -45,6 +45,11 @@ $PYTHON313_x86_SHA256 = "2EA6D14D994602C83306E39D792E74637612240CFA77096DA1AC5BA
 $PYTHON313_X64_URL = "https://www.python.org/ftp/python/3.13.9/python-3.13.9-amd64.exe"
 $PYTHON313_x64_SHA256 = "200DDFF856BBFF949D2CC1BE42E8807C07538ABD6B6966D5113A094CF628C5C5"
 
+$PYTHON314_x86_URL = "https://www.python.org/ftp/python/3.14.0/python-3.14.0.exe"
+$PYTHON314_x86_SHA256 = "0320E7643FA81ED889D72756BC3B41143EA84C3F1F7F95F3AC541153FFF210FC"
+$PYTHON314_X64_URL = "https://www.python.org/ftp/python/3.14.0/python-3.14.0-amd64.exe"
+$PYTHON314_x64_SHA256 = "52CEB249F65009D936E6504F97CCE42870C11358CB6E48825E893F54E11620AA"
+
 # PIP 24.2.
 $PIP_URL = "https://github.com/pypa/get-pip/raw/66d8a0f637083e2c3ddffc0cb1e65ce126afb856/public/get-pip.py"
 $PIP_SHA256 = "6FB7B781206356F45AD79EFBB19322CAA6C2A5AD39092D0D44D0FEC94117E118"
@@ -156,6 +161,8 @@ function Install-Dependencies($prefix) {
     Secure-Download $PYTHON312_x64_URL ${prefix}\assets\python312-x64.exe $PYTHON312_x64_SHA256
     Secure-Download $PYTHON313_x86_URL ${prefix}\assets\python313-x86.exe $PYTHON313_x86_SHA256
     Secure-Download $PYTHON313_x64_URL ${prefix}\assets\python313-x64.exe $PYTHON313_x64_SHA256
+    Secure-Download $PYTHON314_x86_URL ${prefix}\assets\python314-x86.exe $PYTHON314_x86_SHA256
+    Secure-Download $PYTHON314_x64_URL ${prefix}\assets\python314-x64.exe $PYTHON314_x64_SHA256
 
     Secure-Download $PIP_URL ${pip} $PIP_SHA256
     Secure-Download $VS_BUILD_TOOLS_URL ${prefix}\assets\vs_buildtools.exe $VS_BUILD_TOOLS_SHA256
@@ -176,6 +183,8 @@ function Install-Dependencies($prefix) {
     Install-Python3 "Python 3.12 64-bit" ${prefix}\assets\python312-x64.exe ${prefix}\python312-x64 ${pip}
     Install-Python3 "Python 3.13 32-bit" ${prefix}\assets\python313-x86.exe ${prefix}\python313-x86 ${pip}
     Install-Python3 "Python 3.13 64-bit" ${prefix}\assets\python313-x64.exe ${prefix}\python313-x64 ${pip}
+    Install-Python3 "Python 3.14 32-bit" ${prefix}\assets\python314-x86.exe ${prefix}\python314-x86 ${pip}
+    Install-Python3 "Python 3.14 64-bit" ${prefix}\assets\python314-x64.exe ${prefix}\python314-x64 ${pip}
 
     Write-Output "installing Visual Studio 2022 Build Tools and SDKs"
     Invoke-Process ${prefix}\assets\vs_buildtools.exe "--quiet --wait --norestart --nocache --channelUri https://aka.ms/vs/17/release/channel --config $PSScriptRoot\vs2022-settings.json"
