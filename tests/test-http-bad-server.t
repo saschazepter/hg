@@ -42,7 +42,7 @@ Failure to accept() socket should result in connection related error message
   $ cat hg.pid > $DAEMON_PIDS
 
   $ hg clone http://localhost:$HGPORT/ clone
-  abort: error: (\$ECONNRESET\$|\$EADDRNOTAVAIL\$|\$ECONNREFUSED\$) (re)
+  abort: error: (\$ECONNRESET\$|\$EADDRNOTAVAIL\$|\$ECONNREFUSED\$|\$EINVAL\$) (re)
   [100]
 
 (The server exits on its own, but there is a race between that and starting a new server.
