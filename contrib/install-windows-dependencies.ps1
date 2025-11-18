@@ -63,9 +63,8 @@ $INNO_SETUP_SHA256 = "27D49E9BC769E9D1B214C153011978DB90DC01C2ACD1DDCD9ED7B3FE3B
 $MINGW_BIN_URL = "https://www.mercurial-scm.org/release/windows/artifacts/MinGW.zip"
 $MINGW_BIN_SHA256 = "31E98CF5B8C1C58902317F4F592A1C4E0DAF0096008F10FD260CFBA9B3240540"
 
-$MERCURIAL_WHEEL_FILENAME = "mercurial-6.9-cp39-cp39-win_amd64.whl"
-$MERCURIAL_WHEEL_URL = "https://files.pythonhosted.org/packages/ca/60/3dd09a2c30067ed003f7ec05f704bd69e9adf19c794b0a6351e75499dda1/$MERCURIAL_WHEEL_FILENAME"
-$MERCURIAL_WHEEL_SHA256 = "ec2a00f73da23123c52ec68206b6ebed1a214c569cda37aaab7b343ef539c7c3"
+$MERCURIAL_SETUP_URL = "https://mercurial-scm.org/release/windows/mercurial-7.1.2-x64.msi"
+$MERCURIAL_SETUP_SHA256 = "8D702D0ACAD169D52FD64924B36A0D2D5F9908ED44E005DDC0D6F893FFE334DA"
 
 $RUSTUP_INIT_URL = "https://static.rust-lang.org/rustup/archive/1.21.1/x86_64-pc-windows-gnu/rustup-init.exe"
 $RUSTUP_INIT_SHA256 = "d17df34ba974b9b19cf5c75883a95475aa22ddc364591d75d174090d55711c72"
@@ -170,7 +169,7 @@ function Install-Dependencies($prefix) {
     Secure-Download $GETTEXT_SETUP_URL ${prefix}\assets\gettext.exe $GETTEXT_SETUP_SHA256
     Secure-Download $INNO_SETUP_URL ${prefix}\assets\InnoSetup.exe $INNO_SETUP_SHA256
     Secure-Download $MINGW_BIN_URL ${prefix}\assets\MinGW.zip $MINGW_BIN_SHA256
-    Secure-Download $MERCURIAL_WHEEL_URL ${prefix}\assets\${MERCURIAL_WHEEL_FILENAME} $MERCURIAL_WHEEL_SHA256
+    Secure-Download $MERCURIAL_SETUP_URL ${prefix}\assets\Mercurial.msi $MERCURIAL_SETUP_SHA256
     Secure-Download $RUSTUP_INIT_URL ${prefix}\assets\rustup-init.exe $RUSTUP_INIT_SHA256
     Secure-Download $PYOXIDIZER_URL ${prefix}\assets\PyOxidizer.msi $PYOXIDIZER_SHA256
 
@@ -213,14 +212,15 @@ function Install-Dependencies($prefix) {
     # Mercurial install.
     Write-Output "creating bootstrap virtualenv with Mercurial"
     Invoke-Process "$prefix\python39-x64\python.exe" "-m venv ${prefix}\venv-bootstrap"
-    Invoke-Process "${prefix}\venv-bootstrap\Scripts\pip.exe" "install ${prefix}\assets\${MERCURIAL_WHEEL_FILENAME}"
+
+    Invoke-Process msiexec.exe "/i ${prefix}\assets\Mercurial.msi /l* ${prefix}\assets\Mercurial.log /quiet"
 }
 
 function Clone-Mercurial-Repo($prefix, $repo_url, $dest) {
     Write-Output "cloning $repo_url to $dest"
     # TODO Figure out why CA verification isn't working in EC2 and remove
     # --insecure.
-    Invoke-Process "${prefix}\venv-bootstrap\Scripts\python.exe" "${prefix}\venv-bootstrap\Scripts\hg clone --insecure $repo_url $dest"
+    Invoke-Process "$Env:PROGRAMFILES\Mercurial\hg.exe" "clone --insecure $repo_url $dest"
 
     # Mark repo as non-publishing by default for convenience.
     Add-Content -Path "$dest\.hg\hgrc" -Value "`n[phases]`npublish = false"
