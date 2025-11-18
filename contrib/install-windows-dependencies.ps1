@@ -228,4 +228,4 @@ function Clone-Mercurial-Repo($prefix, $repo_url, $dest) {
 
 $prefix = "c:\hgdev"
 Install-Dependencies $prefix
-Clone-Mercurial-Repo $prefix "https://www.mercurial-scm.org/repo/hg" $prefix\src
+Clone-Mercurial-Repo $prefix "https://foss.heptapod.net/mercurial/mercurial-devel" $prefix\src
