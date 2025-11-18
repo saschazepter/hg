@@ -60,8 +60,8 @@ $GETTEXT_SETUP_SHA256 = "C6BB3EB85ED660E2366EDEBD83EED03074FC277F7C91527C511E52D
 $INNO_SETUP_URL = "http://files.jrsoftware.org/is/5/innosetup-5.6.1-unicode.exe"
 $INNO_SETUP_SHA256 = "27D49E9BC769E9D1B214C153011978DB90DC01C2ACD1DDCD9ED7B3FE3B96B538"
 
-$MINGW_BIN_URL = "https://www.mercurial-scm.org/release/windows/mingw-get-bin.zip"
-$MINGW_BIN_SHA256 = "2AB8EFD7C7D1FC8EAF8B2FA4DA4EEF8F3E47768284C021599BC7435839A046DF"
+$MINGW_BIN_URL = "https://www.mercurial-scm.org/release/windows/artifacts/MinGW.zip"
+$MINGW_BIN_SHA256 = "31E98CF5B8C1C58902317F4F592A1C4E0DAF0096008F10FD260CFBA9B3240540"
 
 $MERCURIAL_WHEEL_FILENAME = "mercurial-6.9-cp39-cp39-win_amd64.whl"
 $MERCURIAL_WHEEL_URL = "https://files.pythonhosted.org/packages/ca/60/3dd09a2c30067ed003f7ec05f704bd69e9adf19c794b0a6351e75499dda1/$MERCURIAL_WHEEL_FILENAME"
@@ -168,7 +168,7 @@ function Install-Dependencies($prefix) {
     Secure-Download $VS_BUILD_TOOLS_URL ${prefix}\assets\vs_buildtools.exe $VS_BUILD_TOOLS_SHA256
     Secure-Download $GETTEXT_SETUP_URL ${prefix}\assets\gettext.exe $GETTEXT_SETUP_SHA256
     Secure-Download $INNO_SETUP_URL ${prefix}\assets\InnoSetup.exe $INNO_SETUP_SHA256
-    Secure-Download $MINGW_BIN_URL ${prefix}\assets\mingw-get-bin.zip $MINGW_BIN_SHA256
+    Secure-Download $MINGW_BIN_URL ${prefix}\assets\MinGW.zip $MINGW_BIN_SHA256
     Secure-Download $MERCURIAL_WHEEL_URL ${prefix}\assets\${MERCURIAL_WHEEL_FILENAME} $MERCURIAL_WHEEL_SHA256
     Secure-Download $RUSTUP_INIT_URL ${prefix}\assets\rustup-init.exe $RUSTUP_INIT_SHA256
     Secure-Download $PYOXIDIZER_URL ${prefix}\assets\PyOxidizer.msi $PYOXIDIZER_SHA256
@@ -200,14 +200,8 @@ function Install-Dependencies($prefix) {
     Write-Output "installing Inno Setup"
     Invoke-Process ${prefix}\assets\InnoSetup.exe "/SP- /VERYSILENT /SUPPRESSMSGBOXES"
 
-    Write-Output "extracting MinGW base archive"
-    Expand-Archive -Path ${prefix}\assets\mingw-get-bin.zip -DestinationPath "${prefix}\MinGW" -Force
-
-    Write-Output "updating MinGW package catalogs"
-    Invoke-Process ${prefix}\MinGW\bin\mingw-get.exe "update"
-
-    Write-Output "installing MinGW packages"
-    Invoke-Process ${prefix}\MinGW\bin\mingw-get.exe "install msys-base msys-coreutils msys-diffutils msys-unzip"
+    Write-Output "extracting MinGW archive"
+    Expand-Archive -Path ${prefix}\assets\MinGW.zip -DestinationPath "${prefix}" -Force
 
     # Construct a virtualenv useful for bootstrapping. It conveniently contains a
     # Mercurial install.
