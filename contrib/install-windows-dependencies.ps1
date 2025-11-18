@@ -54,6 +54,9 @@ $PYTHON314_x64_SHA256 = "52CEB249F65009D936E6504F97CCE42870C11358CB6E48825E893F5
 $PIP_URL = "https://raw.githubusercontent.com/pypa/get-pip/2b8ba34a7db06e95db117b5fd872ea7941d0777b/public/get-pip.py"
 $PIP_SHA256 = "DFFC3658BAADA4EF383F31C3C672D4E5E306A6E376CEE8BEE5DBDF1385525104"
 
+$UV_INSTALLER_URL = "https://github.com/astral-sh/uv/releases/download/0.9.10/uv-installer.ps1"
+$UV_INSTALLER_SHA256 = "5886C05017496FCB7ACE9964E0278D1643D2B1F4EB04D1DEC8389DCF321330C0"
+
 $GETTEXT_SETUP_URL = "https://github.com/mlocati/gettext-iconv-windows/releases/download/v0.26-v1.17/gettext0.26-iconv1.17-shared-64.exe"
 $GETTEXT_SETUP_SHA256 = "C6BB3EB85ED660E2366EDEBD83EED03074FC277F7C91527C511E52D9235711A7" 
 
@@ -165,6 +168,8 @@ function Install-Dependencies($prefix) {
     Secure-Download $PYTHON314_x64_URL ${prefix}\assets\python314-x64.exe $PYTHON314_x64_SHA256
 
     Secure-Download $PIP_URL ${pip} $PIP_SHA256
+    Secure-Download $UV_INSTALLER_URL "${prefix}\assets\uv-installer.ps1" $UV_INSTALLER_SHA256
+
     Secure-Download $VS_BUILD_TOOLS_URL ${prefix}\assets\vs_buildtools.exe $VS_BUILD_TOOLS_SHA256
     Secure-Download $GETTEXT_SETUP_URL ${prefix}\assets\gettext.exe $GETTEXT_SETUP_SHA256
     Secure-Download $INNO_SETUP_URL ${prefix}\assets\InnoSetup.exe $INNO_SETUP_SHA256
@@ -190,6 +195,9 @@ function Install-Dependencies($prefix) {
     Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx ensurepath"
     Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install cibuildwheel==3.3.0"
     Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install black<24"
+
+    Write-Output "installing uv"
+    powershell -ExecutionPolicy Bypass "${prefix}\assets\uv-installer.ps1"
 
     Write-Output "installing Visual Studio 2022 Build Tools and SDKs"
     Invoke-Process ${prefix}\assets\vs_buildtools.exe "--quiet --wait --norestart --nocache --channelUri https://aka.ms/vs/17/release/channel --config $PSScriptRoot\vs2022-settings.json"
