@@ -836,3 +836,475 @@ impl<T> PanickingRwLock<T> {
         self.0.into_inner().expect("propagate panic")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    fn valid_store_shards() -> (StoreShards, Vec<&'static str>) {
+        // Leading whitespace does not matter in TOML, I think this is more
+        // readable
+        let valid_config = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+            requires = ["baz", "base"]
+            shape = true
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
+            shape = true
+
+            [[shards]]
+            name = "baz"
+            paths = ["bar/baz"]
+
+            [[shards]]
+            name = "bazik"
+            paths = ["bar/baz/ik"]
+            requires = ["bar"]
+            shape = true
+
+            [[shards]]
+            name = "baziku"
+            paths = ["bar/baz/ik/u"]
+
+            [[shards]]
+            name = "baron"
+            requires = ["bar", "baziku"]
+            shape = true
+        "#;
+
+        // Make sure we can load this config
+        let config_result = toml::from_str::<ShapesConfig>(valid_config);
+        assert!(config_result.is_ok(), "{:?}", config_result);
+        let config = config_result.unwrap();
+
+        // We can create a storeshards
+        let store_shards_result = StoreShards::from_config(config);
+        assert!(store_shards_result.is_ok(), "{:?}", store_shards_result);
+        let store_shards = store_shards_result.unwrap();
+
+        let all_shard_names = vec![
+            ".hg-files",
+            "bar",
+            "baron",
+            "base",
+            "baz",
+            "bazik",
+            "baziku",
+            "foo",
+            "full",
+        ];
+        // Shards are as expected, along with the implicit shards
+        assert_eq!(
+            store_shards
+                .shards
+                .keys()
+                .sorted()
+                .map(|k| k.to_string())
+                .collect::<Vec<_>>(),
+            all_shard_names,
+        );
+
+        let all_shape_names =
+            vec!["bar", "baron", "base", "bazik", "foo", "full"];
+        // Shapes are as expected, along with the implicit shapes
+        assert_eq!(
+            store_shards
+                .all_shapes()
+                .unwrap()
+                .into_iter()
+                .map(|shape| shape.name().to_string())
+                .collect::<Vec<_>>(),
+            all_shape_names,
+        );
+        (store_shards, all_shape_names)
+    }
+
+    #[test]
+    fn test_dependencies() {
+        let (store_shards, _) = valid_store_shards();
+
+        fn assert_dependencies(
+            store_shards: &StoreShards,
+            shard_name: &str,
+            expected: Vec<&str>,
+        ) {
+            let dependencies = store_shards
+                .dependencies(
+                    &store_shards.shards
+                        [&ShardName::new(shard_name.to_string()).unwrap()],
+                )
+                .unwrap()
+                .into_keys()
+                .sorted()
+                .map(|n| n.to_string());
+            let dependencies = dependencies.collect::<Vec<String>>();
+            assert_eq!(dependencies, expected, "for shard {}", shard_name);
+        }
+
+        assert_dependencies(&store_shards, "bar", vec![".hg-files"]);
+        assert_dependencies(
+            &store_shards,
+            "foo",
+            vec![".hg-files", "base", "baz"],
+        );
+        assert_dependencies(
+            &store_shards,
+            "full",
+            vec![
+                ".hg-files",
+                "bar",
+                "baron",
+                "base",
+                "baz",
+                "bazik",
+                "baziku",
+                "foo",
+            ],
+        );
+    }
+
+    #[test]
+    fn test_patterns() {
+        let (store_shards, all_shape_names) = valid_store_shards();
+
+        fn assert_patterns(
+            store_shards: &StoreShards,
+            shard_name: &str,
+            expected_includes: &[&str],
+            expected_excludes: &[&str],
+        ) {
+            let shape = store_shards.shape(shard_name).unwrap().unwrap();
+            dbg!(&shard_name);
+            dbg!(&shape.tree);
+            let (includes, excludes) = shape.patterns();
+            let expected_includes = expected_includes
+                .iter()
+                .map(|p| HgPathBuf::from_bytes(p.as_bytes()))
+                .collect::<Vec<_>>();
+            let expected_excludes = expected_excludes
+                .iter()
+                .map(|p| HgPathBuf::from_bytes(p.as_bytes()))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                includes, expected_includes,
+                "wrong includes for shape {}",
+                shard_name
+            );
+            assert_eq!(
+                excludes, expected_excludes,
+                "wrong excludes for shape {}",
+                shard_name
+            );
+        }
+
+        // Test the patterns for each shape
+        type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
+        let shape_to_patterns: &[(&str, Patterns)] = &[
+            ("full", (&[""], &[])),
+            ("base", (&[""], &["bar", "foo"])),
+            (
+                "bar",
+                (
+                    &[".hgignore", ".hgsub", ".hgsubstate", ".hgtags", "bar"],
+                    &["", "bar/baz"],
+                ),
+            ),
+            (
+                "baron",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "bar",
+                        "bar/baz/ik/u",
+                    ],
+                    &["", "bar/baz"],
+                ),
+            ),
+            (
+                "bazik",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "bar",
+                        "bar/baz/ik",
+                    ],
+                    &["", "bar/baz", "bar/baz/ik/u"],
+                ),
+            ),
+            ("foo", (&["", "bar/baz"], &["bar", "bar/baz/ik"])),
+        ];
+
+        for (shard_name, (expected_includes, expected_excludes)) in
+            shape_to_patterns
+        {
+            assert_patterns(
+                &store_shards,
+                shard_name,
+                expected_includes,
+                expected_excludes,
+            );
+        }
+
+        // Make sure we've tested all names
+        assert_eq!(
+            shape_to_patterns
+                .iter()
+                .map(|(n, _)| *n)
+                .sorted()
+                .collect::<Vec<&str>>(),
+            all_shape_names
+        );
+    }
+
+    /// Test that every shape matches the right files
+    #[test]
+    fn test_matcher() {
+        let (store_shards, all_shape_names) = valid_store_shards();
+
+        let files_to_shape: &[(&str, &[&str])] = &[
+            ("babar/v", &["full", "base", "foo"]),
+            ("bar/ba/v", &["full", "bar", "baron", "bazik"]),
+            ("bar/baz/f", &["full", "foo"]),
+            ("bar/baz/g", &["full", "foo"]),
+            ("bar/baz/i", &["full", "foo"]),
+            ("bar/baz/ik/U/j", &["full", "bazik"]),
+            ("bar/baz/ik/U/k", &["full", "bazik"]),
+            ("bar/baz/ik/U/m", &["full", "bazik"]),
+            ("bar/baz/ik/h", &["full", "bazik"]),
+            ("bar/baz/ik/i", &["full", "bazik"]),
+            ("bar/baz/ik/o/l", &["full", "bazik"]),
+            ("bar/baz/ik/u/j", &["full", "baron"]),
+            ("bar/baz/ik/u/k", &["full", "baron"]),
+            ("bar/baz/ik/u/m", &["full", "baron"]),
+            ("bar/d", &["full", "bar", "baron", "bazik"]),
+            ("bar/e", &["full", "bar", "baron", "bazik"]),
+            ("foo/a", &["full", "foo"]),
+            ("foo/b", &["full", "foo"]),
+            ("foo/c", &["full", "foo"]),
+            ("foo/y", &["full", "foo"]),
+            ("oops", &["full", "base", "foo"]),
+            ("w", &["full", "base", "foo"]),
+            ("y", &["full", "base", "foo"]),
+            ("z", &["full", "base", "foo"]),
+        ];
+
+        let shape_to_matcher: Vec<_> = all_shape_names
+            .iter()
+            .map(|name| {
+                let shape = store_shards.shape(name).unwrap().unwrap();
+                let matcher = shape.matcher();
+                (shape.name().to_string(), matcher)
+            })
+            .collect();
+        for (file, expected_shapes) in files_to_shape {
+            let file = HgPath::new(file.as_bytes());
+            for (shape_name, matcher) in shape_to_matcher.iter() {
+                let expect_match =
+                    expected_shapes.contains(&shape_name.as_str());
+                assert_eq!(
+                    matcher.matches(file),
+                    expect_match,
+                    "shape '{shape_name}' {} match file '{file}'",
+                    if expect_match { "should" } else { "should not" }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_config_invalid() {
+        // TODO refactor errors to `ShapeError` and use `From` to get `HgError`
+        // instead of hardcoding error messages and duplicating them here
+        let pairs = &[
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="full"
+                paths=[""]
+            "#,
+                "shard name 'full' is reserved",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="base"
+                paths=[""]
+            "#,
+                "shard name 'base' is reserved",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name=".hg-files"
+                paths=[""]
+            "#,
+                "shard name '.hg-files' is reserved",
+            ),
+            (
+                r#"
+                version=999
+                [[shards]]
+                name="babar"
+                paths=["babar"]
+            "#,
+                "unknown server-shapes version 999",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="Babar"
+                paths=["babar"]
+            "#,
+                "only lowercase",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name=""
+                paths=["babar"]
+            "#,
+                "cannot be empty",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="."
+                paths=["babar"]
+            "#,
+                "at least one lowercase alphanumeric",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="-"
+                paths=["babar"]
+            "#,
+                "at least one lowercase alphanumeric",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="-.-"
+                paths=["babar"]
+            "#,
+                "at least one lowercase alphanumeric",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="duplicate"
+                paths=["babar"]
+                [[shards]]
+                name="duplicate"
+                paths=["babar2"]
+            "#,
+                "shard 'duplicate' defined twice",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="too-little"
+            "#,
+                "shard 'too-little' needs one of `paths` or `requires`",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                paths = ["secret"]
+                [[shards]]
+                name = "myshard2"
+                paths = ["secret"]
+            "#,
+                "path 'secret' is in two separate shards",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                # Needs two slashes because we allow one trailing slash that
+                # is stripped internally for quality of life
+                paths = ["badpath//"]
+            "#,
+                "ends with a slash",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                paths = ["badpath//bad"]
+            "#,
+                "consecutive slashes",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="recursive"
+                requires=["recursive"]
+            "#,
+                "shards form a cycle: recursive->recursive",
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="cyclic1"
+                requires=["cyclic2"]
+                [[shards]]
+                name="cyclic2"
+                requires=["cyclic3"]
+                [[shards]]
+                name="cyclic3"
+                requires=["cyclic4"]
+                [[shards]]
+                name="cyclic4"
+                requires=["cyclic1"]
+            "#,
+                "shards form a cycle: cyclic1->cyclic2->cyclic3->cyclic4->cyclic1",
+            ),
+        ];
+
+        for (config, expected_error) in pairs {
+            let config = toml::from_str::<ShapesConfig>(config)
+                .expect("should be syntactically valid");
+            let actual_error = StoreShards::from_config(config)
+                .as_ref()
+                .map_err(ToString::to_string)
+                .expect_err("should be an error at this stage");
+            assert!(
+                actual_error.contains(expected_error),
+                "'{}' not in '{}'",
+                expected_error,
+                actual_error
+            );
+        }
+    }
+}
