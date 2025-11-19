@@ -209,7 +209,11 @@ impl StoreShards {
                 &mut validated_shards,
             )
         })?;
-        Ok(Self { shards: validated_shards, path_to_shard })
+
+        let slf = Self { shards: validated_shards, path_to_shard };
+        // Make sure we can generate all shapes and catch the last errors
+        slf.all_shapes()?;
+        Ok(slf)
     }
 
     /// Make sure the shard config is valid, create the shard struct and add
