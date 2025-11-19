@@ -355,6 +355,7 @@ impl StoreShards {
 /// Represents a named narrow view into the repo's files (at the history level).
 ///
 /// This is a user-facing concept.
+#[derive(Debug)]
 pub struct Shape {
     name: ShardName,
     tree: ShardTreeNode,
@@ -398,7 +399,7 @@ impl Shape {
 }
 
 /// Matches the os-disk config for a single shard inside the [`ShapesConfig`]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct ShardConfig {
     /// Canonical name for this shard. Used both in UI and protocol
     name: String,
@@ -417,7 +418,7 @@ struct ShardConfig {
 
 /// Matches the on-disk format for admins to define their repo's shards and
 /// shapes
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ShapesConfig {
     // XXX should there be a `[meta]` section?
     /// The version of this config. For now only version `0` exists.
