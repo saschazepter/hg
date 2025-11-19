@@ -32,6 +32,7 @@ use crate::repo::Repo;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
 use crate::FastHashMap;
 
 lazy_static! {
@@ -569,15 +570,16 @@ impl ShardTreeNode {
         Bytes: AsRef<[u8]>,
     {
         // Generate a flat sequence of nodes, sorted via ZeroPath
-        let nodes = paths
+        let mut nodes = paths
             .map(|path| {
-                Arc::new(PanickingRwLock::new(Self {
-                    path: ZeroPath::new(path.as_ref()),
+                Ok(Arc::new(PanickingRwLock::new(Self {
+                    path: ZeroPath::new(path.as_ref())?,
                     included: includes.contains(path.as_ref()),
                     children: vec![],
-                }))
+                })))
             })
-            .sorted_by(|a, b| a.read().path.cmp(&b.read().path));
+            .collect::<Result<Vec<_>, HgError>>()?;
+        nodes.sort_by(|a, b| a.read().path.cmp(&b.read().path));
 
         // Create the tree by looping over the nodes and keeping track of
         // where we are in the recursion via a stack
@@ -730,16 +732,24 @@ impl std::fmt::Debug for ZeroPath {
 }
 
 impl ZeroPath {
-    fn new(bytes: &[u8]) -> Self {
+    fn new(bytes: &[u8]) -> Result<Self, HgPathError> {
         let mut path = Vec::with_capacity(bytes.len());
         for (idx, byte) in bytes.iter().enumerate() {
             if idx == 0 {
-                assert_ne!(*byte, b'/');
+                if *byte == b'/' {
+                    let err = HgPathErrorKind::LeadingSlash(bytes.to_owned());
+                    return Err(err.into());
+                }
                 path.push(b'\0');
             }
             assert_ne!(*byte, b'\0');
             if idx == bytes.len() - 1 {
-                assert_ne!(*byte, b'/');
+                if *byte == b'/' {
+                    let err = HgPathErrorKind::EndsWithSlash(
+                        HgPathBuf::from_bytes(bytes),
+                    );
+                    return Err(err.into());
+                }
                 path.push(*byte);
                 path.push(b'\0');
             } else if *byte == b'/' {
@@ -751,7 +761,7 @@ impl ZeroPath {
         if path.is_empty() {
             path.push(b'\0');
         }
-        Self(path)
+        Ok(Self(path))
     }
 
     fn is_empty(&self) -> bool {
@@ -767,8 +777,10 @@ impl ZeroPath {
     }
 }
 
-impl From<&HgPath> for ZeroPath {
-    fn from(path: &HgPath) -> Self {
+impl TryFrom<&HgPath> for ZeroPath {
+    type Error = HgPathError;
+
+    fn try_from(path: &HgPath) -> Result<Self, HgPathError> {
         Self::new(path.as_bytes())
     }
 }
