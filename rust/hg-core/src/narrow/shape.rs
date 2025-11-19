@@ -63,6 +63,25 @@ impl std::fmt::Display for ShardName {
 
 impl ShardName {
     fn new(name: String) -> Result<Self, HgError> {
+        if name.is_empty() {
+            return Err(HgError::abort(
+                "shard name cannot be empty",
+                exit_codes::CONFIG_ERROR_ABORT,
+                None,
+            ));
+        }
+        if name.as_bytes().iter().all(|b| *b == b'.' || *b == b'-') {
+            return Err(HgError::abort(
+                format!(
+                    "shard name '{}' is invalid: \
+                    it must contain at least one lowercase alphanumeric \
+                    ascii character",
+                    name
+                ),
+                exit_codes::CONFIG_ERROR_ABORT,
+                None,
+            ));
+        }
         if !SHARD_NAME_REGEX.is_match(&name) {
             let msg = format!(
                 "shard name '{}' is invalid: \
