@@ -123,6 +123,7 @@ pub struct StoreShards {
 }
 
 impl StoreShards {
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
         let config = match repo.store_vfs().try_read("server-shapes")? {
             Some(data) => toml::from_slice(&data).map_err(|e| {
