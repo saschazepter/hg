@@ -547,9 +547,11 @@ impl ShardTreeNode {
                 // Only insert children that are not redundant
                 if last.read().included != node.read().included {
                     last.write().children.push(node.clone());
+                    stack.push(node);
                 }
+            } else {
+                stack.push(node);
             }
-            stack.push(node);
         }
         let root = stack.into_iter().next().expect("should have one element");
         let root = Arc::into_inner(root)
