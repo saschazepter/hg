@@ -3823,7 +3823,11 @@ class TestRunner:
                 # its own dll
                 path = os.environ['PATH'].split(os.pathsep)
                 main_exec_dir = os.path.dirname(self._python)
-                extra_paths = [_bytes2sys(self._custom_bin_dir), main_exec_dir]
+                extra_paths = [
+                    _bytes2sys(self._custom_bin_dir),
+                    main_exec_dir,
+                    sys.base_exec_prefix,  # for python3X.dll in main install
+                ]
 
                 # Binaries installed by pip into the user area like pylint.exe may
                 # not be in PATH by default.
