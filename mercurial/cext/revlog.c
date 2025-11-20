@@ -1241,7 +1241,7 @@ static PyObject *compute_phases_map_sets(indexObject *self, PyObject *args)
 		Py_DECREF(pyrev);
 	}
 
-	phasesetsdict = _dict_new_presized(numphases);
+	phasesetsdict = _PyDict_NewPresized(numphases);
 	if (phasesetsdict == NULL)
 		goto release;
 	for (i = 0; i < numphases; ++i) {
