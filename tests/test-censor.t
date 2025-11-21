@@ -558,10 +558,10 @@ Censoring a revision that is used as delta base
   $ hg add target
   $ hg commit -m root
   $ B0=`hg id -r . -T "{node}"`
-  $ for x in `"$PYTHON" $TESTDIR/seq.py 0 50000`
-  > do
-  >   echo "Password: hunter$x" >> target
-  > done
+  >>> with open('target', 'ab') as fp:
+  ...    fp.write(b'\n'.join([b'Password: hunter%d' % x for x in range(0, 50001)])) and None
+  ...    fp.write(b'\n') and None
+
   $ hg ci -m 'write a long file'
   $ B1=`hg id -r . -T "{node}"`
   $ echo 'small change (should create a delta)' >> target
