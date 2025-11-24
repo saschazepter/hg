@@ -105,41 +105,45 @@ pub struct StoreShards {
 
 impl StoreShards {
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
-        let ShapesConfig { version, mut shards } =
-            match repo.store_vfs().try_read("server-shapes")? {
-                Some(data) => toml::from_slice(&data).map_err(|e| {
-                    // We've failed to parse this to the expected structure,
-                    // it could be for many different reasons.
-                    // Give a better error message if it's only because it's a
-                    // different version that also turns out to be incompatible
-                    // with this deserialization.
-                    // It's a little fragile, but it's better than nothing.
-                    let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
-                        .expect("valid regex");
-                    if let Some(captures) = re.captures(&data) {
-                        if let Some(version) = captures.get(1) {
-                            let version =
-                                String::from_utf8_lossy(version.as_bytes())
-                                    .parse::<usize>()
-                                    .expect("parsing an integer from a regex");
-                            return HgError::abort(
-                                format!(
-                                    "unknown server-shapes version {}",
-                                    version
-                                ),
-                                exit_codes::CONFIG_ERROR_ABORT,
-                                None,
-                            );
-                        }
+        let config = match repo.store_vfs().try_read("server-shapes")? {
+            Some(data) => toml::from_slice(&data).map_err(|e| {
+                // We've failed to parse this to the expected structure,
+                // it could be for many different reasons.
+                // Give a better error message if it's only because it's a
+                // different version that also turns out to be incompatible
+                // with this deserialization.
+                // It's a little fragile, but it's better than nothing.
+                let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
+                    .expect("valid regex");
+                if let Some(captures) = re.captures(&data) {
+                    if let Some(version) = captures.get(1) {
+                        let version =
+                            String::from_utf8_lossy(version.as_bytes())
+                                .parse::<usize>()
+                                .expect("parsing an integer from a regex");
+                        return HgError::abort(
+                            format!(
+                                "unknown server-shapes version {}",
+                                version
+                            ),
+                            exit_codes::CONFIG_ERROR_ABORT,
+                            None,
+                        );
                     }
-                    HgError::abort(
-                        e.to_string(),
-                        exit_codes::CONFIG_PARSE_ERROR_ABORT,
-                        None,
-                    )
-                })?,
-                None => ShapesConfig::default(),
-            };
+                }
+                HgError::abort(
+                    e.to_string(),
+                    exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                    None,
+                )
+            })?,
+            None => ShapesConfig::default(),
+        };
+        Self::from_config(config)
+    }
+
+    fn from_config(config: ShapesConfig) -> Result<Self, HgError> {
+        let ShapesConfig { version, mut shards } = config;
         if version != 0 {
             return Err(HgError::abort(
                 format!("unknown server-shapes version {}", version),
