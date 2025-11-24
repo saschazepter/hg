@@ -12,6 +12,7 @@ use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::exit_codes;
 use hg::file_patterns::PatternError;
+use hg::narrow::shape;
 use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
@@ -127,6 +128,12 @@ impl From<HgError> for CommandError {
             }
             _ => CommandError::abort(error.to_string()),
         }
+    }
+}
+
+impl From<shape::Error> for CommandError {
+    fn from(value: shape::Error) -> Self {
+        HgError::from(value).into()
     }
 }
 

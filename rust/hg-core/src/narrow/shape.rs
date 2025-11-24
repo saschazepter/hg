@@ -49,6 +49,101 @@ lazy_static! {
     ];
 }
 
+/// Errors specific to handling shapes
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    /// A shard was declared with an empty name
+    EmptyShardName,
+    /// A shard was declared with a name that only has dots and/or hyphens
+    DotOrHyphenOnlyShardName(String),
+    /// A shard was declared with an invalid name that is not only dots
+    /// and/or hyphens
+    InvalidShardName(String),
+    /// A shard was declared with a reserved name
+    ReservedName(String),
+    /// The following shards form a cycle
+    CycleInShards(Vec<ShardName>),
+    /// This path was found in two (or more) separate shards
+    PathInMultipleShards(HgPathBuf),
+    /// Two (or more) shards share the same name
+    DuplicateShard(ShardName),
+    /// This shard was defined without `paths` and `requires`
+    ShardMissingPathsAndRequires(String),
+    /// An invalid file pattern was given
+    PatternError(PatternError),
+    /// The config contains an invalid path, with this error
+    InvalidPath(HgPathError),
+    /// This config parsed correctly, but is of this unknown version
+    UnknownVersion(usize),
+    /// The config failed to parse, here is the error
+    ParseError(toml::de::Error),
+}
+
+impl From<Error> for HgError {
+    fn from(value: Error) -> Self {
+        let exit_code = match value {
+            Error::EmptyShardName
+            | Error::DotOrHyphenOnlyShardName(_)
+            | Error::InvalidShardName(_)
+            | Error::ReservedName(_)
+            | Error::CycleInShards(_)
+            | Error::PathInMultipleShards(_)
+            | Error::DuplicateShard(_)
+            | Error::ShardMissingPathsAndRequires(_)
+            | Error::InvalidPath(_)
+            | Error::UnknownVersion(_) => exit_codes::CONFIG_ERROR_ABORT,
+            Error::ParseError(_) => exit_codes::CONFIG_PARSE_ERROR_ABORT,
+            Error::PatternError(_) => exit_codes::INPUT_ERROR,
+        };
+        let explanation = match value {
+            Error::EmptyShardName => {
+                "shard names must not be empty".to_string()
+            }
+            Error::DotOrHyphenOnlyShardName(name) => format!(
+                "invalid shard name '{name}': \
+                missing lowercase alphanumeric character"
+            ),
+            Error::InvalidShardName(name) => format!(
+                "invalid shard name '{name}': \
+                only lowercase alphanumeric, hyphen or dot are accepted"
+            ),
+            Error::ReservedName(name) => {
+                format!("shard name '{name}' is reserved")
+            }
+            Error::CycleInShards(shard_names) => {
+                let cycle = shard_names.into_iter().join("->");
+                format!("shards form a cycle: {cycle}")
+            }
+            Error::PathInMultipleShards(path) => {
+                format!(
+                    "path is found in multiple shards: {}",
+                    String::from_utf8_lossy(path.as_bytes())
+                )
+            }
+            Error::DuplicateShard(name) => {
+                format!("shard '{name}' defined multiple times")
+            }
+            Error::ShardMissingPathsAndRequires(name) => {
+                format!("shard '{name}' needs one of `paths` or `requires`")
+            }
+            Error::InvalidPath(err) => {
+                format!("`server-shapes` contains an invalid path: {err}")
+            }
+            Error::UnknownVersion(version) => {
+                format!("unknown `server-shapes` version '{version}'")
+            }
+            Error::ParseError(err) => {
+                format!("error parsing `server-shapes`:\n{err}")
+            }
+            Error::PatternError(err) => {
+                format!("invalid pattern {err}")
+            }
+        };
+
+        Self::abort(explanation, exit_code, None)
+    }
+}
+
 const HG_FILES_SHARD: &str = ".hg-files";
 
 /// Canonical name within a repo for a [`Shard`].
