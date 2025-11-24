@@ -427,7 +427,7 @@ pub struct ShapesConfig {
 /// It is used to create a normalized representation of potentially nested
 /// include and exclude patterns to uniquely identify semantically equivalent
 /// rules, as well as generating an associated file matcher.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ShardTreeNode {
     /// The path (rooted by `b""`) that this node concerns
     path: ZeroPath,
@@ -435,6 +435,24 @@ pub struct ShardTreeNode {
     included: bool,
     /// The set of child nodes (describing rules for sub-paths)
     children: Vec<Arc<PanickingRwLock<ShardTreeNode>>>,
+}
+
+impl std::fmt::Debug for ShardTreeNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShardTreeNode")
+            .field("path", &self.path)
+            .field("included", &self.included)
+            // Remove the `RwLock` noise from the debug output
+            .field(
+                "children",
+                &self
+                    .children
+                    .iter()
+                    .map(|node| node.read().to_owned())
+                    .collect::<Vec<Self>>(),
+            )
+            .finish()
+    }
 }
 
 impl ShardTreeNode {
