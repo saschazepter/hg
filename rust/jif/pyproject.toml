@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "jif-vcs"
+license = "GPL-2.0-or-later"
+keywords = ["VCS", "version-control"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Development Status :: 1 - Planning",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: Software Development :: Version Control :: Mercurial"
+]
+dynamic = ["version"]
