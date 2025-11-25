@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import errno
 import os
-import signal
 import typing
 
 from typing import (
@@ -760,7 +759,7 @@ class transaction(util.transactional, itxn.ITransaction):
             if self._debug_abort == ABORT_POST_FINALIZE:
                 raise error.Abort(_(b"requested %s" % ABORT_POST_FINALIZE))
             elif self._debug_abort == KILL_9_POST_FINALIZE:
-                procutil.kill_self(signal.SIGKILL)
+                procutil.kill_self()
 
         self._count -= 1
         if self._count != 0:
