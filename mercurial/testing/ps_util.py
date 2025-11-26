@@ -7,7 +7,6 @@ import os
 import signal
 import subprocess
 import sys
-import tempfile
 
 from .. import (
     encoding,
@@ -18,14 +17,6 @@ from ..utils import procutil
 
 
 def kill_nt(pid: int, exit_code: int):
-    fd, pidfile = tempfile.mkstemp(
-        prefix=b"sigkill-", dir=encoding.environ[b"HGTMP"], text=False
-    )
-    try:
-        os.write(fd, b'%d\n' % pid)
-    finally:
-        os.close(fd)
-
     env = dict(encoding.environ)
     env[b"DAEMON_EXITCODE"] = b"%d" % exit_code
 
@@ -38,9 +29,10 @@ def kill_nt(pid: int, exit_code: int):
             encoding.environ[b"PYTHON"],
             b"%s/killdaemons.py"
             % encoding.environ[b'RUNTESTDIR_FORWARD_SLASH'],
-            pidfile,
+            "-",
         ],
         env=procutil.tonativeenv(env),
+        input=b"%d\n" % pid,
     )
 
 
