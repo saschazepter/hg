@@ -37,8 +37,8 @@ def wrapdirstate(repo, dirstate):
             return super().set_tracked(*args, **kwargs)
 
         @_editfunc
-        def set_untracked(self, *args):
-            return super().set_untracked(*args)
+        def set_untracked(self, *args, **kwargs):
+            return super().set_untracked(*args, **kwargs)
 
         def rebuild(self, parent, allfiles, changedfiles=None):
             if changedfiles is None:
