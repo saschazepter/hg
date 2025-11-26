@@ -33,36 +33,12 @@ def wrapdirstate(repo, dirstate):
         # Prevent adding/editing/copying/deleting files that are outside the
         # sparse checkout
         @_editfunc
-        def normal(self, *args, **kwargs):
-            return super().normal(*args, **kwargs)
-
-        @_editfunc
         def set_tracked(self, *args, **kwargs):
             return super().set_tracked(*args, **kwargs)
 
         @_editfunc
         def set_untracked(self, *args):
             return super().set_untracked(*args)
-
-        @_editfunc
-        def add(self, *args):
-            return super().add(*args)
-
-        @_editfunc
-        def normallookup(self, *args):
-            return super().normallookup(*args)
-
-        @_editfunc
-        def copy(self, *args):
-            return super().copy(*args)
-
-        @_editfunc
-        def remove(self, *args):
-            return super().remove(*args)
-
-        @_editfunc
-        def merge(self, *args):
-            return super().merge(*args)
 
         def rebuild(self, parent, allfiles, changedfiles=None):
             if changedfiles is None:
