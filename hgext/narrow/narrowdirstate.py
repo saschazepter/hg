@@ -15,18 +15,17 @@ def wrapdirstate(repo, dirstate):
     """Add narrow spec dirstate ignore, block changes outside narrow spec."""
 
     def _editfunc(fn):
-        def _wrapper(self, *args, **kwargs):
+        def _wrapper(self, filename, *args, **kwargs):
             narrowmatch = repo.narrowmatch()
-            for f in args:
-                if f is not None and not narrowmatch(f) and f not in self:
-                    raise error.Abort(
-                        _(
-                            b"cannot track '%s' - it is outside "
-                            + b"the narrow clone"
-                        )
-                        % f
-                    )
-            return fn(self, *args, **kwargs)
+            if (
+                filename is not None
+                and not narrowmatch(filename)
+                and filename not in self
+            ):
+                msg = _(b"cannot track '%s' - it is outside the narrow clone")
+                msg %= filename
+                raise error.Abort(msg)
+            return fn(self, filename, *args, **kwargs)
 
         return _wrapper
 
