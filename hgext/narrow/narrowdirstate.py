@@ -27,6 +27,12 @@ def wrapdirstate(repo, dirstate):
                 raise error.Abort(msg)
             return fn(self, filename, *args, **kwargs)
 
+        meth_name = fn.__name__
+        if not hasattr(dirstate, meth_name):
+            # Keep this in sync with the dirstate in case it changes
+            msg = "narrow overrides a method that does not exist: %s"
+            msg %= meth_name
+            raise error.ProgrammingError(msg)
         return _wrapper
 
     class narrowdirstate(dirstate.__class__):
