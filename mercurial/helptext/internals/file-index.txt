@@ -1,11 +1,9 @@
 The *file-index* is a part of the Mercurial store that tracks all file-paths used
 within a repository store.
 
-WARNING: The "file-index" is an experimental feature still in its initial
-development. The file format and feature set are not frozen yet and it should
-never be used outside of testing. Until the feature is frozen, repositories
-using the feature at this stage will not be readable by earlier or future
-version of the code and the data it contains will be lost.
+WARNING: The "file-index" is an experimental feature still in development.
+While the file format (`fileindex-v1`) is frozen and you can thus expect it to be supported,
+the feature itself may still have bugs or need API/config changes.
 
 
 The file index supersedes the fncache (see the "Difference with the Fncache"

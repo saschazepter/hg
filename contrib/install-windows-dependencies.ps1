@@ -15,14 +15,35 @@
 # if you don't want to see a UAC prompt for various installers.
 #
 # The script is tested on Windows 10 and Windows Server 2019 (in EC2).
+#
+# This script can be tested with Docker by installing Docker Desktop, and
+# creating a Dockerfile that looks like this:
+#
+#    $ cat contrib/docker/windows/install-windows-deps-test.Dockerfile
+#    escape=`
+#
+#    FROM "mcr.microsoft.com/windows/servercore:ltsc2025"
+#    SHELL [ `
+#        "powershell.exe", "-Command", `
+#        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';" `
+#    ]
+#
+#    COPY install-windows-dependencies.ps1 "C:/"
+#    COPY vs2022-settings.json "C:/"
+#
+#    RUN powershell.exe -executionpolicy bypass "C:/install-windows-dependencies.ps1"
+#
+# ... and then running this from the repository root:
+#
+#    $ docker build -t install-test -f contrib\docker\windows\install-windows-deps-test.Dockerfile contrib
+#
+# Note that while the script runs quickly, the finalization of the image and the
+# returning of control back to the command prompt takes 2 hours or more.  So, be
+# patient- if hasn't errored out, it's working (silently).
+
 
 $VS_BUILD_TOOLS_URL = "https://download.visualstudio.microsoft.com/download/pr/f2819554-a618-400d-bced-774bb5379965/cc7231dc668ec1fb92f694c66b5d67cba1a9e21127a6e0b31c190f772bd442f2/vs_BuildTools.exe"
 $VS_BUILD_TOOLS_SHA256 = "CC7231DC668EC1FB92F694C66B5D67CBA1A9E21127A6E0B31C190F772BD442F2"
-
-$PYTHON38_x86_URL = "https://www.python.org/ftp/python/3.8.10/python-3.8.10.exe"
-$PYTHON38_x86_SHA256 = "ad07633a1f0cd795f3bf9da33729f662281df196b4567fa795829f3bb38a30ac"
-$PYTHON38_x64_URL = "https://www.python.org/ftp/python/3.8.10/python-3.8.10-amd64.exe"
-$PYTHON38_x64_SHA256 = "7628244cb53408b50639d2c1287c659f4e29d3dfdb9084b11aed5870c0c6a48a"
 
 $PYTHON39_x86_URL = "https://www.python.org/ftp/python/3.9.13/python-3.9.13.exe"
 $PYTHON39_x86_SHA256 = "F363935897BF32ADF6822BA15ED1BFED7AE2AE96477F0262650055B6E9637C35"
@@ -40,32 +61,39 @@ $PYTHON311_x86_SHA256 = "AF19E5E2F03E715A822181F2CB7D4EFEF4EDA13FA4A2DB6DA12E998
 $PYTHON311_X64_URL = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
 $PYTHON311_x64_SHA256 = "5EE42C4EEE1E6B4464BB23722F90B45303F79442DF63083F05322F1785F5FDDE"
 
-$PYTHON312_X86_URL = "https://www.python.org/ftp/python/3.12.7/python-3.12.7.exe"
-$PYTHON312_x86_SHA256 = "5BF4F3F0A58E1661A26754AE2FF0C2499EFFF093F34833EE0921922887FB3851"
-$PYTHON312_x64_URL = "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe"
-$PYTHON312_x64_SHA256 = "1206721601A62C925D4E4A0DCFC371E88F2DDBE8C0C07962EBB2BE9B5BDE4570"
+$PYTHON312_X86_URL = "https://www.python.org/ftp/python/3.12.10/python-3.12.10.exe"
+$PYTHON312_x86_SHA256 = "FDFE385B94F5B8785A0226A886979527FD26EB65DEFDBF29992FD22CC4B0E31E"
+$PYTHON312_x64_URL = "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
+$PYTHON312_x64_SHA256 = "67B5635E80EA51072B87941312D00EC8927C4DB9BA18938F7AD2D27B328B95FB"
 
-$PYTHON313_x86_URL = "https://www.python.org/ftp/python/3.13.0/python-3.13.0.exe"
-$PYTHON313_x86_SHA256 = "A9BE7082CCD3D0B947D14A87BCEADB1A3551382A68FCB64D245A2EBCC779B272"
-$PYTHON313_X64_URL = "https://www.python.org/ftp/python/3.13.0/python-3.13.0-amd64.exe"
-$PYTHON313_x64_SHA256 = "78156AD0CF0EC4123BFB5333B40F078596EBF15F2D062A10144863680AFBDEFC"
+$PYTHON313_x86_URL = "https://www.python.org/ftp/python/3.13.9/python-3.13.9.exe"
+$PYTHON313_x86_SHA256 = "2EA6D14D994602C83306E39D792E74637612240CFA77096DA1AC5BA9BACF613C"
+$PYTHON313_X64_URL = "https://www.python.org/ftp/python/3.13.9/python-3.13.9-amd64.exe"
+$PYTHON313_x64_SHA256 = "200DDFF856BBFF949D2CC1BE42E8807C07538ABD6B6966D5113A094CF628C5C5"
 
-# PIP 24.2.
-$PIP_URL = "https://github.com/pypa/get-pip/raw/66d8a0f637083e2c3ddffc0cb1e65ce126afb856/public/get-pip.py"
-$PIP_SHA256 = "6FB7B781206356F45AD79EFBB19322CAA6C2A5AD39092D0D44D0FEC94117E118"
+$PYTHON314_x86_URL = "https://www.python.org/ftp/python/3.14.0/python-3.14.0.exe"
+$PYTHON314_x86_SHA256 = "0320E7643FA81ED889D72756BC3B41143EA84C3F1F7F95F3AC541153FFF210FC"
+$PYTHON314_X64_URL = "https://www.python.org/ftp/python/3.14.0/python-3.14.0-amd64.exe"
+$PYTHON314_x64_SHA256 = "52CEB249F65009D936E6504F97CCE42870C11358CB6E48825E893F54E11620AA"
 
-$GETTEXT_SETUP_URL = "https://github.com/mlocati/gettext-iconv-windows/releases/download/v0.22.5a-v1.17-r3/gettext0.22.5a-iconv1.17-shared-64.exe"
-$GETTEXT_SETUP_SHA256 = "EF56AD2C395F8F75F711574E754171EEFD45640746FA117D001969A40655CEBE" 
+# PIP 25.3.
+$PIP_URL = "https://raw.githubusercontent.com/pypa/get-pip/2b8ba34a7db06e95db117b5fd872ea7941d0777b/public/get-pip.py"
+$PIP_SHA256 = "DFFC3658BAADA4EF383F31C3C672D4E5E306A6E376CEE8BEE5DBDF1385525104"
+
+$UV_INSTALLER_URL = "https://github.com/astral-sh/uv/releases/download/0.9.10/uv-installer.ps1"
+$UV_INSTALLER_SHA256 = "5886C05017496FCB7ACE9964E0278D1643D2B1F4EB04D1DEC8389DCF321330C0"
+
+$GETTEXT_SETUP_URL = "https://github.com/mlocati/gettext-iconv-windows/releases/download/v0.26-v1.17/gettext0.26-iconv1.17-shared-64.exe"
+$GETTEXT_SETUP_SHA256 = "C6BB3EB85ED660E2366EDEBD83EED03074FC277F7C91527C511E52D9235711A7" 
 
 $INNO_SETUP_URL = "http://files.jrsoftware.org/is/5/innosetup-5.6.1-unicode.exe"
 $INNO_SETUP_SHA256 = "27D49E9BC769E9D1B214C153011978DB90DC01C2ACD1DDCD9ED7B3FE3B96B538"
 
-$MINGW_BIN_URL = "https://www.mercurial-scm.org/release/windows/mingw-get-bin.zip"
-$MINGW_BIN_SHA256 = "2AB8EFD7C7D1FC8EAF8B2FA4DA4EEF8F3E47768284C021599BC7435839A046DF"
+$MINGW_BIN_URL = "https://www.mercurial-scm.org/release/windows/artifacts/MinGW.zip"
+$MINGW_BIN_SHA256 = "31E98CF5B8C1C58902317F4F592A1C4E0DAF0096008F10FD260CFBA9B3240540"
 
-$MERCURIAL_WHEEL_FILENAME = "mercurial-6.9-cp39-cp39-win_amd64.whl"
-$MERCURIAL_WHEEL_URL = "https://files.pythonhosted.org/packages/ca/60/3dd09a2c30067ed003f7ec05f704bd69e9adf19c794b0a6351e75499dda1/$MERCURIAL_WHEEL_FILENAME"
-$MERCURIAL_WHEEL_SHA256 = "ec2a00f73da23123c52ec68206b6ebed1a214c569cda37aaab7b343ef539c7c3"
+$MERCURIAL_SETUP_URL = "https://mercurial-scm.org/release/windows/mercurial-7.1.2-x64.msi"
+$MERCURIAL_SETUP_SHA256 = "8D702D0ACAD169D52FD64924B36A0D2D5F9908ED44E005DDC0D6F893FFE334DA"
 
 $RUSTUP_INIT_URL = "https://static.rust-lang.org/rustup/archive/1.21.1/x86_64-pc-windows-gnu/rustup-init.exe"
 $RUSTUP_INIT_SHA256 = "d17df34ba974b9b19cf5c75883a95475aa22ddc364591d75d174090d55711c72"
@@ -131,6 +159,7 @@ function Install-Python3($name, $installer, $dest, $pip) {
 
     Invoke-Process $installer "/quiet TargetDir=${dest} InstallAllUsers=${allusers} AssociateFiles=0 CompileAll=0 PrependPath=0 Include_doc=0 Include_launcher=1 InstallLauncherAllUsers=1 Include_pip=0 Include_test=0"
     Invoke-Process ${dest}\python.exe $pip
+    Invoke-Process ${dest}\python.exe "-m pip install -U --user setuptools==80.9.0 packaging==25.0"
 }
 
 function Install-Rust($prefix) {
@@ -151,8 +180,6 @@ function Install-Dependencies($prefix) {
 
     $pip = "${prefix}\assets\get-pip.py"
 
-    Secure-Download $PYTHON38_x86_URL ${prefix}\assets\python38-x86.exe $PYTHON38_x86_SHA256
-    Secure-Download $PYTHON38_x64_URL ${prefix}\assets\python38-x64.exe $PYTHON38_x64_SHA256
     Secure-Download $PYTHON39_x86_URL ${prefix}\assets\python39-x86.exe $PYTHON39_x86_SHA256
     Secure-Download $PYTHON39_x64_URL ${prefix}\assets\python39-x64.exe $PYTHON39_x64_SHA256
     Secure-Download $PYTHON310_x86_URL ${prefix}\assets\python310-x86.exe $PYTHON310_x86_SHA256
@@ -163,18 +190,20 @@ function Install-Dependencies($prefix) {
     Secure-Download $PYTHON312_x64_URL ${prefix}\assets\python312-x64.exe $PYTHON312_x64_SHA256
     Secure-Download $PYTHON313_x86_URL ${prefix}\assets\python313-x86.exe $PYTHON313_x86_SHA256
     Secure-Download $PYTHON313_x64_URL ${prefix}\assets\python313-x64.exe $PYTHON313_x64_SHA256
+    Secure-Download $PYTHON314_x86_URL ${prefix}\assets\python314-x86.exe $PYTHON314_x86_SHA256
+    Secure-Download $PYTHON314_x64_URL ${prefix}\assets\python314-x64.exe $PYTHON314_x64_SHA256
 
     Secure-Download $PIP_URL ${pip} $PIP_SHA256
+    Secure-Download $UV_INSTALLER_URL "${prefix}\assets\uv-installer.ps1" $UV_INSTALLER_SHA256
+
     Secure-Download $VS_BUILD_TOOLS_URL ${prefix}\assets\vs_buildtools.exe $VS_BUILD_TOOLS_SHA256
     Secure-Download $GETTEXT_SETUP_URL ${prefix}\assets\gettext.exe $GETTEXT_SETUP_SHA256
     Secure-Download $INNO_SETUP_URL ${prefix}\assets\InnoSetup.exe $INNO_SETUP_SHA256
-    Secure-Download $MINGW_BIN_URL ${prefix}\assets\mingw-get-bin.zip $MINGW_BIN_SHA256
-    Secure-Download $MERCURIAL_WHEEL_URL ${prefix}\assets\${MERCURIAL_WHEEL_FILENAME} $MERCURIAL_WHEEL_SHA256
+    Secure-Download $MINGW_BIN_URL ${prefix}\assets\MinGW.zip $MINGW_BIN_SHA256
+    Secure-Download $MERCURIAL_SETUP_URL ${prefix}\assets\Mercurial.msi $MERCURIAL_SETUP_SHA256
     Secure-Download $RUSTUP_INIT_URL ${prefix}\assets\rustup-init.exe $RUSTUP_INIT_SHA256
     Secure-Download $PYOXIDIZER_URL ${prefix}\assets\PyOxidizer.msi $PYOXIDIZER_SHA256
 
-    Install-Python3 "Python 3.8 32-bit" ${prefix}\assets\python38-x86.exe ${prefix}\python38-x86 ${pip}
-    Install-Python3 "Python 3.8 64-bit" ${prefix}\assets\python38-x64.exe ${prefix}\python38-x64 ${pip}
     Install-Python3 "Python 3.9 32-bit" ${prefix}\assets\python39-x86.exe ${prefix}\python39-x86 ${pip}
     Install-Python3 "Python 3.9 64-bit" ${prefix}\assets\python39-x64.exe ${prefix}\python39-x64 ${pip}
     Install-Python3 "Python 3.10 32-bit" ${prefix}\assets\python310-x86.exe ${prefix}\python310-x86 ${pip}
@@ -185,6 +214,16 @@ function Install-Dependencies($prefix) {
     Install-Python3 "Python 3.12 64-bit" ${prefix}\assets\python312-x64.exe ${prefix}\python312-x64 ${pip}
     Install-Python3 "Python 3.13 32-bit" ${prefix}\assets\python313-x86.exe ${prefix}\python313-x86 ${pip}
     Install-Python3 "Python 3.13 64-bit" ${prefix}\assets\python313-x64.exe ${prefix}\python313-x64 ${pip}
+    Install-Python3 "Python 3.14 32-bit" ${prefix}\assets\python314-x86.exe ${prefix}\python314-x86 ${pip}
+    Install-Python3 "Python 3.14 64-bit" ${prefix}\assets\python314-x64.exe ${prefix}\python314-x64 ${pip}
+
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pip install --user pipx"
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx ensurepath"
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install cibuildwheel==3.3.0"
+    Invoke-Process ${prefix}\python313-x64\python.exe "-m pipx install black<24"
+
+    Write-Output "installing uv"
+    powershell -ExecutionPolicy Bypass "${prefix}\assets\uv-installer.ps1"
 
     Write-Output "installing Visual Studio 2022 Build Tools and SDKs"
     Invoke-Process ${prefix}\assets\vs_buildtools.exe "--quiet --wait --norestart --nocache --channelUri https://aka.ms/vs/17/release/channel --config $PSScriptRoot\vs2022-settings.json"
@@ -200,27 +239,22 @@ function Install-Dependencies($prefix) {
     Write-Output "installing Inno Setup"
     Invoke-Process ${prefix}\assets\InnoSetup.exe "/SP- /VERYSILENT /SUPPRESSMSGBOXES"
 
-    Write-Output "extracting MinGW base archive"
-    Expand-Archive -Path ${prefix}\assets\mingw-get-bin.zip -DestinationPath "${prefix}\MinGW" -Force
-
-    Write-Output "updating MinGW package catalogs"
-    Invoke-Process ${prefix}\MinGW\bin\mingw-get.exe "update"
-
-    Write-Output "installing MinGW packages"
-    Invoke-Process ${prefix}\MinGW\bin\mingw-get.exe "install msys-base msys-coreutils msys-diffutils msys-unzip"
+    Write-Output "extracting MinGW archive"
+    Expand-Archive -Path ${prefix}\assets\MinGW.zip -DestinationPath "${prefix}" -Force
 
     # Construct a virtualenv useful for bootstrapping. It conveniently contains a
     # Mercurial install.
     Write-Output "creating bootstrap virtualenv with Mercurial"
     Invoke-Process "$prefix\python39-x64\python.exe" "-m venv ${prefix}\venv-bootstrap"
-    Invoke-Process "${prefix}\venv-bootstrap\Scripts\pip.exe" "install ${prefix}\assets\${MERCURIAL_WHEEL_FILENAME}"
+
+    Invoke-Process msiexec.exe "/i ${prefix}\assets\Mercurial.msi /l* ${prefix}\assets\Mercurial.log /quiet"
 }
 
 function Clone-Mercurial-Repo($prefix, $repo_url, $dest) {
     Write-Output "cloning $repo_url to $dest"
     # TODO Figure out why CA verification isn't working in EC2 and remove
     # --insecure.
-    Invoke-Process "${prefix}\venv-bootstrap\Scripts\python.exe" "${prefix}\venv-bootstrap\Scripts\hg clone --insecure $repo_url $dest"
+    Invoke-Process "$Env:PROGRAMFILES\Mercurial\hg.exe" "clone --insecure $repo_url $dest"
 
     # Mark repo as non-publishing by default for convenience.
     Add-Content -Path "$dest\.hg\hgrc" -Value "`n[phases]`npublish = false"
@@ -228,4 +262,6 @@ function Clone-Mercurial-Repo($prefix, $repo_url, $dest) {
 
 $prefix = "c:\hgdev"
 Install-Dependencies $prefix
-Clone-Mercurial-Repo $prefix "https://www.mercurial-scm.org/repo/hg" $prefix\src
+Clone-Mercurial-Repo $prefix "https://foss.heptapod.net/mercurial/mercurial-devel" $prefix\src
+
+Write-Output "Setup is complete.  If a Docker image is building, it may take awhile longer."

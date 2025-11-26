@@ -67,6 +67,7 @@ use crate::exceptions::map_lock_error;
 use crate::exceptions::map_try_lock_error;
 use crate::exceptions::nodemap_error;
 use crate::exceptions::rev_not_in_index;
+use crate::exceptions::revlog_error;
 use crate::exceptions::revlog_error_bare;
 use crate::exceptions::revlog_error_from_msg;
 use crate::node::node_from_py_bytes;
@@ -1093,7 +1094,7 @@ impl InnerRevlog {
                     .iter()
                     .map(|(phase, revs)| {
                         let phase = Phase::try_from(phase.extract::<usize>()?)
-                            .map_err(|_| revlog_error_bare())?;
+                            .map_err(revlog_error)?;
                         let revs: Vec<Revision> =
                             rev_pyiter_collect(&revs, idx)?;
                         Ok((phase, revs))
@@ -1273,7 +1274,7 @@ impl InnerRevlog {
         let mut cache = PySnapshotsCache(cache);
         Self::with_index_read(slf, |idx| {
             idx.find_snapshots(start_rev.into(), end_rev.into(), &mut cache)
-                .map_err(|_| revlog_error_bare())
+                .map_err(revlog_error)
         })?;
         Ok(())
     }

@@ -32,6 +32,7 @@ use crate::repo::Repo;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
 use crate::FastHashMap;
 
 lazy_static! {
@@ -48,6 +49,101 @@ lazy_static! {
     ];
 }
 
+/// Errors specific to handling shapes
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    /// A shard was declared with an empty name
+    EmptyShardName,
+    /// A shard was declared with a name that only has dots and/or hyphens
+    DotOrHyphenOnlyShardName(String),
+    /// A shard was declared with an invalid name that is not only dots
+    /// and/or hyphens
+    InvalidShardName(String),
+    /// A shard was declared with a reserved name
+    ReservedName(String),
+    /// The following shards form a cycle
+    CycleInShards(Vec<ShardName>),
+    /// This path was found in two (or more) separate shards
+    PathInMultipleShards(HgPathBuf),
+    /// Two (or more) shards share the same name
+    DuplicateShard(ShardName),
+    /// This shard was defined without `paths` and `requires`
+    ShardMissingPathsAndRequires(String),
+    /// An invalid file pattern was given
+    PatternError(PatternError),
+    /// The config contains an invalid path, with this error
+    InvalidPath(HgPathError),
+    /// This config parsed correctly, but is of this unknown version
+    UnknownVersion(usize),
+    /// The config failed to parse, here is the error
+    ParseError(toml::de::Error),
+}
+
+impl From<Error> for HgError {
+    fn from(value: Error) -> Self {
+        let exit_code = match value {
+            Error::EmptyShardName
+            | Error::DotOrHyphenOnlyShardName(_)
+            | Error::InvalidShardName(_)
+            | Error::ReservedName(_)
+            | Error::CycleInShards(_)
+            | Error::PathInMultipleShards(_)
+            | Error::DuplicateShard(_)
+            | Error::ShardMissingPathsAndRequires(_)
+            | Error::InvalidPath(_)
+            | Error::UnknownVersion(_) => exit_codes::CONFIG_ERROR_ABORT,
+            Error::ParseError(_) => exit_codes::CONFIG_PARSE_ERROR_ABORT,
+            Error::PatternError(_) => exit_codes::INPUT_ERROR,
+        };
+        let explanation = match value {
+            Error::EmptyShardName => {
+                "shard names must not be empty".to_string()
+            }
+            Error::DotOrHyphenOnlyShardName(name) => format!(
+                "invalid shard name '{name}': \
+                missing lowercase alphanumeric character"
+            ),
+            Error::InvalidShardName(name) => format!(
+                "invalid shard name '{name}': \
+                only lowercase alphanumeric, hyphen or dot are accepted"
+            ),
+            Error::ReservedName(name) => {
+                format!("shard name '{name}' is reserved")
+            }
+            Error::CycleInShards(shard_names) => {
+                let cycle = shard_names.into_iter().join("->");
+                format!("shards form a cycle: {cycle}")
+            }
+            Error::PathInMultipleShards(path) => {
+                format!(
+                    "path is found in multiple shards: {}",
+                    String::from_utf8_lossy(path.as_bytes())
+                )
+            }
+            Error::DuplicateShard(name) => {
+                format!("shard '{name}' defined multiple times")
+            }
+            Error::ShardMissingPathsAndRequires(name) => {
+                format!("shard '{name}' needs one of `paths` or `requires`")
+            }
+            Error::InvalidPath(err) => {
+                format!("`server-shapes` contains an invalid path: {err}")
+            }
+            Error::UnknownVersion(version) => {
+                format!("unknown `server-shapes` version '{version}'")
+            }
+            Error::ParseError(err) => {
+                format!("error parsing `server-shapes`:\n{err}")
+            }
+            Error::PatternError(err) => {
+                format!("invalid pattern {err}")
+            }
+        };
+
+        Self::abort(explanation, exit_code, None)
+    }
+}
+
 const HG_FILES_SHARD: &str = ".hg-files";
 
 /// Canonical name within a repo for a [`Shard`].
@@ -62,14 +158,15 @@ impl std::fmt::Display for ShardName {
 }
 
 impl ShardName {
-    fn new(name: String) -> Result<Self, HgError> {
+    fn new(name: String) -> Result<Self, Error> {
+        if name.is_empty() {
+            return Err(Error::EmptyShardName);
+        }
+        if name.as_bytes().iter().all(|b| *b == b'.' || *b == b'-') {
+            return Err(Error::DotOrHyphenOnlyShardName(name));
+        }
         if !SHARD_NAME_REGEX.is_match(&name) {
-            let msg = format!(
-                "shard name '{}' is invalid: \
-                only lowercase alphanumeric ascii, `-` and `.` are supported.",
-                &name
-            );
-            return Err(HgError::abort_simple(msg));
+            return Err(Error::InvalidShardName(name));
         }
         Ok(Self(name))
     }
@@ -104,48 +201,38 @@ pub struct StoreShards {
 }
 
 impl StoreShards {
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
-        let ShapesConfig { version, mut shards } =
-            match repo.store_vfs().try_read("server-shapes")? {
-                Some(data) => toml::from_slice(&data).map_err(|e| {
-                    // We've failed to parse this to the expected structure,
-                    // it could be for many different reasons.
-                    // Give a better error message if it's only because it's a
-                    // different version that also turns out to be incompatible
-                    // with this deserialization.
-                    // It's a little fragile, but it's better than nothing.
-                    let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
-                        .expect("valid regex");
-                    if let Some(captures) = re.captures(&data) {
-                        if let Some(version) = captures.get(1) {
-                            let version =
-                                String::from_utf8_lossy(version.as_bytes())
-                                    .parse::<usize>()
-                                    .expect("parsing an integer from a regex");
-                            return HgError::abort(
-                                format!(
-                                    "unknown server-shapes version {}",
-                                    version
-                                ),
-                                exit_codes::CONFIG_ERROR_ABORT,
-                                None,
-                            );
-                        }
+        let config = match repo.store_vfs().try_read("server-shapes")? {
+            Some(data) => toml::from_slice(&data).map_err(|e| {
+                // We've failed to parse this to the expected structure,
+                // it could be for many different reasons.
+                // Give a better error message if it's only because it's a
+                // different version that also turns out to be incompatible
+                // with this deserialization.
+                // It's a little fragile, but it's better than nothing.
+                let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
+                    .expect("valid regex");
+                if let Some(captures) = re.captures(&data) {
+                    if let Some(version) = captures.get(1) {
+                        let version =
+                            String::from_utf8_lossy(version.as_bytes())
+                                .parse::<usize>()
+                                .expect("parsing an integer from a regex");
+                        return Error::UnknownVersion(version);
                     }
-                    HgError::abort(
-                        e.to_string(),
-                        exit_codes::CONFIG_PARSE_ERROR_ABORT,
-                        None,
-                    )
-                })?,
-                None => ShapesConfig::default(),
-            };
+                }
+                Error::ParseError(e)
+            })?,
+            None => ShapesConfig::default(),
+        };
+        Ok(Self::from_config(config)?)
+    }
+
+    fn from_config(config: ShapesConfig) -> Result<Self, Error> {
+        let ShapesConfig { version, mut shards } = config;
         if version != 0 {
-            return Err(HgError::abort(
-                format!("unknown server-shapes version {}", version),
-                exit_codes::CONFIG_ERROR_ABORT,
-                None,
-            ));
+            return Err(Error::UnknownVersion(version as usize));
         }
         let shards_len_before = shards.len();
         shards.push(ShardConfig {
@@ -185,7 +272,11 @@ impl StoreShards {
                 &mut validated_shards,
             )
         })?;
-        Ok(Self { shards: validated_shards, path_to_shard })
+
+        let slf = Self { shards: validated_shards, path_to_shard };
+        // Make sure we can generate all shapes and catch the last errors
+        slf.all_shapes()?;
+        Ok(slf)
     }
 
     /// Make sure the shard config is valid, create the shard struct and add
@@ -195,40 +286,22 @@ impl StoreShards {
         user_provided: bool,
         path_to_shard: &mut FastHashMap<HgPathBuf, Shard>,
         shards: &mut FastHashMap<ShardName, Shard>,
-    ) -> Result<(), HgError> {
+    ) -> Result<(), Error> {
         let ShardConfig { name, shape, paths, requires } = shard_config;
         if user_provided
             && matches!(name.as_str(), "base" | "full" | HG_FILES_SHARD)
         {
-            let msg = format!("shard name '{}' is reserved", &name);
-            return Err(HgError::abort(
-                msg,
-                exit_codes::CONFIG_ERROR_ABORT,
-                None,
-            ));
+            return Err(Error::ReservedName(name));
         }
 
         if paths.is_none() && requires.is_none() {
-            let msg =
-                format!("shard '{}' needs one of `paths` or `requires`", &name);
-            return Err(HgError::abort(
-                msg,
-                exit_codes::CONFIG_ERROR_ABORT,
-                None,
-            ));
+            return Err(Error::ShardMissingPathsAndRequires(name));
         }
 
         let mut hg_paths = vec![];
         if let Some(config_paths) = paths {
             for path in config_paths {
-                let on_err = |e| {
-                    let msg = format!(
-                        "invalid path {} in server-shapes: {}",
-                        &path,
-                        HgPathError::from(e)
-                    );
-                    HgError::abort(msg, exit_codes::CONFIG_ERROR_ABORT, None)
-                };
+                let on_err = |e: HgPathErrorKind| Error::InvalidPath(e.into());
                 let hg_path = HgPathBuf::from_bytes(
                     path.as_bytes()
                         .strip_suffix(b"/")
@@ -265,29 +338,18 @@ impl StoreShards {
         for path in hg_paths {
             if path_to_shard.insert(path.to_owned(), shard.to_owned()).is_some()
             {
-                return Err(HgError::abort(
-                    format!(
-                        "path '{}' is in two separate shards",
-                        String::from_utf8_lossy(path.as_bytes())
-                    ),
-                    exit_codes::CONFIG_ERROR_ABORT,
-                    None,
-                ));
+                return Err(Error::PathInMultipleShards(path));
             }
         }
 
         if shards.insert(name.to_owned(), shard).is_some() {
-            return Err(HgError::abort(
-                format!("shard '{}' defined twice", name),
-                exit_codes::CONFIG_ERROR_ABORT,
-                None,
-            ));
+            return Err(Error::DuplicateShard(name));
         }
         Ok(())
     }
 
     /// Return all user-facing [`Shard`] as [`Shape`]
-    pub fn all_shapes(&self) -> Result<Vec<Shape>, HgError> {
+    pub fn all_shapes(&self) -> Result<Vec<Shape>, Error> {
         let mut all: Vec<_> =
             self.shards.iter().filter(|(_, shard)| shard.shape).collect();
         all.sort();
@@ -297,7 +359,7 @@ impl StoreShards {
     }
 
     /// Return the [`Shape`] of name `name`, or `None`.
-    pub fn shape(&self, name: &str) -> Result<Option<Shape>, HgError> {
+    pub fn shape(&self, name: &str) -> Result<Option<Shape>, Error> {
         let shard_name = ShardName::new(name.to_string())?;
         if let Some(shard) = self.shards.get(&shard_name) {
             if shard.shape {
@@ -312,7 +374,7 @@ impl StoreShards {
     fn dependencies<'a>(
         &'a self,
         shard: &'a Shard,
-    ) -> Result<FastHashMap<&'a ShardName, &'a Shard>, HgError> {
+    ) -> Result<FastHashMap<&'a ShardName, &'a Shard>, Error> {
         let mut acc = FastHashMap::default();
         self.dependencies_from(shard, &[], &mut acc)?;
         Ok(acc)
@@ -326,16 +388,14 @@ impl StoreShards {
         shard: &'a Shard,
         from: &[&'a ShardName],
         acc: &mut FastHashMap<&'a ShardName, &'a Shard>,
-    ) -> Result<(), HgError> {
+    ) -> Result<(), Error> {
         // TODO cache dependencies?
         for name in &shard.requires {
             if from.contains(&name) {
-                let cycle = from.iter().join("->");
-                return Err(HgError::abort(
-                    format!("shards form a cycle: {}->{}", cycle, name),
-                    exit_codes::CONFIG_ERROR_ABORT,
-                    None,
-                ));
+                let mut cycle: Vec<ShardName> =
+                    from.iter().map(|n| (*n).to_owned()).collect();
+                cycle.push(name.to_owned());
+                return Err(Error::CycleInShards(cycle));
             }
             let sub_shard = &self.shards[name];
             acc.insert(name, sub_shard);
@@ -351,6 +411,7 @@ impl StoreShards {
 /// Represents a named narrow view into the repo's files (at the history level).
 ///
 /// This is a user-facing concept.
+#[derive(Debug)]
 pub struct Shape {
     name: ShardName,
     tree: ShardTreeNode,
@@ -361,7 +422,7 @@ impl Shape {
         name: ShardName,
         store_shards: &StoreShards,
         shards: &[&Shard],
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, Error> {
         let mut expanded_shards = vec![];
         for shard in shards {
             expanded_shards.push(*shard);
@@ -394,7 +455,7 @@ impl Shape {
 }
 
 /// Matches the os-disk config for a single shard inside the [`ShapesConfig`]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct ShardConfig {
     /// Canonical name for this shard. Used both in UI and protocol
     name: String,
@@ -413,7 +474,7 @@ struct ShardConfig {
 
 /// Matches the on-disk format for admins to define their repo's shards and
 /// shapes
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ShapesConfig {
     // XXX should there be a `[meta]` section?
     /// The version of this config. For now only version `0` exists.
@@ -427,7 +488,7 @@ pub struct ShapesConfig {
 /// It is used to create a normalized representation of potentially nested
 /// include and exclude patterns to uniquely identify semantically equivalent
 /// rules, as well as generating an associated file matcher.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ShardTreeNode {
     /// The path (rooted by `b""`) that this node concerns
     path: ZeroPath,
@@ -437,12 +498,30 @@ pub struct ShardTreeNode {
     children: Vec<Arc<PanickingRwLock<ShardTreeNode>>>,
 }
 
+impl std::fmt::Debug for ShardTreeNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShardTreeNode")
+            .field("path", &self.path)
+            .field("included", &self.included)
+            // Remove the `RwLock` noise from the debug output
+            .field(
+                "children",
+                &self
+                    .children
+                    .iter()
+                    .map(|node| node.read().to_owned())
+                    .collect::<Vec<Self>>(),
+            )
+            .finish()
+    }
+}
+
 impl ShardTreeNode {
     /// Create the tree expressed by the server shapes config
     pub fn from_shards<'a>(
         store_shards: &'a StoreShards,
         shards: &[&'a Shard],
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, Error> {
         let mut shard_paths = HashSet::new();
         // Gather all paths recursively
         for shard in shards {
@@ -466,7 +545,7 @@ impl ShardTreeNode {
     pub fn from_patterns<'a>(
         includes: &'a [FilePattern],
         excludes: &'a [FilePattern],
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, Error> {
         let check_pattern = |pattern: &'a FilePattern| {
             if pattern.syntax != PatternSyntax::Path {
                 let syntax = format!("{:?}", pattern.syntax);
@@ -479,13 +558,13 @@ impl ShardTreeNode {
             .iter()
             .map(check_pattern)
             .collect::<Result<HashSet<&[u8]>, _>>()
-            .map_err(|e| HgError::abort_simple(e.to_string()))?;
+            .map_err(Error::PatternError)?;
 
         let exclude_paths = excludes
             .iter()
             .map(check_pattern)
             .collect::<Result<HashSet<&[u8]>, _>>()
-            .map_err(|e| HgError::abort_simple(e.to_string()))?;
+            .map_err(Error::PatternError)?;
 
         let empty_path = b"".as_slice();
         // `clone` passes `path:.` by default which is supposed to include
@@ -516,21 +595,22 @@ impl ShardTreeNode {
     fn from_paths<Paths, Bytes>(
         paths: Paths,
         includes: HashSet<&[u8]>,
-    ) -> Result<Self, HgError>
+    ) -> Result<Self, Error>
     where
         Paths: Iterator<Item = Bytes>,
         Bytes: AsRef<[u8]>,
     {
         // Generate a flat sequence of nodes, sorted via ZeroPath
-        let nodes = paths
+        let mut nodes = paths
             .map(|path| {
-                Arc::new(PanickingRwLock::new(Self {
-                    path: ZeroPath::new(path.as_ref()),
+                Ok(Arc::new(PanickingRwLock::new(Self {
+                    path: ZeroPath::new(path.as_ref())?,
                     included: includes.contains(path.as_ref()),
                     children: vec![],
-                }))
+                })))
             })
-            .sorted_by(|a, b| a.read().path.cmp(&b.read().path));
+            .collect::<Result<Vec<_>, Error>>()?;
+        nodes.sort_by(|a, b| a.read().path.cmp(&b.read().path));
 
         // Create the tree by looping over the nodes and keeping track of
         // where we are in the recursion via a stack
@@ -547,9 +627,11 @@ impl ShardTreeNode {
                 // Only insert children that are not redundant
                 if last.read().included != node.read().included {
                     last.write().children.push(node.clone());
+                    stack.push(node);
                 }
+            } else {
+                stack.push(node);
             }
-            stack.push(node);
         }
         let root = stack.into_iter().next().expect("should have one element");
         let root = Arc::into_inner(root)
@@ -681,17 +763,24 @@ impl std::fmt::Debug for ZeroPath {
 }
 
 impl ZeroPath {
-    fn new(bytes: &[u8]) -> Self {
+    fn new(bytes: &[u8]) -> Result<Self, Error> {
         let mut path = Vec::with_capacity(bytes.len());
         for (idx, byte) in bytes.iter().enumerate() {
             if idx == 0 {
-                assert_ne!(*byte, b'/');
+                if *byte == b'/' {
+                    let err = HgPathErrorKind::LeadingSlash(bytes.to_owned());
+                    return Err(Error::InvalidPath(err.into()));
+                }
                 path.push(b'\0');
             }
-            assert_ne!(*byte, b':');
             assert_ne!(*byte, b'\0');
             if idx == bytes.len() - 1 {
-                assert_ne!(*byte, b'/');
+                if *byte == b'/' {
+                    let err = HgPathErrorKind::EndsWithSlash(
+                        HgPathBuf::from_bytes(bytes),
+                    );
+                    return Err(Error::InvalidPath(err.into()));
+                }
                 path.push(*byte);
                 path.push(b'\0');
             } else if *byte == b'/' {
@@ -703,7 +792,7 @@ impl ZeroPath {
         if path.is_empty() {
             path.push(b'\0');
         }
-        Self(path)
+        Ok(Self(path))
     }
 
     fn is_empty(&self) -> bool {
@@ -719,8 +808,10 @@ impl ZeroPath {
     }
 }
 
-impl From<&HgPath> for ZeroPath {
-    fn from(path: &HgPath) -> Self {
+impl TryFrom<&HgPath> for ZeroPath {
+    type Error = Error;
+
+    fn try_from(path: &HgPath) -> Result<Self, Error> {
         Self::new(path.as_bytes())
     }
 }
@@ -734,7 +825,6 @@ impl From<&ZeroPath> for HgPathBuf {
                 assert_eq!(*byte, b'\0');
                 continue;
             }
-            assert_ne!(*byte, b':');
             assert_ne!(*byte, b'/');
             if idx == bytes.len() - 1 {
                 assert_eq!(*byte, b'\0');
@@ -775,5 +865,490 @@ impl<T> PanickingRwLock<T> {
         T: Sized,
     {
         self.0.into_inner().expect("propagate panic")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    fn valid_store_shards() -> (StoreShards, Vec<&'static str>) {
+        // Leading whitespace does not matter in TOML, I think this is more
+        // readable
+        let valid_config = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+            requires = ["baz", "base"]
+            shape = true
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
+            shape = true
+
+            [[shards]]
+            name = "baz"
+            paths = ["bar/baz"]
+
+            [[shards]]
+            name = "bazik"
+            paths = ["bar/baz/ik"]
+            requires = ["bar"]
+            shape = true
+
+            [[shards]]
+            name = "baziku"
+            paths = ["bar/baz/ik/u"]
+
+            [[shards]]
+            name = "baron"
+            requires = ["bar", "baziku"]
+            shape = true
+        "#;
+
+        // Make sure we can load this config
+        let config_result = toml::from_str::<ShapesConfig>(valid_config);
+        assert!(config_result.is_ok(), "{:?}", config_result);
+        let config = config_result.unwrap();
+
+        // We can create a storeshards
+        let store_shards_result = StoreShards::from_config(config);
+        assert!(store_shards_result.is_ok(), "{:?}", store_shards_result);
+        let store_shards = store_shards_result.unwrap();
+
+        let all_shard_names = vec![
+            ".hg-files",
+            "bar",
+            "baron",
+            "base",
+            "baz",
+            "bazik",
+            "baziku",
+            "foo",
+            "full",
+        ];
+        // Shards are as expected, along with the implicit shards
+        assert_eq!(
+            store_shards
+                .shards
+                .keys()
+                .sorted()
+                .map(|k| k.to_string())
+                .collect::<Vec<_>>(),
+            all_shard_names,
+        );
+
+        let all_shape_names =
+            vec!["bar", "baron", "base", "bazik", "foo", "full"];
+        // Shapes are as expected, along with the implicit shapes
+        assert_eq!(
+            store_shards
+                .all_shapes()
+                .unwrap()
+                .into_iter()
+                .map(|shape| shape.name().to_string())
+                .collect::<Vec<_>>(),
+            all_shape_names,
+        );
+        (store_shards, all_shape_names)
+    }
+
+    #[test]
+    fn test_dependencies() {
+        let (store_shards, _) = valid_store_shards();
+
+        fn assert_dependencies(
+            store_shards: &StoreShards,
+            shard_name: &str,
+            expected: Vec<&str>,
+        ) {
+            let dependencies = store_shards
+                .dependencies(
+                    &store_shards.shards
+                        [&ShardName::new(shard_name.to_string()).unwrap()],
+                )
+                .unwrap()
+                .into_keys()
+                .sorted()
+                .map(|n| n.to_string());
+            let dependencies = dependencies.collect::<Vec<String>>();
+            assert_eq!(dependencies, expected, "for shard {}", shard_name);
+        }
+
+        assert_dependencies(&store_shards, "bar", vec![".hg-files"]);
+        assert_dependencies(
+            &store_shards,
+            "foo",
+            vec![".hg-files", "base", "baz"],
+        );
+        assert_dependencies(
+            &store_shards,
+            "full",
+            vec![
+                ".hg-files",
+                "bar",
+                "baron",
+                "base",
+                "baz",
+                "bazik",
+                "baziku",
+                "foo",
+            ],
+        );
+    }
+
+    #[test]
+    fn test_patterns() {
+        let (store_shards, all_shape_names) = valid_store_shards();
+
+        fn assert_patterns(
+            store_shards: &StoreShards,
+            shard_name: &str,
+            expected_includes: &[&str],
+            expected_excludes: &[&str],
+        ) {
+            let shape = store_shards.shape(shard_name).unwrap().unwrap();
+            dbg!(&shard_name);
+            dbg!(&shape.tree);
+            let (includes, excludes) = shape.patterns();
+            let expected_includes = expected_includes
+                .iter()
+                .map(|p| HgPathBuf::from_bytes(p.as_bytes()))
+                .collect::<Vec<_>>();
+            let expected_excludes = expected_excludes
+                .iter()
+                .map(|p| HgPathBuf::from_bytes(p.as_bytes()))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                includes, expected_includes,
+                "wrong includes for shape {}",
+                shard_name
+            );
+            assert_eq!(
+                excludes, expected_excludes,
+                "wrong excludes for shape {}",
+                shard_name
+            );
+        }
+
+        // Test the patterns for each shape
+        type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
+        let shape_to_patterns: &[(&str, Patterns)] = &[
+            ("full", (&[""], &[])),
+            ("base", (&[""], &["bar", "foo"])),
+            (
+                "bar",
+                (
+                    &[".hgignore", ".hgsub", ".hgsubstate", ".hgtags", "bar"],
+                    &["", "bar/baz"],
+                ),
+            ),
+            (
+                "baron",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "bar",
+                        "bar/baz/ik/u",
+                    ],
+                    &["", "bar/baz"],
+                ),
+            ),
+            (
+                "bazik",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "bar",
+                        "bar/baz/ik",
+                    ],
+                    &["", "bar/baz", "bar/baz/ik/u"],
+                ),
+            ),
+            ("foo", (&["", "bar/baz"], &["bar", "bar/baz/ik"])),
+        ];
+
+        for (shard_name, (expected_includes, expected_excludes)) in
+            shape_to_patterns
+        {
+            assert_patterns(
+                &store_shards,
+                shard_name,
+                expected_includes,
+                expected_excludes,
+            );
+        }
+
+        // Make sure we've tested all names
+        assert_eq!(
+            shape_to_patterns
+                .iter()
+                .map(|(n, _)| *n)
+                .sorted()
+                .collect::<Vec<&str>>(),
+            all_shape_names
+        );
+    }
+
+    /// Test that every shape matches the right files
+    #[test]
+    fn test_matcher() {
+        let (store_shards, all_shape_names) = valid_store_shards();
+
+        let files_to_shape: &[(&str, &[&str])] = &[
+            ("babar/v", &["full", "base", "foo"]),
+            ("bar/ba/v", &["full", "bar", "baron", "bazik"]),
+            ("bar/baz/f", &["full", "foo"]),
+            ("bar/baz/g", &["full", "foo"]),
+            ("bar/baz/i", &["full", "foo"]),
+            ("bar/baz/ik/U/j", &["full", "bazik"]),
+            ("bar/baz/ik/U/k", &["full", "bazik"]),
+            ("bar/baz/ik/U/m", &["full", "bazik"]),
+            ("bar/baz/ik/h", &["full", "bazik"]),
+            ("bar/baz/ik/i", &["full", "bazik"]),
+            ("bar/baz/ik/o/l", &["full", "bazik"]),
+            ("bar/baz/ik/u/j", &["full", "baron"]),
+            ("bar/baz/ik/u/k", &["full", "baron"]),
+            ("bar/baz/ik/u/m", &["full", "baron"]),
+            ("bar/d", &["full", "bar", "baron", "bazik"]),
+            ("bar/e", &["full", "bar", "baron", "bazik"]),
+            ("foo/a", &["full", "foo"]),
+            ("foo/b", &["full", "foo"]),
+            ("foo/c", &["full", "foo"]),
+            ("foo/y", &["full", "foo"]),
+            ("oops", &["full", "base", "foo"]),
+            ("w", &["full", "base", "foo"]),
+            ("y", &["full", "base", "foo"]),
+            ("z", &["full", "base", "foo"]),
+        ];
+
+        let shape_to_matcher: Vec<_> = all_shape_names
+            .iter()
+            .map(|name| {
+                let shape = store_shards.shape(name).unwrap().unwrap();
+                let matcher = shape.matcher();
+                (shape.name().to_string(), matcher)
+            })
+            .collect();
+        for (file, expected_shapes) in files_to_shape {
+            let file = HgPath::new(file.as_bytes());
+            for (shape_name, matcher) in shape_to_matcher.iter() {
+                let expect_match =
+                    expected_shapes.contains(&shape_name.as_str());
+                assert_eq!(
+                    matcher.matches(file),
+                    expect_match,
+                    "shape '{shape_name}' {} match file '{file}'",
+                    if expect_match { "should" } else { "should not" }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_config_invalid() {
+        let pairs = &[
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="full"
+                paths=[""]
+            "#,
+                Error::ReservedName("full".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="base"
+                paths=[""]
+            "#,
+                Error::ReservedName("base".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name=".hg-files"
+                paths=[""]
+            "#,
+                Error::ReservedName(".hg-files".to_string()),
+            ),
+            (
+                r#"
+                version=999
+                [[shards]]
+                name="babar"
+                paths=["babar"]
+            "#,
+                Error::UnknownVersion(999),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="Babar"
+                paths=["babar"]
+            "#,
+                Error::InvalidShardName("Babar".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name=""
+                paths=["babar"]
+            "#,
+                Error::EmptyShardName,
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="."
+                paths=["babar"]
+            "#,
+                Error::DotOrHyphenOnlyShardName(".".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="-"
+                paths=["babar"]
+            "#,
+                Error::DotOrHyphenOnlyShardName("-".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="-.-"
+                paths=["babar"]
+            "#,
+                Error::DotOrHyphenOnlyShardName("-.-".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="duplicate"
+                paths=["babar"]
+                [[shards]]
+                name="duplicate"
+                paths=["babar2"]
+            "#,
+                Error::DuplicateShard(
+                    ShardName::new("duplicate".to_string()).unwrap(),
+                ),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="too-little"
+            "#,
+                Error::ShardMissingPathsAndRequires("too-little".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                paths = ["secret"]
+                [[shards]]
+                name = "myshard2"
+                paths = ["secret"]
+            "#,
+                Error::PathInMultipleShards(HgPathBuf::from_bytes(b"secret")),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                # Needs two slashes because we allow one trailing slash that
+                # is stripped internally for quality of life
+                paths = ["badpath//"]
+            "#,
+                Error::InvalidPath(
+                    HgPathErrorKind::EndsWithSlash(HgPathBuf::from_bytes(
+                        b"badpath/",
+                    ))
+                    .into(),
+                ),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                paths = ["badpath//bad"]
+            "#,
+                Error::InvalidPath(
+                    HgPathErrorKind::ConsecutiveSlashes {
+                        bytes: b"badpath//bad".to_vec(),
+                        second_slash_index: 8,
+                    }
+                    .into(),
+                ),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="recursive"
+                requires=["recursive"]
+            "#,
+                Error::CycleInShards(vec![
+                    ShardName::new("recursive".to_string()).unwrap(),
+                    ShardName::new("recursive".to_string()).unwrap(),
+                ]),
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name="cyclic1"
+                requires=["cyclic2"]
+                [[shards]]
+                name="cyclic2"
+                requires=["cyclic3"]
+                [[shards]]
+                name="cyclic3"
+                requires=["cyclic4"]
+                [[shards]]
+                name="cyclic4"
+                requires=["cyclic1"]
+            "#,
+                Error::CycleInShards(vec![
+                    ShardName::new("cyclic1".to_string()).unwrap(),
+                    ShardName::new("cyclic2".to_string()).unwrap(),
+                    ShardName::new("cyclic3".to_string()).unwrap(),
+                    ShardName::new("cyclic4".to_string()).unwrap(),
+                    ShardName::new("cyclic1".to_string()).unwrap(),
+                ]),
+            ),
+        ];
+
+        for (config, expected_error) in pairs {
+            let config = toml::from_str::<ShapesConfig>(config)
+                .expect("should be syntactically valid");
+            let actual_error = StoreShards::from_config(config)
+                .expect_err("should be an error at this stage");
+            assert_eq!(&actual_error, expected_error);
+        }
     }
 }

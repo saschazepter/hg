@@ -4,8 +4,8 @@ Setup the repo
   $ hg init server
   $ cd server
 
-Check for server shapes config errors
--------------------------------------
+Check that server shapes config errors display correctly
+--------------------------------------------------------
 
   $ cat > .hg/store/server-shapes <<EOF
   > version = 0
@@ -15,87 +15,6 @@ Check for server shapes config errors
   > EOF
   $ hg admin::narrow-server --shape-fingerprints
   config error: shard name 'base' is reserved
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 0
-  > [[shards]]
-  > name = "full"
-  > paths = ["secret"]
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: shard name 'full' is reserved
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 0
-  > [[shards]]
-  > name = "myshard"
-  > paths = ["secret"]
-  > [[shards]]
-  > name = "myshard2"
-  > paths = ["secret"]
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: path 'secret' is in two separate shards
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 999
-  > [[shards]]
-  > name = "myshard"
-  > paths = ["secret"]
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: unknown server-shapes version 999
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 0
-  > [[shards]]
-  > name = "duplicate"
-  > paths = ["secret"]
-  > [[shards]]
-  > name = "duplicate"
-  > paths = ["otherpath"]
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: shard 'duplicate' defined twice
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 0
-  > [[shards]]
-  > name = "too-little"
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: shard 'too-little' needs one of `paths` or `requires`
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 0
-  > [[shards]]
-  > name = "recursive"
-  > requires = ["recursive"]
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: shards form a cycle: recursive->recursive
-  [30]
-
-  $ cat > .hg/store/server-shapes <<EOF
-  > version = 0
-  > [[shards]]
-  > name = "cyclic1"
-  > requires = ["cyclic2"]
-  > [[shards]]
-  > name = "cyclic2"
-  > requires = ["cyclic3"]
-  > [[shards]]
-  > name = "cyclic3"
-  > requires = ["cyclic1"]
-  > EOF
-  $ hg admin::narrow-server --shape-fingerprints
-  config error: shards form a cycle: cyclic1->cyclic2->cyclic3->cyclic1
   [30]
 
 Normal cases

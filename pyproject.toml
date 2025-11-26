@@ -84,7 +84,7 @@ quiet = true
 
 
 [tool.cibuildwheel]
-build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
 
 # Don't stockpile wheels in the pip cache directory when they get built, since
 # there's no mechanism to age old ones out.

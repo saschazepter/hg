@@ -20,6 +20,7 @@ run pyflakes on all tracked files ending in .py or without a file ending
   > 2>/dev/null \
   > | xargs pyflakes 2>/dev/null | "$TESTDIR/filterpyflakes.py"
   contrib/perf.py:*:* undefined name 'xrange' (glob) (?)
+  hgext/zeroconf/__init__.py:*:*: `global server` is unused: name is never assigned in scope (glob) (?)
   mercurial/pycompat.py:*:* 'codecs' imported but unused (glob)
   mercurial/pycompat.py:*:* 'concurrent.futures' imported but unused (glob)
   mercurial/pycompat.py:*:* 'http.client as httplib' imported but unused (glob)
@@ -29,4 +30,5 @@ run pyflakes on all tracked files ending in .py or without a file ending
   mercurial/pycompat.py:*:* 'socketserver' imported but unused (glob)
   mercurial/pycompat.py:*:* 'xmlrpc.client as xmlrpclib' imported but unused (glob)
   mercurial/util.py:*:* 'pickle' imported but unused (glob)
+  mercurial/util.py:*:*: `global _re2` is unused: name is never assigned in scope (glob) (?)
   

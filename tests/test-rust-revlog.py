@@ -41,7 +41,7 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         self.assertEqual(idx.rev(self.node0), 0)
         with self.assertRaises(error.RevlogError) as exc_info:
             idx.rev(self.bogus_node)
-        self.assertEqual(exc_info.exception.args, (None,))
+        self.assertEqual(exc_info.exception.args, (b'None',))
 
         self.assertEqual(idx.partialmatch(self.node_hex0[:3]), self.node0)
         self.assertIsNone(idx.partialmatch(self.bogus_node_hex[:3]))

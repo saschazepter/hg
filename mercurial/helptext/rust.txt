@@ -100,7 +100,7 @@ Using `uv tool` is another efficient way to get an isolated installation of
 mercurial available for a user or globally.
 
   $ uv tool install mercurial \
-        --no-binary \
+        --no-binary=mercurial \
         --no-cache \
         --config-setting=--build-option=--rust
 

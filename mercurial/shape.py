@@ -69,7 +69,9 @@ class ShardTreeNode:
             if stack:
                 if stack[-1].included != node.included:
                     stack[-1].children.add(node)
-            stack.append(node)
+                    stack.append(node)
+            else:
+                stack.append(node)
         root = stack[0]
         return root
 

@@ -36,11 +36,33 @@ pub enum PatternError {
     UnsupportedSyntax(String),
     UnsupportedSyntaxInFile(String, String, usize),
     TooLong(usize),
+    // TODO reduce the wide "IO error" to a more specific enumeration of cases
+    // we expect so we can stop caring about `std::io::Error` being annoying
     #[from]
     IO(std::io::Error),
     /// Needed a pattern that can be turned into a regex but got one that
     /// can't. This should only happen through programmer error.
     NonRegexPattern(FilePattern),
+}
+
+// TODO remove this once we simplify the `IO` variant (see its declaration)
+impl PartialEq for PatternError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Path(l0), Self::Path(r0)) => l0 == r0,
+            (Self::UnsupportedSyntax(l0), Self::UnsupportedSyntax(r0)) => {
+                l0 == r0
+            }
+            (
+                Self::UnsupportedSyntaxInFile(l0, l1, l2),
+                Self::UnsupportedSyntaxInFile(r0, r1, r2),
+            ) => l0 == r0 && l1 == r1 && l2 == r2,
+            (Self::TooLong(l0), Self::TooLong(r0)) => l0 == r0,
+            (Self::IO(_), Self::IO(_)) => false,
+            (Self::NonRegexPattern(l0), Self::NonRegexPattern(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for PatternError {

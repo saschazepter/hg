@@ -3,6 +3,7 @@ use std::fmt::Display;
 use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::DirstateError;
 use hg::revlog::nodemap::NodeMapError;
+use hg::revlog::RevlogError;
 use hg::UncheckedRevision;
 use pyo3::create_exception;
 use pyo3::exceptions::PyOSError;
@@ -67,7 +68,11 @@ pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
 }
 
 pub fn revlog_error_bare() -> PyErr {
-    mercurial_py_errors::RevlogError::new_err((None::<String>,))
+    mercurial_py_errors::RevlogError::new_err(("None",))
+}
+
+pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
+    mercurial_py_errors::RevlogError::new_err(revlog_error.to_string())
 }
 
 pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {

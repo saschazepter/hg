@@ -137,8 +137,8 @@ Prepare inline bundles
   none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
 
   $ bundlespecfull="$(hg debugbundle --spec outfile-shape-full.hg)"
-  $ echo $bundlespec2
-  none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
+  $ echo $bundlespecfull
+  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 
   $ mkdir source/.hg/bundle-cache
   $ mv outfile-shape-*.hg source/.hg/bundle-cache/

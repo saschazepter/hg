@@ -106,7 +106,12 @@ def killdaemons(pidfile, tryhard=True, remove=False, logfn=None):
     # Kill off any leftover daemon processes
     try:
         pids = []
-        with open(pidfile) as fp:
+        if pidfile == '-':
+            fp = sys.stdin
+        else:
+            fp = open(pidfile)
+
+        with fp:
             for line in fp:
                 try:
                     pid = int(line)

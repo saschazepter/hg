@@ -156,31 +156,31 @@ def updaterepo(repo, node, overwrite, updatecheck=None):
 def update(repo, *args, **kwargs):
     msg = b'``hg.update(...)` moved to `cmd_impls.update.update(...)`'
     repo.ui.deprecwarn(msg, b'7.3')
-    return up_impl.update(*args, **kwargs)
+    return up_impl.update(repo, *args, **kwargs)
 
 
 def updatetotally(ui, *args, **kwargs):
     msg = b'``hg.updatetotally` moved to `cmd_impls.update.update_totally`'
     ui.deprecwarn(msg, b'7.3')
-    return up_impl.update_totally(*args, **kwargs)
+    return up_impl.update_totally(ui, *args, **kwargs)
 
 
 def clean(repo, *args, **kwargs):
     msg = b'``hg.clean(...)` moved to `cmd_impls.update.clean(...)`'
     repo.ui.deprecwarn(msg, b'7.3')
-    return up_impl.clean(*args, **kwargs)
+    return up_impl.clean(repo, *args, **kwargs)
 
 
 def merge(ctx, *args, **kwargs):
     msg = b'``hg.merge(...)` moved to `cmd_impls.update.merge(...)`'
     ctx.repo().ui.deprecwarn(msg, b'7.3')
-    return up_impl.merge(*args, **kwargs)
+    return up_impl.merge(ctx, *args, **kwargs)
 
 
 def abortmerge(ui, *args, **kwargs):
     msg = b'``hg.abortmerge(...)` moved to `cmd_impls.update.abortmerge(...)`'
     ui.deprecwarn(msg, b'7.3')
-    return up_impl.abort_merge(*args, **kwargs)
+    return up_impl.abort_merge(ui, *args, **kwargs)
 
 
 def outgoing(ui, *args, **kwargs):

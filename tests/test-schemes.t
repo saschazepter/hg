@@ -5,9 +5,9 @@
   > schemes=
   > 
   > [schemes]
-  > l = http://localhost:$HGPORT/
+  > lo = http://localhost:$HGPORT/
   > parts = http://{1}:$HGPORT/
-  > z = file:\$PWD/
+  > pwd = file:\$PWD/
   > EOF
   $ hg init test
   $ cd test
@@ -17,16 +17,16 @@
 
 invalid scheme
 
-  $ hg log -R z:z
-  abort: no '://' in scheme url 'z:z'
+  $ hg log -R pwd:pwd
+  abort: no '://' in scheme url 'pwd:pwd'
   [255]
 
 http scheme
 
   $ hg serve -n test -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ hg incoming l://
-  comparing with l://
+  $ hg incoming lo://
+  comparing with lo://
   searching for changes
   no changes found
   [1]
@@ -47,8 +47,8 @@ check that {1} syntax works
 
 check that paths are expanded
 
-  $ PWD=`pwd` hg incoming z://
-  comparing with z://
+  $ PWD=`pwd` hg incoming pwd://
+  comparing with pwd://
   searching for changes
   no changes found
   [1]

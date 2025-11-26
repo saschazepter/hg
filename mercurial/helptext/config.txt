@@ -753,6 +753,9 @@ for related options for the annotate command.
 ``git``
     Use git extended diff format.
 
+``merge``
+    :config-doc:`diff.merge`
+
 ``nobinary``
     Omit git binary patches.
 
