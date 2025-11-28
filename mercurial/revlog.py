@@ -1339,6 +1339,7 @@ class RustIndexProxy(ProxyBase):
         # Direct reforwards since `__getattr__` is *expensive*
         self.get_rev = self.inner._index_get_rev
         self.rev = self.inner._index_rev
+        self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest
         self.partialmatch = self.inner._index_partialmatch
@@ -2288,7 +2289,7 @@ class revlog:
 
     def node(self, rev):
         try:
-            return self.index[rev][7]
+            return self.index.node(rev)
         except IndexError:
             if rev == wdirrev:
                 raise error.WdirUnsupported

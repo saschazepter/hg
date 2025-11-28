@@ -598,6 +598,28 @@ static const char *index_node(indexObject *self, Py_ssize_t pos)
 	return data ? node_id : NULL;
 }
 
+static PyObject *index_py_node(indexObject *self, PyObject *rev)
+{
+	const char *node;
+	long idx;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	if (idx < -1) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	node = index_node(self, idx);
+	if (node == NULL) {
+		if (PyErr_Occurred() == NULL) {
+			PyErr_SetString(PyExc_IndexError,
+			                "revlog index out of range");
+		}
+		return NULL;
+	}
+	return PyBytes_FromStringAndSize(node, self->nodelen);
+}
+
 /*
  * Return the stored rank of a given revision if known, or rank_unknown
  * otherwise.
@@ -3435,6 +3457,7 @@ static PyMethodDef index_methods[] = {
      "return `rev` associated with a node or None"},
     {"has_node", (PyCFunction)index_m_has_node, METH_O,
      "return True if the node exist in the index"},
+    {"node", (PyCFunction)index_py_node, METH_O, "return `node` of a rev"},
     {"rev", (PyCFunction)index_m_rev, METH_O,
      "return `rev` associated with a node or raise RevlogError"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,

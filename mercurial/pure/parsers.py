@@ -641,6 +641,10 @@ class BaseIndexObject:
         If the node is unknown, return None"""
         return self._nodemap.get(node)
 
+    def node(self, rev: int) -> bytes:
+        """return the node of a revision"""
+        return self[rev][7]
+
     def _stripnodes(self, start):
         if '_nodemap' in vars(self):
             for r in range(start, len(self)):
@@ -676,7 +680,7 @@ class BaseIndexObject:
         # no reason to force it to implement an unused method.
         raise NotImplementedError
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> tuple:
         if i == -1:
             return self.null_item
         self._check_index(i)

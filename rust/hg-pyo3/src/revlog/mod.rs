@@ -886,6 +886,17 @@ impl InnerRevlog {
         Self::_index_get_rev(slf, node)?.ok_or_else(revlog_error_bare)
     }
 
+    fn _index_node<'py>(
+        slf: &Bound<'py, Self>,
+        py: Python<'py>,
+        rev: PyRevision,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(PyBytes::new(py, idx.node(r).as_bytes())),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
     /// return True if the node exist in the index
     fn _index_has_node(
         slf: &Bound<'_, Self>,

@@ -70,6 +70,10 @@ class revlogoldindex(list):
         If the node is unknown, return None"""
         return self._nodemap.get(node)
 
+    def node(self, rev: int) -> bytes:
+        """return the node of a revision"""
+        return self[rev][7]
+
     def append(self, tup):
         self._nodemap[tup[7]] = len(self)
         super().append(tup)
