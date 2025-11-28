@@ -12,7 +12,6 @@ from typing import (
     Iterator,
 )
 
-from .i18n import _
 from .node import bin, nullrev
 from . import (
     error,
@@ -236,19 +235,10 @@ class filelog(repository.ifilestorage):
         transaction,
         addrevisioncb=None,
         duplicaterevisioncb=None,
-        maybemissingparents=False,
         debug_info=None,
         delta_base_reuse_policy=None,
         use_hasmeta_flag=True,
     ):
-        if maybemissingparents:
-            raise error.Abort(
-                _(
-                    b'revlog storage does not support missing '
-                    b'parents write mode'
-                )
-            )
-
         with self._revlog._writing(transaction):
             revlog_hasmeta_flag = (
                 self._revlog._format_flags & revlog.FLAG_FILELOG_META
