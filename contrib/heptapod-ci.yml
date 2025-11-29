@@ -562,7 +562,7 @@ check-pytype:
       - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt'
       # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
     variables:
-        PYTHON: C:/hgdev/venvs/python39-x64/Scripts/python.exe
+        PYTHON: C:/hgdev/python39-x64/python.exe
 
 # a dummy job that only serve to trigger the wider windows build
 trigger-wheel-windows:
