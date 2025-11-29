@@ -587,7 +587,7 @@ build-c-wheel-windows:
         - echo "$Env:RUNTEST_ARGS"
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
-        - "C:/hgdev/venvs/python39-x64/Scripts/python.exe -m cibuildwheel --output-dir wheels/win32"
+        - "cibuildwheel.exe --output-dir wheels/win32"
     artifacts:
       paths:
         - wheels
