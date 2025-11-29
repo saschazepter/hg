@@ -824,8 +824,9 @@ Test long paths
   $ path=$("$PYTHON" -c 'print("long/" * 99 + "f.txt")')
   $ echo ${#path}
   500
-  $ mkdir -p $(dirname $path)
-  $ touch $path
+  >>> import os
+  >>> os.makedirs(os.path.dirname("$path"))
+  >>> open("$path", 'wb').close()
   $ hg commit -qAm 0
   $ hg debug::file-index --path $path | sed "s|$path|\$path|"
   1: $path
