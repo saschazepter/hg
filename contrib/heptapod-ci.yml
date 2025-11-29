@@ -621,7 +621,7 @@ build-c-wheel-windows:
     # upon are manual anyway, so we can make this start automatically once the
     # associated wheel is ready.
     when: on_success
-    parallel: 20
+    parallel: 10
     script:
         - echo "Entering script section"
         - echo "python used, $Env:PYTHON"
