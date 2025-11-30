@@ -86,7 +86,7 @@ help:
 	@echo '  make local && ./hg-local version'
 	@echo
 	@echo 'Example for a local installation in offline mode:'
-	@echo '  make local OFFLINE=1
+	@echo '  make local OFFLINE=1'
 
 .PHONY: local
 local:
