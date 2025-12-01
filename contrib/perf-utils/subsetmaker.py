@@ -5,6 +5,7 @@ Hopefully this is useful to create interesting discovery cases.
 
 import collections
 import random
+import sortedcontainers
 
 from mercurial.i18n import _
 
@@ -14,8 +15,6 @@ from mercurial import (
     revsetlang,
     smartset,
 )
-
-import sortedcontainers
 
 SortedSet = sortedcontainers.SortedSet
 
