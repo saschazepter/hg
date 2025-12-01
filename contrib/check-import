@@ -31,7 +31,7 @@ $HG files 'set:**.py or grep(r"^#!.*?python")' \
   -X doc/hgmanpage.py \
   -X i18n/posplit \
   -X mercurial/thirdparty \
-  -X tests/hypothesishelpers.py \
+  -X tests/testlib/hypothesishelpers.py \
   -X tests/test-demandimport.py \
   -X tests/test-imports-checker.t \
   -X tests/test-verify-repo-operations.py \
