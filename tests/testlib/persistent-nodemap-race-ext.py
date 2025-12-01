@@ -48,6 +48,7 @@ from mercurial import (
     node,
     pycompat,
     registrar,
+    scmutil,
     testing,
     util,
 )
@@ -95,8 +96,10 @@ FILE_READER_READY = os.path.join(SYNC_DIR, b'reader-ready')
 FILE_READER_READ_DOCKET = os.path.join(SYNC_DIR, b'reader-read-docket')
 
 
-def _print(*args, **kwargs):
-    print(*args, **kwargs)
+# by default, use builtin "print" for display
+#
+# don't seem to be able to use print with chg
+_print = print
 
 
 def _role(repo):
@@ -111,13 +114,13 @@ def wrap_changelog_finalize(orig, cl, tr):
     """
     role = getattr(tr, '_race_role', None)
     if role == RIGHT:
-        print('right ready to write, waiting for reader')
+        _print('right ready to write, waiting for reader')
         testing.wait_file(FILE_READER_READY)
         testing.write_file(FILE_RIGHT_CL_NODEMAP_PRE_WRITE)
         testing.wait_file(FILE_READER_READ_DOCKET)
-        print('right proceeding with writing its changelog index and nodemap')
+        _print('right proceeding with writing its changelog index and nodemap')
     ret = orig(cl, tr)
-    print("finalized changelog write")
+    _print("finalized changelog write")
     if role == LEFT:
         testing.write_file(FILE_LEFT_CL_DATA_WRITE)
     return ret
@@ -135,11 +138,11 @@ def wrap_persist_nodemap(orig, tr, revlog, *args, **kwargs):
         if role == LEFT:
             testing.wait_file(FILE_RIGHT_CL_NODEMAP_READ)
     if is_cl:
-        print("persisting changelog nodemap")
-        print("  new data start at", revlog._nodemap_docket.data_length)
+        _print("persisting changelog nodemap")
+        _print("  new data start at", revlog._nodemap_docket.data_length)
     ret = orig(tr, revlog, *args, **kwargs)
     if is_cl:
-        print("persisted changelog nodemap")
+        _print("persisted changelog nodemap")
         print_nodemap_details(revlog)
         if role == LEFT:
             testing.write_file(FILE_LEFT_CL_NODEMAP_WRITE)
@@ -151,14 +154,14 @@ def wrap_persist_nodemap(orig, tr, revlog, *args, **kwargs):
 def print_nodemap_details(cl):
     """print relevant information about the nodemap docket currently in memory"""
     dkt = cl._nodemap_docket
-    print('docket-details:')
+    _print('docket-details:')
     if dkt is None:
-        print('  <no-docket>')
+        _print('  <no-docket>')
         return
-    print('  uid:        ', pycompat.sysstr(dkt.uid))
-    print('  actual-tip: ', cl.tiprev())
-    print('  tip-rev:    ', dkt.tip_rev)
-    print('  data-length:', dkt.data_length)
+    _print('  uid:        ', pycompat.sysstr(dkt.uid))
+    _print('  actual-tip: ', cl.tiprev())
+    _print('  tip-rev:    ', dkt.tip_rev)
+    _print('  data-length:', dkt.data_length)
 
 
 def wrap_persisted_data(orig, revlog):
@@ -172,9 +175,9 @@ def wrap_persisted_data(orig, revlog):
         file_path = nodemaputil._rawdata_filepath(revlog, docket)
         file_path = revlog.opener.join(file_path)
         file_size = os.path.getsize(file_path)
-        print('record-data-length:', docket.data_length)
-        print('actual-data-length:', len(data))
-        print('file-actual-length:', file_size)
+        _print('record-data-length:', docket.data_length)
+        _print('actual-data-length:', len(data))
+        _print('file-actual-length:', file_size)
     return ret
 
 
@@ -186,8 +189,32 @@ def sync_read(orig):
     """
     orig()
     testing.write_file(FILE_READER_READ_DOCKET)
-    print('reader: nodemap docket read')
+    _print('reader: nodemap docket read')
     testing.wait_file(FILE_RIGHT_CL_NODEMAP_POST_WRITE)
+
+
+def make_print(ui):
+    def ui_print(*args):
+        pieces = []
+        for a in args:
+            if isinstance(a, int):
+                a = b"%d" % a
+            elif hasattr(a, 'encode'):
+                a = a.encode("ascii")
+            pieces.append(a)
+        ui.write(b' '.join(pieces) + b'\n')
+
+    return ui_print
+
+
+def wrap_printer(orig, ui, func):
+    global _print
+    old_print = _print
+    try:
+        _print = make_print(ui)
+        return orig(ui, func)
+    finally:
+        _print = old_print
 
 
 def uisetup(ui):
@@ -201,11 +228,11 @@ def uisetup(ui):
                 print_nodemap_details(cl)
             elif newlock and _role(self) == RIGHT:
                 testing.write_file(FILE_RIGHT_READY_TO_LOCK)
-                print('nodemap-race: right side start of the locking sequence')
+                _print('nodemap-race: right side start of the locking sequence')
                 testing.wait_file(FILE_LEFT_LOCKED)
                 testing.wait_file(FILE_LEFT_CL_DATA_WRITE)
                 self.invalidate(clearfilecache=True)
-                print('nodemap-race: right side reading changelog')
+                _print('nodemap-race: right side reading changelog')
                 cl = self.unfiltered().changelog
                 tiprev = cl.tiprev()
                 tip = cl.node(tiprev)
@@ -215,19 +242,19 @@ def uisetup(ui):
                         'bad tip -round-trip %d %d' % (tiprev, tiprev2)
                     )
                 testing.write_file(FILE_RIGHT_CL_NODEMAP_READ)
-                print('nodemap-race: right side reading of changelog is done')
+                _print('nodemap-race: right side reading of changelog is done')
                 print_nodemap_details(cl)
                 testing.wait_file(FILE_LEFT_CL_NODEMAP_WRITE)
-                print('nodemap-race: right side ready to wait for the lock')
+                _print('nodemap-race: right side ready to wait for the lock')
             ret = super().lock(wait=wait)
             if newlock and _role(self) == LEFT:
-                print('nodemap-race: left side locked and ready to commit')
+                _print('nodemap-race: left side locked and ready to commit')
                 testing.write_file(FILE_LEFT_LOCKED)
                 testing.wait_file(FILE_RIGHT_READY_TO_LOCK)
                 cl = self.unfiltered().changelog
                 print_nodemap_details(cl)
             elif newlock and _role(self) == RIGHT:
-                print('nodemap-race: right side locked and ready to commit')
+                _print('nodemap-race: right side locked and ready to commit')
                 cl = self.unfiltered().changelog
                 print_nodemap_details(cl)
             return ret
@@ -247,6 +274,8 @@ def uisetup(ui):
         changelog.changelog, '_finalize', wrap_changelog_finalize
     )
 
+    extensions.wrapfunction(scmutil, 'callcatch', wrap_printer)
+
 
 def reposetup(ui, repo):
     if _role(repo) == READER:
@@ -258,7 +287,7 @@ def reposetup(ui, repo):
         class ReaderRepo(repo.__class__):
             @util.propertycache
             def changelog(self):
-                print('reader ready to read the changelog, waiting for right')
+                _print('reader ready to read the changelog, waiting for right')
                 testing.write_file(FILE_READER_READY)
                 testing.wait_file(FILE_RIGHT_CL_NODEMAP_PRE_WRITE)
                 return super().changelog
@@ -270,24 +299,24 @@ def reposetup(ui, repo):
 def cmd_check_nodemap_race(ui, repo):
     """Run proper <READER> access in the race Windows and check nodemap content"""
     repo = repo.unfiltered()
-    print('reader: reading changelog')
+    _print('reader: reading changelog')
     cl = repo.changelog
-    print('reader: changelog read')
+    _print('reader: changelog read')
     print_nodemap_details(cl)
     tip_rev = cl.tiprev()
     tip_node = cl.node(tip_rev)
-    print('tip-rev: ', tip_rev)
-    print('tip-node:', node.short(tip_node).decode('ascii'))
-    print('node-rev:', cl.rev(tip_node))
+    _print('tip-rev: ', tip_rev)
+    _print('tip-node:', node.short(tip_node).decode('ascii'))
+    _print('node-rev:', cl.rev(tip_node))
     for r in cl.revs():
         n = cl.node(r)
         try:
             r2 = cl.rev(n)
         except ValueError as exc:
-            print('error while checking revision:', r)
-            print(' ', exc)
+            _print('error while checking revision:', r)
+            _print(' ', exc)
             return 1
         else:
             if r2 != r:
-                print('revision %d is missing from the nodemap' % r)
+                _print('revision %d is missing from the nodemap' % r)
                 return 1
