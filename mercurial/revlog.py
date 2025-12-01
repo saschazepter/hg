@@ -2062,6 +2062,16 @@ class revlog:
                         *nodemap_data
                     )  # pytype: disable=attribute-error
 
+    def _set_opener(self, svfs):
+        """used re-using cached repository, see `repocache.copycache`"""
+        self.opener = svfs
+        # rust inner has no opener to override
+        #
+        # XXX this would be worth investigating further, are we missing
+        # XXX anything on the rust side by skipping this override?
+        if hasattr(self._inner, 'opener'):
+            self._inner.opener = svfs
+
     def get_revlog(self):
         """simple function to mirror API of other not-really-revlog API"""
         return self
