@@ -4,84 +4,46 @@ Test delta choice with sparse revlog
 
 #testcases delta-info-flags flagless
 
-Sparse-revlog usually shows the most gain on Manifest. However, it is simpler
-to general an appropriate file, so we test with a single file instead. The
-goal is to observe intermediate snapshot being created.
 
-We need a large enough file. Part of the content needs to be replaced
-repeatedly while some of it changes rarely.
-
-  $ bundlepath="$TESTDIR/artifacts/cache/big-file-churn.hg"
+Common Setup
+============
 
 #if pure
-  $ expectedhash=`cat "$bundlepath".md5`
-  $ if [ ! -f "$bundlepath" ]; then
-  >     echo 'skipped: missing artifact, run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
-  >     exit 80
-  > fi
-  $ currenthash=`f -M "$bundlepath" | cut -d = -f 2`
-  $ if [ "$currenthash" != "$expectedhash" ]; then
-  >     echo 'skipped: outdated artifact, md5 "'"$currenthash"'" expected "'"$expectedhash"'" run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
-  >     exit 80
-  > fi
+  $ PURE="1"
 #else
-
+  $ PURE="0"
+#endif
 #if slow
-  $ LAZY_GEN=""
-
+  $ SLOW="1"
 #else
-  $ LAZY_GEN="--lazy"
+  $ SLOW="0"
 #endif
-
-#endif
-
-If the validation fails, either something is broken or the expected md5 need updating.
-To update the md5, invoke the script without --validate
-
-  $ "$TESTDIR"/artifacts/scripts/generate-churning-bundle.py --validate $LAZY_GEN > /dev/null
-
-  $ cat >> $HGRCPATH << EOF
-  > [format]
-  > sparse-revlog = yes
-  > maxchainlen = 15
-  > revlog-compression=zlib
-  > [storage]
-  > revlog.optimize-delta-parent-choice = yes
-  > revlog.reuse-external-delta-parent = no
-  > revlog.reuse-external-delta = no
-  > revlog.reuse-external-delta-compression = no
-  > delta-fold-estimate = always
-  > EOF
-
 #if delta-info-flags
-
-  $ cat << EOF >> $HGRCPATH
-  > [format]
-  > use-delta-info-flags=yes
-  > EOF
-
+  $ DELTA_INFO="yes"
 #else
-
-  $ cat << EOF >> $HGRCPATH
-  > [format]
-  > use-delta-info-flags=no
-  > EOF
-
+  $ DELTA_INFO="no"
 #endif
-
-  $ hg init sparse-repo
-  $ cd sparse-repo
-  $ hg unbundle $bundlepath
+  $ export SLOW
+  $ export PURE
+  $ export DELTA_INFO
+  $ bash $TESTDIR/testlib/setup-sparse-churning-bundle.sh
   adding changesets
   adding manifests
   adding file changes
   added 5001 changesets with 5001 changes to 1 files (+89 heads)
   new changesets 9706f5af64f4:3bb1647e55b4 (5001 drafts)
   (run 'hg heads' to see heads, 'hg merge' to merge)
-  $ hg up
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updated to "3bb1647e55b4: commit #5000"
   89 other heads for branch "default"
+  $ if [ -f SKIPPED ]; then
+  >     cat SKIPPED
+  >     exit 80
+  > fi
+  $ cd sparse-repo
+
+Testing
+=======
 
 Sanity check the graph shape
 
