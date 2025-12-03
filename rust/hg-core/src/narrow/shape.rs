@@ -669,7 +669,11 @@ impl ShardTreeNode {
             let subs: Vec<_> = self
                 .children
                 .iter()
-                .map(|child| child.read().matcher())
+                .map(|child| {
+                    let child = child.read();
+                    assert_ne!(child.included, self.included);
+                    child.matcher()
+                })
                 .collect();
             Box::new(UnionMatcher::new(subs)) as Box<dyn Matcher + Send>
         };
