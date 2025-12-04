@@ -2301,13 +2301,8 @@ class revlog:
         return self.start(rev) + self.length(rev)
 
     def parents(self, node: NodeIdT) -> tuple[NodeIdT, NodeIdT]:
-        i = self.index
-        d = i[self.rev(node)]
-        # inline node() to avoid function call overhead
-        if self.feature_config.canonical_parent_order and d[5] == self.nullid:
-            return i[d[6]][7], i[d[5]][7]
-        else:
-            return i[d[5]][7], i[d[6]][7]
+        p1, p2 = self.parentrevs(self.rev(node))
+        return (self.index.node(p1), self.index.node(p2))
 
     def chainlen(self, rev):
         return self._chaininfo(rev)[0]
