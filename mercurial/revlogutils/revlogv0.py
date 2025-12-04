@@ -88,6 +88,13 @@ class revlogoldindex(list):
         """the raw `delta-base` value, used by bundle_repo"""
         return self[rev][3]
 
+    def delta_base(self, rev):
+        base = self[rev][3]
+        if base == rev:
+            return None
+        else:
+            return rev - 1
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self[rev][7]

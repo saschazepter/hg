@@ -516,13 +516,10 @@ class _InnerRevlog:
 
     def deltaparent(self, rev):
         """return deltaparent of the given revision"""
-        base = self.index[rev][3]
-        if base == rev:
-            return nullrev
-        elif self.delta_config.general_delta:
-            return base
-        else:
-            return rev - 1
+        base = self.index.delta_base(rev)
+        if base is None:
+            base = nullrev
+        return base
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""
@@ -1344,6 +1341,7 @@ class RustIndexProxy(ProxyBase):
         self.linkrev = self.inner._index_linkrev
         self.flags = self.inner._index_flags
         self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
+        self.delta_base = self.inner._index_delta_base
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest
@@ -2976,13 +2974,10 @@ class revlog:
 
     def deltaparent(self, rev):
         """return deltaparent of the given revision"""
-        base = self.index[rev][3]
-        if base == rev:
-            return nullrev
-        elif self.delta_config.general_delta:
-            return base
-        else:
-            return rev - 1
+        base = self.index.delta_base(rev)
+        if base is None:
+            base = nullrev
+        return base
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""

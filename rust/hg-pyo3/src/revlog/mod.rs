@@ -940,6 +940,19 @@ impl InnerRevlog {
         })
     }
 
+    fn _index_delta_base(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<Option<i32>> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => match idx.delta_base(r) {
+                Err(_) => Err(PyValueError::new_err("corrupted revlog")),
+                Ok(r) => Ok(r.map(|rev| rev.0)),
+            },
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
     fn _index_node<'py>(
         slf: &Bound<'py, Self>,
         py: Python<'py>,

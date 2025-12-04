@@ -613,6 +613,12 @@ class BaseIndexObject:
     _extra: list[bytes]
     _lgt: int
 
+    def __init__(
+        self,
+        uses_generaldelta=False,
+    ):
+        self._uses_general_delta = uses_generaldelta
+
     @util.propertycache
     def entry_size(self):
         return self.index_format.size
@@ -664,6 +670,22 @@ class BaseIndexObject:
         for the delta-base to work properly.
         """
         return self[rev][3]
+
+    def delta_base(self, rev) -> RevnumT | None:
+        """The revision to which apply the delta stored for <rev>
+
+        When <rev> is stored as a delta, the delta-base is the revision that
+        stored delta applies to in order to retrieve the full content of <rev>.
+
+        If <rev> is stored as a full snapshot, `None` is returned instead.
+        """
+        base = self[rev][3]
+        if base == rev:
+            return None
+        elif self._uses_general_delta:
+            return base
+        else:
+            return rev - 1
 
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
@@ -777,6 +799,7 @@ class IndexObject(BaseIndexObject):
         self._data = data
         self._lgt = len(data) // self.entry_size
         self._extra = []
+        super().__init__(uses_generaldelta=uses_generaldelta)
 
     def _calculate_index(self, i: int) -> int:
         return i * self.entry_size
@@ -852,6 +875,7 @@ class InlinedIndexObject(BaseIndexObject):
         self._lgt = self._inline_scan(None)
         self._inline_scan(self._lgt)
         self._extra = []
+        super().__init__(uses_generaldelta=uses_generaldelta)
 
     def _inline_scan(self, lgt):
         off = 0

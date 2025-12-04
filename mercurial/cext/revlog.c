@@ -1781,6 +1781,35 @@ static PyObject *index_py_bundle_repo_delta_base(indexObject *self,
 	return PyLong_FromLong(base);
 }
 
+static PyObject *index_py_delta_base(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	int tiprev;
+	long base;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < nullrev || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (rev == nullrev) {
+		Py_INCREF(Py_None);
+		return Py_None;
+	} else {
+		base = index_baserev(self, rev);
+		if (base < nullrev) {
+			return NULL;
+		} else if (base == rev) {
+			Py_INCREF(Py_None);
+			return Py_None;
+		} else if (!self->uses_generaldelta) {
+			base = rev - 1;
+		}
+	}
+	return PyLong_FromLong(base);
+}
+
 /**
  * Find if a revision is a snapshot or not
  *
@@ -3613,6 +3642,8 @@ static PyMethodDef index_methods[] = {
     {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
     {"bundle_repo_delta_base", (PyCFunction)index_py_bundle_repo_delta_base,
      METH_O, "hack to keep bundle repo working"},
+    {"delta_base", (PyCFunction)index_py_delta_base, METH_O,
+     "return the base revision on which to apply the delta"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},
     {"reachableroots2", (PyCFunction)reachableroots2, METH_VARARGS,

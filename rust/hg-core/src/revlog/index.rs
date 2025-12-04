@@ -724,6 +724,31 @@ impl Index {
         Ok((heads_removed, heads_added))
     }
 
+    /// The revision to which apply the delta stored for <rev>
+    ///
+    /// When <rev> is stored as a delta, the delta-base is the revision that
+    /// stored delta applies to in order to retrieve the full content of <rev>.
+    ///
+    /// If <rev> is stored as a full snapshot, `None` is returned instead.
+    pub fn delta_base(
+        &self,
+        rev: Revision,
+    ) -> Result<Option<Revision>, HgError> {
+        let base = self.get_entry(rev).base_revision_or_base_of_delta_chain();
+        if base == rev.into() {
+            Ok(None)
+        } else if self.uses_generaldelta() {
+            match self.check_revision(base) {
+                None => Err(HgError::corrupted("bad base")),
+                Some(base) => Ok(Some(base)),
+            }
+        } else if rev.0 <= 0 {
+            Err(HgError::corrupted("unbound delta chain"))
+        } else {
+            Ok(Some(Revision(rev.0 - 1)))
+        }
+    }
+
     /// Obtain the delta chain for a revision.
     ///
     /// `stop_rev` specifies a revision to stop at. If not specified, we
