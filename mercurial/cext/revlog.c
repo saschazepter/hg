@@ -417,7 +417,14 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 
 	if (self->format_version == format_v1) {
 		offset = getbe32(data + entry_v1_offset_offset_flags);
-		if (rev == 0) {
+		/* if rev 0 is in added, it might be from a bundle repo in that
+		 * case:
+		 * - it won't contains the version number and other header so no
+		 * needs to mask them
+		 * - the value won't be the usual 0, because it starts somewhere
+		 * within the bundle.
+		 */
+		if (rev == 0 && self->length > 0) {
 			/* all but the flag are masked, and the flag will be
 			 * dropped */
 			return 0;
@@ -428,7 +435,14 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 		}
 	} else if (self->format_version == format_v2) {
 		offset = getbe32(data + entry_v2_offset_offset_flags);
-		if (rev == 0) {
+		/* if rev 0 is in added, it might be from a bundle repo in that
+		 * case:
+		 * - it won't contains the version number and other header so no
+		 * needs to mask them
+		 * - the value won't be the usual 0, because it starts somewhere
+		 * within the bundle.
+		 */
+		if (rev == 0 && self->length > 0) {
 			/* all but the flag are masked, and the flag will be
 			 * dropped */
 			return 0;
