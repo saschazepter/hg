@@ -679,6 +679,10 @@ class BaseIndexObject:
         """return the starting offsset of the data chunk of a rev"""
         return int(self[rev][0] >> 16)
 
+    def data_chunk_length(self, rev):
+        """return the length of the data chunk of a rev"""
+        return self[rev][1]
+
     def delta_base(self, rev) -> RevnumT | None:
         """The revision to which apply the delta stored for <rev>
 

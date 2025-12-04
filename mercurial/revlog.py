@@ -506,7 +506,7 @@ class _InnerRevlog:
 
     def length(self, rev):
         """the length of the data chunk for this revision"""
-        return self.index[rev][1]
+        return self.index.data_chunk_length(rev)
 
     def end(self, rev):
         """the end of the data chunk for this revision"""
@@ -1304,6 +1304,7 @@ class RustIndexProxy(ProxyBase):
         self.flags = self.inner._index_flags
         self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
         self.data_chunk_start = self.inner._index_data_chunk_start
+        self.data_chunk_length = self.inner._index_data_chunk_length
         self.delta_base = self.inner._index_delta_base
         self.lazy_rank = self.inner._index_lazy_rank
         self.node = self.inner._index_node
@@ -2176,7 +2177,7 @@ class revlog:
         return self.index.flags(rev)
 
     def length(self, rev):
-        return self.index[rev][1]
+        return self.index.data_chunk_length(rev)
 
     def sidedata_length(self, rev):
         if not self.feature_config.has_side_data:

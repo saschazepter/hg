@@ -99,6 +99,10 @@ class revlogoldindex(list):
         """return the starting offsset of the data chunk of a rev"""
         return int(self[rev][0] >> 16)
 
+    def data_chunk_length(self, rev):
+        """return the length of the data chunk of a rev"""
+        return self[rev][1]
+
     def delta_base(self, rev):
         base = self[rev][3]
         if base == rev:

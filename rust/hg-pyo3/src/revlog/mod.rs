@@ -951,6 +951,17 @@ impl InnerRevlog {
         })
     }
 
+    /// The size of a revision data chunk in bytes
+    fn _index_data_chunk_length(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<u32> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(idx.get_entry(r).compressed_len()),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
     fn _index_delta_base(
         slf: &Bound<'_, Self>,
         rev: PyRevision,

@@ -514,6 +514,29 @@ static inline int index_get_length(indexObject *self, Py_ssize_t rev)
 	return tmp;
 }
 
+static PyObject *index_py_data_chunk_length(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int length;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < nullrev || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx == nullrev) {
+		length = 0;
+	} else {
+		length = index_get_length(self, idx);
+	}
+	if (length < 0) {
+		return NULL;
+	}
+	return PyLong_FromLong(length);
+}
+
 /**
  * Return the flags of a revision
  *
@@ -3708,6 +3731,8 @@ static PyMethodDef index_methods[] = {
      METH_O, "hack to keep bundle repo working"},
     {"data_chunk_start", (PyCFunction)index_py_data_chunk_start, METH_O,
      "return the starting offset of the data chunk of a rev"},
+    {"data_chunk_length", (PyCFunction)index_py_data_chunk_length, METH_O,
+     "return the length of the data chunk of a rev"},
     {"delta_base", (PyCFunction)index_py_delta_base, METH_O,
      "return the base revision on which to apply the delta"},
     {"lazy_rank", (PyCFunction)index_py_lazy_rank, METH_O,
