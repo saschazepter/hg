@@ -4,84 +4,46 @@ Test delta choice with sparse revlog
 
 #testcases delta-info-flags flagless
 
-Sparse-revlog usually shows the most gain on Manifest. However, it is simpler
-to general an appropriate file, so we test with a single file instead. The
-goal is to observe intermediate snapshot being created.
 
-We need a large enough file. Part of the content needs to be replaced
-repeatedly while some of it changes rarely.
-
-  $ bundlepath="$TESTDIR/artifacts/cache/big-file-churn.hg"
+Common Setup
+============
 
 #if pure
-  $ expectedhash=`cat "$bundlepath".md5`
-  $ if [ ! -f "$bundlepath" ]; then
-  >     echo 'skipped: missing artifact, run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
-  >     exit 80
-  > fi
-  $ currenthash=`f -M "$bundlepath" | cut -d = -f 2`
-  $ if [ "$currenthash" != "$expectedhash" ]; then
-  >     echo 'skipped: outdated artifact, md5 "'"$currenthash"'" expected "'"$expectedhash"'" run "'"$TESTDIR"'/artifacts/scripts/generate-churning-bundle.py"'
-  >     exit 80
-  > fi
+  $ PURE="1"
 #else
-
+  $ PURE="0"
+#endif
 #if slow
-  $ LAZY_GEN=""
-
+  $ SLOW="1"
 #else
-  $ LAZY_GEN="--lazy"
+  $ SLOW="0"
 #endif
-
-#endif
-
-If the validation fails, either something is broken or the expected md5 need updating.
-To update the md5, invoke the script without --validate
-
-  $ "$TESTDIR"/artifacts/scripts/generate-churning-bundle.py --validate $LAZY_GEN > /dev/null
-
-  $ cat >> $HGRCPATH << EOF
-  > [format]
-  > sparse-revlog = yes
-  > maxchainlen = 15
-  > revlog-compression=zlib
-  > [storage]
-  > revlog.optimize-delta-parent-choice = yes
-  > revlog.reuse-external-delta-parent = no
-  > revlog.reuse-external-delta = no
-  > revlog.reuse-external-delta-compression = no
-  > delta-fold-estimate = always
-  > EOF
-
 #if delta-info-flags
-
-  $ cat << EOF >> $HGRCPATH
-  > [format]
-  > use-delta-info-flags=yes
-  > EOF
-
+  $ DELTA_INFO="yes"
 #else
-
-  $ cat << EOF >> $HGRCPATH
-  > [format]
-  > use-delta-info-flags=no
-  > EOF
-
+  $ DELTA_INFO="no"
 #endif
-
-  $ hg init sparse-repo
-  $ cd sparse-repo
-  $ hg unbundle $bundlepath
+  $ export SLOW
+  $ export PURE
+  $ export DELTA_INFO
+  $ bash $TESTDIR/testlib/setup-sparse-churning-bundle.sh
   adding changesets
   adding manifests
   adding file changes
   added 5001 changesets with 5001 changes to 1 files (+89 heads)
   new changesets 9706f5af64f4:3bb1647e55b4 (5001 drafts)
   (run 'hg heads' to see heads, 'hg merge' to merge)
-  $ hg up
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updated to "3bb1647e55b4: commit #5000"
   89 other heads for branch "default"
+  $ if [ -f SKIPPED ]; then
+  >     cat SKIPPED
+  >     exit 80
+  > fi
+  $ cd sparse-repo
+
+Testing
+=======
 
 Sanity check the graph shape
 
@@ -1023,388 +985,6 @@ Test `debug-delta-find`
   DBG-DELTAS-SEARCH:     delta-search-time=* (glob)
   DBG-DELTAS-SEARCH:     DELTA: length=42257 (BIGGER)
   DBG-DELTAS: FILELOG:SPARSE-REVLOG-TEST-FILE: rev=4966: delta-base=4962 is-cached=0 - search-rounds=4 try-count=5 - delta-type=snapshot snap-depth=3 - p1-chain-length=15 p2-chain-length=-1 - duration=*.?????? (glob)
-#endif
-
-  $ cat << EOF >>.hg/hgrc
-  > [storage]
-  > revlog.optimize-delta-parent-choice = yes
-  > revlog.reuse-external-delta = no
-  > EOF
-
-
-full bundle
------------
-
-Pull of everything and check the quality of the result,
-
-Doing a full pull should give use the same result as the pull source as the
-server should be able to encode his chain as is.
-
-  $ hg init ../full-pull
-  $ cd ../full-pull
-
-Here we go ove the default and trust parent choice from the bundle. Since all
-revision are bundled, all delta base should be valid and the server should be
-able to stream its delta as is.
-
-  $ cat << EOF >> .hg/hgrc
-  > [path]
-  > *:pulled-delta-reuse-policy = try-base
-  > EOF
-
-XXX - disabling the delta-parent reuse for now as it seems to get confuse about snapshot status.
-#if delta-info-flags
-  $ cat << EOF >> $HGRCPATH
-  > [path]
-  > *:pulled-delta-reuse-policy = default
-  > EOF
-#endif
-
-pull everything
-
-  $ hg pull ../sparse-repo
-  pulling from ../sparse-repo
-  requesting all changes
-  adding changesets
-  adding manifests
-  adding file changes
-  added 5001 changesets with 5001 changes to 1 files (+89 heads)
-  new changesets 9706f5af64f4:3bb1647e55b4
-  (run 'hg heads' to see heads, 'hg merge' to merge)
-  $ hg up tip
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ cd ../
-#if delta-info-flags
-  $ f -s */.hg/store/data/*.d
-  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
-  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
-#else
-  $ f -s */.hg/store/data/*.d
-  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-#endif
-  $ hg debugrevlog --cwd full-pull SPARSE-REVLOG-TEST-FILE > ./revlog-stats-post-pull.txt
-  $ cmp ./revlog-stats-reference.txt ./revlog-stats-post-pull.txt | diff -u ./revlog-stats-reference.txt ./revlog-stats-post-pull.txt
-
-
-incremental pull
-----------------
-
-pulling every revision ten by ten
-
-  $ hg init incremental-10-pull
-  $ cd incremental-10-pull
-
-Here we go ove the default and trust parent choice from the bundle. Since all
-revision are bundled, all delta base should be valid and the server should be
-able to stream its delta as is.
-
-  $ cat << EOF >> .hg/hgrc
-  > [path]
-  > *:pulled-delta-reuse-policy = try-base
-  > EOF
-
-XXX - changegroup-v4 should be enabled by default when delta-info-flag is used
-#if delta-info-flags
-  $ cat << EOF >> $HGRCPATH
-  > [path]
-  > changegroup4 = yes
-  > EOF
-#endif
-
-pull changeset 10 by 10
-
-  $ $TESTDIR/seq.py 0 `hg log -R ../sparse-repo --rev tip --template '{rev}'` | while
-  >   read rev0;
-  >   read rev1;
-  >   read rev2;
-  >   read rev3;
-  >   read rev4;
-  >   read rev5;
-  >   read rev6;
-  >   read rev7;
-  >   read rev8;
-  >   read rev9;
-  >   do
-  >     hg pull --quiet ../sparse-repo --rev $rev0 --rev $rev1 --rev $rev2 --rev $rev3 --rev $rev4 --rev $rev5 --rev $rev6 --rev $rev7 --rev $rev8 --rev $rev9 || break
-  > done
-  $ hg pull ../sparse-repo
-  pulling from ../sparse-repo
-  searching for changes
-  adding changesets
-  adding manifests
-  adding file changes
-  added 1 changesets with 1 changes to 1 files (-1 heads)
-  new changesets 3bb1647e55b4
-  (run 'hg update' to get a working copy)
-  $ hg up tip
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ cd ../
-#if delta-info-flags
-  $ f -s */.hg/store/data/*.d
-  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
-  incremental-10-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
-  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
-#else
-  $ f -s */.hg/store/data/*.d
-  full-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-  incremental-10-pull/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-  sparse-repo/.hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-#endif
-  $ hg debugrevlog --cwd incremental-10-pull SPARSE-REVLOG-TEST-FILE > ./revlog-stats-post-inc-pull.txt
-  $ cmp ./revlog-stats-reference.txt ./revlog-stats-post-inc-pull.txt | diff -u ./revlog-stats-reference.txt ./revlog-stats-post-inc-pull.txt
-
-
-  $ cd ./sparse-repo
-
-Upgrading to/from delta-info-flags
-==================================
-
-#if delta-info-flags
-  $ UPGRADE_TO=no
-#else
-  $ UPGRADE_TO=yes
-#endif
-
-  $ hg debugrevlog * > ../revlog-stats-pre-upgrade.txt
-  $ hg debugupgraderepo --quiet --run \
-  >   --optimize re-delta-all \
-  >   --config format.use-delta-info-flags=$UPGRADE_TO
-  upgrade will perform the following actions:
-  
-  requirements
-     preserved: * (glob)
-     removed: delta-info-revlog (delta-info-flags !)
-     added: delta-info-revlog (flagless !)
-  
-  optimisations: re-delta-all
-  
-  processed revlogs:
-    - all-filelogs
-    - changelog
-    - manifest
-  
-  $ hg verify --quiet
-  $ hg debugrevlog * > ../revlog-stats-post-upgrade.txt
-
-#if delta-info-flags
-  $ f -s .hg/store/data/*.d
-  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-  $ cmp ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt | diff -u ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt
-  $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
-  --- ../revlog-stats-pre-upgrade.txt* (glob)
-  +++ ../revlog-stats-post-upgrade.txt* (glob)
-  @@ -1,5 +1,5 @@
-   format : 1
-  -flags  : generaldelta, hasmeta, delta-info
-  +flags  : generaldelta
-   
-   revisions     :     5001
-       merges    :      625 (12.50%)
-  @@ -8,56 +8,56 @@
-       empty     :        0 ( 0.00%)
-                      text  :        0 (100.00%)
-                      delta :        0 (100.00%)
-  -    snapshot  :      181 ( 3.62%)
-  +    snapshot  :      409 ( 8.18%)
-         lvl-0   :              4 ( 0.08%)
-  -      lvl-1   :             20 ( 0.40%)  non-ancestor-bases:        6 (30.00%)
-  -      lvl-2   :             48 ( 0.96%)  non-ancestor-bases:       40 (83.33%)
-  -      lvl-3   :             62 ( 1.24%)  non-ancestor-bases:       58 (93.55%)
-  -      lvl-4   :             35 ( 0.70%)  non-ancestor-bases:       32 (91.43%)
-  -      lvl-5   :              9 ( 0.18%)  non-ancestor-bases:        8 (88.89%)
-  -      lvl-6   :              3 ( 0.06%)  non-ancestor-bases:        3 (100.00%)
-  -    deltas    :     4820 (96.38%)
-  -revision size : 24793761
-  -    snapshot  :  5239441 (21.13%)
-  -      lvl-0   :         792487 ( 3.20%)
-  -      lvl-1   :        1732118 ( 6.99%)
-  -      lvl-2   :        1534065 ( 6.19%)
-  -      lvl-3   :         869262 ( 3.51%)
-  -      lvl-4   :         267022 ( 1.08%)
-  -      lvl-5   :          35903 ( 0.14%)
-  -      lvl-6   :           8584 ( 0.03%)
-  -    deltas    : 19554320 (78.87%)
-  +      lvl-1   :             26 ( 0.52%)  non-ancestor-bases:       10 (38.46%)
-  +      lvl-2   :             63 ( 1.26%)  non-ancestor-bases:       55 (87.30%)
-  +      lvl-3   :            108 ( 2.16%)  non-ancestor-bases:       99 (91.67%)
-  +      lvl-4   :            112 ( 2.24%)  non-ancestor-bases:      108 (96.43%)
-  +      lvl-5   :             73 ( 1.46%)  non-ancestor-bases:       70 (95.89%)
-  +      lvl-6   :             23 ( 0.46%)  non-ancestor-bases:       23 (100.00%)
-  +    deltas    :     4592 (91.82%)
-  +revision size : 28502223
-  +    snapshot  :  7714756 (27.07%)
-  +      lvl-0   :         792946 ( 2.78%)
-  +      lvl-1   :        1766164 ( 6.20%)
-  +      lvl-2   :        1883372 ( 6.61%)
-  +      lvl-3   :        1811191 ( 6.35%)
-  +      lvl-4   :         973815 ( 3.42%)
-  +      lvl-5   :         407078 ( 1.43%)
-  +      lvl-6   :          80190 ( 0.28%)
-  +    deltas    : 20787467 (72.93%)
-   
-   chunks        :     5001
-       0x78 (x)  :     5001 (100.00%)
-  -chunks size   : 24793761
-  -    0x78 (x)  : 24793761 (100.00%)
-  +chunks size   : 28502223
-  +    0x78 (x)  : 28502223 (100.00%)
-   
-   
-   total-stored-content: 1 714 759 864 bytes
-   
-  -avg chain length  :        8
-  +avg chain length  :        9
-   max chain length  :       15
-  -max chain reach   : 15610952
-  -compression ratio :       69
-  +max chain reach   : 16988366
-  +compression ratio :       60
-   
-   uncompressed data size (min/max/avg) : 340425 / 346470 / 342883
-  -full revision size (min/max/avg)     : 196798 / 201050 / 198121
-  -inter-snapshot size (min/max/avg)    : 2315 / 170286 / 25124
-  -    level-1   (min/max/avg)          : 8696 / 170286 / 86605
-  -    level-2   (min/max/avg)          : 3130 / 83837 / 31959
-  -    level-3   (min/max/avg)          : 2315 / 40986 / 14020
-  -    level-4   (min/max/avg)          : 2573 / 20787 / 7629
-  -    level-5   (min/max/avg)          : 2645 / 9784 / 3989
-  -    level-6   (min/max/avg)          : 2632 / 3095 / 2861
-  -delta size (min/max/avg)             : 1650 / 178066 / 4056
-  +full revision size (min/max/avg)     : 196940 / 201050 / 198236
-  +inter-snapshot size (min/max/avg)    : 2297 / 164378 / 17090
-  +    level-1   (min/max/avg)          : 2836 / 164378 / 67929
-  +    level-2   (min/max/avg)          : 2336 / 84403 / 29894
-  +    level-3   (min/max/avg)          : 2306 / 42184 / 16770
-  +    level-4   (min/max/avg)          : 2450 / 21280 / 8694
-  +    level-5   (min/max/avg)          : 2305 / 10590 / 5576
-  +    level-6   (min/max/avg)          : 2297 / 5208 / 3486
-  +delta size (min/max/avg)             : 1650 / 173247 / 4526
-   
-  -deltas against prev  : 1972 (40.91%)
-  -    where prev = p1  : 1972     (100.00%)
-  +deltas against prev  : 3865 (84.17%)
-  +    where prev = p1  : 3865     (100.00%)
-       where prev = p2  :    0     ( 0.00%)
-       other-ancestor   :    0     ( 0.00%)
-       unrelated        :    0     ( 0.00%)
-  -deltas against p1    :  661 (13.71%)
-  -deltas against p2    :   11 ( 0.23%)
-  +deltas against p1    :  645 (14.05%)
-  +deltas against p2    :   82 ( 1.79%)
-   deltas against ancs  :    0 ( 0.00%)
-  -deltas against other : 2176 (45.15%)
-  +deltas against other :    0 ( 0.00%)
-  [1]
-#else
-  $ f -s .hg/store/data/*.d
-  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
-  $ cmp ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt | diff -u ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt
-  $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
-  --- ../revlog-stats-pre-upgrade.txt* (glob)
-  +++ ../revlog-stats-post-upgrade.txt* (glob)
-  @@ -1,5 +1,5 @@
-   format : 1
-  -flags  : generaldelta
-  +flags  : generaldelta, hasmeta, delta-info
-   
-   revisions     :     5001
-       merges    :      625 (12.50%)
-  @@ -8,56 +8,56 @@
-       empty     :        0 ( 0.00%)
-                      text  :        0 (100.00%)
-                      delta :        0 (100.00%)
-  -    snapshot  :      409 ( 8.18%)
-  +    snapshot  :      181 ( 3.62%)
-         lvl-0   :              4 ( 0.08%)
-  -      lvl-1   :             26 ( 0.52%)  non-ancestor-bases:       10 (38.46%)
-  -      lvl-2   :             63 ( 1.26%)  non-ancestor-bases:       55 (87.30%)
-  -      lvl-3   :            108 ( 2.16%)  non-ancestor-bases:       99 (91.67%)
-  -      lvl-4   :            112 ( 2.24%)  non-ancestor-bases:      108 (96.43%)
-  -      lvl-5   :             73 ( 1.46%)  non-ancestor-bases:       70 (95.89%)
-  -      lvl-6   :             23 ( 0.46%)  non-ancestor-bases:       23 (100.00%)
-  -    deltas    :     4592 (91.82%)
-  -revision size : 28502223
-  -    snapshot  :  7714756 (27.07%)
-  -      lvl-0   :         792946 ( 2.78%)
-  -      lvl-1   :        1766164 ( 6.20%)
-  -      lvl-2   :        1883372 ( 6.61%)
-  -      lvl-3   :        1811191 ( 6.35%)
-  -      lvl-4   :         973815 ( 3.42%)
-  -      lvl-5   :         407078 ( 1.43%)
-  -      lvl-6   :          80190 ( 0.28%)
-  -    deltas    : 20787467 (72.93%)
-  +      lvl-1   :             20 ( 0.40%)  non-ancestor-bases:        6 (30.00%)
-  +      lvl-2   :             48 ( 0.96%)  non-ancestor-bases:       40 (83.33%)
-  +      lvl-3   :             62 ( 1.24%)  non-ancestor-bases:       58 (93.55%)
-  +      lvl-4   :             35 ( 0.70%)  non-ancestor-bases:       32 (91.43%)
-  +      lvl-5   :              9 ( 0.18%)  non-ancestor-bases:        8 (88.89%)
-  +      lvl-6   :              3 ( 0.06%)  non-ancestor-bases:        3 (100.00%)
-  +    deltas    :     4820 (96.38%)
-  +revision size : 24793761
-  +    snapshot  :  5239441 (21.13%)
-  +      lvl-0   :         792487 ( 3.20%)
-  +      lvl-1   :        1732118 ( 6.99%)
-  +      lvl-2   :        1534065 ( 6.19%)
-  +      lvl-3   :         869262 ( 3.51%)
-  +      lvl-4   :         267022 ( 1.08%)
-  +      lvl-5   :          35903 ( 0.14%)
-  +      lvl-6   :           8584 ( 0.03%)
-  +    deltas    : 19554320 (78.87%)
-   
-   chunks        :     5001
-       0x78 (x)  :     5001 (100.00%)
-  -chunks size   : 28502223
-  -    0x78 (x)  : 28502223 (100.00%)
-  +chunks size   : 24793761
-  +    0x78 (x)  : 24793761 (100.00%)
-   
-   
-   total-stored-content: 1 714 759 864 bytes
-   
-  -avg chain length  :        9
-  +avg chain length  :        8
-   max chain length  :       15
-  -max chain reach   : 16988366
-  -compression ratio :       60
-  +max chain reach   : 15610952
-  +compression ratio :       69
-   
-   uncompressed data size (min/max/avg) : 340425 / 346470 / 342883
-  -full revision size (min/max/avg)     : 196940 / 201050 / 198236
-  -inter-snapshot size (min/max/avg)    : 2297 / 164378 / 17090
-  -    level-1   (min/max/avg)          : 2836 / 164378 / 67929
-  -    level-2   (min/max/avg)          : 2336 / 84403 / 29894
-  -    level-3   (min/max/avg)          : 2306 / 42184 / 16770
-  -    level-4   (min/max/avg)          : 2450 / 21280 / 8694
-  -    level-5   (min/max/avg)          : 2305 / 10590 / 5576
-  -    level-6   (min/max/avg)          : 2297 / 5208 / 3486
-  -delta size (min/max/avg)             : 1650 / 173247 / 4526
-  +full revision size (min/max/avg)     : 196798 / 201050 / 198121
-  +inter-snapshot size (min/max/avg)    : 2315 / 170286 / 25124
-  +    level-1   (min/max/avg)          : 8696 / 170286 / 86605
-  +    level-2   (min/max/avg)          : 3130 / 83837 / 31959
-  +    level-3   (min/max/avg)          : 2315 / 40986 / 14020
-  +    level-4   (min/max/avg)          : 2573 / 20787 / 7629
-  +    level-5   (min/max/avg)          : 2645 / 9784 / 3989
-  +    level-6   (min/max/avg)          : 2632 / 3095 / 2861
-  +delta size (min/max/avg)             : 1650 / 178066 / 4056
-   
-  -deltas against prev  : 3865 (84.17%)
-  -    where prev = p1  : 3865     (100.00%)
-  +deltas against prev  : 1972 (40.91%)
-  +    where prev = p1  : 1972     (100.00%)
-       where prev = p2  :    0     ( 0.00%)
-       other-ancestor   :    0     ( 0.00%)
-       unrelated        :    0     ( 0.00%)
-  -deltas against p1    :  645 (14.05%)
-  -deltas against p2    :   82 ( 1.79%)
-  +deltas against p1    :  661 (13.71%)
-  +deltas against p2    :   11 ( 0.23%)
-   deltas against ancs  :    0 ( 0.00%)
-  -deltas against other :    0 ( 0.00%)
-  +deltas against other : 2176 (45.15%)
-  [1]
 #endif
 
   $ cd ..

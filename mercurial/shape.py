@@ -92,7 +92,12 @@ class ShardTreeNode:
         if not self.children:
             return top_matcher
 
-        subs = [n.matcher(root_path) for n in self.children]
+        subs = []
+        for child in self.children:
+            # Make sure the tree is well-formed
+            assert child.included != self.included
+            subs.append(child.matcher(root_path))
+
         if len(subs) == 1:
             sub_matcher = subs[0]
         else:

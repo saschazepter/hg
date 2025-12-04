@@ -15,55 +15,36 @@ def wrapdirstate(repo, dirstate):
     """Add narrow spec dirstate ignore, block changes outside narrow spec."""
 
     def _editfunc(fn):
-        def _wrapper(self, *args, **kwargs):
+        def _wrapper(self, filename, *args, **kwargs):
             narrowmatch = repo.narrowmatch()
-            for f in args:
-                if f is not None and not narrowmatch(f) and f not in self:
-                    raise error.Abort(
-                        _(
-                            b"cannot track '%s' - it is outside "
-                            + b"the narrow clone"
-                        )
-                        % f
-                    )
-            return fn(self, *args, **kwargs)
+            if (
+                filename is not None
+                and not narrowmatch(filename)
+                and filename not in self
+            ):
+                msg = _(b"cannot track '%s' - it is outside the narrow clone")
+                msg %= filename
+                raise error.Abort(msg)
+            return fn(self, filename, *args, **kwargs)
 
+        meth_name = fn.__name__
+        if not hasattr(dirstate, meth_name):
+            # Keep this in sync with the dirstate in case it changes
+            msg = "narrow overrides a method that does not exist: %s"
+            msg %= meth_name
+            raise error.ProgrammingError(msg)
         return _wrapper
 
     class narrowdirstate(dirstate.__class__):
         # Prevent adding/editing/copying/deleting files that are outside the
         # sparse checkout
         @_editfunc
-        def normal(self, *args, **kwargs):
-            return super().normal(*args, **kwargs)
-
-        @_editfunc
         def set_tracked(self, *args, **kwargs):
             return super().set_tracked(*args, **kwargs)
 
         @_editfunc
-        def set_untracked(self, *args):
-            return super().set_untracked(*args)
-
-        @_editfunc
-        def add(self, *args):
-            return super().add(*args)
-
-        @_editfunc
-        def normallookup(self, *args):
-            return super().normallookup(*args)
-
-        @_editfunc
-        def copy(self, *args):
-            return super().copy(*args)
-
-        @_editfunc
-        def remove(self, *args):
-            return super().remove(*args)
-
-        @_editfunc
-        def merge(self, *args):
-            return super().merge(*args)
+        def set_untracked(self, *args, **kwargs):
+            return super().set_untracked(*args, **kwargs)
 
         def rebuild(self, parent, allfiles, changedfiles=None):
             if changedfiles is None:
