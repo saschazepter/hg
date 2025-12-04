@@ -90,20 +90,20 @@ impl From<StatusError> for HgError {
 #[derive(Debug)]
 pub enum IoErrorContext {
     /// `std::fs::metadata`
-    ReadingMetadata(std::path::PathBuf),
-    ReadingFile(std::path::PathBuf),
-    WritingFile(std::path::PathBuf),
-    RemovingFile(std::path::PathBuf),
+    ReadingMetadata(PathBuf),
+    ReadingFile(PathBuf),
+    WritingFile(PathBuf),
+    RemovingFile(PathBuf),
     RenamingFile {
-        from: std::path::PathBuf,
-        to: std::path::PathBuf,
+        from: PathBuf,
+        to: PathBuf,
     },
     CopyingFile {
-        from: std::path::PathBuf,
-        to: std::path::PathBuf,
+        from: PathBuf,
+        to: PathBuf,
     },
     /// `std::fs::canonicalize`
-    CanonicalizingPath(std::path::PathBuf),
+    CanonicalizingPath(PathBuf),
     /// `std::env::current_dir`
     CurrentDir,
     /// `std::env::current_exe`
