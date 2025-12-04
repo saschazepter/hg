@@ -83,7 +83,11 @@ impl TruncatedTimestamp {
         {
             Ok(Self { truncated_seconds, nanoseconds, second_ambiguous })
         } else {
-            Err(DirstateV2ParseError::new("when reading datetime"))
+            Err(DirstateV2ParseError::TimestampNotInRange {
+                truncated_seconds,
+                nanoseconds,
+                backtrace: HgBacktrace::capture(),
+            })
         }
     }
 

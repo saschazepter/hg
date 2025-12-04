@@ -3,7 +3,6 @@
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
 use std::borrow::Cow;
-use std::fmt::Display;
 use std::fmt::Write;
 
 use bitflags::bitflags;
@@ -188,30 +187,23 @@ type OptPathSlice = PathSlice;
 ///
 /// This should only happen if Mercurial is buggy or a repository is corrupted.
 #[derive(Debug, PartialEq)]
-pub struct DirstateV2ParseError {
-    pub message: String,
-    pub backtrace: HgBacktrace,
-}
-
-impl DirstateV2ParseError {
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        Self { message: message.into(), backtrace: HgBacktrace::capture() }
-    }
-}
-
-impl From<DirstateV2ParseError> for HgError {
-    fn from(e: DirstateV2ParseError) -> Self {
-        HgError::CorruptedRepository(
-            format!("dirstate-v2 parse error: {}", e.message),
-            e.backtrace,
-        )
-    }
-}
-
-impl Display for DirstateV2ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}dirstate-v2 parse error: {}", self.backtrace, self.message)
-    }
+pub enum DirstateV2ParseError {
+    /// The docket is corrupted and cannot be parsed
+    CorruptedDocket(String, HgBacktrace),
+    /// The tree is somehow corrupted
+    CorruptedTreeMetadata(String, HgBacktrace),
+    /// The docket does not have the valid "magic" marker or a valid uuid
+    InvalidMarkerOrUuid(HgBacktrace),
+    /// Not enough bytes to parse whatever needs to be parse
+    NotEnoughBytes { start: usize, len: usize, backtrace: HgBacktrace },
+    /// This slice is invalid and cannot be parsed
+    InvalidSlice { message: String, backtrace: HgBacktrace },
+    /// This timestamp cannot be represented in the dirstate
+    TimestampNotInRange {
+        truncated_seconds: u32,
+        nanoseconds: u32,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl TreeMetadata {
@@ -284,13 +276,16 @@ impl Docket<'_> {
 
 pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateError> {
     let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
-        DirstateV2ParseError::new(format!("when reading docket, {}", e))
+        DirstateV2ParseError::CorruptedDocket(
+            e.to_string(),
+            HgBacktrace::capture(),
+        )
     })?;
     let uuid_size = header.uuid_size as usize;
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError::new("invalid format marker or uuid size"))?
+        Err(DirstateV2ParseError::InvalidMarkerOrUuid(HgBacktrace::capture()))?
     }
 }
 
@@ -308,16 +303,17 @@ pub(super) fn read<'on_disk>(
         return Ok(map);
     }
     let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
-        DirstateV2ParseError::new(format!("when parsing tree metadata, {}", e))
+        DirstateV2ParseError::CorruptedTreeMetadata(
+            e.to_string(),
+            HgBacktrace::capture(),
+        )
     })?;
     let dirstate_map = DirstateMap {
         on_disk,
-        root: dirstate_map::ChildNodes::OnDisk(
-            read_nodes(on_disk, meta.root_nodes).map_err(|mut e| {
-                e.message = format!("{}, when reading root notes", e.message);
-                e
-            })?,
-        ),
+        root: dirstate_map::ChildNodes::OnDisk(read_nodes(
+            on_disk,
+            meta.root_nodes,
+        )?),
         nodes_with_entry_count: meta.nodes_with_entry_count.get(),
         nodes_with_copy_source_count: meta.nodes_with_copy_source_count.get(),
         ignore_patterns_hash: meta.ignore_patterns_hash,
@@ -344,11 +340,16 @@ impl Node {
         &self,
     ) -> Result<usize, DirstateV2ParseError> {
         let start = self.base_name_start.get();
-        if start < self.full_path.len.get() {
+        let len = self.full_path.len.get();
+        if start < len {
             let start = usize::from(start);
             Ok(start)
         } else {
-            Err(DirstateV2ParseError::new("not enough bytes for base name"))
+            Err(DirstateV2ParseError::NotEnoughBytes {
+                start: start.into(),
+                len: len.into(),
+                backtrace: HgBacktrace::capture(),
+            })
         }
     }
 
@@ -606,14 +607,17 @@ where
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
-            return Err(DirstateV2ParseError::new(
-                "not enough bytes from disk",
-            ));
+            return Err(DirstateV2ParseError::NotEnoughBytes {
+                start,
+                len,
+                backtrace: HgBacktrace::capture(),
+            });
         }
     };
     T::slice_from_bytes(bytes, len)
-        .map_err(|e| {
-            DirstateV2ParseError::new(format!("when reading a slice, {}", e))
+        .map_err(|e| DirstateV2ParseError::InvalidSlice {
+            message: e.to_string(),
+            backtrace: HgBacktrace::capture(),
         })
         .map(|(slice, _rest)| slice)
 }

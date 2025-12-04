@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use crate::Node;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::dirstate::status::StatusError;
 use crate::exit_codes;
 use crate::file_patterns::PatternError;
@@ -178,9 +179,61 @@ impl fmt::Display for HgError {
                 )
             }
             HgError::Dirstate(dirstate_error) => match dirstate_error {
-                DirstateError::V2ParseError(parse) => {
-                    write!(f, "{}{}", parse.backtrace, parse.message)
-                }
+                DirstateError::V2ParseError(parse) => match parse {
+                    DirstateV2ParseError::CorruptedDocket(
+                        message,
+                        backtrace,
+                    ) => {
+                        write!(
+                            f,
+                            "{backtrace}corrupted dirstate docket: {message}"
+                        )
+                    }
+                    DirstateV2ParseError::CorruptedTreeMetadata(
+                        message,
+                        backtrace,
+                    ) => {
+                        write!(
+                            f,
+                            "{backtrace}corrupted dirstate tree: {message}"
+                        )
+                    }
+                    DirstateV2ParseError::InvalidMarkerOrUuid(backtrace) => {
+                        write!(f, "{backtrace}invalid dirstate marker or UUID")
+                    }
+                    DirstateV2ParseError::NotEnoughBytes {
+                        start,
+                        len,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace}not enough bytes for dirstate: \
+                            expected {len} bytes at offset {start}"
+                        )
+                    }
+                    DirstateV2ParseError::InvalidSlice {
+                        message,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace}invalid dirstate slice: {message}"
+                        )
+                    }
+                    DirstateV2ParseError::TimestampNotInRange {
+                        truncated_seconds,
+                        nanoseconds,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace}dirstate timestamp not in range \
+                            ({truncated_seconds} truncated seconds, \
+                            {nanoseconds} nanoseconds)"
+                        )
+                    }
+                },
                 DirstateError::PathNotFound(path, backtrace) => {
                     write!(f, "{}path not found: {}", backtrace, path)
                 }

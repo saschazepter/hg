@@ -24,6 +24,7 @@ use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
+use crate::errors::HgBacktrace;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
@@ -547,7 +548,11 @@ impl<'on_disk> DirstateMap<'on_disk> {
         if let Some(data) = on_disk.get(..data_size) {
             Ok(on_disk::read(data, metadata, uuid, identity)?)
         } else {
-            Err(DirstateV2ParseError::new("not enough bytes on disk").into())
+            Err(DirstateV2ParseError::NotEnoughBytes {
+                start: 0,
+                len: data_size,
+                backtrace: HgBacktrace::capture(),
+            })?
         }
     }
 
