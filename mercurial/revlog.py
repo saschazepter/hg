@@ -1341,6 +1341,7 @@ class RustIndexProxy(ProxyBase):
         self.rev = self.inner._index_rev
         self.parents = self.inner._index_parents
         self._parents_raw = self.inner._index_parents_raw
+        self.flags = self.inner._index_flags
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest
@@ -2208,7 +2209,7 @@ class revlog:
         return 0
 
     def flags(self, rev):
-        return self.index[rev][0] & 0xFFFF
+        return self.index.flags(rev)
 
     def length(self, rev):
         return self.index[rev][1]

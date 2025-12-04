@@ -449,6 +449,29 @@ static inline int index_get_flags(indexObject *self, Py_ssize_t rev)
 	return offset_flags & 0xFFFF;
 }
 
+static PyObject *index_py_flags(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int flags;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < nullrev || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx == nullrev) {
+		flags = 0;
+	} else {
+		flags = index_get_flags(self, idx);
+	}
+	if (flags < 0) {
+		return NULL;
+	}
+	return PyLong_FromLong(flags);
+}
+
 /*
  * RevlogNG format (all in big endian, data may be inlined):
  *    6 bytes: offset
@@ -3524,6 +3547,7 @@ static PyMethodDef index_methods[] = {
      "return parents of a rev"},
     {"_parents_raw", (PyCFunction)index_py_parents_raw, METH_O,
      "return raw parents value from the index"},
+    {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},
     {"reachableroots2", (PyCFunction)reachableroots2, METH_VARARGS,

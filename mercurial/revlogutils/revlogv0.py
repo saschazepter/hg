@@ -77,6 +77,10 @@ class revlogoldindex(list):
 
     _parents_raw = parents
 
+    def flags(self, rev):
+        """the revision level flag for a revision"""
+        return self[rev][0] & 0xFFFF
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self[rev][7]
