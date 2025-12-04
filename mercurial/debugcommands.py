@@ -3455,7 +3455,7 @@ def debugrevlogindex(ui, repo, file_=None, **opts):
                     )
                 )
         elif format == 1:
-            pr = r.parentrevs(i)
+            pr = r.index._parents_raw(i)
             if ui.verbose:
                 ui.write(
                     b"% 6d %04x % 8d % 8d % 8d % 6d % 6d % 6d %s\n"

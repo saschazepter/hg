@@ -441,6 +441,12 @@ impl Index {
         }
     }
 
+    /// return raw parents value from the index
+    pub fn parents_raw(&self, rev: Revision) -> [UncheckedRevision; 2] {
+        let entry = self.get_entry(rev);
+        [entry.p1(), entry.p2()]
+    }
+
     /// Same as `rev_from_node`, without using a persistent nodemap
     ///
     /// This is used as fallback when a persistent nodemap is not present.

@@ -231,13 +231,16 @@ static const char *index_deref(indexObject *self, Py_ssize_t pos)
 }
 
 /*
- * Get parents of the given rev.
+ * Get raw parents value for a given rev (INTERNAL)
  *
- * The specified rev must be valid and must not be nullrev. A returned
- * parent revision may be nullrev, but is guaranteed to be in valid range.
+ * The specified rev must be valid and must not be nullrev.
+ * The parents are returned unchecked, without guaranteed to be in valid range.
+ *
+ * You should use `index_get_parents` instead, unless you are writing debug
+ * code.
  */
-static inline int index_get_parents(indexObject *self, Py_ssize_t rev, int *ps,
-                                    int maxrev)
+static inline int index_get_parents_raw(indexObject *self, Py_ssize_t rev,
+                                        int *ps, int maxrev)
 {
 	const char *data = index_deref(self, rev);
 
@@ -254,7 +257,23 @@ static inline int index_get_parents(indexObject *self, Py_ssize_t rev, int *ps,
 		raise_revlog_error();
 		return -1;
 	}
+	return 0;
+}
 
+/*
+ * Get parents of the given rev.
+ *
+ * The specified rev must be valid and must not be nullrev. A returned
+ * parent revision may be nullrev, but is guaranteed to be in valid range.
+ */
+static inline int index_get_parents(indexObject *self, Py_ssize_t rev, int *ps,
+                                    int maxrev)
+{
+	int sub_ret;
+	sub_ret = index_get_parents_raw(self, rev, ps, maxrev);
+	if (sub_ret < 0) {
+		return sub_ret;
+	}
 	/* If index file is corrupted, ps[] may point to invalid revisions. So
 	 * there is a risk of buffer overflow to trust them unconditionally. */
 	if (ps[0] < -1 || ps[0] > maxrev || ps[1] < -1 || ps[1] > maxrev) {
@@ -289,6 +308,46 @@ static int HgRevlogIndex_GetParents(PyObject *op, int rev, int *ps)
 	} else {
 		return index_get_parents((indexObject *)op, rev, ps, tiprev);
 	}
+}
+
+static PyObject *index_py_parents(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int parents[] = {-1, -1};
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < -1 || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx >= 0) {
+		if (index_get_parents(self, idx, parents, tiprev) < 0) {
+			return NULL;
+		}
+	}
+	return Py_BuildValue("(ii)", parents[0], parents[1]);
+}
+
+static PyObject *index_py_parents_raw(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int parents[] = {-1, -1};
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < -1 || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx >= 0) {
+		if (index_get_parents_raw(self, idx, parents, tiprev) < 0) {
+			return NULL;
+		}
+	}
+	return Py_BuildValue("(ii)", parents[0], parents[1]);
 }
 
 static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
@@ -3460,6 +3519,11 @@ static PyMethodDef index_methods[] = {
     {"node", (PyCFunction)index_py_node, METH_O, "return `node` of a rev"},
     {"rev", (PyCFunction)index_m_rev, METH_O,
      "return `rev` associated with a node or raise RevlogError"},
+
+    {"parents", (PyCFunction)index_py_parents, METH_O,
+     "return parents of a rev"},
+    {"_parents_raw", (PyCFunction)index_py_parents_raw, METH_O,
+     "return raw parents value from the index"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},
     {"reachableroots2", (PyCFunction)reachableroots2, METH_VARARGS,

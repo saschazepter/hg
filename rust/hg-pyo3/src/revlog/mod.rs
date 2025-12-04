@@ -18,6 +18,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 use hg::BaseRevision;
+use hg::Graph;
 use hg::NULL_REVISION;
 use hg::Revision;
 use hg::UncheckedRevision;
@@ -61,6 +62,7 @@ use pyo3::types::PyTuple;
 use pyo3_sharedref::PyShareable;
 use pyo3_sharedref::SharedByPyObject;
 
+use crate::exceptions::GraphError;
 use crate::exceptions::graph_error;
 use crate::exceptions::map_lock_error;
 use crate::exceptions::map_try_lock_error;
@@ -884,6 +886,32 @@ impl InnerRevlog {
         node: &Bound<'_, PyBytes>,
     ) -> PyResult<PyRevision> {
         Self::_index_get_rev(slf, node)?.ok_or_else(revlog_error_bare)
+    }
+
+    fn _index_parents(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<(i32, i32)> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => idx
+                .parents(r)
+                .map_err(GraphError::from_hg)
+                .map(|ps| (ps[0].0, ps[1].0)),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    fn _index_parents_raw(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<(i32, i32)> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => {
+                let (p1, p2) = idx.parents_raw(r).into();
+                Ok((p1.0, p2.0))
+            }
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
     }
 
     fn _index_node<'py>(

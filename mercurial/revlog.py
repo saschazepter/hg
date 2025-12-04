@@ -1339,6 +1339,8 @@ class RustIndexProxy(ProxyBase):
         # Direct reforwards since `__getattr__` is *expensive*
         self.get_rev = self.inner._index_get_rev
         self.rev = self.inner._index_rev
+        self.parents = self.inner._index_parents
+        self._parents_raw = self.inner._index_parents_raw
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest
@@ -2273,16 +2275,14 @@ class revlog:
 
     def parentrevs(self, rev):
         try:
-            entry = self.index[rev]
+            parents = self.index.parents(rev)
         except IndexError:
             if rev == wdirrev:
                 raise error.WdirUnsupported
             raise
-
-        if self.feature_config.canonical_parent_order and entry[5] == nullrev:
-            return entry[6], entry[5]
-        else:
-            return entry[5], entry[6]
+        if self.feature_config.canonical_parent_order and parents[0] == nullrev:
+            parents = (parents[1], parents[0])
+        return parents
 
     # fast parentrevs(rev) where rev isn't filtered
     _uncheckedparentrevs = parentrevs

@@ -70,6 +70,13 @@ class revlogoldindex(list):
         If the node is unknown, return None"""
         return self._nodemap.get(node)
 
+    def parents(self, rev):
+        """return (p1, p2) for a rev"""
+        entry = self[rev]
+        return (entry[5], entry[6])
+
+    _parents_raw = parents
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self[rev][7]
