@@ -418,8 +418,9 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 	if (self->format_version == format_v1) {
 		offset = getbe32(data + entry_v1_offset_offset_flags);
 		if (rev == 0) {
-			/* mask out version number for the first entry */
-			offset &= 0xFFFF;
+			/* all but the flag are masked, and the flag will be
+			 * dropped */
+			return 0;
 		} else {
 			uint32_t offset_high =
 			    getbe32(data + entry_v1_offset_high);
@@ -428,8 +429,9 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 	} else if (self->format_version == format_v2) {
 		offset = getbe32(data + entry_v2_offset_offset_flags);
 		if (rev == 0) {
-			/* mask out version number for the first entry */
-			offset &= 0xFFFF;
+			/* all but the flag are masked, and the flag will be
+			 * dropped */
+			return 0;
 		} else {
 			uint32_t offset_high =
 			    getbe32(data + entry_v2_offset_high);
