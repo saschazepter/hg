@@ -1993,7 +1993,7 @@ class deltacomputer:
                 and self.revlog.length(currentbase) == 0
             ):
                 currentbase = self.revlog.deltaparent(currentbase)
-            if lazy_delta and currentbase == base and policy <= DELTA_REUSE_NO:
+            if lazy_delta and currentbase == base and policy > DELTA_REUSE_NO:
                 if policy == DELTA_BASE_REUSE_FORCE:
                     # The instruction is to forcibly reuse the delta base, so
                     # let's ignore foldin there.
