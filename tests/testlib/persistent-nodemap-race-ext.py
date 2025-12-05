@@ -44,7 +44,6 @@ from mercurial import (
     changelog,
     encoding,
     extensions,
-    localrepo,
     node,
     pycompat,
     registrar,
@@ -95,6 +94,8 @@ FILE_READER_READY = os.path.join(SYNC_DIR, b'reader-ready')
 # mark that step [7] has run
 FILE_READER_READ_DOCKET = os.path.join(SYNC_DIR, b'reader-read-docket')
 
+
+SYNC_READ = [False]
 
 # by default, use builtin "print" for display
 #
@@ -169,15 +170,20 @@ def wrap_persisted_data(orig, revlog):
 
     Used by the <READER> process only.
     """
+    role = revlog.opener.options.get('_race_role')
+    if role == READER:
+        SYNC_READ[0] = True
     ret = orig(revlog)
-    if ret is not None:
-        docket, data = ret
-        file_path = nodemaputil._rawdata_filepath(revlog, docket)
-        file_path = revlog.opener.join(file_path)
-        file_size = os.path.getsize(file_path)
-        _print('record-data-length:', docket.data_length)
-        _print('actual-data-length:', len(data))
-        _print('file-actual-length:', file_size)
+    if role == READER:
+        SYNC_READ[0] = False
+        if ret is not None:
+            docket, data = ret
+            file_path = nodemaputil._rawdata_filepath(revlog, docket)
+            file_path = revlog.opener.join(file_path)
+            file_size = os.path.getsize(file_path)
+            _print('record-data-length:', docket.data_length)
+            _print('actual-data-length:', len(data))
+            _print('file-actual-length:', file_size)
     return ret
 
 
@@ -188,9 +194,10 @@ def sync_read(orig):
     after <RIGHT> write.
     """
     orig()
-    testing.write_file(FILE_READER_READ_DOCKET)
-    _print('reader: nodemap docket read')
-    testing.wait_file(FILE_RIGHT_CL_NODEMAP_POST_WRITE)
+    if SYNC_READ[0]:
+        testing.write_file(FILE_READER_READ_DOCKET)
+        _print('reader: nodemap docket read')
+        testing.wait_file(FILE_RIGHT_CL_NODEMAP_POST_WRITE)
 
 
 def make_print(ui):
@@ -217,82 +224,93 @@ def wrap_printer(orig, ui, func):
         _print = old_print
 
 
+class RacedRepoMixin:
+    def lock(self, wait=True):
+        # make sure <RIGHT> as the "Wrong" information in memory before
+        # grabbing the lock
+        newlock = self._currentlock(self._lockref) is None
+        if newlock and _role(self) == LEFT:
+            cl = self.unfiltered().changelog
+            print_nodemap_details(cl)
+        elif newlock and _role(self) == RIGHT:
+            testing.write_file(FILE_RIGHT_READY_TO_LOCK)
+            _print('nodemap-race: right side start of the locking sequence')
+            testing.wait_file(FILE_LEFT_LOCKED)
+            testing.wait_file(FILE_LEFT_CL_DATA_WRITE)
+            self.invalidate(clearfilecache=True)
+            _print('nodemap-race: right side reading changelog')
+            cl = self.unfiltered().changelog
+            tiprev = cl.tiprev()
+            tip = cl.node(tiprev)
+            tiprev2 = cl.rev(tip)
+            if tiprev != tiprev2:
+                msg = 'bad tip -round-trip %d %d'
+                msg %= (tiprev, tiprev2)
+                raise RuntimeError(msg)
+            testing.write_file(FILE_RIGHT_CL_NODEMAP_READ)
+            _print('nodemap-race: right side reading of changelog is done')
+            print_nodemap_details(cl)
+            testing.wait_file(FILE_LEFT_CL_NODEMAP_WRITE)
+            _print('nodemap-race: right side ready to wait for the lock')
+        ret = super().lock(wait=wait)
+        if newlock and _role(self) == LEFT:
+            _print('nodemap-race: left side locked and ready to commit')
+            testing.write_file(FILE_LEFT_LOCKED)
+            testing.wait_file(FILE_RIGHT_READY_TO_LOCK)
+            cl = self.unfiltered().changelog
+            print_nodemap_details(cl)
+        elif newlock and _role(self) == RIGHT:
+            _print('nodemap-race: right side locked and ready to commit')
+            cl = self.unfiltered().changelog
+            print_nodemap_details(cl)
+        return ret
+
+    def transaction(self, *args, **kwargs):
+        # duck punch the role on the transaction to help other pieces of code
+        tr = super().transaction(*args, **kwargs)
+        tr._race_role = _role(self)
+        return tr
+
+    @util.propertycache
+    def changelog(self):
+        self.svfs.options['_race_role'] = _role(self)
+        if _role(self) == READER:
+            _print('reader ready to read the changelog, waiting for right')
+            testing.write_file(FILE_READER_READY)
+            testing.wait_file(FILE_RIGHT_CL_NODEMAP_PRE_WRITE)
+        cl = super().changelog
+        cl._role = _role(self)
+        return cl
+
+
 def uisetup(ui):
-    class RacedRepo(localrepo.localrepository):
-        def lock(self, wait=True):
-            # make sure <RIGHT> as the "Wrong" information in memory before
-            # grabbing the lock
-            newlock = self._currentlock(self._lockref) is None
-            if newlock and _role(self) == LEFT:
-                cl = self.unfiltered().changelog
-                print_nodemap_details(cl)
-            elif newlock and _role(self) == RIGHT:
-                testing.write_file(FILE_RIGHT_READY_TO_LOCK)
-                _print('nodemap-race: right side start of the locking sequence')
-                testing.wait_file(FILE_LEFT_LOCKED)
-                testing.wait_file(FILE_LEFT_CL_DATA_WRITE)
-                self.invalidate(clearfilecache=True)
-                _print('nodemap-race: right side reading changelog')
-                cl = self.unfiltered().changelog
-                tiprev = cl.tiprev()
-                tip = cl.node(tiprev)
-                tiprev2 = cl.rev(tip)
-                if tiprev != tiprev2:
-                    raise RuntimeError(
-                        'bad tip -round-trip %d %d' % (tiprev, tiprev2)
-                    )
-                testing.write_file(FILE_RIGHT_CL_NODEMAP_READ)
-                _print('nodemap-race: right side reading of changelog is done')
-                print_nodemap_details(cl)
-                testing.wait_file(FILE_LEFT_CL_NODEMAP_WRITE)
-                _print('nodemap-race: right side ready to wait for the lock')
-            ret = super().lock(wait=wait)
-            if newlock and _role(self) == LEFT:
-                _print('nodemap-race: left side locked and ready to commit')
-                testing.write_file(FILE_LEFT_LOCKED)
-                testing.wait_file(FILE_RIGHT_READY_TO_LOCK)
-                cl = self.unfiltered().changelog
-                print_nodemap_details(cl)
-            elif newlock and _role(self) == RIGHT:
-                _print('nodemap-race: right side locked and ready to commit')
-                cl = self.unfiltered().changelog
-                print_nodemap_details(cl)
-            return ret
-
-        def transaction(self, *args, **kwargs):
-            # duck punch the role on the transaction to help other pieces of code
-            tr = super().transaction(*args, **kwargs)
-            tr._race_role = _role(self)
-            return tr
-
-    localrepo.localrepository = RacedRepo
-
     extensions.wrapfunction(
-        nodemaputil, 'persist_nodemap', wrap_persist_nodemap
+        nodemaputil,
+        'persist_nodemap',
+        wrap_persist_nodemap,
     )
     extensions.wrapfunction(
-        changelog.changelog, '_finalize', wrap_changelog_finalize
+        changelog.changelog,
+        '_finalize',
+        wrap_changelog_finalize,
     )
+    extensions.wrapfunction(
+        nodemaputil,
+        'persisted_data',
+        wrap_persisted_data,
+    )
+    extensions.wrapfunction(nodemaputil, 'test_race_hook_1', sync_read)
 
     extensions.wrapfunction(scmutil, 'callcatch', wrap_printer)
 
 
 def reposetup(ui, repo):
-    if _role(repo) == READER:
-        extensions.wrapfunction(
-            nodemaputil, 'persisted_data', wrap_persisted_data
-        )
-        extensions.wrapfunction(nodemaputil, 'test_race_hook_1', sync_read)
+    if not isinstance(repo, RacedRepoMixin):
 
-        class ReaderRepo(repo.__class__):
-            @util.propertycache
-            def changelog(self):
-                _print('reader ready to read the changelog, waiting for right')
-                testing.write_file(FILE_READER_READY)
-                testing.wait_file(FILE_RIGHT_CL_NODEMAP_PRE_WRITE)
-                return super().changelog
+        class Wrapped(RacedRepoMixin, repo.__class__):
+            pass
 
-        repo.__class__ = ReaderRepo
+        repo.__class__ = Wrapped
 
 
 @command(b'check-nodemap-race')
