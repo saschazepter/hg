@@ -420,7 +420,7 @@ class repoview:
         # bypass call to changelog.method
         unfiindex = unfichangelog.index
         unfilen = len(unfiindex)
-        unfinode = unfiindex[unfilen - 1][7]
+        unfinode = unfiindex.node(unfilen - 1)
         with util.timedcm('repo filter for %s', self.filtername):
             revs = filterrevs(unfi, self.filtername, self._visibilityexceptions)
         cl = self._clcache
