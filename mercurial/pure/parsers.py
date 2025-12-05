@@ -13,6 +13,10 @@ import struct
 import typing
 import zlib
 
+
+from ..interfaces.types import (
+    RevnumT,
+)
 from ..node import (
     nullrev,
     sha1nodeconstants,
@@ -686,6 +690,32 @@ class BaseIndexObject:
             return base
         else:
             return rev - 1
+
+    def deltachain(self, rev, stoprev=None) -> tuple[list[RevnumT], bool]:
+        # Alias to prevent attribute lookup in tight loop.
+        generaldelta = self._uses_general_delta
+
+        chain = []
+        iterrev = rev
+        e = self[iterrev]
+        while iterrev != e[3] and iterrev != stoprev:
+            if e[1] > 0:
+                # skip over empty delta in the chain
+                chain.append(iterrev)
+            if generaldelta:
+                iterrev = e[3]
+            else:
+                iterrev -= 1
+            e = self[iterrev]
+
+        if iterrev == stoprev:
+            stopped = True
+        else:
+            chain.append(iterrev)
+            stopped = False
+
+        chain.reverse()
+        return chain, stopped
 
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""

@@ -54,7 +54,6 @@ from .revlogutils.constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_NO,
     DELTA_BASE_REUSE_TRY,
-    ENTRY_DATA_COMPRESSED_LENGTH,
     ENTRY_RANK,
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
@@ -566,40 +565,7 @@ class _InnerRevlog:
         revs in ascending order and ``stopped`` is a bool indicating whether
         ``stoprev`` was hit.
         """
-        # Try C implementation.
-        try:
-            return self.index.deltachain(
-                rev, stoprev
-            )  # pytype: disable=attribute-error
-        except AttributeError:
-            pass
-
-        chain = []
-
-        # Alias to prevent attribute lookup in tight loop.
-        index = self.index
-        generaldelta = self.delta_config.general_delta
-
-        iterrev = rev
-        e = index[iterrev]
-        while iterrev != e[3] and iterrev != stoprev:
-            if e[ENTRY_DATA_COMPRESSED_LENGTH] > 0:
-                # skip over empty delta in the chain
-                chain.append(iterrev)
-            if generaldelta:
-                iterrev = e[3]
-            else:
-                iterrev -= 1
-            e = index[iterrev]
-
-        if iterrev == stoprev:
-            stopped = True
-        else:
-            chain.append(iterrev)
-            stopped = False
-
-        chain.reverse()
-        return chain, stopped
+        return self.index.deltachain(rev, stoprev)
 
     @util.propertycache
     def _compressor(self):

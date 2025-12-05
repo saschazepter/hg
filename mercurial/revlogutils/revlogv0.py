@@ -7,6 +7,9 @@
 
 from __future__ import annotations
 
+from ..interfaces.types import (
+    RevnumT,
+)
 from ..node import sha1nodeconstants
 from .constants import (
     INDEX_ENTRY_V0,
@@ -94,6 +97,28 @@ class revlogoldindex(list):
             return None
         else:
             return rev - 1
+
+    def deltachain(self, rev, stoprev=None) -> tuple[list[RevnumT], bool]:
+        # Alias to prevent attribute lookup in tight loop.
+
+        chain = []
+        iterrev = rev
+        e = self[iterrev]
+        while iterrev != e[3] and iterrev != stoprev:
+            if e[1] > 0:
+                # skip over empty delta in the chain
+                chain.append(iterrev)
+            iterrev -= 1
+            e = self[iterrev]
+
+        if iterrev == stoprev:
+            stopped = True
+        else:
+            chain.append(iterrev)
+            stopped = False
+
+        chain.reverse()
+        return chain, stopped
 
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
