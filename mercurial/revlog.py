@@ -4871,7 +4871,6 @@ class revlog:
 
             current_offset = sdfh.tell()
             for rev in range(startrev, endrev + 1):
-                entry = self.index[rev]
                 new_sidedata, flags = sidedatautil.run_sidedata_helpers(
                     store=self,
                     sidedata_helpers=helpers,
@@ -4902,7 +4901,10 @@ class revlog:
                         else:
                             sidedata_compression_mode = COMP_MODE_INLINE
                             serialized_sidedata = comp_sidedata
-                if entry[8] != 0 or entry[9] != 0:
+                if (
+                    self.index.sidedata_chunk_offset(rev) != 0
+                    or self.index.sidedata_chunk_length(rev) != 0
+                ):
                     # rewriting entries that already have sidedata is not
                     # supported yet, because it introduces garbage data in the
                     # revlog.
