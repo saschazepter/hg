@@ -4589,15 +4589,14 @@ class revlog:
         has_meta_cache = {}
 
         for rev in self:
-            entry = index[rev]
-
             # Some classes override linkrev to take filtered revs into
             # account. Use raw entry from index.
-            flags = entry[0] & 0xFFFF
-            linkrev = entry[4]
-            p1 = index[entry[5]][7]
-            p2 = index[entry[6]][7]
-            node = entry[7]
+            flags = index.flags(rev)
+            linkrev = index.linkrev(rev)
+            p1_rev, p2_rev = index.parents(rev)
+            p1 = index.node(p1_rev)
+            p2 = index.node(p2_rev)
+            node = index.node(rev)
 
             if hasmeta_change == HM_DOWN and flags & REVIDX_HASMETA:
                 p1, p2 = p2, p1
