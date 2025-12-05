@@ -3100,18 +3100,18 @@ def sorttests(testdescs, previoustimes, shuffle=False):
     else:
         # keywords for slow tests
         slow = {
-            b'svn': 10,
-            b'cvs': 10,
-            b'hghave': 10,
-            b'largefiles-update': 10,
-            b'run-tests': 10,
-            b'corruption': 10,
-            b'race': 10,
-            b'i18n': 10,
             b'check': 100,
-            b'gendoc': 100,
             b'contrib-perf': 200,
+            b'corruption': 10,
+            b'cvs': 10,
+            b'gendoc': 100,
+            b'hghave': 10,
+            b'i18n': 10,
+            b'largefiles-update': 10,
             b'merge-combination': 100,
+            b'race': 10,
+            b'run-tests': 10,
+            b'svn': 10,
         }
         perf = {}
 
