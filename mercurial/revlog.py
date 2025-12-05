@@ -2054,7 +2054,7 @@ class revlog:
                 docket = nodemap_data[0]
                 if (
                     len(index) > docket.tip_rev
-                    and index[docket.tip_rev][7] == docket.tip_node
+                    and index.node(docket.tip_rev) == docket.tip_node
                 ):
                     # no changelog tampering
                     self._nodemap_docket = docket
