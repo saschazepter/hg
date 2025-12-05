@@ -94,6 +94,8 @@ HGPORT_COUNT = 4
 RUNTEST_DIR = os.path.abspath(os.path.dirname(__file__.encode('utf-8')))
 RUNTEST_DIR_FORWARD_SLASH = RUNTEST_DIR.replace(os.sep.encode('utf-8'), b'/')
 
+INITIAL_CWD = os.getcwdb()
+
 
 processlock = threading.Lock()
 
@@ -162,7 +164,7 @@ if pygmentspresent:
         }
 
     class TestRunnerLexer(lexer.RegexLexer):
-        testpattern = r'[\w-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
+        testpattern = r'[\w/-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
         tokens = {
             'root': [
                 (r'^Skipped', _T_SKIPPED, 'skipped'),
@@ -1152,7 +1154,8 @@ class Test(unittest.TestCase):
         self.path = path
         self.relpath = os.path.relpath(path)
         self.bname = os.path.basename(path)
-        self.name = _bytes2sys(self.bname)
+        base_relpath = _bytes2sys(os.path.relpath(path, INITIAL_CWD))
+        self.name = base_relpath.replace(os.path.sep, '/')
         self._testdir = os.path.dirname(path)
         self._outputdir = outputdir
         self._tmpname = os.path.basename(path)
