@@ -748,13 +748,14 @@ class DeltaChainAuditor:
         self._total_revs = len(self._index)
 
     def revinfo(self, rev, size_info=True, dist_info=True, sparse_info=True):
-        e = self._index[rev]
-        compsize = e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
-        uncompsize = e[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+        idx = self._index
+        compsize = idx.data_chunk_length(rev)
+        uncompsize = idx.raw_size(rev)
 
-        base = e[constants.ENTRY_DELTA_BASE]
-        p1 = e[constants.ENTRY_PARENT_1]
-        p2 = e[constants.ENTRY_PARENT_2]
+        base = idx.delta_base(rev)
+        if base is None:
+            base = rev
+        p1, p2 = idx._parents_raw(rev)
 
         # If the parents of a revision has an empty delta, we never try to
         # delta against that parent, but directly against the delta base of
@@ -765,30 +766,26 @@ class DeltaChainAuditor:
         # is not simply "other".
         p1_base = p1
         if p1 != nodemod.nullrev and p1 < self._total_revs:
-            e1 = self._index[p1]
-            while e1[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
-                new_base = e1[constants.ENTRY_DELTA_BASE]
+            while idx.data_chunk_length(p1_base) == 0:
+                new_base = idx.delta_base(p1_base)
                 if (
-                    new_base == p1_base
+                    new_base is None
                     or new_base == nodemod.nullrev
                     or new_base >= self._total_revs
                 ):
                     break
                 p1_base = new_base
-                e1 = self._index[p1_base]
         p2_base = p2
         if p2 != nodemod.nullrev and p2 < self._total_revs:
-            e2 = self._index[p2]
-            while e2[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
-                new_base = e2[constants.ENTRY_DELTA_BASE]
+            while idx.data_chunk_length(p2_base) == 0:
+                new_base = idx.delta_base(p2_base)
                 if (
-                    new_base == p2_base
+                    new_base is None
                     or new_base == nodemod.nullrev
                     or new_base >= self._total_revs
                 ):
                     break
                 p2_base = new_base
-                e2 = self._index[p2_base]
 
         if self._generaldelta:
             if base == p1:
@@ -833,8 +830,7 @@ class DeltaChainAuditor:
                 if cached is not None:
                     chain_size += cached
                     break
-                e = self._index[iter_rev]
-                chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
+                chain_size += idx.data_chunk_length(iter_rev)
             self._chain_size_cache[rev] = chain_size
             data['chain_size'] = chain_size
 
