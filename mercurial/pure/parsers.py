@@ -907,7 +907,8 @@ class IndexObject2(IndexObject):
         rev,
         sidedata_offset,
         sidedata_length,
-        offset_flags,
+        added_flags,
+        dropped_flags,
         compression_mode,
     ):
         """
@@ -923,8 +924,9 @@ class IndexObject2(IndexObject):
             msg = "cannot rewrite entries outside of this transaction"
             raise KeyError(msg)
         else:
+            assert not (added_flags & dropped_flags)
             entry = list(self[rev])
-            entry[0] = offset_flags
+            entry[0] = entry[0] | added_flags & ~dropped_flags
             entry[8] = sidedata_offset
             entry[9] = sidedata_length
             entry[11] = compression_mode

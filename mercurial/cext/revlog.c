@@ -878,15 +878,15 @@ static PyObject *index_append(indexObject *self, PyObject *obj)
    inside the transaction that creates the given revision. */
 static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 {
-	uint64_t offset_flags, sidedata_offset;
+	uint64_t offset_flags, sidedata_offset, added_flags, dropped_flags;
 	Py_ssize_t rev;
 	int sidedata_comp_len;
 	char comp_mode;
 	char *data;
 #if LONG_MAX == 0x7fffffffL
-	const char *const sidedata_format = "nKiKB";
+	const char *const sidedata_format = "nKiKKB";
 #else
-	const char *const sidedata_format = "nkikB";
+	const char *const sidedata_format = "nkikkB";
 #endif
 
 	if (self->entry_size == v1_entry_size || self->inlined) {
@@ -901,7 +901,8 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 	}
 
 	if (!PyArg_ParseTuple(args, sidedata_format, &rev, &sidedata_offset,
-	                      &sidedata_comp_len, &offset_flags, &comp_mode))
+	                      &sidedata_comp_len, &added_flags, &dropped_flags,
+	                      &comp_mode))
 		return NULL;
 
 	if (rev < 0 || rev >= index_length(self)) {
@@ -919,6 +920,9 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 	 */
 	data = self->added + self->entry_size * (rev - self->length);
 	if (self->format_version == format_v2) {
+		offset_flags = getbe64(data + entry_v2_offset_high);
+		offset_flags |= added_flags;
+		offset_flags &= ~dropped_flags;
 		putbe64(offset_flags, data + entry_v2_offset_high);
 		putbe64(sidedata_offset,
 		        data + entry_v2_offset_sidedata_offset);
@@ -928,6 +932,9 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 		    (data[entry_v2_offset_all_comp_mode] & ~(3 << 2)) |
 		    ((comp_mode & 3) << 2);
 	} else if (self->format_version == format_cl2) {
+		offset_flags = getbe64(data + entry_cl2_offset_high);
+		offset_flags |= added_flags;
+		offset_flags &= ~dropped_flags;
 		putbe64(offset_flags, data + entry_cl2_offset_high);
 		putbe64(sidedata_offset,
 		        data + entry_cl2_offset_sidedata_offset);

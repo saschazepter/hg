@@ -4951,11 +4951,12 @@ class revlog:
 
                 # Apply (potential) flags to add and to remove after running
                 # the sidedata helpers
-                new_offset_flags = entry[0] | flags[0] & ~flags[1]
+                assert not (flags[0] & flags[1])
                 entry_update = (
                     current_offset,
                     len(serialized_sidedata),
-                    new_offset_flags,
+                    flags[0],
+                    flags[1],
                     sidedata_compression_mode,
                 )
 
