@@ -533,7 +533,7 @@ class _InnerRevlog:
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)
         elif self.data_config.delta_info:
-            flags = self.index[rev][0] & 0xFFFF
+            flags = self.index.flags(rev)
             return flags & REVIDX_DELTA_IS_SNAPSHOT
         if rev == nullrev:
             return True
