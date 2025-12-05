@@ -1038,7 +1038,7 @@ class _InnerRevlog:
             basetext = cache[1]
 
         targetsize = None
-        rawsize = self.index[rev][2]
+        rawsize = self.index.raw_size(rev)
         if rawsize is not None and 0 <= rawsize:
             targetsize = 4 * rawsize
 
