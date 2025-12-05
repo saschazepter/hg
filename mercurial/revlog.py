@@ -533,23 +533,18 @@ class _InnerRevlog:
             return flags & REVIDX_DELTA_IS_SNAPSHOT
         if rev == nullrev:
             return True
-        entry = self.index[rev]
-        base = entry[3]
-        if base == rev:
+        idx = self.index
+        base = idx.delta_base(rev)
+        if base is None or base == nullrev:
+            # the base == nullrev was possible in older version and some
+            # repository exist in the wild with such delta
             return True
-        if base == nullrev:
-            return True
-        p1 = entry[5]
-        while self.length(p1) == 0:
-            b = self.deltaparent(p1)
-            if b == p1:
-                break
+        p1, p2 = idx.parents(rev)
+        while p1 is not None and self.length(p1) == 0:
+            b = idx.delta_base(p1)
             p1 = b
-        p2 = entry[6]
-        while self.length(p2) == 0:
-            b = self.deltaparent(p2)
-            if b == p2:
-                break
+        while p2 is not None and self.length(p2) == 0:
+            b = idx.delta_base(p2)
             p2 = b
         if base == p1 or base == p2:
             return False
