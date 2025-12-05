@@ -878,13 +878,12 @@ class _InnerRevlog:
         # Inlined self.start(startrev) & self.end(endrev) for perf reasons
         # (functions are expensive).
         index = self.index
-        istart = index[startrev]
-        start = int(istart[0] >> 16)
+        start = index.data_chunk_start(startrev)
         if startrev == endrev:
-            end = start + istart[1]
+            end = start + index.data_chunk_length(startrev)
         else:
-            iend = index[endrev]
-            end = int(iend[0] >> 16) + iend[1]
+            end = index.data_chunk_start(endrev)
+            end += index.data_chunk_length(endrev)
 
         if self.inline:
             start += (startrev + 1) * self.index.entry_size
