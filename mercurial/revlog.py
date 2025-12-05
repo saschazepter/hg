@@ -2263,13 +2263,14 @@ class revlog:
 
         index = self.index
         iterrev = rev
-        base = index[iterrev][3]
-        while base != iterrev:
+        base = index.delta_base(iterrev)
+        while base is not None:
+            assert base != iterrev
             iterrev = base
-            base = index[iterrev][3]
+            base = index.delta_base(iterrev)
 
-        self._chainbasecache[rev] = base
-        return base
+        self._chainbasecache[rev] = iterrev
+        return iterrev
 
     def linkrev(self, rev):
         return self.index.linkrev(rev)
