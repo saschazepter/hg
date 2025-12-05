@@ -30,7 +30,9 @@ class mpatchError(Exception):
 
 
 def _pull(
-    dst: list[tuple[int, int]], src: list[tuple[int, int]], l: int
+    dst: list[tuple[int, int]],
+    src: list[tuple[int, int]],
+    l: int,
 ) -> None:  # pull l bytes from src
     while l:
         f = src.pop()
