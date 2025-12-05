@@ -58,12 +58,6 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         idx = self.parserustindex()
         self.assertEqual(len(idx), 4)
 
-    def test_getitem(self):
-        idx = self.parserustindex()
-        as_tuple = (0, 82969, 484626, 0, 0, -1, -1, self.node0, 0, 0, 2, 2, -1)
-        self.assertEqual(idx[0], as_tuple)
-        self.assertEqual(idx[self.node0], 0)
-
     def test_heads(self):
         idx = self.parserustindex()
         self.assertEqual(idx.headrevs(), [3])

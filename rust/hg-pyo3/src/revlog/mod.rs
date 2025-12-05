@@ -31,7 +31,6 @@ use hg::revlog::index::INDEX_ENTRY_SIZE;
 use hg::revlog::index::Index;
 use hg::revlog::index::IndexHeader;
 use hg::revlog::index::Phase;
-use hg::revlog::index::RevisionDataParams;
 use hg::revlog::index::SnapshotsCache;
 use hg::revlog::inner_revlog::InnerRevlog as CoreInnerRevlog;
 use hg::revlog::nodemap::NodeMap;
@@ -91,7 +90,6 @@ use config::*;
 mod index;
 pub use index::PySharedIndex;
 use index::py_tuple_to_revision_data_params;
-use index::revision_data_params_to_py_tuple;
 
 /// the compression used for the data-chunk is "inline"
 ///
@@ -1474,41 +1472,6 @@ impl InnerRevlog {
 
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
         Self::with_index_read(slf, |idx| Ok(idx.len()))
-    }
-
-    fn _index___getitem__(
-        slf: &Bound<'_, Self>,
-        py: Python<'_>,
-        key: &Bound<'_, PyAny>,
-    ) -> PyResult<Py<PyAny>> {
-        Self::with_index_read(slf, |idx| {
-            match key.extract::<BaseRevision>() {
-                Ok(key_as_int) => {
-                    let entry_params = if key_as_int == NULL_REVISION.0 {
-                        RevisionDataParams::default()
-                    } else {
-                        let rev = UncheckedRevision(key_as_int);
-                        match idx.entry_as_params(rev) {
-                            Some(e) => e,
-                            None => {
-                                return Err(PyIndexError::new_err(
-                                    "revlog index out of range",
-                                ));
-                            }
-                        }
-                    };
-                    Ok(revision_data_params_to_py_tuple(py, entry_params)?
-                        .into_any()
-                        .unbind())
-                }
-                // Case when key is a binary Node ID (lame: we're re-unlocking)
-                _ => Self::_index_get_rev(slf, key.cast::<PyBytes>()?)?
-                    .map_or_else(
-                        || Ok(py.None()),
-                        |py_rev| Ok(py_rev.into_pyobject(py)?.unbind().into()),
-                    ),
-            }
-        })
     }
 
     /// Returns the full nodemap bytes to be written as-is to disk

@@ -103,27 +103,3 @@ pub fn py_tuple_to_revision_data_params(
         ..Default::default()
     })
 }
-
-pub fn revision_data_params_to_py_tuple(
-    py: Python<'_>,
-    params: RevisionDataParams,
-) -> PyResult<Bound<'_, PyTuple>> {
-    PyTuple::new(
-        py,
-        &[
-            params.data_offset.into_pyobject(py)?.into_any(),
-            params.data_compressed_length.into_pyobject(py)?.into_any(),
-            params.data_uncompressed_length.into_pyobject(py)?.into_any(),
-            params.data_delta_base.into_pyobject(py)?.into_any(),
-            params.link_rev.into_pyobject(py)?.into_any(),
-            params.parent_rev_1.into_pyobject(py)?.into_any(),
-            params.parent_rev_2.into_pyobject(py)?.into_any(),
-            PyBytes::new(py, &params.node_id).into_any().into_any(),
-            params._sidedata_offset.into_pyobject(py)?.into_any(),
-            params._sidedata_compressed_length.into_pyobject(py)?.into_any(),
-            params.data_compression_mode.into_pyobject(py)?.into_any(),
-            params._sidedata_compression_mode.into_pyobject(py)?.into_any(),
-            params._rank.into_pyobject(py)?.into_any(),
-        ],
-    )
-}

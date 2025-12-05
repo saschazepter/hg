@@ -1347,7 +1347,9 @@ class RustIndexProxy(ProxyBase):
         return self.inner._index___len__()
 
     def __getitem__(self, key):
-        return self.inner._index___getitem__(key)
+        raise TypeError(
+            "index no longer rev indexable, use dedicated methodto access each values"
+        )
 
     def __contains__(self, key):
         return self.inner._index___contains__(key)

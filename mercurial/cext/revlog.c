@@ -3011,11 +3011,10 @@ static PyObject *index_getitem(indexObject *self, PyObject *value)
 	int rev;
 
 	if (PyLong_Check(value)) {
-		long idx;
-		if (!pylong_to_long(value, &idx)) {
-			return NULL;
-		}
-		return index_get(self, idx);
+		PyErr_SetString(PyExc_TypeError,
+		                "index no longer rev indexable, use dedicated "
+		                "method to access each values");
+		return NULL;
 	}
 
 	if (node_check(self->nodelen, value, &node) == -1)

@@ -798,9 +798,6 @@ class BaseIndexObject:
         # no reason to force it to implement an unused method.
         raise NotImplementedError
 
-    def __getitem__(self, i) -> tuple:
-        return self._entry(i)
-
     def _entry(self, i) -> tuple:
         if i == -1:
             return self.null_item
