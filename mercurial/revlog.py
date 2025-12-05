@@ -2165,7 +2165,7 @@ class revlog:
         return self.index.data_chunk_start(rev)
 
     def sidedata_cut_off(self, rev):
-        sd_cut_off = self.index[rev][8]
+        sd_cut_off = self.index.sidedata_chunk_offset(rev)
         if sd_cut_off != 0:
             return sd_cut_off
         # This is some annoying dance, because entries without sidedata
@@ -2174,10 +2174,11 @@ class revlog:
         #
         # We should reconsider this sidedata → 0 sidata_offset policy.
         # In the meantime, we need this.
+        idx = self.index
         while 0 <= rev:
-            e = self.index[rev]
-            if e[9] != 0:
-                return e[8] + e[9]
+            length = idx.sidedata_chunk_length(rev)
+            if length != 0:
+                return idx.sidedata_chunk_offset(rev) + length
             rev -= 1
         return 0
 
