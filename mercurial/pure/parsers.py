@@ -675,6 +675,17 @@ class BaseIndexObject:
         """
         return self[rev][3]
 
+    def raw_size(self, rev) -> int | None:
+        """the raw size of the revision data
+
+        The "raw data" is stored content because flag processing and with
+        optionnal metadata attached.
+        """
+        size = self[rev][2]
+        if size < 0:
+            return None
+        return size
+
     def data_chunk_start(self, rev):
         """return the starting offsset of the data chunk of a rev"""
         return int(self[rev][0] >> 16)

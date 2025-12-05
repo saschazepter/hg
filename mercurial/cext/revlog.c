@@ -350,6 +350,39 @@ static PyObject *index_py_parents_raw(indexObject *self, PyObject *rev)
 	return Py_BuildValue("(ii)", parents[0], parents[1]);
 }
 
+static PyObject *index_py_raw_size(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	int32_t value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (rev == nullrev)
+		return PyLong_FromLong(0);
+	data = index_deref(self, rev);
+	if (data == NULL)
+		return NULL;
+	if (self->format_version == format_v1) {
+		value = getbe32(data + entry_v1_offset_uncomp_len);
+	} else if (self->format_version == format_v2) {
+		value = getbe32(data + entry_v2_offset_uncomp_len);
+	} else if (self->format_version == format_cl2) {
+		value = getbe32(data + entry_cl2_offset_uncomp_len);
+	}
+	if (value < 0) {
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+	return PyLong_FromLong(value);
+}
+
 static PyObject *index_py_linkrev(indexObject *self, PyObject *py_rev)
 {
 	long rev;
@@ -3763,6 +3796,8 @@ static PyMethodDef index_methods[] = {
     {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
     {"bundle_repo_delta_base", (PyCFunction)index_py_bundle_repo_delta_base,
      METH_O, "hack to keep bundle repo working"},
+    {"raw_size", (PyCFunction)index_py_raw_size, METH_O,
+     "return raw-size for a rev"},
     {"data_chunk_start", (PyCFunction)index_py_data_chunk_start, METH_O,
      "return the starting offset of the data chunk of a rev"},
     {"data_chunk_length", (PyCFunction)index_py_data_chunk_length, METH_O,

@@ -1303,6 +1303,7 @@ class RustIndexProxy(ProxyBase):
         self.linkrev = self.inner._index_linkrev
         self.flags = self.inner._index_flags
         self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
+        self.raw_size = self.inner._index_raw_size
         self.data_chunk_start = self.inner._index_data_chunk_start
         self.data_chunk_length = self.inner._index_data_chunk_length
         self.delta_base = self.inner._index_delta_base
@@ -2189,10 +2190,9 @@ class revlog:
 
     def rawsize(self, rev):
         """return the length of the uncompressed text for a given revision"""
-        l = self.index[rev][2]
-        if l is not None and l >= 0:
-            return l
-
+        size = self.index.raw_size(rev)
+        if size is not None:
+            return size
         t = self.rawdata(rev)
         return len(t)
 

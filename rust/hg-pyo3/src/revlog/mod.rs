@@ -945,6 +945,23 @@ impl InnerRevlog {
         })
     }
 
+    /// the raw size of the revision data
+    ///
+    /// The "raw data" is stored content because flag processing and with
+    /// optionnal metadata attached.
+    fn _index_raw_size(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<Option<i32>> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(match idx.get_entry(r).uncompressed_len() {
+                size @ 0.. => Some(size),
+                _ => None,
+            }),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
     /// The starting offset of a revision data chunk.
     fn _index_data_chunk_start(
         slf: &Bound<'_, Self>,

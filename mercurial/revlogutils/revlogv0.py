@@ -95,6 +95,14 @@ class revlogoldindex(list):
         """the raw `delta-base` value, used by bundle_repo"""
         return self[rev][3]
 
+    def raw_size(self, rev) -> int | None:
+        """the raw size of the revision data
+
+        The "raw data" is stored content because flag processing and with
+        optionnal metadata attached.
+        """
+        return None
+
     def data_chunk_start(self, rev):
         """return the starting offsset of the data chunk of a rev"""
         return int(self[rev][0] >> 16)
