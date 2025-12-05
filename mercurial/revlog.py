@@ -1049,9 +1049,11 @@ class _InnerRevlog:
         if basetext is None:
             basetext = bytes(bins[0])
             bins = bins[1:]
-
-        rawtext = mdiff.patches(basetext, bins)
-        del basetext  # let us have a chance to free memory early
+        if bins:
+            rawtext = mdiff.patches(basetext, bins)
+            del basetext  # let us have a chance to free memory early
+        else:
+            rawtext = basetext
 
         self.cache_revision_text(rev, rawtext, False)
         return (rev, rawtext, False)
