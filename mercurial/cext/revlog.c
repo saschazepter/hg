@@ -1757,6 +1757,30 @@ static inline int index_baserev(indexObject *self, int rev)
 	return result;
 }
 
+static PyObject *index_py_bundle_repo_delta_base(indexObject *self,
+                                                 PyObject *py_rev)
+{
+	long rev;
+	int tiprev;
+	long base;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < nullrev || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (rev == nullrev) {
+		base = -1;
+	} else {
+		base = index_baserev(self, rev);
+		if (base < nullrev) {
+			return NULL;
+		}
+	}
+	return PyLong_FromLong(base);
+}
+
 /**
  * Find if a revision is a snapshot or not
  *
@@ -3587,6 +3611,8 @@ static PyMethodDef index_methods[] = {
     {"linkrev", (PyCFunction)index_py_linkrev, METH_O,
      "return linkrev for a rev"},
     {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
+    {"bundle_repo_delta_base", (PyCFunction)index_py_bundle_repo_delta_base,
+     METH_O, "hack to keep bundle repo working"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},
     {"reachableroots2", (PyCFunction)reachableroots2, METH_VARARGS,

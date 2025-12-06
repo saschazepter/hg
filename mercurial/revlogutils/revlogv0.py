@@ -84,6 +84,10 @@ class revlogoldindex(list):
         """the revision level flag for a revision"""
         return self[rev][0] & 0xFFFF
 
+    def bundle_repo_delta_base(self, rev) -> int:
+        """the raw `delta-base` value, used by bundle_repo"""
+        return self[rev][3]
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self[rev][7]

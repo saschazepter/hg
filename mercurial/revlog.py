@@ -1343,6 +1343,7 @@ class RustIndexProxy(ProxyBase):
         self._parents_raw = self.inner._index_parents_raw
         self.linkrev = self.inner._index_linkrev
         self.flags = self.inner._index_flags
+        self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest

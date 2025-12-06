@@ -655,6 +655,16 @@ class BaseIndexObject:
         """the revision level flag for a revision"""
         return self[rev][0] & 0xFFFF
 
+    def bundle_repo_delta_base(self, rev) -> RevnumT:
+        """the raw `delta-base` value, used by bundle_repoi
+
+        The delta-base information in a bundle is always "general-delta", while
+        the delta-base used by the underlying revlog might not be. So the
+        bundle-repo code have to deal with this by hand and need the raw value
+        for the delta-base to work properly.
+        """
+        return self[rev][3]
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self[rev][7]
