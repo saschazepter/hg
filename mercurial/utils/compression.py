@@ -255,8 +255,12 @@ def bundlecompressiontopics() -> dict[bytes, object]:
     for name in compengines:
         engine = compengines[name]
 
-        if not engine.available():
-            continue
+        try:
+            if not engine.available():
+                continue
+        except ImportError:
+            # We don't want back policy configuration to break here.
+            pass
 
         bt = engine.bundletype()
         if not bt or not bt[0]:
