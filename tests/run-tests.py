@@ -2822,13 +2822,18 @@ def savetimes(outputdir, result):
     saved = dict(loadtimes(outputdir))
     maxruns = 5
     skipped = {str(t[0]) for t in result.skipped}
+    new_times = collections.defaultdict(list)
     for tdata in result.times:
         test_full, real = _sys2bytes(tdata[0]), tdata[3]
         test = test_full.split(b'#', 1)[0]
         if test not in skipped:
-            ts = saved.setdefault(test, [])
-            ts.append(real)
-            ts[:] = ts[-maxruns:]
+            new_times[test].append(real)
+
+    for test, new in new_times.items():
+        # keep the slowest variant last
+        new.sort()
+        all_times = (saved.get(test, []) + new)[-maxruns:]
+        saved[test] = all_times
 
     fd, tmpname = tempfile.mkstemp(
         prefix=b'.testtimes', dir=outputdir, text=True
