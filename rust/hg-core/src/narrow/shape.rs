@@ -448,6 +448,15 @@ impl Shape {
     pub fn name(&self) -> &ShardName {
         &self.name
     }
+
+    pub fn from_patterns(
+        includes: &[FilePattern],
+        excludes: &[FilePattern],
+    ) -> Result<Self, Error> {
+        let tree = ShardTreeNode::from_patterns(includes, excludes)?;
+        let name = ShardName::new("hg-internal".into()).expect("valid name");
+        Ok(Self { name, tree })
+    }
 }
 
 /// Matches the os-disk config for a single shard inside the [`ShapesConfig`]

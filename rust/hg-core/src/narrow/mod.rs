@@ -11,7 +11,7 @@ use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
 use crate::matchers::Matcher;
 use crate::matchers::NeverMatcher;
-use crate::narrow::shape::ShardTreeNode;
+use crate::narrow::shape::Shape;
 use crate::repo::Repo;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::sparse::SparseConfigError;
@@ -69,11 +69,11 @@ pub fn matcher(
     // `rootfilesin:` does not use the new logic yet because they make the code
     // more complex and are not needed by shapes. Maybe we'll end up
     // implementing it.
-    if let Ok(tree) =
-        ShardTreeNode::from_patterns(&include_patterns, &exclude_patterns)
+    if let Ok(shape) =
+        Shape::from_patterns(&include_patterns, &exclude_patterns)
     {
-        let new_matcher = tree.matcher();
-        return Ok(new_matcher);
+        let new_matcher = shape.matcher();
+        return Ok(Box::new(new_matcher));
     }
 
     // Fall back to the old way of matching
