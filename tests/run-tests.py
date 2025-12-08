@@ -2807,9 +2807,9 @@ class TestSuite(unittest.TestSuite):
 def loadtimes(outputdir):
     times = []
     try:
-        with open(os.path.join(outputdir, b'.testtimes')) as fp:
+        with open(os.path.join(outputdir, b'.testtimes'), 'br') as fp:
             for line in fp:
-                m = re.match('(.*?) ([0-9. ]+)', line)
+                m = re.match(b'(.*?) ([0-9. ]+)', line)
                 times.append(
                     (m.group(1), [float(t) for t in m.group(2).split()])
                 )
@@ -2823,7 +2823,7 @@ def savetimes(outputdir, result):
     maxruns = 5
     skipped = {str(t[0]) for t in result.skipped}
     for tdata in result.times:
-        test, real = tdata[0], tdata[3]
+        test, real = _sys2bytes(tdata[0]), tdata[3]
         if test not in skipped:
             ts = saved.setdefault(test, [])
             ts.append(real)
@@ -2832,9 +2832,10 @@ def savetimes(outputdir, result):
     fd, tmpname = tempfile.mkstemp(
         prefix=b'.testtimes', dir=outputdir, text=True
     )
-    with os.fdopen(fd, 'w') as fp:
+    with os.fdopen(fd, 'wb') as fp:
         for name, ts in sorted(saved.items()):
-            fp.write('%s %s\n' % (name, ' '.join(['%.3f' % (t,) for t in ts])))
+            times = b' '.join([b'%.3f' % (t,) for t in ts])
+            fp.write(b'%s %s\n' % (name, times))
     timepath = os.path.join(outputdir, b'.testtimes')
     try:
         os.unlink(timepath)
