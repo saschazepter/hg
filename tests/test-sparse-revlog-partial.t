@@ -64,13 +64,6 @@ able to stream its delta as is.
   > *:pulled-delta-reuse-policy = try-base
   > EOF
 
-XXX - changegroup-v4 should be enabled by default when delta-info-flag is used
-#if delta-info-flags
-  $ cat << EOF >> $HGRCPATH
-  > [path]
-  > changegroup4 = yes
-  > EOF
-#endif
 
 pull changeset 10 by 10
 

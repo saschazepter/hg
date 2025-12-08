@@ -69,13 +69,6 @@ able to stream its delta as is.
   > *:pulled-delta-reuse-policy = try-base
   > EOF
 
-XXX - disabling the delta-parent reuse for now as it seems to get confuse about snapshot status.
-#if delta-info-flags
-  $ cat << EOF >> $HGRCPATH
-  > [path]
-  > *:pulled-delta-reuse-policy = default
-  > EOF
-#endif
 
 pull everything
 
