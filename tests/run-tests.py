@@ -2823,7 +2823,8 @@ def savetimes(outputdir, result):
     maxruns = 5
     skipped = {str(t[0]) for t in result.skipped}
     for tdata in result.times:
-        test, real = _sys2bytes(tdata[0]), tdata[3]
+        test_full, real = _sys2bytes(tdata[0]), tdata[3]
+        test = test_full.split(b'#', 1)[0]
         if test not in skipped:
             ts = saved.setdefault(test, [])
             ts.append(real)
