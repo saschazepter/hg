@@ -3111,6 +3111,7 @@ def sorttests(testdescs, previoustimes, shuffle=False):
             b'merge-combination': 100,
             b'race': 10,
             b'run-tests': 10,
+            b'sparse-revlog': 50,
             b'svn': 10,
         }
         perf = {}
