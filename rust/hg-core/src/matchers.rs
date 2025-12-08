@@ -36,6 +36,8 @@ use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternResult;
 use crate::file_patterns::PatternSyntax;
 use crate::file_patterns::RegexCompleteness;
+use crate::narrow::shape::deepest_prefix_node;
+use crate::narrow::shape::Shape;
 use crate::pre_regex::PreRegex;
 use crate::repo::Repo;
 use crate::utils::files::dir_ancestors;
@@ -779,6 +781,73 @@ impl<M1: Matcher, M2: Matcher> IntersectionMatcher<M1, M2> {
     }
 }
 
+/// Matches files that correspond to a narrow [`Shape`]
+#[derive(Debug)]
+pub struct ShapeMatcher {
+    shape: Shape,
+}
+
+impl ShapeMatcher {
+    pub fn new(shape: Shape) -> Self {
+        Self { shape }
+    }
+}
+
+impl Matcher for ShapeMatcher {
+    fn file_set(&self) -> Option<&HashSet<HgPathBuf>> {
+        None
+    }
+
+    fn exact_match(&self, _filename: &HgPath) -> bool {
+        false
+    }
+
+    fn matches(&self, filename: &HgPath) -> bool {
+        let tree = &self.shape.tree;
+        if filename.is_empty() {
+            return tree.included;
+        }
+        // Filename matches only if the deepest matching prefix node is included
+        deepest_prefix_node(tree, filename).included
+    }
+
+    fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
+        let node = deepest_prefix_node(&self.shape.tree, directory);
+        let exact_match = node.path.as_ref() == directory;
+        if node.included {
+            // Regardless of whether it's an exact or only a prefix match,
+            // we've matched the best node and it's included
+            VisitChildrenSet::Recursive
+        } else if exact_match {
+            // This node is excluded
+            if node.children.is_empty() {
+                // ... and has no relevant children
+                VisitChildrenSet::Empty
+            } else {
+                // ... and has these children, which could be relevant, we
+                // don't know yet
+                VisitChildrenSet::Set(
+                    node.children
+                        .iter()
+                        .map(|child| child.path.to_owned())
+                        .collect(),
+                )
+            }
+        } else {
+            // This prefix node is excluded
+            VisitChildrenSet::Empty
+        }
+    }
+
+    fn matches_everything(&self) -> bool {
+        self.shape.tree.included && self.shape.tree.children.is_empty()
+    }
+
+    fn is_exact(&self) -> bool {
+        false
+    }
+}
+
 #[derive(Debug)]
 pub struct DifferenceMatcher<M1, M2> {
     base: M1,
@@ -1298,6 +1367,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::narrow::shape::StoreShards;
 
     #[test]
     fn test_roots_and_dirs() {
@@ -2612,5 +2682,43 @@ mod tests {
         tree.check_matcher(&more_includematchers[0], 17);
         tree.check_matcher(&more_includematchers[1], 25);
         tree.check_matcher(&more_includematchers[2], 35);
+    }
+
+    #[test]
+    fn test_shape_matcher() {
+        // This test is quite simple to help with debugging (and was useful)
+        // when writing the matcher. More complex cases can be found in the
+        // `shape` module.
+        let config = r#"
+        version = 0
+        [[shards]]
+        name = "a"
+        paths = ["a"]
+        [[shards]]
+        name = "ab"
+        paths = ["a/b"]
+        [[shards]]
+        name = "abc"
+        paths = ["a/b/c"]
+        [[shards]]
+        name = "test"
+        requires = ["a", "abc"]
+        shape = true
+        "#;
+
+        let store_shards =
+            StoreShards::from_config(toml::from_str(config).unwrap()).unwrap();
+        let shape = store_shards.shape("test").unwrap().unwrap();
+        let matcher = ShapeMatcher::new(shape);
+        assert!(matcher.matches(HgPath::new("a")));
+        assert!(!matcher.matches(HgPath::new("a/b")));
+        assert!(matcher.matches(HgPath::new("a/b/c")));
+        assert!(matcher.matches(HgPath::new("a/b/c/d/e/f/nested thing")));
+        assert!(!matcher.matches(HgPath::new("rootfile")));
+        let shape = store_shards.shape("base").unwrap().unwrap();
+        let matcher = ShapeMatcher::new(shape);
+        assert!(!matcher.matches(HgPath::new("a")));
+        assert!(matcher.matches(HgPath::new("rootfile")));
+        assert!(matcher.matches(HgPath::new("otherdir/file")));
     }
 }

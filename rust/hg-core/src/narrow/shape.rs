@@ -229,7 +229,7 @@ impl StoreShards {
         Ok(Self::from_config(config)?)
     }
 
-    fn from_config(config: ShapesConfig) -> Result<Self, Error> {
+    pub(crate) fn from_config(config: ShapesConfig) -> Result<Self, Error> {
         let ShapesConfig { version, mut shards } = config;
         if version != 0 {
             return Err(Error::UnknownVersion(version as usize));
@@ -414,7 +414,7 @@ impl StoreShards {
 #[derive(Debug)]
 pub struct Shape {
     name: ShardName,
-    tree: ShardTreeNode,
+    pub(crate) tree: ShardTreeNode,
 }
 
 impl Shape {
@@ -537,11 +537,11 @@ impl TempShardTreeNode {
 #[derive(Clone, Debug)]
 pub struct ShardTreeNode {
     /// The path (rooted by `b""`) that this node concerns
-    path: HgPathBuf,
+    pub(crate) path: HgPathBuf,
     /// Whether this path is included or excluded
-    included: bool,
+    pub(crate) included: bool,
     /// The set of child nodes (describing rules for sub-paths)
-    children: Vec<Self>,
+    pub(crate) children: Vec<Self>,
 }
 
 impl ShardTreeNode {
@@ -711,7 +711,6 @@ impl ShardTreeNode {
         Box::new(DifferenceMatcher::new(top_matcher, sub_matcher))
     }
 
-    #[cfg_attr(not(test), expect(unused))]
     /// Do not call this directly, use [`deepest_prefix_node`].
     fn deepest_node_impl(&self, path: &HgPath, skip: usize) -> Option<&Self> {
         let path_bytes = path.as_bytes();
