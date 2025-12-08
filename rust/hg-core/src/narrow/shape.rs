@@ -442,11 +442,7 @@ impl Shape {
     }
 
     pub fn patterns(&self) -> (Vec<HgPathBuf>, Vec<HgPathBuf>) {
-        let (includes, excludes) = self.tree.flat();
-        (
-            includes.into_iter().map(|i| i.to_hg_path_buf()).collect(),
-            excludes.into_iter().map(|i| i.to_hg_path_buf()).collect(),
-        )
+        self.tree.flat()
     }
 
     pub fn name(&self) -> &ShardName {
@@ -483,24 +479,21 @@ pub struct ShapesConfig {
     shards: Vec<ShardConfig>,
 }
 
-/// A node within a tree of narrow patterns.
-///
-/// It is used to create a normalized representation of potentially nested
-/// include and exclude patterns to uniquely identify semantically equivalent
-/// rules, as well as generating an associated file matcher.
+/// A temporary structure useful to create a [`ShardTreeNode`], since it
+/// temporarily requires mutable aliasing.
 #[derive(Clone)]
-pub struct ShardTreeNode {
-    /// The path (rooted by `b""`) that this node concerns
+pub struct TempShardTreeNode {
+    /// The [`ZeroPath`] (rooted by `b""`) that this node concerns
     path: ZeroPath,
     /// Whether this path is included or excluded
     included: bool,
-    /// The set of child nodes (describing rules for sub-paths)
-    children: Vec<Arc<PanickingRwLock<ShardTreeNode>>>,
+    /// The set of mutably aliased child nodes (describing rules for sub-paths)
+    children: Vec<Arc<PanickingRwLock<Self>>>,
 }
 
-impl std::fmt::Debug for ShardTreeNode {
+impl std::fmt::Debug for TempShardTreeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ShardTreeNode")
+        f.debug_struct("TempShardTreeNode")
             .field("path", &self.path)
             .field("included", &self.included)
             // Remove the `RwLock` noise from the debug output
@@ -514,6 +507,41 @@ impl std::fmt::Debug for ShardTreeNode {
             )
             .finish()
     }
+}
+
+impl TempShardTreeNode {
+    /// `true` if `self` is a sub-path of `other`
+    fn sub_path_of(&self, other: &Self) -> bool {
+        // Paths are both `ZeroPath`, which ensures this property.
+        self.path.sub_path_of(&other.path)
+    }
+    /// Create a [`ShardTreeNode`] from this finished temp tree
+    fn finish(&self) -> ShardTreeNode {
+        ShardTreeNode {
+            path: HgPathBuf::from(&self.path),
+            included: self.included,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.read().finish())
+                .collect(),
+        }
+    }
+}
+
+/// A node within a tree of narrow patterns.
+///
+/// It is used to create a normalized representation of potentially nested
+/// include and exclude patterns to uniquely identify semantically equivalent
+/// rules, as well as generating an associated file matcher.
+#[derive(Clone, Debug)]
+pub struct ShardTreeNode {
+    /// The path (rooted by `b""`) that this node concerns
+    path: HgPathBuf,
+    /// Whether this path is included or excluded
+    included: bool,
+    /// The set of child nodes (describing rules for sub-paths)
+    children: Vec<Self>,
 }
 
 impl ShardTreeNode {
@@ -603,7 +631,7 @@ impl ShardTreeNode {
         // Generate a flat sequence of nodes, sorted via ZeroPath
         let mut nodes = paths
             .map(|path| {
-                Ok(Arc::new(PanickingRwLock::new(Self {
+                Ok(Arc::new(PanickingRwLock::new(TempShardTreeNode {
                     path: ZeroPath::new(path.as_ref())?,
                     included: includes.contains(path.as_ref()),
                     children: vec![],
@@ -614,7 +642,7 @@ impl ShardTreeNode {
 
         // Create the tree by looping over the nodes and keeping track of
         // where we are in the recursion via a stack
-        let mut stack: Vec<Arc<PanickingRwLock<Self>>> = vec![];
+        let mut stack: Vec<Arc<PanickingRwLock<TempShardTreeNode>>> = vec![];
         for node in nodes {
             while !stack.is_empty()
                 && !node
@@ -638,7 +666,7 @@ impl ShardTreeNode {
             .expect("should have only one ref")
             .into_inner();
 
-        Ok(root)
+        Ok(root.finish())
     }
 
     /// Returns a [`Matcher`] that expresses the constraints of this node
@@ -664,13 +692,12 @@ impl ShardTreeNode {
             return top_matcher;
         }
         let sub_matcher = if self.children.len() == 1 {
-            self.children[0].read().matcher()
+            self.children[0].matcher()
         } else {
             let subs: Vec<_> = self
                 .children
                 .iter()
                 .map(|child| {
-                    let child = child.read();
                     assert_ne!(child.included, self.included);
                     child.matcher()
                 })
@@ -692,13 +719,8 @@ impl ShardTreeNode {
         hasher.finalize().into()
     }
 
-    /// `true` if `self` is a sub-path of `other`
-    fn sub_path_of(&self, other: &Self) -> bool {
-        self.path.sub_path_of(&other.path)
-    }
-
     /// Return the node normalized as two flat sets of includes and excludes
-    fn flat(&self) -> (Vec<ZeroPath>, Vec<ZeroPath>) {
+    fn flat(&self) -> (Vec<HgPathBuf>, Vec<HgPathBuf>) {
         let mut includes = vec![];
         let mut excludes = vec![];
 
@@ -709,7 +731,7 @@ impl ShardTreeNode {
         }
 
         for child in self.children.iter() {
-            let (sub_includes, sub_excludes) = child.read().flat();
+            let (sub_includes, sub_excludes) = child.flat();
             includes.extend(sub_includes);
             excludes.extend(sub_excludes);
         }
@@ -743,10 +765,10 @@ impl ShardTreeNode {
         let number_of_paths: u64 =
             sorted_paths.len().try_into().expect("too many paths");
         buf.write_all(&number_of_paths.to_le_bytes())?;
-        for (zero_path, included) in sorted_paths {
+        for (path, included) in sorted_paths {
             buf.write_all(if included { b"inc" } else { b"exc" })?;
             buf.write_all(b"/")?;
-            buf.write_all(zero_path.to_hg_path_buf().as_bytes())?;
+            buf.write_all(path.as_bytes())?;
             buf.write_all(b"\n")?;
         }
 
@@ -797,10 +819,6 @@ impl ZeroPath {
             path.push(b'\0');
         }
         Ok(Self(path))
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0 == b"\0"
     }
 
     fn to_hg_path_buf(&self) -> HgPathBuf {
