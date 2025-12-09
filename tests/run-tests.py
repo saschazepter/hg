@@ -3095,10 +3095,10 @@ def sorttests(testdescs, previoustimes, shuffle=False):
             f = f['path']
             if f in previoustimes:
                 # Use most recent time as estimate
-                return -(previoustimes[f][-1])
+                return previoustimes[f][-1]
             else:
                 # Default to a rather arbitrary value of 1 second for new tests
-                return -1.0
+                return 1.0
 
     else:
         # keywords for slow tests
@@ -3126,10 +3126,10 @@ def sorttests(testdescs, previoustimes, shuffle=False):
                 return perf[f]
             except KeyError:
                 try:
-                    val = -os.stat(f).st_size
+                    val = os.stat(f).st_size
                 except FileNotFoundError:
-                    perf[f] = -1e9  # file does not exist, tell early
-                    return -1e9
+                    perf[f] = 1e9  # file does not exist, tell early
+                    return 1e9
                 for kw, mul in slow.items():
                     if kw in f:
                         val *= mul
@@ -3138,7 +3138,7 @@ def sorttests(testdescs, previoustimes, shuffle=False):
                 perf[f] = val / 1000.0
                 return perf[f]
 
-    testdescs.sort(key=sortkey)
+    testdescs.sort(key=sortkey, reverse=True)
 
 
 class TestRunner:
