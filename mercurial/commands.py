@@ -4950,7 +4950,7 @@ def pull(ui, repo, *sources, **opts):
     See :hg:`help urls` for more information.
 
     If multiple sources are specified, they will be pulled sequentially as if
-    the command was run multiple time. If --update is specify and the command
+    the command was run multiple times. If --update is specified, the command
     will stop at the first failed --update.
 
     Specifying bookmark as ``.`` is equivalent to specifying the active
@@ -4962,7 +4962,7 @@ def pull(ui, repo, *sources, **opts):
         hidden on the remote. This flag is "best effort", and will only
         work if the server supports the feature and is configured to
         allow the user to access hidden changesets. This option is
-        experimental and backwards compatibility is not garanteed.
+        experimental and backwards compatibility is not guaranteed.
 
     Returns 0 on success, 1 if an update had unresolved files.
     """
