@@ -15,7 +15,6 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
-use hg::errors::HgError;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::parse_pattern_syntax_kind;
 use hg::matchers::AlwaysMatcher;
@@ -38,10 +37,10 @@ use pyo3::types::PyTuple;
 
 use super::dirstate_map::DirstateMap;
 use crate::exceptions::FallbackError;
-use crate::exceptions::to_string_value_error;
 use crate::path::PyHgPathRef;
 use crate::path::paths_py_list;
 use crate::path::paths_pyiter_collect;
+use crate::utils::HgPyErrExt;
 use crate::utils::hg_warnings_to_py_warnings;
 
 fn status_path_py_list(
@@ -92,7 +91,7 @@ fn collect_kindpats(
                 parse_pattern_syntax_kind(
                     py_syntax.cast::<PyBytes>()?.as_bytes(),
                 )
-                .map_err(|e| handle_fallback(StatusError::Pattern(e)))?,
+                .into_pyerr(py)?,
                 py_pattern.cast::<PyBytes>()?.as_bytes(),
                 get_path_from_bytes(py_source.cast::<PyBytes>()?.as_bytes()),
             ))
@@ -117,20 +116,14 @@ fn extract_matcher(
         "exactmatcher" => {
             let files = matcher.call_method0(intern!(py, "files"))?;
             let files: Vec<_> = paths_pyiter_collect(&files)?;
-            Ok(Box::new(
-                FileMatcher::new(files)
-                    .map_err(|e| to_string_value_error(HgError::from(e)))?,
-            ))
+            Ok(Box::new(FileMatcher::new(files).into_pyerr(py)?))
         }
         "includematcher" => {
             // Get the patterns from Python even though most of them are
             // redundant with those we will parse later on, as they include
             // those passed from the command line.
             let file_patterns = collect_kindpats(py, matcher)?;
-            Ok(Box::new(
-                IncludeMatcher::new(file_patterns)
-                    .map_err(|e| handle_fallback(e.into()))?,
-            ))
+            Ok(Box::new(IncludeMatcher::new(file_patterns).into_pyerr(py)?))
         }
         "unionmatcher" => {
             let matchers: PyResult<Vec<_>> = matcher
@@ -153,25 +146,10 @@ fn extract_matcher(
         }
         "patternmatcher" => {
             let patterns = collect_kindpats(py, matcher)?;
-            Ok(Box::new(
-                PatternMatcher::new(patterns)
-                    .map_err(|e| handle_fallback(e.into()))?,
-            ))
+            Ok(Box::new(PatternMatcher::new(patterns).into_pyerr(py)?))
         }
 
         m => Err(FallbackError::new_err(format!("Unsupported matcher {m}"))),
-    }
-}
-
-fn handle_fallback(err: StatusError) -> PyErr {
-    match err {
-        StatusError::Pattern(e) => {
-            let as_string = HgError::from(e).to_string();
-            tracing::debug!("Rust status fallback, see trace-level logs");
-            tracing::trace!("{}", as_string);
-            FallbackError::new_err(as_string)
-        }
-        e => to_string_value_error(HgError::from(e)),
     }
 }
 
@@ -206,7 +184,7 @@ pub(super) fn status(
 
     let after_status = |res: Result<DirstateStatus<'_>, StatusError>,
                         warnings| {
-        let status_res = res.map_err(handle_fallback)?;
+        let status_res = res.into_pyerr(py)?;
         build_response(py, status_res, warnings, root_dir)
     };
 

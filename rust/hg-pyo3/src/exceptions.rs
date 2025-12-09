@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use hg::UncheckedRevision;
 use hg::dirstate::DirstateError;
 use hg::dirstate::on_disk::DirstateV2ParseError;
@@ -54,10 +52,6 @@ pub fn map_lock_error<T>(e: std::sync::PoisonError<T>) -> PyErr {
 
 pub fn map_try_lock_error<T>(e: std::sync::TryLockError<T>) -> PyErr {
     PyRuntimeError::new_err(format!("In Rust PyO3 bindings: {e}"))
-}
-
-pub fn to_string_value_error<T: Display>(e: T) -> PyErr {
-    PyValueError::new_err(e.to_string())
 }
 
 pub mod mercurial_py_errors {

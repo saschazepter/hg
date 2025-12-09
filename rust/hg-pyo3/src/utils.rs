@@ -444,6 +444,12 @@ where
                         .expect("initializing an error.ConfigError failed"),
                 )
             }
+            err @ HgError::Pattern(_) => {
+                let string_err = err.to_string();
+                tracing::debug!("Rust status fallback, see trace-level logs");
+                tracing::trace!("{}", string_err);
+                FallbackError::new_err(string_err)
+            }
             HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
             err @ HgError::Abort { detailed_exit_code, .. } => {
                 let cls = py
