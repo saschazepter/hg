@@ -20,6 +20,7 @@ pub use on_disk::DebugTreeNodeIter;
 use on_disk::Docket;
 use on_disk::EMPTY_META_BYTES;
 pub use on_disk::Error;
+pub use on_disk::ErrorKind;
 use on_disk::FileIndexView;
 use on_disk::GarbageEntry;
 use on_disk::Metadata;

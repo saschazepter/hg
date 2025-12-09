@@ -55,50 +55,6 @@ impl From<ErrorKind> for Error {
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}corrupted fileindex: ", self.backtrace)?;
-        match self.kind {
-            ErrorKind::BadFormatMarker => {
-                write!(f, "unrecognized format marker in docket")
-            }
-            ErrorKind::DocketFileEof => {
-                write!(f, "unexpected EOF while reading docket file")
-            }
-            ErrorKind::DataFileTooSmall => {
-                write!(f, "file is smaller than its 'used size' docket field")
-            }
-            ErrorKind::BadMetaFilesize => {
-                write!(
-                    f,
-                    "meta file 'used size' is not a multiple of the record size"
-                )
-            }
-            ErrorKind::ListFileOutOfBounds => {
-                write!(f, "list file access out of bounds")
-            }
-            ErrorKind::MetaFileOutOfBounds => {
-                write!(f, "meta file access out of bounds")
-            }
-            ErrorKind::TreeFileOutOfBounds => {
-                write!(f, "tree file access out of bounds")
-            }
-            ErrorKind::TreeFileEof => {
-                write!(f, "unexpected EOF while parsing tree file")
-            }
-            ErrorKind::BadRootNode => {
-                write!(f, "invalid root node in tree")
-            }
-            ErrorKind::BadSingletonTree => {
-                write!(f, "invalid singleton tree")
-            }
-            ErrorKind::BadLeafLabel => {
-                write!(f, "invalid label for leaf node")
-            }
-        }
-    }
-}
-
 /// The contents of the docket file.
 pub struct Docket {
     pub header: DocketHeader,

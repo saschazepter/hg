@@ -13,6 +13,7 @@ use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::dirstate::status::StatusError;
 use crate::exit_codes;
 use crate::file_index::Error as FileIndexError;
+use crate::file_index::ErrorKind as FileIndexErrorKind;
 use crate::file_patterns::PatternError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
@@ -373,7 +374,50 @@ impl fmt::Display for HgError {
                 };
                 f.write_str(&msg)
             }
-            HgError::FileIndex(error) => error.fmt(f),
+            HgError::FileIndex(error) => {
+                write!(f, "{}corrupted fileindex: ", &error.backtrace)?;
+                match &error.kind {
+                    FileIndexErrorKind::BadFormatMarker => {
+                        write!(f, "unrecognized format marker in docket")
+                    }
+                    FileIndexErrorKind::DocketFileEof => {
+                        write!(f, "unexpected EOF while reading docket file")
+                    }
+                    FileIndexErrorKind::DataFileTooSmall => {
+                        write!(
+                            f,
+                            "file is smaller than its 'used size' docket field"
+                        )
+                    }
+                    FileIndexErrorKind::BadMetaFilesize => {
+                        write!(
+                            f,
+                            "meta file 'used size' is not a multiple of the record size"
+                        )
+                    }
+                    FileIndexErrorKind::ListFileOutOfBounds => {
+                        write!(f, "list file access out of bounds")
+                    }
+                    FileIndexErrorKind::MetaFileOutOfBounds => {
+                        write!(f, "meta file access out of bounds")
+                    }
+                    FileIndexErrorKind::TreeFileOutOfBounds => {
+                        write!(f, "tree file access out of bounds")
+                    }
+                    FileIndexErrorKind::TreeFileEof => {
+                        write!(f, "unexpected EOF while parsing tree file")
+                    }
+                    FileIndexErrorKind::BadRootNode => {
+                        write!(f, "invalid root node in tree")
+                    }
+                    FileIndexErrorKind::BadSingletonTree => {
+                        write!(f, "invalid singleton tree")
+                    }
+                    FileIndexErrorKind::BadLeafLabel => {
+                        write!(f, "invalid label for leaf node")
+                    }
+                }
+            }
         }
     }
 }
