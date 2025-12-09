@@ -12,7 +12,6 @@ use std::sync::RwLockWriteGuard;
 
 use hg::dirstate::dirs_multiset::DirsMultiset;
 use hg::dirstate::dirs_multiset::DirsMultisetIter;
-use hg::errors::HgError;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
 use pyo3::exceptions::PyTypeError;
@@ -23,8 +22,8 @@ use pyo3_sharedref::PyShareable;
 use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
-use crate::exceptions::to_string_value_error;
 use crate::path::PyHgPathRef;
+use crate::utils::HgPyErrExt;
 
 #[pyclass(mapping)]
 pub struct Dirs {
@@ -42,14 +41,13 @@ impl Dirs {
                  when Rust is enabled",
             ));
         }
+        let py = map.py();
         let map: Result<Vec<_>, PyErr> = map
             .try_iter()?
             .map(|o| Ok(HgPathBuf::from_bytes(o?.extract()?)))
             .collect();
         Ok(Self {
-            inner: DirsMultiset::from_manifest(&map?)
-                .map_err(|e| to_string_value_error(HgError::from(e)))?
-                .into(),
+            inner: DirsMultiset::from_manifest(&map?).into_pyerr(py)?.into(),
         })
     }
 
@@ -59,9 +57,7 @@ impl Dirs {
     ) -> PyResult<()> {
         let path = HgPath::new(path.as_bytes());
         Self::with_inner_write(slf, |mut inner| {
-            inner
-                .add_path(path)
-                .map_err(|e| to_string_value_error(HgError::from(e)))
+            inner.add_path(path).into_pyerr(slf.py())
         })
     }
 
@@ -71,9 +67,7 @@ impl Dirs {
     ) -> PyResult<()> {
         let path = HgPath::new(path.as_bytes());
         Self::with_inner_write(slf, |mut inner| {
-            inner
-                .delete_path(path)
-                .map_err(|e| to_string_value_error(HgError::from(e)))
+            inner.delete_path(path).into_pyerr(slf.py())
         })
     }
 
