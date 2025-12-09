@@ -711,6 +711,47 @@ impl ShardTreeNode {
         Box::new(DifferenceMatcher::new(top_matcher, sub_matcher))
     }
 
+    #[cfg_attr(not(test), expect(unused))]
+    /// Do not call this directly, use [`deepest_prefix_node`].
+    fn deepest_node_impl(&self, path: &HgPath, skip: usize) -> Option<&Self> {
+        let path_bytes = path.as_bytes();
+        let self_bytes = self.path.as_bytes();
+
+        // If the matched path doesn't match the current node, exit.
+        if !self_bytes.is_empty() // The root node matches all
+            && !(
+                // The matched path starts with the node path
+                path_bytes[skip..].starts_with(&self_bytes[skip..])
+                // ...up to a directory boundary or the end of the path
+                && (path_bytes.len() == self_bytes.len()
+                    || (path_bytes[self_bytes.len()] == b'/')))
+        {
+            return None;
+        }
+
+        // Check if a child has a better match
+        for child in &self.children {
+            assert_ne!(self.included, child.included);
+            let c_match = child.deepest_node_impl(path, self_bytes.len());
+            if c_match.is_some() {
+                // There can only be up to one matching child.
+                //
+                // The tree optimization ensures that the inclusion value of a
+                // node is always different than the inclusion value of its
+                // children. As a result, all children have the same inclusion
+                // value.
+                //
+                // So if two children were to match, it would mean that one of
+                // them would be a prefix of the other, with the same inclusion
+                // value, at the same level. In this  case the node with the
+                // longer match would be redundant with the other one, but in
+                // practice such nodes have been optimized away already.
+                return c_match;
+            }
+        }
+        Some(self)
+    }
+
     /// Get the fingerprint for this node. It will return a different hash for
     /// a semantically different node, allowing for a quick comparison.
     pub fn fingerprint(&self) -> [u8; 32] {
@@ -774,6 +815,23 @@ impl ShardTreeNode {
 
         Ok(())
     }
+}
+
+/// Returns the deepest node in `root` whose path is a prefix of
+/// (or is exactly) `path`.
+///
+/// # Panics
+///
+/// Panics if `root` is not the root node (i.e. if it has a non-empty path).
+pub(crate) fn deepest_prefix_node<'tree>(
+    root: &'tree ShardTreeNode,
+    path: &HgPath,
+) -> &'tree ShardTreeNode {
+    assert!(root.path.is_empty());
+    if path.is_empty() {
+        return root;
+    }
+    root.deepest_node_impl(path, 0).unwrap_or(root)
 }
 
 /// An [`HgPathBuf`] with all `/` in `path` replaced with `\0`, and surrounded
@@ -1375,6 +1433,104 @@ mod tests {
                 "file '{file}' doesn't match the expected shapes"
             );
         }
+    }
+
+    #[test]
+    fn test_deepest_prefix_node() {
+        let (store_shards, _) = valid_store_shards();
+
+        #[track_caller]
+        fn assert_node(node: &ShardTreeNode, expect: &[u8]) {
+            assert_eq!(node.path.as_ref(), HgPath::new(expect));
+        }
+
+        // Full should always return the root node
+        let shape = store_shards.shape("full").unwrap().unwrap();
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
+        assert_node(node, b"");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"root"));
+        assert_node(node, b"");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz"));
+        assert_node(node, b"");
+        assert_eq!(node.included, true);
+
+        // Test simple nested shape
+        let shape = store_shards.shape("bar").unwrap().unwrap();
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"root"));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/test"));
+        assert_node(node, b"bar");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz"));
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(
+            &shape.tree,
+            HgPath::new(b"bar/baz/nested/deeper"),
+        );
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+
+        // Test doubly nested shape
+        let shape = store_shards.shape("baron").unwrap().unwrap();
+        dbg!(&shape);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"root"));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/test"));
+        assert_node(node, b"bar");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz"));
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/bazik"));
+        assert_node(node, b"bar");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(
+            &shape.tree,
+            HgPath::new(b"bar/baz/nested/deeper"),
+        );
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+        let node =
+            deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz/ik/u"));
+        assert_node(node, b"bar/baz/ik/u");
+        assert_eq!(node.included, true);
+        let node =
+            deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz/ik/ui"));
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+
+        let shape = store_shards.shape("stone").unwrap().unwrap();
+        dbg!(&shape.tree);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"stone/liz"));
+        assert_node(node, b"stone");
+        assert_eq!(node.included, true);
+
+        let shape = store_shards.shape("borden").unwrap().unwrap();
+        dbg!(&shape.tree);
+        let node =
+            deepest_prefix_node(&shape.tree, HgPath::new(b"stone/liz/zie/bor"));
+        assert_node(node, b"stone/liz/zie");
+        assert_eq!(node.included, false);
+
+        let shape = store_shards.shape("mummy").unwrap().unwrap();
+        dbg!(&shape.tree);
+        let node = deepest_prefix_node(
+            &shape.tree,
+            HgPath::new(b"stone/mummy/chamber"),
+        );
+        assert_node(node, b"stone/mummy/chamber");
+        assert_eq!(node.included, false);
     }
 
     #[test]
