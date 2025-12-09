@@ -254,6 +254,51 @@ Manifest and filelog missing entry
   [1]
   $ cp -R .hg/store-full/. .hg/store
 
+Fncache inconsistency case 1: missing entry.
+We remove the last line of the fncache, making it incomplete.
+This is a problem because streamclone would omit the file.
+
+  $ sed '$d' .hg/store/fncache > .hg/store/fncache-tmp
+  $ mv .hg/store/fncache-tmp .hg/store/fncache
+  $ hg verify -q
+   warning: revlog 'data/file.i' not in fncache!
+  1 warnings encountered!
+  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
+  $ cp -R .hg/store-full/. .hg/store
+
+Fncache inconsistency case 2a: extra entry (nonexistent).
+We add an extra line to the fncache, referencing a file that doesn't exist.
+This is a problem because streamclone would try to read this file and fail.
+TODO (#10045): make hg verify complain about this, since it breaks streaming clone
+
+  $ echo "data/bad-nonexistent.i" >> .hg/store/fncache
+  $ hg verify -q
+  $ cp -R .hg/store-full/. .hg/store
+
+Fncache inconsistency case 2b: extra entry (empty).
+We add an extra line to the fncache, which refers to an empty file.
+This is a problem because it's an orphan file that shouldn't be there.
+TODO (#10045): make hg verify complain about this, since it breaks streaming clone
+
+  $ echo "data/bad-empty.i" >> .hg/store/fncache
+  $ touch .hg/store/data/bad-empty.i
+  $ hg verify -q
+  $ rm .hg/store/data/bad-empty.i
+  $ cp -R .hg/store-full/. .hg/store
+  $ cp -R .hg/store-full/. .hg/store
+
+Fncache inconsistency case 2c: extra entry (nonempty).
+We add an extra line to the fncache, which refers to a nonempty file.
+This is a problem because it's an orphan file that shouldn't be there.
+
+  $ echo "data/bad-nonempty.i" >> .hg/store/fncache
+  $ printf x > .hg/store/data/bad-nonempty.i
+  $ hg verify -q
+  warning: orphan data file 'data/bad-nonempty.i'
+  1 warnings encountered!
+  $ rm .hg/store/data/bad-nonempty.i
+  $ cp -R .hg/store-full/. .hg/store
+
 Corrupt changelog base node to cause failure to read revision
 
   $ printf abcd | dd conv=notrunc of=.hg/store/00changelog.i bs=1 seek=16 \
