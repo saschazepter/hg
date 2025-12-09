@@ -434,7 +434,11 @@ class FileIndexView:
             label = self._read_label(child_node, position)
             if not path[position:].startswith(label):
                 break
-            assert len(label) > 0
+            if len(label) == 0:
+                raise error.Abort(
+                    b"corrupted fileindex: "
+                    b"file is smaller than its 'used size' docket field"
+                )
             position += len(label)
             if position == len(path):
                 token = child_node.token

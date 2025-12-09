@@ -20,7 +20,6 @@ use hg::utils::files::get_path_from_bytes;
 use hg::utils::hg_path::HgPath;
 use hg::utils::u32_u;
 use hg::vfs::VfsImpl;
-use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
@@ -30,8 +29,8 @@ use pyo3_sharedref::PyShareable;
 use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
-use crate::exceptions::to_string_value_error;
 use crate::transaction::PyTransaction;
+use crate::utils::HgPyErrExt;
 use crate::utils::new_submodule;
 
 /// Implementation of `mercurial.interfaces.IFileIndex`.
@@ -81,7 +80,7 @@ impl PyFileIndex {
             config,
             devel_sync_point,
         )
-        .map_err(to_string_value_error)?;
+        .into_pyerr(py)?;
         Ok(Self {
             inner: file_index.into(),
             added_file_generator: AtomicBool::new(false),
@@ -96,7 +95,7 @@ impl PyFileIndex {
 
     fn has_path(slf: &Bound<'_, Self>, path: &[u8]) -> PyResult<bool> {
         Self::with_inner_read(slf, |_self_ref, inner| {
-            inner.has_path(HgPath::new(path)).map_err(file_index_error)
+            inner.has_path(HgPath::new(path)).into_pyerr(slf.py())
         })
     }
 
@@ -108,7 +107,7 @@ impl PyFileIndex {
         Self::with_inner_read(slf, |_self_ref, inner| {
             Ok(inner
                 .get_path(FileToken(token))
-                .map_err(file_index_error)?
+                .into_pyerr(py)?
                 .map(|path| PyBytes::new(py, path.as_bytes())))
         })
     }
@@ -117,7 +116,7 @@ impl PyFileIndex {
         Self::with_inner_read(slf, |_self_ref, inner| {
             Ok(inner
                 .get_token(HgPath::new(path))
-                .map_err(file_index_error)?
+                .into_pyerr(slf.py())?
                 .map(|token| token.0))
         })
     }
@@ -145,7 +144,7 @@ impl PyFileIndex {
     ) -> PyResult<u32> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             let (token, added) =
-                inner.add(HgPath::new(path)).map_err(file_index_error)?;
+                inner.add(HgPath::new(path)).into_pyerr(slf.py())?;
             if added {
                 Self::_add_file_generator(slf, tr)?;
             }
@@ -160,7 +159,7 @@ impl PyFileIndex {
     ) -> PyResult<()> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             let removed =
-                inner.remove(HgPath::new(path)).map_err(file_index_error)?;
+                inner.remove(HgPath::new(path)).into_pyerr(slf.py())?;
             if removed {
                 Self::_add_file_generator(slf, tr)?;
             }
@@ -290,7 +289,7 @@ impl PyFileIndex {
             // Ordering does not matter since we have the GIL.
             self_ref.added_file_generator.store(false, Ordering::Relaxed);
             let py_tr = &mut PyTransaction::new(tr);
-            inner.write(py_tr).map_err(to_string_value_error)?;
+            inner.write(py_tr).into_pyerr(slf.py())?;
             let docket_bytes = inner.docket().serialize();
             f.call_method1("write", (&docket_bytes,))?;
             Ok(())
@@ -355,7 +354,7 @@ fn convert_path_iter_item(
     py: Python,
     item: Result<(&HgPath, FileToken), hg::file_index::Error>,
 ) -> PyResult<Option<Py<PyBytes>>> {
-    let (path, _token) = item.map_err(file_index_error)?;
+    let (path, _token) = item.into_pyerr(py)?;
     Ok(Some(PyBytes::new(py, path.as_bytes()).unbind()))
 }
 
@@ -373,7 +372,7 @@ fn convert_path_token_iter_item(
     py: Python,
     item: Result<(&HgPath, FileToken), hg::file_index::Error>,
 ) -> PyResult<Option<Py<PyTuple>>> {
-    let (path, token) = item.map_err(file_index_error)?;
+    let (path, token) = item.into_pyerr(py)?;
     Ok(Some((path.as_bytes(), token.0).into_pyobject(py)?.unbind()))
 }
 
@@ -392,7 +391,7 @@ fn convert_debug_tree_node_iter_item(
     item: Result<DebugTreeNode, hg::file_index::Error>,
 ) -> PyResult<Option<Py<PyTuple>>> {
     let DebugTreeNode { pointer, token, label, children } =
-        item.map_err(file_index_error)?;
+        item.into_pyerr(py)?;
     let children = children
         .into_iter()
         .map(|(char, child)| -> Result<(&[u8; 1], Bound<PyAny>), PyErr> {
@@ -418,8 +417,4 @@ pub fn init_module<'py>(
     m.add("__doc__", "File index - Rust implementation exposed via PyO3")?;
     m.add_class::<PyFileIndex>()?;
     Ok(m)
-}
-
-fn file_index_error(err: hg::file_index::Error) -> PyErr {
-    PyOSError::new_err(format!("FileIndex error: {:?}", err))
 }

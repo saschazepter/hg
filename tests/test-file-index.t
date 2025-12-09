@@ -852,3 +852,19 @@ Test long paths
   1: $path
 
   $ cd ..
+
+Test truncation error
+---------------------
+
+  $ hg init repo-truncation --config format.use-fileindex-v1=1
+  $ cd repo-truncation
+  $ touch a b c d
+  $ hg commit -Aqm0
+  $ listfile=$(ls .hg/store/fileindex-list*)
+  $ rm $listfile
+  $ touch $listfile
+  $ hg debug::file-index --path a
+  abort: corrupted fileindex: file is smaller than its 'used size' docket field
+  [255]
+
+  $ cd ..
