@@ -2,11 +2,31 @@ Test stream cloning while a revlog split happens
 ------------------------------------------------
 
 #testcases stream-bundle2-v2 stream-bundle2-v3
+#testcases fncache fileindex
 
 #if stream-bundle2-v3
   $ cat << EOF >> $HGRCPATH
   > [experimental]
   > stream-v3 = yes
+  > EOF
+#endif
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 #endif
 
