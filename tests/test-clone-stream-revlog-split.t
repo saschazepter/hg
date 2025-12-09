@@ -215,8 +215,6 @@ subsequent pull work
 
 Cloning after the split also works
 
-TODO: Make it work with file index.
-#if fncache
   $ hg clone --stream -U http://localhost:$HGPORT1 clone-after-split
   streaming all changes
   10 files to transfer, 130 KB of data (stream-bundle2-v2 no-rust !)
@@ -224,4 +222,3 @@ TODO: Make it work with file index.
   8 entries to transfer (stream-bundle2-v3 !)
   stream-cloned 10 files / 130 KB in * seconds (* */sec) (glob) (no-rust !)
   stream-cloned 12 files / 131 KB in * seconds (* */sec) (glob) (rust !)
-#endif

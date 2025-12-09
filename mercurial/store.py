@@ -790,17 +790,13 @@ class RevlogStoreEntry(BaseStoreEntry):
     ) -> _StreamsT:
         files = self.files(vfs)
         pre_sized = all(f.has_size for f in files)
-        if (
-            pre_sized
-            and self._details is not None
-            and (
-                repo is None
-                or max_changeset is None
-                # This use revlog-v2, ignore for now
-                or any(k.endswith(b'.idx') for k in self._details.keys())
-                # This is not inline, no race expected
-                or b'.d' in self._details
-            )
+        if pre_sized and (
+            repo is None
+            or max_changeset is None
+            # This use revlog-v2, ignore for now
+            or any(f.unencoded_path.endswith(b'.idx') for f in files)
+            # This is not inline, no race expected
+            or any(f.unencoded_path.endswith(b'.d') for f in files)
         ):
             return super().get_streams(
                 repo=repo,
