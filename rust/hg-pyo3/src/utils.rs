@@ -407,80 +407,82 @@ where
     HgError: From<E>,
 {
     fn into_pyerr(self, py: Python) -> PyResult<T> {
-        self.map_err(|e| match e.into() {
-            err @ HgError::IO(_) => PyIOError::new_err(err.to_string()),
-            err @ HgError::UnsupportedFeature(..) => {
-                FallbackError::new_err(err.to_string())
-            }
-            HgError::RaceDetected(_) => {
-                unreachable!("must not surface to the user")
-            }
-            HgError::Path(path_error) => {
-                let as_string = match hg_path_error_to_string(&path_error, None)
-                {
-                    Ok(s) => s,
-                    Err(e) => {
-                        // This probably never happens, but let's be safe
-                        return PyErr::new::<PyRuntimeError, _>(e.to_string());
+        self.map_err(|e| hg_err_to_py_err(py, e))
+    }
+}
+
+pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
+    match e.into() {
+        err @ HgError::IO { .. } => PyIOError::new_err(err.to_string()),
+        err @ HgError::UnsupportedFeature(..) => {
+            FallbackError::new_err(err.to_string())
+        }
+        HgError::RaceDetected(_) => {
+            unreachable!("must not surface to the user")
+        }
+        HgError::Path(path_error) => {
+            let as_string = match hg_path_error_to_string(&path_error, None) {
+                Ok(s) => s,
+                Err(e) => {
+                    // This probably never happens, but let's be safe
+                    return PyErr::new::<PyRuntimeError, _>(e.to_string());
+                }
+            };
+            let msg = PyBytes::new(py, as_string.as_bytes());
+            let cls = py
+                .import(intern!(py, "mercurial.error"))
+                .and_then(|m| m.getattr(intern!(py, "InputError")))
+                .expect("failed to import InputError");
+            PyErr::from_value(
+                cls.call1((msg,)).expect("initializing an InputError failed"),
+            )
+        }
+        err @ HgError::Shape(_) => {
+            let cls = py
+                .import(intern!(py, "mercurial.error"))
+                .and_then(|m| m.getattr(intern!(py, "ConfigError")))
+                .expect("failed to import error.ConfigError");
+            PyErr::from_value(
+                cls.call1((err.to_string().as_bytes(),))
+                    .expect("initializing an error.ConfigError failed"),
+            )
+        }
+        err @ HgError::Pattern(_) => {
+            let string_err = err.to_string();
+            tracing::debug!("Rust status fallback, see trace-level logs");
+            tracing::trace!("{}", string_err);
+            FallbackError::new_err(string_err)
+        }
+        HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
+        err @ HgError::Abort { detailed_exit_code, .. } => {
+            let cls = py
+                .import(intern!(py, "mercurial.error"))
+                .and_then(|m| match detailed_exit_code {
+                    hg::exit_codes::STATE_ERROR => {
+                        m.getattr(intern!(py, "StateError"))
                     }
-                };
-                let msg = PyBytes::new(py, as_string.as_bytes());
-                let cls = py
-                    .import(intern!(py, "mercurial.error"))
-                    .and_then(|m| m.getattr(intern!(py, "InputError")))
-                    .expect("failed to import InputError");
-                PyErr::from_value(
-                    cls.call1((msg,))
-                        .expect("initializing an InputError failed"),
-                )
-            }
-            err @ HgError::Shape(_) => {
-                let cls = py
-                    .import(intern!(py, "mercurial.error"))
-                    .and_then(|m| m.getattr(intern!(py, "ConfigError")))
-                    .expect("failed to import error.ConfigError");
-                PyErr::from_value(
-                    cls.call1((err.to_string().as_bytes(),))
-                        .expect("initializing an error.ConfigError failed"),
-                )
-            }
-            err @ HgError::Pattern(_) => {
-                let string_err = err.to_string();
-                tracing::debug!("Rust status fallback, see trace-level logs");
-                tracing::trace!("{}", string_err);
-                FallbackError::new_err(string_err)
-            }
-            HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
-            err @ HgError::Abort { detailed_exit_code, .. } => {
-                let cls = py
-                    .import(intern!(py, "mercurial.error"))
-                    .and_then(|m| match detailed_exit_code {
-                        hg::exit_codes::STATE_ERROR => {
-                            m.getattr(intern!(py, "StateError"))
-                        }
-                        hg::exit_codes::CONFIG_ERROR_ABORT => {
-                            m.getattr(intern!(py, "ConfigError"))
-                        }
-                        // TODO more errors
-                        _ => m.getattr(intern!(py, "Abort")),
-                    })
-                    .expect("failed to import error.Abort");
-                PyErr::from_value(
-                    cls.call1((err.to_string().as_bytes(),))
-                        .expect("initializing an error.Abort failed"),
-                )
-            }
-            e => {
-                let cls = py
-                    .import(intern!(py, "mercurial.error"))
-                    .and_then(|m| m.getattr(intern!(py, "Abort")))
-                    .expect("failed to import error.Abort");
-                PyErr::from_value(
-                    cls.call1((e.to_string().as_bytes(),))
-                        .expect("initializing an error.Abort failed"),
-                )
-            }
-        })
+                    hg::exit_codes::CONFIG_ERROR_ABORT => {
+                        m.getattr(intern!(py, "ConfigError"))
+                    }
+                    // TODO more errors
+                    _ => m.getattr(intern!(py, "Abort")),
+                })
+                .expect("failed to import error.Abort");
+            PyErr::from_value(
+                cls.call1((err.to_string().as_bytes(),))
+                    .expect("initializing an error.Abort failed"),
+            )
+        }
+        e => {
+            let cls = py
+                .import(intern!(py, "mercurial.error"))
+                .and_then(|m| m.getattr(intern!(py, "Abort")))
+                .expect("failed to import error.Abort");
+            PyErr::from_value(
+                cls.call1((e.to_string().as_bytes(),))
+                    .expect("initializing an error.Abort failed"),
+            )
+        }
     }
 }
 
