@@ -45,6 +45,7 @@ use crate::node::node_from_py_bytes;
 use crate::path::PyHgPathBuf;
 use crate::path::PyHgPathDirstateV2Result;
 use crate::path::PyHgPathRef;
+use crate::utils::HgPyErrExt;
 use crate::utils::PyBytesDeref;
 
 /// Type alias to satisfy Clippy in `DirstateMap::reset_state)`
@@ -252,13 +253,13 @@ impl DirstateMap {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner
                 .has_tracked_dir(HgPath::new(d.as_bytes()))
-                .map_err(dirstate_error)
+                .into_pyerr(slf.py())
         })
     }
 
     fn hasdir(slf: &Bound<'_, Self>, d: &Bound<'_, PyBytes>) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.has_dir(HgPath::new(d.as_bytes())).map_err(dirstate_error)
+            inner.has_dir(HgPath::new(d.as_bytes())).into_pyerr(slf.py())
         })
     }
 
