@@ -2,7 +2,7 @@ import unittest
 
 import silenttestrunner
 
-from mercurial import pathutil
+from mercurial import error, pathutil
 
 
 class dirstests(unittest.TestCase):
@@ -16,7 +16,7 @@ class dirstests(unittest.TestCase):
             self.assertEqual(sorted(d), sorted(want))
 
     def testinvalid(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises((error.InputError, ValueError)):
             d = pathutil.dirs([])
             d.addpath(b'a//b')
 

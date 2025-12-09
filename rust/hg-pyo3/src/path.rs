@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyList;
 
-use crate::exceptions::dirstate_v2_error;
+use crate::exceptions::dirstate_error;
 
 #[derive(Eq, Ord, PartialEq, PartialOrd, Hash, derive_more::From)]
 pub struct PyHgPathRef<'a>(pub &'a HgPath);
@@ -67,7 +67,10 @@ impl<'py> IntoPyObject<'py> for PyHgPathDirstateV2Result<'_> {
         self,
         py: Python<'py>,
     ) -> Result<Self::Output, Self::Error> {
-        Ok(PyBytes::new(py, self.0.map_err(dirstate_v2_error)?.as_bytes()))
+        Ok(PyBytes::new(
+            py,
+            self.0.map_err(|e| dirstate_error(py, e))?.as_bytes(),
+        ))
     }
 }
 

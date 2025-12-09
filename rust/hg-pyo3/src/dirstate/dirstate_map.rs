@@ -24,7 +24,6 @@ use hg::dirstate::owning::OwningDirstateMap;
 use hg::utils::files::normalize_case;
 use hg::utils::hg_path::HgPath;
 use pyo3::exceptions::PyKeyError;
-use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyBytesMethods;
@@ -38,7 +37,6 @@ use pyo3_sharedref::py_shared_iterator;
 use super::copy_map::CopyMap;
 use super::item::DirstateItem;
 use crate::exceptions::dirstate_error;
-use crate::exceptions::dirstate_v2_error;
 use crate::exceptions::map_try_lock_error;
 use crate::node::PyNode;
 use crate::node::node_from_py_bytes;
@@ -78,7 +76,7 @@ impl DirstateMap {
             on_disk,
             identity.map(|i| i.borrow().inner),
         )
-        .map_err(dirstate_error)?;
+        .map_err(|e| dirstate_error(py, e))?;
         let map = Self { inner: map.into() };
         let parents = (PyNode(parents.p1), PyNode(parents.p2));
         Ok((map, parents).into_pyobject(py)?.into())
@@ -102,7 +100,7 @@ impl DirstateMap {
                 uuid.as_bytes().to_owned(),
                 identity.map(|i| i.borrow().inner),
             )
-            .map_err(dirstate_error)?
+            .map_err(|e| dirstate_error(py, e))?
             .into(),
         })
     }
@@ -128,7 +126,7 @@ impl DirstateMap {
         let path = HgPath::new(key.as_bytes());
 
         Self::with_inner_read(slf, |_self_ref, inner| {
-            match inner.get(path).map_err(dirstate_error)? {
+            match inner.get(path).map_err(|e| dirstate_error(slf.py(), e))? {
                 Some(entry) => Ok(Some(
                     DirstateItem::new_as_py(slf.py(), entry)?.into_any(),
                 )),
@@ -142,7 +140,9 @@ impl DirstateMap {
         f: &Bound<'_, PyBytes>,
     ) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.set_tracked(HgPath::new(f.as_bytes())).map_err(dirstate_error)
+            inner
+                .set_tracked(HgPath::new(f.as_bytes()))
+                .map_err(|e| dirstate_error(slf.py(), e))
         })
     }
 
@@ -151,11 +151,9 @@ impl DirstateMap {
         f: &Bound<'_, PyBytes>,
     ) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            // here it would be more straightforward to use dirstate_v2_error,
-            // but that raises ValueError instead of OSError
             inner
                 .set_untracked(HgPath::new(f.as_bytes()))
-                .map_err(|_| PyOSError::new_err("Dirstate error"))
+                .map_err(|e| dirstate_error(slf.py(), e))
         })
     }
 
@@ -176,7 +174,7 @@ impl DirstateMap {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner
                 .set_clean(HgPath::new(f.as_bytes()), mode, size, timestamp)
-                .map_err(dirstate_error)
+                .map_err(|e| dirstate_error(slf.py(), e))
         })
     }
 
@@ -187,7 +185,7 @@ impl DirstateMap {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner
                 .set_possibly_dirty(HgPath::new(f.as_bytes()))
-                .map_err(dirstate_error)
+                .map_err(|e| dirstate_error(slf.py(), e))
         })
     }
 
@@ -241,7 +239,9 @@ impl DirstateMap {
         };
 
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.reset_state(reset).map_err(dirstate_error)?;
+            inner
+                .reset_state(reset)
+                .map_err(|e| dirstate_error(slf.py(), e))?;
             Ok(())
         })
     }
@@ -277,7 +277,8 @@ impl DirstateMap {
                 p1: node_from_py_bytes(p1)?,
                 p2: node_from_py_bytes(p2)?,
             };
-            let packed = inner.pack_v1(parents).map_err(dirstate_error)?;
+            let packed =
+                inner.pack_v1(parents).map_err(|e| dirstate_error(py, e))?;
             // TODO optim, see `write_v2()`
             Ok(PyBytes::new(py, &packed).unbind())
         })
@@ -302,8 +303,9 @@ impl DirstateMap {
                 2 => DirstateMapWriteMode::ForceAppend,
                 _ => DirstateMapWriteMode::Auto, // XXX should we error out?
             };
-            let (packed, tree_metadata, append, _old_data_size) =
-                inner.pack_v2(rust_write_mode).map_err(dirstate_error)?;
+            let (packed, tree_metadata, append, _old_data_size) = inner
+                .pack_v2(rust_write_mode)
+                .map_err(|e| dirstate_error(py, e))?;
             // TODO optim. In theory we should be able to avoid these copies,
             // since we have full ownership of `packed` and `tree_metadata`.
             // But the copy is done by CPython itself, in
@@ -323,7 +325,8 @@ impl DirstateMap {
         let dict = PyDict::new(py);
         Self::with_inner_read(slf, |_self_ref, inner| {
             for item in inner.iter() {
-                let (path, entry) = item.map_err(dirstate_v2_error)?;
+                let (path, entry) =
+                    item.map_err(|e| dirstate_error(slf.py(), e))?;
                 if !entry.removed() {
                     let key = normalize_case(path);
                     dict.set_item(PyHgPathBuf(key), PyHgPathRef(path))?;
@@ -347,7 +350,7 @@ impl DirstateMap {
         Self::with_inner_read(slf, |_self_ref, inner| {
             inner
                 .contains_key(HgPath::new(key.as_bytes()))
-                .map_err(dirstate_error)
+                .map_err(|e| dirstate_error(slf.py(), e))
         })
     }
 
@@ -358,7 +361,7 @@ impl DirstateMap {
         let key_bytes = key.as_bytes();
         let path = HgPath::new(key_bytes);
         Self::with_inner_read(slf, |_self_ref, inner| {
-            match inner.get(path).map_err(dirstate_error)? {
+            match inner.get(path).map_err(|e| dirstate_error(slf.py(), e))? {
                 Some(entry) => DirstateItem::new_as_py(slf.py(), entry),
                 None => Err(PyKeyError::new_err(
                     String::from_utf8_lossy(key_bytes).to_string(),
@@ -387,7 +390,9 @@ impl DirstateMap {
         // core iterator is not exact sized, we cannot use `PyList::new`
         let dirs = PyList::empty(py);
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            for path in inner.iter_tracked_dirs().map_err(dirstate_error)? {
+            for path in
+                inner.iter_tracked_dirs().map_err(|e| dirstate_error(py, e))?
+            {
                 dirs.append(PyHgPathDirstateV2Result(path))?;
             }
             Ok(())
@@ -401,7 +406,7 @@ impl DirstateMap {
     ) -> PyResult<Py<PyDict>> {
         let dict = PyDict::new(py);
         let copies = Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner.setparents_fixup().map_err(dirstate_v2_error)
+            inner.setparents_fixup().map_err(|e| dirstate_error(slf.py(), e))
         })?;
 
         // it might be interesting to try and use the `IntoPyDict` trait,
@@ -427,7 +432,7 @@ impl DirstateMap {
                 .debug_iter(all)
                 .map(|item| {
                     let (path, (state, mode, size, mtime)) =
-                        item.map_err(dirstate_v2_error)?;
+                        item.map_err(|e| dirstate_error(slf.py(), e))?;
                     Ok((PyHgPathRef(path), state, mode, size, mtime))
                 })
                 .collect();
@@ -462,7 +467,7 @@ impl DirstateMap {
         py: Python,
         res: Result<(&HgPath, DirstateEntry), DirstateV2ParseError>,
     ) -> PyResult<Option<Py<PyBytes>>> {
-        let key = res.map_err(dirstate_v2_error)?.0;
+        let key = res.map_err(|e| dirstate_error(py, e))?.0;
         Ok(Some(PyHgPathRef(key).into_pyobject(py)?.unbind()))
     }
 
@@ -470,7 +475,7 @@ impl DirstateMap {
         py: Python,
         res: Result<(&HgPath, DirstateEntry), DirstateV2ParseError>,
     ) -> PyResult<Option<Py<PyTuple>>> {
-        let (key, entry) = res.map_err(dirstate_v2_error)?;
+        let (key, entry) = res.map_err(|e| dirstate_error(py, e))?;
         let py_entry = DirstateItem::new_as_py(py, entry)?;
         Ok(Some((PyHgPathRef(key), py_entry).into_pyobject(py)?.into()))
     }

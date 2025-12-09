@@ -24,7 +24,6 @@ use pyo3_sharedref::py_shared_iterator;
 
 use super::dirstate_map::DirstateMap;
 use crate::exceptions::dirstate_error;
-use crate::exceptions::dirstate_v2_error;
 use crate::path::PyHgPathBuf;
 use crate::path::PyHgPathRef;
 
@@ -49,7 +48,7 @@ impl CopyMap {
         self.with_dirstate_map_read(py, |inner_dsm| {
             inner_dsm
                 .copy_map_get(HgPath::new(key))
-                .map_err(dirstate_error)?
+                .map_err(|e| dirstate_error(py, e))?
                 .ok_or_else(|| {
                     PyKeyError::new_err(
                         String::from_utf8_lossy(key).to_string(),
@@ -77,7 +76,7 @@ impl CopyMap {
         self.with_dirstate_map_read(py, |inner_dsm| {
             inner_dsm
                 .copy_map_contains_key(HgPath::new(key))
-                .map_err(dirstate_error)
+                .map_err(|e| dirstate_error(py, e))
         })
     }
 
@@ -92,7 +91,7 @@ impl CopyMap {
         self.with_dirstate_map_read(py, |inner_dsm| {
             match inner_dsm
                 .copy_map_get(HgPath::new(key))
-                .map_err(dirstate_error)?
+                .map_err(|e| dirstate_error(py, e))?
             {
                 Some(copy) => Ok(Some(
                     PyHgPathRef(copy).into_pyobject(py)?.unbind().into(),
@@ -111,7 +110,10 @@ impl CopyMap {
     ) -> PyResult<Option<Py<PyAny>>> {
         let path = HgPath::new(key.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
-            match inner_dsm.copy_map_remove(path).map_err(dirstate_error)? {
+            match inner_dsm
+                .copy_map_remove(path)
+                .map_err(|e| dirstate_error(py, e))?
+            {
                 Some(copy) => Ok(Some(
                     PyHgPathBuf(copy).into_pyobject(py)?.unbind().into(),
                 )),
@@ -141,7 +143,9 @@ impl CopyMap {
         let key = HgPath::new(key.as_bytes());
         let value = HgPath::new(value.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
-            inner_dsm.copy_map_insert(key, value).map_err(dirstate_error)
+            inner_dsm
+                .copy_map_insert(key, value)
+                .map_err(|e| dirstate_error(py, e))
         })?;
         Ok(())
     }
@@ -152,7 +156,7 @@ impl CopyMap {
         // here because it is meant to work on infallible iterators
         self.with_dirstate_map_read(py, |inner_dsm| {
             for item in inner_dsm.copy_map_iter() {
-                let (key, value) = item.map_err(dirstate_v2_error)?;
+                let (key, value) = item.map_err(|e| dirstate_error(py, e))?;
                 dict.set_item(PyHgPathRef(key), PyHgPathRef(value))?;
             }
             Ok(())
@@ -186,7 +190,7 @@ impl CopyMap {
         py: Python,
         res: Result<(&HgPath, &HgPath), DirstateV2ParseError>,
     ) -> PyResult<Option<Py<PyBytes>>> {
-        let key = res.map_err(dirstate_v2_error)?.0;
+        let key = res.map_err(|e| dirstate_error(py, e))?.0;
         Ok(Some(PyHgPathRef(key).into_pyobject(py)?.unbind()))
     }
 
@@ -194,7 +198,7 @@ impl CopyMap {
         py: Python,
         res: Result<(&HgPath, &HgPath), DirstateV2ParseError>,
     ) -> PyResult<Option<Py<PyTuple>>> {
-        let (key, value) = res.map_err(dirstate_v2_error)?;
+        let (key, value) = res.map_err(|e| dirstate_error(py, e))?;
         Ok(Some(
             (PyHgPathRef(key), PyHgPathRef(value)).into_pyobject(py)?.unbind(),
         ))

@@ -1,17 +1,17 @@
 use hg::UncheckedRevision;
 use hg::dirstate::DirstateError;
-use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::errors::HgError;
 use hg::revlog::RevlogError;
 use hg::revlog::nodemap::NodeMapError;
 use pyo3::PyErr;
+use pyo3::Python;
 use pyo3::create_exception;
-use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::import_exception;
 
 use crate::revision::PyRevision;
+use crate::utils::hg_err_to_py_err;
 
 create_exception!(pyo3_rustext, GraphError, PyValueError);
 create_exception!(pyo3_rustext, FallbackError, PyRuntimeError);
@@ -105,10 +105,6 @@ pub fn graph_error(_err: hg::GraphError) -> PyErr {
     PyValueError::new_err("parent out of range")
 }
 
-pub fn dirstate_error(err: DirstateError) -> PyErr {
-    PyOSError::new_err(format!("Dirstate error: {:?}", err))
-}
-
-pub fn dirstate_v2_error(_err: DirstateV2ParseError) -> PyErr {
-    PyValueError::new_err("corrupted dirstate-v2")
+pub fn dirstate_error(py: Python<'_>, err: impl Into<DirstateError>) -> PyErr {
+    hg_err_to_py_err(py, err.into())
 }
