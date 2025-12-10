@@ -1487,6 +1487,8 @@ section = "format"
 name = "usefncache"
 default = true
 
+# Experimental todo's
+# - fix the windows mmap limitation?
 [[items]]
 section = "format"
 name = "use-fileindex-v1"

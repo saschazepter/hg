@@ -337,7 +337,13 @@ class FileIndex(int_file_index.IFileIndex):
     def _mapfile(self, path: bytes, size: int) -> memoryview:
         """Read a file up to the given size using mmap if possible."""
         with self._opener(path) as fp:
-            if self._opener.is_mmap_safe(path):
+            # TODO: using mmap on Windows creates issue during upgrade because
+            # we can't rename the upgraded store with the file-index files
+            # still open.
+            #
+            # Having a way to make sure the file-index is "closed" before such
+            # move would fix it.
+            if self._opener.is_mmap_safe(path) and not pycompat.iswindows:
                 data = util.mmapread(fp, size)
             else:
                 data = fp.read(size)
