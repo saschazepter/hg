@@ -3847,7 +3847,9 @@ class TestRunner:
         if self._hgcommand != b'hg':
             real_exec = shutil.which(self._hgcommand)
             if real_exec is None:
-                raise ValueError('could not find exec path for "%s"', real_exec)
+                raise ValueError(
+                    'could not find exec path for "%s"', self._hgcommand
+                )
             if real_exec == target_exec:
                 # do not overwrite something with itself
                 return
