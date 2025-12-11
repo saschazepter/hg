@@ -24,7 +24,7 @@ use std::time::SystemTime;
 use lazy_static::lazy_static;
 use same_file::is_same_file;
 
-use super::strings::replace_slice_exact;
+use super::strings::replace_slice;
 use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
@@ -201,7 +201,7 @@ fn hfs_ignore_clean(bytes: &[u8]) -> Vec<u8> {
     let needs_escaping = bytes.iter().any(|b| *b == b'\xe2' || *b == b'\xef');
     if needs_escaping {
         for forbidden in IGNORED_CHARS.iter() {
-            replace_slice_exact(&mut buf, forbidden, &[])
+            buf = replace_slice(&buf, forbidden, &[]);
         }
         buf
     } else {

@@ -259,3 +259,21 @@ a symlink.
   $ cd ..
 
 #endif
+
+  $ hg init utf8-hfs-ignore-clean
+  $ cd utf8-hfs-ignore-clean
+
+The UTF-8 encoding of unicode character '（' contains a special byte
+(0xef) that changes behavior of `hfs_ignore_clean`, so we end up
+exercising a code path that's otherwise not exercised.
+
+  $ f='（'
+  $ echo "$f"
+  \xef\xbc\x88 (esc)
+  $ touch "$f"
+  $ hg add "$f"
+  $ hg commit -m "add"
+  $ echo change > "$f"
+  $ hg commit -m "change"
+  $ hg update ".^"
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
