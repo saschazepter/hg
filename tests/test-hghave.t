@@ -23,15 +23,23 @@ Testing hghave extensibility for third party tools
   >   foo
   > EOF
 
-# We use --pure install to avoid doing a full build and install of Mercurial in
-# the middle of the test (and the associated dependencies)
+#if windows
+  $ MAYBE_PURE=""
+#else
+We use --pure install to avoid doing a full build and install of Mercurial in
+the middle of the test (and the associated dependencies). We need to not do
+that on windows as mixing --pure with non-pure run confuse runtests.py as
+`hg.bat` is expected instead of `hg.exe`. Since this is not the core of what is
+tested here, we work around the issue for now.
+  $ MAYBE_PURE="--pure"
+#endif
+
 
   $ ( \
   > testrepohgenv; \
   > "$PYTHON" $TESTDIR/run-tests.py \
-  >     --with-hg=$HGTEST_REAL_HG \
+  >     --with-hg=$HGTEST_REAL_HG $MAYBE_PURE\
   >     --jobs 1 \
-  >     --pure \
   >     test-hghaveaddon.t \
   > )
   installed Mercurial in * seconds  (glob) (?)
