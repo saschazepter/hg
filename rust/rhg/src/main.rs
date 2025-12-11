@@ -426,7 +426,7 @@ fn setup_tracing() -> FlushGuard {
 /// Enable an env-filtered logger to stderr
 fn setup_tracing() {
     let registry = tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
         .with(EnvFilter::from_default_env());
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
