@@ -18,7 +18,7 @@ workflow:
       when: never
     - if: $CI_COMMIT_BRANCH
       when: always
-    - if: $CI_COMMIT_REF_PROTECTED == "false"
+    - if: $CI_COMMIT_REF_PROTECTED == "true"
       variables:
         WHEEL_TAG: "protected"
 
