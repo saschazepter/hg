@@ -1,7 +1,6 @@
 use clap::Arg;
-use hg::narrow::patterns_from_spec;
 use hg::narrow::shape::ShardTreeNode;
-use hg::narrow::store_spec;
+use hg::narrow::store_patterns;
 use hg::utils::strings::SliceExt;
 use hg::warnings::HgWarningContext;
 
@@ -43,10 +42,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             "abort: this command only makes sense in a narrow clone",
         ));
     }
-    let spec = store_spec(repo)?;
 
     let warning_context = HgWarningContext::new();
-    let patterns = patterns_from_spec(warning_context.sender(), &spec)?;
+    let patterns = store_patterns(warning_context.sender(), repo)?;
     let (includes, excludes) = patterns.unwrap_or((vec![], vec![]));
     let tree = ShardTreeNode::from_patterns(&includes, &excludes)?;
 

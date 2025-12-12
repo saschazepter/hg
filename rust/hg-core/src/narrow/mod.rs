@@ -40,9 +40,7 @@ pub fn matcher(
     if !repo.requirements().contains(NARROW_REQUIREMENT) {
         return Ok(Box::new(AlwaysMatcher));
     }
-    let store_spec = store_spec(repo)?;
-
-    let patterns = patterns_from_spec(warnings, &store_spec)?;
+    let patterns = store_patterns(warnings, repo)?;
 
     let Some((include_patterns, exclude_patterns)) = patterns else {
         return Ok(Box::new(NeverMatcher));
@@ -73,13 +71,16 @@ pub fn matcher(
     Ok(m)
 }
 
-/// Get the store narrow spec for `repo`.
+/// Get the store narrow patterns for `repo`.
 ///
 /// # Errors
 ///
 /// Will return an error if the working copy's narrowspec doesn't match the
-/// one from the store.
-pub fn store_spec(repo: &Repo) -> Result<Vec<u8>, HgError> {
+/// one from the store, or if it cannot be parsed.
+pub fn store_patterns(
+    warnings: &HgWarningSender,
+    repo: &Repo,
+) -> Result<Option<NarrowPatterns>, HgError> {
     // Treat "narrowspec does not exist" the same as "narrowspec file exists
     // and is empty
     let store_spec = repo.store_vfs().try_read(FILENAME)?.unwrap_or_default();
@@ -92,7 +93,8 @@ pub fn store_spec(repo: &Repo) -> Result<Vec<u8>, HgError> {
             Some("run 'hg tracked --update-working-copy'".into()),
         ));
     }
-    Ok(store_spec)
+    let store_patterns = patterns_from_spec(warnings, &store_spec)?;
+    Ok(store_patterns)
 }
 
 /// Raw patterns as deserialized and validated
