@@ -736,6 +736,7 @@ build-c-wheel-macos:
     variables:
     tags:
       - macos
+      - $WHEEL_TAG
     script:
       - sh -c 'which "$PYTHON"'
       - sh -c '"$PYTHON" -V'
