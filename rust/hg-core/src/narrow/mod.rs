@@ -1,9 +1,11 @@
+use std::cmp::Ordering;
 use std::path::Path;
 
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::file_patterns::parse_pattern_file_contents;
 use crate::file_patterns::FilePattern;
+use crate::file_patterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
@@ -30,6 +32,21 @@ const DIRSTATE_FILENAME: &str = "narrowspec.dirstate";
 /// data structure influence the wire protocol and should not be taken
 /// lightly - especially removals.
 pub const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
+
+/// Compares two patterns.
+///
+/// [`FilePattern`] does not implement [`Ord`] because it's complicated with
+/// [`PatternSyntax::Include`], but for narrowspecs we only have to deal with
+/// the types of patterns allowed by [`VALID_PREFIXES`].
+fn cmp_patterns(lhs: &FilePattern, rhs: &FilePattern) -> Ordering {
+    let kind = |pattern: &FilePattern| match pattern.syntax {
+        PatternSyntax::Path => 0,
+        PatternSyntax::RootFilesIn => 1,
+        _ => panic!("narrowspec only allows path: and rootfilesin:"),
+    };
+    let key = |pattern| (kind(pattern), &pattern.raw);
+    Ord::cmp(&key(lhs), &key(rhs))
+}
 
 /// Return the matcher for the current narrow spec, and all configuration
 /// warnings to display.
@@ -123,7 +140,7 @@ pub fn patterns_from_spec(
     if config.includes.is_empty() {
         return Ok(None);
     }
-    let include_patterns = parse_pattern_file_contents(
+    let mut include_patterns = parse_pattern_file_contents(
         &config.includes,
         Path::new(""),
         None,
@@ -131,7 +148,7 @@ pub fn patterns_from_spec(
         true,
         warnings,
     )?;
-    let exclude_patterns = parse_pattern_file_contents(
+    let mut exclude_patterns = parse_pattern_file_contents(
         &config.excludes,
         Path::new(""),
         None,
@@ -139,6 +156,8 @@ pub fn patterns_from_spec(
         true,
         warnings,
     )?;
+    include_patterns.sort_by(cmp_patterns);
+    exclude_patterns.sort_by(cmp_patterns);
     Ok(Some((include_patterns, exclude_patterns)))
 }
 

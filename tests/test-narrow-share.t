@@ -233,13 +233,5 @@ Swap the order of the first two includes
   path:d1
   path:d7
   [exclude]
-#if rhg
-TODO: fix rust
-  $ hg admin::narrow-client --store-fingerprint
-  abort: working copy's narrowspec is stale
-  (run 'hg tracked --update-working-copy')
-  [20]
-#else
   $ hg admin::narrow-client --store-fingerprint
   e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5
-#endif
