@@ -75,25 +75,29 @@ pub fn matcher(
 ///
 /// # Errors
 ///
-/// Will return an error if the working copy's narrowspec doesn't match the
-/// one from the store, or if it cannot be parsed.
+/// Will return an error if the working copy's narrowspec doesn't contain the
+/// same patterns as the one from the store, or if either fail to parse.
 pub fn store_patterns(
     warnings: &HgWarningSender,
     repo: &Repo,
 ) -> Result<Option<NarrowPatterns>, HgError> {
     // Treat "narrowspec does not exist" the same as "narrowspec file exists
     // and is empty
-    let store_spec = repo.store_vfs().try_read(FILENAME)?.unwrap_or_default();
-    let working_copy_spec =
-        repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or_default();
-    if store_spec != working_copy_spec {
+    let store_patterns = patterns_from_spec(
+        warnings,
+        &repo.store_vfs().try_read(FILENAME)?.unwrap_or_default(),
+    )?;
+    let working_copy_patterns = patterns_from_spec(
+        warnings,
+        &repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or_default(),
+    )?;
+    if store_patterns != working_copy_patterns {
         return Err(HgError::abort(
             "abort: working copy's narrowspec is stale",
             exit_codes::STATE_ERROR,
             Some("run 'hg tracked --update-working-copy'".into()),
         ));
     }
-    let store_patterns = patterns_from_spec(warnings, &store_spec)?;
     Ok(store_patterns)
 }
 
