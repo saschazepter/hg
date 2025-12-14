@@ -887,3 +887,8 @@ upload-wheel-nightly:
       --skip-existing
       wheels/*/*/*/*.whl
       wheels/*/*.whl
+  # make all wheels available in one place
+  artifacts:
+      paths:
+        - wheels
+      expire_in: 1 week
