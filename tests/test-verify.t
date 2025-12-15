@@ -46,19 +46,14 @@ introduce some bugs in repo
   checking manifests
   crosschecking files in changesets and manifests
   checking files
-   warning: revlog 'data/FOO.txt.i' not in fncache!
    0: empty or missing FOO.txt
    FOO.txt@0: manifest refers to unknown revision f62022d3d590
-   warning: revlog 'data/QUICK.txt.i' not in fncache!
    0: empty or missing QUICK.txt
    QUICK.txt@0: manifest refers to unknown revision 88b857db8eba
-   warning: revlog 'data/bar.txt.i' not in fncache!
    0: empty or missing bar.txt
    bar.txt@0: manifest refers to unknown revision 256559129457
   not checking dirstate because of previous errors
   checked 1 changesets with 0 changes to 3 files
-  3 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   6 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
@@ -105,13 +100,10 @@ Entire filelog missing
 
   $ rm .hg/store/data/file.*
   $ hg verify -q
-   warning: revlog 'data/file.i' not in fncache!
    0: empty or missing file
    file@0: manifest refers to unknown revision 362fef284ce2
    file@1: manifest refers to unknown revision c10f2164107d
   not checking dirstate because of previous errors
-  1 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   3 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
@@ -150,13 +142,10 @@ Entire changelog and filelog missing
    0: empty or missing changelog
    manifest@0: d0b6632564d4 not in changesets
    manifest@1: 941fc4534185 not in changesets
-   warning: revlog 'data/file.i' not in fncache!
    ?: empty or missing file
    file@0: manifest refers to unknown revision 362fef284ce2
    file@1: manifest refers to unknown revision c10f2164107d
   not checking dirstate because of previous errors
-  1 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   6 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
@@ -168,11 +157,8 @@ Entire manifest log and filelog missing
   $ rm .hg/store/data/file.*
   $ hg verify -q
    0: empty or missing manifest
-   warning: revlog 'data/file.i' not in fncache!
    0: empty or missing file
   not checking dirstate because of previous errors
-  1 warnings encountered!
-  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   2 integrity errors encountered!
   (first damaged changeset appears to be 0)
   [1]
@@ -269,20 +255,22 @@ This is a problem because streamclone would omit the file.
 Fncache inconsistency case 2a: extra entry (nonexistent).
 We add an extra line to the fncache, referencing a file that doesn't exist.
 This is a problem because streamclone would try to read this file and fail.
-TODO (#10045): make hg verify complain about this, since it breaks streaming clone
 
   $ echo "data/bad-nonexistent.i" >> .hg/store/fncache
   $ hg verify -q
+  warning: orphan data file 'data/bad-nonexistent.i'
+  1 warnings encountered!
   $ cp -R .hg/store-full/. .hg/store
 
 Fncache inconsistency case 2b: extra entry (empty).
 We add an extra line to the fncache, which refers to an empty file.
 This is a problem because it's an orphan file that shouldn't be there.
-TODO (#10045): make hg verify complain about this, since it breaks streaming clone
 
   $ echo "data/bad-empty.i" >> .hg/store/fncache
   $ touch .hg/store/data/bad-empty.i
   $ hg verify -q
+  warning: orphan data file 'data/bad-empty.i'
+  1 warnings encountered!
   $ rm .hg/store/data/bad-empty.i
   $ cp -R .hg/store-full/. .hg/store
   $ cp -R .hg/store-full/. .hg/store

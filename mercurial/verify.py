@@ -413,13 +413,11 @@ class verifier:
             self.ui.status(_(b"checking directory manifests\n"))
             storefiles = set()
             subdirs = set()
-            revlogv1 = self.revlogv1
             undecodable = []
             for entry in repo.store.data_entries(undecodable=undecodable):
                 for file_ in entry.files(repo.svfs):
                     f = file_.unencoded_path
-                    size = file_.file_size(repo.svfs)
-                    if (size > 0 or not revlogv1) and f.startswith(b'meta/'):
+                    if f.startswith(b'meta/'):
                         storefiles.add(_normpath(f))
                         subdirs.add(os.path.dirname(f))
             for f in undecodable:
@@ -477,7 +475,6 @@ class verifier:
         repo = self.repo
         ui = self.ui
         lrugetctx = self.lrugetctx
-        revlogv1 = self.revlogv1
         havemf = self.havemf
         ui.status(_(b"checking files\n"))
 
@@ -488,9 +485,8 @@ class verifier:
             undecodable = []
             for entry in repo.store.data_entries(undecodable=undecodable):
                 for file_ in entry.files(repo.svfs):
-                    size = file_.file_size(repo.svfs)
                     f = file_.unencoded_path
-                    if (size > 0 or not revlogv1) and f.startswith(b'data/'):
+                    if f.startswith(b'data/'):
                         fncache_files.add(_normpath(f))
             for f in undecodable:
                 self._err(None, _(b"cannot decode filename '%s'") % f)
