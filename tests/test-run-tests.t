@@ -5,6 +5,17 @@ Avoid interference from actual test env:
   $ . "$TESTDIR/helpers-testrepo.sh"
   $ . "$TESTDIR/helper-runtests.sh"
 
+
+Check output replacement
+
+  $ echo $HGRCPATH
+  $HGRCPATH
+  $ echo $TESTTMP
+  $TESTTMP
+  $ echo $TESTDIR
+  $TESTDIR
+
+
 Smoke test with install
 ============
 

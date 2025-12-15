@@ -1162,6 +1162,7 @@ class Test(unittest.TestCase):
         self.errpath = os.path.join(self._outputdir, b'%s.err' % self.bname)
 
         self._threadtmp = tmpdir
+        self._hgrcpath = os.path.join(self._threadtmp, b'.hgrc')
         self._keeptmpdir = keeptmpdir
         self._debug = debug
         self._first = first
@@ -1441,6 +1442,10 @@ class Test(unittest.TestCase):
                 (br'([^0-9])%s' % re.escape(self._localip()), br'\1$LOCALIP'),
                 (br'\bHG_TXNID=TXN:[a-f0-9]{40}\b', br'HG_TXNID=TXN:$ID$'),
                 (self._escapepath(self._testtmp), b'$TESTTMP'),
+                (self._escapepath(self._hgrcpath), b'$HGRCPATH'),
+                (self._escapepath(self._testdir), b'$TESTDIR'),
+                # we don't add escape for RUNTEST_DIR because it might be the
+                # same as TESTDIR and the replacement won't work well.
             ]
         )
 
@@ -1449,6 +1454,10 @@ class Test(unittest.TestCase):
             # double-escape.
             replaced = self._testtmp.replace(b'\\', br'\\')
             r.append((self._escapepath(replaced), b'$STR_REPR_TESTTMP'))
+            replaced = self._hgrcpath.replace(b'\\', br'\\')
+            r.append((self._escapepath(replaced), b'$STR_REPR_HGRCPATH'))
+            replaced = self._testdir.replace(b'\\', br'\\')
+            r.append((self._escapepath(replaced), b'$STR_REPR_TESTDIR'))
 
         replacementfile = os.path.join(self._testdir, b'common-pattern.py')
 
@@ -1545,7 +1554,7 @@ class Test(unittest.TestCase):
 
         for port in range(HGPORT_COUNT):
             defineport(port)
-        env["HGRCPATH"] = _bytes2sys(os.path.join(self._threadtmp, b'.hgrc'))
+        env["HGRCPATH"] = _bytes2sys(self._hgrcpath)
         env["DAEMON_PIDS"] = _bytes2sys(
             os.path.join(self._threadtmp, b'daemon.pids')
         )

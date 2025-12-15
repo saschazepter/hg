@@ -52,7 +52,7 @@ The extension requires a repo (currently unused)
   new changesets cd010b8cd998:02de42196ebe (8 drafts)
   postclose-tip:02de42196ebe draft 
   txnclose hook: HG_HOOKNAME=txnclose.env HG_HOOKTYPE=txnclose HG_NODE=cd010b8cd998f3981a5a8115f94f8da4ab506089 HG_NODE_LAST=02de42196ebee42ef284b6780a87cdc96e8eaab6 HG_PHASES_MOVED=1 HG_SOURCE=unbundle HG_TXNID=TXN:$ID$ HG_TXNNAME=unbundle
-  bundle:*/tests/bundles/rebase.hg HG_URL=bundle:*/tests/bundles/rebase.hg (glob)
+  bundle:$TESTDIR/bundles/rebase.hg HG_URL=bundle:$TESTDIR/bundles/rebase.hg
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
   $ cd ..
