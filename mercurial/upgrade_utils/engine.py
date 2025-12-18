@@ -498,14 +498,12 @@ def upgrade(
 
     # Fast path for upgrading from fncache to file index.
     if upgrade_actions.file_index_v1 in upgrade_op.upgrade_actions:
-        if not {upgrade_actions.fncache, upgrade_actions.dotencode}.issubset(
-            upgrade_op.removed_actions
-        ):
+        if upgrade_actions.fncache not in upgrade_op.removed_actions:
             raise error.ProgrammingError(
-                b'adding fileindex-v1 must remove fncache and dotencode'
+                b'adding fileindex-v1 must remove fncache'
             )
-
-        if True:
+        # Fast path is only for fncache+dotencode to fileindex-v1.
+        if upgrade_actions.dotencode in upgrade_op.removed_actions:
             other_upgrade = upgrade_op.upgrade_actions.copy()
             other_remove = upgrade_op.removed_actions.copy()
             other_upgrade.remove(upgrade_actions.file_index_v1)
