@@ -666,6 +666,40 @@ Test an upgrade, preserving fileindex, that does not touch filelogs (exp-changel
   copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
   the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
 
+Downgrade to fncache with plain encoding
+  $ hg debugupgrade --config format.use-fileindex-v1=0 --config format.dotencode=0 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=1 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
+Upgrade to file index, preserving plain encoding
+TODO: this should work
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=1 --run 2>&1 > /dev/null | grep -E -v '^  '
+  ** Unknown exception encountered in hg
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: * (glob)
+  ** ProgrammingError: adding fileindex-v1 must remove fncache and dotencode
+  Traceback (most recent call last):
+  *ProgrammingError: adding fileindex-v1 must remove fncache and dotencode (glob)
+
+Downgrade to fncache with neither dotencode nor plain encoding
+  $ hg debugupgrade --config format.use-fileindex-v1=0 --config format.dotencode=0 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=0 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
+Upgrade directly from non-dotencode fncache to file index
+TODO: this should work
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=0 --run 2>&1 > /dev/null | grep -E -v '^  '
+  ** Unknown exception encountered in hg
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: * (glob)
+  ** ProgrammingError: adding fileindex-v1 must remove fncache and dotencode
+  Traceback (most recent call last):
+  *ProgrammingError: adding fileindex-v1 must remove fncache and dotencode (glob)
+
+  $ cd ..
+
 Test compatiblity of Python and Rust implementations
 ----------------------------------------------------
 
