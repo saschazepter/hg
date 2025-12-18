@@ -671,10 +671,8 @@ Downgrade to fncache with plain encoding
   copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
   the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
 
-Upgrade to file index, preserving plain encoding (uses slow path)
+Upgrade to file index, preserving plain encoding
   $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=1 --run > /dev/null
-  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
-  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
 
 Downgrade to fncache with neither dotencode nor plain encoding
   $ hg debugupgrade --config format.use-fileindex-v1=0 --config format.dotencode=0 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=0 --run > /dev/null
