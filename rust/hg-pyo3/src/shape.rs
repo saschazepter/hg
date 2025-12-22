@@ -44,7 +44,7 @@ impl PyShape {
 
     /// A matcher for the files that this shape covers
     pub fn matcher(&self) -> PyMatcher {
-        PyMatcher::new(self.inner.matcher())
+        PyMatcher::new(Box::new(self.inner.matcher()))
     }
 
     /// The patterns as expected by legacy narrow code, i.e. a tuple of lists

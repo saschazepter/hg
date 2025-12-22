@@ -3,7 +3,6 @@
 
 use std::collections::HashSet;
 use std::io::Write;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
@@ -22,12 +21,7 @@ use crate::exit_codes;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternSyntax;
-use crate::matchers::AlwaysMatcher;
-use crate::matchers::DifferenceMatcher;
-use crate::matchers::Matcher;
-use crate::matchers::NeverMatcher;
-use crate::matchers::PatternMatcher;
-use crate::matchers::UnionMatcher;
+use crate::matchers::ShapeMatcher;
 use crate::repo::Repo;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
@@ -411,7 +405,7 @@ impl StoreShards {
 /// Represents a named narrow view into the repo's files (at the history level).
 ///
 /// This is a user-facing concept.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Shape {
     name: ShardName,
     pub(crate) tree: ShardTreeNode,
@@ -433,8 +427,8 @@ impl Shape {
     }
 
     /// Returns a [`Matcher`] that expresses the constraints of this shape
-    pub fn matcher(&self) -> Box<dyn Matcher + Send> {
-        self.tree.matcher()
+    pub fn matcher(&self) -> ShapeMatcher {
+        ShapeMatcher::new(self.to_owned())
     }
 
     pub fn store_fingerprint(&self) -> [u8; 32] {
@@ -678,48 +672,6 @@ impl ShardTreeNode {
         Ok(root.finish())
     }
 
-    /// Returns a [`Matcher`] that expresses the constraints of this node
-    pub fn matcher(&self) -> Box<dyn Matcher + Send> {
-        let top_matcher = if self.path.is_empty() {
-            // We're the root node
-            if self.included {
-                Box::new(AlwaysMatcher) as Box<dyn Matcher + Send>
-            } else {
-                Box::new(NeverMatcher) as Box<dyn Matcher + Send>
-            }
-        } else {
-            Box::new(
-                PatternMatcher::new(vec![FilePattern::new(
-                    PatternSyntax::Path,
-                    HgPathBuf::from(&self.path).as_bytes(),
-                    Path::new(".hg/store/server-shapes"),
-                )])
-                .expect("patterns based on paths should always be valid"),
-            ) as Box<dyn Matcher + Send>
-        };
-        if self.children.is_empty() {
-            return top_matcher;
-        }
-        let sub_matcher = if self.children.len() == 1 {
-            self.children[0].matcher()
-        } else {
-            let subs: Vec<_> = self
-                .children
-                .iter()
-                .map(|child| {
-                    assert_ne!(child.included, self.included);
-                    child.matcher()
-                })
-                .collect();
-            Box::new(UnionMatcher::new(subs)) as Box<dyn Matcher + Send>
-        };
-
-        if self.path.is_empty() && !self.included {
-            return sub_matcher;
-        }
-        Box::new(DifferenceMatcher::new(top_matcher, sub_matcher))
-    }
-
     /// Do not call this directly, use [`deepest_prefix_node`].
     fn deepest_node_impl(&self, path: &HgPath, skip: usize) -> Option<&Self> {
         let path_bytes = path.as_bytes();
@@ -961,6 +913,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::matchers::Matcher;
+    use crate::matchers::VisitChildrenSet;
 
     /// produce a valid store sharding
     ///
@@ -1327,7 +1281,7 @@ mod tests {
 
     /// Test that every shape matches the right files
     #[test]
-    fn test_matcher() {
+    fn test_matcher_simple() {
         let (store_shards, all_shape_names) = valid_store_shards();
 
         let files_to_shape: &[(&str, &[&str])] = &[
@@ -1539,6 +1493,68 @@ mod tests {
         );
         assert_node(node, b"stone/mummy/chamber");
         assert_eq!(node.included, false);
+    }
+
+    #[test]
+    fn test_matcher_visit_children_set() {
+        let (store_shards, _all_shape_names) = valid_store_shards();
+        let shape = store_shards.shape("bar").unwrap().unwrap();
+        let matcher = shape.matcher();
+        // Test an exact match on a non-included node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(
+                ["bar", ".hgignore", ".hgsubstate", ".hgtags", ".hgsub"]
+                    .iter()
+                    .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
+                    .collect()
+            )
+        );
+        // Test an exact match on an included node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar")),
+            VisitChildrenSet::Recursive,
+        );
+        // Test a prefix match on an included node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/file")),
+            VisitChildrenSet::Recursive,
+        );
+        // Test a no match
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"other")),
+            VisitChildrenSet::Empty,
+        );
+
+        let shape = store_shards.shape("bazik").unwrap().unwrap();
+        let matcher = shape.matcher();
+        // Test an exact match on a non-included node, through a `requires`
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(
+                ["bar", ".hgignore", ".hgsubstate", ".hgtags", ".hgsub"]
+                    .iter()
+                    .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
+                    .collect()
+            )
+        );
+        // Test a nested no-match
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/baz/other")),
+            VisitChildrenSet::Empty
+        );
+        // Test a prefix match on a non-included-non-root node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/baz")),
+            VisitChildrenSet::Set(HashSet::from_iter([HgPathBuf::from_bytes(
+                b"bar/baz/ik"
+            )]))
+        );
+        // Test a nested exact match
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
+            VisitChildrenSet::Recursive
+        );
     }
 
     #[test]
