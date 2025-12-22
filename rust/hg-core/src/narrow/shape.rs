@@ -950,6 +950,11 @@ mod tests {
             name = "baron"
             requires = ["bar", "baziku"]
             shape = true
+
+            [[shards]]
+            name = "nested"
+            paths = ["some/super/nested/file"]
+            shape = true
         "#;
 
         // Make sure we can load this config
@@ -978,6 +983,7 @@ mod tests {
             "lizard",
             "lizzie",
             "mummy",
+            "nested",
             "stone",
         ];
         // Shards are as expected, along with the implicit shards
@@ -993,7 +999,7 @@ mod tests {
 
         let all_shape_names = vec![
             "bar", "baron", "base", "bazik", "borden", "chamber", "foo",
-            "full", "mummy", "stone",
+            "full", "mummy", "nested", "stone",
         ];
         // Shapes are as expected, along with the implicit shapes
         assert_eq!(
@@ -1054,6 +1060,7 @@ mod tests {
                 "lizard",
                 "lizzie",
                 "mummy",
+                "nested",
                 "stone",
             ],
         );
@@ -1097,7 +1104,10 @@ mod tests {
         type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
         let shape_to_patterns: &[(&str, Patterns)] = &[
             ("full", (&[""], &[])),
-            ("base", (&[""], &["bar", "foo", "stone"])),
+            (
+                "base",
+                (&[""], &["bar", "foo", "some/super/nested/file", "stone"]),
+            ),
             (
                 "bar",
                 (
@@ -1133,7 +1143,13 @@ mod tests {
                     &["", "bar/baz", "bar/baz/ik/u"],
                 ),
             ),
-            ("foo", (&["", "bar/baz"], &["bar", "bar/baz/ik", "stone"])),
+            (
+                "foo",
+                (
+                    &["", "bar/baz"],
+                    &["bar", "bar/baz/ik", "some/super/nested/file", "stone"],
+                ),
+            ),
             (
                 "stone",
                 (
@@ -1186,6 +1202,19 @@ mod tests {
                         "stone/mummy",
                         "stone/mummy/chamber/inner",
                     ],
+                ),
+            ),
+            (
+                "nested",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "some/super/nested/file",
+                    ],
+                    &[""],
                 ),
             ),
         ];
@@ -1299,6 +1328,7 @@ mod tests {
             ("stone/liz/zie/bor/den/babar", &["full", "borden"]),
             // various unmatched stuff
             ("oops", &["full", "base", "foo"]),
+            ("some/super/other/nested", &["full", "base", "foo"]),
             ("w", &["full", "base", "foo"]),
             ("y", &["full", "base", "foo"]),
             ("z", &["full", "base", "foo"]),
