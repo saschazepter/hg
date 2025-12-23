@@ -44,6 +44,7 @@ use hg::vfs::VfsImpl;
 use hg::BaseRevision;
 use hg::Revision;
 use hg::UncheckedRevision;
+use hg::NULL_NODE;
 use hg::NULL_REVISION;
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
@@ -876,6 +877,11 @@ impl InnerRevlog {
         // here: the code below specifically avoids that.
         Self::with_core_read(slf, |self_ref, irl| {
             let idx = &irl.index;
+
+            if node.as_bytes() == NULL_NODE.as_bytes() {
+                // This ensures we don't count this trivial case as a query
+                return Ok(Some(NULL_REVISION.into()));
+            }
 
             let prev_queries =
                 self_ref.nodemap_queries.fetch_add(1, Ordering::Relaxed);
