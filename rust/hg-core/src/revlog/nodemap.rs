@@ -506,9 +506,20 @@ impl NodeTree {
         node: &Node,
         rev: Revision,
     ) -> Result<(), NodeMapError> {
+        self.insert_single(index, node, rev, &mut vec![])
+    }
+
+    /// See [`Self::insert`] and [`Self::insert_many`] for public interfaces
+    fn insert_single<I: RevlogIndex>(
+        &mut self,
+        index: &I,
+        node: &Node,
+        rev: Revision,
+        visit_steps: &mut Vec<NodeTreeVisitItem>,
+    ) -> Result<(), NodeMapError> {
         let ro_len = &self.readonly.len();
 
-        let mut visit_steps: Vec<_> = self.visit(node.into()).collect();
+        visit_steps.extend(self.visit(node.into()));
         let read_nybbles = visit_steps.len();
         // visit_steps cannot be empty, since we always visit the root block
         let deepest = visit_steps.pop().unwrap();
@@ -585,9 +596,13 @@ impl NodeTree {
         from: Revision,
         to: Revision,
     ) -> Result<(), NodeMapError> {
+        // Reuse this vec for all visit planning to save a ton of allocations
+        // (about 5 per revision)
+        let mut visit_vec = vec![];
         for revnum in from.0..=to.0 {
             let rev = Revision(revnum);
-            self.insert(index, index.node(rev), rev)?
+            self.insert_single(index, index.node(rev), rev, &mut visit_vec)?;
+            visit_vec.clear();
         }
         Ok(())
     }
