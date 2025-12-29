@@ -596,6 +596,12 @@ impl NodeTree {
         from: Revision,
         to: Revision,
     ) -> Result<(), NodeMapError> {
+        let revisions_to_add = 0.max(to.0 - from.0) as usize;
+        // There are about 5 blocks per revision for all persistent nodemaps
+        // observed in the wild, so we over-allocate slightly with 6.
+        const FACTOR: usize = 6;
+        self.growable.reserve(revisions_to_add * FACTOR);
+
         // Reuse this vec for all visit planning to save a ton of allocations
         // (about 5 per revision)
         let mut visit_vec = vec![];
