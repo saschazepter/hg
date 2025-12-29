@@ -576,6 +576,22 @@ impl NodeTree {
         Ok(())
     }
 
+    /// Batched insertion method (see [`Self::insert`] for single insertions)
+    ///
+    /// This exists for performance reasons, implemented in a future patch.
+    pub fn insert_many<I: RevlogIndex>(
+        &mut self,
+        index: &I,
+        from: Revision,
+        to: Revision,
+    ) -> Result<(), NodeMapError> {
+        for revnum in from.0..=to.0 {
+            let rev = Revision(revnum);
+            self.insert(index, index.node(rev), rev)?
+        }
+        Ok(())
+    }
+
     /// Insert all [`Revision`] from `from` inclusive, up to
     /// [`RevlogIndex::len`] exclusive.
     ///
@@ -588,12 +604,8 @@ impl NodeTree {
         index: &impl RevlogIndex,
         from: Revision,
     ) -> Result<(), NodeMapError> {
-        for r in (from.0)..index.len() as BaseRevision {
-            let rev = Revision(r);
-            // in this case node() won't ever return None
-            self.insert(index, index.node(rev), rev)?;
-        }
-        Ok(())
+        let to = Revision(0.max(index.len() - 1) as BaseRevision);
+        self.insert_many(index, from, to)
     }
 
     /// Make the whole `NodeTree` logically empty, without touching the
