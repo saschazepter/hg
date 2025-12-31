@@ -1245,12 +1245,20 @@ class fncache:
                     else:
                         raise error.Abort(t)
 
-    def write(self, tr):
+    def write(self, tr, _backup=True):
+        """Write the fncache on disk, collaborating with the transaction to do so
+
+        If _backup is False, we won't save the previous state (effectivly not
+        collaborating with the transaction. This is used during `strip` and you
+        do not needs it.
+        """
+        if (self._dirty or self.addls) and _backup:
+            tr.addbackup(b'fncache')
+
         if self._dirty:
             assert self.is_loaded
             self.entries = self.entries | self.addls
             self.addls = set()
-            tr.addbackup(b'fncache')
             fp = self.vfs(b'fncache', mode=b'wb', atomictemp=True)
             if self.entries:
                 fp.write(encodedir(b'\n'.join(self.entries) + b'\n'))
@@ -1258,7 +1266,6 @@ class fncache:
             self._dirty = False
         if self.addls:
             # if we have just new entries, let's append them to the fncache
-            tr.addbackup(b'fncache')
             fp = self.vfs(b'fncache', mode=b'ab', atomictemp=True)
             if self.addls:
                 fp.write(encodedir(b'\n'.join(self.addls) + b'\n'))
