@@ -96,6 +96,7 @@ Keep Windows line endings in check
 
   $ testrepohg files 'set:eol(dos)'
   contrib/packaging/build-windows-wheels.bat
+  contrib/packaging/wix/COPYING.rtf
   contrib/vs2022-settings.json
   contrib/win32/hg.bat
   contrib/win32/mercurial.ini
