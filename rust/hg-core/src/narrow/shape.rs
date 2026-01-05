@@ -1146,17 +1146,19 @@ mod tests {
             })
             .collect();
         for (file, expected_shapes) in files_to_shape {
+            let mut expected: Vec<_> = expected_shapes.to_vec();
+            expected.sort();
             let file = HgPath::new(file.as_bytes());
-            for (shape_name, matcher) in shape_to_matcher.iter() {
-                let expect_match =
-                    expected_shapes.contains(&shape_name.as_str());
-                assert_eq!(
-                    matcher.matches(file),
-                    expect_match,
-                    "shape '{shape_name}' {} match file '{file}'",
-                    if expect_match { "should" } else { "should not" }
-                );
-            }
+
+            let matching: Vec<_> = shape_to_matcher
+                .iter()
+                .filter(|(_, matcher)| matcher.matches(file))
+                .map(|(name, _)| name)
+                .collect();
+            assert_eq!(
+                &expected, &matching,
+                "file '{file}' doesn't match the expected shapes"
+            );
         }
     }
 
