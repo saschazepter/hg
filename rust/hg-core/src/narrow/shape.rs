@@ -694,7 +694,7 @@ impl ShardTreeNode {
 
     /// `true` if `self` is a sub-path of `other`
     fn sub_path_of(&self, other: &Self) -> bool {
-        self.path.starts_with(&other.path)
+        self.path.sub_path_of(&other.path)
     }
 
     /// Return the node normalized as two flat sets of includes and excludes
@@ -807,7 +807,7 @@ impl ZeroPath {
         self.into()
     }
 
-    fn starts_with(&self, other: &Self) -> bool {
+    fn sub_path_of(&self, other: &Self) -> bool {
         self.0.starts_with(&other.0)
     }
 }
