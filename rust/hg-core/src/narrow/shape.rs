@@ -894,6 +894,40 @@ mod tests {
             shape = true
 
             [[shards]]
+            name = "stone"
+            paths = ["stone"]
+            shape = true
+
+            [[shards]]
+            name = "lizard"
+            paths = ["stone/liz/ard"]
+
+            [[shards]]
+            name = "lizzie"
+            paths = ["stone/liz/zie"]
+
+            [[shards]]
+            name = "borden"
+            paths = ["stone/liz/zie/bor/den"]
+            requires = ["stone"]
+            shape = true
+
+            [[shards]]
+            name = "mummy"
+            paths = ["stone/mummy"]
+            shape = true
+
+            [[shards]]
+            name = "chamber"
+            paths = ["stone/mummy/chamber"]
+            requires = ["stone"]
+            shape = true
+
+            [[shards]]
+            name = "inner"
+            paths = ["stone/mummy/chamber/inner"]
+
+            [[shards]]
             name = "bar"
             paths = ["bar"]
             shape = true
@@ -936,8 +970,15 @@ mod tests {
             "baz",
             "bazik",
             "baziku",
+            "borden",
+            "chamber",
             "foo",
             "full",
+            "inner",
+            "lizard",
+            "lizzie",
+            "mummy",
+            "stone",
         ];
         // Shards are as expected, along with the implicit shards
         assert_eq!(
@@ -950,8 +991,10 @@ mod tests {
                 .collect::<Vec<_>>(),
         );
 
-        let all_shape_names =
-            vec!["bar", "baron", "base", "bazik", "foo", "full"];
+        let all_shape_names = vec![
+            "bar", "baron", "base", "bazik", "borden", "chamber", "foo",
+            "full", "mummy", "stone",
+        ];
         // Shapes are as expected, along with the implicit shapes
         assert_eq!(
             all_shape_names,
@@ -1004,7 +1047,14 @@ mod tests {
                 "baz",
                 "bazik",
                 "baziku",
+                "borden",
+                "chamber",
                 "foo",
+                "inner",
+                "lizard",
+                "lizzie",
+                "mummy",
+                "stone",
             ],
         );
     }
@@ -1047,7 +1097,7 @@ mod tests {
         type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
         let shape_to_patterns: &[(&str, Patterns)] = &[
             ("full", (&[""], &[])),
-            ("base", (&[""], &["bar", "foo"])),
+            ("base", (&[""], &["bar", "foo", "stone"])),
             (
                 "bar",
                 (
@@ -1083,7 +1133,61 @@ mod tests {
                     &["", "bar/baz", "bar/baz/ik/u"],
                 ),
             ),
-            ("foo", (&["", "bar/baz"], &["bar", "bar/baz/ik"])),
+            ("foo", (&["", "bar/baz"], &["bar", "bar/baz/ik", "stone"])),
+            (
+                "stone",
+                (
+                    &[".hgignore", ".hgsub", ".hgsubstate", ".hgtags", "stone"],
+                    &["", "stone/liz/ard", "stone/liz/zie", "stone/mummy"],
+                ),
+            ),
+            (
+                "borden",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone",
+                        "stone/liz/zie/bor/den",
+                    ],
+                    &["", "stone/liz/ard", "stone/liz/zie", "stone/mummy"],
+                ),
+            ),
+            (
+                "mummy",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone/mummy",
+                    ],
+                    &["", "stone/mummy/chamber"],
+                ),
+            ),
+            (
+                "chamber",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone",
+                        "stone/mummy/chamber",
+                    ],
+                    &[
+                        "",
+                        "stone/liz/ard",
+                        "stone/liz/zie",
+                        "stone/mummy",
+                        "stone/mummy/chamber/inner",
+                    ],
+                ),
+            ),
         ];
 
         for (shard_name, (expected_includes, expected_excludes)) in
@@ -1160,6 +1264,39 @@ mod tests {
             ("foo/b", &["full", "foo"]),
             ("foo/c", &["full", "foo"]),
             ("foo/y", &["full", "foo"]),
+            // `stone/liz/` has three excluded directory within
+            ("stone/foo", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz", &["full", "stone", "borden", "chamber"]),
+            ("stone/mummy", &["full", "mummy"]),
+            ("stone/mummy/return", &["full", "mummy"]),
+            ("stone/mummy/chamber", &["full", "chamber"]),
+            ("stone/mummy/chamber/inner", &["full"]),
+            ("stone/mummy/chamber/babar", &["full", "chamber"]),
+            ("stone/mummy/chamber/inner/babar", &["full"]),
+            (
+                "stone/liz/chamber/babar",
+                &["full", "stone", "borden", "chamber"],
+            ),
+            ("stone/liz/chamber", &["full", "stone", "borden", "chamber"]),
+            (
+                "stone/liz/chamber/inner",
+                &["full", "stone", "borden", "chamber"],
+            ),
+            (
+                "stone/liz/chamber/inner/babar",
+                &["full", "stone", "borden", "chamber"],
+            ),
+            ("stone/liz/foo", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/babar", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/ard", &["full"]),
+            ("stone/liz/ard/babar", &["full"]),
+            ("stone/liz/on", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/on/babar", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/zie", &["full"]),
+            ("stone/liz/zie/babar", &["full"]),
+            ("stone/liz/zie/bor", &["full"]),
+            ("stone/liz/zie/bor/den", &["full", "borden"]),
+            ("stone/liz/zie/bor/den/babar", &["full", "borden"]),
             // various unmatched stuff
             ("oops", &["full", "base", "foo"]),
             ("w", &["full", "base", "foo"]),
