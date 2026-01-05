@@ -938,26 +938,26 @@ mod tests {
         ];
         // Shards are as expected, along with the implicit shards
         assert_eq!(
+            all_shard_names,
             store_shards
                 .shards
                 .keys()
                 .sorted()
                 .map(|k| k.to_string())
                 .collect::<Vec<_>>(),
-            all_shard_names,
         );
 
         let all_shape_names =
             vec!["bar", "baron", "base", "bazik", "foo", "full"];
         // Shapes are as expected, along with the implicit shapes
         assert_eq!(
+            all_shape_names,
             store_shards
                 .all_shapes()
                 .unwrap()
                 .into_iter()
                 .map(|shape| shape.name().to_string())
                 .collect::<Vec<_>>(),
-            all_shape_names,
         );
         (store_shards, all_shape_names)
     }
@@ -981,7 +981,7 @@ mod tests {
                 .sorted()
                 .map(|n| n.to_string());
             let dependencies = dependencies.collect::<Vec<String>>();
-            assert_eq!(dependencies, expected, "for shard {}", shard_name);
+            assert_eq!(expected, dependencies, "for shard {}", shard_name);
         }
 
         assert_dependencies(&store_shards, "bar", vec![".hg-files"]);
@@ -1029,12 +1029,12 @@ mod tests {
                 .map(|p| HgPathBuf::from_bytes(p.as_bytes()))
                 .collect::<Vec<_>>();
             assert_eq!(
-                includes, expected_includes,
+                expected_includes, includes,
                 "wrong includes for shape {}",
                 shard_name
             );
             assert_eq!(
-                excludes, expected_excludes,
+                expected_excludes, excludes,
                 "wrong excludes for shape {}",
                 shard_name
             );
@@ -1096,12 +1096,12 @@ mod tests {
 
         // Make sure we've tested all names
         assert_eq!(
+            all_shape_names,
             shape_to_patterns
                 .iter()
                 .map(|(n, _)| *n)
                 .sorted()
                 .collect::<Vec<&str>>(),
-            all_shape_names
         );
     }
 
@@ -1352,7 +1352,7 @@ mod tests {
                 .expect("should be syntactically valid");
             let actual_error = StoreShards::from_config(config)
                 .expect_err("should be an error at this stage");
-            assert_eq!(&actual_error, expected_error);
+            assert_eq!(expected_error, &actual_error);
         }
     }
 }
