@@ -878,6 +878,9 @@ mod tests {
 
     use super::*;
 
+    /// produce a valid store sharding
+    ///
+    /// See [`test_patterns`] for each shard patterns.
     fn valid_store_shards() -> (StoreShards, Vec<&'static str>) {
         // Leading whitespace does not matter in TOML, I think this is more
         // readable
@@ -1040,7 +1043,7 @@ mod tests {
             );
         }
 
-        // Test the patterns for each shape
+        // Test the patterns for each shape (<include>, <exclude>)
         type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
         let shape_to_patterns: &[(&str, Patterns)] = &[
             ("full", (&[""], &[])),
@@ -1111,26 +1114,53 @@ mod tests {
         let (store_shards, all_shape_names) = valid_store_shards();
 
         let files_to_shape: &[(&str, &[&str])] = &[
+            // the core mercurial file shoudl always be included
+            (".hgignore", &all_shape_names),
+            (".hgsub", &all_shape_names),
+            (".hgsubstate", &all_shape_names),
+            (".hgtags", &all_shape_names),
+            // babar is not matched by any explicit shard,
+            // So it selected by "base". In addition "foo" depends on "base"
             ("babar/v", &["full", "base", "foo"]),
+            // `bar/` is matched by the "bar" shard and its dependencies
             ("bar/ba/v", &["full", "bar", "baron", "bazik"]),
+            // we match full name only
+            ("barbar/v", &["full", "base", "foo"]),
+            // However `bar/baz` is explicitly matched by "baz" (a shard), so
+            // it isn't contained in "bar". It appears in "foo" (a
+            // shape that include on "baz")
             ("bar/baz/f", &["full", "foo"]),
             ("bar/baz/g", &["full", "foo"]),
             ("bar/baz/i", &["full", "foo"]),
+            ("bar/baz/blu/toto", &["full", "foo"]),
+            // We match full name only
+            ("bar/bazar", &["full", "bar", "baron", "bazik"]),
+            // Again `bar/bar/ik` is matched by the "bazik" shard so it is
+            // considered independently
             ("bar/baz/ik/U/j", &["full", "bazik"]),
             ("bar/baz/ik/U/k", &["full", "bazik"]),
             ("bar/baz/ik/U/m", &["full", "bazik"]),
             ("bar/baz/ik/h", &["full", "bazik"]),
             ("bar/baz/ik/i", &["full", "bazik"]),
             ("bar/baz/ik/o/l", &["full", "bazik"]),
+            // `bar/baz/ik/u` is part of the "baziku" shard included in the
+            // "baron" sharp
             ("bar/baz/ik/u/j", &["full", "baron"]),
             ("bar/baz/ik/u/k", &["full", "baron"]),
             ("bar/baz/ik/u/m", &["full", "baron"]),
+            ("bar/baz/ik/u/klm/foo", &["full", "baron"]),
+            // We match full name only
+            ("bar/baz/ik/ups", &["full", "bazik"]),
+            ("bar/baz/ik/ups/klm/bar", &["full", "bazik"]),
+            // both "baron" and "bazik" includes "bar"
             ("bar/d", &["full", "bar", "baron", "bazik"]),
             ("bar/e", &["full", "bar", "baron", "bazik"]),
+            // `foo/` is matched by the "foo" shape and no other
             ("foo/a", &["full", "foo"]),
             ("foo/b", &["full", "foo"]),
             ("foo/c", &["full", "foo"]),
             ("foo/y", &["full", "foo"]),
+            // various unmatched stuff
             ("oops", &["full", "base", "foo"]),
             ("w", &["full", "base", "foo"]),
             ("y", &["full", "base", "foo"]),
