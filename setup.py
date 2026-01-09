@@ -936,20 +936,21 @@ class hginstallcompletion(Command):
         return self.outputs
 
     def run(self):
+        msc = 'mercurial/shell_completion'
         for src, dir_path, dest in (
             (
-                'bash_completion',
+                'bash',
                 ('share', 'bash-completion', 'completions'),
                 'hg',
             ),
-            ('zsh_completion', ('share', 'zsh', 'site-functions'), '_hg'),
+            ('zsh', ('share', 'zsh', 'site-functions'), '_hg'),
         ):
             dir = os.path.join(self.install_dir, *dir_path)
             self.mkpath(dir)
 
             dest = os.path.join(dir, dest)
             self.outputs.append(dest)
-            self.copy_file(os.path.join('contrib', src), dest)
+            self.copy_file(os.path.join(msc, src), dest)
 
 
 cmdclass = {
@@ -987,6 +988,7 @@ packages = [
     'mercurial.pure',
     'mercurial.stabletailgraph',
     'mercurial.store_utils',
+    'mercurial.shell_completion',
     'mercurial.templates',
     'mercurial.thirdparty',
     'mercurial.thirdparty.attr',
@@ -1330,6 +1332,11 @@ packagedata = {
     ],
     'mercurial.helptext.internals': [
         '*.txt',
+    ],
+    'mercurial.shell_completion': [
+        'bash',
+        'zsh',
+        'tcsh',
     ],
     'mercurial.thirdparty.attr': [
         '*.pyi',

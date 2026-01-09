@@ -22,6 +22,7 @@ from . import (
     tables,
     transaction,
 )
+from .cmd_impls import completion as completion_impl
 
 
 if typing.TYPE_CHECKING:
@@ -37,10 +38,11 @@ if policy.has_rust():
 
 
 def init():
-    """noop function that is called to make sure the module is loaded and has
+    """make sure the module is loaded and has
     registered the necessary items.
 
     See `mercurial.initialization` for details"""
+    completion_impl.init()
 
 
 command = registrar.command(tables.command_table)

@@ -381,6 +381,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -518,6 +520,8 @@ Testing -h/--help:
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest

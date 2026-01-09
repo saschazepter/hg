@@ -129,6 +129,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -262,6 +264,8 @@ the extension is unknown.
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -624,6 +628,8 @@ Test ambiguous command help
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
   
@@ -2703,6 +2709,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   Narrow-related server administration utils. (EXPERIMENTAL)
+  </td></tr>
+  <tr><td>
+  <a href="/help/admin::setup-shell-completion">
+  admin::setup-shell-completion
+  </a>
+  </td><td>
+  Setup shell auto-completion for the current user
   </td></tr>
   <tr><td>
   <a href="/help/admin::verify">

@@ -2124,6 +2124,10 @@ help/ shows help topics
         "topic": "admin::narrow-server"
       },
       {
+        "summary": "Setup shell auto-completion for the current user",
+        "topic": "admin::setup-shell-completion"
+      },
+      {
         "summary": "verify the integrity of the repository",
         "topic": "admin::verify"
       },

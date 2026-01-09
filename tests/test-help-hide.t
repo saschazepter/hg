@@ -77,6 +77,8 @@ Test hiding some commands (which also happens to hide an entire category).
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest
@@ -218,6 +220,8 @@ Test hiding some topics.
   
   Repository maintenance:
   
+   admin::setup-shell-completion
+                 Setup shell auto-completion for the current user
    admin::verify
                  verify the integrity of the repository
    manifest      output the current or given revision of the project manifest

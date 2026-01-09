@@ -2,6 +2,8 @@
 
 == New Features ==
 
+* automated setup of shell compression through the `hg admin::setup-shell-completion` command.
+
 == Default Format Change ==
 
 These changes affect newly created repositories (or new clones) done with
