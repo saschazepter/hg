@@ -24,6 +24,10 @@ Setup the server shapes config
   $ cat > .hg/store/server-shapes <<EOF
   > version = 0
   > [[shards]]
+  > name = "default"
+  > requires = ["base"]
+  > shape = true
+  > [[shards]]
   > name = "secrets"
   > requires = ["other-secret"]
   > paths = ["secret"]
@@ -41,7 +45,7 @@ Check that the fingerprints match between semantically identical shapes and
 that shards not declared as shapes (here "secret") is not listed
 
   $ hg admin::narrow-server --shape-fingerprints
-  a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5 base
+  a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5 default
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full-manual
   3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6 other-secret
@@ -50,7 +54,7 @@ that shards not declared as shapes (here "secret") is not listed
   [
    {
     "fingerprint": "a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5",
-    "name": "base"
+    "name": "default"
    },
    {
     "fingerprint": "00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea",
@@ -69,7 +73,7 @@ that shards not declared as shapes (here "secret") is not listed
 
 Check that we generate the correct narrow patterns for every shape
 
-  $ hg admin::narrow-server --shape-patterns base
+  $ hg admin::narrow-server --shape-patterns default
   inc:/
   exc:/foo/bar/other-secret
   exc:/secret
@@ -114,7 +118,7 @@ Check that we generate the correct narrow patterns for every shape
 
 Test the legacy narrow patterns option
 
-  $ hg admin::narrow-server --shape-narrow-patterns base
+  $ hg admin::narrow-server --shape-narrow-patterns default
   [include]
   path:.
   [exclude]
@@ -167,7 +171,7 @@ Test listing files
 ------------------
 
 We don't have files yet
-  $ hg admin::narrow-server --shape-files base
+  $ hg admin::narrow-server --shape-files default
 
 Add files
   $ mkdir -p foo/bar/other-secret secret dir1
@@ -175,7 +179,7 @@ Add files
   $ hg commit -Aqm0
 
 Test that only matching files are listed
-  $ hg admin::narrow-server --shape-files base
+  $ hg admin::narrow-server --shape-files default
   dir1/file1
   file1
   file2
@@ -186,7 +190,7 @@ Test that only matching files are listed
   foo/bar/other-secret/secret-file
   foo/bar/other-secret/secret-file2
 
-  $ hg admin::narrow-server --shape-files base
+  $ hg admin::narrow-server --shape-files default
   dir1/file1
   file1
   file2

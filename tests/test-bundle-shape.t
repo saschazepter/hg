@@ -70,6 +70,10 @@ Create shapes config
   $ cat >> source/.hg/store/server-shapes << EOF
   > version = 0
   > [[shards]]
+  > name = "default"
+  > requires = ["base"]
+  > shape = true
+  > [[shards]]
   > name = "excluded1"
   > paths = ["excluded"]
   > [[shards]]
@@ -90,10 +94,10 @@ Test with an unknown shape
   abort: unknown shape: 'foo'
   [10]
 
-Test with the base shape
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=base" outfile-shape-base.hg
+Test with the default shape
+  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default" outfile-shape-default.hg
 
-  $ hg debugbundle outfile-shape-base.hg | grep -E 'store-fingerprint: [0-9a-f]{64}'
+  $ hg debugbundle outfile-shape-default.hg | grep -E 'store-fingerprint: [0-9a-f]{64}'
   stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: 961e3d6d14621106b59a576aa6d8907d3f4734ea3f04c01d0bdff031b5572b19} (mandatory: True) (glob)
 
 Add a full non-fingerprinted streaming clone for reference and fallback testing

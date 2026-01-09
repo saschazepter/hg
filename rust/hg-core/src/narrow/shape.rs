@@ -232,7 +232,7 @@ impl StoreShards {
         shards.push(ShardConfig {
             name: "base".to_string(),
             paths: Some(vec!["".to_string()]),
-            shape: true,
+            shape: false,
             requires: None,
         });
         shards.push(ShardConfig {
@@ -1036,8 +1036,8 @@ mod tests {
         );
 
         let all_shape_names = vec![
-            "bar", "baron", "base", "bazik", "borden", "chamber", "foo",
-            "full", "mummy", "nested", "stone",
+            "bar", "baron", "bazik", "borden", "chamber", "foo", "full",
+            "mummy", "nested", "stone",
         ];
         // Shapes are as expected, along with the implicit shapes
         assert_eq!(
@@ -1142,10 +1142,6 @@ mod tests {
         type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
         let shape_to_patterns: &[(&str, Patterns)] = &[
             ("full", (&[""], &[])),
-            (
-                "base",
-                (&[""], &["bar", "foo", "some/super/nested/file", "stone"]),
-            ),
             (
                 "bar",
                 (
@@ -1292,11 +1288,11 @@ mod tests {
             (".hgtags", &all_shape_names),
             // babar is not matched by any explicit shard,
             // So it selected by "base". In addition "foo" depends on "base"
-            ("babar/v", &["full", "base", "foo"]),
+            ("babar/v", &["full", "foo"]),
             // `bar/` is matched by the "bar" shard and its dependencies
             ("bar/ba/v", &["full", "bar", "baron", "bazik"]),
             // we match full name only
-            ("barbar/v", &["full", "base", "foo"]),
+            ("barbar/v", &["full", "foo"]),
             // However `bar/baz` is explicitly matched by "baz" (a shard), so
             // it isn't contained in "bar". It appears in "foo" (a
             // shape that include on "baz")
@@ -1365,11 +1361,11 @@ mod tests {
             ("stone/liz/zie/bor/den", &["full", "borden"]),
             ("stone/liz/zie/bor/den/babar", &["full", "borden"]),
             // various unmatched stuff
-            ("oops", &["full", "base", "foo"]),
-            ("some/super/other/nested", &["full", "base", "foo"]),
-            ("w", &["full", "base", "foo"]),
-            ("y", &["full", "base", "foo"]),
-            ("z", &["full", "base", "foo"]),
+            ("oops", &["full", "foo"]),
+            ("some/super/other/nested", &["full", "foo"]),
+            ("w", &["full", "foo"]),
+            ("y", &["full", "foo"]),
+            ("z", &["full", "foo"]),
         ];
 
         let shape_to_matcher: Vec<_> = all_shape_names

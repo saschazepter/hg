@@ -2704,6 +2704,10 @@ mod tests {
         name = "test"
         requires = ["a", "abc"]
         shape = true
+        [[shards]]
+        name = "default"
+        requires = ["base"]
+        shape = true
         "#;
 
         let store_shards =
@@ -2715,7 +2719,7 @@ mod tests {
         assert!(matcher.matches(HgPath::new("a/b/c")));
         assert!(matcher.matches(HgPath::new("a/b/c/d/e/f/nested thing")));
         assert!(!matcher.matches(HgPath::new("rootfile")));
-        let shape = store_shards.shape("base").unwrap().unwrap();
+        let shape = store_shards.shape("default").unwrap().unwrap();
         let matcher = ShapeMatcher::new(shape);
         assert!(!matcher.matches(HgPath::new("a")));
         assert!(matcher.matches(HgPath::new("rootfile")));
