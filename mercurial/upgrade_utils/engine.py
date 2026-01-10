@@ -23,6 +23,7 @@ from .. import (
     error,
     metadata,
     pycompat,
+    requirements as requirementsmod,
     scmutil,
     store,
     transaction,
@@ -498,25 +499,32 @@ def upgrade(
 
     # Fast path for upgrading from fncache to file index.
     if upgrade_actions.file_index_v1 in upgrade_op.upgrade_actions:
-        if not {upgrade_actions.fncache, upgrade_actions.dotencode}.issubset(
-            upgrade_op.removed_actions
-        ):
+        if upgrade_actions.fncache not in upgrade_op.removed_actions:
             raise error.ProgrammingError(
-                b'adding fileindex-v1 must remove fncache and dotencode'
+                b'adding fileindex-v1 must remove fncache'
             )
+        removing_dotencode = (
+            upgrade_actions.dotencode in upgrade_op.removed_actions
+        )
+        preserving_plain_encode = requirementsmod.PLAIN_ENCODE_REQUIREMENT in (
+            upgrade_op.current_requirements & upgrade_op.new_requirements
+        )
+        # Fast path is only for these two cases.
+        if removing_dotencode or preserving_plain_encode:
+            other_upgrade = upgrade_op.upgrade_actions.copy()
+            other_remove = upgrade_op.removed_actions.copy()
+            other_upgrade.remove(upgrade_actions.file_index_v1)
+            other_remove.remove(upgrade_actions.fncache)
+            if removing_dotencode:
+                other_remove.remove(upgrade_actions.dotencode)
+            if not (other_upgrade or other_remove):
+                ui.status(_(b'upgrading from fncache to fileindex-v1\n'))
+                upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op)
 
-        other_upgrade = upgrade_op.upgrade_actions.copy()
-        other_remove = upgrade_op.removed_actions.copy()
-        other_upgrade.remove(upgrade_actions.file_index_v1)
-        other_remove.remove(upgrade_actions.fncache)
-        other_remove.remove(upgrade_actions.dotencode)
-        if not (other_upgrade or other_remove):
-            ui.status(_(b'upgrading from fncache to fileindex-v1\n'))
-            upgrade_fncache_to_fileindex(ui, srcrepo, upgrade_op)
-
-            upgrade_op.upgrade_actions.remove(upgrade_actions.file_index_v1)
-            upgrade_op.removed_actions.remove(upgrade_actions.fncache)
-            upgrade_op.removed_actions.remove(upgrade_actions.dotencode)
+                upgrade_op.upgrade_actions.remove(upgrade_actions.file_index_v1)
+                upgrade_op.removed_actions.remove(upgrade_actions.fncache)
+                if removing_dotencode:
+                    upgrade_op.removed_actions.remove(upgrade_actions.dotencode)
 
     if not (upgrade_op.upgrade_actions or upgrade_op.removed_actions):
         return

@@ -1,15 +1,17 @@
+use std::cmp::Ordering;
 use std::path::Path;
 
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::file_patterns::parse_pattern_file_contents;
 use crate::file_patterns::FilePattern;
+use crate::file_patterns::PatternSyntax;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
 use crate::matchers::Matcher;
 use crate::matchers::NeverMatcher;
-use crate::narrow::shape::ShardTreeNode;
+use crate::narrow::shape::Shape;
 use crate::repo::Repo;
 use crate::requirements::NARROW_REQUIREMENT;
 use crate::sparse::SparseConfigError;
@@ -31,6 +33,21 @@ const DIRSTATE_FILENAME: &str = "narrowspec.dirstate";
 /// lightly - especially removals.
 pub const VALID_PREFIXES: [&str; 2] = ["path:", "rootfilesin:"];
 
+/// Compares two patterns.
+///
+/// [`FilePattern`] does not implement [`Ord`] because it's complicated with
+/// [`PatternSyntax::Include`], but for narrowspecs we only have to deal with
+/// the types of patterns allowed by [`VALID_PREFIXES`].
+fn cmp_patterns(lhs: &FilePattern, rhs: &FilePattern) -> Ordering {
+    let kind = |pattern: &FilePattern| match pattern.syntax {
+        PatternSyntax::Path => 0,
+        PatternSyntax::RootFilesIn => 1,
+        _ => panic!("narrowspec only allows path: and rootfilesin:"),
+    };
+    let key = |pattern| (kind(pattern), &pattern.raw);
+    Ord::cmp(&key(lhs), &key(rhs))
+}
+
 /// Return the matcher for the current narrow spec, and all configuration
 /// warnings to display.
 pub fn matcher(
@@ -40,9 +57,7 @@ pub fn matcher(
     if !repo.requirements().contains(NARROW_REQUIREMENT) {
         return Ok(Box::new(AlwaysMatcher));
     }
-    let store_spec = store_spec(repo)?;
-
-    let patterns = patterns_from_spec(warnings, &store_spec)?;
+    let patterns = store_patterns(warnings, repo)?;
 
     let Some((include_patterns, exclude_patterns)) = patterns else {
         return Ok(Box::new(NeverMatcher));
@@ -54,11 +69,11 @@ pub fn matcher(
     // `rootfilesin:` does not use the new logic yet because they make the code
     // more complex and are not needed by shapes. Maybe we'll end up
     // implementing it.
-    if let Ok(tree) =
-        ShardTreeNode::from_patterns(&include_patterns, &exclude_patterns)
+    if let Ok(shape) =
+        Shape::from_patterns(&include_patterns, &exclude_patterns)
     {
-        let new_matcher = tree.matcher();
-        return Ok(new_matcher);
+        let new_matcher = shape.matcher();
+        return Ok(Box::new(new_matcher));
     }
 
     // Fall back to the old way of matching
@@ -73,26 +88,34 @@ pub fn matcher(
     Ok(m)
 }
 
-/// Get the store narrow spec for `repo`.
+/// Get the store narrow patterns for `repo`.
 ///
 /// # Errors
 ///
-/// Will return an error if the working copy's narrowspec doesn't match the
-/// one from the store.
-pub fn store_spec(repo: &Repo) -> Result<Vec<u8>, HgError> {
+/// Will return an error if the working copy's narrowspec doesn't contain the
+/// same patterns as the one from the store, or if either fail to parse.
+pub fn store_patterns(
+    warnings: &HgWarningSender,
+    repo: &Repo,
+) -> Result<Option<NarrowPatterns>, HgError> {
     // Treat "narrowspec does not exist" the same as "narrowspec file exists
     // and is empty
-    let store_spec = repo.store_vfs().try_read(FILENAME)?.unwrap_or_default();
-    let working_copy_spec =
-        repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or_default();
-    if store_spec != working_copy_spec {
+    let store_patterns = patterns_from_spec(
+        warnings,
+        &repo.store_vfs().try_read(FILENAME)?.unwrap_or_default(),
+    )?;
+    let working_copy_patterns = patterns_from_spec(
+        warnings,
+        &repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or_default(),
+    )?;
+    if store_patterns != working_copy_patterns {
         return Err(HgError::abort(
             "abort: working copy's narrowspec is stale",
             exit_codes::STATE_ERROR,
             Some("run 'hg tracked --update-working-copy'".into()),
         ));
     }
-    Ok(store_spec)
+    Ok(store_patterns)
 }
 
 /// Raw patterns as deserialized and validated
@@ -117,7 +140,7 @@ pub fn patterns_from_spec(
     if config.includes.is_empty() {
         return Ok(None);
     }
-    let include_patterns = parse_pattern_file_contents(
+    let mut include_patterns = parse_pattern_file_contents(
         &config.includes,
         Path::new(""),
         None,
@@ -125,7 +148,7 @@ pub fn patterns_from_spec(
         true,
         warnings,
     )?;
-    let exclude_patterns = parse_pattern_file_contents(
+    let mut exclude_patterns = parse_pattern_file_contents(
         &config.excludes,
         Path::new(""),
         None,
@@ -133,6 +156,8 @@ pub fn patterns_from_spec(
         true,
         warnings,
     )?;
+    include_patterns.sort_by(cmp_patterns);
+    exclude_patterns.sort_by(cmp_patterns);
     Ok(Some((include_patterns, exclude_patterns)))
 }
 

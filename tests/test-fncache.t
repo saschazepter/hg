@@ -482,3 +482,62 @@ but adding new files should:
   fncache load triggered!
 
   $ cd ..
+
+Behavior around strip
+---------------------
+
+  $ hg clone nofncacheload strip-test
+  fncache load triggered!
+  fncache load triggered!
+  updating to branch default
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  fncache load triggered!
+  $ cd strip-test
+
+We starts with a valid repository
+
+  $ hg verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 5 changesets with 5 changes to 3 files
+  $ cat .hg/store/fncache | sort
+  data/bar.i
+  data/foo.i
+  data/newfile.i
+
+That contains 3 file, the last of which added in the last changeset
+
+  $ hg manifest --all
+  bar
+  foo
+  newfile
+  $ hg status --change 4
+  A newfile
+
+We strip that change, removing the file
+
+  $ hg debugstrip --rev 4
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/strip-test/.hg/strip-backup/dc782f6e0b2d-71d6a2b0-backup.hg
+  $ hg manifest --all
+  bar
+  foo
+
+The repository should still be valid
+
+  $ hg verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  checking dirstate
+  checked 4 changesets with 4 changes to 2 files
+  $ cat .hg/store/fncache | sort
+  data/bar.i
+  data/foo.i
+
+
+  $ cd ..

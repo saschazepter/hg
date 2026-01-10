@@ -2,11 +2,31 @@ Test stream cloning while a revlog split happens
 ------------------------------------------------
 
 #testcases stream-bundle2-v2 stream-bundle2-v3
+#testcases fncache fileindex
 
 #if stream-bundle2-v3
   $ cat << EOF >> $HGRCPATH
   > [experimental]
   > stream-v3 = yes
+  > EOF
+#endif
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
   > EOF
 #endif
 
@@ -192,3 +212,13 @@ subsequent pull work
   checking files
   checking dirstate
   checked 4 changesets with 4 changes to 1 files
+
+Cloning after the split also works
+
+  $ hg clone --stream -U http://localhost:$HGPORT1 clone-after-split
+  streaming all changes
+  10 files to transfer, 130 KB of data (stream-bundle2-v2 no-rust !)
+  12 files to transfer, 131 KB of data (stream-bundle2-v2 rust !)
+  8 entries to transfer (stream-bundle2-v3 !)
+  stream-cloned 10 files / 130 KB in * seconds (* */sec) (glob) (no-rust !)
+  stream-cloned 12 files / 131 KB in * seconds (* */sec) (glob) (rust !)

@@ -1599,11 +1599,7 @@ impl InnerRevlog {
     /// Raises `ValueError` if `nt` has existing data that is inconsistent
     /// with `idx`.
     fn fill_nodemap(idx: &Index, nt: &mut CoreNodeTree) -> PyResult<()> {
-        for r in 0..idx.len() {
-            let rev = Revision(r as BaseRevision);
-            nt.insert(idx, idx.node(rev), rev).map_err(nodemap_error)?
-        }
-        Ok(())
+        nt.catch_up_to_index(idx, Revision(0)).map_err(nodemap_error)
     }
 
     /// Return a working NodeTree of this InnerRevlog

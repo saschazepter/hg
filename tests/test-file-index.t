@@ -666,6 +666,26 @@ Test an upgrade, preserving fileindex, that does not touch filelogs (exp-changel
   copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
   the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
 
+Downgrade to fncache with plain encoding
+  $ hg debugupgrade --config format.use-fileindex-v1=0 --config format.dotencode=0 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=1 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
+Upgrade to file index, preserving plain encoding
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=1 --run > /dev/null
+
+Downgrade to fncache with neither dotencode nor plain encoding
+  $ hg debugupgrade --config format.use-fileindex-v1=0 --config format.dotencode=0 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=0 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
+Upgrade directly from non-dotencode fncache to file index (uses slow path)
+  $ hg debugupgrade --config format.use-fileindex-v1=1 --config format.exp-use-very-fragile-and-unsafe-plain-store-encoding=0 --run > /dev/null
+  copy of old repository backed up at $TESTTMP/repoupgrade/.hg/upgradebackup.* (glob)
+  the old repository will not be deleted; remove it to free up disk space once the upgraded repository is verified
+
+  $ cd ..
+
 Test compatiblity of Python and Rust implementations
 ----------------------------------------------------
 
@@ -824,8 +844,9 @@ Test long paths
   $ path=$("$PYTHON" -c 'print("long/" * 99 + "f.txt")')
   $ echo ${#path}
   500
-  $ mkdir -p $(dirname $path)
-  $ touch $path
+  >>> import os
+  >>> os.makedirs(os.path.dirname("$path"))
+  >>> open("$path", 'wb').close()
   $ hg commit -qAm 0
   $ hg debug::file-index --path $path | sed "s|$path|\$path|"
   1: $path

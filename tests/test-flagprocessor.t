@@ -204,14 +204,14 @@ Ensure the data got to the server OK
   > duplicate=$TESTDIR/flagprocessorext.py
   > EOF
   $ hg debugrebuilddirstate 2>&1 | grep -E 'cannot register multiple processors|flagprocessorext'
-    File "*/tests/flagprocessorext.py", line *, in extsetup (glob)
+    File "$TESTDIR/flagprocessorext.py", line *, in extsetup (glob)
   mercurial.error.Abort: cannot register multiple processors on flag '0x8'.
   *** failed to set up extension duplicate: cannot register multiple processors on flag '0x8'.
   $ hg st 2>&1 | grep -E 'cannot register multiple processors|flagprocessorext'
-    File "*/tests/flagprocessorext.py", line *, in extsetup (glob)
+    File "$TESTDIR/flagprocessorext.py", line *, in extsetup (glob)
   mercurial.error.Abort: cannot register multiple processors on flag '0x8'.
   *** failed to set up extension duplicate: cannot register multiple processors on flag '0x8'.
-    File "*/tests/flagprocessorext.py", line *, in b64decode (glob)
+    File "$TESTDIR/flagprocessorext.py", line *, in b64decode (glob)
 
   $ cd ..
 

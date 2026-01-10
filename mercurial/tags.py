@@ -944,27 +944,28 @@ class hgtagsfnodescache:
                 else:
                     # No delta and .hgtags file on this revision.
                     fnode = self._repo.nullid
-        elif base_values and has_fast_delta and deltaparent != nullrev:
+        else:
             parents = [
                 p
                 for p in rl.parentrevs(m_rev)
                 if p is not nullrev and p in base_values
             ]
-            # XXX lazy assumption that the higher parent will be closer
-            # We should pick the parent with the longer common chain,
-            p = max(parents)
-            d = mdiff.patchtext(rl.revdiff(p, m_rev))
-            m = manifest.manifestdict(rl.nodeconstants.nodelen, d)
-            fnode = m.get(b'.hgtags')
-            if fnode is None:
-                fnode = base_values[p]
-        else:
-            # Populate missing entry.
-            try:
-                fnode = ctx.filenode(b'.hgtags')
-            except error.LookupError:
-                # No .hgtags file on this revision.
-                fnode = self._repo.nullid
+            if parents and has_fast_delta and deltaparent != nullrev:
+                # XXX lazy assumption that the higher parent will be closer
+                # We should pick the parent with the longer common chain,
+                p = max(parents)
+                d = mdiff.patchtext(rl.revdiff(p, m_rev))
+                m = manifest.manifestdict(rl.nodeconstants.nodelen, d)
+                fnode = m.get(b'.hgtags')
+                if fnode is None:
+                    fnode = base_values[p]
+            else:
+                # Populate missing entry.
+                try:
+                    fnode = ctx.filenode(b'.hgtags')
+                except error.LookupError:
+                    # No .hgtags file on this revision.
+                    fnode = self._repo.nullid
         return fnode
 
     def setfnode(self, node, fnode):

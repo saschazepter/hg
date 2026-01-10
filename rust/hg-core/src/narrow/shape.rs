@@ -3,7 +3,6 @@
 
 use std::collections::HashSet;
 use std::io::Write;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
@@ -22,12 +21,7 @@ use crate::exit_codes;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternSyntax;
-use crate::matchers::AlwaysMatcher;
-use crate::matchers::DifferenceMatcher;
-use crate::matchers::Matcher;
-use crate::matchers::NeverMatcher;
-use crate::matchers::PatternMatcher;
-use crate::matchers::UnionMatcher;
+use crate::matchers::ShapeMatcher;
 use crate::repo::Repo;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
@@ -229,7 +223,7 @@ impl StoreShards {
         Ok(Self::from_config(config)?)
     }
 
-    fn from_config(config: ShapesConfig) -> Result<Self, Error> {
+    pub(crate) fn from_config(config: ShapesConfig) -> Result<Self, Error> {
         let ShapesConfig { version, mut shards } = config;
         if version != 0 {
             return Err(Error::UnknownVersion(version as usize));
@@ -411,10 +405,10 @@ impl StoreShards {
 /// Represents a named narrow view into the repo's files (at the history level).
 ///
 /// This is a user-facing concept.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Shape {
     name: ShardName,
-    tree: ShardTreeNode,
+    pub(crate) tree: ShardTreeNode,
 }
 
 impl Shape {
@@ -433,8 +427,8 @@ impl Shape {
     }
 
     /// Returns a [`Matcher`] that expresses the constraints of this shape
-    pub fn matcher(&self) -> Box<dyn Matcher + Send> {
-        self.tree.matcher()
+    pub fn matcher(&self) -> ShapeMatcher {
+        ShapeMatcher::new(self.to_owned())
     }
 
     pub fn store_fingerprint(&self) -> [u8; 32] {
@@ -442,15 +436,20 @@ impl Shape {
     }
 
     pub fn patterns(&self) -> (Vec<HgPathBuf>, Vec<HgPathBuf>) {
-        let (includes, excludes) = self.tree.flat();
-        (
-            includes.into_iter().map(|i| i.to_hg_path_buf()).collect(),
-            excludes.into_iter().map(|i| i.to_hg_path_buf()).collect(),
-        )
+        self.tree.flat()
     }
 
     pub fn name(&self) -> &ShardName {
         &self.name
+    }
+
+    pub fn from_patterns(
+        includes: &[FilePattern],
+        excludes: &[FilePattern],
+    ) -> Result<Self, Error> {
+        let tree = ShardTreeNode::from_patterns(includes, excludes)?;
+        let name = ShardName::new("hg-internal".into()).expect("valid name");
+        Ok(Self { name, tree })
     }
 }
 
@@ -483,24 +482,21 @@ pub struct ShapesConfig {
     shards: Vec<ShardConfig>,
 }
 
-/// A node within a tree of narrow patterns.
-///
-/// It is used to create a normalized representation of potentially nested
-/// include and exclude patterns to uniquely identify semantically equivalent
-/// rules, as well as generating an associated file matcher.
+/// A temporary structure useful to create a [`ShardTreeNode`], since it
+/// temporarily requires mutable aliasing.
 #[derive(Clone)]
-pub struct ShardTreeNode {
-    /// The path (rooted by `b""`) that this node concerns
+pub struct TempShardTreeNode {
+    /// The [`ZeroPath`] (rooted by `b""`) that this node concerns
     path: ZeroPath,
     /// Whether this path is included or excluded
     included: bool,
-    /// The set of child nodes (describing rules for sub-paths)
-    children: Vec<Arc<PanickingRwLock<ShardTreeNode>>>,
+    /// The set of mutably aliased child nodes (describing rules for sub-paths)
+    children: Vec<Arc<PanickingRwLock<Self>>>,
 }
 
-impl std::fmt::Debug for ShardTreeNode {
+impl std::fmt::Debug for TempShardTreeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ShardTreeNode")
+        f.debug_struct("TempShardTreeNode")
             .field("path", &self.path)
             .field("included", &self.included)
             // Remove the `RwLock` noise from the debug output
@@ -514,6 +510,41 @@ impl std::fmt::Debug for ShardTreeNode {
             )
             .finish()
     }
+}
+
+impl TempShardTreeNode {
+    /// `true` if `self` is a sub-path of `other`
+    fn sub_path_of(&self, other: &Self) -> bool {
+        // Paths are both `ZeroPath`, which ensures this property.
+        self.path.sub_path_of(&other.path)
+    }
+    /// Create a [`ShardTreeNode`] from this finished temp tree
+    fn finish(&self) -> ShardTreeNode {
+        ShardTreeNode {
+            path: HgPathBuf::from(&self.path),
+            included: self.included,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.read().finish())
+                .collect(),
+        }
+    }
+}
+
+/// A node within a tree of narrow patterns.
+///
+/// It is used to create a normalized representation of potentially nested
+/// include and exclude patterns to uniquely identify semantically equivalent
+/// rules, as well as generating an associated file matcher.
+#[derive(Clone, Debug)]
+pub struct ShardTreeNode {
+    /// The path (rooted by `b""`) that this node concerns
+    pub(crate) path: HgPathBuf,
+    /// Whether this path is included or excluded
+    pub(crate) included: bool,
+    /// The set of child nodes (describing rules for sub-paths)
+    pub(crate) children: Vec<Self>,
 }
 
 impl ShardTreeNode {
@@ -603,7 +634,7 @@ impl ShardTreeNode {
         // Generate a flat sequence of nodes, sorted via ZeroPath
         let mut nodes = paths
             .map(|path| {
-                Ok(Arc::new(PanickingRwLock::new(Self {
+                Ok(Arc::new(PanickingRwLock::new(TempShardTreeNode {
                     path: ZeroPath::new(path.as_ref())?,
                     included: includes.contains(path.as_ref()),
                     children: vec![],
@@ -614,7 +645,7 @@ impl ShardTreeNode {
 
         // Create the tree by looping over the nodes and keeping track of
         // where we are in the recursion via a stack
-        let mut stack: Vec<Arc<PanickingRwLock<Self>>> = vec![];
+        let mut stack: Vec<Arc<PanickingRwLock<TempShardTreeNode>>> = vec![];
         for node in nodes {
             while !stack.is_empty()
                 && !node
@@ -638,50 +669,47 @@ impl ShardTreeNode {
             .expect("should have only one ref")
             .into_inner();
 
-        Ok(root)
+        Ok(root.finish())
     }
 
-    /// Returns a [`Matcher`] that expresses the constraints of this node
-    pub fn matcher(&self) -> Box<dyn Matcher + Send> {
-        let top_matcher = if self.path.is_empty() {
-            // We're the root node
-            if self.included {
-                Box::new(AlwaysMatcher) as Box<dyn Matcher + Send>
-            } else {
-                Box::new(NeverMatcher) as Box<dyn Matcher + Send>
-            }
-        } else {
-            Box::new(
-                PatternMatcher::new(vec![FilePattern::new(
-                    PatternSyntax::Path,
-                    HgPathBuf::from(&self.path).as_bytes(),
-                    Path::new(".hg/store/server-shapes"),
-                )])
-                .expect("patterns based on paths should always be valid"),
-            ) as Box<dyn Matcher + Send>
-        };
-        if self.children.is_empty() {
-            return top_matcher;
-        }
-        let sub_matcher = if self.children.len() == 1 {
-            self.children[0].read().matcher()
-        } else {
-            let subs: Vec<_> = self
-                .children
-                .iter()
-                .map(|child| {
-                    let child = child.read();
-                    assert_ne!(child.included, self.included);
-                    child.matcher()
-                })
-                .collect();
-            Box::new(UnionMatcher::new(subs)) as Box<dyn Matcher + Send>
-        };
+    /// Do not call this directly, use [`deepest_prefix_node`].
+    fn deepest_node_impl(&self, path: &HgPath, skip: usize) -> Option<&Self> {
+        let path_bytes = path.as_bytes();
+        let self_bytes = self.path.as_bytes();
 
-        if self.path.is_empty() && !self.included {
-            return sub_matcher;
+        // If the matched path doesn't match the current node, exit.
+        if !self_bytes.is_empty() // The root node matches all
+            && !(
+                // The matched path starts with the node path
+                path_bytes[skip..].starts_with(&self_bytes[skip..])
+                // ...up to a directory boundary or the end of the path
+                && (path_bytes.len() == self_bytes.len()
+                    || (path_bytes[self_bytes.len()] == b'/')))
+        {
+            return None;
         }
-        Box::new(DifferenceMatcher::new(top_matcher, sub_matcher))
+
+        // Check if a child has a better match
+        for child in &self.children {
+            assert_ne!(self.included, child.included);
+            let c_match = child.deepest_node_impl(path, self_bytes.len());
+            if c_match.is_some() {
+                // There can only be up to one matching child.
+                //
+                // The tree optimization ensures that the inclusion value of a
+                // node is always different than the inclusion value of its
+                // children. As a result, all children have the same inclusion
+                // value.
+                //
+                // So if two children were to match, it would mean that one of
+                // them would be a prefix of the other, with the same inclusion
+                // value, at the same level. In this  case the node with the
+                // longer match would be redundant with the other one, but in
+                // practice such nodes have been optimized away already.
+                return c_match;
+            }
+        }
+        Some(self)
     }
 
     /// Get the fingerprint for this node. It will return a different hash for
@@ -692,13 +720,8 @@ impl ShardTreeNode {
         hasher.finalize().into()
     }
 
-    /// `true` if `self` is a sub-path of `other`
-    fn sub_path_of(&self, other: &Self) -> bool {
-        self.path.starts_with(&other.path)
-    }
-
     /// Return the node normalized as two flat sets of includes and excludes
-    fn flat(&self) -> (Vec<ZeroPath>, Vec<ZeroPath>) {
+    fn flat(&self) -> (Vec<HgPathBuf>, Vec<HgPathBuf>) {
         let mut includes = vec![];
         let mut excludes = vec![];
 
@@ -709,7 +732,7 @@ impl ShardTreeNode {
         }
 
         for child in self.children.iter() {
-            let (sub_includes, sub_excludes) = child.read().flat();
+            let (sub_includes, sub_excludes) = child.flat();
             includes.extend(sub_includes);
             excludes.extend(sub_excludes);
         }
@@ -743,15 +766,32 @@ impl ShardTreeNode {
         let number_of_paths: u64 =
             sorted_paths.len().try_into().expect("too many paths");
         buf.write_all(&number_of_paths.to_le_bytes())?;
-        for (zero_path, included) in sorted_paths {
+        for (path, included) in sorted_paths {
             buf.write_all(if included { b"inc" } else { b"exc" })?;
             buf.write_all(b"/")?;
-            buf.write_all(zero_path.to_hg_path_buf().as_bytes())?;
+            buf.write_all(path.as_bytes())?;
             buf.write_all(b"\n")?;
         }
 
         Ok(())
     }
+}
+
+/// Returns the deepest node in `root` whose path is a prefix of
+/// (or is exactly) `path`.
+///
+/// # Panics
+///
+/// Panics if `root` is not the root node (i.e. if it has a non-empty path).
+pub(crate) fn deepest_prefix_node<'tree>(
+    root: &'tree ShardTreeNode,
+    path: &HgPath,
+) -> &'tree ShardTreeNode {
+    assert!(root.path.is_empty());
+    if path.is_empty() {
+        return root;
+    }
+    root.deepest_node_impl(path, 0).unwrap_or(root)
 }
 
 /// An [`HgPathBuf`] with all `/` in `path` replaced with `\0`, and surrounded
@@ -799,15 +839,11 @@ impl ZeroPath {
         Ok(Self(path))
     }
 
-    fn is_empty(&self) -> bool {
-        self.0 == b"\0"
-    }
-
     fn to_hg_path_buf(&self) -> HgPathBuf {
         self.into()
     }
 
-    fn starts_with(&self, other: &Self) -> bool {
+    fn sub_path_of(&self, other: &Self) -> bool {
         self.0.starts_with(&other.0)
     }
 }
@@ -877,7 +913,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::matchers::Matcher;
+    use crate::matchers::VisitChildrenSet;
 
+    /// produce a valid store sharding
+    ///
+    /// See [`test_patterns`] for each shard patterns.
     fn valid_store_shards() -> (StoreShards, Vec<&'static str>) {
         // Leading whitespace does not matter in TOML, I think this is more
         // readable
@@ -889,6 +930,40 @@ mod tests {
             paths = ["foo"]
             requires = ["baz", "base"]
             shape = true
+
+            [[shards]]
+            name = "stone"
+            paths = ["stone"]
+            shape = true
+
+            [[shards]]
+            name = "lizard"
+            paths = ["stone/liz/ard"]
+
+            [[shards]]
+            name = "lizzie"
+            paths = ["stone/liz/zie"]
+
+            [[shards]]
+            name = "borden"
+            paths = ["stone/liz/zie/bor/den"]
+            requires = ["stone"]
+            shape = true
+
+            [[shards]]
+            name = "mummy"
+            paths = ["stone/mummy"]
+            shape = true
+
+            [[shards]]
+            name = "chamber"
+            paths = ["stone/mummy/chamber"]
+            requires = ["stone"]
+            shape = true
+
+            [[shards]]
+            name = "inner"
+            paths = ["stone/mummy/chamber/inner"]
 
             [[shards]]
             name = "bar"
@@ -913,6 +988,11 @@ mod tests {
             name = "baron"
             requires = ["bar", "baziku"]
             shape = true
+
+            [[shards]]
+            name = "nested"
+            paths = ["some/super/nested/file"]
+            shape = true
         "#;
 
         // Make sure we can load this config
@@ -933,31 +1013,41 @@ mod tests {
             "baz",
             "bazik",
             "baziku",
+            "borden",
+            "chamber",
             "foo",
             "full",
+            "inner",
+            "lizard",
+            "lizzie",
+            "mummy",
+            "nested",
+            "stone",
         ];
         // Shards are as expected, along with the implicit shards
         assert_eq!(
+            all_shard_names,
             store_shards
                 .shards
                 .keys()
                 .sorted()
                 .map(|k| k.to_string())
                 .collect::<Vec<_>>(),
-            all_shard_names,
         );
 
-        let all_shape_names =
-            vec!["bar", "baron", "base", "bazik", "foo", "full"];
+        let all_shape_names = vec![
+            "bar", "baron", "base", "bazik", "borden", "chamber", "foo",
+            "full", "mummy", "nested", "stone",
+        ];
         // Shapes are as expected, along with the implicit shapes
         assert_eq!(
+            all_shape_names,
             store_shards
                 .all_shapes()
                 .unwrap()
                 .into_iter()
                 .map(|shape| shape.name().to_string())
                 .collect::<Vec<_>>(),
-            all_shape_names,
         );
         (store_shards, all_shape_names)
     }
@@ -981,7 +1071,7 @@ mod tests {
                 .sorted()
                 .map(|n| n.to_string());
             let dependencies = dependencies.collect::<Vec<String>>();
-            assert_eq!(dependencies, expected, "for shard {}", shard_name);
+            assert_eq!(expected, dependencies, "for shard {}", shard_name);
         }
 
         assert_dependencies(&store_shards, "bar", vec![".hg-files"]);
@@ -1001,7 +1091,15 @@ mod tests {
                 "baz",
                 "bazik",
                 "baziku",
+                "borden",
+                "chamber",
                 "foo",
+                "inner",
+                "lizard",
+                "lizzie",
+                "mummy",
+                "nested",
+                "stone",
             ],
         );
     }
@@ -1029,22 +1127,25 @@ mod tests {
                 .map(|p| HgPathBuf::from_bytes(p.as_bytes()))
                 .collect::<Vec<_>>();
             assert_eq!(
-                includes, expected_includes,
+                expected_includes, includes,
                 "wrong includes for shape {}",
                 shard_name
             );
             assert_eq!(
-                excludes, expected_excludes,
+                expected_excludes, excludes,
                 "wrong excludes for shape {}",
                 shard_name
             );
         }
 
-        // Test the patterns for each shape
+        // Test the patterns for each shape (<include>, <exclude>)
         type Patterns<'a> = (&'a [&'a str], &'a [&'a str]);
         let shape_to_patterns: &[(&str, Patterns)] = &[
             ("full", (&[""], &[])),
-            ("base", (&[""], &["bar", "foo"])),
+            (
+                "base",
+                (&[""], &["bar", "foo", "some/super/nested/file", "stone"]),
+            ),
             (
                 "bar",
                 (
@@ -1080,7 +1181,80 @@ mod tests {
                     &["", "bar/baz", "bar/baz/ik/u"],
                 ),
             ),
-            ("foo", (&["", "bar/baz"], &["bar", "bar/baz/ik"])),
+            (
+                "foo",
+                (
+                    &["", "bar/baz"],
+                    &["bar", "bar/baz/ik", "some/super/nested/file", "stone"],
+                ),
+            ),
+            (
+                "stone",
+                (
+                    &[".hgignore", ".hgsub", ".hgsubstate", ".hgtags", "stone"],
+                    &["", "stone/liz/ard", "stone/liz/zie", "stone/mummy"],
+                ),
+            ),
+            (
+                "borden",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone",
+                        "stone/liz/zie/bor/den",
+                    ],
+                    &["", "stone/liz/ard", "stone/liz/zie", "stone/mummy"],
+                ),
+            ),
+            (
+                "mummy",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone/mummy",
+                    ],
+                    &["", "stone/mummy/chamber"],
+                ),
+            ),
+            (
+                "chamber",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone",
+                        "stone/mummy/chamber",
+                    ],
+                    &[
+                        "",
+                        "stone/liz/ard",
+                        "stone/liz/zie",
+                        "stone/mummy",
+                        "stone/mummy/chamber/inner",
+                    ],
+                ),
+            ),
+            (
+                "nested",
+                (
+                    &[
+                        ".hgignore",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "some/super/nested/file",
+                    ],
+                    &[""],
+                ),
+            ),
         ];
 
         for (shard_name, (expected_includes, expected_excludes)) in
@@ -1096,42 +1270,103 @@ mod tests {
 
         // Make sure we've tested all names
         assert_eq!(
+            all_shape_names,
             shape_to_patterns
                 .iter()
                 .map(|(n, _)| *n)
                 .sorted()
                 .collect::<Vec<&str>>(),
-            all_shape_names
         );
     }
 
     /// Test that every shape matches the right files
     #[test]
-    fn test_matcher() {
+    fn test_matcher_simple() {
         let (store_shards, all_shape_names) = valid_store_shards();
 
         let files_to_shape: &[(&str, &[&str])] = &[
+            // the core mercurial file shoudl always be included
+            (".hgignore", &all_shape_names),
+            (".hgsub", &all_shape_names),
+            (".hgsubstate", &all_shape_names),
+            (".hgtags", &all_shape_names),
+            // babar is not matched by any explicit shard,
+            // So it selected by "base". In addition "foo" depends on "base"
             ("babar/v", &["full", "base", "foo"]),
+            // `bar/` is matched by the "bar" shard and its dependencies
             ("bar/ba/v", &["full", "bar", "baron", "bazik"]),
+            // we match full name only
+            ("barbar/v", &["full", "base", "foo"]),
+            // However `bar/baz` is explicitly matched by "baz" (a shard), so
+            // it isn't contained in "bar". It appears in "foo" (a
+            // shape that include on "baz")
             ("bar/baz/f", &["full", "foo"]),
             ("bar/baz/g", &["full", "foo"]),
             ("bar/baz/i", &["full", "foo"]),
+            ("bar/baz/blu/toto", &["full", "foo"]),
+            // We match full name only
+            ("bar/bazar", &["full", "bar", "baron", "bazik"]),
+            // Again `bar/bar/ik` is matched by the "bazik" shard so it is
+            // considered independently
             ("bar/baz/ik/U/j", &["full", "bazik"]),
             ("bar/baz/ik/U/k", &["full", "bazik"]),
             ("bar/baz/ik/U/m", &["full", "bazik"]),
             ("bar/baz/ik/h", &["full", "bazik"]),
             ("bar/baz/ik/i", &["full", "bazik"]),
             ("bar/baz/ik/o/l", &["full", "bazik"]),
+            // `bar/baz/ik/u` is part of the "baziku" shard included in the
+            // "baron" sharp
             ("bar/baz/ik/u/j", &["full", "baron"]),
             ("bar/baz/ik/u/k", &["full", "baron"]),
             ("bar/baz/ik/u/m", &["full", "baron"]),
+            ("bar/baz/ik/u/klm/foo", &["full", "baron"]),
+            // We match full name only
+            ("bar/baz/ik/ups", &["full", "bazik"]),
+            ("bar/baz/ik/ups/klm/bar", &["full", "bazik"]),
+            // both "baron" and "bazik" includes "bar"
             ("bar/d", &["full", "bar", "baron", "bazik"]),
             ("bar/e", &["full", "bar", "baron", "bazik"]),
+            // `foo/` is matched by the "foo" shape and no other
             ("foo/a", &["full", "foo"]),
             ("foo/b", &["full", "foo"]),
             ("foo/c", &["full", "foo"]),
             ("foo/y", &["full", "foo"]),
+            // `stone/liz/` has three excluded directory within
+            ("stone/foo", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz", &["full", "stone", "borden", "chamber"]),
+            ("stone/mummy", &["full", "mummy"]),
+            ("stone/mummy/return", &["full", "mummy"]),
+            ("stone/mummy/chamber", &["full", "chamber"]),
+            ("stone/mummy/chamber/inner", &["full"]),
+            ("stone/mummy/chamber/babar", &["full", "chamber"]),
+            ("stone/mummy/chamber/inner/babar", &["full"]),
+            (
+                "stone/liz/chamber/babar",
+                &["full", "stone", "borden", "chamber"],
+            ),
+            ("stone/liz/chamber", &["full", "stone", "borden", "chamber"]),
+            (
+                "stone/liz/chamber/inner",
+                &["full", "stone", "borden", "chamber"],
+            ),
+            (
+                "stone/liz/chamber/inner/babar",
+                &["full", "stone", "borden", "chamber"],
+            ),
+            ("stone/liz/foo", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/babar", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/ard", &["full"]),
+            ("stone/liz/ard/babar", &["full"]),
+            ("stone/liz/on", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/on/babar", &["full", "stone", "borden", "chamber"]),
+            ("stone/liz/zie", &["full"]),
+            ("stone/liz/zie/babar", &["full"]),
+            ("stone/liz/zie/bor", &["full"]),
+            ("stone/liz/zie/bor/den", &["full", "borden"]),
+            ("stone/liz/zie/bor/den/babar", &["full", "borden"]),
+            // various unmatched stuff
             ("oops", &["full", "base", "foo"]),
+            ("some/super/other/nested", &["full", "base", "foo"]),
             ("w", &["full", "base", "foo"]),
             ("y", &["full", "base", "foo"]),
             ("z", &["full", "base", "foo"]),
@@ -1146,18 +1381,180 @@ mod tests {
             })
             .collect();
         for (file, expected_shapes) in files_to_shape {
+            let mut expected: Vec<_> = expected_shapes.to_vec();
+            expected.sort();
             let file = HgPath::new(file.as_bytes());
-            for (shape_name, matcher) in shape_to_matcher.iter() {
-                let expect_match =
-                    expected_shapes.contains(&shape_name.as_str());
-                assert_eq!(
-                    matcher.matches(file),
-                    expect_match,
-                    "shape '{shape_name}' {} match file '{file}'",
-                    if expect_match { "should" } else { "should not" }
-                );
-            }
+
+            let matching: Vec<_> = shape_to_matcher
+                .iter()
+                .filter(|(_, matcher)| matcher.matches(file))
+                .map(|(name, _)| name)
+                .collect();
+            assert_eq!(
+                &expected, &matching,
+                "file '{file}' doesn't match the expected shapes"
+            );
         }
+    }
+
+    #[test]
+    fn test_deepest_prefix_node() {
+        let (store_shards, _) = valid_store_shards();
+
+        #[track_caller]
+        fn assert_node(node: &ShardTreeNode, expect: &[u8]) {
+            assert_eq!(node.path.as_ref(), HgPath::new(expect));
+        }
+
+        // Full should always return the root node
+        let shape = store_shards.shape("full").unwrap().unwrap();
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
+        assert_node(node, b"");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"root"));
+        assert_node(node, b"");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz"));
+        assert_node(node, b"");
+        assert_eq!(node.included, true);
+
+        // Test simple nested shape
+        let shape = store_shards.shape("bar").unwrap().unwrap();
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"root"));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/test"));
+        assert_node(node, b"bar");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz"));
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(
+            &shape.tree,
+            HgPath::new(b"bar/baz/nested/deeper"),
+        );
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+
+        // Test doubly nested shape
+        let shape = store_shards.shape("baron").unwrap().unwrap();
+        dbg!(&shape);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"root"));
+        assert_node(node, b"");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/test"));
+        assert_node(node, b"bar");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz"));
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"bar/bazik"));
+        assert_node(node, b"bar");
+        assert_eq!(node.included, true);
+        let node = deepest_prefix_node(
+            &shape.tree,
+            HgPath::new(b"bar/baz/nested/deeper"),
+        );
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+        let node =
+            deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz/ik/u"));
+        assert_node(node, b"bar/baz/ik/u");
+        assert_eq!(node.included, true);
+        let node =
+            deepest_prefix_node(&shape.tree, HgPath::new(b"bar/baz/ik/ui"));
+        assert_node(node, b"bar/baz");
+        assert_eq!(node.included, false);
+
+        let shape = store_shards.shape("stone").unwrap().unwrap();
+        dbg!(&shape.tree);
+        let node = deepest_prefix_node(&shape.tree, HgPath::new(b"stone/liz"));
+        assert_node(node, b"stone");
+        assert_eq!(node.included, true);
+
+        let shape = store_shards.shape("borden").unwrap().unwrap();
+        dbg!(&shape.tree);
+        let node =
+            deepest_prefix_node(&shape.tree, HgPath::new(b"stone/liz/zie/bor"));
+        assert_node(node, b"stone/liz/zie");
+        assert_eq!(node.included, false);
+
+        let shape = store_shards.shape("mummy").unwrap().unwrap();
+        dbg!(&shape.tree);
+        let node = deepest_prefix_node(
+            &shape.tree,
+            HgPath::new(b"stone/mummy/chamber"),
+        );
+        assert_node(node, b"stone/mummy/chamber");
+        assert_eq!(node.included, false);
+    }
+
+    #[test]
+    fn test_matcher_visit_children_set() {
+        let (store_shards, _all_shape_names) = valid_store_shards();
+        let shape = store_shards.shape("bar").unwrap().unwrap();
+        let matcher = shape.matcher();
+        // Test an exact match on a non-included node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(
+                ["bar", ".hgignore", ".hgsubstate", ".hgtags", ".hgsub"]
+                    .iter()
+                    .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
+                    .collect()
+            )
+        );
+        // Test an exact match on an included node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar")),
+            VisitChildrenSet::Recursive,
+        );
+        // Test a prefix match on an included node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/file")),
+            VisitChildrenSet::Recursive,
+        );
+        // Test a no match
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"other")),
+            VisitChildrenSet::Empty,
+        );
+
+        let shape = store_shards.shape("bazik").unwrap().unwrap();
+        let matcher = shape.matcher();
+        // Test an exact match on a non-included node, through a `requires`
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::Set(
+                ["bar", ".hgignore", ".hgsubstate", ".hgtags", ".hgsub"]
+                    .iter()
+                    .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
+                    .collect()
+            )
+        );
+        // Test a nested no-match
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/baz/other")),
+            VisitChildrenSet::Empty
+        );
+        // Test a prefix match on a non-included-non-root node
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/baz")),
+            VisitChildrenSet::Set(HashSet::from_iter([HgPathBuf::from_bytes(
+                b"bar/baz/ik"
+            )]))
+        );
+        // Test a nested exact match
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
+            VisitChildrenSet::Recursive
+        );
     }
 
     #[test]
@@ -1352,7 +1749,7 @@ mod tests {
                 .expect("should be syntactically valid");
             let actual_error = StoreShards::from_config(config)
                 .expect_err("should be an error at this stage");
-            assert_eq!(&actual_error, expected_error);
+            assert_eq!(expected_error, &actual_error);
         }
     }
 }

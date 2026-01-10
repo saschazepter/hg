@@ -5,6 +5,17 @@ Avoid interference from actual test env:
   $ . "$TESTDIR/helpers-testrepo.sh"
   $ . "$TESTDIR/helper-runtests.sh"
 
+
+Check output replacement
+
+  $ echo $HGRCPATH
+  $HGRCPATH
+  $ echo $TESTTMP
+  $TESTTMP
+  $ echo $TESTDIR
+  $TESTDIR
+
+
 Smoke test with install
 ============
 
@@ -1144,15 +1155,15 @@ Missing skips or blacklisted skips don't count as executed:
   >   tests/test-failure.t tests/test-bogus.t
   running 2 tests using 1 parallel processes 
   ss
-  Skipped test-bogus.t: Doesn't exist
-  Skipped test-failure.t: blacklisted
+  Skipped tests/test-bogus.t: Doesn't exist
+  Skipped tests/test-failure.t: blacklisted
   # Ran 0 tests, 2 skipped, 0 failed.
   $ cat tests/report.json
   testreport ={
-      "test-bogus.t": {
+      "tests/test-bogus.t": {
           "result": "skip"
       },
-      "test-failure.t": {
+      "tests/test-failure.t": {
           "result": "skip"
       }
   } (no-eol)
@@ -1559,9 +1570,9 @@ support for running run-tests.py from another directory
   -  important commando
   +  important command
   
-  ERROR: test-folder-fail.t output changed
+  ERROR: tmp/test-folder-fail.t output changed
   !.
-  Failed test-folder-fail.t: output changed
+  Failed tmp/test-folder-fail.t: output changed
   # Ran 2 tests, 0 skipped, 1 failed.
   python hash seed: * (glob)
   [1]

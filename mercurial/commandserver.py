@@ -719,15 +719,14 @@ class unixforkingservice:
         pid = os.fork()
         if pid:
             try:
-                self.ui.log(
-                    b'cmdserver', b'forked worker process (pid=%d)\n', pid
-                )
                 self._workerpids.add(pid)
                 h.newconnection()
             finally:
                 conn.close()  # release handle in parent process
         else:
             try:
+                msg = b'forked worker process (pid=%d)\n'
+                self.ui.log(b'cmdserver', msg, os.getpid())
                 selector.close()
                 sock.close()
                 self._mainipc.close()

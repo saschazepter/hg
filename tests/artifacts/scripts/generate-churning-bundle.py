@@ -325,7 +325,7 @@ def run(target, validate=False):
         )
         write_repo(tmpdir)
         hg('bundle', '--all', tmp_name, '--config', 'devel.bundle.delta=p1')
-        os.rename(tmp_name, target)
+        os.replace(tmp_name, target)
         digest = compute_md5(target)
         if not validate:
             write_md5(target, digest)

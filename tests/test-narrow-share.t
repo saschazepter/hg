@@ -37,6 +37,7 @@
 Ignore file called "ignored"
   $ echo ignored > main/.hgignore
 
+
   $ hg share main share
   updating working directory
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -190,3 +191,47 @@ Make it look like a repo from before narrow+share was supported
   A d3/g
   R d7/f
   $ cd ..
+
+Comparing working copy narrowspec to store narrowspec
+-----------------------------------------------------
+
+Hg checks that the working copy narrowspec matches the store narrowspec.
+Here we test that it uses logical equality, not byte-for-byte equality.
+
+  $ hg share main share-compat
+  updating working directory
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd share-compat
+  $ cat .hg/narrowspec.dirstate
+  [include]
+  path:d1
+  path:d3
+  path:d7
+
+Add an empty "[exclude]" section
+
+  $ echo "[exclude]" >> .hg/narrowspec.dirstate
+  $ cat .hg/narrowspec.dirstate
+  [include]
+  path:d1
+  path:d3
+  path:d7
+  [exclude]
+  $ hg admin::narrow-client --store-fingerprint
+  e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5
+
+Swap the order of the first two includes
+
+  $ "$PYTHON" <<EOF
+  > lines = open(".hg/narrowspec.dirstate").readlines()
+  > lines[1], lines[2] = lines[2], lines[1]
+  > open(".hg/narrowspec.dirstate", "w").writelines(lines)
+  > EOF
+  $ cat .hg/narrowspec.dirstate
+  [include]
+  path:d3
+  path:d1
+  path:d7
+  [exclude]
+  $ hg admin::narrow-client --store-fingerprint
+  e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5

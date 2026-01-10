@@ -1374,7 +1374,7 @@ if py2exeloaded:
     extra['console'] = [
         {
             'script': 'hg',
-            'copyright': 'Copyright (C) 2005-2025 Olivia Mackall and others',
+            'copyright': 'Copyright (C) 2005-2026 Olivia Mackall and others',
             'product_version': version,
         }
     ]

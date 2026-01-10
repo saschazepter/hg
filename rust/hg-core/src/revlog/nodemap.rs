@@ -506,9 +506,20 @@ impl NodeTree {
         node: &Node,
         rev: Revision,
     ) -> Result<(), NodeMapError> {
+        self.insert_single(index, node, rev, &mut vec![])
+    }
+
+    /// See [`Self::insert`] and [`Self::insert_many`] for public interfaces
+    fn insert_single<I: RevlogIndex>(
+        &mut self,
+        index: &I,
+        node: &Node,
+        rev: Revision,
+        visit_steps: &mut Vec<NodeTreeVisitItem>,
+    ) -> Result<(), NodeMapError> {
         let ro_len = &self.readonly.len();
 
-        let mut visit_steps: Vec<_> = self.visit(node.into()).collect();
+        visit_steps.extend(self.visit(node.into()));
         let read_nybbles = visit_steps.len();
         // visit_steps cannot be empty, since we always visit the root block
         let deepest = visit_steps.pop().unwrap();
@@ -576,6 +587,32 @@ impl NodeTree {
         Ok(())
     }
 
+    /// Batched insertion method (see [`Self::insert`] for single insertions)
+    ///
+    /// This exists for performance reasons, implemented in a future patch.
+    pub fn insert_many<I: RevlogIndex>(
+        &mut self,
+        index: &I,
+        from: Revision,
+        to: Revision,
+    ) -> Result<(), NodeMapError> {
+        let revisions_to_add = 0.max(to.0 - from.0) as usize;
+        // There are about 5 blocks per revision for all persistent nodemaps
+        // observed in the wild, so we over-allocate slightly with 6.
+        const FACTOR: usize = 6;
+        self.growable.reserve(revisions_to_add * FACTOR);
+
+        // Reuse this vec for all visit planning to save a ton of allocations
+        // (about 5 per revision)
+        let mut visit_vec = vec![];
+        for revnum in from.0..=to.0 {
+            let rev = Revision(revnum);
+            self.insert_single(index, index.node(rev), rev, &mut visit_vec)?;
+            visit_vec.clear();
+        }
+        Ok(())
+    }
+
     /// Insert all [`Revision`] from `from` inclusive, up to
     /// [`RevlogIndex::len`] exclusive.
     ///
@@ -588,12 +625,8 @@ impl NodeTree {
         index: &impl RevlogIndex,
         from: Revision,
     ) -> Result<(), NodeMapError> {
-        for r in (from.0)..index.len() as BaseRevision {
-            let rev = Revision(r);
-            // in this case node() won't ever return None
-            self.insert(index, index.node(rev), rev)?;
-        }
-        Ok(())
+        let to = Revision(0.max(index.len() - 1) as BaseRevision);
+        self.insert_many(index, from, to)
     }
 
     /// Make the whole `NodeTree` logically empty, without touching the

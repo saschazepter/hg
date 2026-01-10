@@ -65,10 +65,9 @@
    b@?: rev 1 points to nonexistent changeset 2
    (expected 1)
    b@?: 736c29771fba not in manifests
-  warning: orphan data file 'data/c.i'
   not checking dirstate because of previous errors
   checked 2 changesets with 3 changes to 2 files
-  2 warnings encountered!
+  1 warnings encountered!
   2 integrity errors encountered!
   % journal contents
   00changelog.d
@@ -127,10 +126,12 @@
   checking files
    b@?: rev 1 points to nonexistent changeset 2
    (expected 1)
+   warning: revlog 'data/c.i' not in fncache!
    c@?: rev 0 points to nonexistent changeset 3
   not checking dirstate because of previous errors
   checked 2 changesets with 4 changes to 3 files
-  1 warnings encountered!
+  2 warnings encountered!
+  hint: run "hg debugrebuildfncache" to recover from corrupt fncache
   7 integrity errors encountered!
   (first damaged changeset appears to be 3)
   % journal contents

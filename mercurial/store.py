@@ -790,17 +790,13 @@ class RevlogStoreEntry(BaseStoreEntry):
     ) -> _StreamsT:
         files = self.files(vfs)
         pre_sized = all(f.has_size for f in files)
-        if (
-            pre_sized
-            and self._details is not None
-            and (
-                repo is None
-                or max_changeset is None
-                # This use revlog-v2, ignore for now
-                or any(k.endswith(b'.idx') for k in self._details.keys())
-                # This is not inline, no race expected
-                or b'.d' in self._details
-            )
+        if pre_sized and (
+            repo is None
+            or max_changeset is None
+            # This use revlog-v2, ignore for now
+            or any(f.unencoded_path.endswith(b'.idx') for f in files)
+            # This is not inline, no race expected
+            or any(f.unencoded_path.endswith(b'.d') for f in files)
         ):
             return super().get_streams(
                 repo=repo,
@@ -1249,12 +1245,20 @@ class fncache:
                     else:
                         raise error.Abort(t)
 
-    def write(self, tr):
+    def write(self, tr, _backup=True):
+        """Write the fncache on disk, collaborating with the transaction to do so
+
+        If _backup is False, we won't save the previous state (effectivly not
+        collaborating with the transaction. This is used during `strip` and you
+        do not needs it.
+        """
+        if (self._dirty or self.addls) and _backup:
+            tr.addbackup(b'fncache')
+
         if self._dirty:
             assert self.is_loaded
             self.entries = self.entries | self.addls
             self.addls = set()
-            tr.addbackup(b'fncache')
             fp = self.vfs(b'fncache', mode=b'wb', atomictemp=True)
             if self.entries:
                 fp.write(encodedir(b'\n'.join(self.entries) + b'\n'))
@@ -1262,7 +1266,6 @@ class fncache:
             self._dirty = False
         if self.addls:
             # if we have just new entries, let's append them to the fncache
-            tr.addbackup(b'fncache')
             fp = self.vfs(b'fncache', mode=b'ab', atomictemp=True)
             if self.addls:
                 fp.write(encodedir(b'\n'.join(self.addls) + b'\n'))
