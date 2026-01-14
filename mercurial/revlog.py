@@ -3401,6 +3401,8 @@ class revlog:
                 _(b"trying to add sidedata to a revlog who don't support them")
             )
 
+        provided_node = node is not None
+
         if flags and node is None:
             node = self.hash(text, p1, p2)
 
@@ -3429,7 +3431,7 @@ class revlog:
         if rev is not None:
             return rev
 
-        if validatehash:
+        if validatehash and provided_node:
             self.checkhash(rawtext, node, p1=p1, p2=p2)
 
         return self.addrawrevision(
