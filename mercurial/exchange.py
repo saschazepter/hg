@@ -669,7 +669,11 @@ def _pushdiscoveryphase(pushop):
     unfi = repo.unfiltered()
     cl = unfi.changelog
     to_rev = cl.index.rev
-    remotephases = listkeys(pushop.remote, b'phases')
+    psum = pushop.remote.phase_summary
+    if psum is not None and psum.publishing and psum.all_public:
+        remotephases = {b'publishing': True}
+    else:
+        remotephases = listkeys(pushop.remote, b'phases')
 
     if (
         pushop.ui.configbool(b'ui', b'_usedassubrepo')

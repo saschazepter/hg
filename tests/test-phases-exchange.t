@@ -717,9 +717,6 @@ Pushing to Publish=True (unknown changeset)
   sending batch command
   searching for changes
   all remote heads known locally
-  preparing listkeys for "phases"
-  sending listkeys command
-  received listkey for "phases": 15 bytes
   checking for updated bookmarks
   preparing listkeys for "bookmarks"
   sending listkeys command
