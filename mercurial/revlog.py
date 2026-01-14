@@ -3406,6 +3406,10 @@ class revlog:
 
         rawtext, validatehash = flagutil.processflagswrite(self, text, flags)
 
+        if flags and validatehash:
+            # if the text is claimed to be unchanged, it should still be the same
+            assert rawtext is text
+
         # If the flag processor modifies the revision data, ignore any provided
         # cachedelta.
         if rawtext != text:
