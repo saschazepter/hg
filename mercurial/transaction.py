@@ -738,6 +738,7 @@ class transaction(util.transactional, itxn.ITransaction):
         callback should raise exception if to abort transaction"""
         self._validatecallback[category] = callback
 
+    @util.rust_tracing_span("transaction.close")
     @active
     def close(self) -> None:
         '''commit the transaction'''

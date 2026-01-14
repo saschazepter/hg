@@ -373,6 +373,7 @@ class ui:
         self._ucfg.new_source()
 
     @classmethod
+    @util.rust_tracing_span("ui.load")
     def load(cls: type[_Tui]) -> _Tui:
         """Create a ui and load global and user configs"""
         u = cls()

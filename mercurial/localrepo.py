@@ -3459,12 +3459,14 @@ def undoname(fn: bytes) -> bytes:
     return os.path.join(base, name.replace(b'journal', b'undo', 1))
 
 
+@util.rust_tracing_span("localrepo.instance")
 def instance(ui, path: bytes, create, intents=None, createopts=None):
     # prevent cyclic import localrepo -> upgrade -> localrepo
 
     localpath = urlutil.urllocalpath(path)
     if create:
-        createrepository(ui, localpath, createopts=createopts)
+        with util.rust_tracing_span("createrepository"):
+            createrepository(ui, localpath, createopts=createopts)
 
     def repo_maker():
         return makelocalrepository(ui, localpath, intents=intents)
