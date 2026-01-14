@@ -1745,9 +1745,6 @@ abort behavior
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (no-zstd !)
   remote: phase-summary-v01: publish=all public-revs=all
   remote: 1
-  preparing listkeys for "phases"
-  sending listkeys command
-  received listkey for "phases": 15 bytes
   abort: push would publish 2 changesets
   (use --publish or adjust 'experimental.auto-publish' config)
   [255]

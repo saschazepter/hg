@@ -236,8 +236,13 @@ def _checkpublish(pushop):
     behavior = ui.config(b'experimental', b'auto-publish')
     if pushop.publish or behavior not in (b'warn', b'confirm', b'abort'):
         return
-    remotephases = listkeys(pushop.remote, b'phases')
-    if not remotephases.get(b'publishing', False):
+
+    psum = pushop.remote.phase_summary
+    if psum is None:
+        remotephases = listkeys(pushop.remote, b'phases')
+        if not remotephases.get(b'publishing', False):
+            return
+    elif not psum.publishing:
         return
 
     if pushop.revs is None:
