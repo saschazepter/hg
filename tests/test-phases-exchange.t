@@ -746,9 +746,6 @@ Pushing to Publish=True (unknown changeset)
   bundle2-input-bundle: no-transaction
   bundle2-input-part: "reply:changegroup" (advisory) (params: 0 advisory) supported
   bundle2-input-bundle: 1 parts total
-  preparing listkeys for "phases"
-  sending listkeys command
-  received listkey for "phases": 15 bytes
   test-debug-phase: move rev 7: 1 -> 0
   test-debug-phase: move rev 8: 1 -> 0
   $ hgph # again f54f1bb90ff3, d6bcb4f74035 and 145e75495359 stay draft,

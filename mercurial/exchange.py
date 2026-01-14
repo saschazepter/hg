@@ -1356,7 +1356,11 @@ def _pushsyncphase(pushop):
     """synchronise phase information locally and remotely"""
     cheads = pushop.commonheads
     # even when we don't push, exchanging phase data is useful
-    remotephases = listkeys(pushop.remote, b'phases')
+    psum = pushop.remote.phase_summary
+    if psum is not None and psum.publishing and psum.all_public:
+        remotephases = {b'publishing': True}
+    else:
+        remotephases = listkeys(pushop.remote, b'phases')
     if (
         pushop.ui.configbool(b'ui', b'_usedassubrepo')
         and remotephases  # server supports phases
