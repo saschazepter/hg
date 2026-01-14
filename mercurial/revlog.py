@@ -3401,8 +3401,8 @@ class revlog:
                 _(b"trying to add sidedata to a revlog who don't support them")
             )
 
-        if flags:
-            node = node or self.hash(text, p1, p2)
+        if flags and node is None:
+            node = self.hash(text, p1, p2)
 
         rawtext, validatehash = flagutil.processflagswrite(self, text, flags)
 
@@ -3423,7 +3423,8 @@ class revlog:
                 % (self.display_id, len(rawtext))
             )
 
-        node = node or self.hash(rawtext, p1, p2)
+        if node is None:
+            node = self.hash(rawtext, p1, p2)
         rev = self.index.get_rev(node)
         if rev is not None:
             return rev
