@@ -1933,7 +1933,7 @@ def commit(ui, repo, *pats, **opts):
     """
     cmdutil.check_at_most_one_arg(opts, 'draft', 'secret')
     cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
-    with repo.wlock(), repo.lock():
+    with util.rust_tracing_span("_docommit"), repo.wlock(), repo.lock():
         return _docommit(ui, repo, *pats, **opts)
 
 

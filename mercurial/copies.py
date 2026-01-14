@@ -730,6 +730,7 @@ def _reverse_renames(copies, dst, match):
     return r
 
 
+@util.rust_tracing_span("copies.pathcopies")
 def pathcopies(x, y, match=None):
     """find {dst@y: src@x} copy mapping for directed compare"""
     repo = x._repo

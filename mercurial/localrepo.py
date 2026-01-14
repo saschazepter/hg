@@ -1455,6 +1455,7 @@ class localrepository(_localrepo_base_classes):
         return obsolete.makestore(self.ui, self)
 
     @changelogcache()
+    @util.rust_tracing_span("localrepo.changelog")
     def changelog(repo):
         # load dirstate before changelog to avoid race see issue6303
         repo.dirstate.prefetch_parents()
@@ -1464,6 +1465,7 @@ class localrepository(_localrepo_base_classes):
         )
 
     @manifestlogcache()
+    @util.rust_tracing_span("localrepo.manifestlog")
     def manifestlog(self):
         return self.store.manifestlog(self, self._storenarrowmatch)
 
@@ -2001,7 +2003,8 @@ class localrepository(_localrepo_base_classes):
     def branchmap(self) -> repository.IBranchMap:
         """returns a dictionary {branch: [branchheads]} with branchheads
         ordered by increasing revision number"""
-        return self._branchcaches[self]
+        with util.rust_tracing_span("localrepo.branchmap"):
+            return self._branchcaches[self]
 
     @unfilteredmethod
     def revbranchcache(self):
@@ -3258,6 +3261,7 @@ class localrepository(_localrepo_base_classes):
         # tag cache retrieval" case to work.
         self.invalidate()
 
+    @util.rust_tracing_span("localrepo status")
     def status(
         self,
         node1=b'.',

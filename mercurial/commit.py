@@ -18,6 +18,7 @@ from . import (
     phases,
     scmutil,
     subrepoutil,
+    util,
 )
 
 
@@ -40,6 +41,7 @@ def _write_copy_meta(repo):
     return writechangesetcopy, writefilecopymeta
 
 
+@util.rust_tracing_span("commit.commitctx")
 def commitctx(repo, ctx, error=False, origctx=None):
     """Add a new revision to the target repository.
     Revision information is passed via the context argument.
@@ -121,6 +123,7 @@ def commitctx(repo, ctx, error=False, origctx=None):
         return n
 
 
+@util.rust_tracing_span("_prepare_files")
 def _prepare_files(tr, ctx, error=False, origctx=None):
     repo = ctx.repo()
     p1 = ctx.p1()
@@ -181,6 +184,7 @@ def _get_salvaged(repo, ms, ctx):
     return salvaged
 
 
+@util.rust_tracing_span("_process_files")
 def _process_files(tr, ctx, ms, files, narrow_files=None, error=False):
     repo = ctx.repo()
     p1 = ctx.p1()
@@ -188,13 +192,14 @@ def _process_files(tr, ctx, ms, files, narrow_files=None, error=False):
 
     writechangesetcopy, writefilecopymeta = _write_copy_meta(repo)
 
-    m1ctx = p1.manifestctx()
-    m2ctx = p2.manifestctx()
-    mctx = m1ctx.copy()
+    with util.rust_tracing_span("read manifests"):
+        m1ctx = p1.manifestctx()
+        m2ctx = p2.manifestctx()
+        mctx = m1ctx.copy()
 
-    m = mctx.read()
-    m1 = m1ctx.read()
-    m2 = m2ctx.read()
+        m = mctx.read()
+        m1 = m1ctx.read()
+        m2 = m2ctx.read()
 
     # check in files
     added = []
@@ -447,6 +452,7 @@ def _filecommit(
     return fnode, touched
 
 
+@util.rust_tracing_span("_commit_manifest")
 def _commit_manifest(
     tr,
     linkrev,
