@@ -533,6 +533,7 @@ class locallegacypeer(localpeer, repository.ipeerlegacycommands):
 featuresetupfuncs = req_util.feature_setup_funcs
 
 
+@util.rust_tracing_span("makelocalrepository")
 def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
@@ -2943,6 +2944,7 @@ class localrepository(_localrepo_base_classes):
         else:  # no lock have been found.
             callback(True)
 
+    @util.rust_tracing_span("store lock")
     def lock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
@@ -2978,6 +2980,7 @@ class localrepository(_localrepo_base_classes):
         self._lockref = weakref.ref(l)
         return l
 
+    @util.rust_tracing_span("wlock")
     def wlock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the non-store parts of the repository (everything under
         .hg except .hg/store) and return a weak reference to the lock.
