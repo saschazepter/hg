@@ -623,6 +623,7 @@ impl Index {
         let (as_vec, cachable) = if self.is_empty() {
             (vec![NULL_REVISION], true)
         } else {
+            let _trace = tracing::debug_span!("heads cache miss").entered();
             let length: usize = match stop_rev {
                 Some(r) => r.0 as usize,
                 None => self.len(),
