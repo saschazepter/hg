@@ -1169,33 +1169,28 @@ fn build_match<'a>(
         match_funcs.push(Box::new(match_subinclude));
     }
 
-    if !file_patterns.is_empty() {
-        // Either do dumb matching if all patterns are rootfiles, or match
-        // with a regex.
-        if file_patterns.iter().all(|k| k.syntax == PatternSyntax::RootFilesIn)
-        {
-            let dirs: HashSet<_> =
-                file_patterns.iter().map(|k| k.raw.to_owned()).collect();
-            let mut dirs_vec: Vec<_> = dirs.iter().cloned().collect();
+    // Either do dumb matching if all patterns are rootfiles, or match
+    // with a regex.
+    if file_patterns.iter().all(|k| k.syntax == PatternSyntax::RootFilesIn) {
+        let dirs: HashSet<_> =
+            file_patterns.iter().map(|k| k.raw.to_owned()).collect();
+        let mut dirs_vec: Vec<_> = dirs.iter().cloned().collect();
 
-            let match_func = move |path: &HgPath| -> bool {
-                let path = path.as_bytes();
-                let i = path.iter().rposition(|a| *a == b'/');
-                let dir = if let Some(i) = i { &path[..i] } else { b"." };
-                dirs.contains(dir)
-            };
-            match_funcs.push(Box::new(match_func));
+        let match_func = move |path: &HgPath| -> bool {
+            let path = path.as_bytes();
+            let i = path.iter().rposition(|a| *a == b'/');
+            let dir = if let Some(i) = i { &path[..i] } else { b"." };
+            dirs.contains(dir)
+        };
+        match_funcs.push(Box::new(match_func));
 
-            dirs_vec.sort();
-            patterns = PatternsDesc::RootFilesIn(dirs_vec, glob_suffix);
-        } else {
-            let (new_re, match_func) =
-                build_regex_match(&file_patterns, glob_suffix, regex_config)?;
-            patterns = PatternsDesc::Re(new_re);
-            match_funcs.push(match_func)
-        }
+        dirs_vec.sort();
+        patterns = PatternsDesc::RootFilesIn(dirs_vec, glob_suffix);
     } else {
-        patterns = PatternsDesc::Re(PreRegex::Empty)
+        let (new_re, match_func) =
+            build_regex_match(&file_patterns, glob_suffix, regex_config)?;
+        patterns = PatternsDesc::Re(new_re);
+        match_funcs.push(match_func)
     }
 
     Ok(if match_funcs.len() == 1 {
