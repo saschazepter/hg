@@ -409,6 +409,7 @@ pulling into publish=True
 
 pulling back into original repo
 
+  $ cp -a -R nu nu-ssh
   $ cd nu
   $ hg pull ../alpha
   pulling from ../alpha
@@ -433,6 +434,32 @@ pulling back into original repo
   |
   o  0 public a-A - 054250a37db4
   
+
+  $ cd ../nu-ssh
+  $ hg pull ssh://user@dummy/alpha
+  pulling from ssh://user@dummy/alpha
+  searching for changes
+  no changes found
+  3 local changesets published
+  test-debug-phase: move rev 3: 1 -> 0
+  test-debug-phase: move rev 5: 1 -> 0
+  test-debug-phase: move rev 6: 1 -> 0
+  $ hgph
+  @  6 public n-B - 145e75495359
+  |
+  o  5 public n-A - d6bcb4f74035
+  |
+  | o  4 public a-D - b555f63b6063
+  | |
+  o |  3 public b-A - f54f1bb90ff3
+  | |
+  | o  2 public a-C - 54acac6f23ab
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+  $ cd ../nu
 
 Push
 ````
@@ -637,6 +664,8 @@ Pushing to Publish=False (unknown changeset)
 
 Pushing to Publish=True (unknown changeset)
 
+  $ cp -a -R ../mu ../mu-ssh
+  $ cp -a -R ../beta ../beta-ssh
   $ hg push ../beta -r b740e3e5c05d
   pushing to ../beta
   searching for changes
@@ -669,8 +698,44 @@ Pushing to Publish=True (unknown changeset)
   o  0 public a-A - 054250a37db4
   
 
+  $ cd ../mu-ssh
+  $ hg push ssh://user@dummy/beta-ssh -r b740e3e5c05d
+  pushing to ssh://user@dummy/beta-ssh
+  searching for changes
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 2 changesets with 2 changes to 2 files
+  remote: test-debug-phase: new rev 5:  x -> 0
+  remote: test-debug-phase: new rev 6:  x -> 0
+  test-debug-phase: move rev 7: 1 -> 0
+  test-debug-phase: move rev 8: 1 -> 0
+  $ hgph # again f54f1bb90ff3, d6bcb4f74035 and 145e75495359 stay draft,
+  >      # not ancestor of -r
+  o  8 public a-F - b740e3e5c05d
+  |
+  o  7 public a-E - e9f537e46dea
+  |
+  | o  6 draft n-B - 145e75495359
+  | |
+  | o  5 draft n-A - d6bcb4f74035
+  | |
+  o |  4 public a-D - b555f63b6063
+  | |
+  o |  3 public a-C - 54acac6f23ab
+  | |
+  | o  2 draft b-A - f54f1bb90ff3
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+  $ cd ../mu
+
+
 Pushing to Publish=True (common changeset)
 
+  $ cp -a -R ../alpha ../alpha-ssh
   $ cd ../beta
   $ hg push ../alpha
   pushing to ../alpha
@@ -718,6 +783,54 @@ Pushing to Publish=True (common changeset)
   |
   o  0 public a-A - 054250a37db4
   
+  $ cd ../beta-ssh
+  $ hg push ssh://user@dummy/alpha-ssh
+  pushing to ssh://user@dummy/alpha-ssh
+  searching for changes
+  no changes found
+  remote: test-debug-phase: move rev 7: 1 -> 0
+  remote: test-debug-phase: move rev 8: 1 -> 0
+  [1]
+  $ hgph
+  o  6 public a-F - b740e3e5c05d
+  |
+  o  5 public a-E - e9f537e46dea
+  |
+  o  4 public a-D - b555f63b6063
+  |
+  o  3 public a-C - 54acac6f23ab
+  |
+  | @  2 public b-A - f54f1bb90ff3
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+  $ cd ../alpha-ssh
+  $ hgph
+  @  10 draft a-H - 967b449fbc94
+  |
+  | o  9 draft a-G - 3e27b6f1eee1
+  | |
+  | o  8 public a-F - b740e3e5c05d
+  | |
+  | o  7 public a-E - e9f537e46dea
+  | |
+  +---o  6 public n-B - 145e75495359
+  | |
+  o |  5 public n-A - d6bcb4f74035
+  | |
+  o |  4 public b-A - f54f1bb90ff3
+  | |
+  | o  3 public a-D - b555f63b6063
+  | |
+  | o  2 public a-C - 54acac6f23ab
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+  $ cd ../alpha
 
 Pushing to Publish=False (common changeset that change phase + unknown one)
 
@@ -1160,6 +1273,13 @@ same over the wire
   $ hg phase f54f1bb90ff3
   2: draft
 
+  $ hg pull ssh://user@dummy/beta
+  pulling from ssh://user@dummy/beta
+  searching for changes
+  no changes found
+  $ hg phase f54f1bb90ff3
+  2: draft
+
 enforce bundle1
 
   $ hg pull http://localhost:$HGPORT/ --config devel.legacy.exchange=bundle1
@@ -1169,10 +1289,24 @@ enforce bundle1
   $ hg phase f54f1bb90ff3
   2: draft
 
+  $ hg pull ssh://user@dummy/beta --config devel.legacy.exchange=bundle1
+  pulling from ssh://user@dummy/beta
+  searching for changes
+  no changes found
+  $ hg phase f54f1bb90ff3
+  2: draft
+
 check that secret local on both side are not synced to public
 
   $ hg push -r b555f63b6063 http://localhost:$HGPORT/
   pushing to http://localhost:$HGPORT/
+  searching for changes
+  no changes found
+  [1]
+  $ hg phase f54f1bb90ff3
+  2: draft
+  $ hg push -r b555f63b6063 ssh://user@dummy/beta
+  pushing to ssh://user@dummy/beta
   searching for changes
   no changes found
   [1]
