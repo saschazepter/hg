@@ -63,6 +63,7 @@ from .utils import (
 )
 
 if typing.TYPE_CHECKING:
+    import types
     import urllib.request
 
     from typing import (
@@ -2395,7 +2396,17 @@ class ui:
         else:
             curframe = inspect.currentframe()
             calframe = inspect.getouterframes(curframe, 2)
-            fname, lineno, fmsg = calframe[stacklevel][1:4]
+
+            # TODO Python 3.11+, switch to using the `FrameInfo` class
+            frame, fname, lineno, fmsg = calframe[stacklevel][:4]
+            if typing.TYPE_CHECKING:
+                # help Pytype
+                frame = cast(types.FrameType, frame)
+            # Best effort attempt at detecting a wrapped function, no robust
+            # way of doing it in the general case
+            if 'contextlib.py' in fname and 'func' in frame.f_locals:
+                # Need to go one level up in the stack
+                fname, lineno, fmsg = calframe[stacklevel + 1][1:4]
             fname, fmsg = pycompat.sysbytes(fname), pycompat.sysbytes(fmsg)
             self.write_err(b'%s at: %s:%d (%s)\n' % (msg, fname, lineno, fmsg))
             self.log(
