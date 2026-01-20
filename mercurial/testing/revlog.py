@@ -98,7 +98,6 @@ class RustRevlogBasedTestBase(unittest.TestCase):
             chunk_cache=None,
             default_compression_header=None,
             revlog_type=kind,
-            use_persistent_nodemap=False,  # until we cook one.
             encoding=0,
         )
 

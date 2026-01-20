@@ -56,6 +56,7 @@ use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
+use crate::revlog::index::RevisionDataParams;
 use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
 use crate::revlog::nodemap::NodeTree;
@@ -115,7 +116,6 @@ pub struct InnerRevlog {
     compressor: Mutex<Box<dyn Compressor>>,
     revlog_type: RevlogType,
     /// The nodemap for this revlog, either lazy and in-memory or persistent
-    #[expect(unused)]
     nodemap: RevlogNodeMap,
 }
 
@@ -1645,6 +1645,90 @@ impl InnerRevlog {
         assert!(self.revlog_type == RevlogType::Filelog);
         self.feature_config.ignore_filelog_censored_revisions
     }
+
+    /// Finds the unique [`Revision`] whose [`Node`] starts with the given
+    /// binary prefix.
+    /// If no [`Revision`] matches the given prefix, Ok(None) is returned.
+    pub fn rev_from_node_prefix(
+        &self,
+        node_prefix: NodePrefix,
+    ) -> Result<Option<Revision>, RevlogError> {
+        self.nodemap
+            .rev_from_node_prefix(&self.index, node_prefix)
+            .map_err(|err| nodemap_error_to_revlog_error(err, node_prefix))
+    }
+
+    /// Returns the shortest length in bytes to uniquely identify this [`Node`].
+    /// If no [`Revision`] matches the given node, `Ok(None)`` is returned.
+    pub fn unique_prefix_len_node(
+        &self,
+        node: super::Node,
+    ) -> Result<Option<usize>, RevlogError> {
+        self.nodemap
+            .unique_prefix_len_node(&self.index, &node)
+            .map_err(|err| nodemap_error_to_revlog_error(err, node.into()))
+    }
+
+    /// `pub` only for `hg-pyo3`
+    /// If `node_tree_opt` is `None`, this creates an empty in-memory nodemap.
+    /// If it's `Some`, it creates a persistent nodemap.
+    #[doc(hidden)]
+    pub fn nodemap_set(
+        &mut self,
+        node_tree_opt: Option<NodeTree>,
+        index_file: PathBuf,
+    ) {
+        self.nodemap =
+            RevlogNodeMap::from_nodetree_option(node_tree_opt, index_file)
+    }
+
+    /// `pub` only for `hg-pyo3`
+    #[doc(hidden)]
+    pub fn nodemap_invalidate(&mut self) -> Result<(), NodeMapError> {
+        self.nodemap.invalidate(&self.index)
+    }
+
+    /// `pub` only for `hg-pyo3`
+    #[doc(hidden)]
+    pub fn nodemap_incremental_data(&mut self) -> (usize, Vec<u8>) {
+        self.nodemap.incremental_data()
+    }
+
+    /// `pub` only for `hg-pyo3`
+    /// Appends this new node to the in-memory index and its nodemap. This is
+    /// still needed because some places directly call the index instead of
+    /// going through the [`InnerRevlog`], and that would need a separate
+    /// cleanup.
+    #[doc(hidden)]
+    pub fn index_append(
+        &mut self,
+        params: RevisionDataParams,
+    ) -> Result<(), RevlogError> {
+        let node = Node::from(params.node_id);
+        let rev =
+            Revision(self.index.len().try_into().expect("revision too large"));
+        self.index.append(params)?;
+        self.nodemap
+            .insert(&self.index, &node, rev)
+            .map_err(|err| nodemap_error_to_revlog_error(err, node.into()))
+    }
+}
+
+fn nodemap_error_to_revlog_error(
+    err: NodeMapError,
+    node_prefix: NodePrefix,
+) -> RevlogError {
+    // Pretty awful but no worse than what we had before. This
+    // is being cleaned up in a separate effort for all errors, so we keep it
+    // in a self-contained function
+    match err {
+        NodeMapError::MultipleResults => {
+            RevlogError::AmbiguousPrefix(format!("{:x}", node_prefix))
+        }
+        NodeMapError::RevisionNotInIndex(rev) => {
+            RevlogError::InvalidRevision(rev.to_string())
+        }
+    }
 }
 
 /// Encapsulates the state of a revlog's nodemap
@@ -1795,7 +1879,6 @@ impl RevlogNodeMap {
     /// `changed` is the number of bytes from the readonly part that have been
     /// masked by the new data (i.e. data added after what was on disk at load
     /// time).
-    #[expect(unused)]
     pub fn incremental_data(&self) -> (usize, Vec<u8>) {
         let mut state = self.state.write().expect("propagate the panic");
         let tree = match state.deref_mut() {
@@ -1819,7 +1902,6 @@ impl RevlogNodeMap {
     }
 
     /// Empty the nodemap and if it's persistent, reload it from scratch.
-    #[expect(unused)]
     pub fn invalidate(
         &self,
         idx: &impl RevlogIndex,

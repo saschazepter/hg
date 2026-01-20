@@ -43,7 +43,6 @@ use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
-use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
 use crate::utils::u32_u;
 use crate::utils::RawData;
@@ -390,8 +389,6 @@ impl TryFrom<usize> for RevlogType {
 
 pub struct Revlog {
     inner: InnerRevlog,
-    /// When present on disk: the persistent nodemap for this revlog
-    nodemap: Option<nodemap::NodeTree>,
 }
 
 impl Graph for Revlog {
@@ -459,9 +456,8 @@ impl Revlog {
                 options.delta_config,
                 options.feature_config,
                 revlog_type,
-                None,
+                nodemap,
             ),
-            nodemap,
         })
     }
 
@@ -495,16 +491,9 @@ impl Revlog {
         &self,
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
-        if let Some(nodemap) = &self.nodemap {
-            nodemap
-                .find_bin(self.index(), node)
-                .map_err(|err| (err, format!("{:x}", node)))?
-                .ok_or_else(|| {
-                    RevlogError::InvalidRevision(format!("{:x}", node))
-                })
-        } else {
-            self.index().rev_from_node_no_persistent_nodemap(node)
-        }
+        self.inner
+            .rev_from_node_prefix(node)?
+            .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
     /// Returns whether the given revision exists in this revlog.
