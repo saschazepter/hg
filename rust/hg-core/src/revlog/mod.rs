@@ -459,6 +459,7 @@ impl Revlog {
                 options.delta_config,
                 options.feature_config,
                 revlog_type,
+                None,
             ),
             nodemap,
         })

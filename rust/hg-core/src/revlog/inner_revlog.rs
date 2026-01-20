@@ -56,10 +56,10 @@ use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
-use crate::revlog::RevlogIndexNodeLookup;
 use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
 use crate::revlog::nodemap::NodeTree;
+use crate::revlog::RevlogIndexNodeLookup;
 use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
 use crate::utils::u32_u;
@@ -114,6 +114,9 @@ pub struct InnerRevlog {
     /// data, as different revisions may have different compression modes.
     compressor: Mutex<Box<dyn Compressor>>,
     revlog_type: RevlogType,
+    /// The nodemap for this revlog, either lazy and in-memory or persistent
+    #[expect(unused)]
+    nodemap: RevlogNodeMap,
 }
 
 impl InnerRevlog {
@@ -127,6 +130,7 @@ impl InnerRevlog {
         delta_config: RevlogDeltaConfig,
         feature_config: RevlogFeatureConfig,
         revlog_type: RevlogType,
+        nodemap: Option<NodeTree>,
     ) -> Self {
         assert!(index_file.is_relative());
         assert!(data_file.is_relative());
@@ -155,6 +159,8 @@ impl InnerRevlog {
             );
 
         let inline = index.is_inline();
+        let nodemap =
+            RevlogNodeMap::from_nodetree_option(nodemap, index_file.to_owned());
         Self {
             index,
             vfs,
@@ -180,6 +186,7 @@ impl InnerRevlog {
                 CompressionConfig::None => Box::new(NoneCompressor),
             }),
             revlog_type,
+            nodemap,
         }
     }
 
@@ -1842,7 +1849,6 @@ impl RevlogNodeMap {
     ///
     /// The [`NodeTree`] must be fully populated, or there will be false
     /// negatives.
-    #[expect(unused)]
     fn from_nodetree_option(
         node_tree_opt: Option<NodeTree>,
         index_file: PathBuf,
