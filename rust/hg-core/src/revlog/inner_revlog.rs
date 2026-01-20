@@ -6,7 +6,10 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 use std::ops::Deref;
+use std::ops::DerefMut;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
@@ -53,6 +56,10 @@ use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
+use crate::revlog::RevlogIndexNodeLookup;
+use crate::revlog::nodemap::NodeMap;
+use crate::revlog::nodemap::NodeMapError;
+use crate::revlog::nodemap::NodeTree;
 use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
 use crate::utils::u32_u;
@@ -60,6 +67,8 @@ use crate::utils::u_i32;
 use crate::utils::ByTotalChunksSize;
 use crate::utils::RawData;
 use crate::vfs::Vfs;
+use crate::Node;
+use crate::NodePrefix;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
 /// boundary to incrementally rewrite higher-level revlog functionality in
@@ -1631,6 +1640,260 @@ impl InnerRevlog {
     }
 }
 
+/// Encapsulates the state of a revlog's nodemap
+enum RevlogNodeMapState {
+    /// Non-persistent nodemap, lazily constructed in-memory
+    InMemory {
+        /// How many lookups have failed
+        misses: AtomicUsize,
+        /// The in-memory tree
+        tree: NodeTree,
+        /// The smallest revision number from the index we've cached. This is
+        /// useful because (after a few misses) we lazily fill the nodemap from
+        /// the end, so every subsequent query would start over from the tip if
+        /// we didn't remember this.
+        smallest_cached_rev: Option<Revision>,
+    },
+    /// Nodemap stored on disk in an append-mostly format
+    Persistent(NodeTree),
+}
+
+/// The nodemap for a given revlog index. It only makes sense to use in the
+/// context of a single [`InnerRevlog`].
+struct RevlogNodeMap {
+    /// Holds the state of the nodemap in a thread-safe manner. Most access
+    /// patterns are reads, so we optimize for it.
+    state: RwLock<RevlogNodeMapState>,
+    /// The canonical index file for the target revlog, for debugging.
+    index_file: PathBuf,
+}
+
+impl std::fmt::Debug for RevlogNodeMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RevlogNodeMap")
+            .field("index_file", &self.index_file.display())
+            .finish()
+    }
+}
+
+impl RevlogNodeMap {
+    /// Main insertion method, see [`NodeTree::insert`].
+    pub fn insert(
+        &self,
+        idx: &impl RevlogIndex,
+        node: &Node,
+        rev: Revision,
+    ) -> Result<(), NodeMapError> {
+        let mut state = self.state.write().expect("propagate the panic");
+        let tree = match state.deref_mut() {
+            RevlogNodeMapState::InMemory {
+                tree,
+                // No need to adjust either of those
+                misses: _,
+                smallest_cached_rev: _,
+            } => tree,
+            RevlogNodeMapState::Persistent(tree) => tree,
+        };
+        tree.insert(idx, node, rev)
+    }
+
+    /// Find the unique [`Revision`] whose [`Node`] starts with the given
+    /// binary prefix. The `idx` must be the same one for all invocations
+    /// If no [`Revision`] matches the given prefix, Ok(None) is returned.
+    fn rev_from_node_prefix(
+        &self,
+        idx: &impl RevlogIndex,
+        node_prefix: NodePrefix,
+    ) -> Result<Option<Revision>, NodeMapError> {
+        if node_prefix == NULL_NODE {
+            // This ensures we don't count this trivial case as a query
+            return Ok(Some(NULL_REVISION));
+        }
+
+        // First check if we have it in cache
+        let (prev_misses, partial_lookup) =
+            match &*self.state.read().expect("propagate the panic") {
+                RevlogNodeMapState::Persistent(node_tree) => {
+                    return node_tree.find_bin(idx, node_prefix);
+                }
+                RevlogNodeMapState::InMemory {
+                    misses,
+                    tree,
+                    smallest_cached_rev: _,
+                } => {
+                    let partial_lookup = tree.find_bin(idx, node_prefix)?;
+                    if node_prefix.nybbles_len() == NULL_NODE.nybbles_len() {
+                        if let Some(rev) = partial_lookup {
+                            // In-memory cache hit of a full node
+                            return Ok(Some(rev));
+                        }
+                    }
+                    // In-memory cache miss, update the counter.
+                    let prev_misses = misses.fetch_add(1, Ordering::Relaxed);
+                    // The nodemap is not fully populated, so we can't give
+                    // back a prefix answer without scanning the full index.
+                    (prev_misses, partial_lookup)
+                }
+            };
+
+        // Cache miss: the tree is lazily built for performance reason, so look
+        // for a match in the index
+        if prev_misses <= 3 {
+            // Don't cache revisions we visit yet
+            let noop_visit = |_, _| {};
+
+            let opt =
+                idx.rev_from_prefix(node_prefix, noop_visit, None, None)?;
+            if let Some((node, rev)) = opt {
+                // Only cache the exact revision we've asked for
+                self.insert(idx, &node, rev)?;
+            }
+            return Ok(opt.map(|(_, rev)| rev));
+        }
+
+        // This revlog is getting queried often: cache every rev we visit
+        let mut state = self.state.write().expect("propagate the panic");
+        match state.deref_mut() {
+            RevlogNodeMapState::Persistent(_) => {
+                unreachable!("in a partial state")
+            }
+            RevlogNodeMapState::InMemory {
+                misses: _,
+                tree,
+                smallest_cached_rev,
+            } => {
+                let visit = |node, rev| {
+                    tree.insert(idx, &node, rev).expect("rev must be valid");
+                };
+                let node_rev_pair = idx.rev_from_prefix(
+                    node_prefix,
+                    visit,
+                    *smallest_cached_rev,
+                    partial_lookup,
+                )?;
+                match node_rev_pair {
+                    Some((_node, revision)) => {
+                        // remember where we stopped to not insert top-most
+                        // revisions again
+                        *smallest_cached_rev = Some(revision);
+                        Ok(Some(revision))
+                    }
+                    None => Ok(None),
+                }
+            }
+        }
+    }
+
+    /// Empty the nodemap and return a pair of (`changed`, `new_data`), where
+    /// `changed` is the number of bytes from the readonly part that have been
+    /// masked by the new data (i.e. data added after what was on disk at load
+    /// time).
+    #[expect(unused)]
+    pub fn incremental_data(&self) -> (usize, Vec<u8>) {
+        let mut state = self.state.write().expect("propagate the panic");
+        let tree = match state.deref_mut() {
+            RevlogNodeMapState::InMemory {
+                misses,
+                tree,
+                smallest_cached_rev,
+            } => {
+                *misses = 0.into();
+                *smallest_cached_rev = None;
+                tree
+            }
+            RevlogNodeMapState::Persistent(tree) => tree,
+        };
+        let tree = std::mem::take(tree);
+        let masked_blocks = tree.masked_readonly_blocks();
+        let (_, data) = tree.into_readonly_and_added_bytes();
+        let changed =
+            masked_blocks * std::mem::size_of::<super::nodemap::Block>();
+        (changed, data)
+    }
+
+    /// Empty the nodemap and if it's persistent, reload it from scratch.
+    #[expect(unused)]
+    pub fn invalidate(
+        &self,
+        idx: &impl RevlogIndex,
+    ) -> Result<(), NodeMapError> {
+        let mut state = self.state.write().expect("propagate the panic");
+        match state.deref_mut() {
+            RevlogNodeMapState::InMemory {
+                misses,
+                tree,
+                smallest_cached_rev,
+            } => {
+                *misses = 0.into();
+                *smallest_cached_rev = None;
+                // Don't reload if it's in-memory, we don't know future access
+                // patterns.
+                tree.invalidate_all();
+                Ok(())
+            }
+            RevlogNodeMapState::Persistent(tree) => {
+                tree.invalidate_all();
+                tree.catch_up_to_index(idx, NULL_REVISION)
+            }
+        }
+    }
+
+    /// Internal constructor.
+    ///
+    /// The [`NodeTree`] must be fully populated, or there will be false
+    /// negatives.
+    #[expect(unused)]
+    fn from_nodetree_option(
+        node_tree_opt: Option<NodeTree>,
+        index_file: PathBuf,
+    ) -> Self {
+        let state = match node_tree_opt {
+            Some(node_tree) => RevlogNodeMapState::Persistent(node_tree),
+            None => RevlogNodeMapState::InMemory {
+                misses: 0.into(),
+                tree: Default::default(),
+                smallest_cached_rev: None,
+            },
+        };
+        Self { index_file, state: RwLock::new(state) }
+    }
+}
+
+impl NodeMap for RevlogNodeMap {
+    fn find_bin(
+        &self,
+        idx: &impl RevlogIndex,
+        prefix: NodePrefix,
+    ) -> Result<Option<Revision>, NodeMapError> {
+        self.rev_from_node_prefix(idx, prefix)
+    }
+
+    fn unique_prefix_len_bin(
+        &self,
+        idx: &impl RevlogIndex,
+        node_prefix: NodePrefix,
+    ) -> Result<Option<usize>, NodeMapError> {
+        let mut state = self.state.write().expect("propagate the panic");
+        let state = state.deref_mut();
+        match state {
+            RevlogNodeMapState::InMemory {
+                misses: _,
+                tree,
+                smallest_cached_rev,
+            } => {
+                // We need to fully populate the tree to answer this question
+                tree.catch_up_to_index(idx, NULL_REVISION)?;
+                *smallest_cached_rev = Some(NULL_REVISION);
+                tree.unique_prefix_len_bin(idx, node_prefix)
+            }
+            RevlogNodeMapState::Persistent(tree) => {
+                // The persistent nodemap should have been kept up to date
+                tree.unique_prefix_len_bin(idx, node_prefix)
+            }
+        }
+    }
+}
+
 /// Given two delta targeting the same base, find the affected window
 ///
 /// This return the start and end offset of section in "base" affected by a
@@ -1779,4 +2042,122 @@ pub fn hash(
     }
     hasher.update(data);
     *hasher.finalize().as_ref()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const NODE_0: &[u8; 40] = b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+    //                                                 different here ^^
+    const NODE_1: &[u8; 40] = b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabee";
+
+    struct FakeIndex([Node; 2]);
+
+    impl FakeIndex {
+        fn new() -> Self {
+            Self([
+                Node::from_hex(NODE_0).unwrap(),
+                Node::from_hex(NODE_1).unwrap(),
+            ])
+        }
+    }
+
+    impl RevlogIndex for FakeIndex {
+        fn len(&self) -> usize {
+            2
+        }
+
+        fn node(&self, rev: Revision) -> &Node {
+            &self.0[rev.0 as usize]
+        }
+    }
+
+    /// Tests that the [`RevlogNodeMap`] behaves correctly when partially built
+    /// in-memory
+    #[test]
+    fn test_revlog_nodemap_basic() {
+        let idx = FakeIndex::new();
+        let nodemap = RevlogNodeMap::from_nodetree_option(None, PathBuf::new());
+        // Test exact match first, to populate the nodemap and make sure...
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(NODE_0).unwrap()
+            ),
+            Ok(Some(Revision(0)))
+        );
+        // ... no partial match from an in-memory index without scanning the
+        // whole thing.
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(b"abcd").unwrap()
+            ),
+            Err(NodeMapError::MultipleResults)
+        );
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(
+                    // unambiguous prefix (removed the last byte)
+                    b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabc"
+                )
+                .unwrap()
+            ),
+            Ok(Some(Revision(0)))
+        );
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(b"abcde").unwrap()
+            ),
+            Ok(None)
+        );
+        // Test other exact match
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(NODE_1).unwrap()
+            ),
+            Ok(Some(Revision(1)))
+        );
+        // Test full node not matching
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(
+                    b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabaa"
+                )
+                .unwrap()
+            ),
+            Ok(None)
+        );
+    }
+
+    /// Test that we don't confuse previous full matches with an unambiguous
+    /// prefix
+    #[test]
+    fn test_revlog_nodemap_prefix() {
+        let idx = FakeIndex::new();
+        let nodemap = RevlogNodeMap::from_nodetree_option(None, PathBuf::new());
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(NODE_0).unwrap()
+            ),
+            Ok(Some(Revision(0)))
+        );
+        assert_eq!(
+            nodemap.rev_from_node_prefix(
+                &idx,
+                NodePrefix::from_hex(
+                    // Missing the last character, but still unambiguous
+                    b"abcdabcdabcdabcdabcdabcdabcdabcdabcdabe"
+                )
+                .unwrap()
+            ),
+            Ok(Some(Revision(1)))
+        );
+    }
 }
