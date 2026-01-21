@@ -231,7 +231,7 @@ def pyspy_profile(ui, fp):
 
     # If RUST_LOG is set, it's intended for hg Rust code, not py-spy.
     # Unset the var to get the default behavior (only logging errors).
-    env.pop("RUST_LOG", None)
+    env.pop(b"RUST_LOG", None)
 
     proc = subprocess.Popen(
         cmd,
