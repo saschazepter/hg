@@ -499,6 +499,7 @@ class dirstate(intdirstate.idirstate):
         return self._map.hastrackeddir(d)
 
     @rootcache(b'.hgignore')
+    @util.rust_tracing_span("dirstate._ignore")
     def _ignore(self) -> MatcherT:
         files = self._ignorefiles()
         if not files:
