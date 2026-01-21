@@ -521,6 +521,7 @@ class ui:
             b'resource:%s.%s' % name, fp, root, trust, sections, remap
         )
 
+    @util.rust_tracing_span("ui.readconfig")
     def readconfig(
         self,
         filename: bytes,
