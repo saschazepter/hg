@@ -2250,6 +2250,7 @@ class localrepository(_localrepo_base_classes):
             return tr
         return None
 
+    @util.rust_tracing_span("localrepo.transaction")
     def transaction(self, desc: bytes, report=None) -> TransactionT:
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
