@@ -3318,6 +3318,7 @@ class localrepository(_localrepo_base_classes):
         """Used by workingctx to clear post-dirstate-status hooks."""
         del self._postdsstatus[:]
 
+    @util.rust_tracing_span("localrepo.heads")
     def heads(self, start=None):
         if start is None:
             cl = self.changelog
