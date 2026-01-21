@@ -52,9 +52,13 @@ detect changes to the set of tracked files.
 
 See `hg help config.revlog.reuse-external-delta-compression` for details.
 
-#### Parallel stream clone processing (2cc0954cef52)
+#### Parallel stream clone processing (c9f086eb8b3f)
 
-The parallel processing of incoming stream bundles is now enabled by default.
+The parallel processing of incoming stream bundles is out of experimental. It
+is not enabled by default yet as some users reported it negatively impacts,
+more testing is needed. Try it yourself, it might speed stream clone in your
+cases.
+
 See `hg help config.worker.parallel-stream-bundle-processing` for details.
 
 ### Performance improvements for existing features
