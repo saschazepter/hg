@@ -765,6 +765,9 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         """
         if branch not in self:
             return False
+        ptb = self._pure_topo_branch
+        if ptb is not None and ptb == branch and rev == self.tiprev:
+            return True
         return rev in self.branch_head_revs(branch, closed=closed)
 
     def __iter__(self):
