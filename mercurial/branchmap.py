@@ -57,7 +57,7 @@ class BranchMapCache(i_repo.IBranchMapCache):
     def __getitem__(self, repo):
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
-        bcache._ensure_populated(repo)
+        bcache._pre_seed(repo)
         assert bcache._filtername == repo.filtername, (
             bcache._filtername,
             repo.filtername,
@@ -485,6 +485,9 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         raise NotImplementedError
+
+    def _pre_seed(self, repo):
+        """capture all data necessary to populated lazily loaded values"""
 
     def _ensure_populated(self, repo):
         """make sure any lazily loaded values are fully populated"""
