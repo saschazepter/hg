@@ -765,7 +765,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         return rev in self.branch_head_revs(branch, closed=closed)
 
     def __iter__(self):
-        # The "pure-topo" branch migh bot have entry in self._entries, so we
+        # The "pure-topo" branch migh not have entry in self._entries, so we
         # need to yield it manually.
         #
         # However, the branchmap might change during the iteration, so check
