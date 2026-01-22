@@ -874,7 +874,9 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
 
     # save to detect changes
     tip = repo.changelog.tip()
-    head_change = cmdutil.future_head_change(repo)
+    head_change = None
+    if repo.ui.configbool(b"commands", b"commit.report-head-changes"):
+        head_change = cmdutil.future_head_change(repo)
 
     newnode = cmdutil.commit(
         ui, repo, commitfunc, [], pycompat.byteskwargs(opts)
@@ -1955,7 +1957,8 @@ def _docommit(ui, repo, *pats, **opts):
 
     any_close = opts.get('close_branch') or opts.get('force_close_branch')
     head_change = None
-    if not opts.get('amend'):
+    report_hc = repo.ui.configbool(b"commands", b"commit.report-head-changes")
+    if not opts.get('amend') and report_hc:
         head_change = cmdutil.future_head_change(repo, any_close)
 
     branch = repo[None].branch()

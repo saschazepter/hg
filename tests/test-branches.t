@@ -1820,3 +1820,14 @@ And this is preserved over further update
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   b3ad80eaca8a572cbca78ef07ece1013ead0707a o C
 #endif
+
+We can disable the new-head reports
+===================================
+
+  $ hg up "A~1" --quiet
+  $ mkcommit A-nh-01
+  created new head
+
+  $ hg up "A~1" --quiet
+  $ mkcommit A-nh-02 --config commands.commit.report-head-changes=no
+

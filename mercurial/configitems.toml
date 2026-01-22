@@ -172,6 +172,16 @@ default = false
 
 [[items]]
 section = "commands"
+name = "commit.report-head-changes"
+default = true
+experimental = true
+documentation = """
+When true (the default) commit reports creation of new named-branch's heads, or
+reopening of closed one.
+"""
+
+[[items]]
+section = "commands"
 name = "grep.all-files"
 default = false
 experimental = true
