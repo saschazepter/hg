@@ -1293,6 +1293,14 @@ class BranchCacheV3(_LocalBranchCache):
         self._process_topo_heads()
         return super().branchtip(branch)
 
+    def branches_info(
+        self,
+        repo: RepoT,
+        branches: set[bytes] | None = None,
+    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
+        self._process_topo_heads()
+        return super().branches_info(repo, branches)
+
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
         cl = repo.changelog
