@@ -1265,6 +1265,13 @@ class BranchCacheV3(_LocalBranchCache):
         self._process_topo_heads()
         return super().hasbranch(label, open_only)
 
+    def __contains__(self, label: bytes) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
+        return self.hasbranch(label, open_only=False)
+
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
         cl = repo.changelog
