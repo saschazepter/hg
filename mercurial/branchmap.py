@@ -748,10 +748,10 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         heads = self.branchheads(branch, closed=closed)
         return repo.revs(b'max(%d::(%ln))', start, heads).first()
 
-    def is_branch_head(
+    def is_branch_head_rev(
         self,
         branch: bytes,
-        node: NodeIdT,
+        rev: RevnumT,
         closed: bool = False,
     ) -> bool:
         """True if the node is a head for that branch
@@ -760,7 +760,7 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         """
         if branch not in self:
             return False
-        return node in self.branchheads(branch, closed=closed)
+        return rev in self.branch_head_revs(branch, closed=closed)
 
     def __iter__(self):
         # The "pure-topo" branch migh bot have entry in self._entries, so we

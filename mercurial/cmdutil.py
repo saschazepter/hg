@@ -3347,7 +3347,7 @@ def future_head_change(
             continue
         if p.closesbranch():
             closed_parent.append(p.rev())
-        if bm.is_branch_head(branch, p.node()):
+        if bm.is_branch_head_rev(branch, p.rev()):
             has_head_parent = True
     reopen = ()
     if not close_branch:

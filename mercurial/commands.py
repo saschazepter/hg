@@ -1960,7 +1960,7 @@ def _docommit(ui, repo, *pats, **opts):
 
     branch = repo[None].branch()
     tip = repo.changelog.tip()
-    p1 = repo[b'.'].node()
+    p1 = repo[b'.'].rev()
 
     extra = {}
     if any_close:
@@ -1984,7 +1984,9 @@ def _docommit(ui, repo, *pats, **opts):
             )
         elif (
             branch == repo[b'.'].branch()
-            and not repo.branchmap().is_branch_head(branch, p1, closed=wc_dirty)
+            and not repo.branchmap().is_branch_head_rev(
+                branch, p1, closed=wc_dirty
+            )
             and not opts.get('force_close_branch')
         ):
             hint = _(
@@ -6657,6 +6659,7 @@ def summary(ui, repo, **opts):
     ctx = repo[None]
     parents = ctx.parents()
     pnode = parents[0].node()
+    p_rev = parents[0].rev()
     marks = []
 
     try:
@@ -6766,9 +6769,9 @@ def summary(ui, repo, **opts):
         t += _(b' (merge)')
     elif branch != parents[0].branch():
         t += _(b' (new branch)')
-    elif parents[0].closesbranch() and repo.branchmap().is_branch_head(
+    elif parents[0].closesbranch() and repo.branchmap().is_branch_head_rev(
         branch,
-        pnode,
+        p_rev,
         closed=True,
     ):
         t += _(b' (head closed)')
@@ -7080,7 +7083,7 @@ def tag(ui, repo: RepoT, name1, *names, **opts):
             if (
                 not opts.get('force')
                 and bm.hasbranch(branch, open_only=True)
-                and not bm.is_branch_head(branch, p1)
+                and not bm.is_branch_head_rev(branch, repo[p1].rev())
             ):
                 raise error.InputError(
                     _(

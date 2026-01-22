@@ -2481,10 +2481,10 @@ class IBranchMap(IBaseBranchMap, Protocol):
         return 0 for unknown branch"""
 
     @abc.abstractmethod
-    def is_branch_head(
+    def is_branch_head_rev(
         self,
         branch: bytes,
-        node: NodeIdT,
+        rev: RevnumT,
         closed: bool = False,
     ) -> bool:
         """True if the node is a head for that branch
