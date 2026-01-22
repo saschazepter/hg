@@ -1232,6 +1232,27 @@ class BranchCacheV3(_LocalBranchCache):
         assert not self._needs_populate
         super()._verifybranch(branch)
 
+    def __iter__(self):
+        # The "pure-topo" branch migh not have entry in self._entries, so we
+        # need to yield it manually.
+        #
+        # However, the branchmap might change during the iteration, so check
+        # that before starting iteration.
+        if self._pure_topo_branch is not None:
+            all_branches = list(self._entries.keys())
+            branch = self._pure_topo_branch
+            if branch not in self._entries and branch in self:
+                all_branches.append(branch)
+        elif self._needs_populate_topo_only:
+            all_branches = list(self._entries.keys())
+            for branch in self._topo_only_branches:
+                if branch not in self._entries:
+                    all_branches.append(branch)
+        else:
+            self._process_topo_heads()
+            all_branches = list(self._entries.keys())
+        yield from all_branches
+
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
         cl = repo.changelog
