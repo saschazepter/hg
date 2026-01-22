@@ -1278,6 +1278,14 @@ class BranchCacheV3(_LocalBranchCache):
             self._populate_pure_topo_nodes()
         return super().branchheads(branch, closed=closed)
 
+    def branch_head_revs(
+        self,
+        branch: bytes,
+        closed: bool = False,
+    ) -> list[RevnumT]:
+        self._process_topo_heads()
+        return super().branch_head_revs(branch, closed=closed)
+
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
         cl = repo.changelog
