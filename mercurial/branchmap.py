@@ -1497,9 +1497,9 @@ class BranchCacheV3(_LocalBranchCache):
                 if closed:
                     self._closednodes.add(node)
                 pre_add_len = len(touched_branch)
-                touched_branch.add(branch)
                 if not first_pop and branch not in self._topo_only_branches:
                     continue
+                touched_branch.add(branch)
                 if pre_add_len != len(touched_branch):
                     # first sight of this branch
                     if branch not in self._entries:
