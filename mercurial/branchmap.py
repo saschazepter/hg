@@ -1114,6 +1114,18 @@ class BranchCacheV3(_LocalBranchCache):
     in that branch to be a topological heads.
     """
 
+    _needs_populate: bool
+    """True if the branch cache implicitly holds some branch-heads information
+    (typically for all topological heads) and `self._ensure_populated(repo)`
+    needs to be called before we can use the BranchCache for generic
+    queries."""
+
+    _needs_populate_topo_only: bool
+    """True if the branch cache implicitly hold branch-heads information for
+    the branches where all heads are topological and
+    self._ensure_populated(repo) needs to be called before we can use the
+    BranchCache for generic queries"""
+
     def __init__(
         self,
         *args,
