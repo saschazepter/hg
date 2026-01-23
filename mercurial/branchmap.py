@@ -1690,6 +1690,8 @@ class BranchCacheV3(_LocalBranchCache):
                 self._open_head_revs[branch] = topo_heads
                 self._tips[branch] = (self._entries[branch][-1], False)
                 self._verifiedbranches.add(branch)
+                if self._state == STATE_CLEAN:
+                    self._state = STATE_DIRTY
             if self._topo_only_branches != topo_only:
                 self._topo_only_branches = topo_only
                 if self._state == STATE_CLEAN:
