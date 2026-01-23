@@ -1945,3 +1945,223 @@ The next commit should detect the pure mode again
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   c4c34d5b96bb41179023634383d836bdf8d1d801 o C
 #endif
+
+moving from "mixed" with a single branch that has some closed heads to pure
+---------------------------------------------------------------------------
+
+create some branching on C
+
+  $ mkcommit C6
+  $ hg up "p1(.)"
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ mkcommit C7
+  created new head
+
+  $ hg log -G --rev 'desc("C5")::' -T  '{branch} {if(closesbranch, "X", " ")} {node|short} {desc}\n'
+  @  C   047375283028 C7
+  |
+  | o  C   c86818beac0c C6
+  |/
+  o  C   c4c34d5b96bb C5
+  |
+  ~
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=0473752830287ce98829447e9e99031164494f69 tip-rev=18 topo-mode=pure
+  C
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  0473752830287ce98829447e9e99031164494f69 18
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  c86818beac0c7f1c1c222fa9e4b66955081a4aaa o C
+  0473752830287ce98829447e9e99031164494f69 o C
+#endif
+
+close one of the two head
+
+This should more the branchmap to "mixed" mode.
+
+  $ hg commit --close -m "C8"
+  $ hg log -G --rev 'desc("C5")::' -T '{branch} {if(closesbranch, "X", " ")} {node|short} {desc}\n'
+  @  C X 8dbda6043177 C8
+  |
+  o  C   047375283028 C7
+  |
+  | o  C   c86818beac0c C6
+  |/
+  o  C   c4c34d5b96bb C5
+  |
+  ~
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=8dbda6043177f599930c693e1d0bd9812a09de22 tip-rev=19
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  8dbda6043177f599930c693e1d0bd9812a09de22 19
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  c86818beac0c7f1c1c222fa9e4b66955081a4aaa o C
+  8dbda6043177f599930c693e1d0bd9812a09de22 c C
+#endif
+
+again we need a to do an extra iteration for the mixed mode to be detected,
+this is not ideal, but good enough.
+
+  $ hg up 'desc(C6)'
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ mkcommit "C9"
+  $ hg log -G --rev 'desc("C5")::' -T '{branch} {if(closesbranch, "X", " ")} {node|short} {desc}\n'
+  @  C   7aa21c214701 C9
+  |
+  | _  C X 8dbda6043177 C8
+  | |
+  | o  C   047375283028 C7
+  | |
+  o |  C   c86818beac0c C6
+  |/
+  o  C   c4c34d5b96bb C5
+  |
+  ~
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=7aa21c2147015cd652b814072f89c5b8574f15cd tip-rev=20 topo-mode=mixed
+  C
+  
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  7aa21c2147015cd652b814072f89c5b8574f15cd 20
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  8dbda6043177f599930c693e1d0bd9812a09de22 c C
+  7aa21c2147015cd652b814072f89c5b8574f15cd o C
+#endif
+
+now we get out of the mixed mode
+
+XXX However this is not properly detected
+
+  $ hg merge 'desc(C8)'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit -m 'C10'
+  reopening closed branch head 19
+  $ hg log -G --rev 'desc("C5")::' -T '{branch} {if(closesbranch, "X", " ")} {node|short} {desc}\n'
+  @    C   5d236290f36a C10
+  |\
+  | o  C   7aa21c214701 C9
+  | |
+  _ |  C X 8dbda6043177 C8
+  | |
+  o |  C   047375283028 C7
+  | |
+  | o  C   c86818beac0c C6
+  |/
+  o  C   c4c34d5b96bb C5
+  |
+  ~
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=5d236290f36a23b9cbb62b63dfb26f3e48ad13cb tip-rev=21 topo-mode=mixed (known-bad-output !)
+  tip-node=81a2b751d30053e8ddd6e98467f1402ea2edf248 tip-rev=17 topo-mode=pure (missing-correct-output !)
+  C
+  
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  5d236290f36a23b9cbb62b63dfb26f3e48ad13cb 21
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  5d236290f36a23b9cbb62b63dfb26f3e48ad13cb o C
+#endif
+
+XXX an extra commit doesn't help
+
+  $ mkcommit C11
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=mixed (known-bad-output !)
+  tip-node=71724693487fb448991e0e8be0227ee1c69bc8d1 tip-rev=18 topo-mode=pure (missing-correct-output !)
+  C
+  
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  2be6fe61602ec536c615c76a452172c23dae3e0c 22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  2be6fe61602ec536c615c76a452172c23dae3e0c o C
+#endif
