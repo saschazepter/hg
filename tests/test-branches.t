@@ -2394,9 +2394,8 @@ explicit cache upgrade should detect the pure topo mode
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   ##### .hg/cache/branch3-served
-  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=mixed
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=pure
   C
-  
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
 #else
@@ -2429,9 +2428,8 @@ explicit cache upgrade from scratch should detect the pure topo mode
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   ##### .hg/cache/branch3-served
-  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=mixed
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=pure
   C
-  
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
 #else

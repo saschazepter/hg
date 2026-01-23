@@ -87,6 +87,7 @@ from .upgrade_utils import auto_upgrade, share_safe as share_safe_upgrade
 from .utils import (
     hashutil,
     procutil,
+    repoviewutil,
     stringutil,
     urlutil,
 )
@@ -2797,7 +2798,7 @@ class localrepository(_localrepo_base_classes):
             # they're a subset of another kind of cache that *has* been used).
             dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
 
-            for filt in repoview.filtertable.keys():
+            for filt in repoviewutil.get_ordered_subset():
                 filtered = self.filtered(filt)
                 self._branchcaches.update_disk(filtered, detect_pure_topo=dpt)
 
