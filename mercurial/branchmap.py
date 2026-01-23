@@ -1706,11 +1706,21 @@ class BranchCacheV3(_LocalBranchCache):
         self._topo_seed = None
 
     def _detect_pure_topo(self, repo) -> None:
-        if self._topo_only_branches:
-            # if this set is non-empty, the data we have comes from disk and
-            # the pure-topo case was detected as load time.
+        if self._pure_topo_branch is not None:
+            # We are already in the best case, no need to continue.
+            return
+        elif self._topo_only_branches and len(self._topo_only_branches) > 1:
+            # If this set is non-empty, its content comes from disk as that
+            # detection is made at when writing branchmap.
             #
-            # There is nothing we can do.
+            # However the upgrade could have detect that the set is preserved,
+            # but not that we detected from "mixed" to "pure". If there is only
+            # one item in that list, we keep going to detect a potential move
+            # from "mixed" to "pure".
+            #
+            # If more than branch is "topological only". We can't end up in
+            # something better than "mixed", so there is nothing more we can do
+            # here.
             return
         self._ensure_populated(repo)
         if self._topo_only_branches:
