@@ -175,15 +175,15 @@ traced command should not display their trace on stdout
 some trace should exist on stderr (if rust is used)
 
   $ wc -l ../rust-trace.txt
-  .*[1-9] \.\./rust-trace.txt (re) (rust !)
-  .*[1-9] \.\./rust-trace.txt (re) (rhg no-rust !)
+   *[1-9][0-9]* \.\./rust-trace.txt (re) (rust !)
+   *[1-9][0-9]* \.\./rust-trace.txt (re) (rhg no-rust !)
    *0 \.\./rust-trace.txt (re) (no-rhg no-rust !)
 
 That output should should looks like traces
 
   $ grep -E "close.*time.busy.*time.idle"  ../rust-trace.txt | wc -l
-  .*[1-9] (re) (rust !)
-  .*[1-9] (re) (rhg no-rust !)
+   *[1-9][0-9]* (re) (rust !)
+   *[1-9][0-9]* (re) (rhg no-rust !)
    *0 (re) (no-rhg no-rust !)
 
   $ cd ..
