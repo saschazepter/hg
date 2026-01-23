@@ -2165,3 +2165,182 @@ XXX an extra commit doesn't help
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   2be6fe61602ec536c615c76a452172c23dae3e0c o C
 #endif
+
+upgrading through the closed heads that still end up in a pure mode
+-------------------------------------------------------------------
+
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short} [rev-{rev}] {desc}\n'
+  @  C   2be6fe61602e [rev-22] C11
+  |
+  o    C   5d236290f36a [rev-21] C10
+  |\
+  | o  C   7aa21c214701 [rev-20] C9
+  | |
+  _ |  C X 8dbda6043177 [rev-19] C8
+  | |
+  o |  C   047375283028 [rev-18] C7
+  | |
+  | o  C   c86818beac0c [rev-17] C6
+  |/
+  o  C   c4c34d5b96bb [rev-16] C5
+  |
+  o    C   34cee33f7c02 [rev-15] C4: make A non-topological
+  |\
+  | o    A   fd86303ad553 [rev-14] A-merge-01
+  | |\
+  | | o    A   6e206935b2bf [rev-13] A-merge-01
+  | | |\
+  | | | o  A   b3bfa327da66 [rev-12] A-nh-02
+  | | | |
+  | o---+  A   bcb088263b0a [rev-11] A-nh-01
+  |  / /
+  o | |  C   b3ad80eaca8a [rev-10] C3
+  | | |
+  o | |  C   aa41ed5f1e51 [rev-9] C2
+  | | |
+  o | |  C   e29f33a0e41f [rev-8] C1
+  | | |
+  | o |  A   18507f5e8524 [rev-7] another commit
+  | |/
+  | o  A   117ef0aff623 [rev-6] reopen
+  | |
+  | _  A X db99163c2f3f [rev-5] close the topo head
+  | |
+  | o  A   4bf67499b70a [rev-4] r4
+  |/|
+  o |  C   4a546028fa8f [rev-3] r3
+  | |
+  o |  A   a3b807b3ff0b [rev-2] r2
+  | |
+  | o  B   0bc7d348d965 [rev-1] r1
+  |/
+  o  A   2ab8003a1750 [rev-0] r0
+  
+  $ rm -f .hg/cache/branch?-served
+  $ hg phase --public 'desc(C5)'
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  2be6fe61602ec536c615c76a452172c23dae3e0c 22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  2be6fe61602ec536c615c76a452172c23dae3e0c o C
+#endif
+
+  $ rm -f .hg/cache/branch?-served
+  $ hg phase --public 'desc(C6)'
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=c4c34d5b96bb41179023634383d836bdf8d1d801 tip-rev=16
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  ##### .hg/cache/branch3-served
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  c4c34d5b96bb41179023634383d836bdf8d1d801 16
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  c4c34d5b96bb41179023634383d836bdf8d1d801 o C
+  ##### .hg/cache/branch2-served
+  2be6fe61602ec536c615c76a452172c23dae3e0c 22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  2be6fe61602ec536c615c76a452172c23dae3e0c o C
+#endif
+
+  $ rm -f .hg/cache/branch?-served
+  $ hg phase --public 'desc(C10)'
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=c86818beac0c7f1c1c222fa9e4b66955081a4aaa tip-rev=17 topo-mode=pure
+  C
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  ##### .hg/cache/branch3-served
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  c86818beac0c7f1c1c222fa9e4b66955081a4aaa 17
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  c86818beac0c7f1c1c222fa9e4b66955081a4aaa o C
+  ##### .hg/cache/branch2-served
+  2be6fe61602ec536c615c76a452172c23dae3e0c 22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  2be6fe61602ec536c615c76a452172c23dae3e0c o C
+#endif
+
+  $ rm -f .hg/cache/branch?-served
+  $ hg phase --public 'desc(C11)'
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=5d236290f36a23b9cbb62b63dfb26f3e48ad13cb tip-rev=21
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  ##### .hg/cache/branch3-served
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  5d236290f36a23b9cbb62b63dfb26f3e48ad13cb 21
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  5d236290f36a23b9cbb62b63dfb26f3e48ad13cb o C
+  ##### .hg/cache/branch2-served
+  2be6fe61602ec536c615c76a452172c23dae3e0c 22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  2be6fe61602ec536c615c76a452172c23dae3e0c o C
+#endif
+
+  $ rm -f .hg/cache/branch?-served
+  $ hg branches > /dev/null
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=pure
+  C
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  2be6fe61602ec536c615c76a452172c23dae3e0c 22
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  2be6fe61602ec536c615c76a452172c23dae3e0c o C
+#endif
