@@ -626,6 +626,7 @@ Test cache warming command
   $ rm -rf .hg/cache/
   $ hg debugupdatecaches --debug
   updating the branch cache
+  resetting content of cache/rbc-revs-v2
   $ ls -r .hg/cache/*
   .hg/cache/tags2-served
   .hg/cache/tags2

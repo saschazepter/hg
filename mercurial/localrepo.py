@@ -2741,7 +2741,9 @@ class localrepository(_localrepo_base_classes):
         if caches is None:
             caches = repository.CACHES_DEFAULT
 
-        if repository.CACHE_BRANCHMAP_SERVED in caches:
+        if (repository.CACHE_BRANCHMAP_SERVED in caches) and (
+            repository.CACHE_BRANCHMAP_ALL not in caches
+        ):
             if tr is None or tr.changes[b'origrepolen'] < len(self):
                 self.ui.debug(b'updating the branch cache\n')
                 dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
@@ -2787,6 +2789,7 @@ class localrepository(_localrepo_base_classes):
             self.filtered(b'served').tags()
 
         if repository.CACHE_BRANCHMAP_ALL in caches:
+            self.ui.debug(b'updating the branch cache\n')
             # The CACHE_BRANCHMAP_ALL updates lazily-loaded caches immediately,
             # so we're forcing a write to cause these caches to be warmed up
             # even if they haven't explicitly been requested yet (if they've
