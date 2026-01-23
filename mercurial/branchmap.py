@@ -1778,8 +1778,7 @@ class BranchCacheV3(_LocalBranchCache):
                 self._state = STATE_DIRTY
             if self._topo_only_branches != topo_only:
                 self._topo_only_branches = topo_only
-                if self._state == STATE_CLEAN:
-                    self._state = STATE_DIRTY
+                self._state = STATE_DIRTY
             # we only need to sort if they were pre-existing value
             for branch in touched_branch - topo_only:
                 # XXX getting a rev from a node is expensive so this sorting is
