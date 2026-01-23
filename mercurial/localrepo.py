@@ -2738,6 +2738,7 @@ class localrepository(_localrepo_base_classes):
             return
 
         unfi = self.unfiltered()
+        self._branchcaches.optimize_down(unfi)
 
         if caches is None:
             caches = repository.CACHES_DEFAULT

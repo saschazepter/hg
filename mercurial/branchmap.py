@@ -168,8 +168,90 @@ class BranchMapCache(i_repo.IBranchMapCache):
     def clear(self):
         self._per_filter.clear()
 
+    def optimize_down(self, repo):
+        """push equivalent filter level down when applicable
+
+        If a "higher" cache (from a filter level that is a subset of another
+        filter level) is valid for a "lower" filter level, it is useful to push
+        the "higher" cache at the "lower" level, if the "higher" cache is more
+        up to date than the "lower" one. This useful when normal operation
+        access an higher level branchmap leading it to be updated.
+
+        If normal operation updated a cache at a super set level, but it is
+        valid to at a subset level. It might be better to update the subset
+        instead of the super
+        """
+        unfi = repo.unfiltered()
+
+        # XXX we could be more agressive and smarter in our optimization,
+        # however this already a good share of basic usecase, like when
+        # `visible` is updated but equivalent to `served`.
+
+        subsets = repoviewutil.get_ordered_subset()
+        for high_name in reversed(subsets):
+            if high_name not in subsettable:
+                # there are no lower cache to look for
+                continue
+            if high_name not in self._per_filter:
+                # help pytype to be more explicit
+                continue
+            high_cached = self._per_filter[high_name]
+            assert high_cached is not None  # helps pytype
+            if high_cached._state != STATE_DIRTY:
+                # NOTE: if it is inherited but populated that could be
+                # useful, but we don't have an easy way to distinguish that
+                # case.
+                continue
+            skipped = set()
+            low_name = subsettable.get(high_name)
+            low_cached = self._per_filter.get(low_name)
+            if low_cached is None:
+                # NOTE: We still check validy against uncached low subsets. It
+                # would allow for an higher cache to re-converge to a
+                # lower-subset after it diverged.
+                continue
+            while (
+                low_name in subsettable
+                and low_cached is not None
+                and low_cached._state == STATE_INHERITED
+            ):
+                # skip over untouched inherited value, we want to source of
+                # these inherited value
+                #
+                # NOTE the highed one could be invalid for the source, but
+                # valid for the intermediate one, so we could still do
+                # something for them.
+                skipped.add(low_name)
+                low_name = subsettable.get(low_name)
+                low_cached = self._per_filter.get(low_name)
+            if low_cached is None:
+                # we did not found anything usable
+                continue
+            assert low_cached is not None  # helps pytype
+            if high_cached.tiprev < low_cached.tiprev:
+                # the high_value is less up to date than the lower one
+                #
+                # NOTE: we could also take the population state and the
+                # topo-mode into account here.
+                continue
+            low_repo = unfi.filtered(low_name)
+            if high_cached.validfor(low_repo):
+                # copy the state of the "high" cache for the "low" filter, and
+                # make it inherit its state.
+                low_cached = high_cached.inherit_for(low_repo)
+                assert low_cached is not None  # helps pytype
+                assert high_cached._state == STATE_DIRTY
+                low_cached._state = high_cached._state
+                self._per_filter[low_name] = low_cached
+                # drop the other cache, they can be inherited from the base one
+                # at any time
+                skipped.add(high_name)
+                for name in skipped:
+                    del self._per_filter[name]
+
     def write_dirty(self, repo):
         unfi = repo.unfiltered()
+        self.optimize_down(repo)
         for filtername in repoviewutil.get_ordered_subset():
             cache = self._per_filter.get(filtername)
             if cache is None:
@@ -582,7 +664,10 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
     def inherit_for(self, repo):
         """return a deep copy of the branchcache object"""
-        assert repo.filtername != self._filtername
+        assert repo.filtername != self._filtername, (
+            repo.filtername,
+            self._filtername,
+        )
         other = type(self)(
             repo=repo,
             # we always do a shally copy of self._entries, and the values is
