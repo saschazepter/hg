@@ -1721,9 +1721,8 @@ We re-open the top head
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-served
-  tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=mixed
+  tip-node=18507f5e85242640bb3f97ea2087ec574c1f78e1 tip-rev=7 topo-mode=pure
   A
-  
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
 #else
@@ -2118,7 +2117,6 @@ this is not ideal, but good enough.
 
 now we get out of the mixed mode
 
-XXX However this is not properly detected
 
   $ hg merge 'desc(C8)'
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -2168,7 +2166,7 @@ XXX However this is not properly detected
   5d236290f36a23b9cbb62b63dfb26f3e48ad13cb o C
 #endif
 
-XXX an extra commit doesn't help
+The next commit will detect the "pure" mode and update the cache.
 
   $ mkcommit C11
 
@@ -2180,10 +2178,8 @@ XXX an extra commit doesn't help
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
   ##### .hg/cache/branch3-served
-  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=mixed (known-bad-output !)
-  tip-node=71724693487fb448991e0e8be0227ee1c69bc8d1 tip-rev=18 topo-mode=pure (missing-correct-output !)
+  tip-node=2be6fe61602ec536c615c76a452172c23dae3e0c tip-rev=22 topo-mode=pure
   C
-  
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
 #else
