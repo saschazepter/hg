@@ -1541,9 +1541,26 @@ Automatic detection of the pure-topo mode for branchmap v3
 ==========================================================
 
 The repository is in a pure-topo state
-(even if the branch cache did not noticed it yet, which is fine)
 
   $ cd branchmap-testing4-clone
+
+The cache might not have detected that yet.
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#endif
+
   $ hg update A
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugupdatecache # make sure previous event doesn't influence the test
@@ -1558,6 +1575,23 @@ The repository is in a pure-topo state
   |/
   o  A   2ab8003a1750
   
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+#endif
+
   $ hg branches
   A                              4:4bf67499b70a
   C                              3:4a546028fa8f (inactive)
