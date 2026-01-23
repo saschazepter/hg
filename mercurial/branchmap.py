@@ -1819,7 +1819,7 @@ class BranchCacheV3(_LocalBranchCache):
             if heads and set(heads).issubset(topo_heads):
                 topo_only.add(branch)
 
-        if topo_only and self._state != STATE_INHERITED:
+        if topo_only != self._topo_only_branches:
             self._state = STATE_DIRTY
         self._topo_only_branches = topo_only
         if len(topo_only) == 1:
