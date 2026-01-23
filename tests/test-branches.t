@@ -1831,3 +1831,117 @@ We can disable the new-head reports
   $ hg up "A~1" --quiet
   $ mkcommit A-nh-02 --config commands.commit.report-head-changes=no
 
+cleanup the extra head
+
+  $ hg merge 'min(head() and branch("A"))'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit -m "A-merge-01"
+  $ hg merge 'min(head() and branch("A"))'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit -m "A-merge-01"
+
+We should detect when the mixed case become pure again
+======================================================
+
+moving from "mixed" with two branch to a single pure branch
+-----------------------------------------------------------
+
+  $ hg up C
+  3 files updated, 0 files merged, 3 files removed, 0 files unresolved
+  $ hg merge A
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+
+(that commit touch multiple branch so the topo-mode become uncertain)
+
+  $ hg commit --m 'C4: make A non-topological'
+  $ hg log -G -T '{branch} {if(closesbranch, "X", " ")} {node|short}\n'
+  @    C   34cee33f7c02
+  |\
+  | o    A   fd86303ad553
+  | |\
+  | | o    A   6e206935b2bf
+  | | |\
+  | | | o  A   b3bfa327da66
+  | | | |
+  | o---+  A   bcb088263b0a
+  |  / /
+  o | |  C   b3ad80eaca8a
+  | | |
+  o | |  C   aa41ed5f1e51
+  | | |
+  o | |  C   e29f33a0e41f
+  | | |
+  | o |  A   18507f5e8524
+  | |/
+  | o  A   117ef0aff623
+  | |
+  | _  A X db99163c2f3f
+  | |
+  | o  A   4bf67499b70a
+  |/|
+  o |  C   4a546028fa8f
+  | |
+  o |  A   a3b807b3ff0b
+  | |
+  | o  B   0bc7d348d965
+  |/
+  o  A   2ab8003a1750
+  
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  34cee33f7c02cb02fc18f913017859c862dd881d 15
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  34cee33f7c02cb02fc18f913017859c862dd881d o C
+#endif
+
+The next commit should detect the pure mode again
+
+  $ mkcommit C5
+
+#if v3
+  $ show_cache
+  ##### .hg/cache/branch3-base
+  tip-node=4bf67499b70aa5383056bc17ff96fd1e8d520970 tip-rev=4 topo-mode=pure
+  A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch3-served
+  tip-node=c4c34d5b96bb41179023634383d836bdf8d1d801 tip-rev=16 topo-mode=pure
+  C
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+#else
+  $ show_cache
+  ##### .hg/cache/branch2-base
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 4
+  4bf67499b70aa5383056bc17ff96fd1e8d520970 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  4a546028fa8ffc732fbf46f6476f49d5572f4b22 o C
+  ##### .hg/cache/branch2-served
+  c4c34d5b96bb41179023634383d836bdf8d1d801 16
+  fd86303ad5534310a9f6523e5530a4ac9550e078 o A
+  0bc7d348d965a85078ec0cc80847c6992e024e36 o B
+  c4c34d5b96bb41179023634383d836bdf8d1d801 o C
+#endif
