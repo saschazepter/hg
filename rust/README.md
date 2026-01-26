@@ -125,7 +125,7 @@ Example:
 
 ```shell
   $ HG_RUST_FEATURES="full-tracing" make local PURE=--rust
-  $ HG_TRACE_PATH=/tmp/trace.json RUST_LOG=debug ./hg st > /dev/null
+  $ HG_TRACE_PATH=/tmp/trace.json RUST_LOG=debug ./hg-local st > /dev/null
 ```
 
 In this case, opening `/tmp/trace.json` in `ui.perfetto.dev` will show a

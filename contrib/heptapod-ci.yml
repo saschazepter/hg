@@ -565,9 +565,6 @@ check-pytype:
     when: manual  # we don't have any Windows runners anymore at the moment
     tags:
       - windows
-    before_script:
-      - C:/hgdev/MinGW/msys/1.0/bin/sh.exe --login -c 'cd "$OLDPWD" && ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt'
-      # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
     variables:
         PYTHON: C:/hgdev/python39-x64/python.exe
 
@@ -652,10 +649,13 @@ build-c-wheel-windows:
         - echo "$Env:RUNTEST_ARGS"
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
+        - C:/hgdev/MinGW/msys/1.0/bin/sh.exe
+          --login -c 'cd "$OLDPWD"
+            && ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt'
         # This test is hanging the worker and not that important, so lets skip
         # it for now
-        - C:/hgdev/MinGW/msys/1.0/bin/sh.exe -c 'cd "$OLDPWD" && echo tests/test-clonebundles-autogen.t > $TMP_WORK_DIR/windows-skip.txt'
-
+        - C:/hgdev/MinGW/msys/1.0/bin/sh.exe -c 'cd "$OLDPWD" 
+          && echo tests/test-clonebundles-autogen.t > $TMP_WORK_DIR/windows-skip.txt'
         # we immediately run with --retest in case of error as the windows test
         # are so flaky.
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe
@@ -681,6 +681,7 @@ build-c-wheel-windows:
                $FILTER
                $RUNTEST_ARGS;
           '
+        # TODO: find/install cvs, bzr, perforce, gpg, sqlite3
     variables:
       WHEEL_ARG: ""
       RUNTEST_ARGS: ""

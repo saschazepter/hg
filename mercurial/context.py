@@ -2035,6 +2035,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
                 # Even if the wlock couldn't be grabbed, clear out the list.
                 self._repo.clearpostdsstatus()
 
+    @util.rust_tracing_span("_dirstatestatus")
     def _dirstatestatus(
         self,
         match: MatcherT,

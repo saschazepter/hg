@@ -43,7 +43,6 @@ use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
-use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
 use crate::utils::u32_u;
 use crate::utils::RawData;
@@ -241,6 +240,67 @@ pub trait RevlogIndex {
     }
 }
 
+/// Internal trait used by [`InnerRevlog`], **should not be called directly**.
+pub trait RevlogIndexNodeLookup: RevlogIndex {
+    /// This is used internally by the [`InnerRevlog`] nodemap and **should not
+    /// be called directly**.
+    ///
+    /// Finds a [`Revision`] from a given [`NodePrefix`] directly in the index.
+    ///
+    /// - `visit` is a function that is called on each revision we visit during
+    ///   the lookup with the ([`Node`], [`Revision`]) pair.
+    /// - `from_rev_down` is the (potential) revision from which to start
+    ///   iterating backwards into the index, used for optimizing multiple calls
+    ///   that have already checked the top-most revisions. Using this parameter
+    ///   in a context where the top-most revisions have not been checked yet
+    ///   can yield false negatives.
+    /// - `prefix_match` is the (potential) revision that may have been found in
+    ///   the existing (incomplete) nodemap, to return if there is no ambiguous
+    ///   node that also matches `prefix`. Not giving this revision if it exists
+    ///   and is higher than `from_rev_down` (if provided) will result in a
+    ///   false negative or a wrong match in the case of an ambiguity.
+    fn rev_from_prefix(
+        &self,
+        prefix: NodePrefix,
+        mut visit: impl FnMut(Node, Revision),
+        from_rev_down: Option<Revision>,
+        prefix_match: Option<Revision>,
+    ) -> Result<Option<(Node, Revision)>, NodeMapError> {
+        let mut found_by_prefix =
+            prefix_match.map(|rev| (*self.node(rev), rev));
+        let from_rev_down = from_rev_down
+            .map(|r| r.0)
+            .unwrap_or_else(|| self.len() as BaseRevision);
+        // Linear scan of the revlog
+        for rev in (-1..from_rev_down).rev() {
+            let rev = Revision(rev as BaseRevision);
+            let candidate_node = if rev == Revision(-1) {
+                NULL_NODE
+            } else {
+                *self.node(rev)
+            };
+            visit(candidate_node, rev);
+            if prefix.is_prefix_of(&candidate_node) {
+                if let Some((found_prefix, found_rev)) = found_by_prefix {
+                    if candidate_node != found_prefix || rev != found_rev {
+                        return Err(NodeMapError::MultipleResults);
+                    }
+                }
+                if prefix.nybbles_len() == candidate_node.nybbles_len() {
+                    // Exact match, no need to keep looking
+                    return Ok(Some((candidate_node, rev)));
+                }
+                // Only a prefix match, we need to keep traversing to make sure
+                // there is no ambiguity.
+                found_by_prefix = Some((candidate_node, rev))
+            }
+        }
+        Ok(found_by_prefix)
+    }
+}
+
+impl<T> RevlogIndexNodeLookup for T where T: RevlogIndex {}
+
 const REVISION_FLAG_CENSORED: u16 = 1 << 15;
 const REVISION_FLAG_ELLIPSIS: u16 = 1 << 14;
 const REVISION_FLAG_EXTSTORED: u16 = 1 << 13;
@@ -329,8 +389,6 @@ impl TryFrom<usize> for RevlogType {
 
 pub struct Revlog {
     inner: InnerRevlog,
-    /// When present on disk: the persistent nodemap for this revlog
-    nodemap: Option<nodemap::NodeTree>,
 }
 
 impl Graph for Revlog {
@@ -398,8 +456,8 @@ impl Revlog {
                 options.delta_config,
                 options.feature_config,
                 revlog_type,
+                nodemap,
             ),
-            nodemap,
         })
     }
 
@@ -433,16 +491,9 @@ impl Revlog {
         &self,
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
-        if let Some(nodemap) = &self.nodemap {
-            nodemap
-                .find_bin(self.index(), node)
-                .map_err(|err| (err, format!("{:x}", node)))?
-                .ok_or_else(|| {
-                    RevlogError::InvalidRevision(format!("{:x}", node))
-                })
-        } else {
-            self.index().rev_from_node_no_persistent_nodemap(node)
-        }
+        self.inner
+            .rev_from_node_prefix(node)?
+            .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
     /// Returns whether the given revision exists in this revlog.

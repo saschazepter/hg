@@ -874,7 +874,9 @@ def _dobackout(ui, repo, node=None, rev=None, **opts):
 
     # save to detect changes
     tip = repo.changelog.tip()
-    head_change = cmdutil.future_head_change(repo)
+    head_change = None
+    if repo.ui.configbool(b"commands", b"commit.report-head-changes"):
+        head_change = cmdutil.future_head_change(repo)
 
     newnode = cmdutil.commit(
         ui, repo, commitfunc, [], pycompat.byteskwargs(opts)
@@ -1933,7 +1935,7 @@ def commit(ui, repo, *pats, **opts):
     """
     cmdutil.check_at_most_one_arg(opts, 'draft', 'secret')
     cmdutil.check_incompatible_arguments(opts, 'subrepos', ['amend'])
-    with repo.wlock(), repo.lock():
+    with util.rust_tracing_span("_docommit"), repo.wlock(), repo.lock():
         return _docommit(ui, repo, *pats, **opts)
 
 
@@ -1955,12 +1957,13 @@ def _docommit(ui, repo, *pats, **opts):
 
     any_close = opts.get('close_branch') or opts.get('force_close_branch')
     head_change = None
-    if not opts.get('amend'):
+    report_hc = repo.ui.configbool(b"commands", b"commit.report-head-changes")
+    if not opts.get('amend') and report_hc:
         head_change = cmdutil.future_head_change(repo, any_close)
 
     branch = repo[None].branch()
     tip = repo.changelog.tip()
-    p1 = repo[b'.'].node()
+    p1 = repo[b'.'].rev()
 
     extra = {}
     if any_close:
@@ -1984,7 +1987,9 @@ def _docommit(ui, repo, *pats, **opts):
             )
         elif (
             branch == repo[b'.'].branch()
-            and not repo.branchmap().is_branch_head(branch, p1, closed=wc_dirty)
+            and not repo.branchmap().is_branch_head_rev(
+                branch, p1, closed=wc_dirty
+            )
             and not opts.get('force_close_branch')
         ):
             hint = _(
@@ -6657,6 +6662,7 @@ def summary(ui, repo, **opts):
     ctx = repo[None]
     parents = ctx.parents()
     pnode = parents[0].node()
+    p_rev = parents[0].rev()
     marks = []
 
     try:
@@ -6766,9 +6772,9 @@ def summary(ui, repo, **opts):
         t += _(b' (merge)')
     elif branch != parents[0].branch():
         t += _(b' (new branch)')
-    elif parents[0].closesbranch() and repo.branchmap().is_branch_head(
+    elif parents[0].closesbranch() and repo.branchmap().is_branch_head_rev(
         branch,
-        pnode,
+        p_rev,
         closed=True,
     ):
         t += _(b' (head closed)')
@@ -7080,7 +7086,7 @@ def tag(ui, repo: RepoT, name1, *names, **opts):
             if (
                 not opts.get('force')
                 and bm.hasbranch(branch, open_only=True)
-                and not bm.is_branch_head(branch, p1)
+                and not bm.is_branch_head_rev(branch, repo[p1].rev())
             ):
                 raise error.InputError(
                     _(

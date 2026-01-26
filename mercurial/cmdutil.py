@@ -2866,6 +2866,7 @@ class _AddRemoveContext:
             self._transaction.__exit__(*args)
 
 
+@util.rust_tracing_span("cmdutil.commit")
 def commit(ui, repo, commitfunc, pats, opts):
     '''commit the specified files or all outstanding changes'''
     date = opts.get(b'date')
@@ -3296,6 +3297,7 @@ class _HeadChange:
         self.reopen = reopen
 
 
+@util.rust_tracing_span("future_head_change")
 def future_head_change(
     repo: RepoT,
     close_branch: bool = False,
@@ -3345,7 +3347,7 @@ def future_head_change(
             continue
         if p.closesbranch():
             closed_parent.append(p.rev())
-        if bm.is_branch_head(branch, p.node()):
+        if bm.is_branch_head_rev(branch, p.rev()):
             has_head_parent = True
     reopen = ()
     if not close_branch:

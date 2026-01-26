@@ -2018,7 +2018,6 @@ class revlog:
                 chunk_cache=chunk_cache,
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
-                use_persistent_nodemap=self._nodemap_file is not None,
                 encoding=encoding,
             )
             assert self._inner.has_revdiff_extra
@@ -3401,10 +3400,16 @@ class revlog:
                 _(b"trying to add sidedata to a revlog who don't support them")
             )
 
-        if flags:
-            node = node or self.hash(text, p1, p2)
+        provided_node = node is not None
+
+        if flags and node is None:
+            node = self.hash(text, p1, p2)
 
         rawtext, validatehash = flagutil.processflagswrite(self, text, flags)
+
+        if flags and validatehash:
+            # if the text is claimed to be unchanged, it should still be the same
+            assert rawtext is text
 
         # If the flag processor modifies the revision data, ignore any provided
         # cachedelta.
@@ -3419,12 +3424,13 @@ class revlog:
                 % (self.display_id, len(rawtext))
             )
 
-        node = node or self.hash(rawtext, p1, p2)
+        if node is None:
+            node = self.hash(rawtext, p1, p2)
         rev = self.index.get_rev(node)
         if rev is not None:
             return rev
 
-        if validatehash:
+        if validatehash and provided_node:
             self.checkhash(rawtext, node, p1=p1, p2=p2)
 
         return self.addrawrevision(

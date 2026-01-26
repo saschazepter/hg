@@ -26,7 +26,6 @@ use hg::revlog::index::RevisionDataParams;
 use hg::revlog::index::SnapshotsCache;
 use hg::revlog::index::INDEX_ENTRY_SIZE;
 use hg::revlog::inner_revlog::InnerRevlog as CoreInnerRevlog;
-use hg::revlog::nodemap::Block;
 use hg::revlog::nodemap::NodeMap;
 use hg::revlog::nodemap::NodeMapError;
 use hg::revlog::nodemap::NodeTree as CoreNodeTree;
@@ -231,7 +230,6 @@ impl PyFileHandle {
 #[allow(dead_code)]
 pub(crate) struct InnerRevlog {
     pub(crate) irl: PyShareable<CoreInnerRevlog>,
-    nt: RwLock<Option<CoreNodeTree>>,
     docket: Option<Py<PyAny>>,
     // Holds a reference to the mmap'ed persistent nodemap data
     nodemap_mmap: Option<PyBuffer<u8>>,
@@ -240,7 +238,6 @@ pub(crate) struct InnerRevlog {
     revision_cache: Option<Py<PyAny>>,
     head_revs_py_list: Option<Py<PyList>>,
     head_node_ids_py_list: Option<Py<PyList>>,
-    use_persistent_nodemap: bool,
     nodemap_queries: AtomicUsize,
 }
 
@@ -263,7 +260,6 @@ impl InnerRevlog {
         chunk_cache: &Bound<'_, PyAny>,
         default_compression_header: &Bound<'_, PyAny>,
         revlog_type: usize,
-        use_persistent_nodemap: bool,
         encoding: i64,
     ) -> PyResult<Self> {
         // Let clippy accept the unused arguments. This is a bit better than
@@ -320,17 +316,16 @@ impl InnerRevlog {
             delta_config,
             feature_config,
             revlog_type,
+            None,
         );
         Ok(Self {
             irl: core.into(),
-            nt: None.into(),
             docket: None,
             nodemap_mmap: None,
             index_mmap: buf.into(),
             head_revs_py_list: None,
             head_node_ids_py_list: None,
             revision_cache: None,
-            use_persistent_nodemap,
             nodemap_queries: AtomicUsize::new(0),
         })
     }
@@ -871,34 +866,11 @@ impl InnerRevlog {
     ) -> PyResult<Option<PyRevision>> {
         let node = node_from_py_bytes(node)?;
 
-        // Do not rewrite this with `Self::with_index_nt_read`: it makes
-        // inconditionally a volatile nodetree, and that is not the intent
-        // here: the code below specifically avoids that.
-        Self::with_core_read(slf, |self_ref, irl| {
-            let idx = &irl.index;
-
-            let prev_queries =
-                self_ref.nodemap_queries.fetch_add(1, Ordering::Relaxed);
-            // Filelogs have no persistent nodemaps and are often small,
-            // use a brute force lookup from the end
-            // backwards. If there is a very large filelog
-            // (automation file that changes every
-            // commit etc.), it also seems to work quite well for
-            // all measured purposes so far.
-            if !self_ref.use_persistent_nodemap && prev_queries <= 3 {
-                return Ok(idx
-                    .rev_from_node_no_persistent_nodemap(node.into())
-                    .ok()
-                    .map(Into::into));
-            }
-
-            let opt =
-                self_ref.get_nodetree(idx)?.read().map_err(map_lock_error)?;
-            let nt = opt.as_ref().expect("nodetree should be set");
-
-            let rust_rev =
-                nt.find_bin(idx, node.into()).map_err(nodemap_error)?;
-            Ok(rust_rev.map(Into::into))
+        Self::with_core_read(slf, |_, irl| {
+            Ok(irl
+                .rev_from_node_prefix(node.into())
+                .map_err(revlog_error)?
+                .map(Into::into))
         })
     }
 
@@ -927,11 +899,11 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         node: &Bound<'_, PyBytes>,
     ) -> PyResult<usize> {
-        Self::with_index_nt_read(slf, |idx, nt| {
-            match nt.unique_prefix_len_node(idx, &node_from_py_bytes(node)?) {
+        Self::with_core_read(slf, |_, irl| {
+            match irl.unique_prefix_len_node(node_from_py_bytes(node)?) {
                 Ok(Some(l)) => Ok(l),
                 Ok(None) => Err(revlog_error_bare()),
-                Err(e) => Err(nodemap_error(e)),
+                Err(e) => Err(revlog_error(e)),
             }
         })
     }
@@ -940,11 +912,11 @@ impl InnerRevlog {
         slf: &Bound<'py, Self>,
         node: &Bound<'py, PyBytes>,
     ) -> PyResult<Option<Bound<'py, PyBytes>>> {
-        Self::with_index_nt_read(slf, |idx, nt| {
-            Ok(nt
-                .find_bin(idx, node_prefix_from_py_bytes(node)?)
-                .map_err(nodemap_error)?
-                .map(|rev| py_node_for_rev(slf.py(), idx, rev)))
+        Self::with_core_read(slf, |_, irl| {
+            Ok(irl
+                .rev_from_node_prefix(node_prefix_from_py_bytes(node)?)
+                .map_err(revlog_error)?
+                .map(|rev| py_node_for_rev(slf.py(), &irl.index, rev)))
         })
     }
 
@@ -953,20 +925,10 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         tup: &Bound<'_, PyTuple>,
     ) -> PyResult<()> {
-        // no need to check length: in PyO3 tup.get_item() does return
-        // proper errors
-        let node_bytes = tup.get_item(7)?.extract()?;
-        let node = node_from_py_bytes(&node_bytes)?;
-
-        Self::with_index_nt_write(slf, |idx, nt| {
-            let rev = idx.len() as BaseRevision;
-            // This is ok since we will immediately add the revision to the
-            // index
-            let rev = Revision(rev);
-            idx.append(py_tuple_to_revision_data_params(tup)?)
+        Self::with_core_write(slf, |_, mut irl| {
+            irl.index_append(py_tuple_to_revision_data_params(tup)?)
                 .map_err(revlog_error_from_msg)?;
 
-            nt.insert(idx, &node, rev).map_err(nodemap_error)?;
             Ok(())
         })
     }
@@ -993,17 +955,16 @@ impl InnerRevlog {
             UncheckedRevision(start.extract()?)
         };
 
-        Self::with_index_nt_write(slf, |idx, nt| {
+        Self::with_core_write(slf, |_, mut irl| {
             // In the case of a slice, the check is possibly already done by
             // `slice.indices`, which is itself an FFI wrapper for CPython's
             // `PySlice_GetIndicesEx`
             // (Python integration tests will tell us)
-            let start = idx.check_revision(start).ok_or_else(|| {
+            let start = irl.index.check_revision(start).ok_or_else(|| {
                 nodemap_error(NodeMapError::RevisionNotInIndex(start))
             })?;
-            idx.remove(start).map_err(revlog_error_from_msg)?;
-            nt.invalidate_all();
-            Self::fill_nodemap(idx, nt)?;
+            irl.index.remove(start).map_err(revlog_error_from_msg)?;
+            irl.nodemap_invalidate().map_err(nodemap_error)?;
             Ok(())
         })
     }
@@ -1051,8 +1012,16 @@ impl InnerRevlog {
             Ok(())
         })?;
 
+        // Very important to drop this in addition to the `nodemap_mmap`,
+        // otherwise the nodemap in core would point to a dangling mmap.
+        // TODO this shows that our way of holding on to mmap buffers is unsafe
+        // since safe code can trigger UB by messing up drop ordering.
+        Self::with_core_write(slf, |_, mut irl| {
+            let index_file = irl.canonical_index_file();
+            irl.nodemap_set(None, index_file);
+            Ok(())
+        })?;
         let mut self_ref = slf.borrow_mut();
-        self_ref.nt.write().map_err(map_lock_error)?.take();
         self_ref.docket.take();
         self_ref.nodemap_mmap.take();
         self_ref.head_revs_py_list.take();
@@ -1386,24 +1355,13 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         py: Python<'_>,
     ) -> PyResult<Py<PyBytes>> {
-        Self::with_index_nt_write(slf, |idx, nt| {
-            let old_nt = std::mem::take(nt);
-            let (readonly, bytes) = old_nt.into_readonly_and_added_bytes();
+        Self::with_core_write(slf, |_, irl| {
+            let mut nt = CoreNodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
+            nt.catch_up_to_index(&irl.index, NULL_REVISION)
+                .map_err(nodemap_error)?;
 
-            // If there's anything readonly, we need to build the data again
-            // from scratch
-            let bytes = if readonly.len() > 0 {
-                let mut nt =
-                    CoreNodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
-                Self::fill_nodemap(idx, &mut nt)?;
-
-                let (readonly, bytes) = nt.into_readonly_and_added_bytes();
-                assert_eq!(readonly.len(), 0);
-
-                bytes
-            } else {
-                bytes
-            };
+            let (readonly, bytes) = nt.into_readonly_and_added_bytes();
+            assert_eq!(readonly.len(), 0);
 
             let bytes = PyBytes::new(py, &bytes);
             Ok(bytes.unbind())
@@ -1424,15 +1382,8 @@ impl InnerRevlog {
         };
         drop(self_ref);
 
-        Self::with_core_write(slf, |self_ref, irl| {
-            let mut nt = self_ref
-                .get_nodetree(&irl.index)?
-                .write()
-                .map_err(map_lock_error)?;
-            let nt = nt.take().expect("nodetree should be set");
-            let masked_blocks = nt.masked_readonly_blocks();
-            let (_, data) = nt.into_readonly_and_added_bytes();
-            let changed = masked_blocks * std::mem::size_of::<Block>();
+        Self::with_core_write(slf, |_, mut irl| {
+            let (changed, data) = irl.nodemap_incremental_data();
 
             Ok(PyTuple::new(
                 py,
@@ -1467,20 +1418,23 @@ impl InnerRevlog {
             let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
                 nodemap_error(NodeMapError::RevisionNotInIndex(data_tip))
             })?;
-            let current_tip = idx.len();
 
-            for r in (data_tip.0 + 1)..current_tip as BaseRevision {
-                let rev = Revision(r);
-                nt.insert(idx, idx.node(rev), rev).map_err(nodemap_error)?;
-            }
+            nt.catch_up_to_index(idx, Revision(data_tip.0 + 1))
+                .map_err(nodemap_error)?;
 
             Ok(py.None())
         })?;
 
-        let mut self_ref = slf.borrow_mut();
-        self_ref.docket.replace(docket.clone().unbind());
-        self_ref.nodemap_mmap = Some(buf);
-        self_ref.nt.write().map_err(map_lock_error)?.replace(nt);
+        {
+            let mut self_ref = slf.borrow_mut();
+            self_ref.docket.replace(docket.clone().unbind());
+            self_ref.nodemap_mmap = Some(buf);
+        }
+        Self::with_core_write(slf, |_, mut irl| {
+            let index_file = irl.canonical_index_file();
+            irl.nodemap_set(Some(nt), index_file);
+            Ok(())
+        })?;
 
         Ok(py.None())
     }
@@ -1560,72 +1514,6 @@ impl InnerRevlog {
         f: impl FnOnce(&mut Index) -> PyResult<T>,
     ) -> PyResult<T> {
         Self::with_core_write(slf, |_, mut guard| f(&mut guard.index))
-    }
-
-    /// Lock `slf` for reading and execute a closure on its [`Index`] and
-    /// [`NodeTree`]
-    ///
-    /// The [`NodeTree`] is initialized an filled before hand if needed.
-    fn with_index_nt_read<T>(
-        slf: &Bound<'_, Self>,
-        f: impl FnOnce(&Index, &CoreNodeTree) -> PyResult<T>,
-    ) -> PyResult<T> {
-        Self::with_core_read(slf, |self_ref, guard| {
-            let idx = &guard.index;
-            let nt =
-                self_ref.get_nodetree(idx)?.read().map_err(map_lock_error)?;
-            let nt = nt.as_ref().expect("nodetree should be set");
-            f(idx, nt)
-        })
-    }
-
-    fn with_index_nt_write<T>(
-        slf: &Bound<'_, Self>,
-        f: impl FnOnce(&mut Index, &mut CoreNodeTree) -> PyResult<T>,
-    ) -> PyResult<T> {
-        Self::with_core_write(slf, |self_ref, mut guard| {
-            let idx = &mut guard.index;
-            let mut nt =
-                self_ref.get_nodetree(idx)?.write().map_err(map_lock_error)?;
-            let nt = nt.as_mut().expect("nodetree should be set");
-            f(idx, nt)
-        })
-    }
-
-    /// Fill a [`CoreNodeTree`] by doing a full iteration on the given
-    /// [`Index`]
-    ///
-    /// # Python exceptions
-    /// Raises `ValueError` if `nt` has existing data that is inconsistent
-    /// with `idx`.
-    fn fill_nodemap(idx: &Index, nt: &mut CoreNodeTree) -> PyResult<()> {
-        nt.catch_up_to_index(idx, Revision(0)).map_err(nodemap_error)
-    }
-
-    /// Return a working NodeTree of this InnerRevlog
-    ///
-    /// In case the NodeTree has not been initialized yet (in particular
-    /// not from persistent data at instantiation), it is created and
-    /// filled right away from the index.
-    ///
-    /// Technically, the returned NodeTree is still behind the lock of
-    /// the `nt` field, hence still wrapped in an [`Option`]. Callers
-    /// will need to take the lock and unwrap with `expect()`.
-    ///
-    /// # Python exceptions
-    /// The case mentioned in [`Self::fill_nodemap()`] cannot happen, as the
-    /// NodeTree is empty when it is called.
-    fn get_nodetree(
-        &self,
-        idx: &Index,
-    ) -> PyResult<&RwLock<Option<CoreNodeTree>>> {
-        if self.nt.read().map_err(map_lock_error)?.is_none() {
-            let readonly = Box::<Vec<_>>::default();
-            let mut nt = CoreNodeTree::load_bytes(readonly, 0);
-            Self::fill_nodemap(idx, &mut nt)?;
-            self.nt.write().map_err(map_lock_error)?.replace(nt);
-        }
-        Ok(&self.nt)
     }
 
     fn cache_new_heads_py_list(

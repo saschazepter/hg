@@ -27,6 +27,7 @@ from . import (
     metadata,
     pycompat,
     revlog,
+    util,
 )
 from .utils import (
     dateutil,
@@ -405,7 +406,8 @@ class changelog(revlog.revlog):
             any_pending = self._docket.write(tr, pending=True)
             self._v2_delayed = False
         else:
-            new_index, any_pending = self._inner.write_pending()
+            with util.rust_tracing_span("changelog write_pending"):
+                new_index, any_pending = self._inner.write_pending()
             if new_index is not None:
                 self._indexfile = new_index
                 tr.registertmp(new_index)

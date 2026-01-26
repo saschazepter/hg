@@ -87,6 +87,7 @@ from .upgrade_utils import auto_upgrade, share_safe as share_safe_upgrade
 from .utils import (
     hashutil,
     procutil,
+    repoviewutil,
     stringutil,
     urlutil,
 )
@@ -533,6 +534,7 @@ class locallegacypeer(localpeer, repository.ipeerlegacycommands):
 featuresetupfuncs = req_util.feature_setup_funcs
 
 
+@util.rust_tracing_span("makelocalrepository")
 def makelocalrepository(baseui, path: bytes, intents=None):
     """Create a local repository object.
 
@@ -1455,6 +1457,7 @@ class localrepository(_localrepo_base_classes):
         return obsolete.makestore(self.ui, self)
 
     @changelogcache()
+    @util.rust_tracing_span("localrepo.changelog")
     def changelog(repo):
         # load dirstate before changelog to avoid race see issue6303
         repo.dirstate.prefetch_parents()
@@ -1464,6 +1467,7 @@ class localrepository(_localrepo_base_classes):
         )
 
     @manifestlogcache()
+    @util.rust_tracing_span("localrepo.manifestlog")
     def manifestlog(self):
         return self.store.manifestlog(self, self._storenarrowmatch)
 
@@ -2001,7 +2005,8 @@ class localrepository(_localrepo_base_classes):
     def branchmap(self) -> repository.IBranchMap:
         """returns a dictionary {branch: [branchheads]} with branchheads
         ordered by increasing revision number"""
-        return self._branchcaches[self]
+        with util.rust_tracing_span("localrepo.branchmap"):
+            return self._branchcaches[self]
 
     @unfilteredmethod
     def revbranchcache(self):
@@ -2246,6 +2251,7 @@ class localrepository(_localrepo_base_classes):
             return tr
         return None
 
+    @util.rust_tracing_span("localrepo.transaction")
     def transaction(self, desc: bytes, report=None) -> TransactionT:
         if self.ui.configbool(b'devel', b'all-warnings') or self.ui.configbool(
             b'devel', b'check-locks'
@@ -2732,11 +2738,14 @@ class localrepository(_localrepo_base_classes):
             return
 
         unfi = self.unfiltered()
+        self._branchcaches.optimize_down(unfi)
 
         if caches is None:
             caches = repository.CACHES_DEFAULT
 
-        if repository.CACHE_BRANCHMAP_SERVED in caches:
+        if (repository.CACHE_BRANCHMAP_SERVED in caches) and (
+            repository.CACHE_BRANCHMAP_ALL not in caches
+        ):
             if tr is None or tr.changes[b'origrepolen'] < len(self):
                 self.ui.debug(b'updating the branch cache\n')
                 dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
@@ -2782,6 +2791,7 @@ class localrepository(_localrepo_base_classes):
             self.filtered(b'served').tags()
 
         if repository.CACHE_BRANCHMAP_ALL in caches:
+            self.ui.debug(b'updating the branch cache\n')
             # The CACHE_BRANCHMAP_ALL updates lazily-loaded caches immediately,
             # so we're forcing a write to cause these caches to be warmed up
             # even if they haven't explicitly been requested yet (if they've
@@ -2789,7 +2799,7 @@ class localrepository(_localrepo_base_classes):
             # they're a subset of another kind of cache that *has* been used).
             dpt = repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO in caches
 
-            for filt in repoview.filtertable.keys():
+            for filt in repoviewutil.get_ordered_subset():
                 filtered = self.filtered(filt)
                 self._branchcaches.update_disk(filtered, detect_pure_topo=dpt)
 
@@ -2940,6 +2950,7 @@ class localrepository(_localrepo_base_classes):
         else:  # no lock have been found.
             callback(True)
 
+    @util.rust_tracing_span("store lock")
     def lock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
@@ -2975,6 +2986,7 @@ class localrepository(_localrepo_base_classes):
         self._lockref = weakref.ref(l)
         return l
 
+    @util.rust_tracing_span("wlock")
     def wlock(self, wait=True, steal_from=None) -> lockmod.lock:
         """Lock the non-store parts of the repository (everything under
         .hg except .hg/store) and return a weak reference to the lock.
@@ -3258,6 +3270,7 @@ class localrepository(_localrepo_base_classes):
         # tag cache retrieval" case to work.
         self.invalidate()
 
+    @util.rust_tracing_span("localrepo status")
     def status(
         self,
         node1=b'.',
@@ -3310,6 +3323,7 @@ class localrepository(_localrepo_base_classes):
         """Used by workingctx to clear post-dirstate-status hooks."""
         del self._postdsstatus[:]
 
+    @util.rust_tracing_span("localrepo.heads")
     def heads(self, start=None):
         if start is None:
             cl = self.changelog
@@ -3464,7 +3478,8 @@ def instance(ui, path: bytes, create, intents=None, createopts=None):
 
     localpath = urlutil.urllocalpath(path)
     if create:
-        createrepository(ui, localpath, createopts=createopts)
+        with util.rust_tracing_span("createrepository"):
+            createrepository(ui, localpath, createopts=createopts)
 
     def repo_maker():
         return makelocalrepository(ui, localpath, intents=intents)

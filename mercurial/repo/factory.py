@@ -112,6 +112,7 @@ def _remoteui(src, opts):
     return dst
 
 
+@util.rust_tracing_span("repo.factory.repository")
 def peer(
     uiorrepo,
     opts,
@@ -177,6 +178,7 @@ def _setup_repo_or_peer(ui, obj, presetupfuncs=None):
             f(ui, obj)
 
 
+@util.rust_tracing_span("repo.factory.repository")
 def repository(
     ui,
     path=b'',

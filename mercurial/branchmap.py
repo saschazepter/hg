@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import weakref
+
 from .node import (
     bin,
     hex,
@@ -55,7 +57,7 @@ class BranchMapCache(i_repo.IBranchMapCache):
     def __getitem__(self, repo):
         self.updatecache(repo)
         bcache = self._per_filter[repo.filtername]
-        bcache._ensure_populated(repo)
+        bcache._pre_seed(repo)
         assert bcache._filtername == repo.filtername, (
             bcache._filtername,
             repo.filtername,
@@ -166,8 +168,90 @@ class BranchMapCache(i_repo.IBranchMapCache):
     def clear(self):
         self._per_filter.clear()
 
+    def optimize_down(self, repo):
+        """push equivalent filter level down when applicable
+
+        If a "higher" cache (from a filter level that is a subset of another
+        filter level) is valid for a "lower" filter level, it is useful to push
+        the "higher" cache at the "lower" level, if the "higher" cache is more
+        up to date than the "lower" one. This useful when normal operation
+        access an higher level branchmap leading it to be updated.
+
+        If normal operation updated a cache at a super set level, but it is
+        valid to at a subset level. It might be better to update the subset
+        instead of the super
+        """
+        unfi = repo.unfiltered()
+
+        # XXX we could be more agressive and smarter in our optimization,
+        # however this already a good share of basic usecase, like when
+        # `visible` is updated but equivalent to `served`.
+
+        subsets = repoviewutil.get_ordered_subset()
+        for high_name in reversed(subsets):
+            if high_name not in subsettable:
+                # there are no lower cache to look for
+                continue
+            if high_name not in self._per_filter:
+                # help pytype to be more explicit
+                continue
+            high_cached = self._per_filter[high_name]
+            assert high_cached is not None  # helps pytype
+            if high_cached._state != STATE_DIRTY:
+                # NOTE: if it is inherited but populated that could be
+                # useful, but we don't have an easy way to distinguish that
+                # case.
+                continue
+            skipped = set()
+            low_name = subsettable.get(high_name)
+            low_cached = self._per_filter.get(low_name)
+            if low_cached is None:
+                # NOTE: We still check validy against uncached low subsets. It
+                # would allow for an higher cache to re-converge to a
+                # lower-subset after it diverged.
+                continue
+            while (
+                low_name in subsettable
+                and low_cached is not None
+                and low_cached._state == STATE_INHERITED
+            ):
+                # skip over untouched inherited value, we want to source of
+                # these inherited value
+                #
+                # NOTE the highed one could be invalid for the source, but
+                # valid for the intermediate one, so we could still do
+                # something for them.
+                skipped.add(low_name)
+                low_name = subsettable.get(low_name)
+                low_cached = self._per_filter.get(low_name)
+            if low_cached is None:
+                # we did not found anything usable
+                continue
+            assert low_cached is not None  # helps pytype
+            if high_cached.tiprev < low_cached.tiprev:
+                # the high_value is less up to date than the lower one
+                #
+                # NOTE: we could also take the population state and the
+                # topo-mode into account here.
+                continue
+            low_repo = unfi.filtered(low_name)
+            if high_cached.validfor(low_repo):
+                # copy the state of the "high" cache for the "low" filter, and
+                # make it inherit its state.
+                low_cached = high_cached.inherit_for(low_repo)
+                assert low_cached is not None  # helps pytype
+                assert high_cached._state == STATE_DIRTY
+                low_cached._state = high_cached._state
+                self._per_filter[low_name] = low_cached
+                # drop the other cache, they can be inherited from the base one
+                # at any time
+                skipped.add(high_name)
+                for name in skipped:
+                    del self._per_filter[name]
+
     def write_dirty(self, repo):
         unfi = repo.unfiltered()
+        self.optimize_down(repo)
         for filtername in repoviewutil.get_ordered_subset():
             cache = self._per_filter.get(filtername)
             if cache is None:
@@ -484,6 +568,9 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
     def _compute_key_hashes(self, repo) -> tuple[bytes]:
         raise NotImplementedError
 
+    def _pre_seed(self, repo):
+        """capture all data necessary to populated lazily loaded values"""
+
     def _ensure_populated(self, repo):
         """make sure any lazily loaded values are fully populated"""
 
@@ -577,7 +664,10 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
 
     def inherit_for(self, repo):
         """return a deep copy of the branchcache object"""
-        assert repo.filtername != self._filtername
+        assert repo.filtername != self._filtername, (
+            repo.filtername,
+            self._filtername,
+        )
         other = type(self)(
             repo=repo,
             # we always do a shally copy of self._entries, and the values is
@@ -748,10 +838,10 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         heads = self.branchheads(branch, closed=closed)
         return repo.revs(b'max(%d::(%ln))', start, heads).first()
 
-    def is_branch_head(
+    def is_branch_head_rev(
         self,
         branch: bytes,
-        node: NodeIdT,
+        rev: RevnumT,
         closed: bool = False,
     ) -> bool:
         """True if the node is a head for that branch
@@ -760,10 +850,13 @@ class _LocalBranchCache(_BaseBranchCache, i_repo.IBranchMap):
         """
         if branch not in self:
             return False
-        return node in self.branchheads(branch, closed=closed)
+        ptb = self._pure_topo_branch
+        if ptb is not None and ptb == branch and rev == self.tiprev:
+            return True
+        return rev in self.branch_head_revs(branch, closed=closed)
 
     def __iter__(self):
-        # The "pure-topo" branch migh bot have entry in self._entries, so we
+        # The "pure-topo" branch migh not have entry in self._entries, so we
         # need to yield it manually.
         #
         # However, the branchmap might change during the iteration, so check
@@ -1039,6 +1132,64 @@ class BranchCacheV2(_LocalBranchCache):
         return keys
 
 
+class _TopoSeed:
+    """hold some "seeding" information for BranchCacheV3 to populate itself
+
+    This holds a "snapshot" of what will be needed to lazily compute the branch
+    heads if this ever get necessary.
+    """
+
+    _tip_rev: RevnumT
+    _filtered_revs: frozenset[RevnumT]
+    _obsolete_revs: frozenset[RevnumT]
+    _repo_ref: weakref.ref[RepoT]
+
+    def __init__(self, tip_rev, repo):
+        cl = repo.changelog
+        self._tip_rev = tip_rev
+        self._filtered_revs = cl.filteredrevs
+        self._obsolete_revs = obsolete.getrevs(repo, b'obsolete')
+        self._repo_ref = weakref.ref(repo.unfiltered())
+
+    @property
+    def _repo(self):
+        repo = self._repo_ref()
+        if repo is None:
+            msg = "populating Branchmap of a dead repo object"
+            raise error.ProgrammingError(msg)
+        return repo
+
+    def get_branchinfo_func(self):
+        return self._repo.revbranchcache().branchinfo
+
+    def get_topo_heads(self) -> list[RevnumT]:
+        cl = self._repo.changelog
+        if self._tip_rev == nullrev:
+            return []
+        elif self._tip_rev == cl.tiprev() and not self._filtered_revs:
+            return cl.headrevs()
+        else:
+            return cl.index.headrevs(self._filtered_revs, self._tip_rev + 1)
+
+    def get_obsolete_revs(self) -> frozenset[RevnumT]:
+        return self._obsolete_revs
+
+    def get_node_rev_funcs(self):
+        cl = self._repo.changelog
+        filtered = self._filtered_revs
+        node = cl.node
+        if not filtered:
+            to_node = node
+        else:
+
+            def to_node(rev):
+                if rev in filtered:
+                    raise error.FilteredIndexError(rev)
+                return node(rev)
+
+        return to_node, cl.index.rev
+
+
 class BranchCacheV3(_LocalBranchCache):
     """a branch cache using version 3 of the format on disk
 
@@ -1114,6 +1265,21 @@ class BranchCacheV3(_LocalBranchCache):
     in that branch to be a topological heads.
     """
 
+    _needs_populate: bool
+    """True if the branch cache implicitly holds some branch-heads information
+    (typically for all topological heads) and `self._ensure_populated(repo)`
+    needs to be called before we can use the BranchCache for generic
+    queries."""
+
+    _needs_populate_topo_only: bool
+    """True if the branch cache implicitly hold branch-heads information for
+    the branches where all heads are topological and
+    self._ensure_populated(repo) needs to be called before we can use the
+    BranchCache for generic queries"""
+
+    _topo_seed: _TopoSeed
+    """Hold information for lazy population, see _TopoSeed for details"""
+
     def __init__(
         self,
         *args,
@@ -1132,6 +1298,7 @@ class BranchCacheV3(_LocalBranchCache):
             self._topo_only_branches.add(self._pure_topo_branch)
         self._needs_populate = False
         self._needs_populate_topo_only = False
+        self._topo_seed = None
 
     @property
     def _care_about_mono_branch(self) -> bool:
@@ -1143,6 +1310,9 @@ class BranchCacheV3(_LocalBranchCache):
         new._topo_only_branches = self._topo_only_branches.copy()
         new._needs_populate = self._needs_populate
         new._needs_populate_topo_only = self._needs_populate_topo_only
+        new._topo_seed = None
+        if self._topo_seed is not None:
+            self._topo_seed = _TopoSeed(self.tiprev, repo)
         return new
 
     def _verifyall(self):
@@ -1152,6 +1322,83 @@ class BranchCacheV3(_LocalBranchCache):
     def _verifybranch(self, branch: bytes) -> None:
         assert not self._needs_populate
         super()._verifybranch(branch)
+
+    def __iter__(self):
+        # The "pure-topo" branch migh not have entry in self._entries, so we
+        # need to yield it manually.
+        #
+        # However, the branchmap might change during the iteration, so check
+        # that before starting iteration.
+        if self._pure_topo_branch is not None:
+            all_branches = list(self._entries.keys())
+            branch = self._pure_topo_branch
+            if branch not in self._entries and branch in self:
+                all_branches.append(branch)
+        elif self._needs_populate_topo_only:
+            all_branches = list(self._entries.keys())
+            for branch in self._topo_only_branches:
+                if branch not in self._entries:
+                    all_branches.append(branch)
+        else:
+            self._process_topo_heads()
+            all_branches = list(self._entries.keys())
+        yield from all_branches
+
+    def hasbranch(self, label: bytes, open_only: bool = False) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
+        if self._pure_topo_branch == label:
+            return True
+        if not open_only and label in self._topo_only_branches:
+            return True
+        self._process_topo_heads()
+        return super().hasbranch(label, open_only)
+
+    def __contains__(self, label: bytes) -> bool:
+        """checks whether a branch of this name exists or not
+
+        If open_only is set, ignore closed branch
+        """
+        return self.hasbranch(label, open_only=False)
+
+    def branchheads(self, branch, closed=False):
+        self._process_topo_heads()
+        if self._pure_topo_branch == branch:
+            self._populate_pure_topo_nodes()
+        return super().branchheads(branch, closed=closed)
+
+    def branch_head_revs(
+        self,
+        branch: bytes,
+        closed: bool = False,
+    ) -> list[RevnumT]:
+        self._process_topo_heads()
+        return super().branch_head_revs(branch, closed=closed)
+
+    def branchtip(self, branch):
+        ptb = self._pure_topo_branch
+        if ptb is not None and ptb == branch:
+            return self.tipnode
+        self._process_topo_heads()
+        return super().branchtip(branch)
+
+    def branches_info(
+        self,
+        repo: RepoT,
+        branches: set[bytes] | None = None,
+    ) -> list[tuple[bytes, RevnumT, bool, bool]]:
+        self._process_topo_heads()
+        return super().branches_info(repo, branches)
+
+    def all_nodes_are_heads(self, nodes: list[NodeIdT]) -> bool:
+        self._process_topo_heads()
+        return super().all_nodes_are_heads(nodes)
+
+    def head_count(self, branch: bytes, closed=False) -> int:
+        self._process_topo_heads()
+        return super().head_count(branch, closed=closed)
 
     def _get_topo_heads(self, repo):
         """returns the topological head of a repoview content up to self.tiprev"""
@@ -1423,6 +1670,7 @@ class BranchCacheV3(_LocalBranchCache):
                 may_fast_path = mono_branch
             if may_fast_path and touched.issubset(self._topo_only_branches):
                 self._needs_populate_topo_only = True
+                self._topo_seed = None
                 for branch in self._topo_only_branches:
                     self._entries.pop(branch, None)
                     self._open_entries.pop(branch, None)
@@ -1444,18 +1692,29 @@ class BranchCacheV3(_LocalBranchCache):
             max_rev,
         )
 
-    def _ensure_populated(self, repo):
-        """make sure any lazily loaded values are fully populated"""
+    def _pre_seed(self, repo):
+        """capture all data necessary to populated lazily loaded values"""
         if not (self._needs_populate or self._needs_populate_topo_only):
             return
-        topo_heads = self._get_topo_heads(repo)
+        if self._topo_seed is None:
+            self._topo_seed = _TopoSeed(self.tiprev, repo)
+
+    def _ensure_populated(self, repo):
+        """make sure any lazily loaded values are fully populated"""
+        self._pre_seed(repo)
+        self._process_topo_heads()
+
+    def _process_topo_heads(self):
+        """process the repository topological heads"""
+        if self._topo_seed is None:
+            return
+        topo_heads = self._topo_seed.get_topo_heads()
         if self._pure_topo_branch is not None:
             # There are various question we could answer without the full list
             # of heads, so we could delay that computation until requested,
             # however There are other simpler optimization to do first.
             #
             # Feel free to take that step.
-            topo_heads = self._get_topo_heads(repo)
             branch = self._pure_topo_branch
             # if we need to populate, there should be nothing already in place.
             assert branch not in self._entries
@@ -1468,10 +1727,9 @@ class BranchCacheV3(_LocalBranchCache):
             self._verifiedbranches.add(branch)
         else:
             first_pop = not self._needs_populate_topo_only
-            cl = repo.changelog
-            getbranchinfo = repo.revbranchcache().branchinfo
-            obsrevs = obsolete.getrevs(repo, b'obsolete')
-            to_node = cl.node
+            getbranchinfo = self._topo_seed.get_branchinfo_func()
+            obsrevs = self._topo_seed.get_obsolete_revs()
+            to_node, to_rev = self._topo_seed.get_node_rev_funcs()
             touched_branch = set()
             topo_only = set()
             closed_size = len(self._closednodes)
@@ -1485,9 +1743,9 @@ class BranchCacheV3(_LocalBranchCache):
                 if closed:
                     self._closednodes.add(node)
                 pre_add_len = len(touched_branch)
-                touched_branch.add(branch)
                 if not first_pop and branch not in self._topo_only_branches:
                     continue
+                touched_branch.add(branch)
                 if pre_add_len != len(touched_branch):
                     # first sight of this branch
                     if branch not in self._entries:
@@ -1517,11 +1775,10 @@ class BranchCacheV3(_LocalBranchCache):
                 self._open_head_revs[branch] = topo_heads
                 self._tips[branch] = (self._entries[branch][-1], False)
                 self._verifiedbranches.add(branch)
+                self._state = STATE_DIRTY
             if self._topo_only_branches != topo_only:
                 self._topo_only_branches = topo_only
-                if self._state == STATE_CLEAN:
-                    self._state = STATE_DIRTY
-            to_rev = cl.index.rev
+                self._state = STATE_DIRTY
             # we only need to sort if they were pre-existing value
             for branch in touched_branch - topo_only:
                 # XXX getting a rev from a node is expensive so this sorting is
@@ -1529,13 +1786,24 @@ class BranchCacheV3(_LocalBranchCache):
                 self._entries[branch].sort(key=to_rev)
         self._needs_populate = False
         self._needs_populate_topo_only = False
+        self._topo_seed = None
 
     def _detect_pure_topo(self, repo) -> None:
-        if self._topo_only_branches:
-            # if this set is non-empty, the data we have comes from disk and
-            # the pure-topo case was detected as load time.
+        if self._pure_topo_branch is not None:
+            # We are already in the best case, no need to continue.
+            return
+        elif self._topo_only_branches and len(self._topo_only_branches) > 1:
+            # If this set is non-empty, its content comes from disk as that
+            # detection is made at when writing branchmap.
             #
-            # There is nothing we can do.
+            # However the upgrade could have detect that the set is preserved,
+            # but not that we detected from "mixed" to "pure". If there is only
+            # one item in that list, we keep going to detect a potential move
+            # from "mixed" to "pure".
+            #
+            # If more than branch is "topological only". We can't end up in
+            # something better than "mixed", so there is nothing more we can do
+            # here.
             return
         self._ensure_populated(repo)
         if self._topo_only_branches:
@@ -1551,7 +1819,7 @@ class BranchCacheV3(_LocalBranchCache):
             if heads and set(heads).issubset(topo_heads):
                 topo_only.add(branch)
 
-        if topo_only:
+        if topo_only != self._topo_only_branches:
             self._state = STATE_DIRTY
         self._topo_only_branches = topo_only
         if len(topo_only) == 1:

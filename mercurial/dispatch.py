@@ -198,7 +198,11 @@ def dispatch(req: main_script.request) -> int:
 
 
 def _rundispatch(req: main_script.request) -> int:
-    with tracing.log('dispatch._rundispatch'):
+    # XXX figure out how to align old tracing and new tracing
+    with (
+        tracing.log('dispatch._rundispatch'),
+        util.rust_tracing_span("dispatch._rundispatch"),
+    ):
         if req.ferr:
             ferr = req.ferr
         elif req.ui:
@@ -1197,7 +1201,8 @@ def _dispatch_post_cwd(req):
 def _runcommand(ui, options, cmd, cmdfunc):
     """Run a command function, possibly with profiling enabled."""
     try:
-        with tracing.log("Running %s command" % cmd):
+        msg = "Running %s command" % cmd
+        with tracing.log(msg), util.rust_tracing_span(msg):
             return cmdfunc()
     except error.SignatureError:
         raise error.CommandError(cmd, _(b'invalid arguments'))

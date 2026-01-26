@@ -116,6 +116,7 @@
    */mercurial/dispatch.py:* in <lambda> (glob)
    */mercurial/util.py:* in check (glob)
    $TESTTMP/buggylocking.py:* in buggylocking (glob)
+   *python*/contextlib.py:* in inner (glob)
 #endif
 #if chg no-pyoxidizer
   $ hg buggylocking --traceback
@@ -159,6 +160,7 @@
    */mercurial/dispatch.py:* in <lambda> (glob)
    */mercurial/util.py:* in check (glob)
    $TESTTMP/buggylocking.py:* in buggylocking (glob)
+   *python*/contextlib.py:* in inner (glob)
 #endif
 #if pyoxidizer
   $ hg buggylocking --traceback
@@ -177,6 +179,7 @@
    mercurial.dispatch:* in <lambda> (glob)
    mercurial.util:* in check (glob)
    $TESTTMP/buggylocking.py:* in buggylocking (glob)
+   *python*/contextlib.py:* in inner (glob)
 #endif
   $ hg properlocking
   $ hg nowaitlocking

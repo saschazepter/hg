@@ -297,6 +297,7 @@ def _runextsetup(name: bytes, ui: UiT) -> bool:
     return True
 
 
+@util.rust_tracing_span("extensions.loadall")
 def loadall(ui: UiT, whitelist: NeedsTypeHint = None) -> None:
     loadingtime = collections.defaultdict[bytes, int](int)
     result = ui.configitems(b"extensions")
