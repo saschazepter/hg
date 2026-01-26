@@ -1,4 +1,4 @@
-# Mercurial 7.2rc0 (2025-11-26)
+# Mercurial 7.2rc1 (2026-01-26)
 
 /!\ These are the release notes for a release candidate version. Any and all
 items can be removed or modified before the final release.
@@ -78,6 +78,10 @@ See `hg help config.worker.parallel-stream-bundle-processing` for details.
 
 - The performance of caches related to tags has been improved when using the
   Rust extensions (f93ba6645f8e, eed40a296a18)
+- The performance of `commit` has been improved by removing useless computation
+- The performance of the Rust index (specifically the nodemap) with large
+  revlogs has been improved
+- Warming a cold filenode tag cache is up to 12% faster
 
 ### New Experimental Features and Formats
 
@@ -243,6 +247,11 @@ performance that combines with the on this command gains previously mentioned.
 - Local access to repositories with `pull`/`incoming` and `push` now honors
   `server.view` (note that `hg clone` in link-mode still does *not* honour
   `server.view`, `hg clone --pull` does)
+- repo-cache: fix using --chg with the rust extension (issue10048)
+- update: fix crash in rust update-from-clean on certain byte sequences
+- tracing: avoid writing traces to stdout, write to stderr instead
+- verify: fix fncache consistency checks (fixes #10045)
+
 
 ### Internal API Changes
 
@@ -268,6 +277,8 @@ Raw changes are listed here to help with migrating.
 
 ### Miscellaneous
 
+- Add a `commands.commit.report-head-changes` config option, to remove the need
+  for what can be an expensive computation in cases where it's not needed.
 - contrib: update apache-server Dockerfile to debian:trixie
 - Added `--py-installer` option to `run-tests.py` to control how Mercurial is
   installed before tests
