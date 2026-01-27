@@ -1853,22 +1853,21 @@ impl RevlogNodeMap {
                 tree,
                 smallest_cached_rev,
             } => {
+                let start_rev = *smallest_cached_rev;
                 let visit = |node, rev| {
                     tree.insert(idx, &node, rev).expect("rev must be valid");
+                    // remember where we stopped to not insert top-most
+                    // revisions again
+                    *smallest_cached_rev = Some(rev);
                 };
                 let node_rev_pair = idx.rev_from_prefix(
                     node_prefix,
                     visit,
-                    *smallest_cached_rev,
+                    start_rev,
                     partial_lookup,
                 )?;
                 match node_rev_pair {
-                    Some((_node, revision)) => {
-                        // remember where we stopped to not insert top-most
-                        // revisions again
-                        *smallest_cached_rev = Some(revision);
-                        Ok(Some(revision))
-                    }
+                    Some((_node, revision)) => Ok(Some(revision)),
                     None => Ok(None),
                 }
             }
