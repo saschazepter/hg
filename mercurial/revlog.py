@@ -3368,19 +3368,24 @@ class revlog:
 
         provided_node = node is not None
 
-        if flags and node is None:
-            node = self.hash(text, p1, p2)
+        if not (flags & ~REVIDX_NEUTRAL_FLAGS):
+            validatehash = True
+            rawtext = text
+        else:
+            if node is None:
+                node = self.hash(text, p1, p2)
 
-        rawtext, validatehash = flagutil.processflagswrite(self, text, flags)
+            rawtext, validatehash = flagutil.processflagswrite(
+                self, text, flags
+            )
 
-        if flags and validatehash:
-            # if the text is claimed to be unchanged, it should still be the same
-            assert rawtext is text
-
-        # If the flag processor modifies the revision data, ignore any provided
-        # cachedelta.
-        if not (rawtext is text) and rawtext != text:
-            cachedelta = None
+            if validatehash:
+                # if the text is claimed to be unchanged, it should still be the same
+                assert rawtext is text
+            elif not (rawtext is text) and rawtext != text:
+                # If the flag processor modifies the revision data, ignore any provided
+                # cachedelta.
+                cachedelta = None
 
         if len(rawtext) > _maxentrysize:
             raise error.RevlogError(
