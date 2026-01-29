@@ -603,6 +603,7 @@ build-c-wheel-windows:
         - echo "$Env:RUNTEST_ARGS"
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
+        - if ( $CI_COMMIT_REF_PROTECTED -eq 'true' ) { hg pull -r stable }
         - "cibuildwheel.exe --output-dir wheels/win32"
     artifacts:
       paths:
@@ -742,6 +743,7 @@ build-c-wheel-macos:
       - sh -c 'which "$PYTHON"'
       - sh -c '"$PYTHON" -V'
       - sh -c 'which cibuildwheel'
+      - if [ "$CI_COMMIT_REF_PROTECTED" == "true" ]; then hg pull -r stable; fi
       - PLATFORM=`$PYTHON -c 'import sys; print(sys.platform)'`
       - rm -rf tmp-wheels
       - cibuildwheel --output-dir tmp-wheels/
