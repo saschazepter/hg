@@ -16,6 +16,7 @@ import unicodedata
 from typing import (
     Any,
     Callable,
+    Iterator,
     TypeVar,
 )
 
@@ -335,19 +336,88 @@ def upperfallback(s: Any) -> Any:
 if not _nativeenviron:
     # now encoding and helper functions are available, recreate the environ
     # dict to be exported to other modules
+
+    _V = TypeVar('_V')
+
+    class NonNativeEnviron:
+        """delay conversion of value to avoid crash during initalization"""
+
+        def __init__(self, utf_dict):
+            self._items = {}
+            self._overlay = {}
+            for k, v in utf_dict.items():
+                k = k.encode('utf8')
+                if isasciistr(k):
+                    kb = k
+                else:
+                    kb = tolocal(k)
+                self._items[kb] = v
+
+        def __iter__(self) -> Iterator[bytes]:
+            return iter(set(self._items.keys() | set(self._overlay.keys())))
+
+        def __contains__(self, k: bytes) -> bool:
+            return k in self._items or k in self._overlay
+
+        def __getitem__(self, k: bytes) -> bytes:
+            if k in self._overlay:
+                return self._overlay[k]
+            value = self._items[k]
+            return tolocal(value.encode('utf-8'))
+
+        def __setitem__(self, k: bytes, v: bytes):
+            self._overlay[k] = v
+
+        def __delitem__(self, k: bytes):
+            if k in self._overlay:
+                del self._overlay[k]
+            if k in self._items:
+                del self._items[k]
+
+        def setdefault(self, k: bytes, default: bytes) -> bytes:
+            if k in self:
+                return self[k]
+            self[k] = default
+            return default
+
+        def get(
+            self,
+            k: bytes,
+            default: _V = None,
+        ) -> _V | bytes:
+            if k in self._items or k in self._overlay:
+                return self[k]
+            return default
+
+        def items(self):
+            for k in self:
+                yield (k, self[k])
+
+        def copy(self):
+            return dict(self.items())
+
+        def clear(self):
+            self._items.clear()
+            self._overlay.clear()
+
+        def update(self, other):
+            self._overlay.update(other)
+
     if pycompat.iswindows:
 
-        class WindowsEnviron(dict):
+        class WindowsEnviron(NonNativeEnviron):
             """`os.environ` normalizes environment variables to uppercase on windows"""
 
-            def get(self, key, default=None):
-                return super().get(upper(key), default)
+            def get(
+                self,
+                k: bytes,
+                default: _V = None,
+            ) -> _V | bytes:
+                return super().get(upper(k), default)
 
-        environ = WindowsEnviron()
-
-    for k, v in os.environ.items():  # re-exports
-        environ[tolocal(k.encode('utf-8'))] = tolocal(v.encode('utf-8'))
-
+        environ = WindowsEnviron(os.environ)  # re-exports
+    else:
+        environ = NonNativeEnviron(os.environ)  # re-exports
 
 DRIVE_RE = re.compile(b'^[a-z]:')
 

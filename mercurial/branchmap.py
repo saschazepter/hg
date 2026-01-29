@@ -1825,7 +1825,7 @@ class BranchCacheV3(_LocalBranchCache):
         if len(topo_only) == 1:
             candidate = list(topo_only)[0]
             heads = self._entries[candidate]
-            if len(topo_heads) == len(heads) and all(
+            if len(topo_heads) == len(heads) and not any(
                 n in self._closednodes for n in topo_heads
             ):
                 self._pure_topo_branch = branch

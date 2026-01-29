@@ -471,7 +471,7 @@ def shellenviron(environ=None):
             return b'1'
         return pycompat.bytestr(val)
 
-    env = dict(encoding.environ)
+    env = dict(encoding.environ.items())
     if environ:
         env.update((k, py2shell(v)) for k, v in environ.items())
     env[b'HG'] = hgexecutable()
@@ -810,7 +810,7 @@ def kill_self():
 
 
 def _kill_nt(pid: int, exit_code: int):
-    env = dict(encoding.environ)
+    env = dict(encoding.environ.items())
     env[b"DAEMON_EXITCODE"] = b"%d" % exit_code
 
     # Simulate the message written to stderr for this process on non-Windows

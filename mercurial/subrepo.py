@@ -1299,7 +1299,7 @@ class svnsubrepo(abstractsubrepo):
                 self._ctx.repo().origroot, self._path, filename
             )
             cmd.append(path)
-        env = dict(encoding.environ)
+        env = dict(encoding.environ.items())
         # Avoid localized output, preserve current locale for everything else.
         lc_all = env.get(b'LC_ALL')
         if lc_all:

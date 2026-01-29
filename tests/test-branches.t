@@ -2384,10 +2384,8 @@ explicit cache upgrade should detect the pure topo mode
 #if v3
   $ show_cache
   ##### .hg/cache/branch3-base
-  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15 topo-mode=mixed (known-bad-output !)
-  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15 topo-mode=pure (missing-correct-output !)
+  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15 topo-mode=pure
   C
-   (known-bad-output !)
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   ##### .hg/cache/branch3-served
@@ -2419,10 +2417,8 @@ explicit cache upgrade from scratch should detect the pure topo mode
 #if v3
   $ show_cache
   ##### .hg/cache/branch3-base
-  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15 topo-mode=mixed (known-bad-output !)
-  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15 topo-mode=pure (missing-correct-output !)
+  tip-node=34cee33f7c02cb02fc18f913017859c862dd881d tip-rev=15 topo-mode=pure
   C
-   (known-bad-output !)
   fd86303ad5534310a9f6523e5530a4ac9550e078 o A
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   ##### .hg/cache/branch3-served
