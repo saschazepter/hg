@@ -464,7 +464,7 @@ impl Config {
     ) -> Result<(), HgError> {
         let warn_all = self.get_bool(b"devel", b"all-warnings")?;
         let warn_specific = self.get_bool(b"devel", b"warn-config-unknown")?;
-        if !warn_all || !warn_specific {
+        if warn_all || warn_specific {
             // We technically shouldn't print anything here since it's not
             // the concern of `hg-core`.
             //
