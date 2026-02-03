@@ -1828,7 +1828,7 @@ class BranchCacheV3(_LocalBranchCache):
             if len(topo_heads) == len(heads) and not any(
                 n in self._closednodes for n in topo_heads
             ):
-                self._pure_topo_branch = branch
+                self._pure_topo_branch = candidate
 
 
 class remotebranchcache(_BaseBranchCache):

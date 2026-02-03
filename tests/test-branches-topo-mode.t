@@ -51,7 +51,7 @@ topological detection.
   $ hg debugupdatecache
   $ cat .hg/cache/branch3*
   tip-node=64bc6c1bbbcf5d74d77ed6549e50580838293bee tip-rev=4 topo-mode=pure
-  D
+  C
   b6d05de170f1652bb1cd95314cda67f7febeacc7 c D
-  $ hg branches 2>&1 | grep AssertionError
-  AssertionError
+  $ hg branches
+  C                              4:64bc6c1bbbcf
