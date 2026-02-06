@@ -380,6 +380,31 @@ static PyObject *index_py_linkrev(indexObject *self, PyObject *py_rev)
 	return PyLong_FromLong(value);
 }
 
+static PyObject *index_py_lazy_rank(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	long value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_cl2) {
+		data = index_deref(self, rev);
+		if (data == NULL)
+			return NULL;
+		value = getbe32(data + entry_cl2_offset_rank);
+	} else {
+		value = rank_unknown;
+	}
+	return PyLong_FromLong(value);
+}
+
 static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 {
 	const char *data;
@@ -3644,6 +3669,8 @@ static PyMethodDef index_methods[] = {
      METH_O, "hack to keep bundle repo working"},
     {"delta_base", (PyCFunction)index_py_delta_base, METH_O,
      "return the base revision on which to apply the delta"},
+    {"lazy_rank", (PyCFunction)index_py_lazy_rank, METH_O,
+     "return the rank of a revision (if known)"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},
     {"reachableroots2", (PyCFunction)reachableroots2, METH_VARARGS,

@@ -953,6 +953,16 @@ impl InnerRevlog {
         })
     }
 
+    /// return the rank of <rev> if known
+    ///
+    /// return `revlog_constants.RANK_UNKNOWN` otherwise.
+    fn _index_lazy_rank(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<i32> {
+        Ok(-1)
+    }
+
     fn _index_node<'py>(
         slf: &Bound<'py, Self>,
         py: Python<'py>,

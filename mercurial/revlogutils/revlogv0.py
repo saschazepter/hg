@@ -27,6 +27,10 @@ from . import (
     nodemap as nodemaputil,
 )
 
+from ..revlogutils import (
+    constants as revlog_constants,
+)
+
 
 def getoffset(q):
     return int(q >> 16)
@@ -119,6 +123,9 @@ class revlogoldindex(list):
 
         chain.reverse()
         return chain, stopped
+
+    def lazy_rank(self, rev):
+        return revlog_constants.RANK_UNKNOWN
 
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""

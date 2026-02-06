@@ -1305,6 +1305,7 @@ class RustIndexProxy(ProxyBase):
         self.flags = self.inner._index_flags
         self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
         self.delta_base = self.inner._index_delta_base
+        self.lazy_rank = self.inner._index_lazy_rank
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest

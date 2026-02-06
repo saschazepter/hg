@@ -717,6 +717,13 @@ class BaseIndexObject:
         chain.reverse()
         return chain, stopped
 
+    def lazy_rank(self, rev):
+        """return the rank of <rev> if known
+
+        return `revlog_constants.RANK_UNKNOWN` otherwise.
+        """
+        return self[rev][12]
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self[rev][7]
