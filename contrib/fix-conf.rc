@@ -11,4 +11,4 @@ rustfmt:command = $(rustup which --toolchain nightly-2024-07-16 rustfmt)
 rustfmt:pattern = set:"**.rs" - "mercurial/thirdparty/**"
 
 black:command = black --config=pyproject.toml -
-black:pattern = set:**.py - mercurial/thirdparty/**
+black:pattern = set:**.py - (mercurial/thirdparty/** + contrib/python-zstandard/**.rs)
