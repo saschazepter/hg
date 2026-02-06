@@ -350,6 +350,36 @@ static PyObject *index_py_parents_raw(indexObject *self, PyObject *rev)
 	return Py_BuildValue("(ii)", parents[0], parents[1]);
 }
 
+static PyObject *index_py_linkrev(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	long value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (rev == nullrev) {
+		return PyLong_FromLong(nullrev);
+	}
+	data = index_deref(self, rev);
+	if (data == NULL)
+		return NULL;
+	if (self->format_version == format_v1) {
+		value = getbe32(data + entry_v1_offset_link_rev);
+	} else if (self->format_version == format_v2) {
+		value = getbe32(data + entry_v2_offset_link_rev);
+	} else if (self->format_version == format_cl2) {
+		value = rev;
+	}
+	return PyLong_FromLong(value);
+}
+
 static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 {
 	const char *data;
@@ -3554,6 +3584,8 @@ static PyMethodDef index_methods[] = {
      "return parents of a rev"},
     {"_parents_raw", (PyCFunction)index_py_parents_raw, METH_O,
      "return raw parents value from the index"},
+    {"linkrev", (PyCFunction)index_py_linkrev, METH_O,
+     "return linkrev for a rev"},
     {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},

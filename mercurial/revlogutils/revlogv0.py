@@ -77,6 +77,9 @@ class revlogoldindex(list):
 
     _parents_raw = parents
 
+    def linkrev(self, rev):
+        return self[rev][4]
+
     def flags(self, rev):
         """the revision level flag for a revision"""
         return self[rev][0] & 0xFFFF

@@ -1341,6 +1341,7 @@ class RustIndexProxy(ProxyBase):
         self.rev = self.inner._index_rev
         self.parents = self.inner._index_parents
         self._parents_raw = self.inner._index_parents_raw
+        self.linkrev = self.inner._index_linkrev
         self.flags = self.inner._index_flags
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
@@ -1743,7 +1744,7 @@ class revlog:
         n = len(self)
         index = self.index
         while n > 0:
-            linkrev = index[n - 1][4]
+            linkrev = index.linkrev(n - 1)
             if linkrev < max_linkrev:
                 break
             # note: this loop will rarely go through multiple iterations, since
@@ -2272,7 +2273,7 @@ class revlog:
         return base
 
     def linkrev(self, rev):
-        return self.index[rev][4]
+        return self.index.linkrev(rev)
 
     def parentrevs(self, rev):
         try:

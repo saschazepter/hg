@@ -914,6 +914,13 @@ impl InnerRevlog {
         })
     }
 
+    fn _index_linkrev(slf: &Bound<'_, Self>, rev: PyRevision) -> PyResult<i32> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(idx.get_entry(r).link_revision().0),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
     fn _index_flags(slf: &Bound<'_, Self>, rev: PyRevision) -> PyResult<u16> {
         Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
             Ok(r) => Ok(idx.get_entry(r).flags()),
