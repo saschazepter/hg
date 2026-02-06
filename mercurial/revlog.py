@@ -54,7 +54,6 @@ from .revlogutils.constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_NO,
     DELTA_BASE_REUSE_TRY,
-    ENTRY_RANK,
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
     FILELOG_HASMETA_UPGRADE as HM_UP,
@@ -2213,7 +2212,7 @@ class revlog:
         time. It makes no attempt at computing unknown values for versions of
         the revlog which do not persist the rank.
         """
-        rank = self.index[rev][ENTRY_RANK]
+        rank = self.index.lazy_rank(rev)
         if self._format_version != CHANGELOGV2 or rank == RANK_UNKNOWN:
             return None
         if rev == nullrev:
