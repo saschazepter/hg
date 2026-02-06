@@ -86,7 +86,7 @@ def _rev(index, rev, entry, hexfn):
 
 @debug_column(b"rank", size=6, verbose=True)
 def rank(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_RANK]
+    return b"%d" % index.lazy_rank(rev)
 
 
 @debug_column(b"linkrev", size=6)
