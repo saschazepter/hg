@@ -80,51 +80,51 @@ def debug_column(name, size=None, verbose=False):
 
 
 @debug_column(b"rev", size=6)
-def _rev(index, rev, entry, hexfn):
+def _rev(index, rev, hexfn):
     return b"%d" % rev
 
 
 @debug_column(b"rank", size=6, verbose=True)
-def rank(index, rev, entry, hexfn):
+def rank(index, rev, hexfn):
     return b"%d" % index.lazy_rank(rev)
 
 
 @debug_column(b"linkrev", size=6)
-def _linkrev(index, rev, entry, hexfn):
+def _linkrev(index, rev, hexfn):
     return b"%d" % index.linkrev(rev)
 
 
 @debug_column(b"nodeid", size=NODE_SIZE)
-def _nodeid(index, rev, entry, hexfn):
+def _nodeid(index, rev, hexfn):
     return hexfn(index.node(rev))
 
 
 @debug_column(b"p1-rev", size=6, verbose=True)
-def _p1_rev(index, rev, entry, hexfn):
+def _p1_rev(index, rev, hexfn):
     return b"%d" % index.parents(rev)[0]
 
 
 @debug_column(b"p1-nodeid", size=NODE_SIZE)
-def _p1_node(index, rev, entry, hexfn):
+def _p1_node(index, rev, hexfn):
     p1 = index.parents(rev)[0]
     p1_node = index.node(p1)
     return hexfn(p1_node)
 
 
 @debug_column(b"p2-rev", size=6, verbose=True)
-def _p2_rev(index, rev, entry, hexfn):
+def _p2_rev(index, rev, hexfn):
     return b"%d" % index.parents(rev)[1]
 
 
 @debug_column(b"p2-nodeid", size=NODE_SIZE)
-def _p2_node(index, rev, entry, hexfn):
+def _p2_node(index, rev, hexfn):
     p2 = index.parents(rev)[1]
     p2_node = index.node(p2)
     return hexfn(p2_node)
 
 
 @debug_column(b"full-size", size=20, verbose=True)
-def full_size(index, rev, entry, hexfn):
+def full_size(index, rev, hexfn):
     size = index.raw_size(rev)
     if size is None:
         return b"-"
@@ -133,32 +133,32 @@ def full_size(index, rev, entry, hexfn):
 
 
 @debug_column(b"delta-base", size=6, verbose=True)
-def delta_base(index, rev, entry, hexfn):
+def delta_base(index, rev, hexfn):
     return b"%d" % index.bundle_repo_delta_base(rev)
 
 
 @debug_column(b"flags", size=2, verbose=True)
-def flags(index, rev, entry, hexfn):
+def flags(index, rev, hexfn):
     return b"%d" % index.flags(rev)
 
 
 @debug_column(b"comp-mode", size=4, verbose=True)
-def compression_mode(index, rev, entry, hexfn):
+def compression_mode(index, rev, hexfn):
     return b"%d" % index.data_chunk_compression_mode(rev)
 
 
 @debug_column(b"data-offset", size=20, verbose=True)
-def data_offset(index, rev, entry, hexfn):
+def data_offset(index, rev, hexfn):
     return b"%d" % index.data_chunk_start(rev)
 
 
 @debug_column(b"chunk-size", size=10, verbose=True)
-def data_chunk_size(index, rev, entry, hexfn):
+def data_chunk_size(index, rev, hexfn):
     return b"%d" % index.data_chunk_length(rev)
 
 
 @debug_column(b"sd-comp-mode", size=7, verbose=True)
-def sidedata_compression_mode(index, rev, entry, hexfn):
+def sidedata_compression_mode(index, rev, hexfn):
     compression = index.sidedata_chunk_compression_mode(rev)
     if compression == constants.COMP_MODE_PLAIN:
         return b"plain"
@@ -171,12 +171,12 @@ def sidedata_compression_mode(index, rev, entry, hexfn):
 
 
 @debug_column(b"sidedata-offset", size=20, verbose=True)
-def sidedata_offset(index, rev, entry, hexfn):
+def sidedata_offset(index, rev, hexfn):
     return b"%d" % index.sidedata_chunk_offset(rev)
 
 
 @debug_column(b"sd-chunk-size", size=10, verbose=True)
-def sidedata_chunk_size(index, rev, entry, hexfn):
+def sidedata_chunk_size(index, rev, hexfn):
     return b"%d" % index.sidedata_chunk_length(rev)
 
 
@@ -214,7 +214,6 @@ def debug_index(
 
     for rev in revlog:
         fm.startitem()
-        entry = index[rev]
         first = True
         for column in INDEX_ENTRY_DEBUG_COLUMN:
             if column.verbose_only and not ui.verbose:
@@ -224,7 +223,7 @@ def debug_index(
             first = False
 
             size = column.get_size(idlen)
-            value = column.value_func(index, rev, entry, hexfn)
+            value = column.value_func(index, rev, hexfn)
             display = b"%%%ds" % size
             fm.write(column.name, display, value)
         fm.plain(b'\n')
