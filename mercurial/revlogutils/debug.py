@@ -144,7 +144,7 @@ def flags(index, rev, entry, hexfn):
 
 @debug_column(b"comp-mode", size=4, verbose=True)
 def compression_mode(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_DATA_COMPRESSION_MODE]
+    return b"%d" % index.data_chunk_compression_mode(rev)
 
 
 @debug_column(b"data-offset", size=20, verbose=True)
