@@ -132,6 +132,10 @@ class revlogoldindex(list):
         chain.reverse()
         return chain, stopped
 
+    def data_chunk_compression_mode(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return revlog_constants.COMP_MODE_INLINE
+
     def lazy_rank(self, rev):
         return revlog_constants.RANK_UNKNOWN
 

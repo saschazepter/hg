@@ -683,6 +683,10 @@ class BaseIndexObject:
         """return the length of the data chunk of a rev"""
         return self[rev][1]
 
+    def data_chunk_compression_mode(self, rev):
+        """the type of compression used a revision data chunk"""
+        return self[rev][10]
+
     def delta_base(self, rev) -> RevnumT | None:
         """The revision to which apply the delta stored for <rev>
 

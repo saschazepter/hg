@@ -93,6 +93,11 @@ pub use index::PySharedIndex;
 use index::py_tuple_to_revision_data_params;
 use index::revision_data_params_to_py_tuple;
 
+/// the compression used for the data-chunk is "inline"
+///
+/// The compression is indicated at the start of the chunk
+const IDX_COMPRESSION_INLINE: u8 = 2;
+
 #[pyclass]
 struct ReadingContextManager {
     inner_revlog: Py<InnerRevlog>,
@@ -960,6 +965,14 @@ impl InnerRevlog {
             Ok(r) => Ok(idx.get_entry(r).compressed_len()),
             Err(e) => Err(PyIndexError::new_err(e)),
         })
+    }
+
+    /// the type of compression used a revision data chunk
+    fn _index_data_chunk_compression_mode(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u8> {
+        Ok(IDX_COMPRESSION_INLINE)
     }
 
     fn _index_delta_base(
