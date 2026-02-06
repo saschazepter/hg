@@ -10,3 +10,4 @@ hgext/fsmonitor/pywatchman/**.c
 mercurial/thirdparty/**.c
 mercurial/thirdparty/**.h
 mercurial/pythoncapi_compat.h
+contrib/fuzz/*.cc
