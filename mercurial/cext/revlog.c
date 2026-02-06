@@ -478,6 +478,38 @@ static PyObject *index_py_sidedata_chunk_offset(indexObject *self,
 	return PyLong_FromLongLong(value);
 }
 
+static PyObject *index_py_sidedata_chunk_length(indexObject *self,
+                                                PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	long value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_v1 || rev == nullrev) {
+		value = 0;
+	} else {
+		data = index_deref(self, rev);
+		if (data == NULL)
+			return NULL;
+		if (self->format_version == format_v2) {
+			value =
+			    getbe32(data + entry_v2_offset_sidedata_comp_len);
+		} else if (self->format_version == format_cl2) {
+			value =
+			    getbe32(data + entry_cl2_offset_sidedata_comp_len);
+		}
+	}
+	return PyLong_FromLong(value);
+}
+
 static PyObject *index_py_lazy_rank(indexObject *self, PyObject *py_rev)
 {
 	long rev;
@@ -3840,6 +3872,8 @@ static PyMethodDef index_methods[] = {
      "return the compression-mode for a revision"},
     {"sidedata_chunk_offset", (PyCFunction)index_py_sidedata_chunk_offset,
      METH_O, "return the offset for the sidedata chunk of a revision"},
+    {"sidedata_chunk_length", (PyCFunction)index_py_sidedata_chunk_length,
+     METH_O, "return the on-disk length of the sidedata chunk of a revision"},
     {"lazy_rank", (PyCFunction)index_py_lazy_rank, METH_O,
      "return the rank of a revision (if known)"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,

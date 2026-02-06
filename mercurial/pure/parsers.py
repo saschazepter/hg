@@ -744,6 +744,10 @@ class BaseIndexObject:
         """the offset of the sidedata chunk if any"""
         return self[rev][8]
 
+    def sidedata_chunk_length(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return self[rev][9]
+
     def lazy_rank(self, rev):
         """return the rank of <rev> if known
 
