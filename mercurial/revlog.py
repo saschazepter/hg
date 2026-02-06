@@ -2187,7 +2187,7 @@ class revlog:
     def sidedata_length(self, rev):
         if not self.feature_config.has_side_data:
             return 0
-        return self.index[rev][9]
+        return self.index.sidedata_chunk_length(rev)
 
     def rawsize(self, rev):
         """return the length of the uncompressed text for a given revision"""
