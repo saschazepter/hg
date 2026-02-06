@@ -1078,9 +1078,8 @@ class _InnerRevlog:
 
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
-        index_entry = self.index[rev]
-        sidedata_offset = index_entry[8]
-        sidedata_size = index_entry[9]
+        sidedata_offset = self.index.sidedata_chunk_offset(rev)
+        sidedata_size = self.index.sidedata_chunk_length(rev)
 
         if self.inline:
             sidedata_offset += self.index.entry_size * (1 + rev)
@@ -1099,7 +1098,7 @@ class _InnerRevlog:
             sidedata_offset, sidedata_size
         )
 
-        comp = self.index[rev][11]
+        comp = self.index.sidedata_chunk_compression_mode(rev)
         if comp == COMP_MODE_PLAIN:
             segment = comp_segment
         elif comp == COMP_MODE_DEFAULT:
