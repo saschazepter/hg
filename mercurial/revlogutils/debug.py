@@ -91,7 +91,7 @@ def rank(index, rev, entry, hexfn):
 
 @debug_column(b"linkrev", size=6)
 def _linkrev(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_LINK_REV]
+    return b"%d" % index.linkrev(rev)
 
 
 @debug_column(b"nodeid", size=NODE_SIZE)
