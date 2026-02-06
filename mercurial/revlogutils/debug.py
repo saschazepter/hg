@@ -172,7 +172,7 @@ def sidedata_compression_mode(index, rev, entry, hexfn):
 
 @debug_column(b"sidedata-offset", size=20, verbose=True)
 def sidedata_offset(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_SIDEDATA_OFFSET]
+    return b"%d" % index.sidedata_chunk_offset(rev)
 
 
 @debug_column(b"sd-chunk-size", size=10, verbose=True)
