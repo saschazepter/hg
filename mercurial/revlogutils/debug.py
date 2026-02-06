@@ -149,9 +149,7 @@ def compression_mode(index, rev, entry, hexfn):
 
 @debug_column(b"data-offset", size=20, verbose=True)
 def data_offset(index, rev, entry, hexfn):
-    field = entry[constants.ENTRY_DATA_OFFSET]
-    field >>= 16
-    return b"%d" % field
+    return b"%d" % index.data_chunk_start(rev)
 
 
 @debug_column(b"chunk-size", size=10, verbose=True)
