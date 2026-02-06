@@ -72,26 +72,12 @@ class unionrevlog(revlog.revlog):
         n = len(self)
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
+        u_index = self.revlog2.index
         for rev2 in self.revlog2:
-            rev = self.revlog2.index[rev2]
             # rev numbers - in revlog2, very different from self.rev
-            (
-                _start,
-                csize,
-                rsize,
-                base,
-                linkrev,
-                p1rev,
-                p2rev,
-                node,
-                _sdo,
-                _sds,
-                _dcm,
-                _sdcm,
-                rank,
-            ) = rev
-            flags = _start & 0xFFFF
-
+            linkrev = u_index.linkrev(rev2)
+            base = u_index.bundle_repo_delta_base(rev2)
+            node = u_index.node(rev2)
             if linkmapper is None:  # link is to same revlog
                 assert linkrev == rev2  # we never link back
                 link = n
@@ -107,15 +93,16 @@ class unionrevlog(revlog.revlog):
                 self.bundlerevs.add(this_rev)
                 continue
 
+            p1rev, p2rev = u_index.parents(rev2)
             p1node = self.revlog2.node(p1rev)
             p2node = self.revlog2.node(p2rev)
 
             # TODO: it's probably wrong to set compressed length to -1, but
             # I have no idea if csize is valid in the base revlog context.
             e = (
-                flags,
-                csize,
-                rsize,
+                u_index.flags(rev2),
+                u_index.data_chunk_length(rev2),
+                u_index.raw_size(rev2),
                 base,
                 link,
                 self.rev(p1node),
@@ -125,7 +112,7 @@ class unionrevlog(revlog.revlog):
                 0,  # sidedata size
                 revlog_constants.COMP_MODE_INLINE,
                 revlog_constants.COMP_MODE_INLINE,
-                rank,
+                u_index.lazy_rank(rev2),
             )
             self.index.append(e)
             self.bundlerevs.add(n)
