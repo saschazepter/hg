@@ -125,7 +125,7 @@ def _p2_node(index, rev, entry, hexfn):
 
 @debug_column(b"full-size", size=20, verbose=True)
 def full_size(index, rev, entry, hexfn):
-    size = entry[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+    size = index.raw_size(rev)
     if size is None:
         return b"-"
     else:
