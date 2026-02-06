@@ -101,24 +101,24 @@ def _nodeid(index, rev, entry, hexfn):
 
 @debug_column(b"p1-rev", size=6, verbose=True)
 def _p1_rev(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_PARENT_1]
+    return b"%d" % index.parents(rev)[0]
 
 
 @debug_column(b"p1-nodeid", size=NODE_SIZE)
 def _p1_node(index, rev, entry, hexfn):
-    p1 = entry[constants.ENTRY_PARENT_1]
+    p1 = index.parents(rev)[0]
     p1_node = index.node(p1)
     return hexfn(p1_node)
 
 
 @debug_column(b"p2-rev", size=6, verbose=True)
 def _p2_rev(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_PARENT_2]
+    return b"%d" % index.parents(rev)[1]
 
 
 @debug_column(b"p2-nodeid", size=NODE_SIZE)
 def _p2_node(index, rev, entry, hexfn):
-    p2 = entry[constants.ENTRY_PARENT_2]
+    p2 = index.parents(rev)[1]
     p2_node = index.node(p2)
     return hexfn(p2_node)
 
