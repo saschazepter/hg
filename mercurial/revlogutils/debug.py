@@ -139,9 +139,7 @@ def delta_base(index, rev, entry, hexfn):
 
 @debug_column(b"flags", size=2, verbose=True)
 def flags(index, rev, entry, hexfn):
-    field = entry[constants.ENTRY_DATA_OFFSET]
-    field &= 0xFFFF
-    return b"%d" % field
+    return b"%d" % index.flags(rev)
 
 
 @debug_column(b"comp-mode", size=4, verbose=True)
