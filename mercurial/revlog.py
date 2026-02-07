@@ -2277,18 +2277,14 @@ class revlog:
         if rev in chaininfocache:
             return chaininfocache[rev]
         index = self.index
-        generaldelta = self.delta_config.general_delta
         iterrev = rev
         e = index[iterrev]
         clen = 0
         compresseddeltalen = 0
-        while iterrev != e[3]:
+        while (base := index.delta_base(iterrev)) is not None:
             clen += 1
             compresseddeltalen += e[1]
-            if generaldelta:
-                iterrev = e[3]
-            else:
-                iterrev -= 1
+            iterrev = base
             if iterrev in chaininfocache:
                 t = chaininfocache[iterrev]
                 clen += t[0]
