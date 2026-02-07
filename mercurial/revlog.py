@@ -2282,23 +2282,21 @@ class revlog:
             return chaininfocache[rev]
         index = self.index
         iterrev = rev
-        e = index[iterrev]
         clen = 0
         compresseddeltalen = 0
         while (base := index.delta_base(iterrev)) is not None:
             clen += 1
-            compresseddeltalen += e[1]
+            compresseddeltalen += index.data_chunk_length(iterrev)
             iterrev = base
             if iterrev in chaininfocache:
                 t = chaininfocache[iterrev]
                 clen += t[0]
                 compresseddeltalen += t[1]
                 break
-            e = index[iterrev]
         else:
             # Add text length of base since decompressing that also takes
             # work. For cache hits the length is already included.
-            compresseddeltalen += e[1]
+            compresseddeltalen += index.data_chunk_length(iterrev)
         r = (clen, compresseddeltalen)
         chaininfocache[rev] = r
         return r
