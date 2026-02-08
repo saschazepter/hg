@@ -96,7 +96,7 @@ def _linkrev(index, rev, entry, hexfn):
 
 @debug_column(b"nodeid", size=NODE_SIZE)
 def _nodeid(index, rev, entry, hexfn):
-    return hexfn(entry[constants.ENTRY_NODE_ID])
+    return hexfn(index.node(rev))
 
 
 @debug_column(b"p1-rev", size=6, verbose=True)
@@ -106,9 +106,9 @@ def _p1_rev(index, rev, entry, hexfn):
 
 @debug_column(b"p1-nodeid", size=NODE_SIZE)
 def _p1_node(index, rev, entry, hexfn):
-    parent = entry[constants.ENTRY_PARENT_1]
-    p_entry = index[parent]
-    return hexfn(p_entry[constants.ENTRY_NODE_ID])
+    p1 = entry[constants.ENTRY_PARENT_1]
+    p1_node = index.node(p1)
+    return hexfn(p1_node)
 
 
 @debug_column(b"p2-rev", size=6, verbose=True)
@@ -118,9 +118,9 @@ def _p2_rev(index, rev, entry, hexfn):
 
 @debug_column(b"p2-nodeid", size=NODE_SIZE)
 def _p2_node(index, rev, entry, hexfn):
-    parent = entry[constants.ENTRY_PARENT_2]
-    p_entry = index[parent]
-    return hexfn(p_entry[constants.ENTRY_NODE_ID])
+    p2 = entry[constants.ENTRY_PARENT_2]
+    p2_node = index.node(p2)
+    return hexfn(p2_node)
 
 
 @debug_column(b"full-size", size=20, verbose=True)
