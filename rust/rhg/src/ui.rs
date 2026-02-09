@@ -63,7 +63,7 @@ impl Ui {
 
     /// Returns a buffered handle on stdout for faster batch printing
     /// operations.
-    pub fn stdout_buffer(&self) -> StdoutBuffer<'_, BufWriter<StdoutLock>> {
+    pub fn stdout_buffer(&self) -> StdoutBuffer<'_, BufWriter<StdoutLock<'_>>> {
         StdoutBuffer {
             stdout: BufWriter::new(self.stdout.lock()),
             colors: &self.colors,
@@ -89,7 +89,7 @@ impl Ui {
     }
 
     /// Return a lock to stderr
-    pub fn stderr_locked(&self) -> StderrLock {
+    pub fn stderr_locked(&self) -> StderrLock<'_> {
         self.stderr.lock()
     }
 

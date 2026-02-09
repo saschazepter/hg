@@ -454,7 +454,7 @@ impl NodeTree {
         Err(NodeMapError::MultipleResults)
     }
 
-    fn visit(&self, prefix: NodePrefix) -> NodeTreeVisitor {
+    fn visit(&self, prefix: NodePrefix) -> NodeTreeVisitor<'_> {
         NodeTreeVisitor {
             nt: self,
             prefix,

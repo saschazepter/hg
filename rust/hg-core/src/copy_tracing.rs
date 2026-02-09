@@ -195,7 +195,7 @@ impl<'a> ChangedFiles<'a> {
     }
 
     /// Return an iterator over all the `Action` in this instance.
-    fn iter_actions(&self) -> impl Iterator<Item = Action> {
+    fn iter_actions(&self) -> impl Iterator<Item = Action<'_>> {
         self.index.iter().enumerate().flat_map(move |(idx, entry)| {
             let path = self.path(idx);
             if (entry.flags & ACTION_MASK) == REMOVED {

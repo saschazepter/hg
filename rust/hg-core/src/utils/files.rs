@@ -122,7 +122,7 @@ impl FusedIterator for AncestorsWithBase<'_> {}
 ///
 /// The path itself isn't included unless it is b"" (meaning the root
 /// directory.)
-pub fn find_dirs(path: &HgPath) -> Ancestors {
+pub fn find_dirs(path: &HgPath) -> Ancestors<'_> {
     let mut dirs = Ancestors { next: Some(path) };
     if !path.is_empty() {
         dirs.next(); // skip itself
@@ -151,7 +151,7 @@ pub fn find_dirs_recursive_no_root<'a>(
     })
 }
 
-pub fn dir_ancestors(path: &HgPath) -> Ancestors {
+pub fn dir_ancestors(path: &HgPath) -> Ancestors<'_> {
     Ancestors { next: Some(path) }
 }
 
@@ -162,7 +162,7 @@ pub fn dir_ancestors(path: &HgPath) -> Ancestors {
 ///
 /// The path itself isn't included unless it is b"" (meaning the root
 /// directory.)
-pub(crate) fn find_dirs_with_base(path: &HgPath) -> AncestorsWithBase {
+pub(crate) fn find_dirs_with_base(path: &HgPath) -> AncestorsWithBase<'_> {
     let mut dirs = AncestorsWithBase { next: Some((path, HgPath::new(b""))) };
     if !path.is_empty() {
         dirs.next(); // skip itself
@@ -293,7 +293,10 @@ pub fn canonical_path(
 /// let cwd = HgPath::new(b"other");
 /// assert_eq!(relativize_path(file, cwd), Cow::Borrowed(b"../nested/file"));
 /// ```
-pub fn relativize_path(path: &HgPath, cwd: impl AsRef<HgPath>) -> Cow<[u8]> {
+pub fn relativize_path(
+    path: &HgPath,
+    cwd: impl AsRef<HgPath>,
+) -> Cow<'_, [u8]> {
     if cwd.as_ref().is_empty() {
         Cow::Borrowed(path.as_bytes())
     } else {

@@ -68,7 +68,7 @@ impl RandomAccessFile {
 
     /// `pub` only for hg-pyo3
     #[doc(hidden)]
-    pub fn get_read_handle(&self) -> Result<Ref<FileHandle>, HgError> {
+    pub fn get_read_handle(&self) -> Result<Ref<'_, FileHandle>, HgError> {
         let write_handle = self.writing_handle.get_or_default().borrow();
         if let Ok(handle) = Ref::filter_map(write_handle, Option::as_ref) {
             // Use a file handle being actively used for writes, if available.

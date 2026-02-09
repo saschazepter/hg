@@ -134,7 +134,9 @@ impl Manifest {
         Self { bytes }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = Result<ManifestEntry<'_>, HgError>> {
         self.bytes
             .split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())
@@ -145,7 +147,7 @@ impl Manifest {
     pub fn find_by_path(
         &self,
         path: &HgPath,
-    ) -> Result<Option<ManifestEntry>, HgError> {
+    ) -> Result<Option<ManifestEntry<'_>>, HgError> {
         use std::cmp::Ordering::*;
         let path = path.as_bytes();
         // Both boundaries of this `&[u8]` slice are always at the boundary of

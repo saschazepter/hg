@@ -634,7 +634,7 @@ pub fn build_data_from_deltas<T>(
 /// Parse the Deltas from their binary form.
 pub(super) fn deltas<D>(
     deltas: &[D],
-) -> Result<Vec<Delta<PlainDeltaPiece>>, RevlogError>
+) -> Result<Vec<Delta<'_, PlainDeltaPiece<'_>>>, RevlogError>
 where
     D: AsRef<[u8]>,
 {

@@ -593,13 +593,13 @@ impl Repo {
 
     pub fn dirstate_map(
         &self,
-    ) -> Result<Ref<OwningDirstateMap>, DirstateError> {
+    ) -> Result<Ref<'_, OwningDirstateMap>, DirstateError> {
         self.dirstate_map.get_or_init(|| self.new_dirstate_map())
     }
 
     pub fn dirstate_map_mut(
         &self,
-    ) -> Result<RefMut<OwningDirstateMap>, DirstateError> {
+    ) -> Result<RefMut<'_, OwningDirstateMap>, DirstateError> {
         self.dirstate_map.get_mut_or_init(|| self.new_dirstate_map())
     }
 
@@ -616,11 +616,11 @@ impl Repo {
         )
     }
 
-    pub fn changelog(&self) -> Result<Ref<Changelog>, HgError> {
+    pub fn changelog(&self) -> Result<Ref<'_, Changelog>, HgError> {
         self.changelog.get_or_init(|| self.new_changelog())
     }
 
-    pub fn changelog_mut(&self) -> Result<RefMut<Changelog>, HgError> {
+    pub fn changelog_mut(&self) -> Result<RefMut<'_, Changelog>, HgError> {
         self.changelog.get_mut_or_init(|| self.new_changelog())
     }
 
@@ -635,11 +635,11 @@ impl Repo {
         )
     }
 
-    pub fn manifestlog(&self) -> Result<Ref<Manifestlog>, HgError> {
+    pub fn manifestlog(&self) -> Result<Ref<'_, Manifestlog>, HgError> {
         self.manifestlog.get_or_init(|| self.new_manifestlog())
     }
 
-    pub fn manifestlog_mut(&self) -> Result<RefMut<Manifestlog>, HgError> {
+    pub fn manifestlog_mut(&self) -> Result<RefMut<'_, Manifestlog>, HgError> {
         self.manifestlog.get_mut_or_init(|| self.new_manifestlog())
     }
 
@@ -843,7 +843,7 @@ impl Repo {
     pub fn get_ignore_function(
         &self,
         warnings: &HgWarningSender,
-    ) -> Result<IgnoreFnType, HgError> {
+    ) -> Result<IgnoreFnType<'_>, HgError> {
         get_ignore_function(
             get_ignore_files(self),
             self.working_directory_path(),
@@ -896,7 +896,7 @@ impl<T> LazyCell<T> {
     fn get_or_init<E>(
         &self,
         init: impl Fn() -> Result<T, E>,
-    ) -> Result<Ref<T>, E> {
+    ) -> Result<Ref<'_, T>, E> {
         let mut borrowed = self.value.borrow();
         if borrowed.is_none() {
             drop(borrowed);
@@ -912,7 +912,7 @@ impl<T> LazyCell<T> {
     fn get_mut_or_init<E>(
         &self,
         init: impl Fn() -> Result<T, E>,
-    ) -> Result<RefMut<T>, E> {
+    ) -> Result<RefMut<'_, T>, E> {
         let mut borrowed = self.value.borrow_mut();
         if borrowed.is_none() {
             *borrowed = Some(init()?);

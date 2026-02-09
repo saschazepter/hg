@@ -60,7 +60,7 @@ pub fn status_rev_rev_no_copies<M: Matcher>(
     rev1: Revision,
     rev2: Revision,
     narrow_matcher: M,
-) -> Result<StatusRevRev<M>, HgError> {
+) -> Result<StatusRevRev<'_, M>, HgError> {
     Ok(StatusRevRev {
         manifest1: manifest_for_rev(repo, rev1)?,
         manifest2: manifest_for_rev(repo, rev2)?,
@@ -75,7 +75,7 @@ pub fn status_change<M: Matcher>(
     rev: Revision,
     narrow_matcher: M,
     list_copies: Option<ListCopies>,
-) -> Result<StatusRevRev<M>, HgError> {
+) -> Result<StatusRevRev<'_, M>, HgError> {
     let parent = repo.changelog()?.revlog.get_entry(rev)?.p1();
     let parent = parent.unwrap_or(NULL_REVISION);
     Ok(StatusRevRev {

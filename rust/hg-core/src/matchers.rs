@@ -1319,7 +1319,7 @@ impl IncludeMatcher<'_> {
         Self::new_gen(file_patterns, RegexCompleteness::ExcludeExactFiles)
     }
 
-    fn get_all_parents_children(&self) -> DirsChildrenMultiset {
+    fn get_all_parents_children(&self) -> DirsChildrenMultiset<'_> {
         // TODO cache
         let thing = self
             .dirs

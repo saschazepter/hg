@@ -892,11 +892,11 @@ impl<T> PanickingRwLock<T> {
         Self(RwLock::new(inner))
     }
 
-    pub fn read(&self) -> RwLockReadGuard<T> {
+    pub fn read(&self) -> RwLockReadGuard<'_, T> {
         self.0.read().expect("propagate panic")
     }
 
-    pub fn write(&self) -> RwLockWriteGuard<T> {
+    pub fn write(&self) -> RwLockWriteGuard<'_, T> {
         self.0.write().expect("propagate panic")
     }
 

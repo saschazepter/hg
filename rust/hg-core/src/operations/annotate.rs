@@ -89,7 +89,7 @@ impl OwnedLines {
         }
     }
 
-    fn get(&self) -> &Lines {
+    fn get(&self) -> &Lines<'_> {
         self.borrow_dependent()
     }
 }

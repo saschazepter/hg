@@ -228,11 +228,11 @@ impl DirstateItem {
         Ok(Self { entry: entry.into() }.into_pyobject(py)?.unbind())
     }
 
-    fn read(&self) -> PyResult<RwLockReadGuard<DirstateEntry>> {
+    fn read(&self) -> PyResult<RwLockReadGuard<'_, DirstateEntry>> {
         self.entry.read().map_err(map_lock_error)
     }
 
-    fn write(&self) -> PyResult<RwLockWriteGuard<DirstateEntry>> {
+    fn write(&self) -> PyResult<RwLockWriteGuard<'_, DirstateEntry>> {
         self.entry.write().map_err(map_lock_error)
     }
 }

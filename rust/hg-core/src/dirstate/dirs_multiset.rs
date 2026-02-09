@@ -138,7 +138,7 @@ impl DirsMultiset {
         self.inner.contains_key(key.as_ref())
     }
 
-    pub fn iter(&self) -> DirsMultisetIter {
+    pub fn iter(&self) -> DirsMultisetIter<'_> {
         self.inner.keys()
     }
 

@@ -91,7 +91,7 @@ impl Filelog {
     pub fn entry_for_node(
         &self,
         file_node: impl Into<NodePrefix>,
-    ) -> Result<FilelogEntry, RevlogError> {
+    ) -> Result<FilelogEntry<'_>, RevlogError> {
         let file_rev = self.revlog.rev_from_node(file_node.into())?;
         self.entry(file_rev)
     }
@@ -101,7 +101,7 @@ impl Filelog {
     pub fn entry_for_unchecked_rev(
         &self,
         file_rev: UncheckedRevision,
-    ) -> Result<FilelogEntry, RevlogError> {
+    ) -> Result<FilelogEntry<'_>, RevlogError> {
         Ok(FilelogEntry(self.revlog.get_entry_for_unchecked_rev(file_rev)?))
     }
 
@@ -109,7 +109,7 @@ impl Filelog {
     pub fn entry(
         &self,
         file_rev: Revision,
-    ) -> Result<FilelogEntry, RevlogError> {
+    ) -> Result<FilelogEntry<'_>, RevlogError> {
         Ok(FilelogEntry(self.revlog.get_entry(file_rev)?))
     }
 }

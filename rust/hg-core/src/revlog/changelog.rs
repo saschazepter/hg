@@ -64,13 +64,16 @@ impl Changelog {
     pub fn entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<ChangelogEntry, RevlogError> {
+    ) -> Result<ChangelogEntry<'_>, RevlogError> {
         let revlog_entry = self.revlog.get_entry_for_unchecked_rev(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
     /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision
-    pub fn entry(&self, rev: Revision) -> Result<ChangelogEntry, RevlogError> {
+    pub fn entry(
+        &self,
+        rev: Revision,
+    ) -> Result<ChangelogEntry<'_>, RevlogError> {
         let revlog_entry = self.revlog.get_entry(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
@@ -149,18 +152,18 @@ impl ChangelogEntry<'_> {
     ///
     /// This allows the caller to access the information that is common
     /// to all revlog entries: revision number, node id, parent revisions etc.
-    pub fn as_revlog_entry(&self) -> &RevlogEntry {
+    pub fn as_revlog_entry(&self) -> &RevlogEntry<'_> {
         &self.revlog_entry
     }
 
-    pub fn p1_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+    pub fn p1_entry(&self) -> Result<Option<ChangelogEntry<'_>>, RevlogError> {
         Ok(self
             .revlog_entry
             .p1_entry()?
             .map(|revlog_entry| Self { revlog_entry }))
     }
 
-    pub fn p2_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+    pub fn p2_entry(&self) -> Result<Option<ChangelogEntry<'_>>, RevlogError> {
         Ok(self
             .revlog_entry
             .p2_entry()?

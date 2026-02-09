@@ -188,7 +188,7 @@ impl HgPath {
     fn to_hg_path_buf(&self) -> HgPathBuf {
         HgPathBuf { inner: self.inner.to_owned() }
     }
-    pub fn bytes(&self) -> std::slice::Iter<u8> {
+    pub fn bytes(&self) -> std::slice::Iter<'_, u8> {
         self.inner.iter()
     }
     pub fn to_ascii_uppercase(&self) -> HgPathBuf {

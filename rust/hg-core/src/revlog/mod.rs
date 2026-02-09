@@ -501,14 +501,17 @@ impl Revlog {
         self.index().check_revision(rev).is_some()
     }
 
-    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(
+        &self,
+        rev: Revision,
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         self.inner.get_entry(rev)
     }
 
     pub fn get_entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         self.inner.get_entry_for_unchecked_rev(rev)
     }
 

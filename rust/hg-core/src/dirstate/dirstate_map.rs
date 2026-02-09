@@ -1588,8 +1588,9 @@ impl OwningDirstateMap {
         &self,
         all: bool,
     ) -> Box<
-        dyn Iterator<Item = Result<DebugDirstateTuple, DirstateV2ParseError>>
-            + Send
+        dyn Iterator<
+                Item = Result<DebugDirstateTuple<'_>, DirstateV2ParseError>,
+            > + Send
             + '_,
     > {
         let map = self.get_map();

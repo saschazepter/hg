@@ -39,7 +39,7 @@ pub fn parse_dirstate_parents(
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
-pub fn parse_dirstate(contents: &[u8]) -> Result<ParseResult, HgError> {
+pub fn parse_dirstate(contents: &[u8]) -> Result<ParseResult<'_>, HgError> {
     let mut copies = Vec::new();
     let mut entries = Vec::new();
     let parents =

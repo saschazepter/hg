@@ -79,7 +79,7 @@ pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, ManifestFlags);
 impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<ExpandedManifestEntry, HgError>> {
+    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'_>, HgError>> {
         filter_map_results(self.manifest.iter(), |entry| {
             let path = entry.path;
             Ok(if self.narrow_matcher.matches(path) {

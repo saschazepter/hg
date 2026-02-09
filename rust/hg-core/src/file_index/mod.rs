@@ -200,7 +200,7 @@ impl FileIndex {
         }
     }
 
-    fn on_disk(&self) -> &FileIndexView {
+    fn on_disk(&self) -> &FileIndexView<'_> {
         self.on_disk.borrow_dependent()
     }
 

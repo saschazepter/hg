@@ -288,7 +288,7 @@ impl InnerRevlog {
     }
 
     /// Return an entry for the null revision
-    pub fn make_null_entry(&self) -> RevlogEntry {
+    pub fn make_null_entry(&self) -> RevlogEntry<'_> {
         RevlogEntry {
             revlog: self,
             rev: NULL_REVISION,
@@ -301,7 +301,10 @@ impl InnerRevlog {
     }
 
     /// Return the [`RevlogEntry`] for a [`Revision`] that is known to exist
-    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(
+        &self,
+        rev: Revision,
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         if rev == NULL_REVISION {
             return Ok(self.make_null_entry());
         }
@@ -331,7 +334,7 @@ impl InnerRevlog {
     pub fn get_entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         if rev == NULL_REVISION.into() {
             return Ok(self.make_null_entry());
         }

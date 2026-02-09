@@ -477,7 +477,7 @@ impl Index {
             .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
-    pub fn get_offsets(&self) -> RwLockReadGuard<Option<Vec<usize>>> {
+    pub fn get_offsets(&self) -> RwLockReadGuard<'_, Option<Vec<usize>>> {
         assert!(self.is_inline());
         {
             // Wrap in a block to drop the read guard
@@ -489,7 +489,9 @@ impl Index {
         self.offsets.read().unwrap()
     }
 
-    pub fn get_offsets_mut(&mut self) -> RwLockWriteGuard<Option<Vec<usize>>> {
+    pub fn get_offsets_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<'_, Option<Vec<usize>>> {
         assert!(self.is_inline());
         let mut offsets = self.offsets.write().unwrap();
         if offsets.is_none() {
@@ -509,7 +511,7 @@ impl Index {
     /// The specified revision being of the checked type, it always exists
     /// if it was validated by this index.
     #[inline(always)]
-    pub fn get_entry(&self, rev: Revision) -> IndexEntry {
+    pub fn get_entry(&self, rev: Revision) -> IndexEntry<'_> {
         if rev == NULL_REVISION {
             IndexEntry { bytes: NULL_ENTRY }
         } else if rev.0 == 0 {
@@ -568,7 +570,7 @@ impl Index {
         })
     }
 
-    fn get_entry_inline(&self, rev: Revision) -> IndexEntry {
+    fn get_entry_inline(&self, rev: Revision) -> IndexEntry<'_> {
         let offsets = &self.get_offsets();
         let offsets = offsets.as_ref().expect("inline should have offsets");
         let start = offsets[rev.0 as usize];
@@ -578,7 +580,7 @@ impl Index {
         IndexEntry { bytes }
     }
 
-    fn get_entry_separated(&self, rev: Revision) -> IndexEntry {
+    fn get_entry_separated(&self, rev: Revision) -> IndexEntry<'_> {
         let start = rev.0 as usize * INDEX_ENTRY_SIZE;
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];

@@ -1242,7 +1242,7 @@ impl DirEntry<'_> {
     fn read_dir(
         path: &Path,
         is_at_repo_root: bool,
-    ) -> io::Result<ReadDirResponse> {
+    ) -> io::Result<ReadDirResponse<'_>> {
         // `read_dir` returns a "not found" error for the empty path
         let at_cwd = path == Path::new("");
         let read_dir_path = if at_cwd { Path::new(".") } else { path };
