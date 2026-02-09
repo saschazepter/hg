@@ -137,8 +137,8 @@ use pyo3::prelude::*;
 ///     locals.py().run(statement, None, Some(locals))
 /// }
 ///
-/// # pyo3::prepare_freethreaded_python();
-/// Python::with_gil(|py| {
+/// # Python::initialize();
+/// Python::attach(|py| {
 ///     let tuple = PyTuple::new(py, vec![2, 1, 2])?;
 ///     let set = Bound::new(py, Set::new(&tuple)?)?;
 ///     let iter = Bound::new(py, Set::__iter__(&set))?;
@@ -535,7 +535,7 @@ impl<T: ?Sized> SharedByPyObject<T> {
     /// const EMPTY: &'static str = "";
     ///
     /// let mut outer = EMPTY;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let owner = Bound::new(py, Owner::new("hello")).unwrap();
     ///     let shareable = &owner.borrow().value;
     ///     let shared = unsafe { shareable.share(&owner) };
@@ -601,7 +601,7 @@ impl<T: ?Sized> SharedByPyObject<T> {
     /// const EMPTY: &'static str = "";
     ///
     /// let mut outer = EMPTY;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let owner = Bound::new(py, Owner::new("hello")).unwrap();
     ///     let shareable = &owner.borrow().value;
     ///     let shared = unsafe { shareable.share(&owner) };
@@ -677,7 +677,7 @@ impl<T> SharedByPyObject<T> {
     /// const EMPTY: &'static str = "";
     ///
     /// let mut outer = EMPTY;
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let owner = Bound::new(py, Owner::new("hello")).unwrap();
     ///     let shareable = &owner.borrow().value;
     ///     let shared = unsafe { shareable.share(&owner) };

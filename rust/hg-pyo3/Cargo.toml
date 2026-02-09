@@ -16,7 +16,7 @@ full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 default = ["extension-module"]
 
 [dependencies]
-pyo3 = { version = "0.27.1" }
+pyo3 = { version = "0.28.0" }
 pyo3-sharedref = { path = "../pyo3-sharedref" }
 hg-core = { path = "../hg-core" }
 format-bytes = "0.3.0"

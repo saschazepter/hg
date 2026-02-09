@@ -21,7 +21,10 @@ mod transaction;
 mod update;
 mod utils;
 
-#[pymodule]
+// We opt-out of free-threaded Python out of precaution because we have not
+// thought about how the many memory crimes we're committing align with this
+// new GIL-less world. Somebody should probably do that at some point.
+#[pymodule(gil_used = true)]
 fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__package__", "mercurial")?;
     m.add(
