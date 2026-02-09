@@ -137,7 +137,7 @@ sense of what is happening.
 ### Minimum Supported Rust Version
 
 The minimum supported rust version (MSRV) is specified in the [Clippy](https://doc.rust-lang.org/stable/clippy/)
-configuration file at `rust/clippy.toml`. It is set to be `1.85.1` as of
+configuration file at `rust/clippy.toml`. It is set to be `1.91.1` as of
 this writing, but keep in mind that the authoritative value is the one
 from the configuration file.
 
