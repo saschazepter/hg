@@ -25,7 +25,6 @@ from .interfaces.types import (
     RepoT,
 )
 from .i18n import _
-from .revlogutils.constants import ENTRY_NODE_ID
 from . import (
     encoding,
     error,
@@ -103,8 +102,9 @@ def warm_cache(repo):
         validated_fnodes = set()
         unknown_entries = set()
 
-        entries = enumerate(repo.changelog.index)
-        node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
+        idx = unfi.changelog.index
+        to_node = idx.node
+        node_revs = ((to_node(rev), rev) for rev in range(len(idx)))
 
         rl = repo.manifestlog.getstorage(b'').get_revlog()
         with repo.changelog.reading(), rl.reading():
@@ -827,11 +827,12 @@ class hgtagsfnodescache:
         the history, typically because we do not have any file revision for
         ".hgtags".
         """
-        entries = enumerate(self._repo.changelog.index)
-        node_revs = ((e[ENTRY_NODE_ID], rev) for (rev, e) in entries)
+        idx = self._repo.unfiltered().changelog.index
+        to_node = idx.node
 
         nullid = self._repo.nullid
-        for node, rev in node_revs:
+        for rev in range(len(idx)):
+            node = to_node(rev)
             offset = rev * _fnodesrecsize
             record = b'%s' % self._raw[offset : offset + _fnodesrecsize]
             node_prefix = node[0:4]
