@@ -2472,7 +2472,7 @@ mod tests {
                 files,
                 dirs: dirs
                     .into_iter()
-                    .filter(|(_k, v)| (!(v.is_empty())))
+                    .filter(|(_k, v)| !v.is_empty())
                     .collect(),
             }
         }
