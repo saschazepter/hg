@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use bytes_cast::BytesCast;
 
+use super::DirstateError;
+use super::DirstateMapError;
 use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
@@ -12,8 +14,10 @@ use super::path_with_basename::WithBasename;
 use super::status::DirstateStatus;
 use super::status::StatusError;
 use super::status::StatusOptions;
-use super::DirstateError;
-use super::DirstateMapError;
+use crate::DirstateParents;
+use crate::FastHashbrownMap as FastHashMap;
+use crate::dirstate::CopyMapIter;
+use crate::dirstate::StateMapIter;
 use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::DirstateV2Data;
 use crate::dirstate::entry::ParentFileData;
@@ -21,15 +25,11 @@ use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
-use crate::dirstate::CopyMapIter;
-use crate::dirstate::StateMapIter;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::warnings::HgWarningContext;
-use crate::DirstateParents;
-use crate::FastHashbrownMap as FastHashMap;
 
 /// Append to an existing data file if the amount of unreachable data (not used
 /// anymore) is less than this fraction of the total amount of existing data.
@@ -312,7 +312,7 @@ impl<'tree, 'on_disk> ChildNodesRef<'tree, 'on_disk> {
     pub(super) fn par_iter(
         &self,
     ) -> impl rayon::iter::ParallelIterator<Item = NodeRef<'tree, 'on_disk>>
-           + use<'tree, 'on_disk> {
+    + use<'tree, 'on_disk> {
         use rayon::prelude::*;
         match self {
             ChildNodesRef::InMemory(nodes) => rayon::iter::Either::Left(
@@ -1111,7 +1111,7 @@ impl OwningDirstateMap {
             None => {
                 return Err(
                     DirstateMapError::PathNotFound(filename.into()).into()
-                )
+                );
             }
             Some(e) => e,
         };

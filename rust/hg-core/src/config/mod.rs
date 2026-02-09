@@ -20,8 +20,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 
-use format_bytes::write_bytes;
 use format_bytes::DisplayBytes;
+use format_bytes::write_bytes;
 pub use layer::ConfigError;
 pub use layer::ConfigOrigin;
 pub use layer::ConfigParseError;
@@ -750,11 +750,15 @@ impl Config {
             .iter()
             .map(move |layer| layer.iter_section(section))
             .peekable();
-        std::iter::from_fn(move || loop {
-            if let Some(pair) = layer_iters.peek_mut()?.find(&mut key_is_new) {
-                return Some(pair);
-            } else {
-                layer_iters.next();
+        std::iter::from_fn(move || {
+            loop {
+                if let Some(pair) =
+                    layer_iters.peek_mut()?.find(&mut key_is_new)
+                {
+                    return Some(pair);
+                } else {
+                    layer_iters.next();
+                }
             }
         })
     }

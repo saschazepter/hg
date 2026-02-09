@@ -3,9 +3,9 @@ use std::path::Path;
 
 use crate::errors::HgError;
 use crate::exit_codes;
-use crate::file_patterns::parse_pattern_file_contents;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternSyntax;
+use crate::file_patterns::parse_pattern_file_contents;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;

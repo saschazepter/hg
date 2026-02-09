@@ -4,12 +4,12 @@ use std::fmt;
 use std::fmt::Write;
 use std::path::Path;
 
+use crate::Node;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
 use crate::exit_codes;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
-use crate::Node;
 
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]

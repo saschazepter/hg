@@ -18,8 +18,8 @@ use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
-use pyo3_sharedref::py_shared_iterator;
 use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
 use crate::exceptions::to_string_value_error;

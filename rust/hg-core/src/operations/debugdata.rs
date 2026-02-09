@@ -8,10 +8,10 @@
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::repo::Repo;
-use crate::revlog::options::default_revlog_options;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
+use crate::revlog::options::default_revlog_options;
 
 /// Dump the contents data of a revision.
 pub fn debug_data(
@@ -27,7 +27,7 @@ pub fn debug_data(
                 format!("invalid revlog type {}", kind),
                 exit_codes::ABORT,
                 None,
-            )))
+            )));
         }
     };
     let revlog = Revlog::open(

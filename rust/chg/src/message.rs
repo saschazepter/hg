@@ -201,20 +201,24 @@ mod tests {
     fn parse_command_spec_too_short() {
         assert!(parse_command_spec(Bytes::from_static(b"")).is_err());
         assert!(parse_command_spec(Bytes::from_static(b"pager")).is_err());
-        assert!(parse_command_spec(Bytes::from_static(b"pager\0less")).is_err());
+        assert!(
+            parse_command_spec(Bytes::from_static(b"pager\0less")).is_err()
+        );
     }
 
     #[test]
     fn parse_command_spec_malformed_env() {
-        assert!(parse_command_spec(Bytes::from_static(
-            b"pager\0less\0/tmp\0HOME"
-        ))
-        .is_err());
+        assert!(
+            parse_command_spec(Bytes::from_static(b"pager\0less\0/tmp\0HOME"))
+                .is_err()
+        );
     }
 
     #[test]
     fn parse_command_spec_unknown_type() {
-        assert!(parse_command_spec(Bytes::from_static(b"paper\0less")).is_err());
+        assert!(
+            parse_command_spec(Bytes::from_static(b"paper\0less")).is_err()
+        );
     }
 
     #[test]
@@ -298,18 +302,24 @@ mod tests {
 
     #[test]
     fn pack_env_vars_os_nul_eq() {
-        assert!(panic::catch_unwind(|| {
-            pack_env_vars_os(vec![os_string_pair_from(b"\0", b"")])
-        })
-        .is_err());
-        assert!(panic::catch_unwind(|| {
-            pack_env_vars_os(vec![os_string_pair_from(b"FOO", b"\0bar")])
-        })
-        .is_err());
-        assert!(panic::catch_unwind(|| {
-            pack_env_vars_os(vec![os_string_pair_from(b"FO=", b"bar")])
-        })
-        .is_err());
+        assert!(
+            panic::catch_unwind(|| {
+                pack_env_vars_os(vec![os_string_pair_from(b"\0", b"")])
+            })
+            .is_err()
+        );
+        assert!(
+            panic::catch_unwind(|| {
+                pack_env_vars_os(vec![os_string_pair_from(b"FOO", b"\0bar")])
+            })
+            .is_err()
+        );
+        assert!(
+            panic::catch_unwind(|| {
+                pack_env_vars_os(vec![os_string_pair_from(b"FO=", b"bar")])
+            })
+            .is_err()
+        );
         assert_eq!(
             pack_env_vars_os(vec![os_string_pair_from(b"FOO", b"=ba")]),
             Bytes::from_static(b"FOO==ba")

@@ -16,10 +16,10 @@ use inner_revlog::InnerRevlog;
 use inner_revlog::RevisionBuffer;
 use memmap2::MmapOptions;
 pub use node::FromHexError;
-pub use node::Node;
-pub use node::NodePrefix;
 pub use node::NULL_NODE;
 pub use node::NULL_NODE_ID;
+pub use node::Node;
+pub use node::NodePrefix;
 use nodemap::read_persistent_nodemap;
 use options::RevlogOpenOptions;
 pub mod changelog;
@@ -44,8 +44,8 @@ use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::NodeMapError;
-use crate::utils::u32_u;
 use crate::utils::RawData;
+use crate::utils::u32_u;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -719,7 +719,7 @@ pub fn open_index(
                             error,
                             context,
                             backtrace,
-                        })
+                        });
                     }
                 }
             }

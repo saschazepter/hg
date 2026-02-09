@@ -371,7 +371,7 @@ impl HgPath {
                     return Err(HgPathErrorKind::ContainsNullByte {
                         bytes: bytes.to_vec(),
                         null_byte_index: index,
-                    })
+                    });
                 }
                 b'/' => {
                     if previous_byte.is_some() && previous_byte == Some(b'/') {

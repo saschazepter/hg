@@ -18,16 +18,16 @@ use lazy_static::lazy_static;
 use regex::bytes::NoExpand;
 use regex::bytes::Regex;
 
+use crate::FastHashMap;
 use crate::pre_regex::PreRegex;
 use crate::utils::files::canonical_path;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
-use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
-use crate::FastHashMap;
 
 #[derive(Debug, derive_more::From)]
 pub enum PatternError {
@@ -522,7 +522,7 @@ pub fn build_single_regex(
         | PatternSyntax::RelPath
         | PatternSyntax::RootFilesIn => normalize_path_bytes(pattern),
         PatternSyntax::Include | PatternSyntax::SubInclude => {
-            return Err(PatternError::NonRegexPattern(entry.clone()))
+            return Err(PatternError::NonRegexPattern(entry.clone()));
         }
         _ => pattern.to_owned(),
     };

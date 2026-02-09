@@ -19,10 +19,10 @@ use bitvec::slice::BitSlice;
 
 use super::Graph;
 use super::GraphError;
-use super::Revision;
 use super::NULL_REVISION;
-use crate::ancestors::AncestorsIterator;
+use super::Revision;
 use crate::BaseRevision;
+use crate::ancestors::AncestorsIterator;
 
 fn remove_parents<S: std::hash::BuildHasher>(
     graph: &impl Graph,
@@ -205,8 +205,8 @@ pub fn range(
 mod tests {
 
     use super::*;
-    use crate::testing::SampleGraph;
     use crate::BaseRevision;
+    use crate::testing::SampleGraph;
 
     /// Apply `retain_heads()` to the given slice and return as a sorted `Vec`
     fn retain_heads_sorted(

@@ -16,6 +16,7 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 
+use crate::FastHashMap;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::file_patterns::FilePattern;
@@ -27,7 +28,6 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
-use crate::FastHashMap;
 
 lazy_static! {
     /// Only lower case ASCII alpha num, `-` and `.`

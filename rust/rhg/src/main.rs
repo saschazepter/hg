@@ -8,9 +8,9 @@ use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 
-use clap::command;
 use clap::Arg;
 use clap::ArgMatches;
+use clap::command;
 use format_bytes::format_bytes;
 use format_bytes::join;
 use hg::config::Config;
@@ -21,18 +21,18 @@ use hg::repo::Repo;
 use hg::repo::RepoError;
 use hg::requirements;
 use hg::utils::files::get_path_from_bytes;
-use hg::utils::strings::join_display;
 use hg::utils::strings::SliceExt;
-use tracing::span;
+use hg::utils::strings::join_display;
 use tracing::Level;
+use tracing::span;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::ChromeLayerBuilder;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::FlushGuard;
+use tracing_subscriber::EnvFilter;
 #[cfg(not(feature = "full-tracing"))]
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 use crate::error::CommandError;
 use crate::ui::Ui;
@@ -1057,17 +1057,26 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
 #[allow(clippy::type_complexity)]
 const AUTO_UPGRADES: &[((&str, &str), (&str, &str), &str)] = &[
     (
-        ("format", "use-share-safe.automatic-upgrade-of-mismatching-repositories"),
+        (
+            "format",
+            "use-share-safe.automatic-upgrade-of-mismatching-repositories",
+        ),
         ("format", "use-share-safe"),
         requirements::SHARESAFE_REQUIREMENT,
     ),
     (
-        ("format", "use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories"),
+        (
+            "format",
+            "use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories",
+        ),
         ("format", "use-dirstate-tracked-hint"),
         requirements::DIRSTATE_TRACKED_HINT_V1,
     ),
     (
-        ("format", "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories"),
+        (
+            "format",
+            "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories",
+        ),
         ("format", "use-dirstate-v2"),
         requirements::DIRSTATE_V2_REQUIREMENT,
     ),

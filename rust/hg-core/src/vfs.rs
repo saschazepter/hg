@@ -11,11 +11,11 @@ use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
 #[cfg(test)]
 use std::sync::atomic::Ordering;
-use std::sync::OnceLock;
 
 use dyn_clone::DynClone;
 use format_bytes::format_bytes;
@@ -29,8 +29,8 @@ use crate::errors::HgResultExt;
 use crate::errors::IoErrorContext;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
-use crate::revlog::path_encode::path_encode;
 use crate::revlog::path_encode::PathEncoding;
+use crate::revlog::path_encode::path_encode;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 

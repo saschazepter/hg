@@ -15,17 +15,17 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-use rand::seq::SliceRandom;
 use rand::RngCore;
 use rand::SeedableRng;
+use rand::seq::SliceRandom;
 
 use super::Graph;
 use super::GraphError;
-use super::Revision;
 use super::NULL_REVISION;
+use super::Revision;
+use crate::FastHashMap;
 use crate::ancestors::MissingAncestors;
 use crate::dagops;
-use crate::FastHashMap;
 
 type Rng = rand_pcg::Pcg32;
 type Seed = [u8; 16];

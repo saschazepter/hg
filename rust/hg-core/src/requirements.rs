@@ -241,21 +241,24 @@ mod tests {
     #[test]
     fn test_check() {
         // minimum reqs
-        assert!(check(&create_reqs(&[
-            FNCACHE_REQUIREMENT,
-            PLAIN_ENCODE_REQUIREMENT
-        ]))
-        .is_ok());
-        assert!(check(&create_reqs(&[
-            FNCACHE_REQUIREMENT,
-            DOTENCODE_REQUIREMENT
-        ]))
-        .is_ok());
-        assert!(check(&create_reqs(&[
-            FILEINDEX_V1_REQUIREMENT,
-            PLAIN_ENCODE_REQUIREMENT
-        ]))
-        .is_ok());
+        assert!(
+            check(&create_reqs(&[
+                FNCACHE_REQUIREMENT,
+                PLAIN_ENCODE_REQUIREMENT
+            ]))
+            .is_ok()
+        );
+        assert!(
+            check(&create_reqs(&[FNCACHE_REQUIREMENT, DOTENCODE_REQUIREMENT]))
+                .is_ok()
+        );
+        assert!(
+            check(&create_reqs(&[
+                FILEINDEX_V1_REQUIREMENT,
+                PLAIN_ENCODE_REQUIREMENT
+            ]))
+            .is_ok()
+        );
         assert!(check(&create_reqs(&[FILEINDEX_V1_REQUIREMENT])).is_ok());
         // all supported reqs
         let mut reqs = create_reqs(SUPPORTED);
@@ -264,12 +267,14 @@ mod tests {
         assert!(check(&reqs).is_ok());
 
         // no mutually exclusive reqs
-        assert!(check(&create_reqs(&[
-            FNCACHE_REQUIREMENT,
-            DOTENCODE_REQUIREMENT,
-            PLAIN_ENCODE_REQUIREMENT
-        ]))
-        .is_err());
+        assert!(
+            check(&create_reqs(&[
+                FNCACHE_REQUIREMENT,
+                DOTENCODE_REQUIREMENT,
+                PLAIN_ENCODE_REQUIREMENT
+            ]))
+            .is_err()
+        );
         // no reqs is invalid
         assert!(check(&create_reqs_no_defaults(&[])).is_err());
         // missing from mutually exclusive pairs
@@ -280,10 +285,9 @@ mod tests {
         );
 
         // no unknown req
-        assert!(check(&create_reqs(&[
-            DOTENCODE_REQUIREMENT,
-            "thisdoesnotexist"
-        ]))
-        .is_err());
+        assert!(
+            check(&create_reqs(&[DOTENCODE_REQUIREMENT, "thisdoesnotexist"]))
+                .is_err()
+        );
     }
 }

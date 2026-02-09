@@ -21,20 +21,20 @@ use std::ops::Deref;
 use std::ops::Index;
 use std::path::Path;
 
-use bytes_cast::unaligned;
 use bytes_cast::BytesCast;
+use bytes_cast::unaligned;
 
-use super::node::NULL_NODE;
 use super::BaseRevision;
+use super::NULL_REVISION;
 use super::Node;
 use super::NodePrefix;
 use super::Revision;
 use super::RevlogIndex;
-use super::NULL_REVISION;
+use super::node::NULL_NODE;
+use crate::UncheckedRevision;
 use crate::errors::HgError;
 use crate::revlog::NodeMapDocket;
 use crate::vfs::VfsImpl;
-use crate::UncheckedRevision;
 
 type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
@@ -532,7 +532,7 @@ impl NodeTree {
                 None => {
                     return Err(NodeMapError::RevisionNotInIndex(
                         old_rev.into(),
-                    ))
+                    ));
                 }
                 Some(rev) => rev,
             };
@@ -787,8 +787,8 @@ pub mod tests {
 
     use super::NodeMapError::*;
     use super::*;
-    use crate::revlog::node::hex_pad_right;
     use crate::revlog::node::Node;
+    use crate::revlog::node::hex_pad_right;
 
     /// Creates a `Block` using a syntax close to the `Debug` output
     macro_rules! block {

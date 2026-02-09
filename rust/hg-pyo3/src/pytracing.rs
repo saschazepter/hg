@@ -1,14 +1,14 @@
 #[cfg(feature = "full-tracing")]
-use full_tracing::setup_tracing_guard;
-#[cfg(feature = "full-tracing")]
 use full_tracing::PyTracing;
+#[cfg(feature = "full-tracing")]
+use full_tracing::setup_tracing_guard;
 use pyo3::prelude::*;
+#[cfg(not(feature = "full-tracing"))]
+use tracing_subscriber::EnvFilter;
 #[cfg(not(feature = "full-tracing"))]
 use tracing_subscriber::fmt::format::FmtSpan;
 #[cfg(not(feature = "full-tracing"))]
 use tracing_subscriber::prelude::*;
-#[cfg(not(feature = "full-tracing"))]
-use tracing_subscriber::EnvFilter;
 
 use crate::utils::new_submodule;
 
@@ -31,20 +31,20 @@ mod full_tracing {
     use dashmap::DashMap;
     use pyo3::prelude::*;
     use pyo3::types::PyTuple;
+    use tracing::Subscriber;
     use tracing::field::Field;
     use tracing::field::Visit;
     use tracing::span::Attributes;
     use tracing::span::Id;
-    use tracing::Subscriber;
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_chrome::EventOrSpan;
     use tracing_chrome::FlushGuard;
+    use tracing_subscriber::EnvFilter;
+    use tracing_subscriber::Layer;
     use tracing_subscriber::layer::Context;
     use tracing_subscriber::layer::SubscriberExt as _;
     use tracing_subscriber::registry::LookupSpan;
     use tracing_subscriber::util::SubscriberInitExt as _;
-    use tracing_subscriber::EnvFilter;
-    use tracing_subscriber::Layer;
 
     /// A span target name to mark those from Python
     pub const PYTHON_TARGET_NAME: &str = "from_python";

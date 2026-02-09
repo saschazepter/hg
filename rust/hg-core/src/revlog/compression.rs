@@ -7,8 +7,8 @@ use std::io::Read;
 use flate2::bufread::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 
-use super::corrupted;
 use super::RevlogError;
+use super::corrupted;
 use crate::config::Config;
 use crate::errors::HgError;
 use crate::exit_codes;
@@ -66,7 +66,7 @@ impl CompressionConfig {
                     e => {
                         return Err(HgError::unsupported(format!(
                             "Unsupported compression engine '{e}'"
-                        )))
+                        )));
                     }
                 };
             }
@@ -138,7 +138,7 @@ pub trait Compressor: Send {
     /// Returns a new [`Vec`] with the compressed data.
     /// Should return `Ok(None)` if compression does not apply (e.g. too small)
     fn compress(&mut self, data: &[u8])
-        -> Result<Option<Vec<u8>>, RevlogError>;
+    -> Result<Option<Vec<u8>>, RevlogError>;
     /// Returns a new [`Vec`] with the decompressed data.
     fn decompress(&self, data: &[u8]) -> Result<Vec<u8>, RevlogError>;
 }

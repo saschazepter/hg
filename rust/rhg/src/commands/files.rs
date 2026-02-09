@@ -7,14 +7,14 @@ use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
-use hg::warnings::format::write_warning;
 use hg::warnings::HgWarningContext;
+use hg::warnings::format::write_warning;
 use rayon::prelude::*;
 
 use crate::error::CommandError;
-use crate::ui::relative_paths;
 use crate::ui::RelativePaths;
 use crate::ui::Ui;
+use crate::ui::relative_paths;
 use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "

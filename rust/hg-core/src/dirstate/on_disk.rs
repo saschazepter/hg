@@ -7,15 +7,16 @@ use std::fmt::Display;
 use std::fmt::Write;
 
 use bitflags::bitflags;
+use bytes_cast::BytesCast;
 use bytes_cast::unaligned::U16Be;
 use bytes_cast::unaligned::U32Be;
-use bytes_cast::BytesCast;
 use format_bytes::format_bytes;
 use rand::Rng;
 use uuid::Uuid;
 
-use super::dirstate_map::DirstateIdentity;
 use super::DirstateError;
+use super::dirstate_map::DirstateIdentity;
+use crate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateMap;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::dirstate_map::DirstateVersion;
@@ -31,7 +32,6 @@ use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
-use crate::DirstateParents;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
@@ -612,7 +612,9 @@ where
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
-            return Err(DirstateV2ParseError::new("not enough bytes from disk"))
+            return Err(DirstateV2ParseError::new(
+                "not enough bytes from disk",
+            ));
         }
     };
     T::slice_from_bytes(bytes, len)

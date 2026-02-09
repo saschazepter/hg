@@ -18,8 +18,8 @@ use vcsgraph::lazy_ancestors::AncestorsIterator as VCGAncestorsIterator;
 use vcsgraph::lazy_ancestors::LazyAncestors as VCGLazyAncestors;
 
 use crate::exceptions::GraphError;
-use crate::revision::rev_pyiter_collect_with_py_index;
 use crate::revision::PyRevision;
+use crate::revision::rev_pyiter_collect_with_py_index;
 use crate::revlog::PySharedIndex;
 use crate::utils::new_submodule;
 use crate::utils::py_rust_index_to_graph;

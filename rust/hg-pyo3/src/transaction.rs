@@ -1,10 +1,10 @@
 use hg::transaction::Transaction;
 use hg::utils::files::get_bytes_from_path;
-use pyo3::intern;
-use pyo3::types::PyBytes;
 use pyo3::Py;
 use pyo3::PyAny;
 use pyo3::Python;
+use pyo3::intern;
+use pyo3::types::PyBytes;
 
 /// Wrapper around a Python transaction object, to keep `hg-core` oblivious
 /// of the fact it's being called from Python.

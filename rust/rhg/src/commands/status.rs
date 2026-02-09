@@ -10,6 +10,7 @@ use std::mem::take;
 
 use clap::Arg;
 use format_bytes::format_bytes;
+use hg::Revision;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::status::BadMatch;
 use hg::dirstate::status::DirstateStatus;
@@ -20,32 +21,31 @@ use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::file_patterns::parse_pattern_args;
 use hg::lock::LockError;
-use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::IntersectionMatcher;
+use hg::matchers::get_ignore_files;
 use hg::narrow;
 use hg::repo::Repo;
-use hg::revlog::filelog::is_file_modified;
-use hg::revlog::filelog::FileCompOutcome;
-use hg::revlog::options::default_revlog_options;
 use hg::revlog::RevisionOrWdir;
 use hg::revlog::RevlogError;
 use hg::revlog::RevlogType;
+use hg::revlog::filelog::FileCompOutcome;
+use hg::revlog::filelog::is_file_modified;
+use hg::revlog::options::default_revlog_options;
 use hg::sparse;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::warnings::HgWarningContext;
-use hg::Revision;
 use hg::{self};
 use rayon::prelude::*;
 use tracing::info;
 
 use crate::error::CommandError;
-use crate::ui::print_warnings;
-use crate::ui::relative_paths;
 use crate::ui::RelativePaths;
 use crate::ui::Ui;
+use crate::ui::print_warnings;
+use crate::ui::relative_paths;
 use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "

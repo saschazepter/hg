@@ -1,16 +1,16 @@
 use std::fmt::Display;
 
-use hg::dirstate::on_disk::DirstateV2ParseError;
-use hg::dirstate::DirstateError;
-use hg::revlog::nodemap::NodeMapError;
-use hg::revlog::RevlogError;
 use hg::UncheckedRevision;
+use hg::dirstate::DirstateError;
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::revlog::RevlogError;
+use hg::revlog::nodemap::NodeMapError;
+use pyo3::PyErr;
 use pyo3::create_exception;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::import_exception;
-use pyo3::PyErr;
 
 use crate::revision::PyRevision;
 

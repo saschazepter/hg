@@ -1,13 +1,13 @@
-use hg::revlog::RevlogIndex;
 use hg::BaseRevision;
 use hg::Revision;
 use hg::UncheckedRevision;
+use hg::revlog::RevlogIndex;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::types::PySet;
 
-use crate::exceptions::rev_not_in_index;
 use crate::exceptions::GraphError;
+use crate::exceptions::rev_not_in_index;
 use crate::utils::proxy_index_extract;
 
 /// Revision as exposed to/from the Python layer.

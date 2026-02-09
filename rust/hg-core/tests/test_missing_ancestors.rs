@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use std::env;
 use std::fmt::Debug;
 
-use hg::testing::VecGraph;
 use hg::Revision;
+use hg::testing::VecGraph;
 use hg::*;
-use rand::distr::Distribution;
-use rand::distr::Uniform;
 use rand::Rng;
 use rand::RngCore;
 use rand::SeedableRng;
+use rand::distr::Distribution;
+use rand::distr::Uniform;
 use rand_distr::LogNormal;
 
 fn build_random_graph(

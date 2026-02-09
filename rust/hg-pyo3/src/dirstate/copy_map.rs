@@ -11,9 +11,9 @@
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+use hg::dirstate::CopyMapIter;
 use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::owning::OwningDirstateMap;
-use hg::dirstate::CopyMapIter;
 use hg::utils::hg_path::HgPath;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;

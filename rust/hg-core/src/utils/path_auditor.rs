@@ -13,11 +13,11 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 
 use crate::utils::files::lower_clean;
-use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::strings::find_slice_in_slice;
 
 /// Ensures that a path is valid for use in the repository i.e. does not use
@@ -211,9 +211,9 @@ pub fn check_filesystem_single(
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
     use std::fs::create_dir;
     use std::fs::create_dir_all;
-    use std::fs::File;
 
     use tempfile::tempdir;
 

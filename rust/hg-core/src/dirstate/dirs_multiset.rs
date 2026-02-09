@@ -8,21 +8,21 @@
 //! A multiset of directory names.
 //!
 //! Used to counts the references to directories in a manifest or dirstate.
-use std::collections::hash_map;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map;
+use std::collections::hash_map::Entry;
 
-use super::entry::DirstateEntry;
 use super::DirstateError;
 use super::DirstateMapError;
+use super::entry::DirstateEntry;
+use crate::FastHashMap;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::utils::files;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
-use crate::FastHashMap;
 
 // could be encapsulated if we care API stability more seriously
 pub type DirsMultisetIter<'a> = hash_map::Keys<'a, HgPathBuf, u32>;
@@ -126,7 +126,7 @@ impl DirsMultiset {
                 Entry::Vacant(_) => {
                     return Err(DirstateMapError::PathNotFound(
                         path.as_ref().to_owned(),
-                    ))
+                    ));
                 }
             };
         }

@@ -15,9 +15,9 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
-use hg::file_patterns::parse_pattern_syntax_kind;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternError;
+use hg::file_patterns::parse_pattern_syntax_kind;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::DifferenceMatcher;
 use hg::matchers::FileMatcher;
@@ -37,11 +37,11 @@ use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 
 use super::dirstate_map::DirstateMap;
-use crate::exceptions::to_string_value_error;
 use crate::exceptions::FallbackError;
+use crate::exceptions::to_string_value_error;
+use crate::path::PyHgPathRef;
 use crate::path::paths_py_list;
 use crate::path::paths_pyiter_collect;
-use crate::path::PyHgPathRef;
 use crate::utils::hg_warnings_to_py_warnings;
 
 fn status_path_py_list(

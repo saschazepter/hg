@@ -21,8 +21,8 @@ use byteorder::ByteOrder;
 use super::inner_revlog::RevisionBuffer;
 use crate::revlog::CoreRevisionBuffer;
 use crate::revlog::RevlogError;
-use crate::utils::u32_u;
 use crate::utils::u_u32;
+use crate::utils::u32_u;
 
 /// A piece of data to insert, delete or replace in a Delta
 pub(super) trait DeltaPiece<'a>: Clone {
@@ -339,7 +339,9 @@ where
             }
             let available = data.len() - 12;
             if len > u_u32(available + 12) {
-                let error = format!("patch insert more data than available: {len} < {available}");
+                let error = format!(
+                    "patch insert more data than available: {len} < {available}"
+                );
                 return Err(RevlogError::corrupted(error));
             }
             let d = D::new_rich(
@@ -658,8 +660,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rand::prelude::*;
     use rand::SeedableRng;
+    use rand::prelude::*;
 
     use super::*;
 

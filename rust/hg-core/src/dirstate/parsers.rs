@@ -5,14 +5,14 @@
 
 use byteorder::BigEndian;
 use byteorder::WriteBytesExt;
-use bytes_cast::unaligned;
 use bytes_cast::BytesCast;
+use bytes_cast::unaligned;
 
+use crate::DirstateParents;
 use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::EntryState;
 use crate::errors::HgError;
 use crate::utils::hg_path::HgPath;
-use crate::DirstateParents;
 
 /// Parents are stored in the dirstate as byte hashes.
 pub const PARENT_SIZE: usize = 20;

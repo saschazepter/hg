@@ -7,23 +7,23 @@ use chrono::DateTime;
 use chrono::FixedOffset;
 use chrono::Local;
 use format_bytes::format_bytes;
-use hg::encoding::Encoder;
-use hg::errors::HgError;
-use hg::errors::IoResultExt as _;
-use hg::operations::annotate;
-use hg::operations::AnnotateOptions;
-use hg::operations::AnnotateOutput;
-use hg::operations::ChangesetAnnotatedFile;
-use hg::repo::Repo;
-use hg::revlog::changelog::Changelog;
-use hg::revlog::RevisionOrWdir;
-use hg::utils::hg_path::HgPath;
-use hg::utils::strings::CleanWhitespace;
 use hg::FastHashMap;
 use hg::Node;
 use hg::Revision;
 use hg::WORKING_DIRECTORY_HEX;
 use hg::WORKING_DIRECTORY_REVISION;
+use hg::encoding::Encoder;
+use hg::errors::HgError;
+use hg::errors::IoResultExt as _;
+use hg::operations::AnnotateOptions;
+use hg::operations::AnnotateOutput;
+use hg::operations::ChangesetAnnotatedFile;
+use hg::operations::annotate;
+use hg::repo::Repo;
+use hg::revlog::RevisionOrWdir;
+use hg::revlog::changelog::Changelog;
+use hg::utils::hg_path::HgPath;
+use hg::utils::strings::CleanWhitespace;
 
 use crate::error::CommandError;
 use crate::ui::StdoutBuffer;
@@ -233,7 +233,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         None => Template::Default,
         Some(name) if name == "json" => Template::Json,
         _ => {
-            return Err(CommandError::unsupported("only -Tjson is suppported"))
+            return Err(CommandError::unsupported("only -Tjson is suppported"));
         }
     };
 
@@ -349,7 +349,7 @@ fn print_output<'a>(
                         ))?;
                     }
                     AnnotateOutput::NotFound => {
-                        return handle_not_found(repo, rev, path)
+                        return handle_not_found(repo, rev, path);
                     }
                 }
             }
@@ -372,7 +372,7 @@ fn print_output<'a>(
                     }
                     AnnotateOutput::Binary => {}
                     AnnotateOutput::NotFound => {
-                        return handle_not_found(repo, rev, path)
+                        return handle_not_found(repo, rev, path);
                     }
                 }
                 let path = json_string(path.as_bytes())?;
@@ -540,11 +540,7 @@ fn fmt_sigil(
     if which == SigilFor::Number && config.include.changeset {
         return b"";
     }
-    if rev.is_wdir() {
-        b"+"
-    } else {
-        b" "
-    }
+    if rev.is_wdir() { b"+" } else { b" " }
 }
 
 /// A cache of [`ChangesetData`] for each changeset we've seen.

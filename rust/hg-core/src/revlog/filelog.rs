@@ -3,30 +3,30 @@ use std::path::PathBuf;
 use super::manifest::Manifest;
 use super::options::RevlogOpenOptions;
 use super::path_encode::PathEncoding;
+use crate::Graph;
+use crate::GraphError;
+use crate::Node;
+use crate::UncheckedRevision;
 use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgError;
 use crate::repo::Repo;
-use crate::revlog::inner_revlog::InnerRevlog;
-use crate::revlog::manifest::ManifestFlags;
-use crate::revlog::path_encode::path_encode;
 use crate::revlog::NodePrefix;
+use crate::revlog::REVISION_FLAG_HASMETA;
 use crate::revlog::Revision;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
-use crate::revlog::REVISION_FLAG_HASMETA;
+use crate::revlog::inner_revlog::InnerRevlog;
+use crate::revlog::manifest::ManifestFlags;
+use crate::revlog::path_encode::path_encode;
+use crate::utils::RawData;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_path_from_bytes;
-use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::strings::SliceExt;
-use crate::utils::RawData;
 use crate::vfs::VfsImpl;
-use crate::Graph;
-use crate::GraphError;
-use crate::Node;
-use crate::UncheckedRevision;
 
 /// A specialized `Revlog` to work with file data logs.
 pub struct Filelog {
@@ -331,25 +331,23 @@ impl<'a> FilelogRevisionMetadata<'a> {
                 };
                 let value = &rest[..newline_idx];
                 match key {
-                    b"censored" => {
-                        match value {
-                            b"" => fields.censored = true,
-                            _ => return Err(HgError::corrupted(
+                    b"censored" => match value {
+                        b"" => fields.censored = true,
+                        _ => {
+                            return Err(HgError::corrupted(
                                 "File metadata header 'censored' field has nonempty value",
-                            )),
+                            ));
                         }
-                    }
+                    },
                     b"copy" => fields.copy = Some(HgPath::new(value)),
                     b"copyrev" => {
                         fields.copyrev = Some(Node::from_hex_for_repo(value)?)
                     }
                     _ => {
-                        return Err(HgError::corrupted(
-                            format!(
-                                "File metadata header has unrecognized key '{}'",
-                                String::from_utf8_lossy(key),
-                            ),
-                        ))
+                        return Err(HgError::corrupted(format!(
+                            "File metadata header has unrecognized key '{}'",
+                            String::from_utf8_lossy(key),
+                        )));
                     }
                 }
                 rest = &rest[newline_idx + 1..];

@@ -628,10 +628,9 @@ def has_pylint():
 @check("clang-format", "clang-format C code formatter (11 <= ... < 19)")
 def has_clang_format():
     m = matchoutput('clang-format --version', br'clang-format version (\d+)')
-    # style changed somewhere between 10.x and 11.x and after 19.
     if m:
         major_version = int(m.group(1))
-        return 11 <= major_version < 19
+        return major_version == 19
     # Assist Googler contributors, they have a centrally-maintained version of
     # clang-format that is generally very fresh, but unlike most builds (both
     # official and unofficial), it does *not* include a version number.

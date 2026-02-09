@@ -24,13 +24,13 @@
 
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 use std::sync::TryLockError;
 use std::sync::TryLockResult;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;

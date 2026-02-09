@@ -13,8 +13,8 @@ use hg::config::Config;
 use hg::config::PlainInfo;
 use hg::encoding::Encoder;
 use hg::errors::HgError;
-use hg::warnings::format::write_warning;
 use hg::warnings::HgWarningContext;
+use hg::warnings::format::write_warning;
 
 use crate::color::ColorConfig;
 use crate::color::Effect;

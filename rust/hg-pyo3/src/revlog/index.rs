@@ -7,13 +7,13 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 //! Utilities for dealing with the index at the Python boundary
-use hg::revlog::index::Index;
-use hg::revlog::index::RevisionDataParams;
+use hg::BaseRevision;
+use hg::Graph;
 use hg::revlog::Node;
 use hg::revlog::Revision;
 use hg::revlog::RevlogIndex;
-use hg::BaseRevision;
-use hg::Graph;
+use hg::revlog::index::Index;
+use hg::revlog::index::RevisionDataParams;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyTuple;

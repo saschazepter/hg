@@ -50,7 +50,7 @@ static inline void putbe64(uint64_t x, char *c)
 	c[4] = (x >> 24) & 0xff;
 	c[5] = (x >> 16) & 0xff;
 	c[6] = (x >> 8) & 0xff;
-	c[7] = (x)&0xff;
+	c[7] = (x) & 0xff;
 }
 
 static inline void putbe32(uint32_t x, char *c)
@@ -58,7 +58,7 @@ static inline void putbe32(uint32_t x, char *c)
 	c[0] = (x >> 24) & 0xff;
 	c[1] = (x >> 16) & 0xff;
 	c[2] = (x >> 8) & 0xff;
-	c[3] = (x)&0xff;
+	c[3] = (x) & 0xff;
 }
 
 static inline double getbefloat64(const char *c)

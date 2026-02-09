@@ -4,28 +4,28 @@ use itertools::Itertools as _;
 use rayon::prelude::*;
 use self_cell::self_cell;
 
+use crate::AncestorsIterator;
+use crate::FastHashMap;
+use crate::Graph;
+use crate::GraphError;
+use crate::NULL_REVISION;
+use crate::Node;
+use crate::Revision;
 use crate::bdiff::Lines;
 use crate::bdiff::{self};
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgError;
 use crate::repo::Repo;
+use crate::revlog::RevisionOrWdir;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifestlog;
-use crate::revlog::RevisionOrWdir;
+use crate::utils::RawData;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
-use crate::utils::strings::clean_whitespace;
 use crate::utils::strings::CleanWhitespace;
-use crate::utils::RawData;
+use crate::utils::strings::clean_whitespace;
 use crate::utils::{self};
-use crate::AncestorsIterator;
-use crate::FastHashMap;
-use crate::Graph;
-use crate::GraphError;
-use crate::Node;
-use crate::Revision;
-use crate::NULL_REVISION;
 
 /// Options for [`annotate`].
 #[derive(Copy, Clone)]

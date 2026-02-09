@@ -30,16 +30,16 @@ use crate::dirstate::dirstate_map::NodeRef;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::file_patterns::PatternError;
-use crate::matchers::get_ignore_function;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
+use crate::matchers::get_ignore_function;
 use crate::utils::files::filesystem_now;
 use crate::utils::files::get_bytes_from_os_string;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
-use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::warnings::HgWarningSender;
 
 /// Wrong type of file from a `BadMatch`

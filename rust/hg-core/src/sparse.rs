@@ -2,16 +2,19 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::Path;
 
+use format_bytes::DisplayBytes;
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
-use format_bytes::DisplayBytes;
 
+use crate::NULL_REVISION;
+use crate::Node;
+use crate::Revision;
 use crate::errors::HgError;
 use crate::exit_codes::STATE_ERROR;
-use crate::file_patterns::parse_pattern_file_contents;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternSyntax;
+use crate::file_patterns::parse_pattern_file_contents;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
@@ -24,9 +27,6 @@ use crate::requirements::SPARSE_REQUIREMENT;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
-use crate::Node;
-use crate::Revision;
-use crate::NULL_REVISION;
 
 /// Command which is triggering the config read
 #[derive(Copy, Clone, Debug)]

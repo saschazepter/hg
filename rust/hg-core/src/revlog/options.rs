@@ -2,12 +2,12 @@
 
 use std::collections::HashSet;
 
+use super::RevlogType;
 use super::compression::CompressionConfig;
 use super::index::FLAG_DELTA_INFO;
 use super::index::FLAG_FILELOG_META;
 use super::index::FLAG_GENERALDELTA;
 use super::index::FLAG_INLINE_DATA;
-use super::RevlogType;
 use crate::config::Config;
 use crate::config::ResourceProfileValue;
 use crate::errors::HgError;

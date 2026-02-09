@@ -2,9 +2,9 @@ use std::ops::Deref;
 
 use self_cell::self_cell;
 
+use super::DirstateError;
 use super::dirstate_map::DirstateIdentity;
 use super::dirstate_map::DirstateMap;
-use super::DirstateError;
 use crate::DirstateParents;
 
 self_cell!(

@@ -4,10 +4,10 @@ use format_bytes::format_bytes;
 use hg::config::ConfigError;
 use hg::config::ConfigParseError;
 use hg::config::ConfigValueParseError;
-use hg::dirstate::on_disk::DirstateV2ParseError;
-use hg::dirstate::status::StatusError;
 use hg::dirstate::DirstateError;
 use hg::dirstate::DirstateMapError;
+use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::status::StatusError;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::exit_codes;
@@ -19,8 +19,8 @@ use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
 
-use crate::ui::UiError;
 use crate::NoRepoInCwdError;
+use crate::ui::UiError;
 
 /// The kind of command error
 #[derive(Debug)]

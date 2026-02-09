@@ -9,30 +9,30 @@ use std::sync::RwLockWriteGuard;
 use bitvec::prelude::*;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
-use bytes_cast::unaligned;
 use bytes_cast::BytesCast;
+use bytes_cast::unaligned;
 
 use super::NodePrefix;
-use super::RevlogError;
-use super::RevlogIndex;
 use super::REVIDX_KNOWN_FLAGS;
 use super::REVISION_FLAG_DELTA_IS_SNAPSHOT;
-use crate::dagops;
-use crate::dyn_bytes::ByteStoreTrunc;
-use crate::dyn_bytes::DynBytes;
-use crate::errors::HgError;
-use crate::revlog::node::Node;
-use crate::revlog::node::NODE_BYTES_LENGTH;
-use crate::revlog::node::NULL_NODE;
-use crate::revlog::node::STORED_NODE_ID_BYTES;
-use crate::revlog::Revision;
-use crate::revlog::NULL_REVISION;
-use crate::utils::u32_u;
+use super::RevlogError;
+use super::RevlogIndex;
 use crate::BaseRevision;
 use crate::FastHashMap;
 use crate::Graph;
 use crate::GraphError;
 use crate::UncheckedRevision;
+use crate::dagops;
+use crate::dyn_bytes::ByteStoreTrunc;
+use crate::dyn_bytes::DynBytes;
+use crate::errors::HgError;
+use crate::revlog::NULL_REVISION;
+use crate::revlog::Revision;
+use crate::revlog::node::NODE_BYTES_LENGTH;
+use crate::revlog::node::NULL_NODE;
+use crate::revlog::node::Node;
+use crate::revlog::node::STORED_NODE_ID_BYTES;
+use crate::utils::u32_u;
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const INDEX_HEADER_SIZE: usize = 4;
@@ -422,7 +422,9 @@ impl Index {
     /// Return a slice of bytes if `revlog` is inline. Panic if not.
     pub fn data(&self, start: usize, end: usize) -> &[u8] {
         if !self.is_inline() {
-            panic!("tried to access data in the index of a revlog that is not inline");
+            panic!(
+                "tried to access data in the index of a revlog that is not inline"
+            );
         }
         &self.bytes[start..end]
     }
@@ -526,11 +528,7 @@ impl Index {
     /// Return the binary content of the index entry for the given revision
     pub fn entry_binary(&self, rev: Revision) -> &[u8] {
         let bytes = self.get_entry(rev).as_bytes();
-        if rev.0 == 0 {
-            &bytes[4..]
-        } else {
-            bytes
-        }
+        if rev.0 == 0 { &bytes[4..] } else { bytes }
     }
 
     pub fn entry_as_params(
@@ -1715,7 +1713,7 @@ impl TryFrom<usize> for Phase {
                 return Err(RevlogError::corrupted(format!(
                     "invalid phase value {}",
                     v
-                )))
+                )));
             }
         })
     }

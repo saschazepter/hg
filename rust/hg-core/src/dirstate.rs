@@ -12,8 +12,8 @@ use entry::DirstateEntry;
 
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::errors;
-use crate::revlog::node::NULL_NODE;
 use crate::revlog::Node;
+use crate::revlog::node::NULL_NODE;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;

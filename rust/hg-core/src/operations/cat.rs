@@ -7,17 +7,17 @@
 
 use std::cmp::Ordering;
 
-use itertools::put_back;
 use itertools::PutBack;
+use itertools::put_back;
 
 use crate::errors::HgError;
 use crate::repo::Repo;
-use crate::revlog::manifest::Manifest;
-use crate::revlog::manifest::ManifestEntry;
 use crate::revlog::Node;
 use crate::revlog::RevlogError;
-use crate::utils::hg_path::HgPath;
+use crate::revlog::manifest::Manifest;
+use crate::revlog::manifest::ManifestEntry;
 use crate::utils::RawData;
+use crate::utils::hg_path::HgPath;
 
 pub struct CatOutput<'a> {
     /// Whether any file in the manifest matched the paths given as CLI

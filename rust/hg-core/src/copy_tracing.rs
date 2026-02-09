@@ -8,16 +8,16 @@ mod tests;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use bytes_cast::unaligned;
 use bytes_cast::BytesCast;
+use bytes_cast::unaligned;
+use im_rc::OrdSet;
 use im_rc::ordmap::Entry;
 use im_rc::ordmap::OrdMap;
-use im_rc::OrdSet;
 
+use crate::NULL_REVISION;
+use crate::Revision;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
-use crate::Revision;
-use crate::NULL_REVISION;
 
 pub type PathCopies = HashMap<HgPathBuf, HgPathBuf>;
 
@@ -534,8 +534,8 @@ fn merge_copies_dict(
     major: InternalPathCopies,
     get_merge_case: impl Fn(&HgPath) -> MergeCase + Copy,
 ) -> InternalPathCopies {
-    use crate::utils::ordmap_union_with_merge;
     use crate::utils::MergeResult;
+    use crate::utils::ordmap_union_with_merge;
 
     ordmap_union_with_merge(minor, major, |&dest, src_minor, src_major| {
         let (pick, overwrite) = compare_value(

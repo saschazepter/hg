@@ -25,11 +25,11 @@ use lazy_static::lazy_static;
 use same_file::is_same_file;
 
 use super::strings::replace_slice;
-use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::path_auditor::PathAuditor;
 
 pub fn get_os_str_from_bytes(bytes: &[u8]) -> &OsStr {

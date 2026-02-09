@@ -4,18 +4,18 @@ use imara_diff::Diff;
 use imara_diff::InternedInput;
 use imara_diff::TokenSource;
 
+use super::RevlogEntry;
+use super::RevlogError;
 use super::inner_revlog::InnerRevlog;
 use super::inner_revlog::SingleRevisionCache;
 use super::patch;
 use super::patch::DeltaPiece;
 use super::patch::PlainDeltaPiece;
-use super::RevlogEntry;
-use super::RevlogError;
-use crate::utils::u32_u;
+use crate::Revision;
+use crate::utils::RawData;
 use crate::utils::u_i32;
 use crate::utils::u_u32;
-use crate::utils::RawData;
-use crate::Revision;
+use crate::utils::u32_u;
 
 /// A windows of different data when computing a delta
 ///

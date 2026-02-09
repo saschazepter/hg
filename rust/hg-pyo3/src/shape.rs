@@ -2,26 +2,26 @@
 
 use std::path::Path;
 
-use hg::file_patterns::parse_one_pattern;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternSyntax;
+use hg::file_patterns::parse_one_pattern;
 use hg::narrow::shape::Shape;
 use hg::narrow::shape::ShardTreeNode;
 use hg::narrow::shape::StoreShards;
 use hg::utils::strings::SliceExt;
+use pyo3::Bound;
+use pyo3::PyResult;
+use pyo3::Python;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyList;
 use pyo3::types::PyModule;
 use pyo3::types::PySet;
-use pyo3::Bound;
-use pyo3::PyResult;
-use pyo3::Python;
 
 use crate::matchers::PyMatcher;
 use crate::repo::repo_from_path;
-use crate::utils::new_submodule;
 use crate::utils::HgPyErrExt;
+use crate::utils::new_submodule;
 
 /// A Rust-backed Shape object that corresponds to a shard marked as a shape
 /// in the `.hg/store/server-shapes` config.

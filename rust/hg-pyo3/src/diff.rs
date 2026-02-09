@@ -1,13 +1,13 @@
 use hg::revlog::diff::text_delta;
 use hg::revlog::manifest;
-use pyo3::pyfunction;
-use pyo3::types::PyModule;
-use pyo3::types::PyModuleMethods;
-use pyo3::wrap_pyfunction;
 use pyo3::Bound;
 use pyo3::PyAny;
 use pyo3::PyResult;
 use pyo3::Python;
+use pyo3::pyfunction;
+use pyo3::types::PyModule;
+use pyo3::types::PyModuleMethods;
+use pyo3::wrap_pyfunction;
 
 use crate::utils::new_submodule;
 use crate::utils::take_buffer_with_slice;

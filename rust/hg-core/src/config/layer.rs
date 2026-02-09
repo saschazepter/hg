@@ -11,9 +11,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use format_bytes::DisplayBytes;
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
-use format_bytes::DisplayBytes;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;

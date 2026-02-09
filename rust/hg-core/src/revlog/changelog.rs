@@ -13,6 +13,9 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 
 use super::options::RevlogOpenOptions;
+use crate::Graph;
+use crate::GraphError;
+use crate::UncheckedRevision;
 use crate::errors::HgError;
 use crate::revlog::Index;
 use crate::revlog::Node;
@@ -22,12 +25,9 @@ use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
-use crate::utils::hg_path::HgPath;
 use crate::utils::RawData;
+use crate::utils::hg_path::HgPath;
 use crate::vfs::VfsImpl;
-use crate::Graph;
-use crate::GraphError;
-use crate::UncheckedRevision;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -518,38 +518,48 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::NULL_REVISION;
     use crate::revlog::path_encode::PathEncoding;
     use crate::vfs::VfsImpl;
-    use crate::NULL_REVISION;
 
     #[test]
     fn test_create_changelogrevisiondata_invalid() {
         // Completely empty
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
-            .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
+                .is_err()
+        );
         // No newline after manifest
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
-            .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
+                .is_err()
+        );
         // No newline after user
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n"
-        )))
-        .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd\n")))
+                .is_err()
+        );
         // No newline after timestamp
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n\n0 0"
-        )))
-        .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(
+                b"abcd\n\n0 0"
+            )))
+            .is_err()
+        );
         // Missing newline after files
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n\n0 0\nfile1\nfile2"
-        )))
-        .is_err(),);
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(
+                b"abcd\n\n0 0\nfile1\nfile2"
+            )))
+            .is_err(),
+        );
         // Only one newline after files
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n\n0 0\nfile1\nfile2\n"
-        )))
-        .is_err(),);
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(
+                b"abcd\n\n0 0\nfile1\nfile2\n"
+            )))
+            .is_err(),
+        );
     }
 
     #[test]

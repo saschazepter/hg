@@ -2,9 +2,9 @@
 use itertools::Itertools;
 use serde::Deserialize;
 
+use crate::FastHashMap;
 use crate::errors::HgError;
 use crate::exit_codes;
-use crate::FastHashMap;
 
 /// Corresponds to the structure of `mercurial/configitems.toml`.
 #[derive(Debug, Deserialize)]
@@ -458,7 +458,7 @@ fn raw_default_to_concrete(
                     "lambda defined with no return value".to_string(),
                     exit_codes::ABORT,
                     Some("Check 'mercurial/configitems.toml'".into()),
-                ))
+                ));
             }
         },
         Some("lazy_module") => match &default {
@@ -471,7 +471,7 @@ fn raw_default_to_concrete(
                                 .to_string(),
                             exit_codes::ABORT,
                             Some("Check 'mercurial/configitems.toml'".into()),
-                        ))
+                        ));
                     }
                 }))
             }
@@ -480,7 +480,7 @@ fn raw_default_to_concrete(
                     "lazy_module should have a default value".to_string(),
                     exit_codes::ABORT,
                     Some("Check 'mercurial/configitems.toml'".into()),
-                ))
+                ));
             }
         },
         Some(invalid) => {
@@ -488,7 +488,7 @@ fn raw_default_to_concrete(
                 format!("invalid default_type '{}'", invalid),
                 exit_codes::ABORT,
                 Some("Check 'mercurial/configitems.toml'".into()),
-            ))
+            ));
         }
     })
 }
@@ -530,16 +530,16 @@ impl DefaultConfig {
 
         for application in from_file.template_applications.drain(..) {
             match from_file.templates.get(&application.template) {
-                None => return Err(
-                    HgError::abort(
+                None => {
+                    return Err(HgError::abort(
                         format!(
                             "template application refers to undefined template '{}'",
                             application.template
                         ),
                         exit_codes::ABORT,
-                        Some("Check 'mercurial/configitems.toml'".into())
-                    )
-                ),
+                        Some("Check 'mercurial/configitems.toml'".into()),
+                    ));
+                }
                 Some(template_items) => {
                     for template_item in template_items {
                         flat_items.push(

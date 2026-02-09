@@ -143,11 +143,7 @@ impl TruncatedTimestamp {
             self.truncated_seconds < boundary.truncated_seconds
                 || self.truncated_seconds > one_day_later
         };
-        if reliable {
-            Some(new)
-        } else {
-            None
-        }
+        if reliable { Some(new) } else { None }
     }
 
     /// The lower 31 bits of the number of seconds since the epoch.

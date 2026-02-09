@@ -7,11 +7,11 @@
 // GNU General Public License version 2 or any later version.
 use std::sync::OnceLock;
 
+use hg::revlog::RevlogType;
 use hg::revlog::compression::CompressionConfig;
 use hg::revlog::options::RevlogDataConfig;
 use hg::revlog::options::RevlogDeltaConfig;
 use hg::revlog::options::RevlogFeatureConfig;
-use hg::revlog::RevlogType;
 use pyo3::conversion::FromPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;

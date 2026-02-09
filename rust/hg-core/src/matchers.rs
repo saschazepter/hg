@@ -23,21 +23,22 @@ use once_cell::sync::OnceCell;
 use regex_automata::meta::Regex;
 use regex_syntax::hir::Hir;
 
+use crate::FastHashMap;
 use crate::dirstate::dirs_multiset::DirsChildrenMultiset;
 use crate::dirstate::dirs_multiset::DirsMultiset;
 use crate::dirstate::status::IgnoreFnType;
-use crate::file_patterns::build_single_regex;
-use crate::file_patterns::filter_subincludes;
-use crate::file_patterns::get_patterns_from_file;
-use crate::file_patterns::normalize_path_bytes;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::GlobSuffix;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternResult;
 use crate::file_patterns::PatternSyntax;
 use crate::file_patterns::RegexCompleteness;
-use crate::narrow::shape::deepest_prefix_node;
+use crate::file_patterns::build_single_regex;
+use crate::file_patterns::filter_subincludes;
+use crate::file_patterns::get_patterns_from_file;
+use crate::file_patterns::normalize_path_bytes;
 use crate::narrow::shape::Shape;
+use crate::narrow::shape::deepest_prefix_node;
 use crate::pre_regex::PreRegex;
 use crate::repo::Repo;
 use crate::utils::files::dir_ancestors;
@@ -48,7 +49,6 @@ use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::strings::Escaped;
 use crate::warnings::HgWarningSender;
-use crate::FastHashMap;
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -2376,9 +2376,9 @@ mod tests {
     mod invariants {
         pub mod visit_children_set {
 
-            use crate::matchers::tests::Tree;
             use crate::matchers::Matcher;
             use crate::matchers::VisitChildrenSet;
+            use crate::matchers::tests::Tree;
             use crate::utils::hg_path::HgPath;
 
             #[allow(dead_code)]

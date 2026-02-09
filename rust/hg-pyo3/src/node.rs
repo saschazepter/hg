@@ -1,11 +1,11 @@
 use std::convert::Infallible;
 
-use hg::revlog::index::Index;
-use hg::revlog::node::NODE_BYTES_LENGTH;
-use hg::revlog::RevlogIndex;
 use hg::Node;
 use hg::NodePrefix;
 use hg::Revision;
+use hg::revlog::RevlogIndex;
+use hg::revlog::index::Index;
+use hg::revlog::node::NODE_BYTES_LENGTH;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;

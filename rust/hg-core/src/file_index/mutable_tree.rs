@@ -5,19 +5,19 @@
 use bytes_cast::BytesCast as _;
 use itertools::Itertools;
 
+use super::FileToken;
 use super::on_disk::Error;
 use super::on_disk::FileIndexView;
 use super::on_disk::LabelPosition;
 use super::on_disk::TreeNode;
-use super::FileToken;
 use crate::file_index::on_disk::NodePointer;
 use crate::file_index::on_disk::PointerOrToken;
 use crate::file_index::on_disk::TaggedNodePointer;
 use crate::file_index::on_disk::TreeNodeHeader;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::common_prefix_length;
-use crate::utils::u32_u;
 use crate::utils::u_u32;
+use crate::utils::u32_u;
 
 /// Mutable version of [`TreeNode`].
 struct MutableTreeNode<'a> {

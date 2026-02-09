@@ -7,8 +7,8 @@
 
 use crate::Graph;
 use crate::GraphError;
-use crate::Revision;
 use crate::NULL_REVISION;
+use crate::Revision;
 
 /// A stub `Graph`, same as the one from `test-ancestor.py`
 ///

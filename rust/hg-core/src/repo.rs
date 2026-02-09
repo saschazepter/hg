@@ -8,22 +8,24 @@ use std::io::Write as IoWrite;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::NodePrefix;
+use crate::UncheckedRevision;
 use crate::config::Config;
 use crate::config::ConfigError;
 use crate::config::ConfigParseError;
+use crate::dirstate::DirstateError;
+use crate::dirstate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateIdentity;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::on_disk::Docket as DirstateDocket;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::status::IgnoreFnType;
-use crate::dirstate::DirstateError;
-use crate::dirstate::DirstateParents;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
-use crate::lock::try_with_lock_no_wait;
 use crate::lock::LockError;
+use crate::lock::try_with_lock_no_wait;
 use crate::matchers::get_ignore_files;
 use crate::matchers::get_ignore_function;
 use crate::requirements;
@@ -31,25 +33,23 @@ use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
 use crate::requirements::FILEINDEX_V1_REQUIREMENT;
 use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
+use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::Manifestlog;
 use crate::revlog::options::default_revlog_options;
 use crate::revlog::path_encode::PathEncoding;
-use crate::revlog::RevlogError;
-use crate::revlog::RevlogType;
 use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
-use crate::vfs::is_dir;
-use crate::vfs::is_file;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
+use crate::vfs::is_dir;
+use crate::vfs::is_file;
 use crate::warnings::HgWarningSender;
-use crate::NodePrefix;
-use crate::UncheckedRevision;
 
 const V2_MAX_READ_ATTEMPTS: usize = 5;
 
@@ -541,7 +541,7 @@ impl Repo {
                                 context,
                                 backtrace,
                             }
-                            .into())
+                            .into());
                         }
                     }
                 }

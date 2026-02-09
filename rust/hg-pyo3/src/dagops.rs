@@ -11,13 +11,13 @@
 //! From Python, this will be seen as `mercurial.pyo3_rustext.dagop`
 use std::collections::HashSet;
 
-use hg::dagops;
 use hg::Revision;
+use hg::dagops;
 use pyo3::prelude::*;
 
 use crate::exceptions::GraphError;
-use crate::revision::rev_pyiter_collect;
 use crate::revision::PyRevision;
+use crate::revision::rev_pyiter_collect;
 use crate::utils::new_submodule;
 use crate::utils::proxy_index_extract;
 
