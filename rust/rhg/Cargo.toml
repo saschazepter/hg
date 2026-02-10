@@ -24,7 +24,7 @@ lazy_static = "1.5.0"
 regex = "1.11.1"
 format-bytes = "0.3.0"
 shellexpand = { version = "3.1", features = ["full"]}
-whoami = "1.6"
+whoami = "2.1"
 which = "8.0.0"
 rayon = "1.10.0"
 libc = "0.2.172"
