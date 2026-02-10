@@ -20,11 +20,11 @@ pyo3 = { version = "0.28.0" }
 pyo3-sharedref = { path = "../pyo3-sharedref" }
 hg-core = { path = "../hg-core" }
 format-bytes = "0.3.0"
-stable_deref_trait = "1.2.0"
-derive_more = { version = "2.0.1", features = ["display", "from"] }
+stable_deref_trait = "1.2.1"
+derive_more = { version = "2.1.1", features = ["display", "from"] }
 vcsgraph = "0.2.0"
 crossbeam-channel = "0.5.15"
-tracing = { version = "0.1.41", features = ["attributes"] }
+tracing = { version = "0.1.44", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 dashmap = "6.1.0"

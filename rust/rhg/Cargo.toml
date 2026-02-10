@@ -15,21 +15,21 @@ full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 
 [dependencies]
 hg-core = { path = "../hg-core", default-features = false }
-chrono = "0.4.41"
+chrono = "0.4.43"
 clap = { version = "4", features = ["cargo"] }
 crossbeam-channel = "0.5.15"
-derive_more = { version = "2.0.1", features = ["display", "from"] }
-home = "0.5.11"
+derive_more = { version = "2.1.1", features = ["display", "from"] }
+home = "0.5.12"
 lazy_static = "1.5.0"
-regex = "1.11.1"
+regex = "1.12.3"
 format-bytes = "0.3.0"
 shellexpand = { version = "3.1", features = ["full"]}
 whoami = "2.1"
 which = "8.0.0"
-rayon = "1.10.0"
-libc = "0.2.172"
-tracing = { version = "0.1.41", features = ["attributes"] }
+rayon = "1.11.0"
+libc = "0.2.181"
+tracing = { version = "0.1.44", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"]}
-serde_json = "1.0.140"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"]}
+serde_json = "1.0.149"
 shlex = "1.3.0"
