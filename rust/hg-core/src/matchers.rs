@@ -1025,7 +1025,7 @@ fn build_regex_match<'a>(
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
-fn build_regex_match_for_debug<'a>(
+fn build_regex_match_for_debug(
     file_patterns: &[FilePattern],
     glob_suffix: GlobSuffix,
 ) -> PatternResult<PreRegex> {
