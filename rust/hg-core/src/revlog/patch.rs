@@ -810,15 +810,11 @@ mod tests {
                     }
                 } else {
                     tmp_patches.retain(|p| {
-                        if p.old_size > 0 {
+                        if p.old_size > 0 || change_budget >= 0 {
                             true
                         } else {
-                            if change_budget >= 0 {
-                                true
-                            } else {
-                                change_budget += p.new_size as i8;
-                                false
-                            }
+                            change_budget += p.new_size as i8;
+                            false
                         }
                     });
                     if tmp_patches.is_empty() {
