@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_random_access_file() {
-        let base = tempfile::tempdir().unwrap().into_path();
+        let base = tempfile::tempdir().unwrap().keep();
         let filename = Path::new("a");
         let file_path = base.join(filename);
         let raf = RandomAccessFile::new(
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_file_handle() {
-        let base = tempfile::tempdir().unwrap().into_path();
+        let base = tempfile::tempdir().unwrap().keep();
         let filename = base.join("a");
         // No `create` should fail
         FileHandle::new(

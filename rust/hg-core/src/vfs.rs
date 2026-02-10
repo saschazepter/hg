@@ -1034,7 +1034,7 @@ mod tests {
 
     #[test]
     fn test_atomic_file() {
-        let dir = tempfile::tempdir().unwrap().into_path();
+        let dir = tempfile::tempdir().unwrap().keep();
         let target_path = dir.join("sometargetname");
 
         for empty in [true, false] {
@@ -1078,7 +1078,7 @@ mod tests {
 
     #[test]
     fn test_vfs_file_check_ambig() {
-        let dir = tempfile::tempdir().unwrap().into_path();
+        let dir = tempfile::tempdir().unwrap().keep();
         let file_path = dir.join("file");
 
         fn vfs_file_write(file_path: &Path, check_ambig: bool) {
