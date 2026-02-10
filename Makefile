@@ -196,15 +196,15 @@ testpy-%:
 .PHONY: rust-tests
 rust-tests:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) test --quiet --all \
+		&& $(CARGO) test --quiet --workspace \
 		   --features "full-tracing" --no-default-features \
-		&&  $(CARGO) test --quiet --all --no-default-features
+		&&  $(CARGO) test --quiet --workspace --no-default-features
 
 .PHONY: cargo-clippy
 cargo-clippy:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) clippy --all -- -D warnings \
-		&& $(CARGO) clippy --all --features "full-tracing" -- -D warnings
+		&& $(CARGO) clippy --workspace -- -D warnings \
+		&& $(CARGO) clippy --workspace --features "full-tracing" -- -D warnings
 
 .PHONY: check-code
 check-code:
