@@ -11,7 +11,7 @@ use bytes_cast::BytesCast;
 use bytes_cast::unaligned::U16Be;
 use bytes_cast::unaligned::U32Be;
 use format_bytes::format_bytes;
-use rand::Rng;
+use rand::RngExt;
 use uuid::Uuid;
 
 use super::DirstateError;

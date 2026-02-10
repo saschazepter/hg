@@ -7,7 +7,7 @@
 use std::io::Write;
 
 use bytes_cast::BytesCast;
-use rand::Rng;
+use rand::RngExt;
 
 /// A unique identifier made of hex digits used as part of a filename.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, BytesCast)]

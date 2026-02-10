@@ -15,7 +15,7 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-use rand::RngCore;
+use rand::Rng as RngTrait;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
 
