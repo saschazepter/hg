@@ -759,11 +759,8 @@ mod tests {
                 assert!(next_size <= 10);
                 assert!(1 <= next_size);
 
-                let mut d = TestDelta {
-                    src_size: src_size,
-                    dst_size: next_size,
-                    pieces: vec![],
-                };
+                let mut d =
+                    TestDelta { src_size, dst_size: next_size, pieces: vec![] };
 
                 let max_pos = src_size + 1;
                 let nb_pick = rng.random_range(1..10);
@@ -858,7 +855,7 @@ mod tests {
                 assert!(!d.pieces.is_empty());
                 if change_budget > 0 {
                     let p: &mut TestPiece =
-                        (&mut d.pieces[..]).choose_mut(&mut rng).unwrap();
+                        d.pieces[..].choose_mut(&mut rng).unwrap();
                     p.new_size += change_budget as u8;
                     change_budget = 0
                 }
@@ -874,7 +871,7 @@ mod tests {
             assert!(self.initial_size <= 10);
             let mut text = vec![];
             for i in 0..self.initial_size {
-                text.push(i as u8);
+                text.push(i);
             }
             text
         }
@@ -886,7 +883,7 @@ mod tests {
                 let mut data = PatchDataBuilder::new();
                 let idx = (idx + 1) as u8;
                 let new_data = [
-                    (idx * 10) + 0,
+                    (idx * 10),
                     (idx * 10) + 1,
                     (idx * 10) + 2,
                     (idx * 10) + 3,
