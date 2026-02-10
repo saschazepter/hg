@@ -809,21 +809,18 @@ mod tests {
                         }
                     }
                 } else {
-                    tmp_patches = tmp_patches
-                        .into_iter()
-                        .filter(|p| {
-                            if p.old_size > 0 {
+                    tmp_patches.retain(|p| {
+                        if p.old_size > 0 {
+                            true
+                        } else {
+                            if change_budget >= 0 {
                                 true
                             } else {
-                                if change_budget >= 0 {
-                                    true
-                                } else {
-                                    change_budget += p.new_size as i8;
-                                    false
-                                }
+                                change_budget += p.new_size as i8;
+                                false
                             }
-                        })
-                        .collect();
+                        }
+                    });
                     if tmp_patches.is_empty() {
                         if change_budget <= -(src_size as i8) {
                             change_budget = -(src_size as i8) + 1
