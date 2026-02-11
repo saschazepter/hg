@@ -124,7 +124,7 @@ pub struct FromHexError;
 
 /// Low level utility function, also for prefixes
 fn get_nybble(s: &[u8], i: usize) -> u8 {
-    if i % 2 == 0 {
+    if i.is_multiple_of(2) {
         s[i / 2] >> 4
     } else {
         s[i / 2] & 0x0f
@@ -251,7 +251,7 @@ impl NodePrefix {
         if self.data[..full_bytes] != node.data[..full_bytes] {
             return false;
         }
-        if self.nybbles_len() % 2 == 0 {
+        if self.nybbles_len().is_multiple_of(2) {
             return true;
         }
         let last = self.nybbles_len() - 1;
