@@ -187,10 +187,10 @@ type OptPathSlice = PathSlice;
 /// Unexpected file format found in `.hg/dirstate` with the "v2" format.
 ///
 /// This should only happen if Mercurial is buggy or a repository is corrupted.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct DirstateV2ParseError {
-    message: String,
-    backtrace: HgBacktrace,
+    pub message: String,
+    pub backtrace: HgBacktrace,
 }
 
 impl DirstateV2ParseError {
@@ -211,12 +211,6 @@ impl From<DirstateV2ParseError> for HgError {
 impl Display for DirstateV2ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}dirstate-v2 parse error: {}", self.backtrace, self.message)
-    }
-}
-
-impl From<DirstateV2ParseError> for DirstateError {
-    fn from(error: DirstateV2ParseError) -> Self {
-        HgError::from(error).into()
     }
 }
 
@@ -288,7 +282,7 @@ impl Docket<'_> {
     }
 }
 
-pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateV2ParseError> {
+pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateError> {
     let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
         DirstateV2ParseError::new(format!("when reading docket, {}", e))
     })?;
@@ -296,7 +290,7 @@ pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateV2ParseError> {
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError::new("invalid format marker or uuid size"))
+        Err(DirstateV2ParseError::new("invalid format marker or uuid size"))?
     }
 }
 
@@ -657,11 +651,10 @@ pub(super) fn write(
         let full_path = node.full_path(dirstate_map.on_disk)?;
         let base_name = node.base_name(dirstate_map.on_disk)?;
         if full_path != base_name {
-            let explanation = format!(
-                "Dirstate root node '{}' is not at the root",
-                full_path
-            );
-            return Err(HgError::corrupted(explanation).into());
+            return Err(DirstateError::RootNotAtRoot(
+                full_path.to_owned(),
+                HgBacktrace::capture(),
+            ));
         }
     }
     let root_nodes = writer.write_nodes(root_nodes)?;
@@ -809,13 +802,11 @@ impl Writer<'_, '_> {
                 || &child_prefix[0..child_prefix.len() - 1]
                     != full_path.as_bytes()
             {
-                let explanation = format!(
-                    "dirstate child node's path '{}' \
-                        does not start with its parent's path '{}'",
-                    child_full_path, full_path,
-                );
-
-                return Err(HgError::corrupted(explanation).into());
+                return Err(DirstateError::BadChildPrefix {
+                    child_path: child_full_path.to_owned(),
+                    path: full_path.to_owned(),
+                    backtrace: HgBacktrace::capture(),
+                });
             }
         }
         Ok(())

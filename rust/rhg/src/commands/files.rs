@@ -1,4 +1,5 @@
 use clap::Arg;
+use hg::dirstate::DirstateError;
 use hg::file_patterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
@@ -134,7 +135,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })
             .collect();
 
-        let mut files = files_res?;
+        let mut files = files_res.map_err(DirstateError::from)?;
         files.par_sort_unstable();
 
         display_files(

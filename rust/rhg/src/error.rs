@@ -5,8 +5,6 @@ use hg::config::ConfigError;
 use hg::config::ConfigParseError;
 use hg::config::ConfigValueParseError;
 use hg::dirstate::DirstateError;
-use hg::dirstate::DirstateMapError;
-use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::status::StatusError;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
@@ -235,10 +233,29 @@ impl From<RevlogError> for CommandError {
 impl From<StatusError> for CommandError {
     fn from(error: StatusError) -> Self {
         match error {
-            StatusError::Pattern(_) => {
-                CommandError::unsupported(format!("{}", error))
+            StatusError::Pattern(pattern_err) => match pattern_err {
+                PatternError::Path(hg_path_error) => {
+                    CommandError::abort(hg_path_error.to_string())
+                }
+                PatternError::IO(error) => {
+                    CommandError::abort(error.to_string())
+                }
+                PatternError::UnsupportedSyntax(_)
+                | PatternError::UnsupportedSyntaxInFile(_, _, _) => {
+                    CommandError::unsupported(pattern_err.to_string())
+                }
+                PatternError::NonRegexPattern(file_pattern) => {
+                    let msg = format!(
+                        "programming error: pattern '{file_pattern:?}' \
+                        cannot be turned into a regex"
+                    );
+                    CommandError::abort(msg)
+                }
+            },
+            StatusError::Path(err) => {
+                CommandError::abort(HgError::from(err).to_string())
             }
-            _ => CommandError::abort(format!("{}", error)),
+            StatusError::Dirstate(err) => err.into(),
         }
     }
 }
@@ -255,23 +272,8 @@ impl From<PatternError> for CommandError {
     }
 }
 
-impl From<DirstateMapError> for CommandError {
-    fn from(error: DirstateMapError) -> Self {
-        CommandError::abort(format!("{}", error))
-    }
-}
-
 impl From<DirstateError> for CommandError {
     fn from(error: DirstateError) -> Self {
-        match error {
-            DirstateError::Common(error) => error.into(),
-            DirstateError::Map(error) => error.into(),
-        }
-    }
-}
-
-impl From<DirstateV2ParseError> for CommandError {
-    fn from(error: DirstateV2ParseError) -> Self {
         HgError::from(error).into()
     }
 }

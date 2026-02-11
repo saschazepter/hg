@@ -47,5 +47,5 @@ Corrupt the dirstate to see how the errors show up to the user
   $ hg st
   abort: working directory state appears damaged! (no-rhg !)
   (falling back to dirstate-v1 from v2 also failed) (no-rhg !)
-  abort: Too little data for dirstate: 16 bytes. (rhg !)
+  too little data for dirstate: got 16 bytes (rhg !)
   [255]

@@ -14,7 +14,6 @@ use std::collections::hash_map;
 use std::collections::hash_map::Entry;
 
 use super::DirstateError;
-use super::DirstateMapError;
 use super::entry::DirstateEntry;
 use crate::FastHashMap;
 use crate::dirstate::on_disk::DirstateV2ParseError;
@@ -112,7 +111,7 @@ impl DirsMultiset {
     pub fn delete_path(
         &mut self,
         path: impl AsRef<HgPath>,
-    ) -> Result<(), DirstateMapError> {
+    ) -> Result<(), DirstateError> {
         for subpath in files::find_dirs(path.as_ref()) {
             match self.inner.entry(subpath.to_owned()) {
                 Entry::Occupied(mut entry) => {
@@ -124,9 +123,7 @@ impl DirsMultiset {
                     entry.remove();
                 }
                 Entry::Vacant(_) => {
-                    return Err(DirstateMapError::PathNotFound(
-                        path.as_ref().to_owned(),
-                    ));
+                    return Err(DirstateError::path_not_found(path.as_ref()));
                 }
             };
         }
@@ -222,7 +219,7 @@ mod tests {
         let mut map = DirsMultiset::from_manifest(&manifest).unwrap();
         let path = HgPathBuf::from_bytes(b"doesnotexist/");
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(path.to_owned())),
+            Err(DirstateError::path_not_found(path.as_ref())),
             map.delete_path(&path)
         );
     }
@@ -233,7 +230,7 @@ mod tests {
         let path = HgPath::new(b"");
         assert_eq!(Ok(()), map.delete_path(path));
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(path.to_owned())),
+            Err(DirstateError::path_not_found(path)),
             map.delete_path(path)
         );
     }
@@ -252,7 +249,7 @@ mod tests {
         assert_eq!(Ok(()), map.delete_path(HgPath::new(b"a/b/")));
         eprintln!("{:?}", map);
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(b"a/b/"))),
+            Err(DirstateError::path_not_found(HgPath::new(b"a/b/"))),
             map.delete_path(HgPath::new(b"a/b/"))
         );
 
@@ -264,7 +261,7 @@ mod tests {
 
         assert_eq!(Ok(()), map.delete_path(HgPath::new(b"a/c/")));
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(b"a/c/"))),
+            Err(DirstateError::path_not_found(HgPath::new(b"a/c/"))),
             map.delete_path(HgPath::new(b"a/c/"))
         );
     }

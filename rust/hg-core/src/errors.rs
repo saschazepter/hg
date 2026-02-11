@@ -60,7 +60,8 @@ pub enum HgError {
     /// Censored revision data.
     CensoredNodeError(Node, HgBacktrace),
     /// An error occured in the dirstate
-    Dirstate(Box<DirstateError>),
+    #[from]
+    Dirstate(DirstateError),
     #[from]
     Pattern(PatternError),
     /// A race condition has been detected. This *must* be handled locally
@@ -79,18 +80,7 @@ impl From<StatusError> for HgError {
         match value {
             StatusError::Path(err) => HgError::Path(err),
             StatusError::Pattern(err) => HgError::Pattern(err),
-            StatusError::DirstateV2ParseError(dirstate_v2_parse_error) => {
-                Self::Dirstate(Box::new(dirstate_v2_parse_error.into()))
-            }
-        }
-    }
-}
-
-impl From<DirstateError> for HgError {
-    fn from(value: DirstateError) -> Self {
-        match value {
-            DirstateError::Map(_) => Self::Dirstate(Box::new(value)),
-            DirstateError::Common(hg_error) => hg_error,
+            StatusError::Dirstate(err) => HgError::Dirstate(err),
         }
     }
 }
@@ -187,7 +177,72 @@ impl fmt::Display for HgError {
                     at.display()
                 )
             }
-            HgError::Dirstate(dirstate_error) => dirstate_error.fmt(f),
+            HgError::Dirstate(dirstate_error) => match dirstate_error {
+                DirstateError::V2ParseError(parse) => {
+                    write!(f, "{}{}", parse.backtrace, parse.message)
+                }
+                DirstateError::PathNotFound(path, backtrace) => {
+                    write!(f, "{}path not found: {}", backtrace, path)
+                }
+                DirstateError::InvalidPath(hg_path_error) => {
+                    hg_path_error.fmt(f)
+                }
+                DirstateError::TooLittleData(size, backtrace) => {
+                    write!(
+                        f,
+                        "{}too little data for dirstate: got {} bytes",
+                        backtrace, size
+                    )
+                }
+                DirstateError::IncompleteEntry {
+                    entry_idx,
+                    at_byte,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate corrupted: ran out of bytes at \
+                        entry header {entry_idx}, offset {at_byte}",
+                    )
+                }
+                DirstateError::IncompletePath {
+                    entry_idx,
+                    at_byte,
+                    expected_len,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate corrupted: ran out of bytes at \
+                        entry header {entry_idx}, offset {at_byte} \
+                        (expected {expected_len} bytes)",
+                    )
+                }
+                DirstateError::BadEntryState(state, backtrace) => {
+                    write!(
+                        f,
+                        "{backtrace}incorrect dirstate entry state '{state}'"
+                    )
+                }
+                DirstateError::RootNotAtRoot(path, backtrace) => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate root node '{path}' \
+                        is not at the root"
+                    )
+                }
+                DirstateError::BadChildPrefix {
+                    path,
+                    child_path,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}path of dirstate child node '{child_path}' \
+                        does not start with its parent's path '{path}'"
+                    )
+                }
+            },
             HgError::Pattern(pattern_error) => pattern_error.fmt(f),
         }
     }
@@ -390,6 +445,14 @@ impl From<RevlogError> for HgError {
 /// for more info.
 #[derive(Debug)]
 pub struct HgBacktrace(Backtrace);
+
+impl PartialEq for HgBacktrace {
+    fn eq(&self, _other: &Self) -> bool {
+        // We don't want the backtrace to affect any [`PartialEq`] or [`Eq`]
+        // implementations for all the error structs it's used in.
+        true
+    }
+}
 
 impl HgBacktrace {
     /// See [`Backtrace::capture`].

@@ -15,6 +15,7 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
+use hg::errors::HgError;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternError;
 use hg::file_patterns::parse_pattern_syntax_kind;
@@ -174,7 +175,7 @@ fn handle_fallback(err: StatusError) -> PyErr {
             tracing::trace!("{}", as_string);
             FallbackError::new_err(as_string)
         }
-        e => to_string_value_error(e),
+        e => to_string_value_error(HgError::from(e)),
     }
 }
 

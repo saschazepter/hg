@@ -5,13 +5,11 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use std::fmt;
-
 use bytes_cast::BytesCast;
 use entry::DirstateEntry;
 
 use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::errors;
+use crate::errors::HgBacktrace;
 use crate::revlog::Node;
 use crate::revlog::node::NULL_NODE;
 use crate::utils::hg_path::HgPath;
@@ -57,46 +55,55 @@ pub type CopyMapIter<'a> = Box<
         + 'a,
 >;
 
-#[derive(Debug, PartialEq)]
-pub enum DirstateMapError {
-    PathNotFound(HgPathBuf),
-    InvalidPath(HgPathError),
-}
-
-impl From<HgPathError> for DirstateMapError {
-    fn from(error: HgPathError) -> Self {
-        Self::InvalidPath(error)
-    }
-}
-
-impl fmt::Display for DirstateMapError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DirstateMapError::PathNotFound(_) => {
-                f.write_str("expected a value, found none")
-            }
-            DirstateMapError::InvalidPath(path_error) => path_error.fmt(f),
-        }
-    }
-}
-
-#[derive(Debug, derive_more::From)]
+/// An error that has occurred when parsing or using the dirstate
+#[derive(Debug, derive_more::From, PartialEq)]
 pub enum DirstateError {
-    Map(DirstateMapError),
-    Common(errors::HgError),
+    #[from]
+    /// A parsing error specific to dirstate V2
+    V2ParseError(DirstateV2ParseError),
+    /// This path was not found inside the dirstate
+    PathNotFound(HgPathBuf, HgBacktrace),
+    /// A path from the dirstate or its inputs is invalid
+    #[from]
+    InvalidPath(HgPathError),
+    /// Failed to parse dirstate-v1 due to too little data
+    TooLittleData(usize, HgBacktrace),
+    /// Failed to parse dirstate-v1 due to too little data for the given entry
+    IncompleteEntry {
+        /// 0-index of the entry, from the start of the file
+        entry_idx: usize,
+        /// Byte index from the start of the file
+        at_byte: usize,
+        backtrace: HgBacktrace,
+    },
+    /// Failed to parse dirstate-v1 due to too little data for the path of
+    /// the given entry
+    IncompletePath {
+        /// 0-index of the entry, from the start of the file
+        entry_idx: usize,
+        /// Byte index from the start of the file
+        at_byte: usize,
+        /// Expected length of the entire file (for this path to be parsed)
+        expected_len: usize,
+        backtrace: HgBacktrace,
+    },
+    /// An invalid dirstate-v1 state was read
+    BadEntryState(u8, HgBacktrace),
+    /// The root node of the dirstate is not at the root path
+    RootNotAtRoot(HgPathBuf, HgBacktrace),
+    /// The path of a child node does not start with its parent's path
+    BadChildPrefix {
+        /// Path of the parent
+        path: HgPathBuf,
+        /// Full path of the child
+        child_path: HgPathBuf,
+        backtrace: HgBacktrace,
+    },
 }
 
-impl From<HgPathError> for DirstateError {
-    fn from(error: HgPathError) -> Self {
-        Self::Map(DirstateMapError::InvalidPath(error))
-    }
-}
-
-impl fmt::Display for DirstateError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DirstateError::Map(error) => error.fmt(f),
-            DirstateError::Common(error) => error.fmt(f),
-        }
+impl DirstateError {
+    /// Helper method to simplify the creation of this common variant
+    pub fn path_not_found(path: &HgPath) -> Self {
+        Self::PathNotFound(path.to_owned(), HgBacktrace::capture())
     }
 }

@@ -5,8 +5,9 @@ use std::time::UNIX_EPOCH;
 
 use bitflags::bitflags;
 
+use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum EntryState {
@@ -679,7 +680,7 @@ impl EntryState {
 }
 
 impl TryFrom<u8> for EntryState {
-    type Error = HgError;
+    type Error = DirstateError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -687,10 +688,9 @@ impl TryFrom<u8> for EntryState {
             b'a' => Ok(EntryState::Added),
             b'r' => Ok(EntryState::Removed),
             b'm' => Ok(EntryState::Merged),
-            _ => Err(HgError::corrupted(format!(
-                "Incorrect dirstate entry state {}",
-                value
-            ))),
+            _ => {
+                Err(DirstateError::BadEntryState(value, HgBacktrace::capture()))
+            }
         }
     }
 }

@@ -22,13 +22,13 @@ use rayon::prelude::*;
 use sha1::Digest;
 use sha1::Sha1;
 
+use crate::dirstate::DirstateError;
 use crate::dirstate::dirstate_map::BorrowedPath;
 use crate::dirstate::dirstate_map::ChildNodesRef;
 use crate::dirstate::dirstate_map::DirstateMap;
 use crate::dirstate::dirstate_map::DirstateVersion;
 use crate::dirstate::dirstate_map::NodeRef;
 use crate::dirstate::entry::TruncatedTimestamp;
-use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::file_patterns::PatternError;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
@@ -163,17 +163,7 @@ pub enum StatusError {
     /// An invalid "ignore" pattern was found
     Pattern(PatternError),
     /// Corrupted dirstate
-    DirstateV2ParseError(DirstateV2ParseError),
-}
-
-impl fmt::Display for StatusError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            StatusError::Path(error) => error.fmt(f),
-            StatusError::Pattern(error) => error.fmt(f),
-            StatusError::DirstateV2ParseError(error) => error.fmt(f),
-        }
-    }
+    Dirstate(DirstateError),
 }
 
 /// Returns the status of the working directory compared to its parent
@@ -432,7 +422,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         &self,
         which: Outcome,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         let path = dirstate_node
             .full_path_borrowed(self.dmap.on_disk)?
             .detach_from_tree();
@@ -497,7 +487,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     fn check_for_outdated_directory_cache(
         &self,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
-    ) -> Result<bool, DirstateV2ParseError> {
+    ) -> Result<bool, DirstateError> {
         if self.ignore_patterns_have_changed == Some(true)
             && dirstate_node.cached_directory_mtime()?.is_some()
         {
@@ -568,7 +558,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         directory_entry: &DirEntry,
         cached_directory_mtime: Option<TruncatedTimestamp>,
         is_at_repo_root: bool,
-    ) -> Result<RecursiveResponse, DirstateV2ParseError> {
+    ) -> Result<RecursiveResponse, DirstateError> {
         let children_set = self.matcher.visit_children_set(directory_hg_path);
         if let VisitChildrenSet::Empty = children_set {
             return Ok(RecursiveResponse {
@@ -739,7 +729,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         fs_entry: &DirEntry,
         dirstate_node: NodeRef<'tree, 'on_disk>,
         has_ignored_ancestor: &'ancestor HasIgnoredAncestor<'ancestor>,
-    ) -> Result<RecursiveResponse, DirstateV2ParseError> {
+    ) -> Result<RecursiveResponse, DirstateError> {
         let outdated_dircache =
             self.check_for_outdated_directory_cache(&dirstate_node)?;
         let hg_path = &dirstate_node.full_path_borrowed(self.dmap.on_disk)?;
@@ -871,7 +861,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         directory_entry: &DirEntry,
         dirstate_node: NodeRef<'tree, 'on_disk>,
         outdated_directory_cache: bool,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         if !children_all_have_dirstate_node_or_are_ignored {
             return Ok(());
         }
@@ -964,7 +954,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         &self,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
         fs_entry: &DirEntry,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         // Keep the low 31 bits
         fn truncate_u64(value: u64) -> i32 {
             (value & 0x7FFF_FFFF) as i32
@@ -1024,7 +1014,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     fn traverse_dirstate_only(
         &self,
         dirstate_node: NodeRef<'tree, 'on_disk>,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         self.check_for_outdated_directory_cache(&dirstate_node)?;
         self.mark_removed_or_deleted_if_file(&dirstate_node)?;
 
@@ -1042,7 +1032,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
     fn mark_removed_or_deleted_if_file(
         &self,
         dirstate_node: &NodeRef<'tree, 'on_disk>,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         if let Some(entry) = dirstate_node.entry()? {
             if !entry.any_tracked() {
                 // Future-compat for when we start storing ignored and unknown

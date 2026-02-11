@@ -9,9 +9,10 @@ use bytes_cast::BytesCast;
 use bytes_cast::unaligned;
 
 use crate::DirstateParents;
+use crate::dirstate::DirstateError;
 use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::EntryState;
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
 use crate::utils::hg_path::HgPath;
 
 /// Parents are stored in the dirstate as byte hashes.
@@ -27,19 +28,19 @@ type ParseResult<'a> = (
 
 pub fn parse_dirstate_parents(
     contents: &[u8],
-) -> Result<&DirstateParents, HgError> {
+) -> Result<&DirstateParents, DirstateError> {
     let contents_len = contents.len();
     let (parents, _rest) =
         DirstateParents::from_bytes(contents).map_err(|_| {
-            HgError::corrupted(format!(
-                "Too little data for dirstate: {contents_len} bytes.",
-            ))
+            DirstateError::TooLittleData(contents_len, HgBacktrace::capture())
         })?;
     Ok(parents)
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
-pub fn parse_dirstate(contents: &[u8]) -> Result<ParseResult<'_>, HgError> {
+pub fn parse_dirstate(
+    contents: &[u8],
+) -> Result<ParseResult<'_>, DirstateError> {
     let mut copies = Vec::new();
     let mut entries = Vec::new();
     let parents =
@@ -69,23 +70,24 @@ pub fn parse_dirstate_entries<'a>(
         &'a HgPath,
         &DirstateEntry,
         Option<&'a HgPath>,
-    ) -> Result<(), HgError>,
-) -> Result<&'a DirstateParents, HgError> {
+    ) -> Result<(), DirstateError>,
+) -> Result<&'a DirstateParents, DirstateError> {
     let mut entry_idx = 0;
     let original_len = contents.len();
     let (parents, rest) =
         DirstateParents::from_bytes(contents).map_err(|_| {
-            HgError::corrupted(format!(
-                "Too little data for dirstate: {} bytes.",
-                original_len
-            ))
+            DirstateError::TooLittleData(original_len, HgBacktrace::capture())
         })?;
     contents = rest;
     while !contents.is_empty() {
-        let (raw_entry, rest) = RawEntry::from_bytes(contents)
-            .map_err(|_| HgError::corrupted(format!(
-            "dirstate corrupted: ran out of bytes at entry header {}, offset {}.",
-            entry_idx, original_len-contents.len())))?;
+        let (raw_entry, rest) =
+            RawEntry::from_bytes(contents).map_err(|_| {
+                DirstateError::IncompleteEntry {
+                    entry_idx,
+                    at_byte: original_len - contents.len(),
+                    backtrace: HgBacktrace::capture(),
+                }
+            })?;
 
         let entry = DirstateEntry::from_v1_data(
             EntryState::try_from(raw_entry.state)?,
@@ -95,12 +97,14 @@ pub fn parse_dirstate_entries<'a>(
         );
         let filename_len = raw_entry.length.get() as usize;
         let (paths, rest) =
-            u8::slice_from_bytes(rest, filename_len)
-                .map_err(|_|
-                HgError::corrupted(format!(
-         "dirstate corrupted: ran out of bytes at entry {}, offset {} (expected {} bytes).",
-              entry_idx, original_len-contents.len(), filename_len))
-                )?;
+            u8::slice_from_bytes(rest, filename_len).map_err(|_| {
+                DirstateError::IncompletePath {
+                    entry_idx,
+                    at_byte: original_len - contents.len(),
+                    expected_len: filename_len,
+                    backtrace: HgBacktrace::capture(),
+                }
+            })?;
 
         // `paths` is either a single path, or two paths separated by a NULL
         // byte

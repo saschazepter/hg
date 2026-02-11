@@ -23,6 +23,7 @@ use pyo3::types::PyTuple;
 use pyo3_sharedref::py_shared_iterator;
 
 use super::dirstate_map::DirstateMap;
+use crate::exceptions::dirstate_error;
 use crate::exceptions::dirstate_v2_error;
 use crate::path::PyHgPathBuf;
 use crate::path::PyHgPathRef;
@@ -48,7 +49,7 @@ impl CopyMap {
         self.with_dirstate_map_read(py, |inner_dsm| {
             inner_dsm
                 .copy_map_get(HgPath::new(key))
-                .map_err(dirstate_v2_error)?
+                .map_err(dirstate_error)?
                 .ok_or_else(|| {
                     PyKeyError::new_err(
                         String::from_utf8_lossy(key).to_string(),
@@ -76,7 +77,7 @@ impl CopyMap {
         self.with_dirstate_map_read(py, |inner_dsm| {
             inner_dsm
                 .copy_map_contains_key(HgPath::new(key))
-                .map_err(dirstate_v2_error)
+                .map_err(dirstate_error)
         })
     }
 
@@ -91,7 +92,7 @@ impl CopyMap {
         self.with_dirstate_map_read(py, |inner_dsm| {
             match inner_dsm
                 .copy_map_get(HgPath::new(key))
-                .map_err(dirstate_v2_error)?
+                .map_err(dirstate_error)?
             {
                 Some(copy) => Ok(Some(
                     PyHgPathRef(copy).into_pyobject(py)?.unbind().into(),
@@ -110,7 +111,7 @@ impl CopyMap {
     ) -> PyResult<Option<Py<PyAny>>> {
         let path = HgPath::new(key.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
-            match inner_dsm.copy_map_remove(path).map_err(dirstate_v2_error)? {
+            match inner_dsm.copy_map_remove(path).map_err(dirstate_error)? {
                 Some(copy) => Ok(Some(
                     PyHgPathBuf(copy).into_pyobject(py)?.unbind().into(),
                 )),
@@ -140,7 +141,7 @@ impl CopyMap {
         let key = HgPath::new(key.as_bytes());
         let value = HgPath::new(value.as_bytes());
         self.with_dirstate_map_write(py, |mut inner_dsm| {
-            inner_dsm.copy_map_insert(key, value).map_err(dirstate_v2_error)
+            inner_dsm.copy_map_insert(key, value).map_err(dirstate_error)
         })?;
         Ok(())
     }

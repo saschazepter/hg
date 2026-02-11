@@ -1368,9 +1368,7 @@ fn update_dirstate(
     if let Some(removals) = removals_receiver {
         for filename in removals.into_iter() {
             removed += 1;
-            dirstate.drop_entry_and_copy_source(filename).map_err(|e| {
-                HgError::abort(e.to_string(), exit_codes::ABORT, None)
-            })?;
+            dirstate.drop_entry_and_copy_source(filename)?;
         }
     }
 
@@ -1459,9 +1457,7 @@ fn update_dirstate(
             // case of update from null
             from_empty: update_kind == UpdateKind::FromNull,
         };
-        let new_entry = dirstate.reset_state(reset).map_err(|e| {
-            HgError::abort(e.to_string(), exit_codes::ABORT, None)
-        })?;
+        let new_entry = dirstate.reset_state(reset)?;
         if new_entry {
             added += 1
         }

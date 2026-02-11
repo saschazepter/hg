@@ -12,6 +12,7 @@ use std::sync::RwLockWriteGuard;
 
 use hg::dirstate::dirs_multiset::DirsMultiset;
 use hg::dirstate::dirs_multiset::DirsMultisetIter;
+use hg::errors::HgError;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
 use pyo3::exceptions::PyTypeError;
@@ -68,7 +69,9 @@ impl Dirs {
     ) -> PyResult<()> {
         let path = HgPath::new(path.as_bytes());
         Self::with_inner_write(slf, |mut inner| {
-            inner.delete_path(path).map_err(to_string_value_error)
+            inner
+                .delete_path(path)
+                .map_err(|e| to_string_value_error(HgError::from(e)))
         })
     }
 
