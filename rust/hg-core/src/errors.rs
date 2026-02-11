@@ -4,6 +4,7 @@ use std::fmt;
 use std::fmt::Write;
 use std::io::ErrorKind;
 use std::path::Path;
+use std::path::PathBuf;
 
 use crate::Node;
 use crate::config::ConfigValueParseError;
@@ -63,6 +64,8 @@ pub enum HgError {
     Path(HgPathError),
     /// An interrupt was received and we need to stop whatever we're doing
     InterruptReceived,
+    /// No repository was found for an operation that required one
+    RepoNotFound { at: PathBuf, backtrace: HgBacktrace },
 }
 
 /// Details about where an I/O error happened
@@ -150,6 +153,13 @@ impl fmt::Display for HgError {
             }
             HgError::Path(hg_path_error) => write!(f, "{}", hg_path_error),
             HgError::InterruptReceived => write!(f, "interrupt received"),
+            HgError::RepoNotFound { at, backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}no repository found in '{}' (.hg not found)!",
+                    at.display()
+                )
+            }
         }
     }
 }
