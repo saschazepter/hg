@@ -173,9 +173,8 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
 
     first_excl_rev = min(censor_revs)
 
-    first_excl_entry = revlog.index[first_excl_rev]
+    data_cutoff = revlog.index.data_chunk_start(first_excl_rev)
     index_cutoff = revlog.index.entry_size * first_excl_rev
-    data_cutoff = first_excl_entry[ENTRY_DATA_OFFSET] >> 16
     sidedata_cutoff = revlog.sidedata_cut_off(first_excl_rev)
 
     with pycompat.unnamedtempfile(mode=b"w+b") as tmp_storage:
