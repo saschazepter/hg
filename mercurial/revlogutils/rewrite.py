@@ -986,23 +986,21 @@ def quick_upgrade(rl):
     )[0]
 
     for filerev in rl:
-        (
-            data_offset_and_flag,
-            data_compressed_length,
-            data_uncompressed_length,
-            delta_base,
-            link_rev,
-            parent_1,
-            parent_2,
-            node_id,
-            side_data_offset,
-            side_data_compressed_length,
-            data_compression_mode,
-            sidedata_compression_mode,
-            rank,
-        ) = index[filerev]
-        flags = data_offset_and_flag & 0xFFFF
-        dataoffset = int(data_offset_and_flag >> 16)
+        flags = index.flags(filerev)
+        dataoffset = index.data_chunk_start(filerev)
+        data_compressed_length = index.data_chunk_length(filerev)
+        data_uncompressed_length = index.raw_size(filerev)
+        delta_base = index.bundle_repo_delta_base(filerev)
+        link_rev = index.linkrev(filerev)
+        parent_1, parent_2 = index.parents(filerev)
+        node_id = index.node(filerev)
+        side_data_offset = index.sidedata_chunk_offset(filerev)
+        side_data_compressed_length = index.sidedata_chunk_length(filerev)
+        data_compression_mode = index.data_chunk_compression_mode(filerev)
+        sidedata_compression_mode = index.sidedata_chunk_compression_mode(
+            filerev
+        )
+        rank = index.lazy_rank(filerev)
 
         if parent_1 == nullrev and parent_2 != nullrev:
             parent_1, parent_2 = parent_2, parent_1
