@@ -395,6 +395,15 @@ impl HgBacktrace {
     }
 }
 
+impl format_bytes::DisplayBytes for HgBacktrace {
+    fn display_bytes(
+        &self,
+        output: &mut dyn std::io::Write,
+    ) -> std::io::Result<()> {
+        output.write_all(self.to_string().as_bytes())
+    }
+}
+
 impl std::fmt::Display for HgBacktrace {
     /// [`Backtrace`] shows messages like `disabled backtrace` when disabled
     /// or with a different status than
