@@ -40,6 +40,7 @@ use self::nodemap_docket::NodeMapDocket;
 use crate::dyn_bytes::DynBytes;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
@@ -335,8 +336,16 @@ pub enum RevlogError {
     WDirUnsupported,
     /// Found more than one entry whose ID match the requested prefix
     AmbiguousPrefix(String),
+    /// Boxed otherwise the enum is very large in memory
+    IO(Box<HgIoError>),
     #[from]
     Other(HgError),
+}
+
+impl From<HgIoError> for RevlogError {
+    fn from(value: HgIoError) -> Self {
+        Self::IO(Box::new(value))
+    }
 }
 
 impl From<(NodeMapError, String)> for RevlogError {

@@ -345,6 +345,7 @@ impl From<RevlogError> for HgError {
                 r
             )),
             RevlogError::Other(error) => error,
+            RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
         }
     }
 }
