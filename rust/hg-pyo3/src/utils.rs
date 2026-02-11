@@ -406,9 +406,7 @@ where
 {
     fn into_pyerr(self, py: Python) -> PyResult<T> {
         self.map_err(|e| match e.into() {
-            err @ HgError::IoError { .. } => {
-                PyIOError::new_err(err.to_string())
-            }
+            err @ HgError::IO(_) => PyIOError::new_err(err.to_string()),
             err @ HgError::UnsupportedFeature(..) => {
                 FallbackError::new_err(err.to_string())
             }

@@ -523,7 +523,7 @@ impl Repo {
             let contents = self.hg_vfs().read(docket.data_filename());
             let contents = match contents {
                 Ok(c) => c,
-                Err(HgError::IoError { error, context, backtrace }) => {
+                Err(HgError::IO(error)) => {
                     match error.raw_os_error().expect("real os error") {
                         // 2 = ENOENT, No such file or directory
                         // 116 = ESTALE, Stale NFS file handle
@@ -536,12 +536,7 @@ impl Repo {
                             return Err(race_error.into());
                         }
                         _ => {
-                            return Err(HgError::IoError {
-                                error,
-                                context,
-                                backtrace,
-                            }
-                            .into());
+                            return Err(HgError::from(error).into());
                         }
                     }
                 }

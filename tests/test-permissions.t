@@ -36,7 +36,7 @@
   $ echo barber > a
 #if rust
   $ hg commit -m "2"
-  abort: abort: when writing $TESTTMP/t/.hg/store/data/a.i: $EACCES$
+  abort: when writing $TESTTMP/t/.hg/store/data/a.i: $EACCES$
   [50]
 #else
   $ hg commit -m "2"

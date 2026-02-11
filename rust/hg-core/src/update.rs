@@ -1259,9 +1259,9 @@ fn working_copy_worker<'a: 'b, 'b>(
                 // Give an error message instead of a traceback in the case
                 // where the conflicting unknown directory is not empty
                 match &err {
-                    HgError::IoError { error, .. }
+                    HgError::IO(error)
                         if error.kind()
-                            == std::io::ErrorKind::DirectoryNotEmpty =>
+                            == Some(std::io::ErrorKind::DirectoryNotEmpty) =>
                     {
                         let msg = format!(
                             "conflicting unknown directory '{}' is not empty",

@@ -1211,19 +1211,13 @@ impl InnerRevlog {
                     }
                     f
                 }
-                Err(e) => match e {
-                    HgError::IoError { error, context, backtrace } => {
-                        if error.kind() != ErrorKind::NotFound {
-                            return Err(HgError::IoError {
-                                error,
-                                context,
-                                backtrace,
-                            });
-                        }
-                        self.vfs.create(&self.data_file, true)?
+                Err(HgError::IO(err)) => {
+                    if err.kind() != Some(ErrorKind::NotFound) {
+                        return Err(err.into());
                     }
-                    e => return Err(e),
-                },
+                    self.vfs.create(&self.data_file, true)?
+                }
+                Err(err) => return Err(err),
             };
             transaction.add(&self.data_file, data_size);
             Some(FileHandle::from_file(
@@ -1289,33 +1283,27 @@ impl InnerRevlog {
                     )
                 })
             }
-            Err(e) => match e {
-                HgError::IoError { error, context, backtrace } => {
-                    if error.kind() != ErrorKind::NotFound {
-                        return Err(HgError::IoError {
-                            error,
-                            context,
-                            backtrace,
-                        });
-                    };
-                    if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
-                        FileHandle::new_delayed(
-                            dyn_clone::clone_box(&*self.vfs),
-                            &self.index_file,
-                            true,
-                            delayed_buffer.clone(),
-                        )
-                    } else {
-                        FileHandle::new(
-                            dyn_clone::clone_box(&*self.vfs),
-                            &self.index_file,
-                            true,
-                            true,
-                        )
-                    }
+            Err(HgError::IO(err)) => {
+                if err.kind() != Some(ErrorKind::NotFound) {
+                    return Err(err.into());
+                };
+                if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
+                    Ok(FileHandle::new_delayed(
+                        dyn_clone::clone_box(&*self.vfs),
+                        &self.index_file,
+                        true,
+                        delayed_buffer.clone(),
+                    )?)
+                } else {
+                    Ok(FileHandle::new(
+                        dyn_clone::clone_box(&*self.vfs),
+                        &self.index_file,
+                        true,
+                        true,
+                    )?)
                 }
-                e => Err(e),
-            },
+            }
+            Err(err) => Err(err),
         }
     }
 

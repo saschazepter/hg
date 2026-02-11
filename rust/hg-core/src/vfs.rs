@@ -119,8 +119,8 @@ impl VfsImpl {
     ) -> Result<Option<Vec<u8>>, HgError> {
         match self.read(relative_path) {
             Err(e) => match &e {
-                HgError::IoError { error, .. } => match error.kind() {
-                    ErrorKind::NotFound => Ok(None),
+                HgError::IO(error) => match error.kind() {
+                    Some(ErrorKind::NotFound) => Ok(None),
                     _ => Err(e),
                 },
                 _ => Err(e),

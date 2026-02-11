@@ -401,8 +401,8 @@ mod tests {
         assert_eq!(&raf.filename, &filename);
         // Should fail to read a non-existing file
         match raf.get_read_handle().unwrap_err() {
-            HgError::IoError { error, .. } => match error.kind() {
-                std::io::ErrorKind::NotFound => {}
+            HgError::IO(error) => match error.kind() {
+                Some(std::io::ErrorKind::NotFound) => {}
                 _ => panic!("should be not found"),
             },
             e => panic!("{}", e.to_string()),

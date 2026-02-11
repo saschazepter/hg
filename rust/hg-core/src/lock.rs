@@ -36,8 +36,8 @@ pub fn try_with_lock_no_wait<R>(
                 unlock(hg_vfs, lock_filename)?;
                 return Ok(result);
             }
-            Err(HgError::IoError { error, .. })
-                if error.kind() == ErrorKind::AlreadyExists =>
+            Err(HgError::IO(error))
+                if error.kind() == Some(ErrorKind::AlreadyExists) =>
             {
                 let lock_data = read_lock(hg_vfs, lock_filename)?;
                 if lock_data.is_none() {

@@ -15,11 +15,9 @@ use crate::utils::hg_path::HgPathError;
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]
 pub enum HgError {
-    IoError {
-        error: std::io::Error,
-        context: IoErrorContext,
-        backtrace: HgBacktrace,
-    },
+    /// A low-level IO error
+    #[from]
+    IO(HgIoError),
 
     /// A file under `.hg/` normally only written by Mercurial is not in the
     /// expected format. This indicates a bug in Mercurial, filesystem
@@ -130,9 +128,7 @@ impl fmt::Display for HgError {
             HgError::Abort { message, backtrace, .. } => {
                 write!(f, "{}{}", backtrace, message)
             }
-            HgError::IoError { error, context, backtrace } => {
-                write!(f, "{}abort: {}: {}", backtrace, context, error)
-            }
+            HgError::IO(io_err) => io_err.fmt(f),
             HgError::CorruptedRepository(explanation, backtrace) => {
                 write!(f, "{}{}", backtrace, explanation)
             }
@@ -252,7 +248,7 @@ impl std::fmt::Display for HgIoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             HgIoError::IO { kind, context, backtrace, raw_os_error: _ } => {
-                write!(f, "{}{}: {}", backtrace, context, kind)
+                write!(f, "{}abort: {}: {}", backtrace, context, kind)
             }
             HgIoError::WriteAttemptInReadonlyVfs(backtrace) => {
                 write!(
@@ -303,10 +299,8 @@ impl<T> IoResultExt<T> for std::io::Result<T> {
         self,
         context: impl FnOnce() -> IoErrorContext,
     ) -> Result<T, HgError> {
-        self.map_err(|error| HgError::IoError {
-            error,
-            context: context(),
-            backtrace: HgBacktrace::capture(),
+        self.map_err(|error| {
+            HgError::IO(HgIoError::from_os_error(error, context()))
         })
     }
 }
@@ -326,8 +320,8 @@ impl<T> HgResultExt<T> for Result<T, HgError> {
     fn io_not_found_as_none(self) -> Result<Option<T>, HgError> {
         match self {
             Ok(x) => Ok(Some(x)),
-            Err(HgError::IoError { error, .. })
-                if error.kind() == std::io::ErrorKind::NotFound =>
+            Err(HgError::IO(error))
+                if error.kind() == Some(std::io::ErrorKind::NotFound) =>
             {
                 Ok(None)
             }

@@ -3,6 +3,7 @@ use std::fmt::Display;
 use hg::UncheckedRevision;
 use hg::dirstate::DirstateError;
 use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::errors::HgError;
 use hg::revlog::RevlogError;
 use hg::revlog::nodemap::NodeMapError;
 use pyo3::PyErr;
@@ -60,19 +61,28 @@ pub fn to_string_value_error<T: Display>(e: T) -> PyErr {
 }
 
 pub mod mercurial_py_errors {
+    pyo3::import_exception!(mercurial.error, RustRevlogError);
     pyo3::import_exception!(mercurial.error, RevlogError);
 }
 
-pub fn revlog_error_from_msg(e: impl ToString) -> PyErr {
-    mercurial_py_errors::RevlogError::new_err(e.to_string().into_bytes())
+pub fn revlog_error_from_io(err: impl Into<HgError>) -> PyErr {
+    let hg_error = err.into();
+    match hg_error {
+        HgError::IO(err) => {
+            mercurial_py_errors::RustRevlogError::new_err(err.to_string())
+        }
+        // Still handle other cases in case we're missing anything. This
+        // should get cleaned up along the rest of the error refactor.
+        _ => mercurial_py_errors::RevlogError::new_err(hg_error.to_string()),
+    }
 }
 
 pub fn revlog_error_bare() -> PyErr {
-    mercurial_py_errors::RevlogError::new_err(("None",))
+    mercurial_py_errors::RustRevlogError::new_err(("None",))
 }
 
 pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
-    mercurial_py_errors::RevlogError::new_err(revlog_error.to_string())
+    mercurial_py_errors::RustRevlogError::new_err(revlog_error.to_string())
 }
 
 pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {
@@ -82,7 +92,7 @@ pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {
 pub fn nodemap_error(err: NodeMapError) -> PyErr {
     match err {
         NodeMapError::MultipleResults => {
-            mercurial_py_errors::RevlogError::new_err("")
+            mercurial_py_errors::RustRevlogError::new_err("")
         }
 
         NodeMapError::RevisionNotInIndex(rev) => {

@@ -429,7 +429,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         &to_check.path,
                         filelog_open_options,
                     ) {
-                        Err(HgError::IoError { .. }) => {
+                        Err(HgError::IO(_)) => {
                             // IO errors most likely stem from the file being
                             // deleted even though we know it's in the
                             // dirstate.
@@ -606,7 +606,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     let fs_metadata = match metadata_res {
                         Ok(meta) => meta,
                         Err(err) => match err {
-                            HgError::IoError { .. } => {
+                            HgError::IO(_) => {
                                 // The file has probably been deleted. In any
                                 // case, it was in the dirstate before, so
                                 // let's ignore the error.
@@ -643,8 +643,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             // process releases the lock.
             tracing::info!("not writing dirstate from `status`: lock is held")
         }
-        Err(LockError::Other(HgError::IoError { error, .. }))
-            if error.kind() == io::ErrorKind::PermissionDenied
+        Err(LockError::Other(HgError::IO(error)))
+            if error.kind() == Some(io::ErrorKind::PermissionDenied)
                 || match error.raw_os_error() {
                     None => false,
                     Some(errno) => libc::EROFS == errno,

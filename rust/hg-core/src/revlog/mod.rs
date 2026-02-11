@@ -711,18 +711,10 @@ pub fn open_index(
             buf.unwrap()
         }
         Err(err) => match err {
-            HgError::IoError { error, context, backtrace } => {
-                match error.kind() {
-                    ErrorKind::NotFound => DynBytes::default(),
-                    _ => {
-                        return Err(HgError::IoError {
-                            error,
-                            context,
-                            backtrace,
-                        });
-                    }
-                }
-            }
+            HgError::IO(error) => match error.kind() {
+                Some(ErrorKind::NotFound) => DynBytes::default(),
+                _ => return Err(HgError::IO(error)),
+            },
             e => return Err(e),
         },
     };
