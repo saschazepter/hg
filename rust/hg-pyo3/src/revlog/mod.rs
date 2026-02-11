@@ -1019,6 +1019,13 @@ impl InnerRevlog {
         Ok(0)
     }
 
+    fn _index_sidedata_chunk_compression_mode(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u8> {
+        Ok(IDX_COMPRESSION_INLINE)
+    }
+
     /// return the rank of <rev> if known
     ///
     /// return `revlog_constants.RANK_UNKNOWN` otherwise.

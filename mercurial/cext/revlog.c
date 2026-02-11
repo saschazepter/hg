@@ -428,7 +428,7 @@ static PyObject *index_py_data_chunk_compression_mode(indexObject *self,
 		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
 		return NULL;
 	}
-	if (self->format_version == format_v1) {
+	if (self->format_version == format_v1 || rev == nullrev) {
 		value = comp_mode_inline;
 	} else {
 		data = index_deref(self, rev);
@@ -508,6 +508,41 @@ static PyObject *index_py_sidedata_chunk_length(indexObject *self,
 		}
 	}
 	return PyLong_FromLong(value);
+}
+
+static PyObject *index_py_sidedata_chunk_compression_mode(indexObject *self,
+                                                          PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	char value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_v1 || rev == nullrev) {
+		value = comp_mode_inline;
+	} else {
+		data = index_deref(self, rev);
+		if (data == NULL) {
+			return NULL;
+		}
+		if (self->format_version == format_v2) {
+			/* The bits 2 and 3 encode the compression of the
+			 * sidedata-chunk */
+			value = (data[entry_v2_offset_all_comp_mode] >> 2) & 3;
+		} else if (self->format_version == format_cl2) {
+			/* The bits 2 and 3 encode the compression of the
+			 * sidedata-chunk */
+			value = (data[entry_cl2_offset_all_comp_mode] >> 2) & 3;
+		}
+	}
+	return Py_BuildValue("B", value);
 }
 
 static PyObject *index_py_lazy_rank(indexObject *self, PyObject *py_rev)
@@ -3874,6 +3909,9 @@ static PyMethodDef index_methods[] = {
      METH_O, "return the offset for the sidedata chunk of a revision"},
     {"sidedata_chunk_length", (PyCFunction)index_py_sidedata_chunk_length,
      METH_O, "return the on-disk length of the sidedata chunk of a revision"},
+    {"sidedata_chunk_compression_mode",
+     (PyCFunction)index_py_sidedata_chunk_compression_mode, METH_O,
+     "return the compression-mode for the sidedata as a revision"},
     {"lazy_rank", (PyCFunction)index_py_lazy_rank, METH_O,
      "return the rank of a revision (if known)"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,

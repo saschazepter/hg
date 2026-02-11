@@ -748,6 +748,10 @@ class BaseIndexObject:
         """the offset of the sidedata chunk if any"""
         return self[rev][9]
 
+    def sidedata_chunk_compression_mode(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return self[rev][11]
+
     def lazy_rank(self, rev):
         """return the rank of <rev> if known
 
