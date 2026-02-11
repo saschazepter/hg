@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fs::File;
 use std::fs::Metadata;
 use std::fs::OpenOptions;
@@ -316,6 +317,13 @@ impl VfsFile {
         match self {
             VfsFile::Atomic(atomic_file) => atomic_file.fp.metadata(),
             VfsFile::Normal { file, .. } => file.metadata(),
+        }
+    }
+
+    pub fn path(&self) -> Cow<'_, Path> {
+        match self {
+            VfsFile::Atomic(atomic_file) => atomic_file.target().into(),
+            VfsFile::Normal { path, .. } => path.into(),
         }
     }
 }
