@@ -2,6 +2,7 @@ use std::backtrace::Backtrace;
 use std::backtrace::BacktraceStatus;
 use std::fmt;
 use std::fmt::Write;
+use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::Node;
@@ -190,6 +191,78 @@ impl fmt::Display for IoErrorContext {
             }
             IoErrorContext::CurrentExe => {
                 write!(f, "error getting current executable")
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum HgIoError {
+    /// General IO error
+    IO {
+        /// The underlying raw os error code, if present
+        raw_os_error: Option<i32>,
+        /// The underlying os [`ErrorKind`], which is redundant with
+        /// `raw_os_error`, but it's easier to reason with. There are still
+        /// some common error codes that don't map to a specific kind,
+        /// unfortunately, https://github.com/rust-lang/rust/issues/86442.
+        kind: ErrorKind,
+        /// What operation led to this error (reading this file, etc.)
+        context: IoErrorContext,
+        /// Backtrace information for debugging
+        backtrace: HgBacktrace,
+    },
+    /// Attempted to write in a readonly VFS, along with the backtrace
+    WriteAttemptInReadonlyVfs(HgBacktrace),
+    /// A lock has non-UTF8 information, along with the backtrace
+    NonUTF8Lock(HgBacktrace),
+}
+
+impl HgIoError {
+    /// Create a `HgIoError` from a stdlib error + some context
+    pub fn from_os_error(err: std::io::Error, context: IoErrorContext) -> Self {
+        Self::IO {
+            raw_os_error: err.raw_os_error(),
+            kind: err.kind(),
+            context,
+            backtrace: HgBacktrace::capture(),
+        }
+    }
+
+    /// Return the underlying raw os error, if applicable
+    pub fn raw_os_error(&self) -> Option<i32> {
+        match self {
+            HgIoError::IO { raw_os_error, .. } => *raw_os_error,
+            _ => None,
+        }
+    }
+
+    /// Return the underlying os error kind, if applicable
+    pub fn kind(&self) -> Option<ErrorKind> {
+        match self {
+            HgIoError::IO { kind, .. } => Some(*kind),
+            _ => None,
+        }
+    }
+}
+
+// TODO remove this once all users have their Display impls removed
+// Only top-level code (like `rhg` or `hg-pyo3`) should care about this
+impl std::fmt::Display for HgIoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HgIoError::IO { kind, context, backtrace, raw_os_error: _ } => {
+                write!(f, "{}{}: {}", backtrace, context, kind)
+            }
+            HgIoError::WriteAttemptInReadonlyVfs(backtrace) => {
+                write!(
+                    f,
+                    "{}abort: attempted write in a readonly vfs",
+                    backtrace
+                )
+            }
+            HgIoError::NonUTF8Lock(backtrace) => {
+                write!(f, "{}abort: lock contains non-UTF8 bytes", backtrace)
             }
         }
     }
