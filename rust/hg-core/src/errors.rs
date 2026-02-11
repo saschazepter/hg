@@ -134,7 +134,7 @@ impl fmt::Display for HgError {
                 write!(f, "{}abort: {}: {}", backtrace, context, error)
             }
             HgError::CorruptedRepository(explanation, backtrace) => {
-                write!(f, "{}abort: {}", backtrace, explanation)
+                write!(f, "{}{}", backtrace, explanation)
             }
             HgError::UnsupportedFeature(explanation, backtrace) => {
                 write!(f, "{}unsupported feature: {}", backtrace, explanation)
@@ -340,14 +340,14 @@ impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
             RevlogError::WDirUnsupported => HgError::abort_simple(
-                "abort: working directory revision cannot be specified",
+                "working directory revision cannot be specified",
             ),
             RevlogError::InvalidRevision(r) => HgError::abort_simple(format!(
-                "abort: invalid revision identifier: {}",
+                "invalid revision identifier: {}",
                 r
             )),
             RevlogError::AmbiguousPrefix(r) => HgError::abort_simple(format!(
-                "abort: ambiguous revision identifier: {}",
+                "ambiguous revision identifier: {}",
                 r
             )),
             RevlogError::Other(error) => error,

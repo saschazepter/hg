@@ -120,9 +120,17 @@ impl From<HgError> for CommandError {
             }
             HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
                 CommandError::abort_with_exit_code_and_hint(
-                    message,
+                    format!("abort: {}", message),
                     detailed_exit_code,
                     hint,
+                    backtrace,
+                )
+            }
+            HgError::CorruptedRepository(message, backtrace) => {
+                CommandError::abort_with_exit_code_and_hint(
+                    format!("abort: {}", message),
+                    exit_codes::ABORT,
+                    None::<String>,
                     backtrace,
                 )
             }

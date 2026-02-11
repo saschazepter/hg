@@ -110,7 +110,7 @@ pub fn store_patterns(
     )?;
     if store_patterns != working_copy_patterns {
         return Err(HgError::abort(
-            "abort: working copy's narrowspec is stale",
+            "working copy's narrowspec is stale",
             exit_codes::STATE_ERROR,
             Some("run 'hg tracked --update-working-copy'".into()),
         ));

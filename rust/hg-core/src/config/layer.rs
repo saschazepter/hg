@@ -80,8 +80,8 @@ impl ConfigLayer {
             } else {
                 Err(HgError::abort(
                     format!(
-                        "abort: malformed --config option: '{}' \
-                    (use --config section.name=value)",
+                        "malformed --config option: '{}' \
+                        (use --config section.name=value)",
                         String::from_utf8_lossy(arg),
                     ),
                     CONFIG_PARSE_ERROR_ABORT,
