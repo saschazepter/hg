@@ -907,7 +907,7 @@ class _InnerRevlog:
             if uncomp is not None:
                 return uncomp
 
-        compression_mode = self.index[rev][10]
+        compression_mode = self.index.data_chunk_compression_mode(rev)
         data = self.get_segment_for_revs(rev, rev)[1]
         if compression_mode == COMP_MODE_PLAIN:
             uncomp = data
@@ -993,7 +993,7 @@ class _InnerRevlog:
                 if inline:
                     chunkstart += (rev + 1) * iosize
                 chunklength = length(rev)
-                comp_mode = self.index[rev][10]
+                comp_mode = self.index.data_chunk_compression_mode(rev)
                 c = buffer(data, chunkstart - offset, chunklength)
                 if comp_mode == COMP_MODE_PLAIN:
                     c = c
