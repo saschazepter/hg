@@ -3013,7 +3013,7 @@ class revlog:
         No decompression is performed, but the applicable compression header is
         returned.
         """
-        comp_mode = self.index[rev][10]
+        comp_mode = self.index.data_chunk_compression_mode(rev)
         full_chunk = self._inner.get_segment_for_revs(rev, rev)[1]
         # note: we can blindy reuse the compression during
         # `_clone`, because if we can read the source revlog it
