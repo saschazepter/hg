@@ -16,9 +16,10 @@ use format_bytes::join;
 use hg::config::Config;
 use hg::config::ConfigSource;
 use hg::config::PlainInfo;
+use hg::errors::HgBacktrace;
+use hg::errors::HgError;
 use hg::exit_codes;
 use hg::repo::Repo;
-use hg::repo::RepoError;
 use hg::requirements;
 use hg::utils::files::get_path_from_bytes;
 use hg::utils::strings::SliceExt;
@@ -344,9 +345,9 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned()) {
         Ok(repo) => Ok(repo),
-        Err(RepoError::NotFound { at }) if repo_path.is_none() => {
+        Err(HgError::RepoNotFound { at, backtrace }) if repo_path.is_none() => {
             // Not finding a repo is not fatal yet, if `-R` was not given
-            Err(NoRepoInCwdError { cwd: at })
+            Err(NoRepoInCwdError { cwd: at, backtrace })
         }
         Err(error) => early_exit(&non_repo_config, error.into()),
     };
@@ -831,6 +832,7 @@ pub struct CliInvocation<'a> {
 
 struct NoRepoInCwdError {
     cwd: PathBuf,
+    backtrace: HgBacktrace,
 }
 
 /// CLI arguments to be parsed "early" in order to be able to read

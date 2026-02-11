@@ -91,7 +91,8 @@ However, we can't prevent it from loading extensions and configs:
   $ mkdir -p badrepo/.hg
   $ echo 'invalid-syntax' > badrepo/.hg/hgrc
   $ hg log -b -Rbadrepo default
-  config error at badrepo/.hg/hgrc:1: invalid-syntax
+  config error at badrepo/.hg/hgrc:1: invalid-syntax (no-rhg !)
+  abort: config error at badrepo/.hg/hgrc:1: invalid-syntax (rhg !)
   [30]
 
   $ hg log -b --cwd=inexistent default

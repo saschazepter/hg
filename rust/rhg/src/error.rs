@@ -14,7 +14,6 @@ use hg::errors::HgIoError;
 use hg::exit_codes;
 use hg::file_patterns::PatternError;
 use hg::narrow::shape;
-use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
@@ -141,6 +140,16 @@ impl From<HgError> for CommandError {
                     backtrace,
                 )
             }
+            HgError::RepoNotFound { at, backtrace } => {
+                CommandError::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"{}abort: repository {} not found",
+                        backtrace,
+                        get_bytes_from_path(at)
+                    ),
+                    exit_codes::ABORT,
+                )
+            }
             _ => CommandError::abort(error.to_string()),
         }
     }
@@ -170,31 +179,13 @@ impl From<UiError> for CommandError {
     }
 }
 
-impl From<RepoError> for CommandError {
-    fn from(error: RepoError) -> Self {
-        match error {
-            RepoError::NotFound { at } => {
-                CommandError::abort_with_exit_code_bytes(
-                    format_bytes!(
-                        b"abort: repository {} not found",
-                        get_bytes_from_path(at)
-                    ),
-                    exit_codes::ABORT,
-                )
-            }
-            RepoError::ConfigParseError(error) => error.into(),
-            RepoError::Other(error) => error.into(),
-            RepoError::IO(error) => error.into(),
-        }
-    }
-}
-
 impl<'a> From<&'a NoRepoInCwdError> for CommandError {
     fn from(error: &'a NoRepoInCwdError) -> Self {
-        let NoRepoInCwdError { cwd } = error;
+        let NoRepoInCwdError { cwd, backtrace } = error;
         CommandError::abort_with_exit_code_bytes(
             format_bytes!(
-                b"abort: no repository found in '{}' (.hg not found)!",
+                b"{}abort: no repository found in '{}' (.hg not found)!",
+                backtrace,
                 get_bytes_from_path(cwd)
             ),
             exit_codes::ABORT,

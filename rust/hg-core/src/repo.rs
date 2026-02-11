@@ -11,8 +11,6 @@ use std::path::PathBuf;
 use crate::NodePrefix;
 use crate::UncheckedRevision;
 use crate::config::Config;
-use crate::config::ConfigError;
-use crate::config::ConfigParseError;
 use crate::dirstate::DirstateError;
 use crate::dirstate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateIdentity;
@@ -20,8 +18,8 @@ use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::on_disk::Docket as DirstateDocket;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::status::IgnoreFnType;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
@@ -70,61 +68,16 @@ pub struct Repo {
     manifestlog: LazyCell<Manifestlog>,
 }
 
-#[derive(Debug, derive_more::From)]
-pub enum RepoError {
-    NotFound {
-        at: PathBuf,
-    },
-    #[from]
-    ConfigParseError(ConfigParseError),
-    #[from]
-    Other(HgError),
-    #[from]
-    IO(HgIoError),
-}
-
-impl From<ConfigError> for RepoError {
-    fn from(error: ConfigError) -> Self {
-        match error {
-            ConfigError::Parse(error) => error.into(),
-            ConfigError::Other(error) => error.into(),
-            ConfigError::IO(error) => error.into(),
-        }
-    }
-}
-
-impl From<RepoError> for HgError {
-    fn from(value: RepoError) -> Self {
-        match value {
-            RepoError::NotFound { at } => HgError::abort(
-                format!(
-                    "abort: no repository found in '{}' (.hg not found)!",
-                    at.display()
-                ),
-                exit_codes::ABORT,
-                None,
-            ),
-            RepoError::ConfigParseError(config_parse_error) => {
-                HgError::abort_simple(String::from_utf8_lossy(
-                    &config_parse_error.message,
-                ))
-            }
-            RepoError::Other(hg_error) => hg_error,
-            RepoError::IO(hg_io_error) => hg_io_error.into(),
-        }
-    }
-}
-
 impl Repo {
     /// tries to find nearest repository root in current working directory or
     /// its ancestors
-    pub fn find_repo_root() -> Result<PathBuf, RepoError> {
+    pub fn find_repo_root() -> Result<PathBuf, HgError> {
         let current_directory = crate::utils::current_dir()?;
         Repo::find_repo_root_from(&current_directory)
     }
 
     /// tries to find nearest repository root from a given path
-    pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, RepoError> {
+    pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, HgError> {
         // ancestors() is inclusive: it first yields `patn`
         // as-is.
         for ancestor in path.ancestors() {
@@ -132,7 +85,10 @@ impl Repo {
                 return Ok(ancestor.to_path_buf());
             }
         }
-        Err(RepoError::NotFound { at: path.to_path_buf() })
+        Err(HgError::RepoNotFound {
+            at: path.to_path_buf(),
+            backtrace: HgBacktrace::capture(),
+        })
     }
 
     /// Find a repository, either at the given path (which must contain a `.hg`
@@ -146,14 +102,17 @@ impl Repo {
     pub fn find(
         config: &Config,
         explicit_path: Option<PathBuf>,
-    ) -> Result<Self, RepoError> {
+    ) -> Result<Self, HgError> {
         if let Some(root) = explicit_path {
             if is_dir(root.join(".hg"))? {
                 Self::new_at_path(root, config)
             } else if is_file(&root)? {
-                Err(HgError::unsupported("bundle repository").into())
+                Err(HgError::unsupported("bundle repository"))
             } else {
-                Err(RepoError::NotFound { at: root })
+                Err(HgError::RepoNotFound {
+                    at: root,
+                    backtrace: HgBacktrace::capture(),
+                })
             }
         } else {
             let root = Self::find_repo_root()?;
@@ -165,7 +124,7 @@ impl Repo {
     fn new_at_path(
         working_directory: PathBuf,
         config: &Config,
-    ) -> Result<Self, RepoError> {
+    ) -> Result<Self, HgError> {
         let dot_hg = working_directory.join(".hg");
 
         let mut repo_config_files =
@@ -206,8 +165,7 @@ impl Repo {
                 return Err(HgError::corrupted(format!(
                     ".hg/sharedpath points to nonexistent directory {}",
                     shared_path.display()
-                ))
-                .into());
+                )));
             }
 
             store_path = shared_path.join("store");
@@ -220,7 +178,7 @@ impl Repo {
             .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
-                return Err(HgError::unsupported("share-safe mismatch").into());
+                return Err(HgError::unsupported("share-safe mismatch"));
             }
 
             if share_safe {
