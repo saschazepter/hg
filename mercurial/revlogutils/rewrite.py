@@ -248,24 +248,24 @@ def _precompute_rewritten_delta(
                 # this revision will be preserved as is, so we don't need to
                 # consider recomputing a delta.
                 continue
-            entry = old_index[rev]
-            if entry[ENTRY_DELTA_BASE] not in excluded_revs:
+            if old_index.delta_base(rev) not in excluded_revs:
                 continue
             # This is a revision that use the censored revision as the base
             # for its delta. We need a need new deltas
-            if entry[ENTRY_DATA_UNCOMPRESSED_LENGTH] == 0:
+            if old_index.raw_size(rev) == 0:
                 # this revision is empty, we can delta against nullrev
                 rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
             else:
                 text = revlog.rawdata(rev)
+                p1, p2 = old_index.parents(rev)
                 info = revlogutils.revisioninfo(
-                    node=entry[ENTRY_NODE_ID],
-                    p1=revlog.node(entry[ENTRY_PARENT_1]),
-                    p2=revlog.node(entry[ENTRY_PARENT_2]),
+                    node=old_index.node(rev),
+                    p1=old_index.node(p1),
+                    p2=old_index.node(p2),
                     btext=text,
                     textlen=len(text),
                     cachedelta=None,
-                    flags=entry[ENTRY_DATA_OFFSET] & 0xFFFF,
+                    flags=old_index.flags(rev),
                 )
                 d = dc.finddeltainfo(
                     info, excluded_bases=excluded_revs, target_rev=rev
