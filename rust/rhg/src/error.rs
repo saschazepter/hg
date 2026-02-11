@@ -121,6 +121,8 @@ impl From<HgError> for CommandError {
             HgError::UnsupportedFeature(message, backtrace) => {
                 CommandError::unsupported(format!("{}{}", backtrace, message))
             }
+            // explicit because some patterns lead to falling back
+            HgError::Pattern(pat) => pat.into(),
             e @ HgError::CensoredNodeError(_, _) => {
                 CommandError::unsupported(format!("abort: {}", e))
             }

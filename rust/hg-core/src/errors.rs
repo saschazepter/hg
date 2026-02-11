@@ -9,7 +9,9 @@ use std::path::PathBuf;
 use crate::Node;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
+use crate::dirstate::status::StatusError;
 use crate::exit_codes;
+use crate::file_patterns::PatternError;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
 
@@ -57,6 +59,10 @@ pub enum HgError {
 
     /// Censored revision data.
     CensoredNodeError(Node, HgBacktrace),
+    /// An error occured in the dirstate
+    Dirstate(Box<DirstateError>),
+    #[from]
+    Pattern(PatternError),
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
@@ -66,6 +72,27 @@ pub enum HgError {
     InterruptReceived,
     /// No repository was found for an operation that required one
     RepoNotFound { at: PathBuf, backtrace: HgBacktrace },
+}
+
+impl From<StatusError> for HgError {
+    fn from(value: StatusError) -> Self {
+        match value {
+            StatusError::Path(err) => HgError::Path(err),
+            StatusError::Pattern(err) => HgError::Pattern(err),
+            StatusError::DirstateV2ParseError(dirstate_v2_parse_error) => {
+                Self::Dirstate(Box::new(dirstate_v2_parse_error.into()))
+            }
+        }
+    }
+}
+
+impl From<DirstateError> for HgError {
+    fn from(value: DirstateError) -> Self {
+        match value {
+            DirstateError::Map(_) => Self::Dirstate(Box::new(value)),
+            DirstateError::Common(hg_error) => hg_error,
+        }
+    }
 }
 
 /// Details about where an I/O error happened
@@ -160,6 +187,8 @@ impl fmt::Display for HgError {
                     at.display()
                 )
             }
+            HgError::Dirstate(dirstate_error) => dirstate_error.fmt(f),
+            HgError::Pattern(pattern_error) => pattern_error.fmt(f),
         }
     }
 }
@@ -352,17 +381,6 @@ impl From<RevlogError> for HgError {
             )),
             RevlogError::Other(error) => error,
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
-        }
-    }
-}
-
-impl From<DirstateError> for HgError {
-    fn from(value: DirstateError) -> Self {
-        match value {
-            DirstateError::Map(err) => {
-                HgError::abort_simple(format!("dirstate error: {err}"))
-            }
-            DirstateError::Common(err) => err,
         }
     }
 }

@@ -804,15 +804,12 @@ impl Repo {
         &self,
         warnings: &HgWarningSender,
     ) -> Result<IgnoreFnType<'_>, HgError> {
-        get_ignore_function(
+        Ok(get_ignore_function(
             get_ignore_files(self),
             self.working_directory_path(),
             &mut |_, _| (),
             warnings,
-        )
-        .map_err(|e| {
-            HgError::abort(e.to_string(), exit_codes::CONFIG_ERROR_ABORT, None)
-        })
+        )?)
     }
 
     /// Change the current working directory parents cached in the repo.
