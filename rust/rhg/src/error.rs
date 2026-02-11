@@ -10,6 +10,7 @@ use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::status::StatusError;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
+use hg::errors::HgIoError;
 use hg::exit_codes;
 use hg::file_patterns::PatternError;
 use hg::narrow::shape;
@@ -44,6 +45,12 @@ pub enum CommandError {
     /// The fallback executable does not exist (or has some other problem if
     /// we end up being more precise about broken fallbacks).
     InvalidFallback { path: Vec<u8>, err: String },
+}
+
+impl From<HgIoError> for CommandError {
+    fn from(value: HgIoError) -> Self {
+        HgError::from(value).into()
+    }
 }
 
 impl CommandError {
@@ -177,6 +184,7 @@ impl From<RepoError> for CommandError {
             }
             RepoError::ConfigParseError(error) => error.into(),
             RepoError::Other(error) => error.into(),
+            RepoError::IO(error) => error.into(),
         }
     }
 }
@@ -199,6 +207,7 @@ impl From<ConfigError> for CommandError {
         match error {
             ConfigError::Parse(error) => error.into(),
             ConfigError::Other(error) => error.into(),
+            ConfigError::IO(error) => error.into(),
         }
     }
 }

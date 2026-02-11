@@ -21,6 +21,7 @@ use crate::dirstate::on_disk::Docket as DirstateDocket;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::status::IgnoreFnType;
 use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
@@ -78,6 +79,8 @@ pub enum RepoError {
     ConfigParseError(ConfigParseError),
     #[from]
     Other(HgError),
+    #[from]
+    IO(HgIoError),
 }
 
 impl From<ConfigError> for RepoError {
@@ -85,6 +88,7 @@ impl From<ConfigError> for RepoError {
         match error {
             ConfigError::Parse(error) => error.into(),
             ConfigError::Other(error) => error.into(),
+            ConfigError::IO(error) => error.into(),
         }
     }
 }
@@ -106,6 +110,7 @@ impl From<RepoError> for HgError {
                 ))
             }
             RepoError::Other(hg_error) => hg_error,
+            RepoError::IO(hg_io_error) => hg_io_error.into(),
         }
     }
 }

@@ -19,6 +19,7 @@ use lazy_static::lazy_static;
 use regex::bytes::Regex;
 
 use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::exit_codes::CONFIG_ERROR_ABORT;
 use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
 use crate::utils::files::get_bytes_from_path;
@@ -369,6 +370,7 @@ impl From<ConfigParseError> for HgError {
 pub enum ConfigError {
     Parse(ConfigParseError),
     Other(HgError),
+    IO(HgIoError),
 }
 
 impl From<ConfigError> for HgError {
@@ -378,6 +380,7 @@ impl From<ConfigError> for HgError {
                 Self::from(config_parse_error)
             }
             ConfigError::Other(hg_error) => hg_error,
+            ConfigError::IO(hg_io_error) => hg_io_error.into(),
         }
     }
 }
