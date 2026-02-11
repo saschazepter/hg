@@ -3170,7 +3170,7 @@ public missing
   $ echo 'publicurl=$TESTTMP/missing' >> $HGRCPATH
   $ hg email --date '1980-1-1 0:1' -t foo -s test -r '10'
   unable to access public repo: $TESTTMP/missing
-  abort: repository $TESTTMP/missing not found
+  abort: no repository found in '$TESTTMP/missing' (.hg not found)!
   [255]
 
 node missing at public

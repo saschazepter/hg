@@ -145,7 +145,7 @@ impl From<HgError> for CommandError {
             HgError::RepoNotFound { at, backtrace } => {
                 CommandError::abort_with_exit_code_bytes(
                     format_bytes!(
-                        b"{}abort: repository {} not found",
+                        b"{}abort: no repository found in '{}' (.hg not found)!",
                         backtrace,
                         get_bytes_from_path(at)
                     ),

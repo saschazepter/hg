@@ -297,7 +297,7 @@ lfs content, and the extension enabled.
   (see https://mercurial-scm.org/wiki/MissingRequirement for more information)
   [255]
   $ hg debugrequires -R $TESTTMP/client4_clone/ | grep 'lfs'
-  abort: repository $TESTTMP/client4_clone/ not found
+  abort: no repository found in '$TESTTMP/client4_clone/' (.hg not found)!
   [1]
   $ hg debugrequires -R $SERVER_PATH --config extensions.lfs= | grep 'lfs'
   lfs

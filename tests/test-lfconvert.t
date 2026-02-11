@@ -215,7 +215,7 @@ lfconvert with rename, merge, and remove
   abort: ssh://localhost/foo is not a local Mercurial repo
   [255]
   $ hg lfconvert nosuchrepo foo
-  abort: repository nosuchrepo not found
+  abort: no repository found in 'nosuchrepo' (.hg not found)!
   [255]
   $ hg share -q -U bigfile-repo shared
   $ printf 'bogus' > shared/.hg/sharedpath

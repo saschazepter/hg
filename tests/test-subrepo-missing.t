@@ -120,10 +120,10 @@ verifying shouldn't init a new subrepo if the reference doesn't exist
 
   $ mv subrepo b
   $ hg verify -q
-  0: repository $TESTTMP/repo/subrepo not found
-  1: repository $TESTTMP/repo/subrepo not found
-  3: repository $TESTTMP/repo/subrepo not found
-  4: repository $TESTTMP/repo/subrepo not found
+  0: no repository found in '$TESTTMP/repo/subrepo' (.hg not found)!
+  1: no repository found in '$TESTTMP/repo/subrepo' (.hg not found)!
+  3: no repository found in '$TESTTMP/repo/subrepo' (.hg not found)!
+  4: no repository found in '$TESTTMP/repo/subrepo' (.hg not found)!
   $ ls -A
   .hg
   .hgsub

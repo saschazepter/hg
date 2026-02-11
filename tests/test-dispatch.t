@@ -41,10 +41,10 @@ Missing parameter for early option:
 "--" may be an option value:
 
   $ hg -R -- log
-  abort: repository -- not found
+  abort: no repository found in '--' (.hg not found)!
   [255]
   $ hg log -R --
-  abort: repository -- not found
+  abort: no repository found in '--' (.hg not found)!
   [255]
   $ hg log -T --
   -- (no-eol)

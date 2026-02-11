@@ -571,7 +571,9 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 _(b'invalid path %s: %s') % (path, stringutil.forcebytestr(e))
             )
 
-        raise error.RepoError(_(b'repository %s not found') % path)
+        raise error.RepoError(
+            _(b"no repository found in '%s' (.hg not found)!") % path
+        )
 
     requirements = scmutil.readrequires(hgvfs, True)
     shared = (

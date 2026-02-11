@@ -43,7 +43,7 @@ configure for serving
 repo not found error
 
   $ hg clone ssh://user@dummy/nonexistent local
-  remote: abort: repository nonexistent not found
+  remote: abort: no repository found in 'nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
@@ -51,7 +51,7 @@ non-existent absolute path
 
 #if no-msys
   $ hg clone ssh://user@dummy//`pwd`/nonexistent local
-  remote: abort: repository /$TESTTMP/nonexistent not found
+  remote: abort: no repository found in '/$TESTTMP/nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 #endif
@@ -123,7 +123,7 @@ pull from wrong ssh URL
 
   $ hg pull ssh://user@dummy/doesnotexist
   pulling from ssh://user@dummy/doesnotexist
-  remote: abort: repository doesnotexist not found
+  remote: abort: no repository found in 'doesnotexist' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 

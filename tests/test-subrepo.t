@@ -1261,7 +1261,7 @@ Check that share works with subrepo
   ../shared/subrepo-2/.hg/wcache/manifestfulltextcache (no-rust !)
   ../shared/subrepo-2/file
   $ hg -R ../shared in
-  abort: repository default not found
+  abort: no repository found in 'default' (.hg not found)!
   [255]
   $ hg -R ../shared/subrepo-2 showconfig paths
   paths.default=$TESTTMP/subrepo-status/subrepo-2
