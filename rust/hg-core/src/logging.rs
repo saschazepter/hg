@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoErrorContext;
 use crate::errors::IoResultExt;
@@ -45,7 +45,7 @@ impl<'a> LogFile<'a> {
     ///
     /// No trailing newline is added. Make sure to include one in `bytes` if
     /// desired.
-    pub fn write(&self, bytes: &[u8]) -> Result<(), HgError> {
+    pub fn write(&self, bytes: &[u8]) -> Result<(), HgIoError> {
         let path = self.vfs.join(self.name);
         let context = || IoErrorContext::WritingFile(path.clone());
         let open = || {

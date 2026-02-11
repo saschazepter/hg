@@ -1211,13 +1211,12 @@ impl InnerRevlog {
                     }
                     f
                 }
-                Err(HgError::IO(err)) => {
+                Err(err) => {
                     if err.kind() != Some(ErrorKind::NotFound) {
                         return Err(err.into());
                     }
                     self.vfs.create(&self.data_file, true)?
                 }
-                Err(err) => return Err(err),
             };
             transaction.add(&self.data_file, data_size);
             Some(FileHandle::from_file(
@@ -1283,7 +1282,7 @@ impl InnerRevlog {
                     )
                 })
             }
-            Err(HgError::IO(err)) => {
+            Err(err) => {
                 if err.kind() != Some(ErrorKind::NotFound) {
                     return Err(err.into());
                 };
@@ -1303,7 +1302,6 @@ impl InnerRevlog {
                     )?)
                 }
             }
-            Err(err) => Err(err),
         }
     }
 

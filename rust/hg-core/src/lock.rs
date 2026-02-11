@@ -4,7 +4,8 @@ use std::io;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
+use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
@@ -13,7 +14,7 @@ use crate::vfs::VfsImpl;
 pub enum LockError {
     AlreadyHeld,
     #[from]
-    Other(HgError),
+    IO(HgIoError),
 }
 
 /// Try to call `f` with the lock acquired, without waiting.
@@ -36,9 +37,7 @@ pub fn try_with_lock_no_wait<R>(
                 unlock(hg_vfs, lock_filename)?;
                 return Ok(result);
             }
-            Err(HgError::IO(error))
-                if error.kind() == Some(ErrorKind::AlreadyExists) =>
-            {
+            Err(error) if error.kind() == Some(ErrorKind::AlreadyExists) => {
                 let lock_data = read_lock(hg_vfs, lock_filename)?;
                 if lock_data.is_none() {
                     // Lock was apparently just released, retry acquiring it
@@ -77,7 +76,7 @@ fn make_lock(
     hg_vfs: &VfsImpl,
     lock_filename: &str,
     data: &str,
-) -> Result<(), HgError> {
+) -> Result<(), HgIoError> {
     // Use a symbolic link because creating it is atomic.
     // The link’s "target" contains data not representing any path.
     let fake_symlink_target = data;
@@ -87,20 +86,20 @@ fn make_lock(
 fn read_lock(
     hg_vfs: &VfsImpl,
     lock_filename: &str,
-) -> Result<Option<String>, HgError> {
+) -> Result<Option<String>, HgIoError> {
     let link_target = hg_vfs.read_link(lock_filename).io_not_found_as_none()?;
     if let Some(target) = link_target {
         let data = target
             .into_os_string()
             .into_string()
-            .map_err(|_| HgError::corrupted("non-UTF-8 lock data"))?;
+            .map_err(|_| HgIoError::NonUTF8Lock(HgBacktrace::capture()))?;
         Ok(Some(data))
     } else {
         Ok(None)
     }
 }
 
-fn unlock(hg_vfs: &VfsImpl, lock_filename: &str) -> Result<(), HgError> {
+fn unlock(hg_vfs: &VfsImpl, lock_filename: &str) -> Result<(), HgIoError> {
     hg_vfs.unlink(Path::new(lock_filename))
 }
 

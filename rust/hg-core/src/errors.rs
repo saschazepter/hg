@@ -272,24 +272,24 @@ pub trait IoResultExt<T> {
     /// example.txt” instead of just “File not found”.
     ///
     /// Converts a `Result` with `std::io::Error` into one with `HgError`.
-    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgError>;
+    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError>;
 
-    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgError>;
+    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError>;
 
     fn with_context(
         self,
         context: impl FnOnce() -> IoErrorContext,
-    ) -> Result<T, HgError>;
+    ) -> Result<T, HgIoError>;
 }
 
 impl<T> IoResultExt<T> for std::io::Result<T> {
-    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgError> {
+    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError> {
         self.with_context(|| {
             IoErrorContext::ReadingFile(path.as_ref().to_owned())
         })
     }
 
-    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgError> {
+    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError> {
         self.with_context(|| {
             IoErrorContext::WritingFile(path.as_ref().to_owned())
         })
@@ -298,10 +298,8 @@ impl<T> IoResultExt<T> for std::io::Result<T> {
     fn with_context(
         self,
         context: impl FnOnce() -> IoErrorContext,
-    ) -> Result<T, HgError> {
-        self.map_err(|error| {
-            HgError::IO(HgIoError::from_os_error(error, context()))
-        })
+    ) -> Result<T, HgIoError> {
+        self.map_err(|error| HgIoError::from_os_error(error, context()))
     }
 }
 
@@ -313,16 +311,14 @@ pub trait HgResultExt<T> {
     /// * `Ok(x)` becomes `Ok(Some(x))`
     /// * An I/O "not found" error becomes `Ok(None)`
     /// * Other errors are unchanged
-    fn io_not_found_as_none(self) -> Result<Option<T>, HgError>;
+    fn io_not_found_as_none(self) -> Result<Option<T>, HgIoError>;
 }
 
-impl<T> HgResultExt<T> for Result<T, HgError> {
-    fn io_not_found_as_none(self) -> Result<Option<T>, HgError> {
+impl<T> HgResultExt<T> for Result<T, HgIoError> {
+    fn io_not_found_as_none(self) -> Result<Option<T>, HgIoError> {
         match self {
             Ok(x) => Ok(Some(x)),
-            Err(HgError::IO(error))
-                if error.kind() == Some(std::io::ErrorKind::NotFound) =>
-            {
+            Err(err) if err.kind() == Some(std::io::ErrorKind::NotFound) => {
                 Ok(None)
             }
             Err(other_error) => Err(other_error),

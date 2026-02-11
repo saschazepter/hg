@@ -25,11 +25,11 @@ use memmap2::MmapOptions;
 use rand::distr::Alphanumeric;
 use rand::distr::SampleString;
 
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
+use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoErrorContext;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
 use crate::revlog::path_encode::PathEncoding;
 use crate::revlog::path_encode::path_encode;
 use crate::utils::files::get_bytes_from_path;
@@ -92,7 +92,7 @@ impl VfsImpl {
     pub fn symlink_metadata(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<std::fs::Metadata, HgError> {
+    ) -> Result<std::fs::Metadata, HgIoError> {
         let path = self.join(relative_path);
         std::fs::symlink_metadata(&path).when_reading_file(&path)
     }
@@ -100,7 +100,7 @@ impl VfsImpl {
     pub fn read_link(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<PathBuf, HgError> {
+    ) -> Result<PathBuf, HgIoError> {
         let path = self.join(relative_path);
         std::fs::read_link(&path).when_reading_file(&path)
     }
@@ -108,7 +108,7 @@ impl VfsImpl {
     pub fn read(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<Vec<u8>, HgError> {
+    ) -> Result<Vec<u8>, HgIoError> {
         let path = self.join(relative_path);
         std::fs::read(&path).when_reading_file(&path)
     }
@@ -117,23 +117,14 @@ impl VfsImpl {
     pub fn try_read(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<Option<Vec<u8>>, HgError> {
-        match self.read(relative_path) {
-            Err(e) => match &e {
-                HgError::IO(error) => match error.kind() {
-                    Some(ErrorKind::NotFound) => Ok(None),
-                    _ => Err(e),
-                },
-                _ => Err(e),
-            },
-            Ok(v) => Ok(Some(v)),
-        }
+    ) -> Result<Option<Vec<u8>>, HgIoError> {
+        self.read(relative_path).io_not_found_as_none()
     }
 
     fn mmap_open_gen(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<Result<Mmap, FileNotFound>, HgError> {
+    ) -> Result<Result<Mmap, FileNotFound>, HgIoError> {
         let path = self.join(relative_path);
         let file = match std::fs::File::open(&path) {
             Err(err) => {
@@ -158,14 +149,14 @@ impl VfsImpl {
     pub fn mmap_open_opt(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<Option<Mmap>, HgError> {
+    ) -> Result<Option<Mmap>, HgIoError> {
         self.mmap_open_gen(relative_path).map(|res| res.ok())
     }
 
     pub fn mmap_open(
         &self,
         relative_path: impl AsRef<Path>,
-    ) -> Result<Mmap, HgError> {
+    ) -> Result<Mmap, HgIoError> {
         match self.mmap_open_gen(relative_path)? {
             Err(FileNotFound(err, path)) => Err(err).when_reading_file(&path),
             Ok(res) => Ok(res),
@@ -175,12 +166,10 @@ impl VfsImpl {
     pub fn create_working_copy(
         &self,
         filename: &Path,
-    ) -> Result<VfsFile, HgError> {
+    ) -> Result<VfsFile, HgIoError> {
         if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
+            return Err(HgIoError::WriteAttemptInReadonlyVfs(
+                HgBacktrace::capture(),
             ));
         }
         let path = self.base.join(filename);
@@ -209,7 +198,7 @@ impl VfsImpl {
         &self,
         relative_link_path: impl AsRef<Path>,
         target_path: impl AsRef<Path>,
-    ) -> Result<(), HgError> {
+    ) -> Result<(), HgIoError> {
         let link_path = self.join(relative_link_path);
         std::os::unix::fs::symlink(target_path, &link_path)
             .when_writing_file(&link_path)
@@ -223,7 +212,7 @@ impl VfsImpl {
         &self,
         relative_path: impl AsRef<Path>,
         contents: &[u8],
-    ) -> Result<(), HgError> {
+    ) -> Result<(), HgIoError> {
         let mut tmp = tempfile::Builder::new()
             .permissions(std::fs::Permissions::from_mode(0o666))
             .tempfile_in(&self.base)
@@ -239,7 +228,7 @@ impl VfsImpl {
 
 fn fs_metadata(
     path: impl AsRef<Path>,
-) -> Result<Option<std::fs::Metadata>, HgError> {
+) -> Result<Option<std::fs::Metadata>, HgIoError> {
     let path = path.as_ref();
     match path.metadata() {
         Ok(meta) => Ok(Some(meta)),
@@ -276,7 +265,7 @@ impl VfsFile {
     pub fn normal_check_ambig(
         file: File,
         path: PathBuf,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, HgIoError> {
         Ok(Self::Normal {
             file,
             check_ambig: Some(path.metadata().when_reading_file(&path)?),
@@ -284,7 +273,7 @@ impl VfsFile {
         })
     }
 
-    pub fn try_clone(&self) -> Result<VfsFile, HgError> {
+    pub fn try_clone(&self) -> Result<VfsFile, HgIoError> {
         Ok(match self {
             VfsFile::Atomic(AtomicFile {
                 fp,
@@ -477,7 +466,7 @@ impl AtomicFile {
         target_path: impl AsRef<Path>,
         empty: bool,
         check_ambig: bool,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, HgIoError> {
         let target_path = target_path.as_ref().to_owned();
 
         let random_id = Alphanumeric.sample_string(&mut rand::rng(), 12);
@@ -578,14 +567,14 @@ impl Drop for AtomicFile {
 pub trait Vfs: Sync + Send + DynClone {
     /// Open a [`VfsFile::Normal`] for reading the file at `filename`,
     /// relative to this VFS's root.
-    fn open(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgIoError>;
     /// Open a [`VfsFile::Normal`] for writing and reading the file at
     /// `filename`, relative to this VFS's root.
-    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgIoError>;
     /// Open a [`VfsFile::Normal`] for reading and writing the file at
     /// `filename`, relative to this VFS's root. This file will be checked
     /// for an ambiguous mtime on [`drop`]. See [`is_filetime_ambiguous`].
-    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError>;
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgIoError>;
     /// Create a [`VfsFile::Normal`] for reading and writing the file at
     /// `filename`, relative to this VFS's root. If the file already exists,
     /// it will be truncated to 0 bytes.
@@ -593,7 +582,7 @@ pub trait Vfs: Sync + Send + DynClone {
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<VfsFile, HgError>;
+    ) -> Result<VfsFile, HgIoError>;
     /// Create a [`VfsFile::Atomic`] for reading and writing the file at
     /// `filename`, relative to this VFS's root. If the file already exists,
     /// it will be truncated to 0 bytes.
@@ -601,10 +590,10 @@ pub trait Vfs: Sync + Send + DynClone {
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<VfsFile, HgError>;
+    ) -> Result<VfsFile, HgIoError>;
     /// Return the total file size in bytes of the open `file`. Errors are
     /// usual IO errors (invalid file handle, permissions, etc.)
-    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError>;
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgIoError>;
     /// Return `true` if `filename` exists relative to this VFS's root. Errors
     /// will coerce to `false`, to this also returns `false` if there are
     /// IO problems. This is fine because any operation that actually tries
@@ -612,7 +601,7 @@ pub trait Vfs: Sync + Send + DynClone {
     fn exists(&self, filename: &Path) -> bool;
     /// Remove the file at `filename` relative to this VFS's root. Errors
     /// are the usual IO errors (lacking permission, file does not exist, etc.)
-    fn unlink(&self, filename: &Path) -> Result<(), HgError>;
+    fn unlink(&self, filename: &Path) -> Result<(), HgIoError>;
     /// Rename the file `from` to `to`, both relative to this VFS's root.
     /// Errors are the usual IO errors (lacking permission, file does not
     /// exist, etc.). If `check_ambig` is `true`, the VFS will check for an
@@ -622,12 +611,12 @@ pub trait Vfs: Sync + Send + DynClone {
         from: &Path,
         to: &Path,
         check_ambig: bool,
-    ) -> Result<(), HgError>;
+    ) -> Result<(), HgIoError>;
     /// Rename the file `from` to `to`, both relative to this VFS's root.
     /// Errors are the usual IO errors (lacking permission, file does not
     /// exist, etc.). If `check_ambig` is passed, the VFS will check for an
     /// ambiguous mtime on rename. See [`is_filetime_ambiguous`].
-    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError>;
+    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgIoError>;
     /// Returns the absolute root path of this VFS, relative to which all
     /// operations are done.
     fn base(&self) -> &Path;
@@ -636,7 +625,7 @@ pub trait Vfs: Sync + Send + DynClone {
 /// These methods will need to be implemented once `rhg` (and other) non-Python
 /// users of `hg-core` start doing more on their own, like writing to files.
 impl Vfs for VfsImpl {
-    fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgIoError> {
         // TODO auditpath
         let path = self.base.join(filename);
         Ok(VfsFile::normal(
@@ -645,15 +634,12 @@ impl Vfs for VfsImpl {
         ))
     }
 
-    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgIoError> {
         if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
+            return Err(HgIoError::WriteAttemptInReadonlyVfs(
+                HgBacktrace::capture(),
             ));
-        }
-        // TODO auditpath
+        } // TODO auditpath
         let path = self.base.join(filename);
         copy_in_place_if_hardlink(&path)?;
 
@@ -669,15 +655,12 @@ impl Vfs for VfsImpl {
         ))
     }
 
-    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgIoError> {
         if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
+            return Err(HgIoError::WriteAttemptInReadonlyVfs(
+                HgBacktrace::capture(),
             ));
         }
-
         let path = self.base.join(filename);
         copy_in_place_if_hardlink(&path)?;
 
@@ -697,15 +680,12 @@ impl Vfs for VfsImpl {
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<VfsFile, HgError> {
+    ) -> Result<VfsFile, HgIoError> {
         if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
+            return Err(HgIoError::WriteAttemptInReadonlyVfs(
+                HgBacktrace::capture(),
             ));
-        }
-        // TODO auditpath
+        } // TODO auditpath
         let path = self.base.join(filename);
         let parent = path.parent().expect("file at root");
         std::fs::create_dir_all(parent).when_writing_file(parent)?;
@@ -750,19 +730,20 @@ impl Vfs for VfsImpl {
         &self,
         _filename: &Path,
         _check_ambig: bool,
-    ) -> Result<VfsFile, HgError> {
+    ) -> Result<VfsFile, HgIoError> {
         todo!()
     }
 
-    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError> {
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgIoError> {
         Ok(file
             .metadata()
-            .map_err(|e| {
-                HgError::abort(
-                    format!("Could not get file metadata: {}", e),
-                    exit_codes::ABORT,
-                    None,
-                )
+            .map_err(|e| HgIoError::IO {
+                raw_os_error: e.raw_os_error(),
+                kind: e.kind(),
+                context: IoErrorContext::ReadingMetadata(
+                    file.path().to_path_buf(),
+                ),
+                backtrace: HgBacktrace::capture(),
             })?
             .size())
     }
@@ -771,12 +752,10 @@ impl Vfs for VfsImpl {
         self.base.join(filename).exists()
     }
 
-    fn unlink(&self, filename: &Path) -> Result<(), HgError> {
+    fn unlink(&self, filename: &Path) -> Result<(), HgIoError> {
         if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
+            return Err(HgIoError::WriteAttemptInReadonlyVfs(
+                HgBacktrace::capture(),
             ));
         }
         let path = self.base.join(filename);
@@ -789,12 +768,10 @@ impl Vfs for VfsImpl {
         from: &Path,
         to: &Path,
         check_ambig: bool,
-    ) -> Result<(), HgError> {
+    ) -> Result<(), HgIoError> {
         if self.readonly {
-            return Err(HgError::abort(
-                "write access in a readonly vfs",
-                exit_codes::ABORT,
-                None,
+            return Err(HgIoError::WriteAttemptInReadonlyVfs(
+                HgBacktrace::capture(),
             ));
         }
         let old_stat = if check_ambig {
@@ -817,7 +794,7 @@ impl Vfs for VfsImpl {
         Ok(())
     }
 
-    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
+    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgIoError> {
         let from = self.base.join(from);
         let to = self.base.join(to);
         std::fs::copy(&from, &to)
@@ -834,7 +811,7 @@ fn fix_directory_permissions(
     base: &Path,
     path: &Path,
     mode: u32,
-) -> Result<(), HgError> {
+) -> Result<(), HgIoError> {
     let mut ancestors = path.ancestors();
     ancestors.next(); // yields the path itself
 
@@ -869,21 +846,21 @@ impl EncodedVfs {
 }
 
 impl Vfs for EncodedVfs {
-    fn open(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open(&self, filename: &Path) -> Result<VfsFile, HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.open(filename)
     }
 
-    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open_write(&self, filename: &Path) -> Result<VfsFile, HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
         self.inner.open_write(encoded_path)
     }
 
-    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgError> {
+    fn open_check_ambig(&self, filename: &Path) -> Result<VfsFile, HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
@@ -894,7 +871,7 @@ impl Vfs for EncodedVfs {
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<VfsFile, HgError> {
+    ) -> Result<VfsFile, HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let encoded_path = get_path_from_bytes(&encoded);
@@ -905,14 +882,14 @@ impl Vfs for EncodedVfs {
         &self,
         filename: &Path,
         check_ambig: bool,
-    ) -> Result<VfsFile, HgError> {
+    ) -> Result<VfsFile, HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
         self.inner.create_atomic(filename, check_ambig)
     }
 
-    fn file_size(&self, file: &VfsFile) -> Result<u64, HgError> {
+    fn file_size(&self, file: &VfsFile) -> Result<u64, HgIoError> {
         self.inner.file_size(file)
     }
 
@@ -923,7 +900,7 @@ impl Vfs for EncodedVfs {
         self.inner.exists(filename)
     }
 
-    fn unlink(&self, filename: &Path) -> Result<(), HgError> {
+    fn unlink(&self, filename: &Path) -> Result<(), HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(filename), self.inner.encoding);
         let filename = get_path_from_bytes(&encoded);
@@ -935,7 +912,7 @@ impl Vfs for EncodedVfs {
         from: &Path,
         to: &Path,
         check_ambig: bool,
-    ) -> Result<(), HgError> {
+    ) -> Result<(), HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(from), self.inner.encoding);
         let from = get_path_from_bytes(&encoded);
@@ -945,7 +922,7 @@ impl Vfs for EncodedVfs {
         self.inner.rename(from, to, check_ambig)
     }
 
-    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgError> {
+    fn copy(&self, from: &Path, to: &Path) -> Result<(), HgIoError> {
         let encoded =
             path_encode(&get_bytes_from_path(from), self.inner.encoding);
         let from = get_path_from_bytes(&encoded);
@@ -962,7 +939,7 @@ impl Vfs for EncodedVfs {
 /// Detects whether `path` is a hardlink and does a tmp copy + rename erase
 /// to turn it into its own file. Revlogs are usually hardlinked when doing
 /// a local clone, and we don't want to modify the original repo.
-fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgError> {
+fn copy_in_place_if_hardlink(path: &Path) -> Result<(), HgIoError> {
     let metadata = path.metadata().when_writing_file(path)?;
     if metadata.nlink() > 1 {
         // If it's hardlinked, copy it and rename it back before changing it.
@@ -997,11 +974,11 @@ pub fn is_revlog_file(path: impl AsRef<Path>) -> bool {
         .unwrap_or(false)
 }
 
-pub(crate) fn is_dir(path: impl AsRef<Path>) -> Result<bool, HgError> {
+pub(crate) fn is_dir(path: impl AsRef<Path>) -> Result<bool, HgIoError> {
     Ok(fs_metadata(path)?.is_some_and(|meta| meta.is_dir()))
 }
 
-pub(crate) fn is_file(path: impl AsRef<Path>) -> Result<bool, HgError> {
+pub(crate) fn is_file(path: impl AsRef<Path>) -> Result<bool, HgIoError> {
     Ok(fs_metadata(path)?.is_some_and(|meta| meta.is_file()))
 }
 

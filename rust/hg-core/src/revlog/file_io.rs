@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
 use crate::vfs::Vfs;
 use crate::vfs::VfsFile;
@@ -61,14 +61,14 @@ impl RandomAccessFile {
         &self,
         offset: usize,
         length: usize,
-    ) -> Result<Vec<u8>, HgError> {
+    ) -> Result<Vec<u8>, HgIoError> {
         let handle = self.get_read_handle()?;
         handle.read_exact_at(length, offset).when_reading_file(&self.filename)
     }
 
     /// `pub` only for hg-pyo3
     #[doc(hidden)]
-    pub fn get_read_handle(&self) -> Result<Ref<'_, FileHandle>, HgError> {
+    pub fn get_read_handle(&self) -> Result<Ref<'_, FileHandle>, HgIoError> {
         let write_handle = self.writing_handle.get_or_default().borrow();
         if let Ok(handle) = Ref::filter_map(write_handle, Option::as_ref) {
             // Use a file handle being actively used for writes, if available.
@@ -200,7 +200,7 @@ impl FileHandle {
         filename: impl AsRef<Path>,
         create: bool,
         write: bool,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, HgIoError> {
         let file = if create {
             vfs.create(filename.as_ref(), false)?
         } else if write {
@@ -222,7 +222,7 @@ impl FileHandle {
         filename: impl AsRef<Path>,
         create: bool,
         delayed_buffer: Arc<Mutex<DelayedBuffer>>,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, HgIoError> {
         let mut file = if create {
             vfs.create(filename.as_ref(), false)?
         } else {
@@ -266,7 +266,7 @@ impl FileHandle {
         vfs: Box<dyn Vfs>,
         filename: impl AsRef<Path>,
         delayed_buffer: Arc<Mutex<DelayedBuffer>>,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, HgIoError> {
         let size = vfs.file_size(&file)?;
         let offset =
             file.stream_position().when_reading_file(filename.as_ref())?;
@@ -337,17 +337,17 @@ impl FileHandle {
 
     /// Flush the in-memory changes to disk. This does *not* write the
     /// delayed buffer, only the pending file changes.
-    pub fn flush(&mut self) -> Result<(), HgError> {
+    pub fn flush(&mut self) -> Result<(), HgIoError> {
         self.file.flush().when_writing_file(&self.filename)
     }
 
     /// Return the current position in the file
-    pub fn position(&mut self) -> Result<u64, HgError> {
+    pub fn position(&mut self) -> Result<u64, HgIoError> {
         self.file.stream_position().when_reading_file(&self.filename)
     }
 
     /// Append `data` to the file, or to the [`DelayedBuffer`], if any.
-    pub fn write_all(&mut self, data: &[u8]) -> Result<(), HgError> {
+    pub fn write_all(&mut self, data: &[u8]) -> Result<(), HgIoError> {
         if let Some(buf) = &mut self.delayed_buffer {
             let mut delayed_buffer = buf.lock().expect("propagate the panic");
             assert_eq!(delayed_buffer.offset, delayed_buffer.len());
@@ -360,7 +360,7 @@ impl FileHandle {
         }
     }
 
-    pub fn try_clone(&self) -> Result<Self, HgError> {
+    pub fn try_clone(&self) -> Result<Self, HgIoError> {
         Ok(Self {
             vfs: dyn_clone::clone_box(&*self.vfs),
             filename: self.filename.clone(),
@@ -400,12 +400,9 @@ mod tests {
         assert!(!raf.is_open());
         assert_eq!(&raf.filename, &filename);
         // Should fail to read a non-existing file
-        match raf.get_read_handle().unwrap_err() {
-            HgError::IO(error) => match error.kind() {
-                Some(std::io::ErrorKind::NotFound) => {}
-                _ => panic!("should be not found"),
-            },
-            e => panic!("{}", e.to_string()),
+        match raf.get_read_handle().unwrap_err().kind() {
+            Some(std::io::ErrorKind::NotFound) => {}
+            _ => panic!("should be not found"),
         }
 
         std::fs::write(file_path, b"1234567890").unwrap();

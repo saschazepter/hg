@@ -605,15 +605,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         repo.working_directory_vfs().symlink_metadata(&fs_path);
                     let fs_metadata = match metadata_res {
                         Ok(meta) => meta,
-                        Err(err) => match err {
-                            HgError::IO(_) => {
-                                // The file has probably been deleted. In any
-                                // case, it was in the dirstate before, so
-                                // let's ignore the error.
-                                continue;
-                            }
-                            _ => return Err(err.into()),
-                        },
+                        Err(_) => {
+                            // The file has probably been deleted. In any
+                            // case, it was in the dirstate before, so
+                            // let's ignore the error.
+                            continue;
+                        }
                     };
                     if let Some(mtime) =
                         TruncatedTimestamp::for_reliable_mtime_of(
@@ -643,7 +640,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             // process releases the lock.
             tracing::info!("not writing dirstate from `status`: lock is held")
         }
-        Err(LockError::Other(HgError::IO(error)))
+        Err(LockError::IO(error))
             if error.kind() == Some(io::ErrorKind::PermissionDenied)
                 || match error.raw_os_error() {
                     None => false,
@@ -652,7 +649,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         {
             // `hg status` on a read-only repository is fine
         }
-        Err(LockError::Other(error)) => {
+        Err(LockError::IO(error)) => {
             // Report other I/O errors
             Err(error)?
         }

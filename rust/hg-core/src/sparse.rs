@@ -242,7 +242,11 @@ pub(crate) fn parse_config(
 fn read_temporary_includes(
     repo: &Repo,
 ) -> Result<Vec<Vec<u8>>, SparseConfigError> {
-    let raw = repo.hg_vfs().try_read("tempsparse")?.unwrap_or_default();
+    let raw = repo
+        .hg_vfs()
+        .try_read("tempsparse")
+        .map_err(HgError::from)?
+        .unwrap_or_default();
     if raw.is_empty() {
         return Ok(vec![]);
     }
@@ -258,7 +262,11 @@ fn patterns_for_rev(
     if !repo.has_sparse() {
         return Ok(None);
     }
-    let raw = repo.hg_vfs().try_read("sparse")?.unwrap_or_default();
+    let raw = repo
+        .hg_vfs()
+        .try_read("sparse")
+        .map_err(HgError::from)?
+        .unwrap_or_default();
 
     if raw.is_empty() {
         return Ok(None);

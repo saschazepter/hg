@@ -528,7 +528,7 @@ impl Repo {
             let contents = self.hg_vfs().read(docket.data_filename());
             let contents = match contents {
                 Ok(c) => c,
-                Err(HgError::IO(error)) => {
+                Err(error) => {
                     match error.raw_os_error().expect("real os error") {
                         // 2 = ENOENT, No such file or directory
                         // 116 = ESTALE, Stale NFS file handle
@@ -545,7 +545,6 @@ impl Repo {
                         }
                     }
                 }
-                Err(e) => return Err(e.into()),
             };
             OwningDirstateMap::new_v2(
                 contents, data_size, metadata, uuid, identity,
@@ -564,7 +563,7 @@ impl Repo {
                     // read the docket, try again
                     return Err(race_error.into());
                 }
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(HgError::from(e).into()),
             }
         }?;
 
@@ -791,7 +790,8 @@ impl Repo {
                 file.flush()?;
                 file.stream_position()
             })()
-            .when_writing_file(&data_filename)?;
+            .when_writing_file(&data_filename)
+            .map_err(HgError::from)?;
 
             let packed_dirstate = DirstateDocket::serialize(
                 parents,
@@ -825,11 +825,13 @@ impl Repo {
         };
 
         let vfs = self.hg_vfs();
-        vfs.atomic_write("dirstate", &packed_dirstate)?;
+        vfs.atomic_write("dirstate", &packed_dirstate)
+            .map_err(HgError::from)?;
         if let Some(uuid) = old_uuid_to_remove {
             // Remove the old data file after the new docket pointing to the
             // new data file was written.
-            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))?;
+            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))
+                .map_err(HgError::from)?;
         }
         Ok(())
     }

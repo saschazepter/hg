@@ -719,12 +719,9 @@ pub fn open_index(
             }
             buf.unwrap()
         }
-        Err(err) => match err {
-            HgError::IO(error) => match error.kind() {
-                Some(ErrorKind::NotFound) => DynBytes::default(),
-                _ => return Err(HgError::IO(error)),
-            },
-            e => return Err(e),
+        Err(err) => match err.kind() {
+            Some(ErrorKind::NotFound) => DynBytes::default(),
+            _ => return Err(HgError::IO(err)),
         },
     };
 

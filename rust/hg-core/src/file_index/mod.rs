@@ -589,7 +589,7 @@ where
     /// later abort or rollback.
     fn open_new(&mut self, path: &Path) -> Result<VfsFile, HgError> {
         self.tr.add(path, 0);
-        self.vfs.create(path, false)
+        Ok(self.vfs.create(path, false)?)
     }
 
     /// Open a file for appending past `used_size`.

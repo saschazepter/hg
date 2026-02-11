@@ -28,6 +28,7 @@ use crate::dirstate::entry::ParentFileData;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
@@ -427,7 +428,7 @@ fn working_copy_remove(
     path: impl AsRef<Path>,
     vfs: &impl Vfs,
     remove_empty_dirs: bool,
-) -> Result<(), HgError> {
+) -> Result<(), HgIoError> {
     vfs.unlink(path.as_ref())?;
     if remove_empty_dirs {
         let path = vfs.base().join(path.as_ref());
@@ -539,7 +540,7 @@ fn apply_actions<'a: 'b, 'b>(
 #[derive(Debug)]
 pub enum UpdateWarning {
     /// We've failed to remove a file
-    UnlinkFailure(PathBuf, HgError),
+    UnlinkFailure(PathBuf, HgIoError),
     /// Current directory was removed
     CwdRemoved,
     /// We have a conflict with an untracked file
@@ -1258,19 +1259,14 @@ fn working_copy_worker<'a: 'b, 'b>(
             if let Err(err) = dir_removal {
                 // Give an error message instead of a traceback in the case
                 // where the conflicting unknown directory is not empty
-                match &err {
-                    HgError::IO(error)
-                        if error.kind()
-                            == Some(std::io::ErrorKind::DirectoryNotEmpty) =>
-                    {
-                        let msg = format!(
-                            "conflicting unknown directory '{}' is not empty",
-                            path.display()
-                        );
-                        return Err(HgError::abort_simple(msg));
-                    }
-                    _ => return Err(err),
+                if err.kind() == Some(std::io::ErrorKind::DirectoryNotEmpty) {
+                    let msg = format!(
+                        "conflicting unknown directory '{}' is not empty",
+                        path.display()
+                    );
+                    return Err(HgError::abort_simple(msg));
                 }
+                return Err(HgError::from(err));
             }
         }
 
@@ -1314,10 +1310,10 @@ fn working_copy_worker<'a: 'b, 'b>(
                             std::os::unix::fs::symlink(target, &path)
                                 .when_writing_file(&path)?;
                         } else {
-                            return Err(e).when_writing_file(&path);
+                            return Err(e).when_writing_file(&path)?;
                         }
                     }
-                    _ => return Err(e).when_writing_file(&path),
+                    _ => return Err(e).when_writing_file(&path)?,
                 }
             }
         } else if update_config.atomic_file {
