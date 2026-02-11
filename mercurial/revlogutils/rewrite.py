@@ -451,7 +451,6 @@ def _rewrite_censor(
         new_data_file,
         new_sidedata_file,
     ) = all_files
-    entry = old_index[rev]
 
     # XXX consider trying the default compression too
     new_data_size = len(tombstone)
@@ -460,10 +459,7 @@ def _rewrite_censor(
 
     # we are not adding any sidedata as they might leak info about the censored version
 
-    link_rev = entry[ENTRY_LINK_REV]
-
-    p1 = entry[ENTRY_PARENT_1]
-    p2 = entry[ENTRY_PARENT_2]
+    p1, p2 = old_index.parents(rev)
 
     new_entry = revlogutils.entry(
         flags=constants.REVIDX_ISCENSORED,
@@ -471,10 +467,10 @@ def _rewrite_censor(
         data_compressed_length=new_data_size,
         data_uncompressed_length=new_data_size,
         data_delta_base=rev,
-        link_rev=link_rev,
+        link_rev=old_index.linkrev(rev),
         parent_rev_1=p1,
         parent_rev_2=p2,
-        node_id=entry[ENTRY_NODE_ID],
+        node_id=old_index.node(rev),
         sidedata_offset=0,
         sidedata_compressed_length=0,
         data_compression_mode=COMP_MODE_PLAIN,
