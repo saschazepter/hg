@@ -35,7 +35,6 @@ pub enum PatternError {
     Path(HgPathError),
     UnsupportedSyntax(String),
     UnsupportedSyntaxInFile(String, String, usize),
-    TooLong(usize),
     // TODO reduce the wide "IO error" to a more specific enumeration of cases
     // we expect so we can stop caring about `std::io::Error` being annoying
     #[from]
@@ -57,7 +56,6 @@ impl PartialEq for PatternError {
                 Self::UnsupportedSyntaxInFile(l0, l1, l2),
                 Self::UnsupportedSyntaxInFile(r0, r1, r2),
             ) => l0 == r0 && l1 == r1 && l2 == r2,
-            (Self::TooLong(l0), Self::TooLong(r0)) => l0 == r0,
             (Self::IO(_), Self::IO(_)) => false,
             (Self::NonRegexPattern(l0), Self::NonRegexPattern(r0)) => l0 == r0,
             _ => false,
@@ -77,9 +75,6 @@ impl fmt::Display for PatternError {
                     "{}:{}: unsupported syntax {}",
                     file_path, line, syntax
                 )
-            }
-            PatternError::TooLong(size) => {
-                write!(f, "matcher pattern is too long ({} bytes)", size)
             }
             PatternError::IO(error) => error.fmt(f),
             PatternError::Path(error) => error.fmt(f),
