@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use crate::NodePrefix;
 use crate::UncheckedRevision;
 use crate::config::Config;
-use crate::dirstate::DirstateError;
 use crate::dirstate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateIdentity;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
@@ -22,7 +21,6 @@ use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
 use crate::lock::LockError;
 use crate::lock::try_with_lock_no_wait;
 use crate::matchers::get_ignore_files;
@@ -391,7 +389,7 @@ impl Repo {
         }
     }
 
-    fn new_dirstate_map(&self) -> Result<OwningDirstateMap, DirstateError> {
+    fn new_dirstate_map(&self) -> Result<OwningDirstateMap, HgError> {
         if self.use_dirstate_v2() {
             // The v2 dirstate is split into a docket and a data file.
             // Since we don't always take the `wlock` to read it
@@ -408,9 +406,7 @@ impl Repo {
                         return Ok(m);
                     }
                     Err(e) => match e {
-                        DirstateError::Common(HgError::RaceDetected(
-                            context,
-                        )) => {
+                        HgError::RaceDetected(context) => {
                             tracing::info!(
                                 "dirstate read race detected {} (retry {}/{})",
                                 context,
@@ -434,13 +430,13 @@ impl Repo {
                 255,
                 None,
             );
-            Err(DirstateError::Common(error))
+            Err(error)
         } else {
             self.new_dirstate_map_v1()
         }
     }
 
-    fn new_dirstate_map_v1(&self) -> Result<OwningDirstateMap, DirstateError> {
+    fn new_dirstate_map_v1(&self) -> Result<OwningDirstateMap, HgError> {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let identity = self.dirstate_identity()?;
         let dirstate_file_contents = self.dirstate_file_contents()?;
@@ -458,9 +454,7 @@ impl Repo {
         }
     }
 
-    fn read_docket_and_data_file(
-        &self,
-    ) -> Result<OwningDirstateMap, DirstateError> {
+    fn read_docket_and_data_file(&self) -> Result<OwningDirstateMap, HgError> {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let dirstate_file_contents = self.dirstate_file_contents()?;
         let identity = self.dirstate_identity()?;
@@ -496,10 +490,10 @@ impl Repo {
                         2 | 116 => {
                             // Race where the data file was deleted right after
                             // we read the docket, try again
-                            return Err(race_error.into());
+                            return Err(race_error);
                         }
                         _ => {
-                            return Err(HgError::from(error).into());
+                            return Err(HgError::from(error));
                         }
                     }
                 }
@@ -519,9 +513,9 @@ impl Repo {
                 Ok(None) => {
                     // Race where the data file was deleted right after we
                     // read the docket, try again
-                    return Err(race_error.into());
+                    return Err(race_error);
                 }
-                Err(e) => return Err(HgError::from(e).into()),
+                Err(e) => return Err(HgError::from(e)),
             }
         }?;
 
@@ -548,15 +542,13 @@ impl Repo {
         Ok(map)
     }
 
-    pub fn dirstate_map(
-        &self,
-    ) -> Result<Ref<'_, OwningDirstateMap>, DirstateError> {
+    pub fn dirstate_map(&self) -> Result<Ref<'_, OwningDirstateMap>, HgError> {
         self.dirstate_map.get_or_init(|| self.new_dirstate_map())
     }
 
     pub fn dirstate_map_mut(
         &self,
-    ) -> Result<RefMut<'_, OwningDirstateMap>, DirstateError> {
+    ) -> Result<RefMut<'_, OwningDirstateMap>, HgError> {
         self.dirstate_map.get_mut_or_init(|| self.new_dirstate_map())
     }
 
@@ -626,7 +618,7 @@ impl Repo {
         )
     }
 
-    pub fn has_subrepos(&self) -> Result<bool, DirstateError> {
+    pub fn has_subrepos(&self) -> Result<bool, HgError> {
         if let Some(entry) = self.dirstate_map()?.get(HgPath::new(".hgsub"))? {
             Ok(entry.tracked())
         } else {
@@ -652,7 +644,7 @@ impl Repo {
     ///
     /// TODO: have a `WritableRepo` type only accessible while holding the
     /// lock?
-    pub fn write_dirstate(&self) -> Result<(), DirstateError> {
+    pub fn write_dirstate(&self) -> Result<(), HgError> {
         let map = self.dirstate_map()?;
         // TODO: Maintain a `DirstateMap::dirty` flag, and return early here if
         // it’s unset
@@ -748,8 +740,7 @@ impl Repo {
                 file.flush()?;
                 file.stream_position()
             })()
-            .when_writing_file(&data_filename)
-            .map_err(HgError::from)?;
+            .when_writing_file(&data_filename)?;
 
             let packed_dirstate = DirstateDocket::serialize(
                 parents,
@@ -783,13 +774,11 @@ impl Repo {
         };
 
         let vfs = self.hg_vfs();
-        vfs.atomic_write("dirstate", &packed_dirstate)
-            .map_err(HgError::from)?;
+        vfs.atomic_write("dirstate", &packed_dirstate)?;
         if let Some(uuid) = old_uuid_to_remove {
             // Remove the old data file after the new docket pointing to the
             // new data file was written.
-            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))
-                .map_err(HgError::from)?;
+            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))?
         }
         Ok(())
     }
