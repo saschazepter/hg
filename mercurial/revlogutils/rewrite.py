@@ -490,7 +490,8 @@ def _write_swapped_parents(repo, rl, rev, offset, fp):
         raise error.ProgrammingError(msg)
 
     index_format = parsers.IndexObject.index_format
-    entry = rl.index[rev]
+    bin_entry = rl.index.entry_binary(rev)
+    entry = index_format.unpack(bin_entry)
     new_entry = list(entry)
     new_entry[5], new_entry[6] = entry[6], entry[5]
     packed = index_format.pack(*new_entry[:8])
