@@ -16,7 +16,6 @@ use im_rc::ordmap::OrdMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
 
-use crate::errors::HgError;
 use crate::errors::HgIoError;
 use crate::errors::IoErrorContext;
 
@@ -54,15 +53,15 @@ pub fn u_u16(i: usize) -> u16 {
     i.try_into().expect("value too large for a u16")
 }
 
-pub fn current_dir() -> Result<std::path::PathBuf, HgError> {
+pub fn current_dir() -> Result<std::path::PathBuf, HgIoError> {
     std::env::current_dir().map_err(|error| {
-        HgIoError::from_os_error(error, IoErrorContext::CurrentDir).into()
+        HgIoError::from_os_error(error, IoErrorContext::CurrentDir)
     })
 }
 
-pub fn current_exe() -> Result<std::path::PathBuf, HgError> {
+pub fn current_exe() -> Result<std::path::PathBuf, HgIoError> {
     std::env::current_dir().map_err(|error| {
-        HgIoError::from_os_error(error, IoErrorContext::CurrentExe).into()
+        HgIoError::from_os_error(error, IoErrorContext::CurrentExe)
     })
 }
 
