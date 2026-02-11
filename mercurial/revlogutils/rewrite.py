@@ -17,18 +17,6 @@ from ..node import (
 )
 from .constants import (
     COMP_MODE_PLAIN,
-    ENTRY_DATA_COMPRESSED_LENGTH,
-    ENTRY_DATA_COMPRESSION_MODE,
-    ENTRY_DATA_OFFSET,
-    ENTRY_DATA_UNCOMPRESSED_LENGTH,
-    ENTRY_DELTA_BASE,
-    ENTRY_LINK_REV,
-    ENTRY_NODE_ID,
-    ENTRY_PARENT_1,
-    ENTRY_PARENT_2,
-    ENTRY_SIDEDATA_COMPRESSED_LENGTH,
-    ENTRY_SIDEDATA_COMPRESSION_MODE,
-    ENTRY_SIDEDATA_OFFSET,
     META_MARKER,
     META_MARKER_SIZE,
     REVIDX_ISCENSORED,
@@ -371,16 +359,13 @@ def _rewrite_simple(
         new_data_file,
         new_sidedata_file,
     ) = all_files
-    entry = old_index[rev]
-    flags = entry[ENTRY_DATA_OFFSET] & 0xFFFF
-    old_data_offset = entry[ENTRY_DATA_OFFSET] >> 16
 
     if rev not in rewritten_entries:
-        old_data_file.seek(old_data_offset)
-        new_data_size = entry[ENTRY_DATA_COMPRESSED_LENGTH]
+        old_data_file.seek(old_index.data_chunk_start(rev))
+        new_data_size = old_index.data_chunk_length(rev)
         new_data = old_data_file.read(new_data_size)
-        data_delta_base = entry[ENTRY_DELTA_BASE]
-        d_comp_mode = entry[ENTRY_DATA_COMPRESSION_MODE]
+        data_delta_base = old_index.bundle_repo_delta_base(rev)
+        d_comp_mode = old_index.data_chunk_compression_mode(rev)
     else:
         (
             data_delta_base,
@@ -399,28 +384,30 @@ def _rewrite_simple(
     new_data_offset = new_data_file.tell()
     new_data_file.write(new_data)
 
-    sidedata_size = entry[ENTRY_SIDEDATA_COMPRESSED_LENGTH]
+    sidedata_size = old_index.sidedata_chunk_length(rev)
     new_sidedata_offset = new_sidedata_file.tell()
     if 0 < sidedata_size:
-        old_sidedata_offset = entry[ENTRY_SIDEDATA_OFFSET]
+        old_sidedata_offset = old_index.sidedata_chunk_offset(rev)
         old_sidedata_file.seek(old_sidedata_offset)
         new_sidedata = old_sidedata_file.read(sidedata_size)
         new_sidedata_file.write(new_sidedata)
 
-    data_uncompressed_length = entry[ENTRY_DATA_UNCOMPRESSED_LENGTH]
-    sd_com_mode = entry[ENTRY_SIDEDATA_COMPRESSION_MODE]
+    data_uncompressed_length = old_index.raw_size(rev)
+    sd_com_mode = old_index.sidedata_chunk_compression_mode(rev)
     assert data_delta_base <= rev, (data_delta_base, rev)
 
+    p1, p2 = old_index.parents(rev)
+
     new_entry = revlogutils.entry(
-        flags=flags,
+        flags=old_index.flags(rev),
         data_offset=new_data_offset,
         data_compressed_length=new_data_size,
         data_uncompressed_length=data_uncompressed_length,
         data_delta_base=data_delta_base,
-        link_rev=entry[ENTRY_LINK_REV],
-        parent_rev_1=entry[ENTRY_PARENT_1],
-        parent_rev_2=entry[ENTRY_PARENT_2],
-        node_id=entry[ENTRY_NODE_ID],
+        link_rev=old_index.linkrev(rev),
+        parent_rev_1=p1,
+        parent_rev_2=p2,
+        node_id=old_index.node(rev),
         sidedata_offset=new_sidedata_offset,
         sidedata_compressed_length=sidedata_size,
         data_compression_mode=d_comp_mode,
