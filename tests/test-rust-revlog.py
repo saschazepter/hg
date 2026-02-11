@@ -1,4 +1,10 @@
+import os
 import struct
+import sys
+
+if 'rust' not in os.environ.get('HGMODULEPOLICY', ''):
+    print("skipped: not running a rust flavor")
+    sys.exit(80)
 
 from mercurial.node import (
     bin as node_bin,
