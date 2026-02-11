@@ -144,6 +144,10 @@ class revlogoldindex(list):
         """the offset of the sidedata chunk if any"""
         return revlog_constants.COMP_MODE_INLINE
 
+    def sidedata_chunk_offset(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return 0
+
     def lazy_rank(self, rev):
         return revlog_constants.RANK_UNKNOWN
 

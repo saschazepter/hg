@@ -740,6 +740,10 @@ class BaseIndexObject:
         chain.reverse()
         return chain, stopped
 
+    def sidedata_chunk_offset(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return self[rev][8]
+
     def lazy_rank(self, rev):
         """return the rank of <rev> if known
 

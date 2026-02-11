@@ -1005,6 +1005,13 @@ impl InnerRevlog {
         })
     }
 
+    fn _index_sidedata_chunk_offset(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u64> {
+        Ok(0)
+    }
+
     /// return the rank of <rev> if known
     ///
     /// return `revlog_constants.RANK_UNKNOWN` otherwise.

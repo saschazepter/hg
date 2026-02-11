@@ -1309,6 +1309,7 @@ class RustIndexProxy(ProxyBase):
         self.data_chunk_compression_mode = (
             self.inner._index_data_chunk_compression_mode
         )
+        self.sidedata_chunk_offset = self.inner._index_sidedata_chunk_offset
         self.lazy_rank = self.inner._index_lazy_rank
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
