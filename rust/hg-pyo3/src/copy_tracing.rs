@@ -113,14 +113,14 @@ pub fn combine_changeset_copies_wrapper(
                 // Send `PyBytes` back to the parent thread so the parent
                 // thread can drop it. Otherwise the GIL would be implicitly
                 // acquired here through `impl Drop for PyBytes`.
-                if let Some(bytes) = opt_bytes {
-                    if pybytes_sender.send(bytes.unwrap()).is_err() {
-                        // The channel is disconnected, meaning the parent
-                        // thread panicked or returned
-                        // early through
-                        // `?` to propagate a Python exception.
-                        break;
-                    }
+                if let Some(bytes) = opt_bytes
+                    && pybytes_sender.send(bytes.unwrap()).is_err()
+                {
+                    // The channel is disconnected, meaning the parent
+                    // thread panicked or returned
+                    // early through
+                    // `?` to propagate a Python exception.
+                    break;
                 }
             }
 

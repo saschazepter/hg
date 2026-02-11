@@ -207,14 +207,13 @@ impl StoreShards {
                 // It's a little fragile, but it's better than nothing.
                 let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
                     .expect("valid regex");
-                if let Some(captures) = re.captures(&data) {
-                    if let Some(version) = captures.get(1) {
-                        let version =
-                            String::from_utf8_lossy(version.as_bytes())
-                                .parse::<usize>()
-                                .expect("parsing an integer from a regex");
-                        return Error::UnknownVersion(version);
-                    }
+                if let Some(captures) = re.captures(&data)
+                    && let Some(version) = captures.get(1)
+                {
+                    let version = String::from_utf8_lossy(version.as_bytes())
+                        .parse::<usize>()
+                        .expect("parsing an integer from a regex");
+                    return Error::UnknownVersion(version);
                 }
                 Error::ParseError(e)
             })?,
@@ -355,11 +354,11 @@ impl StoreShards {
     /// Return the [`Shape`] of name `name`, or `None`.
     pub fn shape(&self, name: &str) -> Result<Option<Shape>, Error> {
         let shard_name = ShardName::new(name.to_string())?;
-        if let Some(shard) = self.shards.get(&shard_name) {
-            if shard.shape {
-                let shape = Shape::new(shard_name, self, &[shard])?;
-                return Ok(Some(shape));
-            }
+        if let Some(shard) = self.shards.get(&shard_name)
+            && shard.shape
+        {
+            let shape = Shape::new(shard_name, self, &[shard])?;
+            return Ok(Some(shape));
         }
         Ok(None)
     }

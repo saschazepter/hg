@@ -64,16 +64,17 @@ fn resolve(
 ) -> Result<RevisionOrWdir, RevlogError> {
     // The Python equivalent of this is part of `revsymbol` in
     // `mercurial/scmutil.py`
-    if let Ok(integer) = input.parse::<i32>() {
-        if integer.to_string() == input && integer >= 0 {
-            if integer == WORKING_DIRECTORY_REVISION.0 {
-                return Ok(RevisionOrWdir::wdir());
-            }
-            if revlog.has_rev(integer.into()) {
-                // This is fine because we've just checked that the revision is
-                // valid for the given revlog.
-                return Ok(Revision(integer).into());
-            }
+    if let Ok(integer) = input.parse::<i32>()
+        && integer.to_string() == input
+        && integer >= 0
+    {
+        if integer == WORKING_DIRECTORY_REVISION.0 {
+            return Ok(RevisionOrWdir::wdir());
+        }
+        if revlog.has_rev(integer.into()) {
+            // This is fine because we've just checked that the revision is
+            // valid for the given revlog.
+            return Ok(Revision(integer).into());
         }
     }
     if let Ok(prefix) = NodePrefix::from_hex(input) {

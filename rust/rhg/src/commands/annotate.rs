@@ -448,10 +448,10 @@ fn print_lines_default(
         }
         stdout.write_all(&format_bytes!(b"{}: {}", annotation, line))?;
     }
-    if let Some(line) = file.lines.last() {
-        if !line.ends_with(b"\n") {
-            stdout.write_all(b"\n")?;
-        }
+    if let Some(line) = file.lines.last()
+        && !line.ends_with(b"\n")
+    {
+        stdout.write_all(b"\n")?;
     }
     Ok(())
 }

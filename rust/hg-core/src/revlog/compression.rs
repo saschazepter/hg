@@ -71,10 +71,10 @@ impl CompressionConfig {
                 };
             }
         }
-        if let Some(level) = zlib_level {
-            if matches!(new, CompressionConfig::Zlib { .. }) {
-                new.set_level(level as usize)?;
-            }
+        if let Some(level) = zlib_level
+            && matches!(new, CompressionConfig::Zlib { .. })
+        {
+            new.set_level(level as usize)?;
         }
         Ok(new)
     }

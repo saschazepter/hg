@@ -157,10 +157,10 @@ impl<'a> Lines<'a> {
         // memory twice
         offsets.push(0);
         offsets.extend(memchr::memchr_iter(b'\n', data).map(|o| o + 1));
-        if let Some(c) = data.last() {
-            if *c != b'\n' {
-                offsets.push(data.len());
-            }
+        if let Some(c) = data.last()
+            && *c != b'\n'
+        {
+            offsets.push(data.len());
         }
         Self { data, offsets }
     }

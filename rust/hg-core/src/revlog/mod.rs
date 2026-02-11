@@ -281,10 +281,10 @@ pub trait RevlogIndexNodeLookup: RevlogIndex {
             };
             visit(candidate_node, rev);
             if prefix.is_prefix_of(&candidate_node) {
-                if let Some((found_prefix, found_rev)) = found_by_prefix {
-                    if candidate_node != found_prefix || rev != found_rev {
-                        return Err(NodeMapError::MultipleResults);
-                    }
+                if let Some((found_prefix, found_rev)) = found_by_prefix
+                    && (candidate_node != found_prefix || rev != found_rev)
+                {
+                    return Err(NodeMapError::MultipleResults);
                 }
                 if prefix.nybbles_len() == candidate_node.nybbles_len() {
                     // Exact match, no need to keep looking
@@ -846,12 +846,12 @@ impl<'revlog> RevlogEntry<'revlog> {
             self.revlog.seen_file_size(u32_u(size));
         }
         let cached_rev = self.revlog.get_rev_cache();
-        if let Some(ref cached) = cached_rev {
-            if cached.rev == self.rev {
-                let raw_text = cached.as_data();
-                self.revlog.set_rev_cache_native(self.rev, &raw_text);
-                return Ok(raw_text);
-            }
+        if let Some(ref cached) = cached_rev
+            && cached.rev == self.rev
+        {
+            let raw_text = cached.as_data();
+            self.revlog.set_rev_cache_native(self.rev, &raw_text);
+            return Ok(raw_text);
         }
         let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
         let stop_rev = cache.map(|(r, _)| r);

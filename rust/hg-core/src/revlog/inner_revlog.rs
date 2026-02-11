@@ -242,10 +242,10 @@ impl InnerRevlog {
     pub fn clear_rev_cache(&self, rev: Revision) {
         let mut last_revision_cache =
             self.last_revision_cache.lock().expect("propagate mutex panic");
-        if let Some(cached) = &*last_revision_cache {
-            if cached.rev == rev {
-                last_revision_cache.take();
-            }
+        if let Some(cached) = &*last_revision_cache
+            && cached.rev == rev
+        {
+            last_revision_cache.take();
         }
     }
 
@@ -491,10 +491,9 @@ impl InnerRevlog {
     pub fn chunk_for_rev(&self, rev: Revision) -> Result<RawData, HgError> {
         if let Some(Ok(mut cache)) =
             self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
+            && let Some(chunk) = cache.get(&rev)
         {
-            if let Some(chunk) = cache.get(&rev) {
-                return Ok(chunk.clone());
-            }
+            return Ok(chunk.clone());
         }
         // TODO revlogv2 should check the compression mode
         let data = self.get_segment_for_revs(rev, rev)?.1;
@@ -1816,11 +1815,11 @@ impl RevlogNodeMap {
                     smallest_cached_rev: _,
                 } => {
                     let partial_lookup = tree.find_bin(idx, node_prefix)?;
-                    if node_prefix.nybbles_len() == NULL_NODE.nybbles_len() {
-                        if let Some(rev) = partial_lookup {
-                            // In-memory cache hit of a full node
-                            return Ok(Some(rev));
-                        }
+                    if node_prefix.nybbles_len() == NULL_NODE.nybbles_len()
+                        && let Some(rev) = partial_lookup
+                    {
+                        // In-memory cache hit of a full node
+                        return Ok(Some(rev));
                     }
                     // In-memory cache miss, update the counter.
                     let prev_misses = misses.fetch_add(1, Ordering::Relaxed);

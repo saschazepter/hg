@@ -114,14 +114,13 @@ impl<W: Write> StdoutBuffer<'_, W> {
         bytes: &[u8],
         label: &str,
     ) -> Result<(), UiError> {
-        if let Some(colors) = &self.colors {
-            if let Some(effects) = colors.styles.get(label.as_bytes()) {
-                if !effects.is_empty() {
-                    return self
-                        .write_stdout_with_effects(bytes, effects)
-                        .or_else(handle_stdout_error);
-                }
-            }
+        if let Some(colors) = &self.colors
+            && let Some(effects) = colors.styles.get(label.as_bytes())
+            && !effects.is_empty()
+        {
+            return self
+                .write_stdout_with_effects(bytes, effects)
+                .or_else(handle_stdout_error);
         }
         self.write_all(bytes)
     }

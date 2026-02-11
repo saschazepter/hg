@@ -92,18 +92,18 @@ fn with_filelog_config_cache<T: Copy>(
     callback: impl Fn() -> PyResult<T>,
 ) -> PyResult<T> {
     let mut was_cached = false;
-    if revlog_type == RevlogType::Filelog {
-        if let Some((cached_py_config, rust_config)) = cache.get() {
-            was_cached = true;
-            // it's not impossible that some extensions do some magic with
-            // configs, or that this code will be used for
-            // longer-running processes, ot that we open multiple
-            // repositories in the process. So compare the source `PyObject` in
-            // case the source changed, at the cost of some
-            // overhead.
-            if py_config.eq(cached_py_config)? {
-                return Ok(*rust_config);
-            }
+    if revlog_type == RevlogType::Filelog
+        && let Some((cached_py_config, rust_config)) = cache.get()
+    {
+        was_cached = true;
+        // it's not impossible that some extensions do some magic with
+        // configs, or that this code will be used for
+        // longer-running processes, ot that we open multiple
+        // repositories in the process. So compare the source `PyObject` in
+        // case the source changed, at the cost of some
+        // overhead.
+        if py_config.eq(cached_py_config)? {
+            return Ok(*rust_config);
         }
     }
     let config = callback()?;

@@ -56,10 +56,8 @@ impl DirstateItem {
             if has_meaningful_data {
                 mode_size_opt = Some((mode, size))
             }
-            if has_meaningful_mtime {
-                if let Some(m) = mtime {
-                    mtime_opt = Some(timestamp(m)?);
-                }
+            if has_meaningful_mtime && let Some(m) = mtime {
+                mtime_opt = Some(timestamp(m)?);
             }
         }
         Ok(Self {

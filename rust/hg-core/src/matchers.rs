@@ -1157,10 +1157,10 @@ fn build_match<'a>(
 
         let match_subinclude = move |filename: &HgPath| {
             for prefix in prefixes.iter() {
-                if let Some(rel) = filename.relative_to(prefix) {
-                    if (submatchers[prefix])(rel) {
-                        return true;
-                    }
+                if let Some(rel) = filename.relative_to(prefix)
+                    && (submatchers[prefix])(rel)
+                {
+                    return true;
                 }
             }
             false

@@ -683,10 +683,9 @@ fn adjust_link_revision(
                 .manifestlog
                 .inexact_data_delta_parents(manifest_rev)?
                 .find_by_path(path)?
+                && entry.node_id()? == file_node
             {
-                if entry.node_id()? == file_node {
-                    return Ok(ancestor.into());
-                }
+                return Ok(ancestor.into());
             }
         }
     }

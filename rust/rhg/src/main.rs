@@ -900,15 +900,15 @@ impl EarlyArgs {
         let arg = arg.as_bytes();
         for &flag in EarlyFlag::all() {
             let flag_str = flag.as_str().as_bytes();
-            if arg == flag_str {
-                if let Some(value) = next() {
-                    return Some((flag, value.as_bytes()));
-                }
+            if arg == flag_str
+                && let Some(value) = next()
+            {
+                return Some((flag, value.as_bytes()));
             }
-            if let Some(rest) = arg.drop_prefix(flag_str) {
-                if let Some(value) = rest.drop_prefix(flag.value_sep()) {
-                    return Some((flag, value));
-                }
+            if let Some(rest) = arg.drop_prefix(flag_str)
+                && let Some(value) = rest.drop_prefix(flag.value_sep())
+            {
+                return Some((flag, value));
             }
         }
         None

@@ -86,17 +86,17 @@ where
         }
         if d == factor {
             sample.insert(current);
-            if let Some(sz) = quicksamplesize {
-                if sample.len() >= sz {
-                    return Ok(());
-                }
+            if let Some(sz) = quicksamplesize
+                && sample.len() >= sz
+            {
+                return Ok(());
             }
         }
         for p in parentsfn(current)? {
-            if let Some(revs) = revs {
-                if !revs.contains(&p) {
-                    continue;
-                }
+            if let Some(revs) = revs
+                && !revs.contains(&p)
+            {
+                continue;
             }
             distances.entry(p).or_insert(d + 1);
             visit.push_back(p);

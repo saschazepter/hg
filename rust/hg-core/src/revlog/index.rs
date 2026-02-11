@@ -841,10 +841,10 @@ impl Index {
             None
         };
         self.bytes.remove(rev, offsets.as_deref())?;
-        if self.is_inline() {
-            if let Some(offsets) = &mut *self.get_offsets_mut() {
-                offsets.truncate(rev.0 as usize)
-            }
+        if self.is_inline()
+            && let Some(offsets) = &mut *self.get_offsets_mut()
+        {
+            offsets.truncate(rev.0 as usize)
         }
         self.clear_head_revs();
         Ok(())

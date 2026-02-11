@@ -1216,10 +1216,10 @@ impl OwningDirstateMap {
 
                     // Directory caches must be invalidated when removing a
                     // child node
-                    if removed {
-                        if let NodeData::CachedDirectory { .. } = &node.data {
-                            node.data = NodeData::None
-                        }
+                    if removed
+                        && let NodeData::CachedDirectory { .. } = &node.data
+                    {
+                        node.data = NodeData::None
                     }
                 } else {
                     return Ok(None);
@@ -1433,10 +1433,10 @@ impl OwningDirstateMap {
         key: &HgPath,
     ) -> Result<Option<&HgPath>, DirstateV2ParseError> {
         let map = self.get_map();
-        if let Some(node) = map.get_node(key)? {
-            if let Some(source) = node.copy_source(map.on_disk)? {
-                return Ok(Some(source));
-            }
+        if let Some(node) = map.get_node(key)?
+            && let Some(source) = node.copy_source(map.on_disk)?
+        {
+            return Ok(Some(source));
         }
         Ok(None)
     }

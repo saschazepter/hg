@@ -696,14 +696,14 @@ impl Writer<'_, '_> {
         nodes: dirstate_map::ChildNodesRef,
     ) -> Result<ChildNodes, DirstateError> {
         // Reuse already-written nodes if possible
-        if self.append {
-            if let dirstate_map::ChildNodesRef::OnDisk(nodes_slice) = nodes {
-                let start = self.on_disk_offset_of(nodes_slice).expect(
-                    "dirstate-v2 OnDisk nodes not found within on_disk",
-                );
-                let len = child_nodes_len_from_usize(nodes_slice.len());
-                return Ok(ChildNodes { start, len });
-            }
+        if self.append
+            && let dirstate_map::ChildNodesRef::OnDisk(nodes_slice) = nodes
+        {
+            let start = self
+                .on_disk_offset_of(nodes_slice)
+                .expect("dirstate-v2 OnDisk nodes not found within on_disk");
+            let len = child_nodes_len_from_usize(nodes_slice.len());
+            return Ok(ChildNodes { start, len });
         }
 
         // `dirstate_map::ChildNodes::InMemory` contains a `HashMap` which has
@@ -855,10 +855,10 @@ impl Writer<'_, '_> {
     fn write_path(&mut self, slice: &[u8]) -> PathSlice {
         let len = path_len_from_usize(slice.len());
         // Reuse an already-written path if possible
-        if self.append {
-            if let Some(start) = self.on_disk_offset_of(slice) {
-                return PathSlice { start, len };
-            }
+        if self.append
+            && let Some(start) = self.on_disk_offset_of(slice)
+        {
+            return PathSlice { start, len };
         }
         let start = self.current_offset();
         self.out.extend(slice.as_bytes());

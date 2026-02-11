@@ -149,10 +149,10 @@ impl<M: Matcher> StatusRevRev<'_, M> {
                 let data = repo
                     .filelog(path)?
                     .data_for_node(entry.node_id().unwrap())?;
-                if let Some(copy) = data.metadata()?.parse()?.copy {
-                    if self.manifest1.find_by_path(copy)?.is_some() {
-                        return Ok(Some(copy.to_owned()));
-                    }
+                if let Some(copy) = data.metadata()?.parse()?.copy
+                    && self.manifest1.find_by_path(copy)?.is_some()
+                {
+                    return Ok(Some(copy.to_owned()));
                 }
             }
         }

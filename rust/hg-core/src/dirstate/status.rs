@@ -527,22 +527,18 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         }
         if !self.options.list_ignored
             && self.ignore_patterns_have_changed == Some(false)
+            && let Some(cached_mtime) = cached_directory_mtime
         {
-            if let Some(cached_mtime) = cached_directory_mtime {
-                // The dirstate contains a cached mtime for this directory, set
-                // by a previous run of the `status` algorithm which found this
-                // directory eligible for `read_dir` caching.
-                if let Ok(meta) = directory_entry.symlink_metadata() {
-                    if cached_mtime
-                        .likely_equal_to_mtime_of(&meta)
-                        .unwrap_or(false)
-                    {
-                        // The mtime of that directory has not changed
-                        // since then, which means that the results of
-                        // `read_dir` should also be unchanged.
-                        return true;
-                    }
-                }
+            // The dirstate contains a cached mtime for this directory, set
+            // by a previous run of the `status` algorithm which found this
+            // directory eligible for `read_dir` caching.
+            if let Ok(meta) = directory_entry.symlink_metadata()
+                && cached_mtime.likely_equal_to_mtime_of(&meta).unwrap_or(false)
+            {
+                // The mtime of that directory has not changed
+                // since then, which means that the results of
+                // `read_dir` should also be unchanged.
+                return true;
             }
         }
         false
@@ -754,15 +750,15 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             // replaced by a directory or something else.
             self.mark_removed_or_deleted_if_file(&dirstate_node)?;
         }
-        if let Some(bad_type) = fs_entry.is_bad() {
-            if self.matcher.exact_match(hg_path) {
-                let path = dirstate_node.full_path(self.dmap.on_disk)?;
-                self.outcome
-                    .lock()
-                    .unwrap()
-                    .bad
-                    .push((path.to_owned().into(), BadMatch::BadType(bad_type)))
-            }
+        if let Some(bad_type) = fs_entry.is_bad()
+            && self.matcher.exact_match(hg_path)
+        {
+            let path = dirstate_node.full_path(self.dmap.on_disk)?;
+            self.outcome
+                .lock()
+                .unwrap()
+                .bad
+                .push((path.to_owned().into(), BadMatch::BadType(bad_type)))
         }
 
         let response = if fs_entry.is_dir() {

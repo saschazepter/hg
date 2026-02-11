@@ -282,10 +282,10 @@ impl Config {
         // TODO: this order (per-installation then per-system) matches
         // `systemrcpath()` in `mercurial/scmposix.py`, but
         // `mercurial/helptext/config.txt` suggests it should be reversed
-        if let Some(installation_prefix) = hg.parent().and_then(Path::parent) {
-            if installation_prefix != root {
-                add_for_prefix(installation_prefix)?
-            }
+        if let Some(installation_prefix) = hg.parent().and_then(Path::parent)
+            && installation_prefix != root
+        {
+            add_for_prefix(installation_prefix)?
         }
         add_for_prefix(root)?;
         Ok(())
@@ -298,13 +298,12 @@ impl Config {
             self.add_trusted_file(&home.join(".hgrc"))?
         }
         let darwin = cfg!(any(target_os = "macos", target_os = "ios"));
-        if !darwin {
-            if let Some(config_home) = env::var_os("XDG_CONFIG_HOME")
+        if !darwin
+            && let Some(config_home) = env::var_os("XDG_CONFIG_HOME")
                 .map(PathBuf::from)
                 .or_else(|| opt_home.map(|home| home.join(".config")))
-            {
-                self.add_trusted_file(&config_home.join("hg").join("hgrc"))?
-            }
+        {
+            self.add_trusted_file(&config_home.join("hg").join("hgrc"))?
         }
         Ok(())
     }
@@ -845,20 +844,20 @@ impl Config {
     /// in Python with acceptempty=False, but aborts rather than prompting for
     /// input or falling back to the OS username and hostname.
     pub fn username(&self) -> Result<Vec<u8>, HgError> {
-        if let Some(value) = env::var_os("HGUSER") {
-            if !value.is_empty() {
-                return Ok(value.into_encoded_bytes());
-            }
+        if let Some(value) = env::var_os("HGUSER")
+            && !value.is_empty()
+        {
+            return Ok(value.into_encoded_bytes());
         }
-        if let Some(value) = self.get_str(b"ui", b"username")? {
-            if !value.is_empty() {
-                return Ok(value.as_bytes().to_vec());
-            }
+        if let Some(value) = self.get_str(b"ui", b"username")?
+            && !value.is_empty()
+        {
+            return Ok(value.as_bytes().to_vec());
         }
-        if let Some(value) = env::var_os("EMAIL") {
-            if !value.is_empty() {
-                return Ok(value.into_encoded_bytes());
-            }
+        if let Some(value) = env::var_os("EMAIL")
+            && !value.is_empty()
+        {
+            return Ok(value.into_encoded_bytes());
         }
         Err(HgError::abort(
             "no username supplied",

@@ -56,34 +56,34 @@ impl<'a> LogFile<'a> {
                 .with_context(context)
         };
         let mut file = open()?;
-        if let Some(max_size) = self.max_size {
-            if file.metadata().with_context(context)?.len() >= max_size {
-                // For example with `max_files == 5`, the first iteration of
-                // this loop has `i == 4` and renames `{name}.4` to `{name}.5`.
-                // The last iteration renames `{name}.1` to
-                // `{name}.2`
-                for i in (1..self.max_files).rev() {
-                    self.vfs
-                        .rename(
-                            Path::new(&format!("{}.{}", self.name, i)),
-                            Path::new(&format!("{}.{}", self.name, i + 1)),
-                            false,
-                        )
-                        .io_not_found_as_none()?;
-                }
-                // Then rename `{name}` to `{name}.1`. This is the
-                // previously-opened `file`.
+        if let Some(max_size) = self.max_size
+            && file.metadata().with_context(context)?.len() >= max_size
+        {
+            // For example with `max_files == 5`, the first iteration of
+            // this loop has `i == 4` and renames `{name}.4` to `{name}.5`.
+            // The last iteration renames `{name}.1` to
+            // `{name}.2`
+            for i in (1..self.max_files).rev() {
                 self.vfs
                     .rename(
-                        Path::new(&self.name),
-                        Path::new(&format!("{}.1", self.name)),
+                        Path::new(&format!("{}.{}", self.name, i)),
+                        Path::new(&format!("{}.{}", self.name, i + 1)),
                         false,
                     )
                     .io_not_found_as_none()?;
-                // Finally, create a new `{name}` file and replace our `file`
-                // handle.
-                file = open()?;
             }
+            // Then rename `{name}` to `{name}.1`. This is the
+            // previously-opened `file`.
+            self.vfs
+                .rename(
+                    Path::new(&self.name),
+                    Path::new(&format!("{}.1", self.name)),
+                    false,
+                )
+                .io_not_found_as_none()?;
+            // Finally, create a new `{name}` file and replace our `file`
+            // handle.
+            file = open()?;
         }
         file.write_all(bytes).with_context(context)?;
         file.sync_all().with_context(context)
