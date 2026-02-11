@@ -463,6 +463,29 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 	return (int64_t)(offset >> 16);
 }
 
+static PyObject *index_py_data_chunk_start(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int64_t start;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < nullrev || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx == nullrev) {
+		start = 0;
+	} else {
+		start = index_get_start(self, idx);
+	}
+	if (start < 0) {
+		return NULL;
+	}
+	return PyLong_FromLongLong(start);
+}
+
 static inline int index_get_length(indexObject *self, Py_ssize_t rev)
 {
 	const char *data;
@@ -3683,6 +3706,8 @@ static PyMethodDef index_methods[] = {
     {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
     {"bundle_repo_delta_base", (PyCFunction)index_py_bundle_repo_delta_base,
      METH_O, "hack to keep bundle repo working"},
+    {"data_chunk_start", (PyCFunction)index_py_data_chunk_start, METH_O,
+     "return the starting offset of the data chunk of a rev"},
     {"delta_base", (PyCFunction)index_py_delta_base, METH_O,
      "return the base revision on which to apply the delta"},
     {"lazy_rank", (PyCFunction)index_py_lazy_rank, METH_O,

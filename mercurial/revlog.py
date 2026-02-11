@@ -502,7 +502,7 @@ class _InnerRevlog:
 
     def start(self, rev):
         """the offset of the data chunk for this revision"""
-        return int(self.index[rev][0] >> 16)
+        return self.index.data_chunk_start(rev)
 
     def length(self, rev):
         """the length of the data chunk for this revision"""
@@ -1303,6 +1303,7 @@ class RustIndexProxy(ProxyBase):
         self.linkrev = self.inner._index_linkrev
         self.flags = self.inner._index_flags
         self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
+        self.data_chunk_start = self.inner._index_data_chunk_start
         self.delta_base = self.inner._index_delta_base
         self.lazy_rank = self.inner._index_lazy_rank
         self.node = self.inner._index_node
@@ -2152,7 +2153,7 @@ class revlog:
     # First tuple entry is 8 bytes. First 6 bytes are offset. Last 2 bytes
     # are flags.
     def start(self, rev):
-        return int(self.index[rev][0] >> 16)
+        return self.index.data_chunk_start(rev)
 
     def sidedata_cut_off(self, rev):
         sd_cut_off = self.index[rev][8]

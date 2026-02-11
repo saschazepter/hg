@@ -95,6 +95,10 @@ class revlogoldindex(list):
         """the raw `delta-base` value, used by bundle_repo"""
         return self[rev][3]
 
+    def data_chunk_start(self, rev):
+        """return the starting offsset of the data chunk of a rev"""
+        return int(self[rev][0] >> 16)
+
     def delta_base(self, rev):
         base = self[rev][3]
         if base == rev:
