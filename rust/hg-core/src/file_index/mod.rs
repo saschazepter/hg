@@ -468,9 +468,9 @@ impl FileIndex {
         VfsDataFiles { list_file, meta_file, mut tree_file }: VfsDataFiles,
         mode: SerializeMode,
     ) -> Result<(), HgError> {
-        let list_file_path = normal_path(&list_file).to_owned();
-        let meta_file_path = normal_path(&meta_file).to_owned();
-        let tree_file_path = normal_path(&tree_file).to_owned();
+        let list_file_path = list_file.path().to_path_buf();
+        let meta_file_path = meta_file.path().to_path_buf();
+        let tree_file_path = tree_file.path().to_path_buf();
         // The tree file doesn't need buffering since we write it all at once.
         let mut list_file = BufWriter::new(list_file);
         let mut meta_file = BufWriter::new(meta_file);
@@ -607,16 +607,8 @@ where
     ) -> Result<VfsFile, HgError> {
         let mut file = self.vfs.open_write(path)?;
         file.seek(SeekFrom::Start(used_size as u64))
-            .when_reading_file(normal_path(&file))?;
+            .when_reading_file(file.path())?;
         Ok(file)
-    }
-}
-
-/// Returns the path of a [`VfsFile`], assuming it is normal not atomic.
-fn normal_path(file: &VfsFile) -> &Path {
-    match file {
-        VfsFile::Normal { path, .. } => path,
-        VfsFile::Atomic(..) => unreachable!("unexpected atomic file"),
     }
 }
 
