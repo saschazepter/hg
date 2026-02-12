@@ -140,7 +140,8 @@ mod full_tracing {
 
         // /!\ Keep in sync with rhg
         if let Ok(path) = std::env::var("HG_TRACE_PATH") {
-            chrome_layer_builder = chrome_layer_builder.file(path);
+            chrome_layer_builder = chrome_layer_builder
+                .writer(hg::logging::SafeWriter::create(path));
         }
         let (chrome_layer, chrome_layer_guard) = chrome_layer_builder.build();
         let registry = tracing_subscriber::registry()

@@ -8,6 +8,40 @@ use crate::errors::IoResultExt;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
+/// This writer swallows all write errors.
+///
+/// The tracing-chrome crate panics if writing fails. We do not want tracing
+/// errors to interfere with Mercurial behavior. We opened an issue here:
+/// https://github.com/thoren-d/tracing-chrome/issues/34
+pub struct SafeWriter {
+    file: Option<std::fs::File>,
+}
+
+impl SafeWriter {
+    pub fn create<P: AsRef<Path>>(path: P) -> Self {
+        Self { file: std::fs::File::create(path).ok() }
+    }
+}
+
+impl std::io::Write for SafeWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if let Some(file) = &mut self.file {
+            match file.write(buf) {
+                Ok(size) => return Ok(size),
+                Err(_) => self.file = None,
+            }
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        if let Some(file) = &mut self.file {
+            file.flush().ok();
+        }
+        Ok(())
+    }
+}
+
 /// An utility to append to a log file with the given name, and optionally
 /// rotate it after it reaches a certain maximum size.
 ///
