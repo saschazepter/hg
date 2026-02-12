@@ -2878,7 +2878,12 @@ class revlog:
             except binascii.Error:
                 pass
             else:
-                nl = [e[7] for e in self.index if e[7].startswith(prefix)]
+                idx = self.index
+                nl = [
+                    n
+                    for r in range(len(idx))
+                    if (n := idx.node(r)).startswith(prefix)
+                ]
                 nl = [
                     n for n in nl if hex(n).startswith(id) and self.hasnode(n)
                 ]
