@@ -631,7 +631,7 @@ class BaseIndexObject:
     def _nodemap(self):
         nodemap = nodemaputil.NodeMap({sha1nodeconstants.nullid: nullrev})
         for r in range(0, len(self)):
-            n = self[r][7]
+            n = self._entry(r)[7]
             nodemap[n] = r
         return nodemap
 
@@ -653,17 +653,17 @@ class BaseIndexObject:
 
     def parents(self, rev):
         """return (p1, p2) for a rev"""
-        entry = self[rev]
+        entry = self._entry(rev)
         return (entry[5], entry[6])
 
     _parents_raw = parents
 
     def linkrev(self, rev):
-        return self[rev][4]
+        return self._entry(rev)[4]
 
     def flags(self, rev):
         """the revision level flag for a revision"""
-        return self[rev][0] & 0xFFFF
+        return self._entry(rev)[0] & 0xFFFF
 
     def bundle_repo_delta_base(self, rev) -> RevnumT:
         """the raw `delta-base` value, used by bundle_repoi
@@ -673,7 +673,7 @@ class BaseIndexObject:
         bundle-repo code have to deal with this by hand and need the raw value
         for the delta-base to work properly.
         """
-        return self[rev][3]
+        return self._entry(rev)[3]
 
     def raw_size(self, rev) -> int | None:
         """the raw size of the revision data
@@ -681,22 +681,22 @@ class BaseIndexObject:
         The "raw data" is stored content because flag processing and with
         optionnal metadata attached.
         """
-        size = self[rev][2]
+        size = self._entry(rev)[2]
         if size < 0:
             return None
         return size
 
     def data_chunk_start(self, rev):
         """return the starting offsset of the data chunk of a rev"""
-        return int(self[rev][0] >> 16)
+        return int(self._entry(rev)[0] >> 16)
 
     def data_chunk_length(self, rev):
         """return the length of the data chunk of a rev"""
-        return self[rev][1]
+        return self._entry(rev)[1]
 
     def data_chunk_compression_mode(self, rev):
         """the type of compression used a revision data chunk"""
-        return self[rev][10]
+        return self._entry(rev)[10]
 
     def delta_base(self, rev) -> RevnumT | None:
         """The revision to which apply the delta stored for <rev>
@@ -706,7 +706,7 @@ class BaseIndexObject:
 
         If <rev> is stored as a full snapshot, `None` is returned instead.
         """
-        base = self[rev][3]
+        base = self._entry(rev)[3]
         if base == rev:
             return None
         elif self._uses_general_delta:
@@ -720,7 +720,7 @@ class BaseIndexObject:
 
         chain = []
         iterrev = rev
-        e = self[iterrev]
+        e = self._entry(iterrev)
         while iterrev != e[3] and iterrev != stoprev:
             if e[1] > 0:
                 # skip over empty delta in the chain
@@ -729,7 +729,7 @@ class BaseIndexObject:
                 iterrev = e[3]
             else:
                 iterrev -= 1
-            e = self[iterrev]
+            e = self._entry(iterrev)
 
         if iterrev == stoprev:
             stopped = True
@@ -742,31 +742,31 @@ class BaseIndexObject:
 
     def sidedata_chunk_offset(self, rev):
         """the offset of the sidedata chunk if any"""
-        return self[rev][8]
+        return self._entry(rev)[8]
 
     def sidedata_chunk_length(self, rev):
         """the offset of the sidedata chunk if any"""
-        return self[rev][9]
+        return self._entry(rev)[9]
 
     def sidedata_chunk_compression_mode(self, rev):
         """the offset of the sidedata chunk if any"""
-        return self[rev][11]
+        return self._entry(rev)[11]
 
     def lazy_rank(self, rev):
         """return the rank of <rev> if known
 
         return `revlog_constants.RANK_UNKNOWN` otherwise.
         """
-        return self[rev][12]
+        return self._entry(rev)[12]
 
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
-        return self[rev][7]
+        return self._entry(rev)[7]
 
     def _stripnodes(self, start):
         if '_nodemap' in vars(self):
             for r in range(start, len(self)):
-                n = self[r][7]
+                n = self._entry(r)[7]
                 del self._nodemap[n]
 
     def clearcaches(self):
@@ -799,6 +799,9 @@ class BaseIndexObject:
         raise NotImplementedError
 
     def __getitem__(self, i) -> tuple:
+        return self._entry(i)
+
+    def _entry(self, i) -> tuple:
         if i == -1:
             return self.null_item
         self._check_index(i)
@@ -834,7 +837,7 @@ class BaseIndexObject:
 
     def entry_binary(self, rev) -> bytes:
         """return the raw binary string representing a revision"""
-        entry = self[rev]
+        entry = self._entry(rev)
         p = revlog_constants.INDEX_ENTRY_V1.pack(*entry[:8])
         if rev == 0:
             p = p[revlog_constants.INDEX_HEADER.size :]
@@ -854,7 +857,7 @@ class BaseIndexObject:
 
         for r in revs:
             ishead[r] = 1  # I may be an head
-            e = self[r]
+            e = self._entry(r)
             ishead[e[5]] = ishead[e[6]] = 0  # my parent are not
         return [r for r, val in enumerate(ishead) if val]
 
@@ -1034,7 +1037,7 @@ class IndexObject2(IndexObject):
             raise KeyError(msg)
         else:
             assert not (added_flags & dropped_flags)
-            entry = list(self[rev])
+            entry = list(self._entry(rev))
             entry[0] = entry[0] | added_flags & ~dropped_flags
             entry[8] = sidedata_offset
             entry[9] = sidedata_length
@@ -1060,7 +1063,7 @@ class IndexObject2(IndexObject):
 
     def entry_binary(self, rev):
         """return the raw binary string representing a revision"""
-        entry = self[rev]
+        entry = self._entry(rev)
         return self._pack_entry(rev, entry)
 
     def pack_header(self, header):
