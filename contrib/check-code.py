@@ -419,6 +419,7 @@ commonpypats = [
         (
             r'^(from|import) mercurial\.(cext|pure|cffi)',
             "use mercurial.policy.importmod instead",
+            "# *no-policy",
         ),
         (r'\.next\(\)', "don't use .next(), use next(...)"),
         (

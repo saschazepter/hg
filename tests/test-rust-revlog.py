@@ -11,6 +11,7 @@ from mercurial.node import (
     hex,
 )
 from mercurial import error
+from mercurial.pure import parsers  # no-policy
 
 try:
     from mercurial import pyo3_rustext
@@ -73,7 +74,9 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         self.assertIsNone(idx.get_rev(self.node0))
 
         non_empty_index = self.parserustindex()
-        idx.append(non_empty_index[0])
+        bin_entry = b'\0\0\0\0' + non_empty_index.entry_binary(0)
+        entry = parsers.IndexObject.index_format.unpack(bin_entry)
+        idx.append(entry)
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx.get_rev(self.node0), 0)
 
