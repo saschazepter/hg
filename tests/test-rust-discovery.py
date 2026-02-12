@@ -70,7 +70,7 @@ class rustdiscoverytest(revlogtesting.RustRevlogBasedTestBase):
         idx = self.parseindex()
         # checking our assumptions about the index binary data:
         self.assertEqual(
-            {i: (r[5], r[6]) for i, r in enumerate(idx)},
+            {r: idx.parents(r) for r in range(len(idx))},
             {0: (-1, -1), 1: (0, -1), 2: (1, -1), 3: (2, -1)},
         )
 
