@@ -144,7 +144,7 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         # invalidation is upon mutation *of the index*
         self.assertFalse(nt.is_invalidated())
 
-        bin_nodes = [entry[7] for entry in idx]
+        bin_nodes = [idx.node(r) for r in range(len(idx))]
         hex_nodes = [hex(n) for n in bin_nodes]
 
         for i, node in enumerate(hex_nodes):
