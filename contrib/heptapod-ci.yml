@@ -651,7 +651,8 @@ build-c-wheel-windows:
         - echo "$Env:TMP"
         - echo "$Env:TEMP"
         - C:/hgdev/MinGW/msys/1.0/bin/sh.exe
-          --login -c 'cd "$OLDPWD"
+          --login -c 'sleep 5
+            && cd "$OLDPWD"
             && ls -1 tests/test-check-*.* > "${TMP_WORK_DIR}"/check-tests.txt'
         # This test is hanging the worker and not that important, so lets skip
         # it for now
