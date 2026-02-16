@@ -250,7 +250,7 @@ def rawindexentries(ui, repos, req, subdir=b''):
             b'lastchange': d,
             b'lastchange_sort': d[1] - d[0],
             b'archives': webutil.archivelist(u, b"tip", url),
-            b'isdirectory': None,
+            b'isdirectory': False,
             b'labels': templateutil.hybridlist(labels, name=b'label'),
         }
 
