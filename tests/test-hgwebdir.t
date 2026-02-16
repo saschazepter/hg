@@ -121,15 +121,19 @@ should succeed
   {
   "entries": [{
   "name": "a",
+  "url": "/a/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "b",
+  "url": "/b/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }]
   } (no-eol)
@@ -225,207 +229,275 @@ should succeed, slashy names
   {
   "entries": [{
   "name": "t/a",
+  "url": "/t/a/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "b",
+  "url": "/b/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "coll/a",
+  "url": "/coll/a/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "coll/a/.hg/patches",
+  "url": "/coll/a/.hg/patches/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "coll/b",
+  "url": "/coll/b/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "coll/c",
+  "url": "/coll/c/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "coll/notrepo/e",
+  "url": "/coll/notrepo/e/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "fancy name for repo f",
+  "url": "/coll/notrepo/f/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": ["foo", "bar"]
   }, {
   "name": "rcoll/a",
+  "url": "/rcoll/a/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "rcoll/a/.hg/patches",
+  "url": "/rcoll/a/.hg/patches/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "rcoll/b",
+  "url": "/rcoll/b/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "rcoll/b/d",
+  "url": "/rcoll/b/d/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "rcoll/c",
+  "url": "/rcoll/c/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "rcoll/notrepo/e",
+  "url": "/rcoll/notrepo/e/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "rcoll/notrepo/e/e2",
+  "url": "/rcoll/notrepo/e/e2/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "fancy name for repo f",
+  "url": "/rcoll/notrepo/f/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": ["foo", "bar"]
   }, {
   "name": "rcoll/notrepo/f/f2",
+  "url": "/rcoll/notrepo/f/f2/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "star/webdir/a",
+  "url": "/star/webdir/a/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "star/webdir/a/.hg/patches",
+  "url": "/star/webdir/a/.hg/patches/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "star/webdir/b",
+  "url": "/star/webdir/b/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "star/webdir/c",
+  "url": "/star/webdir/c/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "star/webdir/notrepo/e",
+  "url": "/star/webdir/notrepo/e/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "fancy name for repo f",
+  "url": "/star/webdir/notrepo/f/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": ["foo", "bar"]
   }, {
   "name": "starstar/webdir/a",
+  "url": "/starstar/webdir/a/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "starstar/webdir/a/.hg/patches",
+  "url": "/starstar/webdir/a/.hg/patches/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "starstar/webdir/b",
+  "url": "/starstar/webdir/b/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "starstar/webdir/b/d",
+  "url": "/starstar/webdir/b/d/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "starstar/webdir/c",
+  "url": "/starstar/webdir/c/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "starstar/webdir/notrepo/e",
+  "url": "/starstar/webdir/notrepo/e/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "starstar/webdir/notrepo/e/e2",
+  "url": "/starstar/webdir/notrepo/e/e2/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "fancy name for repo f",
+  "url": "/starstar/webdir/notrepo/f/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": ["foo", "bar"]
   }, {
   "name": "starstar/webdir/notrepo/f/f2",
+  "url": "/starstar/webdir/notrepo/f/f2/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "astar",
+  "url": "/astar/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }, {
   "name": "astar/.hg/patches",
+  "url": "/astar/.hg/patches/",
   "description": "unknown",
   "contact": "Foo Bar \u003cfoo.bar@example.com\u003e",
   "lastchange": [*, *], (glob)
+  "isdirectory": false,
   "labels": []
   }]
   } (no-eol)

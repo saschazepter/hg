@@ -242,9 +242,11 @@ index = '\{
   }'
 indexentry = '\{
   "name": {name|utf8|json},
+  "url": {url|utf8|json},
   "description": {description|utf8|json},
   "contact": {contact|utf8|json},
   "lastchange": {lastchange|json},
+  "isdirectory": {isdirectory|json},
   "labels": {labels|json}
   }'
 error = '\{
