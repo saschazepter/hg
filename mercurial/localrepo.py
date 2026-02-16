@@ -2028,8 +2028,9 @@ class localrepository(_localrepo_base_classes):
         (e.g. namespace).
 
         """
+        branchmap = self.branchmap()
         try:
-            return self.branchmap().branchtip(branch)
+            return branchmap.branchtip(branch)
         except KeyError:
             if not ignoremissing:
                 raise error.RepoLookupError(_(b"unknown branch '%s'") % branch)
