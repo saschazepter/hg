@@ -1596,10 +1596,12 @@ Test a broken #if statement doesn't break run-tests threading.
   > done
   $ rt -j 2
   running 5 tests using 2 parallel processes 
-  ....
-  # Ran 5 tests, 0 skipped, 0 failed.
-  skipped: unknown feature: notarealhghavefeature
+  E....
+  ERROR: test-broken.t: skipped: unknown feature: notarealhghavefeature
   
+  # Ran 5 tests, 0 skipped, 0 failed, 1 errors.
+  python hash seed: * (glob)
+  [1]
   $ cd ..
   $ rm -rf broken
 
@@ -2093,6 +2095,9 @@ Error handling
   > EOF
   $ rt test-error-unknown-condition-if.t
   running 1 tests using 1 parallel processes 
-  skipped: unknown feature: idonotexists
+  E
+  ERROR: test-error-unknown-condition-if.t: skipped: unknown feature: idonotexists
   
+  # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
+  python hash seed: * (glob)
   [1]

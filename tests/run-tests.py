@@ -1900,8 +1900,7 @@ class TTest(Test):
         if wifexited(ret):
             ret = os.WEXITSTATUS(ret)
         if ret == 2:
-            print(stdout.decode('utf-8'))
-            sys.exit(1)
+            self.raise_error(stdout.decode('utf-8'))
 
         if ret != 0:
             self._have[allreqs] = (False, stdout)
