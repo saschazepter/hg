@@ -2080,10 +2080,8 @@ Error handling
      $ echo foo
   +  foo
   +  !!! missing #endif
-  
-  ERROR: test-error-bad-syntax.t output changed
-  !
-  Failed test-error-bad-syntax.t: output changed
-  # Ran 1 tests, 0 skipped, 1 failed.
+  E
+  ERROR: test-error-bad-syntax.t: bad syntax
+  # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
   python hash seed: * (glob)
   [1]

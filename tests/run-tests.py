@@ -1086,6 +1086,15 @@ def killdaemons(pidfile):
 # sysconfig is not thread-safe (https://github.com/python/cpython/issues/92452)
 sysconfiglock = threading.Lock()
 
+# magic return for TTest that indicate syntax issue.
+RET_SYNTAX_ERROR = 1025
+
+
+class TestError(RuntimeError):
+    def __init__(self, summary: str):
+        self.summary = summary
+        super().__init__(summary)
+
 
 class Test(unittest.TestCase):
     """Encapsulates a single, runnable test.
@@ -1284,6 +1293,8 @@ class Test(unittest.TestCase):
                 # especially for PythonTest instances.
                 if result.addFailure(self, str(e)):
                     success = True
+            except TestError as exc:
+                result.addError(self, message=exc.summary)
             except Exception:
                 result.addError(self, sys.exc_info())
             else:
@@ -1366,12 +1377,15 @@ class Test(unittest.TestCase):
                     global firsterror
                     firsterror = True
 
-            if ret:
-                msg = 'output changed and ' + describe(ret)
+            if ret == RET_SYNTAX_ERROR:
+                msg = 'bad syntax'
+                self.raise_error(msg)
             else:
-                msg = 'output changed'
-
-            self.fail(msg)
+                if ret:
+                    msg = 'output changed and ' + describe(ret)
+                else:
+                    msg = 'output changed'
+                self.fail(msg)
         elif ret:
             self.fail(describe(ret))
 
@@ -1694,6 +1708,11 @@ class Test(unittest.TestCase):
         # Failed is denoted by AssertionError (by default at least).
         raise AssertionError(msg)
 
+    def raise_error(self, msg):
+        # unittest differentiates between errored and failed.
+        # Failed is denoted by AssertionError (by default at least).
+        raise TestError(msg)
+
     def _runcommand(self, cmd, env, normalizenewlines=False):
         """Run command in a sub-process, capturing the output (stdout and
         stderr).
@@ -1832,7 +1851,7 @@ class TTest(Test):
         if self._refout is not None:
             self._refout = lines
 
-        salt, script, after, expected = self._parsetest(lines)
+        salt, script, after, expected, syntax_ok = self._parsetest(lines)
 
         # Write out the generated script.
         fname = b'%s.sh' % self._testtmp
@@ -1853,7 +1872,11 @@ class TTest(Test):
         if exitcode == self.SKIPPED_STATUS or output is None:
             return exitcode, output
 
-        return self._processoutput(exitcode, output, salt, after, expected)
+        r = self._processoutput(exitcode, output, salt, after, expected)
+        if not syntax_ok:
+            # inject a magic exit code to signal that we had syntax error.
+            return (RET_SYNTAX_ERROR,) + r[1:]
+        return r
 
     def _hghave(self, reqs):
         allreqs = b' '.join(reqs)
@@ -1960,6 +1983,8 @@ class TTest(Test):
         expected = {}
 
         pos = prepos = -1
+
+        condition_issues = 0
 
         # The current stack of conditionnal section.
         # Each relevant conditionnal section can have the following value:
@@ -2069,11 +2094,13 @@ class TTest(Test):
             elif l.startswith(b'#else'):
                 if not condition_stack:
                     after.setdefault(pos, []).append(b'  !!! missing #if\n')
+                    condition_issues += 1
                 flip_conditional()
                 after.setdefault(pos, []).append(l)
             elif l.startswith(b'#endif'):
                 if not condition_stack:
                     after.setdefault(pos, []).append(b'  !!! missing #if\n')
+                    condition_issues += 1
                 pop_conditional()
                 after.setdefault(pos, []).append(l)
             elif not run_line():
@@ -2125,11 +2152,12 @@ class TTest(Test):
             script.append(b'EOF\n')
         if condition_stack:
             after.setdefault(pos, []).append(b'  !!! missing #endif\n')
+            condition_issues += 1
         addsalt(n + 1, False)
         # Need to end any current per-command trace
         if activetrace:
             toggletrace()
-        return salt, script, after, expected
+        return salt, script, after, expected, condition_issues == 0
 
     def _processoutput(self, exitcode, output, salt, after, expected):
         # Merge the script output back into a unified test.
@@ -2449,8 +2477,12 @@ class TestResult(base_class):
                 self._write_dot('.')
         self.successes.append(test)
 
-    def addError(self, test, err):
-        super(base_class, self).addError(test, err)
+    def addError(self, test, err=None, message=None):
+        if message is not None:
+            self.errors.append((test, message))
+        else:
+            assert err is not None
+            super(base_class, self).addError(test, err)
         if self.showAll:
             self._write_status(test, "ERROR")
         elif self.dots:
@@ -2935,7 +2967,7 @@ class TextTestRunner(unittest.TextTestRunner):
             for test, msg in sorted(
                 self._result.errors, key=lambda e: e[0].name
             ):
-                self.stream.writeln('Errored %s: %s' % (test.name, msg))
+                self.stream.writeln('ERROR: %s: %s' % (test.name, msg))
 
             if self._runner.options.xunit:
                 with open(self._runner.options.xunit, "wb") as xuf:
@@ -2958,7 +2990,7 @@ class TextTestRunner(unittest.TextTestRunner):
                 msg %= (test_count, skipped + ignored, failed)
 
             self.stream.writeln(msg)
-            if failed:
+            if failed or error_count:
                 self.stream.writeln(
                     'python hash seed: %s' % os.environ['PYTHONHASHSEED']
                 )
