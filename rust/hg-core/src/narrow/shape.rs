@@ -43,9 +43,9 @@ lazy_static! {
     ];
 }
 
-/// Errors specific to handling shapes
+/// Every kind of error when handling shapes
 #[derive(Debug, PartialEq)]
-pub enum Error {
+pub enum ErrorKind {
     /// A shard was declared with an empty name
     EmptyShardName,
     /// A shard was declared with a name that only has dots and/or hyphens
@@ -73,6 +73,20 @@ pub enum Error {
     ParseError(toml::de::Error),
 }
 
+/// Error specific to handling shapes
+#[derive(Debug, PartialEq)]
+pub struct Error {
+    /// Boxed to prevent the error from being too large
+    pub kind: Box<ErrorKind>,
+    pub backtrace: HgBacktrace,
+}
+
+impl From<ErrorKind> for Error {
+    fn from(value: ErrorKind) -> Self {
+        Self { kind: Box::new(value), backtrace: HgBacktrace::capture() }
+    }
+}
+
 const HG_FILES_SHARD: &str = ".hg-files";
 
 /// Canonical name within a repo for a [`Shard`].
@@ -89,13 +103,13 @@ impl std::fmt::Display for ShardName {
 impl ShardName {
     fn new(name: String) -> Result<Self, Error> {
         if name.is_empty() {
-            return Err(Error::EmptyShardName);
+            return Err(ErrorKind::EmptyShardName)?;
         }
         if name.as_bytes().iter().all(|b| *b == b'.' || *b == b'-') {
-            return Err(Error::DotOrHyphenOnlyShardName(name));
+            return Err(ErrorKind::DotOrHyphenOnlyShardName(name))?;
         }
         if !SHARD_NAME_REGEX.is_match(&name) {
-            return Err(Error::InvalidShardName(name));
+            return Err(ErrorKind::InvalidShardName(name))?;
         }
         Ok(Self(name))
     }
@@ -133,7 +147,7 @@ impl StoreShards {
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
         let config = match repo.store_vfs().try_read("server-shapes")? {
-            Some(data) => toml::from_slice(&data).map_err(|e| {
+            Some(data) => toml::from_slice(&data).map_err(|e| -> Error {
                 // We've failed to parse this to the expected structure,
                 // it could be for many different reasons.
                 // Give a better error message if it's only because it's a
@@ -148,9 +162,9 @@ impl StoreShards {
                     let version = String::from_utf8_lossy(version.as_bytes())
                         .parse::<usize>()
                         .expect("parsing an integer from a regex");
-                    return Error::UnknownVersion(version);
+                    return ErrorKind::UnknownVersion(version).into();
                 }
-                Error::ParseError(e)
+                ErrorKind::ParseError(e).into()
             })?,
             None => ShapesConfig::default(),
         };
@@ -160,7 +174,7 @@ impl StoreShards {
     pub(crate) fn from_config(config: ShapesConfig) -> Result<Self, Error> {
         let ShapesConfig { version, mut shards } = config;
         if version != 0 {
-            return Err(Error::UnknownVersion(version as usize));
+            return Err(ErrorKind::UnknownVersion(version as usize))?;
         }
         let shards_len_before = shards.len();
         shards.push(ShardConfig {
@@ -219,17 +233,18 @@ impl StoreShards {
         if user_provided
             && matches!(name.as_str(), "base" | "full" | HG_FILES_SHARD)
         {
-            return Err(Error::ReservedName(name));
+            return Err(ErrorKind::ReservedName(name))?;
         }
 
         if paths.is_none() && requires.is_none() {
-            return Err(Error::ShardMissingPathsAndRequires(name));
+            return Err(ErrorKind::ShardMissingPathsAndRequires(name))?;
         }
 
         let mut hg_paths = vec![];
         if let Some(config_paths) = paths {
             for path in config_paths {
-                let on_err = |e: HgPathErrorKind| Error::InvalidPath(e.into());
+                let on_err =
+                    |e: HgPathErrorKind| ErrorKind::InvalidPath(e.into());
                 let hg_path = HgPathBuf::from_bytes(
                     path.as_bytes()
                         .strip_suffix(b"/")
@@ -266,12 +281,12 @@ impl StoreShards {
         for path in hg_paths {
             if path_to_shard.insert(path.to_owned(), shard.to_owned()).is_some()
             {
-                return Err(Error::PathInMultipleShards(path));
+                return Err(ErrorKind::PathInMultipleShards(path))?;
             }
         }
 
         if shards.insert(name.to_owned(), shard).is_some() {
-            return Err(Error::DuplicateShard(name));
+            return Err(ErrorKind::DuplicateShard(name))?;
         }
         Ok(())
     }
@@ -323,7 +338,7 @@ impl StoreShards {
                 let mut cycle: Vec<ShardName> =
                     from.iter().map(|n| (*n).to_owned()).collect();
                 cycle.push(name.to_owned());
-                return Err(Error::CycleInShards(cycle));
+                return Err(ErrorKind::CycleInShards(cycle))?;
             }
             let sub_shard = &self.shards[name];
             acc.insert(name, sub_shard);
@@ -525,13 +540,13 @@ impl ShardTreeNode {
             .iter()
             .map(check_pattern)
             .collect::<Result<HashSet<&[u8]>, _>>()
-            .map_err(Error::PatternError)?; /*  */
+            .map_err(ErrorKind::PatternError)?; /*  */
 
         let exclude_paths = excludes
             .iter()
             .map(check_pattern)
             .collect::<Result<HashSet<&[u8]>, _>>()
-            .map_err(Error::PatternError)?;
+            .map_err(ErrorKind::PatternError)?;
 
         let empty_path = b"".as_slice();
         // `clone` passes `path:.` by default which is supposed to include
@@ -749,7 +764,7 @@ impl ZeroPath {
             if idx == 0 {
                 if *byte == b'/' {
                     let err = HgPathErrorKind::LeadingSlash(bytes.to_owned());
-                    return Err(Error::InvalidPath(err.into()));
+                    return Err(ErrorKind::InvalidPath(err.into()))?;
                 }
                 path.push(b'\0');
             }
@@ -759,7 +774,7 @@ impl ZeroPath {
                     let err = HgPathErrorKind::EndsWithSlash(
                         HgPathBuf::from_bytes(bytes),
                     );
-                    return Err(Error::InvalidPath(err.into()));
+                    return Err(ErrorKind::InvalidPath(err.into()))?;
                 }
                 path.push(*byte);
                 path.push(b'\0');
@@ -1499,7 +1514,7 @@ mod tests {
                 name="full"
                 paths=[""]
             "#,
-                Error::ReservedName("full".to_string()),
+                ErrorKind::ReservedName("full".to_string()),
             ),
             (
                 r#"
@@ -1508,7 +1523,7 @@ mod tests {
                 name="base"
                 paths=[""]
             "#,
-                Error::ReservedName("base".to_string()),
+                ErrorKind::ReservedName("base".to_string()),
             ),
             (
                 r#"
@@ -1517,7 +1532,7 @@ mod tests {
                 name=".hg-files"
                 paths=[""]
             "#,
-                Error::ReservedName(".hg-files".to_string()),
+                ErrorKind::ReservedName(".hg-files".to_string()),
             ),
             (
                 r#"
@@ -1526,7 +1541,7 @@ mod tests {
                 name="babar"
                 paths=["babar"]
             "#,
-                Error::UnknownVersion(999),
+                ErrorKind::UnknownVersion(999),
             ),
             (
                 r#"
@@ -1535,7 +1550,7 @@ mod tests {
                 name="Babar"
                 paths=["babar"]
             "#,
-                Error::InvalidShardName("Babar".to_string()),
+                ErrorKind::InvalidShardName("Babar".to_string()),
             ),
             (
                 r#"
@@ -1544,7 +1559,7 @@ mod tests {
                 name=""
                 paths=["babar"]
             "#,
-                Error::EmptyShardName,
+                ErrorKind::EmptyShardName,
             ),
             (
                 r#"
@@ -1553,7 +1568,7 @@ mod tests {
                 name="."
                 paths=["babar"]
             "#,
-                Error::DotOrHyphenOnlyShardName(".".to_string()),
+                ErrorKind::DotOrHyphenOnlyShardName(".".to_string()),
             ),
             (
                 r#"
@@ -1562,7 +1577,7 @@ mod tests {
                 name="-"
                 paths=["babar"]
             "#,
-                Error::DotOrHyphenOnlyShardName("-".to_string()),
+                ErrorKind::DotOrHyphenOnlyShardName("-".to_string()),
             ),
             (
                 r#"
@@ -1571,7 +1586,7 @@ mod tests {
                 name="-.-"
                 paths=["babar"]
             "#,
-                Error::DotOrHyphenOnlyShardName("-.-".to_string()),
+                ErrorKind::DotOrHyphenOnlyShardName("-.-".to_string()),
             ),
             (
                 r#"
@@ -1583,7 +1598,7 @@ mod tests {
                 name="duplicate"
                 paths=["babar2"]
             "#,
-                Error::DuplicateShard(
+                ErrorKind::DuplicateShard(
                     ShardName::new("duplicate".to_string()).unwrap(),
                 ),
             ),
@@ -1593,7 +1608,9 @@ mod tests {
                 [[shards]]
                 name="too-little"
             "#,
-                Error::ShardMissingPathsAndRequires("too-little".to_string()),
+                ErrorKind::ShardMissingPathsAndRequires(
+                    "too-little".to_string(),
+                ),
             ),
             (
                 r#"
@@ -1605,7 +1622,9 @@ mod tests {
                 name = "myshard2"
                 paths = ["secret"]
             "#,
-                Error::PathInMultipleShards(HgPathBuf::from_bytes(b"secret")),
+                ErrorKind::PathInMultipleShards(HgPathBuf::from_bytes(
+                    b"secret",
+                )),
             ),
             (
                 r#"
@@ -1616,7 +1635,7 @@ mod tests {
                 # is stripped internally for quality of life
                 paths = ["badpath//"]
             "#,
-                Error::InvalidPath(
+                ErrorKind::InvalidPath(
                     HgPathErrorKind::EndsWithSlash(HgPathBuf::from_bytes(
                         b"badpath/",
                     ))
@@ -1630,7 +1649,7 @@ mod tests {
                 name = "myshard"
                 paths = ["badpath//bad"]
             "#,
-                Error::InvalidPath(
+                ErrorKind::InvalidPath(
                     HgPathErrorKind::ConsecutiveSlashes {
                         bytes: b"badpath//bad".to_vec(),
                         second_slash_index: 8,
@@ -1645,7 +1664,7 @@ mod tests {
                 name="recursive"
                 requires=["recursive"]
             "#,
-                Error::CycleInShards(vec![
+                ErrorKind::CycleInShards(vec![
                     ShardName::new("recursive".to_string()).unwrap(),
                     ShardName::new("recursive".to_string()).unwrap(),
                 ]),
@@ -1666,7 +1685,7 @@ mod tests {
                 name="cyclic4"
                 requires=["cyclic1"]
             "#,
-                Error::CycleInShards(vec![
+                ErrorKind::CycleInShards(vec![
                     ShardName::new("cyclic1".to_string()).unwrap(),
                     ShardName::new("cyclic2".to_string()).unwrap(),
                     ShardName::new("cyclic3".to_string()).unwrap(),
@@ -1681,7 +1700,7 @@ mod tests {
                 .expect("should be syntactically valid");
             let actual_error = StoreShards::from_config(config)
                 .expect_err("should be an error at this stage");
-            assert_eq!(expected_error, &actual_error);
+            assert_eq!(*expected_error, *actual_error.kind);
         }
     }
 }
