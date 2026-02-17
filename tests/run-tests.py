@@ -1842,6 +1842,10 @@ class TTest(Test):
         return os.path.join(self._testdir, self.bname)
 
     def _run(self, env):
+        ok, stdout = self._hghave([b"true"])
+        if not ok:
+            self.raise_error("broken hghave")
+
         with open(self.path, 'rb') as f:
             lines = f.readlines()
 
