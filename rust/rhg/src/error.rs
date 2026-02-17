@@ -236,20 +236,7 @@ impl From<StatusError> for CommandError {
             StatusError::Path(_) | StatusError::Dirstate(_) => {
                 CommandError::abort(HgError::from(error).to_string())
             }
-            StatusError::Pattern(pattern_err) => match pattern_err {
-                PatternError::Path(_)
-                | PatternError::NonRegexPattern(_, _)
-                | PatternError::IO(_)
-                | PatternError::UnclosedGlobAlternation(_, _)
-                | PatternError::UnsupportedSyntaxNarrow(_, _) => {
-                    CommandError::abort(HgError::from(pattern_err).to_string())
-                }
-                PatternError::UnsupportedSyntax(_, _)
-                | PatternError::RegexError { .. }
-                | PatternError::NonUtf8Pattern { .. } => {
-                    CommandError::unsupported(pattern_err.to_string())
-                }
-            },
+            StatusError::Pattern(pattern_err) => pattern_err.into(),
         }
     }
 }
@@ -262,7 +249,20 @@ impl From<HgPathError> for CommandError {
 
 impl From<PatternError> for CommandError {
     fn from(error: PatternError) -> Self {
-        CommandError::unsupported(format!("{}", error))
+        match error {
+            PatternError::Path(_)
+            | PatternError::NonRegexPattern(_, _)
+            | PatternError::IO(_)
+            | PatternError::UnclosedGlobAlternation(_, _)
+            | PatternError::UnsupportedSyntaxNarrow(_, _) => {
+                CommandError::abort(HgError::from(error).to_string())
+            }
+            PatternError::UnsupportedSyntax(_, _)
+            | PatternError::RegexError { .. }
+            | PatternError::NonUtf8Pattern { .. } => {
+                CommandError::unsupported(HgError::from(error).to_string())
+            }
+        }
     }
 }
 
@@ -317,9 +317,7 @@ impl From<SparseConfigError> for CommandError {
                     is not supported in narrowspec",
             ),
             SparseConfigError::HgError(e) => Self::from(e),
-            SparseConfigError::PatternError(e) => {
-                Self::unsupported(format!("{}", e))
-            }
+            SparseConfigError::PatternError(e) => e.into(),
         }
     }
 }
