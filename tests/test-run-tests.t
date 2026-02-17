@@ -2120,3 +2120,19 @@ Bad local addon
   # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
   python hash seed: * (glob)
   [1]
+  $ rm hghaveaddon.py
+
+broken hghave
+(create a file that will conflict with things imported by hghave.py)
+
+  $ echo "assert False" > $TESTTMP/packaging.py
+  $ PYTHONPATH="$TESTTMP" rt test-substitution.t test-cases-ab.t
+  running 3 tests using 1 parallel processes 
+  EEE
+  ERROR: test-cases-ab.t#A: broken hghave
+  ERROR: test-cases-ab.t#B: broken hghave
+  ERROR: test-substitution.t: broken hghave
+  # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
+  python hash seed: * (glob)
+  [1]
+
