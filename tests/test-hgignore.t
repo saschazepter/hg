@@ -210,7 +210,8 @@ further testing
   ? syntax
 #if rhg
   $ hg status --config rhg.on-unsupported=abort
-  unsupported feature: Unsupported syntax regex parse error:
+  unsupported feature: invalid regex '^(?!a).*\.o$':
+  regex parse error:
       ^(?!a).*\.o$
        ^^^
   error: look-around, including look-ahead and look-behind, is not supported

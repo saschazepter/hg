@@ -98,8 +98,9 @@ impl fmt::Display for PatternError {
                     String::from_utf8_lossy(pattern)
                 )
             }
-            PatternError::RegexError { needle: _, error, backtrace } => {
-                write!(f, "{backtrace}Unsupported syntax {error}",)
+            PatternError::RegexError { needle, error, backtrace } => {
+                // The needle is likely already in the error, but let's be safe
+                write!(f, "{backtrace}invalid regex '{needle}':\n{error}")
             }
             PatternError::NonUtf8Pattern {
                 pattern,
