@@ -2101,3 +2101,22 @@ Error handling
   # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
   python hash seed: * (glob)
   [1]
+
+broken hghave
+-------------
+
+Bad local addon
+
+  $ echo "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn" > hghaveaddon.py
+  $ rt test-substitution.t test-cases-ab.t
+  running 3 tests using 1 parallel processes 
+  EEE
+  ERROR: test-cases-ab.t#A: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
+  
+  ERROR: test-cases-ab.t#B: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
+  
+  ERROR: test-substitution.t: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
+  
+  # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
+  python hash seed: * (glob)
+  [1]
