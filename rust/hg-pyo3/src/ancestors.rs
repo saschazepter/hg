@@ -10,9 +10,9 @@
 //! and can be used as replacement for the the pure `ancestor` Python module.
 use std::collections::HashSet;
 
-use hg::ancestors::AncestorsIterator as HgAncestorsIterator;
 use hg::MissingAncestors as CoreMissing;
 use hg::Revision;
+use hg::ancestors::AncestorsIterator as HgAncestorsIterator;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use pyo3_sharedref::SharedByPyObject;
