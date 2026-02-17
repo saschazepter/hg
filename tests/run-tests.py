@@ -2910,9 +2910,11 @@ class TextTestRunner(unittest.TextTestRunner):
         self._result.onStart(test)
         test(self._result)
 
+        test_count = self._result.testsRun
         failed = len(self._result.failures)
         skipped = len(self._result.skipped)
         ignored = len(self._result.ignored)
+        error_count = len(self._result.errors)
 
         with iolock:
             if not self._runner.options.tail_report:
@@ -2948,10 +2950,14 @@ class TextTestRunner(unittest.TextTestRunner):
 
             savetimes(self._runner._outputdir, self._result)
 
-            self.stream.writeln(
-                '# Ran %d tests, %d skipped, %d failed.'
-                % (self._result.testsRun, skipped + ignored, failed)
-            )
+            if error_count:
+                msg = '# Ran %d tests, %d skipped, %d failed, %d errors.'
+                msg %= (test_count, skipped + ignored, failed, error_count)
+            else:
+                msg = '# Ran %d tests, %d skipped, %d failed.'
+                msg %= (test_count, skipped + ignored, failed)
+
+            self.stream.writeln(msg)
             if failed:
                 self.stream.writeln(
                     'python hash seed: %s' % os.environ['PYTHONHASHSEED']
