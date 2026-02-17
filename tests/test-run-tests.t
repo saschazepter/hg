@@ -2135,4 +2135,45 @@ broken hghave
   # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
   python hash seed: * (glob)
   [1]
+  $ rm $TESTTMP/packaging.py
+
+Skipping test (and forbidding it)
+=================================
+
+Various way for skipping
+------------------------
+
+require keyword
+
+  $ cat > test-skip-require.t <<'EOF'
+  > #require false
+  > EOF
+
+Exit 80 (+ message)
+
+  $ cat > test-skip-exit-code.t <<'EOF'
+  >   $ echo skipped: foo; exit 80
+  > EOF
+
+All should result in a skip
+
+  $ rt test-skip-*.t
+  running 2 tests using 1 parallel processes 
+  ss
+  Skipped test-skip-exit-code.t: foo
+  Skipped test-skip-require.t: missing feature: nail clipper
+  # Ran 0 tests, 2 skipped, 0 failed.
+
+Forbidding skip
+---------------
+
+  $ rt test-skip-*.t --forbid-skip
+  running 2 tests using 1 parallel processes 
+  EE
+  ERROR: test-skip-exit-code.t: foo, but skipping is forbidden
+  ERROR: test-skip-require.t: missing feature: nail clipper, but skipping is forbidden
+  # Ran 2 tests, 0 skipped, 0 failed, 2 errors.
+  python hash seed: * (glob)
+  [1]
+
 

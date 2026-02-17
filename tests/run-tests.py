@@ -725,6 +725,11 @@ def getparser():
         "-n", "--nodiff", action="store_true", help="skip showing test changes"
     )
     reporting.add_argument(
+        "--forbid-skip",
+        action="store_true",
+        help="forbid skipping any test",
+    )
+    reporting.add_argument(
         "-S",
         "--noskips",
         action="store_true",
@@ -1125,6 +1130,7 @@ class Test(unittest.TestCase):
         usechg=False,
         chgdebug=False,
         useipv6=False,
+        forbid_skip=False,
     ):
         """Create a test from parameters.
 
@@ -1195,6 +1201,7 @@ class Test(unittest.TestCase):
         self._skipped = None
         self._testtmp = None
         self._chgsockdir = None
+        self._forbid_skip = forbid_skip
 
         self._refout = self.readrefout()
 
@@ -1351,6 +1358,9 @@ class Test(unittest.TestCase):
             if failed:
                 self.fail('hg have failed checking for %s' % failed[-1])
             else:
+                if self._forbid_skip:
+                    msg = "%s, but skipping is forbidden" % missing[-1]
+                    self.raise_error(msg)
                 self._skipped = True
                 raise unittest.SkipTest(missing[-1])
         elif ret == 'timeout':
@@ -3808,6 +3818,7 @@ class TestRunner:
             usechg=bool(self.options.with_chg or self.options.chg),
             chgdebug=self.options.chg_debug,
             useipv6=useipv6,
+            forbid_skip=self.options.forbid_skip,
             **kwds,
         )
         t.should_reload = True
