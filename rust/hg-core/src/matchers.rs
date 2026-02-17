@@ -27,6 +27,7 @@ use crate::FastHashMap;
 use crate::dirstate::dirs_multiset::DirsChildrenMultiset;
 use crate::dirstate::dirs_multiset::DirsMultiset;
 use crate::dirstate::status::IgnoreFnType;
+use crate::errors::HgBacktrace;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::GlobSuffix;
 use crate::file_patterns::PatternError;
@@ -974,7 +975,11 @@ fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
                 .dfa_size_limit(Some(50 * (1 << 20))),
         )
         .build_from_hir(pattern)
-        .map_err(|e| PatternError::UnsupportedSyntax(e.to_string()))?;
+        .map_err(|e| PatternError::RegexError {
+            needle: pattern.to_string(),
+            error: e.to_string(),
+            backtrace: HgBacktrace::capture(),
+        })?;
 
     Ok(RegexMatcher { base: re, local: Default::default() })
 }

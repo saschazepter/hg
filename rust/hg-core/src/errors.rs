@@ -87,7 +87,7 @@ impl From<StatusError> for HgError {
 }
 
 /// Details about where an I/O error happened
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum IoErrorContext {
     /// `std::fs::metadata`
     ReadingMetadata(PathBuf),
@@ -339,7 +339,7 @@ impl fmt::Display for IoErrorContext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum HgIoError {
     /// General IO error
     IO {

@@ -17,6 +17,7 @@ use sha2::Digest;
 use sha2::Sha256;
 
 use crate::FastHashMap;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::file_patterns::FilePattern;
@@ -578,8 +579,10 @@ impl ShardTreeNode {
     ) -> Result<Self, Error> {
         let check_pattern = |pattern: &'a FilePattern| {
             if pattern.syntax != PatternSyntax::Path {
-                let syntax = format!("{:?}", pattern.syntax);
-                Err(PatternError::UnsupportedSyntax(syntax))
+                Err(PatternError::UnsupportedSyntaxNarrow(
+                    pattern.syntax.to_owned(),
+                    HgBacktrace::capture(),
+                ))
             } else {
                 Ok(pattern.raw.as_slice())
             }
@@ -588,7 +591,7 @@ impl ShardTreeNode {
             .iter()
             .map(check_pattern)
             .collect::<Result<HashSet<&[u8]>, _>>()
-            .map_err(Error::PatternError)?;
+            .map_err(Error::PatternError)?; /*  */
 
         let exclude_paths = excludes
             .iter()

@@ -17,7 +17,6 @@ use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
 use hg::errors::HgError;
 use hg::file_patterns::FilePattern;
-use hg::file_patterns::PatternError;
 use hg::file_patterns::parse_pattern_syntax_kind;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::DifferenceMatcher;
@@ -109,11 +108,7 @@ fn extract_matcher(
         .call_method0(intern!(py, "was_tampered_with_nonrec"))?
         .extract::<bool>()?;
     if tampered {
-        return Err(handle_fallback(StatusError::Pattern(
-            PatternError::UnsupportedSyntax(
-                "Pattern matcher was tampered with!".to_string(),
-            ),
-        )));
+        return Err(FallbackError::new_err("patternmatcher was tampered with"));
     };
 
     match matcher.get_type().name()?.to_str()? {

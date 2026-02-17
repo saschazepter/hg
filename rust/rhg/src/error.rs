@@ -232,6 +232,7 @@ impl From<RevlogError> for CommandError {
 
 impl From<StatusError> for CommandError {
     fn from(error: StatusError) -> Self {
+        // TODO factor all duplicates
         match error {
             StatusError::Pattern(pattern_err) => match pattern_err {
                 PatternError::Path(hg_path_error) => {
@@ -240,16 +241,29 @@ impl From<StatusError> for CommandError {
                 PatternError::IO(error) => {
                     CommandError::abort(error.to_string())
                 }
-                PatternError::UnsupportedSyntax(_)
-                | PatternError::UnsupportedSyntaxInFile(_, _, _) => {
+                PatternError::UnsupportedSyntax(_, _) => {
                     CommandError::unsupported(pattern_err.to_string())
                 }
-                PatternError::NonRegexPattern(file_pattern) => {
+                PatternError::NonRegexPattern(pattern, backtrace) => {
                     let msg = format!(
-                        "programming error: pattern '{file_pattern:?}' \
+                        "{backtrace}programming error: pattern '{pattern:?}' \
                         cannot be turned into a regex"
                     );
                     CommandError::abort(msg)
+                }
+                PatternError::UnclosedGlobAlternation(_, _) => {
+                    CommandError::abort(HgError::from(pattern_err).to_string())
+                }
+                PatternError::RegexError { .. } => CommandError::unsupported(
+                    HgError::from(pattern_err).to_string(),
+                ),
+                PatternError::NonUtf8Pattern { .. } => {
+                    CommandError::unsupported(
+                        HgError::from(pattern_err).to_string(),
+                    )
+                }
+                PatternError::UnsupportedSyntaxNarrow(_, _) => {
+                    CommandError::abort(HgError::from(pattern_err).to_string())
                 }
             },
             StatusError::Path(err) => {
