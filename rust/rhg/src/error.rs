@@ -232,44 +232,24 @@ impl From<RevlogError> for CommandError {
 
 impl From<StatusError> for CommandError {
     fn from(error: StatusError) -> Self {
-        // TODO factor all duplicates
         match error {
+            StatusError::Path(_) | StatusError::Dirstate(_) => {
+                CommandError::abort(HgError::from(error).to_string())
+            }
             StatusError::Pattern(pattern_err) => match pattern_err {
-                PatternError::Path(hg_path_error) => {
-                    CommandError::abort(hg_path_error.to_string())
+                PatternError::Path(_)
+                | PatternError::NonRegexPattern(_, _)
+                | PatternError::IO(_)
+                | PatternError::UnclosedGlobAlternation(_, _)
+                | PatternError::UnsupportedSyntaxNarrow(_, _) => {
+                    CommandError::abort(HgError::from(pattern_err).to_string())
                 }
-                PatternError::IO(error) => {
-                    CommandError::abort(error.to_string())
-                }
-                PatternError::UnsupportedSyntax(_, _) => {
+                PatternError::UnsupportedSyntax(_, _)
+                | PatternError::RegexError { .. }
+                | PatternError::NonUtf8Pattern { .. } => {
                     CommandError::unsupported(pattern_err.to_string())
                 }
-                PatternError::NonRegexPattern(pattern, backtrace) => {
-                    let msg = format!(
-                        "{backtrace}programming error: pattern '{pattern:?}' \
-                        cannot be turned into a regex"
-                    );
-                    CommandError::abort(msg)
-                }
-                PatternError::UnclosedGlobAlternation(_, _) => {
-                    CommandError::abort(HgError::from(pattern_err).to_string())
-                }
-                PatternError::RegexError { .. } => CommandError::unsupported(
-                    HgError::from(pattern_err).to_string(),
-                ),
-                PatternError::NonUtf8Pattern { .. } => {
-                    CommandError::unsupported(
-                        HgError::from(pattern_err).to_string(),
-                    )
-                }
-                PatternError::UnsupportedSyntaxNarrow(_, _) => {
-                    CommandError::abort(HgError::from(pattern_err).to_string())
-                }
             },
-            StatusError::Path(err) => {
-                CommandError::abort(HgError::from(err).to_string())
-            }
-            StatusError::Dirstate(err) => err.into(),
         }
     }
 }
