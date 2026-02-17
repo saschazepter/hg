@@ -19,6 +19,8 @@ use regex::bytes::NoExpand;
 use regex::bytes::Regex;
 
 use crate::FastHashMap;
+use crate::errors::HgIoError;
+use crate::errors::IoErrorContext;
 use crate::pre_regex::PreRegex;
 use crate::utils::files::canonical_path;
 use crate::utils::files::get_bytes_from_path;
@@ -35,10 +37,8 @@ pub enum PatternError {
     Path(HgPathError),
     UnsupportedSyntax(String),
     UnsupportedSyntaxInFile(String, String, usize),
-    // TODO reduce the wide "IO error" to a more specific enumeration of cases
-    // we expect so we can stop caring about `std::io::Error` being annoying
     #[from]
-    IO(std::io::Error),
+    IO(Box<HgIoError>),
     /// Needed a pattern that can be turned into a regex but got one that
     /// can't. This should only happen through programmer error.
     NonRegexPattern(FilePattern),
@@ -706,7 +706,10 @@ pub fn read_pattern_file(
             warnings.send(PatternFileWarning::NoSuchFile(file_path.to_owned()));
             Ok(vec![])
         }
-        Err(e) => Err(e.into()),
+        Err(e) => Err(Box::new(HgIoError::from_os_error(
+            e,
+            IoErrorContext::ReadingFile(file_path.to_owned()),
+        )))?,
     }
 }
 
