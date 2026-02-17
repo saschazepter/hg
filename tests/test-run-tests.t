@@ -2085,3 +2085,14 @@ Error handling
   # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
   python hash seed: * (glob)
   [1]
+
+  $ cat > test-error-unknown-condition-if.t <<'EOF'
+  > #if idonotexists
+  >   $ echo foo
+  > #endif
+  > EOF
+  $ rt test-error-unknown-condition-if.t
+  running 1 tests using 1 parallel processes 
+  skipped: unknown feature: idonotexists
+  
+  [1]
