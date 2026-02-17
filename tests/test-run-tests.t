@@ -2060,3 +2060,30 @@ Test sharding
   $ rt --list-tests --shard-index 5 --shard-total 5
   test-cases-advanced-cases.t#case-with-dashes
   test-conditional-matching.t#foo
+
+
+Error handling
+==============
+
+  $ cat > test-error-bad-syntax.t <<'EOF'
+  > #if true
+  >   $ echo foo
+  > EOF
+
+  $ rt test-error-bad-syntax.t
+  running 1 tests using 1 parallel processes 
+  
+  --- $TESTTMP/anothertests/cases/test-error-bad-syntax.t
+  +++ $TESTTMP/anothertests/cases/test-error-bad-syntax.t.err
+  @@ -1,2 +1,4 @@
+   #if true
+     $ echo foo
+  +  foo
+  +  !!! missing #endif
+  
+  ERROR: test-error-bad-syntax.t output changed
+  !
+  Failed test-error-bad-syntax.t: output changed
+  # Ran 1 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
