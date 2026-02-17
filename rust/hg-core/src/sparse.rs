@@ -159,7 +159,7 @@ impl From<SparseConfigError> for HgError {
             }
             SparseConfigError::HgError(hg_error) => hg_error,
             SparseConfigError::PatternError(pattern_error) => {
-                HgError::abort(pattern_error.to_string(), STATE_ERROR, None)
+                HgError::from(pattern_error)
             }
         }
     }

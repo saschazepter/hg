@@ -7,7 +7,6 @@
 
 //! Handling of Mercurial-specific patterns.
 
-use std::fmt;
 use std::mem;
 use std::ops::Deref;
 use std::path::Path;
@@ -72,58 +71,6 @@ pub enum PatternError {
     UnsupportedSyntaxNarrow(PatternSyntax, HgBacktrace),
 }
 
-impl fmt::Display for PatternError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PatternError::UnsupportedSyntax(syntax, backtrace) => {
-                write!(
-                    f,
-                    "{backtrace}unsupported syntax '{}'",
-                    String::from_utf8_lossy(syntax)
-                )
-            }
-            PatternError::IO(error) => error.fmt(f),
-            PatternError::Path(error) => error.fmt(f),
-            PatternError::NonRegexPattern(pattern, backtrace) => {
-                write!(
-                    f,
-                    "{backtrace}'{:?}' cannot be turned into a regex",
-                    pattern
-                )
-            }
-            PatternError::UnclosedGlobAlternation(pattern, backtrace) => {
-                write!(
-                    f,
-                    "{backtrace} unclosed glob alternation in pattern '{}'",
-                    String::from_utf8_lossy(pattern)
-                )
-            }
-            PatternError::RegexError { needle, error, backtrace } => {
-                // The needle is likely already in the error, but let's be safe
-                write!(f, "{backtrace}invalid regex '{needle}':\n{error}")
-            }
-            PatternError::NonUtf8Pattern {
-                pattern,
-                valid_up_to,
-                backtrace,
-            } => {
-                write!(
-                    f,
-                    "{backtrace} non-utf8 regex pattern {}, \
-                    valid up to byte {valid_up_to}",
-                    // This is kind of dumb at face value, but it's better than
-                    // nothing if we *have* to give a UTF8 output and don't
-                    // know the encoding, since we may give *some* info about
-                    // what the pattern is.
-                    String::from_utf8_lossy(pattern)
-                )
-            }
-            PatternError::UnsupportedSyntaxNarrow(syntax, backtrace) => {
-                write!(f, "{backtrace} unsupported narrow pattern '{syntax:?}'")
-            }
-        }
-    }
-}
 lazy_static! {
     static ref RE_ESCAPE: Vec<Vec<u8>> = {
         let mut v: Vec<Vec<u8>> = (0..=255).map(|byte| vec![byte]).collect();

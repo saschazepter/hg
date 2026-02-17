@@ -165,7 +165,7 @@ fn extract_matcher(
 fn handle_fallback(err: StatusError) -> PyErr {
     match err {
         StatusError::Pattern(e) => {
-            let as_string = e.to_string();
+            let as_string = HgError::from(e).to_string();
             tracing::debug!("Rust status fallback, see trace-level logs");
             tracing::trace!("{}", as_string);
             FallbackError::new_err(as_string)

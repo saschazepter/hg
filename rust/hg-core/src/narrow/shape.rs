@@ -130,9 +130,7 @@ impl From<Error> for HgError {
             Error::ParseError(err) => {
                 format!("error parsing `server-shapes`:\n{err}")
             }
-            Error::PatternError(err) => {
-                format!("invalid pattern {err}")
-            }
+            Error::PatternError(err) => HgError::from(err).to_string(),
         };
 
         Self::abort(explanation, exit_code, None)
