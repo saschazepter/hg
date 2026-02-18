@@ -19,8 +19,8 @@ use crate::utils::strings::SliceExt;
 
 #[derive(Debug)]
 pub struct HgPathError {
-    kind: HgPathErrorKind,
-    backtrace: HgBacktrace,
+    pub kind: HgPathErrorKind,
+    pub backtrace: HgBacktrace,
 }
 
 impl PartialEq for HgPathError {
