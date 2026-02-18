@@ -3379,7 +3379,7 @@ class revlog:
 
         # If the flag processor modifies the revision data, ignore any provided
         # cachedelta.
-        if rawtext != text:
+        if not (rawtext is text) and rawtext != text:
             cachedelta = None
 
         if len(rawtext) > _maxentrysize:
