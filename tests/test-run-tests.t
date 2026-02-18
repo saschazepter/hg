@@ -1596,10 +1596,12 @@ Test a broken #if statement doesn't break run-tests threading.
   > done
   $ rt -j 2
   running 5 tests using 2 parallel processes 
-  ....
-  # Ran 5 tests, 0 skipped, 0 failed.
-  skipped: unknown feature: notarealhghavefeature
+  E....
+  ERROR: test-broken.t: skipped: unknown feature: notarealhghavefeature
   
+  # Ran 5 tests, 0 skipped, 0 failed, 1 errors.
+  python hash seed: * (glob)
+  [1]
   $ cd ..
   $ rm -rf broken
 
@@ -2060,3 +2062,77 @@ Test sharding
   $ rt --list-tests --shard-index 5 --shard-total 5
   test-cases-advanced-cases.t#case-with-dashes
   test-conditional-matching.t#foo
+
+
+Error handling
+==============
+
+  $ cat > test-error-bad-syntax.t <<'EOF'
+  > #if true
+  >   $ echo foo
+  > EOF
+
+  $ rt test-error-bad-syntax.t
+  running 1 tests using 1 parallel processes 
+  
+  --- $TESTTMP/anothertests/cases/test-error-bad-syntax.t
+  +++ $TESTTMP/anothertests/cases/test-error-bad-syntax.t.err
+  @@ -1,2 +1,4 @@
+   #if true
+     $ echo foo
+  +  foo
+  +  !!! missing #endif
+  E
+  ERROR: test-error-bad-syntax.t: bad syntax
+  # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
+  python hash seed: * (glob)
+  [1]
+
+  $ cat > test-error-unknown-condition-if.t <<'EOF'
+  > #if idonotexists
+  >   $ echo foo
+  > #endif
+  > EOF
+  $ rt test-error-unknown-condition-if.t
+  running 1 tests using 1 parallel processes 
+  E
+  ERROR: test-error-unknown-condition-if.t: skipped: unknown feature: idonotexists
+  
+  # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
+  python hash seed: * (glob)
+  [1]
+
+broken hghave
+-------------
+
+Bad local addon
+
+  $ echo "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn" > hghaveaddon.py
+  $ rt test-substitution.t test-cases-ab.t
+  running 3 tests using 1 parallel processes 
+  EEE
+  ERROR: test-cases-ab.t#A: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
+  
+  ERROR: test-cases-ab.t#B: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
+  
+  ERROR: test-substitution.t: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
+  
+  # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
+  python hash seed: * (glob)
+  [1]
+  $ rm hghaveaddon.py
+
+broken hghave
+(create a file that will conflict with things imported by hghave.py)
+
+  $ echo "assert False" > $TESTTMP/packaging.py
+  $ PYTHONPATH="$TESTTMP" rt test-substitution.t test-cases-ab.t
+  running 3 tests using 1 parallel processes 
+  EEE
+  ERROR: test-cases-ab.t#A: broken hghave
+  ERROR: test-cases-ab.t#B: broken hghave
+  ERROR: test-substitution.t: broken hghave
+  # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
+  python hash seed: * (glob)
+  [1]
+
