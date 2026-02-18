@@ -15,7 +15,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::errors::HgBacktrace;
-use crate::errors::HgError;
 use crate::utils::strings::SliceExt;
 
 #[derive(Debug)]
@@ -77,12 +76,6 @@ pub enum HgPathErrorKind {
         path: PathBuf,
         root: PathBuf,
     },
-}
-
-impl From<HgPathError> for HgError {
-    fn from(value: HgPathError) -> Self {
-        HgError::Path(value)
-    }
 }
 
 impl fmt::Display for HgPathError {

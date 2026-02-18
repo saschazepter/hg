@@ -73,6 +73,7 @@ pub enum HgError {
     /// and not directly surface to the user.
     RaceDetected(String),
     /// An invalid path was found
+    #[from]
     Path(HgPathError),
     /// An interrupt was received and we need to stop whatever we're doing
     InterruptReceived,
