@@ -310,11 +310,11 @@ impl fmt::Display for HgError {
                     }
                     ShapeErrorKind::DotOrHyphenOnlyShardName(name) => format!(
                         "invalid shard name '{name}': \
-                missing lowercase alphanumeric character"
+                        missing lowercase alphanumeric character"
                     ),
                     ShapeErrorKind::InvalidShardName(name) => format!(
                         "invalid shard name '{name}': \
-                only lowercase alphanumeric, hyphen or dot are accepted"
+                        only lowercase alphanumeric, hyphen or dot are accepted"
                     ),
                     ShapeErrorKind::ReservedName(name) => {
                         format!("shard name '{name}' is reserved")
