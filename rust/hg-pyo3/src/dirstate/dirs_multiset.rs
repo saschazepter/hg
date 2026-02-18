@@ -48,7 +48,7 @@ impl Dirs {
             .collect();
         Ok(Self {
             inner: DirsMultiset::from_manifest(&map?)
-                .map_err(to_string_value_error)?
+                .map_err(|e| to_string_value_error(HgError::from(e)))?
                 .into(),
         })
     }
@@ -59,7 +59,9 @@ impl Dirs {
     ) -> PyResult<()> {
         let path = HgPath::new(path.as_bytes());
         Self::with_inner_write(slf, |mut inner| {
-            inner.add_path(path).map_err(to_string_value_error)
+            inner
+                .add_path(path)
+                .map_err(|e| to_string_value_error(HgError::from(e)))
         })
     }
 

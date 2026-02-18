@@ -118,7 +118,8 @@ fn extract_matcher(
             let files = matcher.call_method0(intern!(py, "files"))?;
             let files: Vec<_> = paths_pyiter_collect(&files)?;
             Ok(Box::new(
-                FileMatcher::new(files).map_err(to_string_value_error)?,
+                FileMatcher::new(files)
+                    .map_err(|e| to_string_value_error(HgError::from(e)))?,
             ))
         }
         "includematcher" => {

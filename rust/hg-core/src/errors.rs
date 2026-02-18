@@ -17,6 +17,7 @@ use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::HgPathErrorKind;
 
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]
@@ -174,7 +175,9 @@ impl fmt::Display for HgError {
             HgError::RaceDetected(context) => {
                 write!(f, "encountered a race condition {context}")
             }
-            HgError::Path(hg_path_error) => write!(f, "{}", hg_path_error),
+            HgError::Path(error) => {
+                f.write_str(&hg_path_error_to_string(error, None)?)
+            }
             HgError::InterruptReceived => write!(f, "interrupt received"),
             HgError::RepoNotFound { at, backtrace } => {
                 write!(
@@ -242,8 +245,8 @@ impl fmt::Display for HgError {
                 DirstateError::PathNotFound(path, backtrace) => {
                     write!(f, "{}path not found: {}", backtrace, path)
                 }
-                DirstateError::InvalidPath(hg_path_error) => {
-                    hg_path_error.fmt(f)
+                DirstateError::InvalidPath(error) => {
+                    f.write_str(&hg_path_error_to_string(error, None)?)
                 }
                 DirstateError::TooLittleData(size, backtrace) => {
                     write!(
@@ -346,10 +349,9 @@ impl fmt::Display for HgError {
                         )
                     }
                     ShapeErrorKind::InvalidPath(err) => {
-                        format!(
-                            "{backtrace}`server-shapes` contains \
-                            an invalid path: {err}"
-                        )
+                        let prefix =
+                            Some("`server-shapes` contains an invalid path: ");
+                        hg_path_error_to_string(err, prefix)?
                     }
                     ShapeErrorKind::UnknownVersion(version) => {
                         format!(
@@ -372,6 +374,68 @@ impl fmt::Display for HgError {
     }
 }
 
+pub fn hg_path_error_to_string(
+    error: &HgPathError,
+    prefix: Option<&str>,
+) -> Result<String, fmt::Error> {
+    let mut buf = error.backtrace.to_string();
+    if let Some(prefix) = prefix {
+        buf.write_str(prefix)?;
+    }
+
+    match &error.kind {
+        HgPathErrorKind::LeadingSlash(bytes) => {
+            write!(buf, "invalid HgPath '{:?}': has a leading slash.", bytes)
+        }
+        HgPathErrorKind::ConsecutiveSlashes {
+            bytes,
+            second_slash_index: pos,
+        } => write!(
+            buf,
+            "invalid HgPath '{:?}': consecutive slashes at pos {}.",
+            bytes, pos
+        ),
+        HgPathErrorKind::ContainsNullByte { bytes, null_byte_index: pos } => {
+            write!(
+                buf,
+                "invalid HgPath '{:?}': contains null byte at pos {}.",
+                bytes, pos
+            )
+        }
+        HgPathErrorKind::DecodeError(bytes) => {
+            write!(buf, "invalid HgPath '{:?}': could not be decoded.", bytes)
+        }
+        HgPathErrorKind::EndsWithSlash(path) => {
+            write!(buf, "path '{}': ends with a slash", path)
+        }
+        HgPathErrorKind::ContainsIllegalComponent(path) => {
+            write!(buf, "path contains illegal component: {}", path)
+        }
+        HgPathErrorKind::InsideDotHg(path) => {
+            write!(buf, "path '{}' is inside the '.hg' folder", path)
+        }
+        HgPathErrorKind::IsInsideNestedRepo { path, nested_repo: nested } => {
+            write!(buf, "path '{}' is inside nested repo '{}'", path, nested)
+        }
+        HgPathErrorKind::TraversesSymbolicLink { path, symlink } => {
+            write!(buf, "path '{}' traverses symbolic link '{}'", path, symlink)
+        }
+        HgPathErrorKind::NotFsCompliant(path) => write!(
+            buf,
+            "path '{}' cannot be turned into a \
+                 filesystem path",
+            path
+        ),
+        HgPathErrorKind::NotUnderRoot { path, root } => write!(
+            buf,
+            "path '{}' not under root {}",
+            path.display(),
+            root.display()
+        ),
+    }?;
+    Ok(buf)
+}
+
 fn format_pattern_error(
     f: &mut std::fmt::Formatter<'_>,
     pattern_error: &PatternError,
@@ -385,7 +449,9 @@ fn format_pattern_error(
             )
         }
         PatternError::IO(error) => fmt::Display::fmt(&error, f),
-        PatternError::Path(error) => fmt::Display::fmt(&error, f),
+        PatternError::Path(error) => {
+            f.write_str(&hg_path_error_to_string(error, None)?)
+        }
         PatternError::NonRegexPattern(pattern, backtrace) => {
             write!(
                 f,

@@ -246,7 +246,7 @@ impl From<StatusError> for CommandError {
 
 impl From<HgPathError> for CommandError {
     fn from(error: HgPathError) -> Self {
-        CommandError::unsupported(format!("{}", error))
+        HgError::from(error).into()
     }
 }
 

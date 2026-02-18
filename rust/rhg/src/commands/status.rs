@@ -502,7 +502,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
             let cwd = hg::utils::current_dir()?;
             let root = repo.working_directory_path();
-            let file_patterns = parse_pattern_args(patterns, &cwd, root)?;
+            let file_patterns = parse_pattern_args(patterns, &cwd, root)
+                .map_err(|e| {
+                    // relative paths are not handled correctly here and
+                    // make rhg falsely claim that we're traversing .hg
+                    // TODO improve this situation
+                    CommandError::unsupported(HgError::from(e).to_string())
+                })?;
             let files_matcher =
                 hg::matchers::PatternMatcher::new(file_patterns)?;
             Box::new(IntersectionMatcher::new(Box::new(files_matcher), matcher))

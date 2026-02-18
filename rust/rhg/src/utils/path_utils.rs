@@ -87,8 +87,7 @@ pub fn resolve_file_args<'a>(
                 relative_path.display(),
             ))
         })?;
-        let hg_file = HgPathBuf::try_from(stripped.to_path_buf())
-            .map_err(|e| CommandError::abort(e.to_string()))?;
+        let hg_file = HgPathBuf::try_from(stripped.to_path_buf())?;
         result.push(hg_file);
     }
     Ok(result)
