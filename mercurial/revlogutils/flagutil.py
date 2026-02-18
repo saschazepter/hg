@@ -170,7 +170,7 @@ def _processflagsfunc(revlog, text, flags, operation):
     # Check all flags are known.
     if flags & ~const.REVIDX_KNOWN_FLAGS:
         raise revlog._flagserrorclass(
-            _(b"incompatible revision flag '%#x'")
+            _(b"unknown revision flag '%#x'")
             % (flags & ~const.REVIDX_KNOWN_FLAGS)
         )
     validatehash = True
