@@ -13,6 +13,7 @@ use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::dirstate::status::StatusError;
 use crate::exit_codes;
 use crate::file_patterns::PatternError;
+use crate::narrow::shape::Error as ShapeError;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
 
@@ -63,6 +64,8 @@ pub enum HgError {
     /// An error occured in the dirstate
     #[from]
     Dirstate(DirstateError),
+    #[from]
+    Shape(ShapeError),
     #[from]
     Pattern(PatternError),
     /// A race condition has been detected. This *must* be handled locally
@@ -298,6 +301,60 @@ impl fmt::Display for HgError {
             },
             HgError::Pattern(pattern_error) => {
                 format_pattern_error(f, pattern_error)
+            }
+            HgError::Shape(shape_err) => {
+                let msg = match shape_err {
+                    ShapeError::EmptyShardName => {
+                        "shard names must not be empty".to_string()
+                    }
+                    ShapeError::DotOrHyphenOnlyShardName(name) => format!(
+                        "invalid shard name '{name}': \
+                missing lowercase alphanumeric character"
+                    ),
+                    ShapeError::InvalidShardName(name) => format!(
+                        "invalid shard name '{name}': \
+                only lowercase alphanumeric, hyphen or dot are accepted"
+                    ),
+                    ShapeError::ReservedName(name) => {
+                        format!("shard name '{name}' is reserved")
+                    }
+                    ShapeError::CycleInShards(shard_names) => {
+                        let cycle = itertools::Itertools::join(
+                            &mut shard_names.iter(),
+                            "->",
+                        );
+                        format!("shards form a cycle: {cycle}")
+                    }
+                    ShapeError::PathInMultipleShards(path) => {
+                        format!(
+                            "path is found in multiple shards: {}",
+                            String::from_utf8_lossy(path.as_bytes())
+                        )
+                    }
+                    ShapeError::DuplicateShard(name) => {
+                        format!("shard '{name}' defined multiple times")
+                    }
+                    ShapeError::ShardMissingPathsAndRequires(name) => {
+                        format!(
+                            "shard '{name}' needs one of `paths` or `requires`"
+                        )
+                    }
+                    ShapeError::InvalidPath(err) => {
+                        format!(
+                            "`server-shapes` contains an invalid path: {err}"
+                        )
+                    }
+                    ShapeError::UnknownVersion(version) => {
+                        format!("unknown `server-shapes` version '{version}'")
+                    }
+                    ShapeError::ParseError(err) => {
+                        format!("error parsing `server-shapes`:\n{err}")
+                    }
+                    ShapeError::PatternError(err) => {
+                        return format_pattern_error(f, err);
+                    }
+                };
+                f.write_str(&msg)
             }
         }
     }

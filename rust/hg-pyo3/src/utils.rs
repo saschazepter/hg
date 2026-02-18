@@ -424,6 +424,16 @@ where
                         .expect("initializing an InputError failed"),
                 )
             }
+            err @ HgError::Shape(_) => {
+                let cls = py
+                    .import(intern!(py, "mercurial.error"))
+                    .and_then(|m| m.getattr(intern!(py, "ConfigError")))
+                    .expect("failed to import error.ConfigError");
+                PyErr::from_value(
+                    cls.call1((err.to_string().as_bytes(),))
+                        .expect("initializing an error.ConfigError failed"),
+                )
+            }
             HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
             err @ HgError::Abort { detailed_exit_code, .. } => {
                 let cls = py

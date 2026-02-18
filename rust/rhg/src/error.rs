@@ -124,6 +124,16 @@ impl From<HgError> for CommandError {
             e @ HgError::CensoredNodeError(_, _) => {
                 CommandError::unsupported(format!("abort: {}", e))
             }
+            e @ HgError::Shape(_) => {
+                CommandError::abort_with_exit_code_and_hint(
+                    e.to_string(),
+                    exit_codes::CONFIG_ERROR_ABORT,
+                    None::<&str>,
+                    // No useful backtrace from Shape error yet
+                    // TODO fix it
+                    HgBacktrace::capture(),
+                )
+            }
             HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
                 CommandError::abort_with_exit_code_and_hint(
                     format!("abort: {}", message),
