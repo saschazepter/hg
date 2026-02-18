@@ -205,13 +205,6 @@ CLIENTROLE = compression.CLIENTROLE
 _notset = object()
 
 
-def bitsfrom(container):
-    bits = 0
-    for bit in container:
-        bits |= bit
-    return bits
-
-
 # python 2.6 still have deprecation warning enabled by default. We do not want
 # to display anything to standard user so detect if we are running test and
 # only use python deprecation warning in this case.

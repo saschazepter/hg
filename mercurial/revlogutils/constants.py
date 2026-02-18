@@ -287,6 +287,17 @@ REVIDX_NEUTRAL_FLAGS = (
 # bitmark for flags that could cause rawdata content change
 REVIDX_RAWTEXT_CHANGING_FLAGS = REVIDX_ISCENSORED | REVIDX_EXTSTORED
 
+
+def bitsfrom(container):
+    bits = 0
+    for bit in container:
+        bits |= bit
+    return bits
+
+
+# Keep this in sync with REVIDX_KNOWN_FLAGS in rust/hg-core/src/revlog/revlog.rs
+REVIDX_KNOWN_FLAGS = bitsfrom(REVIDX_FLAGS_ORDER)
+
 ## chunk compression mode constants:
 # These constants are used in revlog version >=2 to denote the compression used
 # for a chunk.

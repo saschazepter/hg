@@ -26,7 +26,8 @@ from .constants import (
     REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
 
-from .. import error, util
+from .. import error
+from . import constants as const
 
 # blanked usage of all the name to prevent pyflakes constraints
 # We need these name available in the module for extensions.
@@ -39,9 +40,6 @@ REVIDX_HASCOPIESINFO
 REVIDX_HASMETA
 REVIDX_ISCENSORED
 REVIDX_RAWTEXT_CHANGING_FLAGS
-
-# Keep this in sync with REVIDX_KNOWN_FLAGS in rust/hg-core/src/revlog/revlog.rs
-REVIDX_KNOWN_FLAGS = util.bitsfrom(REVIDX_FLAGS_ORDER)
 
 # Store flag processors (cf. 'addflagprocessor()' to register)
 flagprocessors = {
@@ -85,7 +83,7 @@ def addflagprocessor(flag, processor):
 
 
 def insertflagprocessor(flag, processor, flagprocessors):
-    if not flag & REVIDX_KNOWN_FLAGS:
+    if not flag & const.REVIDX_KNOWN_FLAGS:
         msg = _(b"cannot register processor on unknown flag '%#x'.") % flag
         raise error.ProgrammingError(msg)
     if flag not in REVIDX_FLAGS_ORDER:
@@ -172,10 +170,10 @@ def _processflagsfunc(revlog, text, flags, operation):
     if operation not in (b'read', b'write', b'raw'):
         raise error.ProgrammingError(_(b"invalid '%s' operation") % operation)
     # Check all flags are known.
-    if flags & ~REVIDX_KNOWN_FLAGS:
+    if flags & ~const.REVIDX_KNOWN_FLAGS:
         raise revlog._flagserrorclass(
             _(b"incompatible revision flag '%#x'")
-            % (flags & ~REVIDX_KNOWN_FLAGS)
+            % (flags & ~const.REVIDX_KNOWN_FLAGS)
         )
     validatehash = True
     # Depending on the operation (read or write), the order might be
