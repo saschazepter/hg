@@ -99,12 +99,6 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl From<Error> for crate::errors::HgError {
-    fn from(err: Error) -> Self {
-        Self::corrupted(format!("corrupted fileindex: {err}"))
-    }
-}
-
 /// The contents of the docket file.
 pub struct Docket {
     pub header: DocketHeader,

@@ -12,6 +12,7 @@ use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::dirstate::status::StatusError;
 use crate::exit_codes;
+use crate::file_index::Error as FileIndexError;
 use crate::file_patterns::PatternError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
@@ -70,6 +71,8 @@ pub enum HgError {
     Shape(ShapeError),
     #[from]
     Pattern(PatternError),
+    #[from]
+    FileIndex(FileIndexError),
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
@@ -370,6 +373,7 @@ impl fmt::Display for HgError {
                 };
                 f.write_str(&msg)
             }
+            HgError::FileIndex(error) => error.fmt(f),
         }
     }
 }
