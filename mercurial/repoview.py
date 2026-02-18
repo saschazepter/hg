@@ -223,6 +223,27 @@ def extrafilter(ui):
     return fid
 
 
+def filterrevs_cachemiss(repo, filtername, visibilityexceptions=None):
+    """fills in the cache entry for `filterrevs`"""
+    if repo.ui.configbool(b'devel', b'debug.repo-filters'):
+        msg = b'computing revision filter for "%s"'
+        msg %= filtername
+        if repo.ui.tracebackflag and repo.ui.debugflag:
+            # XXX use ui.write_err
+            util.debugstacktrace(
+                msg,
+                f=repo.ui._fout,
+                otherf=repo.ui._ferr,
+                prefix=b'debug.filters: ',
+            )
+        else:
+            repo.ui.debug(b'debug.filters: %s\n' % msg)
+    func = filtertable[filtername]
+    if visibilityexceptions:
+        return func(repo.unfiltered, visibilityexceptions)
+    repo.filteredrevcache[filtername] = func(repo.unfiltered())
+
+
 def filterrevs(repo, filtername, visibilityexceptions=None):
     """returns set of filtered revision for this filter name
 
@@ -230,23 +251,10 @@ def filterrevs(repo, filtername, visibilityexceptions=None):
     hidden-state and must be visible. They are dynamic and hence we should not
     cache it's result"""
     if filtername not in repo.filteredrevcache:
-        if repo.ui.configbool(b'devel', b'debug.repo-filters'):
-            msg = b'computing revision filter for "%s"'
-            msg %= filtername
-            if repo.ui.tracebackflag and repo.ui.debugflag:
-                # XXX use ui.write_err
-                util.debugstacktrace(
-                    msg,
-                    f=repo.ui._fout,
-                    otherf=repo.ui._ferr,
-                    prefix=b'debug.filters: ',
-                )
-            else:
-                repo.ui.debug(b'debug.filters: %s\n' % msg)
-        func = filtertable[filtername]
-        if visibilityexceptions:
-            return func(repo.unfiltered, visibilityexceptions)
-        repo.filteredrevcache[filtername] = func(repo.unfiltered())
+        with util.timedcm('repo filter for %s', filtername):
+            filterrevs_cachemiss(
+                repo, filtername, visibilityexceptions=visibilityexceptions
+            )
     return repo.filteredrevcache[filtername]
 
 
