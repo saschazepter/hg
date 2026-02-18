@@ -39,7 +39,7 @@ from .constants import (
     KIND_FILELOG,
     KIND_MANIFESTLOG,
     REVIDX_ISCENSORED,
-    REVIDX_RAWTEXT_CHANGING_FLAGS,
+    REVIDX_NEUTRAL_FLAGS,
 )
 
 from ..interfaces.types import (
@@ -1147,7 +1147,7 @@ class _GeneralDeltaSearch(_BaseDeltaSearch):
         if self.target_rev is not None and rev >= self.target_rev:
             return False
         # no delta for rawtext-changing revs (see "candelta" for why)
-        if self.revlog.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS:
+        if self.revlog.flags(rev) & ~REVIDX_NEUTRAL_FLAGS:
             return False
         return True
 
@@ -2276,7 +2276,7 @@ class deltacomputer:
         # 2) no delta for flag processor revision (see "candelta" for why)
         # not calling candelta since only one revision needs test, also to
         # avoid overhead fetching flags again.
-        if not revinfo.textlen or revinfo.flags & REVIDX_RAWTEXT_CHANGING_FLAGS:
+        if not revinfo.textlen or revinfo.flags & ~REVIDX_NEUTRAL_FLAGS:
             deltainfo = self._fullsnapshotinfo(revinfo, target_rev)
             if gather_debug:
                 end = util.timer()

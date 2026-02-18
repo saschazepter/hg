@@ -284,9 +284,6 @@ REVIDX_NEUTRAL_FLAGS = (
     REVIDX_HASCOPIESINFO | REVIDX_HASMETA | REVIDX_DELTA_INFO_FLAGS
 )
 
-# bitmark for flags that could cause rawdata content change
-REVIDX_RAWTEXT_CHANGING_FLAGS = REVIDX_ISCENSORED | REVIDX_EXTSTORED
-
 
 def bitsfrom(container):
     bits = 0

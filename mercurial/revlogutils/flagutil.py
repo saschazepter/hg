@@ -23,7 +23,6 @@ from .constants import (
     REVIDX_HASCOPIESINFO,
     REVIDX_HASMETA,
     REVIDX_ISCENSORED,
-    REVIDX_RAWTEXT_CHANGING_FLAGS,
 )
 
 from .. import error
@@ -39,7 +38,6 @@ REVIDX_FLAGS_ORDER
 REVIDX_HASCOPIESINFO
 REVIDX_HASMETA
 REVIDX_ISCENSORED
-REVIDX_RAWTEXT_CHANGING_FLAGS
 
 # Store flag processors (cf. 'addflagprocessor()' to register)
 flagprocessors = {
@@ -59,7 +57,7 @@ def addflagprocessor(flag, processor):
 
     Invariant:
     - Flags need to be defined in REVIDX_KNOWN_FLAGS and REVIDX_FLAGS_ORDER,
-      and REVIDX_RAWTEXT_CHANGING_FLAGS if they can alter rawtext.
+      and excluded from REVIDX_NEUTRAL_FLAGS if they can alter rawtext.
     - Only one flag processor can be registered on a specific flag.
     - flagprocessors must be 3-tuples of functions (read, write, raw) with the
       following signatures:

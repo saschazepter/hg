@@ -78,7 +78,6 @@ from .revlogutils.constants import (
     REVIDX_HASMETA,
     REVIDX_ISCENSORED,
     REVIDX_NEUTRAL_FLAGS,
-    REVIDX_RAWTEXT_CHANGING_FLAGS,
     REVLOGV0,
     REVLOGV1,
     REVLOGV1_FLAGS,
@@ -150,7 +149,6 @@ REVIDX_HASCOPIESINFO
 REVIDX_EXTSTORED
 REVIDX_DEFAULT_FLAGS
 REVIDX_FLAGS_ORDER
-REVIDX_RAWTEXT_CHANGING_FLAGS
 
 parsers = policy.importmod('parsers')
 rustancestor = policy.importrust('ancestor')
@@ -2104,8 +2102,8 @@ class revlog:
         # the rawtext content that the delta will be based on, and two clients
         # could have a same revlog node with different flags (i.e. different
         # rawtext contents) and the delta could be incompatible.
-        if (self.flags(baserev) & REVIDX_RAWTEXT_CHANGING_FLAGS) or (
-            self.flags(rev) & REVIDX_RAWTEXT_CHANGING_FLAGS
+        if (self.flags(baserev) & ~REVIDX_NEUTRAL_FLAGS) or (
+            self.flags(rev) & ~REVIDX_NEUTRAL_FLAGS
         ):
             return False
         return True
