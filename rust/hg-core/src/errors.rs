@@ -304,52 +304,62 @@ impl fmt::Display for HgError {
                 format_pattern_error(f, pattern_error)
             }
             HgError::Shape(shape_err) => {
+                let backtrace = &shape_err.backtrace;
                 let msg = match &*shape_err.kind {
                     ShapeErrorKind::EmptyShardName => {
-                        "shard names must not be empty".to_string()
+                        format!("{backtrace}shard names must not be empty")
                     }
                     ShapeErrorKind::DotOrHyphenOnlyShardName(name) => format!(
-                        "invalid shard name '{name}': \
+                        "{backtrace}invalid shard name '{name}': \
                         missing lowercase alphanumeric character"
                     ),
                     ShapeErrorKind::InvalidShardName(name) => format!(
-                        "invalid shard name '{name}': \
+                        "{backtrace}invalid shard name '{name}': \
                         only lowercase alphanumeric, hyphen or dot are accepted"
                     ),
                     ShapeErrorKind::ReservedName(name) => {
-                        format!("shard name '{name}' is reserved")
+                        format!("{backtrace}shard name '{name}' is reserved")
                     }
                     ShapeErrorKind::CycleInShards(shard_names) => {
                         let cycle = itertools::Itertools::join(
                             &mut shard_names.iter(),
                             "->",
                         );
-                        format!("shards form a cycle: {cycle}")
+                        format!("{backtrace}shards form a cycle: {cycle}")
                     }
                     ShapeErrorKind::PathInMultipleShards(path) => {
                         format!(
-                            "path is found in multiple shards: {}",
+                            "{backtrace}path is found in multiple shards: {}",
                             String::from_utf8_lossy(path.as_bytes())
                         )
                     }
                     ShapeErrorKind::DuplicateShard(name) => {
-                        format!("shard '{name}' defined multiple times")
+                        format!(
+                            "{backtrace}shard '{name}' defined multiple times"
+                        )
                     }
                     ShapeErrorKind::ShardMissingPathsAndRequires(name) => {
                         format!(
-                            "shard '{name}' needs one of `paths` or `requires`"
+                            "{backtrace}shard '{name}' needs one of \
+                            `paths` or `requires`"
                         )
                     }
                     ShapeErrorKind::InvalidPath(err) => {
                         format!(
-                            "`server-shapes` contains an invalid path: {err}"
+                            "{backtrace}`server-shapes` contains \
+                            an invalid path: {err}"
                         )
                     }
                     ShapeErrorKind::UnknownVersion(version) => {
-                        format!("unknown `server-shapes` version '{version}'")
+                        format!(
+                            "{backtrace}unknown `server-shapes` \
+                            version '{version}'"
+                        )
                     }
                     ShapeErrorKind::ParseError(err) => {
-                        format!("error parsing `server-shapes`:\n{err}")
+                        format!(
+                            "{backtrace}error parsing `server-shapes`:\n{err}"
+                        )
                     }
                     ShapeErrorKind::PatternError(err) => {
                         return format_pattern_error(f, err);
