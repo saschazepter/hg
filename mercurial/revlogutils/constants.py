@@ -262,13 +262,6 @@ REVIDX_FLAGS_ORDER = [
     REVIDX_ISCENSORED,
     REVIDX_ELLIPSIS,
     REVIDX_EXTSTORED,
-    REVIDX_HASCOPIESINFO,
-    REVIDX_HASMETA,
-    REVIDX_DELTA_IS_SNAPSHOT,
-    REVIDX_DELTA_QUALITY,
-    REVIDX_DELTA_GOOD,
-    REVIDX_DELTA_P1_SMALL,
-    REVIDX_DELTA_P2_SMALL,
 ]
 
 REVIDX_DELTA_INFO_FLAGS = (
@@ -293,7 +286,7 @@ def bitsfrom(container):
 
 
 # Keep this in sync with REVIDX_KNOWN_FLAGS in rust/hg-core/src/revlog/revlog.rs
-REVIDX_KNOWN_FLAGS = bitsfrom(REVIDX_FLAGS_ORDER)
+REVIDX_KNOWN_FLAGS = bitsfrom(REVIDX_FLAGS_ORDER) | REVIDX_NEUTRAL_FLAGS
 
 ## chunk compression mode constants:
 # These constants are used in revlog version >=2 to denote the compression used
