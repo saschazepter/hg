@@ -18,6 +18,7 @@ use bytes_cast::unaligned::U32Be;
 use self_cell::self_cell;
 
 use super::FileToken;
+use crate::errors::HgBacktrace;
 use crate::utils::docket::FileUid;
 use crate::utils::hg_path::HgPath;
 use crate::utils::u_u16;
@@ -25,9 +26,9 @@ use crate::utils::u_u32;
 use crate::utils::u16_u;
 use crate::utils::u32_u;
 
-/// Error type for file index corruption.
-#[derive(Debug, PartialEq)]
-pub enum Error {
+/// A list specifying general categories of file index errors
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ErrorKind {
     BadFormatMarker,
     DocketFileEof,
     DataFileTooSmall,
@@ -41,43 +42,56 @@ pub enum Error {
     BadLeafLabel,
 }
 
+/// Error type for file index corruption.
+#[derive(Debug, PartialEq)]
+pub struct Error {
+    pub kind: ErrorKind,
+    pub backtrace: HgBacktrace,
+}
+
+impl From<ErrorKind> for Error {
+    fn from(value: ErrorKind) -> Self {
+        Self { kind: value, backtrace: HgBacktrace::capture() }
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::BadFormatMarker => {
+        match self.kind {
+            ErrorKind::BadFormatMarker => {
                 write!(f, "unrecognized format marker in docket")
             }
-            Error::DocketFileEof => {
+            ErrorKind::DocketFileEof => {
                 write!(f, "unexpected EOF while reading docket file")
             }
-            Error::DataFileTooSmall => {
+            ErrorKind::DataFileTooSmall => {
                 write!(f, "file is smaller than its 'used size' docket field")
             }
-            Error::BadMetaFilesize => {
+            ErrorKind::BadMetaFilesize => {
                 write!(
                     f,
                     "meta file 'used size' is not a multiple of the record size"
                 )
             }
-            Error::ListFileOutOfBounds => {
+            ErrorKind::ListFileOutOfBounds => {
                 write!(f, "list file access out of bounds")
             }
-            Error::MetaFileOutOfBounds => {
+            ErrorKind::MetaFileOutOfBounds => {
                 write!(f, "meta file access out of bounds")
             }
-            Error::TreeFileOutOfBounds => {
+            ErrorKind::TreeFileOutOfBounds => {
                 write!(f, "tree file access out of bounds")
             }
-            Error::TreeFileEof => {
+            ErrorKind::TreeFileEof => {
                 write!(f, "unexpected EOF while parsing tree file")
             }
-            Error::BadRootNode => {
+            ErrorKind::BadRootNode => {
                 write!(f, "invalid root node in tree")
             }
-            Error::BadSingletonTree => {
+            ErrorKind::BadSingletonTree => {
                 write!(f, "invalid singleton tree")
             }
-            Error::BadLeafLabel => {
+            ErrorKind::BadLeafLabel => {
                 write!(f, "invalid label for leaf node")
             }
         }
@@ -99,10 +113,10 @@ pub struct Docket {
 impl Docket {
     /// Reads a [`Docket`] from bytes.
     pub fn read(on_disk: &[u8]) -> Result<Self, Error> {
-        let (header, rest) =
-            DocketHeader::from_bytes(on_disk).or(Err(Error::DocketFileEof))?;
+        let (header, rest) = DocketHeader::from_bytes(on_disk)
+            .or(Err(ErrorKind::DocketFileEof))?;
         if header.marker != *FORMAT_MARKER {
-            return Err(Error::BadFormatMarker);
+            return Err(ErrorKind::BadFormatMarker)?;
         }
         let (garbage_entries, _rest) = parse_garbage_list(rest)?;
         Ok(Docket { header: header.clone(), garbage_entries })
@@ -203,15 +217,15 @@ impl Default for Docket {
 fn parse_garbage_list(
     bytes: &[u8],
 ) -> Result<(Vec<GarbageEntry>, &[u8]), Error> {
-    let (header, rest) =
-        GarbageListHeader::from_bytes(bytes).or(Err(Error::DocketFileEof))?;
+    let (header, rest) = GarbageListHeader::from_bytes(bytes)
+        .or(Err(ErrorKind::DocketFileEof))?;
     let num_entries = u32_u(header.num_entries.get());
     let (index_entries, rest) =
         GarbageIndexEntry::slice_from_bytes(rest, num_entries)
-            .or(Err(Error::DocketFileEof))?;
+            .or(Err(ErrorKind::DocketFileEof))?;
     let (path_buf, rest) = rest
         .split_at_checked(u32_u(header.path_buf_size.get()))
-        .ok_or(Error::DocketFileEof)?;
+        .ok_or(ErrorKind::DocketFileEof)?;
     let entries = index_entries
         .iter()
         .map(|entry| GarbageEntry::from_index(entry, path_buf))
@@ -542,7 +556,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
         files: DataFiles<'on_disk>,
     ) -> Result<Self, Error> {
         let limit = |bytes: &'on_disk [u8], size: U32Be| {
-            bytes.get(..u32_u(size.get())).ok_or(Error::DataFileTooSmall)
+            bytes.get(..u32_u(size.get())).ok_or(ErrorKind::DataFileTooSmall)
         };
         let list_file = limit(files.list_file, docket.header.list_file_size)?;
         let meta_file = limit(files.meta_file, docket.header.meta_file_size)?;
@@ -559,7 +573,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
         };
         const META_SIZE: usize = std::mem::size_of::<Metadata>();
         if meta_file.len() % META_SIZE != 0 {
-            return Err(Error::BadMetaFilesize);
+            return Err(ErrorKind::BadMetaFilesize)?;
         }
         let (meta_array, rest) =
             Metadata::slice_from_bytes(meta_file, meta_file.len() / META_SIZE)
@@ -571,10 +585,10 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let tree_unused_bytes = docket.header.tree_unused_bytes.get();
         let root = Self::read_node_from(tree_file, tree_root_pointer)?;
         if root.token != FileToken::root() || root.label_length != 0 {
-            return Err(Error::BadRootNode);
+            return Err(ErrorKind::BadRootNode)?;
         }
         if tree_file_size > 0 && root.child_ptrs.is_empty() {
-            return Err(Error::BadSingletonTree);
+            return Err(ErrorKind::BadSingletonTree)?;
         }
         Ok(Self {
             list_file,
@@ -624,7 +638,8 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let mut node = self.root;
         let mut position: LabelPosition = 0;
         while let Some(index) = node.find_child(path[position]) {
-            let ptr = node.child_ptrs.get(index).ok_or(Error::TreeFileEof)?;
+            let ptr =
+                node.child_ptrs.get(index).ok_or(ErrorKind::TreeFileEof)?;
             let (child_node, metadata) =
                 self.read_node_metadata(*ptr, position)?;
             let span = Self::label_span(child_node, metadata, position);
@@ -667,7 +682,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let length = u16_u(span.length);
         self.list_file
             .get(offset..offset + length)
-            .ok_or(Error::ListFileOutOfBounds)
+            .ok_or_else(|| ErrorKind::ListFileOutOfBounds.into())
     }
 
     /// Reads a [`Metadata`] entry from the meta file by token.
@@ -676,7 +691,9 @@ impl<'on_disk> FileIndexView<'on_disk> {
         token: FileToken,
     ) -> Result<&'on_disk Metadata, Error> {
         debug_assert!(token.is_valid());
-        self.meta_array.get(u32_u(token.0)).ok_or(Error::MetaFileOutOfBounds)
+        self.meta_array
+            .get(u32_u(token.0))
+            .ok_or_else(|| ErrorKind::MetaFileOutOfBounds.into())
     }
 
     /// Constructs a label [`Span`] for a node given its metadata and position.
@@ -723,7 +740,7 @@ impl<'on_disk> FileIndexView<'on_disk> {
         let metadata = self.read_metadata(token)?;
         let label_length = metadata.length.get() - u_u16(position);
         let label_length: u8 =
-            label_length.try_into().or(Err(Error::BadLeafLabel))?;
+            label_length.try_into().or(Err(ErrorKind::BadLeafLabel))?;
         let node =
             TreeNode { token, label_length, child_chars: &[], child_ptrs: &[] };
         Ok((node, metadata))
@@ -734,18 +751,19 @@ impl<'on_disk> FileIndexView<'on_disk> {
         tree_file: &'on_disk [u8],
         ptr: u32,
     ) -> Result<TreeNode<'on_disk>, Error> {
-        let slice =
-            tree_file.get(u32_u(ptr)..).ok_or(Error::TreeFileOutOfBounds)?;
-        let (header, rest) =
-            TreeNodeHeader::from_bytes(slice).or(Err(Error::TreeFileEof))?;
+        let slice = tree_file
+            .get(u32_u(ptr)..)
+            .ok_or(ErrorKind::TreeFileOutOfBounds)?;
+        let (header, rest) = TreeNodeHeader::from_bytes(slice)
+            .or(Err(ErrorKind::TreeFileEof))?;
         let (child_chars, rest) = rest
             .split_at_checked(header.num_children as usize)
-            .ok_or(Error::TreeFileEof)?;
+            .ok_or(ErrorKind::TreeFileEof)?;
         let (child_ptrs, _rest) = TaggedNodePointer::slice_from_bytes(
             rest,
             header.num_children as usize,
         )
-        .or(Err(Error::TreeFileEof))?;
+        .or(Err(ErrorKind::TreeFileEof))?;
         Ok(TreeNode {
             token: FileToken(header.token.get()),
             label_length: header.label_length,

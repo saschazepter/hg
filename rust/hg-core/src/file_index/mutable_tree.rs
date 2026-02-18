@@ -7,6 +7,7 @@ use itertools::Itertools;
 
 use super::FileToken;
 use super::on_disk::Error;
+use super::on_disk::ErrorKind;
 use super::on_disk::FileIndexView;
 use super::on_disk::LabelPosition;
 use super::on_disk::TreeNode;
@@ -423,19 +424,19 @@ impl<'a> MutableTree<'a> {
             dest.copy_from_slice(&current_offset);
             let slice = tree_file
                 .get(u32_u(ptr)..)
-                .ok_or(Error::TreeFileOutOfBounds)?;
+                .ok_or(ErrorKind::TreeFileOutOfBounds)?;
             let (header, _) = TreeNodeHeader::from_bytes(slice)
-                .or(Err(Error::TreeFileEof))?;
+                .or(Err(ErrorKind::TreeFileEof))?;
             let num_children = header.num_children as usize;
             let (header_and_chars, rest) = slice
                 .split_at_checked(
                     std::mem::size_of::<TreeNodeHeader>() + num_children,
                 )
-                .ok_or(Error::TreeFileEof)?;
+                .ok_or(ErrorKind::TreeFileEof)?;
             buffer.extend_from_slice(header_and_chars);
             let (child_ptrs, _) =
                 TaggedNodePointer::slice_from_bytes(rest, num_children)
-                    .or(Err(Error::TreeFileEof))?;
+                    .or(Err(ErrorKind::TreeFileEof))?;
             for &value in child_ptrs {
                 match value.unpack() {
                     PointerOrToken::Pointer(child_ptr) => {
