@@ -185,10 +185,18 @@ pub trait Graph {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GraphError {
-    /// Parent revision does not exist, i.e. below 0 or above max revision.
+    /// P1 revision does not exist, i.e. below 0 or above max revision.
+    P1OutOfRange(Revision),
+    /// P2 revision does not exist, i.e. below 0 or above max revision.
+    P2OutOfRange(Revision),
+    /// One of the parents does not exist, i.e. below 0 or above max revision.
     ParentOutOfRange(Revision),
-    /// Parent revision number is greater than one of its descendants.
+    /// One of the parents revisions is greater than one of its descendants.
     ParentOutOfOrder(Revision),
+    /// The graph is inconsistent in some way. In practice, this is a temporary
+    /// compatibility variant until we figure out a better variant when
+    /// revlog-v2 is more fleshed out
+    InconsistentGraphData,
 }
 
 impl std::fmt::Display for GraphError {
@@ -199,6 +207,15 @@ impl std::fmt::Display for GraphError {
             }
             GraphError::ParentOutOfOrder(revision) => {
                 write!(f, "parent out of order ({})", revision)
+            }
+            GraphError::P1OutOfRange(revision) => {
+                write!(f, "p1 out of range ({})", revision)
+            }
+            GraphError::P2OutOfRange(revision) => {
+                write!(f, "p2 out of range ({})", revision)
+            }
+            GraphError::InconsistentGraphData => {
+                write!(f, "inconsistent graph data")
             }
         }
     }
