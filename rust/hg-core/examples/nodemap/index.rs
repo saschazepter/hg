@@ -58,7 +58,7 @@ impl Graph for &Index {
             || p1.0 as usize >= len
             || p2.0 as usize >= len
         {
-            return Err(GraphError::ParentOutOfRange(rev));
+            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
         }
         Ok([p1, p2])
     }

@@ -19,24 +19,24 @@ import_exception!(mercurial.error, WdirUnsupported);
 
 impl GraphError {
     pub fn from_hg(inner: &hg::GraphError) -> PyErr {
-        match inner {
-            hg::GraphError::ParentOutOfRange(r) => {
+        match inner.kind {
+            hg::GraphErrorKind::ParentOutOfRange(r) => {
                 GraphError::new_err(("ParentOutOfRange", PyRevision(r.0)))
             }
-            hg::GraphError::ParentOutOfOrder(r) => {
+            hg::GraphErrorKind::ParentOutOfOrder(r) => {
                 GraphError::new_err(("ParentOutOfOrder", PyRevision(r.0)))
             }
-            hg::GraphError::P1OutOfRange(r) => {
+            hg::GraphErrorKind::P1OutOfRange(r) => {
                 // For backwards compatibility with Python tests, to be changed
                 // once revlog-v2 is more fleshed out
                 GraphError::new_err(("ParentOutOfRange", PyRevision(r.0)))
             }
-            hg::GraphError::P2OutOfRange(r) => {
+            hg::GraphErrorKind::P2OutOfRange(r) => {
                 // For backwards compatibility with Python tests, to be changed
                 // once revlog-v2 is more fleshed out
                 GraphError::new_err(("ParentOutOfRange", PyRevision(r.0)))
             }
-            hg::GraphError::InconsistentGraphData => {
+            hg::GraphErrorKind::InconsistentGraphData => {
                 // For backwards compatibility with Python tests, to be changed
                 // once revlog-v2 is more fleshed out
                 GraphError::new_err(("InconsistentGraphData",))

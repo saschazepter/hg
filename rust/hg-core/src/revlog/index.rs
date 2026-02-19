@@ -21,6 +21,7 @@ use crate::BaseRevision;
 use crate::FastHashMap;
 use crate::Graph;
 use crate::GraphError;
+use crate::GraphErrorKind;
 use crate::UncheckedRevision;
 use crate::dagops;
 use crate::dyn_bytes::ByteStoreTrunc;
@@ -303,7 +304,7 @@ impl Debug for Index {
 impl Graph for Index {
     #[inline(always)]
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
-        let err = || GraphError::ParentOutOfRange(rev);
+        let err = || GraphErrorKind::ParentOutOfRange(rev);
         let entry = self.get_entry(rev);
         Ok([
             self.check_revision(entry.p1()).ok_or_else(err)?,

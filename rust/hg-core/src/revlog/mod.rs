@@ -184,7 +184,7 @@ pub trait Graph {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum GraphError {
+pub enum GraphErrorKind {
     /// P1 revision does not exist, i.e. below 0 or above max revision.
     P1OutOfRange(Revision),
     /// P2 revision does not exist, i.e. below 0 or above max revision.
@@ -199,22 +199,34 @@ pub enum GraphError {
     InconsistentGraphData,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct GraphError {
+    pub kind: GraphErrorKind,
+    pub backtrace: HgBacktrace,
+}
+
+impl From<GraphErrorKind> for GraphError {
+    fn from(value: GraphErrorKind) -> Self {
+        Self { kind: value, backtrace: HgBacktrace::capture() }
+    }
+}
+
 impl std::fmt::Display for GraphError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GraphError::ParentOutOfRange(revision) => {
+        match self.kind {
+            GraphErrorKind::ParentOutOfRange(revision) => {
                 write!(f, "parent out of range ({})", revision)
             }
-            GraphError::ParentOutOfOrder(revision) => {
+            GraphErrorKind::ParentOutOfOrder(revision) => {
                 write!(f, "parent out of order ({})", revision)
             }
-            GraphError::P1OutOfRange(revision) => {
+            GraphErrorKind::P1OutOfRange(revision) => {
                 write!(f, "p1 out of range ({})", revision)
             }
-            GraphError::P2OutOfRange(revision) => {
+            GraphErrorKind::P2OutOfRange(revision) => {
                 write!(f, "p2 out of range ({})", revision)
             }
-            GraphError::InconsistentGraphData => {
+            GraphErrorKind::InconsistentGraphData => {
                 write!(f, "inconsistent graph data")
             }
         }

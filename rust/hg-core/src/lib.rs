@@ -31,6 +31,7 @@ pub mod revlog;
 pub use revlog::BaseRevision;
 pub use revlog::Graph;
 pub use revlog::GraphError;
+pub use revlog::GraphErrorKind;
 pub use revlog::NULL_NODE;
 pub use revlog::NULL_NODE_ID;
 pub use revlog::NULL_REVISION;

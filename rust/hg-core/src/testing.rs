@@ -7,6 +7,7 @@
 
 use crate::Graph;
 use crate::GraphError;
+use crate::GraphErrorKind;
 use crate::NULL_REVISION;
 use crate::Revision;
 
@@ -60,7 +61,7 @@ impl Graph for SampleGraph {
             11 => Ok([3, 7]),
             12 => Ok([9, null_rev]),
             13 => Ok([8, null_rev]),
-            r => Err(GraphError::ParentOutOfRange(Revision(r))),
+            r => Err(GraphErrorKind::ParentOutOfRange(Revision(r)))?,
         };
         match res {
             Ok([a, b]) => Ok([Revision(a), Revision(b)]),

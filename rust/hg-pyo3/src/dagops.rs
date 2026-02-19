@@ -52,7 +52,7 @@ pub fn rank(
     _p1r: PyRevision,
     _p2r: PyRevision,
 ) -> PyResult<()> {
-    Err(GraphError::from_hg(&hg::GraphError::InconsistentGraphData))
+    Err(GraphError::from_hg(&hg::GraphErrorKind::InconsistentGraphData.into()))
 }
 
 pub fn init_module<'py>(

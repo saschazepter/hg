@@ -17,6 +17,7 @@ use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
 use super::Revision;
+use crate::GraphErrorKind;
 use crate::dagops;
 
 /// A set of revisions backed by a bitset, optimized for descending insertion.
@@ -59,7 +60,7 @@ impl DescendingRevisionSet {
 
     fn encode(&self, value: Revision) -> Result<usize, GraphError> {
         usize::try_from(self.ceiling - value.0)
-            .map_err(|_| GraphError::ParentOutOfOrder(value))
+            .map_err(|_| GraphErrorKind::ParentOutOfOrder(value).into())
     }
 }
 
@@ -480,7 +481,7 @@ mod tests {
         assert_eq!(set.insert(Revision(1_000_000)), Ok(true));
         assert_eq!(
             set.insert(Revision(1_000_001)),
-            Err(GraphError::ParentOutOfOrder(Revision(1_000_001)))
+            Err(GraphErrorKind::ParentOutOfOrder(Revision(1_000_001)).into())
         );
 
         assert_eq!(set.len(), 2);
@@ -681,7 +682,7 @@ mod tests {
         fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
             match rev {
                 Revision(1) => Ok([0.into(), (-1).into()]),
-                r => Err(GraphError::ParentOutOfRange(r)),
+                r => Err(GraphErrorKind::ParentOutOfRange(r))?,
             }
         }
     }
@@ -696,7 +697,12 @@ mod tests {
             false,
         ) {
             Ok(_) => panic!("Should have been ParentOutOfRange"),
-            Err(e) => assert_eq!(e, GraphError::ParentOutOfRange(25.into())),
+            Err(e) => {
+                assert_eq!(
+                    e,
+                    GraphErrorKind::ParentOutOfRange(25.into()).into()
+                )
+            }
         }
     }
 
@@ -708,7 +714,7 @@ mod tests {
                 .unwrap();
         assert_eq!(
             iter.next(),
-            Some(Err(GraphError::ParentOutOfRange(0.into())))
+            Some(Err(GraphErrorKind::ParentOutOfRange(0.into()).into()))
         );
     }
 
