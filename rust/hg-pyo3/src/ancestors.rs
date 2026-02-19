@@ -66,7 +66,7 @@ impl AncestorsIterator {
         // Safety: we don't leak the inner 'static ref out of SharedByPyObject
         let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
         match inner.next() {
-            Some(Err(e)) => Err(GraphError::from_hg(e)),
+            Some(Err(e)) => Err(GraphError::from_hg(&e)),
             None => Ok(None),
             Some(Ok(r)) => Ok(Some(PyRevision(r.0))),
         }
@@ -133,7 +133,9 @@ impl LazyAncestors {
             // Safety: we don't leak the "faked" reference out of
             // `SharedByPyObject`
             let mut inner = unsafe { slf.inner.try_borrow_mut(obj.py()) }?;
-            inner.contains(hg::Revision(rev.0)).map_err(GraphError::from_hg)
+            inner
+                .contains(hg::Revision(rev.0))
+                .map_err(|e| GraphError::from_hg(&e))
         })
     }
 
@@ -211,7 +213,7 @@ impl MissingAncestors {
         let inner = unsafe { slf.inner.try_borrow(slf.py()) }?;
         Ok(inner
             .bases_heads()
-            .map_err(GraphError::from_hg)?
+            .map_err(|e| GraphError::from_hg(&e))?
             .iter()
             .map(|r| PyRevision(r.0))
             .collect())
@@ -245,7 +247,7 @@ impl MissingAncestors {
 
         inner
             .remove_ancestors_from(&mut revs_set)
-            .map_err(GraphError::from_hg)?;
+            .map_err(|e| GraphError::from_hg(&e))?;
         // convert as Python tuple and discard from original `revs`
         let remaining_tuple =
             PyTuple::new(py, revs_set.iter().map(|r| PyRevision(r.0)))?;
@@ -266,8 +268,9 @@ impl MissingAncestors {
         // `SharedByPyObject`
         let mut inner = unsafe { slf.inner.try_borrow_mut(py) }?;
 
-        let missing_vec =
-            inner.missing_ancestors(revs_vec).map_err(GraphError::from_hg)?;
+        let missing_vec = inner
+            .missing_ancestors(revs_vec)
+            .map_err(|e| GraphError::from_hg(&e))?;
         Ok(missing_vec.iter().map(|r| PyRevision(r.0)).collect())
     }
 }

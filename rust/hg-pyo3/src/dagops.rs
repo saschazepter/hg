@@ -33,7 +33,8 @@ pub fn headrevs(
     // Safety: we don't leak the "faked" reference out of `SharedByPyObject`
     let index = unsafe { proxy_index_extract(index_proxy)? };
     let mut as_set: HashSet<Revision> = rev_pyiter_collect(revs, index)?;
-    dagops::retain_heads(index, &mut as_set).map_err(GraphError::from_hg)?;
+    dagops::retain_heads(index, &mut as_set)
+        .map_err(|e| GraphError::from_hg(&e))?;
     Ok(as_set.into_iter().map(Into::into).collect())
 }
 
@@ -51,7 +52,7 @@ pub fn rank(
     _p1r: PyRevision,
     _p2r: PyRevision,
 ) -> PyResult<()> {
-    Err(GraphError::from_hg(hg::GraphError::InconsistentGraphData))
+    Err(GraphError::from_hg(&hg::GraphError::InconsistentGraphData))
 }
 
 pub fn init_module<'py>(

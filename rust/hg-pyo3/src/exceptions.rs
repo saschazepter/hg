@@ -18,7 +18,7 @@ create_exception!(pyo3_rustext, FallbackError, PyRuntimeError);
 import_exception!(mercurial.error, WdirUnsupported);
 
 impl GraphError {
-    pub fn from_hg(inner: hg::GraphError) -> PyErr {
+    pub fn from_hg(inner: &hg::GraphError) -> PyErr {
         match inner {
             hg::GraphError::ParentOutOfRange(r) => {
                 GraphError::new_err(("ParentOutOfRange", PyRevision(r.0)))

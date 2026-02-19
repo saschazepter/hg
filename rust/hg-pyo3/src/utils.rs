@@ -93,13 +93,13 @@ pub fn py_rust_index_to_graph(
 /// This would spare users of the `pyo3` crate the additional `unsafe` deref
 /// to inspect the error and return it outside `SharedByPyObject`, and the
 /// subsequent unwrapping that this function performs.
-pub(crate) fn py_shared_or_map_err<T, E: std::fmt::Debug + Copy>(
+pub(crate) fn py_shared_or_map_err<T, E: std::fmt::Debug>(
     py: Python,
     leaked: SharedByPyObject<Result<T, E>>,
-    convert_err: impl FnOnce(E) -> PyErr,
+    convert_err: impl FnOnce(&E) -> PyErr,
 ) -> PyResult<SharedByPyObject<T>> {
     // Safety: we don't leak the "faked" reference out of `SharedByPyObject`
-    if let Err(e) = *unsafe { leaked.try_borrow(py)? } {
+    if let Err(e) = &*unsafe { leaked.try_borrow(py)? } {
         return Err(convert_err(e));
     }
     // Safety: we don't leak the "faked" reference out of `SharedByPyObject`

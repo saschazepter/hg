@@ -898,7 +898,7 @@ impl InnerRevlog {
         Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
             Ok(r) => idx
                 .parents(r)
-                .map_err(GraphError::from_hg)
+                .map_err(|e| GraphError::from_hg(&e))
                 .map(|ps| (ps[0].0, ps[1].0)),
             Err(e) => Err(PyIndexError::new_err(e)),
         })

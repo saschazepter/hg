@@ -78,7 +78,9 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner.add_common_revisions(commons).map_err(GraphError::from_hg)?;
+        inner
+            .add_common_revisions(commons)
+            .map_err(|e| GraphError::from_hg(&e))?;
         Ok(py.None())
     }
 
@@ -91,7 +93,9 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner.add_missing_revisions(missings).map_err(GraphError::from_hg)?;
+        inner
+            .add_missing_revisions(missings)
+            .map_err(|e| GraphError::from_hg(&e))?;
         Ok(py.None())
     }
 
@@ -120,8 +124,12 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        inner.add_common_revisions(common).map_err(GraphError::from_hg)?;
-        inner.add_missing_revisions(missing).map_err(GraphError::from_hg)?;
+        inner
+            .add_common_revisions(common)
+            .map_err(|e| GraphError::from_hg(&e))?;
+        inner
+            .add_missing_revisions(missing)
+            .map_err(|e| GraphError::from_hg(&e))?;
         Ok(py.None())
     }
 
@@ -153,7 +161,8 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let inner = unsafe { self.inner.try_borrow(py)? };
-        let common_heads = inner.common_heads().map_err(GraphError::from_hg)?;
+        let common_heads =
+            inner.common_heads().map_err(|e| GraphError::from_hg(&e))?;
         Ok(common_heads.into_iter().map(Into::into).collect())
     }
 
@@ -166,8 +175,9 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        let sample =
-            inner.take_full_sample(size).map_err(GraphError::from_hg)?;
+        let sample = inner
+            .take_full_sample(size)
+            .map_err(|e| GraphError::from_hg(&e))?;
         let as_pyrevision = sample.into_iter().map(|rev| PyRevision(rev.0));
         Ok(PyTuple::new(py, as_pyrevision)?.unbind())
     }
@@ -182,8 +192,9 @@ impl PartialDiscovery {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let mut inner = unsafe { self.inner.try_borrow_mut(py)? };
-        let sample =
-            inner.take_quick_sample(revs, size).map_err(GraphError::from_hg)?;
+        let sample = inner
+            .take_quick_sample(revs, size)
+            .map_err(|e| GraphError::from_hg(&e))?;
         let as_pyrevision = sample.into_iter().map(|rev| PyRevision(rev.0));
         Ok(PyTuple::new(py, as_pyrevision)?.unbind())
     }
