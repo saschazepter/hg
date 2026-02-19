@@ -379,6 +379,8 @@ pub enum RevlogError {
     IO(Box<HgIoError>),
     #[from]
     Other(HgError),
+    #[display("{}invalid data for revision: {}", backtrace, rev)]
+    CorruptedRevisionData { rev: Revision, backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {

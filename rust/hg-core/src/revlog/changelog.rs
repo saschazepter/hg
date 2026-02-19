@@ -15,7 +15,9 @@ use lazy_static::lazy_static;
 use super::options::RevlogOpenOptions;
 use crate::Graph;
 use crate::GraphError;
+use crate::NULL_REVISION;
 use crate::UncheckedRevision;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::revlog::Index;
 use crate::revlog::Node;
@@ -147,7 +149,7 @@ impl ChangelogEntry<'_> {
         if bytes.is_empty() {
             Ok(ChangelogRevisionData::null())
         } else {
-            Ok(ChangelogRevisionData::new(bytes)?)
+            Ok(ChangelogRevisionData::new(self.revlog_entry.rev, bytes)?)
         }
     }
 
@@ -188,6 +190,8 @@ pub struct ChangelogRevisionData {
     timestamp_end: usize,
     /// The end offset for the file list (not including the newline)
     files_end: usize,
+    /// The revision this data is from
+    rev: Revision,
 }
 
 const _NULL_BYTES: &[u8] =
@@ -198,30 +202,44 @@ lazy_static! {
 }
 
 impl ChangelogRevisionData {
-    fn new(bytes: RawData) -> Result<Self, HgError> {
+    fn new(rev: Revision, bytes: RawData) -> Result<Self, RevlogError> {
         let mut line_iter = bytes.as_ref().split(|b| b == &b'\n');
         let manifest_end =
             line_iter.next().expect("Empty iterator from split()?").len();
         let user_slice = line_iter.next().ok_or_else(|| {
-            HgError::corrupted("Changeset data truncated after manifest line")
+            // Changeset data truncated after manifest line
+            RevlogError::CorruptedRevisionData {
+                rev,
+                backtrace: HgBacktrace::capture(),
+            }
         })?;
         let user_end = manifest_end + 1 + user_slice.len();
         let timestamp_slice = line_iter.next().ok_or_else(|| {
-            HgError::corrupted("Changeset data truncated after user line")
+            // Changeset data truncated after user line
+            RevlogError::CorruptedRevisionData {
+                rev,
+                backtrace: HgBacktrace::capture(),
+            }
         })?;
         let timestamp_end = user_end + 1 + timestamp_slice.len();
         let mut files_end = timestamp_end + 1;
         loop {
             let line = line_iter.next().ok_or_else(|| {
-                HgError::corrupted("Changeset data truncated in files list")
+                // Changeset data truncated in files list
+                RevlogError::CorruptedRevisionData {
+                    rev,
+                    backtrace: HgBacktrace::capture(),
+                }
             })?;
             if line.is_empty() {
                 if files_end == bytes.len() {
                     // The list of files ended with a single newline (there
                     // should be two)
-                    return Err(HgError::corrupted(
-                        "Changeset data truncated after files list",
-                    ));
+                    // Changeset data truncated after files list
+                    return Err(RevlogError::CorruptedRevisionData {
+                        rev,
+                        backtrace: HgBacktrace::capture(),
+                    })?;
                 }
                 files_end -= 1;
                 break;
@@ -229,11 +247,18 @@ impl ChangelogRevisionData {
             files_end += line.len() + 1;
         }
 
-        Ok(Self { bytes, manifest_end, user_end, timestamp_end, files_end })
+        Ok(Self {
+            bytes,
+            manifest_end,
+            user_end,
+            timestamp_end,
+            files_end,
+            rev,
+        })
     }
 
     fn null() -> Self {
-        Self::new(NULL_ENTRY.clone()).unwrap()
+        Self::new(NULL_REVISION, NULL_ENTRY.clone()).unwrap()
     }
 
     /// Return an iterator over the lines of the entry.
@@ -263,7 +288,7 @@ impl ChangelogRevisionData {
 
     /// Parsed timestamp.
     pub fn timestamp(&self) -> Result<DateTime<FixedOffset>, HgError> {
-        parse_timestamp(self.timestamp_line())
+        parse_timestamp(self.rev, self.timestamp_line())
     }
 
     /// Optional commit extras.
@@ -344,12 +369,18 @@ fn debug_bytes(bytes: &[u8]) -> String {
 ///   ASCII letters, digits, hyphens, and underscores, whereas values can be
 ///   arbitrary bytes.
 fn parse_timestamp(
+    rev: Revision,
     timestamp_line: &[u8],
 ) -> Result<DateTime<FixedOffset>, HgError> {
     let mut parts = timestamp_line.splitn(3, |c| *c == b' ');
 
-    let timestamp_bytes =
-        parts.next().ok_or_else(|| HgError::corrupted("missing timestamp"))?;
+    let timestamp_bytes = parts.next().ok_or_else(|| {
+        // Missing timestamp
+        RevlogError::CorruptedRevisionData {
+            rev,
+            backtrace: HgBacktrace::capture(),
+        }
+    })?;
     let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
         HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
     })?;
@@ -529,46 +560,60 @@ mod tests {
     fn test_create_changelogrevisiondata_invalid() {
         // Completely empty
         assert!(
-            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
-                .is_err()
+            ChangelogRevisionData::new(
+                Revision(0),
+                RawData::from(Vec::from(b"abcd"))
+            )
+            .is_err()
         );
         // No newline after manifest
         assert!(
-            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
-                .is_err()
+            ChangelogRevisionData::new(
+                Revision(0),
+                RawData::from(Vec::from(b"abcd"))
+            )
+            .is_err()
         );
         // No newline after user
         assert!(
-            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd\n")))
-                .is_err()
+            ChangelogRevisionData::new(
+                Revision(0),
+                RawData::from(Vec::from(b"abcd\n"))
+            )
+            .is_err()
         );
         // No newline after timestamp
         assert!(
-            ChangelogRevisionData::new(RawData::from(Vec::from(
-                b"abcd\n\n0 0"
-            )))
+            ChangelogRevisionData::new(
+                Revision(0),
+                RawData::from(Vec::from(b"abcd\n\n0 0"))
+            )
             .is_err()
         );
         // Missing newline after files
         assert!(
-            ChangelogRevisionData::new(RawData::from(Vec::from(
-                b"abcd\n\n0 0\nfile1\nfile2"
-            )))
+            ChangelogRevisionData::new(
+                Revision(0),
+                RawData::from(Vec::from(b"abcd\n\n0 0\nfile1\nfile2"))
+            )
             .is_err(),
         );
         // Only one newline after files
         assert!(
-            ChangelogRevisionData::new(RawData::from(Vec::from(
-                b"abcd\n\n0 0\nfile1\nfile2\n"
-            )))
+            ChangelogRevisionData::new(
+                Revision(0),
+                RawData::from(Vec::from(b"abcd\n\n0 0\nfile1\nfile2\n"))
+            )
             .is_err(),
         );
     }
 
     #[test]
     fn test_create_changelogrevisiondata() {
-        let data = ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"0123456789abcdef0123456789abcdef01234567
+        let data = ChangelogRevisionData::new(
+            Revision(0),
+            RawData::from(Vec::from(
+                b"0123456789abcdef0123456789abcdef01234567
 Some One <someone@example.com>
 0 0
 file1
@@ -577,7 +622,8 @@ file2
 some
 commit
 message",
-        )))
+            )),
+        )
         .unwrap();
         assert_eq!(
             data.manifest_node().unwrap(),
@@ -779,7 +825,7 @@ message",
         let mut line: Vec<u8> = b"1115154970 28800 ".to_vec();
         line.extend_from_slice(&encode_extra(&extra));
 
-        let timestamp = parse_timestamp(&line).unwrap();
+        let timestamp = parse_timestamp(Revision(0), &line).unwrap();
         assert_eq!(&timestamp.to_rfc3339(), "2005-05-03T13:16:10-08:00");
 
         let parsed_extra = parse_timestamp_line_extra(&line).unwrap();

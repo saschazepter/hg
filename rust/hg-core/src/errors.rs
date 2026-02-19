@@ -728,6 +728,10 @@ impl From<RevlogError> for HgError {
             )),
             RevlogError::Other(error) => error,
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
+            err @ RevlogError::CorruptedRevisionData { .. } => {
+                // Temporary while we clean up `RevlogError`
+                HgError::corrupted(err.to_string())
+            }
         }
     }
 }
