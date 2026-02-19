@@ -7,7 +7,6 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 //! Utilities for dealing with the index at the Python boundary
-use hg::BaseRevision;
 use hg::Graph;
 use hg::revlog::Node;
 use hg::revlog::Revision;
@@ -17,7 +16,6 @@ use hg::revlog::index::RevisionDataParams;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyTuple;
-use vcsgraph::graph::Graph as VCSGraph;
 
 #[derive(derive_more::From, Clone)]
 pub struct PySharedIndex {
@@ -51,31 +49,6 @@ impl Graph for PySharedIndex {
     #[inline(always)]
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], hg::GraphError> {
         self.inner.parents(rev)
-    }
-}
-
-impl VCSGraph for PySharedIndex {
-    #[inline(always)]
-    fn parents(
-        &self,
-        rev: BaseRevision,
-    ) -> Result<vcsgraph::graph::Parents, vcsgraph::graph::GraphReadError> {
-        // FIXME This trait should be reworked to decide between Revision
-        // and UncheckedRevision, get better errors names, etc.
-        match Graph::parents(self, Revision(rev)) {
-            Ok(parents) => {
-                Ok(vcsgraph::graph::Parents([parents[0].0, parents[1].0]))
-            }
-            Err(
-                hg::GraphError::ParentOutOfRange(rev)
-                | hg::GraphError::P1OutOfRange(rev)
-                | hg::GraphError::P2OutOfRange(rev)
-                | hg::GraphError::ParentOutOfOrder(rev),
-            ) => Err(vcsgraph::graph::GraphReadError::KeyedInvalidKey(rev.0)),
-            Err(hg::GraphError::InconsistentGraphData) => {
-                Err(vcsgraph::graph::GraphReadError::InconsistentGraphData)
-            }
-        }
     }
 }
 

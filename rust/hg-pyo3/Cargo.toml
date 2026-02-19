@@ -22,7 +22,6 @@ hg-core = { path = "../hg-core" }
 format-bytes = "0.3.0"
 stable_deref_trait = "1.2.1"
 derive_more = { version = "2.1.1", features = ["display", "from"] }
-vcsgraph = "0.2.0"
 crossbeam-channel = "0.5.15"
 tracing = { version = "0.1.44", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }

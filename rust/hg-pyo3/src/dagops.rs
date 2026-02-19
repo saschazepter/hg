@@ -45,7 +45,6 @@ pub fn headrevs(
 ///
 /// References:
 /// - C implementation, function `index_fast_rank()`.
-/// - `impl vcsgraph::graph::RankedGraph for Index` in `crate::cindex`.
 #[pyfunction]
 pub fn rank(
     _index: &Bound<'_, PyAny>,
