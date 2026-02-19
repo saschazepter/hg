@@ -39,6 +39,7 @@ use crate::operations::FilesForRevBorrowed;
 use crate::operations::list_rev_tracked_files;
 use crate::progress::Progress;
 use crate::repo::Repo;
+use crate::revlog::RevisionOrWdir;
 use crate::revlog::RevlogType;
 use crate::revlog::filelog::FileCompOutcome;
 use crate::revlog::filelog::Filelog;
@@ -227,8 +228,10 @@ pub fn update_from_clean(
     update_config: &UpdateConfig,
     warnings: &HgWarningSender,
 ) -> Result<UpdateStats, HgError> {
-    let wc_manifest = Manifest::from_bytes(wc_manifest_bytes);
-    let target_manifest = Manifest::from_bytes(target_manifest_bytes);
+    let wc_manifest =
+        Manifest::from_bytes(RevisionOrWdir::wdir(), wc_manifest_bytes);
+    let target_manifest =
+        Manifest::from_bytes(target_rev, target_manifest_bytes);
 
     let narrow_matcher = narrow::matcher(repo, warnings)?;
     let sparse_matcher =

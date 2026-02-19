@@ -17,8 +17,10 @@ use crate::UncheckedRevision;
 use crate::errors::HgError;
 use crate::revlog::Node;
 use crate::revlog::NodePrefix;
+use crate::revlog::RevisionOrWdir;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogError;
+use crate::revlog::RevlogIndex;
 use crate::revlog::diff::DeltaCursor;
 use crate::revlog::options::RevlogOpenOptions;
 use crate::revlog::patch;
@@ -88,13 +90,18 @@ impl Manifestlog {
         rev: UncheckedRevision,
     ) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data_for_unchecked_rev(rev)?;
-        Ok(Manifest { bytes: Box::new(bytes) })
+        let rev = self
+            .revlog
+            .index()
+            .check_revision(rev)
+            .expect("revision should be valid at this point");
+        Ok(Manifest::from_bytes(rev, Box::new(bytes)))
     }
 
     /// Same as [`Self::data_for_unchecked_rev`] for a checked [`Revision`]
     pub fn data(&self, rev: Revision) -> Result<Manifest, RevlogError> {
         let bytes = self.revlog.get_data(rev)?;
-        Ok(Manifest { bytes: Box::new(bytes) })
+        Ok(Manifest::from_bytes(rev, Box::new(bytes)))
     }
 
     /// Returns a manifest containing entries for `rev` that are not in its
@@ -115,12 +122,16 @@ impl Manifestlog {
         for chunk in self.revlog.get_data_incr(rev)?.as_delta()?.chunks {
             bytes.extend_from_slice(chunk.data);
         }
-        Ok(Manifest { bytes: Box::new(bytes) })
+        Ok(Manifest::from_bytes(rev, Box::new(bytes)))
     }
 }
 
 /// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
 pub struct Manifest {
+    /// Either the manifestlog revision that this [`Manifest`] is from, or
+    /// the working directory
+    #[expect(unused)]
+    rev: RevisionOrWdir,
     /// Format for a manifest: flat sequence of variable-size entries,
     /// sorted by path, each as:
     ///
@@ -136,13 +147,14 @@ pub struct Manifest {
 impl Manifest {
     /// Return a new empty manifest
     pub fn empty() -> Self {
-        Self { bytes: Box::new(vec![]) }
+        Self { rev: NULL_REVISION.into(), bytes: Box::new(vec![]) }
     }
 
     pub fn from_bytes(
+        rev: impl Into<RevisionOrWdir>,
         bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
     ) -> Self {
-        Self { bytes }
+        Self { rev: rev.into(), bytes }
     }
 
     pub fn iter(
