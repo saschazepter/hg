@@ -43,22 +43,6 @@ impl GraphError {
             }
         }
     }
-    pub fn from_vcsgraph(inner: vcsgraph::graph::GraphReadError) -> PyErr {
-        match inner {
-            vcsgraph::graph::GraphReadError::InconsistentGraphData => {
-                GraphError::new_err("InconsistentGraphData")
-            }
-            vcsgraph::graph::GraphReadError::InvalidKey => {
-                GraphError::new_err("ParentOutOfRange")
-            }
-            vcsgraph::graph::GraphReadError::KeyedInvalidKey(r) => {
-                GraphError::new_err(("ParentOutOfRange", r))
-            }
-            vcsgraph::graph::GraphReadError::WorkingDirectoryUnsupported => {
-                WdirUnsupported::new_err(())
-            }
-        }
-    }
 }
 
 pub fn map_lock_error<T>(e: std::sync::PoisonError<T>) -> PyErr {
