@@ -147,13 +147,7 @@ impl ChangelogEntry<'_> {
         if bytes.is_empty() {
             Ok(ChangelogRevisionData::null())
         } else {
-            Ok(ChangelogRevisionData::new(bytes).map_err(|err| {
-                RevlogError::Other(HgError::corrupted(format!(
-                    "Invalid changelog data for revision {}: {:?}",
-                    self.revlog_entry.revision(),
-                    err
-                )))
-            })?)
+            Ok(ChangelogRevisionData::new(bytes)?)
         }
     }
 
