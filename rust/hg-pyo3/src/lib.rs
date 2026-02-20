@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 mod ancestors;
+mod annotate;
 mod copy_tracing;
 mod dagops;
 mod deltas;
@@ -34,6 +35,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     let dotted_name: String = m.getattr("__name__")?.extract()?;
 
     m.add_submodule(&ancestors::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&annotate::init_module(py, &dotted_name)?)?;
     m.add_submodule(&diff::init_module(py, &dotted_name)?)?;
     m.add_submodule(&copy_tracing::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dagops::init_module(py, &dotted_name)?)?;

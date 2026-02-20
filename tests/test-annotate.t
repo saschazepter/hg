@@ -1,3 +1,27 @@
+#testcases no-pyo3-annotate pyo3-annotate
+
+#if pyo3-annotate no-rust
+Can't test pyo3 annotate without rust extensions.
+  $ exit 80
+#endif
+
+#if pyo3-annotate rhg
+Pyo3 annotate is not applicable for rhg.
+  $ exit 80
+#endif
+
+#if pyo3-annotate
+  $ cat >> "$HGRCPATH" << EOF
+  > [rust]
+  > annotate = true
+  > EOF
+#else
+  $ cat >> "$HGRCPATH" << EOF
+  > [rust]
+  > annotate = false
+  > EOF
+#endif
+
   $ cat >> "$HGRCPATH" << EOF
   > [ui]
   > merge = :merge3
@@ -694,8 +718,9 @@ annotate missing file
 
   $ hg annotate -ncr "wdir()" baz
   abort: baz: $ENOENT$ (rhg !)
-  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
+  abort: baz: $ENOENT$ (pyo3-annotate !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg no-pyo3-annotate windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-pyo3-annotate no-windows !)
   [255]
 
 annotate removed file
@@ -704,8 +729,9 @@ annotate removed file
 
   $ hg annotate -ncr "wdir()" baz
   abort: baz: $ENOENT$ (rhg !)
-  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg windows !)
-  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-windows !)
+  abort: baz: $ENOENT$ (pyo3-annotate !)
+  abort: $TESTTMP\repo/baz: $ENOENT$ (no-rhg no-pyo3-annotate windows !)
+  abort: $ENOENT$: '$TESTTMP/repo/baz' (no-rhg no-pyo3-annotate no-windows !)
   [255]
 
 annotate file neither in repo nor working copy

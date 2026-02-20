@@ -373,7 +373,7 @@ pub fn short_user(user: &[u8]) -> &[u8] {
 }
 
 /// Options for [`clean_whitespace`].
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum CleanWhitespace {
     /// Remove whitespace at ends of lines.
     AtEol,

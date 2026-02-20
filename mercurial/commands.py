@@ -50,6 +50,7 @@ from . import (
     obsutil,
     patch,
     phases,
+    policy,
     pycompat,
     registrar,
     repo as repo_utils,
@@ -544,9 +545,28 @@ def annotate(ui, repo, *pats, **opts):
     if skiprevs:
         skiprevs = logcmdutil.revrange(repo, skiprevs)
 
+    rustmod = policy.importrust('annotate')
+    use_rust = rustmod and ui.configbool(b'rust', b'annotate')
+
+    # Rust annotate does not support --skip because it conflicts with the design
+    # of adjusting all linkrevs at the end (and therefore only needing to adjust
+    # the ones that actually show up in the output).
+    use_rust = use_rust and not skiprevs
+
+    if use_rust:
+        annotation_ctx = rustmod.ChangeCtx(
+            repo=repo,
+            rev=ctx.rev(),
+            text=bool(opts.get(b'text')),
+            follow=follow,
+            diffopts=diffopts,
+        )
+    else:
+        annotation_ctx = ctx
+
     uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
     for abs in ctx.walk(m):
-        fctx = ctx[abs]
+        fctx = annotation_ctx[abs]
         rootfm.startitem()
         rootfm.data(path=abs)
         if not opts.get(b'text') and fctx.isbinary():

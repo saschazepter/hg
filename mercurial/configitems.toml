@@ -2184,6 +2184,19 @@ one of these people, please reach out.
 """
 
 [[items]]
+section = "rust"
+name = "annotate"
+default = false
+experimental = true
+documentation = """Whether to use the Rust fast-path for the annotate command.
+This config item is here to help users disable the fastpath in
+case one of their extensions is interfering with the annotate code. If you are
+one of these people, please reach out.
+WARNING: the Rust fast-path is known to have unbounded memory usage for files
+with large histories. Until this is fixed, it will remain disabled by default.
+"""
+
+[[items]]
 section = "server"
 name = "bookmarks-pushkey-compat"
 default = true
