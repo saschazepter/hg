@@ -1914,7 +1914,9 @@ class TTest(Test):
         if wifexited(ret):
             ret = os.WEXITSTATUS(ret)
         if ret == 2:
-            self.raise_error(stdout.decode('utf-8'))
+            msg = "hghave failure: %s"
+            msg %= stdout.decode('utf-8').strip()
+            self.raise_error(msg)
 
         if ret != 0:
             self._have[allreqs] = (False, stdout)

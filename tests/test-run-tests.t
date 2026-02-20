@@ -1597,8 +1597,7 @@ Test a broken #if statement doesn't break run-tests threading.
   $ rt -j 2
   running 5 tests using 2 parallel processes 
   E....
-  ERROR: test-broken.t: skipped: unknown feature: notarealhghavefeature
-  
+  ERROR: test-broken.t: hghave failure: skipped: unknown feature: notarealhghavefeature
   # Ran 5 tests, 0 skipped, 0 failed, 1 errors.
   python hash seed: * (glob)
   [1]
@@ -2096,8 +2095,7 @@ Error handling
   $ rt test-error-unknown-condition-if.t
   running 1 tests using 1 parallel processes 
   E
-  ERROR: test-error-unknown-condition-if.t: skipped: unknown feature: idonotexists
-  
+  ERROR: test-error-unknown-condition-if.t: hghave failure: skipped: unknown feature: idonotexists
   # Ran 1 tests, 0 skipped, 0 failed, 1 errors.
   python hash seed: * (glob)
   [1]
@@ -2111,12 +2109,9 @@ Bad local addon
   $ rt test-substitution.t test-cases-ab.t
   running 3 tests using 1 parallel processes 
   EEE
-  ERROR: test-cases-ab.t#A: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
-  
-  ERROR: test-cases-ab.t#B: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
-  
-  ERROR: test-substitution.t: failed to import hghaveaddon.py from '$TESTTMP/anothertests/cases': invalid syntax (hghaveaddon.py, line 1)
-  
+  ERROR: test-cases-ab.t#A: hghave failure: failed to import hghaveaddon.py from *cases* (glob)
+  ERROR: test-cases-ab.t#B: hghave failure: failed to import hghaveaddon.py from *cases* (glob)
+  ERROR: test-substitution.t: hghave failure: failed to import hghaveaddon.py from *cases* (glob)
   # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
   python hash seed: * (glob)
   [1]
