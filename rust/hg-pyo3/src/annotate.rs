@@ -19,6 +19,7 @@ use hg::utils::strings::CleanWhitespace;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use pyo3::types::PyDict;
 
 use crate::repo::repo_from_path;
 use crate::utils::HgPyErrExt;
@@ -186,6 +187,8 @@ impl PyFileCtx {
         };
         let py_repo = self.py_repo.bind(py);
         let mut fctx_map = FastHashMap::<RevisionOrWdir, Py<PyAny>>::default();
+        let context_module = PyModule::import(py, "mercurial.context")?;
+        let filectx_class = context_module.getattr("filectx")?;
         annotations
             .iter()
             .zip(lines)
@@ -193,13 +196,12 @@ impl PyFileCtx {
                 Ok(PyAnnotatedLine {
                     fctx: match fctx_map.entry(annotation.revision) {
                         Entry::Occupied(entry) => entry.into_mut(),
-                        Entry::Vacant(entry) => {
-                            let rev = annotation.revision.exclude_wdir();
-                            let rev = rev.map(|rev| rev.0);
-                            let path = annotation.path.as_bytes();
-                            let fctx = py_repo.get_item(rev)?.get_item(path)?;
-                            entry.insert(fctx.unbind())
-                        }
+                        Entry::Vacant(entry) => entry.insert(create_filectx(
+                            &filectx_class,
+                            py_repo,
+                            &annotation.path,
+                            annotation.revision,
+                        )?),
                     }
                     .clone_ref(py),
                     lineno: annotation.line_number,
@@ -208,6 +210,32 @@ impl PyFileCtx {
             })
             .collect()
     }
+}
+
+/// Creates a filectx for the given path and changelog revision.
+fn create_filectx(
+    filectx_class: &Bound<'_, PyAny>,
+    py_repo: &Bound<'_, PyAny>,
+    path: &HgPath,
+    changelog_revision: RevisionOrWdir,
+) -> PyResult<Py<PyAny>> {
+    // A filectx must have a path, and either a changeid or fileid.
+    // * It's important we set changeid (via changectx below), otherwise it will
+    //   lazily compute it by slow linkrev adjustment in Python.
+    // * We don't set fileid because `hg::operations::annotate` doesn't return
+    //   it, and it should not get accessed for any --template values anyway.
+    //   (If it does get accessed, it will look it up lazily in the manifest.)
+    // * We don't do `repo[rev][path]`, because that looks up the fileid in the
+    //   manifest eagerly, and as just explained, we don't need it.
+    let path = path.as_bytes();
+    let rev = changelog_revision.exclude_wdir();
+    let rev = rev.map(|rev| rev.0);
+    let changectx = py_repo.get_item(rev)?;
+    let kwargs = PyDict::new(filectx_class.py());
+    kwargs.set_item("repo", py_repo)?;
+    kwargs.set_item("path", path)?;
+    kwargs.set_item("changectx", changectx)?;
+    Ok(filectx_class.call((), Some(&kwargs))?.unbind())
 }
 
 /// Replacement for `mercurial.utils.dag_util.annotateline`.
