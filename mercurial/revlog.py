@@ -272,6 +272,9 @@ def parse_index_v2(
     uses_generaldelta,
     uses_delta_info,
 ):
+    if inline:
+        msg = "revlog version above 1 should never be inlined"
+        raise error.ProgrammingError(msg)
     # call the C implementation to parse the index data
     index, cache = pure_parsers.parse_index2(
         data,
@@ -289,6 +292,9 @@ def parse_index_cl_v2(
     uses_generaldelta,
     uses_delta_info,
 ):
+    if inline:
+        msg = "revlog version above 1 should never be inlined"
+        raise error.ProgrammingError(msg)
     # call the C implementation to parse the index data
     index, cache = pure_parsers.parse_index2(
         data,
