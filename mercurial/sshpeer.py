@@ -24,6 +24,10 @@ from . import (
     wireprotov1peer,
     wireprotov1server,
 )
+
+from .exchanges import (
+    peer as e_peer,
+)
 from .utils import (
     procutil,
     stringutil,
@@ -409,6 +413,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
         badresponse()
 
     caps = set()
+    phase_summary = None
 
     # For version 1, we should see a ``capabilities`` line in response to the
     # ``hello`` command.
@@ -419,6 +424,8 @@ def _performhandshake(ui, stdin, stdout, stderr):
             if l.startswith(b'capabilities:'):
                 caps.update(l[:-1].split(b':')[1].split())
                 break
+            if phase_summary is None:
+                phase_summary = e_peer.PhaseSummary.try_parse(l)
 
     # Error if we couldn't find capabilities, this means:
     #
@@ -432,7 +439,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
     # Flush any output on stderr before proceeding.
     _forwardoutput(ui, stderr, warn=True)
 
-    return protoname, caps
+    return protoname, caps, phase_summary
 
 
 class sshv1peer(wireprotov1peer.wirepeer):
@@ -447,6 +454,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         caps,
         autoreadstderr=True,
         remotehidden=False,
+        phase_summary: e_peer.PhaseSummary | None = None,
     ):
         """Create a peer from an existing SSH connection.
 
@@ -475,6 +483,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         self._autoreadstderr = autoreadstderr
         self._initstack = b''.join(util.getstackframes(1))
         self._remotehidden = remotehidden
+        self.phase_summary = phase_summary
 
     # Commands that have a "framed" response where the first line of the
     # response contains the length of that response.
@@ -667,7 +676,12 @@ def _make_peer(
     testing.
     """
     try:
-        protoname, caps = _performhandshake(ui, stdin, stdout, stderr)
+        protoname, caps, phase_summary = _performhandshake(
+            ui,
+            stdin,
+            stdout,
+            stderr,
+        )
     except Exception:
         _cleanuppipes(ui, stdout, stdin, stderr, warn=None)
         raise
@@ -683,6 +697,7 @@ def _make_peer(
             caps,
             autoreadstderr=autoreadstderr,
             remotehidden=remotehidden,
+            phase_summary=phase_summary,
         )
     else:
         _cleanuppipes(ui, stdout, stdin, stderr, warn=None)

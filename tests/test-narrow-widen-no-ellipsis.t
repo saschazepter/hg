@@ -112,6 +112,7 @@ added upstream revisions.
   sending between command
   remote: * (glob)
   remote: capabilities: * (glob)
+  remote: phase-summary-v01: publish=all
   remote: 1
   query 1; heads
   sending batch command

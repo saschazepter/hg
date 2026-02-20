@@ -613,7 +613,19 @@ def hello(repo, proto):
         capabilities: <token0> <token1> <token2>
     """
     caps = capabilities(repo, proto).data
-    return wireprototypes.bytesresponse(b'capabilities: %s\n' % caps)
+    reply = [
+        b'capabilities: %s\n' % caps,
+    ]
+    publish = repo.publishing()
+    all_pub = not repo._phasecache.hasnonpublicphases(repo)
+    if publish or all_pub:
+        line = [b"phase-summary-v01:"]
+        if publish:
+            line.append(b"publish=all")
+        if all_pub:
+            line.append(b"public-revs=all")
+        reply.append(b' '.join(line) + b"\n")
+    return wireprototypes.bytesresponse(b''.join(reply))
 
 
 @wireprotocommand(b'listkeys', b'namespace', permission=b'pull')

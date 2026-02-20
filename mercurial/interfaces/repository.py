@@ -506,6 +506,23 @@ class ipeerrequests(Protocol):
         """
 
 
+class IPhaseSummary(Protocol):
+    """A summary of some relevant phase data for the peer"""
+
+    publishing: bool
+    """True if any changeset pushed to this peer will be published"""
+
+    all_public: bool
+    """True is all changesets on this peer are guaranteed to be public
+
+    This only apply at handshake time, so this cannot be relied over time,
+    unless `publishing` is also set.
+
+    The guarantee only hold one way, this property might be set to false while
+    all served changeset are still public."
+    """
+
+
 class IPeer(
     _ipeerconnection,
     ipeercapabilities,
@@ -521,6 +538,7 @@ class IPeer(
     limitedarguments: bool = False
     path: misc.IPath | None
     ui: Ui
+    phase_summary: IPhaseSummary | None
 
 
 class iverifyproblem(Protocol):

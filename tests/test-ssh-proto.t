@@ -57,6 +57,7 @@ Test a normal behaving server, for sanity
   sending between command
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  remote: phase-summary-v01: publish=all
   remote: 1
   url: ssh://user@dummy/server
   local: no
@@ -86,6 +87,7 @@ Server should answer the "hello" command in isolation
   > EOF
   \d+ (re)
   capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  phase-summary-v01: publish=all
 
 I/O logging works
 
@@ -97,8 +99,10 @@ I/O logging works
   o>     \d+\\n (re)
   o> write\(\d+\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o>     phase-summary-v01: publish=all\n
   \d+ (re)
   capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  phase-summary-v01: publish=all
   o> flush() -> None
 
   $ hg debugserve --sshstdio --logiofile $TESTTMP/io << EOF
@@ -106,6 +110,7 @@ I/O logging works
   > EOF
   \d+ (re)
   capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  phase-summary-v01: publish=all
 
   $ cat $TESTTMP/io
   e> flush() -> None
@@ -113,6 +118,7 @@ I/O logging works
   o>     \d+\\n (re)
   o> write\(\d+\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o>     phase-summary-v01: publish=all\n
   o> flush() -> None
 
   $ cd ..
@@ -132,6 +138,7 @@ reply with empty response to the "between".
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(6) -> 6:
@@ -144,6 +151,8 @@ reply with empty response to the "between".
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -176,6 +185,7 @@ SSH banner is not printed by default, ignored by clients
   remote: banner: line 9
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  remote: phase-summary-v01: publish=all
   remote: 1
   url: ssh://user@dummy/server
   local: no
@@ -202,6 +212,7 @@ And test the banner with the raw protocol
   >     between\n
   >     pairs 81\n
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  > readline
   > readline
   > readline
   > EOF
@@ -236,6 +247,8 @@ And test the banner with the raw protocol
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -271,6 +284,7 @@ Sending an unknown command to the server results in an empty response to that co
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(10) -> 10:
@@ -287,6 +301,8 @@ Sending an unknown command to the server results in an empty response to that co
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
 
@@ -300,6 +316,7 @@ Sending an unknown command to the server results in an empty response to that co
   remote: 0
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  remote: phase-summary-v01: publish=all
   remote: 1
   url: ssh://user@dummy/server
   local: no
@@ -327,6 +344,7 @@ Send multiple unknown commands before hello
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(9) -> 9:
@@ -351,6 +369,8 @@ Send multiple unknown commands before hello
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -370,6 +390,7 @@ Send multiple unknown commands before hello
   remote: 0
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
+  remote: phase-summary-v01: publish=all
   remote: 1
   url: ssh://user@dummy/server
   local: no
@@ -401,6 +422,7 @@ Send an unknown command before hello that has arguments
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(52) -> 52:
@@ -429,6 +451,8 @@ Send an unknown command before hello that has arguments
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -454,6 +478,7 @@ Send an unknown command having an argument that looks numeric
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(16) -> 16:
@@ -476,6 +501,8 @@ Send an unknown command having an argument that looks numeric
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -497,6 +524,7 @@ Send an unknown command having an argument that looks numeric
   >     between\n
   >     pairs 81\n
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  > readline
   > readline
   > readline
   > EOF
@@ -521,6 +549,8 @@ Send an unknown command having an argument that looks numeric
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -657,6 +687,7 @@ Send a command line with spaces
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(18) -> 18:
@@ -673,6 +704,8 @@ Send a command line with spaces
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -691,6 +724,7 @@ Send a command line with spaces
   >     pairs 81\n
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(29) -> 29:
@@ -707,6 +741,8 @@ Send a command line with spaces
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
 
@@ -726,6 +762,7 @@ Send a command line with spaces
   >     between\n
   >     pairs 81\n
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  > readline
   > readline
   > readline
   > EOF
@@ -750,6 +787,8 @@ Send a command line with spaces
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -767,6 +806,7 @@ Send an unknown command after the "between"
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000unknown
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(6) -> 6:
@@ -779,6 +819,8 @@ Send an unknown command after the "between"
   i>     between\n
   i>     pairs 81\n
   i>     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000unknown
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -792,6 +834,7 @@ And one with arguments
   >     between\n
   >     pairs 81\n
   >     0000000000000000000000000000000000000000-0000000000000000000000000000000000000000
+  > readline
   > readline
   > readline
   > readline
@@ -816,6 +859,8 @@ And one with arguments
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -848,6 +893,7 @@ Send a valid command before the handshake
   > readline
   > readline
   > readline
+  > readline
   > EOF
   using raw connection to peer
   i> write(6) -> 6:
@@ -865,6 +911,8 @@ Send a valid command before the handshake
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
 
@@ -913,6 +961,8 @@ Test listkeys for listing namespaces
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -966,6 +1016,8 @@ With no bookmarks set
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1000,6 +1052,8 @@ With a single bookmark set
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1037,6 +1091,8 @@ With multiple bookmarks set
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1079,6 +1135,8 @@ Test pushkey for bookmarks
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1134,6 +1192,8 @@ Phases on empty repo
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1187,6 +1247,8 @@ Two draft heads
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1229,6 +1291,8 @@ Single draft head
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1269,6 +1333,8 @@ All public heads
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1310,6 +1376,8 @@ Setting public phase via pushkey
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1379,6 +1447,8 @@ Test batching of requests
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 31:
+  o>     phase-summary-v01: publish=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:

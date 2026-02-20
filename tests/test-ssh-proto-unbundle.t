@@ -53,6 +53,8 @@ Test pushing bundle1 payload to a server with bundle1 disabled
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -181,6 +183,8 @@ ui.write() in hook is redirected to stderr
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -250,6 +254,8 @@ And a variation that writes multiple lines using ui.write
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -320,6 +326,8 @@ And a variation that does a ui.flush() after writing output
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -389,6 +397,8 @@ Multiple writes + flush
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -459,6 +469,8 @@ ui.write() + ui.write_err() output is captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -532,6 +544,8 @@ print() output is captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -601,6 +615,8 @@ Mixed print() and ui.write() are both captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -673,6 +689,8 @@ print() to stdout and stderr both get captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -751,6 +769,8 @@ Shell hook writing to stdout has output captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -821,6 +841,8 @@ Shell hook writing to stderr has output captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -893,6 +915,8 @@ Shell hook writing to stdout and stderr has output captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -973,6 +997,8 @@ Shell and Python hooks writing to stdout and stderr have output captured
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1048,6 +1074,8 @@ Pushing a bundle1 with no output
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:
@@ -1125,6 +1153,8 @@ Pushing a bundle1 with ui.write() and ui.write_err()
   o>     \d+\\n (re)
   o> readline\(\) -> \d+: (re)
   o>     capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash\\n (re)
+  o> readline() -> 47:
+  o>     phase-summary-v01: publish=all public-revs=all\n
   o> readline() -> 2:
   o>     1\n
   o> readline() -> 1:

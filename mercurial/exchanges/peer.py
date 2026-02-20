@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import abc
 
+from typing import Optional
+
 from ..i18n import _
 from ..interfaces.types import (
     RepoT,
@@ -23,8 +25,34 @@ from ..interfaces import (
 )
 
 
+class PhaseSummary(i_repo.IPhaseSummary):
+    """A summary of some relevant phase data for the peer"""
+
+    _HEADER_V1 = b'phase-summary-v01:'
+
+    publishing: bool
+    all_public: bool
+
+    def __init__(self, publishing: bool, all_public: bool):
+        self.publishing = publishing
+        self.all_public = all_public
+
+    @classmethod
+    def try_parse(cls, line: bytes) -> Optional['PhaseSummary']:
+        if line.startswith(cls._HEADER_V1):
+            raw_item = line.split(b':', 1)[1].split()
+            items = dict(i.split(b'=', 1) for i in raw_item)
+            return cls(
+                publishing=items.get(b'publish') == b'all',
+                all_public=items.get(b'public-revs') == b'all',
+            )
+        return None
+
+
 class Peer(i_repo.IPeer, abc.ABC):
     """common code for Peer class"""
+
+    phase_summary = None
 
     def __init__(
         self,
