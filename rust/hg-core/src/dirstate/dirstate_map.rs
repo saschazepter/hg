@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use bytes_cast::BytesCast;
 
+use super::DirstateError;
 use super::on_disk;
 use super::on_disk::DirstateV2ParseError;
 use super::owning::OwningDirstateMap;
@@ -12,8 +13,10 @@ use super::path_with_basename::WithBasename;
 use super::status::DirstateStatus;
 use super::status::StatusError;
 use super::status::StatusOptions;
-use super::DirstateError;
-use super::DirstateMapError;
+use crate::DirstateParents;
+use crate::FastHashbrownMap as FastHashMap;
+use crate::dirstate::CopyMapIter;
+use crate::dirstate::StateMapIter;
 use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::DirstateV2Data;
 use crate::dirstate::entry::ParentFileData;
@@ -21,15 +24,12 @@ use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
-use crate::dirstate::CopyMapIter;
-use crate::dirstate::StateMapIter;
+use crate::errors::HgBacktrace;
 use crate::matchers::Matcher;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::warnings::HgWarningContext;
-use crate::DirstateParents;
-use crate::FastHashbrownMap as FastHashMap;
 
 /// Append to an existing data file if the amount of unreachable data (not used
 /// anymore) is less than this fraction of the total amount of existing data.
@@ -312,7 +312,7 @@ impl<'tree, 'on_disk> ChildNodesRef<'tree, 'on_disk> {
     pub(super) fn par_iter(
         &self,
     ) -> impl rayon::iter::ParallelIterator<Item = NodeRef<'tree, 'on_disk>>
-           + use<'tree, 'on_disk> {
+    + use<'tree, 'on_disk> {
         use rayon::prelude::*;
         match self {
             ChildNodesRef::InMemory(nodes) => rayon::iter::Either::Left(
@@ -548,7 +548,11 @@ impl<'on_disk> DirstateMap<'on_disk> {
         if let Some(data) = on_disk.get(..data_size) {
             Ok(on_disk::read(data, metadata, uuid, identity)?)
         } else {
-            Err(DirstateV2ParseError::new("not enough bytes on disk").into())
+            Err(DirstateV2ParseError::NotEnoughBytes {
+                start: 0,
+                len: data_size,
+                backtrace: HgBacktrace::capture(),
+            })?
         }
     }
 
@@ -638,10 +642,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         }
     }
 
-    pub fn has_node(
-        &self,
-        path: &HgPath,
-    ) -> Result<bool, DirstateV2ParseError> {
+    pub fn has_node(&self, path: &HgPath) -> Result<bool, DirstateError> {
         let node = self.get_node(path)?;
         Ok(node.is_some())
     }
@@ -931,7 +932,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     pub(super) fn clear_cached_mtime(
         &mut self,
         path: &HgPath,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         let node = match self.get_node_mut(path, |_ancestor| {})? {
             Some(node) => node,
             None => return Ok(()),
@@ -947,7 +948,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         &mut self,
         path: &HgPath,
         mtime: TruncatedTimestamp,
-    ) -> Result<(), DirstateV2ParseError> {
+    ) -> Result<(), DirstateError> {
         let node = match self.get_node_mut(path, |_ancestor| {})? {
             Some(node) => node,
             None => return Ok(()),
@@ -1062,9 +1063,9 @@ impl OwningDirstateMap {
     pub fn set_tracked(
         &mut self,
         filename: &HgPath,
-    ) -> Result<bool, DirstateV2ParseError> {
+    ) -> Result<bool, DirstateError> {
         let old_entry_opt = self.get(filename)?;
-        self.with_dmap_mut(|map| map.set_tracked(filename, old_entry_opt))
+        Ok(self.with_dmap_mut(|map| map.set_tracked(filename, old_entry_opt))?)
     }
 
     pub fn set_untracked(
@@ -1109,9 +1110,7 @@ impl OwningDirstateMap {
     ) -> Result<(), DirstateError> {
         let old_entry = match self.get(filename)? {
             None => {
-                return Err(
-                    DirstateMapError::PathNotFound(filename.into()).into()
-                )
+                return Err(DirstateError::path_not_found(filename));
             }
             Some(e) => e,
         };
@@ -1126,7 +1125,7 @@ impl OwningDirstateMap {
         filename: &HgPath,
     ) -> Result<(), DirstateError> {
         if self.get(filename)?.is_none() {
-            return Err(DirstateMapError::PathNotFound(filename.into()).into());
+            return Err(DirstateError::path_not_found(filename));
         }
         self.with_dmap_mut(|map| map.set_possibly_dirty(filename))
     }
@@ -1216,10 +1215,10 @@ impl OwningDirstateMap {
 
                     // Directory caches must be invalidated when removing a
                     // child node
-                    if removed {
-                        if let NodeData::CachedDirectory { .. } = &node.data {
-                            node.data = NodeData::None
-                        }
+                    if removed
+                        && let NodeData::CachedDirectory { .. } = &node.data
+                    {
+                        node.data = NodeData::None
                     }
                 } else {
                     return Ok(None);
@@ -1419,7 +1418,7 @@ impl OwningDirstateMap {
     pub fn copy_map_contains_key(
         &self,
         key: &HgPath,
-    ) -> Result<bool, DirstateV2ParseError> {
+    ) -> Result<bool, DirstateError> {
         let map = self.get_map();
         Ok(if let Some(node) = map.get_node(key)? {
             node.has_copy_source()
@@ -1431,12 +1430,12 @@ impl OwningDirstateMap {
     pub fn copy_map_get(
         &self,
         key: &HgPath,
-    ) -> Result<Option<&HgPath>, DirstateV2ParseError> {
+    ) -> Result<Option<&HgPath>, DirstateError> {
         let map = self.get_map();
-        if let Some(node) = map.get_node(key)? {
-            if let Some(source) = node.copy_source(map.on_disk)? {
-                return Ok(Some(source));
-            }
+        if let Some(node) = map.get_node(key)?
+            && let Some(source) = node.copy_source(map.on_disk)?
+        {
+            return Ok(Some(source));
         }
         Ok(None)
     }
@@ -1444,7 +1443,7 @@ impl OwningDirstateMap {
     pub fn copy_map_remove(
         &mut self,
         key: &HgPath,
-    ) -> Result<Option<HgPathBuf>, DirstateV2ParseError> {
+    ) -> Result<Option<HgPathBuf>, DirstateError> {
         self.with_dmap_mut(|map| {
             let count = &mut map.nodes_with_copy_source_count;
             let unreachable_bytes = &mut map.unreachable_bytes;
@@ -1474,7 +1473,7 @@ impl OwningDirstateMap {
         &mut self,
         key: &HgPath,
         value: &HgPath,
-    ) -> Result<Option<HgPathBuf>, DirstateV2ParseError> {
+    ) -> Result<Option<HgPathBuf>, DirstateError> {
         self.with_dmap_mut(|map| {
             let node = map.get_or_insert_node(key, |_ancestor| {})?;
             let had_copy_source = node.copy_source.is_none();
@@ -1498,17 +1497,14 @@ impl OwningDirstateMap {
         self.len() == 0
     }
 
-    pub fn contains_key(
-        &self,
-        key: &HgPath,
-    ) -> Result<bool, DirstateV2ParseError> {
+    pub fn contains_key(&self, key: &HgPath) -> Result<bool, DirstateError> {
         Ok(self.get(key)?.is_some())
     }
 
     pub fn get(
         &self,
         key: &HgPath,
-    ) -> Result<Option<DirstateEntry>, DirstateV2ParseError> {
+    ) -> Result<Option<DirstateEntry>, DirstateError> {
         let map = self.get_map();
         Ok(if let Some(node) = map.get_node(key)? {
             node.entry()?
@@ -1588,8 +1584,9 @@ impl OwningDirstateMap {
         &self,
         all: bool,
     ) -> Box<
-        dyn Iterator<Item = Result<DebugDirstateTuple, DirstateV2ParseError>>
-            + Send
+        dyn Iterator<
+                Item = Result<DebugDirstateTuple<'_>, DirstateV2ParseError>,
+            > + Send
             + '_,
     > {
         let map = self.get_map();

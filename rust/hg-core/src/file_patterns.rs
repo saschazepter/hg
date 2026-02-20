@@ -7,7 +7,6 @@
 
 //! Handling of Mercurial-specific patterns.
 
-use std::fmt;
 use std::mem;
 use std::ops::Deref;
 use std::path::Path;
@@ -18,76 +17,58 @@ use lazy_static::lazy_static;
 use regex::bytes::NoExpand;
 use regex::bytes::Regex;
 
+use crate::FastHashMap;
+use crate::errors::HgBacktrace;
+use crate::errors::HgIoError;
+use crate::errors::IoErrorContext;
 use crate::pre_regex::PreRegex;
 use crate::utils::files::canonical_path;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
-use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
+use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
-use crate::FastHashMap;
 
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, derive_more::From, PartialEq)]
 pub enum PatternError {
+    /// An include pattern used an invalid path
     #[from]
     Path(HgPathError),
-    UnsupportedSyntax(String),
-    UnsupportedSyntaxInFile(String, String, usize),
-    TooLong(usize),
-    // TODO reduce the wide "IO error" to a more specific enumeration of cases
-    // we expect so we can stop caring about `std::io::Error` being annoying
+    /// This unsupported syntax kind was provided
+    UnsupportedSyntax(Vec<u8>, HgBacktrace),
+    /// A generic IO error happened when reading pattern files
+    /// Boxed to prevent the top-level enums from growing too large
     #[from]
-    IO(std::io::Error),
+    IO(Box<HgIoError>),
+    /// This glob has a `{` opened, but not closed
+    UnclosedGlobAlternation(Vec<u8>, HgBacktrace),
+    /// There was the following error when creating a regex
+    RegexError {
+        /// The provided regex pattern (might be reconstructed from HIR)
+        needle: String,
+        /// The error returned by the regex engine
+        error: String,
+        backtrace: HgBacktrace,
+    },
+    /// A non-UTF8 pattern was passed to the regex engine. Note that the engine
+    /// is capable of matching non-UTF8 bytes, but the patterns needs to be
+    /// expressed in a (valid UTF8) `&str`.
+    /// https://docs.rs/regex/latest/regex/bytes/index.html#syntax
+    NonUtf8Pattern {
+        /// The non-UTF8 pattern
+        pattern: Vec<u8>,
+        /// The byte index after which the pattern stops being valid UTF8. It
+        /// may be 1 to 3 bytes short because of UTF8 grapheme clusters.
+        valid_up_to: usize,
+        backtrace: HgBacktrace,
+    },
     /// Needed a pattern that can be turned into a regex but got one that
     /// can't. This should only happen through programmer error.
-    NonRegexPattern(FilePattern),
-}
-
-// TODO remove this once we simplify the `IO` variant (see its declaration)
-impl PartialEq for PatternError {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Path(l0), Self::Path(r0)) => l0 == r0,
-            (Self::UnsupportedSyntax(l0), Self::UnsupportedSyntax(r0)) => {
-                l0 == r0
-            }
-            (
-                Self::UnsupportedSyntaxInFile(l0, l1, l2),
-                Self::UnsupportedSyntaxInFile(r0, r1, r2),
-            ) => l0 == r0 && l1 == r1 && l2 == r2,
-            (Self::TooLong(l0), Self::TooLong(r0)) => l0 == r0,
-            (Self::IO(_), Self::IO(_)) => false,
-            (Self::NonRegexPattern(l0), Self::NonRegexPattern(r0)) => l0 == r0,
-            _ => false,
-        }
-    }
-}
-
-impl fmt::Display for PatternError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PatternError::UnsupportedSyntax(syntax) => {
-                write!(f, "Unsupported syntax {}", syntax)
-            }
-            PatternError::UnsupportedSyntaxInFile(syntax, file_path, line) => {
-                write!(
-                    f,
-                    "{}:{}: unsupported syntax {}",
-                    file_path, line, syntax
-                )
-            }
-            PatternError::TooLong(size) => {
-                write!(f, "matcher pattern is too long ({} bytes)", size)
-            }
-            PatternError::IO(error) => error.fmt(f),
-            PatternError::Path(error) => error.fmt(f),
-            PatternError::NonRegexPattern(pattern) => {
-                write!(f, "'{:?}' cannot be turned into a regex", pattern)
-            }
-        }
-    }
+    NonRegexPattern(FilePattern, HgBacktrace),
+    /// This syntax kind is invalid in the context of narrow
+    UnsupportedSyntaxNarrow(PatternSyntax, HgBacktrace),
 }
 
 lazy_static! {
@@ -296,8 +277,9 @@ pub fn glob_to_re(pat: &[u8]) -> PatternResult<GlobToRe> {
         }
     }
     if !group_stack.is_empty() {
-        return Err(PatternError::UnsupportedSyntax(
-            "error: invalid glob, has unclosed alternation ('{')".to_string(),
+        return Err(PatternError::UnclosedGlobAlternation(
+            pat.to_owned(),
+            HgBacktrace::capture(),
         ));
     }
     Ok(GlobToRe { start, rest: res })
@@ -319,7 +301,8 @@ pub fn parse_pattern_syntax_kind(
         b"include" => Ok(PatternSyntax::Include),
         b"subinclude" => Ok(PatternSyntax::SubInclude),
         _ => Err(PatternError::UnsupportedSyntax(
-            String::from_utf8_lossy(kind).to_string(),
+            kind.to_vec(),
+            HgBacktrace::capture(),
         )),
     }
 }
@@ -522,7 +505,10 @@ pub fn build_single_regex(
         | PatternSyntax::RelPath
         | PatternSyntax::RootFilesIn => normalize_path_bytes(pattern),
         PatternSyntax::Include | PatternSyntax::SubInclude => {
-            return Err(PatternError::NonRegexPattern(entry.clone()))
+            return Err(PatternError::NonRegexPattern(
+                entry.clone(),
+                HgBacktrace::capture(),
+            ));
         }
         _ => pattern.to_owned(),
     };
@@ -711,7 +697,10 @@ pub fn read_pattern_file(
             warnings.send(PatternFileWarning::NoSuchFile(file_path.to_owned()));
             Ok(vec![])
         }
-        Err(e) => Err(e.into()),
+        Err(e) => Err(Box::new(HgIoError::from_os_error(
+            e,
+            IoErrorContext::ReadingFile(file_path.to_owned()),
+        )))?,
     }
 }
 

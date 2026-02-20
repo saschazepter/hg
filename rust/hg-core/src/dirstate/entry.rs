@@ -5,8 +5,9 @@ use std::time::UNIX_EPOCH;
 
 use bitflags::bitflags;
 
+use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum EntryState {
@@ -82,7 +83,11 @@ impl TruncatedTimestamp {
         {
             Ok(Self { truncated_seconds, nanoseconds, second_ambiguous })
         } else {
-            Err(DirstateV2ParseError::new("when reading datetime"))
+            Err(DirstateV2ParseError::TimestampNotInRange {
+                truncated_seconds,
+                nanoseconds,
+                backtrace: HgBacktrace::capture(),
+            })
         }
     }
 
@@ -143,11 +148,7 @@ impl TruncatedTimestamp {
             self.truncated_seconds < boundary.truncated_seconds
                 || self.truncated_seconds > one_day_later
         };
-        if reliable {
-            Some(new)
-        } else {
-            None
-        }
+        if reliable { Some(new) } else { None }
     }
 
     /// The lower 31 bits of the number of seconds since the epoch.
@@ -683,7 +684,7 @@ impl EntryState {
 }
 
 impl TryFrom<u8> for EntryState {
-    type Error = HgError;
+    type Error = DirstateError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -691,10 +692,9 @@ impl TryFrom<u8> for EntryState {
             b'a' => Ok(EntryState::Added),
             b'r' => Ok(EntryState::Removed),
             b'm' => Ok(EntryState::Merged),
-            _ => Err(HgError::corrupted(format!(
-                "Incorrect dirstate entry state {}",
-                value
-            ))),
+            _ => {
+                Err(DirstateError::BadEntryState(value, HgBacktrace::capture()))
+            }
         }
     }
 }

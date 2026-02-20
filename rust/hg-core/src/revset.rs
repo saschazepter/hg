@@ -2,17 +2,17 @@
 //!
 //! <https://www.mercurial-scm.org/repo/hg/help/revsets>
 
+use crate::Node;
+use crate::WORKING_DIRECTORY_REVISION;
 use crate::errors::HgError;
 use crate::repo::Repo;
+use crate::revlog::NULL_REVISION;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revision;
 use crate::revlog::RevisionOrWdir;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogError;
-use crate::revlog::NULL_REVISION;
 use crate::revlog::WORKING_DIRECTORY_HEX;
-use crate::Node;
-use crate::WORKING_DIRECTORY_REVISION;
 
 /// Resolve a query string into a single revision.
 ///
@@ -64,16 +64,17 @@ fn resolve(
 ) -> Result<RevisionOrWdir, RevlogError> {
     // The Python equivalent of this is part of `revsymbol` in
     // `mercurial/scmutil.py`
-    if let Ok(integer) = input.parse::<i32>() {
-        if integer.to_string() == input && integer >= 0 {
-            if integer == WORKING_DIRECTORY_REVISION.0 {
-                return Ok(RevisionOrWdir::wdir());
-            }
-            if revlog.has_rev(integer.into()) {
-                // This is fine because we've just checked that the revision is
-                // valid for the given revlog.
-                return Ok(Revision(integer).into());
-            }
+    if let Ok(integer) = input.parse::<i32>()
+        && integer.to_string() == input
+        && integer >= 0
+    {
+        if integer == WORKING_DIRECTORY_REVISION.0 {
+            return Ok(RevisionOrWdir::wdir());
+        }
+        if revlog.has_rev(integer.into()) {
+            // This is fine because we've just checked that the revision is
+            // valid for the given revlog.
+            return Ok(Revision(integer).into());
         }
     }
     if let Ok(prefix) = NodePrefix::from_hex(input) {

@@ -1,16 +1,16 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use bytes_cast::unaligned;
 use bytes_cast::BytesCast;
+use bytes_cast::unaligned;
 use memmap2::Mmap;
 
 use super::Node;
 use super::UncheckedRevision;
+use crate::BaseRevision;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::vfs::VfsImpl;
-use crate::BaseRevision;
 
 const ONDISK_VERSION: u8 = 1;
 

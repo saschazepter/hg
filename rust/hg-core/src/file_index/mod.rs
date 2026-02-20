@@ -18,6 +18,7 @@ pub use on_disk::DebugTreeChild;
 pub use on_disk::DebugTreeNode;
 pub use on_disk::DebugTreeNodeIter;
 use on_disk::Docket;
+use on_disk::EMPTY_META_BYTES;
 pub use on_disk::Error;
 use on_disk::FileIndexView;
 use on_disk::GarbageEntry;
@@ -25,7 +26,6 @@ use on_disk::Metadata;
 use on_disk::OwnedDataFiles;
 use on_disk::OwnedFileIndexView;
 pub use on_disk::PathInfo;
-use on_disk::EMPTY_META_BYTES;
 
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
@@ -33,12 +33,12 @@ use crate::transaction::Transaction;
 use crate::utils::docket::FileUid;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
-use crate::utils::u32_u;
 use crate::utils::u_u32;
-use crate::vfs::is_on_nfs_mount;
+use crate::utils::u32_u;
 use crate::vfs::Vfs;
 use crate::vfs::VfsFile;
 use crate::vfs::VfsImpl;
+use crate::vfs::is_on_nfs_mount;
 
 mod mutable_tree;
 mod on_disk;
@@ -200,7 +200,7 @@ impl FileIndex {
         }
     }
 
-    fn on_disk(&self) -> &FileIndexView {
+    fn on_disk(&self) -> &FileIndexView<'_> {
         self.on_disk.borrow_dependent()
     }
 
@@ -468,9 +468,9 @@ impl FileIndex {
         VfsDataFiles { list_file, meta_file, mut tree_file }: VfsDataFiles,
         mode: SerializeMode,
     ) -> Result<(), HgError> {
-        let list_file_path = normal_path(&list_file).to_owned();
-        let meta_file_path = normal_path(&meta_file).to_owned();
-        let tree_file_path = normal_path(&tree_file).to_owned();
+        let list_file_path = list_file.path().to_path_buf();
+        let meta_file_path = meta_file.path().to_path_buf();
+        let tree_file_path = tree_file.path().to_path_buf();
         // The tree file doesn't need buffering since we write it all at once.
         let mut list_file = BufWriter::new(list_file);
         let mut meta_file = BufWriter::new(meta_file);
@@ -589,7 +589,7 @@ where
     /// later abort or rollback.
     fn open_new(&mut self, path: &Path) -> Result<VfsFile, HgError> {
         self.tr.add(path, 0);
-        self.vfs.create(path, false)
+        Ok(self.vfs.create(path, false)?)
     }
 
     /// Open a file for appending past `used_size`.
@@ -607,16 +607,8 @@ where
     ) -> Result<VfsFile, HgError> {
         let mut file = self.vfs.open_write(path)?;
         file.seek(SeekFrom::Start(used_size as u64))
-            .when_reading_file(normal_path(&file))?;
+            .when_reading_file(file.path())?;
         Ok(file)
-    }
-}
-
-/// Returns the path of a [`VfsFile`], assuming it is normal not atomic.
-fn normal_path(file: &VfsFile) -> &Path {
-    match file {
-        VfsFile::Normal { path, .. } => path,
-        VfsFile::Atomic(..) => unreachable!("unexpected atomic file"),
     }
 }
 

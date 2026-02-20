@@ -33,18 +33,18 @@ configure for serving
 repo not found error
 
   $ hg clone ssh://user@dummy/nonexistent local
-  remote: abort: repository nonexistent not found
+  remote: abort: no repository found in 'nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
   $ hg clone -q ssh://user@dummy/nonexistent local
-  remote: abort: repository nonexistent not found
+  remote: abort: no repository found in 'nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
 non-existent absolute path
 
   $ hg clone ssh://user@dummy/`pwd`/nonexistent local
-  remote: abort: repository $TESTTMP/nonexistent not found
+  remote: abort: no repository found in '$TESTTMP/nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
@@ -111,7 +111,7 @@ pull from wrong ssh URL
 
   $ hg pull ssh://user@dummy/doesnotexist
   pulling from ssh://user@dummy/doesnotexist
-  remote: abort: repository doesnotexist not found
+  remote: abort: no repository found in 'doesnotexist' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
@@ -375,15 +375,15 @@ Abbreviations of 'serve' also don't work, to avoid shenanigans.
 rhg aborts early on -R without a repository at that path
   $ hg -R --debugger serve --stdio
   abort: potentially unsafe serve --stdio invocation: ['-R', '--debugger', 'serve', '--stdio'] (missing-correct-output !)
-  abort: repository --debugger not found (known-bad-output !)
+  abort: no repository found in '--debugger' (.hg not found)! (known-bad-output !)
   [255]
   $ hg -R --config=ui.debugger=yes serve --stdio
   abort: potentially unsafe serve --stdio invocation: ['-R', '--config=ui.debugger=yes', 'serve', '--stdio'] (missing-correct-output !)
-  abort: repository --config=ui.debugger=yes not found (known-bad-output !)
+  abort: no repository found in '--config=ui.debugger=yes' (.hg not found)! (known-bad-output !)
   [255]
   $ hg -R narf serv --stdio
   abort: potentially unsafe serve --stdio invocation: ['-R', 'narf', 'serv', '--stdio'] (missing-correct-output !)
-  abort: repository narf not found (known-bad-output !)
+  abort: no repository found in 'narf' (.hg not found)! (known-bad-output !)
   [255]
 If the repo does exist, rhg finds an unsupported command and falls back to Python
 which still does the right thing

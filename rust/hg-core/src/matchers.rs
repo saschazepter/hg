@@ -23,21 +23,23 @@ use once_cell::sync::OnceCell;
 use regex_automata::meta::Regex;
 use regex_syntax::hir::Hir;
 
+use crate::FastHashMap;
 use crate::dirstate::dirs_multiset::DirsChildrenMultiset;
 use crate::dirstate::dirs_multiset::DirsMultiset;
 use crate::dirstate::status::IgnoreFnType;
-use crate::file_patterns::build_single_regex;
-use crate::file_patterns::filter_subincludes;
-use crate::file_patterns::get_patterns_from_file;
-use crate::file_patterns::normalize_path_bytes;
+use crate::errors::HgBacktrace;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::GlobSuffix;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternResult;
 use crate::file_patterns::PatternSyntax;
 use crate::file_patterns::RegexCompleteness;
-use crate::narrow::shape::deepest_prefix_node;
+use crate::file_patterns::build_single_regex;
+use crate::file_patterns::filter_subincludes;
+use crate::file_patterns::get_patterns_from_file;
+use crate::file_patterns::normalize_path_bytes;
 use crate::narrow::shape::Shape;
+use crate::narrow::shape::deepest_prefix_node;
 use crate::pre_regex::PreRegex;
 use crate::repo::Repo;
 use crate::utils::files::dir_ancestors;
@@ -48,7 +50,6 @@ use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::strings::Escaped;
 use crate::warnings::HgWarningSender;
-use crate::FastHashMap;
 
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
@@ -974,7 +975,11 @@ fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
                 .dfa_size_limit(Some(50 * (1 << 20))),
         )
         .build_from_hir(pattern)
-        .map_err(|e| PatternError::UnsupportedSyntax(e.to_string()))?;
+        .map_err(|e| PatternError::RegexError {
+            needle: pattern.to_string(),
+            error: e.to_string(),
+            backtrace: HgBacktrace::capture(),
+        })?;
 
     Ok(RegexMatcher { base: re, local: Default::default() })
 }
@@ -1025,7 +1030,7 @@ fn build_regex_match<'a>(
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
-fn build_regex_match_for_debug<'a>(
+fn build_regex_match_for_debug(
     file_patterns: &[FilePattern],
     glob_suffix: GlobSuffix,
 ) -> PatternResult<PreRegex> {
@@ -1157,10 +1162,10 @@ fn build_match<'a>(
 
         let match_subinclude = move |filename: &HgPath| {
             for prefix in prefixes.iter() {
-                if let Some(rel) = filename.relative_to(prefix) {
-                    if (submatchers[prefix])(rel) {
-                        return true;
-                    }
+                if let Some(rel) = filename.relative_to(prefix)
+                    && (submatchers[prefix])(rel)
+                {
+                    return true;
                 }
             }
             false
@@ -1319,7 +1324,7 @@ impl IncludeMatcher<'_> {
         Self::new_gen(file_patterns, RegexCompleteness::ExcludeExactFiles)
     }
 
-    fn get_all_parents_children(&self) -> DirsChildrenMultiset {
+    fn get_all_parents_children(&self) -> DirsChildrenMultiset<'_> {
         // TODO cache
         let thing = self
             .dirs
@@ -2376,9 +2381,9 @@ mod tests {
     mod invariants {
         pub mod visit_children_set {
 
-            use crate::matchers::tests::Tree;
             use crate::matchers::Matcher;
             use crate::matchers::VisitChildrenSet;
+            use crate::matchers::tests::Tree;
             use crate::utils::hg_path::HgPath;
 
             #[allow(dead_code)]
@@ -2472,7 +2477,7 @@ mod tests {
                 files,
                 dirs: dirs
                     .into_iter()
-                    .filter(|(_k, v)| (!(v.is_empty())))
+                    .filter(|(_k, v)| !v.is_empty())
                     .collect(),
             }
         }

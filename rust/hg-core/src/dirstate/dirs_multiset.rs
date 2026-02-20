@@ -8,21 +8,20 @@
 //! A multiset of directory names.
 //!
 //! Used to counts the references to directories in a manifest or dirstate.
-use std::collections::hash_map;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map;
+use std::collections::hash_map::Entry;
 
-use super::entry::DirstateEntry;
 use super::DirstateError;
-use super::DirstateMapError;
+use super::entry::DirstateEntry;
+use crate::FastHashMap;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::utils::files;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
-use crate::FastHashMap;
 
 // could be encapsulated if we care API stability more seriously
 pub type DirsMultisetIter<'a> = hash_map::Keys<'a, HgPathBuf, u32>;
@@ -112,7 +111,7 @@ impl DirsMultiset {
     pub fn delete_path(
         &mut self,
         path: impl AsRef<HgPath>,
-    ) -> Result<(), DirstateMapError> {
+    ) -> Result<(), DirstateError> {
         for subpath in files::find_dirs(path.as_ref()) {
             match self.inner.entry(subpath.to_owned()) {
                 Entry::Occupied(mut entry) => {
@@ -124,9 +123,7 @@ impl DirsMultiset {
                     entry.remove();
                 }
                 Entry::Vacant(_) => {
-                    return Err(DirstateMapError::PathNotFound(
-                        path.as_ref().to_owned(),
-                    ))
+                    return Err(DirstateError::path_not_found(path.as_ref()));
                 }
             };
         }
@@ -138,7 +135,7 @@ impl DirsMultiset {
         self.inner.contains_key(key.as_ref())
     }
 
-    pub fn iter(&self) -> DirsMultisetIter {
+    pub fn iter(&self) -> DirsMultisetIter<'_> {
         self.inner.keys()
     }
 
@@ -222,7 +219,7 @@ mod tests {
         let mut map = DirsMultiset::from_manifest(&manifest).unwrap();
         let path = HgPathBuf::from_bytes(b"doesnotexist/");
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(path.to_owned())),
+            Err(DirstateError::path_not_found(path.as_ref())),
             map.delete_path(&path)
         );
     }
@@ -233,7 +230,7 @@ mod tests {
         let path = HgPath::new(b"");
         assert_eq!(Ok(()), map.delete_path(path));
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(path.to_owned())),
+            Err(DirstateError::path_not_found(path)),
             map.delete_path(path)
         );
     }
@@ -252,7 +249,7 @@ mod tests {
         assert_eq!(Ok(()), map.delete_path(HgPath::new(b"a/b/")));
         eprintln!("{:?}", map);
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(b"a/b/"))),
+            Err(DirstateError::path_not_found(HgPath::new(b"a/b/"))),
             map.delete_path(HgPath::new(b"a/b/"))
         );
 
@@ -264,7 +261,7 @@ mod tests {
 
         assert_eq!(Ok(()), map.delete_path(HgPath::new(b"a/c/")));
         assert_eq!(
-            Err(DirstateMapError::PathNotFound(HgPathBuf::from_bytes(b"a/c/"))),
+            Err(DirstateError::path_not_found(HgPath::new(b"a/c/"))),
             map.delete_path(HgPath::new(b"a/c/"))
         );
     }

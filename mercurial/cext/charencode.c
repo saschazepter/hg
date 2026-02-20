@@ -242,7 +242,7 @@ PyObject *make_file_foldmap(PyObject *self, PyObject *args)
 
 	/* Add some more entries to deal with additions outside this
 	   function. */
-	file_foldmap = _dict_new_presized((PyDict_Size(dmap) / 10) * 11);
+	file_foldmap = _PyDict_NewPresized((PyDict_Size(dmap) / 10) * 11);
 	if (file_foldmap == NULL) {
 		goto quit;
 	}

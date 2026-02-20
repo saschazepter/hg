@@ -7,6 +7,9 @@
 
 from __future__ import annotations
 
+from ..interfaces.types import (
+    RevnumT,
+)
 from ..node import sha1nodeconstants
 from .constants import (
     INDEX_ENTRY_V0,
@@ -22,6 +25,10 @@ from .. import (
 
 from . import (
     nodemap as nodemaputil,
+)
+
+from ..revlogutils import (
+    constants as revlog_constants,
 )
 
 
@@ -69,6 +76,92 @@ class revlogoldindex(list):
 
         If the node is unknown, return None"""
         return self._nodemap.get(node)
+
+    def parents(self, rev):
+        """return (p1, p2) for a rev"""
+        entry = self[rev]
+        return (entry[5], entry[6])
+
+    _parents_raw = parents
+
+    def linkrev(self, rev):
+        return self[rev][4]
+
+    def flags(self, rev):
+        """the revision level flag for a revision"""
+        return self[rev][0] & 0xFFFF
+
+    def bundle_repo_delta_base(self, rev) -> int:
+        """the raw `delta-base` value, used by bundle_repo"""
+        return self[rev][3]
+
+    def raw_size(self, rev) -> int | None:
+        """the raw size of the revision data
+
+        The "raw data" is stored content because flag processing and with
+        optionnal metadata attached.
+        """
+        return None
+
+    def data_chunk_start(self, rev):
+        """return the starting offsset of the data chunk of a rev"""
+        return int(self[rev][0] >> 16)
+
+    def data_chunk_length(self, rev):
+        """return the length of the data chunk of a rev"""
+        return self[rev][1]
+
+    def delta_base(self, rev):
+        base = self[rev][3]
+        if base == rev:
+            return None
+        else:
+            return rev - 1
+
+    def deltachain(self, rev, stoprev=None) -> tuple[list[RevnumT], bool]:
+        # Alias to prevent attribute lookup in tight loop.
+
+        chain = []
+        iterrev = rev
+        e = self[iterrev]
+        while iterrev != e[3] and iterrev != stoprev:
+            if e[1] > 0:
+                # skip over empty delta in the chain
+                chain.append(iterrev)
+            iterrev -= 1
+            e = self[iterrev]
+
+        if iterrev == stoprev:
+            stopped = True
+        else:
+            chain.append(iterrev)
+            stopped = False
+
+        chain.reverse()
+        return chain, stopped
+
+    def data_chunk_compression_mode(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return revlog_constants.COMP_MODE_INLINE
+
+    def sidedata_chunk_offset(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return 0
+
+    def sidedata_chunk_length(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return 0
+
+    def sidedata_chunk_compression_mode(self, rev):
+        """the offset of the sidedata chunk if any"""
+        return revlog_constants.COMP_MODE_INLINE
+
+    def lazy_rank(self, rev):
+        return revlog_constants.RANK_UNKNOWN
+
+    def node(self, rev: int) -> bytes:
+        """return the node of a revision"""
+        return self[rev][7]
 
     def append(self, tup):
         self._nodemap[tup[7]] = len(self)

@@ -10,6 +10,7 @@ use std::mem::take;
 
 use clap::Arg;
 use format_bytes::format_bytes;
+use hg::Revision;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::status::BadMatch;
 use hg::dirstate::status::DirstateStatus;
@@ -20,32 +21,31 @@ use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::file_patterns::parse_pattern_args;
 use hg::lock::LockError;
-use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::IntersectionMatcher;
+use hg::matchers::get_ignore_files;
 use hg::narrow;
 use hg::repo::Repo;
-use hg::revlog::filelog::is_file_modified;
-use hg::revlog::filelog::FileCompOutcome;
-use hg::revlog::options::default_revlog_options;
 use hg::revlog::RevisionOrWdir;
 use hg::revlog::RevlogError;
 use hg::revlog::RevlogType;
+use hg::revlog::filelog::FileCompOutcome;
+use hg::revlog::filelog::is_file_modified;
+use hg::revlog::options::default_revlog_options;
 use hg::sparse;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::warnings::HgWarningContext;
-use hg::Revision;
 use hg::{self};
 use rayon::prelude::*;
 use tracing::info;
 
 use crate::error::CommandError;
-use crate::ui::print_warnings;
-use crate::ui::relative_paths;
 use crate::ui::RelativePaths;
 use crate::ui::Ui;
+use crate::ui::print_warnings;
+use crate::ui::relative_paths;
 use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "
@@ -429,7 +429,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         &to_check.path,
                         filelog_open_options,
                     ) {
-                        Err(HgError::IoError { .. }) => {
+                        Err(HgError::IO(_)) => {
                             // IO errors most likely stem from the file being
                             // deleted even though we know it's in the
                             // dirstate.
@@ -605,15 +605,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         repo.working_directory_vfs().symlink_metadata(&fs_path);
                     let fs_metadata = match metadata_res {
                         Ok(meta) => meta,
-                        Err(err) => match err {
-                            HgError::IoError { .. } => {
-                                // The file has probably been deleted. In any
-                                // case, it was in the dirstate before, so
-                                // let's ignore the error.
-                                continue;
-                            }
-                            _ => return Err(err.into()),
-                        },
+                        Err(_) => {
+                            // The file has probably been deleted. In any
+                            // case, it was in the dirstate before, so
+                            // let's ignore the error.
+                            continue;
+                        }
                     };
                     if let Some(mtime) =
                         TruncatedTimestamp::for_reliable_mtime_of(
@@ -643,8 +640,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             // process releases the lock.
             tracing::info!("not writing dirstate from `status`: lock is held")
         }
-        Err(LockError::Other(HgError::IoError { error, .. }))
-            if error.kind() == io::ErrorKind::PermissionDenied
+        Err(LockError::IO(error))
+            if error.kind() == Some(io::ErrorKind::PermissionDenied)
                 || match error.raw_os_error() {
                     None => false,
                     Some(errno) => libc::EROFS == errno,
@@ -652,7 +649,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         {
             // `hg status` on a read-only repository is fine
         }
-        Err(LockError::Other(error)) => {
+        Err(LockError::IO(error)) => {
             // Report other I/O errors
             Err(error)?
         }

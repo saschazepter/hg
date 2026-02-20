@@ -15,9 +15,9 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
-use hg::file_patterns::parse_pattern_syntax_kind;
+use hg::errors::HgError;
 use hg::file_patterns::FilePattern;
-use hg::file_patterns::PatternError;
+use hg::file_patterns::parse_pattern_syntax_kind;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::DifferenceMatcher;
 use hg::matchers::FileMatcher;
@@ -37,11 +37,11 @@ use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 
 use super::dirstate_map::DirstateMap;
-use crate::exceptions::to_string_value_error;
 use crate::exceptions::FallbackError;
+use crate::exceptions::to_string_value_error;
+use crate::path::PyHgPathRef;
 use crate::path::paths_py_list;
 use crate::path::paths_pyiter_collect;
-use crate::path::PyHgPathRef;
 use crate::utils::hg_warnings_to_py_warnings;
 
 fn status_path_py_list(
@@ -108,11 +108,7 @@ fn extract_matcher(
         .call_method0(intern!(py, "was_tampered_with_nonrec"))?
         .extract::<bool>()?;
     if tampered {
-        return Err(handle_fallback(StatusError::Pattern(
-            PatternError::UnsupportedSyntax(
-                "Pattern matcher was tampered with!".to_string(),
-            ),
-        )));
+        return Err(FallbackError::new_err("patternmatcher was tampered with"));
     };
 
     match matcher.get_type().name()?.to_str()? {
@@ -169,12 +165,12 @@ fn extract_matcher(
 fn handle_fallback(err: StatusError) -> PyErr {
     match err {
         StatusError::Pattern(e) => {
-            let as_string = e.to_string();
+            let as_string = HgError::from(e).to_string();
             tracing::debug!("Rust status fallback, see trace-level logs");
             tracing::trace!("{}", as_string);
             FallbackError::new_err(as_string)
         }
-        e => to_string_value_error(e),
+        e => to_string_value_error(HgError::from(e)),
     }
 }
 

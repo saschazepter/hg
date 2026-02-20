@@ -9,30 +9,30 @@ use std::sync::RwLockWriteGuard;
 use bitvec::prelude::*;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
-use bytes_cast::unaligned;
 use bytes_cast::BytesCast;
+use bytes_cast::unaligned;
 
 use super::NodePrefix;
-use super::RevlogError;
-use super::RevlogIndex;
 use super::REVIDX_KNOWN_FLAGS;
 use super::REVISION_FLAG_DELTA_IS_SNAPSHOT;
-use crate::dagops;
-use crate::dyn_bytes::ByteStoreTrunc;
-use crate::dyn_bytes::DynBytes;
-use crate::errors::HgError;
-use crate::revlog::node::Node;
-use crate::revlog::node::NODE_BYTES_LENGTH;
-use crate::revlog::node::NULL_NODE;
-use crate::revlog::node::STORED_NODE_ID_BYTES;
-use crate::revlog::Revision;
-use crate::revlog::NULL_REVISION;
-use crate::utils::u32_u;
+use super::RevlogError;
+use super::RevlogIndex;
 use crate::BaseRevision;
 use crate::FastHashMap;
 use crate::Graph;
 use crate::GraphError;
 use crate::UncheckedRevision;
+use crate::dagops;
+use crate::dyn_bytes::ByteStoreTrunc;
+use crate::dyn_bytes::DynBytes;
+use crate::errors::HgError;
+use crate::revlog::NULL_REVISION;
+use crate::revlog::Revision;
+use crate::revlog::node::NODE_BYTES_LENGTH;
+use crate::revlog::node::NULL_NODE;
+use crate::revlog::node::Node;
+use crate::revlog::node::STORED_NODE_ID_BYTES;
+use crate::utils::u32_u;
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const INDEX_HEADER_SIZE: usize = 4;
@@ -422,7 +422,9 @@ impl Index {
     /// Return a slice of bytes if `revlog` is inline. Panic if not.
     pub fn data(&self, start: usize, end: usize) -> &[u8] {
         if !self.is_inline() {
-            panic!("tried to access data in the index of a revlog that is not inline");
+            panic!(
+                "tried to access data in the index of a revlog that is not inline"
+            );
         }
         &self.bytes[start..end]
     }
@@ -437,6 +439,12 @@ impl Index {
         } else {
             self.bytes.len() / INDEX_ENTRY_SIZE
         }
+    }
+
+    /// return raw parents value from the index
+    pub fn parents_raw(&self, rev: Revision) -> [UncheckedRevision; 2] {
+        let entry = self.get_entry(rev);
+        [entry.p1(), entry.p2()]
     }
 
     /// Same as `rev_from_node`, without using a persistent nodemap
@@ -477,7 +485,7 @@ impl Index {
             .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
     }
 
-    pub fn get_offsets(&self) -> RwLockReadGuard<Option<Vec<usize>>> {
+    pub fn get_offsets(&self) -> RwLockReadGuard<'_, Option<Vec<usize>>> {
         assert!(self.is_inline());
         {
             // Wrap in a block to drop the read guard
@@ -489,7 +497,9 @@ impl Index {
         self.offsets.read().unwrap()
     }
 
-    pub fn get_offsets_mut(&mut self) -> RwLockWriteGuard<Option<Vec<usize>>> {
+    pub fn get_offsets_mut(
+        &mut self,
+    ) -> RwLockWriteGuard<'_, Option<Vec<usize>>> {
         assert!(self.is_inline());
         let mut offsets = self.offsets.write().unwrap();
         if offsets.is_none() {
@@ -509,7 +519,7 @@ impl Index {
     /// The specified revision being of the checked type, it always exists
     /// if it was validated by this index.
     #[inline(always)]
-    pub fn get_entry(&self, rev: Revision) -> IndexEntry {
+    pub fn get_entry(&self, rev: Revision) -> IndexEntry<'_> {
         if rev == NULL_REVISION {
             IndexEntry { bytes: NULL_ENTRY }
         } else if rev.0 == 0 {
@@ -524,11 +534,7 @@ impl Index {
     /// Return the binary content of the index entry for the given revision
     pub fn entry_binary(&self, rev: Revision) -> &[u8] {
         let bytes = self.get_entry(rev).as_bytes();
-        if rev.0 == 0 {
-            &bytes[4..]
-        } else {
-            bytes
-        }
+        if rev.0 == 0 { &bytes[4..] } else { bytes }
     }
 
     pub fn entry_as_params(
@@ -568,7 +574,7 @@ impl Index {
         })
     }
 
-    fn get_entry_inline(&self, rev: Revision) -> IndexEntry {
+    fn get_entry_inline(&self, rev: Revision) -> IndexEntry<'_> {
         let offsets = &self.get_offsets();
         let offsets = offsets.as_ref().expect("inline should have offsets");
         let start = offsets[rev.0 as usize];
@@ -578,7 +584,7 @@ impl Index {
         IndexEntry { bytes }
     }
 
-    fn get_entry_separated(&self, rev: Revision) -> IndexEntry {
+    fn get_entry_separated(&self, rev: Revision) -> IndexEntry<'_> {
         let start = rev.0 as usize * INDEX_ENTRY_SIZE;
         let end = start + INDEX_ENTRY_SIZE;
         let bytes = &self.bytes[start..end];
@@ -718,6 +724,31 @@ impl Index {
         Ok((heads_removed, heads_added))
     }
 
+    /// The revision to which apply the delta stored for <rev>
+    ///
+    /// When <rev> is stored as a delta, the delta-base is the revision that
+    /// stored delta applies to in order to retrieve the full content of <rev>.
+    ///
+    /// If <rev> is stored as a full snapshot, `None` is returned instead.
+    pub fn delta_base(
+        &self,
+        rev: Revision,
+    ) -> Result<Option<Revision>, HgError> {
+        let base = self.get_entry(rev).base_revision_or_base_of_delta_chain();
+        if base == rev.into() {
+            Ok(None)
+        } else if self.uses_generaldelta() {
+            match self.check_revision(base) {
+                None => Err(HgError::corrupted("bad base")),
+                Some(base) => Ok(Some(base)),
+            }
+        } else if rev.0 <= 0 {
+            Err(HgError::corrupted("unbound delta chain"))
+        } else {
+            Ok(Some(Revision(rev.0 - 1)))
+        }
+    }
+
     /// Obtain the delta chain for a revision.
     ///
     /// `stop_rev` specifies a revision to stop at. If not specified, we
@@ -841,10 +872,10 @@ impl Index {
             None
         };
         self.bytes.remove(rev, offsets.as_deref())?;
-        if self.is_inline() {
-            if let Some(offsets) = &mut *self.get_offsets_mut() {
-                offsets.truncate(rev.0 as usize)
-            }
+        if self.is_inline()
+            && let Some(offsets) = &mut *self.get_offsets_mut()
+        {
+            offsets.truncate(rev.0 as usize)
         }
         self.clear_head_revs();
         Ok(())
@@ -1713,7 +1744,7 @@ impl TryFrom<usize> for Phase {
                 return Err(RevlogError::corrupted(format!(
                     "invalid phase value {}",
                     v
-                )))
+                )));
             }
         })
     }

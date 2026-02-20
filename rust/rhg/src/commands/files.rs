@@ -1,4 +1,5 @@
 use clap::Arg;
+use hg::dirstate::DirstateError;
 use hg::file_patterns::parse_pattern_args;
 use hg::matchers::IntersectionMatcher;
 use hg::narrow;
@@ -7,14 +8,14 @@ use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_os_str;
 use hg::utils::filter_map_results;
 use hg::utils::hg_path::HgPath;
-use hg::warnings::format::write_warning;
 use hg::warnings::HgWarningContext;
+use hg::warnings::format::write_warning;
 use rayon::prelude::*;
 
 use crate::error::CommandError;
-use crate::ui::relative_paths;
 use crate::ui::RelativePaths;
 use crate::ui::Ui;
+use crate::ui::relative_paths;
 use crate::utils::path_utils::RelativizePaths;
 
 pub const HELP_TEXT: &str = "
@@ -134,7 +135,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             })
             .collect();
 
-        let mut files = files_res?;
+        let mut files = files_res.map_err(DirstateError::from)?;
         files.par_sort_unstable();
 
         display_files(

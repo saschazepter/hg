@@ -8,31 +8,32 @@ use std::os::unix::prelude::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 
-use clap::command;
 use clap::Arg;
 use clap::ArgMatches;
+use clap::command;
 use format_bytes::format_bytes;
 use format_bytes::join;
 use hg::config::Config;
 use hg::config::ConfigSource;
 use hg::config::PlainInfo;
+use hg::errors::HgBacktrace;
+use hg::errors::HgError;
 use hg::exit_codes;
 use hg::repo::Repo;
-use hg::repo::RepoError;
 use hg::requirements;
 use hg::utils::files::get_path_from_bytes;
-use hg::utils::strings::join_display;
 use hg::utils::strings::SliceExt;
-use tracing::span;
+use hg::utils::strings::join_display;
 use tracing::Level;
+use tracing::span;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::ChromeLayerBuilder;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::FlushGuard;
+use tracing_subscriber::EnvFilter;
 #[cfg(not(feature = "full-tracing"))]
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 use crate::error::CommandError;
 use crate::ui::Ui;
@@ -344,9 +345,9 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
     };
     let repo_result = match Repo::find(&non_repo_config, repo_path.to_owned()) {
         Ok(repo) => Ok(repo),
-        Err(RepoError::NotFound { at }) if repo_path.is_none() => {
+        Err(HgError::RepoNotFound { at, backtrace }) if repo_path.is_none() => {
             // Not finding a repo is not fatal yet, if `-R` was not given
-            Err(NoRepoInCwdError { cwd: at })
+            Err(NoRepoInCwdError { cwd: at, backtrace })
         }
         Err(error) => early_exit(&non_repo_config, error.into()),
     };
@@ -831,6 +832,7 @@ pub struct CliInvocation<'a> {
 
 struct NoRepoInCwdError {
     cwd: PathBuf,
+    backtrace: HgBacktrace,
 }
 
 /// CLI arguments to be parsed "early" in order to be able to read
@@ -900,15 +902,15 @@ impl EarlyArgs {
         let arg = arg.as_bytes();
         for &flag in EarlyFlag::all() {
             let flag_str = flag.as_str().as_bytes();
-            if arg == flag_str {
-                if let Some(value) = next() {
-                    return Some((flag, value.as_bytes()));
-                }
+            if arg == flag_str
+                && let Some(value) = next()
+            {
+                return Some((flag, value.as_bytes()));
             }
-            if let Some(rest) = arg.drop_prefix(flag_str) {
-                if let Some(value) = rest.drop_prefix(flag.value_sep()) {
-                    return Some((flag, value));
-                }
+            if let Some(rest) = arg.drop_prefix(flag_str)
+                && let Some(value) = rest.drop_prefix(flag.value_sep())
+            {
+                return Some((flag, value));
             }
         }
         None
@@ -1057,17 +1059,26 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
 #[allow(clippy::type_complexity)]
 const AUTO_UPGRADES: &[((&str, &str), (&str, &str), &str)] = &[
     (
-        ("format", "use-share-safe.automatic-upgrade-of-mismatching-repositories"),
+        (
+            "format",
+            "use-share-safe.automatic-upgrade-of-mismatching-repositories",
+        ),
         ("format", "use-share-safe"),
         requirements::SHARESAFE_REQUIREMENT,
     ),
     (
-        ("format", "use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories"),
+        (
+            "format",
+            "use-dirstate-tracked-hint.automatic-upgrade-of-mismatching-repositories",
+        ),
         ("format", "use-dirstate-tracked-hint"),
         requirements::DIRSTATE_TRACKED_HINT_V1,
     ),
     (
-        ("format", "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories"),
+        (
+            "format",
+            "use-dirstate-v2.automatic-upgrade-of-mismatching-repositories",
+        ),
         ("format", "use-dirstate-v2"),
         requirements::DIRSTATE_V2_REQUIREMENT,
     ),

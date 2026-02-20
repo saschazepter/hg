@@ -9,10 +9,10 @@ use std::io::Write;
 use std::process;
 use std::time::Instant;
 
+use chg::ChgUiHandler;
 use chg::locator::Locator;
 use chg::locator::{self};
 use chg::procutil;
-use chg::ChgUiHandler;
 
 struct DebugLogger {
     start: Instant,

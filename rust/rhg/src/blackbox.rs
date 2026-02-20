@@ -123,7 +123,9 @@ impl<'a> Blackbox<'a> {
 impl ConfiguredBlackbox<'_> {
     fn log(&self, date_time: &DateTime, message: &[u8]) {
         let date = format_bytes::Utf8(date_time.format(self.date_format));
-        let user = get_bytes_from_os_str(whoami::username_os());
+        let user =
+            whoami::username_os().unwrap_or_else(|_| OsString::from("unknown"));
+        let user = get_bytes_from_os_str(user);
         let rev = format_bytes::Utf8(match self.repo.dirstate_parents() {
             Ok(parents) if parents.p2 == hg::revlog::node::NULL_NODE => {
                 format!("{:x}", parents.p1)

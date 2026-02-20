@@ -10,40 +10,41 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::os::fd::AsRawFd;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
+use hg::BaseRevision;
+use hg::Graph;
+use hg::NULL_REVISION;
+use hg::Revision;
+use hg::UncheckedRevision;
 use hg::dyn_bytes::DynBytes;
 use hg::errors::HgError;
+use hg::revlog::RevlogError;
+use hg::revlog::RevlogIndex;
+use hg::revlog::RevlogType;
+use hg::revlog::index::INDEX_ENTRY_SIZE;
 use hg::revlog::index::Index;
 use hg::revlog::index::IndexHeader;
 use hg::revlog::index::Phase;
-use hg::revlog::index::RevisionDataParams;
 use hg::revlog::index::SnapshotsCache;
-use hg::revlog::index::INDEX_ENTRY_SIZE;
 use hg::revlog::inner_revlog::InnerRevlog as CoreInnerRevlog;
 use hg::revlog::nodemap::NodeMap;
 use hg::revlog::nodemap::NodeMapError;
 use hg::revlog::nodemap::NodeTree as CoreNodeTree;
 use hg::revlog::options::RevlogOpenOptions;
 use hg::revlog::path_encode::PathEncoding;
-use hg::revlog::RevlogError;
-use hg::revlog::RevlogIndex;
-use hg::revlog::RevlogType;
+use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
 use hg::utils::u32_u;
-use hg::utils::RawData;
 use hg::vfs::EncodedVfs;
 use hg::vfs::VfsImpl;
-use hg::BaseRevision;
-use hg::Revision;
-use hg::UncheckedRevision;
-use hg::NULL_REVISION;
+use pyo3::IntoPyObjectExt;
 use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
 use pyo3::exceptions::PyIndexError;
@@ -57,10 +58,10 @@ use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PySet;
 use pyo3::types::PyTuple;
-use pyo3::IntoPyObjectExt;
 use pyo3_sharedref::PyShareable;
 use pyo3_sharedref::SharedByPyObject;
 
+use crate::exceptions::GraphError;
 use crate::exceptions::graph_error;
 use crate::exceptions::map_lock_error;
 use crate::exceptions::map_try_lock_error;
@@ -68,28 +69,32 @@ use crate::exceptions::nodemap_error;
 use crate::exceptions::rev_not_in_index;
 use crate::exceptions::revlog_error;
 use crate::exceptions::revlog_error_bare;
-use crate::exceptions::revlog_error_from_msg;
+use crate::exceptions::revlog_error_from_io;
 use crate::node::node_from_py_bytes;
 use crate::node::node_prefix_from_py_bytes;
 use crate::node::py_node_for_rev;
+use crate::revision::PyRevision;
 use crate::revision::check_revision;
 use crate::revision::rev_pyiter_collect;
 use crate::revision::rev_pyiter_collect_or_else;
 use crate::revision::revs_py_list;
 use crate::revision::revs_py_set;
-use crate::revision::PyRevision;
 use crate::transaction::PyTransaction;
+use crate::utils::PyBytesDeref;
 use crate::utils::new_submodule;
 use crate::utils::take_buffer_with_slice;
 use crate::utils::with_pybytes_buffer;
-use crate::utils::PyBytesDeref;
 
 mod config;
 use config::*;
 mod index;
-use index::py_tuple_to_revision_data_params;
-use index::revision_data_params_to_py_tuple;
 pub use index::PySharedIndex;
+use index::py_tuple_to_revision_data_params;
+
+/// the compression used for the data-chunk is "inline"
+///
+/// The compression is indicated at the start of the chunk
+const IDX_COMPRESSION_INLINE: u8 = 2;
 
 #[pyclass]
 struct ReadingContextManager {
@@ -106,7 +111,7 @@ impl ReadingContextManager {
             unsafe { shareable.borrow_with_owner(inner_bound) }.read();
         core_irl
             .enter_reading_context()
-            .map_err(revlog_error_from_msg)
+            .map_err(revlog_error_from_io)
             .inspect_err(|_e| {
                 // `__exit__` is not called from Python if `__enter__` fails
                 core_irl.exit_reading_context();
@@ -146,7 +151,7 @@ impl WritingContextManager {
                     .try_write()
                     .expect("transaction should be protected by the GIL"),
             )
-            .map_err(revlog_error_from_msg)
+            .map_err(revlog_error_from_io)
             .inspect_err(|_e| {
                 // `__exit__` is not called from Python if `__enter__` fails
                 core_irl.exit_writing_context();
@@ -271,7 +276,7 @@ impl InnerRevlog {
         let index_file = get_path_from_bytes(index_file.as_bytes()).to_owned();
         let data_file = get_path_from_bytes(data_file.as_bytes()).to_owned();
         let revlog_type =
-            RevlogType::try_from(revlog_type).map_err(revlog_error_from_msg)?;
+            RevlogType::try_from(revlog_type).map_err(revlog_error_from_io)?;
         let data_config = extract_data_config(data_config, revlog_type)?;
         let delta_config = extract_delta_config(delta_config, revlog_type)?;
         let feature_config =
@@ -287,7 +292,7 @@ impl InnerRevlog {
         // `index_mmap`
         let (buf, bytes) = unsafe { take_buffer_with_slice(index_data)? };
         let index = Index::new(DynBytes::new(bytes), options.index_header())
-            .map_err(revlog_error_from_msg)?;
+            .map_err(revlog_error_from_io)?;
 
         let base = get_path_from_bytes(vfs_base.as_bytes()).to_owned();
         let core = CoreInnerRevlog::new(
@@ -619,7 +624,7 @@ impl InnerRevlog {
             // is alive
             let (_buf, data) = unsafe { take_buffer_with_slice(data)? };
             let compressed =
-                irl.compress(&data).map_err(revlog_error_from_msg)?;
+                irl.compress(&data).map_err(revlog_error_from_io)?;
             let compressed = compressed.as_deref();
             let header = if compressed.is_some() {
                 PyBytes::new(py, &b""[..])
@@ -652,7 +657,7 @@ impl InnerRevlog {
                 .expect("invalid header bytes");
             let old_path = irl
                 .split_inline(header, new_index_file_path)
-                .map_err(revlog_error_from_msg)?;
+                .map_err(revlog_error_from_io)?;
             Ok(PyBytes::new(py, &get_bytes_from_path(old_path)).unbind())
         })
     }
@@ -669,7 +674,7 @@ impl InnerRevlog {
             // Panics will alert the offending programmer if not.
             let (offset, data) = irl
                 .get_segment_for_revs(Revision(startrev.0), Revision(endrev.0))
-                .map_err(revlog_error_from_msg)?;
+                .map_err(revlog_error_from_io)?;
             let data = PyBytes::new(py, &data);
             Ok(PyTuple::new(
                 py,
@@ -693,7 +698,7 @@ impl InnerRevlog {
                 py_bytes = with_pybytes_buffer(py, size, f)?;
                 Ok(())
             })
-            .map_err(revlog_error_from_msg)?;
+            .map_err(revlog_error_from_io)?;
             Ok(PyTuple::new(
                 py,
                 &[
@@ -723,9 +728,9 @@ impl InnerRevlog {
             let rev_2 = check_revision(idx, rev_2)?;
             let bytes = if let Some(delta) = extra_delta {
                 irl.rev_delta_extra(rev_1, rev_2, delta)
-                    .map_err(revlog_error_from_msg)?
+                    .map_err(revlog_error_from_io)?
             } else {
-                irl.rev_delta(rev_1, rev_2).map_err(revlog_error_from_msg)?
+                irl.rev_delta(rev_1, rev_2).map_err(revlog_error_from_io)?
             };
             let py_bytes: Py<PyBytes> = PyBytes::new(py, &bytes).unbind();
             Ok(py_bytes)
@@ -776,7 +781,7 @@ impl InnerRevlog {
                     index_end,
                     data_end,
                 )
-                .map_err(revlog_error_from_msg)?;
+                .map_err(revlog_error_from_io)?;
             let tuple = PyTuple::new(
                 py,
                 [idx_pos.into_py_any(py)?, data_pos.into_py_any(py)?],
@@ -790,7 +795,7 @@ impl InnerRevlog {
         py: Python<'_>,
     ) -> PyResult<Option<Py<PyBytes>>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
-            let path = irl.delay().map_err(revlog_error_from_msg)?;
+            let path = irl.delay().map_err(revlog_error_from_io)?;
             Ok(path.map(|p| PyBytes::new(py, &get_bytes_from_path(p)).unbind()))
         })
     }
@@ -801,7 +806,7 @@ impl InnerRevlog {
     ) -> PyResult<Py<PyTuple>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
             let (path, any_pending) =
-                irl.write_pending().map_err(revlog_error_from_msg)?;
+                irl.write_pending().map_err(revlog_error_from_io)?;
             let maybe_path = match path {
                 Some(path) => PyBytes::new(py, &get_bytes_from_path(path))
                     .unbind()
@@ -818,7 +823,7 @@ impl InnerRevlog {
         py: Python<'_>,
     ) -> PyResult<Py<PyBytes>> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
-            let path = irl.finalize_pending().map_err(revlog_error_from_msg)?;
+            let path = irl.finalize_pending().map_err(revlog_error_from_io)?;
             Ok(PyBytes::new(py, &get_bytes_from_path(path)).unbind())
         })
     }
@@ -831,7 +836,7 @@ impl InnerRevlog {
         Self::with_core_read(slf, |_self_ref, irl| {
             let chunk = irl
                 .chunk_for_rev(Revision(rev.0))
-                .map_err(revlog_error_from_msg)?;
+                .map_err(revlog_error_from_io)?;
             Ok(PyBytes::new(py, &chunk).unbind())
         })
     }
@@ -886,6 +891,160 @@ impl InnerRevlog {
         Self::_index_get_rev(slf, node)?.ok_or_else(revlog_error_bare)
     }
 
+    fn _index_parents(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<(i32, i32)> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => idx
+                .parents(r)
+                .map_err(GraphError::from_hg)
+                .map(|ps| (ps[0].0, ps[1].0)),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    fn _index_parents_raw(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<(i32, i32)> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => {
+                let (p1, p2) = idx.parents_raw(r).into();
+                Ok((p1.0, p2.0))
+            }
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    fn _index_linkrev(slf: &Bound<'_, Self>, rev: PyRevision) -> PyResult<i32> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(idx.get_entry(r).link_revision().0),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    fn _index_flags(slf: &Bound<'_, Self>, rev: PyRevision) -> PyResult<u16> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(idx.get_entry(r).flags()),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    fn _index_bundle_repo_delta_base(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<i32> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => {
+                Ok(idx.get_entry(r).base_revision_or_base_of_delta_chain().0)
+            }
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    /// the raw size of the revision data
+    ///
+    /// The "raw data" is stored content because flag processing and with
+    /// optionnal metadata attached.
+    fn _index_raw_size(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<Option<i32>> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(match idx.get_entry(r).uncompressed_len() {
+                size @ 0.. => Some(size),
+                _ => None,
+            }),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    /// The starting offset of a revision data chunk.
+    fn _index_data_chunk_start(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<usize> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(idx.get_entry(r).offset()),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    /// The size of a revision data chunk in bytes
+    fn _index_data_chunk_length(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<u32> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(idx.get_entry(r).compressed_len()),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    /// the type of compression used a revision data chunk
+    fn _index_data_chunk_compression_mode(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u8> {
+        Ok(IDX_COMPRESSION_INLINE)
+    }
+
+    fn _index_delta_base(
+        slf: &Bound<'_, Self>,
+        rev: PyRevision,
+    ) -> PyResult<Option<i32>> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => match idx.delta_base(r) {
+                Err(_) => Err(PyValueError::new_err("corrupted revlog")),
+                Ok(r) => Ok(r.map(|rev| rev.0)),
+            },
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
+    fn _index_sidedata_chunk_offset(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u64> {
+        Ok(0)
+    }
+
+    fn _index_sidedata_chunk_length(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u32> {
+        Ok(0)
+    }
+
+    fn _index_sidedata_chunk_compression_mode(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u8> {
+        Ok(IDX_COMPRESSION_INLINE)
+    }
+
+    /// return the rank of <rev> if known
+    ///
+    /// return `revlog_constants.RANK_UNKNOWN` otherwise.
+    fn _index_lazy_rank(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<i32> {
+        Ok(-1)
+    }
+
+    fn _index_node<'py>(
+        slf: &Bound<'py, Self>,
+        py: Python<'py>,
+        rev: PyRevision,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
+            Ok(r) => Ok(PyBytes::new(py, idx.node(r).as_bytes())),
+            Err(e) => Err(PyIndexError::new_err(e)),
+        })
+    }
+
     /// return True if the node exist in the index
     fn _index_has_node(
         slf: &Bound<'_, Self>,
@@ -927,7 +1086,7 @@ impl InnerRevlog {
     ) -> PyResult<()> {
         Self::with_core_write(slf, |_, mut irl| {
             irl.index_append(py_tuple_to_revision_data_params(tup)?)
-                .map_err(revlog_error_from_msg)?;
+                .map_err(revlog_error_from_io)?;
 
             Ok(())
         })
@@ -963,7 +1122,7 @@ impl InnerRevlog {
             let start = irl.index.check_revision(start).ok_or_else(|| {
                 nodemap_error(NodeMapError::RevisionNotInIndex(start))
             })?;
-            irl.index.remove(start).map_err(revlog_error_from_msg)?;
+            irl.index.remove(start).map_err(revlog_error_from_io)?;
             irl.nodemap_invalidate().map_err(nodemap_error)?;
             Ok(())
         })
@@ -1313,41 +1472,6 @@ impl InnerRevlog {
 
     fn _index___len__(slf: &Bound<'_, Self>) -> PyResult<usize> {
         Self::with_index_read(slf, |idx| Ok(idx.len()))
-    }
-
-    fn _index___getitem__(
-        slf: &Bound<'_, Self>,
-        py: Python<'_>,
-        key: &Bound<'_, PyAny>,
-    ) -> PyResult<Py<PyAny>> {
-        Self::with_index_read(slf, |idx| {
-            match key.extract::<BaseRevision>() {
-                Ok(key_as_int) => {
-                    let entry_params = if key_as_int == NULL_REVISION.0 {
-                        RevisionDataParams::default()
-                    } else {
-                        let rev = UncheckedRevision(key_as_int);
-                        match idx.entry_as_params(rev) {
-                            Some(e) => e,
-                            None => {
-                                return Err(PyIndexError::new_err(
-                                    "revlog index out of range",
-                                ));
-                            }
-                        }
-                    };
-                    Ok(revision_data_params_to_py_tuple(py, entry_params)?
-                        .into_any()
-                        .unbind())
-                }
-                // Case when key is a binary Node ID (lame: we're re-unlocking)
-                _ => Self::_index_get_rev(slf, key.cast::<PyBytes>()?)?
-                    .map_or_else(
-                        || Ok(py.None()),
-                        |py_rev| Ok(py_rev.into_pyobject(py)?.unbind().into()),
-                    ),
-            }
-        })
     }
 
     /// Returns the full nodemap bytes to be written as-is to disk

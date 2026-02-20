@@ -282,7 +282,7 @@ pub fn shell_quote(value: &[u8]) -> Vec<u8> {
 }
 
 /// Expand `$FOO` and `${FOO}` environment variables in the given byte string
-pub fn expand_vars(s: &[u8]) -> std::borrow::Cow<[u8]> {
+pub fn expand_vars(s: &[u8]) -> std::borrow::Cow<'_, [u8]> {
     lazy_static::lazy_static! {
         /// https://github.com/python/cpython/blob/3.9/Lib/posixpath.py#L301
         /// The `x` makes whitespace ignored.

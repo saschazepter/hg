@@ -15,17 +15,17 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-use rand::seq::SliceRandom;
-use rand::RngCore;
+use rand::Rng as RngTrait;
 use rand::SeedableRng;
+use rand::seq::SliceRandom;
 
 use super::Graph;
 use super::GraphError;
-use super::Revision;
 use super::NULL_REVISION;
+use super::Revision;
+use crate::FastHashMap;
 use crate::ancestors::MissingAncestors;
 use crate::dagops;
-use crate::FastHashMap;
 
 type Rng = rand_pcg::Pcg32;
 type Seed = [u8; 16];
@@ -86,17 +86,17 @@ where
         }
         if d == factor {
             sample.insert(current);
-            if let Some(sz) = quicksamplesize {
-                if sample.len() >= sz {
-                    return Ok(());
-                }
+            if let Some(sz) = quicksamplesize
+                && sample.len() >= sz
+            {
+                return Ok(());
             }
         }
         for p in parentsfn(current)? {
-            if let Some(revs) = revs {
-                if !revs.contains(&p) {
-                    continue;
-                }
+            if let Some(revs) = revs
+                && !revs.contains(&p)
+            {
+                continue;
             }
             distances.entry(p).or_insert(d + 1);
             visit.push_back(p);

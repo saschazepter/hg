@@ -2,26 +2,26 @@ use std::cmp::Ordering as O;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
-use super::diff::lines_prefix_size_low;
-use super::diff::CMP_BLK_SIZE;
-use super::patch::DeltaPiece;
 use super::RevlogType;
+use super::diff::CMP_BLK_SIZE;
+use super::diff::lines_prefix_size_low;
+use super::patch::DeltaPiece;
+use crate::Graph;
+use crate::GraphError;
+use crate::NULL_REVISION;
+use crate::Revision;
+use crate::UncheckedRevision;
 use crate::errors::HgError;
-use crate::revlog::diff::DeltaCursor;
-use crate::revlog::options::RevlogOpenOptions;
-use crate::revlog::patch;
 use crate::revlog::Node;
 use crate::revlog::NodePrefix;
 use crate::revlog::Revlog;
 use crate::revlog::RevlogError;
+use crate::revlog::diff::DeltaCursor;
+use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::patch;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::vfs::VfsImpl;
-use crate::Graph;
-use crate::GraphError;
-use crate::Revision;
-use crate::UncheckedRevision;
-use crate::NULL_REVISION;
 
 /// A specialized `Revlog` to work with `manifest` data format.
 pub struct Manifestlog {
@@ -134,7 +134,9 @@ impl Manifest {
         Self { bytes }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Result<ManifestEntry, HgError>> {
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = Result<ManifestEntry<'_>, HgError>> {
         self.bytes
             .split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())
@@ -145,7 +147,7 @@ impl Manifest {
     pub fn find_by_path(
         &self,
         path: &HgPath,
-    ) -> Result<Option<ManifestEntry>, HgError> {
+    ) -> Result<Option<ManifestEntry<'_>>, HgError> {
         use std::cmp::Ordering::*;
         let path = path.as_bytes();
         // Both boundaries of this `&[u8]` slice are always at the boundary of

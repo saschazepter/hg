@@ -5,17 +5,17 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use crate::Node;
+use crate::UncheckedRevision;
 use crate::errors::HgError;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
 use crate::repo::Repo;
+use crate::revlog::RevlogError;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestFlags;
-use crate::revlog::RevlogError;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
-use crate::Node;
-use crate::UncheckedRevision;
 
 /// List files under Mercurial control at a given revset.
 pub fn list_revset_tracked_files<M: Matcher>(
@@ -79,7 +79,7 @@ pub type ExpandedManifestEntry<'a> = (&'a HgPath, Node, ManifestFlags);
 impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<ExpandedManifestEntry, HgError>> {
+    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'_>, HgError>> {
         filter_map_results(self.manifest.iter(), |entry| {
             let path = entry.path;
             Ok(if self.narrow_matcher.matches(path) {

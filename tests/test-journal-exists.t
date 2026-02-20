@@ -50,7 +50,7 @@ Check that zero-size journals are correctly aborted:
   adding changesets
   transaction abort!
   rollback completed
-  abort: abort: when writing $TESTTMP/repo/foo/.hg/store/00changelog.i: $EACCES$
+  abort: when writing $TESTTMP/repo/foo/.hg/store/00changelog.i: $EACCES$
   [50]
 #else
   $ hg -R foo unbundle repo.hg

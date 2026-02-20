@@ -2,10 +2,10 @@
 //!
 //! From Python, this will be seen as `mercurial.pyo3_rustext.file_index`
 
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 use hg::file_index::DebugTreeChild;
 use hg::file_index::DebugTreeNode;
@@ -26,8 +26,8 @@ use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
-use pyo3_sharedref::py_shared_iterator;
 use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
 use crate::exceptions::to_string_value_error;

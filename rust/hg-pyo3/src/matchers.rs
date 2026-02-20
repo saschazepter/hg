@@ -2,16 +2,16 @@
 
 use hg::matchers::Matcher;
 use hg::utils::hg_path::HgPath;
+use pyo3::Bound;
+use pyo3::Py;
+use pyo3::PyResult;
+use pyo3::Python;
 use pyo3::pyclass;
 use pyo3::pymethods;
 use pyo3::types::PyBytes;
 use pyo3::types::PyList;
 use pyo3::types::PyModule;
 use pyo3::types::PyModuleMethods;
-use pyo3::Bound;
-use pyo3::Py;
-use pyo3::PyResult;
-use pyo3::Python;
 
 use crate::utils::new_submodule;
 

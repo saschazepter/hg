@@ -36,6 +36,7 @@ ill-formed config
   $ echo '=brokenconfig' >> $HGRCPATH
   $ chg status
   config error at * =brokenconfig (glob)
+  abort: config error at * =brokenconfig (glob) (rhg !)
   [30]
 
   $ cp $HGRCPATH.orig $HGRCPATH

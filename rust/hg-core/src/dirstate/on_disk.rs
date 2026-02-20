@@ -3,19 +3,19 @@
 //! See `mercurial/helptext/internals/dirstate-v2.txt`
 
 use std::borrow::Cow;
-use std::fmt::Display;
 use std::fmt::Write;
 
 use bitflags::bitflags;
+use bytes_cast::BytesCast;
 use bytes_cast::unaligned::U16Be;
 use bytes_cast::unaligned::U32Be;
-use bytes_cast::BytesCast;
 use format_bytes::format_bytes;
-use rand::Rng;
+use rand::RngExt;
 use uuid::Uuid;
 
-use super::dirstate_map::DirstateIdentity;
 use super::DirstateError;
+use super::dirstate_map::DirstateIdentity;
+use crate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateMap;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::dirstate_map::DirstateVersion;
@@ -31,7 +31,6 @@ use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
-use crate::DirstateParents;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
@@ -187,37 +186,24 @@ type OptPathSlice = PathSlice;
 /// Unexpected file format found in `.hg/dirstate` with the "v2" format.
 ///
 /// This should only happen if Mercurial is buggy or a repository is corrupted.
-#[derive(Debug)]
-pub struct DirstateV2ParseError {
-    message: String,
-    backtrace: HgBacktrace,
-}
-
-impl DirstateV2ParseError {
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        Self { message: message.into(), backtrace: HgBacktrace::capture() }
-    }
-}
-
-impl From<DirstateV2ParseError> for HgError {
-    fn from(e: DirstateV2ParseError) -> Self {
-        HgError::CorruptedRepository(
-            format!("dirstate-v2 parse error: {}", e.message),
-            e.backtrace,
-        )
-    }
-}
-
-impl Display for DirstateV2ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}dirstate-v2 parse error: {}", self.backtrace, self.message)
-    }
-}
-
-impl From<DirstateV2ParseError> for DirstateError {
-    fn from(error: DirstateV2ParseError) -> Self {
-        HgError::from(error).into()
-    }
+#[derive(Debug, PartialEq)]
+pub enum DirstateV2ParseError {
+    /// The docket is corrupted and cannot be parsed
+    CorruptedDocket(String, HgBacktrace),
+    /// The tree is somehow corrupted
+    CorruptedTreeMetadata(String, HgBacktrace),
+    /// The docket does not have the valid "magic" marker or a valid uuid
+    InvalidMarkerOrUuid(HgBacktrace),
+    /// Not enough bytes to parse whatever needs to be parse
+    NotEnoughBytes { start: usize, len: usize, backtrace: HgBacktrace },
+    /// This slice is invalid and cannot be parsed
+    InvalidSlice { message: String, backtrace: HgBacktrace },
+    /// This timestamp cannot be represented in the dirstate
+    TimestampNotInRange {
+        truncated_seconds: u32,
+        nanoseconds: u32,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl TreeMetadata {
@@ -288,15 +274,18 @@ impl Docket<'_> {
     }
 }
 
-pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateV2ParseError> {
+pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateError> {
     let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
-        DirstateV2ParseError::new(format!("when reading docket, {}", e))
+        DirstateV2ParseError::CorruptedDocket(
+            e.to_string(),
+            HgBacktrace::capture(),
+        )
     })?;
     let uuid_size = header.uuid_size as usize;
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError::new("invalid format marker or uuid size"))
+        Err(DirstateV2ParseError::InvalidMarkerOrUuid(HgBacktrace::capture()))?
     }
 }
 
@@ -314,16 +303,17 @@ pub(super) fn read<'on_disk>(
         return Ok(map);
     }
     let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
-        DirstateV2ParseError::new(format!("when parsing tree metadata, {}", e))
+        DirstateV2ParseError::CorruptedTreeMetadata(
+            e.to_string(),
+            HgBacktrace::capture(),
+        )
     })?;
     let dirstate_map = DirstateMap {
         on_disk,
-        root: dirstate_map::ChildNodes::OnDisk(
-            read_nodes(on_disk, meta.root_nodes).map_err(|mut e| {
-                e.message = format!("{}, when reading root notes", e.message);
-                e
-            })?,
-        ),
+        root: dirstate_map::ChildNodes::OnDisk(read_nodes(
+            on_disk,
+            meta.root_nodes,
+        )?),
         nodes_with_entry_count: meta.nodes_with_entry_count.get(),
         nodes_with_copy_source_count: meta.nodes_with_copy_source_count.get(),
         ignore_patterns_hash: meta.ignore_patterns_hash,
@@ -350,11 +340,16 @@ impl Node {
         &self,
     ) -> Result<usize, DirstateV2ParseError> {
         let start = self.base_name_start.get();
-        if start < self.full_path.len.get() {
+        let len = self.full_path.len.get();
+        if start < len {
             let start = usize::from(start);
             Ok(start)
         } else {
-            Err(DirstateV2ParseError::new("not enough bytes for base name"))
+            Err(DirstateV2ParseError::NotEnoughBytes {
+                start: start.into(),
+                len: len.into(),
+                backtrace: HgBacktrace::capture(),
+            })
         }
     }
 
@@ -612,12 +607,17 @@ where
     let bytes = match on_disk.get(start..) {
         Some(bytes) => bytes,
         None => {
-            return Err(DirstateV2ParseError::new("not enough bytes from disk"))
+            return Err(DirstateV2ParseError::NotEnoughBytes {
+                start,
+                len,
+                backtrace: HgBacktrace::capture(),
+            });
         }
     };
     T::slice_from_bytes(bytes, len)
-        .map_err(|e| {
-            DirstateV2ParseError::new(format!("when reading a slice, {}", e))
+        .map_err(|e| DirstateV2ParseError::InvalidSlice {
+            message: e.to_string(),
+            backtrace: HgBacktrace::capture(),
         })
         .map(|(slice, _rest)| slice)
 }
@@ -655,11 +655,10 @@ pub(super) fn write(
         let full_path = node.full_path(dirstate_map.on_disk)?;
         let base_name = node.base_name(dirstate_map.on_disk)?;
         if full_path != base_name {
-            let explanation = format!(
-                "Dirstate root node '{}' is not at the root",
-                full_path
-            );
-            return Err(HgError::corrupted(explanation).into());
+            return Err(DirstateError::RootNotAtRoot(
+                full_path.to_owned(),
+                HgBacktrace::capture(),
+            ));
         }
     }
     let root_nodes = writer.write_nodes(root_nodes)?;
@@ -694,14 +693,14 @@ impl Writer<'_, '_> {
         nodes: dirstate_map::ChildNodesRef,
     ) -> Result<ChildNodes, DirstateError> {
         // Reuse already-written nodes if possible
-        if self.append {
-            if let dirstate_map::ChildNodesRef::OnDisk(nodes_slice) = nodes {
-                let start = self.on_disk_offset_of(nodes_slice).expect(
-                    "dirstate-v2 OnDisk nodes not found within on_disk",
-                );
-                let len = child_nodes_len_from_usize(nodes_slice.len());
-                return Ok(ChildNodes { start, len });
-            }
+        if self.append
+            && let dirstate_map::ChildNodesRef::OnDisk(nodes_slice) = nodes
+        {
+            let start = self
+                .on_disk_offset_of(nodes_slice)
+                .expect("dirstate-v2 OnDisk nodes not found within on_disk");
+            let len = child_nodes_len_from_usize(nodes_slice.len());
+            return Ok(ChildNodes { start, len });
         }
 
         // `dirstate_map::ChildNodes::InMemory` contains a `HashMap` which has
@@ -807,13 +806,11 @@ impl Writer<'_, '_> {
                 || &child_prefix[0..child_prefix.len() - 1]
                     != full_path.as_bytes()
             {
-                let explanation = format!(
-                    "dirstate child node's path '{}' \
-                        does not start with its parent's path '{}'",
-                    child_full_path, full_path,
-                );
-
-                return Err(HgError::corrupted(explanation).into());
+                return Err(DirstateError::BadChildPrefix {
+                    child_path: child_full_path.to_owned(),
+                    path: full_path.to_owned(),
+                    backtrace: HgBacktrace::capture(),
+                });
             }
         }
         Ok(())
@@ -853,10 +850,10 @@ impl Writer<'_, '_> {
     fn write_path(&mut self, slice: &[u8]) -> PathSlice {
         let len = path_len_from_usize(slice.len());
         // Reuse an already-written path if possible
-        if self.append {
-            if let Some(start) = self.on_disk_offset_of(slice) {
-                return PathSlice { start, len };
-            }
+        if self.append
+            && let Some(start) = self.on_disk_offset_of(slice)
+        {
+            return PathSlice { start, len };
         }
         let start = self.current_offset();
         self.out.extend(slice.as_bytes());
@@ -927,5 +924,6 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
     }
     // TODO use `hg_vfs` once the `InnerRevlog` is in.
     let path = repo.working_directory_path().join(".hg/dirstate-tracked-hint");
-    std::fs::write(&path, Uuid::new_v4().as_bytes()).when_writing_file(&path)
+    let uuid = Uuid::new_v4();
+    Ok(std::fs::write(&path, uuid.as_bytes()).when_writing_file(&path)?)
 }

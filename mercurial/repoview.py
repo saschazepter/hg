@@ -428,7 +428,7 @@ class repoview:
         # bypass call to changelog.method
         unfiindex = unfichangelog.index
         unfilen = len(unfiindex)
-        unfinode = unfiindex[unfilen - 1][7]
+        unfinode = unfiindex.node(unfilen - 1)
         revs = filterrevs(unfi, self.filtername, self._visibilityexceptions)
         cl = self._clcache
         newkey = (unfilen, unfinode, hash(revs), unfichangelog.is_delaying)

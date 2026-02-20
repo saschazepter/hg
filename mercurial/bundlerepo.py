@@ -172,8 +172,7 @@ class bundlerevlog(revlog.revlog):
         """return or calculate a delta between two revisions"""
         if rev1 > self.repotiprev and rev2 > self.repotiprev:
             # hot path for bundle
-            revb = self.index[rev2][3]
-            if revb == rev1:
+            if self.index.bundle_repo_delta_base(rev2) == rev1:
                 return self._chunk(rev2)
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
             return revlog.revlog.revdiff(self, rev1, rev2, extra_delta)
@@ -204,7 +203,7 @@ class bundlerevlog(revlog.revlog):
                 rawtext = cached[1]
                 break
             chain.append(iterrev)
-            iterrev = self.index[iterrev][3]
+            iterrev = self.index.bundle_repo_delta_base(iterrev)
         if iterrev == nullrev:
             rawtext = b''
         elif rawtext is None:

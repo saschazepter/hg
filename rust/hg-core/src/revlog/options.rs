@@ -2,12 +2,12 @@
 
 use std::collections::HashSet;
 
+use super::RevlogType;
 use super::compression::CompressionConfig;
 use super::index::FLAG_DELTA_INFO;
 use super::index::FLAG_FILELOG_META;
 use super::index::FLAG_GENERALDELTA;
 use super::index::FLAG_INLINE_DATA;
-use super::RevlogType;
 use crate::config::Config;
 use crate::config::ResourceProfileValue;
 use crate::errors::HgError;
@@ -192,14 +192,14 @@ impl RevlogDataConfig {
         let mmap_index = config
             .get_option_no_default(b"storage", b"revlog.mmap.index")?
             .unwrap_or(can_populate_mmap());
-        if mmap_index {
-            if let Some(mmap_index_threshold) = config.get_byte_size(
+        if mmap_index
+            && let Some(mmap_index_threshold) = config.get_byte_size(
                 b"storage",
                 b"revlog.mmap.index:size-threshold",
-            )? {
-                // Only mmap if above the requested size threshold
-                data_config.mmap_index_threshold = Some(mmap_index_threshold);
-            }
+            )?
+        {
+            // Only mmap if above the requested size threshold
+            data_config.mmap_index_threshold = Some(mmap_index_threshold);
         }
 
         let with_sparse_read =

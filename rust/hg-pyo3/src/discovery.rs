@@ -1,8 +1,13 @@
 //! Discovery of common node sets
 use std::collections::HashSet;
 
-use hg::discovery::PartialDiscovery as CorePartialDiscovery;
 use hg::Revision;
+use hg::discovery::PartialDiscovery as CorePartialDiscovery;
+use pyo3::Bound;
+use pyo3::Py;
+use pyo3::PyAny;
+use pyo3::PyResult;
+use pyo3::Python;
 use pyo3::intern;
 use pyo3::pyclass;
 use pyo3::pymethods;
@@ -11,16 +16,11 @@ use pyo3::types::PyDict;
 use pyo3::types::PyModule;
 use pyo3::types::PyModuleMethods;
 use pyo3::types::PyTuple;
-use pyo3::Bound;
-use pyo3::Py;
-use pyo3::PyAny;
-use pyo3::PyResult;
-use pyo3::Python;
 use pyo3_sharedref::SharedByPyObject;
 
 use crate::exceptions::GraphError;
-use crate::revision::rev_pyiter_collect;
 use crate::revision::PyRevision;
+use crate::revision::rev_pyiter_collect;
 use crate::revlog::PySharedIndex;
 use crate::utils::new_submodule;
 use crate::utils::py_rust_index_to_graph;

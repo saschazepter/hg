@@ -11,6 +11,8 @@
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+use hg::DirstateParents;
+use hg::dirstate::StateMapIter;
 use hg::dirstate::dirstate_map::DirstateEntryReset;
 use hg::dirstate::dirstate_map::DirstateIdentity as CoreDirstateIdentity;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
@@ -19,10 +21,8 @@ use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::owning::OwningDirstateMap;
-use hg::dirstate::StateMapIter;
 use hg::utils::files::normalize_case;
 use hg::utils::hg_path::HgPath;
-use hg::DirstateParents;
 use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
@@ -32,17 +32,16 @@ use pyo3::types::PyDict;
 use pyo3::types::PyDictMethods;
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
-use pyo3_sharedref::py_shared_iterator;
 use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::py_shared_iterator;
 
 use super::copy_map::CopyMap;
 use super::item::DirstateItem;
 use crate::exceptions::dirstate_error;
 use crate::exceptions::dirstate_v2_error;
 use crate::exceptions::map_try_lock_error;
-use crate::exceptions::to_string_value_error;
-use crate::node::node_from_py_bytes;
 use crate::node::PyNode;
+use crate::node::node_from_py_bytes;
 use crate::path::PyHgPathBuf;
 use crate::path::PyHgPathDirstateV2Result;
 use crate::path::PyHgPathRef;
@@ -128,7 +127,7 @@ impl DirstateMap {
         let path = HgPath::new(key.as_bytes());
 
         Self::with_inner_read(slf, |_self_ref, inner| {
-            match inner.get(path).map_err(dirstate_v2_error)? {
+            match inner.get(path).map_err(dirstate_error)? {
                 Some(entry) => Ok(Some(
                     DirstateItem::new_as_py(slf.py(), entry)?.into_any(),
                 )),
@@ -142,9 +141,7 @@ impl DirstateMap {
         f: &Bound<'_, PyBytes>,
     ) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner
-                .set_tracked(HgPath::new(f.as_bytes()))
-                .map_err(dirstate_v2_error)
+            inner.set_tracked(HgPath::new(f.as_bytes())).map_err(dirstate_error)
         })
     }
 
@@ -255,15 +252,13 @@ impl DirstateMap {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner
                 .has_tracked_dir(HgPath::new(d.as_bytes()))
-                .map_err(to_string_value_error)
+                .map_err(dirstate_error)
         })
     }
 
     fn hasdir(slf: &Bound<'_, Self>, d: &Bound<'_, PyBytes>) -> PyResult<bool> {
         Self::with_inner_write(slf, |_self_ref, mut inner| {
-            inner
-                .has_dir(HgPath::new(d.as_bytes()))
-                .map_err(to_string_value_error)
+            inner.has_dir(HgPath::new(d.as_bytes())).map_err(dirstate_error)
         })
     }
 
@@ -351,7 +346,7 @@ impl DirstateMap {
         Self::with_inner_read(slf, |_self_ref, inner| {
             inner
                 .contains_key(HgPath::new(key.as_bytes()))
-                .map_err(dirstate_v2_error)
+                .map_err(dirstate_error)
         })
     }
 
@@ -362,7 +357,7 @@ impl DirstateMap {
         let key_bytes = key.as_bytes();
         let path = HgPath::new(key_bytes);
         Self::with_inner_read(slf, |_self_ref, inner| {
-            match inner.get(path).map_err(dirstate_v2_error)? {
+            match inner.get(path).map_err(dirstate_error)? {
                 Some(entry) => DirstateItem::new_as_py(slf.py(), entry),
                 None => Err(PyKeyError::new_err(
                     String::from_utf8_lossy(key_bytes).to_string(),

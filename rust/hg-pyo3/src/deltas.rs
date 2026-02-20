@@ -1,16 +1,16 @@
 use std::ops::Deref;
 
+use hg::Revision;
 use hg::revlog::deltas::estimate_combined_deltas_size;
 use hg::revlog::deltas::optimize_base;
 use hg::utils::filter_map_results;
-use hg::Revision;
 use pyo3::buffer::PyBuffer;
 use pyo3::prelude::*;
 use pyo3::types::PyIterator;
 use pyo3::types::PyList;
 
-use crate::utils::new_submodule;
 use crate::utils::PyBufferDeref;
+use crate::utils::new_submodule;
 
 fn get_vec_of_non_empty_chunks(
     chunks: &Bound<'_, PyList>,

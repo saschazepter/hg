@@ -632,7 +632,7 @@ Testing failures:
 No local source
 
   $ hg clone a b
-  abort: repository a not found
+  abort: no repository found in 'a' (.hg not found)!
   [255]
 
 Invalid URL
@@ -1122,7 +1122,7 @@ Test that auto sharing doesn't cause failure of "hg clone local remote"
   $ hg -R a id -r 0
   acb14030fe0a
   $ hg id -R remote -r 0
-  abort: repository remote not found
+  abort: no repository found in 'remote' (.hg not found)!
   [255]
   $ hg --config share.pool=share -q clone a ssh://user@dummy/remote
   $ hg -R remote id -r 0

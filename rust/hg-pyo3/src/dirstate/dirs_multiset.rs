@@ -12,14 +12,15 @@ use std::sync::RwLockWriteGuard;
 
 use hg::dirstate::dirs_multiset::DirsMultiset;
 use hg::dirstate::dirs_multiset::DirsMultisetIter;
+use hg::errors::HgError;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
-use pyo3_sharedref::py_shared_iterator;
 use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
 use crate::exceptions::to_string_value_error;
@@ -68,7 +69,9 @@ impl Dirs {
     ) -> PyResult<()> {
         let path = HgPath::new(path.as_bytes());
         Self::with_inner_write(slf, |mut inner| {
-            inner.delete_path(path).map_err(to_string_value_error)
+            inner
+                .delete_path(path)
+                .map_err(|e| to_string_value_error(HgError::from(e)))
         })
     }
 

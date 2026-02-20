@@ -56,10 +56,8 @@ impl DirstateItem {
             if has_meaningful_data {
                 mode_size_opt = Some((mode, size))
             }
-            if has_meaningful_mtime {
-                if let Some(m) = mtime {
-                    mtime_opt = Some(timestamp(m)?);
-                }
+            if has_meaningful_mtime && let Some(m) = mtime {
+                mtime_opt = Some(timestamp(m)?);
             }
         }
         Ok(Self {
@@ -228,11 +226,11 @@ impl DirstateItem {
         Ok(Self { entry: entry.into() }.into_pyobject(py)?.unbind())
     }
 
-    fn read(&self) -> PyResult<RwLockReadGuard<DirstateEntry>> {
+    fn read(&self) -> PyResult<RwLockReadGuard<'_, DirstateEntry>> {
         self.entry.read().map_err(map_lock_error)
     }
 
-    fn write(&self) -> PyResult<RwLockWriteGuard<DirstateEntry>> {
+    fn write(&self) -> PyResult<RwLockWriteGuard<'_, DirstateEntry>> {
         self.entry.write().map_err(map_lock_error)
     }
 }

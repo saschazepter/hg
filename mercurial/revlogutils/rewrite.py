@@ -17,18 +17,6 @@ from ..node import (
 )
 from .constants import (
     COMP_MODE_PLAIN,
-    ENTRY_DATA_COMPRESSED_LENGTH,
-    ENTRY_DATA_COMPRESSION_MODE,
-    ENTRY_DATA_OFFSET,
-    ENTRY_DATA_UNCOMPRESSED_LENGTH,
-    ENTRY_DELTA_BASE,
-    ENTRY_LINK_REV,
-    ENTRY_NODE_ID,
-    ENTRY_PARENT_1,
-    ENTRY_PARENT_2,
-    ENTRY_SIDEDATA_COMPRESSED_LENGTH,
-    ENTRY_SIDEDATA_COMPRESSION_MODE,
-    ENTRY_SIDEDATA_OFFSET,
     META_MARKER,
     META_MARKER_SIZE,
     REVIDX_ISCENSORED,
@@ -173,9 +161,8 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
 
     first_excl_rev = min(censor_revs)
 
-    first_excl_entry = revlog.index[first_excl_rev]
+    data_cutoff = revlog.index.data_chunk_start(first_excl_rev)
     index_cutoff = revlog.index.entry_size * first_excl_rev
-    data_cutoff = first_excl_entry[ENTRY_DATA_OFFSET] >> 16
     sidedata_cutoff = revlog.sidedata_cut_off(first_excl_rev)
 
     with pycompat.unnamedtempfile(mode=b"w+b") as tmp_storage:
@@ -249,24 +236,24 @@ def _precompute_rewritten_delta(
                 # this revision will be preserved as is, so we don't need to
                 # consider recomputing a delta.
                 continue
-            entry = old_index[rev]
-            if entry[ENTRY_DELTA_BASE] not in excluded_revs:
+            if old_index.delta_base(rev) not in excluded_revs:
                 continue
             # This is a revision that use the censored revision as the base
             # for its delta. We need a need new deltas
-            if entry[ENTRY_DATA_UNCOMPRESSED_LENGTH] == 0:
+            if old_index.raw_size(rev) == 0:
                 # this revision is empty, we can delta against nullrev
                 rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
             else:
                 text = revlog.rawdata(rev)
+                p1, p2 = old_index.parents(rev)
                 info = revlogutils.revisioninfo(
-                    node=entry[ENTRY_NODE_ID],
-                    p1=revlog.node(entry[ENTRY_PARENT_1]),
-                    p2=revlog.node(entry[ENTRY_PARENT_2]),
+                    node=old_index.node(rev),
+                    p1=old_index.node(p1),
+                    p2=old_index.node(p2),
                     btext=text,
                     textlen=len(text),
                     cachedelta=None,
-                    flags=entry[ENTRY_DATA_OFFSET] & 0xFFFF,
+                    flags=old_index.flags(rev),
                 )
                 d = dc.finddeltainfo(
                     info, excluded_bases=excluded_revs, target_rev=rev
@@ -372,16 +359,13 @@ def _rewrite_simple(
         new_data_file,
         new_sidedata_file,
     ) = all_files
-    entry = old_index[rev]
-    flags = entry[ENTRY_DATA_OFFSET] & 0xFFFF
-    old_data_offset = entry[ENTRY_DATA_OFFSET] >> 16
 
     if rev not in rewritten_entries:
-        old_data_file.seek(old_data_offset)
-        new_data_size = entry[ENTRY_DATA_COMPRESSED_LENGTH]
+        old_data_file.seek(old_index.data_chunk_start(rev))
+        new_data_size = old_index.data_chunk_length(rev)
         new_data = old_data_file.read(new_data_size)
-        data_delta_base = entry[ENTRY_DELTA_BASE]
-        d_comp_mode = entry[ENTRY_DATA_COMPRESSION_MODE]
+        data_delta_base = old_index.bundle_repo_delta_base(rev)
+        d_comp_mode = old_index.data_chunk_compression_mode(rev)
     else:
         (
             data_delta_base,
@@ -400,28 +384,30 @@ def _rewrite_simple(
     new_data_offset = new_data_file.tell()
     new_data_file.write(new_data)
 
-    sidedata_size = entry[ENTRY_SIDEDATA_COMPRESSED_LENGTH]
+    sidedata_size = old_index.sidedata_chunk_length(rev)
     new_sidedata_offset = new_sidedata_file.tell()
     if 0 < sidedata_size:
-        old_sidedata_offset = entry[ENTRY_SIDEDATA_OFFSET]
+        old_sidedata_offset = old_index.sidedata_chunk_offset(rev)
         old_sidedata_file.seek(old_sidedata_offset)
         new_sidedata = old_sidedata_file.read(sidedata_size)
         new_sidedata_file.write(new_sidedata)
 
-    data_uncompressed_length = entry[ENTRY_DATA_UNCOMPRESSED_LENGTH]
-    sd_com_mode = entry[ENTRY_SIDEDATA_COMPRESSION_MODE]
+    data_uncompressed_length = old_index.raw_size(rev)
+    sd_com_mode = old_index.sidedata_chunk_compression_mode(rev)
     assert data_delta_base <= rev, (data_delta_base, rev)
 
+    p1, p2 = old_index.parents(rev)
+
     new_entry = revlogutils.entry(
-        flags=flags,
+        flags=old_index.flags(rev),
         data_offset=new_data_offset,
         data_compressed_length=new_data_size,
         data_uncompressed_length=data_uncompressed_length,
         data_delta_base=data_delta_base,
-        link_rev=entry[ENTRY_LINK_REV],
-        parent_rev_1=entry[ENTRY_PARENT_1],
-        parent_rev_2=entry[ENTRY_PARENT_2],
-        node_id=entry[ENTRY_NODE_ID],
+        link_rev=old_index.linkrev(rev),
+        parent_rev_1=p1,
+        parent_rev_2=p2,
+        node_id=old_index.node(rev),
         sidedata_offset=new_sidedata_offset,
         sidedata_compressed_length=sidedata_size,
         data_compression_mode=d_comp_mode,
@@ -451,7 +437,6 @@ def _rewrite_censor(
         new_data_file,
         new_sidedata_file,
     ) = all_files
-    entry = old_index[rev]
 
     # XXX consider trying the default compression too
     new_data_size = len(tombstone)
@@ -460,10 +445,7 @@ def _rewrite_censor(
 
     # we are not adding any sidedata as they might leak info about the censored version
 
-    link_rev = entry[ENTRY_LINK_REV]
-
-    p1 = entry[ENTRY_PARENT_1]
-    p2 = entry[ENTRY_PARENT_2]
+    p1, p2 = old_index.parents(rev)
 
     new_entry = revlogutils.entry(
         flags=constants.REVIDX_ISCENSORED,
@@ -471,10 +453,10 @@ def _rewrite_censor(
         data_compressed_length=new_data_size,
         data_uncompressed_length=new_data_size,
         data_delta_base=rev,
-        link_rev=link_rev,
+        link_rev=old_index.linkrev(rev),
         parent_rev_1=p1,
         parent_rev_2=p2,
-        node_id=entry[ENTRY_NODE_ID],
+        node_id=old_index.node(rev),
         sidedata_offset=0,
         sidedata_compressed_length=0,
         data_compression_mode=COMP_MODE_PLAIN,
@@ -508,7 +490,8 @@ def _write_swapped_parents(repo, rl, rev, offset, fp):
         raise error.ProgrammingError(msg)
 
     index_format = parsers.IndexObject.index_format
-    entry = rl.index[rev]
+    bin_entry = rl.index.entry_binary(rev)
+    entry = index_format.unpack(bin_entry)
     new_entry = list(entry)
     new_entry[5], new_entry[6] = entry[6], entry[5]
     packed = index_format.pack(*new_entry[:8])
@@ -1004,23 +987,21 @@ def quick_upgrade(rl):
     )[0]
 
     for filerev in rl:
-        (
-            data_offset_and_flag,
-            data_compressed_length,
-            data_uncompressed_length,
-            delta_base,
-            link_rev,
-            parent_1,
-            parent_2,
-            node_id,
-            side_data_offset,
-            side_data_compressed_length,
-            data_compression_mode,
-            sidedata_compression_mode,
-            rank,
-        ) = index[filerev]
-        flags = data_offset_and_flag & 0xFFFF
-        dataoffset = int(data_offset_and_flag >> 16)
+        flags = index.flags(filerev)
+        dataoffset = index.data_chunk_start(filerev)
+        data_compressed_length = index.data_chunk_length(filerev)
+        data_uncompressed_length = index.raw_size(filerev)
+        delta_base = index.bundle_repo_delta_base(filerev)
+        link_rev = index.linkrev(filerev)
+        parent_1, parent_2 = index.parents(filerev)
+        node_id = index.node(filerev)
+        side_data_offset = index.sidedata_chunk_offset(filerev)
+        side_data_compressed_length = index.sidedata_chunk_length(filerev)
+        data_compression_mode = index.data_chunk_compression_mode(filerev)
+        sidedata_compression_mode = index.sidedata_chunk_compression_mode(
+            filerev
+        )
+        rank = index.lazy_rank(filerev)
 
         if parent_1 == nullrev and parent_2 != nullrev:
             parent_1, parent_2 = parent_2, parent_1

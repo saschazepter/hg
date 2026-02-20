@@ -36,7 +36,7 @@ fn copy_mode(
         // error, which we don't need because all it does is applying
         // umask, which the OS already does when we mkdir.
         {
-            return Ok(())
+            return Ok(());
         }
         Err(e) => return Err(e),
     };

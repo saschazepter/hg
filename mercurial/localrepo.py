@@ -571,7 +571,9 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 _(b'invalid path %s: %s') % (path, stringutil.forcebytestr(e))
             )
 
-        raise error.RepoError(_(b'repository %s not found') % path)
+        raise error.RepoError(
+            _(b"no repository found in '%s' (.hg not found)!") % path
+        )
 
     requirements = scmutil.readrequires(hgvfs, True)
     shared = (
@@ -2026,8 +2028,9 @@ class localrepository(_localrepo_base_classes):
         (e.g. namespace).
 
         """
+        branchmap = self.branchmap()
         try:
-            return self.branchmap().branchtip(branch)
+            return branchmap.branchtip(branch)
         except KeyError:
             if not ignoremissing:
                 raise error.RepoLookupError(_(b"unknown branch '%s'") % branch)

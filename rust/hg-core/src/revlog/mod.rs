@@ -16,10 +16,10 @@ use inner_revlog::InnerRevlog;
 use inner_revlog::RevisionBuffer;
 use memmap2::MmapOptions;
 pub use node::FromHexError;
-pub use node::Node;
-pub use node::NodePrefix;
 pub use node::NULL_NODE;
 pub use node::NULL_NODE_ID;
+pub use node::Node;
+pub use node::NodePrefix;
 use nodemap::read_persistent_nodemap;
 use options::RevlogOpenOptions;
 pub mod changelog;
@@ -40,12 +40,13 @@ use self::nodemap_docket::NodeMapDocket;
 use crate::dyn_bytes::DynBytes;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::NodeMapError;
-use crate::utils::u32_u;
 use crate::utils::RawData;
+use crate::utils::u32_u;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
 
@@ -182,7 +183,7 @@ pub trait Graph {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError>;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GraphError {
     /// Parent revision does not exist, i.e. below 0 or above max revision.
     ParentOutOfRange(Revision),
@@ -281,10 +282,10 @@ pub trait RevlogIndexNodeLookup: RevlogIndex {
             };
             visit(candidate_node, rev);
             if prefix.is_prefix_of(&candidate_node) {
-                if let Some((found_prefix, found_rev)) = found_by_prefix {
-                    if candidate_node != found_prefix || rev != found_rev {
-                        return Err(NodeMapError::MultipleResults);
-                    }
+                if let Some((found_prefix, found_rev)) = found_by_prefix
+                    && (candidate_node != found_prefix || rev != found_rev)
+                {
+                    return Err(NodeMapError::MultipleResults);
                 }
                 if prefix.nybbles_len() == candidate_node.nybbles_len() {
                     // Exact match, no need to keep looking
@@ -335,8 +336,16 @@ pub enum RevlogError {
     WDirUnsupported,
     /// Found more than one entry whose ID match the requested prefix
     AmbiguousPrefix(String),
+    /// Boxed otherwise the enum is very large in memory
+    IO(Box<HgIoError>),
     #[from]
     Other(HgError),
+}
+
+impl From<HgIoError> for RevlogError {
+    fn from(value: HgIoError) -> Self {
+        Self::IO(Box::new(value))
+    }
 }
 
 impl From<(NodeMapError, String)> for RevlogError {
@@ -501,14 +510,17 @@ impl Revlog {
         self.index().check_revision(rev).is_some()
     }
 
-    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(
+        &self,
+        rev: Revision,
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         self.inner.get_entry(rev)
     }
 
     pub fn get_entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         self.inner.get_entry_for_unchecked_rev(rev)
     }
 
@@ -707,20 +719,9 @@ pub fn open_index(
             }
             buf.unwrap()
         }
-        Err(err) => match err {
-            HgError::IoError { error, context, backtrace } => {
-                match error.kind() {
-                    ErrorKind::NotFound => DynBytes::default(),
-                    _ => {
-                        return Err(HgError::IoError {
-                            error,
-                            context,
-                            backtrace,
-                        })
-                    }
-                }
-            }
-            e => return Err(e),
+        Err(err) => match err.kind() {
+            Some(ErrorKind::NotFound) => DynBytes::default(),
+            _ => return Err(HgError::IO(err)),
         },
     };
 
@@ -843,12 +844,12 @@ impl<'revlog> RevlogEntry<'revlog> {
             self.revlog.seen_file_size(u32_u(size));
         }
         let cached_rev = self.revlog.get_rev_cache();
-        if let Some(ref cached) = cached_rev {
-            if cached.rev == self.rev {
-                let raw_text = cached.as_data();
-                self.revlog.set_rev_cache_native(self.rev, &raw_text);
-                return Ok(raw_text);
-            }
+        if let Some(ref cached) = cached_rev
+            && cached.rev == self.rev
+        {
+            let raw_text = cached.as_data();
+            self.revlog.set_rev_cache_native(self.rev, &raw_text);
+            return Ok(raw_text);
         }
         let cache = cached_rev.as_ref().map(|c| c.as_delta_base());
         let stop_rev = cache.map(|(r, _)| r);

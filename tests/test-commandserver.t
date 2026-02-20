@@ -760,7 +760,7 @@ don't fall back to cwd if invalid -R path is specified (issue4805):
 
   $ cd repo
   $ hg serve --cmdserver pipe -R ../nonexistent
-  abort: repository ../nonexistent not found
+  abort: no repository found in '../nonexistent' (.hg not found)!
   [255]
   $ cd ..
 

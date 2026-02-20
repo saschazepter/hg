@@ -2,16 +2,19 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::Path;
 
+use format_bytes::DisplayBytes;
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
-use format_bytes::DisplayBytes;
 
+use crate::NULL_REVISION;
+use crate::Node;
+use crate::Revision;
 use crate::errors::HgError;
 use crate::exit_codes::STATE_ERROR;
-use crate::file_patterns::parse_pattern_file_contents;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternSyntax;
+use crate::file_patterns::parse_pattern_file_contents;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
@@ -24,9 +27,6 @@ use crate::requirements::SPARSE_REQUIREMENT;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
-use crate::Node;
-use crate::Revision;
-use crate::NULL_REVISION;
 
 /// Command which is triggering the config read
 #[derive(Copy, Clone, Debug)]
@@ -159,7 +159,7 @@ impl From<SparseConfigError> for HgError {
             }
             SparseConfigError::HgError(hg_error) => hg_error,
             SparseConfigError::PatternError(pattern_error) => {
-                HgError::abort(pattern_error.to_string(), STATE_ERROR, None)
+                HgError::from(pattern_error)
             }
         }
     }
@@ -242,7 +242,11 @@ pub(crate) fn parse_config(
 fn read_temporary_includes(
     repo: &Repo,
 ) -> Result<Vec<Vec<u8>>, SparseConfigError> {
-    let raw = repo.hg_vfs().try_read("tempsparse")?.unwrap_or_default();
+    let raw = repo
+        .hg_vfs()
+        .try_read("tempsparse")
+        .map_err(HgError::from)?
+        .unwrap_or_default();
     if raw.is_empty() {
         return Ok(vec![]);
     }
@@ -258,7 +262,11 @@ fn patterns_for_rev(
     if !repo.has_sparse() {
         return Ok(None);
     }
-    let raw = repo.hg_vfs().try_read("sparse")?.unwrap_or_default();
+    let raw = repo
+        .hg_vfs()
+        .try_read("sparse")
+        .map_err(HgError::from)?
+        .unwrap_or_default();
 
     if raw.is_empty() {
         return Ok(None);

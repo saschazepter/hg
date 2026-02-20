@@ -12,18 +12,18 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
+use bytes_cast::BytesCast;
 use bytes_cast::unaligned::U16Be;
 use bytes_cast::unaligned::U32Be;
-use bytes_cast::BytesCast;
 use self_cell::self_cell;
 
 use super::FileToken;
 use crate::utils::docket::FileUid;
 use crate::utils::hg_path::HgPath;
-use crate::utils::u16_u;
-use crate::utils::u32_u;
 use crate::utils::u_u16;
 use crate::utils::u_u32;
+use crate::utils::u16_u;
+use crate::utils::u32_u;
 
 /// Error type for file index corruption.
 #[derive(Debug, PartialEq)]
@@ -54,7 +54,10 @@ impl std::fmt::Display for Error {
                 write!(f, "file is smaller than its 'used size' docket field")
             }
             Error::BadMetaFilesize => {
-                write!(f, "meta file 'used size' is not a multiple of the record size")
+                write!(
+                    f,
+                    "meta file 'used size' is not a multiple of the record size"
+                )
             }
             Error::ListFileOutOfBounds => {
                 write!(f, "list file access out of bounds")

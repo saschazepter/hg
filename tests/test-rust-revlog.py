@@ -11,6 +11,7 @@ from mercurial.node import (
     hex,
 )
 from mercurial import error
+from mercurial.pure import parsers  # no-policy
 
 try:
     from mercurial import pyo3_rustext
@@ -57,12 +58,6 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         idx = self.parserustindex()
         self.assertEqual(len(idx), 4)
 
-    def test_getitem(self):
-        idx = self.parserustindex()
-        as_tuple = (0, 82969, 484626, 0, 0, -1, -1, self.node0, 0, 0, 2, 2, -1)
-        self.assertEqual(idx[0], as_tuple)
-        self.assertEqual(idx[self.node0], 0)
-
     def test_heads(self):
         idx = self.parserustindex()
         self.assertEqual(idx.headrevs(), [3])
@@ -73,7 +68,9 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         self.assertIsNone(idx.get_rev(self.node0))
 
         non_empty_index = self.parserustindex()
-        idx.append(non_empty_index[0])
+        bin_entry = b'\0\0\0\0' + non_empty_index.entry_binary(0)
+        entry = parsers.IndexObject.index_format.unpack(bin_entry)
+        idx.append(entry)
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx.get_rev(self.node0), 0)
 
@@ -144,7 +141,7 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         # invalidation is upon mutation *of the index*
         self.assertFalse(nt.is_invalidated())
 
-        bin_nodes = [entry[7] for entry in idx]
+        bin_nodes = [idx.node(r) for r in range(len(idx))]
         hex_nodes = [hex(n) for n in bin_nodes]
 
         for i, node in enumerate(hex_nodes):

@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use std::env;
 use std::fmt::Debug;
 
-use hg::testing::VecGraph;
 use hg::Revision;
+use hg::testing::VecGraph;
 use hg::*;
+use rand::Rng;
+use rand::RngExt;
+use rand::SeedableRng;
 use rand::distr::Distribution;
 use rand::distr::Uniform;
-use rand::Rng;
-use rand::RngCore;
-use rand::SeedableRng;
 use rand_distr::LogNormal;
 
 fn build_random_graph(
@@ -185,7 +185,7 @@ impl<'a> NaiveMissingAncestors<'a> {
 ///     the default mu and sigma give us a nice distribution of mostly
 ///     single-digit counts (including 0) with some higher ones
 /// The sample may include NULL_REVISION
-fn sample_revs<R: RngCore>(
+fn sample_revs<R: Rng>(
     rng: &mut R,
     maxrev: Revision,
     mu_opt: Option<f64>,

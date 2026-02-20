@@ -2,6 +2,7 @@ use core::str;
 
 use lazy_static::lazy_static;
 
+use crate::errors::HgBacktrace;
 use crate::file_patterns::PatternError;
 
 lazy_static! {
@@ -160,11 +161,19 @@ impl PreRegex {
     }
 
     pub fn parse(re: &[u8]) -> Result<Self, PatternError> {
-        let re_str = str::from_utf8(re)
-            .map_err(|err| PatternError::UnsupportedSyntax(err.to_string()))?;
+        let re_str =
+            str::from_utf8(re).map_err(|err| PatternError::NonUtf8Pattern {
+                pattern: re.to_owned(),
+                valid_up_to: err.valid_up_to(),
+                backtrace: HgBacktrace::capture(),
+            })?;
         Ok(Self::Re((
             regex_syntax::parse(re_str).map_err(|err| {
-                PatternError::UnsupportedSyntax(err.to_string())
+                PatternError::RegexError {
+                    needle: re_str.to_string(),
+                    error: err.to_string(),
+                    backtrace: HgBacktrace::capture(),
+                }
             })?,
             re.to_vec(),
         )))

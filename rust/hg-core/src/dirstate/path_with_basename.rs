@@ -118,11 +118,10 @@ impl<'a> WithBasename<&'a HgPath> {
     pub fn inclusive_ancestors_of(
         path: &'a HgPath,
     ) -> impl Iterator<Item = WithBasename<&'a HgPath>> {
-        let mut slash_positions = path
-            .as_bytes()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &byte)| if byte == b'/' { Some(i) } else { None });
+        let mut slash_positions =
+            path.as_bytes().iter().enumerate().filter_map(|(i, &byte)| {
+                if byte == b'/' { Some(i) } else { None }
+            });
         let mut opt_next_component_start = Some(0);
         std::iter::from_fn(move || {
             opt_next_component_start.take().map(|next_component_start| {

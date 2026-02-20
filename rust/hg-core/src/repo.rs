@@ -8,22 +8,21 @@ use std::io::Write as IoWrite;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::NodePrefix;
+use crate::UncheckedRevision;
 use crate::config::Config;
-use crate::config::ConfigError;
-use crate::config::ConfigParseError;
+use crate::dirstate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateIdentity;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::on_disk::Docket as DirstateDocket;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::status::IgnoreFnType;
-use crate::dirstate::DirstateError;
-use crate::dirstate::DirstateParents;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
-use crate::lock::try_with_lock_no_wait;
 use crate::lock::LockError;
+use crate::lock::try_with_lock_no_wait;
 use crate::matchers::get_ignore_files;
 use crate::matchers::get_ignore_function;
 use crate::requirements;
@@ -31,25 +30,23 @@ use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
 use crate::requirements::FILEINDEX_V1_REQUIREMENT;
 use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
+use crate::revlog::RevlogError;
+use crate::revlog::RevlogType;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::Manifestlog;
 use crate::revlog::options::default_revlog_options;
 use crate::revlog::path_encode::PathEncoding;
-use crate::revlog::RevlogError;
-use crate::revlog::RevlogType;
 use crate::utils::debug::debug_wait_for_file_or_print;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
-use crate::vfs::is_dir;
-use crate::vfs::is_file;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
+use crate::vfs::is_dir;
+use crate::vfs::is_file;
 use crate::warnings::HgWarningSender;
-use crate::NodePrefix;
-use crate::UncheckedRevision;
 
 const V2_MAX_READ_ATTEMPTS: usize = 5;
 
@@ -69,57 +66,16 @@ pub struct Repo {
     manifestlog: LazyCell<Manifestlog>,
 }
 
-#[derive(Debug, derive_more::From)]
-pub enum RepoError {
-    NotFound {
-        at: PathBuf,
-    },
-    #[from]
-    ConfigParseError(ConfigParseError),
-    #[from]
-    Other(HgError),
-}
-
-impl From<ConfigError> for RepoError {
-    fn from(error: ConfigError) -> Self {
-        match error {
-            ConfigError::Parse(error) => error.into(),
-            ConfigError::Other(error) => error.into(),
-        }
-    }
-}
-
-impl From<RepoError> for HgError {
-    fn from(value: RepoError) -> Self {
-        match value {
-            RepoError::NotFound { at } => HgError::abort(
-                format!(
-                    "abort: no repository found in '{}' (.hg not found)!",
-                    at.display()
-                ),
-                exit_codes::ABORT,
-                None,
-            ),
-            RepoError::ConfigParseError(config_parse_error) => {
-                HgError::abort_simple(String::from_utf8_lossy(
-                    &config_parse_error.message,
-                ))
-            }
-            RepoError::Other(hg_error) => hg_error,
-        }
-    }
-}
-
 impl Repo {
     /// tries to find nearest repository root in current working directory or
     /// its ancestors
-    pub fn find_repo_root() -> Result<PathBuf, RepoError> {
+    pub fn find_repo_root() -> Result<PathBuf, HgError> {
         let current_directory = crate::utils::current_dir()?;
         Repo::find_repo_root_from(&current_directory)
     }
 
     /// tries to find nearest repository root from a given path
-    pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, RepoError> {
+    pub fn find_repo_root_from(path: &Path) -> Result<PathBuf, HgError> {
         // ancestors() is inclusive: it first yields `patn`
         // as-is.
         for ancestor in path.ancestors() {
@@ -127,7 +83,10 @@ impl Repo {
                 return Ok(ancestor.to_path_buf());
             }
         }
-        Err(RepoError::NotFound { at: path.to_path_buf() })
+        Err(HgError::RepoNotFound {
+            at: path.to_path_buf(),
+            backtrace: HgBacktrace::capture(),
+        })
     }
 
     /// Find a repository, either at the given path (which must contain a `.hg`
@@ -141,14 +100,17 @@ impl Repo {
     pub fn find(
         config: &Config,
         explicit_path: Option<PathBuf>,
-    ) -> Result<Self, RepoError> {
+    ) -> Result<Self, HgError> {
         if let Some(root) = explicit_path {
             if is_dir(root.join(".hg"))? {
                 Self::new_at_path(root, config)
             } else if is_file(&root)? {
-                Err(HgError::unsupported("bundle repository").into())
+                Err(HgError::unsupported("bundle repository"))
             } else {
-                Err(RepoError::NotFound { at: root })
+                Err(HgError::RepoNotFound {
+                    at: root,
+                    backtrace: HgBacktrace::capture(),
+                })
             }
         } else {
             let root = Self::find_repo_root()?;
@@ -160,7 +122,7 @@ impl Repo {
     fn new_at_path(
         working_directory: PathBuf,
         config: &Config,
-    ) -> Result<Self, RepoError> {
+    ) -> Result<Self, HgError> {
         let dot_hg = working_directory.join(".hg");
 
         let mut repo_config_files =
@@ -201,8 +163,7 @@ impl Repo {
                 return Err(HgError::corrupted(format!(
                     ".hg/sharedpath points to nonexistent directory {}",
                     shared_path.display()
-                ))
-                .into());
+                )));
             }
 
             store_path = shared_path.join("store");
@@ -215,7 +176,7 @@ impl Repo {
             .contains(requirements::SHARESAFE_REQUIREMENT);
 
             if share_safe != source_is_share_safe {
-                return Err(HgError::unsupported("share-safe mismatch").into());
+                return Err(HgError::unsupported("share-safe mismatch"));
             }
 
             if share_safe {
@@ -428,7 +389,7 @@ impl Repo {
         }
     }
 
-    fn new_dirstate_map(&self) -> Result<OwningDirstateMap, DirstateError> {
+    fn new_dirstate_map(&self) -> Result<OwningDirstateMap, HgError> {
         if self.use_dirstate_v2() {
             // The v2 dirstate is split into a docket and a data file.
             // Since we don't always take the `wlock` to read it
@@ -445,9 +406,7 @@ impl Repo {
                         return Ok(m);
                     }
                     Err(e) => match e {
-                        DirstateError::Common(HgError::RaceDetected(
-                            context,
-                        )) => {
+                        HgError::RaceDetected(context) => {
                             tracing::info!(
                                 "dirstate read race detected {} (retry {}/{})",
                                 context,
@@ -471,13 +430,13 @@ impl Repo {
                 255,
                 None,
             );
-            Err(DirstateError::Common(error))
+            Err(error)
         } else {
             self.new_dirstate_map_v1()
         }
     }
 
-    fn new_dirstate_map_v1(&self) -> Result<OwningDirstateMap, DirstateError> {
+    fn new_dirstate_map_v1(&self) -> Result<OwningDirstateMap, HgError> {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let identity = self.dirstate_identity()?;
         let dirstate_file_contents = self.dirstate_file_contents()?;
@@ -495,9 +454,7 @@ impl Repo {
         }
     }
 
-    fn read_docket_and_data_file(
-        &self,
-    ) -> Result<OwningDirstateMap, DirstateError> {
+    fn read_docket_and_data_file(&self) -> Result<OwningDirstateMap, HgError> {
         debug_wait_for_file_or_print(self.config(), "dirstate.pre-read-file");
         let dirstate_file_contents = self.dirstate_file_contents()?;
         let identity = self.dirstate_identity()?;
@@ -523,7 +480,7 @@ impl Repo {
             let contents = self.hg_vfs().read(docket.data_filename());
             let contents = match contents {
                 Ok(c) => c,
-                Err(HgError::IoError { error, context, backtrace }) => {
+                Err(error) => {
                     match error.raw_os_error().expect("real os error") {
                         // 2 = ENOENT, No such file or directory
                         // 116 = ESTALE, Stale NFS file handle
@@ -533,19 +490,13 @@ impl Repo {
                         2 | 116 => {
                             // Race where the data file was deleted right after
                             // we read the docket, try again
-                            return Err(race_error.into());
+                            return Err(race_error);
                         }
                         _ => {
-                            return Err(HgError::IoError {
-                                error,
-                                context,
-                                backtrace,
-                            }
-                            .into())
+                            return Err(HgError::from(error));
                         }
                     }
                 }
-                Err(e) => return Err(e.into()),
             };
             OwningDirstateMap::new_v2(
                 contents, data_size, metadata, uuid, identity,
@@ -562,9 +513,9 @@ impl Repo {
                 Ok(None) => {
                     // Race where the data file was deleted right after we
                     // read the docket, try again
-                    return Err(race_error.into());
+                    return Err(race_error);
                 }
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(HgError::from(e)),
             }
         }?;
 
@@ -591,15 +542,13 @@ impl Repo {
         Ok(map)
     }
 
-    pub fn dirstate_map(
-        &self,
-    ) -> Result<Ref<OwningDirstateMap>, DirstateError> {
+    pub fn dirstate_map(&self) -> Result<Ref<'_, OwningDirstateMap>, HgError> {
         self.dirstate_map.get_or_init(|| self.new_dirstate_map())
     }
 
     pub fn dirstate_map_mut(
         &self,
-    ) -> Result<RefMut<OwningDirstateMap>, DirstateError> {
+    ) -> Result<RefMut<'_, OwningDirstateMap>, HgError> {
         self.dirstate_map.get_mut_or_init(|| self.new_dirstate_map())
     }
 
@@ -616,11 +565,11 @@ impl Repo {
         )
     }
 
-    pub fn changelog(&self) -> Result<Ref<Changelog>, HgError> {
+    pub fn changelog(&self) -> Result<Ref<'_, Changelog>, HgError> {
         self.changelog.get_or_init(|| self.new_changelog())
     }
 
-    pub fn changelog_mut(&self) -> Result<RefMut<Changelog>, HgError> {
+    pub fn changelog_mut(&self) -> Result<RefMut<'_, Changelog>, HgError> {
         self.changelog.get_mut_or_init(|| self.new_changelog())
     }
 
@@ -635,11 +584,11 @@ impl Repo {
         )
     }
 
-    pub fn manifestlog(&self) -> Result<Ref<Manifestlog>, HgError> {
+    pub fn manifestlog(&self) -> Result<Ref<'_, Manifestlog>, HgError> {
         self.manifestlog.get_or_init(|| self.new_manifestlog())
     }
 
-    pub fn manifestlog_mut(&self) -> Result<RefMut<Manifestlog>, HgError> {
+    pub fn manifestlog_mut(&self) -> Result<RefMut<'_, Manifestlog>, HgError> {
         self.manifestlog.get_mut_or_init(|| self.new_manifestlog())
     }
 
@@ -669,7 +618,7 @@ impl Repo {
         )
     }
 
-    pub fn has_subrepos(&self) -> Result<bool, DirstateError> {
+    pub fn has_subrepos(&self) -> Result<bool, HgError> {
         if let Some(entry) = self.dirstate_map()?.get(HgPath::new(".hgsub"))? {
             Ok(entry.tracked())
         } else {
@@ -695,7 +644,7 @@ impl Repo {
     ///
     /// TODO: have a `WritableRepo` type only accessible while holding the
     /// lock?
-    pub fn write_dirstate(&self) -> Result<(), DirstateError> {
+    pub fn write_dirstate(&self) -> Result<(), HgError> {
         let map = self.dirstate_map()?;
         // TODO: Maintain a `DirstateMap::dirty` flag, and return early here if
         // it’s unset
@@ -829,7 +778,7 @@ impl Repo {
         if let Some(uuid) = old_uuid_to_remove {
             // Remove the old data file after the new docket pointing to the
             // new data file was written.
-            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))?;
+            vfs.unlink(Path::new(&format!("dirstate.{}", uuid)))?
         }
         Ok(())
     }
@@ -843,16 +792,13 @@ impl Repo {
     pub fn get_ignore_function(
         &self,
         warnings: &HgWarningSender,
-    ) -> Result<IgnoreFnType, HgError> {
-        get_ignore_function(
+    ) -> Result<IgnoreFnType<'_>, HgError> {
+        Ok(get_ignore_function(
             get_ignore_files(self),
             self.working_directory_path(),
             &mut |_, _| (),
             warnings,
-        )
-        .map_err(|e| {
-            HgError::abort(e.to_string(), exit_codes::CONFIG_ERROR_ABORT, None)
-        })
+        )?)
     }
 
     /// Change the current working directory parents cached in the repo.
@@ -896,7 +842,7 @@ impl<T> LazyCell<T> {
     fn get_or_init<E>(
         &self,
         init: impl Fn() -> Result<T, E>,
-    ) -> Result<Ref<T>, E> {
+    ) -> Result<Ref<'_, T>, E> {
         let mut borrowed = self.value.borrow();
         if borrowed.is_none() {
             drop(borrowed);
@@ -912,7 +858,7 @@ impl<T> LazyCell<T> {
     fn get_mut_or_init<E>(
         &self,
         init: impl Fn() -> Result<T, E>,
-    ) -> Result<RefMut<T>, E> {
+    ) -> Result<RefMut<'_, T>, E> {
         let mut borrowed = self.value.borrow_mut();
         if borrowed.is_none() {
             *borrowed = Some(init()?);

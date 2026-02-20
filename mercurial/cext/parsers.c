@@ -31,7 +31,7 @@ static PyObject *dict_new_presized(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-	return _dict_new_presized(expected_size);
+	return _PyDict_NewPresized(expected_size);
 }
 
 static PyObject *dirstate_item_new(PyTypeObject *subtype, PyObject *args,

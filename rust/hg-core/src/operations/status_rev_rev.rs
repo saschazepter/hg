@@ -2,6 +2,8 @@ use std::borrow::Cow;
 
 use itertools::EitherOrBoth;
 
+use crate::NULL_REVISION;
+use crate::Revision;
 use crate::dirstate::status::StatusPath;
 use crate::errors::HgError;
 use crate::matchers::Matcher;
@@ -12,8 +14,6 @@ use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::merge_join_results_by;
-use crate::Revision;
-use crate::NULL_REVISION;
 
 #[derive(Debug, Copy, Clone)]
 pub enum DiffStatus {
@@ -60,7 +60,7 @@ pub fn status_rev_rev_no_copies<M: Matcher>(
     rev1: Revision,
     rev2: Revision,
     narrow_matcher: M,
-) -> Result<StatusRevRev<M>, HgError> {
+) -> Result<StatusRevRev<'_, M>, HgError> {
     Ok(StatusRevRev {
         manifest1: manifest_for_rev(repo, rev1)?,
         manifest2: manifest_for_rev(repo, rev2)?,
@@ -75,7 +75,7 @@ pub fn status_change<M: Matcher>(
     rev: Revision,
     narrow_matcher: M,
     list_copies: Option<ListCopies>,
-) -> Result<StatusRevRev<M>, HgError> {
+) -> Result<StatusRevRev<'_, M>, HgError> {
     let parent = repo.changelog()?.revlog.get_entry(rev)?.p1();
     let parent = parent.unwrap_or(NULL_REVISION);
     Ok(StatusRevRev {
@@ -149,10 +149,10 @@ impl<M: Matcher> StatusRevRev<'_, M> {
                 let data = repo
                     .filelog(path)?
                     .data_for_node(entry.node_id().unwrap())?;
-                if let Some(copy) = data.metadata()?.parse()?.copy {
-                    if self.manifest1.find_by_path(copy)?.is_some() {
-                        return Ok(Some(copy.to_owned()));
-                    }
+                if let Some(copy) = data.metadata()?.parse()?.copy
+                    && self.manifest1.find_by_path(copy)?.is_some()
+                {
+                    return Ok(Some(copy.to_owned()));
                 }
             }
         }

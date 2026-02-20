@@ -3,9 +3,9 @@ use std::path::Path;
 
 use crate::errors::HgError;
 use crate::exit_codes;
-use crate::file_patterns::parse_pattern_file_contents;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternSyntax;
+use crate::file_patterns::parse_pattern_file_contents;
 use crate::matchers::AlwaysMatcher;
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
@@ -110,7 +110,7 @@ pub fn store_patterns(
     )?;
     if store_patterns != working_copy_patterns {
         return Err(HgError::abort(
-            "abort: working copy's narrowspec is stale",
+            "working copy's narrowspec is stale",
             exit_codes::STATE_ERROR,
             Some("run 'hg tracked --update-working-copy'".into()),
         ));

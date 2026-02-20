@@ -1,10 +1,10 @@
 use hg::config::Config;
 use hg::repo::Repo;
 use hg::utils::files::get_path_from_bytes;
-use pyo3::types::PyBytes;
-use pyo3::types::PyBytesMethods;
 use pyo3::Bound;
 use pyo3::PyResult;
+use pyo3::types::PyBytes;
+use pyo3::types::PyBytesMethods;
 
 use crate::utils::HgPyErrExt;
 

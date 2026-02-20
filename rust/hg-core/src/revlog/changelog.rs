@@ -13,6 +13,9 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 
 use super::options::RevlogOpenOptions;
+use crate::Graph;
+use crate::GraphError;
+use crate::UncheckedRevision;
 use crate::errors::HgError;
 use crate::revlog::Index;
 use crate::revlog::Node;
@@ -22,12 +25,9 @@ use crate::revlog::Revlog;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
-use crate::utils::hg_path::HgPath;
 use crate::utils::RawData;
+use crate::utils::hg_path::HgPath;
 use crate::vfs::VfsImpl;
-use crate::Graph;
-use crate::GraphError;
-use crate::UncheckedRevision;
 
 /// A specialized `Revlog` to work with changelog data format.
 pub struct Changelog {
@@ -64,13 +64,16 @@ impl Changelog {
     pub fn entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<ChangelogEntry, RevlogError> {
+    ) -> Result<ChangelogEntry<'_>, RevlogError> {
         let revlog_entry = self.revlog.get_entry_for_unchecked_rev(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
 
     /// Same as [`Self::entry_for_unchecked_rev`] for a checked revision
-    pub fn entry(&self, rev: Revision) -> Result<ChangelogEntry, RevlogError> {
+    pub fn entry(
+        &self,
+        rev: Revision,
+    ) -> Result<ChangelogEntry<'_>, RevlogError> {
         let revlog_entry = self.revlog.get_entry(rev)?;
         Ok(ChangelogEntry { revlog_entry })
     }
@@ -149,18 +152,18 @@ impl ChangelogEntry<'_> {
     ///
     /// This allows the caller to access the information that is common
     /// to all revlog entries: revision number, node id, parent revisions etc.
-    pub fn as_revlog_entry(&self) -> &RevlogEntry {
+    pub fn as_revlog_entry(&self) -> &RevlogEntry<'_> {
         &self.revlog_entry
     }
 
-    pub fn p1_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+    pub fn p1_entry(&self) -> Result<Option<ChangelogEntry<'_>>, RevlogError> {
         Ok(self
             .revlog_entry
             .p1_entry()?
             .map(|revlog_entry| Self { revlog_entry }))
     }
 
-    pub fn p2_entry(&self) -> Result<Option<ChangelogEntry>, RevlogError> {
+    pub fn p2_entry(&self) -> Result<Option<ChangelogEntry<'_>>, RevlogError> {
         Ok(self
             .revlog_entry
             .p2_entry()?
@@ -515,38 +518,48 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::NULL_REVISION;
     use crate::revlog::path_encode::PathEncoding;
     use crate::vfs::VfsImpl;
-    use crate::NULL_REVISION;
 
     #[test]
     fn test_create_changelogrevisiondata_invalid() {
         // Completely empty
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
-            .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
+                .is_err()
+        );
         // No newline after manifest
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
-            .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd")))
+                .is_err()
+        );
         // No newline after user
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n"
-        )))
-        .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(b"abcd\n")))
+                .is_err()
+        );
         // No newline after timestamp
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n\n0 0"
-        )))
-        .is_err());
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(
+                b"abcd\n\n0 0"
+            )))
+            .is_err()
+        );
         // Missing newline after files
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n\n0 0\nfile1\nfile2"
-        )))
-        .is_err(),);
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(
+                b"abcd\n\n0 0\nfile1\nfile2"
+            )))
+            .is_err(),
+        );
         // Only one newline after files
-        assert!(ChangelogRevisionData::new(RawData::from(Vec::from(
-            b"abcd\n\n0 0\nfile1\nfile2\n"
-        )))
-        .is_err(),);
+        assert!(
+            ChangelogRevisionData::new(RawData::from(Vec::from(
+                b"abcd\n\n0 0\nfile1\nfile2\n"
+            )))
+            .is_err(),
+        );
     }
 
     #[test]

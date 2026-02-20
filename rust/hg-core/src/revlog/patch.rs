@@ -21,8 +21,8 @@ use byteorder::ByteOrder;
 use super::inner_revlog::RevisionBuffer;
 use crate::revlog::CoreRevisionBuffer;
 use crate::revlog::RevlogError;
-use crate::utils::u32_u;
 use crate::utils::u_u32;
+use crate::utils::u32_u;
 
 /// A piece of data to insert, delete or replace in a Delta
 pub(super) trait DeltaPiece<'a>: Clone {
@@ -339,7 +339,9 @@ where
             }
             let available = data.len() - 12;
             if len > u_u32(available + 12) {
-                let error = format!("patch insert more data than available: {len} < {available}");
+                let error = format!(
+                    "patch insert more data than available: {len} < {available}"
+                );
                 return Err(RevlogError::corrupted(error));
             }
             let d = D::new_rich(
@@ -634,7 +636,7 @@ pub fn build_data_from_deltas<T>(
 /// Parse the Deltas from their binary form.
 pub(super) fn deltas<D>(
     deltas: &[D],
-) -> Result<Vec<Delta<PlainDeltaPiece>>, RevlogError>
+) -> Result<Vec<Delta<'_, PlainDeltaPiece<'_>>>, RevlogError>
 where
     D: AsRef<[u8]>,
 {
@@ -658,8 +660,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rand::prelude::*;
     use rand::SeedableRng;
+    use rand::prelude::*;
 
     use super::*;
 
@@ -757,11 +759,8 @@ mod tests {
                 assert!(next_size <= 10);
                 assert!(1 <= next_size);
 
-                let mut d = TestDelta {
-                    src_size: src_size,
-                    dst_size: next_size,
-                    pieces: vec![],
-                };
+                let mut d =
+                    TestDelta { src_size, dst_size: next_size, pieces: vec![] };
 
                 let max_pos = src_size + 1;
                 let nb_pick = rng.random_range(1..10);
@@ -810,21 +809,14 @@ mod tests {
                         }
                     }
                 } else {
-                    tmp_patches = tmp_patches
-                        .into_iter()
-                        .filter(|p| {
-                            if p.old_size > 0 {
-                                true
-                            } else {
-                                if change_budget >= 0 {
-                                    true
-                                } else {
-                                    change_budget += p.new_size as i8;
-                                    false
-                                }
-                            }
-                        })
-                        .collect();
+                    tmp_patches.retain(|p| {
+                        if p.old_size > 0 || change_budget >= 0 {
+                            true
+                        } else {
+                            change_budget += p.new_size as i8;
+                            false
+                        }
+                    });
                     if tmp_patches.is_empty() {
                         if change_budget <= -(src_size as i8) {
                             change_budget = -(src_size as i8) + 1
@@ -856,7 +848,7 @@ mod tests {
                 assert!(!d.pieces.is_empty());
                 if change_budget > 0 {
                     let p: &mut TestPiece =
-                        (&mut d.pieces[..]).choose_mut(&mut rng).unwrap();
+                        d.pieces[..].choose_mut(&mut rng).unwrap();
                     p.new_size += change_budget as u8;
                     change_budget = 0
                 }
@@ -872,7 +864,7 @@ mod tests {
             assert!(self.initial_size <= 10);
             let mut text = vec![];
             for i in 0..self.initial_size {
-                text.push(i as u8);
+                text.push(i);
             }
             text
         }
@@ -884,7 +876,7 @@ mod tests {
                 let mut data = PatchDataBuilder::new();
                 let idx = (idx + 1) as u8;
                 let new_data = [
-                    (idx * 10) + 0,
+                    (idx * 10),
                     (idx * 10) + 1,
                     (idx * 10) + 2,
                     (idx * 10) + 3,

@@ -14,7 +14,7 @@ use hg::revlog::node::*;
 use hg::revlog::nodemap::*;
 use hg::revlog::*;
 use memmap2::MmapOptions;
-use rand::Rng;
+use rand::RngExt;
 
 mod index;
 use index::Index;

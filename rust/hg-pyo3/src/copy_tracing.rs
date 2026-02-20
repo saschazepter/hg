@@ -10,9 +10,9 @@
 //!
 //! From Python, this will be seen as `mercurial.pyo3_rustext.copy_tracing`
 
+use hg::Revision;
 use hg::copy_tracing::ChangedFiles;
 use hg::copy_tracing::CombineChangesetCopies;
-use hg::Revision;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
@@ -20,8 +20,8 @@ use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 
 use crate::revision::PyRevision;
-use crate::utils::new_submodule;
 use crate::utils::PyBytesDeref;
+use crate::utils::new_submodule;
 
 /// Combines copies information contained into revision `revs` to build a copy
 /// map.
@@ -113,14 +113,14 @@ pub fn combine_changeset_copies_wrapper(
                 // Send `PyBytes` back to the parent thread so the parent
                 // thread can drop it. Otherwise the GIL would be implicitly
                 // acquired here through `impl Drop for PyBytes`.
-                if let Some(bytes) = opt_bytes {
-                    if pybytes_sender.send(bytes.unwrap()).is_err() {
-                        // The channel is disconnected, meaning the parent
-                        // thread panicked or returned
-                        // early through
-                        // `?` to propagate a Python exception.
-                        break;
-                    }
+                if let Some(bytes) = opt_bytes
+                    && pybytes_sender.send(bytes.unwrap()).is_err()
+                {
+                    // The channel is disconnected, meaning the parent
+                    // thread panicked or returned
+                    // early through
+                    // `?` to propagate a Python exception.
+                    break;
                 }
             }
 

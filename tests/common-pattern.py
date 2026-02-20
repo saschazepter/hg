@@ -155,11 +155,15 @@ _errors = {
         br'No such file or directory',
         # FormatMessage(ERROR_FILE_NOT_FOUND)
         br'The system cannot find the file specified',
+        # Rust
+        br'entity not found',
     ),
     br'$EACCES$': (
         br'Permission denied \(os error 13\)',
         # strerror
         br'Permission denied',
+        # Rust
+        br'permission denied',
     ),
     br'$ENOTDIR$': (
         # strerror()

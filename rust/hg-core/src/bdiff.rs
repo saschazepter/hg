@@ -16,7 +16,7 @@ pub struct Lines<'a> {
 }
 
 /// Splits `source` into lines that can be diffed.
-pub fn split_lines(source: &[u8]) -> Result<Lines, HgError> {
+pub fn split_lines(source: &[u8]) -> Result<Lines<'_>, HgError> {
     let mut array = std::ptr::null_mut();
     // Safety: The pointer and length are valid since they both come from
     // `source`, and the out pointer is non-null.
@@ -151,7 +151,7 @@ impl HunkList {
     }
 
     /// Returns an iterator over the hunks.
-    pub fn iter(&self) -> HunkListIter {
+    pub fn iter(&self) -> HunkListIter<'_> {
         HunkListIter {
             // Safety: If `self.head` is null, this is safe. If non-null, then:
             // - We assume bdiff.c made it properly aligned.

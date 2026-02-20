@@ -3527,14 +3527,21 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
 
     def getentry(revornode):
         index = parse_index_v1(data, inline)[0]
-        index[revornode]
+        if hasattr(index, 'node'):
+            index.node(revornode)
+        else:
+            index[revornode]
 
     def getentries(revs, count=1):
         index = parse_index_v1(data, inline)[0]
-
-        for i in range(count):
-            for rev in revs:
-                index[rev]
+        if hasattr(index, 'node'):
+            for i in range(count):
+                for rev in revs:
+                    index.node(rev)
+        else:
+            for i in range(count):
+                for rev in revs:
+                    index[rev]
 
     def resolvenode(node):
         index = parse_index_v1(data, inline)[0]

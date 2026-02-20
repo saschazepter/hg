@@ -2,9 +2,9 @@ use std::ops::Deref;
 
 use self_cell::self_cell;
 
+use super::DirstateError;
 use super::dirstate_map::DirstateIdentity;
 use super::dirstate_map::DirstateMap;
-use super::DirstateError;
 use crate::DirstateParents;
 
 self_cell!(
@@ -79,7 +79,7 @@ impl OwningDirstateMap {
         self.with_dependent_mut(|_owner, dmap| f(dmap))
     }
 
-    pub fn get_map(&self) -> &DirstateMap {
+    pub fn get_map(&self) -> &DirstateMap<'_> {
         self.borrow_dependent()
     }
 

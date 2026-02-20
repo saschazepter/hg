@@ -9,8 +9,8 @@ use std::ops::Deref;
 use std::path::Path;
 use std::slice;
 
-use hg::revlog::node::NULL_NODE;
 use hg::revlog::RevlogIndex;
+use hg::revlog::node::NULL_NODE;
 use hg::*;
 use memmap2::*;
 

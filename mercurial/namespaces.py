@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .i18n import _
 from . import (
+    error,
     registrar,
     tables,
     templateutil,
@@ -120,10 +121,13 @@ class namespaces:
 
         Raises a KeyError if there is no such node.
         """
-        for ns, v in self._names.items():
-            n = v.singlenode(repo, name)
-            if n:
-                return n
+        try:
+            for ns, v in self._names.items():
+                n = v.singlenode(repo, name)
+                if n:
+                    return n
+        except KeyError as exn:
+            raise error.ProgrammingError(b"Aliased KeyError exception") from exn
         raise KeyError(_(b'no such name: %s') % name)
 
 

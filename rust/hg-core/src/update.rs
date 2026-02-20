@@ -15,6 +15,11 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use rayon::prelude::*;
 
+use crate::DirstateParents;
+use crate::INTERRUPT_RECEIVED;
+use crate::NULL_NODE;
+use crate::Revision;
+use crate::UncheckedRevision;
 use crate::checkexec::check_exec;
 use crate::checkexec::is_executable;
 use crate::dirstate::dirstate_map::DirstateEntryReset;
@@ -23,46 +28,42 @@ use crate::dirstate::entry::ParentFileData;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgError;
+use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::matchers::Matcher;
 use crate::narrow;
-use crate::operations::list_rev_tracked_files;
 use crate::operations::ExpandedManifestEntry;
 use crate::operations::FilesForRevBorrowed;
+use crate::operations::list_rev_tracked_files;
 use crate::progress::Progress;
 use crate::repo::Repo;
-use crate::revlog::filelog::is_file_modified;
+use crate::revlog::RevlogType;
 use crate::revlog::filelog::FileCompOutcome;
 use crate::revlog::filelog::Filelog;
+use crate::revlog::filelog::is_file_modified;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestFlags;
-use crate::revlog::options::default_revlog_options;
 use crate::revlog::options::RevlogOpenOptions;
+use crate::revlog::options::default_revlog_options;
 use crate::revlog::path_encode::PathEncoding;
-use crate::revlog::RevlogType;
 use crate::sparse;
 use crate::utils::cap_default_rayon_threads;
 use crate::utils::files::filesystem_now;
 use crate::utils::files::find_dirs_recursive_no_root;
 use crate::utils::files::get_path_from_bytes;
-use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathErrorKind;
-use crate::utils::path_auditor::check_filesystem_single;
+use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::path_auditor::PathAuditor;
-use crate::vfs::get_umask;
-use crate::vfs::is_on_nfs_mount;
+use crate::utils::path_auditor::check_filesystem_single;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
+use crate::vfs::get_umask;
+use crate::vfs::is_on_nfs_mount;
 use crate::warnings::HgWarningSender;
-use crate::DirstateParents;
-use crate::Revision;
-use crate::UncheckedRevision;
-use crate::INTERRUPT_RECEIVED;
-use crate::NULL_NODE;
 
 /// What kind of update we're doing
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -427,7 +428,7 @@ fn working_copy_remove(
     path: impl AsRef<Path>,
     vfs: &impl Vfs,
     remove_empty_dirs: bool,
-) -> Result<(), HgError> {
+) -> Result<(), HgIoError> {
     vfs.unlink(path.as_ref())?;
     if remove_empty_dirs {
         let path = vfs.base().join(path.as_ref());
@@ -539,7 +540,7 @@ fn apply_actions<'a: 'b, 'b>(
 #[derive(Debug)]
 pub enum UpdateWarning {
     /// We've failed to remove a file
-    UnlinkFailure(PathBuf, HgError),
+    UnlinkFailure(PathBuf, HgIoError),
     /// Current directory was removed
     CwdRemoved,
     /// We have a conflict with an untracked file
@@ -1258,19 +1259,14 @@ fn working_copy_worker<'a: 'b, 'b>(
             if let Err(err) = dir_removal {
                 // Give an error message instead of a traceback in the case
                 // where the conflicting unknown directory is not empty
-                match &err {
-                    HgError::IoError { error, .. }
-                        if error.kind()
-                            == std::io::ErrorKind::DirectoryNotEmpty =>
-                    {
-                        let msg = format!(
-                            "conflicting unknown directory '{}' is not empty",
-                            path.display()
-                        );
-                        return Err(HgError::abort_simple(msg));
-                    }
-                    _ => return Err(err),
+                if err.kind() == Some(std::io::ErrorKind::DirectoryNotEmpty) {
+                    let msg = format!(
+                        "conflicting unknown directory '{}' is not empty",
+                        path.display()
+                    );
+                    return Err(HgError::abort_simple(msg));
                 }
+                return Err(HgError::from(err));
             }
         }
 
@@ -1314,10 +1310,10 @@ fn working_copy_worker<'a: 'b, 'b>(
                             std::os::unix::fs::symlink(target, &path)
                                 .when_writing_file(&path)?;
                         } else {
-                            return Err(e).when_writing_file(&path);
+                            return Err(e).when_writing_file(&path)?;
                         }
                     }
-                    _ => return Err(e).when_writing_file(&path),
+                    _ => return Err(e).when_writing_file(&path)?,
                 }
             }
         } else if update_config.atomic_file {
@@ -1372,9 +1368,7 @@ fn update_dirstate(
     if let Some(removals) = removals_receiver {
         for filename in removals.into_iter() {
             removed += 1;
-            dirstate.drop_entry_and_copy_source(filename).map_err(|e| {
-                HgError::abort(e.to_string(), exit_codes::ABORT, None)
-            })?;
+            dirstate.drop_entry_and_copy_source(filename)?;
         }
     }
 
@@ -1463,9 +1457,7 @@ fn update_dirstate(
             // case of update from null
             from_empty: update_kind == UpdateKind::FromNull,
         };
-        let new_entry = dirstate.reset_state(reset).map_err(|e| {
-            HgError::abort(e.to_string(), exit_codes::ABORT, None)
-        })?;
+        let new_entry = dirstate.reset_state(reset)?;
         if new_entry {
             added += 1
         }

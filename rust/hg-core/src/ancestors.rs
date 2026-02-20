@@ -15,8 +15,8 @@ use bit_set::BitSet;
 
 use super::Graph;
 use super::GraphError;
-use super::Revision;
 use super::NULL_REVISION;
+use super::Revision;
 use crate::dagops;
 
 /// A set of revisions backed by a bitset, optimized for descending insertion.
@@ -421,9 +421,9 @@ impl<G: Graph> MissingAncestors<G> {
 mod tests {
 
     use super::*;
+    use crate::BaseRevision;
     use crate::testing::SampleGraph;
     use crate::testing::VecGraph;
-    use crate::BaseRevision;
 
     impl From<BaseRevision> for Revision {
         fn from(value: BaseRevision) -> Self {

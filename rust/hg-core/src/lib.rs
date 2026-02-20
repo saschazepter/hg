@@ -4,7 +4,7 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-mod ancestors;
+pub mod ancestors;
 mod bdiff;
 pub mod dagops;
 pub mod encoding;
@@ -31,13 +31,13 @@ pub mod revlog;
 pub use revlog::BaseRevision;
 pub use revlog::Graph;
 pub use revlog::GraphError;
+pub use revlog::NULL_NODE;
+pub use revlog::NULL_NODE_ID;
+pub use revlog::NULL_REVISION;
 pub use revlog::Node;
 pub use revlog::NodePrefix;
 pub use revlog::Revision;
 pub use revlog::UncheckedRevision;
-pub use revlog::NULL_NODE;
-pub use revlog::NULL_NODE_ID;
-pub use revlog::NULL_REVISION;
 pub use revlog::WORKING_DIRECTORY_HEX;
 pub use revlog::WORKING_DIRECTORY_REVISION;
 pub mod checkexec;

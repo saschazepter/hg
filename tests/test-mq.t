@@ -253,7 +253,7 @@ init --mq with repo path
 init --mq with nonexistent directory
 
   $ hg init --mq nonexistentdir
-  abort: repository nonexistentdir not found
+  abort: no repository found in 'nonexistentdir' (.hg not found)!
   [255]
 
 

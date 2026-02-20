@@ -16,6 +16,8 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 
+use crate::FastHashMap;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::exit_codes;
 use crate::file_patterns::FilePattern;
@@ -27,7 +29,6 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
-use crate::FastHashMap;
 
 lazy_static! {
     /// Only lower case ASCII alpha num, `-` and `.`
@@ -129,9 +130,7 @@ impl From<Error> for HgError {
             Error::ParseError(err) => {
                 format!("error parsing `server-shapes`:\n{err}")
             }
-            Error::PatternError(err) => {
-                format!("invalid pattern {err}")
-            }
+            Error::PatternError(err) => HgError::from(err).to_string(),
         };
 
         Self::abort(explanation, exit_code, None)
@@ -207,14 +206,13 @@ impl StoreShards {
                 // It's a little fragile, but it's better than nothing.
                 let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
                     .expect("valid regex");
-                if let Some(captures) = re.captures(&data) {
-                    if let Some(version) = captures.get(1) {
-                        let version =
-                            String::from_utf8_lossy(version.as_bytes())
-                                .parse::<usize>()
-                                .expect("parsing an integer from a regex");
-                        return Error::UnknownVersion(version);
-                    }
+                if let Some(captures) = re.captures(&data)
+                    && let Some(version) = captures.get(1)
+                {
+                    let version = String::from_utf8_lossy(version.as_bytes())
+                        .parse::<usize>()
+                        .expect("parsing an integer from a regex");
+                    return Error::UnknownVersion(version);
                 }
                 Error::ParseError(e)
             })?,
@@ -355,11 +353,11 @@ impl StoreShards {
     /// Return the [`Shape`] of name `name`, or `None`.
     pub fn shape(&self, name: &str) -> Result<Option<Shape>, Error> {
         let shard_name = ShardName::new(name.to_string())?;
-        if let Some(shard) = self.shards.get(&shard_name) {
-            if shard.shape {
-                let shape = Shape::new(shard_name, self, &[shard])?;
-                return Ok(Some(shape));
-            }
+        if let Some(shard) = self.shards.get(&shard_name)
+            && shard.shape
+        {
+            let shape = Shape::new(shard_name, self, &[shard])?;
+            return Ok(Some(shape));
         }
         Ok(None)
     }
@@ -579,8 +577,10 @@ impl ShardTreeNode {
     ) -> Result<Self, Error> {
         let check_pattern = |pattern: &'a FilePattern| {
             if pattern.syntax != PatternSyntax::Path {
-                let syntax = format!("{:?}", pattern.syntax);
-                Err(PatternError::UnsupportedSyntax(syntax))
+                Err(PatternError::UnsupportedSyntaxNarrow(
+                    pattern.syntax.to_owned(),
+                    HgBacktrace::capture(),
+                ))
             } else {
                 Ok(pattern.raw.as_slice())
             }
@@ -589,7 +589,7 @@ impl ShardTreeNode {
             .iter()
             .map(check_pattern)
             .collect::<Result<HashSet<&[u8]>, _>>()
-            .map_err(Error::PatternError)?;
+            .map_err(Error::PatternError)?; /*  */
 
         let exclude_paths = excludes
             .iter()
@@ -892,11 +892,11 @@ impl<T> PanickingRwLock<T> {
         Self(RwLock::new(inner))
     }
 
-    pub fn read(&self) -> RwLockReadGuard<T> {
+    pub fn read(&self) -> RwLockReadGuard<'_, T> {
         self.0.read().expect("propagate panic")
     }
 
-    pub fn write(&self) -> RwLockWriteGuard<T> {
+    pub fn write(&self) -> RwLockWriteGuard<'_, T> {
         self.0.write().expect("propagate panic")
     }
 

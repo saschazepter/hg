@@ -786,7 +786,7 @@ test bundle with # in the filename (issue2154):
 note that percent encoding is not handled:
 
   $ hg incoming ../test%23bundle.hg
-  abort: repository ../test%23bundle.hg not found
+  abort: no repository found in '../test%23bundle.hg' (.hg not found)!
   [255]
   $ cd ..
 

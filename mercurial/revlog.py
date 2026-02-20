@@ -54,8 +54,6 @@ from .revlogutils.constants import (
     COMP_MODE_PLAIN,
     DELTA_BASE_REUSE_NO,
     DELTA_BASE_REUSE_TRY,
-    ENTRY_DATA_COMPRESSED_LENGTH,
-    ENTRY_RANK,
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
     FILELOG_HASMETA_UPGRADE as HM_UP,
@@ -504,11 +502,11 @@ class _InnerRevlog:
 
     def start(self, rev):
         """the offset of the data chunk for this revision"""
-        return int(self.index[rev][0] >> 16)
+        return self.index.data_chunk_start(rev)
 
     def length(self, rev):
         """the length of the data chunk for this revision"""
-        return self.index[rev][1]
+        return self.index.data_chunk_length(rev)
 
     def end(self, rev):
         """the end of the data chunk for this revision"""
@@ -516,13 +514,10 @@ class _InnerRevlog:
 
     def deltaparent(self, rev):
         """return deltaparent of the given revision"""
-        base = self.index[rev][3]
-        if base == rev:
-            return nullrev
-        elif self.delta_config.general_delta:
-            return base
-        else:
-            return rev - 1
+        base = self.index.delta_base(rev)
+        if base is None:
+            base = nullrev
+        return base
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""
@@ -533,27 +528,22 @@ class _InnerRevlog:
             self.issnapshot = self.index.issnapshot
             return self.issnapshot(rev)
         elif self.data_config.delta_info:
-            flags = self.index[rev][0] & 0xFFFF
+            flags = self.index.flags(rev)
             return flags & REVIDX_DELTA_IS_SNAPSHOT
         if rev == nullrev:
             return True
-        entry = self.index[rev]
-        base = entry[3]
-        if base == rev:
+        idx = self.index
+        base = idx.delta_base(rev)
+        if base is None or base == nullrev:
+            # the base == nullrev was possible in older version and some
+            # repository exist in the wild with such delta
             return True
-        if base == nullrev:
-            return True
-        p1 = entry[5]
-        while self.length(p1) == 0:
-            b = self.deltaparent(p1)
-            if b == p1:
-                break
+        p1, p2 = idx.parents(rev)
+        while p1 is not None and self.length(p1) == 0:
+            b = idx.delta_base(p1)
             p1 = b
-        p2 = entry[6]
-        while self.length(p2) == 0:
-            b = self.deltaparent(p2)
-            if b == p2:
-                break
+        while p2 is not None and self.length(p2) == 0:
+            b = idx.delta_base(p2)
             p2 = b
         if base == p1 or base == p2:
             return False
@@ -569,40 +559,7 @@ class _InnerRevlog:
         revs in ascending order and ``stopped`` is a bool indicating whether
         ``stoprev`` was hit.
         """
-        # Try C implementation.
-        try:
-            return self.index.deltachain(
-                rev, stoprev
-            )  # pytype: disable=attribute-error
-        except AttributeError:
-            pass
-
-        chain = []
-
-        # Alias to prevent attribute lookup in tight loop.
-        index = self.index
-        generaldelta = self.delta_config.general_delta
-
-        iterrev = rev
-        e = index[iterrev]
-        while iterrev != e[3] and iterrev != stoprev:
-            if e[ENTRY_DATA_COMPRESSED_LENGTH] > 0:
-                # skip over empty delta in the chain
-                chain.append(iterrev)
-            if generaldelta:
-                iterrev = e[3]
-            else:
-                iterrev -= 1
-            e = index[iterrev]
-
-        if iterrev == stoprev:
-            stopped = True
-        else:
-            chain.append(iterrev)
-            stopped = False
-
-        chain.reverse()
-        return chain, stopped
+        return self.index.deltachain(rev, stoprev)
 
     @util.propertycache
     def _compressor(self):
@@ -921,13 +878,12 @@ class _InnerRevlog:
         # Inlined self.start(startrev) & self.end(endrev) for perf reasons
         # (functions are expensive).
         index = self.index
-        istart = index[startrev]
-        start = int(istart[0] >> 16)
+        start = index.data_chunk_start(startrev)
         if startrev == endrev:
-            end = start + istart[1]
+            end = start + index.data_chunk_length(startrev)
         else:
-            iend = index[endrev]
-            end = int(iend[0] >> 16) + iend[1]
+            end = index.data_chunk_start(endrev)
+            end += index.data_chunk_length(endrev)
 
         if self.inline:
             start += (startrev + 1) * self.index.entry_size
@@ -950,7 +906,7 @@ class _InnerRevlog:
             if uncomp is not None:
                 return uncomp
 
-        compression_mode = self.index[rev][10]
+        compression_mode = self.index.data_chunk_compression_mode(rev)
         data = self.get_segment_for_revs(rev, rev)[1]
         if compression_mode == COMP_MODE_PLAIN:
             uncomp = data
@@ -1036,7 +992,7 @@ class _InnerRevlog:
                 if inline:
                     chunkstart += (rev + 1) * iosize
                 chunklength = length(rev)
-                comp_mode = self.index[rev][10]
+                comp_mode = self.index.data_chunk_compression_mode(rev)
                 c = buffer(data, chunkstart - offset, chunklength)
                 if comp_mode == COMP_MODE_PLAIN:
                     c = c
@@ -1081,7 +1037,7 @@ class _InnerRevlog:
             basetext = cache[1]
 
         targetsize = None
-        rawsize = self.index[rev][2]
+        rawsize = self.index.raw_size(rev)
         if rawsize is not None and 0 <= rawsize:
             targetsize = 4 * rawsize
 
@@ -1091,9 +1047,11 @@ class _InnerRevlog:
         if basetext is None:
             basetext = bytes(bins[0])
             bins = bins[1:]
-
-        rawtext = mdiff.patches(basetext, bins)
-        del basetext  # let us have a chance to free memory early
+        if bins:
+            rawtext = mdiff.patches(basetext, bins)
+            del basetext  # let us have a chance to free memory early
+        else:
+            rawtext = basetext
 
         self.cache_revision_text(rev, rawtext, False)
         return (rev, rawtext, False)
@@ -1120,9 +1078,8 @@ class _InnerRevlog:
 
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
-        index_entry = self.index[rev]
-        sidedata_offset = index_entry[8]
-        sidedata_size = index_entry[9]
+        sidedata_offset = self.index.sidedata_chunk_offset(rev)
+        sidedata_size = self.index.sidedata_chunk_length(rev)
 
         if self.inline:
             sidedata_offset += self.index.entry_size * (1 + rev)
@@ -1141,7 +1098,7 @@ class _InnerRevlog:
             sidedata_offset, sidedata_size
         )
 
-        comp = self.index[rev][11]
+        comp = self.index.sidedata_chunk_compression_mode(rev)
         if comp == COMP_MODE_PLAIN:
             segment = comp_segment
         elif comp == COMP_MODE_DEFAULT:
@@ -1339,6 +1296,25 @@ class RustIndexProxy(ProxyBase):
         # Direct reforwards since `__getattr__` is *expensive*
         self.get_rev = self.inner._index_get_rev
         self.rev = self.inner._index_rev
+        self.parents = self.inner._index_parents
+        self._parents_raw = self.inner._index_parents_raw
+        self.linkrev = self.inner._index_linkrev
+        self.flags = self.inner._index_flags
+        self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
+        self.raw_size = self.inner._index_raw_size
+        self.data_chunk_start = self.inner._index_data_chunk_start
+        self.data_chunk_length = self.inner._index_data_chunk_length
+        self.delta_base = self.inner._index_delta_base
+        self.data_chunk_compression_mode = (
+            self.inner._index_data_chunk_compression_mode
+        )
+        self.sidedata_chunk_offset = self.inner._index_sidedata_chunk_offset
+        self.sidedata_chunk_length = self.inner._index_sidedata_chunk_length
+        self.sidedata_chunk_compression_mode = (
+            self.inner._index_sidedata_chunk_compression_mode
+        )
+        self.lazy_rank = self.inner._index_lazy_rank
+        self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest
         self.partialmatch = self.inner._index_partialmatch
@@ -1371,7 +1347,9 @@ class RustIndexProxy(ProxyBase):
         return self.inner._index___len__()
 
     def __getitem__(self, key):
-        return self.inner._index___getitem__(key)
+        raise TypeError(
+            "index no longer rev indexable, use dedicated methodto access each values"
+        )
 
     def __contains__(self, key):
         return self.inner._index___contains__(key)
@@ -1739,7 +1717,7 @@ class revlog:
         n = len(self)
         index = self.index
         while n > 0:
-            linkrev = index[n - 1][4]
+            linkrev = index.linkrev(n - 1)
             if linkrev < max_linkrev:
                 break
             # note: this loop will rarely go through multiple iterations, since
@@ -2053,7 +2031,7 @@ class revlog:
                 docket = nodemap_data[0]
                 if (
                     len(index) > docket.tip_rev
-                    and index[docket.tip_rev][7] == docket.tip_node
+                    and index.node(docket.tip_rev) == docket.tip_node
                 ):
                     # no changelog tampering
                     self._nodemap_docket = docket
@@ -2185,10 +2163,10 @@ class revlog:
     # First tuple entry is 8 bytes. First 6 bytes are offset. Last 2 bytes
     # are flags.
     def start(self, rev):
-        return int(self.index[rev][0] >> 16)
+        return self.index.data_chunk_start(rev)
 
     def sidedata_cut_off(self, rev):
-        sd_cut_off = self.index[rev][8]
+        sd_cut_off = self.index.sidedata_chunk_offset(rev)
         if sd_cut_off != 0:
             return sd_cut_off
         # This is some annoying dance, because entries without sidedata
@@ -2197,30 +2175,30 @@ class revlog:
         #
         # We should reconsider this sidedata → 0 sidata_offset policy.
         # In the meantime, we need this.
+        idx = self.index
         while 0 <= rev:
-            e = self.index[rev]
-            if e[9] != 0:
-                return e[8] + e[9]
+            length = idx.sidedata_chunk_length(rev)
+            if length != 0:
+                return idx.sidedata_chunk_offset(rev) + length
             rev -= 1
         return 0
 
     def flags(self, rev):
-        return self.index[rev][0] & 0xFFFF
+        return self.index.flags(rev)
 
     def length(self, rev):
-        return self.index[rev][1]
+        return self.index.data_chunk_length(rev)
 
     def sidedata_length(self, rev):
         if not self.feature_config.has_side_data:
             return 0
-        return self.index[rev][9]
+        return self.index.sidedata_chunk_length(rev)
 
     def rawsize(self, rev):
         """return the length of the uncompressed text for a given revision"""
-        l = self.index[rev][2]
-        if l is not None and l >= 0:
-            return l
-
+        size = self.index.raw_size(rev)
+        if size is not None:
+            return size
         t = self.rawdata(rev)
         return len(t)
 
@@ -2245,7 +2223,7 @@ class revlog:
         time. It makes no attempt at computing unknown values for versions of
         the revlog which do not persist the rank.
         """
-        rank = self.index[rev][ENTRY_RANK]
+        rank = self.index.lazy_rank(rev)
         if self._format_version != CHANGELOGV2 or rank == RANK_UNKNOWN:
             return None
         if rev == nullrev:
@@ -2259,36 +2237,35 @@ class revlog:
 
         index = self.index
         iterrev = rev
-        base = index[iterrev][3]
-        while base != iterrev:
+        base = index.delta_base(iterrev)
+        while base is not None:
+            assert base != iterrev
             iterrev = base
-            base = index[iterrev][3]
+            base = index.delta_base(iterrev)
 
-        self._chainbasecache[rev] = base
-        return base
+        self._chainbasecache[rev] = iterrev
+        return iterrev
 
     def linkrev(self, rev):
-        return self.index[rev][4]
+        return self.index.linkrev(rev)
 
     def parentrevs(self, rev):
         try:
-            entry = self.index[rev]
+            parents = self.index.parents(rev)
         except IndexError:
             if rev == wdirrev:
                 raise error.WdirUnsupported
             raise
-
-        if self.feature_config.canonical_parent_order and entry[5] == nullrev:
-            return entry[6], entry[5]
-        else:
-            return entry[5], entry[6]
+        if self.feature_config.canonical_parent_order and parents[0] == nullrev:
+            parents = (parents[1], parents[0])
+        return parents
 
     # fast parentrevs(rev) where rev isn't filtered
     _uncheckedparentrevs = parentrevs
 
     def node(self, rev):
         try:
-            return self.index[rev][7]
+            return self.index.node(rev)
         except IndexError:
             if rev == wdirrev:
                 raise error.WdirUnsupported
@@ -2300,13 +2277,8 @@ class revlog:
         return self.start(rev) + self.length(rev)
 
     def parents(self, node: NodeIdT) -> tuple[NodeIdT, NodeIdT]:
-        i = self.index
-        d = i[self.rev(node)]
-        # inline node() to avoid function call overhead
-        if self.feature_config.canonical_parent_order and d[5] == self.nullid:
-            return i[d[6]][7], i[d[5]][7]
-        else:
-            return i[d[5]][7], i[d[6]][7]
+        p1, p2 = self.parentrevs(self.rev(node))
+        return (self.index.node(p1), self.index.node(p2))
 
     def chainlen(self, rev):
         return self._chaininfo(rev)[0]
@@ -2316,28 +2288,22 @@ class revlog:
         if rev in chaininfocache:
             return chaininfocache[rev]
         index = self.index
-        generaldelta = self.delta_config.general_delta
         iterrev = rev
-        e = index[iterrev]
         clen = 0
         compresseddeltalen = 0
-        while iterrev != e[3]:
+        while (base := index.delta_base(iterrev)) is not None:
             clen += 1
-            compresseddeltalen += e[1]
-            if generaldelta:
-                iterrev = e[3]
-            else:
-                iterrev -= 1
+            compresseddeltalen += index.data_chunk_length(iterrev)
+            iterrev = base
             if iterrev in chaininfocache:
                 t = chaininfocache[iterrev]
                 clen += t[0]
                 compresseddeltalen += t[1]
                 break
-            e = index[iterrev]
         else:
             # Add text length of base since decompressing that also takes
             # work. For cache hits the length is already included.
-            compresseddeltalen += e[1]
+            compresseddeltalen += index.data_chunk_length(iterrev)
         r = (clen, compresseddeltalen)
         chaininfocache[rev] = r
         return r
@@ -2877,7 +2843,12 @@ class revlog:
             except binascii.Error:
                 pass
             else:
-                nl = [e[7] for e in self.index if e[7].startswith(prefix)]
+                idx = self.index
+                nl = [
+                    n
+                    for r in range(len(idx))
+                    if (n := idx.node(r)).startswith(prefix)
+                ]
                 nl = [
                     n for n in nl if hex(n).startswith(id) and self.hasnode(n)
                 ]
@@ -2972,13 +2943,10 @@ class revlog:
 
     def deltaparent(self, rev):
         """return deltaparent of the given revision"""
-        base = self.index[rev][3]
-        if base == rev:
-            return nullrev
-        elif self.delta_config.general_delta:
-            return base
-        else:
-            return rev - 1
+        base = self.index.delta_base(rev)
+        if base is None:
+            base = nullrev
+        return base
 
     def issnapshot(self, rev):
         """tells whether rev is a snapshot"""
@@ -3049,7 +3017,7 @@ class revlog:
         No decompression is performed, but the applicable compression header is
         returned.
         """
-        comp_mode = self.index[rev][10]
+        comp_mode = self.index.data_chunk_compression_mode(rev)
         full_chunk = self._inner.get_segment_for_revs(rev, rev)[1]
         # note: we can blindy reuse the compression during
         # `_clone`, because if we can read the source revlog it
@@ -4586,15 +4554,14 @@ class revlog:
         has_meta_cache = {}
 
         for rev in self:
-            entry = index[rev]
-
             # Some classes override linkrev to take filtered revs into
             # account. Use raw entry from index.
-            flags = entry[0] & 0xFFFF
-            linkrev = entry[4]
-            p1 = index[entry[5]][7]
-            p2 = index[entry[6]][7]
-            node = entry[7]
+            flags = index.flags(rev)
+            linkrev = index.linkrev(rev)
+            p1_rev, p2_rev = index.parents(rev)
+            p1 = index.node(p1_rev)
+            p2 = index.node(p2_rev)
+            node = index.node(rev)
 
             if hasmeta_change == HM_DOWN and flags & REVIDX_HASMETA:
                 p1, p2 = p2, p1
@@ -4909,7 +4876,6 @@ class revlog:
 
             current_offset = sdfh.tell()
             for rev in range(startrev, endrev + 1):
-                entry = self.index[rev]
                 new_sidedata, flags = sidedatautil.run_sidedata_helpers(
                     store=self,
                     sidedata_helpers=helpers,
@@ -4940,7 +4906,10 @@ class revlog:
                         else:
                             sidedata_compression_mode = COMP_MODE_INLINE
                             serialized_sidedata = comp_sidedata
-                if entry[8] != 0 or entry[9] != 0:
+                if (
+                    self.index.sidedata_chunk_offset(rev) != 0
+                    or self.index.sidedata_chunk_length(rev) != 0
+                ):
                     # rewriting entries that already have sidedata is not
                     # supported yet, because it introduces garbage data in the
                     # revlog.
@@ -4949,11 +4918,12 @@ class revlog:
 
                 # Apply (potential) flags to add and to remove after running
                 # the sidedata helpers
-                new_offset_flags = entry[0] | flags[0] & ~flags[1]
+                assert not (flags[0] & flags[1])
                 entry_update = (
                     current_offset,
                     len(serialized_sidedata),
-                    new_offset_flags,
+                    flags[0],
+                    flags[1],
                     sidedata_compression_mode,
                 )
 

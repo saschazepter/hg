@@ -8,33 +8,41 @@ use std::io::Write;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 use schnellru::LruMap;
 use sha1::Digest;
 use sha1::Sha1;
 
-use super::compression::uncompressed_zstd_data;
+use super::BaseRevision;
+use super::NULL_REVISION;
+use super::NULL_REVLOG_ENTRY_FLAGS;
+use super::Revision;
+use super::RevlogEntry;
+use super::RevlogError;
+use super::RevlogIndex;
+use super::UncheckedRevision;
 use super::compression::CompressionConfig;
 use super::compression::Compressor;
 use super::compression::NoneCompressor;
-use super::compression::ZlibCompressor;
-use super::compression::ZstdCompressor;
 use super::compression::ZLIB_BYTE;
 use super::compression::ZSTD_BYTE;
+use super::compression::ZlibCompressor;
+use super::compression::ZstdCompressor;
+use super::compression::uncompressed_zstd_data;
 use super::diff;
 use super::diff::text_delta_with_offset;
 use super::file_io::DelayedBuffer;
 use super::file_io::FileHandle;
 use super::file_io::RandomAccessFile;
 use super::file_io::WriteHandles;
+use super::index::INDEX_ENTRY_SIZE;
 use super::index::Index;
 use super::index::IndexHeader;
-use super::index::INDEX_ENTRY_SIZE;
 use super::manifest;
 use super::node::NODE_BYTES_LENGTH;
 use super::node::NULL_NODE;
@@ -44,32 +52,24 @@ use super::options::RevlogFeatureConfig;
 use super::patch;
 use super::patch::DeltaPiece;
 use super::patch::PlainDeltaPiece;
-use super::BaseRevision;
-use super::Revision;
-use super::RevlogEntry;
-use super::RevlogError;
-use super::RevlogIndex;
-use super::UncheckedRevision;
-use super::NULL_REVISION;
-use super::NULL_REVLOG_ENTRY_FLAGS;
+use crate::Node;
+use crate::NodePrefix;
 use crate::dyn_bytes::DynBytes;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
+use crate::revlog::RevlogIndexNodeLookup;
+use crate::revlog::RevlogType;
 use crate::revlog::index::RevisionDataParams;
 use crate::revlog::nodemap::NodeMap;
 use crate::revlog::nodemap::NodeMapError;
 use crate::revlog::nodemap::NodeTree;
-use crate::revlog::RevlogIndexNodeLookup;
-use crate::revlog::RevlogType;
 use crate::transaction::Transaction;
-use crate::utils::u32_u;
-use crate::utils::u_i32;
 use crate::utils::ByTotalChunksSize;
 use crate::utils::RawData;
+use crate::utils::u_i32;
+use crate::utils::u32_u;
 use crate::vfs::Vfs;
-use crate::Node;
-use crate::NodePrefix;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
 /// boundary to incrementally rewrite higher-level revlog functionality in
@@ -242,10 +242,10 @@ impl InnerRevlog {
     pub fn clear_rev_cache(&self, rev: Revision) {
         let mut last_revision_cache =
             self.last_revision_cache.lock().expect("propagate mutex panic");
-        if let Some(cached) = &*last_revision_cache {
-            if cached.rev == rev {
-                last_revision_cache.take();
-            }
+        if let Some(cached) = &*last_revision_cache
+            && cached.rev == rev
+        {
+            last_revision_cache.take();
         }
     }
 
@@ -288,7 +288,7 @@ impl InnerRevlog {
     }
 
     /// Return an entry for the null revision
-    pub fn make_null_entry(&self) -> RevlogEntry {
+    pub fn make_null_entry(&self) -> RevlogEntry<'_> {
         RevlogEntry {
             revlog: self,
             rev: NULL_REVISION,
@@ -301,7 +301,10 @@ impl InnerRevlog {
     }
 
     /// Return the [`RevlogEntry`] for a [`Revision`] that is known to exist
-    pub fn get_entry(&self, rev: Revision) -> Result<RevlogEntry, RevlogError> {
+    pub fn get_entry(
+        &self,
+        rev: Revision,
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         if rev == NULL_REVISION {
             return Ok(self.make_null_entry());
         }
@@ -331,7 +334,7 @@ impl InnerRevlog {
     pub fn get_entry_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
-    ) -> Result<RevlogEntry, RevlogError> {
+    ) -> Result<RevlogEntry<'_>, RevlogError> {
         if rev == NULL_REVISION.into() {
             return Ok(self.make_null_entry());
         }
@@ -488,10 +491,9 @@ impl InnerRevlog {
     pub fn chunk_for_rev(&self, rev: Revision) -> Result<RawData, HgError> {
         if let Some(Ok(mut cache)) =
             self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
+            && let Some(chunk) = cache.get(&rev)
         {
-            if let Some(chunk) = cache.get(&rev) {
-                return Ok(chunk.clone());
-            }
+            return Ok(chunk.clone());
         }
         // TODO revlogv2 should check the compression mode
         let data = self.get_segment_for_revs(rev, rev)?.1;
@@ -1209,19 +1211,12 @@ impl InnerRevlog {
                     }
                     f
                 }
-                Err(e) => match e {
-                    HgError::IoError { error, context, backtrace } => {
-                        if error.kind() != ErrorKind::NotFound {
-                            return Err(HgError::IoError {
-                                error,
-                                context,
-                                backtrace,
-                            });
-                        }
-                        self.vfs.create(&self.data_file, true)?
+                Err(err) => {
+                    if err.kind() != Some(ErrorKind::NotFound) {
+                        return Err(err.into());
                     }
-                    e => return Err(e),
-                },
+                    self.vfs.create(&self.data_file, true)?
+                }
             };
             transaction.add(&self.data_file, data_size);
             Some(FileHandle::from_file(
@@ -1287,33 +1282,26 @@ impl InnerRevlog {
                     )
                 })
             }
-            Err(e) => match e {
-                HgError::IoError { error, context, backtrace } => {
-                    if error.kind() != ErrorKind::NotFound {
-                        return Err(HgError::IoError {
-                            error,
-                            context,
-                            backtrace,
-                        });
-                    };
-                    if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
-                        FileHandle::new_delayed(
-                            dyn_clone::clone_box(&*self.vfs),
-                            &self.index_file,
-                            true,
-                            delayed_buffer.clone(),
-                        )
-                    } else {
-                        FileHandle::new(
-                            dyn_clone::clone_box(&*self.vfs),
-                            &self.index_file,
-                            true,
-                            true,
-                        )
-                    }
+            Err(err) => {
+                if err.kind() != Some(ErrorKind::NotFound) {
+                    return Err(err.into());
+                };
+                if let Some(delayed_buffer) = self.delayed_buffer.as_ref() {
+                    Ok(FileHandle::new_delayed(
+                        dyn_clone::clone_box(&*self.vfs),
+                        &self.index_file,
+                        true,
+                        delayed_buffer.clone(),
+                    )?)
+                } else {
+                    Ok(FileHandle::new(
+                        dyn_clone::clone_box(&*self.vfs),
+                        &self.index_file,
+                        true,
+                        true,
+                    )?)
                 }
-                e => Err(e),
-            },
+            }
         }
     }
 
@@ -1813,11 +1801,11 @@ impl RevlogNodeMap {
                     smallest_cached_rev: _,
                 } => {
                     let partial_lookup = tree.find_bin(idx, node_prefix)?;
-                    if node_prefix.nybbles_len() == NULL_NODE.nybbles_len() {
-                        if let Some(rev) = partial_lookup {
-                            // In-memory cache hit of a full node
-                            return Ok(Some(rev));
-                        }
+                    if node_prefix.nybbles_len() == NULL_NODE.nybbles_len()
+                        && let Some(rev) = partial_lookup
+                    {
+                        // In-memory cache hit of a full node
+                        return Ok(Some(rev));
                     }
                     // In-memory cache miss, update the counter.
                     let prev_misses = misses.fetch_add(1, Ordering::Relaxed);

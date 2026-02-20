@@ -114,22 +114,22 @@ fn parse_list_without_trim_start(input: &[u8]) -> Vec<Vec<u8>> {
             }
             ParserMode::Quoted => {
                 // Start of port of Python’s `_parse_quote`
-                if let Some(&byte) = input.get(offset) {
-                    if byte == b'"' {
-                        // The input contains a quoted zero-length value `""`
-                        debug_assert_eq!(next_value, b"");
-                        values.push(std::mem::take(&mut next_value));
-                        offset += 1;
-                        while let Some(&byte) = input.get(offset) {
-                            if is_space(byte) || byte == b',' {
-                                offset += 1;
-                            } else {
-                                break;
-                            }
+                if let Some(&byte) = input.get(offset)
+                    && byte == b'"'
+                {
+                    // The input contains a quoted zero-length value `""`
+                    debug_assert_eq!(next_value, b"");
+                    values.push(std::mem::take(&mut next_value));
+                    offset += 1;
+                    while let Some(&byte) = input.get(offset) {
+                        if is_space(byte) || byte == b',' {
+                            offset += 1;
+                        } else {
+                            break;
                         }
-                        mode = ParserMode::Plain;
-                        continue;
                     }
+                    mode = ParserMode::Plain;
+                    continue;
                 }
 
                 while let Some(&byte) = input.get(offset) {

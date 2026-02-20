@@ -2,23 +2,26 @@ use std::backtrace::Backtrace;
 use std::backtrace::BacktraceStatus;
 use std::fmt;
 use std::fmt::Write;
+use std::io::ErrorKind;
 use std::path::Path;
+use std::path::PathBuf;
 
+use crate::Node;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
+use crate::dirstate::on_disk::DirstateV2ParseError;
+use crate::dirstate::status::StatusError;
 use crate::exit_codes;
+use crate::file_patterns::PatternError;
 use crate::revlog::RevlogError;
 use crate::utils::hg_path::HgPathError;
-use crate::Node;
 
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]
 pub enum HgError {
-    IoError {
-        error: std::io::Error,
-        context: IoErrorContext,
-        backtrace: HgBacktrace,
-    },
+    /// A low-level IO error
+    #[from]
+    IO(HgIoError),
 
     /// A file under `.hg/` normally only written by Mercurial is not in the
     /// expected format. This indicates a bug in Mercurial, filesystem
@@ -57,6 +60,11 @@ pub enum HgError {
 
     /// Censored revision data.
     CensoredNodeError(Node, HgBacktrace),
+    /// An error occured in the dirstate
+    #[from]
+    Dirstate(DirstateError),
+    #[from]
+    Pattern(PatternError),
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
@@ -64,26 +72,38 @@ pub enum HgError {
     Path(HgPathError),
     /// An interrupt was received and we need to stop whatever we're doing
     InterruptReceived,
+    /// No repository was found for an operation that required one
+    RepoNotFound { at: PathBuf, backtrace: HgBacktrace },
+}
+
+impl From<StatusError> for HgError {
+    fn from(value: StatusError) -> Self {
+        match value {
+            StatusError::Path(err) => HgError::Path(err),
+            StatusError::Pattern(err) => HgError::Pattern(err),
+            StatusError::Dirstate(err) => HgError::Dirstate(err),
+        }
+    }
 }
 
 /// Details about where an I/O error happened
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum IoErrorContext {
     /// `std::fs::metadata`
-    ReadingMetadata(std::path::PathBuf),
-    ReadingFile(std::path::PathBuf),
-    WritingFile(std::path::PathBuf),
-    RemovingFile(std::path::PathBuf),
+    ReadingMetadata(PathBuf),
+    ReadingFile(PathBuf),
+    WritingFile(PathBuf),
+    RemovingFile(PathBuf),
     RenamingFile {
-        from: std::path::PathBuf,
-        to: std::path::PathBuf,
+        from: PathBuf,
+        to: PathBuf,
     },
     CopyingFile {
-        from: std::path::PathBuf,
-        to: std::path::PathBuf,
+        from: PathBuf,
+        to: PathBuf,
     },
     /// `std::fs::canonicalize`
-    CanonicalizingPath(std::path::PathBuf),
+    CanonicalizingPath(PathBuf),
     /// `std::env::current_dir`
     CurrentDir,
     /// `std::env::current_exe`
@@ -129,11 +149,9 @@ impl fmt::Display for HgError {
             HgError::Abort { message, backtrace, .. } => {
                 write!(f, "{}{}", backtrace, message)
             }
-            HgError::IoError { error, context, backtrace } => {
-                write!(f, "{}abort: {}: {}", backtrace, context, error)
-            }
+            HgError::IO(io_err) => io_err.fmt(f),
             HgError::CorruptedRepository(explanation, backtrace) => {
-                write!(f, "{}abort: {}", backtrace, explanation)
+                write!(f, "{}{}", backtrace, explanation)
             }
             HgError::UnsupportedFeature(explanation, backtrace) => {
                 write!(f, "{}unsupported feature: {}", backtrace, explanation)
@@ -153,6 +171,198 @@ impl fmt::Display for HgError {
             }
             HgError::Path(hg_path_error) => write!(f, "{}", hg_path_error),
             HgError::InterruptReceived => write!(f, "interrupt received"),
+            HgError::RepoNotFound { at, backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}no repository found in '{}' (.hg not found)!",
+                    at.display()
+                )
+            }
+            HgError::Dirstate(dirstate_error) => match dirstate_error {
+                DirstateError::V2ParseError(parse) => match parse {
+                    DirstateV2ParseError::CorruptedDocket(
+                        message,
+                        backtrace,
+                    ) => {
+                        write!(
+                            f,
+                            "{backtrace}corrupted dirstate docket: {message}"
+                        )
+                    }
+                    DirstateV2ParseError::CorruptedTreeMetadata(
+                        message,
+                        backtrace,
+                    ) => {
+                        write!(
+                            f,
+                            "{backtrace}corrupted dirstate tree: {message}"
+                        )
+                    }
+                    DirstateV2ParseError::InvalidMarkerOrUuid(backtrace) => {
+                        write!(f, "{backtrace}invalid dirstate marker or UUID")
+                    }
+                    DirstateV2ParseError::NotEnoughBytes {
+                        start,
+                        len,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace}not enough bytes for dirstate: \
+                            expected {len} bytes at offset {start}"
+                        )
+                    }
+                    DirstateV2ParseError::InvalidSlice {
+                        message,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace}invalid dirstate slice: {message}"
+                        )
+                    }
+                    DirstateV2ParseError::TimestampNotInRange {
+                        truncated_seconds,
+                        nanoseconds,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace}dirstate timestamp not in range \
+                            ({truncated_seconds} truncated seconds, \
+                            {nanoseconds} nanoseconds)"
+                        )
+                    }
+                },
+                DirstateError::PathNotFound(path, backtrace) => {
+                    write!(f, "{}path not found: {}", backtrace, path)
+                }
+                DirstateError::InvalidPath(hg_path_error) => {
+                    hg_path_error.fmt(f)
+                }
+                DirstateError::TooLittleData(size, backtrace) => {
+                    write!(
+                        f,
+                        "{}too little data for dirstate: got {} bytes",
+                        backtrace, size
+                    )
+                }
+                DirstateError::IncompleteEntry {
+                    entry_idx,
+                    at_byte,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate corrupted: ran out of bytes at \
+                        entry header {entry_idx}, offset {at_byte}",
+                    )
+                }
+                DirstateError::IncompletePath {
+                    entry_idx,
+                    at_byte,
+                    expected_len,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate corrupted: ran out of bytes at \
+                        entry header {entry_idx}, offset {at_byte} \
+                        (expected {expected_len} bytes)",
+                    )
+                }
+                DirstateError::BadEntryState(state, backtrace) => {
+                    write!(
+                        f,
+                        "{backtrace}incorrect dirstate entry state '{state}'"
+                    )
+                }
+                DirstateError::RootNotAtRoot(path, backtrace) => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate root node '{path}' \
+                        is not at the root"
+                    )
+                }
+                DirstateError::BadChildPrefix {
+                    path,
+                    child_path,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}path of dirstate child node '{child_path}' \
+                        does not start with its parent's path '{path}'"
+                    )
+                }
+            },
+            HgError::Pattern(pattern_error) => {
+                match pattern_error {
+                    PatternError::UnsupportedSyntax(syntax, backtrace) => {
+                        write!(
+                            f,
+                            "{backtrace}unsupported syntax '{}'",
+                            String::from_utf8_lossy(syntax)
+                        )
+                    }
+                    PatternError::IO(error) => error.fmt(f),
+                    PatternError::Path(error) => error.fmt(f),
+                    PatternError::NonRegexPattern(pattern, backtrace) => {
+                        write!(
+                            f,
+                            "{backtrace}'{:?}' cannot be turned into a regex",
+                            pattern
+                        )
+                    }
+                    PatternError::UnclosedGlobAlternation(
+                        pattern,
+                        backtrace,
+                    ) => {
+                        write!(
+                            f,
+                            "{backtrace} unclosed glob alternation \
+                            in pattern '{}'",
+                            String::from_utf8_lossy(pattern)
+                        )
+                    }
+                    PatternError::RegexError { needle, error, backtrace } => {
+                        // The needle is likely already in the error, but let's
+                        // be safe
+                        write!(
+                            f,
+                            "{backtrace}invalid regex '{needle}':\n{error}",
+                        )
+                    }
+                    PatternError::NonUtf8Pattern {
+                        pattern,
+                        valid_up_to,
+                        backtrace,
+                    } => {
+                        write!(
+                            f,
+                            "{backtrace} non-utf8 regex pattern {}, \
+                            valid up to byte {valid_up_to}",
+                            // This is kind of dumb at face value, but it's
+                            // better than
+                            // nothing if we *have* to give a UTF8 output and
+                            // don't
+                            // know the encoding, since we may give *some* info
+                            // about
+                            // what the pattern is.
+                            String::from_utf8_lossy(pattern)
+                        )
+                    }
+                    PatternError::UnsupportedSyntaxNarrow(
+                        syntax,
+                        backtrace,
+                    ) => {
+                        write!(
+                            f,
+                            "{backtrace} unsupported narrow pattern '{syntax:?}'"
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -195,6 +405,78 @@ impl fmt::Display for IoErrorContext {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum HgIoError {
+    /// General IO error
+    IO {
+        /// The underlying raw os error code, if present
+        raw_os_error: Option<i32>,
+        /// The underlying os [`ErrorKind`], which is redundant with
+        /// `raw_os_error`, but it's easier to reason with. There are still
+        /// some common error codes that don't map to a specific kind,
+        /// unfortunately, https://github.com/rust-lang/rust/issues/86442.
+        kind: ErrorKind,
+        /// What operation led to this error (reading this file, etc.)
+        context: IoErrorContext,
+        /// Backtrace information for debugging
+        backtrace: HgBacktrace,
+    },
+    /// Attempted to write in a readonly VFS, along with the backtrace
+    WriteAttemptInReadonlyVfs(HgBacktrace),
+    /// A lock has non-UTF8 information, along with the backtrace
+    NonUTF8Lock(HgBacktrace),
+}
+
+impl HgIoError {
+    /// Create a `HgIoError` from a stdlib error + some context
+    pub fn from_os_error(err: std::io::Error, context: IoErrorContext) -> Self {
+        Self::IO {
+            raw_os_error: err.raw_os_error(),
+            kind: err.kind(),
+            context,
+            backtrace: HgBacktrace::capture(),
+        }
+    }
+
+    /// Return the underlying raw os error, if applicable
+    pub fn raw_os_error(&self) -> Option<i32> {
+        match self {
+            HgIoError::IO { raw_os_error, .. } => *raw_os_error,
+            _ => None,
+        }
+    }
+
+    /// Return the underlying os error kind, if applicable
+    pub fn kind(&self) -> Option<ErrorKind> {
+        match self {
+            HgIoError::IO { kind, .. } => Some(*kind),
+            _ => None,
+        }
+    }
+}
+
+// TODO remove this once all users have their Display impls removed
+// Only top-level code (like `rhg` or `hg-pyo3`) should care about this
+impl std::fmt::Display for HgIoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HgIoError::IO { kind, context, backtrace, raw_os_error: _ } => {
+                write!(f, "{}abort: {}: {}", backtrace, context, kind)
+            }
+            HgIoError::WriteAttemptInReadonlyVfs(backtrace) => {
+                write!(
+                    f,
+                    "{}abort: attempted write in a readonly vfs",
+                    backtrace
+                )
+            }
+            HgIoError::NonUTF8Lock(backtrace) => {
+                write!(f, "{}abort: lock contains non-UTF8 bytes", backtrace)
+            }
+        }
+    }
+}
+
 pub trait IoResultExt<T> {
     /// Annotate a possible I/O error as related to a reading a file at the
     /// given path.
@@ -203,24 +485,24 @@ pub trait IoResultExt<T> {
     /// example.txt” instead of just “File not found”.
     ///
     /// Converts a `Result` with `std::io::Error` into one with `HgError`.
-    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgError>;
+    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError>;
 
-    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgError>;
+    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError>;
 
     fn with_context(
         self,
         context: impl FnOnce() -> IoErrorContext,
-    ) -> Result<T, HgError>;
+    ) -> Result<T, HgIoError>;
 }
 
 impl<T> IoResultExt<T> for std::io::Result<T> {
-    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgError> {
+    fn when_reading_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError> {
         self.with_context(|| {
             IoErrorContext::ReadingFile(path.as_ref().to_owned())
         })
     }
 
-    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgError> {
+    fn when_writing_file(self, path: impl AsRef<Path>) -> Result<T, HgIoError> {
         self.with_context(|| {
             IoErrorContext::WritingFile(path.as_ref().to_owned())
         })
@@ -229,12 +511,8 @@ impl<T> IoResultExt<T> for std::io::Result<T> {
     fn with_context(
         self,
         context: impl FnOnce() -> IoErrorContext,
-    ) -> Result<T, HgError> {
-        self.map_err(|error| HgError::IoError {
-            error,
-            context: context(),
-            backtrace: HgBacktrace::capture(),
-        })
+    ) -> Result<T, HgIoError> {
+        self.map_err(|error| HgIoError::from_os_error(error, context()))
     }
 }
 
@@ -246,16 +524,14 @@ pub trait HgResultExt<T> {
     /// * `Ok(x)` becomes `Ok(Some(x))`
     /// * An I/O "not found" error becomes `Ok(None)`
     /// * Other errors are unchanged
-    fn io_not_found_as_none(self) -> Result<Option<T>, HgError>;
+    fn io_not_found_as_none(self) -> Result<Option<T>, HgIoError>;
 }
 
-impl<T> HgResultExt<T> for Result<T, HgError> {
-    fn io_not_found_as_none(self) -> Result<Option<T>, HgError> {
+impl<T> HgResultExt<T> for Result<T, HgIoError> {
+    fn io_not_found_as_none(self) -> Result<Option<T>, HgIoError> {
         match self {
             Ok(x) => Ok(Some(x)),
-            Err(HgError::IoError { error, .. })
-                if error.kind() == std::io::ErrorKind::NotFound =>
-            {
+            Err(err) if err.kind() == Some(std::io::ErrorKind::NotFound) => {
                 Ok(None)
             }
             Err(other_error) => Err(other_error),
@@ -267,28 +543,18 @@ impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
             RevlogError::WDirUnsupported => HgError::abort_simple(
-                "abort: working directory revision cannot be specified",
+                "working directory revision cannot be specified",
             ),
             RevlogError::InvalidRevision(r) => HgError::abort_simple(format!(
-                "abort: invalid revision identifier: {}",
+                "invalid revision identifier: {}",
                 r
             )),
             RevlogError::AmbiguousPrefix(r) => HgError::abort_simple(format!(
-                "abort: ambiguous revision identifier: {}",
+                "ambiguous revision identifier: {}",
                 r
             )),
             RevlogError::Other(error) => error,
-        }
-    }
-}
-
-impl From<DirstateError> for HgError {
-    fn from(value: DirstateError) -> Self {
-        match value {
-            DirstateError::Map(err) => {
-                HgError::abort_simple(format!("dirstate error: {err}"))
-            }
-            DirstateError::Common(err) => err,
+            RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
         }
     }
 }
@@ -298,6 +564,14 @@ impl From<DirstateError> for HgError {
 /// for more info.
 #[derive(Debug)]
 pub struct HgBacktrace(Backtrace);
+
+impl PartialEq for HgBacktrace {
+    fn eq(&self, _other: &Self) -> bool {
+        // We don't want the backtrace to affect any [`PartialEq`] or [`Eq`]
+        // implementations for all the error structs it's used in.
+        true
+    }
+}
 
 impl HgBacktrace {
     /// See [`Backtrace::capture`].
@@ -318,6 +592,15 @@ impl HgBacktrace {
     /// See [`Backtrace::status`].
     pub fn status(&self) -> BacktraceStatus {
         self.0.status()
+    }
+}
+
+impl format_bytes::DisplayBytes for HgBacktrace {
+    fn display_bytes(
+        &self,
+        output: &mut dyn std::io::Write,
+    ) -> std::io::Result<()> {
+        output.write_all(self.to_string().as_bytes())
     }
 }
 

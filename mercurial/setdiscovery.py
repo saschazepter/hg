@@ -183,12 +183,7 @@ class partialdiscovery:
         return self._common.basesheads()
 
     def _parentsgetter(self):
-        getrev = self._repo.changelog.index.__getitem__
-
-        def getparents(r):
-            return getrev(r)[5:7]
-
-        return getparents
+        return self._repo.changelog.index.parents
 
     def _childrengetter(self):
         if self._childrenmap is not None:

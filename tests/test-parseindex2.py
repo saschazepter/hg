@@ -39,6 +39,25 @@ def offset_type(offset, type):
 indexformatng = ">Qiiiiii20s12x"
 
 
+def get_entry(index, rev):
+    p1, p2 = index.parents(rev)
+    return (
+        index.data_chunk_start(rev) << 16 | index.flags(rev),
+        index.data_chunk_length(rev),
+        index.raw_size(rev),
+        index.bundle_repo_delta_base(rev),
+        index.linkrev(rev),
+        p1,
+        p2,
+        index.node(rev),
+        index.sidedata_chunk_offset(rev),
+        index.sidedata_chunk_length(rev),
+        index.data_chunk_compression_mode(rev),
+        index.sidedata_chunk_compression_mode(rev),
+        index.lazy_rank(rev),
+    )
+
+
 def py_parseindex(data, inline):
     s = 64
     cache = None
@@ -142,7 +161,8 @@ def parse_index2(data, inline, format=constants.REVLOGV1):
         uses_delta_info=False,
         format=format,
     )
-    return list(index), chunkcache
+
+    return [get_entry(index, r) for r in range(len(index))], chunkcache
 
 
 def importparsers(hexversion):
@@ -253,14 +273,15 @@ class parseindex2tests(unittest.TestCase):
             uses_generaldelta=False,
             uses_delta_info=False,
         )[0]
-        for i, r in enumerate(ix):
-            if r[7] == sha1nodeconstants.nullid:
+        for i in range(len(ix)):
+            n = ix.node(i)
+            if n == sha1nodeconstants.nullid:
                 i = -1
             try:
                 self.assertEqual(
-                    ix[r[7]],
+                    ix.rev(n),
                     i,
-                    'Reverse lookup inconsistent for %r' % hex(r[7]),
+                    'Reverse lookup inconsistent for %r' % hex(n),
                 )
             except TypeError:
                 # pure version doesn't support this
@@ -288,7 +309,7 @@ class parseindex2tests(unittest.TestCase):
             uses_generaldelta=False,
             uses_delta_info=False,
         )
-        got = index[-1]
+        got = get_entry(index, -1)
         self.assertEqual(want, got)  # inline data
 
         index, junk = parsers.parse_index2(
@@ -297,7 +318,7 @@ class parseindex2tests(unittest.TestCase):
             uses_generaldelta=False,
             uses_delta_info=False,
         )
-        got = index[-1]
+        got = get_entry(index, -1)
         self.assertEqual(want, got)  # no inline data
 
     def testdelitemwithoutnodetree(self):

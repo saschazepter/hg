@@ -7,13 +7,13 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 //! Utilities for dealing with the index at the Python boundary
-use hg::revlog::index::Index;
-use hg::revlog::index::RevisionDataParams;
+use hg::BaseRevision;
+use hg::Graph;
 use hg::revlog::Node;
 use hg::revlog::Revision;
 use hg::revlog::RevlogIndex;
-use hg::BaseRevision;
-use hg::Graph;
+use hg::revlog::index::Index;
+use hg::revlog::index::RevisionDataParams;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyTuple;
@@ -102,28 +102,4 @@ pub fn py_tuple_to_revision_data_params(
         node_id,
         ..Default::default()
     })
-}
-
-pub fn revision_data_params_to_py_tuple(
-    py: Python<'_>,
-    params: RevisionDataParams,
-) -> PyResult<Bound<'_, PyTuple>> {
-    PyTuple::new(
-        py,
-        &[
-            params.data_offset.into_pyobject(py)?.into_any(),
-            params.data_compressed_length.into_pyobject(py)?.into_any(),
-            params.data_uncompressed_length.into_pyobject(py)?.into_any(),
-            params.data_delta_base.into_pyobject(py)?.into_any(),
-            params.link_rev.into_pyobject(py)?.into_any(),
-            params.parent_rev_1.into_pyobject(py)?.into_any(),
-            params.parent_rev_2.into_pyobject(py)?.into_any(),
-            PyBytes::new(py, &params.node_id).into_any().into_any(),
-            params._sidedata_offset.into_pyobject(py)?.into_any(),
-            params._sidedata_compressed_length.into_pyobject(py)?.into_any(),
-            params.data_compression_mode.into_pyobject(py)?.into_any(),
-            params._sidedata_compression_mode.into_pyobject(py)?.into_any(),
-            params._rank.into_pyobject(py)?.into_any(),
-        ],
-    )
 }

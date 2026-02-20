@@ -13,8 +13,8 @@ use hg::config::Config;
 use hg::config::PlainInfo;
 use hg::encoding::Encoder;
 use hg::errors::HgError;
-use hg::warnings::format::write_warning;
 use hg::warnings::HgWarningContext;
+use hg::warnings::format::write_warning;
 
 use crate::color::ColorConfig;
 use crate::color::Effect;
@@ -63,7 +63,7 @@ impl Ui {
 
     /// Returns a buffered handle on stdout for faster batch printing
     /// operations.
-    pub fn stdout_buffer(&self) -> StdoutBuffer<'_, BufWriter<StdoutLock>> {
+    pub fn stdout_buffer(&self) -> StdoutBuffer<'_, BufWriter<StdoutLock<'_>>> {
         StdoutBuffer {
             stdout: BufWriter::new(self.stdout.lock()),
             colors: &self.colors,
@@ -89,7 +89,7 @@ impl Ui {
     }
 
     /// Return a lock to stderr
-    pub fn stderr_locked(&self) -> StderrLock {
+    pub fn stderr_locked(&self) -> StderrLock<'_> {
         self.stderr.lock()
     }
 
@@ -114,14 +114,13 @@ impl<W: Write> StdoutBuffer<'_, W> {
         bytes: &[u8],
         label: &str,
     ) -> Result<(), UiError> {
-        if let Some(colors) = &self.colors {
-            if let Some(effects) = colors.styles.get(label.as_bytes()) {
-                if !effects.is_empty() {
-                    return self
-                        .write_stdout_with_effects(bytes, effects)
-                        .or_else(handle_stdout_error);
-                }
-            }
+        if let Some(colors) = &self.colors
+            && let Some(effects) = colors.styles.get(label.as_bytes())
+            && !effects.is_empty()
+        {
+            return self
+                .write_stdout_with_effects(bytes, effects)
+                .or_else(handle_stdout_error);
         }
         self.write_all(bytes)
     }

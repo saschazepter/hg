@@ -1078,7 +1078,6 @@ class ifilemutation(Protocol):
         transaction,
         addrevisioncb=None,
         duplicaterevisioncb=None,
-        maybemissingparents=False,
     ):
         """Process a series of deltas for storage.
 
@@ -1099,11 +1098,6 @@ class ifilemutation(Protocol):
         ``addrevisioncb`` should be called for each new rev as it is committed.
         ``duplicaterevisioncb`` should be called for all revs with a
         pre-existing node.
-
-        ``maybemissingparents`` is a bool indicating whether the incoming
-        data may reference parents/ancestor revisions that aren't present.
-        This flag is set when receiving data into a "shallow" store that
-        doesn't hold all history.
 
         Returns a list of nodes that were processed. A node will be in the list
         even if it existed in the store previously.

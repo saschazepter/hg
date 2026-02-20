@@ -231,13 +231,16 @@ static const char *index_deref(indexObject *self, Py_ssize_t pos)
 }
 
 /*
- * Get parents of the given rev.
+ * Get raw parents value for a given rev (INTERNAL)
  *
- * The specified rev must be valid and must not be nullrev. A returned
- * parent revision may be nullrev, but is guaranteed to be in valid range.
+ * The specified rev must be valid and must not be nullrev.
+ * The parents are returned unchecked, without guaranteed to be in valid range.
+ *
+ * You should use `index_get_parents` instead, unless you are writing debug
+ * code.
  */
-static inline int index_get_parents(indexObject *self, Py_ssize_t rev, int *ps,
-                                    int maxrev)
+static inline int index_get_parents_raw(indexObject *self, Py_ssize_t rev,
+                                        int *ps, int maxrev)
 {
 	const char *data = index_deref(self, rev);
 
@@ -254,7 +257,23 @@ static inline int index_get_parents(indexObject *self, Py_ssize_t rev, int *ps,
 		raise_revlog_error();
 		return -1;
 	}
+	return 0;
+}
 
+/*
+ * Get parents of the given rev.
+ *
+ * The specified rev must be valid and must not be nullrev. A returned
+ * parent revision may be nullrev, but is guaranteed to be in valid range.
+ */
+static inline int index_get_parents(indexObject *self, Py_ssize_t rev, int *ps,
+                                    int maxrev)
+{
+	int sub_ret;
+	sub_ret = index_get_parents_raw(self, rev, ps, maxrev);
+	if (sub_ret < 0) {
+		return sub_ret;
+	}
 	/* If index file is corrupted, ps[] may point to invalid revisions. So
 	 * there is a risk of buffer overflow to trust them unconditionally. */
 	if (ps[0] < -1 || ps[0] > maxrev || ps[1] < -1 || ps[1] > maxrev) {
@@ -291,6 +310,266 @@ static int HgRevlogIndex_GetParents(PyObject *op, int rev, int *ps)
 	}
 }
 
+static PyObject *index_py_parents(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int parents[] = {-1, -1};
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < -1 || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx >= 0) {
+		if (index_get_parents(self, idx, parents, tiprev) < 0) {
+			return NULL;
+		}
+	}
+	return Py_BuildValue("(ii)", parents[0], parents[1]);
+}
+
+static PyObject *index_py_parents_raw(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int parents[] = {-1, -1};
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < -1 || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx >= 0) {
+		if (index_get_parents_raw(self, idx, parents, tiprev) < 0) {
+			return NULL;
+		}
+	}
+	return Py_BuildValue("(ii)", parents[0], parents[1]);
+}
+
+static PyObject *index_py_raw_size(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	int32_t value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (rev == nullrev)
+		return PyLong_FromLong(0);
+	data = index_deref(self, rev);
+	if (data == NULL)
+		return NULL;
+	if (self->format_version == format_v1) {
+		value = getbe32(data + entry_v1_offset_uncomp_len);
+	} else if (self->format_version == format_v2) {
+		value = getbe32(data + entry_v2_offset_uncomp_len);
+	} else if (self->format_version == format_cl2) {
+		value = getbe32(data + entry_cl2_offset_uncomp_len);
+	}
+	if (value < 0) {
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+	return PyLong_FromLong(value);
+}
+
+static PyObject *index_py_linkrev(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	long value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (rev == nullrev) {
+		return PyLong_FromLong(nullrev);
+	}
+	data = index_deref(self, rev);
+	if (data == NULL)
+		return NULL;
+	if (self->format_version == format_v1) {
+		value = getbe32(data + entry_v1_offset_link_rev);
+	} else if (self->format_version == format_v2) {
+		value = getbe32(data + entry_v2_offset_link_rev);
+	} else if (self->format_version == format_cl2) {
+		value = rev;
+	}
+	return PyLong_FromLong(value);
+}
+
+static PyObject *index_py_data_chunk_compression_mode(indexObject *self,
+                                                      PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	char value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_v1 || rev == nullrev) {
+		value = comp_mode_inline;
+	} else {
+		data = index_deref(self, rev);
+		if (data == NULL)
+			return NULL;
+		if (self->format_version == format_v2) {
+			/* The first 2 bits encode the compression of the
+			 * data-chunk */
+			value = data[entry_v2_offset_all_comp_mode] & 3;
+		} else if (self->format_version == format_cl2) {
+			/* The first 2 bits encode the compression of the
+			 * data-chunk */
+			value = data[entry_cl2_offset_all_comp_mode] & 3;
+		}
+	}
+	return Py_BuildValue("B", value);
+}
+
+static PyObject *index_py_sidedata_chunk_offset(indexObject *self,
+                                                PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	uint64_t value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_v1 || rev == nullrev) {
+		value = 0;
+	} else {
+		data = index_deref(self, rev);
+		if (data == NULL)
+			return NULL;
+		if (self->format_version == format_v2) {
+			value = getbe64(data + entry_v2_offset_sidedata_offset);
+		} else if (self->format_version == format_cl2) {
+			value =
+			    getbe64(data + entry_cl2_offset_sidedata_offset);
+		}
+	}
+	return PyLong_FromLongLong(value);
+}
+
+static PyObject *index_py_sidedata_chunk_length(indexObject *self,
+                                                PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	long value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_v1 || rev == nullrev) {
+		value = 0;
+	} else {
+		data = index_deref(self, rev);
+		if (data == NULL)
+			return NULL;
+		if (self->format_version == format_v2) {
+			value =
+			    getbe32(data + entry_v2_offset_sidedata_comp_len);
+		} else if (self->format_version == format_cl2) {
+			value =
+			    getbe32(data + entry_cl2_offset_sidedata_comp_len);
+		}
+	}
+	return PyLong_FromLong(value);
+}
+
+static PyObject *index_py_sidedata_chunk_compression_mode(indexObject *self,
+                                                          PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	char value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_v1 || rev == nullrev) {
+		value = comp_mode_inline;
+	} else {
+		data = index_deref(self, rev);
+		if (data == NULL) {
+			return NULL;
+		}
+		if (self->format_version == format_v2) {
+			/* The bits 2 and 3 encode the compression of the
+			 * sidedata-chunk */
+			value = (data[entry_v2_offset_all_comp_mode] >> 2) & 3;
+		} else if (self->format_version == format_cl2) {
+			/* The bits 2 and 3 encode the compression of the
+			 * sidedata-chunk */
+			value = (data[entry_cl2_offset_all_comp_mode] >> 2) & 3;
+		}
+	}
+	return Py_BuildValue("B", value);
+}
+
+static PyObject *index_py_lazy_rank(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	long tiprev;
+	long value;
+	const char *data;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < -1 || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	if (self->format_version == format_cl2) {
+		data = index_deref(self, rev);
+		if (data == NULL)
+			return NULL;
+		value = getbe32(data + entry_cl2_offset_rank);
+	} else {
+		value = rank_unknown;
+	}
+	return PyLong_FromLong(value);
+}
+
 static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 {
 	const char *data;
@@ -303,9 +582,17 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 
 	if (self->format_version == format_v1) {
 		offset = getbe32(data + entry_v1_offset_offset_flags);
-		if (rev == 0) {
-			/* mask out version number for the first entry */
-			offset &= 0xFFFF;
+		/* if rev 0 is in added, it might be from a bundle repo in that
+		 * case:
+		 * - it won't contains the version number and other header so no
+		 * needs to mask them
+		 * - the value won't be the usual 0, because it starts somewhere
+		 * within the bundle.
+		 */
+		if (rev == 0 && self->length > 0) {
+			/* all but the flag are masked, and the flag will be
+			 * dropped */
+			return 0;
 		} else {
 			uint32_t offset_high =
 			    getbe32(data + entry_v1_offset_high);
@@ -313,9 +600,17 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 		}
 	} else if (self->format_version == format_v2) {
 		offset = getbe32(data + entry_v2_offset_offset_flags);
-		if (rev == 0) {
-			/* mask out version number for the first entry */
-			offset &= 0xFFFF;
+		/* if rev 0 is in added, it might be from a bundle repo in that
+		 * case:
+		 * - it won't contains the version number and other header so no
+		 * needs to mask them
+		 * - the value won't be the usual 0, because it starts somewhere
+		 * within the bundle.
+		 */
+		if (rev == 0 && self->length > 0) {
+			/* all but the flag are masked, and the flag will be
+			 * dropped */
+			return 0;
 		} else {
 			uint32_t offset_high =
 			    getbe32(data + entry_v2_offset_high);
@@ -331,6 +626,29 @@ static inline int64_t index_get_start(indexObject *self, Py_ssize_t rev)
 	}
 
 	return (int64_t)(offset >> 16);
+}
+
+static PyObject *index_py_data_chunk_start(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int64_t start;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < nullrev || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx == nullrev) {
+		start = 0;
+	} else {
+		start = index_get_start(self, idx);
+	}
+	if (start < 0) {
+		return NULL;
+	}
+	return PyLong_FromLongLong(start);
 }
 
 static inline int index_get_length(indexObject *self, Py_ssize_t rev)
@@ -361,6 +679,29 @@ static inline int index_get_length(indexObject *self, Py_ssize_t rev)
 	return tmp;
 }
 
+static PyObject *index_py_data_chunk_length(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int length;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < nullrev || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx == nullrev) {
+		length = 0;
+	} else {
+		length = index_get_length(self, idx);
+	}
+	if (length < 0) {
+		return NULL;
+	}
+	return PyLong_FromLong(length);
+}
+
 /**
  * Return the flags of a revision
  *
@@ -388,6 +729,29 @@ static inline int index_get_flags(indexObject *self, Py_ssize_t rev)
 		return -1;
 	}
 	return offset_flags & 0xFFFF;
+}
+
+static PyObject *index_py_flags(indexObject *self, PyObject *rev)
+{
+	long idx;
+	int tiprev;
+	int flags;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (idx < nullrev || idx > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (idx == nullrev) {
+		flags = 0;
+	} else {
+		flags = index_get_flags(self, idx);
+	}
+	if (flags < 0) {
+		return NULL;
+	}
+	return PyLong_FromLong(flags);
 }
 
 /*
@@ -598,6 +962,28 @@ static const char *index_node(indexObject *self, Py_ssize_t pos)
 	return data ? node_id : NULL;
 }
 
+static PyObject *index_py_node(indexObject *self, PyObject *rev)
+{
+	const char *node;
+	long idx;
+	if (!pylong_to_long(rev, &idx)) {
+		return NULL;
+	}
+	if (idx < -1) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	}
+	node = index_node(self, idx);
+	if (node == NULL) {
+		if (PyErr_Occurred() == NULL) {
+			PyErr_SetString(PyExc_IndexError,
+			                "revlog index out of range");
+		}
+		return NULL;
+	}
+	return PyBytes_FromStringAndSize(node, self->nodelen);
+}
+
 /*
  * Return the stored rank of a given revision if known, or rank_unknown
  * otherwise.
@@ -774,15 +1160,15 @@ static PyObject *index_append(indexObject *self, PyObject *obj)
    inside the transaction that creates the given revision. */
 static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 {
-	uint64_t offset_flags, sidedata_offset;
+	uint64_t offset_flags, sidedata_offset, added_flags, dropped_flags;
 	Py_ssize_t rev;
 	int sidedata_comp_len;
 	char comp_mode;
 	char *data;
 #if LONG_MAX == 0x7fffffffL
-	const char *const sidedata_format = "nKiKB";
+	const char *const sidedata_format = "nKiKKB";
 #else
-	const char *const sidedata_format = "nkikB";
+	const char *const sidedata_format = "nkikkB";
 #endif
 
 	if (self->entry_size == v1_entry_size || self->inlined) {
@@ -797,7 +1183,8 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 	}
 
 	if (!PyArg_ParseTuple(args, sidedata_format, &rev, &sidedata_offset,
-	                      &sidedata_comp_len, &offset_flags, &comp_mode))
+	                      &sidedata_comp_len, &added_flags, &dropped_flags,
+	                      &comp_mode))
 		return NULL;
 
 	if (rev < 0 || rev >= index_length(self)) {
@@ -815,6 +1202,9 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 	 */
 	data = self->added + self->entry_size * (rev - self->length);
 	if (self->format_version == format_v2) {
+		offset_flags = getbe64(data + entry_v2_offset_high);
+		offset_flags |= added_flags;
+		offset_flags &= ~dropped_flags;
 		putbe64(offset_flags, data + entry_v2_offset_high);
 		putbe64(sidedata_offset,
 		        data + entry_v2_offset_sidedata_offset);
@@ -824,6 +1214,9 @@ static PyObject *index_replace_sidedata_info(indexObject *self, PyObject *args)
 		    (data[entry_v2_offset_all_comp_mode] & ~(3 << 2)) |
 		    ((comp_mode & 3) << 2);
 	} else if (self->format_version == format_cl2) {
+		offset_flags = getbe64(data + entry_cl2_offset_high);
+		offset_flags |= added_flags;
+		offset_flags &= ~dropped_flags;
 		putbe64(offset_flags, data + entry_cl2_offset_high);
 		putbe64(sidedata_offset,
 		        data + entry_cl2_offset_sidedata_offset);
@@ -1241,7 +1634,7 @@ static PyObject *compute_phases_map_sets(indexObject *self, PyObject *args)
 		Py_DECREF(pyrev);
 	}
 
-	phasesetsdict = _dict_new_presized(numphases);
+	phasesetsdict = _PyDict_NewPresized(numphases);
 	if (phasesetsdict == NULL)
 		goto release;
 	for (i = 0; i < numphases; ++i) {
@@ -1614,6 +2007,59 @@ static inline int index_baserev(indexObject *self, int rev)
 		return -2;
 	}
 	return result;
+}
+
+static PyObject *index_py_bundle_repo_delta_base(indexObject *self,
+                                                 PyObject *py_rev)
+{
+	long rev;
+	int tiprev;
+	long base;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < nullrev || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (rev == nullrev) {
+		base = -1;
+	} else {
+		base = index_baserev(self, rev);
+		if (base < nullrev) {
+			return NULL;
+		}
+	}
+	return PyLong_FromLong(base);
+}
+
+static PyObject *index_py_delta_base(indexObject *self, PyObject *py_rev)
+{
+	long rev;
+	int tiprev;
+	long base;
+	if (!pylong_to_long(py_rev, &rev)) {
+		return NULL;
+	}
+	tiprev = (int)index_length(self) - 1;
+	if (rev < nullrev || rev > tiprev) {
+		PyErr_SetString(PyExc_IndexError, "revlog index out of range");
+		return NULL;
+	} else if (rev == nullrev) {
+		Py_INCREF(Py_None);
+		return Py_None;
+	} else {
+		base = index_baserev(self, rev);
+		if (base < nullrev) {
+			return NULL;
+		} else if (base == rev) {
+			Py_INCREF(Py_None);
+			return Py_None;
+		} else if (!self->uses_generaldelta) {
+			base = rev - 1;
+		}
+	}
+	return PyLong_FromLong(base);
 }
 
 /**
@@ -2565,11 +3011,10 @@ static PyObject *index_getitem(indexObject *self, PyObject *value)
 	int rev;
 
 	if (PyLong_Check(value)) {
-		long idx;
-		if (!pylong_to_long(value, &idx)) {
-			return NULL;
-		}
-		return index_get(self, idx);
+		PyErr_SetString(PyExc_TypeError,
+		                "index no longer rev indexable, use dedicated "
+		                "method to access each values");
+		return NULL;
 	}
 
 	if (node_check(self->nodelen, value, &node) == -1)
@@ -3435,8 +3880,39 @@ static PyMethodDef index_methods[] = {
      "return `rev` associated with a node or None"},
     {"has_node", (PyCFunction)index_m_has_node, METH_O,
      "return True if the node exist in the index"},
+    {"node", (PyCFunction)index_py_node, METH_O, "return `node` of a rev"},
     {"rev", (PyCFunction)index_m_rev, METH_O,
      "return `rev` associated with a node or raise RevlogError"},
+
+    {"parents", (PyCFunction)index_py_parents, METH_O,
+     "return parents of a rev"},
+    {"_parents_raw", (PyCFunction)index_py_parents_raw, METH_O,
+     "return raw parents value from the index"},
+    {"linkrev", (PyCFunction)index_py_linkrev, METH_O,
+     "return linkrev for a rev"},
+    {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
+    {"bundle_repo_delta_base", (PyCFunction)index_py_bundle_repo_delta_base,
+     METH_O, "hack to keep bundle repo working"},
+    {"raw_size", (PyCFunction)index_py_raw_size, METH_O,
+     "return raw-size for a rev"},
+    {"data_chunk_start", (PyCFunction)index_py_data_chunk_start, METH_O,
+     "return the starting offset of the data chunk of a rev"},
+    {"data_chunk_length", (PyCFunction)index_py_data_chunk_length, METH_O,
+     "return the length of the data chunk of a rev"},
+    {"delta_base", (PyCFunction)index_py_delta_base, METH_O,
+     "return the base revision on which to apply the delta"},
+    {"data_chunk_compression_mode",
+     (PyCFunction)index_py_data_chunk_compression_mode, METH_O,
+     "return the compression-mode for a revision"},
+    {"sidedata_chunk_offset", (PyCFunction)index_py_sidedata_chunk_offset,
+     METH_O, "return the offset for the sidedata chunk of a revision"},
+    {"sidedata_chunk_length", (PyCFunction)index_py_sidedata_chunk_length,
+     METH_O, "return the on-disk length of the sidedata chunk of a revision"},
+    {"sidedata_chunk_compression_mode",
+     (PyCFunction)index_py_sidedata_chunk_compression_mode, METH_O,
+     "return the compression-mode for the sidedata as a revision"},
+    {"lazy_rank", (PyCFunction)index_py_lazy_rank, METH_O,
+     "return the rank of a revision (if known)"},
     {"computephasesmapsets", (PyCFunction)compute_phases_map_sets, METH_VARARGS,
      "compute phases"},
     {"reachableroots2", (PyCFunction)reachableroots2, METH_VARARGS,

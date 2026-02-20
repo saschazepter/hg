@@ -9,9 +9,9 @@ use std::io;
 use std::os::unix::io::AsRawFd;
 
 use bytes::Bytes;
-use tokio_hglib::codec::ChannelMessage;
 use tokio_hglib::Connection;
 use tokio_hglib::Protocol;
+use tokio_hglib::codec::ChannelMessage;
 
 use crate::attachio;
 use crate::message::CommandType;

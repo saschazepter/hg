@@ -73,7 +73,7 @@ impl Encoder {
                 return Err(HgError::unsupported(format!(
                     "HGENCODING value '{}' is not supported",
                     s.to_string_lossy()
-                )))
+                )));
             }
         };
         let decoding_mode = match std::env::var_os("HGENCODINGMODE") {
@@ -84,7 +84,7 @@ impl Encoder {
                 return Err(HgError::abort_simple(format!(
                     "HGENCODINGMODE value '{}' is not supported",
                     s.to_string_lossy()
-                )))
+                )));
             }
         };
         let ambiguous_width = match std::env::var_os("HGENCODINGAMBIGUOUS") {
@@ -95,7 +95,7 @@ impl Encoder {
                 return Err(HgError::abort_simple(format!(
                     "HGENCODINGAMBIGUOUS value '{}' is not supported",
                     s.to_string_lossy()
-                )))
+                )));
             }
         };
         Ok(Self { local_encoding, decoding_mode, ambiguous_width })

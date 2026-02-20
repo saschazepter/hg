@@ -3,8 +3,8 @@ use std::path::Path;
 use hg::errors::HgError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
-use hg::warnings::format::write_warning;
 use hg::warnings::HgWarningContext;
+use hg::warnings::format::write_warning;
 use pyo3::buffer::Element;
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyIOError;
@@ -406,9 +406,7 @@ where
 {
     fn into_pyerr(self, py: Python) -> PyResult<T> {
         self.map_err(|e| match e.into() {
-            err @ HgError::IoError { .. } => {
-                PyIOError::new_err(err.to_string())
-            }
+            err @ HgError::IO(_) => PyIOError::new_err(err.to_string()),
             err @ HgError::UnsupportedFeature(..) => {
                 FallbackError::new_err(err.to_string())
             }

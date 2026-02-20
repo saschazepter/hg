@@ -80,52 +80,52 @@ def debug_column(name, size=None, verbose=False):
 
 
 @debug_column(b"rev", size=6)
-def _rev(index, rev, entry, hexfn):
+def _rev(index, rev, hexfn):
     return b"%d" % rev
 
 
 @debug_column(b"rank", size=6, verbose=True)
-def rank(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_RANK]
+def rank(index, rev, hexfn):
+    return b"%d" % index.lazy_rank(rev)
 
 
 @debug_column(b"linkrev", size=6)
-def _linkrev(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_LINK_REV]
+def _linkrev(index, rev, hexfn):
+    return b"%d" % index.linkrev(rev)
 
 
 @debug_column(b"nodeid", size=NODE_SIZE)
-def _nodeid(index, rev, entry, hexfn):
-    return hexfn(entry[constants.ENTRY_NODE_ID])
+def _nodeid(index, rev, hexfn):
+    return hexfn(index.node(rev))
 
 
 @debug_column(b"p1-rev", size=6, verbose=True)
-def _p1_rev(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_PARENT_1]
+def _p1_rev(index, rev, hexfn):
+    return b"%d" % index.parents(rev)[0]
 
 
 @debug_column(b"p1-nodeid", size=NODE_SIZE)
-def _p1_node(index, rev, entry, hexfn):
-    parent = entry[constants.ENTRY_PARENT_1]
-    p_entry = index[parent]
-    return hexfn(p_entry[constants.ENTRY_NODE_ID])
+def _p1_node(index, rev, hexfn):
+    p1 = index.parents(rev)[0]
+    p1_node = index.node(p1)
+    return hexfn(p1_node)
 
 
 @debug_column(b"p2-rev", size=6, verbose=True)
-def _p2_rev(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_PARENT_2]
+def _p2_rev(index, rev, hexfn):
+    return b"%d" % index.parents(rev)[1]
 
 
 @debug_column(b"p2-nodeid", size=NODE_SIZE)
-def _p2_node(index, rev, entry, hexfn):
-    parent = entry[constants.ENTRY_PARENT_2]
-    p_entry = index[parent]
-    return hexfn(p_entry[constants.ENTRY_NODE_ID])
+def _p2_node(index, rev, hexfn):
+    p2 = index.parents(rev)[1]
+    p2_node = index.node(p2)
+    return hexfn(p2_node)
 
 
 @debug_column(b"full-size", size=20, verbose=True)
-def full_size(index, rev, entry, hexfn):
-    size = entry[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+def full_size(index, rev, hexfn):
+    size = index.raw_size(rev)
     if size is None:
         return b"-"
     else:
@@ -133,37 +133,33 @@ def full_size(index, rev, entry, hexfn):
 
 
 @debug_column(b"delta-base", size=6, verbose=True)
-def delta_base(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_DELTA_BASE]
+def delta_base(index, rev, hexfn):
+    return b"%d" % index.bundle_repo_delta_base(rev)
 
 
 @debug_column(b"flags", size=2, verbose=True)
-def flags(index, rev, entry, hexfn):
-    field = entry[constants.ENTRY_DATA_OFFSET]
-    field &= 0xFFFF
-    return b"%d" % field
+def flags(index, rev, hexfn):
+    return b"%d" % index.flags(rev)
 
 
 @debug_column(b"comp-mode", size=4, verbose=True)
-def compression_mode(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_DATA_COMPRESSION_MODE]
+def compression_mode(index, rev, hexfn):
+    return b"%d" % index.data_chunk_compression_mode(rev)
 
 
 @debug_column(b"data-offset", size=20, verbose=True)
-def data_offset(index, rev, entry, hexfn):
-    field = entry[constants.ENTRY_DATA_OFFSET]
-    field >>= 16
-    return b"%d" % field
+def data_offset(index, rev, hexfn):
+    return b"%d" % index.data_chunk_start(rev)
 
 
 @debug_column(b"chunk-size", size=10, verbose=True)
-def data_chunk_size(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_DATA_COMPRESSED_LENGTH]
+def data_chunk_size(index, rev, hexfn):
+    return b"%d" % index.data_chunk_length(rev)
 
 
 @debug_column(b"sd-comp-mode", size=7, verbose=True)
-def sidedata_compression_mode(index, rev, entry, hexfn):
-    compression = entry[constants.ENTRY_SIDEDATA_COMPRESSION_MODE]
+def sidedata_compression_mode(index, rev, hexfn):
+    compression = index.sidedata_chunk_compression_mode(rev)
     if compression == constants.COMP_MODE_PLAIN:
         return b"plain"
     elif compression == constants.COMP_MODE_DEFAULT:
@@ -175,13 +171,13 @@ def sidedata_compression_mode(index, rev, entry, hexfn):
 
 
 @debug_column(b"sidedata-offset", size=20, verbose=True)
-def sidedata_offset(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_SIDEDATA_OFFSET]
+def sidedata_offset(index, rev, hexfn):
+    return b"%d" % index.sidedata_chunk_offset(rev)
 
 
 @debug_column(b"sd-chunk-size", size=10, verbose=True)
-def sidedata_chunk_size(index, rev, entry, hexfn):
-    return b"%d" % entry[constants.ENTRY_SIDEDATA_COMPRESSED_LENGTH]
+def sidedata_chunk_size(index, rev, hexfn):
+    return b"%d" % index.sidedata_chunk_length(rev)
 
 
 def debug_index(
@@ -218,7 +214,6 @@ def debug_index(
 
     for rev in revlog:
         fm.startitem()
-        entry = index[rev]
         first = True
         for column in INDEX_ENTRY_DEBUG_COLUMN:
             if column.verbose_only and not ui.verbose:
@@ -228,7 +223,7 @@ def debug_index(
             first = False
 
             size = column.get_size(idlen)
-            value = column.value_func(index, rev, entry, hexfn)
+            value = column.value_func(index, rev, hexfn)
             display = b"%%%ds" % size
             fm.write(column.name, display, value)
         fm.plain(b'\n')
@@ -750,13 +745,14 @@ class DeltaChainAuditor:
         self._total_revs = len(self._index)
 
     def revinfo(self, rev, size_info=True, dist_info=True, sparse_info=True):
-        e = self._index[rev]
-        compsize = e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
-        uncompsize = e[constants.ENTRY_DATA_UNCOMPRESSED_LENGTH]
+        idx = self._index
+        compsize = idx.data_chunk_length(rev)
+        uncompsize = idx.raw_size(rev)
 
-        base = e[constants.ENTRY_DELTA_BASE]
-        p1 = e[constants.ENTRY_PARENT_1]
-        p2 = e[constants.ENTRY_PARENT_2]
+        base = idx.delta_base(rev)
+        if base is None:
+            base = rev
+        p1, p2 = idx._parents_raw(rev)
 
         # If the parents of a revision has an empty delta, we never try to
         # delta against that parent, but directly against the delta base of
@@ -767,30 +763,26 @@ class DeltaChainAuditor:
         # is not simply "other".
         p1_base = p1
         if p1 != nodemod.nullrev and p1 < self._total_revs:
-            e1 = self._index[p1]
-            while e1[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
-                new_base = e1[constants.ENTRY_DELTA_BASE]
+            while idx.data_chunk_length(p1_base) == 0:
+                new_base = idx.delta_base(p1_base)
                 if (
-                    new_base == p1_base
+                    new_base is None
                     or new_base == nodemod.nullrev
                     or new_base >= self._total_revs
                 ):
                     break
                 p1_base = new_base
-                e1 = self._index[p1_base]
         p2_base = p2
         if p2 != nodemod.nullrev and p2 < self._total_revs:
-            e2 = self._index[p2]
-            while e2[constants.ENTRY_DATA_COMPRESSED_LENGTH] == 0:
-                new_base = e2[constants.ENTRY_DELTA_BASE]
+            while idx.data_chunk_length(p2_base) == 0:
+                new_base = idx.delta_base(p2_base)
                 if (
-                    new_base == p2_base
+                    new_base is None
                     or new_base == nodemod.nullrev
                     or new_base >= self._total_revs
                 ):
                     break
                 p2_base = new_base
-                e2 = self._index[p2_base]
 
         if self._generaldelta:
             if base == p1:
@@ -835,8 +827,7 @@ class DeltaChainAuditor:
                 if cached is not None:
                     chain_size += cached
                     break
-                e = self._index[iter_rev]
-                chain_size += e[constants.ENTRY_DATA_COMPRESSED_LENGTH]
+                chain_size += idx.data_chunk_length(iter_rev)
             self._chain_size_cache[rev] = chain_size
             data['chain_size'] = chain_size
 

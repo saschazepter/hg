@@ -111,6 +111,16 @@ class RevlogError(StorageError):
     pass
 
 
+class RustRevlogError(RevlogError):
+    """Special cased to not change the formatting from Rust"""
+
+    def format(self) -> bytes:
+        message = self.message + b'\n'
+        if self.hint:
+            message += _(b"(%s)\n") % self.hint
+        return message
+
+
 class SidedataHashError(RevlogError):
     def __init__(self, key: int, expected: bytes, got: bytes) -> None:
         self.hint = None

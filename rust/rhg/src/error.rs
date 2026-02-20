@@ -4,23 +4,21 @@ use format_bytes::format_bytes;
 use hg::config::ConfigError;
 use hg::config::ConfigParseError;
 use hg::config::ConfigValueParseError;
-use hg::dirstate::on_disk::DirstateV2ParseError;
-use hg::dirstate::status::StatusError;
 use hg::dirstate::DirstateError;
-use hg::dirstate::DirstateMapError;
+use hg::dirstate::status::StatusError;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
+use hg::errors::HgIoError;
 use hg::exit_codes;
 use hg::file_patterns::PatternError;
 use hg::narrow::shape;
-use hg::repo::RepoError;
 use hg::revlog::RevlogError;
 use hg::sparse::SparseConfigError;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPathError;
 
-use crate::ui::UiError;
 use crate::NoRepoInCwdError;
+use crate::ui::UiError;
 
 /// The kind of command error
 #[derive(Debug)]
@@ -44,6 +42,12 @@ pub enum CommandError {
     /// The fallback executable does not exist (or has some other problem if
     /// we end up being more precise about broken fallbacks).
     InvalidFallback { path: Vec<u8>, err: String },
+}
+
+impl From<HgIoError> for CommandError {
+    fn from(value: HgIoError) -> Self {
+        HgError::from(value).into()
+    }
 }
 
 impl CommandError {
@@ -115,15 +119,35 @@ impl From<HgError> for CommandError {
             HgError::UnsupportedFeature(message, backtrace) => {
                 CommandError::unsupported(format!("{}{}", backtrace, message))
             }
+            // explicit because some patterns lead to falling back
+            HgError::Pattern(pat) => pat.into(),
             e @ HgError::CensoredNodeError(_, _) => {
                 CommandError::unsupported(format!("abort: {}", e))
             }
             HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
                 CommandError::abort_with_exit_code_and_hint(
-                    message,
+                    format!("abort: {}", message),
                     detailed_exit_code,
                     hint,
                     backtrace,
+                )
+            }
+            HgError::CorruptedRepository(message, backtrace) => {
+                CommandError::abort_with_exit_code_and_hint(
+                    format!("abort: {}", message),
+                    exit_codes::ABORT,
+                    None::<String>,
+                    backtrace,
+                )
+            }
+            HgError::RepoNotFound { at, backtrace } => {
+                CommandError::abort_with_exit_code_bytes(
+                    format_bytes!(
+                        b"{}abort: no repository found in '{}' (.hg not found)!",
+                        backtrace,
+                        get_bytes_from_path(at)
+                    ),
+                    exit_codes::ABORT,
                 )
             }
             _ => CommandError::abort(error.to_string()),
@@ -155,30 +179,13 @@ impl From<UiError> for CommandError {
     }
 }
 
-impl From<RepoError> for CommandError {
-    fn from(error: RepoError) -> Self {
-        match error {
-            RepoError::NotFound { at } => {
-                CommandError::abort_with_exit_code_bytes(
-                    format_bytes!(
-                        b"abort: repository {} not found",
-                        get_bytes_from_path(at)
-                    ),
-                    exit_codes::ABORT,
-                )
-            }
-            RepoError::ConfigParseError(error) => error.into(),
-            RepoError::Other(error) => error.into(),
-        }
-    }
-}
-
 impl<'a> From<&'a NoRepoInCwdError> for CommandError {
     fn from(error: &'a NoRepoInCwdError) -> Self {
-        let NoRepoInCwdError { cwd } = error;
+        let NoRepoInCwdError { cwd, backtrace } = error;
         CommandError::abort_with_exit_code_bytes(
             format_bytes!(
-                b"abort: no repository found in '{}' (.hg not found)!",
+                b"{}abort: no repository found in '{}' (.hg not found)!",
+                backtrace,
                 get_bytes_from_path(cwd)
             ),
             exit_codes::ABORT,
@@ -191,6 +198,7 @@ impl From<ConfigError> for CommandError {
         match error {
             ConfigError::Parse(error) => error.into(),
             ConfigError::Other(error) => error.into(),
+            ConfigError::IO(error) => error.into(),
         }
     }
 }
@@ -225,10 +233,10 @@ impl From<RevlogError> for CommandError {
 impl From<StatusError> for CommandError {
     fn from(error: StatusError) -> Self {
         match error {
-            StatusError::Pattern(_) => {
-                CommandError::unsupported(format!("{}", error))
+            StatusError::Path(_) | StatusError::Dirstate(_) => {
+                CommandError::abort(HgError::from(error).to_string())
             }
-            _ => CommandError::abort(format!("{}", error)),
+            StatusError::Pattern(pattern_err) => pattern_err.into(),
         }
     }
 }
@@ -241,27 +249,25 @@ impl From<HgPathError> for CommandError {
 
 impl From<PatternError> for CommandError {
     fn from(error: PatternError) -> Self {
-        CommandError::unsupported(format!("{}", error))
-    }
-}
-
-impl From<DirstateMapError> for CommandError {
-    fn from(error: DirstateMapError) -> Self {
-        CommandError::abort(format!("{}", error))
+        match error {
+            PatternError::Path(_)
+            | PatternError::NonRegexPattern(_, _)
+            | PatternError::IO(_)
+            | PatternError::UnclosedGlobAlternation(_, _)
+            | PatternError::UnsupportedSyntaxNarrow(_, _) => {
+                CommandError::abort(HgError::from(error).to_string())
+            }
+            PatternError::UnsupportedSyntax(_, _)
+            | PatternError::RegexError { .. }
+            | PatternError::NonUtf8Pattern { .. } => {
+                CommandError::unsupported(HgError::from(error).to_string())
+            }
+        }
     }
 }
 
 impl From<DirstateError> for CommandError {
     fn from(error: DirstateError) -> Self {
-        match error {
-            DirstateError::Common(error) => error.into(),
-            DirstateError::Map(error) => error.into(),
-        }
-    }
-}
-
-impl From<DirstateV2ParseError> for CommandError {
-    fn from(error: DirstateV2ParseError) -> Self {
         HgError::from(error).into()
     }
 }
@@ -311,9 +317,7 @@ impl From<SparseConfigError> for CommandError {
                     is not supported in narrowspec",
             ),
             SparseConfigError::HgError(e) => Self::from(e),
-            SparseConfigError::PatternError(e) => {
-                Self::unsupported(format!("{}", e))
-            }
+            SparseConfigError::PatternError(e) => e.into(),
         }
     }
 }
