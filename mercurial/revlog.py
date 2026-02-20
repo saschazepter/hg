@@ -91,6 +91,7 @@ from .revlogutils.constants import (
 from .thirdparty import attr
 from .interfaces import compression as i_comp
 from .revlogutils import config as revlog_config
+from .pure import parsers as pure_parsers
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -272,7 +273,7 @@ def parse_index_v2(
     uses_delta_info,
 ):
     # call the C implementation to parse the index data
-    index, cache = parsers.parse_index2(
+    index, cache = pure_parsers.parse_index2(
         data,
         inline,
         uses_generaldelta,
@@ -289,7 +290,7 @@ def parse_index_cl_v2(
     uses_delta_info,
 ):
     # call the C implementation to parse the index data
-    index, cache = parsers.parse_index2(
+    index, cache = pure_parsers.parse_index2(
         data,
         inline,
         uses_generaldelta,
