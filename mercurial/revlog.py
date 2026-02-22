@@ -753,6 +753,21 @@ class revlog:
         except FileNotFoundError:
             return b''
 
+    def _find_entry_point_path(self):
+        """init-method: compute the path of the entry point for this revlog
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+        if self.postfix is not None:
+            return b'%s.i.%s' % (self.radix, self.postfix)
+        elif self._trypending and self.opener.exists(b'%s.i.a' % self.radix):
+            return b'%s.i.a' % self.radix
+        elif self._try_split and self.opener.exists(self._split_index_file):
+            return self._split_index_file
+        else:
+            return b'%s.i' % self.radix
+
     def _loadindex(self, docket=None):
         """init-method: open the revlog entry-point on disk and load it
 
@@ -766,14 +781,7 @@ class revlog:
         """
         new_header, mmapindexthreshold = self._init_opts()
 
-        if self.postfix is not None:
-            entry_point = b'%s.i.%s' % (self.radix, self.postfix)
-        elif self._trypending and self.opener.exists(b'%s.i.a' % self.radix):
-            entry_point = b'%s.i.a' % self.radix
-        elif self._try_split and self.opener.exists(self._split_index_file):
-            entry_point = self._split_index_file
-        else:
-            entry_point = b'%s.i' % self.radix
+        entry_point = self._find_entry_point_path()
 
         if docket is not None:
             self._docket = docket
