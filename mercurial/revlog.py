@@ -835,6 +835,30 @@ class revlog:
                 )
             return None
 
+    @property
+    def _parse_index(self):
+        """init-method: select the right parser for index data
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+        devel_nodemap = (
+            self._nodemap_file
+            and self.opener.options.get(b'devel-force-nodemap', False)
+            and parse_index_v1_nodemap is not None
+        )
+
+        if self._format_version == REVLOGV0:
+            return revlogv0.parse_index_v0
+        elif self._format_version == REVLOGV2:
+            return parse_index_v2
+        elif self._format_version == CHANGELOGV2:
+            return parse_index_cl_v2
+        elif devel_nodemap:
+            return parse_index_v1_nodemap
+        else:
+            return parse_index_v1
+
     def _loadindex(self, docket=None):
         """init-method: open the revlog entry-point on disk and load it
 
@@ -891,12 +915,6 @@ class revlog:
 
         self._storedeltachains = True
 
-        devel_nodemap = (
-            self._nodemap_file
-            and self.opener.options.get(b'devel-force-nodemap', False)
-            and parse_index_v1_nodemap is not None
-        )
-
         use_rust_index = False
         is_changelog = self.target[0] == KIND_CHANGELOG
         may_rust = getattr(self.opener, "rust_compatible", True)
@@ -913,16 +931,6 @@ class revlog:
         vfs = self.opener
         if vfs.filter_name not in (None, 'dot-encode', 'plain'):
             use_rust_index = False
-
-        self._parse_index = parse_index_v1
-        if self._format_version == REVLOGV0:
-            self._parse_index = revlogv0.parse_index_v0
-        elif self._format_version == REVLOGV2:
-            self._parse_index = parse_index_v2
-        elif self._format_version == CHANGELOGV2:
-            self._parse_index = parse_index_cl_v2
-        elif devel_nodemap:
-            self._parse_index = parse_index_v1_nodemap
 
         if use_rust_index:
             # Let the Rust code parse its own index
