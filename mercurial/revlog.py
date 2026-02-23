@@ -925,6 +925,25 @@ class revlog:
             use_rust_index = False
         return use_rust_index
 
+    def _other_init(self):
+        """init-method: various initialization run in the middle of _loadindex
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+
+        self.nodeconstants = sha1nodeconstants
+        self.nullid = self.nodeconstants.nullid
+
+        # sparse-revlog can't be on without general-delta (issue6056)
+        if not self.delta_config.general_delta:
+            self.delta_config.sparse_revlog = False
+
+        self._storedeltachains = True
+
+        # revnum -> (chain-length, sum-delta-length)
+        self._chaininfocache = util.lrucachedict(500)
+
     def _loadindex(self, docket=None):
         """init-method: open the revlog entry-point on disk and load it
 
@@ -943,14 +962,7 @@ class revlog:
         else:
             index_data = self._load_entry_point()
 
-        self.nodeconstants = sha1nodeconstants
-        self.nullid = self.nodeconstants.nullid
-
-        # sparse-revlog can't be on without general-delta (issue6056)
-        if not self.delta_config.general_delta:
-            self.delta_config.sparse_revlog = False
-
-        self._storedeltachains = True
+        self._other_init()
 
         if self._use_rust_index:
             # Let the Rust code parse its own index
@@ -970,8 +982,6 @@ class revlog:
                 raise error.RevlogError(
                     _(b"index %s is corrupted") % self.display_id
                 )
-        # revnum -> (chain-length, sum-delta-length)
-        self._chaininfocache = util.lrucachedict(500)
 
         return index, chunkcache
 
