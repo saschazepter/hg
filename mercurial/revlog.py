@@ -1007,30 +1007,24 @@ class revlog:
             self.index = RustIndexProxy(self._inner)
         else:
             try:
-                index, chunk_cache = self._parse_index(
-                    index_data,
-                    self._inline,
-                    self.delta_config.general_delta,
-                    self.delta_config.delta_info,
+                self._inner = py_inner.InnerRevlog(
+                    opener=self.opener,
+                    target=self.target,
+                    index_data=index_data,
+                    index_file=self._indexfile,
+                    index_parser=self._parse_index,
+                    data_file=self._datafile,
+                    sidedata_file=self._sidedatafile,
+                    inline=self._inline,
+                    data_config=self.data_config,
+                    delta_config=self.delta_config,
+                    feature_config=self.feature_config,
+                    default_compression_header=default_compression_header,
                 )
-            except (ValueError, IndexError):
+            except py_inner.CorruptedRevlogError:
                 raise error.RevlogError(
                     _(b"index %s is corrupted") % self.display_id
                 )
-            self._inner = py_inner.InnerRevlog(
-                opener=self.opener,
-                target=self.target,
-                index=index,
-                index_file=self._indexfile,
-                data_file=self._datafile,
-                sidedata_file=self._sidedatafile,
-                inline=self._inline,
-                data_config=self.data_config,
-                delta_config=self.delta_config,
-                feature_config=self.feature_config,
-                chunk_cache=chunk_cache,
-                default_compression_header=default_compression_header,
-            )
             self.index = self._inner.index
         self._register_nodemap_info(self.index)
 

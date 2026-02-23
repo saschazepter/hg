@@ -62,6 +62,10 @@ FILE_TOO_SHORT_MSG = _(
 )
 
 
+class CorruptedRevlogError(error.RevlogError):
+    ...
+
+
 class InnerRevlog:
     """An inner layer of the revlog object
 
@@ -79,17 +83,26 @@ class InnerRevlog:
         self,
         opener: vfsmod.vfs,
         target: tuple[int, bytes],
-        index,
+        index_data,
         index_file,
+        index_parser,
         data_file,
         sidedata_file,
         inline,
         data_config,
         delta_config,
         feature_config,
-        chunk_cache,
         default_compression_header: i_comp.RevlogCompHeader,
     ):
+        try:
+            index, chunk_cache = index_parser(
+                index_data,
+                inline,
+                delta_config.general_delta,
+                delta_config.delta_info,
+            )
+        except (ValueError, IndexError):
+            raise CorruptedRevlogError(b"corrupted index")
         self.opener = opener
         self.target = target
         self.index: BaseIndexObject = index
