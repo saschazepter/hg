@@ -658,7 +658,7 @@ class revlog:
         # prevent nesting of addgroup
         self._adding_group = None
 
-        index, chunk_cache = self._loadindex()
+        index, chunk_cache = self._init()
         self._load_inner(index, chunk_cache)
         self._concurrencychecker = concurrencychecker
 
@@ -926,7 +926,7 @@ class revlog:
         return use_rust_index
 
     def _other_init(self):
-        """init-method: various initialization run in the middle of _loadindex
+        """init-method: miscellaneous initializations run in the middle of _init
 
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
@@ -944,8 +944,8 @@ class revlog:
         # revnum -> (chain-length, sum-delta-length)
         self._chaininfocache = util.lrucachedict(500)
 
-    def _loadindex(self, docket=None):
-        """init-method: open the revlog entry-point on disk and load it
+    def _init(self, docket=None):
+        """init-method: run various init logic for new or rewriten revlogs
 
         This usually involve the creation of a index object.  When using rust,
         the index object will actually be built later.
@@ -963,7 +963,16 @@ class revlog:
             index_data = self._load_entry_point()
 
         self._other_init()
+        return self._load_index(index_data)
 
+    def _load_index(self, index_data):
+        """init-method: build an index object when applicable
+
+        When using rust, the index object will actually be built later.
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple method for clarity.
+        """
         if self._use_rust_index:
             # Let the Rust code parse its own index
             index, chunkcache = (index_data, None)

@@ -63,7 +63,7 @@ Helper extension to intercept renames and kill process
   >     return r
   > 
   > def extsetup(ui):
-  >     extensions.wrapfunction(revlog.revlog, '_loadindex', _wait_post_load)
+  >     extensions.wrapfunction(revlog.revlog, '_init', _wait_post_load)
   > EOF
 
 setup a repository for tests

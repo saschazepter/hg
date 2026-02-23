@@ -122,7 +122,7 @@ def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
         rl.opener.rename(newrl._datafile, rl._datafile)
 
     rl.clearcaches()
-    index, chunk_cache = rl._loadindex()
+    index, chunk_cache = rl._init()
     rl._load_inner(index, chunk_cache)
 
 
@@ -312,7 +312,7 @@ def _setup_new_files(
 
     # reload the revlog internal information
     revlog.clearcaches()
-    index, chunk_cache = revlog._loadindex(docket=docket)
+    index, chunk_cache = revlog._init(docket=docket)
     revlog._load_inner(index, chunk_cache)
 
     @contextlib.contextmanager
@@ -578,7 +578,7 @@ def _reorder_filelog_parents(repo, fl, to_fix):
 
             rl.opener.rename(new_file_path, index_file)
             rl.clearcaches()
-            index, chunk_cache = rl._loadindex()
+            index, chunk_cache = rl._init()
             rl._load_inner(index, chunk_cache)
         finally:
             util.tryunlink(new_file_path)
