@@ -658,9 +658,9 @@ class revlog:
         # prevent nesting of addgroup
         self._adding_group = None
 
-        index, chunk_cache = self._init()
-        self._load_inner(index, chunk_cache)
         self._concurrencychecker = concurrencychecker
+
+        self._init()
 
     def _init_opts(self):
         """init-method: process options config and return corresponding revlog
@@ -947,9 +947,6 @@ class revlog:
     def _init(self, docket=None):
         """init-method: run various init logic for new or rewriten revlogs
 
-        This usually involve the creation of a index object.  When using rust,
-        the index object will actually be built later.
-
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
 
@@ -963,7 +960,8 @@ class revlog:
             index_data = self._load_entry_point()
 
         self._other_init()
-        return self._load_index(index_data)
+        index, chunk_cache = self._load_index(index_data)
+        self._load_inner(index, chunk_cache)
 
     def _load_index(self, index_data):
         """init-method: build an index object when applicable
