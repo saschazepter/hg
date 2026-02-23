@@ -960,39 +960,11 @@ class revlog:
             index_data = self._load_entry_point()
 
         self._other_init()
-        index, chunk_cache = self._load_index(index_data)
-        self._load_inner(index, chunk_cache)
-
-    def _load_index(self, index_data):
-        """init-method: build an index object when applicable
-
-        When using rust, the index object will actually be built later.
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple method for clarity.
-        """
         if self._use_rust_index:
-            # Let the Rust code parse its own index
-            index, chunkcache = (index_data, None)
             self.uses_rust = True
-        else:
-            try:
-                d = self._parse_index(
-                    index_data,
-                    self._inline,
-                    self.delta_config.general_delta,
-                    self.delta_config.delta_info,
-                )
-                index, chunkcache = d
-                self._register_nodemap_info(index)
-            except (ValueError, IndexError):
-                raise error.RevlogError(
-                    _(b"index %s is corrupted") % self.display_id
-                )
+        self._load_inner(index_data)
 
-        return index, chunkcache
-
-    def _load_inner(self, index, chunk_cache):
+    def _load_inner(self, index_data):
         """init-method: load the InnerRevlog instance
 
         This method is part of the initialization sequence. That initialization
@@ -1021,7 +993,7 @@ class revlog:
             self._inner = rustrevlog.InnerRevlog(
                 vfs_base=vfs.base,
                 vfs_is_readonly=not vfs.read_write,
-                index_data=index,
+                index_data=index_data,
                 index_file=self._indexfile,
                 data_file=self._datafile,
                 sidedata_file=self._sidedatafile,
@@ -1029,7 +1001,7 @@ class revlog:
                 data_config=self.data_config,
                 delta_config=self.delta_config,
                 feature_config=self.feature_config,
-                chunk_cache=chunk_cache,
+                chunk_cache=None,
                 default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
                 encoding=encoding,
@@ -1039,6 +1011,18 @@ class revlog:
             self._register_nodemap_info(self.index)
             self.uses_rust = True
         else:
+            try:
+                index, chunk_cache = self._parse_index(
+                    index_data,
+                    self._inline,
+                    self.delta_config.general_delta,
+                    self.delta_config.delta_info,
+                )
+                self._register_nodemap_info(index)
+            except (ValueError, IndexError):
+                raise error.RevlogError(
+                    _(b"index %s is corrupted") % self.display_id
+                )
             self._inner = py_inner.InnerRevlog(
                 opener=self.opener,
                 target=self.target,
