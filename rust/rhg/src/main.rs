@@ -729,6 +729,7 @@ mod commands {
     pub mod root;
     pub mod script_hgignore;
     pub mod status;
+    pub mod virtual_share;
 }
 
 pub type RunFn = fn(&CliInvocation) -> Result<(), CommandError>;
@@ -813,6 +814,7 @@ fn subcommands() -> Subcommands {
         subcommand!(config),
         subcommand!(status),
         subcommand!(script_hgignore),
+        subcommand!(virtual_share),
     ];
     let mut commands = Subcommands::new();
     for cmd in subcommands {

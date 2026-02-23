@@ -1,0 +1,18 @@
+[package]
+authors = ["Mercurial developers"]
+description = "Virtual filesystem for Mercurial"
+edition = "2024"
+name = "hg-fuse"
+version = "0.1.0"
+
+[lints]
+workspace = true
+
+[features]
+full-tracing = []
+
+[dependencies]
+clap = {version = "4", features = ["derive"]}
+fuser = "0.17.0"
+hg-core = {path = "../hg-core"}
+tracing = {version = "0.1.44", features = ["attributes"]}

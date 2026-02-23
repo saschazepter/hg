@@ -11,10 +11,15 @@ edition = "2024"
 workspace = true
 
 [features]
-full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
+full-tracing = [
+    "hg-core/full-tracing",
+    "hg-fuse/full-tracing",
+    "dep:tracing-chrome",
+]
 
 [dependencies]
 hg-core = { path = "../hg-core", default-features = false }
+hg-fuse = { path = "../hg-fuse", default-features = false }
 chrono = "0.4.43"
 clap = { version = "4", features = ["cargo"] }
 crossbeam-channel = "0.5.15"
