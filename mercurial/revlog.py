@@ -673,9 +673,6 @@ class revlog:
         * mmapindexthreshold:
             minimal index size for start to use mmap
 
-        * force_nodemap:
-            force the usage of a "development" version of the nodemap code
-
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
         """
@@ -726,8 +723,7 @@ class revlog:
                 _(b'revlog chunk cache size %r is not a power of 2')
                 % chunk_cache_size
             )
-        force_nodemap = opts.get(b'devel-force-nodemap', False)
-        return new_header, mmapindexthreshold, force_nodemap
+        return new_header, mmapindexthreshold
 
     def _get_data(self, filepath, mmap_threshold, size=None):
         """return a file content with or without mmap
@@ -768,7 +764,7 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
-        new_header, mmapindexthreshold, force_nodemap = self._init_opts()
+        new_header, mmapindexthreshold = self._init_opts()
 
         if self.postfix is not None:
             entry_point = b'%s.i.%s' % (self.radix, self.postfix)
@@ -872,7 +868,7 @@ class revlog:
 
         devel_nodemap = (
             self._nodemap_file
-            and force_nodemap
+            and self.opener.options.get(b'devel-force-nodemap', False)
             and parse_index_v1_nodemap is not None
         )
 
