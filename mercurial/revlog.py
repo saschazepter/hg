@@ -663,11 +663,9 @@ class revlog:
         self._concurrencychecker = concurrencychecker
 
     def _init_opts(self):
-        """process options (from above/config) to setup associated default revlog mode
+        """init-method: process options config
 
-        These values might be affected when actually reading on disk information.
-
-        The relevant values are returned for use in _loadindex().
+        These relevant values are returned for use in _loadindex():
 
         * newversionflags:
             version header to use if we need to create a new revlog
@@ -677,6 +675,9 @@ class revlog:
 
         * force_nodemap:
             force the usage of a "development" version of the nodemap code
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
         """
         opts = self.opener.options
 
@@ -864,6 +865,16 @@ class revlog:
             ]
 
     def _loadindex(self, docket=None):
+        """init-method: open the revlog entry-point on disk and load it
+
+        This usually involve the creation of a index object.  When using rust,
+        the index object will actually be built later.
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+
+        It is also used when reloading post-rewrite.
+        """
         new_header, mmapindexthreshold, force_nodemap = self._init_opts()
 
         if self.postfix is not None:
@@ -1023,6 +1034,13 @@ class revlog:
         return index, chunkcache
 
     def _load_inner(self, index, chunk_cache):
+        """init-method: load the InnerRevlog instance
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+
+        It is also used when reloading post-rewrite.
+        """
         if self._docket is None:
             default_compression_header = None
         else:
