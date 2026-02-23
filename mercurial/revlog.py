@@ -757,113 +757,6 @@ class revlog:
         except FileNotFoundError:
             return b''
 
-    def get_streams(self, max_linkrev, force_inline=False):
-        """return a list of streams that represent this revlog
-
-        This is used by stream-clone to do bytes to bytes copies of a repository.
-
-        This streams data for all revisions that refer to a changelog revision up
-        to `max_linkrev`.
-
-        If `force_inline` is set, it enforces that the stream will represent an inline revlog.
-
-        It returns is a list of three-tuple:
-
-            [
-                (filename, bytes_stream, stream_size),
-                …
-            ]
-        """
-        n = len(self)
-        index = self.index
-        while n > 0:
-            linkrev = index.linkrev(n - 1)
-            if linkrev < max_linkrev:
-                break
-            # note: this loop will rarely go through multiple iterations, since
-            # it only traverses commits created during the current streaming
-            # pull operation.
-            #
-            # If this become a problem, using a binary search should cap the
-            # runtime of this.
-            n = n - 1
-        if n == 0:
-            # no data to send
-            return []
-        index_size = n * index.entry_size
-        data_size = self.end(n - 1)
-
-        # XXX we might have been split (or stripped) since the object
-        # initialization, We need to close this race too, but having a way to
-        # pre-open the file we feed to the revlog and never closing them before
-        # we are done streaming.
-
-        if self._inline:
-
-            def get_stream():
-                with self.opener(self._indexfile, mode=b"r") as fp:
-                    yield None
-                    size = index_size + data_size
-                    if size <= 65536:
-                        yield fp.read(size)
-                    else:
-                        yield from util.filechunkiter(fp, limit=size)
-
-            inline_stream = get_stream()
-            next(inline_stream)
-            return [
-                (self._indexfile, inline_stream, index_size + data_size),
-            ]
-        elif force_inline:
-
-            def get_stream():
-                with self.reading():
-                    yield None
-
-                    for rev in range(n):
-                        idx = self.index.entry_binary(rev)
-                        if rev == 0 and self._docket is None:
-                            # re-inject the inline flag
-                            header = self._format_flags
-                            header |= self._format_version
-                            header |= FLAG_INLINE_DATA
-                            header = self.index.pack_header(header)
-                            idx = header + idx
-                        yield idx
-                        yield self._inner.get_segment_for_revs(rev, rev)[1]
-
-            inline_stream = get_stream()
-            next(inline_stream)
-            return [
-                (self._indexfile, inline_stream, index_size + data_size),
-            ]
-        else:
-
-            def get_index_stream():
-                with self.opener(self._indexfile, mode=b"r") as fp:
-                    yield None
-                    if index_size <= 65536:
-                        yield fp.read(index_size)
-                    else:
-                        yield from util.filechunkiter(fp, limit=index_size)
-
-            def get_data_stream():
-                with self._datafp() as fp:
-                    yield None
-                    if data_size <= 65536:
-                        yield fp.read(data_size)
-                    else:
-                        yield from util.filechunkiter(fp, limit=data_size)
-
-            index_stream = get_index_stream()
-            next(index_stream)
-            data_stream = get_data_stream()
-            next(data_stream)
-            return [
-                (self._datafile, data_stream, data_size),
-                (self._indexfile, index_stream, index_size),
-            ]
-
     def _loadindex(self, docket=None):
         """init-method: open the revlog entry-point on disk and load it
 
@@ -1095,6 +988,113 @@ class revlog:
                 default_compression_header=default_compression_header,
             )
             self.index = self._inner.index
+
+    def get_streams(self, max_linkrev, force_inline=False):
+        """return a list of streams that represent this revlog
+
+        This is used by stream-clone to do bytes to bytes copies of a repository.
+
+        This streams data for all revisions that refer to a changelog revision up
+        to `max_linkrev`.
+
+        If `force_inline` is set, it enforces that the stream will represent an inline revlog.
+
+        It returns is a list of three-tuple:
+
+            [
+                (filename, bytes_stream, stream_size),
+                …
+            ]
+        """
+        n = len(self)
+        index = self.index
+        while n > 0:
+            linkrev = index.linkrev(n - 1)
+            if linkrev < max_linkrev:
+                break
+            # note: this loop will rarely go through multiple iterations, since
+            # it only traverses commits created during the current streaming
+            # pull operation.
+            #
+            # If this become a problem, using a binary search should cap the
+            # runtime of this.
+            n = n - 1
+        if n == 0:
+            # no data to send
+            return []
+        index_size = n * index.entry_size
+        data_size = self.end(n - 1)
+
+        # XXX we might have been split (or stripped) since the object
+        # initialization, We need to close this race too, but having a way to
+        # pre-open the file we feed to the revlog and never closing them before
+        # we are done streaming.
+
+        if self._inline:
+
+            def get_stream():
+                with self.opener(self._indexfile, mode=b"r") as fp:
+                    yield None
+                    size = index_size + data_size
+                    if size <= 65536:
+                        yield fp.read(size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=size)
+
+            inline_stream = get_stream()
+            next(inline_stream)
+            return [
+                (self._indexfile, inline_stream, index_size + data_size),
+            ]
+        elif force_inline:
+
+            def get_stream():
+                with self.reading():
+                    yield None
+
+                    for rev in range(n):
+                        idx = self.index.entry_binary(rev)
+                        if rev == 0 and self._docket is None:
+                            # re-inject the inline flag
+                            header = self._format_flags
+                            header |= self._format_version
+                            header |= FLAG_INLINE_DATA
+                            header = self.index.pack_header(header)
+                            idx = header + idx
+                        yield idx
+                        yield self._inner.get_segment_for_revs(rev, rev)[1]
+
+            inline_stream = get_stream()
+            next(inline_stream)
+            return [
+                (self._indexfile, inline_stream, index_size + data_size),
+            ]
+        else:
+
+            def get_index_stream():
+                with self.opener(self._indexfile, mode=b"r") as fp:
+                    yield None
+                    if index_size <= 65536:
+                        yield fp.read(index_size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=index_size)
+
+            def get_data_stream():
+                with self._datafp() as fp:
+                    yield None
+                    if data_size <= 65536:
+                        yield fp.read(data_size)
+                    else:
+                        yield from util.filechunkiter(fp, limit=data_size)
+
+            index_stream = get_index_stream()
+            next(index_stream)
+            data_stream = get_data_stream()
+            next(data_stream)
+            return [
+                (self._datafile, data_stream, data_size),
+                (self._indexfile, index_stream, index_size),
+            ]
 
     def _register_nodemap_info(self, index):
         use_nodemap = (
