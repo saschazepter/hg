@@ -234,6 +234,63 @@ The format in a nutshell
 
 Anything else is a comment.
 
+### Documenting tests
+
+Commenting your tests is at least as important as commenting code. You should
+add documentation to ensure that:
+
+* The behavior that the test intends to test is clear.
+* Any part of the setup important to test that behavior is highlighted.
+* Which behavior is intentionally tested and enforced.
+* Boundaries between individual test cases are clearly identified.
+* A test file should document what it intends on covering.
+
+Documenting a test is done using a reStructuredText like syntax. Example
+`test-foo-bar.t` content:
+
+    ===============================
+    Testing Foo and Bar interaction
+    ===============================
+
+    This file gathers test cases that check how the Foo feature interacts with
+    operations related to Bar.
+
+    Setup
+    =====
+
+      $ cat << EOF >> $HGRCPATH
+      > [bar]
+      > some-config = "babar"
+      > EOF
+
+    […]
+
+    Testing read-only operations
+    ============================
+
+    Reading an empty Foo
+    --------------------
+
+    Operating on a blue Bar without a Foo
+
+      $ …
+
+    Output should remain empty
+
+      $ hg foo --rev bar-blu […]
+
+
+    Reading a simple Foo
+    --------------------
+
+    […]
+
+    Testing read-write operations
+    =============================
+
+    […]
+
+
 ### Making tests repeatable
 
 There are some tricky points here that you should be aware of when writing
