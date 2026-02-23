@@ -996,13 +996,10 @@ class revlog:
                 index_data=index_data,
                 index_file=self._indexfile,
                 data_file=self._datafile,
-                sidedata_file=self._sidedatafile,
                 inline=self._inline,
                 data_config=self.data_config,
                 delta_config=self.delta_config,
                 feature_config=self.feature_config,
-                chunk_cache=None,
-                default_compression_header=default_compression_header,
                 revlog_type=self.target[0],
                 encoding=encoding,
             )

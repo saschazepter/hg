@@ -257,22 +257,13 @@ impl InnerRevlog {
         index_data: &Bound<'_, PyAny>,
         index_file: &Bound<'_, PyBytes>,
         data_file: &Bound<'_, PyBytes>,
-        sidedata_file: &Bound<'_, PyAny>,
         inline: bool,
         data_config: &Bound<'_, PyAny>,
         delta_config: &Bound<'_, PyAny>,
         feature_config: &Bound<'_, PyAny>,
-        chunk_cache: &Bound<'_, PyAny>,
-        default_compression_header: &Bound<'_, PyAny>,
         revlog_type: usize,
         encoding: i64,
     ) -> PyResult<Self> {
-        // Let clippy accept the unused arguments. This is a bit better than
-        // a blank `allow` directive
-        let _ = sidedata_file;
-        let _ = chunk_cache;
-        let _ = default_compression_header;
-
         let index_file = get_path_from_bytes(index_file.as_bytes()).to_owned();
         let data_file = get_path_from_bytes(data_file.as_bytes()).to_owned();
         let revlog_type =

@@ -90,13 +90,10 @@ class RustRevlogBasedTestBase(unittest.TestCase):
             index_data=data,
             index_file=b'test.i',
             data_file=b'test.d',
-            sidedata_file=None,
             inline=False,
             data_config=self.revlog_data_config,
             delta_config=self.revlog_delta_config,
             feature_config=self.revlog_feature_config,
-            chunk_cache=None,
-            default_compression_header=None,
             revlog_type=kind,
             encoding=0,
         )
