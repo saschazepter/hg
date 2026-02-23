@@ -28,6 +28,17 @@ pub mod path_auditor;
 pub mod strings;
 
 #[inline(always)]
+pub fn u64_u(i: u64) -> usize {
+    i.try_into()
+        .expect("usize can't hold a u64, are you on a 32 bits computer?")
+}
+
+#[inline(always)]
+pub fn u_u64(i: usize) -> u64 {
+    i as u64
+}
+
+#[inline(always)]
 pub fn u32_u(i: u32) -> usize {
     // XXX I am tempted to just use `as usize` only in debug mode
     i.try_into()
