@@ -663,15 +663,8 @@ class revlog:
         self._concurrencychecker = concurrencychecker
 
     def _init_opts(self):
-        """init-method: process options config
-
-        These relevant values are returned for use in _loadindex():
-
-        * newversionflags:
-            version header to use if we need to create a new revlog
-
-        * mmapindexthreshold:
-            minimal index size for start to use mmap
+        """init-method: process options config and return corresponding revlog
+        header, which can be used by `_loadindex` to create a new index.
 
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
@@ -702,9 +695,6 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        mmapindexthreshold = None
-        if self.data_config.mmap_large_index:
-            mmapindexthreshold = self.data_config.mmap_index_threshold
         if self.feature_config.enable_ellipsis:
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
@@ -723,7 +713,18 @@ class revlog:
                 _(b'revlog chunk cache size %r is not a power of 2')
                 % chunk_cache_size
             )
-        return new_header, mmapindexthreshold
+        return new_header
+
+    @property
+    def _mmap_index_threshold(self) -> int | None:
+        """init-method: determine size threshold for mmap usage
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+        if self.data_config.mmap_large_index:
+            return self.data_config.mmap_index_threshold
+        return None
 
     def _get_data(self, filepath, mmap_threshold, size=None):
         """return a file content with or without mmap
@@ -779,7 +780,7 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
-        new_header, mmapindexthreshold = self._init_opts()
+        new_header = self._init_opts()
 
         entry_point = self._find_entry_point_path()
 
@@ -788,7 +789,7 @@ class revlog:
             self._docket_file = entry_point
         else:
             self._initempty = True
-            entry_data = self._get_data(entry_point, mmapindexthreshold)
+            entry_data = self._get_data(entry_point, self.mmap_index_threshold)
             if len(entry_data) > 0:
                 header = INDEX_HEADER.unpack(entry_data[:4])[0]
                 self._initempty = False
@@ -842,7 +843,9 @@ class revlog:
             index_size = self._docket.index_end
             if index_size > 0:
                 index_data = self._get_data(
-                    self._indexfile, mmapindexthreshold, size=index_size
+                    self._indexfile,
+                    self._mmap_index_threshold,
+                    size=index_size,
                 )
                 if len(index_data) < index_size:
                     msg = _(b'too few index data for %s: got %d, expected %d')
