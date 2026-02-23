@@ -775,7 +775,7 @@ class revlog:
         * For formats using a docket, this will load the docket.
         * For formats not using a docket, this means accessing the index.
 
-        If index data where accessed, they will be returned. Returns None otherwise.
+        Returns the index data.
 
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
@@ -822,6 +822,10 @@ class revlog:
 
         if not features['docket']:
             self._indexfile = entry_point
+            if self.postfix is None:
+                self._datafile = b'%s.d' % self.radix
+            else:
+                self._datafile = b'%s.d.%s' % (self.radix, self.postfix)
             return entry_data
         else:
             self._docket_file = entry_point
@@ -833,7 +837,44 @@ class revlog:
                     entry_data,
                     use_pending=self._trypending,
                 )
-            return None
+            return self._load_secondary_files()
+
+    def _load_secondary_files(self):
+        """init-method: process a docket to initialize secondary files
+
+        Returns the index data.
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+        if self._docket is None:
+            msg = "can't load secondary file without a docket"
+            raise error.ProgrammingError(msg)
+        self._indexfile = self._docket.index_filepath()
+        index_data = b''
+        index_size = self._docket.index_end
+        if index_size > 0:
+            index_data = self._get_data(
+                self._indexfile,
+                self._mmap_index_threshold,
+                size=index_size,
+            )
+            if len(index_data) < index_size:
+                msg = _(b'too few index data for %s: got %d, expected %d')
+                msg %= (self.display_id, len(index_data), index_size)
+                raise error.RevlogError(msg)
+
+        self._inline = False
+        # generaldelta implied by version 2 revlogs.
+        self.delta_config.general_delta = True
+        self.data_config.generaldelta = True
+        # the logic for persistent nodemap will be dealt with within the
+        # main docket, so disable it for now.
+        self._nodemap_file = None
+
+        self._datafile = self._docket.data_filepath()
+        self._sidedatafile = self._docket.sidedata_filepath()
+        return index_data
 
     @property
     def _parse_index(self):
@@ -873,38 +914,9 @@ class revlog:
         if docket is not None:
             self._docket = docket
             self._docket_file = self._find_entry_point_path()
+            index_data = self._load_secondary_files()
         else:
             index_data = self._load_entry_point()
-
-        if self._docket is not None:
-            self._indexfile = self._docket.index_filepath()
-            index_data = b''
-            index_size = self._docket.index_end
-            if index_size > 0:
-                index_data = self._get_data(
-                    self._indexfile,
-                    self._mmap_index_threshold,
-                    size=index_size,
-                )
-                if len(index_data) < index_size:
-                    msg = _(b'too few index data for %s: got %d, expected %d')
-                    msg %= (self.display_id, len(index_data), index_size)
-                    raise error.RevlogError(msg)
-
-            self._inline = False
-            # generaldelta implied by version 2 revlogs.
-            self.delta_config.general_delta = True
-            self.data_config.generaldelta = True
-            # the logic for persistent nodemap will be dealt with within the
-            # main docket, so disable it for now.
-            self._nodemap_file = None
-
-            self._datafile = self._docket.data_filepath()
-            self._sidedatafile = self._docket.sidedata_filepath()
-        elif self.postfix is None:
-            self._datafile = b'%s.d' % self.radix
-        else:
-            self._datafile = b'%s.d.%s' % (self.radix, self.postfix)
 
         self.nodeconstants = sha1nodeconstants
         self.nullid = self.nodeconstants.nullid
