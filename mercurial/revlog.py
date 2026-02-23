@@ -1008,7 +1008,6 @@ class revlog:
             )
             assert self._inner.has_revdiff_extra
             self.index = RustIndexProxy(self._inner)
-            self._register_nodemap_info(self.index)
             self.uses_rust = True
         else:
             try:
@@ -1018,7 +1017,6 @@ class revlog:
                     self.delta_config.general_delta,
                     self.delta_config.delta_info,
                 )
-                self._register_nodemap_info(index)
             except (ValueError, IndexError):
                 raise error.RevlogError(
                     _(b"index %s is corrupted") % self.display_id
@@ -1038,6 +1036,7 @@ class revlog:
                 default_compression_header=default_compression_header,
             )
             self.index = self._inner.index
+        self._register_nodemap_info(self.index)
 
     def get_streams(self, max_linkrev, force_inline=False):
         """return a list of streams that represent this revlog
