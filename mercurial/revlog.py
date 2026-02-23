@@ -769,6 +769,72 @@ class revlog:
         else:
             return b'%s.i' % self.radix
 
+    def _load_entry_point(self):
+        """init-method: load revlog entry point from disk
+
+        * For formats using a docket, this will load the docket.
+        * For formats not using a docket, this means accessing the index.
+
+        If index data where accessed, they will be returned. Returns None otherwise.
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+        new_header = self._init_opts()
+
+        self._initempty = True
+        entry_point = self._find_entry_point_path()
+        entry_data = self._get_data(entry_point, self._mmap_index_threshold)
+        if len(entry_data) > 0:
+            header = INDEX_HEADER.unpack(entry_data[:4])[0]
+            self._initempty = False
+        else:
+            header = new_header
+
+        self._format_flags = header & ~0xFFFF
+        self._format_version = header & 0xFFFF
+
+        supported_flags = SUPPORTED_FLAGS.get(self._format_version)
+        if supported_flags is None:
+            msg = _(b'unknown version (%d) in revlog %s')
+            msg %= (self._format_version, self.display_id)
+            raise error.RevlogError(msg)
+        elif self._format_flags & ~supported_flags:
+            msg = _(b'unknown flags (%#04x) in version %d revlog %s')
+            display_flag = self._format_flags >> 16
+            msg %= (display_flag, self._format_version, self.display_id)
+            raise error.RevlogError(msg)
+
+        features = FEATURES_BY_VERSION[self._format_version]
+        self._inline = features['inline'](self._format_flags)
+        self.delta_config.general_delta = features['generaldelta'](
+            self._format_flags
+        )
+        self.delta_config.delta_info = features['delta_info'](
+            self._format_flags
+        )
+        self.data_config.generaldelta = self.delta_config.general_delta
+        self.data_config.delta_info = self.delta_config.delta_info
+        self.feature_config.has_side_data = features['sidedata']
+        self.feature_config.hasmeta_flag = features['hasmeta_flag'](
+            self._format_flags
+        )
+
+        if not features['docket']:
+            self._indexfile = entry_point
+            return entry_data
+        else:
+            self._docket_file = entry_point
+            if self._initempty:
+                self._docket = docketutil.default_docket(self, header)
+            else:
+                self._docket = docketutil.parse_docket(
+                    self,
+                    entry_data,
+                    use_pending=self._trypending,
+                )
+            return None
+
     def _loadindex(self, docket=None):
         """init-method: open the revlog entry-point on disk and load it
 
@@ -780,62 +846,11 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
-        new_header = self._init_opts()
-
-        entry_point = self._find_entry_point_path()
-
         if docket is not None:
             self._docket = docket
-            self._docket_file = entry_point
+            self._docket_file = self._find_entry_point_path()
         else:
-            self._initempty = True
-            entry_data = self._get_data(entry_point, self.mmap_index_threshold)
-            if len(entry_data) > 0:
-                header = INDEX_HEADER.unpack(entry_data[:4])[0]
-                self._initempty = False
-            else:
-                header = new_header
-
-            self._format_flags = header & ~0xFFFF
-            self._format_version = header & 0xFFFF
-
-            supported_flags = SUPPORTED_FLAGS.get(self._format_version)
-            if supported_flags is None:
-                msg = _(b'unknown version (%d) in revlog %s')
-                msg %= (self._format_version, self.display_id)
-                raise error.RevlogError(msg)
-            elif self._format_flags & ~supported_flags:
-                msg = _(b'unknown flags (%#04x) in version %d revlog %s')
-                display_flag = self._format_flags >> 16
-                msg %= (display_flag, self._format_version, self.display_id)
-                raise error.RevlogError(msg)
-
-            features = FEATURES_BY_VERSION[self._format_version]
-            self._inline = features['inline'](self._format_flags)
-            self.delta_config.general_delta = features['generaldelta'](
-                self._format_flags
-            )
-            self.delta_config.delta_info = features['delta_info'](
-                self._format_flags
-            )
-            self.data_config.generaldelta = self.delta_config.general_delta
-            self.data_config.delta_info = self.delta_config.delta_info
-            self.feature_config.has_side_data = features['sidedata']
-            self.feature_config.hasmeta_flag = features['hasmeta_flag'](
-                self._format_flags
-            )
-
-            if not features['docket']:
-                self._indexfile = entry_point
-                index_data = entry_data
-            else:
-                self._docket_file = entry_point
-                if self._initempty:
-                    self._docket = docketutil.default_docket(self, header)
-                else:
-                    self._docket = docketutil.parse_docket(
-                        self, entry_data, use_pending=self._trypending
-                    )
+            index_data = self._load_entry_point()
 
         if self._docket is not None:
             self._indexfile = self._docket.index_filepath()
