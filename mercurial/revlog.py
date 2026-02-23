@@ -1005,7 +1005,6 @@ class revlog:
             )
             assert self._inner.has_revdiff_extra
             self.index = RustIndexProxy(self._inner)
-            self.uses_rust = True
         else:
             try:
                 index, chunk_cache = self._parse_index(
