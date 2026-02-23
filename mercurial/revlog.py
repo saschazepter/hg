@@ -900,6 +900,31 @@ class revlog:
         else:
             return parse_index_v1
 
+    @property
+    def _use_rust_index(self):
+        """init-method: should this revlog use an index implemented in Rust
+
+        This method is part of the initialization sequence. That initialization
+        sequence is cut into multiple methods for clarity.
+        """
+        use_rust_index = False
+        is_changelog = self.target[0] == KIND_CHANGELOG
+        may_rust = getattr(self.opener, "rust_compatible", True)
+        # we still avoid rust for inlined changelog as this create some issues.
+        #
+        # (See failure in test-split-legacy-inline-changelog.t)
+        may_rust = may_rust and not (self._inline and is_changelog)
+        if rustrevlog is not None and may_rust:
+            use_rust_index = True
+
+            if self._format_version != REVLOGV1:
+                use_rust_index = False
+
+        vfs = self.opener
+        if vfs.filter_name not in (None, 'dot-encode', 'plain'):
+            use_rust_index = False
+        return use_rust_index
+
     def _loadindex(self, docket=None):
         """init-method: open the revlog entry-point on disk and load it
 
@@ -927,24 +952,7 @@ class revlog:
 
         self._storedeltachains = True
 
-        use_rust_index = False
-        is_changelog = self.target[0] == KIND_CHANGELOG
-        may_rust = getattr(self.opener, "rust_compatible", True)
-        # we still avoid rust for inlined changelog as this create some issues.
-        #
-        # (See failure in test-split-legacy-inline-changelog.t)
-        may_rust = may_rust and not (self._inline and is_changelog)
-        if rustrevlog is not None and may_rust:
-            use_rust_index = True
-
-            if self._format_version != REVLOGV1:
-                use_rust_index = False
-
-        vfs = self.opener
-        if vfs.filter_name not in (None, 'dot-encode', 'plain'):
-            use_rust_index = False
-
-        if use_rust_index:
+        if self._use_rust_index:
             # Let the Rust code parse its own index
             index, chunkcache = (index_data, None)
             self.uses_rust = True
