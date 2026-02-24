@@ -58,9 +58,6 @@ Test a normal behaving server, for sanity
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/server
   local: no
   pushable: yes
@@ -180,9 +177,6 @@ SSH banner is not printed by default, ignored by clients
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/server
   local: no
   pushable: yes
@@ -307,9 +301,6 @@ Sending an unknown command to the server results in an empty response to that co
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/server
   local: no
   pushable: yes
@@ -380,9 +371,6 @@ Send multiple unknown commands before hello
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/server
   local: no
   pushable: yes

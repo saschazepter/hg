@@ -753,9 +753,6 @@ Test debugpeer
   remote: 514
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/debugrevlog
   local: no
   pushable: yes
@@ -773,9 +770,6 @@ Test debugpeer
   remote: 514
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/debugrevlog
   local: no
   pushable: yes
@@ -794,9 +788,6 @@ Test debugpeer
   remote: 483 (no-zstd !)
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   url: ssh://user@dummy/debugrevlog
   local: no
   pushable: yes

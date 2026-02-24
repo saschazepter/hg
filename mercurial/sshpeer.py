@@ -13,6 +13,9 @@ import uuid
 from typing import Callable
 
 from .i18n import _
+from .interfaces.types import (
+    PeerT,
+)
 from . import (
     error,
     pycompat,
@@ -255,6 +258,27 @@ def _clientcapabilities():
         comps.append(w.name)
     protoparams.add(b'comp=%s' % b','.join(comps))
     return protoparams
+
+
+def _filter_proto_capabilities(
+    remote: PeerT,
+    local_caps: set[bytes],
+) -> set[bytes]:
+    """filter client capabities to the one relevant for the remote peer
+
+    Filtering client capabilities might result in an empty set, avoiding a
+    useless requests to the remote. For remote with high latency this can
+    result in a significant win.
+    """
+    caps = local_caps.copy()
+    # If the server doesn't support partial-pull, we don't need to send the
+    # associated client capabilities.
+    if b'partial-pull' not in remote.capabilities():
+        caps.discard(b"partial-pull")
+        for c in local_caps:
+            if c.startswith(b'comp='):
+                caps.discard(c)
+    return caps
 
 
 def _performhandshake(ui, stdin, stdout, stderr):
@@ -734,12 +758,12 @@ def make_peer(
     # Finally, if supported by the server, notify it about our own
     # capabilities.
     if b'protocaps' in peer.capabilities():
-        try:
-            peer._call(
-                b"protocaps", caps=b' '.join(sorted(_clientcapabilities()))
-            )
-        except OSError:
-            peer._cleanup()
-            raise error.RepoError(_(b'capability exchange failed'))
-
+        local_caps = _clientcapabilities()
+        caps = _filter_proto_capabilities(peer, local_caps)
+        if caps:
+            try:
+                peer._call(b"protocaps", caps=b' '.join(sorted(caps)))
+            except OSError:
+                peer._cleanup()
+                raise error.RepoError(_(b'capability exchange failed'))
     return peer

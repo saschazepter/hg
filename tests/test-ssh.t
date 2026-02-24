@@ -508,9 +508,6 @@ debug output
   remote: \d+ (re)
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
   remote: 1
-  devel-peer-request: protocaps
-  devel-peer-request:   caps: * bytes (glob)
-  sending protocaps command
   query 1; heads
   devel-peer-request: batched-content
   devel-peer-request:    - heads (0 arguments)

@@ -40,7 +40,6 @@ setup the local repo
   remote: * (glob) (?)
   remote: capabilities: * (glob)
   remote: * (glob) (?)
-  sending protocaps command
   fastannotate: requesting 1 files
   sending getannotate command
   fastannotate: writing 112 bytes to fastannotate/default/a.l
@@ -86,7 +85,6 @@ client can also build things up on its own (causing diverge)
   remote: * (glob) (?)
   remote: capabilities: * (glob)
   remote: * (glob) (?)
-  sending protocaps command
   fastannotate: requesting 1 files
   sending getannotate command
   fastannotate: a: 1 new changesets in the main branch
@@ -161,7 +159,6 @@ use the "debugbuildannotatecache" command to build annotate cache
   remote: * (glob) (?)
   remote: capabilities: * (glob)
   remote: * (glob) (?)
-  sending protocaps command
   fastannotate: requesting 1 files
   sending getannotate command
   fastannotate: writing * (glob)

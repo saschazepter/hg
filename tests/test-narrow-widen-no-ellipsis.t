@@ -113,7 +113,6 @@ added upstream revisions.
   remote: * (glob)
   remote: capabilities: * (glob)
   remote: 1
-  sending protocaps command
   query 1; heads
   sending batch command
   searching for changes
