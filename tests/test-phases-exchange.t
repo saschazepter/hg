@@ -699,15 +699,59 @@ Pushing to Publish=True (unknown changeset)
   
 
   $ cd ../mu-ssh
-  $ hg push ssh://user@dummy/beta-ssh -r b740e3e5c05d
+
+(adding --debug to monitor network roundtrips)
+
+  $ hg push ssh://user@dummy/beta-ssh -r b740e3e5c05d --debug
   pushing to ssh://user@dummy/beta-ssh
+  running "*/python" "$TESTDIR/dummyssh" 'user@dummy' 'hg -R beta-ssh serve --stdio' (glob)
+  sending hello command
+  sending between command
+  remote: 561 (zstd !)
+  remote: 530 (no-zstd !)
+  remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (zstd !)
+  remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (no-zstd !)
+  remote: phase-summary-v01: publish=all public-revs=all
+  remote: 1
+  query 1; heads
+  sending batch command
   searching for changes
+  all remote heads known locally
+  preparing listkeys for "phases"
+  sending listkeys command
+  received listkey for "phases": 15 bytes
+  checking for updated bookmarks
+  preparing listkeys for "bookmarks"
+  sending listkeys command
+  received listkey for "bookmarks": 0 bytes
+  sending branchmap command
+  preparing listkeys for "bookmarks"
+  sending listkeys command
+  received listkey for "bookmarks": 0 bytes
+  2 changesets found
+  list of changesets:
+  e9f537e46dea9bb3c3e80a3dcb3b00783fc564ff
+  b740e3e5c05ddf81566f29166f311be57e0e5e38
+  sending unbundle command
+  bundle2-output-bundle: "HG20", 5 parts total
+  bundle2-output-part: "replycaps" 243 bytes payload (zstd !)
+  bundle2-output-part: "replycaps" 238 bytes payload (no-zstd !)
+  bundle2-output-part: "check:phases" 24 bytes payload
+  bundle2-output-part: "check:updated-heads" streamed payload
+  bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
+  bundle2-output-part: "phase-heads" 24 bytes payload
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
   remote: added 2 changesets with 2 changes to 2 files
   remote: test-debug-phase: new rev 5:  x -> 0
   remote: test-debug-phase: new rev 6:  x -> 0
+  bundle2-input-bundle: no-transaction
+  bundle2-input-part: "reply:changegroup" (advisory) (params: 0 advisory) supported
+  bundle2-input-bundle: 1 parts total
+  preparing listkeys for "phases"
+  sending listkeys command
+  received listkey for "phases": 15 bytes
   test-debug-phase: move rev 7: 1 -> 0
   test-debug-phase: move rev 8: 1 -> 0
   $ hgph # again f54f1bb90ff3, d6bcb4f74035 and 145e75495359 stay draft,
