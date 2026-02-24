@@ -1724,6 +1724,34 @@ abort behavior
   (use --publish or adjust 'experimental.auto-publish' config)
   [255]
 
+(including through ssh)
+
+  $ hg push --config experimental.auto-publish=abort ssh://user@dummy/auto-publish-orig
+  pushing to ssh://user@dummy/auto-publish-orig
+  abort: push would publish 2 changesets
+  (use --publish or adjust 'experimental.auto-publish' config)
+  [255]
+
+(with debug output to check the handshake help saving roundtrip)
+
+  $ hg push --debug --config experimental.auto-publish=abort ssh://user@dummy/auto-publish-orig
+  pushing to ssh://user@dummy/auto-publish-orig
+  running "*/install/bin/python" "$TESTDIR/dummyssh" 'user@dummy' 'hg -R auto-publish-orig serve --stdio' (glob)
+  sending hello command
+  sending between command
+  remote: 561 (zstd !)
+  remote: 530 (no-zstd !)
+  remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (zstd !)
+  remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (no-zstd !)
+  remote: phase-summary-v01: publish=all public-revs=all
+  remote: 1
+  preparing listkeys for "phases"
+  sending listkeys command
+  received listkey for "phases": 15 bytes
+  abort: push would publish 2 changesets
+  (use --publish or adjust 'experimental.auto-publish' config)
+  [255]
+
 trying to push a secret changeset doesn't confuse auto-publish
 
   $ hg phase --secret --force
