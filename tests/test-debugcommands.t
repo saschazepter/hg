@@ -786,8 +786,7 @@ Test debugpeer
   devel-peer-request:   pairs: 81 bytes
   sending hello command
   sending between command
-  remote: 490 (zstd !)
-  remote: 514 (no-zstd !)
+  remote: 514
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
   remote: phase-summary-v01: publish=all
   remote: 1
