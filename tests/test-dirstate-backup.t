@@ -29,7 +29,7 @@ No dirstate backups are left behind
 
   $ cd ..
 
-Bug: transaction undo functionality leaves garbage around:
+Transaction undo doesn't leave garbage dirstate .bck files around:
 
   $ hg share --config extensions.share= repo +share1+ -q
   $ hg share --config extensions.share= repo +share2+ -q
@@ -46,15 +46,10 @@ Bug: transaction undo functionality leaves garbage around:
   $ c2 b
   3
   $ c1 c
-  4
+  3
   $ c2 d
-  4
+  3
   $ c1 e
-  5
+  3
   $ c2 f
-  5
-
-The underlying cause of the bug must be that we track the undo files that
-need to be cleaned up in the share, inside the clone, in repo/.hg/store/undo.backupfiles.
-But of course the clone can change without having a chance to clean up the
-share.
+  3
