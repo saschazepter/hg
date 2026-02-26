@@ -61,7 +61,7 @@ type NodeData = [u8; NODE_BYTES_LENGTH];
 /// the size or return an error at runtime.
 ///
 /// [`nybbles_len`]: #method.nybbles_len
-#[derive(Copy, Clone, PartialEq, BytesCast, derive_more::From)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, BytesCast, derive_more::From)]
 #[repr(transparent)]
 pub struct Node {
     data: NodeData,
