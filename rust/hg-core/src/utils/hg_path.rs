@@ -430,6 +430,111 @@ impl Extend<u8> for HgPathBuf {
     }
 }
 
+/// An [`HgPathBuf`] with all `/` in `path` replaced with `\0`, and surrounded
+/// by `\0`.
+/// This ensures that a path and its subpath get sorted next to each other
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ZeroPath(Vec<u8>);
+
+impl std::fmt::Debug for ZeroPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ZeroPath").field(&self.to_hg_path_buf()).finish()
+    }
+}
+
+impl ZeroPath {
+    /// Returns a new `ZeroPath` from raw path bytes after validating that
+    /// the bytes would form a valid [`HgPath`].
+    pub fn new(bytes: &[u8]) -> Result<Self, HgPathError> {
+        let mut path = Vec::with_capacity(bytes.len());
+        for (idx, byte) in bytes.iter().enumerate() {
+            if idx == 0 {
+                if *byte == b'/' {
+                    let err = HgPathErrorKind::LeadingSlash(bytes.to_owned());
+                    return Err(err)?;
+                }
+                path.push(b'\0');
+            }
+            assert_ne!(*byte, b'\0');
+            if idx == bytes.len() - 1 {
+                if *byte == b'/' {
+                    let err = HgPathErrorKind::EndsWithSlash(
+                        HgPathBuf::from_bytes(bytes),
+                    );
+                    return Err(err)?;
+                }
+                path.push(*byte);
+                path.push(b'\0');
+            } else if *byte == b'/' {
+                path.push(b'\0');
+            } else {
+                path.push(*byte);
+            }
+        }
+        if path.is_empty() {
+            path.push(b'\0');
+        }
+        Ok(Self(path))
+    }
+
+    /// Converts a [`Self`] to an owned [`HgPathBuf`]
+    pub fn to_hg_path_buf(&self) -> HgPathBuf {
+        self.into()
+    }
+
+    /// Returns `true` if this [`Self`] is a sub-path of `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hg::utils::hg_path::ZeroPath;
+    ///
+    /// let other = ZeroPath::new(b"some/dir").unwrap();
+    ///
+    /// // This is a file within the directory
+    /// let this = ZeroPath::new(b"some/dir/file").unwrap();
+    /// assert!(this.sub_path_of(&other));
+    ///
+    /// // This just happens to start with the same letters
+    /// let this = ZeroPath::new(b"some/directory").unwrap();
+    /// assert!(!this.sub_path_of(&other));
+    /// ```
+    pub fn sub_path_of(&self, other: &Self) -> bool {
+        self.0.starts_with(&other.0)
+    }
+}
+
+impl TryFrom<&HgPath> for ZeroPath {
+    type Error = HgPathError;
+
+    fn try_from(path: &HgPath) -> Result<Self, HgPathError> {
+        Self::new(path.as_bytes())
+    }
+}
+
+impl From<&ZeroPath> for HgPathBuf {
+    fn from(path: &ZeroPath) -> Self {
+        let bytes = path.0.as_slice();
+        let mut path = Vec::with_capacity(bytes.len());
+        for (idx, byte) in bytes.iter().enumerate() {
+            if idx == 0 {
+                assert_eq!(*byte, b'\0');
+                continue;
+            }
+            assert_ne!(*byte, b'/');
+            if idx == bytes.len() - 1 {
+                assert_eq!(*byte, b'\0');
+                continue;
+            } else if *byte == b'\0' {
+                path.push(b'/');
+            } else {
+                path.push(*byte);
+            }
+        }
+        path.into()
+    }
+}
+
 /// Create a new [`OsString`] from types referenceable as [`HgPath`].
 ///
 /// TODO: Once <https://www.mercurial-scm.org/wiki/WindowsUTF8Plan> is

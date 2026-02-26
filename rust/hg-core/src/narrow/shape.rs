@@ -28,6 +28,7 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::hg_path::ZeroPath;
 
 lazy_static! {
     /// Only lower case ASCII alpha num, `-` and `.`
@@ -84,6 +85,15 @@ pub struct Error {
 impl From<ErrorKind> for Error {
     fn from(value: ErrorKind) -> Self {
         Self { kind: Box::new(value), backtrace: HgBacktrace::capture() }
+    }
+}
+
+impl From<HgPathError> for Error {
+    fn from(path_err: HgPathError) -> Self {
+        Self {
+            kind: Box::new(ErrorKind::InvalidPath(path_err.kind.into())),
+            backtrace: path_err.backtrace,
+        }
     }
 }
 
@@ -515,10 +525,10 @@ impl ShardTreeNode {
             );
         }
         assert!(!shard_paths.is_empty());
-        Self::from_paths(
+        Ok(Self::from_paths(
             store_shards.path_to_shard.keys().map(|path| path.as_bytes()),
             shard_paths,
-        )
+        )?)
     }
 
     /// Create the tree expressed by old-style include and exclude patterns
@@ -566,10 +576,10 @@ impl ShardTreeNode {
             vec![empty_path]
         };
 
-        Self::from_paths(
+        Ok(Self::from_paths(
             root.into_iter().chain(include_paths.clone()).chain(exclude_paths),
             include_paths,
-        )
+        )?)
     }
 
     /// `paths` is the iterator of all paths (included or not) and `includes`
@@ -577,7 +587,7 @@ impl ShardTreeNode {
     fn from_paths<Paths, Bytes>(
         paths: Paths,
         includes: HashSet<&[u8]>,
-    ) -> Result<Self, Error>
+    ) -> Result<Self, HgPathError>
     where
         Paths: Iterator<Item = Bytes>,
         Bytes: AsRef<[u8]>,
@@ -591,7 +601,7 @@ impl ShardTreeNode {
                     children: vec![],
                 })))
             })
-            .collect::<Result<Vec<_>, Error>>()?;
+            .collect::<Result<Vec<_>, HgPathError>>()?;
         nodes.sort_by(|a, b| a.read().path.cmp(&b.read().path));
 
         // Create the tree by looping over the nodes and keeping track of
@@ -743,91 +753,6 @@ pub(crate) fn deepest_prefix_node<'tree>(
         return root;
     }
     root.deepest_node_impl(path, 0).unwrap_or(root)
-}
-
-/// An [`HgPathBuf`] with all `/` in `path` replaced with `\0`, and surrounded
-/// by `\0`.
-/// This ensures that a path and its subpath get sorted next to each other
-#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-struct ZeroPath(Vec<u8>);
-
-impl std::fmt::Debug for ZeroPath {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("ZeroPath").field(&self.to_hg_path_buf()).finish()
-    }
-}
-
-impl ZeroPath {
-    fn new(bytes: &[u8]) -> Result<Self, Error> {
-        let mut path = Vec::with_capacity(bytes.len());
-        for (idx, byte) in bytes.iter().enumerate() {
-            if idx == 0 {
-                if *byte == b'/' {
-                    let err = HgPathErrorKind::LeadingSlash(bytes.to_owned());
-                    return Err(ErrorKind::InvalidPath(err.into()))?;
-                }
-                path.push(b'\0');
-            }
-            assert_ne!(*byte, b'\0');
-            if idx == bytes.len() - 1 {
-                if *byte == b'/' {
-                    let err = HgPathErrorKind::EndsWithSlash(
-                        HgPathBuf::from_bytes(bytes),
-                    );
-                    return Err(ErrorKind::InvalidPath(err.into()))?;
-                }
-                path.push(*byte);
-                path.push(b'\0');
-            } else if *byte == b'/' {
-                path.push(b'\0');
-            } else {
-                path.push(*byte);
-            }
-        }
-        if path.is_empty() {
-            path.push(b'\0');
-        }
-        Ok(Self(path))
-    }
-
-    fn to_hg_path_buf(&self) -> HgPathBuf {
-        self.into()
-    }
-
-    fn sub_path_of(&self, other: &Self) -> bool {
-        self.0.starts_with(&other.0)
-    }
-}
-
-impl TryFrom<&HgPath> for ZeroPath {
-    type Error = Error;
-
-    fn try_from(path: &HgPath) -> Result<Self, Error> {
-        Self::new(path.as_bytes())
-    }
-}
-
-impl From<&ZeroPath> for HgPathBuf {
-    fn from(path: &ZeroPath) -> Self {
-        let bytes = path.0.as_slice();
-        let mut path = Vec::with_capacity(bytes.len());
-        for (idx, byte) in bytes.iter().enumerate() {
-            if idx == 0 {
-                assert_eq!(*byte, b'\0');
-                continue;
-            }
-            assert_ne!(*byte, b'/');
-            if idx == bytes.len() - 1 {
-                assert_eq!(*byte, b'\0');
-                continue;
-            } else if *byte == b'\0' {
-                path.push(b'/');
-            } else {
-                path.push(*byte);
-            }
-        }
-        path.into()
-    }
 }
 
 #[derive(Debug)]
