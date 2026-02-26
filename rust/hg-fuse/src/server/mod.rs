@@ -5,18 +5,36 @@ use std::time::SystemTime;
 use fuser::FileAttr;
 use fuser::FileType;
 use fuser::INodeNo;
+use hg::FastHashMap;
+use hg::Node;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::repo::Repo;
+use hg::revlog::manifest::ManifestFlags;
+use hg::utils::RawData;
 
+use crate::fuse::COMMITS_INODE;
 use crate::fuse::Entry;
+use crate::fuse::RootInodeEncoder;
+use crate::server::revision::ManifestRevisionDetails;
+use crate::server::revision::OwnedRevision;
+
+pub mod revision;
+
+const BLOCK_SIZE: u32 = 4096;
+// Fake size that's obvious enough to be grepped in case that's
+// a problem.
+const FAKE_DIR_SIZE: u64 = 2005;
 
 /// Responsible for serving contents from the store to the FUSE layer
 pub struct Server {
     /// The repo that we're serving for
     /// TODO more than 1 repo at once
-    #[expect(unused)]
     repo: Mutex<Repo>,
+    /// Maps assigned revision inodes to the manifest node they're in.
+    ino_to_nodeid: Mutex<FastHashMap<INodeNo, Node>>,
+    /// Revisions whose tree we've populated
+    revisions: Mutex<FastHashMap<Node, OwnedRevision>>,
     /// When this server was started
     start_time: SystemTime,
     /// User ID from this process
@@ -38,33 +56,59 @@ impl Server {
         let gid = process_metadata.gid();
         Ok(Self {
             repo: Mutex::new(repo),
+            ino_to_nodeid: Mutex::new(FastHashMap::default()),
+            revisions: Mutex::new(FastHashMap::default()),
             start_time: SystemTime::now(),
             uid,
             gid,
         })
     }
 
-    /// Return the [`Entry`] that corresponds to `ino`
-    pub fn get_entry(&self, ino: fuser::INodeNo) -> Option<Entry> {
-        if ino != INodeNo(1) {
-            // TODO handle more than the root node
-            return None;
-        }
-        Some(Entry::dir(self.start_time))
+    pub fn attributes(&self, ino: INodeNo) -> Option<fuser::FileAttr> {
+        let entry = self.get_entry(ino)?;
+        Some(self.attributes_for_entry(entry))
     }
 
-    pub fn attributes(&self, ino: INodeNo) -> Option<fuser::FileAttr> {
-        if ino != INodeNo(1) {
-            // TODO handle more than the root node
-            return None;
+    pub fn attributes_for_entry(&self, entry: Entry) -> fuser::FileAttr {
+        match entry {
+            Entry::Dir { ino, name: _ } => self.attributes_for_directory(ino),
+            Entry::File { name: _, ino, size, flags } => {
+                self.attributes_for_file(ino, size, flags)
+            }
         }
+    }
 
-        const BLOCK_SIZE: u32 = 4096;
-        // Fake size that's obvious enough to be grepped in case that's
-        // a problem.
-        const FAKE_DIR_SIZE: u64 = 2005;
+    fn attributes_for_file(
+        &self,
+        ino: INodeNo,
+        size: u64,
+        flags: ManifestFlags,
+    ) -> FileAttr {
+        FileAttr {
+            ino,
+            size,
+            blocks: size.div_ceil(u64::from(BLOCK_SIZE)),
+            atime: self.start_time,
+            mtime: self.start_time,
+            ctime: self.start_time,
+            crtime: self.start_time,
+            kind: if flags.is_link() {
+                FileType::Symlink
+            } else {
+                FileType::RegularFile
+            },
+            perm: if flags.is_exec() { 0o700 } else { 0o600 },
+            nlink: 1,
+            uid: self.uid,
+            gid: self.gid,
+            rdev: 0,
+            flags: 0,
+            blksize: BLOCK_SIZE,
+        }
+    }
 
-        Some(FileAttr {
+    fn attributes_for_directory(&self, ino: INodeNo) -> FileAttr {
+        FileAttr {
             ino,
             size: FAKE_DIR_SIZE,
             blocks: 0,
@@ -73,13 +117,133 @@ impl Server {
             ctime: self.start_time,
             crtime: self.start_time,
             kind: FileType::Directory,
-            perm: 0o555,
+            perm: 0o700,
             nlink: 1,
             uid: self.uid,
             gid: self.gid,
             rdev: 0,
             flags: 0,
             blksize: BLOCK_SIZE,
-        })
+        }
+    }
+
+    /// Return the [`Entry`] that corresponds to `ino`
+    pub fn get_entry(&self, ino: fuser::INodeNo) -> Option<Entry> {
+        if RootInodeEncoder::is_reserved(ino) {
+            return RootInodeEncoder::entry_for_reserved(ino);
+        }
+        self.with_revision(ino, |revision| revision.get_entry(ino))?
+    }
+
+    /// Return the child of `parent` matching this `name`, if any.
+    pub fn lookup(
+        &self,
+        parent: INodeNo,
+        name: &std::ffi::OsStr,
+    ) -> Result<Option<Entry>, HgError> {
+        if RootInodeEncoder::is_reserved(parent) {
+            if parent == COMMITS_INODE {
+                if let Ok(node) = Node::from_hex(name.as_encoded_bytes()) {
+                    // Is a syntactically valid node, try to look it up
+                    let revisions_guard =
+                        self.revisions.lock().expect("propagate the panic");
+                    if let Some(revision) = revisions_guard.get(&node) {
+                        // We've already loaded this revision
+                        let root_inode = RootInodeEncoder::revision_inode(
+                            revision.changelog_rev(),
+                        );
+                        let root_entry_opt = revision.get_entry(root_inode);
+                        return Ok(root_entry_opt);
+                    }
+                    drop(revisions_guard);
+                    // Load the node upon first request
+                    return self.load_revision_root(node);
+                } else {
+                    return Ok(None);
+                };
+            } else {
+                return Ok(RootInodeEncoder::lookup_reserved(parent, name));
+            }
+        }
+        let maybe_entry_result = self
+            .with_revision(parent, |revision| revision.lookup(parent, name));
+        match maybe_entry_result {
+            Some(entry) => Ok(entry),
+            None => Ok(None),
+        }
+    }
+
+    /// Return the [`Entry`] for the root of the given node prefix.
+    ///
+    /// This means building the [`RevisionTree`] and caching it.
+    fn load_revision_root(
+        &self,
+        changeset: Node,
+    ) -> Result<Option<Entry>, HgError> {
+        // Look up the manifest node for this changelog node
+        // TODO improve the granularity of this locking
+        let repo_lock = self.repo.lock().expect("propagate the panic");
+        let changelog = repo_lock.changelog()?;
+        let changeset_rev = changelog.rev_from_node(changeset.into())?;
+        let data = changelog.data_for_node(changeset.into())?;
+        let manifest_node = data.manifest_node()?;
+        let manifestlog = repo_lock.manifestlog()?;
+
+        let manifest = manifestlog.data_for_node(manifest_node.into())?;
+        let mut ino_to_nodeid =
+            self.ino_to_nodeid.lock().expect("propagate the panic");
+
+        let revision_data = OwnedRevision::from_revision(
+            &repo_lock,
+            &mut ino_to_nodeid,
+            manifest,
+            ManifestRevisionDetails::new(changeset, changeset_rev),
+        )?;
+        let mut revisions_map =
+            self.revisions.lock().expect("propagate the panic");
+        revisions_map.insert(changeset, revision_data);
+        let entry = Entry::dir(
+            format!("{:x}", changeset).into(),
+            RootInodeEncoder::revision_inode(changeset_rev),
+        );
+        Ok(Some(entry))
+    }
+
+    /// Return entries for all direct children of this inode
+    pub fn entries(&self, ino: INodeNo) -> Option<Vec<Entry>> {
+        if RootInodeEncoder::is_reserved(ino) {
+            return RootInodeEncoder::entries_for_reserved(ino);
+        }
+        self.with_revision(ino, |revision| -> Option<Vec<Entry>> {
+            revision.entries(ino)
+        })?
+    }
+
+    /// Return the contents of the file at this inoode, if it exists.
+    pub fn read(&self, ino: INodeNo) -> Result<Option<RawData>, HgError> {
+        if RootInodeEncoder::is_reserved(ino) {
+            return Ok(RootInodeEncoder::data_for_reserved(ino));
+        }
+        if let Some(Ok(Some(data))) = self.with_revision(ino, |revision| {
+            revision.read(ino, &self.repo.lock().expect("propagate the panic"))
+        }) {
+            Ok(Some(data))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Enables callback-based access to the revision tree for this inode.
+    fn with_revision<R>(
+        &self,
+        ino: INodeNo,
+        func: impl FnOnce(&OwnedRevision) -> R,
+    ) -> Option<R> {
+        let ino_to_nodeid =
+            self.ino_to_nodeid.lock().expect("propagate the panic");
+        let revision_nodeid = ino_to_nodeid.get(&ino)?;
+        let revision_map = self.revisions.lock().expect("propagate the panic");
+        let revision = revision_map.get(revision_nodeid)?;
+        Some(func(revision))
     }
 }

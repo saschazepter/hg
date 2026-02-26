@@ -782,6 +782,7 @@ dependencies = [
  "clap",
  "fuser",
  "hg-core",
+ "self_cell",
  "tracing",
 ]
 
