@@ -33,6 +33,7 @@ use crate::revlog::node::NODE_BYTES_LENGTH;
 use crate::revlog::node::NULL_NODE;
 use crate::revlog::node::Node;
 use crate::revlog::node::STORED_NODE_ID_BYTES;
+use crate::utils::descending_revision_set::DescendingRevisionSet;
 use crate::utils::u32_u;
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
@@ -1202,8 +1203,12 @@ impl Index {
         if roots.is_empty() {
             return Ok(HashSet::new());
         }
+        let max_head = match heads.iter().max() {
+            None => return Ok(HashSet::new()),
+            Some(head) => head,
+        };
         let mut reachable = HashSet::new();
-        let mut seen = HashMap::new();
+        let mut seen = DescendingRevisionSet::new(*max_head);
 
         while let Some(rev) = heads.pop() {
             if roots.contains(&rev.into()) {
@@ -1213,9 +1218,9 @@ impl Index {
                 }
             }
             let parents = self.parents(rev)?;
-            seen.insert(rev, parents);
+            seen.insert(rev)?;
             for parent in parents {
-                if parent.0 >= min_root.0 && !seen.contains_key(&parent) {
+                if parent.0 >= min_root.0 && !seen.contains(parent) {
                     heads.push(parent);
                 }
             }
@@ -1223,12 +1228,11 @@ impl Index {
         if !include_path {
             return Ok(reachable);
         }
-        let mut revs: Vec<_> = seen.keys().collect();
-        revs.sort_unstable();
-        for rev in revs {
-            for parent in seen[rev] {
+        let revs: Vec<_> = seen.iter_descending().collect();
+        for rev in revs.into_iter().rev() {
+            for parent in self.parents(rev)? {
                 if reachable.contains(&parent) {
-                    reachable.insert(*rev);
+                    reachable.insert(rev);
                 }
             }
         }
