@@ -1499,6 +1499,11 @@ impl InnerRevlog {
         self.segment_file.is_open()
     }
 
+    /// True if this revlog supports the metadata flag for its revisions
+    pub fn supports_hasmeta_flag(&self) -> bool {
+        self.feature_config.hasmeta_flag
+    }
+
     /// Set this revlog to delay its writes to a buffer
     pub fn delay(&mut self) -> Result<Option<PathBuf>, HgError> {
         assert!(!self.is_open());

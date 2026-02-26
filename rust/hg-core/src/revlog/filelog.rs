@@ -5,11 +5,13 @@ use super::options::RevlogOpenOptions;
 use super::path_encode::PathEncoding;
 use crate::Graph;
 use crate::GraphError;
+use crate::NULL_REVISION;
 use crate::Node;
 use crate::UncheckedRevision;
 use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgError;
 use crate::repo::Repo;
+use crate::revlog::LENGTH_NEUTRAL_FLAGS;
 use crate::revlog::NodePrefix;
 use crate::revlog::REVISION_FLAG_HASMETA;
 use crate::revlog::Revision;
@@ -111,6 +113,46 @@ impl Filelog {
         file_rev: Revision,
     ) -> Result<FilelogEntry<'_>, RevlogError> {
         Ok(FilelogEntry(self.revlog.get_entry(file_rev)?))
+    }
+
+    /// Return the size of the uncompressed contents of this file
+    pub fn size_for_node(
+        &self,
+        file_node: impl Into<NodePrefix>,
+    ) -> Result<usize, RevlogError> {
+        let revlog = &self.revlog;
+        let rev = revlog.rev_from_node(file_node.into())?;
+        let revlog_entry = revlog.get_entry(rev)?;
+
+        if !revlog.inner.ignore_filelog_censored_revisions()
+            && revlog_entry.is_censored()
+        {
+            return Ok(0);
+        }
+
+        let index_entry = revlog.index().get_entry(rev);
+
+        let has_meta = {
+            if revlog.inner.supports_hasmeta_flag() {
+                revlog_entry.flags & REVISION_FLAG_HASMETA != 0
+            } else if index_entry.p1().0 != NULL_REVISION.0 {
+                false
+            } else {
+                revlog_entry.data()?.drop_prefix(b"\x01\n").is_some()
+            }
+        };
+        let only_len_neutral_flags =
+            (revlog_entry.flags & !LENGTH_NEUTRAL_FLAGS) == 0;
+        if has_meta || !(only_len_neutral_flags) {
+            Ok(revlog_entry.data()?.len())
+        } else {
+            let Ok(size): Result<usize, _> =
+                index_entry.uncompressed_len().try_into()
+            else {
+                return Ok(revlog_entry.data()?.len());
+            };
+            Ok(size)
+        }
     }
 }
 
