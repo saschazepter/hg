@@ -11,58 +11,12 @@ use std::cmp::max;
 use std::collections::BinaryHeap;
 use std::collections::HashSet;
 
-use bit_set::BitSet;
-
 use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
 use super::Revision;
-use crate::GraphErrorKind;
 use crate::dagops;
-
-/// A set of revisions backed by a bitset, optimized for descending insertion.
-struct DescendingRevisionSet {
-    /// The underlying bitset storage.
-    set: BitSet,
-    /// For a revision `R` we store `ceiling - R` instead of `R` so that
-    /// memory usage is proportional to how far we've descended.
-    ceiling: i32,
-    /// Track length separately because [`BitSet::len`] recounts every time.
-    len: usize,
-}
-
-impl DescendingRevisionSet {
-    /// Creates a new empty set that can store revisions up to `ceiling`.
-    fn new(ceiling: Revision) -> Self {
-        Self { set: BitSet::new(), ceiling: ceiling.0, len: 0 }
-    }
-
-    /// Returns the number of revisions in the set.
-    fn len(&self) -> usize {
-        self.len
-    }
-
-    /// Returns true if the set contains `value`.
-    fn contains(&self, value: Revision) -> bool {
-        match self.encode(value) {
-            Ok(n) => self.set.contains(n),
-            Err(_) => false,
-        }
-    }
-
-    /// Adds `value` to the set. Returns true if it was not already in the set.
-    /// Returns `Err` if it cannot store it because it is above the ceiling.
-    fn insert(&mut self, value: Revision) -> Result<bool, GraphError> {
-        let inserted = self.set.insert(self.encode(value)?);
-        self.len += inserted as usize;
-        Ok(inserted)
-    }
-
-    fn encode(&self, value: Revision) -> Result<usize, GraphError> {
-        usize::try_from(self.ceiling - value.0)
-            .map_err(|_| GraphErrorKind::ParentOutOfOrder(value).into())
-    }
-}
+use crate::utils::descending_revision_set::DescendingRevisionSet;
 
 /// Iterator over the ancestors of a given list of revisions
 /// This is a generic type, defined and implemented for any Graph, so that
@@ -423,6 +377,7 @@ mod tests {
 
     use super::*;
     use crate::BaseRevision;
+    use crate::GraphErrorKind;
     use crate::testing::SampleGraph;
     use crate::testing::VecGraph;
 

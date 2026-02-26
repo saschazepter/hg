@@ -20,6 +20,7 @@ use crate::errors::HgIoError;
 use crate::errors::IoErrorContext;
 
 pub mod debug;
+pub mod descending_revision_set;
 pub mod docket;
 pub mod files;
 pub mod hg_path;
