@@ -66,6 +66,14 @@ impl Manifestlog {
         self.data(rev)
     }
 
+    /// Return the rev matching this `node` in this manifest
+    pub fn rev_for_node(
+        &self,
+        node: NodePrefix,
+    ) -> Result<Revision, RevlogError> {
+        self.revlog.rev_from_node(node)
+    }
+
     /// Return the `Manifest` of a given revision number.
     ///
     /// Note: this is a revision number in the manifestlog, *not* of any
