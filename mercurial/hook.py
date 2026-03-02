@@ -332,7 +332,8 @@ def runhooks(ui, repo, htype, hooks, throw=False, **args):
 
     with redirect_stdio():
         for hname, cmd in hooks:
-            if True:
+            hname_str = hname.decode('utf-8', errors='replace')
+            with util.rust_tracing_span(f'hook: {hname_str}'):
                 if cmd is _fromuntrusted:
                     if throw:
                         raise error.HookAbort(
