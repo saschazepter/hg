@@ -3299,7 +3299,7 @@ name = "numcpus"
 [[items]]
 section = "worker"
 name = "parallel-stream-bundle-processing"
-default = true
+default = false
 documentation="""
 Read, parse and write stream bundle in parallel speeding up the process.
 
