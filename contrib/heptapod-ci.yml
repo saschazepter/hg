@@ -713,6 +713,9 @@ windows-pyox:
 macos:
     extends: .test-c
     stage: platform-compat
+    # TEMPORARY: disable mac test until the runners get back online
+    when: manual
+    allow_failure: true
     # run the test in multiple shard to help spread the load between concurrent
     # MR as the macos runner is a shell runner there is not startup overhead
     # for tests.
@@ -732,6 +735,9 @@ macos:
 # multiple jobs. (all this might be unnecessary)
 build-c-wheel-macos:
     extends: .all
+    # TEMPORARY: disable mac test until the runners get back online
+    when: manual
+    allow_failure: true
     rules:
     - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
       needs:
