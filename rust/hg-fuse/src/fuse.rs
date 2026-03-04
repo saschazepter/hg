@@ -6,8 +6,10 @@ use std::time::Duration;
 
 use fuser::BackgroundSession;
 use fuser::Config;
+use fuser::FileHandle;
 use fuser::FileType;
 use fuser::Filesystem;
+use fuser::FopenFlags;
 use fuser::Generation;
 use fuser::INodeNo;
 use fuser::MountOption;
@@ -55,6 +57,10 @@ impl HgFuse {
 
 /// Everything we expose is read-only (for now), the kernel can cache it all
 const TTL: Duration = Duration::MAX;
+// Using `0` here means we're doing stateless work, which is true
+// only while we're read-only, but write support at this layer may be a
+// long way off.
+const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
 
 impl Filesystem for HgFuse {
     fn access(
@@ -137,6 +143,17 @@ impl Filesystem for HgFuse {
         }
     }
 
+    fn open(
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _flags: fuser::OpenFlags,
+        reply: fuser::ReplyOpen,
+    ) {
+        let flags = FopenFlags::FOPEN_KEEP_CACHE | FopenFlags::FOPEN_NOFLUSH;
+        reply.opened(STATELESS_FILE_HANDLE, flags);
+    }
+
     fn read(
         &self,
         _req: &fuser::Request,
@@ -176,6 +193,19 @@ impl Filesystem for HgFuse {
             // TODO better error codes
             Err(_) => reply.error(fuser::Errno::EIO),
         }
+    }
+
+    fn opendir(
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _flags: fuser::OpenFlags,
+        reply: fuser::ReplyOpen,
+    ) {
+        let flags = FopenFlags::FOPEN_KEEP_CACHE
+            | FopenFlags::FOPEN_CACHE_DIR
+            | FopenFlags::FOPEN_NOFLUSH;
+        reply.opened(STATELESS_FILE_HANDLE, flags);
     }
 }
 
