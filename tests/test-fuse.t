@@ -29,7 +29,7 @@ Source repo setup
 Create and test the FUSE
 ------------------------
 
-  $ hg debug::virtual-share $FUSE_ROOT &
+  $ hg debug::virtual-share $FUSE_ROOT --pid-file=fuse.pid 2>error.log &
 
 Wait for it to be mounted, timeout after a short period
 
@@ -42,6 +42,9 @@ Wait for it to be mounted, timeout after a short period
   > done
   hgvfs on $TESTTMP/fuse-mount type fuse (ro,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
   $ [ $iterations -ge $maxiterations ] && echo "timed out waiting for the FUSE to mount" || true
+
+  $ cat fuse.pid >> $DAEMON_PIDS
+  $ cat error.log
 
 We can list the root
 

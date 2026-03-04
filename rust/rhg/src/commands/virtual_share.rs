@@ -4,6 +4,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use clap::Arg;
+use hg::errors::IoResultExt;
 use hg_fuse::fuse::HgFuse;
 use hg_fuse::server::Server;
 use libc::SIGHUP;
@@ -22,6 +23,12 @@ pub fn args() -> clap::Command {
                 .value_parser(clap::value_parser!(std::ffi::OsString))
                 .help("Path to mount the virtual share to"),
         )
+        .arg(
+            Arg::new("pid-file")
+                .long("pid-file")
+                .value_parser(clap::value_parser!(std::ffi::OsString))
+                .help("path to write this process' ID to"),
+        )
         .about(HELP_TEXT)
 }
 
@@ -31,6 +38,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         invocation.subcommand_args.get_one::<std::ffi::OsString>("destination")
     else {
         return Err(CommandError::abort("abort: destination not provided"));
+    };
+
+    if let Some(pid_file) =
+        invocation.subcommand_args.get_one::<std::ffi::OsString>("pid-file")
+    {
+        let pid_line = format!("{}\n", std::process::id());
+        std::fs::write(pid_file, pid_line).when_writing_file(pid_file)?
     };
 
     let server = Server::new(repo)?;
