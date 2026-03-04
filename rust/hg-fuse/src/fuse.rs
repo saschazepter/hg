@@ -4,6 +4,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::time::Duration;
 
+use fuser::BackgroundSession;
 use fuser::Config;
 use fuser::FileType;
 use fuser::Filesystem;
@@ -29,20 +30,25 @@ pub struct HgFuse {
 impl HgFuse {
     /// Mount an instance of this FUSE to `destination`.
     /// This function will not try to create the destination folder.
-    /// This function will only exit when the filesystem is unmounted.
+    /// This function returns a handle to the filesystem session, which
+    /// if dropped unmounts the filesystem.
     pub fn mount(
         server: Server,
         destination: impl AsRef<Path>,
-    ) -> Result<(), HgError> {
+    ) -> Result<BackgroundSession, HgError> {
         let mountpoint = destination.as_ref();
         let mut config = Config::default();
         config.mount_options.extend([
             MountOption::FSName("hgvfs".to_string()),
             MountOption::RO,
             MountOption::NoAtime,
+            // Don't use `MountOption::AutoUnmount`: it's prone to race
+            // conditions (unmounting a new mount at the same place), and it's
+            // better to leave a more explicitly borked filesystem than an
+            // empty one on breakage.
         ]);
         let filesystem = Self { server };
-        Ok(fuser::mount2(filesystem, mountpoint, &config)
+        Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
 }

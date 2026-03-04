@@ -1,6 +1,14 @@
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+
 use clap::Arg;
 use hg_fuse::fuse::HgFuse;
 use hg_fuse::server::Server;
+use libc::SIGHUP;
+use libc::SIGINT;
+use libc::SIGTERM;
 
 use crate::error::CommandError;
 
@@ -26,7 +34,25 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     };
 
     let server = Server::new(repo)?;
-    HgFuse::mount(server, destination)?;
-    // TODO umount if SIGTERM
+
+    // Set up non-fatal signals to break our loop
+    let should_terminate = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(SIGINT, Arc::clone(&should_terminate))
+        .expect("signal should be valid to register");
+    signal_hook::flag::register(SIGTERM, Arc::clone(&should_terminate))
+        .expect("signal should be valid to register");
+    signal_hook::flag::register(SIGHUP, Arc::clone(&should_terminate))
+        .expect("signal should be valid to register");
+
+    // Dropping this handle will unmount the filesystem
+    let session = HgFuse::mount(server, destination)?;
+    loop {
+        std::thread::sleep(Duration::from_millis(250));
+        let was_unmounted = session.guard.is_finished();
+        let was_terminated = should_terminate.load(Ordering::Relaxed);
+        if was_unmounted || was_terminated {
+            break;
+        }
+    }
     Ok(())
 }

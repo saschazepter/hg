@@ -33,6 +33,7 @@ whoami = "2.1"
 which = "8.0.0"
 rayon = "1.11.0"
 libc = "0.2.181"
+signal-hook = "0.4.3"
 tracing = { version = "0.1.44", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"]}
