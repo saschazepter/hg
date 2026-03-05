@@ -266,6 +266,53 @@ impl<'manifest> RevisionTree<'manifest> {
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
     ) -> Result<RevisionTree<'manifest>, HgError> {
+        let changeset_node = manifest_details.changeset_node;
+        let (temp_map, files_array) = Self::process_manifest_files(
+            repo,
+            ino_to_ref,
+            ino_to_nodeid,
+            manifest,
+            manifest_details,
+        )?;
+
+        let mut dirs_array = Vec::with_capacity(temp_map.mapping.len());
+
+        // Now that we have all directories, create the actual tree structure
+        temp_map.to_tree(
+            ino_to_ref,
+            ino_to_nodeid,
+            HgPath::new(b""),
+            &mut vec![],
+            &mut dirs_array,
+        );
+
+        let files_root_ino = temp_map.inode_encoder.files_root_inode;
+
+        // Remember the inodes for reserved entries
+        let reserved = temp_map.inode_encoder.reserved_entries;
+        for (inode, _) in reserved.iter() {
+            // We skip the files root inode since it serves the files
+            if *inode != files_root_ino {
+                ino_to_ref.insert(*inode, RevisionTreeRef::Reserved(*inode));
+            }
+            ino_to_nodeid.insert(*inode, changeset_node);
+        }
+
+        let tree =
+            RevisionTree { files: files_array, dirs: dirs_array, reserved };
+        Ok(tree)
+    }
+
+    /// Returns a temporary mapping of all directories to their children, along
+    /// with the array of all files processed into [`RevisionTreeFile`].
+    fn process_manifest_files(
+        repo: &Repo,
+        ino_to_ref: &mut InoToRef,
+        ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
+        manifest: &'manifest Manifest,
+        manifest_details: ManifestRevisionDetails,
+    ) -> Result<(TempMap<'manifest>, Vec<RevisionTreeFile<'manifest>>), HgError>
+    {
         // Sort the flat files so the children always come before the parents
         let mut zeropath_files = manifest
             .iter()
@@ -310,31 +357,7 @@ impl<'manifest> RevisionTree<'manifest> {
             )?;
         }
 
-        let mut dirs_array = Vec::with_capacity(temp_map.mapping.len());
-
-        // Now that we have all directories, create the actual tree structure
-        temp_map.to_tree(
-            ino_to_ref,
-            ino_to_nodeid,
-            HgPath::new(b""),
-            &mut vec![],
-            &mut dirs_array,
-        );
-
-        let files_root_ino = temp_map.inode_encoder.files_root_inode;
-
-        // Remember the inodes for reserved entries
-        let reserved = temp_map.inode_encoder.reserved_entries;
-        for (inode, _) in reserved.iter() {
-            // We skip the files root inode since it serves the files
-            if *inode != files_root_ino {
-                ino_to_ref.insert(*inode, RevisionTreeRef::Reserved(*inode));
-            }
-        }
-
-        let tree =
-            RevisionTree { files: files_array, dirs: dirs_array, reserved };
-        Ok(tree)
+        Ok((temp_map, files_array))
     }
 
     /// Processes a manifest line and adds it to the temporary map.
