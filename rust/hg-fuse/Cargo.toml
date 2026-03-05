@@ -15,5 +15,6 @@ full-tracing = []
 clap = {version = "4", features = ["derive"]}
 fuser = "0.17.0"
 hg-core = {path = "../hg-core"}
+rayon = "1.11.0"
 self_cell = "1.2"
 tracing = {version = "0.1.44", features = ["attributes"]}

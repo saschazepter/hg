@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::iter::repeat;
 use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
 use std::sync::atomic::AtomicU64;
@@ -19,6 +20,8 @@ use hg::utils::RawData;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::ZeroPath;
 use hg::utils::u_u64;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 
 use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
@@ -325,6 +328,48 @@ impl<'manifest> RevisionTree<'manifest> {
         zeropath_files.sort_by(|a, b| a.0.cmp(&b.0));
         let number_of_files = zeropath_files.len();
 
+        // File sizes
+        let use_fake_file_size =
+            repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
+        let sizes_vec = if use_fake_file_size {
+            vec![]
+        } else {
+            // Collect all file sizes in parallel
+            let store_vfs = &repo.store_vfs();
+            let config = repo.config();
+            let requirements = repo.requirements();
+            zeropath_files
+                .par_iter()
+                .map(|(_, line)| {
+                    let file_node = line.node_id()?;
+                    // Work around `Repo` not being `Sync`. TODO clean this
+                    // up by thinking about Repo's parallelism story a bit
+                    // harder.
+                    let filelog = hg::revlog::filelog::Filelog::open_vfs(
+                        store_vfs,
+                        line.path,
+                        hg::revlog::options::default_revlog_options(
+                            config,
+                            requirements,
+                            hg::revlog::RevlogType::Filelog,
+                        )?,
+                    )?;
+                    filelog.size_for_node(file_node)
+                })
+                .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
+        };
+
+        // Zip the files with their sizes without allocating useless sizes
+        let mut always_zero = repeat(0);
+        let mut sizes_iter = sizes_vec.into_iter();
+        let manifest_iter = if use_fake_file_size {
+            let repeat: &mut dyn Iterator<Item = usize> = &mut always_zero;
+            zeropath_files.into_iter().zip(repeat)
+        } else {
+            let sizes_vec: &mut dyn Iterator<Item = usize> = &mut sizes_iter;
+            zeropath_files.into_iter().zip(sizes_vec)
+        };
+
         let available_inode_range = RootInodeEncoder::revision_inode_range(
             manifest_details.changeset_rev,
         );
@@ -338,22 +383,18 @@ impl<'manifest> RevisionTree<'manifest> {
         // Compute temporary mapping of all directories to their children
         let root_path = HgPath::new(b"");
 
-        let use_fake_file_size =
-            repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
-        let mut temp_map =
-            TempMap::new(manifest_details, inode_encoder, use_fake_file_size);
+        let mut temp_map = TempMap::new(manifest_details, inode_encoder);
         let mut files_array = Vec::with_capacity(number_of_files);
         let mut current_file_parent = root_path;
 
-        for (_zeropath, line) in zeropath_files {
+        for ((_zeropath, line), size) in manifest_iter {
             Self::add_manifest_file_to_map(
-                repo,
                 ino_to_ref,
                 ino_to_nodeid,
                 &mut files_array,
                 &mut temp_map,
                 &mut current_file_parent,
-                line,
+                (line, size),
             )?;
         }
 
@@ -367,13 +408,12 @@ impl<'manifest> RevisionTree<'manifest> {
     /// * Assigns it an inode
     /// * Inserts the resulting file information in its parent node
     fn add_manifest_file_to_map(
-        repo: &Repo,
         ino_to_ref: &mut InoToRef,
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         files_array: &mut Vec<RevisionTreeFile<'manifest>>,
         temp_map: &mut TempMap<'manifest>,
         current_file_parent: &mut &'manifest HgPath,
-        line: ManifestEntry<'manifest>,
+        (line, size): (ManifestEntry<'manifest>, usize),
     ) -> Result<(), HgError> {
         let file_node_id = line.node_id()?;
         let path = line.path;
@@ -404,16 +444,6 @@ impl<'manifest> RevisionTree<'manifest> {
                 parent_dir = dir_cursor.parent();
             }
         }
-
-        let size = if temp_map.use_fake_file_size {
-            0
-        } else {
-            // Compute the size of the file now so we can answer listings
-            // TODO do this in parallel as it can be *very* slow and don't load
-            // the full file just to look at metadata when not using
-            // hasmeta flag
-            repo.filelog(path)?.size_for_node(file_node_id)?
-        };
 
         let inode = temp_map.inode_encoder.new_inode();
         let file_entry = RevisionTreeFile {
@@ -514,24 +544,21 @@ struct TempMap<'manifest> {
     manifest_details: ManifestRevisionDetails,
     /// Responsible for giving out inodes when building this revision
     inode_encoder: RevisionInodeEncoder,
-    use_fake_file_size: bool,
 }
 
 impl<'manifest> TempMap<'manifest> {
     fn new(
         manifest_details: ManifestRevisionDetails,
         inode_encoder: RevisionInodeEncoder,
-        use_fake_file_size: bool,
     ) -> Self {
         Self {
             mapping: FastHashMap::default(),
             manifest_details,
             inode_encoder,
-            use_fake_file_size,
         }
     }
 
-    /// Iterator over the temporary mapping to build the revision tree,
+    /// Iterate over the temporary mapping to build the revision tree,
     /// separating directories and files in two vecs.
     fn to_tree(
         &self,
