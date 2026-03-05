@@ -266,15 +266,6 @@ impl<'manifest> RevisionTree<'manifest> {
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
     ) -> Result<RevisionTree<'manifest>, HgError> {
-        let root_path = HgPath::new(b"");
-        let mut files_array = vec![];
-        let mut temp_mapping = FastHashMap::default();
-        let available_inode_range = RootInodeEncoder::revision_inode_range(
-            manifest_details.changeset_rev,
-        );
-        let inode_encoder =
-            RevisionInodeEncoder::new(available_inode_range.clone());
-
         // Sort the flat files so the children always come before the parents
         let mut zeropath_files = manifest
             .iter()
@@ -285,46 +276,55 @@ impl<'manifest> RevisionTree<'manifest> {
             .collect::<Result<Vec<(ZeroPath, ManifestEntry)>, HgError>>()?;
 
         zeropath_files.sort_by(|a, b| a.0.cmp(&b.0));
+        let number_of_files = zeropath_files.len();
 
-        temp_mapping.insert(root_path, HashSet::new());
+        let available_inode_range = RootInodeEncoder::revision_inode_range(
+            manifest_details.changeset_rev,
+        );
+        // Explicitly set the root inode
+        ino_to_nodeid.insert(
+            available_inode_range.start,
+            manifest_details.changeset_node,
+        );
+        let inode_encoder = RevisionInodeEncoder::new(available_inode_range);
 
-        let mut current_file_parent = root_path;
+        // Compute temporary mapping of all directories to their children
+        let root_path = HgPath::new(b"");
 
-        let changeset_node = manifest_details.changeset_node;
         let use_fake_file_size =
             repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
-        let mut temp_tree = TempMap::new(
-            temp_mapping,
-            manifest_details,
-            inode_encoder,
-            use_fake_file_size,
-        );
+        let mut temp_map =
+            TempMap::new(manifest_details, inode_encoder, use_fake_file_size);
+        let mut files_array = Vec::with_capacity(number_of_files);
+        let mut current_file_parent = root_path;
 
         for (_zeropath, line) in zeropath_files {
-            Self::process_manifest_line(
+            Self::add_manifest_file_to_map(
                 repo,
                 ino_to_ref,
                 ino_to_nodeid,
                 &mut files_array,
-                &mut temp_tree,
+                &mut temp_map,
                 &mut current_file_parent,
                 line,
             )?;
         }
 
-        let mut dirs_array = vec![];
-        temp_tree.to_tree(
+        let mut dirs_array = Vec::with_capacity(temp_map.mapping.len());
+
+        // Now that we have all directories, create the actual tree structure
+        temp_map.to_tree(
             ino_to_ref,
             ino_to_nodeid,
-            root_path,
+            HgPath::new(b""),
             &mut vec![],
             &mut dirs_array,
         );
 
-        let files_root_ino = temp_tree.inode_encoder.files_root_inode;
+        let files_root_ino = temp_map.inode_encoder.files_root_inode;
 
         // Remember the inodes for reserved entries
-        let reserved = temp_tree.inode_encoder.reserved_entries;
+        let reserved = temp_map.inode_encoder.reserved_entries;
         for (inode, _) in reserved.iter() {
             // We skip the files root inode since it serves the files
             if *inode != files_root_ino {
@@ -332,8 +332,6 @@ impl<'manifest> RevisionTree<'manifest> {
             }
         }
 
-        // Remember the root node
-        ino_to_nodeid.insert(available_inode_range.start, changeset_node);
         let tree =
             RevisionTree { files: files_array, dirs: dirs_array, reserved };
         Ok(tree)
@@ -345,7 +343,7 @@ impl<'manifest> RevisionTree<'manifest> {
     /// * Computes the size of the file revision it points to
     /// * Assigns it an inode
     /// * Inserts the resulting file information in its parent node
-    fn process_manifest_line(
+    fn add_manifest_file_to_map(
         repo: &Repo,
         ino_to_ref: &mut InoToRef,
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
@@ -498,12 +496,16 @@ struct TempMap<'manifest> {
 
 impl<'manifest> TempMap<'manifest> {
     fn new(
-        mapping: TempMapping<'manifest>,
         manifest_details: ManifestRevisionDetails,
         inode_encoder: RevisionInodeEncoder,
         use_fake_file_size: bool,
     ) -> Self {
-        Self { mapping, manifest_details, inode_encoder, use_fake_file_size }
+        Self {
+            mapping: FastHashMap::default(),
+            manifest_details,
+            inode_encoder,
+            use_fake_file_size,
+        }
     }
 
     /// Iterator over the temporary mapping to build the revision tree,
