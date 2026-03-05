@@ -1543,6 +1543,16 @@ name = "warn_when_unused"
 default = true
 
 [[items]]
+section = "fuse"
+name = "fake-file-sizes"
+experimental = true
+default = false
+documentation = """Whether to pretend files have a nonsensical size. Used to
+remove the overhead of computing file sizes when they don't matter.
+
+This is a development option, and isn't guaranteed to exist forever."""
+
+[[items]]
 section = "help"
 name = 'hidden-command\..*'
 default = false

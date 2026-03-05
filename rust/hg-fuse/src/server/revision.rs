@@ -291,8 +291,14 @@ impl<'manifest> RevisionTree<'manifest> {
         let mut current_file_parent = root_path;
 
         let changeset_node = manifest_details.changeset_node;
-        let mut temp_tree =
-            TempMap::new(temp_mapping, manifest_details, inode_encoder);
+        let use_fake_file_size =
+            repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
+        let mut temp_tree = TempMap::new(
+            temp_mapping,
+            manifest_details,
+            inode_encoder,
+            use_fake_file_size,
+        );
 
         for (_zeropath, line) in zeropath_files {
             Self::process_manifest_line(
@@ -378,8 +384,15 @@ impl<'manifest> RevisionTree<'manifest> {
             }
         }
 
-        // Compute the size of the file now so we can answer listings
-        let size = repo.filelog(path)?.size_for_node(file_node_id)?;
+        let size = if temp_map.use_fake_file_size {
+            0
+        } else {
+            // Compute the size of the file now so we can answer listings
+            // TODO do this in parallel as it can be *very* slow and don't load
+            // the full file just to look at metadata when not using
+            // hasmeta flag
+            repo.filelog(path)?.size_for_node(file_node_id)?
+        };
 
         let inode = temp_map.inode_encoder.new_inode();
         let file_entry = RevisionTreeFile {
@@ -480,6 +493,7 @@ struct TempMap<'manifest> {
     manifest_details: ManifestRevisionDetails,
     /// Responsible for giving out inodes when building this revision
     inode_encoder: RevisionInodeEncoder,
+    use_fake_file_size: bool,
 }
 
 impl<'manifest> TempMap<'manifest> {
@@ -487,8 +501,9 @@ impl<'manifest> TempMap<'manifest> {
         mapping: TempMapping<'manifest>,
         manifest_details: ManifestRevisionDetails,
         inode_encoder: RevisionInodeEncoder,
+        use_fake_file_size: bool,
     ) -> Self {
-        Self { mapping, manifest_details, inode_encoder }
+        Self { mapping, manifest_details, inode_encoder, use_fake_file_size }
     }
 
     /// Iterator over the temporary mapping to build the revision tree,
