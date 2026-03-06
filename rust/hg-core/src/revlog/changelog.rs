@@ -109,6 +109,15 @@ impl Changelog {
         self.revlog.rev_from_node(node)
     }
 
+    /// Return the [`Node`] that matches this [`NodePrefix`]
+    pub fn resolve_prefix(
+        &self,
+        node: NodePrefix,
+    ) -> Result<&Node, RevlogError> {
+        let rev = self.revlog.rev_from_node(node)?;
+        Ok(self.revlog.node_from_rev(rev))
+    }
+
     pub fn get_index(&self) -> &Index {
         self.revlog.index()
     }
