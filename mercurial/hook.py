@@ -332,39 +332,44 @@ def runhooks(ui, repo, htype, hooks, throw=False, **args):
 
     with redirect_stdio():
         for hname, cmd in hooks:
-            if cmd is _fromuntrusted:
-                if throw:
-                    raise error.HookAbort(
-                        _(b'untrusted hook %s not executed') % hname,
-                        hint=_(b"see 'hg help config.trusted'"),
+            if True:
+                if cmd is _fromuntrusted:
+                    if throw:
+                        raise error.HookAbort(
+                            _(b'untrusted hook %s not executed') % hname,
+                            hint=_(b"see 'hg help config.trusted'"),
+                        )
+                    ui.warn(
+                        _(b'warning: untrusted hook %s not executed\n') % hname
                     )
-                ui.warn(_(b'warning: untrusted hook %s not executed\n') % hname)
-                r = 1
-                raised = False
-            elif callable(cmd):
-                r, raised = pythonhook(ui, repo, htype, hname, cmd, args, throw)
-            elif cmd.startswith(b'python:'):
-                if cmd.count(b':') >= 2:
-                    path, cmd = cmd[7:].rsplit(b':', 1)
-                    path = util.expandpath(path)
-                    if repo:
-                        path = os.path.join(repo.root, path)
-                    try:
-                        mod_name = 'hghook.%s' % pycompat.sysstr(hname)
-                        mod = util.load_path(path, mod_name)
-                    except Exception:
-                        ui.write(_(b"loading %s hook failed:\n") % hname)
-                        raise
-                    hookfn = getattr(mod, pycompat.sysstr(cmd))
+                    r = 1
+                    raised = False
+                elif callable(cmd):
+                    r, raised = pythonhook(
+                        ui, repo, htype, hname, cmd, args, throw
+                    )
+                elif cmd.startswith(b'python:'):
+                    if cmd.count(b':') >= 2:
+                        path, cmd = cmd[7:].rsplit(b':', 1)
+                        path = util.expandpath(path)
+                        if repo:
+                            path = os.path.join(repo.root, path)
+                        try:
+                            mod_name = 'hghook.%s' % pycompat.sysstr(hname)
+                            mod = util.load_path(path, mod_name)
+                        except Exception:
+                            ui.write(_(b"loading %s hook failed:\n") % hname)
+                            raise
+                        hookfn = getattr(mod, pycompat.sysstr(cmd))
+                    else:
+                        hookfn = cmd[7:].strip()
+                    r, raised = pythonhook(
+                        ui, repo, htype, hname, hookfn, args, throw
+                    )
                 else:
-                    hookfn = cmd[7:].strip()
-                r, raised = pythonhook(
-                    ui, repo, htype, hname, hookfn, args, throw
-                )
-            else:
-                r = _exthook(ui, repo, htype, hname, cmd, args, throw)
-                raised = False
+                    r = _exthook(ui, repo, htype, hname, cmd, args, throw)
+                    raised = False
 
-            res[hname] = r, raised
+                res[hname] = r, raised
 
     return res
