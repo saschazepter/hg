@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::iter::repeat;
 use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
@@ -375,12 +376,10 @@ impl<'manifest> RevisionTree<'manifest> {
         let available_inode_range = RootInodeEncoder::revision_inode_range(
             manifest_details.changeset_rev,
         );
-        // Explicitly set the root inode
-        ino_to_nodeid.insert(
-            available_inode_range.start,
-            manifest_details.changeset_node,
-        );
         let inode_encoder = RevisionInodeEncoder::new(available_inode_range);
+        // Explicitly set the root inode
+        ino_to_nodeid
+            .insert(inode_encoder.root_ino, manifest_details.changeset_node);
 
         // Compute temporary mapping of all directories to their children
         let root_path = HgPath::new(b"");
@@ -631,6 +630,8 @@ struct RevisionInodeEncoder {
     reserved_entries: FastHashMap<INodeNo, ReservedRevisionEntry>,
     /// Inode for the root of the actual revision files
     files_root_inode: INodeNo,
+    /// Inode for the root of the revision hierarchy
+    root_ino: INodeNo,
 }
 
 impl RevisionInodeEncoder {
@@ -641,29 +642,46 @@ impl RevisionInodeEncoder {
             reserved_entries: FastHashMap::default(),
             // Placeholder value while we generate it
             files_root_inode: INodeNo(0),
+            // Placeholder value while we generate it
+            root_ino: INodeNo(0),
         };
+        // Must be the first in our current encoding, see `RootInodeEncoder`
+        let root_ino = encoder.new_inode();
 
         // Build the hardcoded reserved revision items
-        let root_ino = encoder.new_inode();
-        let files_ino = encoder.new_inode();
         // /!\ Keep in sync with `path_to_revision_working_copy`
-        let files_dir = ReservedRevisionEntry {
-            entry: Entry::Dir { name: FILES_INODE_NAME.into(), ino: files_ino },
-            // Will be special-cased later to point to the revision files
-            children: vec![],
-        };
+        // Will be special-cased later to also point to the revision files
+        let files_root_ino =
+            encoder.add_reserved_directory(FILES_INODE_NAME, &[]);
 
         encoder.reserved_entries.insert(
             root_ino,
             ReservedRevisionEntry {
                 entry: Entry::Dir { name: "".into(), ino: root_ino },
-                children: vec![files_ino],
+                children: vec![files_root_ino],
             },
         );
-        encoder.reserved_entries.insert(files_ino, files_dir);
-        encoder.files_root_inode = files_ino;
 
+        encoder.files_root_inode = files_root_ino;
+        encoder.root_ino = root_ino;
         encoder
+    }
+
+    fn add_reserved_directory(
+        &mut self,
+        name: impl Into<OsString>,
+        children: &[INodeNo],
+    ) -> INodeNo {
+        let ino = self.new_inode();
+
+        self.reserved_entries.insert(
+            ino,
+            ReservedRevisionEntry {
+                entry: Entry::Dir { name: name.into(), ino },
+                children: children.to_vec(),
+            },
+        );
+        ino
     }
 }
 
