@@ -70,6 +70,7 @@ delete an untracked directory
   untracked_dir/untracked_file1
   untracked_dir/untracked_file2
   untracked_dir (rust !)
+  untracked_dir (rhg no-rust !)
   $ hg purge -v
   removing file untracked_dir/untracked_file1
   removing file untracked_dir/untracked_file2
@@ -125,6 +126,7 @@ delete nested directories
   $ hg purge -p
   untracked_directory/nested_directory
   untracked_directory (rust !)
+  untracked_directory (rhg no-rust !)
   $ hg purge -v
   removing directory untracked_directory/nested_directory
   removing directory untracked_directory
@@ -141,6 +143,7 @@ delete nested directories from a subdir
   $ hg purge -p
   untracked_directory/nested_directory
   untracked_directory (rust !)
+  untracked_directory (rhg no-rust !)
   $ hg purge -v
   removing directory untracked_directory/nested_directory
   removing directory untracked_directory
@@ -346,6 +349,7 @@ remove both files and dirs
   untracked_file
   empty_dir
   dir (rust !)
+  dir (rhg no-rust !)
   $ hg purge -v --files --dirs
   removing file dir/untracked_file
   removing file untracked_file
