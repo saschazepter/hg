@@ -97,7 +97,7 @@ impl Server {
             } else {
                 FileType::RegularFile
             },
-            perm: if flags.is_exec() { 0o700 } else { 0o600 },
+            perm: permissions_for_file(flags),
             nlink: 1,
             uid: self.uid,
             gid: self.gid,
@@ -246,4 +246,8 @@ impl Server {
         let revision = revision_map.get(revision_nodeid)?;
         Some(func(revision))
     }
+}
+
+fn permissions_for_file(flags: ManifestFlags) -> u16 {
+    if flags.is_exec() { 0o700 } else { 0o600 }
 }
