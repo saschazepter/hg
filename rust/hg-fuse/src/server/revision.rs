@@ -222,7 +222,15 @@ impl OwnedRevision {
                 Ok(Some(data.into_file_data()?))
             }
             RevisionTreeRef::Dir(_) => Ok(None),
-            RevisionTreeRef::Reserved(_) => Ok(None),
+            RevisionTreeRef::Reserved(ino) => {
+                let reserved = &revision.reserved[ino];
+                match &reserved.entry {
+                    Entry::Dir { .. } => Ok(None),
+                    Entry::File { ino, .. } => {
+                        Ok(Some(revision.reserved_contents[ino].clone()))
+                    }
+                }
+            }
         }
     }
 
@@ -250,6 +258,8 @@ struct RevisionTree<'manifest> {
     pub dirs: Vec<RevisionTreeDir<'manifest>>,
     /// Holds all reserved FUSE entries
     pub reserved: FastHashMap<INodeNo, ReservedRevisionEntry>,
+    /// Holds all reserved FUSE file contents
+    reserved_contents: FastHashMap<INodeNo, RawData>,
 }
 
 impl std::fmt::Debug for RevisionTree<'_> {
@@ -302,8 +312,12 @@ impl<'manifest> RevisionTree<'manifest> {
             ino_to_nodeid.insert(*inode, changeset_node);
         }
 
-        let tree =
-            RevisionTree { files: files_array, dirs: dirs_array, reserved };
+        let tree = RevisionTree {
+            files: files_array,
+            dirs: dirs_array,
+            reserved,
+            reserved_contents: temp_map.inode_encoder.reserved_contents,
+        };
         Ok(tree)
     }
 
@@ -503,6 +517,7 @@ impl From<&RevisionTreeFile<'_>> for Entry {
 }
 
 /// Represents a directory in a given manifest revision
+#[derive(Debug)]
 pub(super) struct RevisionTreeDir<'manifest> {
     /// The unique inode for this directory
     pub inode: INodeNo,
@@ -630,8 +645,12 @@ struct RevisionInodeEncoder {
     reserved_entries: FastHashMap<INodeNo, ReservedRevisionEntry>,
     /// Inode for the root of the actual revision files
     files_root_inode: INodeNo,
+    /// Inode for the root of the .hg in the revision
+    dot_hg_ino: INodeNo,
     /// Inode for the root of the revision hierarchy
     root_ino: INodeNo,
+    /// Mapping each reserved file's inode to its data
+    reserved_contents: FastHashMap<INodeNo, RawData>,
 }
 
 impl RevisionInodeEncoder {
@@ -643,16 +662,24 @@ impl RevisionInodeEncoder {
             // Placeholder value while we generate it
             files_root_inode: INodeNo(0),
             // Placeholder value while we generate it
+            dot_hg_ino: INodeNo(0),
+            // Placeholder value while we generate it
             root_ino: INodeNo(0),
+            reserved_contents: FastHashMap::default(),
         };
         // Must be the first in our current encoding, see `RootInodeEncoder`
         let root_ino = encoder.new_inode();
 
-        // Build the hardcoded reserved revision items
+        let requires_contents = b"shared\nshare-safe\ndirstate-v2\n".to_vec();
+        let requires_ino =
+            encoder.add_reserved_file("requires", requires_contents.into());
+
+        let dot_hg_ino = encoder.add_reserved_directory(".hg", &[requires_ino]);
+
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files
         let files_root_ino =
-            encoder.add_reserved_directory(FILES_INODE_NAME, &[]);
+            encoder.add_reserved_directory(FILES_INODE_NAME, &[dot_hg_ino]);
 
         encoder.reserved_entries.insert(
             root_ino,
@@ -663,6 +690,7 @@ impl RevisionInodeEncoder {
         );
 
         encoder.files_root_inode = files_root_ino;
+        encoder.dot_hg_ino = dot_hg_ino;
         encoder.root_ino = root_ino;
         encoder
     }
@@ -681,6 +709,27 @@ impl RevisionInodeEncoder {
                 children: children.to_vec(),
             },
         );
+        ino
+    }
+
+    fn add_reserved_file(
+        &mut self,
+        name: impl Into<OsString>,
+        contents: RawData,
+    ) -> INodeNo {
+        let ino = self.new_inode();
+
+        let entry = ReservedRevisionEntry {
+            entry: Entry::File {
+                name: name.into(),
+                ino,
+                size: u_u64(contents.len()),
+                flags: ManifestFlags::new_empty(),
+            },
+            children: vec![],
+        };
+        self.reserved_contents.insert(ino, contents);
+        self.reserved_entries.insert(ino, entry);
         ino
     }
 }
