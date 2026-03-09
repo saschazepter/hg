@@ -188,6 +188,12 @@ impl Server {
         let data = changelog.data_for_node(changeset.into())?;
         let manifest_node = data.manifest_node()?;
         let manifestlog = repo_lock.manifestlog()?;
+        let changeset_extras =
+            changelog.data_for_node(changeset.into())?.extra()?;
+        let branch = match changeset_extras.get("branch") {
+            Some(branch) => branch.to_vec(),
+            None => b"default".to_vec(),
+        };
 
         let manifest = manifestlog.data_for_node(manifest_node.into())?;
         let mut ino_to_nodeid =
@@ -197,7 +203,7 @@ impl Server {
             &repo_lock,
             &mut ino_to_nodeid,
             manifest,
-            ManifestRevisionDetails::new(changeset, changeset_rev),
+            ManifestRevisionDetails::new(changeset, changeset_rev, branch),
             self.start_time,
         )?;
         let mut revisions_map =

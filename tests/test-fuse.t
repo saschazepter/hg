@@ -102,11 +102,53 @@ We can read symlinks themselves
   commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/nested/symlink1 -> ../file1
 
 
+Test the virtual share as a repo
+--------------------------------
+
+  $ cd commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files
+
+hg finds a repo and can handle it fine
+
+We can read the store fine
+
+  $ hg root --share-source
+  $TESTTMP/source
+  $ hg id
+  017e3e0cea11 tip
+  $ hg log
+  changeset:   1:017e3e0cea11
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     1
+  
+  changeset:   0:1bed6038501e
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0
+  
+
+The working copy as well
+  $ hg root
+  $TESTTMP/fuse-mount/commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files
+  $ hg st -A
+  C file1
+  C file2
+  C nested/dir/file.txt
+  C nested/symlink1
+
+It's read-only and hg tells the user
+
+  $ hg up 0
+  abort: could not lock working directory of $TESTTMP/fuse-mount/commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files: Read-only file system
+  [20]
+
+
 Cleanup
 -------
 
 This also terminates the `debug::virtual-share` invocation
 XXX teach run-tests.py to do it itself?
 
-  $ cd  # move out of the FUSE so we can unmount it
+  $ cd $TESTTMP # move out of the FUSE so we can unmount it
   $ umount $FUSE_ROOT

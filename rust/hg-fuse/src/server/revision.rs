@@ -51,11 +51,17 @@ pub(super) struct ManifestRevisionDetails {
     changeset_node: Node,
     /// Its changeset revision number
     changeset_rev: Revision,
+    /// The branch its changeset is on
+    branch: Vec<u8>,
 }
 
 impl ManifestRevisionDetails {
-    pub fn new(changeset_node: Node, changeset_rev: Revision) -> Self {
-        Self { changeset_node, changeset_rev }
+    pub fn new(
+        changeset_node: Node,
+        changeset_rev: Revision,
+        branch: Vec<u8>,
+    ) -> Self {
+        Self { changeset_node, changeset_rev, branch }
     }
 }
 
@@ -422,6 +428,7 @@ impl<'manifest> RevisionTree<'manifest> {
         let inode_encoder = RevisionInodeEncoder::new(
             available_inode_range,
             repo.store_path().parent().expect("store always has a parent"),
+            &manifest_details.branch,
         );
         // Explicitly set the root inode
         ino_to_nodeid
@@ -724,7 +731,11 @@ struct RevisionInodeEncoder {
 }
 
 impl RevisionInodeEncoder {
-    fn new(available_range: Range<INodeNo>, root_hg_path: &Path) -> Self {
+    fn new(
+        available_range: Range<INodeNo>,
+        root_hg_path: &Path,
+        branch: &[u8],
+    ) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
             available_range,
@@ -748,8 +759,11 @@ impl RevisionInodeEncoder {
         let sharedpath_ino =
             encoder.add_reserved_file("sharedpath", store_path_bytes.into());
 
-        let dot_hg_ino = encoder
-            .add_reserved_directory(".hg", &[requires_ino, sharedpath_ino]);
+        let branch_ino = encoder.add_reserved_file("branch", branch.into());
+        let dot_hg_ino = encoder.add_reserved_directory(
+            ".hg",
+            &[requires_ino, sharedpath_ino, branch_ino],
+        );
 
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files
