@@ -115,8 +115,9 @@ impl Filelog {
         Ok(FilelogEntry(self.revlog.get_entry(file_rev)?))
     }
 
-    /// Return the size of the uncompressed contents of this file
-    pub fn size_for_node(
+    /// Return the size of the uncompressed contents of this file, **stripped
+    /// of its potential metadata** (like copy information)
+    pub fn contents_size_for_node(
         &self,
         file_node: impl Into<NodePrefix>,
     ) -> Result<usize, RevlogError> {
@@ -143,13 +144,14 @@ impl Filelog {
         };
         let only_len_neutral_flags =
             (revlog_entry.flags & !LENGTH_NEUTRAL_FLAGS) == 0;
+        let filelog_entry = FilelogEntry(revlog_entry);
         if has_meta || !(only_len_neutral_flags) {
-            Ok(revlog_entry.data()?.len())
+            Ok(filelog_entry.data()?.file_data()?.len())
         } else {
             let Ok(size): Result<usize, _> =
                 index_entry.uncompressed_len().try_into()
             else {
-                return Ok(revlog_entry.data()?.len());
+                return Ok(filelog_entry.data()?.file_data()?.len());
             };
             Ok(size)
         }

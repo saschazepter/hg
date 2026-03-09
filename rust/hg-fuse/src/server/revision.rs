@@ -354,7 +354,9 @@ impl<'manifest> RevisionTree<'manifest> {
                             hg::revlog::RevlogType::Filelog,
                         )?,
                     )?;
-                    filelog.size_for_node(file_node)
+                    // TODO keep a persistent NodeTree of filenode_id -> size
+                    // until we have it in revlogv2?
+                    filelog.contents_size_for_node(file_node)
                 })
                 .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
         };
