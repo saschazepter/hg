@@ -7,11 +7,20 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::time::SystemTime;
 
 use fuser::INodeNo;
+use hg::DirstateParents;
 use hg::FastHashMap;
+use hg::NULL_NODE;
 use hg::Node;
 use hg::Revision;
+use hg::dirstate::dirstate_map::DirstateEntryReset;
+use hg::dirstate::dirstate_map::DirstateMapWriteMode;
+use hg::dirstate::entry::ParentFileData;
+use hg::dirstate::entry::TruncatedTimestamp;
+use hg::dirstate::on_disk::Docket;
+use hg::dirstate::owning::OwningDirstateMap;
 use hg::dirstate::path_with_basename::WithBasename;
 use hg::errors::HgError;
 use hg::repo::Repo;
@@ -22,6 +31,7 @@ use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::ZeroPath;
+use hg::utils::u_u32;
 use hg::utils::u_u64;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
@@ -30,6 +40,7 @@ use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::InodeEncoder;
 use crate::fuse::RootInodeEncoder;
+use crate::server::permissions_for_file;
 
 /// Mapping of inode to a reference in the revision (including reserved ones)
 type InoToRef = FastHashMap<INodeNo, RevisionTreeRef>;
@@ -69,6 +80,7 @@ impl OwnedRevision {
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: Manifest,
         manifest_details: ManifestRevisionDetails,
+        start_time: SystemTime,
     ) -> Result<Self, HgError> {
         let mut ino_to_ref = FastHashMap::default();
         let changelog_rev = manifest_details.changeset_rev;
@@ -81,6 +93,7 @@ impl OwnedRevision {
                     ino_to_nodeid,
                     manifest,
                     manifest_details,
+                    start_time,
                 )
             },
         )?;
@@ -281,6 +294,7 @@ impl<'manifest> RevisionTree<'manifest> {
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
+        start_time: SystemTime,
     ) -> Result<RevisionTree<'manifest>, HgError> {
         let changeset_node = manifest_details.changeset_node;
         let (temp_map, files_array) = Self::process_manifest_files(
@@ -289,6 +303,7 @@ impl<'manifest> RevisionTree<'manifest> {
             ino_to_nodeid,
             manifest,
             manifest_details,
+            start_time,
         )?;
 
         let mut dirs_array = Vec::with_capacity(temp_map.mapping.len());
@@ -314,6 +329,17 @@ impl<'manifest> RevisionTree<'manifest> {
             ino_to_nodeid.insert(*inode, changeset_node);
         }
 
+        dirs_array
+            .last_mut()
+            .expect("should have at least the root dir")
+            .children
+            .extend(
+                reserved[&files_root_ino]
+                    .children
+                    .iter()
+                    .map(|ino| RevisionTreeRef::Reserved(*ino)),
+            );
+
         let tree = RevisionTree {
             files: files_array,
             dirs: dirs_array,
@@ -331,6 +357,7 @@ impl<'manifest> RevisionTree<'manifest> {
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
+        start_time: SystemTime,
     ) -> Result<(TempMap<'manifest>, Vec<RevisionTreeFile<'manifest>>), HgError>
     {
         // Sort the flat files so the children always come before the parents
@@ -403,10 +430,14 @@ impl<'manifest> RevisionTree<'manifest> {
         // Compute temporary mapping of all directories to their children
         let root_path = HgPath::new(b"");
 
+        let changeset_node = manifest_details.changeset_node;
         let mut temp_map = TempMap::new(manifest_details, inode_encoder);
         let mut files_array = Vec::with_capacity(number_of_files);
         let mut current_file_parent = root_path;
 
+        let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
+
+        let start_time: TruncatedTimestamp = start_time.into();
         for ((_zeropath, line), size) in manifest_iter {
             Self::add_manifest_file_to_map(
                 ino_to_ref,
@@ -415,8 +446,23 @@ impl<'manifest> RevisionTree<'manifest> {
                 &mut temp_map,
                 &mut current_file_parent,
                 (line, size),
+                (&mut dirstate, start_time),
             )?;
         }
+
+        // Set the mtime for all directories so status is faster
+        dirstate.with_dmap_mut(|dirstate_map| -> Result<(), HgError> {
+            for directory in temp_map.mapping.keys() {
+                // TODO remove the `pub` from `set_cached_time` once this
+                // logic is moved in the dirstate
+                dirstate_map.set_cached_mtime(directory, start_time)?;
+            }
+            Ok(())
+        })?;
+
+        let dirstate_parents =
+            DirstateParents { p1: changeset_node, p2: NULL_NODE };
+        temp_map.inode_encoder.add_dirstate(dirstate, dirstate_parents)?;
 
         Ok((temp_map, files_array))
     }
@@ -427,6 +473,7 @@ impl<'manifest> RevisionTree<'manifest> {
     /// * Computes the size of the file revision it points to
     /// * Assigns it an inode
     /// * Inserts the resulting file information in its parent node
+    #[allow(clippy::too_many_arguments)]
     fn add_manifest_file_to_map(
         ino_to_ref: &mut InoToRef,
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
@@ -434,6 +481,7 @@ impl<'manifest> RevisionTree<'manifest> {
         temp_map: &mut TempMap<'manifest>,
         current_file_parent: &mut &'manifest HgPath,
         (line, size): (ManifestEntry<'manifest>, usize),
+        (dirstate, start_time): (&mut OwningDirstateMap, TruncatedTimestamp),
     ) -> Result<(), HgError> {
         let file_node_id = line.node_id()?;
         let path = line.path;
@@ -466,6 +514,23 @@ impl<'manifest> RevisionTree<'manifest> {
         }
 
         let inode = temp_map.inode_encoder.new_inode();
+
+        dirstate.reset_state(DirstateEntryReset {
+            filename: line.path,
+            wc_tracked: true,
+            p1_tracked: true,
+            p2_info: false, // We're never in an active merge
+            has_meaningful_mtime: true,
+            parent_file_data_opt: Some(ParentFileData {
+                mode_size: Some((
+                    permissions_for_file(line.flags).into(),
+                    u_u32(size),
+                )),
+                mtime: Some(start_time),
+            }),
+            from_empty: true, // We are starting from scratch
+        })?;
+
         let file_entry = RevisionTreeFile {
             inode,
             file_node: file_node_id,
@@ -703,6 +768,42 @@ impl RevisionInodeEncoder {
         encoder.dot_hg_ino = dot_hg_ino;
         encoder.root_ino = root_ino;
         encoder
+    }
+
+    fn add_dirstate(
+        &mut self,
+        dirstate: OwningDirstateMap,
+        parents: DirstateParents,
+    ) -> Result<(), HgError> {
+        let (data, metadata, _, _) =
+            dirstate.pack_v2(DirstateMapWriteMode::ForceNewDataFile)?;
+        let dirstate_size = u_u64(data.len());
+        let uuid = Docket::new_uid();
+
+        // Create the data file
+        let data_ino =
+            self.add_reserved_file(format!("dirstate.{uuid}"), data.into());
+
+        // Create the docket file
+        let docket_data = Docket::serialize(
+            parents,
+            metadata,
+            dirstate_size,
+            uuid.as_bytes(),
+        )
+        .expect("dirstate overflow");
+
+        let docket_ino = self.add_reserved_file("dirstate", docket_data.into());
+
+        // Insert them in .hg
+        let dot_hg_entry = self
+            .reserved_entries
+            .get_mut(&self.dot_hg_ino)
+            .expect(".hg node should exist");
+        dot_hg_entry.children.push(data_ino);
+        dot_hg_entry.children.push(docket_ino);
+
+        Ok(())
     }
 
     fn add_reserved_directory(

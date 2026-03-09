@@ -198,6 +198,7 @@ impl Server {
             &mut ino_to_nodeid,
             manifest,
             ManifestRevisionDetails::new(changeset, changeset_rev),
+            self.start_time,
         )?;
         let mut revisions_map =
             self.revisions.lock().expect("propagate the panic");
