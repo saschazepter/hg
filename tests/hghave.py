@@ -971,6 +971,11 @@ def has_dev_full():
     return os.path.exists('/dev/full')
 
 
+@check("fuse", "FUSE support")
+def has_fuse():
+    return os.path.exists('/dev/fuse')
+
+
 @check("ensurepip", "ensurepip module")
 def has_ensurepip():
     try:
