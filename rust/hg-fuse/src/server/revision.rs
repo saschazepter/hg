@@ -4,6 +4,7 @@ use std::ffi::OsString;
 use std::iter::repeat;
 use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
@@ -18,6 +19,7 @@ use hg::revlog::manifest::Manifest;
 use hg::revlog::manifest::ManifestEntry;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
+use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::ZeroPath;
 use hg::utils::u_u64;
@@ -390,7 +392,10 @@ impl<'manifest> RevisionTree<'manifest> {
         let available_inode_range = RootInodeEncoder::revision_inode_range(
             manifest_details.changeset_rev,
         );
-        let inode_encoder = RevisionInodeEncoder::new(available_inode_range);
+        let inode_encoder = RevisionInodeEncoder::new(
+            available_inode_range,
+            repo.store_path().parent().expect("store always has a parent"),
+        );
         // Explicitly set the root inode
         ino_to_nodeid
             .insert(inode_encoder.root_ino, manifest_details.changeset_node);
@@ -654,7 +659,7 @@ struct RevisionInodeEncoder {
 }
 
 impl RevisionInodeEncoder {
-    fn new(available_range: Range<INodeNo>) -> Self {
+    fn new(available_range: Range<INodeNo>, root_hg_path: &Path) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
             available_range,
@@ -674,7 +679,12 @@ impl RevisionInodeEncoder {
         let requires_ino =
             encoder.add_reserved_file("requires", requires_contents.into());
 
-        let dot_hg_ino = encoder.add_reserved_directory(".hg", &[requires_ino]);
+        let store_path_bytes = get_bytes_from_path(root_hg_path);
+        let sharedpath_ino =
+            encoder.add_reserved_file("sharedpath", store_path_bytes.into());
+
+        let dot_hg_ino = encoder
+            .add_reserved_directory(".hg", &[requires_ino, sharedpath_ino]);
 
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files
