@@ -142,8 +142,8 @@ impl OwnedRevision {
                             None
                         }
                     }
-                    RevisionTreeRef::Reserved(_) => {
-                        let reserved = &revision.reserved[&parent];
+                    RevisionTreeRef::Reserved(ino) => {
+                        let reserved = &revision.reserved[&ino];
                         if reserved.entry.name() == name {
                             Some(reserved.entry.clone())
                         } else {
@@ -175,16 +175,16 @@ impl OwnedRevision {
                             let dir = &revision.dirs[*idx];
                             dir.into()
                         }
-                        RevisionTreeRef::Reserved(_) => {
-                            let reserved = &revision.reserved[&ino];
+                        RevisionTreeRef::Reserved(ino) => {
+                            let reserved = &revision.reserved[ino];
                             reserved.entry.clone()
                         }
                     })
                     .collect();
                 Some(children)
             }
-            RevisionTreeRef::Reserved(_) => {
-                let reserved = &revision.reserved[&ino];
+            RevisionTreeRef::Reserved(ino) => {
+                let reserved = &revision.reserved[ino];
                 match reserved.entry {
                     Entry::Dir { .. } => {
                         let children = reserved
@@ -530,7 +530,6 @@ pub(super) enum RevisionTreeRef {
     /// Points to a directory the [`RevisionTree`]
     Dir(usize),
     /// Points to a reserved entry of the [`RevisionTree`]
-    #[expect(unused)]
     Reserved(INodeNo),
 }
 
