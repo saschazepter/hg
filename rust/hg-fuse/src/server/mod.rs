@@ -34,6 +34,10 @@ pub struct Server {
     /// The repo that we're serving for
     /// TODO more than 1 repo at once
     repo: Mutex<Repo>,
+    /// Cache of the size of the uncompressed contents (without metadata) of
+    /// each filenode id.
+    /// TODO try to pass in a hasher that just uses the nodeid?
+    file_nodeid_to_size: Mutex<FastHashMap<Node, usize>>,
     /// Maps assigned revision inodes to the manifest node they're in.
     ino_to_nodeid: Mutex<FastHashMap<INodeNo, Node>>,
     /// Revisions whose tree we've populated
@@ -59,6 +63,7 @@ impl Server {
         let gid = process_metadata.gid();
         Ok(Self {
             repo: Mutex::new(repo),
+            file_nodeid_to_size: Mutex::new(FastHashMap::default()),
             ino_to_nodeid: Mutex::new(FastHashMap::default()),
             revisions: Mutex::new(FastHashMap::default()),
             start_time: SystemTime::now(),
@@ -193,6 +198,8 @@ impl Server {
         // Look up the manifest node for this changelog node
         // TODO improve the granularity of this locking
         let repo_lock = self.repo.lock().expect("propagate the panic");
+        let mut file_nodeid_to_size =
+            self.file_nodeid_to_size.lock().expect("propagate the panic");
         let changelog = repo_lock.changelog()?;
         let changeset_rev = changelog.rev_from_node(changeset.into())?;
         let data = changelog.data_for_node(changeset.into())?;
@@ -211,6 +218,7 @@ impl Server {
 
         let revision_data = OwnedRevision::from_revision(
             &repo_lock,
+            &mut file_nodeid_to_size,
             &mut ino_to_nodeid,
             manifest,
             ManifestRevisionDetails::new(changeset, changeset_rev, branch),
