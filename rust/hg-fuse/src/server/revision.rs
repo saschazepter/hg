@@ -93,11 +93,7 @@ pub(super) struct OwnedRevision {
 impl OwnedRevision {
     /// Return a [`Self`] that represents this manifest, along with the new
     /// inodes.
-    #[tracing::instrument(
-        level = "debug",
-        skip_all,
-        fields(nodeid = format!("{:x}", manifest_details.changeset_node)),
-    )]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_revision(
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
