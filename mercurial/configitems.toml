@@ -1544,6 +1544,15 @@ default = true
 
 [[items]]
 section = "fuse"
+name = "preload-working-copy-structure"
+experimental = true
+default = true
+documentation = """Whether to preload the structure of all files and directories
+of the working copy into the kernel filesystem cache upon first access to a
+revision. The preloading is done in a background thread."""
+
+[[items]]
+section = "fuse"
 name = "fake-file-sizes"
 experimental = true
 default = false

@@ -1,4 +1,5 @@
 use std::os::unix::fs::MetadataExt;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -17,6 +18,7 @@ use hg::utils::RawData;
 use crate::fuse::COMMITS_INODE;
 use crate::fuse::Entry;
 use crate::fuse::RootInodeEncoder;
+use crate::fuse::path_to_revision_working_copy;
 use crate::server::revision::ManifestRevisionDetails;
 use crate::server::revision::OwnedRevision;
 
@@ -141,6 +143,7 @@ impl Server {
         &self,
         parent: INodeNo,
         name: &std::ffi::OsStr,
+        mount_point: &Path,
     ) -> Result<Option<Entry>, HgError> {
         if RootInodeEncoder::is_reserved(parent) {
             if parent == COMMITS_INODE {
@@ -158,7 +161,7 @@ impl Server {
                     }
                     drop(revisions_guard);
                     // Load the node upon first request
-                    return self.load_revision_root(node);
+                    return self.load_revision_root(node, mount_point);
                 } else {
                     return Ok(None);
                 };
@@ -185,6 +188,7 @@ impl Server {
     fn load_revision_root(
         &self,
         changeset: Node,
+        mount_point: &Path,
     ) -> Result<Option<Entry>, HgError> {
         // Look up the manifest node for this changelog node
         // TODO improve the granularity of this locking
@@ -214,12 +218,35 @@ impl Server {
         )?;
         let mut revisions_map =
             self.revisions.lock().expect("propagate the panic");
-        revisions_map.insert(changeset, Arc::new(revision_data));
+        let revision_arc = Arc::new(revision_data);
+        revisions_map.insert(changeset, Arc::clone(&revision_arc));
+
+        let preload = repo_lock
+            .config()
+            .get_bool(b"fuse", b"preload-working-copy-structure")?;
+        if preload {
+            self.spawn_revision_preloading(
+                changeset,
+                revision_arc,
+                mount_point,
+            );
+        }
         let entry = Entry::dir(
             format!("{:x}", changeset).into(),
             RootInodeEncoder::revision_inode(changeset_rev),
         );
         Ok(Some(entry))
+    }
+
+    /// Spawn a background thread that populates the filesystem kernel caches
+    fn spawn_revision_preloading(
+        &self,
+        changeset: Node,
+        revision: Arc<OwnedRevision>,
+        mount_point: &Path,
+    ) {
+        let root = mount_point.join(path_to_revision_working_copy(changeset));
+        rayon::spawn(move || revision.preload(&root));
     }
 
     /// Return entries for all direct children of this inode

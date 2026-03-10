@@ -5,6 +5,7 @@ use std::iter::repeat;
 use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::SystemTime;
@@ -36,8 +37,10 @@ use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::ZeroPath;
+use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::utils::u_u32;
 use hg::utils::u_u64;
+use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 
@@ -109,6 +112,51 @@ impl OwnedRevision {
             },
         )?;
         Ok(Self { revision, ino_to_ref, changelog_rev })
+    }
+
+    /// Preload this revision's filesystem structure into the kernel's caches.
+    /// `root` must be the path to the revisions' working copy for this to work,
+    /// *not* the root of the FUSE (it is different as of this writing).
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub fn preload(&self, root: &Path) {
+        // TODO figure out if manually doing relative `openat`/`fstatat` calls
+        // is worth the trouble, given that we should just be using an in-memory
+        // dirstate soon.
+        let inner = self.revision.borrow_dependent();
+
+        // reverse the iterator so we load the top-level dirs first
+        inner.dirs.par_iter().rev().for_each(|dir| {
+            let path = hg_path_to_path_buf(dir.path.full_path());
+
+            if let Ok(path) = path {
+                Self::preload_directory(root.join(path));
+            }
+        });
+        inner.files.par_iter().for_each(|file| {
+            let path = hg_path_to_path_buf(file.path.full_path());
+            if let Ok(path) = path {
+                _ = std::fs::symlink_metadata(root.join(path));
+            }
+        });
+    }
+
+    /// Preload this directory into kernel filesystem cache
+    fn preload_directory(path: PathBuf) {
+        // Using `fadvise` works to some extent, but not as well as a full
+        // readdir, so we do that instead.
+        let dir_fd = match std::fs::read_dir(&path) {
+            Ok(read_dir) => read_dir,
+            Err(e) => {
+                tracing::trace!(
+                    "failed to opendir '{}' for preloading: {e}",
+                    path.display()
+                );
+                return;
+            }
+        };
+
+        // make sure we read all entries
+        dir_fd.count();
     }
 
     pub fn get_entry(&self, ino: INodeNo) -> Option<Entry> {

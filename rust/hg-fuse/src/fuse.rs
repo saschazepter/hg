@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::ops::Range;
 use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use fuser::BackgroundSession;
@@ -13,6 +14,7 @@ use fuser::FopenFlags;
 use fuser::Generation;
 use fuser::INodeNo;
 use fuser::MountOption;
+use hg::Node;
 use hg::Revision;
 use hg::UncheckedRevision;
 use hg::errors::HgError;
@@ -24,9 +26,16 @@ use hg::utils::u64_u;
 
 use crate::server::Server;
 
+/// Return the path to the working directory root, relative to the FUSE root
+pub fn path_to_revision_working_copy(changeset: Node) -> PathBuf {
+    format!("{COMMITS_INODE_NAME}/{:x}/{FILES_INODE_NAME}", changeset).into()
+}
+
 /// A virtual filesystem in user-space (FUSE) for Mercurial
 pub struct HgFuse {
     server: Server,
+    /// The mount point for this FUSE
+    mount_point: PathBuf,
 }
 
 impl HgFuse {
@@ -49,7 +58,7 @@ impl HgFuse {
             // better to leave a more explicitly borked filesystem than an
             // empty one on breakage.
         ]);
-        let filesystem = Self { server };
+        let filesystem = Self { server, mount_point: mountpoint.to_path_buf() };
         Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
@@ -129,7 +138,7 @@ impl Filesystem for HgFuse {
         name: &std::ffi::OsStr,
         reply: fuser::ReplyEntry,
     ) {
-        match self.server.lookup(parent, name) {
+        match self.server.lookup(parent, name, &self.mount_point) {
             Ok(Some(entry)) => {
                 reply.entry(
                     &TTL,
