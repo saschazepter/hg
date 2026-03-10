@@ -176,6 +176,11 @@ impl Server {
     /// Return the [`Entry`] for the root of the given node prefix.
     ///
     /// This means building the [`RevisionTree`] and caching it.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(nodeid = format!("{:x}", changeset)),
+    )]
     fn load_revision_root(
         &self,
         changeset: Node,
