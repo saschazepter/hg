@@ -474,6 +474,7 @@ impl<'manifest> RevisionTree<'manifest> {
         let cached_file_sizes = file_nodeid_to_size.len();
 
         // File sizes
+        let size_span = tracing::debug_span!("computing sizes").entered();
         let use_fake_file_size =
             repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
         let sizes_vec = if use_fake_file_size {
@@ -510,6 +511,7 @@ impl<'manifest> RevisionTree<'manifest> {
                 })
                 .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
         };
+        drop(size_span);
 
         // Zip the files with their sizes without allocating useless sizes
         let mut always_zero = repeat(0);
@@ -543,6 +545,7 @@ impl<'manifest> RevisionTree<'manifest> {
 
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
 
+        let map_span = tracing::debug_span!("building the map").entered();
         let start_time: TruncatedTimestamp = start_time.into();
         for ((_zeropath, line), size) in manifest_iter {
             Self::add_manifest_file_to_map(
@@ -557,7 +560,10 @@ impl<'manifest> RevisionTree<'manifest> {
         }
         let cache_misses = file_nodeid_to_size.len() - cached_file_sizes;
         tracing::debug!("cached {} new filelog node sizes", cache_misses);
+        drop(map_span);
 
+        let dirstate_span =
+            tracing::debug_span!("mtimes + write dirstate").entered();
         // Set the mtime for all directories so status is faster
         dirstate.with_dmap_mut(|dirstate_map| -> Result<(), HgError> {
             for directory in temp_map.mapping.keys() {
@@ -573,6 +579,7 @@ impl<'manifest> RevisionTree<'manifest> {
             p2: NULL_NODE,
         };
         temp_map.inode_encoder.add_dirstate(dirstate, dirstate_parents)?;
+        drop(dirstate_span);
 
         Ok((temp_map, files_array))
     }
