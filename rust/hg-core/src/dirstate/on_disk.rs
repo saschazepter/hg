@@ -4,12 +4,14 @@
 
 use std::borrow::Cow;
 use std::fmt::Write;
+use std::path::Path;
 
 use bitflags::bitflags;
 use bytes_cast::BytesCast;
 use bytes_cast::unaligned::U16Be;
 use bytes_cast::unaligned::U32Be;
 use format_bytes::format_bytes;
+use format_bytes::write_bytes;
 use rand::RngExt;
 use uuid::Uuid;
 
@@ -31,6 +33,7 @@ use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
+use crate::vfs::Vfs;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
 /// This a redundant sanity check more than an actual "magic number" since
@@ -922,10 +925,10 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
     if !repo.requirements().contains(DIRSTATE_TRACKED_HINT_V1) {
         return Ok(());
     }
-    // TODO use `hg_vfs` once the `InnerRevlog` is in.
-    let path = repo.working_directory_path().join(".hg/dirstate-tracked-hint");
+    let hg_vfs = repo.hg_vfs();
+    let path = Path::new("dirstate-tracked-hint");
+    let mut file = hg_vfs.open_write(path)?;
     let uuid = Uuid::new_v4();
     let uuid = uuid.as_bytes();
-    let contents = format_bytes!(b"1\n{}\n", uuid);
-    Ok(std::fs::write(&path, contents).when_writing_file(&path)?)
+    Ok(write_bytes!(&mut file, b"1\n{}\n", uuid).when_writing_file(path)?)
 }
