@@ -24,6 +24,9 @@ use hg::dirstate::owning::OwningDirstateMap;
 use hg::dirstate::path_with_basename::WithBasename;
 use hg::errors::HgError;
 use hg::repo::Repo;
+use hg::requirements::DIRSTATE_V2_REQUIREMENT;
+use hg::requirements::SHARED_REQUIREMENT;
+use hg::requirements::SHARESAFE_REQUIREMENT;
 use hg::revlog::manifest::Manifest;
 use hg::revlog::manifest::ManifestEntry;
 use hg::revlog::manifest::ManifestFlags;
@@ -751,7 +754,13 @@ impl RevisionInodeEncoder {
         // Must be the first in our current encoding, see `RootInodeEncoder`
         let root_ino = encoder.new_inode();
 
-        let requires_contents = b"shared\nshare-safe\ndirstate-v2\n".to_vec();
+        let requirements = [
+            SHARED_REQUIREMENT,
+            SHARESAFE_REQUIREMENT,
+            DIRSTATE_V2_REQUIREMENT,
+        ]
+        .join("\n");
+        let requires_contents = requirements.as_bytes();
         let requires_ino =
             encoder.add_reserved_file("requires", requires_contents.into());
 
