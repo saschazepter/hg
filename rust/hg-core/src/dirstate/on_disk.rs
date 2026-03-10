@@ -925,5 +925,7 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
     // TODO use `hg_vfs` once the `InnerRevlog` is in.
     let path = repo.working_directory_path().join(".hg/dirstate-tracked-hint");
     let uuid = Uuid::new_v4();
-    Ok(std::fs::write(&path, uuid.as_bytes()).when_writing_file(&path)?)
+    let uuid = uuid.as_bytes();
+    let contents = format_bytes!(b"1\n{}\n", uuid);
+    Ok(std::fs::write(&path, contents).when_writing_file(&path)?)
 }
