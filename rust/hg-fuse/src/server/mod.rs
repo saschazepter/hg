@@ -1,14 +1,12 @@
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::SystemTime;
 
 use dashmap::DashMap;
 use fuser::FileAttr;
 use fuser::FileType;
 use fuser::INodeNo;
-use hg::FastHashMap;
 use hg::Node;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
@@ -42,7 +40,7 @@ pub struct Server {
     /// Maps assigned revision inodes to the manifest node they're in.
     ino_to_nodeid: DashMap<INodeNo, Node>,
     /// Revisions whose tree we've populated
-    revisions: Mutex<FastHashMap<Node, Arc<OwnedRevision>>>,
+    revisions: DashMap<Node, Arc<OwnedRevision>>,
     /// When this server was started
     start_time: SystemTime,
     /// User ID returned on requests, by default it's the process'.
@@ -66,7 +64,7 @@ impl Server {
             repo,
             file_nodeid_to_size: DashMap::default(),
             ino_to_nodeid: DashMap::default(),
-            revisions: Mutex::new(FastHashMap::default()),
+            revisions: DashMap::default(),
             start_time: SystemTime::now(),
             uid,
             gid,
@@ -155,9 +153,7 @@ impl Server {
             if parent == COMMITS_INODE {
                 if let Ok(node) = Node::from_hex(name.as_encoded_bytes()) {
                     // Is a syntactically valid node, try to look it up
-                    let revisions_guard =
-                        self.revisions.lock().expect("propagate the panic");
-                    if let Some(revision) = revisions_guard.get(&node) {
+                    if let Some(revision) = self.revisions.get(&node) {
                         // We've already loaded this revision
                         let root_inode = RootInodeEncoder::revision_inode(
                             revision.changelog_rev(),
@@ -165,7 +161,6 @@ impl Server {
                         let root_entry_opt = revision.get_entry(root_inode);
                         return Ok(root_entry_opt);
                     }
-                    drop(revisions_guard);
                     // Load the node upon first request
                     return self.load_revision_root(node, mount_point);
                 } else {
@@ -219,10 +214,8 @@ impl Server {
             ManifestRevisionDetails::new(changeset, changeset_rev, branch),
             self.start_time,
         )?;
-        let mut revisions_map =
-            self.revisions.lock().expect("propagate the panic");
         let revision_arc = Arc::new(revision_data);
-        revisions_map.insert(changeset, Arc::clone(&revision_arc));
+        self.revisions.insert(changeset, Arc::clone(&revision_arc));
 
         // Update the higher-level mapping now that the revision is fully built
         // and stored
@@ -293,9 +286,8 @@ impl Server {
         func: impl FnOnce(&OwnedRevision) -> R,
     ) -> Option<R> {
         let revision_nodeid = self.ino_to_nodeid.get(&ino)?;
-        let revision_map = self.revisions.lock().expect("propagate the panic");
-        let revision = revision_map.get(&revision_nodeid)?;
-        Some(func(revision))
+        let revision = self.revisions.get(&revision_nodeid)?;
+        Some(func(&revision))
     }
 }
 
