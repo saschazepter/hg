@@ -10,6 +10,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::SystemTime;
 
+use dashmap::DashMap;
 use fuser::INodeNo;
 use hg::DirstateParents;
 use hg::FastHashMap;
@@ -91,7 +92,7 @@ impl OwnedRevision {
     )]
     pub fn from_revision(
         repo: &Repo,
-        file_nodeid_to_size: &mut FastHashMap<Node, usize>,
+        file_nodeid_to_size: &DashMap<Node, usize>,
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: Manifest,
         manifest_details: ManifestRevisionDetails,
@@ -356,7 +357,7 @@ type FilenodeSizeIterator<'a> =
 impl<'manifest> RevisionTree<'manifest> {
     pub fn from_revision(
         repo: &Repo,
-        file_nodeid_to_size: &mut FastHashMap<Node, usize>,
+        file_nodeid_to_size: &DashMap<Node, usize>,
         ino_to_ref: &mut InoToRef,
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: &'manifest Manifest,
@@ -421,7 +422,7 @@ impl<'manifest> RevisionTree<'manifest> {
     /// with the array of all files processed into [`RevisionTreeFile`].
     fn process_manifest_files(
         repo: &Repo,
-        file_nodeid_to_size: &mut FastHashMap<Node, usize>,
+        file_nodeid_to_size: &DashMap<Node, usize>,
         ino_to_ref: &mut InoToRef,
         ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: &'manifest Manifest,

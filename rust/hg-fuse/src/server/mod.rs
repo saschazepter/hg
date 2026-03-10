@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
+use dashmap::DashMap;
 use fuser::FileAttr;
 use fuser::FileType;
 use fuser::INodeNo;
@@ -37,7 +38,7 @@ pub struct Server {
     /// Cache of the size of the uncompressed contents (without metadata) of
     /// each filenode id.
     /// TODO try to pass in a hasher that just uses the nodeid?
-    file_nodeid_to_size: Mutex<FastHashMap<Node, usize>>,
+    file_nodeid_to_size: DashMap<Node, usize>,
     /// Maps assigned revision inodes to the manifest node they're in.
     ino_to_nodeid: Mutex<FastHashMap<INodeNo, Node>>,
     /// Revisions whose tree we've populated
@@ -63,7 +64,7 @@ impl Server {
         let gid = user_id.unwrap_or_else(|| process_metadata.gid());
         Ok(Self {
             repo,
-            file_nodeid_to_size: Mutex::new(FastHashMap::default()),
+            file_nodeid_to_size: DashMap::default(),
             ino_to_nodeid: Mutex::new(FastHashMap::default()),
             revisions: Mutex::new(FastHashMap::default()),
             start_time: SystemTime::now(),
@@ -197,8 +198,6 @@ impl Server {
     ) -> Result<Option<Entry>, HgError> {
         // Look up the manifest node for this changelog node
         // TODO improve the granularity of this locking
-        let mut file_nodeid_to_size =
-            self.file_nodeid_to_size.lock().expect("propagate the panic");
         let changelog = self.repo.changelog()?;
         let changeset_rev = changelog.rev_from_node(changeset.into())?;
         let data = changelog.data_for_node(changeset.into())?;
@@ -217,7 +216,7 @@ impl Server {
 
         let revision_data = OwnedRevision::from_revision(
             &self.repo,
-            &mut file_nodeid_to_size,
+            &self.file_nodeid_to_size,
             &mut ino_to_nodeid,
             manifest,
             ManifestRevisionDetails::new(changeset, changeset_rev, branch),

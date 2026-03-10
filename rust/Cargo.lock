@@ -781,6 +781,7 @@ name = "hg-fuse"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "dashmap",
  "fuser",
  "hg-core",
  "rayon",
