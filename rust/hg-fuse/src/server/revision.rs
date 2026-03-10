@@ -20,10 +20,12 @@ use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::Docket;
+use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
 use hg::dirstate::path_with_basename::WithBasename;
 use hg::errors::HgError;
 use hg::repo::Repo;
+use hg::requirements::DIRSTATE_TRACKED_HINT_V1;
 use hg::requirements::DIRSTATE_V2_REQUIREMENT;
 use hg::requirements::SHARED_REQUIREMENT;
 use hg::requirements::SHARESAFE_REQUIREMENT;
@@ -758,6 +760,7 @@ impl RevisionInodeEncoder {
             SHARED_REQUIREMENT,
             SHARESAFE_REQUIREMENT,
             DIRSTATE_V2_REQUIREMENT,
+            DIRSTATE_TRACKED_HINT_V1,
         ]
         .join("\n");
         let requires_contents = requirements.as_bytes();
@@ -769,9 +772,16 @@ impl RevisionInodeEncoder {
             encoder.add_reserved_file("sharedpath", store_path_bytes.into());
 
         let branch_ino = encoder.add_reserved_file("branch", branch.into());
+
+        let mut tracked_key = vec![];
+        write_tracked_key_to(&mut tracked_key)
+            .expect("writing to Vec cannot fail");
+        let tracked_key_ino = encoder
+            .add_reserved_file("dirstate-tracked-key", tracked_key.into());
+
         let dot_hg_ino = encoder.add_reserved_directory(
             ".hg",
-            &[requires_ino, sharedpath_ino, branch_ino],
+            &[requires_ino, sharedpath_ino, branch_ino, tracked_key_ino],
         );
 
         // /!\ Keep in sync with `path_to_revision_working_copy`
