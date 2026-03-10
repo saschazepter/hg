@@ -33,7 +33,7 @@ const FAKE_DIR_SIZE: u64 = 2005;
 pub struct Server {
     /// The repo that we're serving for
     /// TODO more than 1 repo at once
-    repo: Mutex<Repo>,
+    repo: Repo,
     /// Cache of the size of the uncompressed contents (without metadata) of
     /// each filenode id.
     /// TODO try to pass in a hasher that just uses the nodeid?
@@ -62,7 +62,7 @@ impl Server {
         let uid = user_id.unwrap_or_else(|| process_metadata.uid());
         let gid = user_id.unwrap_or_else(|| process_metadata.gid());
         Ok(Self {
-            repo: Mutex::new(repo),
+            repo,
             file_nodeid_to_size: Mutex::new(FastHashMap::default()),
             ino_to_nodeid: Mutex::new(FastHashMap::default()),
             revisions: Mutex::new(FastHashMap::default()),
@@ -197,14 +197,13 @@ impl Server {
     ) -> Result<Option<Entry>, HgError> {
         // Look up the manifest node for this changelog node
         // TODO improve the granularity of this locking
-        let repo_lock = self.repo.lock().expect("propagate the panic");
         let mut file_nodeid_to_size =
             self.file_nodeid_to_size.lock().expect("propagate the panic");
-        let changelog = repo_lock.changelog()?;
+        let changelog = self.repo.changelog()?;
         let changeset_rev = changelog.rev_from_node(changeset.into())?;
         let data = changelog.data_for_node(changeset.into())?;
         let manifest_node = data.manifest_node()?;
-        let manifestlog = repo_lock.manifestlog()?;
+        let manifestlog = self.repo.manifestlog()?;
         let changeset_extras =
             changelog.data_for_node(changeset.into())?.extra()?;
         let branch = match changeset_extras.get("branch") {
@@ -217,7 +216,7 @@ impl Server {
             self.ino_to_nodeid.lock().expect("propagate the panic");
 
         let revision_data = OwnedRevision::from_revision(
-            &repo_lock,
+            &self.repo,
             &mut file_nodeid_to_size,
             &mut ino_to_nodeid,
             manifest,
@@ -229,7 +228,8 @@ impl Server {
         let revision_arc = Arc::new(revision_data);
         revisions_map.insert(changeset, Arc::clone(&revision_arc));
 
-        let preload = repo_lock
+        let preload = self
+            .repo
             .config()
             .get_bool(b"fuse", b"preload-working-copy-structure")?;
         if preload {
@@ -272,9 +272,9 @@ impl Server {
         if RootInodeEncoder::is_reserved(ino) {
             return Ok(RootInodeEncoder::data_for_reserved(ino));
         }
-        if let Some(Ok(Some(data))) = self.with_revision(ino, |revision| {
-            revision.read(ino, &self.repo.lock().expect("propagate the panic"))
-        }) {
+        if let Some(Ok(Some(data))) =
+            self.with_revision(ino, |revision| revision.read(ino, &self.repo))
+        {
             Ok(Some(data))
         } else {
             Ok(None)
