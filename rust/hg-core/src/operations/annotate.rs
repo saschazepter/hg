@@ -1,6 +1,5 @@
-use std::cell::Ref;
-
 use itertools::Itertools as _;
+use parking_lot::MappedRwLockReadGuard;
 use rayon::prelude::*;
 use self_cell::self_cell;
 
@@ -112,10 +111,10 @@ struct Annotation {
 /// [`Repo`] and related objects that often need to be passed together.
 struct RepoState<'a> {
     repo: &'a Repo,
-    changelog: Ref<'a, Changelog>,
-    manifestlog: Ref<'a, Manifestlog>,
+    changelog: MappedRwLockReadGuard<'a, Changelog>,
+    manifestlog: MappedRwLockReadGuard<'a, Manifestlog>,
     dirstate_parents: Option<[Revision; 2]>,
-    dirstate_map: Option<Ref<'a, OwningDirstateMap>>,
+    dirstate_map: Option<MappedRwLockReadGuard<'a, OwningDirstateMap>>,
 }
 
 impl<'a> RepoState<'a> {

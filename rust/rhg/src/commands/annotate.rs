@@ -1,5 +1,4 @@
 use core::str;
-use std::cell::Ref;
 use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 
@@ -24,6 +23,7 @@ use hg::revlog::RevisionOrWdir;
 use hg::revlog::changelog::Changelog;
 use hg::utils::hg_path::HgPath;
 use hg::utils::strings::CleanWhitespace;
+use parking_lot::MappedRwLockReadGuard;
 
 use crate::error::CommandError;
 use crate::ui::StdoutBuffer;
@@ -546,7 +546,7 @@ fn fmt_sigil(
 /// A cache of [`ChangesetData`] for each changeset we've seen.
 struct Cache<'a> {
     repo: &'a Repo,
-    changelog: Ref<'a, Changelog>,
+    changelog: MappedRwLockReadGuard<'a, Changelog>,
     map: FastHashMap<RevisionOrWdir, ChangesetData>,
 }
 

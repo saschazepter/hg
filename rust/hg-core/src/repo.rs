@@ -1,12 +1,15 @@
-use std::cell::Ref;
-use std::cell::RefCell;
-use std::cell::RefMut;
 use std::collections::HashSet;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write as IoWrite;
 use std::path::Path;
 use std::path::PathBuf;
+
+use parking_lot::MappedRwLockReadGuard;
+use parking_lot::MappedRwLockWriteGuard;
+use parking_lot::RwLock;
+use parking_lot::RwLockReadGuard;
+use parking_lot::RwLockWriteGuard;
 
 use crate::NodePrefix;
 use crate::UncheckedRevision;
@@ -60,10 +63,10 @@ pub struct Repo {
     store: PathBuf,
     requirements: HashSet<String>,
     config: Config,
-    dirstate_parents: LazyCell<DirstateParents>,
-    dirstate_map: LazyCell<OwningDirstateMap>,
-    changelog: LazyCell<Changelog>,
-    manifestlog: LazyCell<Manifestlog>,
+    dirstate_parents: RwLockOption<DirstateParents>,
+    dirstate_map: RwLockOption<OwningDirstateMap>,
+    changelog: RwLockOption<Changelog>,
+    manifestlog: RwLockOption<Manifestlog>,
 }
 
 impl Repo {
@@ -203,10 +206,10 @@ impl Repo {
             store: store_path,
             dot_hg,
             config: repo_config,
-            dirstate_parents: LazyCell::new(),
-            dirstate_map: LazyCell::new(),
-            changelog: LazyCell::new(),
-            manifestlog: LazyCell::new(),
+            dirstate_parents: RwLockOption::new(),
+            dirstate_map: RwLockOption::new(),
+            changelog: RwLockOption::new(),
+            manifestlog: RwLockOption::new(),
         };
 
         requirements::check(repo.requirements())?;
@@ -542,13 +545,15 @@ impl Repo {
         Ok(map)
     }
 
-    pub fn dirstate_map(&self) -> Result<Ref<'_, OwningDirstateMap>, HgError> {
+    pub fn dirstate_map(
+        &self,
+    ) -> Result<MappedRwLockReadGuard<'_, OwningDirstateMap>, HgError> {
         self.dirstate_map.get_or_init(|| self.new_dirstate_map())
     }
 
     pub fn dirstate_map_mut(
         &self,
-    ) -> Result<RefMut<'_, OwningDirstateMap>, HgError> {
+    ) -> Result<MappedRwLockWriteGuard<'_, OwningDirstateMap>, HgError> {
         self.dirstate_map.get_mut_or_init(|| self.new_dirstate_map())
     }
 
@@ -565,11 +570,15 @@ impl Repo {
         )
     }
 
-    pub fn changelog(&self) -> Result<Ref<'_, Changelog>, HgError> {
+    pub fn changelog(
+        &self,
+    ) -> Result<MappedRwLockReadGuard<'_, Changelog>, HgError> {
         self.changelog.get_or_init(|| self.new_changelog())
     }
 
-    pub fn changelog_mut(&self) -> Result<RefMut<'_, Changelog>, HgError> {
+    pub fn changelog_mut(
+        &self,
+    ) -> Result<MappedRwLockWriteGuard<'_, Changelog>, HgError> {
         self.changelog.get_mut_or_init(|| self.new_changelog())
     }
 
@@ -584,11 +593,15 @@ impl Repo {
         )
     }
 
-    pub fn manifestlog(&self) -> Result<Ref<'_, Manifestlog>, HgError> {
+    pub fn manifestlog(
+        &self,
+    ) -> Result<MappedRwLockReadGuard<'_, Manifestlog>, HgError> {
         self.manifestlog.get_or_init(|| self.new_manifestlog())
     }
 
-    pub fn manifestlog_mut(&self) -> Result<RefMut<'_, Manifestlog>, HgError> {
+    pub fn manifestlog_mut(
+        &self,
+    ) -> Result<MappedRwLockWriteGuard<'_, Manifestlog>, HgError> {
         self.manifestlog.get_mut_or_init(|| self.new_manifestlog())
     }
 
@@ -814,7 +827,7 @@ impl Repo {
         &self,
         new_parents: DirstateParents,
     ) -> Result<(), HgError> {
-        let mut parents = self.dirstate_parents.value.borrow_mut();
+        let mut parents = self.dirstate_parents.value.write();
         *parents = Some(new_parents);
         Ok(())
     }
@@ -826,43 +839,41 @@ impl Repo {
 /// later by setting its inner `Option` to `None`. It also takes the
 /// initialization function as an argument when the value is requested, not
 /// when the instance is created.
-struct LazyCell<T> {
-    value: RefCell<Option<T>>,
+struct RwLockOption<T> {
+    value: RwLock<Option<T>>,
 }
 
-impl<T> LazyCell<T> {
+impl<T> RwLockOption<T> {
     fn new() -> Self {
-        Self { value: RefCell::new(None) }
+        Self { value: RwLock::new(None) }
     }
 
     fn set(&self, value: T) {
-        *self.value.borrow_mut() = Some(value)
+        *self.value.write() = Some(value)
     }
 
     fn get_or_init<E>(
         &self,
         init: impl Fn() -> Result<T, E>,
-    ) -> Result<Ref<'_, T>, E> {
-        let mut borrowed = self.value.borrow();
+    ) -> Result<MappedRwLockReadGuard<'_, T>, E> {
+        let mut borrowed = self.value.read();
         if borrowed.is_none() {
             drop(borrowed);
-            // Only use `borrow_mut` if it is really needed to avoid panic in
-            // case there is another outstanding borrow but mutation is not
-            // needed.
-            *self.value.borrow_mut() = Some(init()?);
-            borrowed = self.value.borrow()
+            // Only use `write` if it is really needed
+            *self.value.write() = Some(init()?);
+            borrowed = self.value.read();
         }
-        Ok(Ref::map(borrowed, |option| option.as_ref().unwrap()))
+        Ok(RwLockReadGuard::map(borrowed, |option| option.as_ref().unwrap()))
     }
 
     fn get_mut_or_init<E>(
         &self,
         init: impl Fn() -> Result<T, E>,
-    ) -> Result<RefMut<'_, T>, E> {
-        let mut borrowed = self.value.borrow_mut();
+    ) -> Result<MappedRwLockWriteGuard<'_, T>, E> {
+        let mut borrowed = self.value.write();
         if borrowed.is_none() {
             *borrowed = Some(init()?);
         }
-        Ok(RefMut::map(borrowed, |option| option.as_mut().unwrap()))
+        Ok(RwLockWriteGuard::map(borrowed, |option| option.as_mut().unwrap()))
     }
 }
