@@ -349,10 +349,8 @@ impl std::fmt::Debug for RevisionTree<'_> {
     }
 }
 
-/// Iterator over `(size, needs_caching)` for each filenode
-/// TODO use a concurrent datastructure to remove the need for `need_caching`?
-type FilenodeSizeIterator<'a> =
-    &'a mut (dyn Iterator<Item = (usize, bool)> + 'static);
+/// Iterator over the size for each filenode
+type FilenodeSizeIterator<'a> = &'a mut (dyn Iterator<Item = usize> + 'static);
 
 impl<'manifest> RevisionTree<'manifest> {
     pub fn from_revision(
@@ -442,6 +440,8 @@ impl<'manifest> RevisionTree<'manifest> {
         zeropath_files.sort_by(|a, b| a.0.cmp(&b.0));
         let number_of_files = zeropath_files.len();
 
+        let cached_file_sizes = file_nodeid_to_size.len();
+
         // File sizes
         let use_fake_file_size =
             repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
@@ -458,7 +458,7 @@ impl<'manifest> RevisionTree<'manifest> {
                     let file_node = line.node_id()?;
                     if let Some(size) = file_nodeid_to_size.get(&file_node) {
                         // We already know this size
-                        return Ok((*size, false));
+                        return Ok(*size);
                     }
                     // Work around `Repo` not being `Sync`. TODO clean this
                     // up by thinking about Repo's parallelism story a bit
@@ -475,20 +475,20 @@ impl<'manifest> RevisionTree<'manifest> {
                     // TODO keep a persistent NodeTree of filenode_id -> size
                     // until we have it in revlogv2?
                     let size = filelog.contents_size_for_node(file_node)?;
-                    Ok((size, true))
+                    file_nodeid_to_size.insert(line.node_id()?, size);
+                    Ok(size)
                 })
                 .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
         };
 
         // Zip the files with their sizes without allocating useless sizes
-        let mut always_zero = repeat((0, false));
+        let mut always_zero = repeat(0);
         let mut sizes_iter = sizes_vec.into_iter();
         let manifest_iter = if use_fake_file_size {
             let repeat: FilenodeSizeIterator = &mut always_zero;
             zeropath_files.into_iter().zip(repeat)
         } else {
-            let sizes_vec: &mut dyn Iterator<Item = (usize, bool)> =
-                &mut sizes_iter;
+            let sizes_vec: &mut dyn Iterator<Item = usize> = &mut sizes_iter;
             zeropath_files.into_iter().zip(sizes_vec)
         };
 
@@ -515,12 +515,7 @@ impl<'manifest> RevisionTree<'manifest> {
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
 
         let start_time: TruncatedTimestamp = start_time.into();
-        let mut cache_misses = 0;
-        for ((_zeropath, line), (size, needs_caching)) in manifest_iter {
-            if needs_caching {
-                cache_misses += 1;
-                file_nodeid_to_size.insert(line.node_id()?, size);
-            }
+        for ((_zeropath, line), size) in manifest_iter {
             Self::add_manifest_file_to_map(
                 ino_to_ref,
                 ino_to_nodeid,
@@ -531,6 +526,7 @@ impl<'manifest> RevisionTree<'manifest> {
                 (&mut dirstate, start_time),
             )?;
         }
+        let cache_misses = file_nodeid_to_size.len() - cached_file_sizes;
         tracing::debug!("cached {} new filelog node sizes", cache_misses);
 
         // Set the mtime for all directories so status is faster
