@@ -26,13 +26,15 @@ use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
 use hg::dirstate::path_with_basename::WithBasename;
 use hg::errors::HgError;
+use hg::matchers::Matcher;
+use hg::operations::ExpandedManifestEntry;
+use hg::operations::FilesForRevBorrowed;
 use hg::repo::Repo;
 use hg::requirements::DIRSTATE_TRACKED_HINT_V1;
 use hg::requirements::DIRSTATE_V2_REQUIREMENT;
 use hg::requirements::SHARED_REQUIREMENT;
 use hg::requirements::SHARESAFE_REQUIREMENT;
 use hg::revlog::manifest::Manifest;
-use hg::revlog::manifest::ManifestEntry;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
@@ -98,6 +100,7 @@ impl OwnedRevision {
         manifest: Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
+        narrow_matcher: &impl Matcher,
     ) -> Result<(Self, Vec<INodeNo>), HgError> {
         let mut ino_to_ref = FastHashMap::default();
         let changelog_rev = manifest_details.changeset_rev;
@@ -113,6 +116,7 @@ impl OwnedRevision {
                     manifest,
                     manifest_details,
                     start_time,
+                    narrow_matcher,
                 )
             },
         )?;
@@ -355,6 +359,7 @@ impl std::fmt::Debug for RevisionTree<'_> {
 type FilenodeSizeIterator<'a> = &'a mut (dyn Iterator<Item = usize> + 'static);
 
 impl<'manifest> RevisionTree<'manifest> {
+    #[allow(clippy::too_many_arguments)]
     pub fn from_revision(
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
@@ -363,6 +368,7 @@ impl<'manifest> RevisionTree<'manifest> {
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
+        narrow_matcher: &impl Matcher,
     ) -> Result<RevisionTree<'manifest>, HgError> {
         let (temp_map, files_array) = Self::process_manifest_files(
             repo,
@@ -372,6 +378,7 @@ impl<'manifest> RevisionTree<'manifest> {
             manifest,
             manifest_details,
             start_time,
+            narrow_matcher,
         )?;
 
         let mut dirs_array = Vec::with_capacity(temp_map.mapping.len());
@@ -419,6 +426,8 @@ impl<'manifest> RevisionTree<'manifest> {
 
     /// Returns a temporary mapping of all directories to their children, along
     /// with the array of all files processed into [`RevisionTreeFile`].
+    #[tracing::instrument(level = "debug", skip_all)]
+    #[allow(clippy::too_many_arguments)]
     fn process_manifest_files(
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
@@ -427,16 +436,20 @@ impl<'manifest> RevisionTree<'manifest> {
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
+        narrow_matcher: &impl Matcher,
     ) -> Result<(TempMap<'manifest>, Vec<RevisionTreeFile<'manifest>>), HgError>
     {
+        let files_for_rev = FilesForRevBorrowed::new(manifest, &narrow_matcher);
+
         // Sort the flat files so the children always come before the parents
-        let mut zeropath_files = manifest
+        let mut zeropath_files = files_for_rev
             .iter()
             .map(|line| {
                 let line = line?;
-                Ok((ZeroPath::try_from(line.path)?, line))
+                Ok((ZeroPath::try_from(line.0)?, line))
             })
-            .collect::<Result<Vec<(ZeroPath, ManifestEntry)>, HgError>>()?;
+            .collect::<Result<Vec<(ZeroPath, ExpandedManifestEntry)>, HgError>>(
+            )?;
 
         zeropath_files.sort_by(|a, b| a.0.cmp(&b.0));
         let number_of_files = zeropath_files.len();
@@ -455,9 +468,8 @@ impl<'manifest> RevisionTree<'manifest> {
             let requirements = repo.requirements();
             zeropath_files
                 .par_iter()
-                .map(|(_, line)| {
-                    let file_node = line.node_id()?;
-                    if let Some(size) = file_nodeid_to_size.get(&file_node) {
+                .map(|(_, (path, file_node, _flags))| {
+                    if let Some(size) = file_nodeid_to_size.get(file_node) {
                         // We already know this size
                         return Ok(*size);
                     }
@@ -466,7 +478,7 @@ impl<'manifest> RevisionTree<'manifest> {
                     // harder.
                     let filelog = hg::revlog::filelog::Filelog::open_vfs(
                         store_vfs,
-                        line.path,
+                        path,
                         hg::revlog::options::default_revlog_options(
                             config,
                             requirements,
@@ -476,7 +488,7 @@ impl<'manifest> RevisionTree<'manifest> {
                     // TODO keep a persistent NodeTree of filenode_id -> size
                     // until we have it in revlogv2?
                     let size = filelog.contents_size_for_node(file_node)?;
-                    file_nodeid_to_size.insert(line.node_id()?, size);
+                    file_nodeid_to_size.insert(*file_node, size);
                     Ok(size)
                 })
                 .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
@@ -560,11 +572,10 @@ impl<'manifest> RevisionTree<'manifest> {
         files_array: &mut Vec<RevisionTreeFile<'manifest>>,
         temp_map: &mut TempMap<'manifest>,
         current_file_parent: &mut &'manifest HgPath,
-        (line, size): (ManifestEntry<'manifest>, usize),
+        (line, size): (ExpandedManifestEntry<'manifest>, usize),
         (dirstate, start_time): (&mut OwningDirstateMap, TruncatedTimestamp),
     ) -> Result<(), HgError> {
-        let file_node_id = line.node_id()?;
-        let path = line.path;
+        let (path, file_node_id, flags) = line;
         let file_parent = path.parent();
         if file_parent != *current_file_parent {
             // We've finished with the current dir
@@ -596,14 +607,14 @@ impl<'manifest> RevisionTree<'manifest> {
         let inode = temp_map.inode_encoder.new_inode();
 
         dirstate.reset_state(DirstateEntryReset {
-            filename: line.path,
+            filename: path,
             wc_tracked: true,
             p1_tracked: true,
             p2_info: false, // We're never in an active merge
             has_meaningful_mtime: true,
             parent_file_data_opt: Some(ParentFileData {
                 mode_size: Some((
-                    permissions_for_file(line.flags).into(),
+                    permissions_for_file(flags).into(),
                     u_u32(size),
                 )),
                 mtime: Some(start_time),
@@ -614,7 +625,7 @@ impl<'manifest> RevisionTree<'manifest> {
         let file_entry = RevisionTreeFile {
             inode,
             file_node: file_node_id,
-            flags: line.flags,
+            flags,
             path: WithBasename::new(path),
             size: u_u64(size),
         };

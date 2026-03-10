@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
@@ -10,9 +11,12 @@ use fuser::INodeNo;
 use hg::Node;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
+use hg::matchers::Matcher;
+use hg::narrow;
 use hg::repo::Repo;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
+use hg::warnings::HgWarningContext;
 
 use crate::fuse::COMMITS_INODE;
 use crate::fuse::Entry;
@@ -47,6 +51,8 @@ pub struct Server {
     uid: u32,
     /// Group ID returned on requests, by default it's the process'.
     gid: u32,
+    /// The matcher for this repo's narrowspec
+    narrow_matcher: Box<dyn Matcher + Send + 'static>,
 }
 
 impl Server {
@@ -60,6 +66,15 @@ impl Server {
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
         let uid = user_id.unwrap_or_else(|| process_metadata.uid());
         let gid = user_id.unwrap_or_else(|| process_metadata.gid());
+
+        let warnings = HgWarningContext::new();
+        let narrow_matcher = narrow::matcher(&repo, warnings.sender())?;
+        let _ = warnings.finish(|warning| -> Result<(), Infallible> {
+            // TODO better warnings
+            tracing::warn!("narrow warning: {:?}", warning);
+            Ok(())
+        });
+
         Ok(Self {
             repo,
             file_nodeid_to_size: DashMap::default(),
@@ -68,6 +83,7 @@ impl Server {
             start_time: SystemTime::now(),
             uid,
             gid,
+            narrow_matcher,
         })
     }
 
@@ -213,6 +229,7 @@ impl Server {
             manifest,
             ManifestRevisionDetails::new(changeset, changeset_rev, branch),
             self.start_time,
+            &self.narrow_matcher,
         )?;
         let revision_arc = Arc::new(revision_data);
         self.revisions.insert(changeset, Arc::clone(&revision_arc));
