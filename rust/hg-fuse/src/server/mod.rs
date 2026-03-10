@@ -40,7 +40,7 @@ pub struct Server {
     /// TODO try to pass in a hasher that just uses the nodeid?
     file_nodeid_to_size: DashMap<Node, usize>,
     /// Maps assigned revision inodes to the manifest node they're in.
-    ino_to_nodeid: Mutex<FastHashMap<INodeNo, Node>>,
+    ino_to_nodeid: DashMap<INodeNo, Node>,
     /// Revisions whose tree we've populated
     revisions: Mutex<FastHashMap<Node, Arc<OwnedRevision>>>,
     /// When this server was started
@@ -65,7 +65,7 @@ impl Server {
         Ok(Self {
             repo,
             file_nodeid_to_size: DashMap::default(),
-            ino_to_nodeid: Mutex::new(FastHashMap::default()),
+            ino_to_nodeid: DashMap::default(),
             revisions: Mutex::new(FastHashMap::default()),
             start_time: SystemTime::now(),
             uid,
@@ -229,10 +229,9 @@ impl Server {
         // Note that this implies that `new_ino_to_nodeid` is sorted in a way
         // that the root directory is at the end, otherwise we might race and
         // expose the root's children before they are inserted here.
-        let mut ino_to_nodeid =
-            self.ino_to_nodeid.lock().expect("propagate the panic");
-        ino_to_nodeid
-            .extend(new_ino_to_nodeid.into_iter().map(|ino| (ino, changeset)));
+        for ino in new_ino_to_nodeid {
+            self.ino_to_nodeid.insert(ino, changeset);
+        }
 
         let preload = self
             .repo
@@ -293,11 +292,9 @@ impl Server {
         ino: INodeNo,
         func: impl FnOnce(&OwnedRevision) -> R,
     ) -> Option<R> {
-        let ino_to_nodeid =
-            self.ino_to_nodeid.lock().expect("propagate the panic");
-        let revision_nodeid = ino_to_nodeid.get(&ino)?;
+        let revision_nodeid = self.ino_to_nodeid.get(&ino)?;
         let revision_map = self.revisions.lock().expect("propagate the panic");
-        let revision = revision_map.get(revision_nodeid)?;
+        let revision = revision_map.get(&revision_nodeid)?;
         Some(func(revision))
     }
 }
