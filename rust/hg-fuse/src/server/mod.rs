@@ -1,4 +1,5 @@
 use std::os::unix::fs::MetadataExt;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
@@ -34,7 +35,7 @@ pub struct Server {
     /// Maps assigned revision inodes to the manifest node they're in.
     ino_to_nodeid: Mutex<FastHashMap<INodeNo, Node>>,
     /// Revisions whose tree we've populated
-    revisions: Mutex<FastHashMap<Node, OwnedRevision>>,
+    revisions: Mutex<FastHashMap<Node, Arc<OwnedRevision>>>,
     /// When this server was started
     start_time: SystemTime,
     /// User ID from this process
@@ -213,7 +214,7 @@ impl Server {
         )?;
         let mut revisions_map =
             self.revisions.lock().expect("propagate the panic");
-        revisions_map.insert(changeset, revision_data);
+        revisions_map.insert(changeset, Arc::new(revision_data));
         let entry = Entry::dir(
             format!("{:x}", changeset).into(),
             RootInodeEncoder::revision_inode(changeset_rev),
