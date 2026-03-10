@@ -928,7 +928,14 @@ pub fn write_tracked_key(repo: &Repo) -> Result<(), HgError> {
     let hg_vfs = repo.hg_vfs();
     let path = Path::new("dirstate-tracked-hint");
     let mut file = hg_vfs.open_write(path)?;
+    Ok(write_tracked_key_to(&mut file).when_writing_file(path)?)
+}
+
+/// Write a new dirstate tracked key to this writer. See [`write_tracked_key`].
+pub fn write_tracked_key_to(
+    writer: &mut (impl std::io::Write + 'static),
+) -> Result<(), std::io::Error> {
     let uuid = Uuid::new_v4();
     let uuid = uuid.as_bytes();
-    Ok(write_bytes!(&mut file, b"1\n{}\n", uuid).when_writing_file(path)?)
+    write_bytes!(writer, b"1\n{}\n", uuid)
 }
