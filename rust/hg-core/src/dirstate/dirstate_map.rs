@@ -955,7 +955,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     }
 
     /// Sets the cached mtime for the (potential) folder at `path`.
-    pub fn set_cached_mtime(
+    pub(super) fn set_cached_mtime(
         &mut self,
         path: &HgPath,
         mtime: TruncatedTimestamp,

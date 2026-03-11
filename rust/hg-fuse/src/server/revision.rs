@@ -566,24 +566,11 @@ impl<'manifest> RevisionTree<'manifest> {
         tracing::debug!("cached {} new filelog node sizes", cache_misses);
         drop(map_span);
 
-        let dirstate_span =
-            tracing::debug_span!("mtimes + write dirstate").entered();
-        // Set the mtime for all directories so status is faster
-        dirstate.with_dmap_mut(|dirstate_map| -> Result<(), HgError> {
-            for directory in temp_map.mapping.keys() {
-                // TODO remove the `pub` from `set_cached_time` once this
-                // logic is moved in the dirstate
-                dirstate_map.set_cached_mtime(directory, start_time)?;
-            }
-            Ok(())
-        })?;
-
         let dirstate_parents = DirstateParents {
             p1: manifest_details.changeset_node,
             p2: NULL_NODE,
         };
         temp_map.inode_encoder.add_dirstate(dirstate, dirstate_parents)?;
-        drop(dirstate_span);
 
         Ok((temp_map, files_array))
     }
@@ -908,6 +895,7 @@ impl RevisionInodeEncoder {
         encoder
     }
 
+    #[tracing::instrument(level = "debug", skip_all)]
     fn add_dirstate(
         &mut self,
         dirstate: OwningDirstateMap,
