@@ -507,8 +507,7 @@ impl<'manifest> RevisionTree<'manifest> {
         // Compute temporary mapping of all directories to their children
         let root_path = HgPath::new(b"");
 
-        let changeset_node = manifest_details.changeset_node;
-        let mut temp_map = TempMap::new(manifest_details, inode_encoder);
+        let mut temp_map = TempMap::new(inode_encoder);
         let mut files_array = Vec::with_capacity(number_of_files);
         let mut current_file_parent = root_path;
 
@@ -539,8 +538,10 @@ impl<'manifest> RevisionTree<'manifest> {
             Ok(())
         })?;
 
-        let dirstate_parents =
-            DirstateParents { p1: changeset_node, p2: NULL_NODE };
+        let dirstate_parents = DirstateParents {
+            p1: manifest_details.changeset_node,
+            p2: NULL_NODE,
+        };
         temp_map.inode_encoder.add_dirstate(dirstate, dirstate_parents)?;
 
         Ok((temp_map, files_array))
@@ -705,22 +706,13 @@ type TempMapping<'manifest> =
 /// vec used in [`RevisionTree`].
 struct TempMap<'manifest> {
     mapping: TempMapping<'manifest>,
-    #[expect(unused)]
-    manifest_details: ManifestRevisionDetails,
     /// Responsible for giving out inodes when building this revision
     inode_encoder: RevisionInodeEncoder,
 }
 
 impl<'manifest> TempMap<'manifest> {
-    fn new(
-        manifest_details: ManifestRevisionDetails,
-        inode_encoder: RevisionInodeEncoder,
-    ) -> Self {
-        Self {
-            mapping: FastHashMap::default(),
-            manifest_details,
-            inode_encoder,
-        }
+    fn new(inode_encoder: RevisionInodeEncoder) -> Self {
+        Self { mapping: FastHashMap::default(), inode_encoder }
     }
 
     /// Iterate over the temporary mapping to build the revision tree,
