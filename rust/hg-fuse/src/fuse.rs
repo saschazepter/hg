@@ -14,6 +14,7 @@ use fuser::FopenFlags;
 use fuser::Generation;
 use fuser::INodeNo;
 use fuser::MountOption;
+use fuser::SessionACL;
 use hg::Node;
 use hg::Revision;
 use hg::UncheckedRevision;
@@ -46,6 +47,7 @@ impl HgFuse {
     pub fn mount(
         server: Server,
         destination: impl AsRef<Path>,
+        open_to_all: bool,
     ) -> Result<BackgroundSession, HgError> {
         let mountpoint = destination.as_ref();
         let mut config = Config::default();
@@ -58,6 +60,9 @@ impl HgFuse {
             // better to leave a more explicitly borked filesystem than an
             // empty one on breakage.
         ]);
+        if open_to_all {
+            config.acl = SessionACL::All;
+        }
         let filesystem = Self { server, mount_point: mountpoint.to_path_buf() };
         Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)

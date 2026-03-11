@@ -44,14 +44,14 @@ pub struct Server {
     revisions: Mutex<FastHashMap<Node, Arc<OwnedRevision>>>,
     /// When this server was started
     start_time: SystemTime,
-    /// User ID from this process
+    /// User ID returned on requests, by default it's the process'.
     uid: u32,
-    /// Group ID from this process
+    /// Group ID returned on requests, by default it's the process'.
     gid: u32,
 }
 
 impl Server {
-    pub fn new(repo: &Repo) -> Result<Self, HgError> {
+    pub fn new(repo: &Repo, user_id: Option<u32>) -> Result<Self, HgError> {
         // Recreate our owned repo
         let repo = Repo::find(
             repo.config(),
@@ -59,8 +59,8 @@ impl Server {
         )?;
         let process_metadata =
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
-        let uid = process_metadata.uid();
-        let gid = process_metadata.gid();
+        let uid = user_id.unwrap_or_else(|| process_metadata.uid());
+        let gid = user_id.unwrap_or_else(|| process_metadata.gid());
         Ok(Self {
             repo: Mutex::new(repo),
             file_nodeid_to_size: Mutex::new(FastHashMap::default()),

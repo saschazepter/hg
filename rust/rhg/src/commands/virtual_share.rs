@@ -29,6 +29,12 @@ pub fn args() -> clap::Command {
                 .value_parser(clap::value_parser!(std::ffi::OsString))
                 .help("path to write this process' ID to"),
         )
+        .arg(
+            Arg::new("user-id")
+                .long("public-fuse-user-id")
+                .value_parser(clap::value_parser!(u32))
+                .help("override the uid/gid and session ACL"),
+        )
         .about(HELP_TEXT)
 }
 
@@ -47,7 +53,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         std::fs::write(pid_file, pid_line).when_writing_file(pid_file)?
     };
 
-    let server = Server::new(repo)?;
+    let user_id = invocation.subcommand_args.get_one("user-id").copied();
+    let server = Server::new(repo, user_id)?;
 
     // Set up non-fatal signals to break our loop
     let should_terminate = Arc::new(AtomicBool::new(false));
@@ -59,7 +66,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         .expect("signal should be valid to register");
 
     // Dropping this handle will unmount the filesystem
-    let session = HgFuse::mount(server, destination)?;
+    let session = HgFuse::mount(server, destination, user_id.is_some())?;
     loop {
         std::thread::sleep(Duration::from_millis(250));
         let was_unmounted = session.guard.is_finished();
