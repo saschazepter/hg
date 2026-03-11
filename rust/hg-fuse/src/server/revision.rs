@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::convert::Infallible;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::iter::repeat;
@@ -34,8 +35,10 @@ use hg::requirements::DIRSTATE_TRACKED_HINT_V1;
 use hg::requirements::DIRSTATE_V2_REQUIREMENT;
 use hg::requirements::SHARED_REQUIREMENT;
 use hg::requirements::SHARESAFE_REQUIREMENT;
+use hg::requirements::SPARSE_REQUIREMENT;
 use hg::revlog::manifest::Manifest;
 use hg::revlog::manifest::ManifestFlags;
+use hg::sparse;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
@@ -43,6 +46,7 @@ use hg::utils::hg_path::ZeroPath;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::utils::u_u32;
 use hg::utils::u_u64;
+use hg::warnings::HgWarningContext;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
@@ -441,12 +445,29 @@ impl<'manifest> RevisionTree<'manifest> {
     {
         let files_for_rev = FilesForRevBorrowed::new(manifest, &narrow_matcher);
 
+        let warnings = HgWarningContext::new();
+        let sparse_matcher = sparse::matcher(
+            repo,
+            Some(vec![manifest_details.changeset_rev]),
+            warnings.sender(),
+        )?;
+        let _ = warnings.finish(|warning| -> Result<(), Infallible> {
+            // TODO better warnings
+            tracing::warn!("sparse warning: {:?}", warning);
+            Ok(())
+        });
+
         // Sort the flat files so the children always come before the parents
         let mut zeropath_files = files_for_rev
             .iter()
             .map(|line| {
                 let line = line?;
                 Ok((ZeroPath::try_from(line.0)?, line))
+            })
+            .filter(|res| match res {
+                // Filter according to the sparse profile
+                Ok((_, (path, _, _))) => sparse_matcher.matches(path),
+                Err(_) => true, // Errors must be included
             })
             .collect::<Result<Vec<(ZeroPath, ExpandedManifestEntry)>, HgError>>(
             )?;
@@ -512,6 +533,7 @@ impl<'manifest> RevisionTree<'manifest> {
             available_inode_range,
             repo.store_path().parent().expect("store always has a parent"),
             &manifest_details.branch,
+            repo.has_sparse(),
         );
         // Explicitly set the root inode
         new_inodes.push(inode_encoder.root_ino);
@@ -811,6 +833,7 @@ impl RevisionInodeEncoder {
         available_range: Range<INodeNo>,
         root_hg_path: &Path,
         branch: &[u8],
+        has_sparse: bool,
     ) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
@@ -827,13 +850,16 @@ impl RevisionInodeEncoder {
         // Must be the first in our current encoding, see `RootInodeEncoder`
         let root_ino = encoder.new_inode();
 
-        let requirements = [
+        let mut requirements = vec![
             SHARED_REQUIREMENT,
             SHARESAFE_REQUIREMENT,
             DIRSTATE_V2_REQUIREMENT,
             DIRSTATE_TRACKED_HINT_V1,
-        ]
-        .join("\n");
+        ];
+        if has_sparse {
+            requirements.push(SPARSE_REQUIREMENT);
+        }
+        let requirements = requirements.join("\n");
         let requires_contents = requirements.as_bytes();
         let requires_ino =
             encoder.add_reserved_file("requires", requires_contents.into());
