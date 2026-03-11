@@ -236,6 +236,7 @@ impl DirstateMap {
             has_meaningful_mtime,
             parent_file_data_opt: parent_file_data,
             from_empty: false,
+            set_parents_mtime: false,
         };
 
         Self::with_inner_write(slf, |_self_ref, mut inner| {

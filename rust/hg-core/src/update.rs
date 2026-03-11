@@ -1456,6 +1456,7 @@ fn update_dirstate(
             // We are only certain that there isn't a previous entry in the
             // case of update from null
             from_empty: update_kind == UpdateKind::FromNull,
+            set_parents_mtime: false,
         };
         let new_entry = dirstate.reset_state(reset)?;
         if new_entry {

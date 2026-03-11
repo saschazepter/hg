@@ -649,6 +649,7 @@ impl<'manifest> RevisionTree<'manifest> {
                 mtime: Some(start_time),
             }),
             from_empty: true, // We are starting from scratch
+            set_parents_mtime: true,
         })?;
 
         let file_entry = RevisionTreeFile {

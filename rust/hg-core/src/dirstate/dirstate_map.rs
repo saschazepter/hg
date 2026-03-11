@@ -768,12 +768,23 @@ impl<'on_disk> DirstateMap<'on_disk> {
         p2_info: bool,
         has_meaningful_mtime: bool,
         parent_file_data_opt: Option<ParentFileData>,
+        set_parents_mtime: bool,
     ) -> Result<(), DirstateError> {
         let (had_entry, was_tracked) = match old_entry_opt {
             Some(old_entry) => (true, old_entry.tracked()),
             None => (false, false),
         };
         let node = self.get_or_insert_node(filename, |ancestor| {
+            if set_parents_mtime
+                && let Some(parent_file_data) = parent_file_data_opt
+                && let Some(mtime) = parent_file_data.mtime
+                && let NodeData::CachedDirectory { .. } = ancestor.data
+            {
+                // Set this parent directory's mtime to the same as the target
+                // node's. This is only useful in the FUSE.
+                // See `DirstateEntryReset::set_parents_mtime`
+                ancestor.data = NodeData::CachedDirectory { mtime }
+            }
             if !had_entry {
                 ancestor.descendants_with_entry_count += 1;
             }
@@ -1046,6 +1057,9 @@ pub struct DirstateEntryReset<'a> {
     /// this filename. Yield better performance in cases where we do a lot
     /// of additions to the dirstate.
     pub from_empty: bool,
+    /// Should only be used by the FUSE server to signal that every parent
+    /// of this entry should have the same mtime on insert.
+    pub set_parents_mtime: bool,
 }
 
 type DebugDirstateTuple<'a> = (&'a HgPath, (u8, i32, i32, i32));
@@ -1157,6 +1171,7 @@ impl OwningDirstateMap {
                 reset.p2_info,
                 reset.has_meaningful_mtime,
                 reset.parent_file_data_opt,
+                reset.set_parents_mtime,
             )?;
             Ok(old_entry_opt.is_none())
         })
@@ -1733,6 +1748,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         assert_does_not_exist(&map, b"some/file");
@@ -1746,6 +1762,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         assert!(!map.get(p(b"some/nested/file"))?.unwrap().tracked());
@@ -1758,6 +1775,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         assert!(!map.get(p(b"some/file3"))?.unwrap().tracked());
@@ -1770,6 +1788,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         assert!(map.get(p(b"root_file"))?.unwrap().tracked());
@@ -1783,6 +1802,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         assert!(map.get(p(b"some/file2"))?.unwrap().tracked());
@@ -1796,6 +1816,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         assert!(map.get(p(b"some/other/nested/path"))?.unwrap().tracked());
@@ -1868,6 +1889,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // Merged file
@@ -1879,6 +1901,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // Removed file
@@ -1890,6 +1913,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // Added file
@@ -1901,6 +1925,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // Add copy
@@ -1965,6 +1990,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // Only present in p2
@@ -1976,6 +2002,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         map.copy_map_insert(
@@ -1991,6 +2018,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // A file that is added, with info from p2
@@ -2003,6 +2031,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
         // One layer without any files to test deletion cascade
@@ -2015,6 +2044,7 @@ mod tests {
             has_meaningful_mtime: false,
             parent_file_data_opt: None,
             from_empty: false,
+            set_parents_mtime: false,
         };
         map.reset_state(reset)?;
 
