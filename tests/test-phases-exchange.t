@@ -704,7 +704,7 @@ Pushing to Publish=True (unknown changeset)
 
   $ hg push ssh://user@dummy/beta-ssh -r b740e3e5c05d --debug
   pushing to ssh://user@dummy/beta-ssh
-  running "*/python" "$TESTDIR/dummyssh" 'user@dummy' 'hg -R beta-ssh serve --stdio' (glob)
+  running *dummyssh* (glob)
   sending hello command
   sending between command
   remote: 561 (zstd !)
@@ -1774,7 +1774,7 @@ abort behavior
 
   $ hg push --debug --config experimental.auto-publish=abort ssh://user@dummy/auto-publish-orig
   pushing to ssh://user@dummy/auto-publish-orig
-  running "*/install/bin/python" "$TESTDIR/dummyssh" 'user@dummy' 'hg -R auto-publish-orig serve --stdio' (glob)
+  running *dummyssh* (glob)
   sending hello command
   sending between command
   remote: 561 (zstd !)
