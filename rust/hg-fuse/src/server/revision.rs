@@ -484,6 +484,14 @@ impl<'manifest> RevisionTree<'manifest> {
             let store_vfs = &repo.store_vfs();
             let config = repo.config();
             let requirements = repo.requirements();
+            // This function being called in a loop can add up, so do it only
+            // once since it doesn't change in this context
+            let default_revlog_options =
+                hg::revlog::options::default_revlog_options(
+                    config,
+                    requirements,
+                    hg::revlog::RevlogType::Filelog,
+                )?;
             zeropath_files
                 .par_iter()
                 .map(|(_, (path, file_node, _flags))| {
@@ -491,17 +499,13 @@ impl<'manifest> RevisionTree<'manifest> {
                         // We already know this size
                         return Ok(*size);
                     }
-                    // Work around `Repo` not being `Sync`. TODO clean this
-                    // up by thinking about Repo's parallelism story a bit
-                    // harder.
+                    // Work around `Repo::filelog` creating revlog options and
+                    // a store VFS every time. TODO just use `Repo::filelog`
+                    // once that's cached properly.
                     let filelog = hg::revlog::filelog::Filelog::open_vfs(
                         store_vfs,
                         path,
-                        hg::revlog::options::default_revlog_options(
-                            config,
-                            requirements,
-                            hg::revlog::RevlogType::Filelog,
-                        )?,
+                        default_revlog_options,
                     )?;
                     // TODO keep a persistent NodeTree of filenode_id -> size
                     // until we have it in revlogv2?
