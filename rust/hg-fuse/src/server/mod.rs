@@ -211,13 +211,10 @@ impl Server {
         };
 
         let manifest = manifestlog.data_for_node(manifest_node.into())?;
-        let mut ino_to_nodeid =
-            self.ino_to_nodeid.lock().expect("propagate the panic");
 
-        let revision_data = OwnedRevision::from_revision(
+        let (revision_data, new_ino_to_nodeid) = OwnedRevision::from_revision(
             &self.repo,
             &self.file_nodeid_to_size,
-            &mut ino_to_nodeid,
             manifest,
             ManifestRevisionDetails::new(changeset, changeset_rev, branch),
             self.start_time,
@@ -226,6 +223,16 @@ impl Server {
             self.revisions.lock().expect("propagate the panic");
         let revision_arc = Arc::new(revision_data);
         revisions_map.insert(changeset, Arc::clone(&revision_arc));
+
+        // Update the higher-level mapping now that the revision is fully built
+        // and stored
+        // Note that this implies that `new_ino_to_nodeid` is sorted in a way
+        // that the root directory is at the end, otherwise we might race and
+        // expose the root's children before they are inserted here.
+        let mut ino_to_nodeid =
+            self.ino_to_nodeid.lock().expect("propagate the panic");
+        ino_to_nodeid
+            .extend(new_ino_to_nodeid.into_iter().map(|ino| (ino, changeset)));
 
         let preload = self
             .repo

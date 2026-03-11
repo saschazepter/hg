@@ -85,6 +85,8 @@ pub(super) struct OwnedRevision {
 }
 
 impl OwnedRevision {
+    /// Return a [`Self`] that represents this manifest, along with the new
+    /// inodes.
     #[tracing::instrument(
         level = "debug",
         skip_all,
@@ -93,13 +95,13 @@ impl OwnedRevision {
     pub fn from_revision(
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
-        ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
         manifest: Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
-    ) -> Result<Self, HgError> {
+    ) -> Result<(Self, Vec<INodeNo>), HgError> {
         let mut ino_to_ref = FastHashMap::default();
         let changelog_rev = manifest_details.changeset_rev;
+        let mut new_inodes = vec![];
         let revision = RevisionHolder::try_new(
             manifest,
             |manifest| -> Result<RevisionTree<'_>, HgError> {
@@ -107,14 +109,14 @@ impl OwnedRevision {
                     repo,
                     file_nodeid_to_size,
                     &mut ino_to_ref,
-                    ino_to_nodeid,
+                    &mut new_inodes,
                     manifest,
                     manifest_details,
                     start_time,
                 )
             },
         )?;
-        Ok(Self { revision, ino_to_ref, changelog_rev })
+        Ok((Self { revision, ino_to_ref, changelog_rev }, new_inodes))
     }
 
     /// Preload this revision's filesystem structure into the kernel's caches.
@@ -357,17 +359,16 @@ impl<'manifest> RevisionTree<'manifest> {
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
         ino_to_ref: &mut InoToRef,
-        ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
+        new_inodes: &mut Vec<INodeNo>,
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
     ) -> Result<RevisionTree<'manifest>, HgError> {
-        let changeset_node = manifest_details.changeset_node;
         let (temp_map, files_array) = Self::process_manifest_files(
             repo,
             file_nodeid_to_size,
             ino_to_ref,
-            ino_to_nodeid,
+            new_inodes,
             manifest,
             manifest_details,
             start_time,
@@ -378,7 +379,7 @@ impl<'manifest> RevisionTree<'manifest> {
         // Now that we have all directories, create the actual tree structure
         temp_map.to_tree(
             ino_to_ref,
-            ino_to_nodeid,
+            new_inodes,
             HgPath::new(b""),
             &mut vec![],
             &mut dirs_array,
@@ -393,7 +394,7 @@ impl<'manifest> RevisionTree<'manifest> {
             if *inode != files_root_ino {
                 ino_to_ref.insert(*inode, RevisionTreeRef::Reserved(*inode));
             }
-            ino_to_nodeid.insert(*inode, changeset_node);
+            new_inodes.push(*inode);
         }
 
         dirs_array
@@ -422,7 +423,7 @@ impl<'manifest> RevisionTree<'manifest> {
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
         ino_to_ref: &mut InoToRef,
-        ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
+        new_inodes: &mut Vec<INodeNo>,
         manifest: &'manifest Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
@@ -501,8 +502,7 @@ impl<'manifest> RevisionTree<'manifest> {
             &manifest_details.branch,
         );
         // Explicitly set the root inode
-        ino_to_nodeid
-            .insert(inode_encoder.root_ino, manifest_details.changeset_node);
+        new_inodes.push(inode_encoder.root_ino);
 
         // Compute temporary mapping of all directories to their children
         let root_path = HgPath::new(b"");
@@ -518,7 +518,7 @@ impl<'manifest> RevisionTree<'manifest> {
         for ((_zeropath, line), size) in manifest_iter {
             Self::add_manifest_file_to_map(
                 ino_to_ref,
-                ino_to_nodeid,
+                new_inodes,
                 &mut files_array,
                 &mut temp_map,
                 &mut current_file_parent,
@@ -555,7 +555,7 @@ impl<'manifest> RevisionTree<'manifest> {
     #[allow(clippy::too_many_arguments)]
     fn add_manifest_file_to_map(
         ino_to_ref: &mut InoToRef,
-        ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
+        new_inodes: &mut Vec<INodeNo>,
         files_array: &mut Vec<RevisionTreeFile<'manifest>>,
         temp_map: &mut TempMap<'manifest>,
         current_file_parent: &mut &'manifest HgPath,
@@ -619,7 +619,7 @@ impl<'manifest> RevisionTree<'manifest> {
         };
         files_array.push(file_entry);
         let file_idx = files_array.len() - 1;
-        ino_to_nodeid.insert(inode, temp_map.manifest_details.changeset_node);
+        new_inodes.push(inode);
         ino_to_ref.insert(inode, RevisionTreeRef::File(file_idx));
 
         let file_ref = TempMapItem::File(file_idx);
@@ -705,6 +705,7 @@ type TempMapping<'manifest> =
 /// vec used in [`RevisionTree`].
 struct TempMap<'manifest> {
     mapping: TempMapping<'manifest>,
+    #[expect(unused)]
     manifest_details: ManifestRevisionDetails,
     /// Responsible for giving out inodes when building this revision
     inode_encoder: RevisionInodeEncoder,
@@ -727,7 +728,7 @@ impl<'manifest> TempMap<'manifest> {
     fn to_tree(
         &self,
         ino_to_ref: &mut InoToRef,
-        ino_to_nodeid: &mut FastHashMap<INodeNo, Node>,
+        new_inodes: &mut Vec<INodeNo>,
         current_path: &'manifest HgPath,
         parent_buffer: &mut Vec<RevisionTreeRef>,
         dirs: &mut Vec<RevisionTreeDir<'manifest>>,
@@ -739,7 +740,7 @@ impl<'manifest> TempMap<'manifest> {
                     assert_ne!(*child_path, current_path);
                     self.to_tree(
                         ino_to_ref,
-                        ino_to_nodeid,
+                        new_inodes,
                         child_path,
                         &mut children,
                         dirs,
@@ -761,7 +762,7 @@ impl<'manifest> TempMap<'manifest> {
             children,
         });
 
-        ino_to_nodeid.insert(inode, self.manifest_details.changeset_node);
+        new_inodes.push(inode);
         let dir_ref = RevisionTreeRef::Dir(dirs.len() - 1);
         ino_to_ref.insert(inode, dir_ref);
         parent_buffer.push(dir_ref);
