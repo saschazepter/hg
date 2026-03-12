@@ -14,6 +14,7 @@ use hg::errors::IoResultExt;
 use hg::matchers::Matcher;
 use hg::narrow;
 use hg::repo::Repo;
+use hg::revlog::RevlogError;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::warnings::HgWarningContext;
@@ -85,6 +86,12 @@ impl Server {
             gid,
             narrow_matcher,
         })
+    }
+
+    pub fn update_repo(&self) -> Result<(), HgError> {
+        // Only OK to call because we know this in-memory [`Repo`] is readonly
+        self.repo.reload_revlogs()?;
+        Ok(())
     }
 
     pub fn attributes(&self, ino: INodeNo) -> Option<fuser::FileAttr> {
@@ -207,10 +214,19 @@ impl Server {
         changeset: Node,
         mount_point: &Path,
     ) -> Result<Option<Entry>, HgError> {
-        // Look up the manifest node for this changelog node
-        // TODO improve the granularity of this locking
         let changelog = self.repo.changelog()?;
-        let changeset_rev = changelog.rev_from_node(changeset.into())?;
+        let changeset_rev = match changelog.rev_from_node(changeset.into()) {
+            Ok(rev) => rev,
+            Err(RevlogError::InvalidRevision(_)) => {
+                drop(changelog);
+                // Update the repo in case it's a new revision
+                self.update_repo()?;
+                // Try again
+                self.repo.changelog()?.rev_from_node(changeset.into())?
+            }
+            Err(e) => return Err(e)?,
+        };
+        let changelog = self.repo.changelog()?;
         let data = changelog.data_for_node(changeset.into())?;
         let manifest_node = data.manifest_node()?;
         let manifestlog = self.repo.manifestlog()?;

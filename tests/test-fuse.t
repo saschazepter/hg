@@ -29,7 +29,7 @@ Source repo setup
 Create and test the FUSE
 ------------------------
 
-  $ hg debug::virtual-share $FUSE_ROOT --pid-file=fuse.pid 2>error.log &
+  $ hg debug::virtual-share $FUSE_ROOT --pid-file=$TESTTMP/fuse.pid 2>error.log &
 
 Wait for it to be mounted, timeout after a short period
 
@@ -43,7 +43,7 @@ Wait for it to be mounted, timeout after a short period
   hgvfs on $TESTTMP/fuse-mount type fuse (ro,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
   $ [ $iterations -ge $maxiterations ] && echo "timed out waiting for the FUSE to mount" || true
 
-  $ cat fuse.pid >> $DAEMON_PIDS
+  $ cat $TESTTMP/fuse.pid >> $DAEMON_PIDS
   $ cat error.log
 
 We can list the root
@@ -142,6 +142,34 @@ It's read-only and hg tells the user
   $ hg up 0
   abort: could not lock working directory of $TESTTMP/fuse-mount/commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files: Read-only file system
   [20]
+
+
+Test new revisions in the source
+--------------------------------
+
+Create a new revision in the source
+
+  $ cd $TESTTMP/source
+  $ echo "after repo update" >> file1
+  $ hg commit -Aqm2
+  $ hg log -T"{node}\n"
+  df38c26fa2f9c99a713635376e2df59076a5a2cf
+  017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
+  1bed6038501e18cfa5551b71175be951891ced70
+
+We can access the new revision
+
+  $ cd $FUSE_ROOT/commits/df38c26fa2f9c99a713635376e2df59076a5a2cf/files
+  $ hg st -A
+  C error.log
+  C file1
+  C file2
+  C nested/dir/file.txt
+  C nested/symlink1
+  $ cat file1
+  aaa
+  aaa
+  after repo update
 
 
 Cleanup

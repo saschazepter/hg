@@ -605,6 +605,20 @@ impl Repo {
         self.manifestlog.get_mut_or_init(|| self.new_manifestlog())
     }
 
+    /// You should probably not call this method unless you have a good reason
+    /// to: it will eat your in-memory data.
+    ///
+    /// Reload the changelog and manifestlog to update the revisions this
+    /// [`Self`] knows about.
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub fn reload_revlogs(&self) -> Result<(), HgError> {
+        // TODO only update the repo if need be
+        let mut changelog_lock = self.changelog.get_raw_mut();
+        *self.manifestlog.get_raw_mut() = Some(self.new_manifestlog()?);
+        *changelog_lock = Some(self.new_changelog()?);
+        Ok(())
+    }
+
     /// Returns the manifest of the *changeset* with the given node ID
     pub fn manifest_for_node(
         &self,
@@ -850,6 +864,12 @@ impl<T> RwLockOption<T> {
 
     fn set(&self, value: T) {
         *self.value.write() = Some(value)
+    }
+
+    /// Returns a mutable lock guard to the raw [`Option`] instead of the value
+    /// it's wrapping
+    fn get_raw_mut(&self) -> RwLockWriteGuard<'_, Option<T>> {
+        self.value.write()
     }
 
     fn get_or_init<E>(
