@@ -171,6 +171,24 @@ We can access the new revision
   aaa
   after repo update
 
+Test that a change in repo requirements triggers an error
+TODO improve error reporting
+
+  $ cd $TESTTMP/source
+  $ echo "requirements change" >> file1
+  $ hg commit -Aqm3
+  $ hg log -T"{node}\n"
+  56cfdc65ceb2a449d20c252c94dc1d9b514fed9f
+  df38c26fa2f9c99a713635376e2df59076a5a2cf
+  017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
+  1bed6038501e18cfa5551b71175be951891ced70
+  $ hg debugupgraderepo --config format.use-fileindex-v1=yes --run -q | grep 'added: fileindex-v1'
+     added: fileindex-v1
+
+  $ ls $FUSE_ROOT/commits/56cfdc65ceb2a449d20c252c94dc1d9b514fed9f/files
+  ls: cannot access '$TESTTMP/fuse-mount/commits/56cfdc65ceb2a449d20c252c94dc1d9b514fed9f/files': Input/output error
+  [2]
+
 
 Cleanup
 -------

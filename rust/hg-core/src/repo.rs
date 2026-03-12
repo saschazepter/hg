@@ -549,6 +549,11 @@ impl Repo {
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn reload_revlogs(&self) -> Result<(), HgError> {
         // TODO only update the repo if need be
+        let (new_requirements, _config_paths, _store_path) =
+            load_requirements(&self.dot_hg)?;
+        if &new_requirements != self.requirements() {
+            return Err(HgError::abort_simple("requirements have changed"));
+        }
         let mut changelog_lock = self.changelog.get_raw_mut();
         *self.manifestlog.get_raw_mut() = Some(self.new_manifestlog()?);
         *changelog_lock = Some(self.new_changelog()?);
