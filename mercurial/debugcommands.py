@@ -278,10 +278,11 @@ def debugbuilddag(
     with progress, repo.wlock(), repo.lock(), repo.transaction(b"builddag"):
         at = -1
         atbranch = b'default'
-        nodeids = []
+        unfi = repo.unfiltered()
+        nodeids = [unfi[r].node() for r in unfi]
         id = 0
         progress.update(id)
-        for type, data in dagparser.parsedag(text):
+        for type, data in dagparser.parsedag(text, existing_revs=len(nodeids)):
             if type == b'n':
                 ui.notenoi18n(b'node %s\n' % pycompat.bytestr(data))
                 id, ps = data

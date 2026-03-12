@@ -18,7 +18,7 @@ from . import (
 from .utils import stringutil
 
 
-def parsedag(desc):
+def parsedag(desc, existing_revs=0):
     '''parses a DAG from a concise textual description; generates events
 
     "+n" is a linear run of n nodes based on the current default parent
@@ -173,8 +173,8 @@ def parsedag(desc):
     # pytype: enable=wrong-arg-types
 
     labels = {}
-    p1 = -1
-    r = 0
+    p1 = existing_revs - 1
+    r = existing_revs
 
     def resolve(ref):
         if not ref:

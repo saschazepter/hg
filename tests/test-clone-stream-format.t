@@ -106,10 +106,10 @@ tests, and dot-encode need the store enabled.
   adding changesets
   adding manifests
   adding file changes
-  added 5004 changesets with 1088 changes to 1088 files (+1 heads)
-  new changesets 96ee1d7354c4:06ddac466af5
+  added 5004 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:005ce2edeb8d
   updating to branch default
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R server-no-store -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
@@ -152,10 +152,10 @@ Test streaming from/to repository without a fncache
   adding changesets
   adding manifests
   adding file changes
-  added 5004 changesets with 1088 changes to 1088 files (+1 heads)
-  new changesets 96ee1d7354c4:06ddac466af5
+  added 5004 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:005ce2edeb8d
   updating to branch default
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R server-no-fncache -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
@@ -197,10 +197,10 @@ Test streaming from/to repository without a dotencode
   adding changesets
   adding manifests
   adding file changes
-  added 5004 changesets with 1088 changes to 1088 files (+1 heads)
-  new changesets 96ee1d7354c4:06ddac466af5
+  added 5004 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:005ce2edeb8d
   updating to branch default
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R server-no-dotencode -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
@@ -259,10 +259,10 @@ Test streaming from/to repository without a share-safe
   adding changesets
   adding manifests
   adding file changes
-  added 5004 changesets with 1088 changes to 1088 files (+1 heads)
-  new changesets 96ee1d7354c4:06ddac466af5
+  added 5004 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:005ce2edeb8d
   updating to branch default
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R server-no-share-safe -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS
@@ -305,10 +305,10 @@ persistent nodemap affects revlog, but they are easy to generate locally, so we 
   adding changesets
   adding manifests
   adding file changes
-  added 5004 changesets with 1088 changes to 1088 files (+1 heads)
-  new changesets 96ee1d7354c4:06ddac466af5
+  added 5004 changesets with 1088 changes to 1088 files
+  new changesets 96ee1d7354c4:005ce2edeb8d
   updating to branch default
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1088 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R server-no-persistent-nodemap -q
   $ hg -R server serve -p $HGPORT -d --pid-file=hg-1.pid --error errors-1.txt
   $ cat hg-1.pid > $DAEMON_PIDS

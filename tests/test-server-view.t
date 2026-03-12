@@ -67,7 +67,7 @@ Check the behavior is other filtered revision exists
 
 add more content and complexity to the repository too
 
-  $ hg -R test debugbuilddag '+6:branchpoint.:left+4*branchpoint.:right+5' --from-existing
+  $ hg -R test debugbuilddag '+4:branchpoint.:left+4*branchpoint.:right+5' --from-existing
   $ hg -R test phase --public 'desc("re:^r11$")'
   $ hg -R test phase --secret --force 'desc("re:^r9$")'
   $ hg -R test log -G -T '{desc} {phase}\n'
