@@ -128,71 +128,7 @@ impl Repo {
     ) -> Result<Self, HgError> {
         let dot_hg = working_directory.join(".hg");
 
-        let mut repo_config_files =
-            vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
-
-        let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false, PathEncoding::None);
-        let mut reqs = requirements::load_if_exists(&hg_vfs)?;
-        let relative = reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
-        let shared =
-            reqs.contains(requirements::SHARED_REQUIREMENT) || relative;
-
-        // From `mercurial/localrepo.py`:
-        //
-        // if .hg/requires contains the sharesafe requirement, it means
-        // there exists a `.hg/store/requires` too and we should read it
-        // NOTE: presence of SHARESAFE_REQUIREMENT imply that store requirement
-        // is present. We never write SHARESAFE_REQUIREMENT for a repo if store
-        // is not present, refer check_requirements_compat() for that
-        //
-        // However, if SHARESAFE_REQUIREMENT is not present, it means that the
-        // repository was shared the old way. We check the share source
-        // .hg/requires for SHARESAFE_REQUIREMENT to detect whether the
-        // current repository needs to be reshared
-        let share_safe = reqs.contains(requirements::SHARESAFE_REQUIREMENT);
-
-        let store_path;
-        if !shared {
-            store_path = dot_hg.join("store");
-        } else {
-            let bytes = hg_vfs.read("sharedpath")?;
-            let mut shared_path =
-                get_path_from_bytes(bytes.trim_end_matches(|b| b == b'\n'))
-                    .to_owned();
-            if relative {
-                shared_path = dot_hg.join(shared_path)
-            }
-            if !is_dir(&shared_path)? {
-                return Err(HgError::corrupted(format!(
-                    ".hg/sharedpath points to nonexistent directory {}",
-                    shared_path.display()
-                )));
-            }
-
-            store_path = shared_path.join("store");
-
-            let source_is_share_safe = requirements::load(VfsImpl::new(
-                shared_path.to_owned(),
-                true,
-                PathEncoding::None,
-            ))?
-            .contains(requirements::SHARESAFE_REQUIREMENT);
-
-            if share_safe != source_is_share_safe {
-                return Err(HgError::unsupported("share-safe mismatch"));
-            }
-
-            if share_safe {
-                repo_config_files.insert(0, shared_path.join("hgrc"))
-            }
-        }
-        if share_safe {
-            reqs.extend(requirements::load(VfsImpl::new(
-                store_path.to_owned(),
-                true,
-                PathEncoding::None,
-            ))?);
-        }
+        let (reqs, repo_config_files, store_path) = load_requirements(&dot_hg)?;
 
         let repo_config = if std::env::var_os("HGRCSKIPREPO").is_none() {
             config.combine_with_repo(&repo_config_files)?
@@ -845,6 +781,78 @@ impl Repo {
         *parents = Some(new_parents);
         Ok(())
     }
+}
+
+/// Load the requirements for the given `.hg`, taking into account how a shared
+/// repo should be handled. Returns the requirements, the store and config
+/// paths.
+fn load_requirements(
+    dot_hg: &PathBuf,
+) -> Result<(HashSet<String>, Vec<PathBuf>, PathBuf), HgError> {
+    let mut repo_config_files =
+        vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
+    let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false, PathEncoding::None);
+    let mut reqs = requirements::load_if_exists(&hg_vfs)?;
+    let relative = reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
+    let shared = reqs.contains(requirements::SHARED_REQUIREMENT) || relative;
+
+    // From `mercurial/localrepo.py`:
+    //
+    // if .hg/requires contains the sharesafe requirement, it means
+    // there exists a `.hg/store/requires` too and we should read it
+    // NOTE: presence of SHARESAFE_REQUIREMENT imply that store requirement
+    // is present. We never write SHARESAFE_REQUIREMENT for a repo if store
+    // is not present, refer check_requirements_compat() for that
+    //
+    // However, if SHARESAFE_REQUIREMENT is not present, it means that the
+    // repository was shared the old way. We check the share source
+    // .hg/requires for SHARESAFE_REQUIREMENT to detect whether the
+    // current repository needs to be reshared
+
+    let share_safe = reqs.contains(requirements::SHARESAFE_REQUIREMENT);
+    let store_path;
+    if !shared {
+        store_path = dot_hg.join("store");
+    } else {
+        let bytes = hg_vfs.read("sharedpath")?;
+        let mut shared_path =
+            get_path_from_bytes(bytes.trim_end_matches(|b| b == b'\n'))
+                .to_owned();
+        if relative {
+            shared_path = dot_hg.join(shared_path)
+        }
+        if !is_dir(&shared_path)? {
+            return Err(HgError::corrupted(format!(
+                ".hg/sharedpath points to nonexistent directory {}",
+                shared_path.display()
+            )));
+        }
+
+        store_path = shared_path.join("store");
+
+        let source_is_share_safe = requirements::load(VfsImpl::new(
+            shared_path.to_owned(),
+            true,
+            PathEncoding::None,
+        ))?
+        .contains(requirements::SHARESAFE_REQUIREMENT);
+
+        if share_safe != source_is_share_safe {
+            return Err(HgError::unsupported("share-safe mismatch"));
+        }
+
+        if share_safe {
+            repo_config_files.insert(0, shared_path.join("hgrc"))
+        }
+    }
+    if share_safe {
+        reqs.extend(requirements::load(VfsImpl::new(
+            store_path.to_owned(),
+            true,
+            PathEncoding::None,
+        ))?);
+    }
+    Ok((reqs, repo_config_files, store_path))
 }
 
 /// Lazily-initialized component of `Repo` with interior mutability
