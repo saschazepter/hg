@@ -1,10 +1,12 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::thread::available_parallelism;
 use std::time::Duration;
 
 use clap::Arg;
 use hg::errors::IoResultExt;
+use hg::utils::u32_u;
 use hg_fuse::fuse::HgFuse;
 use hg_fuse::server::Server;
 use libc::SIGHUP;
@@ -65,8 +67,17 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     signal_hook::flag::register(SIGHUP, Arc::clone(&should_terminate))
         .expect("signal should be valid to register");
 
+    let num_threads = repo
+        .config()
+        .get_u32(b"fuse", b"event-loop-threads")?
+        .map(u32_u)
+        .unwrap_or_else(|| {
+            let max_threads = available_parallelism();
+            max_threads.map(usize::from).unwrap_or(1)
+        });
     // Dropping this handle will unmount the filesystem
-    let session = HgFuse::mount(server, destination, user_id.is_some())?;
+    let session =
+        HgFuse::mount(server, destination, user_id.is_some(), num_threads)?;
     loop {
         std::thread::sleep(Duration::from_millis(250));
         let was_unmounted = session.guard.is_finished();

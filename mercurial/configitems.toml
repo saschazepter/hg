@@ -1562,6 +1562,12 @@ remove the overhead of computing file sizes when they don't matter.
 This is a development option, and isn't guaranteed to exist forever."""
 
 [[items]]
+section = "fuse"
+name = "event-loop-threads"
+experimental = true
+documentation = """The number of threads to use for the FUSE kernel event loop."""
+
+[[items]]
 section = "help"
 name = 'hidden-command\..*'
 default = false

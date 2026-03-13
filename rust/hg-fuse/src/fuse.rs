@@ -48,6 +48,7 @@ impl HgFuse {
         server: Server,
         destination: impl AsRef<Path>,
         open_to_all: bool,
+        thread_count: usize,
     ) -> Result<BackgroundSession, HgError> {
         let mountpoint = destination.as_ref();
         let mut config = Config::default();
@@ -63,6 +64,7 @@ impl HgFuse {
         if open_to_all {
             config.acl = SessionACL::All;
         }
+        config.n_threads = Some(thread_count);
         let filesystem = Self { server, mount_point: mountpoint.to_path_buf() };
         Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
