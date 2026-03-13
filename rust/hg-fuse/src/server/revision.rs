@@ -28,6 +28,7 @@ use hg::dirstate::owning::OwningDirstateMap;
 use hg::dirstate::path_with_basename::WithBasename;
 use hg::errors::HgError;
 use hg::matchers::Matcher;
+use hg::narrow;
 use hg::operations::ExpandedManifestEntry;
 use hg::operations::FilesForRevBorrowed;
 use hg::repo::Repo;
@@ -439,6 +440,7 @@ impl<'manifest> RevisionTree<'manifest> {
         narrow_matcher: &impl Matcher,
     ) -> Result<(TempMap<'manifest>, Vec<RevisionTreeFile<'manifest>>), HgError>
     {
+        let narrow_patterns = narrow::raw_store_patterns(repo)?;
         let files_for_rev = FilesForRevBorrowed::new(manifest, &narrow_matcher);
 
         let warnings = HgWarningContext::new();
@@ -536,6 +538,7 @@ impl<'manifest> RevisionTree<'manifest> {
             repo.store_path().parent().expect("store always has a parent"),
             &manifest_details.branch,
             repo.has_sparse(),
+            narrow_patterns,
         );
         // Explicitly set the root inode
         new_inodes.push(inode_encoder.root_ino);
@@ -829,6 +832,7 @@ impl RevisionInodeEncoder {
         root_hg_path: &Path,
         branch: &[u8],
         has_sparse: bool,
+        narrow_patterns: Option<Vec<u8>>,
     ) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
@@ -871,10 +875,16 @@ impl RevisionInodeEncoder {
         let tracked_key_ino = encoder
             .add_reserved_file("dirstate-tracked-key", tracked_key.into());
 
-        let dot_hg_ino = encoder.add_reserved_directory(
-            ".hg",
-            &[requires_ino, sharedpath_ino, branch_ino, tracked_key_ino],
-        );
+        let mut dot_hg_files =
+            vec![requires_ino, sharedpath_ino, branch_ino, tracked_key_ino];
+
+        if let Some(patterns) = narrow_patterns {
+            let narrow_dirstate = encoder
+                .add_reserved_file(narrow::DIRSTATE_FILENAME, patterns.into());
+            dot_hg_files.push(narrow_dirstate);
+        }
+
+        let dot_hg_ino = encoder.add_reserved_directory(".hg", &dot_hg_files);
 
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files

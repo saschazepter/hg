@@ -23,7 +23,7 @@ pub mod shape;
 /// The file in .hg/store/ that indicates which paths exit in the store
 const FILENAME: &str = "narrowspec";
 /// The file in .hg/ that indicates which paths exit in the dirstate
-const DIRSTATE_FILENAME: &str = "narrowspec.dirstate";
+pub const DIRSTATE_FILENAME: &str = "narrowspec.dirstate";
 
 /// Pattern prefixes that are allowed in narrow patterns. This list MUST
 /// only contain patterns that are fast and safe to evaluate. Keep in mind
@@ -102,7 +102,7 @@ pub fn store_patterns(
     // and is empty
     let store_patterns = patterns_from_spec(
         warnings,
-        &repo.store_vfs().try_read(FILENAME)?.unwrap_or_default(),
+        &raw_store_patterns(repo)?.unwrap_or_default(),
     )?;
     let working_copy_patterns = patterns_from_spec(
         warnings,
@@ -116,6 +116,11 @@ pub fn store_patterns(
         ));
     }
     Ok(store_patterns)
+}
+
+/// Get the raw bytes of the store patterns for `repo`.
+pub fn raw_store_patterns(repo: &Repo) -> Result<Option<Vec<u8>>, HgError> {
+    Ok(repo.store_vfs().try_read(FILENAME)?)
 }
 
 /// Raw patterns as deserialized and validated
