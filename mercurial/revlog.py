@@ -660,7 +660,7 @@ class revlog:
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
             new_header = CHANGELOGV2
             compute_rank = opts.get(b'changelogv2.compute-rank', True)
-            self.feature_config.compute_rank = compute_rank
+            self.configs.feature.compute_rank = compute_rank
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
@@ -681,14 +681,14 @@ class revlog:
         else:
             new_header = REVLOG_DEFAULT_VERSION
 
-        if self.feature_config.enable_ellipsis:
+        if self.configs.feature.enable_ellipsis:
             self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
 
         # revlog v0 doesn't have flag processors
         for flag, processor in opts.get(b'flagprocessors', {}).items():
             flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
 
-        chunk_cache_size = self.data_config.chunk_cache_size
+        chunk_cache_size = self.configs.data.chunk_cache_size
         if chunk_cache_size <= 0:
             raise error.RevlogError(
                 _(b'revlog chunk cache size %r is not greater than 0')
@@ -703,14 +703,17 @@ class revlog:
 
     @property
     def data_config(self):
+        # TODO: deprecate this in later version
         return self.configs.data
 
     @property
     def delta_config(self):
+        # TODO: deprecate this in later version
         return self.configs.delta
 
     @property
     def feature_config(self):
+        # TODO: deprecate this in later version
         return self.configs.feature
 
     @property
@@ -720,8 +723,8 @@ class revlog:
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
         """
-        if self.data_config.mmap_large_index:
-            return self.data_config.mmap_index_threshold
+        if self.configs.data.mmap_large_index:
+            return self.configs.data.mmap_index_threshold
         return None
 
     def _get_data(self, filepath, mmap_threshold, size=None):
@@ -805,16 +808,16 @@ class revlog:
 
         features = FEATURES_BY_VERSION[self._format_version]
         self._inline = features['inline'](self._format_flags)
-        self.delta_config.general_delta = features['generaldelta'](
+        self.configs.delta.general_delta = features['generaldelta'](
             self._format_flags
         )
-        self.delta_config.delta_info = features['delta_info'](
+        self.configs.delta.delta_info = features['delta_info'](
             self._format_flags
         )
-        self.data_config.generaldelta = self.delta_config.general_delta
-        self.data_config.delta_info = self.delta_config.delta_info
-        self.feature_config.has_side_data = features['sidedata']
-        self.feature_config.hasmeta_flag = features['hasmeta_flag'](
+        self.configs.data.generaldelta = self.configs.delta.general_delta
+        self.configs.data.delta_info = self.configs.delta.delta_info
+        self.configs.feature.has_side_data = features['sidedata']
+        self.configs.feature.hasmeta_flag = features['hasmeta_flag'](
             self._format_flags
         )
 
@@ -864,8 +867,8 @@ class revlog:
 
         self._inline = False
         # generaldelta implied by version 2 revlogs.
-        self.delta_config.general_delta = True
-        self.data_config.generaldelta = True
+        self.configs.delta.general_delta = True
+        self.configs.data.generaldelta = True
         # the logic for persistent nodemap will be dealt with within the
         # main docket, so disable it for now.
         self._nodemap_file = None
@@ -934,8 +937,8 @@ class revlog:
         self.nullid = self.nodeconstants.nullid
 
         # sparse-revlog can't be on without general-delta (issue6056)
-        if not self.delta_config.general_delta:
-            self.delta_config.sparse_revlog = False
+        if not self.configs.delta.general_delta:
+            self.configs.delta.sparse_revlog = False
 
         self._storedeltachains = True
 
@@ -995,9 +998,9 @@ class revlog:
                 index_file=self._indexfile,
                 data_file=self._datafile,
                 inline=self._inline,
-                data_config=self.data_config,
-                delta_config=self.delta_config,
-                feature_config=self.feature_config,
+                data_config=self.configs.data,
+                delta_config=self.configs.delta,
+                feature_config=self.configs.feature,
                 revlog_type=self.target[0],
                 encoding=encoding,
             )
@@ -1014,9 +1017,9 @@ class revlog:
                     data_file=self._datafile,
                     sidedata_file=self._sidedatafile,
                     inline=self._inline,
-                    data_config=self.data_config,
-                    delta_config=self.delta_config,
-                    feature_config=self.feature_config,
+                    data_config=self.configs.data,
+                    delta_config=self.configs.delta,
+                    feature_config=self.configs.feature,
                     default_compression_header=default_compression_header,
                 )
             except py_inner.CorruptedRevlogError:
@@ -1304,7 +1307,7 @@ class revlog:
         return self.index.data_chunk_length(rev)
 
     def sidedata_length(self, rev):
-        if not self.feature_config.has_side_data:
+        if not self.configs.feature.has_side_data:
             return 0
         return self.index.sidedata_chunk_length(rev)
 
@@ -1370,7 +1373,10 @@ class revlog:
             if rev == wdirrev:
                 raise error.WdirUnsupported
             raise
-        if self.feature_config.canonical_parent_order and parents[0] == nullrev:
+        if (
+            self.configs.feature.canonical_parent_order
+            and parents[0] == nullrev
+        ):
             parents = (parents[1], parents[0])
         return parents
 
@@ -2276,7 +2282,7 @@ class revlog:
                     % (self.display_id, pycompat.bytestr(revornode))
                 )
         except error.RevlogError:
-            if self.feature_config.censorable and storageutil.iscensoredtext(
+            if self.configs.feature.censorable and storageutil.iscensoredtext(
                 text
             ):
                 raise error.CensoredNodeError(self.display_id, node, text)
@@ -2477,7 +2483,7 @@ class revlog:
 
         if sidedata is None:
             sidedata = {}
-        elif sidedata and not self.feature_config.has_side_data:
+        elif sidedata and not self.configs.feature.has_side_data:
             raise error.ProgrammingError(
                 _(b"trying to add sidedata to a revlog who don't support them")
             )
@@ -2571,7 +2577,7 @@ class revlog:
         Will be used to validate if an incoming compressed delta maybe used as
         it or not.
         """
-        current_name = self.feature_config.compression_engine
+        current_name = self.configs.feature.compression_engine
         current_engine = util.compengines[current_name]
         current_header = current_engine.revlogheader()
         assert current_header is not None
@@ -2634,7 +2640,7 @@ class revlog:
 
         if deltacomputer is None:
             write_debug = None
-            if self.delta_config.debug_delta:
+            if self.configs.delta.debug_delta:
                 write_debug = transaction._report
             deltacomputer = deltautil.deltacomputer(
                 self, write_debug=write_debug
@@ -2660,8 +2666,8 @@ class revlog:
             # reused, add the default reuse instruction according to the
             # revlog's configuration.
             if (
-                self.delta_config.general_delta
-                and self.delta_config.lazy_delta_base
+                self.configs.delta.general_delta
+                and self.configs.delta.lazy_delta_base
             ):
                 delta_base_reuse = DELTA_BASE_REUSE_TRY
             else:
@@ -2687,7 +2693,7 @@ class revlog:
             compression_mode, deltainfo = r
 
         sidedata_compression_mode = COMP_MODE_INLINE
-        if sidedata and self.feature_config.has_side_data:
+        if sidedata and self.configs.feature.has_side_data:
             sidedata_compression_mode = COMP_MODE_PLAIN
             serialized_sidedata = sidedatautil.serialize_sidedata(sidedata)
             sidedata_offset = self._docket.sidedata_end
@@ -2716,17 +2722,17 @@ class revlog:
 
         # drop previouly existing flags
         flags &= ~REVIDX_DELTA_INFO_FLAGS
-        if self.delta_config.delta_info:
+        if self.configs.delta.delta_info:
             if deltainfo.snapshotdepth is not None:
                 flags |= REVIDX_DELTA_IS_SNAPSHOT
             if (
                 deltainfo.quality is not None
-                and self.delta_config.store_quality
+                and self.configs.delta.store_quality
             ):
                 flags |= deltainfo.quality.to_v1_flags()
 
         rank = RANK_UNKNOWN
-        if self.feature_config.compute_rank:
+        if self.configs.feature.compute_rank:
             if (p1r, p2r) == (nullrev, nullrev):
                 rank = 1
             elif p1r != nullrev and p2r == nullrev:
@@ -2876,8 +2882,8 @@ class revlog:
         # group did not specify one.
         if delta_base_reuse_policy is None:
             if (
-                self.delta_config.general_delta
-                and self.delta_config.lazy_delta_base
+                self.configs.delta.general_delta
+                and self.configs.delta.lazy_delta_base
             ):
                 delta_base_reuse_policy = DELTA_BASE_REUSE_TRY
             else:
@@ -2888,7 +2894,7 @@ class revlog:
         try:
             with self._writing(transaction):
                 write_debug = None
-                if self.delta_config.debug_delta:
+                if self.configs.delta.debug_delta:
                     write_debug = transaction._report
                 deltacomputer = deltautil.deltacomputer(
                     self,
@@ -3013,14 +3019,14 @@ class revlog:
 
     def iscensored(self, rev):
         """Check if a file revision is censored."""
-        if not self.feature_config.censorable:
+        if not self.configs.feature.censorable:
             return False
 
         return self.flags(rev) & REVIDX_ISCENSORED
 
     def _peek_iscensored(self, baserev, delta):
         """Quickly check if a delta produces a censored revision."""
-        if not self.feature_config.censorable:
+        if not self.configs.feature.censorable:
             return False
 
         return storageutil.deltaiscensored(delta, baserev, self.rawsize)
@@ -3167,7 +3173,7 @@ class revlog:
                 b'unhandled value for nodesorder: %s' % nodesorder
             )
 
-        if nodesorder is None and not self.delta_config.general_delta:
+        if nodesorder is None and not self.configs.delta.general_delta:
             nodesorder = b'storage'
 
         if (
@@ -3646,7 +3652,7 @@ class revlog:
     ):
         """perform the core duty of `revlog.clone` after parameter processing"""
         write_debug = None
-        if self.delta_config.debug_delta:
+        if self.configs.delta.debug_delta:
             write_debug = tr._report
         deltacomputer = deltautil.deltacomputer(
             destrevlog,
@@ -3744,8 +3750,8 @@ class revlog:
                 if not destrevlog.delta_config.lazy_delta:
                     delta_base_reuse = DELTA_BASE_REUSE_NO
                 elif (
-                    self.delta_config.general_delta
-                    and self.delta_config.lazy_delta_base
+                    self.configs.delta.general_delta
+                    and self.configs.delta.lazy_delta_base
                 ):
                     delta_base_reuse = DELTA_BASE_REUSE_TRY
                 else:
@@ -3963,7 +3969,7 @@ class revlog:
         return d
 
     def rewrite_sidedata(self, transaction, helpers, startrev, endrev):
-        if not self.feature_config.has_side_data:
+        if not self.configs.feature.has_side_data:
             return
         # revlog formats with sidedata support does not support inline
         assert not self._inline
@@ -3991,7 +3997,7 @@ class revlog:
                 )
 
                 sidedata_compression_mode = COMP_MODE_INLINE
-                if serialized_sidedata and self.feature_config.has_side_data:
+                if serialized_sidedata and self.configs.feature.has_side_data:
                     sidedata_compression_mode = COMP_MODE_PLAIN
                     h, comp_sidedata = self._inner.compress(serialized_sidedata)
                     if (
