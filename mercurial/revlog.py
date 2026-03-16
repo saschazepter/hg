@@ -548,6 +548,7 @@ class revlog:
         opener: vfsmod.vfs,
         target,
         radix,
+        *,
         postfix=None,  # only exist for `tmpcensored` now
         checkambig=False,
         mmaplargeindex=False,
