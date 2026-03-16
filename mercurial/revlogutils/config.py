@@ -50,7 +50,7 @@ class FeatureConfig(_Config):
     # if there is a non-null parent at all.
     # filelog abuses the parent order as flag to mark some instances of
     # meta-encoded files, so allow it to disable this behavior.
-    canonical_parent_order = attr.ib(default=False, type=bool)
+    canonical_parent_order = attr.ib(default=True, type=bool)
     # can ellipsis commit be used
     enable_ellipsis = attr.ib(default=False, type=bool)
 
