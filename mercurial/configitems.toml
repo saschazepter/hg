@@ -440,11 +440,6 @@ default = false
 
 [[items]]
 section = "debug"
-name = "revlog.verifyposition.changelog"
-default = ""
-
-[[items]]
-section = "debug"
 name = "unbundling-stats"
 default = false
 documentation = "Display extra information about the unbundling process."

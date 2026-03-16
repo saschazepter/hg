@@ -484,11 +484,6 @@ class revlog:
     If `upperboundcomp` is not None, this is the expected maximal gain from
     compression for the data content.
 
-    `concurrencychecker` is an optional function that receives 3 arguments: a
-    file handle, a filename, and an expected position. It should check whether
-    the current position in the file handle is valid, and log/warn/fail (by
-    raising).
-
     See mercurial/revlogutils/contants.py for details about the content of an
     index entry.
     """
@@ -559,7 +554,6 @@ class revlog:
         censorable=False,
         upperboundcomp=None,
         persistentnodemap=False,
-        concurrencychecker=None,
         trypending=False,
         try_split=False,
         canonical_parent_order=True,
@@ -657,8 +651,6 @@ class revlog:
         self._flagprocessors = dict(flagutil.flagprocessors)
         # prevent nesting of addgroup
         self._adding_group = None
-
-        self._concurrencychecker = concurrencychecker
 
         self._init()
 
@@ -2631,22 +2623,6 @@ class revlog:
         prev = curr - 1
 
         offset = self._get_data_offset(prev)
-
-        if self._concurrencychecker:
-            ifh, dfh, sdfh = self._inner._writinghandles
-            # XXX no checking for the sidedata file
-            if self._inline:
-                # offset is "as if" it were in the .d file, so we need to add on
-                # the size of the entry metadata.
-                self._concurrencychecker(
-                    ifh, self._indexfile, offset + curr * self.index.entry_size
-                )
-            else:
-                # Entries in the .i are a consistent size.
-                self._concurrencychecker(
-                    ifh, self._indexfile, curr * self.index.entry_size
-                )
-                self._concurrencychecker(dfh, self._datafile, offset)
 
         p1r, p2r = self.rev(p1), self.rev(p2)
 

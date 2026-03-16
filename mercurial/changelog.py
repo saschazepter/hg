@@ -294,7 +294,7 @@ class changelogrevision:
 
 
 class changelog(revlog.revlog):
-    def __init__(self, opener, trypending=False, concurrencychecker=None):
+    def __init__(self, opener, trypending=False):
         """Load a changelog revlog using an opener.
 
         If ``trypending`` is true, we attempt to load the index from a
@@ -303,9 +303,6 @@ class changelog(revlog.revlog):
         revision) data for a transaction that hasn't been finalized yet.
         It exists in a separate file to facilitate readers (such as
         hooks processes) accessing data before a transaction is finalized.
-
-        ``concurrencychecker`` will be passed to the revlog init function, see
-        the documentation there.
         """
         revlog.revlog.__init__(
             self,
@@ -315,7 +312,6 @@ class changelog(revlog.revlog):
             checkambig=True,
             mmaplargeindex=True,
             persistentnodemap=opener.options.get(b'persistent-nodemap', False),
-            concurrencychecker=concurrencychecker,
             trypending=trypending,
             may_inline=False,
         )

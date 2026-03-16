@@ -98,7 +98,6 @@ from .repo import (
 )
 
 from .revlogutils import (
-    concurrency_checker as revlogchecker,
     constants as revlogconst,
 )
 
@@ -1465,7 +1464,6 @@ class localrepository(_localrepo_base_classes):
         repo.dirstate.prefetch_parents()
         return repo.store.changelog(
             txnutil.mayhavepending(repo.root),
-            concurrencychecker=revlogchecker.get_checker(repo.ui, b'changelog'),
         )
 
     @manifestlogcache()

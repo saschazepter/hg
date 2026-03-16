@@ -981,11 +981,10 @@ class basicstore:
         l.sort()
         return l
 
-    def changelog(self, trypending, concurrencychecker=None):
+    def changelog(self, trypending):
         return changelog.changelog(
             self.vfs,
             trypending=trypending,
-            concurrencychecker=concurrencychecker,
         )
 
     def manifestlog(self, repo, storenarrowmatch) -> manifest.manifestlog:
