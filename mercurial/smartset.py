@@ -848,6 +848,7 @@ class generatorset(abstractsmartset):
     def __init__(self, gen, iterasc: bool | None = None):
         """
         gen: a generator producing the values for the generatorset.
+        iterasc: True if gen is ascending, False if descending, None if unknown
         """
         # Make sure self._gen is an iterator, not an iterable. Otherwise, each
         # _consumegen would operate on an fresh iterator from the start.
@@ -856,6 +857,10 @@ class generatorset(abstractsmartset):
         self._cache = {}
         self._genlist = []
         self._finished = False
+        # Regardless of iterasc, we output values in ascending order by default.
+        # This means iteration must exhaust gen before yielding the first value
+        # if iterasc is None, or if it's False and you don't call reverse().
+        # TODO: Improve this situation.
         self._ascending = True
 
     def __nonzero__(self) -> bool:
