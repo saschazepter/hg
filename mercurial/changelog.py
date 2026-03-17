@@ -308,13 +308,13 @@ class changelog(revlog.revlog):
 
         rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         rl_conf.data.check_ambig = True
+        rl_conf.data.mmap_large_index = True
         revlog.revlog.__init__(
             self,
             opener,
             target=(revlog_constants.KIND_CHANGELOG, None),
             radix=b'00changelog',
             configs=rl_conf,
-            mmaplargeindex=True,
             persistentnodemap=opener.options.get(b'persistent-nodemap', False),
             trypending=trypending,
             may_inline=False,
