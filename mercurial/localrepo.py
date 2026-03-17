@@ -1656,7 +1656,7 @@ class localrepository(_localrepo_base_classes):
                 quick[r] = pair
                 quick[n] = pair
         p1node = self.dirstate.p1()
-        if p1node != self.nullid:
+        if p1node in quick:
             quick[b'.'] = quick[p1node]
         return quick
 
