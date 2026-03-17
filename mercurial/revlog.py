@@ -3070,7 +3070,7 @@ class revlog:
             self._docket.write(transaction, stripping=True)
 
         # then reset internal state in memory to forget those revisions
-        self._chaininfocache = util.lrucachedict(500)
+        self._chaininfocache.clear()
         self._inner.clear_cache()
 
         del self.index[rev:-1]
