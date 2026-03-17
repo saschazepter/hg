@@ -26,6 +26,7 @@ from .interfaces import (
 )
 from .utils import storageutil
 from .revlogutils import (
+    config as revlog_config,
     constants as revlog_constants,
     deltas,
     rewrite,
@@ -62,6 +63,10 @@ class filelog(repository.ifilestorage):
         delta_config = opener.options.get(b'delta-config')
         if delta_config is not None and delta_config.file_max_comp_ratio > 0:
             upper_bound_comp = delta_config.file_max_comp_ratio
+
+        rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
+        # see comment in revlog.py
+        rl_conf.feature.canonical_parent_order = False
         self._revlog = revlog.revlog(
             opener,
             # XXX should use the unencoded path
@@ -69,7 +74,7 @@ class filelog(repository.ifilestorage):
             radix=radix,
             censorable=True,
             upperboundcomp=upper_bound_comp,
-            canonical_parent_order=False,  # see comment in revlog.py
+            configs=rl_conf,
             try_split=try_split,
             writable=writable,
         )
