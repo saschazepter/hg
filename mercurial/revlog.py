@@ -913,17 +913,6 @@ class revlog:
             use_rust_index = False
         return use_rust_index
 
-    def _other_init(self):
-        """init-method: miscellaneous initializations run in the middle of _init
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-
-        # sparse-revlog can't be on without general-delta (issue6056)
-        if not self.configs.delta.general_delta:
-            self.configs.delta.sparse_revlog = False
-
     def _init(self, docket=None):
         """init-method: run various init logic for new or rewriten revlogs
 
@@ -939,7 +928,7 @@ class revlog:
         else:
             index_data = self._load_entry_point()
 
-        self._other_init()
+        self.configs.finalize()
         if self._use_rust_index:
             self.uses_rust = True
         self._load_inner(index_data)

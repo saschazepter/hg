@@ -24,6 +24,9 @@ class _Config:
     def copy(self):
         return self.__class__(**self.__dict__)
 
+    def finalize(self):
+        """enforce some higher level dependencies between value if needed"""
+
 
 @attr.s()
 class FeatureConfig(_Config):
@@ -165,6 +168,12 @@ class DeltaConfig(_Config):
     # a value of None means the feature is disabled.
     delta_fold_tolerance = attr.ib(default=True, type=Optional[float])
 
+    def finalize(self):
+        """enforce some higher level dependencies between value if needed"""
+        # sparse-revlog can't be on without general-delta (issue6056)
+        if not self.general_delta:
+            self.sparse_revlog = False
+
 
 @attr.s()
 class RevlogConfigs:
@@ -187,6 +196,12 @@ class RevlogConfigs:
             delta=self.delta.copy(),
             feature=self.feature.copy(),
         )
+
+    def finalize(self):
+        """enforce some higher level dependencies between value if needed"""
+        self.data.finalize()
+        self.delta.finalize()
+        self.feature.finalize()
 
     @classmethod
     def from_opts(
