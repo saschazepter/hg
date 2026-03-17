@@ -4132,7 +4132,7 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogchunks', file_, opts)
 
-    if rl.uses_rust:
+    if getattr(rl, '_use_rust_index', getattr(rl, 'uses_rust', False)):
         raise NotImplementedError(
             "perfrevlogchunks is not implemented for the Rust revlog"
         )
@@ -4317,7 +4317,7 @@ def perfrevlogrevision(ui, repo, file_, rev=None, cache=None, **opts):
         raise error.CommandError(b'perfrevlogrevision', b'invalid arguments')
 
     r = cmdutil.openrevlog(repo, b'perfrevlogrevision', file_, opts)
-    if r.uses_rust:
+    if getattr(r, '_use_rust_index', getattr(r, 'uses_rust', False)):
         raise NotImplementedError(
             "perfrevlogrevision is not implemented for the Rust revlog"
         )

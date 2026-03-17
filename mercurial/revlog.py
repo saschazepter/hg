@@ -584,7 +584,6 @@ class revlog:
         self.postfix = postfix
         self._trypending = trypending
         self._try_split = try_split
-        self.uses_rust = False
         self.opener = opener
         if persistentnodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(self)
@@ -888,7 +887,7 @@ class revlog:
         else:
             return parse_index_v1
 
-    @property
+    @util.propertycache
     def _use_rust_index(self):
         """init-method: should this revlog use an index implemented in Rust
 
@@ -929,8 +928,6 @@ class revlog:
             index_data = self._load_entry_point()
 
         self.configs.finalize()
-        if self._use_rust_index:
-            self.uses_rust = True
         self._load_inner(index_data)
 
     def _load_inner(self, index_data):
@@ -954,11 +951,11 @@ class revlog:
             encoding = 1
         elif vfs.filter_name == 'plain':
             encoding = 2
-        elif self.uses_rust:
+        elif self._use_rust_index:
             msg = b"rust does support encoding: %s" % vfs.filter_name
             raise error.ProgrammingError(msg)
 
-        if self.uses_rust:
+        if self._use_rust_index:
             self._inner = rustrevlog.InnerRevlog(
                 vfs_base=vfs.base,
                 vfs_is_readonly=not vfs.read_write,
