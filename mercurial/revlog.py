@@ -560,9 +560,7 @@ class revlog:
         trypending=False,
         try_split=False,
         canonical_parent_order=True,
-        data_config=None,
-        delta_config=None,
-        feature_config=None,
+        configs=None,
         may_inline=True,  # may inline new revlog
         writable: Optional[
             bool
@@ -614,12 +612,10 @@ class revlog:
         else:
             self._diff_fn = mdiff.storage_diff
 
-        rl_conf = revlog_config.RevlogConfigs.from_opts(
-            opener.options,
-            data_config=data_config,
-            delta_config=delta_config,
-            feature_config=feature_config,
-        )
+        if configs is not None:
+            rl_conf = configs.copy()
+        else:
+            rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
 
         rl_conf.feature.censorable = censorable
         rl_conf.feature.canonical_parent_order = canonical_parent_order
