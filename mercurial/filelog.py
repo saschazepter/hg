@@ -67,12 +67,12 @@ class filelog(repository.ifilestorage):
         rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         # see comment in revlog.py
         rl_conf.feature.canonical_parent_order = False
+        rl_conf.feature.censorable = True
         self._revlog = revlog.revlog(
             opener,
             # XXX should use the unencoded path
             target=(revlog_constants.KIND_FILELOG, path),
             radix=radix,
-            censorable=True,
             upperboundcomp=upper_bound_comp,
             configs=rl_conf,
             try_split=try_split,

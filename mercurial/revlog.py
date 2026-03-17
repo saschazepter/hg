@@ -554,7 +554,6 @@ class revlog:
         postfix=None,  # only exist for `tmpcensored` now
         checkambig=False,
         mmaplargeindex=False,
-        censorable=False,
         upperboundcomp=None,
         persistentnodemap=False,
         trypending=False,
@@ -616,7 +615,6 @@ class revlog:
         else:
             rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
 
-        rl_conf.feature.censorable = censorable
         rl_conf.data.check_ambig = checkambig
         rl_conf.data.mmap_large_index = mmaplargeindex
         rl_conf.delta.upper_bound_comp = upperboundcomp

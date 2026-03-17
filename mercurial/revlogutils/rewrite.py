@@ -58,7 +58,6 @@ def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
         target=rl.target,
         radix=rl.radix,
         postfix=b'tmpcensored',
-        censorable=True,
         configs=rl.configs,
         may_inline=rl._inline,
         writable=True,
