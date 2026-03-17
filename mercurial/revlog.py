@@ -641,9 +641,9 @@ class revlog:
 
         self._init()
 
-    def _init_opts(self):
-        """init-method: process options config and return corresponding revlog
-        header, which can be used by `_loadindex` to create a new index.
+    def _default_header(self):
+        """init-method: process options config and return corresponding default
+        revlog header, which can be used by `_loadindex` to create a new index.
 
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
@@ -753,7 +753,6 @@ class revlog:
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
         """
-        new_header = self._init_opts()
 
         self._initempty = True
         entry_point = self._find_entry_point_path()
@@ -762,7 +761,7 @@ class revlog:
             header = INDEX_HEADER.unpack(entry_data[:4])[0]
             self._initempty = False
         else:
-            header = new_header
+            header = self._default_header()
 
         self._format_flags = header & ~0xFFFF
         self._format_version = header & 0xFFFF
