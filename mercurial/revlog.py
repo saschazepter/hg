@@ -629,6 +629,13 @@ class revlog:
         # Make copy of flag processors so each revlog instance can support
         # custom flags.
         self._flagprocessors = dict(flagutil.flagprocessors)
+        if self.configs.feature.enable_ellipsis:
+            self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
+        # revlog v0 doesn't have flag processors
+        fps = opener.options.get(b'flagprocessors', {})
+        for flag, processor in fps.items():
+            flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
+
         # prevent nesting of addgroup
         self._adding_group = None
 
@@ -666,13 +673,6 @@ class revlog:
             new_header = REVLOGV0
         else:
             new_header = REVLOG_DEFAULT_VERSION
-
-        if self.configs.feature.enable_ellipsis:
-            self._flagprocessors[REVIDX_ELLIPSIS] = ellipsisprocessor
-
-        # revlog v0 doesn't have flag processors
-        for flag, processor in opts.get(b'flagprocessors', {}).items():
-            flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
         return new_header
 
     @property
