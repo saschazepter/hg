@@ -49,6 +49,7 @@ from .interfaces import (
     repository,
 )
 from .revlogutils import (
+    config as revlog_config,
     constants as revlog_constants,
 )
 
@@ -1723,12 +1724,14 @@ class manifestrevlog(repository.imanifeststorage):
         else:
             self._dirlogcache = {b'': self}
 
+        rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
+        # only root indexfile is cached
+        rl_conf.data.check_ambig = not bool(tree)
         self._revlog = revlog.revlog(
             opener,
             target=(revlog_constants.KIND_MANIFESTLOG, self.tree),
             radix=radix,
-            # only root indexfile is cached
-            checkambig=not bool(tree),
+            configs=rl_conf,
             mmaplargeindex=True,
             upperboundcomp=MAXCOMPRESSION,
             persistentnodemap=persistentnodemap,

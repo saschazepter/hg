@@ -34,6 +34,7 @@ from .utils import (
     stringutil,
 )
 from .revlogutils import (
+    config as revlog_config,
     constants as revlog_constants,
     flagutil,
 )
@@ -304,12 +305,15 @@ class changelog(revlog.revlog):
         It exists in a separate file to facilitate readers (such as
         hooks processes) accessing data before a transaction is finalized.
         """
+
+        rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
+        rl_conf.data.check_ambig = True
         revlog.revlog.__init__(
             self,
             opener,
             target=(revlog_constants.KIND_CHANGELOG, None),
             radix=b'00changelog',
-            checkambig=True,
+            configs=rl_conf,
             mmaplargeindex=True,
             persistentnodemap=opener.options.get(b'persistent-nodemap', False),
             trypending=trypending,
