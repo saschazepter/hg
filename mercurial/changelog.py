@@ -310,6 +310,10 @@ class changelog(revlog.revlog):
         rl_conf.data.check_ambig = True
         rl_conf.data.mmap_large_index = True
         rl_conf.feature.may_inline = False
+        # Delta chains for changelogs tend to be very small because entries
+        # tend to be small and don't delta well with each. So disable delta
+        # chains.
+        rl_conf.delta.store_delta_chain = False
         revlog.revlog.__init__(
             self,
             opener,
@@ -336,11 +340,6 @@ class changelog(revlog.revlog):
             # benefit here either so we disable it for simplicity.
             self.data_config.sparse_revlog = False
             self.data_config.delta_info = False
-
-        # Delta chains for changelogs tend to be very small because entries
-        # tend to be small and don't delta well with each. So disable delta
-        # chains.
-        self._storedeltachains = False
 
         self._v2_delayed = False
         self._filteredrevs = frozenset()

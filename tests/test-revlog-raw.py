@@ -125,7 +125,7 @@ def appendrev(rlog, text, tr, isext=False, isdelta=True):
     else:
         flags = revlog.REVIDX_DEFAULT_FLAGS
     # Change storedeltachains temporarily, to override revlog's delta decision
-    rlog._storedeltachains = isdelta
+    rlog.configs.delta.store_delta_chain = isdelta
     try:
         rlog.addrevision(text, tr, nextrev, p1, p2, flags=flags)
         return nextrev
@@ -133,7 +133,7 @@ def appendrev(rlog, text, tr, isext=False, isdelta=True):
         abort('rev %d: failed to append: %s' % (nextrev, ex))
     finally:
         # Restore storedeltachains. It is always True, see revlog.__init__
-        rlog._storedeltachains = True
+        rlog.configs.delta.store_delta_chain = True
 
 
 def addgroupcopy(rlog, tr, destname=b'_destrevlog', optimaldelta=True):

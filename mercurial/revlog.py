@@ -922,8 +922,6 @@ class revlog:
         if not self.configs.delta.general_delta:
             self.configs.delta.sparse_revlog = False
 
-        self._storedeltachains = True
-
         # revnum -> (chain-length, sum-delta-length)
         self._chaininfocache = util.lrucachedict(500)
 
@@ -3161,7 +3159,7 @@ class revlog:
             nodesorder = b'storage'
 
         if (
-            not self._storedeltachains
+            not self.configs.delta.store_delta_chain
             and deltamode != repository.CG_DELTAMODE_PREV
         ):
             deltamode = repository.CG_DELTAMODE_FULL

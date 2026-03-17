@@ -2386,7 +2386,9 @@ class deltacomputer:
             self._write_debug(msg)
 
         # should we try to build a delta?
-        if not (len(self.revlog) and self.revlog._storedeltachains):
+        if not (
+            len(self.revlog) and self.revlog.configs.delta.store_delta_chain
+        ):
             search_cls = _NoDeltaSearch
         elif self.revlog.delta_config.sparse_revlog:
             search_cls = _SparseDeltaSearch

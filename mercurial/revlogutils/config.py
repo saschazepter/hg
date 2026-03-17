@@ -120,6 +120,8 @@ class DeltaConfig(_Config):
     self contained.
     """
 
+    # should we attemps to store delta at all (typically false for changelog)
+    store_delta_chain = attr.ib(default=True, type=bool)
     # can delta be encoded against arbitrary bases.
     general_delta = attr.ib(default=False, type=bool)
     # Allow sparse writing of the revlog data
