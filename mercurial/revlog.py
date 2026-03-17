@@ -556,7 +556,6 @@ class revlog:
         trypending=False,
         try_split=False,
         configs=None,
-        may_inline=True,  # may inline new revlog
         writable: Optional[
             bool
         ] = None,  # None is "unspecified" and allow writing
@@ -585,7 +584,6 @@ class revlog:
         self.postfix = postfix
         self._trypending = trypending
         self._try_split = try_split
-        self._may_inline = may_inline
         self.uses_rust = False
         self.opener = opener
         if persistentnodemap:
@@ -649,7 +647,7 @@ class revlog:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
             new_header = REVLOGV1
-            if self._may_inline:
+            if self.configs.feature.may_inline:
                 new_header |= FLAG_INLINE_DATA
             if b'generaldelta' in opts:
                 new_header |= FLAG_GENERALDELTA
@@ -2305,7 +2303,9 @@ class revlog:
         """
         tiprev = len(self) - 1
         total_size = self.start(tiprev) + self.length(tiprev)
-        if not self._inline or (self._may_inline and total_size < _maxinline):
+        if not self._inline or (
+            self.configs.feature.may_inline and total_size < _maxinline
+        ):
             return
 
         if self._docket is not None:

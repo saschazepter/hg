@@ -48,6 +48,9 @@ def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
     censor_revs = {rl.rev(node) for node in censor_nodes}
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
 
+    rl_conf = rl.configs.copy()
+    # don't start inline if we won't be eventually
+    rl_conf.feature.may_inline = rl._inline
     # Rewriting the revlog in place is hard. Our strategy for censoring is
     # to create a new revlog, copy all revisions to it, then replace the
     # revlogs on transaction close.
@@ -58,8 +61,7 @@ def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
         target=rl.target,
         radix=rl.radix,
         postfix=b'tmpcensored',
-        configs=rl.configs,
-        may_inline=rl._inline,
+        configs=rl_conf,
         writable=True,
     )
     # inline splitting will prepare some transaction work that will get

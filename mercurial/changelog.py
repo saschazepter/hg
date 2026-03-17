@@ -309,6 +309,7 @@ class changelog(revlog.revlog):
         rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         rl_conf.data.check_ambig = True
         rl_conf.data.mmap_large_index = True
+        rl_conf.feature.may_inline = False
         revlog.revlog.__init__(
             self,
             opener,
@@ -317,7 +318,6 @@ class changelog(revlog.revlog):
             configs=rl_conf,
             persistentnodemap=opener.options.get(b'persistent-nodemap', False),
             trypending=trypending,
-            may_inline=False,
         )
 
         if self._initempty and (self._format_version == revlog.REVLOGV1):
@@ -368,7 +368,7 @@ class changelog(revlog.revlog):
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
         assert not self._inner.is_open
-        assert not self._may_inline
+        assert not self.configs.feature.may_inline
         # enforce that older changelog that are still inline are split at the
         # first opportunity.
         if self._inline:

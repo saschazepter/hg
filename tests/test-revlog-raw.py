@@ -105,7 +105,10 @@ def newrevlog(name=b'_testrevlog', recreate=False):
     if recreate:
         tvfs.tryunlink(name + b'.i')
     target = (constants.KIND_OTHER, b'test')
-    rlog = revlog.revlog(tvfs, target=target, radix=name, may_inline=False)
+
+    rl_conf = config.RevlogConfigs.from_opts(tvfs.options)
+    rl_conf.feature.may_inline = False
+    rlog = revlog.revlog(tvfs, target=target, radix=name, configs=rl_conf)
     return rlog
 
 

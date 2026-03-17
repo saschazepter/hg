@@ -1050,13 +1050,13 @@ def reencoded_info(
         rl_conf.delta.upper_bound_comp = (
             orig_revlog.configs.delta.upper_bound_comp
         )
+        rl_conf.feature.may_inline = False
 
         dest = revlog_cls(
             vfs,
             target=orig_revlog.target,
             radix=radix,
             configs=rl_conf,
-            may_inline=False,
             writable=True,
         )
         if dest._inline:

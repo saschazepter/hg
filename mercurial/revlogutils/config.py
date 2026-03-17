@@ -57,6 +57,13 @@ class FeatureConfig(_Config):
     # use a flag to signal that a filerevision constains metadata
     hasmeta_flag = attr.ib(default=False, type=bool)
 
+    # When true, it is a valid option to use inline revlog for that revlog.
+    #
+    # This does mean the revlog is actually using inline. When set to False,
+    # creating a new inline revlog will be prevented and existing inlined
+    # revlog will we split at the first opportunity.
+    may_inline = attr.ib(default=True, type=bool)
+
     def copy(self):
         new = super().copy()
         new.compression_engine_options = self.compression_engine_options.copy()
