@@ -778,7 +778,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
             if set_parents_mtime
                 && let Some(parent_file_data) = parent_file_data_opt
                 && let Some(mtime) = parent_file_data.mtime
-                && let NodeData::CachedDirectory { .. } = ancestor.data
+                && let NodeData::CachedDirectory { .. } | NodeData::None =
+                    ancestor.data
             {
                 // Set this parent directory's mtime to the same as the target
                 // node's. This is only useful in the FUSE.
