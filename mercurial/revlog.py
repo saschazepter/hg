@@ -652,8 +652,6 @@ class revlog:
 
         if b'changelogv2' in opts and self.revlog_kind == KIND_CHANGELOG:
             new_header = CHANGELOGV2
-            compute_rank = opts.get(b'changelogv2.compute-rank', True)
-            self.configs.feature.compute_rank = compute_rank
         elif b'revlogv2' in opts:
             new_header = REVLOGV2
         elif b'revlogv1' in opts:
@@ -794,6 +792,11 @@ class revlog:
         self.configs.feature.hasmeta_flag = features['hasmeta_flag'](
             self._format_flags
         )
+
+        if self._format_version == CHANGELOGV2:
+            opts = self.opener.options
+            compute_rank = opts.get(b'changelogv2.compute-rank', True)
+            self.configs.feature.compute_rank = compute_rank
 
         if not features['docket']:
             self._indexfile = entry_point
