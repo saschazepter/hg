@@ -366,10 +366,10 @@ slicingdata = [
 
 
 def slicingtest(rlog):
-    old_delta_config = rlog.delta_config
-    old_data_config = rlog.data_config
-    rlog.delta_config = rlog.delta_config.copy()
-    rlog.data_config = rlog.data_config.copy()
+    old_delta_config = rlog.configs.delta
+    old_data_config = rlog.configs.data
+    rlog.configs.delta = rlog.configs.delta.copy()
+    rlog.configs.data = rlog.configs.data.copy()
     try:
         # the test revlog is small, we remove the floor under which we
         # slicing is diregarded.
@@ -389,8 +389,8 @@ def slicingtest(rlog):
                 print('  expected: %s' % expected)
                 print('  result:   %s' % result)
     finally:
-        rlog.delta_config = old_delta_config
-        rlog.data_config = old_data_config
+        rlog.configs.delta = old_delta_config
+        rlog.configs.data = old_data_config
 
 
 def md5sum(s):

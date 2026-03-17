@@ -502,6 +502,8 @@ class revlog:
 
     _docket_file: bytes | None
 
+    configs: revlog_config.RevlogConfigs
+
     @staticmethod
     def is_inline_index(header_bytes):
         """Determine if a revlog is inline from the initial bytes of the index"""
@@ -612,29 +614,20 @@ class revlog:
         else:
             self._diff_fn = mdiff.storage_diff
 
-        if feature_config is not None:
-            self.feature_config = feature_config.copy()
-        elif b'feature-config' in self.opener.options:
-            self.feature_config = self.opener.options[b'feature-config'].copy()
-        else:
-            self.feature_config = revlog_config.FeatureConfig()
-        self.feature_config.censorable = censorable
-        self.feature_config.canonical_parent_order = canonical_parent_order
-        if data_config is not None:
-            self.data_config = data_config.copy()
-        elif b'data-config' in self.opener.options:
-            self.data_config = self.opener.options[b'data-config'].copy()
-        else:
-            self.data_config = revlog_config.DataConfig()
-        self.data_config.check_ambig = checkambig
-        self.data_config.mmap_large_index = mmaplargeindex
-        if delta_config is not None:
-            self.delta_config = delta_config.copy()
-        elif b'delta-config' in self.opener.options:
-            self.delta_config = self.opener.options[b'delta-config'].copy()
-        else:
-            self.delta_config = revlog_config.DeltaConfig()
-        self.delta_config.upper_bound_comp = upperboundcomp
+        rl_conf = revlog_config.RevlogConfigs.from_opts(
+            opener.options,
+            data_config=data_config,
+            delta_config=delta_config,
+            feature_config=feature_config,
+        )
+
+        rl_conf.feature.censorable = censorable
+        rl_conf.feature.canonical_parent_order = canonical_parent_order
+        rl_conf.data.check_ambig = checkambig
+        rl_conf.data.mmap_large_index = mmaplargeindex
+        rl_conf.delta.upper_bound_comp = upperboundcomp
+
+        self.configs = rl_conf
 
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
@@ -707,6 +700,18 @@ class revlog:
                 % chunk_cache_size
             )
         return new_header
+
+    @property
+    def data_config(self):
+        return self.configs.data
+
+    @property
+    def delta_config(self):
+        return self.configs.delta
+
+    @property
+    def feature_config(self):
+        return self.configs.feature
 
     @property
     def _mmap_index_threshold(self) -> int | None:
@@ -3593,7 +3598,7 @@ class revlog:
         # XXX of the inner revlog and even less the config used by Rust, so this
         # XXX overwrite will create problem as soon as the delta computation
         # XXX move at a lower level.
-        destrevlog.delta_config = destrevlog.delta_config.copy()
+        destrevlog.configs.delta = destrevlog.delta_config.copy()
 
         try:
             if deltareuse == self.DELTAREUSEALWAYS:
@@ -3627,7 +3632,7 @@ class revlog:
                 )
 
         finally:
-            destrevlog.delta_config = old_delta_config
+            destrevlog.configs.delta = old_delta_config
 
     def _clone(
         self,

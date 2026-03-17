@@ -155,3 +155,63 @@ class DeltaConfig(_Config):
     #
     # a value of None means the feature is disabled.
     delta_fold_tolerance = attr.ib(default=True, type=Optional[float])
+
+
+@attr.s()
+class RevlogConfigs:
+    """Gather the revlog config object for ease of use
+
+    It still make sense to split the config into multiple sub object because
+    they can be passed around independently."""
+
+    data = attr.ib(default=attr.Factory(lambda: DataConfig()), type=DataConfig)
+    delta = attr.ib(
+        default=attr.Factory(lambda: DeltaConfig()), type=DeltaConfig
+    )
+    feature = attr.ib(
+        default=attr.Factory(lambda: FeatureConfig()), type=FeatureConfig
+    )
+
+    def copy(self):
+        return self.__class__(
+            data=self.data.copy(),
+            delta=self.delta.copy(),
+            feature=self.feature.copy(),
+        )
+
+    @classmethod
+    def from_opts(
+        cls,
+        options,
+        data_config=None,
+        delta_config=None,
+        feature_config=None,
+    ):
+        """Build a RevlogConfigs object from the vfs's options
+
+        The function will fallback to default value when the vfs's options
+        don't hold the relevant information.
+        """
+        if feature_config is not None:
+            feature = feature_config.copy()
+        elif b'feature-config' in options:
+            feature = options[b'feature-config'].copy()
+        else:
+            feature = FeatureConfig()
+        if data_config is not None:
+            data = data_config.copy()
+        elif b'data-config' in options:
+            data = options[b'data-config'].copy()
+        else:
+            data = DataConfig()
+        if delta_config is not None:
+            delta = delta_config.copy()
+        elif b'delta-config' in options:
+            delta = options[b'delta-config'].copy()
+        else:
+            delta = DeltaConfig()
+        return cls(
+            data=data,
+            delta=delta,
+            feature=feature,
+        )
