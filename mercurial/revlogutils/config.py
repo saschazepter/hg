@@ -10,7 +10,11 @@ from __future__ import annotations
 import typing
 from typing import Optional
 
+from ..i18n import _
+
 from ..thirdparty import attr
+
+from .. import error
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -73,6 +77,19 @@ class FeatureConfig(_Config):
         return new
 
 
+def _validate_chunk_size(inst, attr_name, chunk_cache_size):
+    if chunk_cache_size <= 0:
+        raise error.RevlogError(
+            _(b'revlog chunk cache size %r is not greater than 0')
+            % chunk_cache_size
+        )
+    elif chunk_cache_size & (chunk_cache_size - 1):
+        raise error.RevlogError(
+            _(b'revlog chunk cache size %r is not a power of 2')
+            % chunk_cache_size
+        )
+
+
 @attr.s()
 class DataConfig(_Config):
     """Hold configuration value about how the revlog data are read"""
@@ -90,7 +107,11 @@ class DataConfig(_Config):
     # how much data is large
     mmap_index_threshold = attr.ib(default=None, type=Optional[int])
     # How much data to read and cache into the raw revlog data cache.
-    chunk_cache_size = attr.ib(default=65536, type=int)
+    chunk_cache_size = attr.ib(
+        default=65536,
+        type=int,
+        validator=_validate_chunk_size,
+    )
 
     # The size of the uncompressed cache compared to the largest revision seen.
     uncompressed_cache_factor = attr.ib(default=None, type=Optional[int])

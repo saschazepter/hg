@@ -673,18 +673,6 @@ class revlog:
         # revlog v0 doesn't have flag processors
         for flag, processor in opts.get(b'flagprocessors', {}).items():
             flagutil.insertflagprocessor(flag, processor, self._flagprocessors)
-
-        chunk_cache_size = self.configs.data.chunk_cache_size
-        if chunk_cache_size <= 0:
-            raise error.RevlogError(
-                _(b'revlog chunk cache size %r is not greater than 0')
-                % chunk_cache_size
-            )
-        elif chunk_cache_size & (chunk_cache_size - 1):
-            raise error.RevlogError(
-                _(b'revlog chunk cache size %r is not a power of 2')
-                % chunk_cache_size
-            )
         return new_header
 
     @property
