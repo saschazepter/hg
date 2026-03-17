@@ -24,6 +24,7 @@ from .. import (
 )
 
 from . import (
+    config as revlog_config,
     constants,
     deltas as deltautil,
 )
@@ -1045,11 +1046,16 @@ def reencoded_info(
         vfs = vfsmod.vfs(tmpdir)
         vfs.options = getattr(orig_revlog.opener, 'options', None)
 
+        rl_conf = revlog_config.RevlogConfigs.from_opts(vfs.options)
+        rl_conf.delta.upper_bound_comp = (
+            orig_revlog.configs.delta.upper_bound_comp
+        )
+
         dest = revlog_cls(
             vfs,
             target=orig_revlog.target,
             radix=radix,
-            upperboundcomp=orig_revlog.delta_config.upper_bound_comp,
+            configs=rl_conf,
             may_inline=False,
             writable=True,
         )

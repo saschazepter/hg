@@ -552,7 +552,6 @@ class revlog:
         radix,
         *,
         postfix=None,  # only exist for `tmpcensored` now
-        upperboundcomp=None,
         persistentnodemap=False,
         trypending=False,
         try_split=False,
@@ -612,9 +611,6 @@ class revlog:
             rl_conf = configs.copy()
         else:
             rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
-
-        rl_conf.delta.upper_bound_comp = upperboundcomp
-
         self.configs = rl_conf
 
         # Maps rev to chain base rev.

@@ -1728,12 +1728,12 @@ class manifestrevlog(repository.imanifeststorage):
         # only root indexfile is cached
         rl_conf.data.check_ambig = not bool(tree)
         rl_conf.data.mmap_large_index = True
+        rl_conf.delta.upper_bound_comp = MAXCOMPRESSION
         self._revlog = revlog.revlog(
             opener,
             target=(revlog_constants.KIND_MANIFESTLOG, self.tree),
             radix=radix,
             configs=rl_conf,
-            upperboundcomp=MAXCOMPRESSION,
             persistentnodemap=persistentnodemap,
         )
 
