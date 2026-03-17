@@ -611,8 +611,13 @@ class revlog:
             rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         self.configs = rl_conf
 
+        self.nodeconstants = sha1nodeconstants
+        self.nullid = self.nodeconstants.nullid
+
         # Maps rev to chain base rev.
         self._chainbasecache = util.lrucachedict(100)
+        # revnum -> (chain-length, sum-delta-length)
+        self._chaininfocache = util.lrucachedict(500)
 
         self.index: BaseIndexObject | None = None
         self._docket = None
@@ -915,15 +920,9 @@ class revlog:
         sequence is cut into multiple methods for clarity.
         """
 
-        self.nodeconstants = sha1nodeconstants
-        self.nullid = self.nodeconstants.nullid
-
         # sparse-revlog can't be on without general-delta (issue6056)
         if not self.configs.delta.general_delta:
             self.configs.delta.sparse_revlog = False
-
-        # revnum -> (chain-length, sum-delta-length)
-        self._chaininfocache = util.lrucachedict(500)
 
     def _init(self, docket=None):
         """init-method: run various init logic for new or rewriten revlogs
