@@ -658,7 +658,7 @@ class revlog:
         sequence is cut into multiple methods for clarity.
         """
         devel_nodemap = (
-            self._nodemap_file
+            self.configs.feature.persistent_nodemap
             and self.opener.options.get(b'devel-force-nodemap', False)
             and parse_index_v1_nodemap is not None
         )
@@ -938,7 +938,7 @@ class revlog:
     def _register_nodemap_info(self, index):
         use_nodemap = (
             not self._inline
-            and self._nodemap_file is not None
+            and self.configs.feature.persistent_nodemap
             and hasattr(index, 'update_nodemap_data')
         )
         if use_nodemap:
@@ -1031,7 +1031,7 @@ class revlog:
 
         If a transaction is passed, the update may be delayed to transaction
         commit."""
-        if self._nodemap_file is not None:
+        if self.configs.feature.persistent_nodemap:
             if transaction is None:
                 nodemaputil.update_persistent_nodemap(self)
             else:
@@ -1048,7 +1048,7 @@ class revlog:
         # end up having to refresh it here.
         use_nodemap = (
             not self._inline
-            and self._nodemap_file is not None
+            and self.configs.feature.persistent_nodemap
             and hasattr(self.index, 'update_nodemap_data')
         )
         if use_nodemap:

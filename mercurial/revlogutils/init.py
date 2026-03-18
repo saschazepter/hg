@@ -276,6 +276,7 @@ def load_secondary_files(vfs, configs, display_id, docket):
     # the logic for persistent nodemap will be dealt with within the
     # main docket, so disable it for now.
     files["nodemap"] = None
+    configs.feature.persistent_nodemap = False
 
     files["data"] = docket.data_filepath()
     files["sidedata"] = docket.sidedata_filepath()
