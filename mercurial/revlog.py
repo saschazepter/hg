@@ -674,35 +674,6 @@ class revlog:
         else:
             return parse_index_v1
 
-    @util.propertycache
-    def _use_rust_index(self):
-        """init-method: should this revlog use an index implemented in Rust
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-        vfs = self.opener
-        kind = self.revlog_kind
-        inline = self._inline
-        format_version = self._format_version
-
-        use_rust_index = False
-        is_changelog = kind == KIND_CHANGELOG
-        may_rust = getattr(vfs, "rust_compatible", True)
-        # we still avoid rust for inlined changelog as this create some issues.
-        #
-        # (See failure in test-split-legacy-inline-changelog.t)
-        may_rust = may_rust and not (inline and is_changelog)
-        if rustrevlog is not None and may_rust:
-            use_rust_index = True
-
-            if format_version != REVLOGV1:
-                use_rust_index = False
-
-        if vfs.filter_name not in (None, 'dot-encode', 'plain'):
-            use_rust_index = False
-        return use_rust_index
-
     def _init(
         self,
         postfix: bytes | None = None,  # only exist for `tmpcensored` now
@@ -791,24 +762,35 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
+        vfs = self.opener
+        kind = self.revlog_kind
+        inline = self._inline
+        format_version = self._format_version
+
         if self._docket is None:
             default_compression_header = None
         else:
             default_compression_header = self._docket.default_compression_header
 
+        use_rust_index = revlog_init.use_rust_index(
+            vfs,
+            kind,
+            inline,
+            format_version,
+        )
+
         # not great, but hopefully temporary
-        vfs = self.opener
         if vfs.filter_name is None:
             encoding = 0
         elif vfs.filter_name == 'dot-encode':
             encoding = 1
         elif vfs.filter_name == 'plain':
             encoding = 2
-        elif self._use_rust_index:
+        elif use_rust_index:
             msg = b"rust does support encoding: %s" % vfs.filter_name
             raise error.ProgrammingError(msg)
 
-        if self._use_rust_index:
+        if use_rust_index:
             self._inner = rustrevlog.InnerRevlog(
                 vfs_base=vfs.base,
                 vfs_is_readonly=not vfs.read_write,

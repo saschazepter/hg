@@ -4132,7 +4132,19 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
 
     rl = cmdutil.openrevlog(repo, b'perfrevlogchunks', file_, opts)
 
-    if getattr(rl, '_use_rust_index', getattr(rl, 'uses_rust', False)):
+    try:
+        from mercurial.revlogutils import init
+
+        use_rust = init.use_rust_index(
+            getvfs(rl),
+            rl.revlog_kind,
+            rl._inline,
+            rl._format_version,
+        )
+    except ImportError:
+        use_rust = rl.uses_rust
+
+    if use_rust:
         raise NotImplementedError(
             "perfrevlogchunks is not implemented for the Rust revlog"
         )

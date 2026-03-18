@@ -18,11 +18,14 @@ from ..i18n import _
 
 from .. import (
     error,
+    policy,
     vfs as vfsmod,
 )
 
 
 from . import config, constants, docket as docketutil, nodemap as nodemaputil
+
+rustrevlog = policy.importrust('revlog')
 
 
 # Force pytype to use the non-vendored package
@@ -277,3 +280,33 @@ def load_secondary_files(vfs, configs, display_id, docket):
     files["data"] = docket.data_filepath()
     files["sidedata"] = docket.sidedata_filepath()
     return index_data, files
+
+
+def use_rust_index(
+    vfs: vfsmod.vfs,
+    kind: constants.Kind,
+    inline: bool,
+    format_version: int,
+):
+    """init-method: should this revlog use an index implemented in Rust
+
+    This method is part of the initialization sequence. That initialization
+    sequence is cut into multiple methods for clarity.
+    """
+
+    use_rust_index = False
+    is_changelog = kind == constants.KIND_CHANGELOG
+    may_rust = getattr(vfs, "rust_compatible", True)
+    # we still avoid rust for inlined changelog as this create some issues.
+    #
+    # (See failure in test-split-legacy-inline-changelog.t)
+    may_rust = may_rust and not (inline and is_changelog)
+    if rustrevlog is not None and may_rust:
+        use_rust_index = True
+
+        if format_version != constants.REVLOGV1:
+            use_rust_index = False
+
+    if vfs.filter_name not in (None, 'dot-encode', 'plain'):
+        use_rust_index = False
+    return use_rust_index
