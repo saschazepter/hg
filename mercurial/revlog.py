@@ -55,8 +55,6 @@ from .revlogutils.constants import (
     FEATURES_BY_VERSION,
     FILELOG_HASMETA_DOWNGRADE as HM_DOWN,
     FILELOG_HASMETA_UPGRADE as HM_UP,
-    FLAG_DELTA_INFO,
-    FLAG_FILELOG_META,
     FLAG_GENERALDELTA,
     FLAG_INLINE_DATA,
     INDEX_HEADER,
@@ -88,7 +86,6 @@ from .revlogutils.constants import (
 )
 from .thirdparty import attr
 from .interfaces import compression as i_comp
-from .revlogutils import config as revlog_config
 from .pure import parsers as pure_parsers
 
 # Force pytype to use the non-vendored package
@@ -114,9 +111,11 @@ from .interfaces import (
 )
 
 from .revlogutils import (
+    config as revlog_config,
     deltas as deltautil,
     docket as docketutil,
     flagutil,
+    init as revlog_init,
     nodemap as nodemaputil,
     revlogv0,
     rewrite,
@@ -637,38 +636,6 @@ class revlog:
 
         self._init(postfix=postfix, try_pending=trypending, try_split=try_split)
 
-    def _default_header(self):
-        """init-method: process options config and return corresponding default
-        revlog header, which can be used by `_loadindex` to create a new index.
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-        opts = self.opener.options
-        kind = self.revlog_kind
-        configs = self.configs
-
-        if b'changelogv2' in opts and kind == KIND_CHANGELOG:
-            new_header = CHANGELOGV2
-        elif b'revlogv2' in opts:
-            new_header = REVLOGV2
-        elif b'revlogv1' in opts:
-            new_header = REVLOGV1
-            if configs.feature.may_inline:
-                new_header |= FLAG_INLINE_DATA
-            if kind != KIND_CHANGELOG:
-                if b'generaldelta' in opts:
-                    new_header |= FLAG_GENERALDELTA
-                    if opts.get(b'delta-info-flags'):
-                        new_header |= FLAG_DELTA_INFO
-            if kind == KIND_FILELOG and b'filelog_hasmeta_flag' in opts:
-                new_header |= FLAG_FILELOG_META
-        elif b'revlogv0' in opts:
-            new_header = REVLOGV0
-        else:
-            new_header = REVLOG_DEFAULT_VERSION
-        return new_header
-
     @property
     def data_config(self):
         # TODO: deprecate this in later version
@@ -747,7 +714,11 @@ class revlog:
             format_flags = header & ~0xFFFF
             format_version = header & 0xFFFF
         else:
-            header = self._default_header()
+            header = revlog_init.default_header(
+                self.opener.options,
+                self.revlog_kind,
+                self.configs,
+            )
             initempty = True
             format_flags = header & ~0xFFFF
             format_version = header & 0xFFFF
