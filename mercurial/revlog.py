@@ -766,11 +766,7 @@ class revlog:
         kind = self.revlog_kind
         inline = self._inline
         format_version = self._format_version
-
-        if self._docket is None:
-            default_compression_header = None
-        else:
-            default_compression_header = self._docket.default_compression_header
+        docket = self._docket
 
         use_rust_index = revlog_init.use_rust_index(
             vfs,
@@ -779,18 +775,17 @@ class revlog:
             format_version,
         )
 
-        # not great, but hopefully temporary
-        if vfs.filter_name is None:
-            encoding = 0
-        elif vfs.filter_name == 'dot-encode':
-            encoding = 1
-        elif vfs.filter_name == 'plain':
-            encoding = 2
-        elif use_rust_index:
-            msg = b"rust does support encoding: %s" % vfs.filter_name
-            raise error.ProgrammingError(msg)
-
         if use_rust_index:
+            # not great, but hopefully temporary
+            if vfs.filter_name is None:
+                encoding = 0
+            elif vfs.filter_name == 'dot-encode':
+                encoding = 1
+            elif vfs.filter_name == 'plain':
+                encoding = 2
+            elif use_rust_index:
+                msg = b"rust does support encoding: %s" % vfs.filter_name
+                raise error.ProgrammingError(msg)
             self._inner = rustrevlog.InnerRevlog(
                 vfs_base=vfs.base,
                 vfs_is_readonly=not vfs.read_write,
@@ -807,6 +802,10 @@ class revlog:
             assert self._inner.has_revdiff_extra
             self.index = RustIndexProxy(self._inner)
         else:
+            if docket is None:
+                default_compression_header = None
+            else:
+                default_compression_header = docket.default_compression_header
             try:
                 self._inner = py_inner.InnerRevlog(
                     opener=self.opener,
