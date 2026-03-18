@@ -2203,9 +2203,12 @@ class revlog:
                 sidedata_end=sidedata_end,
             ):
                 # If this is a new revlog, register it to update the potential
-                # fncache
+                # fncache.
+                #
+                # This is only necessary for docket-less format as no format
+                # with a docket still use the fncache
                 if len(self.index) == 0 and self.target[1] != b'':
-                    if self._docket_file is None:
+                    if self._docket is None:
                         assert self._sidedatafile is None
                         self.opener.register_file(self._indexfile)
                         if not self._inline:
