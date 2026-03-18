@@ -47,7 +47,7 @@ impl HgFuse {
     pub fn mount(
         server: Server,
         destination: impl AsRef<Path>,
-        open_to_all: bool,
+        session_acl: SessionACL,
         thread_count: usize,
     ) -> Result<BackgroundSession, HgError> {
         let mountpoint = destination.as_ref();
@@ -61,9 +61,7 @@ impl HgFuse {
             // better to leave a more explicitly borked filesystem than an
             // empty one on breakage.
         ]);
-        if open_to_all {
-            config.acl = SessionACL::All;
-        }
+        config.acl = session_acl;
         config.n_threads = Some(thread_count);
         let filesystem = Self { server, mount_point: mountpoint.to_path_buf() };
         Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)

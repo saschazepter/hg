@@ -60,7 +60,11 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(repo: &Repo, user_id: Option<u32>) -> Result<Self, HgError> {
+    pub fn new(
+        repo: &Repo,
+        user_id: Option<u32>,
+        group_id: Option<u32>,
+    ) -> Result<Self, HgError> {
         // Recreate our owned repo
         let repo = Repo::find(
             repo.config(),
@@ -69,7 +73,7 @@ impl Server {
         let process_metadata =
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
         let uid = user_id.unwrap_or_else(|| process_metadata.uid());
-        let gid = user_id.unwrap_or_else(|| process_metadata.gid());
+        let gid = group_id.unwrap_or_else(|| process_metadata.gid());
 
         let warnings = HgWarningContext::new();
         let narrow_matcher = narrow::matcher(&repo, warnings.sender())?;

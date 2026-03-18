@@ -1508,6 +1508,7 @@ dependencies = [
  "crossbeam-channel",
  "derive_more",
  "format-bytes",
+ "fuser",
  "hg-core",
  "hg-fuse",
  "home",

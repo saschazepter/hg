@@ -5,6 +5,7 @@ use std::thread::available_parallelism;
 use std::time::Duration;
 
 use clap::Arg;
+use fuser::SessionACL;
 use hg::errors::IoResultExt;
 use hg::utils::u32_u;
 use hg_fuse::fuse::HgFuse;
@@ -33,9 +34,28 @@ pub fn args() -> clap::Command {
         )
         .arg(
             Arg::new("user-id")
-                .long("public-fuse-user-id")
+                .long("user-id")
                 .value_parser(clap::value_parser!(u32))
-                .help("override the uid/gid and session ACL"),
+                .help("override the uid"),
+        )
+        .arg(
+            Arg::new("group-id")
+                .long("group-id")
+                .value_parser(clap::value_parser!(u32))
+                .help("override the gid"),
+        )
+        .arg(
+            Arg::new("open-to-all")
+                .long("open-to-all")
+                .action(clap::ArgAction::SetTrue)
+                .help("allow requests from any user"),
+        )
+        .arg(
+            Arg::new("open-to-root")
+                .long("open-to-root")
+                .action(clap::ArgAction::SetTrue)
+                .help("allow requests from the filesystem owner and root")
+                .conflicts_with("open-to-all"),
         )
         .about(HELP_TEXT)
 }
@@ -56,7 +76,17 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     };
 
     let user_id = invocation.subcommand_args.get_one("user-id").copied();
-    let server = Server::new(repo, user_id)?;
+    let group_id = invocation.subcommand_args.get_one("group-id").copied();
+    let open_to_all = invocation.subcommand_args.get_flag("open-to-all");
+    let open_to_root = invocation.subcommand_args.get_flag("open-to-root");
+    let session_acl = if open_to_all {
+        SessionACL::All
+    } else if open_to_root {
+        SessionACL::RootAndOwner
+    } else {
+        SessionACL::Owner
+    };
+    let server = Server::new(repo, user_id, group_id)?;
 
     // Set up non-fatal signals to break our loop
     let should_terminate = Arc::new(AtomicBool::new(false));
@@ -76,8 +106,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             max_threads.map(usize::from).unwrap_or(1)
         });
     // Dropping this handle will unmount the filesystem
-    let session =
-        HgFuse::mount(server, destination, user_id.is_some(), num_threads)?;
+    let session = HgFuse::mount(server, destination, session_acl, num_threads)?;
     loop {
         std::thread::sleep(Duration::from_millis(250));
         let was_unmounted = session.guard.is_finished();
