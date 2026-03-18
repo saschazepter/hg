@@ -596,7 +596,10 @@ class revlog:
             if target[0] == KIND_FILELOG:
                 msg = b"filelog need explicit value for `writable` parameter"
                 raise error.ProgrammingError(msg)
-            self._writable = True
+            self._writable = not trypending
+        elif writable and trypending:
+            msg = b"cannot use try-pending on a writable revlog"
+            raise error.ProgrammingError(msg)
         else:
             self._writable = bool(writable)
 
@@ -2343,10 +2346,6 @@ class revlog:
     def _writing(self, transaction):
         if not self._writable:
             msg = b'try to write in a revlog marked as non-writable: %s'
-            msg %= self.display_id
-            raise error.ProgrammingError(msg)
-        if self._trypending:
-            msg = b'try to write in a `trypending` revlog: %s'
             msg %= self.display_id
             raise error.ProgrammingError(msg)
         if self._inner.is_writing:
