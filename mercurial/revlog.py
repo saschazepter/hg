@@ -677,10 +677,12 @@ class revlog:
             return b'%s.i.%s' % (self.radix, postfix)
         elif try_pending and self.opener.exists(b'%s.i.a' % self.radix):
             return b'%s.i.a' % self.radix
-        elif try_split and self.opener.exists(self._split_index_file):
-            return self._split_index_file
         else:
-            return b'%s.i' % self.radix
+            split = revlog_init.split_index_filename(self.radix)
+            if try_split and self.opener.exists(split):
+                return split
+            else:
+                return b'%s.i' % self.radix
 
     def _load_entry_point(
         self,
@@ -2235,25 +2237,6 @@ class revlog:
         """True if this revlog can use the "rev-diff-extra" fast path"""
         return self._inner.has_revdiff_extra and not self._large_file_enabled
 
-    @property
-    def _split_index_file(self):
-        """the path where to expect the index of an ongoing splitting operation
-
-        The file will only exist if a splitting operation is in progress, but
-        it is always expected at the same location."""
-        parts = self.radix.split(b'/')
-        if len(parts) > 1:
-            # adds a '-s' prefix to the ``data/` or `meta/` base
-            head = parts[0] + b'-s'
-            mids = parts[1:-1]
-            tail = parts[-1] + b'.i'
-            pieces = [head] + mids + [tail]
-            return b'/'.join(pieces)
-        else:
-            # the revlog is stored at the root of the store (changelog or
-            # manifest), no risk of collision.
-            return self.radix + b'.i.s'
-
     def _enforceinlinesize(self, tr):
         """Check if the revlog is too big for inline and convert if so.
 
@@ -2287,7 +2270,7 @@ class revlog:
 
         new_index_file_path = None
         old_index_file_path = self._indexfile
-        new_index_file_path = self._split_index_file
+        new_index_file_path = revlog_init.split_index_filename(self.radix)
         opener = self.opener
         weak_self = weakref.ref(self)
 

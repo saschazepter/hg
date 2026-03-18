@@ -44,3 +44,22 @@ def default_header(
     else:
         new_header = constants.REVLOG_DEFAULT_VERSION
     return new_header
+
+
+def split_index_filename(radix):
+    """the path where to expect the index of an ongoing splitting operation
+
+    The file will only exist if a splitting operation is in progress, but
+    it is always expected at the same location."""
+    parts = radix.split(b'/')
+    if len(parts) > 1:
+        # adds a '-s' prefix to the ``data/` or `meta/` base
+        head = parts[0] + b'-s'
+        mids = parts[1:-1]
+        tail = parts[-1] + b'.i'
+        pieces = [head] + mids + [tail]
+        return b'/'.join(pieces)
+    else:
+        # the revlog is stored at the root of the store (changelog or
+        # manifest), no risk of collision.
+        return radix + b'.i.s'
