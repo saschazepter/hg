@@ -673,6 +673,9 @@ class revlog:
         configs = self.configs
         display_id = self.display_id
 
+        files = {}
+        docket = None
+
         entry_point = revlog_init.find_entry_point_path(
             vfs,
             radix,
@@ -725,27 +728,23 @@ class revlog:
             configs.feature.compute_rank = compute_rank
 
         if configs.feature.persistent_nodemap:
-            self._nodemap_file = nodemaputil.get_nodemap_file(
-                self.opener,
-                self.radix,
+            files["nodemap"] = nodemaputil.get_nodemap_file(
+                vfs,
+                radix,
                 try_pending=try_pending,
             )
 
-        self._inline = inline
-        self._format_version = format_version
-        self._format_flags = format_flags
-
         if not features['docket']:
-            self._indexfile = entry_point
+            files["index"] = entry_point
             if postfix is None:
-                self._datafile = b'%s.d' % radix
+                files["data"] = b'%s.d' % radix
             else:
-                self._datafile = b'%s.d.%s' % (radix, postfix)
-            return entry_data
+                files["data"] = b'%s.d.%s' % (radix, postfix)
+            index_data = entry_data
         else:
-            self._docket_file = entry_point
+            files["docket"] = entry_point
             if initempty:
-                self._docket = docketutil.default_docket(
+                docket = docketutil.default_docket(
                     vfs,
                     radix,
                     entry_point,
@@ -753,16 +752,26 @@ class revlog:
                     header,
                 )
             else:
-                self._docket = docketutil.parse_docket(
+                docket = docketutil.parse_docket(
                     vfs,
                     radix,
                     entry_point,
                     entry_data,
                     use_pending=try_pending,
                 )
-            return self._load_secondary_files()
+            index_data, other_files = self._load_secondary_files(docket)
+            files.update(other_files)
 
-    def _load_secondary_files(self):
+        return revlog_init._RevlogInit(
+            format_version=format_version,
+            format_flags=format_flags,
+            files=files,
+            index_data=index_data,
+            inline=inline,
+            docket=docket,
+        )
+
+    def _load_secondary_files(self, docket):
         """init-method: process a docket to initialize secondary files
 
         Returns the index data.
@@ -770,34 +779,38 @@ class revlog:
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
         """
-        if self._docket is None:
+        vfs = self.opener
+        configs = self.configs
+        display_id = self.display_id
+
+        if docket is None:
             msg = "can't load secondary file without a docket"
             raise error.ProgrammingError(msg)
-        self._indexfile = self._docket.index_filepath()
+        files = {}
+        files["index"] = docket.index_filepath()
         index_data = b''
-        index_size = self._docket.index_end
+        index_size = docket.index_end
         if index_size > 0:
-            index_data = self.opener.tryread(
-                self._indexfile,
-                self.configs.data.mmap_index_threshold,
+            index_data = vfs.tryread(
+                files["index"],
+                configs.data.mmap_index_threshold,
                 size=index_size,
             )
             if len(index_data) < index_size:
                 msg = _(b'too few index data for %s: got %d, expected %d')
-                msg %= (self.display_id, len(index_data), index_size)
+                msg %= (display_id, len(index_data), index_size)
                 raise error.RevlogError(msg)
 
-        self._inline = False
         # generaldelta implied by version 2 revlogs.
-        self.configs.delta.general_delta = True
-        self.configs.data.generaldelta = True
+        configs.delta.general_delta = True
+        configs.data.generaldelta = True
         # the logic for persistent nodemap will be dealt with within the
         # main docket, so disable it for now.
-        self._nodemap_file = None
+        files["nodemap"] = None
 
-        self._datafile = self._docket.data_filepath()
-        self._sidedatafile = self._docket.sidedata_filepath()
-        return index_data
+        files["data"] = docket.data_filepath()
+        files["sidedata"] = docket.sidedata_filepath()
+        return index_data, files
 
     @property
     def _parse_index(self):
@@ -861,14 +874,24 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
-        index_data = self._load_entry_point(
+        init_data = self._load_entry_point(
             postfix=postfix,
             try_split=try_split,
             try_pending=try_pending,
         )
+        self._format_version = init_data.format_version
+        self._format_flags = init_data.format_flags
+        self._docket = init_data.docket
+        self._inline = init_data.inline
+        self.docket = init_data.docket
+        self._indexfile = init_data.files.get("index")
+        self._datafile = init_data.files.get("data")
+        self._docket_file = init_data.files.get("docket")
+        self._nodemap_file = init_data.files.get("nodemap")
+        self._sidedatafile = init_data.files.get("sidedata")
 
         self.configs.finalize()
-        self._load_inner(index_data)
+        self._load_inner(init_data.index_data)
 
     def refresh(self, docket=None):
         """refresh the state from on-disk state
@@ -883,9 +906,23 @@ class revlog:
                 self.opener,
                 self.radix,
             )
-            index_data = self._load_secondary_files()
+            index_data, files = self._load_secondary_files(docket)
+            self._indexfile = files.get("index")
+            self._datafile = files.get("data")
+            self._nodemap_file = files.get("nodemap")
+            self._sidedatafile = files.get("sidedata")
         else:
-            index_data = self._load_entry_point()
+            init_data = self._load_entry_point()
+            self._format_version = init_data.format_version
+            self._format_flags = init_data.format_flags
+            self._inline = init_data.inline
+            assert init_data.docket is None
+            self._indexfile = init_data.files.get("index")
+            self._datafile = init_data.files.get("data")
+            assert init_data.files.get("docket") is None
+            assert init_data.files.get("nodemap") is None
+            assert init_data.files.get("sidedata") is None
+            index_data = init_data.index_data
 
         self.configs.finalize()
         self._load_inner(index_data)

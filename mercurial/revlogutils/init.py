@@ -8,14 +8,40 @@
 
 from __future__ import annotations
 
+import typing
+
+from typing import Dict, Optional
+
+from ..thirdparty import attr
+
 from .. import (
     vfs as vfsmod,
 )
 
+
 from . import (
     config,
     constants,
+    docket,
 )
+
+
+# Force pytype to use the non-vendored package
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
+
+
+@attr.s()
+class _RevlogInit:
+    """a utility class that hold initialization information"""
+
+    format_version = attr.ib(type=int)
+    format_flags = attr.ib(type=int)
+    files = attr.ib(type=Dict[str, Optional[bytes]])
+    index_data = attr.ib(type=bytes)
+    inline = attr.ib(default=False, type=bool)
+    docket = attr.ib(default=None, type=docket.RevlogDocket)
 
 
 def default_header(
