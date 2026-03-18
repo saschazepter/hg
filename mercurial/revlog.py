@@ -733,7 +733,6 @@ class revlog:
         self._nodemap_file = init_data.files.get("nodemap")
         self._sidedatafile = init_data.files.get("sidedata")
 
-        self.configs.finalize()
         self._load_inner(init_data.index_data)
 
     def refresh(self, docket=None):
@@ -778,7 +777,6 @@ class revlog:
             assert init_data.files.get("sidedata") is None
             index_data = init_data.index_data
 
-        self.configs.finalize()
         self._load_inner(index_data)
 
     def _load_inner(self, index_data):

@@ -230,6 +230,7 @@ def load_entry_point(
         )
         files.update(other_files)
 
+    configs.finalize()
     return _RevlogInit(
         format_version=format_version,
         format_flags=format_flags,
