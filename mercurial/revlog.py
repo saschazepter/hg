@@ -552,10 +552,10 @@ class revlog:
         target,
         radix,
         *,
-        postfix=None,  # only exist for `tmpcensored` now
-        trypending=False,
-        try_split=False,
-        configs=None,
+        postfix: bytes | None = None,  # only exist for `tmpcensored` now
+        trypending: bool = False,
+        try_split: bool = False,
+        configs: revlog_config.RevlogConfigs | None = None,
         writable: bool | None = None,  # None is "unspecified" and allow writing
     ):
         """
@@ -579,9 +579,6 @@ class revlog:
         self._datafile = None
         self._sidedatafile = None
         self._nodemap_file = None
-        self.postfix = postfix
-        self._trypending = trypending
-        self._try_split = try_split
         self.opener = opener
 
         assert target[0] in ALL_KINDS
@@ -610,7 +607,10 @@ class revlog:
         self.configs = rl_conf
 
         if self.configs.feature.persistent_nodemap:
-            self._nodemap_file = nodemaputil.get_nodemap_file(self)
+            self._nodemap_file = nodemaputil.get_nodemap_file(
+                self,
+                try_pending=trypending,
+            )
 
         self.nodeconstants = sha1nodeconstants
         self.nullid = self.nodeconstants.nullid
@@ -641,7 +641,7 @@ class revlog:
         # prevent nesting of addgroup
         self._adding_group = None
 
-        self._init()
+        self._init(postfix=postfix, try_pending=trypending, try_split=try_split)
 
     def _default_header(self):
         """init-method: process options config and return corresponding default
@@ -702,22 +702,32 @@ class revlog:
             return self.configs.data.mmap_index_threshold
         return None
 
-    def _find_entry_point_path(self):
+    def _find_entry_point_path(
+        self,
+        postfix: bytes | None = None,
+        try_pending: bool = False,
+        try_split: bool = False,
+    ):
         """init-method: compute the path of the entry point for this revlog
 
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
         """
-        if self.postfix is not None:
-            return b'%s.i.%s' % (self.radix, self.postfix)
-        elif self._trypending and self.opener.exists(b'%s.i.a' % self.radix):
+        if postfix is not None:
+            return b'%s.i.%s' % (self.radix, postfix)
+        elif try_pending and self.opener.exists(b'%s.i.a' % self.radix):
             return b'%s.i.a' % self.radix
-        elif self._try_split and self.opener.exists(self._split_index_file):
+        elif try_split and self.opener.exists(self._split_index_file):
             return self._split_index_file
         else:
             return b'%s.i' % self.radix
 
-    def _load_entry_point(self):
+    def _load_entry_point(
+        self,
+        postfix: bytes | None = None,
+        try_pending: bool = False,
+        try_split: bool = False,
+    ):
         """init-method: load revlog entry point from disk
 
         * For formats using a docket, this will load the docket.
@@ -729,7 +739,11 @@ class revlog:
         sequence is cut into multiple methods for clarity.
         """
 
-        entry_point = self._find_entry_point_path()
+        entry_point = self._find_entry_point_path(
+            postfix=postfix,
+            try_pending=try_pending,
+            try_split=try_split,
+        )
         entry_data = self.opener.tryread(
             entry_point,
             self._mmap_index_threshold,
@@ -781,10 +795,10 @@ class revlog:
 
         if not features['docket']:
             self._indexfile = entry_point
-            if self.postfix is None:
+            if postfix is None:
                 self._datafile = b'%s.d' % self.radix
             else:
-                self._datafile = b'%s.d.%s' % (self.radix, self.postfix)
+                self._datafile = b'%s.d.%s' % (self.radix, postfix)
             return entry_data
         else:
             self._docket_file = entry_point
@@ -794,7 +808,7 @@ class revlog:
                 self._docket = docketutil.parse_docket(
                     self,
                     entry_data,
-                    use_pending=self._trypending,
+                    use_pending=try_pending,
                 )
             return self._load_secondary_files()
 
@@ -884,7 +898,12 @@ class revlog:
             use_rust_index = False
         return use_rust_index
 
-    def _init(self):
+    def _init(
+        self,
+        postfix: bytes | None = None,  # only exist for `tmpcensored` now
+        try_pending: bool = False,
+        try_split: bool = False,
+    ):
         """init-method: run various init logic for new or rewriten revlogs
 
         This method is part of the initialization sequence. That initialization
@@ -892,7 +911,11 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
-        index_data = self._load_entry_point()
+        index_data = self._load_entry_point(
+            postfix=postfix,
+            try_split=try_split,
+            try_pending=try_pending,
+        )
 
         self.configs.finalize()
         self._load_inner(index_data)

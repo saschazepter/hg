@@ -662,8 +662,8 @@ def _find_node(block, node):
     return entry
 
 
-def get_nodemap_file(revlog):
-    if revlog._trypending:
+def get_nodemap_file(revlog, try_pending=False):
+    if try_pending:
         pending_path = revlog.radix + b".n.a"
         if revlog.opener.exists(pending_path):
             return pending_path
