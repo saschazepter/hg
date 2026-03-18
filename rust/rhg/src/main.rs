@@ -427,13 +427,14 @@ fn setup_tracing() -> FlushGuard {
 #[cfg(not(feature = "full-tracing"))]
 /// Enable an env-filtered logger to stderr
 fn setup_tracing() {
-    let registry = tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
-        .with(EnvFilter::from_default_env());
-    let fmt_layer = tracing_subscriber::fmt::layer()
-        .with_writer(std::io::stderr)
-        .with_span_events(FmtSpan::CLOSE);
-    registry.with(fmt_layer).init()
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_span_events(FmtSpan::CLOSE),
+        )
+        .with(EnvFilter::from_default_env())
+        .init()
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
