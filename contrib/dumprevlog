@@ -43,6 +43,7 @@ if pycompat.iswindows:
 else:
     binopen.base = b"/"
 binopen.read_write = False
+binopen.tryread = lambda path, mmapindex: binopen(path).read()
 
 
 def printb(data, end=b'\n'):

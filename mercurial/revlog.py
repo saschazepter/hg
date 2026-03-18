@@ -700,34 +700,6 @@ class revlog:
             return self.configs.data.mmap_index_threshold
         return None
 
-    def _get_data(self, filepath, mmap_threshold, size=None):
-        """return a file content with or without mmap
-
-        If the file is missing return the empty string"""
-        try:
-            with self.opener(filepath) as fp:
-                if mmap_threshold is not None:
-                    file_size = self.opener.fstat(fp).st_size
-                    if (
-                        file_size >= mmap_threshold
-                        and self.opener.is_mmap_safe(filepath)
-                    ):
-                        if size is not None:
-                            # avoid potentiel mmap crash
-                            size = min(file_size, size)
-                        # TODO: should .close() to release resources without
-                        # relying on Python GC
-                        if size is None:
-                            return util.buffer(util.mmapread(fp))
-                        else:
-                            return util.buffer(util.mmapread(fp, size))
-                if size is None:
-                    return fp.read()
-                else:
-                    return fp.read(size)
-        except FileNotFoundError:
-            return b''
-
     def _find_entry_point_path(self):
         """init-method: compute the path of the entry point for this revlog
 
@@ -757,7 +729,10 @@ class revlog:
 
         self._initempty = True
         entry_point = self._find_entry_point_path()
-        entry_data = self._get_data(entry_point, self._mmap_index_threshold)
+        entry_data = self.opener.tryread(
+            entry_point,
+            self._mmap_index_threshold,
+        )
         if len(entry_data) > 0:
             header = INDEX_HEADER.unpack(entry_data[:4])[0]
             self._initempty = False
@@ -832,7 +807,7 @@ class revlog:
         index_data = b''
         index_size = self._docket.index_end
         if index_size > 0:
-            index_data = self._get_data(
+            index_data = self.opener.tryread(
                 self._indexfile,
                 self._mmap_index_threshold,
                 size=index_size,

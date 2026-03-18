@@ -56,6 +56,7 @@ We approximate that by reducing the read buffer to 1 byte.
   >     wrapper.filter_name = o.filter_name
   >     wrapper.base = o.base
   >     wrapper.read_write = o.read_write
+  >     wrapper.tryread = o.tryread
   >     return wrapper
   > 
   > cl = changelog.changelog(opener(b'.hg/store'))

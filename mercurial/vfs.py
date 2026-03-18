@@ -122,10 +122,10 @@ class abstractvfs(abc.ABC):
     def join(self, path: bytes | None, *insidef: bytes) -> bytes:
         ...
 
-    def tryread(self, path: bytes) -> bytes:
+    def tryread(self, path: bytes, mmap_threshold=None, size=None) -> bytes:
         '''gracefully return an empty string for missing files'''
         try:
-            return self.read(path)
+            return self.read(path, mmap_threshold, size)
         except FileNotFoundError:
             pass
         return b""
@@ -148,9 +148,24 @@ class abstractvfs(abc.ABC):
         """
         return self.__call__
 
-    def read(self, path: bytes) -> bytes:
+    def read(self, path: bytes, mmap_threshold=None, size=None) -> bytes:
         with self(path, b'rb') as fp:
-            return fp.read()
+            if mmap_threshold is not None:
+                file_size = self.fstat(fp).st_size
+                if file_size >= mmap_threshold and self.is_mmap_safe(path):
+                    if size is not None:
+                        # avoid potentiel mmap crash
+                        size = min(file_size, size)
+                    # TODO: should .close() to release resources without
+                    # relying on Python GC
+                    if size is None:
+                        return util.buffer(util.mmapread(fp))
+                    else:
+                        return util.buffer(util.mmapread(fp, size))
+            if size is None:
+                return fp.read()
+            else:
+                return fp.read(size)
 
     def readlines(self, path: bytes, mode: bytes = b'rb') -> list[bytes]:
         with self(path, mode=mode) as fp:
