@@ -14,16 +14,15 @@ from typing import Dict, Optional
 
 from ..thirdparty import attr
 
+from ..i18n import _
+
 from .. import (
+    error,
     vfs as vfsmod,
 )
 
 
-from . import (
-    config,
-    constants,
-    docket,
-)
+from . import config, constants, docket as docketutil, nodemap as nodemaputil
 
 
 # Force pytype to use the non-vendored package
@@ -41,7 +40,7 @@ class _RevlogInit:
     files = attr.ib(type=Dict[str, Optional[bytes]])
     index_data = attr.ib(type=bytes)
     inline = attr.ib(default=False, type=bool)
-    docket = attr.ib(default=None, type=docket.RevlogDocket)
+    docket = attr.ib(default=None, type=docketutil.RevlogDocket)
 
 
 def default_header(
@@ -118,3 +117,162 @@ def split_index_filename(radix):
         # the revlog is stored at the root of the store (changelog or
         # manifest), no risk of collision.
         return radix + b'.i.s'
+
+
+def load_entry_point(
+    vfs: vfsmod.vfs,
+    radix: bytes,
+    kind: constants.Kind,
+    configs: config.RevlogConfigs,
+    display_id: bytes,
+    postfix: bytes | None = None,
+    try_pending: bool = False,
+    try_split: bool = False,
+) -> _RevlogInit:
+    """init-method: load revlog entry point from disk
+
+    * For formats using a docket, this will load the docket.
+    * For formats not using a docket, this means accessing the index.
+
+    Returns the index data.
+
+    This method is part of the initialization sequence. That initialization
+    sequence is cut into multiple methods for clarity.
+    """
+    files = {}
+    docket = None
+
+    entry_point = find_entry_point_path(
+        vfs,
+        radix,
+        postfix=postfix,
+        try_pending=try_pending,
+        try_split=try_split,
+    )
+    entry_data = vfs.tryread(
+        entry_point,
+        configs.data.mmap_index_threshold,
+    )
+    if len(entry_data) > 0:
+        header = constants.INDEX_HEADER.unpack(entry_data[:4])[0]
+        initempty = False
+        format_flags = header & ~0xFFFF
+        format_version = header & 0xFFFF
+    else:
+        header = default_header(
+            vfs.options,
+            kind,
+            configs,
+        )
+        initempty = True
+        format_flags = header & ~0xFFFF
+        format_version = header & 0xFFFF
+
+    supported_flags = constants.SUPPORTED_FLAGS.get(format_version)
+    if supported_flags is None:
+        msg = _(b'unknown version (%d) in revlog %s')
+        msg %= (format_version, display_id)
+        raise error.RevlogError(msg)
+    elif format_flags & ~supported_flags:
+        msg = _(b'unknown flags (%#04x) in version %d revlog %s')
+        display_flag = format_flags >> 16
+        msg %= (display_flag, format_version, display_id)
+        raise error.RevlogError(msg)
+
+    features = constants.FEATURES_BY_VERSION[format_version]
+    inline = features['inline'](format_flags)
+    configs.delta.general_delta = features['generaldelta'](format_flags)
+    configs.delta.delta_info = features['delta_info'](format_flags)
+    configs.data.generaldelta = configs.delta.general_delta
+    configs.data.delta_info = configs.delta.delta_info
+    configs.feature.has_side_data = features['sidedata']
+    configs.feature.hasmeta_flag = features['hasmeta_flag'](format_flags)
+
+    if format_version == constants.CHANGELOGV2:
+        opts = vfs.options
+        compute_rank = opts.get(b'changelogv2.compute-rank', True)
+        configs.feature.compute_rank = compute_rank
+
+    if configs.feature.persistent_nodemap:
+        files["nodemap"] = nodemaputil.get_nodemap_file(
+            vfs,
+            radix,
+            try_pending=try_pending,
+        )
+
+    if not features['docket']:
+        files["index"] = entry_point
+        if postfix is None:
+            files["data"] = b'%s.d' % radix
+        else:
+            files["data"] = b'%s.d.%s' % (radix, postfix)
+        index_data = entry_data
+    else:
+        files["docket"] = entry_point
+        if initempty:
+            docket = docketutil.default_docket(
+                vfs,
+                radix,
+                entry_point,
+                configs,
+                header,
+            )
+        else:
+            docket = docketutil.parse_docket(
+                vfs,
+                radix,
+                entry_point,
+                entry_data,
+                use_pending=try_pending,
+            )
+        index_data, other_files = load_secondary_files(
+            vfs, configs, display_id, docket
+        )
+        files.update(other_files)
+
+    return _RevlogInit(
+        format_version=format_version,
+        format_flags=format_flags,
+        files=files,
+        index_data=index_data,
+        inline=inline,
+        docket=docket,
+    )
+
+
+def load_secondary_files(vfs, configs, display_id, docket):
+    """init-method: process a docket to initialize secondary files
+
+    Returns the index data.
+
+    This method is part of the initialization sequence. That initialization
+    sequence is cut into multiple methods for clarity.
+    """
+    if docket is None:
+        msg = "can't load secondary file without a docket"
+        raise error.ProgrammingError(msg)
+    files = {}
+    files["index"] = docket.index_filepath()
+    index_data = b''
+    index_size = docket.index_end
+    if index_size > 0:
+        index_data = vfs.tryread(
+            files["index"],
+            configs.data.mmap_index_threshold,
+            size=index_size,
+        )
+        if len(index_data) < index_size:
+            msg = _(b'too few index data for %s: got %d, expected %d')
+            msg %= (display_id, len(index_data), index_size)
+            raise error.RevlogError(msg)
+
+    # generaldelta implied by version 2 revlogs.
+    configs.delta.general_delta = True
+    configs.data.generaldelta = True
+    # the logic for persistent nodemap will be dealt with within the
+    # main docket, so disable it for now.
+    files["nodemap"] = None
+
+    files["data"] = docket.data_filepath()
+    files["sidedata"] = docket.sidedata_filepath()
+    return index_data, files

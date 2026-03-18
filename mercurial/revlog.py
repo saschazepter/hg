@@ -82,7 +82,6 @@ from .revlogutils.constants import (
     REVLOG_DEFAULT_FLAGS,
     REVLOG_DEFAULT_FORMAT,
     REVLOG_DEFAULT_VERSION,
-    SUPPORTED_FLAGS,
 )
 from .thirdparty import attr
 from .interfaces import compression as i_comp
@@ -651,167 +650,6 @@ class revlog:
         # TODO: deprecate this in later version
         return self.configs.feature
 
-    def _load_entry_point(
-        self,
-        postfix: bytes | None = None,
-        try_pending: bool = False,
-        try_split: bool = False,
-    ):
-        """init-method: load revlog entry point from disk
-
-        * For formats using a docket, this will load the docket.
-        * For formats not using a docket, this means accessing the index.
-
-        Returns the index data.
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-        vfs = self.opener
-        radix = self.radix
-        kind = self.revlog_kind
-        configs = self.configs
-        display_id = self.display_id
-
-        files = {}
-        docket = None
-
-        entry_point = revlog_init.find_entry_point_path(
-            vfs,
-            radix,
-            postfix=postfix,
-            try_pending=try_pending,
-            try_split=try_split,
-        )
-        entry_data = vfs.tryread(
-            entry_point,
-            configs.data.mmap_index_threshold,
-        )
-        if len(entry_data) > 0:
-            header = INDEX_HEADER.unpack(entry_data[:4])[0]
-            initempty = False
-            format_flags = header & ~0xFFFF
-            format_version = header & 0xFFFF
-        else:
-            header = revlog_init.default_header(
-                vfs.options,
-                kind,
-                configs,
-            )
-            initempty = True
-            format_flags = header & ~0xFFFF
-            format_version = header & 0xFFFF
-
-        supported_flags = SUPPORTED_FLAGS.get(format_version)
-        if supported_flags is None:
-            msg = _(b'unknown version (%d) in revlog %s')
-            msg %= (format_version, display_id)
-            raise error.RevlogError(msg)
-        elif format_flags & ~supported_flags:
-            msg = _(b'unknown flags (%#04x) in version %d revlog %s')
-            display_flag = format_flags >> 16
-            msg %= (display_flag, format_version, display_id)
-            raise error.RevlogError(msg)
-
-        features = FEATURES_BY_VERSION[format_version]
-        inline = features['inline'](format_flags)
-        configs.delta.general_delta = features['generaldelta'](format_flags)
-        configs.delta.delta_info = features['delta_info'](format_flags)
-        configs.data.generaldelta = configs.delta.general_delta
-        configs.data.delta_info = configs.delta.delta_info
-        configs.feature.has_side_data = features['sidedata']
-        configs.feature.hasmeta_flag = features['hasmeta_flag'](format_flags)
-
-        if format_version == CHANGELOGV2:
-            opts = vfs.options
-            compute_rank = opts.get(b'changelogv2.compute-rank', True)
-            configs.feature.compute_rank = compute_rank
-
-        if configs.feature.persistent_nodemap:
-            files["nodemap"] = nodemaputil.get_nodemap_file(
-                vfs,
-                radix,
-                try_pending=try_pending,
-            )
-
-        if not features['docket']:
-            files["index"] = entry_point
-            if postfix is None:
-                files["data"] = b'%s.d' % radix
-            else:
-                files["data"] = b'%s.d.%s' % (radix, postfix)
-            index_data = entry_data
-        else:
-            files["docket"] = entry_point
-            if initempty:
-                docket = docketutil.default_docket(
-                    vfs,
-                    radix,
-                    entry_point,
-                    configs,
-                    header,
-                )
-            else:
-                docket = docketutil.parse_docket(
-                    vfs,
-                    radix,
-                    entry_point,
-                    entry_data,
-                    use_pending=try_pending,
-                )
-            index_data, other_files = self._load_secondary_files(docket)
-            files.update(other_files)
-
-        return revlog_init._RevlogInit(
-            format_version=format_version,
-            format_flags=format_flags,
-            files=files,
-            index_data=index_data,
-            inline=inline,
-            docket=docket,
-        )
-
-    def _load_secondary_files(self, docket):
-        """init-method: process a docket to initialize secondary files
-
-        Returns the index data.
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-        vfs = self.opener
-        configs = self.configs
-        display_id = self.display_id
-
-        if docket is None:
-            msg = "can't load secondary file without a docket"
-            raise error.ProgrammingError(msg)
-        files = {}
-        files["index"] = docket.index_filepath()
-        index_data = b''
-        index_size = docket.index_end
-        if index_size > 0:
-            index_data = vfs.tryread(
-                files["index"],
-                configs.data.mmap_index_threshold,
-                size=index_size,
-            )
-            if len(index_data) < index_size:
-                msg = _(b'too few index data for %s: got %d, expected %d')
-                msg %= (display_id, len(index_data), index_size)
-                raise error.RevlogError(msg)
-
-        # generaldelta implied by version 2 revlogs.
-        configs.delta.general_delta = True
-        configs.data.generaldelta = True
-        # the logic for persistent nodemap will be dealt with within the
-        # main docket, so disable it for now.
-        files["nodemap"] = None
-
-        files["data"] = docket.data_filepath()
-        files["sidedata"] = docket.sidedata_filepath()
-        return index_data, files
-
     @property
     def _parse_index(self):
         """init-method: select the right parser for index data
@@ -874,7 +712,12 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
-        init_data = self._load_entry_point(
+        init_data = revlog_init.load_entry_point(
+            vfs=self.opener,
+            radix=self.radix,
+            kind=self.revlog_kind,
+            configs=self.configs,
+            display_id=self.display_id,
             postfix=postfix,
             try_split=try_split,
             try_pending=try_pending,
@@ -906,13 +749,24 @@ class revlog:
                 self.opener,
                 self.radix,
             )
-            index_data, files = self._load_secondary_files(docket)
+            index_data, files = revlog_init.load_secondary_files(
+                self.opener,
+                self.configs,
+                self.display_id,
+                docket,
+            )
             self._indexfile = files.get("index")
             self._datafile = files.get("data")
             self._nodemap_file = files.get("nodemap")
             self._sidedatafile = files.get("sidedata")
         else:
-            init_data = self._load_entry_point()
+            init_data = revlog_init.load_entry_point(
+                vfs=self.opener,
+                radix=self.radix,
+                kind=self.revlog_kind,
+                configs=self.configs,
+                display_id=self.display_id,
+            )
             self._format_version = init_data.format_version
             self._format_flags = init_data.format_flags
             self._inline = init_data.inline
