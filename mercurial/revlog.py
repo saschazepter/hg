@@ -651,17 +651,6 @@ class revlog:
         # TODO: deprecate this in later version
         return self.configs.feature
 
-    @property
-    def _mmap_index_threshold(self) -> int | None:
-        """init-method: determine size threshold for mmap usage
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-        if self.configs.data.mmap_large_index:
-            return self.configs.data.mmap_index_threshold
-        return None
-
     def _load_entry_point(
         self,
         postfix: bytes | None = None,
@@ -688,7 +677,7 @@ class revlog:
         )
         entry_data = self.opener.tryread(
             entry_point,
-            self._mmap_index_threshold,
+            self.configs.data.mmap_index_threshold,
         )
         if len(entry_data) > 0:
             header = INDEX_HEADER.unpack(entry_data[:4])[0]
@@ -781,7 +770,7 @@ class revlog:
         if index_size > 0:
             index_data = self.opener.tryread(
                 self._indexfile,
-                self._mmap_index_threshold,
+                self.configs.data.mmap_index_threshold,
                 size=index_size,
             )
             if len(index_data) < index_size:

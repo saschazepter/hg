@@ -205,7 +205,7 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
 
     has_populate = util.has_mmap_populate()
     if ui.configbool(b'storage', b'revlog.mmap.index', has_populate):
-        data_config.mmap_index_threshold = ui.configbytes(
+        data_config.raw_mmap_index_threshold = ui.configbytes(
             b'storage',
             b'revlog.mmap.index:size-threshold',
         )

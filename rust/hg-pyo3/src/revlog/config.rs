@@ -158,7 +158,10 @@ pub fn extract_data_config(
             try_split: extract_attr!(conf, "try_split")?,
             check_ambig: extract_attr!(conf, "check_ambig")?,
             mmap_large_index: extract_attr!(conf, "mmap_large_index")?,
-            mmap_index_threshold: extract_attr!(conf, "mmap_index_threshold")?,
+            raw_mmap_index_threshold: extract_attr!(
+                conf,
+                "raw_mmap_index_threshold"
+            )?,
             chunk_cache_size: extract_attr!(conf, "chunk_cache_size")?,
             uncompressed_cache_factor: extract_attr!(
                 conf,

@@ -147,7 +147,7 @@ pub struct RevlogDataConfig {
     /// If true, use mmap instead of reading to deal with large indexes
     pub mmap_large_index: bool,
     /// How much data is considered large
-    pub mmap_index_threshold: Option<u64>,
+    pub raw_mmap_index_threshold: Option<u64>,
     /// How much data to read and cache into the raw revlog data cache
     pub chunk_cache_size: u64,
     /// The size of the uncompressed cache compared to the largest revision
@@ -199,7 +199,7 @@ impl RevlogDataConfig {
             )?
         {
             // Only mmap if above the requested size threshold
-            data_config.mmap_index_threshold = Some(mmap_index_threshold);
+            data_config.raw_mmap_index_threshold = Some(mmap_index_threshold);
         }
 
         let with_sparse_read =
@@ -233,7 +233,7 @@ impl Default for RevlogDataConfig {
             try_split: Default::default(),
             check_ambig: Default::default(),
             mmap_large_index: Default::default(),
-            mmap_index_threshold: Default::default(),
+            raw_mmap_index_threshold: Default::default(),
             uncompressed_cache_factor: Default::default(),
             uncompressed_cache_count: Default::default(),
             with_sparse_read: Default::default(),

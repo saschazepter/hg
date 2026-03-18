@@ -717,7 +717,7 @@ pub fn open_index(
     let buf: DynBytes = match store_vfs.open(index_path) {
         Ok(mut file) => {
             let mut buf = if let Some(threshold) =
-                options.data_config.mmap_index_threshold
+                options.data_config.raw_mmap_index_threshold
             {
                 let size = store_vfs.file_size(&file)?;
                 if size >= threshold {

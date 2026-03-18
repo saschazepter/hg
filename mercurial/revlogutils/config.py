@@ -108,7 +108,7 @@ class DataConfig(_Config):
     # If true, use mmap instead of reading to deal with large index
     mmap_large_index = attr.ib(default=False, type=bool)
     # how much data is large
-    mmap_index_threshold = attr.ib(default=None, type=Optional[int])
+    raw_mmap_index_threshold = attr.ib(default=None, type=Optional[int])
     # How much data to read and cache into the raw revlog data cache.
     chunk_cache_size = attr.ib(
         default=65536,
@@ -137,6 +137,16 @@ class DataConfig(_Config):
     # (It is useful to have it here in addition to the one in DeltaConfig when
     # we need to exchange related information)
     delta_info = attr.ib(default=False)
+
+    @property
+    def mmap_index_threshold(self) -> int | None:
+        """determine the actual size threshold for mmap usage
+
+        A value of None mean that mmap is disabled altogether
+        """
+        if self.mmap_large_index:
+            return self.raw_mmap_index_threshold
+        return None
 
 
 @attr.s()
