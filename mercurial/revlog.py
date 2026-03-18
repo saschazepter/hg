@@ -711,7 +711,7 @@ class revlog:
             raise error.RevlogError(msg)
 
         features = FEATURES_BY_VERSION[format_version]
-        self._inline = features['inline'](format_flags)
+        inline = features['inline'](format_flags)
         configs.delta.general_delta = features['generaldelta'](format_flags)
         configs.delta.delta_info = features['delta_info'](format_flags)
         configs.data.generaldelta = configs.delta.general_delta
@@ -731,6 +731,7 @@ class revlog:
                 try_pending=try_pending,
             )
 
+        self._inline = inline
         self._format_version = format_version
         self._format_flags = format_flags
 
