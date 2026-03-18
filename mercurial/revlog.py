@@ -662,28 +662,6 @@ class revlog:
             return self.configs.data.mmap_index_threshold
         return None
 
-    def _find_entry_point_path(
-        self,
-        postfix: bytes | None = None,
-        try_pending: bool = False,
-        try_split: bool = False,
-    ):
-        """init-method: compute the path of the entry point for this revlog
-
-        This method is part of the initialization sequence. That initialization
-        sequence is cut into multiple methods for clarity.
-        """
-        if postfix is not None:
-            return b'%s.i.%s' % (self.radix, postfix)
-        elif try_pending and self.opener.exists(b'%s.i.a' % self.radix):
-            return b'%s.i.a' % self.radix
-        else:
-            split = revlog_init.split_index_filename(self.radix)
-            if try_split and self.opener.exists(split):
-                return split
-            else:
-                return b'%s.i' % self.radix
-
     def _load_entry_point(
         self,
         postfix: bytes | None = None,
@@ -701,7 +679,9 @@ class revlog:
         sequence is cut into multiple methods for clarity.
         """
 
-        entry_point = self._find_entry_point_path(
+        entry_point = revlog_init.find_entry_point_path(
+            self.opener,
+            self.radix,
             postfix=postfix,
             try_pending=try_pending,
             try_split=try_split,
@@ -901,7 +881,10 @@ class revlog:
         self.clearcaches()
         if docket is not None:
             self._docket = docket
-            self._docket_file = self._find_entry_point_path()
+            self._docket_file = revlog_init.find_entry_point_path(
+                self.opener,
+                self.radix,
+            )
             index_data = self._load_secondary_files()
         else:
             index_data = self._load_entry_point()

@@ -8,6 +8,10 @@
 
 from __future__ import annotations
 
+from .. import (
+    vfs as vfsmod,
+)
+
 from . import (
     config,
     constants,
@@ -44,6 +48,31 @@ def default_header(
     else:
         new_header = constants.REVLOG_DEFAULT_VERSION
     return new_header
+
+
+def find_entry_point_path(
+    vfs: vfsmod.vfs,
+    radix: bytes,
+    *,
+    postfix: bytes | None = None,
+    try_pending: bool = False,
+    try_split: bool = False,
+):
+    """init-method: compute the path of the entry point for this revlog
+
+    This method is part of the initialization sequence. That initialization
+    sequence is cut into multiple methods for clarity.
+    """
+    if postfix is not None:
+        return b'%s.i.%s' % (radix, postfix)
+    elif try_pending and vfs.exists(b'%s.i.a' % radix):
+        return b'%s.i.a' % radix
+    else:
+        split = split_index_filename(radix)
+        if try_split and vfs.exists(split):
+            return split
+        else:
+            return b'%s.i' % radix
 
 
 def split_index_filename(radix):
