@@ -2029,7 +2029,7 @@ class revlog:
 
     def _sidedata(self, rev):
         """Return the sidedata for a given revision number."""
-        if self._sidedatafile is None:
+        if not self.configs.feature.has_side_data:
             return {}
         sidedata_end = None
         if self._docket is not None:
@@ -2852,7 +2852,7 @@ class revlog:
         else:
             end = data_end + (rev * self.index.entry_size)
 
-        if self._sidedatafile:
+        if self.configs.feature.has_side_data:
             sidedata_end = self.sidedata_cut_off(rev)
             transaction.add(self._sidedatafile, sidedata_end)
 
