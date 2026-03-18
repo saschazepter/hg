@@ -556,9 +556,7 @@ class revlog:
         trypending=False,
         try_split=False,
         configs=None,
-        writable: Optional[
-            bool
-        ] = None,  # None is "unspecified" and allow writing
+        writable: bool | None = None,  # None is "unspecified" and allow writing
     ):
         """
         create a revlog object
