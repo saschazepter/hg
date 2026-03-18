@@ -181,7 +181,7 @@ class filelog(repository.ifilestorage):
             accepted_compression=accepted_compression,
         )
         revlog_hasmeta_flag = (
-            self._revlog._format_flags & revlog.FLAG_FILELOG_META
+            self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META
         )
         if use_hasmeta_flag and not revlog_hasmeta_flag:
             for d in all_revision_data:
@@ -218,7 +218,8 @@ class filelog(repository.ifilestorage):
     ):
         if (
             revlog_constants.REVIDX_HASMETA & flags
-            and not self._revlog._format_flags & revlog.FLAG_FILELOG_META
+            and not self._revlog._format_flags
+            & revlog_constants.FLAG_FILELOG_META
         ):
             assert p2 == self.nullid
             p1, p2 = self.nullid, p1
@@ -248,7 +249,7 @@ class filelog(repository.ifilestorage):
     ):
         with self._revlog._writing(transaction):
             revlog_hasmeta_flag = (
-                self._revlog._format_flags & revlog.FLAG_FILELOG_META
+                self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META
             )
             if use_hasmeta_flag:
                 if not revlog_hasmeta_flag:
@@ -354,7 +355,7 @@ class filelog(repository.ifilestorage):
 
     def has_meta(self, node):
         rev = self._revlog.rev(node)
-        if self._revlog._format_flags & revlog.FLAG_FILELOG_META:
+        if self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META:
             return self._revlog.flags(rev) & revlog_constants.REVIDX_HASMETA
         else:
             if self.parentrevs(rev)[0] != nullrev:
@@ -369,7 +370,7 @@ class filelog(repository.ifilestorage):
         """
         rev = self.rev(node)
         if (
-            self._revlog._format_flags & revlog.FLAG_FILELOG_META
+            self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META
             and not self.has_meta(node)
         ):
             return None
@@ -440,9 +441,12 @@ class filelog(repository.ifilestorage):
             msg %= destrevlog
             raise error.ProgrammingError(msg)
 
-        src_meta = bool(self._revlog._format_flags & revlog.FLAG_FILELOG_META)
+        src_meta = bool(
+            self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META
+        )
         dst_meta = bool(
-            destrevlog._revlog._format_flags & revlog.FLAG_FILELOG_META
+            destrevlog._revlog._format_flags
+            & revlog_constants.FLAG_FILELOG_META
         )
         kw = kwargs
         if src_meta and not dst_meta:
