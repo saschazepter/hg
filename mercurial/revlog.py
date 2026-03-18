@@ -606,12 +606,6 @@ class revlog:
             rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         self.configs = rl_conf
 
-        if self.configs.feature.persistent_nodemap:
-            self._nodemap_file = nodemaputil.get_nodemap_file(
-                self,
-                try_pending=trypending,
-            )
-
         self.nodeconstants = sha1nodeconstants
         self.nullid = self.nodeconstants.nullid
 
@@ -792,6 +786,12 @@ class revlog:
             opts = self.opener.options
             compute_rank = opts.get(b'changelogv2.compute-rank', True)
             self.configs.feature.compute_rank = compute_rank
+
+        if self.configs.feature.persistent_nodemap:
+            self._nodemap_file = nodemaputil.get_nodemap_file(
+                self,
+                try_pending=try_pending,
+            )
 
         if not features['docket']:
             self._indexfile = entry_point
