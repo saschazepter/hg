@@ -577,6 +577,9 @@ class revlog:
         self._datafile = None
         self._sidedatafile = None
         self._nodemap_file = None
+        self._docket = None
+        self._nodemap_docket = None
+        self.index: BaseIndexObject | None = None
         self.opener = opener
 
         assert target[0] in ALL_KINDS
@@ -593,16 +596,13 @@ class revlog:
         else:
             self._writable = bool(writable)
 
-        if target[0] == KIND_MANIFESTLOG:
-            self._diff_fn = mdiff.manifest_diff
-        else:
-            self._diff_fn = mdiff.storage_diff
-
         if configs is not None:
             rl_conf = configs.copy()
         else:
             rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         self.configs = rl_conf
+
+        self._init(postfix=postfix, try_pending=trypending, try_split=try_split)
 
         self.nodeconstants = sha1nodeconstants
         self.nullid = self.nodeconstants.nullid
@@ -612,9 +612,11 @@ class revlog:
         # revnum -> (chain-length, sum-delta-length)
         self._chaininfocache = util.lrucachedict(500)
 
-        self.index: BaseIndexObject | None = None
-        self._docket = None
-        self._nodemap_docket = None
+        if target[0] == KIND_MANIFESTLOG:
+            self._diff_fn = mdiff.manifest_diff
+        else:
+            self._diff_fn = mdiff.storage_diff
+
         # Mapping of partial identifiers to full nodes.
         self._pcache = {}
 
@@ -632,8 +634,6 @@ class revlog:
 
         # prevent nesting of addgroup
         self._adding_group = None
-
-        self._init(postfix=postfix, try_pending=trypending, try_split=try_split)
 
     @property
     def data_config(self):
