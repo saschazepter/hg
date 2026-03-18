@@ -120,8 +120,7 @@ def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
         assert not rl._inline
         rl.opener.rename(newrl._datafile, rl._datafile)
 
-    rl.clearcaches()
-    rl._init()
+    rl.refresh()
 
 
 def v2_censor(revlog, tr, censor_nodes, tombstone=b''):
@@ -309,8 +308,7 @@ def _setup_new_files(
     docket.sidedata_end = sidedata_cutoff
 
     # reload the revlog internal information
-    revlog.clearcaches()
-    revlog._init(docket=docket)
+    revlog.refresh(docket=docket)
 
     @contextlib.contextmanager
     def all_files_opener():
@@ -574,8 +572,7 @@ def _reorder_filelog_parents(repo, fl, to_fix):
                         ui.write(repaired_msg % (rev, index_file))
 
             rl.opener.rename(new_file_path, index_file)
-            rl.clearcaches()
-            rl._init()
+            rl.refresh()
         finally:
             util.tryunlink(new_file_path)
 

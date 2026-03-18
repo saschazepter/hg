@@ -884,7 +884,7 @@ class revlog:
             use_rust_index = False
         return use_rust_index
 
-    def _init(self, docket=None):
+    def _init(self):
         """init-method: run various init logic for new or rewriten revlogs
 
         This method is part of the initialization sequence. That initialization
@@ -892,6 +892,18 @@ class revlog:
 
         It is also used when reloading post-rewrite.
         """
+        index_data = self._load_entry_point()
+
+        self.configs.finalize()
+        self._load_inner(index_data)
+
+    def refresh(self, docket=None):
+        """refresh the state from on-disk state
+
+        Used to refresh the revlog content after something deeply change (like
+        a censoring).
+        """
+        self.clearcaches()
         if docket is not None:
             self._docket = docket
             self._docket_file = self._find_entry_point_path()
