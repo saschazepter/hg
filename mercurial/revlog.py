@@ -726,7 +726,8 @@ class revlog:
 
         if configs.feature.persistent_nodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(
-                self,
+                self.opener,
+                self.radix,
                 try_pending=try_pending,
             )
 

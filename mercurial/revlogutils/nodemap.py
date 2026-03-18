@@ -172,7 +172,7 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
         )
     if revlog._nodemap_file is None:
         if force:
-            revlog._nodemap_file = get_nodemap_file(revlog)
+            revlog._nodemap_file = get_nodemap_file(revlog.opener, revlog.radix)
         else:
             msg = "calling persist nodemap on a revlog without the feature enabled"
             raise error.ProgrammingError(msg)
@@ -662,9 +662,9 @@ def _find_node(block, node):
     return entry
 
 
-def get_nodemap_file(revlog, try_pending=False):
+def get_nodemap_file(vfs, radix: bytes, try_pending: bool = False):
     if try_pending:
-        pending_path = revlog.radix + b".n.a"
-        if revlog.opener.exists(pending_path):
+        pending_path = radix + b".n.a"
+        if vfs.exists(pending_path):
             return pending_path
-    return revlog.radix + b".n"
+    return radix + b".n"
