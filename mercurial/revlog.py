@@ -667,17 +667,22 @@ class revlog:
         This method is part of the initialization sequence. That initialization
         sequence is cut into multiple methods for clarity.
         """
+        vfs = self.opener
+        radix = self.radix
+        kind = self.revlog_kind
+        configs = self.configs
+        display_id = self.display_id
 
         entry_point = revlog_init.find_entry_point_path(
-            self.opener,
-            self.radix,
+            vfs,
+            radix,
             postfix=postfix,
             try_pending=try_pending,
             try_split=try_split,
         )
-        entry_data = self.opener.tryread(
+        entry_data = vfs.tryread(
             entry_point,
-            self.configs.data.mmap_index_threshold,
+            configs.data.mmap_index_threshold,
         )
         if len(entry_data) > 0:
             header = INDEX_HEADER.unpack(entry_data[:4])[0]
@@ -686,9 +691,9 @@ class revlog:
             format_version = header & 0xFFFF
         else:
             header = revlog_init.default_header(
-                self.opener.options,
-                self.revlog_kind,
-                self.configs,
+                vfs.options,
+                kind,
+                configs,
             )
             initempty = True
             format_flags = header & ~0xFFFF
@@ -700,35 +705,33 @@ class revlog:
         supported_flags = SUPPORTED_FLAGS.get(self._format_version)
         if supported_flags is None:
             msg = _(b'unknown version (%d) in revlog %s')
-            msg %= (self._format_version, self.display_id)
+            msg %= (self._format_version, display_id)
             raise error.RevlogError(msg)
         elif self._format_flags & ~supported_flags:
             msg = _(b'unknown flags (%#04x) in version %d revlog %s')
             display_flag = self._format_flags >> 16
-            msg %= (display_flag, self._format_version, self.display_id)
+            msg %= (display_flag, self._format_version, display_id)
             raise error.RevlogError(msg)
 
         features = FEATURES_BY_VERSION[self._format_version]
         self._inline = features['inline'](self._format_flags)
-        self.configs.delta.general_delta = features['generaldelta'](
+        configs.delta.general_delta = features['generaldelta'](
             self._format_flags
         )
-        self.configs.delta.delta_info = features['delta_info'](
-            self._format_flags
-        )
-        self.configs.data.generaldelta = self.configs.delta.general_delta
-        self.configs.data.delta_info = self.configs.delta.delta_info
-        self.configs.feature.has_side_data = features['sidedata']
-        self.configs.feature.hasmeta_flag = features['hasmeta_flag'](
+        configs.delta.delta_info = features['delta_info'](self._format_flags)
+        configs.data.generaldelta = configs.delta.general_delta
+        configs.data.delta_info = configs.delta.delta_info
+        configs.feature.has_side_data = features['sidedata']
+        configs.feature.hasmeta_flag = features['hasmeta_flag'](
             self._format_flags
         )
 
         if self._format_version == CHANGELOGV2:
-            opts = self.opener.options
+            opts = vfs.options
             compute_rank = opts.get(b'changelogv2.compute-rank', True)
-            self.configs.feature.compute_rank = compute_rank
+            configs.feature.compute_rank = compute_rank
 
-        if self.configs.feature.persistent_nodemap:
+        if configs.feature.persistent_nodemap:
             self._nodemap_file = nodemaputil.get_nodemap_file(
                 self,
                 try_pending=try_pending,
@@ -737,9 +740,9 @@ class revlog:
         if not features['docket']:
             self._indexfile = entry_point
             if postfix is None:
-                self._datafile = b'%s.d' % self.radix
+                self._datafile = b'%s.d' % radix
             else:
-                self._datafile = b'%s.d.%s' % (self.radix, postfix)
+                self._datafile = b'%s.d.%s' % (radix, postfix)
             return entry_data
         else:
             self._docket_file = entry_point
