@@ -699,34 +699,27 @@ class revlog:
             format_flags = header & ~0xFFFF
             format_version = header & 0xFFFF
 
-        self._format_flags = format_flags
-        self._format_version = format_version
-
-        supported_flags = SUPPORTED_FLAGS.get(self._format_version)
+        supported_flags = SUPPORTED_FLAGS.get(format_version)
         if supported_flags is None:
             msg = _(b'unknown version (%d) in revlog %s')
-            msg %= (self._format_version, display_id)
+            msg %= (format_version, display_id)
             raise error.RevlogError(msg)
-        elif self._format_flags & ~supported_flags:
+        elif format_flags & ~supported_flags:
             msg = _(b'unknown flags (%#04x) in version %d revlog %s')
-            display_flag = self._format_flags >> 16
-            msg %= (display_flag, self._format_version, display_id)
+            display_flag = format_flags >> 16
+            msg %= (display_flag, format_version, display_id)
             raise error.RevlogError(msg)
 
-        features = FEATURES_BY_VERSION[self._format_version]
-        self._inline = features['inline'](self._format_flags)
-        configs.delta.general_delta = features['generaldelta'](
-            self._format_flags
-        )
-        configs.delta.delta_info = features['delta_info'](self._format_flags)
+        features = FEATURES_BY_VERSION[format_version]
+        self._inline = features['inline'](format_flags)
+        configs.delta.general_delta = features['generaldelta'](format_flags)
+        configs.delta.delta_info = features['delta_info'](format_flags)
         configs.data.generaldelta = configs.delta.general_delta
         configs.data.delta_info = configs.delta.delta_info
         configs.feature.has_side_data = features['sidedata']
-        configs.feature.hasmeta_flag = features['hasmeta_flag'](
-            self._format_flags
-        )
+        configs.feature.hasmeta_flag = features['hasmeta_flag'](format_flags)
 
-        if self._format_version == CHANGELOGV2:
+        if format_version == CHANGELOGV2:
             opts = vfs.options
             compute_rank = opts.get(b'changelogv2.compute-rank', True)
             configs.feature.compute_rank = compute_rank
@@ -736,6 +729,9 @@ class revlog:
                 self,
                 try_pending=try_pending,
             )
+
+        self._format_version = format_version
+        self._format_flags = format_flags
 
         if not features['docket']:
             self._indexfile = entry_point
