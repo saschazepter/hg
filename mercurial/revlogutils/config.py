@@ -64,6 +64,9 @@ class FeatureConfig(_Config):
     # use a flag to signal that a filerevision constains metadata
     hasmeta_flag = attr.ib(default=False, type=bool)
 
+    # use a persistent nodemap
+    persistent_nodemap = attr.ib(default=False, type=bool)
+
     # When true, it is a valid option to use inline revlog for that revlog.
     #
     # This does mean the revlog is actually using inline. When set to False,

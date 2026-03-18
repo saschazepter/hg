@@ -1729,12 +1729,12 @@ class manifestrevlog(repository.imanifeststorage):
         rl_conf.data.check_ambig = not bool(tree)
         rl_conf.data.mmap_large_index = True
         rl_conf.delta.upper_bound_comp = MAXCOMPRESSION
+        rl_conf.feature.persistent_nodemap = persistentnodemap
         self._revlog = revlog.revlog(
             opener,
             target=(revlog_constants.KIND_MANIFESTLOG, self.tree),
             radix=radix,
             configs=rl_conf,
-            persistentnodemap=persistentnodemap,
         )
 
         self.index = self._revlog.index

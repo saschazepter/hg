@@ -310,6 +310,9 @@ class changelog(revlog.revlog):
         rl_conf.data.check_ambig = True
         rl_conf.data.mmap_large_index = True
         rl_conf.feature.may_inline = False
+        rl_conf.feature.persistent_nodemap = opener.options.get(
+            b'persistent-nodemap', False
+        )
         # Delta chains for changelogs tend to be very small because entries
         # tend to be small and don't delta well with each. So disable delta
         # chains.
@@ -319,7 +322,6 @@ class changelog(revlog.revlog):
             target=(revlog_constants.KIND_CHANGELOG, None),
             radix=b'00changelog',
             configs=rl_conf,
-            persistentnodemap=opener.options.get(b'persistent-nodemap', False),
             trypending=trypending,
         )
 

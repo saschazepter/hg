@@ -553,7 +553,6 @@ class revlog:
         radix,
         *,
         postfix=None,  # only exist for `tmpcensored` now
-        persistentnodemap=False,
         trypending=False,
         try_split=False,
         configs=None,
@@ -586,8 +585,6 @@ class revlog:
         self._trypending = trypending
         self._try_split = try_split
         self.opener = opener
-        if persistentnodemap:
-            self._nodemap_file = nodemaputil.get_nodemap_file(self)
 
         assert target[0] in ALL_KINDS
         assert len(target) == 2
@@ -613,6 +610,9 @@ class revlog:
         else:
             rl_conf = revlog_config.RevlogConfigs.from_opts(opener.options)
         self.configs = rl_conf
+
+        if self.configs.feature.persistent_nodemap:
+            self._nodemap_file = nodemaputil.get_nodemap_file(self)
 
         self.nodeconstants = sha1nodeconstants
         self.nullid = self.nodeconstants.nullid
