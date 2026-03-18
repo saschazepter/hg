@@ -659,10 +659,11 @@ class revlog:
             new_header = REVLOGV1
             if self.configs.feature.may_inline:
                 new_header |= FLAG_INLINE_DATA
-            if b'generaldelta' in opts:
-                new_header |= FLAG_GENERALDELTA
-                if opts.get(b'delta-info-flags'):
-                    new_header |= FLAG_DELTA_INFO
+            if self.revlog_kind != KIND_CHANGELOG:
+                if b'generaldelta' in opts:
+                    new_header |= FLAG_GENERALDELTA
+                    if opts.get(b'delta-info-flags'):
+                        new_header |= FLAG_DELTA_INFO
             if (
                 self.revlog_kind == KIND_FILELOG
                 and b'filelog_hasmeta_flag' in opts
@@ -727,7 +728,6 @@ class revlog:
         sequence is cut into multiple methods for clarity.
         """
 
-        self._initempty = True
         entry_point = self._find_entry_point_path()
         entry_data = self.opener.tryread(
             entry_point,
@@ -735,12 +735,17 @@ class revlog:
         )
         if len(entry_data) > 0:
             header = INDEX_HEADER.unpack(entry_data[:4])[0]
-            self._initempty = False
+            initempty = False
+            format_flags = header & ~0xFFFF
+            format_version = header & 0xFFFF
         else:
             header = self._default_header()
+            initempty = True
+            format_flags = header & ~0xFFFF
+            format_version = header & 0xFFFF
 
-        self._format_flags = header & ~0xFFFF
-        self._format_version = header & 0xFFFF
+        self._format_flags = format_flags
+        self._format_version = format_version
 
         supported_flags = SUPPORTED_FLAGS.get(self._format_version)
         if supported_flags is None:
@@ -782,7 +787,7 @@ class revlog:
             return entry_data
         else:
             self._docket_file = entry_point
-            if self._initempty:
+            if initempty:
                 self._docket = docketutil.default_docket(self, header)
             else:
                 self._docket = docketutil.parse_docket(

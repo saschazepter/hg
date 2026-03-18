@@ -1086,7 +1086,7 @@ Test debug-revlog-reencode
   $ hg debug::revlog-reencoded-delta-info -c
   working in: * (glob)
   format : 1
-  flags  : generaldelta
+  flags  : (none)
   
   revisions     :   4
       merges    :   0 ( 0.00%)
