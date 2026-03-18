@@ -745,10 +745,18 @@ class revlog:
         else:
             self._docket_file = entry_point
             if initempty:
-                self._docket = docketutil.default_docket(self, header)
+                self._docket = docketutil.default_docket(
+                    vfs,
+                    radix,
+                    entry_point,
+                    configs,
+                    header,
+                )
             else:
                 self._docket = docketutil.parse_docket(
-                    self,
+                    vfs,
+                    radix,
+                    entry_point,
                     entry_data,
                     use_pending=try_pending,
                 )

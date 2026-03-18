@@ -58,7 +58,9 @@ class RevlogDocket:
 
     def __init__(
         self,
-        revlog,
+        vfs,
+        radix,
+        file_path,
         use_pending=False,
         version_header=None,
         index_uuid=None,
@@ -78,9 +80,9 @@ class RevlogDocket:
         self._version_header = version_header
         self._read_only = bool(use_pending)
         self._dirty = False
-        self._radix = revlog.radix
-        self._path = revlog._docket_file
-        self._opener = revlog.opener
+        self._radix = radix
+        self._path = file_path
+        self._opener = vfs
         self._index_uuid = index_uuid
         self._older_index_uuids = older_index_uuids
         self._data_uuid = data_uuid
@@ -282,16 +284,22 @@ class RevlogDocket:
         return b''.join(s)
 
 
-def default_docket(revlog, version_header):
+def default_docket(
+    vfs,
+    radix,
+    file_path,
+    configs,
+    version_header,
+):
     """given a revlog version a new docket object for the given revlog"""
     rl_version = version_header & 0xFFFF
     if rl_version not in (constants.REVLOGV2, constants.CHANGELOGV2):
         return None
-    comp = util.compengines[
-        revlog.feature_config.compression_engine
-    ].revlogheader()
+    comp = util.compengines[configs.feature.compression_engine].revlogheader()
     docket = RevlogDocket(
-        revlog,
+        vfs,
+        radix,
+        file_path,
         version_header=version_header,
         default_compression_header=comp,
     )
@@ -383,11 +391,13 @@ def parse_docket_args(data):
     }
 
 
-def parse_docket(revlog, data, use_pending=False):
+def parse_docket(vfs, radix, file_path, data, use_pending=False):
     """given some docket data return a docket object for the given revlog"""
     args = parse_docket_args(data)
     docket = RevlogDocket(
-        revlog,
+        vfs,
+        radix,
+        file_path,
         use_pending=use_pending,
         version_header=args['version_header'],
         index_uuid=args['index_uuid'],
