@@ -2,6 +2,7 @@ use std::convert::Infallible;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::SystemTime;
 
 use dashmap::DashMap;
@@ -32,6 +33,8 @@ const BLOCK_SIZE: u32 = 4096;
 // Fake size that's obvious enough to be grepped in case that's
 // a problem.
 const FAKE_DIR_SIZE: u64 = 2005;
+const MERCURIAL_FIRST_COMMIT_TIMESTAMP: Duration =
+    Duration::from_secs(1115154970);
 
 /// Responsible for serving contents from the store to the FUSE layer
 pub struct Server {
@@ -81,7 +84,9 @@ impl Server {
             file_nodeid_to_size: DashMap::default(),
             ino_to_nodeid: DashMap::default(),
             revisions: DashMap::default(),
-            start_time: SystemTime::now(),
+            // Use a constant time, so that restarts don't affect the dirstate.
+            start_time: SystemTime::UNIX_EPOCH
+                + MERCURIAL_FIRST_COMMIT_TIMESTAMP,
             uid,
             gid,
             narrow_matcher,
