@@ -314,8 +314,7 @@ class changelog(revlog.revlog):
         # tend to be small and don't delta well with each. So disable delta
         # chains.
         rl_conf.delta.store_delta_chain = False
-        revlog.revlog.__init__(
-            self,
+        super().__init__(
             opener,
             target=(revlog_constants.KIND_CHANGELOG, None),
             radix=b'00changelog',
