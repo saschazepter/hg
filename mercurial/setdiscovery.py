@@ -414,20 +414,20 @@ def findcommonheads(
         except error.LookupError:
             continue
 
-    if initial_head_exchange:
-        # early exit if we know all the specified remote heads already
-        if len(knownsrvheads) == len(srvheadhashes):
-            if audit is not None:
-                audit[b'total-roundtrips'] = roundtrips
-            ui.debug(b"all remote heads known locally\n")
-            return srvheadhashes, False, srvheadhashes
+    # early exit if we know all the specified remote heads already
+    if len(knownsrvheads) == len(srvheadhashes):
+        if audit is not None:
+            audit[b'total-roundtrips'] = roundtrips
+        ui.debug(b"all remote heads known locally\n")
+        return srvheadhashes, False, srvheadhashes
 
-        if len(sample) == len(ownheads) and all(yesno):
-            if audit is not None:
-                audit[b'total-roundtrips'] = roundtrips
-            ui.note(_(b"all local changesets known remotely\n"))
-            ownheadhashes = [clnode(r) for r in ownheads]
-            return ownheadhashes, True, srvheadhashes
+    # early exit if we already know that all local "heads" are known remotely
+    if initial_head_exchange and len(sample) == len(ownheads) and all(yesno):
+        if audit is not None:
+            audit[b'total-roundtrips'] = roundtrips
+        ui.note(_(b"all local changesets known remotely\n"))
+        ownheadhashes = [clnode(r) for r in ownheads]
+        return ownheadhashes, True, srvheadhashes
 
     # full blown discovery
 
