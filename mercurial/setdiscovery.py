@@ -384,13 +384,6 @@ def findcommonheads(
             )
 
         srvheadhashes, yesno = fheads.result(), fknown.result()
-
-        if cl.tiprev() == nullrev:
-            if audit is not None:
-                audit[b'total-roundtrips'] = roundtrips
-            if srvheadhashes != [cl.nullid]:
-                return [cl.nullid], True, srvheadhashes
-            return [cl.nullid], False, []
     else:
         ui.debug(b"query 1; heads\n")
         roundtrips += 1
@@ -398,6 +391,13 @@ def findcommonheads(
         with remote.commandexecutor() as e:
             fheads = e.callcommand(b'heads', {})
         srvheadhashes = fheads.result()
+
+    if cl.tiprev() == nullrev:
+        if audit is not None:
+            audit[b'total-roundtrips'] = roundtrips
+        if srvheadhashes != [cl.nullid]:
+            return [cl.nullid], True, srvheadhashes
+        return [cl.nullid], False, []
 
     # start actual discovery (we note this before the next "if" for
     # compatibility reasons)
