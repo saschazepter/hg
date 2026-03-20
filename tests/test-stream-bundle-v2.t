@@ -246,7 +246,7 @@ Test that we can apply the bundle as a stream clone bundle
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all remote heads known locally
@@ -322,7 +322,7 @@ test explicite stream request
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all remote heads known locally
@@ -394,7 +394,7 @@ test explicite stream request
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all remote heads known locally
@@ -463,7 +463,7 @@ test explicite stream request
   bundle2-input-bundle: 1 parts total
   updating the branch cache
   finished applying clone bundle
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all remote heads known locally

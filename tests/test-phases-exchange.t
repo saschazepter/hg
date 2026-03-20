@@ -713,7 +713,7 @@ Pushing to Publish=True (unknown changeset)
   remote: capabilities: batch branchmap $USUAL_BUNDLE2_CAPS$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=generaldelta,revlogv1,sparserevlog unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (no-zstd !)
   remote: phase-summary-v01: publish=all public-revs=all
   remote: 1
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all remote heads known locally

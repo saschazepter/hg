@@ -75,7 +75,7 @@ Small superset:
   
   % -- a -> b set
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all local changesets known remotely
   elapsed time:  * seconds (glob)
@@ -108,7 +108,7 @@ Small superset:
   
   % -- a -> b set (tip only)
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all local changesets known remotely
   elapsed time:  * seconds (glob)
@@ -175,7 +175,7 @@ Small superset:
   
   % -- b -> a set
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   elapsed time:  * seconds (glob)
@@ -208,7 +208,7 @@ Small superset:
   
   % -- b -> a set (tip only)
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   elapsed time:  * seconds (glob)
@@ -282,7 +282,7 @@ Many new:
   
   % -- a -> b set
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking initial sample
   searching: 2 queries
@@ -318,7 +318,7 @@ Many new:
   
   % -- a -> b set (tip only)
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -388,7 +388,7 @@ Many new:
   
   % -- b -> a set
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking initial sample
   searching: 2 queries
@@ -424,7 +424,7 @@ Many new:
   
   % -- b -> a set (tip only)
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking initial sample
   searching: 2 queries
@@ -500,7 +500,7 @@ Both sides many new with stub:
   
   % -- a -> b set
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking initial sample
   searching: 2 queries
@@ -536,7 +536,7 @@ Both sides many new with stub:
   
   % -- a -> b set (tip only)
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -606,7 +606,7 @@ Both sides many new with stub:
   
   % -- b -> a set
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking initial sample
   searching: 2 queries
@@ -642,7 +642,7 @@ Both sides many new with stub:
   
   % -- b -> a set (tip only)
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking initial sample
   searching: 2 queries
@@ -719,7 +719,7 @@ Both many new:
   
   % -- a -> b set
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -755,7 +755,7 @@ Both many new:
   
   % -- a -> b set (tip only)
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -825,7 +825,7 @@ Both many new:
   
   % -- b -> a set
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -861,7 +861,7 @@ Both many new:
   
   % -- b -> a set (tip only)
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -938,7 +938,7 @@ Both many new skewed:
   
   % -- a -> b set
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -974,7 +974,7 @@ Both many new skewed:
   
   % -- a -> b set (tip only)
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1044,7 +1044,7 @@ Both many new skewed:
   
   % -- b -> a set
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1080,7 +1080,7 @@ Both many new skewed:
   
   % -- b -> a set (tip only)
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1157,7 +1157,7 @@ Both many new on top of long history:
   
   % -- a -> b set
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1196,7 +1196,7 @@ Both many new on top of long history:
   
   % -- a -> b set (tip only)
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1269,7 +1269,7 @@ Both many new on top of long history:
   
   % -- b -> a set
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1308,7 +1308,7 @@ Both many new on top of long history:
   
   % -- b -> a set (tip only)
   comparing with a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1390,7 +1390,7 @@ One with >200 heads. We now switch to send them all in the initial roundtrip, bu
 
   $ hg -R a debugdiscovery b --debug --verbose --config progress.debug=true --config devel.discovery.randomize=false  --config devel.discovery.sample-size.initial=50
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1437,7 +1437,7 @@ One with >200 heads. We now switch to send them all in the initial roundtrip, bu
   common heads: 3ee37d65064a
   $ hg -R a debugdiscovery b --debug --verbose --config progress.debug=true --rev tip
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   searching: 2 queries
@@ -1670,7 +1670,7 @@ remote will be last 25 heads of the local graph
   > --debug \
   > --remote-as-revs 'last(heads(all()), 25)' \
   > --config devel.discovery.randomize=false
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   elapsed time:  * seconds (glob)
@@ -1712,7 +1712,7 @@ remote will be last 25 heads of the local graph
   > --local-as-revs 'first(heads(all()), 25)' \
   > --config devel.discovery.randomize=false
   comparing with b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   query 2; still undecided: 375, sample size is: 81
@@ -1758,7 +1758,7 @@ remote will be last 25 heads of the local graph
   > --local-as-revs 'first(heads(all()), 25)' \
   > --remote-as-revs 'last(heads(all()), 25)' \
   > --config devel.discovery.randomize=false
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   query 2; still undecided: 375, sample size is: 81
@@ -1824,7 +1824,7 @@ Test -T json output
     "nb-revs": 400,
     "nb-revs-common": 300,
     "nb-revs-missing": 100,
-    "output": "query 1; heads\nsearching for changes\ntaking quick initial sample\nquery 2; still undecided: 375, sample size is: 81\nsampling from both directions\nquery 3; still undecided: 3, sample size is: 3\n3 total queries in *s\n", (glob)
+    "output": "query 1; heads + initial-local-heads \nsearching for changes\ntaking quick initial sample\nquery 2; still undecided: 375, sample size is: 81\nsampling from both directions\nquery 3; still undecided: 3, sample size is: 3\n3 total queries in *\n", (glob)
     "total-queries": 109,
     "total-roundtrips": 3
    }

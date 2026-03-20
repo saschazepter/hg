@@ -96,7 +96,7 @@ Extension disabled for lack of a hook
   hgrc = """
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -161,7 +161,7 @@ Extension disabled for lack of acl.sources
   prepushkey.acl = python:hgext.acl.hook
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -229,7 +229,7 @@ No [acl.allow]/[acl.deny]
   sources = push
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -307,7 +307,7 @@ Empty [acl.allow]
   [acl.allow]
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -376,7 +376,7 @@ fred is allowed inside foo/
   foo/** = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -449,7 +449,7 @@ Empty [acl.deny]
   [acl.deny]
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -519,7 +519,7 @@ fred is allowed inside foo/, but not foo/bar/ (case matters)
   foo/bar/** = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -594,7 +594,7 @@ fred is allowed inside foo/, but not foo/Bar/
   foo/Bar/** = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -666,7 +666,7 @@ fred is allowed inside foo/, but not foo/Bar/
   foo/Bar/** = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -739,7 +739,7 @@ fred is not blocked from moving bookmarks
   foo/Bar/** = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -825,7 +825,7 @@ fred is not allowed to move bookmarks
   * = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -912,7 +912,7 @@ barney is allowed everywhere
   ** = barney
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -996,7 +996,7 @@ wilma can change files with a .txt extension
   **/*.txt = wilma
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1078,7 +1078,7 @@ file specified by acl.config does not exist
   config = ../acl.config
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1154,7 +1154,7 @@ betty is allowed inside foo/ by a acl.config file
   foo/** = betty
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1241,7 +1241,7 @@ acl.config can set only [acl.allow]/[acl.deny]
   changegroup.acl = false
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1329,7 +1329,7 @@ fred is always allowed
   ** = fred
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1414,7 +1414,7 @@ no one is allowed inside foo/Bar/
   foo/Bar/** = *
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1495,7 +1495,7 @@ OS-level groups
   ** = @group1
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1580,7 +1580,7 @@ OS-level groups
   foo/Bar/** = @group1
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1701,7 +1701,7 @@ No branch acls specified
   posixgetuser=$TESTTMP/posixgetuser.py
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1787,7 +1787,7 @@ Branch acl deny test
   foobar = *
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1865,7 +1865,7 @@ Branch acl empty allow test
   [acl.allow.branches]
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -1939,7 +1939,7 @@ Branch acl allow other
   * = george
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -2007,7 +2007,7 @@ Branch acl allow other
   * = george
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -2098,7 +2098,7 @@ push foobar into the remote
   * = george
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -2188,7 +2188,7 @@ Branch acl conflicting deny
   * = george
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -2261,7 +2261,7 @@ User 'astro' must not be denied
   default = !astro
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -2345,7 +2345,7 @@ Non-astro users must be denied
   default = !astro
   """
   pushing to ../b
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"

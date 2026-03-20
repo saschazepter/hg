@@ -117,7 +117,7 @@ delete a remote bookmark
 
   $ hg push -B W ../a --config "$TESTHOOK" --debug --config devel.bundle2.debug=yes
   pushing to ../a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -229,7 +229,7 @@ delete a remote bookmark
 
   $ hg push -B W ../a --config "$TESTHOOK" --debug --config devel.bundle2.debug=yes
   pushing to ../a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"

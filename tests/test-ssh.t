@@ -509,7 +509,7 @@ debug output
   remote: capabilities: batch branchmap \$USUAL_BUNDLE2_CAPS\$ changegroupsubset getbundle known lookup protocaps pushkey streamreqs=[^ ,]+(,[^ ,]+)* unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash (re)
   remote: phase-summary-v01: publish=all public-revs=all
   remote: 1
-  query 1; heads
+  query 1; heads + initial-local-heads 
   devel-peer-request: batched-content
   devel-peer-request:    - heads (0 arguments)
   devel-peer-request:    - known (1 arguments)

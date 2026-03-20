@@ -96,7 +96,7 @@ Blob URIs are correct when --prefix is used
   using http://localhost:$HGPORT/subdir/mount/point
   sending capabilities command
   (remote is using large file support (lfs); lfs will be enabled for this repository)
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   requesting all changes
   sending getbundle command

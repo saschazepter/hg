@@ -114,7 +114,7 @@ added upstream revisions.
   remote: capabilities: * (glob)
   remote: phase-summary-v01: publish=all
   remote: 1
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all local changesets known remotely

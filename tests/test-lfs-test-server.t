@@ -79,7 +79,7 @@ store.
   pushing to ../repo2
   http auth: user foo, password ***
   http auth: user foo, password ***
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   1 total queries in *s (glob)
   listing keys for "phases"
@@ -216,7 +216,7 @@ actions property completely.
   pushing to ../repo1
   http auth: user foo, password ***
   http auth: user foo, password ***
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"
@@ -490,7 +490,7 @@ Test a corrupted file upload
   pushing to ../repo1
   http auth: user foo, password ***
   http auth: user foo, password ***
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   listing keys for "phases"

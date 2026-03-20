@@ -37,7 +37,7 @@ Specifying a revset that evaluates to null will abort
 
   $ hg push --debug ../a
   pushing to ../a
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   taking quick initial sample
   query 2; still undecided: 1, sample size is: 1

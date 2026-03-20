@@ -742,7 +742,7 @@ check messages when there are files to upload:
   89e6c98d92887913cadf06b2adb97f26cde4849b
   $ hg -R clone2 outgoing --large -T "{rev}:{node|short}\n" --debug --config progress.debug=true
   comparing with $TESTTMP/issue3651/src
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   1:1acbe71ce432
@@ -797,7 +797,7 @@ check messages when there are files to upload:
   13f9ed0898e315bf59dc2973fec52037b6f441a2
   $ hg -R clone2 outgoing --large -T "{rev}:{node|short}\n" --debug --config progress.debug=true
   comparing with $TESTTMP/issue3651/src
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   1:1acbe71ce432
@@ -849,7 +849,7 @@ and #5 refer it.
   
   $ hg -R clone2 outgoing --large -T "{rev}:{node|short}\n" --debug --config progress.debug=true
   comparing with $TESTTMP/issue3651/src
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   2:6095d0695d70

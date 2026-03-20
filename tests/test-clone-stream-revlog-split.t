@@ -120,7 +120,7 @@ Check everything is fine
   $ cat client.log
   using http://localhost:$HGPORT1/
   sending capabilities command
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   streaming all changes
   sending getbundle command

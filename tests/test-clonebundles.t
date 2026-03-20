@@ -897,7 +897,7 @@ on a 32MB system.
   filtering http://localhost:$HGPORT1/gz-a.hg as it needs more than 2/3 of system memory
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   requesting all changes
   sending getbundle command
@@ -944,7 +944,7 @@ on a 32MB system.
   updating the branch cache
   added 2 changesets with 2 changes to 2 files
   finished applying clone bundle
-  query 1; heads
+  query 1; heads + initial-local-heads 
   sending batch command
   searching for changes
   all remote heads known locally

@@ -879,7 +879,7 @@ bundle single branch
 == bundling
 
   $ hg bundle bundle.hg part --debug --config progress.debug=true
-  query 1; heads
+  query 1; heads + initial-local-heads 
   searching for changes
   all remote heads known locally
   2 changesets found
