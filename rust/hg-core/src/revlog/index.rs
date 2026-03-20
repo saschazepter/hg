@@ -741,11 +741,17 @@ impl Index {
             Ok(None)
         } else if self.uses_generaldelta() {
             match self.check_revision(base) {
-                None => Err(HgError::corrupted("bad base")),
+                None => Err(HgError::corrupted(format!(
+                    "bad base {} <- {}",
+                    base, rev
+                ))),
                 Some(base) => Ok(Some(base)),
             }
         } else if rev.0 <= 0 {
-            Err(HgError::corrupted("unbound delta chain"))
+            Err(HgError::corrupted(format!(
+                "unbound delta chain {} <- {}",
+                base, rev
+            )))
         } else {
             Ok(Some(Revision(rev.0 - 1)))
         }
