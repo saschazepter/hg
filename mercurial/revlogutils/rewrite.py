@@ -361,7 +361,7 @@ def _rewrite_simple(
         old_data_file.seek(old_index.data_chunk_start(rev))
         new_data_size = old_index.data_chunk_length(rev)
         new_data = old_data_file.read(new_data_size)
-        data_delta_base = old_index.bundle_repo_delta_base(rev)
+        data_delta_base = old_index.raw_delta_base(rev)
         d_comp_mode = old_index.data_chunk_compression_mode(rev)
     else:
         (
@@ -987,7 +987,7 @@ def quick_upgrade(rl):
         dataoffset = index.data_chunk_start(filerev)
         data_compressed_length = index.data_chunk_length(filerev)
         data_uncompressed_length = index.raw_size(filerev)
-        delta_base = index.bundle_repo_delta_base(filerev)
+        delta_base = index.raw_delta_base(filerev)
         link_rev = index.linkrev(filerev)
         parent_1, parent_2 = index.parents(filerev)
         node_id = index.node(filerev)

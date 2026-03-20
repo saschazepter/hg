@@ -135,7 +135,7 @@ def full_size(index, rev, hexfn):
 
 @debug_column(b"delta-base", size=6, verbose=True)
 def delta_base(index, rev, hexfn):
-    return b"%d" % index.bundle_repo_delta_base(rev)
+    return b"%d" % index.raw_delta_base(rev)
 
 
 @debug_column(b"flags", size=2, verbose=True)

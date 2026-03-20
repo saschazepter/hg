@@ -359,7 +359,7 @@ class RustIndexProxy(ProxyBase):
         self._parents_raw = self.inner._index_parents_raw
         self.linkrev = self.inner._index_linkrev
         self.flags = self.inner._index_flags
-        self.bundle_repo_delta_base = self.inner._index_bundle_repo_delta_base
+        self.raw_delta_base = self.inner._index_raw_delta_base
         self.raw_size = self.inner._index_raw_size
         self.data_chunk_start = self.inner._index_data_chunk_start
         self.data_chunk_length = self.inner._index_data_chunk_length

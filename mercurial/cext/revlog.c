@@ -2022,8 +2022,7 @@ static inline int index_baserev(indexObject *self, int rev)
 	return result;
 }
 
-static PyObject *index_py_bundle_repo_delta_base(indexObject *self,
-                                                 PyObject *py_rev)
+static PyObject *index_py_raw_delta_base(indexObject *self, PyObject *py_rev)
 {
 	long rev;
 	int tiprev;
@@ -3909,8 +3908,8 @@ static PyMethodDef index_methods[] = {
     {"linkrev", (PyCFunction)index_py_linkrev, METH_O,
      "return linkrev for a rev"},
     {"flags", (PyCFunction)index_py_flags, METH_O, "return flags of a rev"},
-    {"bundle_repo_delta_base", (PyCFunction)index_py_bundle_repo_delta_base,
-     METH_O, "hack to keep bundle repo working"},
+    {"raw_delta_base", (PyCFunction)index_py_raw_delta_base, METH_O,
+     "access the raw delta-base value. Used by debug and rewrite codes"},
     {"raw_size", (PyCFunction)index_py_raw_size, METH_O,
      "return raw-size for a rev"},
     {"data_chunk_start", (PyCFunction)index_py_data_chunk_start, METH_O,

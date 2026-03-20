@@ -666,14 +666,10 @@ class BaseIndexObject:
         """the revision level flag for a revision"""
         return self._entry(rev)[0] & 0xFFFF
 
-    def bundle_repo_delta_base(self, rev) -> RevnumT:
-        """the raw `delta-base` value, used by bundle_repoi
+    def raw_delta_base(self, rev) -> RevnumT:
+        """access the raw delta-base value
 
-        The delta-base information in a bundle is always "general-delta", while
-        the delta-base used by the underlying revlog might not be. So the
-        bundle-repo code have to deal with this by hand and need the raw value
-        for the delta-base to work properly.
-        """
+        Used by debug and rewrite codes"""
         return self._entry(rev)[3]
 
     def raw_size(self, rev) -> int | None:

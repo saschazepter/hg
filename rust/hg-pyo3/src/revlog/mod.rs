@@ -923,7 +923,10 @@ impl InnerRevlog {
         })
     }
 
-    fn _index_bundle_repo_delta_base(
+    /// access the raw delta-base value
+    ///
+    /// Used by debug and rewrite codes
+    fn _index_raw_delta_base(
         slf: &Bound<'_, Self>,
         rev: PyRevision,
     ) -> PyResult<i32> {

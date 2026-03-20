@@ -45,7 +45,7 @@ def get_entry(index, rev):
         index.data_chunk_start(rev) << 16 | index.flags(rev),
         index.data_chunk_length(rev),
         index.raw_size(rev),
-        index.bundle_repo_delta_base(rev),
+        index.raw_delta_base(rev),
         index.linkrev(rev),
         p1,
         p2,
