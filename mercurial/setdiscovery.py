@@ -385,10 +385,9 @@ def findcommonheads(
 
         srvheadhashes, yesno = fheads.result(), fknown.result()
 
-        if audit is not None:
-            audit[b'total-roundtrips'] = 1
-
         if cl.tiprev() == nullrev:
+            if audit is not None:
+                audit[b'total-roundtrips'] = roundtrips
             if srvheadhashes != [cl.nullid]:
                 return [cl.nullid], True, srvheadhashes
             return [cl.nullid], False, []
@@ -418,10 +417,14 @@ def findcommonheads(
     if initial_head_exchange:
         # early exit if we know all the specified remote heads already
         if len(knownsrvheads) == len(srvheadhashes):
+            if audit is not None:
+                audit[b'total-roundtrips'] = roundtrips
             ui.debug(b"all remote heads known locally\n")
             return srvheadhashes, False, srvheadhashes
 
         if len(sample) == len(ownheads) and all(yesno):
+            if audit is not None:
+                audit[b'total-roundtrips'] = roundtrips
             ui.note(_(b"all local changesets known remotely\n"))
             ownheadhashes = [clnode(r) for r in ownheads]
             return ownheadhashes, True, srvheadhashes
