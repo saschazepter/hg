@@ -73,22 +73,25 @@ typedef struct {
 struct indexObjectStruct {
 	PyObject_HEAD
 	    /* Type-specific fields go here. */
-	    PyObject *data;     /* raw bytes of index */
-	Py_ssize_t nodelen;     /* digest size of the hash, 20 for SHA-1 */
-	PyObject *nullentry;    /* fast path for references to null */
-	Py_buffer buf;          /* buffer of data */
-	const char **offsets;   /* populated on demand */
-	Py_ssize_t length;      /* current on-disk number of elements */
-	unsigned new_length;    /* number of added elements */
-	unsigned added_length;  /* space reserved for added elements */
-	char *added;            /* populated on demand */
-	PyObject *headrevs;     /* cache, invalidated on changes */
-	PyObject *filteredrevs; /* filtered revs set */
-	nodetree nt;            /* base-16 trie */
-	int ntinitialized;      /* 0 or 1 */
-	int ntrev;              /* last rev scanned */
-	int ntlookups;          /* # lookups */
-	int ntmisses;           /* # lookups that miss the cache */
+	    PyObject *data;    /* raw bytes of index */
+	Py_ssize_t nodelen;    /* digest size of the hash, 20 for SHA-1 */
+	PyObject *nullentry;   /* fast path for references to null */
+	Py_buffer buf;         /* buffer of data */
+	const char **offsets;  /* populated on demand */
+	Py_ssize_t length;     /* current on-disk number of elements */
+	unsigned new_length;   /* number of added elements */
+	unsigned added_length; /* space reserved for added elements */
+	Py_ssize_t
+	    bundle_repo_start; /* first extra revision from secondary storage */
+	bool bundle_repo_active; /* true when secondary storage is use */
+	char *added;             /* populated on demand */
+	PyObject *headrevs;      /* cache, invalidated on changes */
+	PyObject *filteredrevs;  /* filtered revs set */
+	nodetree nt;             /* base-16 trie */
+	int ntinitialized;       /* 0 or 1 */
+	int ntrev;               /* last rev scanned */
+	int ntlookups;           /* # lookups */
+	int ntmisses;            /* # lookups that miss the cache */
 	int inlined;
 	int uses_generaldelta; /* whether this index uses generaldelta */
 	int uses_delta_info;   /* whether this index uses delta-info-flags */
@@ -1037,6 +1040,16 @@ static int node_check(Py_ssize_t nodelen, PyObject *obj, char **node)
 	PyErr_Format(PyExc_ValueError, "node len %zd != expected node len %zd",
 	             thisnodelen, nodelen);
 	return -1;
+}
+
+static PyObject *index_start_bundle_repo(indexObject *self)
+{
+	if (!self->bundle_repo_active) {
+		self->bundle_repo_start = index_length(self);
+		self->bundle_repo_active = true;
+	}
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 
 static PyObject *index_append(indexObject *self, PyObject *obj)
@@ -2055,7 +2068,9 @@ static PyObject *index_py_delta_base(indexObject *self, PyObject *py_rev)
 		} else if (base == rev) {
 			Py_INCREF(Py_None);
 			return Py_None;
-		} else if (!self->uses_generaldelta) {
+		} else if ((!self->uses_generaldelta) &&
+		           ((!self->bundle_repo_active) ||
+		            self->bundle_repo_start > rev)) {
 			base = rev - 1;
 		}
 	}
@@ -3730,6 +3745,9 @@ static int index_init(indexObject *self, PyObject *args, PyObject *kwargs)
 	self->added = NULL;
 	self->new_length = 0;
 	self->added_length = 0;
+	self->bundle_repo_active = false;
+	/* unused untile bundle_repo_active is true */
+	self->bundle_repo_start = 0;
 	self->data = NULL;
 	memset(&self->buf, 0, sizeof(self->buf));
 	self->headrevs = NULL;
@@ -3929,6 +3947,8 @@ static PyMethodDef index_methods[] = {
      "determine revisions with deltas to reconstruct fulltext"},
     {"slicechunktodensity", (PyCFunction)index_slicechunktodensity,
      METH_VARARGS, "determine revisions with deltas to reconstruct fulltext"},
+    {"start_bundle_repo", (PyCFunction)index_start_bundle_repo, METH_NOARGS,
+     "Signal the start of adding revision from a bundle"},
     {"append", (PyCFunction)index_append, METH_O, "append an index entry"},
     {"partialmatch", (PyCFunction)index_partialmatch, METH_VARARGS,
      "match a potentially ambiguous node ID"},

@@ -1688,6 +1688,13 @@ impl InnerRevlog {
     }
 
     /// `pub` only for `hg-pyo3`
+    /// Mark the start of revision added from a bundle-repo style source
+    #[doc(hidden)]
+    pub fn index_start_bundle_repo(&mut self) {
+        self.index.start_bundle_repo();
+    }
+
+    /// `pub` only for `hg-pyo3`
     /// Appends this new node to the in-memory index and its nodemap. This is
     /// still needed because some places directly call the index instead of
     /// going through the [`InnerRevlog`], and that would need a separate

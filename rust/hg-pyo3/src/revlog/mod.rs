@@ -1068,6 +1068,14 @@ impl InnerRevlog {
         })
     }
 
+    /// Mark the start of revision added from a bundle-repo style source
+    fn _index_start_bundle_repo(slf: &Bound<'_, Self>) -> PyResult<()> {
+        Self::with_core_write(slf, |_, mut irl| {
+            irl.index_start_bundle_repo();
+            Ok(())
+        })
+    }
+
     /// append an index entry
     fn _index_append(
         slf: &Bound<'_, Self>,

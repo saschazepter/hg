@@ -377,6 +377,7 @@ class RustIndexProxy(ProxyBase):
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest
         self.partialmatch = self.inner._index_partialmatch
+        self.start_bundle_repo = self.inner._index_start_bundle_repo
         self.append = self.inner._index_append
         self.ancestors = self.inner._index_ancestors
         self.commonancestorsheads = self.inner._index_commonancestorsheads

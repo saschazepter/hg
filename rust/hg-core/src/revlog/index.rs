@@ -284,6 +284,7 @@ pub struct Index {
     uses_filelog_meta: bool,
     uses_delta_info: bool,
     is_inline: bool,
+    bundle_repo_start: Option<usize>,
     /// Cache of (head_revisions, filtered_revisions)
     ///
     /// The head revisions in this index, kept in sync. Should
@@ -386,6 +387,7 @@ impl Index {
                     uses_filelog_meta,
                     uses_delta_info,
                     is_inline: true,
+                    bundle_repo_start: None,
                     head_revs: RwLock::new((vec![], HashSet::new())),
                 })
             } else {
@@ -399,6 +401,7 @@ impl Index {
                 uses_filelog_meta,
                 uses_delta_info,
                 is_inline: false,
+                bundle_repo_start: None,
                 head_revs: RwLock::new((vec![], HashSet::new())),
             })
         }
@@ -742,7 +745,12 @@ impl Index {
         let base = self.get_entry(rev).base_revision_or_base_of_delta_chain();
         if base == rev.into() {
             Ok(None)
-        } else if self.uses_generaldelta() {
+        } else if self.uses_generaldelta()
+            || match self.bundle_repo_start {
+                None => false,
+                Some(brs) => brs <= u32_u(rev.0 as u32),
+            }
+        {
             match self.check_revision(base) {
                 None => Err(HgError::corrupted(format!(
                     "bad base {} <- {}",
@@ -846,6 +854,12 @@ impl Index {
             .expect("RwLock on Index.head_revs should not be poisoined")
             .0
             .clear()
+    }
+
+    pub fn start_bundle_repo(&mut self) {
+        if self.bundle_repo_start.is_none() {
+            self.bundle_repo_start = Some(self.len());
+        }
     }
 
     /// TODO move this to the trait probably, along with other things

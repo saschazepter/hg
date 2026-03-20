@@ -622,6 +622,7 @@ class BaseIndexObject:
         uses_generaldelta=False,
     ):
         self._uses_general_delta = uses_generaldelta
+        self._bundle_repo_start_idx = None
 
     @util.propertycache
     def entry_size(self):
@@ -711,6 +712,8 @@ class BaseIndexObject:
             return None
         elif self._uses_general_delta:
             return base
+        elif (idx := self._bundle_repo_start_idx) is not None and idx <= rev:
+            return base
         else:
             return rev - 1
 
@@ -774,6 +777,13 @@ class BaseIndexObject:
 
     def __len__(self) -> int:
         return self._lgt + len(self._extra)
+
+    def start_bundle_repo(self):
+        """Signal the start of adding revision from a bundle
+
+        We need to be aware of when such operation happens because their delta
+        base might be different."""
+        self._bundle_repo_start_idx = len(self)
 
     def append(self, tup):
         if '_nodemap' in vars(self):

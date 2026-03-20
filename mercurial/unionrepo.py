@@ -73,10 +73,13 @@ class unionrevlog(revlog.revlog):
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
         u_index = self.revlog2.index
+        self.index.start_bundle_repo()
         for rev2 in self.revlog2:
             # rev numbers - in revlog2, very different from self.rev
             linkrev = u_index.linkrev(rev2)
-            base = u_index.bundle_repo_delta_base(rev2)
+            base = u_index.delta_base(rev2)
+            if base is None:
+                base = rev2
             node = u_index.node(rev2)
             if linkmapper is None:  # link is to same revlog
                 assert linkrev == rev2  # we never link back

@@ -96,6 +96,7 @@ class bundlerevlog(revlog.revlog):
         n = len(self)
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
+        self.index.start_bundle_repo()
         for deltadata in cgunpacker.deltaiter():
             baserev = self.rev(deltadata.delta_base)
             base_size = self.rawsize(baserev)
@@ -172,7 +173,7 @@ class bundlerevlog(revlog.revlog):
         """return or calculate a delta between two revisions"""
         if rev1 > self.repotiprev and rev2 > self.repotiprev:
             # hot path for bundle
-            if self.index.bundle_repo_delta_base(rev2) == rev1:
+            if self.index.delta_base(rev2) == rev1:
                 return self._chunk(rev2)
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
             return revlog.revlog.revdiff(self, rev1, rev2, extra_delta)
@@ -203,7 +204,7 @@ class bundlerevlog(revlog.revlog):
                 rawtext = cached[1]
                 break
             chain.append(iterrev)
-            iterrev = self.index.bundle_repo_delta_base(iterrev)
+            iterrev = self.index.delta_base(iterrev)
         if iterrev == nullrev:
             rawtext = b''
         elif rawtext is None:
