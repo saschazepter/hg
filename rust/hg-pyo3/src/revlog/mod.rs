@@ -80,6 +80,7 @@ use crate::revision::rev_pyiter_collect_or_else;
 use crate::revision::revs_py_list;
 use crate::revision::revs_py_set;
 use crate::transaction::PyTransaction;
+use crate::utils::HgPyErrExt;
 use crate::utils::PyBytesDeref;
 use crate::utils::new_submodule;
 use crate::utils::take_buffer_with_slice;
@@ -985,12 +986,9 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         rev: PyRevision,
     ) -> PyResult<Option<i32>> {
-        Self::with_index_read(slf, |idx| match check_revision(idx, rev) {
-            Ok(r) => match idx.delta_base(r) {
-                Err(_) => Err(PyValueError::new_err("corrupted revlog")),
-                Ok(r) => Ok(r.map(|rev| rev.0)),
-            },
-            Err(e) => Err(PyIndexError::new_err(e)),
+        Self::with_index_read(slf, |idx| {
+            let rev = check_revision(idx, rev)?;
+            Ok(idx.delta_base(rev).into_pyerr(slf.py())?.map(|rev| rev.0))
         })
     }
 
