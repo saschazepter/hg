@@ -1476,28 +1476,29 @@ One with >200 heads. We now switch to send them all in the initial roundtrip, bu
 
   $ hg -R a debugdiscovery b --debug --config devel.discovery.exchange-heads=false --config devel.discovery.randomize=false --config devel.discovery.grow-sample.rate=1.20 --config devel.discovery.sample-size=50
   comparing with b
+  query 1; heads
   searching for changes
   sampling from both directions
-  query 1; still undecided: 1340, sample size is: 50
+  query 2; still undecided: 1340, sample size is: 50
   sampling from both directions
-  query 2; still undecided: 995, sample size is: 60
+  query 3; still undecided: 995, sample size is: 60
   sampling from both directions
-  query 3; still undecided: 913, sample size is: 72
+  query 4; still undecided: 913, sample size is: 72
   sampling from both directions
-  query 4; still undecided: 816, sample size is: 204
+  query 5; still undecided: 816, sample size is: 204
   sampling from both directions
-  query 5; still undecided: 612, sample size is: 153
+  query 6; still undecided: 612, sample size is: 153
   sampling from both directions
-  query 6; still undecided: 456, sample size is: 123
+  query 7; still undecided: 456, sample size is: 123
   sampling from both directions
-  query 7; still undecided: 332, sample size is: 147
+  query 8; still undecided: 332, sample size is: 147
   sampling from both directions
-  query 8; still undecided: 184, sample size is: 176
+  query 9; still undecided: 184, sample size is: 176
   sampling from both directions
-  query 9; still undecided: 8, sample size is: 8
-  9 total queries in *s (glob)
+  query 10; still undecided: 8, sample size is: 8
+  10 total queries in *.????s (glob)
   elapsed time:  * seconds (glob)
-  round-trips:                   9
+  round-trips:                  10
   queries:                     993
   heads summary:
     total common heads:          1

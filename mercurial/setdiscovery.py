@@ -393,6 +393,8 @@ def findcommonheads(
                 return [cl.nullid], True, srvheadhashes
             return [cl.nullid], False, []
     else:
+        ui.debug(b"query 1; heads\n")
+        roundtrips += 1
         # we still need the remote head for the function return
         with remote.commandexecutor() as e:
             fheads = e.callcommand(b'heads', {})
