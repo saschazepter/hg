@@ -736,6 +736,9 @@ impl Index {
         &self,
         rev: Revision,
     ) -> Result<Option<Revision>, HgError> {
+        if rev.0 == NULL_REVISION.0 {
+            return Ok(None);
+        }
         let base = self.get_entry(rev).base_revision_or_base_of_delta_chain();
         if base == rev.into() {
             Ok(None)
