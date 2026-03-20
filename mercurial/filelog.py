@@ -321,8 +321,14 @@ class filelog(repository.ifilestorage):
                     revlogutils.CachedDelta(delta_base_rev, d.delta),
                     d.flags,
                 )
-                d.raw_text = deltacomputer.buildtext(revinfo)
-            if (
+                try:
+                    d.raw_text = deltacomputer.buildtext(revinfo)
+                except error.CensoredNodeError:
+                    # let's assume censored revision doesn't hold copy
+                    # information.
+                    pass
+
+            if d.raw_text is not None and (
                 d.raw_text[: revlog_constants.META_MARKER_SIZE]
                 == revlog_constants.META_MARKER
             ):

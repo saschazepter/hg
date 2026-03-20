@@ -1,4 +1,4 @@
-#testcases revlogv1 revlogv2
+#testcases revlogv1 delta-info revlogv2
 
 #if revlogv2
 
@@ -7,6 +7,22 @@
   > revlogv2=enable-unstable-format-and-corrupt-my-data
   > [storage]
   > fileindex.slow-path=allow
+  > EOF
+
+#endif
+
+#if delta-info
+
+  $ cat >> $HGRCPATH <<EOF
+  > [format]
+  > use-delta-info-flags=yes
+  > EOF
+
+#else
+
+  $ cat >> $HGRCPATH <<EOF
+  > [format]
+  > use-delta-info-flags=no
   > EOF
 
 #endif
@@ -316,7 +332,7 @@ Can censor enough revision to move back to inline storage
   $ hg debugrevlogstats | grep target
   rev-count   data-size inl type      target 
           8         ??? no  file      target (glob) (revlogv2 !)
-          8         ??? yes file      target (glob) (revlogv1 !)
+          8         ??? yes file      target (glob) (no-revlogv2 !)
   $ $TESTDIR/seq.py 4000 | $TESTDIR/sha256line.py > target
   $ hg ci -m 'add 100k passwords'
   $ H2=`hg id -r . -T "{node}"`
