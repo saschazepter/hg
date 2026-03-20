@@ -445,10 +445,11 @@ def findcommonheads(
     else:
         pd = pure_partialdiscovery
     disco = pd(local, ownheads, hard_limit_sample, randomize=randomize)
+
+    # treat remote heads as a first implicit sample response
+    disco.addcommons(knownsrvheads)
     if initial_head_exchange:
-        # treat remote heads (and maybe own heads) as a first implicit sample
-        # response
-        disco.addcommons(knownsrvheads)
+        # do the same for our heads if we exchanged them initially
         disco.addinfo(zip(sample, yesno))
 
     full = not initial_head_exchange
