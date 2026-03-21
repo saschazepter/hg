@@ -17,7 +17,6 @@ from typing import (
 from . import (
     _basetypes as i_base,
     context as i_ctx,
-    misc as i_misc,
     repository as i_repo,
     transaction as i_tr,
 )
@@ -61,12 +60,6 @@ class IPullOperation(Protocol):
 
     remote: i_repo.IPeer
     """repo we pull from"""
-
-    remote_path: i_misc.IPath
-    """path object used to build this remote
-
-    XXX Ideally we would just fetch this from the `remote`
-    """
 
     heads: Collection[i_base.RevnumT]
     """revision we try to pull (None is "all")"""

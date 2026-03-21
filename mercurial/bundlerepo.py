@@ -870,9 +870,7 @@ def _getremotechanges_slowpath(
                 },
             ).result()
 
-        pullop = exchange.pulloperation(
-            bundlerepo, state.peer, path=None, heads=reponodes
-        )
+        pullop = exchange.pulloperation(bundlerepo, state.peer, heads=reponodes)
         pullop.trmanager = bundletransactionmanager()
         exchange._pullapplyphases(pullop, remotephases)
 

@@ -23,7 +23,6 @@ from .interfaces.types import (
     ChangeContextT,
     MatcherT,
     NodeIdT,
-    PathT,
     PeerT,
     RepoT,
     RevnumT,
@@ -1533,16 +1532,11 @@ class pulloperation(i_exc.IPullOperation):
         includepats=None,
         excludepats=None,
         depth=None,
-        path=None,
     ):
         # repo we pull into
         self.repo: RepoT = repo
         # repo we pull from
         self.remote: PeerT = remote
-        # path object used to build this remote
-        #
-        # Ideally, the remote peer would carry that directly.
-        self.remote_path: PathT = path
         # revision we try to pull (None is "all")
         self.heads: Collection[RevnumT] | None = heads
         # bookmark pulled explicitly
@@ -1711,7 +1705,6 @@ def pull(
     repo,
     remote,
     *,
-    path=None,
     heads=None,
     force=False,
     bookmarks=(),
@@ -1767,7 +1760,6 @@ def pull(
     pullop = pulloperation(
         repo,
         remote,
-        path=path,
         heads=heads,
         force=force,
         bookmarks=bookmarks,
@@ -2201,8 +2193,8 @@ def _pullbookmarks(pullop):
     repo = pullop.repo
     remotebookmarks = pullop.remotebookmarks
     bookmarks_mode = None
-    if pullop.remote_path is not None:
-        bookmarks_mode = pullop.remote_path.bookmarks_mode
+    if pullop.remote.path is not None:
+        bookmarks_mode = pullop.remote.path.bookmarks_mode
     bookmod.updatefromremote(
         repo.ui,
         repo,
