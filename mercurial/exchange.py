@@ -1710,6 +1710,7 @@ def add_confirm_callback(repo: RepoT, pullop: pulloperation):
 def pull(
     repo,
     remote,
+    *,
     path=None,
     heads=None,
     force=False,
