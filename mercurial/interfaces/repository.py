@@ -198,7 +198,7 @@ class _ipeerconnection(Protocol):
     ui: Ui
     """ui.ui instance"""
 
-    path: misc.IPath | None
+    path: misc.IPath
     """a urlutil.path instance or None"""
 
     @abc.abstractmethod
@@ -536,7 +536,7 @@ class IPeer(
     """
 
     limitedarguments: bool = False
-    path: misc.IPath | None
+    path: misc.IPath
     ui: Ui
     phase_summary: IPhaseSummary | None
 
@@ -2034,7 +2034,7 @@ class IRepo(Protocol):
     @abc.abstractmethod
     def peer(
         self,
-        path: misc.IPath | None = None,
+        path: misc.IPath,
         remotehidden: bool = False,
     ) -> IPeer:
         """Obtain an object conforming to the ``peer`` interface."""

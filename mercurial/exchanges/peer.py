@@ -57,10 +57,11 @@ class Peer(i_repo.IPeer, abc.ABC):
     def __init__(
         self,
         ui: UiT,
-        path: i_misc.IPath | None = None,
+        path: i_misc.IPath,
         remotehidden: bool = False,
     ) -> None:
         self.ui = ui
+        assert path is not None
         self.path = path
 
     def capable(self, name: bytes) -> bool | bytes:
