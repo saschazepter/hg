@@ -346,6 +346,8 @@ class localpeer(peer.Peer, repository.ipeercommands):
         path=None,
         remotehidden=False,
     ):
+        if path is None:
+            path = urlutil.path(ui=repo.ui, rawloc=repo.root)
         super().__init__(repo.ui, path=path, remotehidden=remotehidden)
 
         if caps is None:
