@@ -985,13 +985,12 @@ class path(int_misc.IPath):
 
 
 def add_branch_revs(
-    lrepo: RepoT, other: RepoT | PeerT, branches, revs, remotehidden=False
+    lrepo: RepoT,
+    peer: PeerT | None,
+    branches,
+    revs,
+    remotehidden=False,
 ):
-    if hasattr(other, 'peer'):
-        # a courtesy to callers using a localrepo for other
-        peer: PeerT = other.peer(remotehidden=remotehidden)
-    else:
-        peer = other
     hashbranch, branches = branches
     if not hashbranch and not branches:
         x = revs or None
@@ -1005,13 +1004,16 @@ def add_branch_revs(
     else:
         revs = []
 
-    if not peer.capable(b'branchmap'):
-        if branches:
-            raise error.Abort(_(b"remote branch lookup not supported"))
-        revs.append(hashbranch)
-        return revs, revs[0]
+    if peer is None:
+        branchmap = lrepo.branchmap()
+    else:
+        if not peer.capable(b'branchmap'):
+            if branches:
+                raise error.Abort(_(b"remote branch lookup not supported"))
+            revs.append(hashbranch)
+            return revs, revs[0]
 
-    branchmap = peer.branchmap()
+        branchmap = peer.branchmap()
 
     def primary(branch):
         if branch == b'.':

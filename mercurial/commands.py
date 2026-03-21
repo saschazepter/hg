@@ -5349,7 +5349,7 @@ def push(ui, repo, *dests, **opts):
         ui.status(_(b'pushing to %s\n') % urlutil.hidepassword(dest))
         revs, checkout = urlutil.add_branch_revs(
             repo,
-            repo,
+            None,
             branches,
             opts.get(b'rev'),
         )
@@ -6927,7 +6927,7 @@ def summary(ui, repo, **opts):
             dest = b'default'
             dbranch = None
         revs, checkout = urlutil.add_branch_revs(
-            repo, repo, (dbranch, []), None
+            repo, None, (dbranch, []), None
         )
         if source != dest:
             try:

@@ -110,7 +110,10 @@ def outgoing(ui, repo, dests, opts, subpath=None):
 
             ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
             revs, checkout = urlutil.add_branch_revs(
-                repo, repo, branches, opts.get(b'rev')
+                repo,
+                None,
+                branches,
+                opts.get(b'rev'),
             )
             if revs:
                 revs = [

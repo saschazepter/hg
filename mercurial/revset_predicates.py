@@ -1549,8 +1549,7 @@ def outgoing(repo: RepoT, subset, x):
     missing = set()
     for path in urlutil.get_push_paths(repo, repo.ui, dests):
         branches = path.branch, []
-
-        revs, checkout = urlutil.add_branch_revs(repo, repo, branches, [])
+        revs, checkout = urlutil.add_branch_revs(repo, None, branches, [])
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
         other = repo_factory.peer(repo, {}, path)

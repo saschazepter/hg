@@ -130,7 +130,7 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
             branches = (path.branch, [])
             head_revs, checkout = urlutil.add_branch_revs(
                 repo,
-                repo,
+                None,
                 branches,
                 hex_revs,
             )

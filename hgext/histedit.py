@@ -1061,7 +1061,7 @@ def findoutgoing(ui, repo, remote=None, force=False, opts=None):
 
     revs, checkout = urlutil.add_branch_revs(
         repo,
-        repo,
+        None,
         (path.branch, []),
         None,
     )
