@@ -1524,6 +1524,7 @@ class pulloperation(i_exc.IPullOperation):
         self,
         repo,
         remote,
+        *,
         heads=None,
         force=False,
         bookmarks=(),
