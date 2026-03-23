@@ -2,6 +2,7 @@
 Testing of heads buckets helping discovery
 ==========================================
 
+
 The heads buckets features group heads by bucket and associate a fingerprint to that bucket.
 
 The goal is for a client to be able to cache the content of bucket and to reuse
@@ -9,6 +10,10 @@ it if the fingerprint is unchanged.
 
 This test file check behavior related to this bucket computation.
 
+  $ cat << EOF >> $HGRCPATH
+  > [devel]
+  > discovery.randomize=false
+  > EOF
 
 setup a branchy repository
 ==========================
@@ -126,6 +131,22 @@ This create a repository made of small segment that keep branching and merging.
   <Pababbbab+7/Pababbbbb:Pabbaaaab
   <Pababbaab+1/Pabbaaaab:Pabbaaaba
   <Pababaabb+81/Pabaaabab:Pabbaaabb
+
+Also generate a handy list of pair of set of tags
+
+  >>> with open("pairs", "w") as f:
+  ...     for x in range(0, 5):
+  ...         left = x * 20
+  ...         right = left + 1
+  ...         left_tags = "+".join([
+  ...             f"P{l:08b}"
+  ...             for l in range(left, left + 20, 2)
+  ...         ]).replace("0", "a").replace("1", "b")
+  ...         right_tags = "+".join([
+  ...             f"P{r:08b}"
+  ...             for r in range(right, right + 20, 2)
+  ...         ]).replace("0", "a").replace("1", "b")
+  ...         print(left_tags, right_tags, file=f)
 
   $ hg init main-repo
   $ hg -R main-repo debugbuilddag < dagdesc
@@ -621,3 +642,634 @@ Adding many more changeset will result in the usage of larger bucket over time
   +bucket:       5210
   +fingerprint: 322b8056
    
+
+
+Bucket usage in discovery
+=========================
+
+  $ STEP="600 1200 1230 1500 2000 3315 4000 5000 5210"
+
+  $ for x in $STEP; do
+  >   hg bundle --exact --rev :$x ../first-$x.hg --quiet;
+  > done
+  $ cd ..
+
+Simple full pull
+----------------
+
+  $ cd $TESTTMP
+  $ mkdir simple-full-pull
+  $ cd simple-full-pull
+  $ hg init server
+  $ hg clone ssh://user@dummy/simple-full-pull/server client
+  no changes found
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ for step in $STEP; do
+  >     echo
+  >     echo "##### server goes to $step changesets"
+  >     hg unbundle -R server ../first-$step.hg --quiet
+  >     hg -R client pull --config devel.debug.discovery=yes
+  > done
+  
+  ##### server goes to 600 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads
+           received 5 server heads
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 601 changesets with 0 changes to 0 files (+4 heads)
+  new changesets 1ea73414a91b:2e8c8ce74df7
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 1200 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 5)
+           received 10 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 600 changesets with 0 changes to 0 files (+5 heads)
+  new changesets da1f9dad48ca:266b5ea5a79c
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 1230 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 10)
+           received 10 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 30 changesets with 0 changes to 0 files
+  new changesets cad093e13ed4:ada45e7417b8
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 1500 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 10)
+           received 14 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 270 changesets with 0 changes to 0 files (+4 heads)
+  new changesets 0889b4c30afe:bc915268d551
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 2000 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 14)
+           received 17 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 500 changesets with 0 changes to 0 files (+3 heads)
+  new changesets a182e64e91a9:22b8522d1e58
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 3315 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 17)
+           received 23 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1315 changesets with 0 changes to 0 files (+6 heads)
+  new changesets e3dbe44aff39:d58e47499b55
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 4000 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 23)
+           received 24 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 685 changesets with 0 changes to 0 files (+1 heads)
+  new changesets e69fa130d956:fe8d4a6c9087
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 5000 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 24)
+           received 26 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1000 changesets with 0 changes to 0 files (+2 heads)
+  new changesets 23b0b7c9332a:993cd0837a5c
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 5210 changesets
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 26)
+           received 26 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 210 changesets with 0 changes to 0 files
+  new changesets 74ba7dd140b5:518e7f4bc0ca
+  (run 'hg update' to get a working copy)
+
+
+final no-op pull
+
+  $ hg -R client pull --config devel.debug.discovery=yes
+  pulling from ssh://user@dummy/simple-full-pull/server
+  query 1; heads + initial-local-heads (sample size is 26)
+           received 26 server heads
+  searching for changes
+  all remote heads known locally
+  no changes found
+
+Series of simple partial pull
+-----------------------------
+
+  $ cd $TESTTMP
+  $ mkdir simple-partial-pull
+  $ cd simple-partial-pull
+  $ hg init server
+  $ hg clone ssh://user@dummy/simple-partial-pull/server client
+  no changes found
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ for step in $STEP; do
+  >     echo
+  >     echo "##### server goes to $step changesets"
+  >     hg unbundle -R server ../first-$step.hg --quiet
+  >     hg -R client pull --rev tip --config devel.debug.discovery=yes
+  > done
+  
+  ##### server goes to 600 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads
+           received 5 server heads
+  adding changesets
+  adding manifests
+  adding file changes
+  added 425 changesets with 0 changes to 0 files
+  new changesets 1ea73414a91b:2e8c8ce74df7
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 1200 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 1)
+           received 10 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 270 changesets with 0 changes to 0 files
+  new changesets e4b144f7c1f5:266b5ea5a79c
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 1230 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 1)
+           received 10 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 30 changesets with 0 changes to 0 files
+  new changesets cad093e13ed4:ada45e7417b8
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 1500 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 1)
+           received 14 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 131 changesets with 0 changes to 0 files (+1 heads)
+  new changesets 55441e24f33e:bc915268d551
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 2000 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 2)
+           received 17 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 307 changesets with 0 changes to 0 files
+  new changesets 09e99e6a8d0b:22b8522d1e58
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 3315 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 2)
+           received 23 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 643 changesets with 0 changes to 0 files (+1 heads)
+  new changesets 2da5c5d08364:d58e47499b55
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### server goes to 4000 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 3)
+           received 24 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 620 changesets with 0 changes to 0 files
+  new changesets e69fa130d956:fe8d4a6c9087
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 5000 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 3)
+           received 26 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 952 changesets with 0 changes to 0 files
+  new changesets 23b0b7c9332a:993cd0837a5c
+  (run 'hg update' to get a working copy)
+  
+  ##### server goes to 5210 changesets
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  query 1; heads + initial-local-heads (sample size is 3)
+           received 26 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 210 changesets with 0 changes to 0 files
+  new changesets 74ba7dd140b5:518e7f4bc0ca
+  (run 'hg update' to get a working copy)
+
+final no-op pull
+
+  $ hg -R client pull --rev tip --config devel.debug.discovery=yes
+  pulling from ssh://user@dummy/simple-partial-pull/server
+  no changes found
+
+Exchange between non-converging repository
+------------------------------------------
+
+  $ cd $TESTTMP
+  $ mkdir diverging-repo
+  $ cd diverging-repo
+  $ hg init server
+  $ hg clone ssh://user@dummy/diverging-repo/server client
+  no changes found
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ cat ../pairs | while read -r left right; do
+  >     echo
+  >     echo "##### adding $left server side - $right client side"
+  >     hg -R ../main-repo push --force --rev $left server --quiet
+  >     hg -R ../main-repo push --force --rev $right client --quiet
+  >     hg -R client debugdiscovery --config devel.debug.discovery=yes
+  > done
+  
+  ##### adding Paaaaaaaa+Paaaaaaba+Paaaaabaa+Paaaaabba+Paaaabaaa+Paaaababa+Paaaabbaa+Paaaabbba+Paaabaaaa+Paaabaaba server side - Paaaaaaab+Paaaaaabb+Paaaaabab+Paaaaabbb+Paaaabaab+Paaaababb+Paaaabbab+Paaaabbbb+Paaabaaab+Paaabaabb client side
+  comparing with ssh://user@dummy/diverging-repo/server
+  query 1; heads + initial-local-heads (sample size is 3)
+           received 1 server heads
+  searching for changes
+  all remote heads known locally
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                   1
+  queries:                       3
+  heads summary:
+    total common heads:          1
+      also local heads:          0
+      also remote heads:         1
+      both:                      0
+    local heads:                 3
+      common:                    0
+      missing:                   3
+    remote heads:                1
+      common:                    1
+      unknown:                   0
+  local changesets:            540
+    common:                    375
+      heads:                     1
+      roots:                     1
+    missing:                   165
+      heads:                     3
+      roots:                     5
+    first undecided set:       165
+      heads:                     3
+      roots:                     5
+      common:                    0
+      missing:                 165
+  
+  ##### adding Paaababaa+Paaababba+Paaabbaaa+Paaabbaba+Paaabbbaa+Paaabbbba+Paabaaaaa+Paabaaaba+Paabaabaa+Paabaabba server side - Paaababab+Paaababbb+Paaabbaab+Paaabbabb+Paaabbbab+Paaabbbbb+Paabaaaab+Paabaaabb+Paabaabab+Paabaabbb client side
+  comparing with ssh://user@dummy/diverging-repo/server
+  query 1; heads + initial-local-heads (sample size is 10)
+           received 2 server heads
+  searching for changes
+  all remote heads known locally
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                   1
+  queries:                      10
+  heads summary:
+    total common heads:          2
+      also local heads:          0
+      also remote heads:         2
+      both:                      0
+    local heads:                10
+      common:                    0
+      missing:                  10
+    remote heads:                2
+      common:                    2
+      unknown:                   0
+  local changesets:           1384
+    common:                    960
+      heads:                     2
+      roots:                     1
+    missing:                   424
+      heads:                    10
+      roots:                    12
+    first undecided set:       424
+      heads:                    10
+      roots:                    12
+      common:                    0
+      missing:                 424
+  
+  ##### adding Paababaaa+Paabababa+Paababbaa+Paababbba+Paabbaaaa+Paabbaaba+Paabbabaa+Paabbabba+Paabbbaaa+Paabbbaba server side - Paababaab+Paabababb+Paababbab+Paababbbb+Paabbaaab+Paabbaabb+Paabbabab+Paabbabbb+Paabbbaab+Paabbbabb client side
+  comparing with ssh://user@dummy/diverging-repo/server
+  query 1; heads + initial-local-heads (sample size is 16)
+           received 5 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 560, sample size is: 200
+  2 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                   2
+  queries:                     216
+  heads summary:
+    total common heads:          4
+      also local heads:          4
+      also remote heads:         0
+      both:                      0
+    local heads:                16
+      common:                    4
+      missing:                  12
+    remote heads:                5
+      common:                    0
+      unknown:                   5
+  local changesets:           1817
+    common:                   1245
+      heads:                     4
+      roots:                     1
+    missing:                   572
+      heads:                    12
+      roots:                    14
+    first undecided set:      1813
+      heads:                    16
+      roots:                     1
+      common:                 1241
+      missing:                 572
+  
+  ##### adding Paabbbbaa+Paabbbbba+Pabaaaaaa+Pabaaaaba+Pabaaabaa+Pabaaabba+Pabaabaaa+Pabaababa+Pabaabbaa+Pabaabbba server side - Paabbbbab+Paabbbbbb+Pabaaaaab+Pabaaaabb+Pabaaabab+Pabaaabbb+Pabaabaab+Pabaababb+Pabaabbab+Pabaabbbb client side
+  comparing with ssh://user@dummy/diverging-repo/server
+  query 1; heads + initial-local-heads (sample size is 19)
+           received 7 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 588, sample size is: 200
+  2 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                   2
+  queries:                     219
+  heads summary:
+    total common heads:          7
+      also local heads:          4
+      also remote heads:         3
+      both:                      0
+    local heads:                19
+      common:                    4
+      missing:                  15
+    remote heads:                7
+      common:                    3
+      unknown:                   4
+  local changesets:           2483
+    common:                   1880
+      heads:                     7
+      roots:                     1
+    missing:                   603
+      heads:                    15
+      roots:                    17
+    first undecided set:      1147
+      heads:                    19
+      roots:                    22
+      common:                  544
+      missing:                 603
+  
+  ##### adding Pababaaaa+Pababaaba+Pabababaa+Pabababba+Pababbaaa+Pababbaba+Pababbbaa+Pababbbba+Pabbaaaaa+Pabbaaaba server side - Pababaaab+Pababaabb+Pabababab+Pabababbb+Pababbaab+Pababbabb+Pababbbab+Pababbbbb+Pabbaaaab+Pabbaaabb client side
+  comparing with ssh://user@dummy/diverging-repo/server
+  query 1; heads + initial-local-heads (sample size is 20)
+           received 6 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 684, sample size is: 200
+  2 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                   2
+  queries:                     220
+  heads summary:
+    total common heads:          5
+      also local heads:          3
+      also remote heads:         1
+      both:                      0
+    local heads:                20
+      common:                    3
+      missing:                  17
+    remote heads:                6
+      common:                    1
+      unknown:                   5
+  local changesets:           2898
+    common:                   2227
+      heads:                     5
+      roots:                     1
+    missing:                   671
+      heads:                    17
+      roots:                    19
+    first undecided set:      1686
+      heads:                    21
+      roots:                    18
+      common:                 1015
+      missing:                 671
+
+Talking to multiple server
+--------------------------
+
+
+  $ cd $TESTTMP
+  $ mkdir multiple-servers
+  $ cd multiple-servers
+  $ hg init server-1
+  $ hg init server-2
+  $ hg init client
+  $ cat >> client/.hg/hgrc << EOF
+  > [paths]
+  > server-1 = ssh://user@dummy/multiple-servers/server-1
+  > server-2 = ssh://user@dummy/multiple-servers/server-2
+  > EOF
+
+  $ cat ../pairs | while read -r left right; do
+  >     echo
+  >     echo "##### adding $left on server-1 - $right on server-2"
+  >     hg -R ../main-repo push --force server-1 --rev $left --quiet
+  >     hg -R ../main-repo push --force server-2 --rev $right --quiet
+  >     hg -R client pull server-1 --config devel.debug.discovery=yes
+  >     hg -R client pull server-2 --config devel.debug.discovery=yes
+  > done
+  
+  ##### adding Paaaaaaaa+Paaaaaaba+Paaaaabaa+Paaaaabba+Paaaabaaa+Paaaababa+Paaaabbaa+Paaaabbba+Paaabaaaa+Paaabaaba on server-1 - Paaaaaaab+Paaaaaabb+Paaaaabab+Paaaaabbb+Paaaabaab+Paaaababb+Paaaabbab+Paaaabbbb+Paaabaaab+Paaabaabb on server-2
+  pulling from ssh://user@dummy/multiple-servers/server-1
+  query 1; heads
+           received 1 server heads
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 375 changesets with 0 changes to 0 files
+  new changesets 1ea73414a91b:a7ca523f57f5
+  (run 'hg update' to get a working copy)
+  pulling from ssh://user@dummy/multiple-servers/server-2
+  query 1; heads + initial-local-heads (sample size is 1)
+           received 3 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 165 changesets with 0 changes to 0 files (+2 heads)
+  new changesets 0d0ec4326451:f0ddb6fbbb1d
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  
+  ##### adding Paaababaa+Paaababba+Paaabbaaa+Paaabbaba+Paaabbbaa+Paaabbbba+Paabaaaaa+Paabaaaba+Paabaabaa+Paabaabba on server-1 - Paaababab+Paaababbb+Paaabbaab+Paaabbabb+Paaabbbab+Paaabbbbb+Paabaaaab+Paabaaabb+Paabaabab+Paabaabbb on server-2
+  pulling from ssh://user@dummy/multiple-servers/server-1
+  query 1; heads + initial-local-heads (sample size is 3)
+           received 2 server heads
+  searching for changes
+  taking quick initial sample
+  query 2; still undecided: 537, sample size is: 54
+  query 3; still undecided: 71, sample size is: 71
+  3 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 585 changesets with 0 changes to 0 files (+2 heads)
+  new changesets e4b144f7c1f5:0d623320dc9b
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  pulling from ssh://user@dummy/multiple-servers/server-2
+  query 1; heads + initial-local-heads (sample size is 5)
+           received 10 server heads
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 259 changesets with 0 changes to 0 files (+5 heads)
+  new changesets c362f1e51701:155f59ca84fd
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### adding Paababaaa+Paabababa+Paababbaa+Paababbba+Paabbaaaa+Paabbaaba+Paabbabaa+Paabbabba+Paabbbaaa+Paabbbaba on server-1 - Paababaab+Paabababb+Paababbab+Paababbbb+Paabbaaab+Paabbaabb+Paabbabab+Paabbabbb+Paabbbaab+Paabbbabb on server-2
+  pulling from ssh://user@dummy/multiple-servers/server-1
+  query 1; heads + initial-local-heads (sample size is 10)
+           received 5 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 491, sample size is: 200
+  query 3; still undecided: 26, sample size is: 26
+  3 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 484 changesets with 0 changes to 0 files (+3 heads)
+  new changesets 2da5c5d08364:dd416cf284bc
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  pulling from ssh://user@dummy/multiple-servers/server-2
+  query 1; heads + initial-local-heads (sample size is 13)
+           received 16 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 203, sample size is: 200
+  2 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 157 changesets with 0 changes to 0 files (+4 heads)
+  new changesets 0af0844ee22c:e9986b03a22a
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### adding Paabbbbaa+Paabbbbba+Pabaaaaaa+Pabaaaaba+Pabaaabaa+Pabaaabba+Pabaabaaa+Pabaababa+Pabaabbaa+Pabaabbba on server-1 - Paabbbbab+Paabbbbbb+Pabaaaaab+Pabaaaabb+Pabaaabab+Pabaaabbb+Pabaabaab+Pabaababb+Pabaabbab+Pabaabbbb on server-2
+  pulling from ssh://user@dummy/multiple-servers/server-1
+  query 1; heads + initial-local-heads (sample size is 17)
+           received 7 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 450, sample size is: 200
+  2 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 384 changesets with 0 changes to 0 files (-1 heads)
+  new changesets 8dbce9ae65d2:dbe7d8ed8434
+  (run 'hg update' to get a working copy)
+  pulling from ssh://user@dummy/multiple-servers/server-2
+  query 1; heads + initial-local-heads (sample size is 16)
+           received 19 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 66, sample size is: 66
+  2 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 144 changesets with 0 changes to 0 files (+3 heads)
+  new changesets c50da21912eb:d902bf76c24d
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  
+  ##### adding Pababaaaa+Pababaaba+Pabababaa+Pabababba+Pababbaaa+Pababbaba+Pababbbaa+Pababbbba+Pabbaaaaa+Pabbaaaba on server-1 - Pababaaab+Pababaabb+Pabababab+Pabababbb+Pababbaab+Pababbabb+Pababbbab+Pababbbbb+Pabbaaaab+Pabbaaabb on server-2
+  pulling from ssh://user@dummy/multiple-servers/server-1
+  query 1; heads + initial-local-heads (sample size is 19)
+           received 6 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 647, sample size is: 200
+  query 3; still undecided: 11, sample size is: 11
+  3 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 483 changesets with 0 changes to 0 files (+1 heads)
+  new changesets 7500d37fcd60:fe1fc7aac4f5
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
+  pulling from ssh://user@dummy/multiple-servers/server-2
+  query 1; heads + initial-local-heads (sample size is 20)
+           received 20 server heads
+  searching for changes
+  taking initial sample
+  query 2; still undecided: 263, sample size is: 200
+  2 total queries in *.????s (glob)
+  adding changesets
+  adding manifests
+  adding file changes
+  added 100 changesets with 0 changes to 0 files (+2 heads)
+  new changesets 5c8eece2db7c:30aa3e66fabd
+  (run 'hg heads .' to see heads, 'hg merge' to merge)
