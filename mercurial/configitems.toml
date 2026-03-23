@@ -549,6 +549,13 @@ default = false
 
 [[items]]
 section = "devel"
+name = "debug.discovery"
+default = false
+documentation = """print discovery debug message regarless of the verbosity level
+"""
+
+[[items]]
+section = "devel"
 name = "debug.extensions"
 default = false
 

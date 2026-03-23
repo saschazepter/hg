@@ -291,6 +291,12 @@ def findcommonheads(
     debug.
     """
 
+    disco_debug = local.ui.configbool(b'devel', b'debug.discovery')
+    if disco_debug:
+        dbg = ui.write
+    else:
+        dbg = ui.debug
+
     samplegrowth = float(ui.config(b'devel', b'discovery.grow-sample.rate'))
 
     if audit is not None:
@@ -373,7 +379,7 @@ def findcommonheads(
 
     if sample:
         msg = b"query 1; heads + initial-local-heads (sample size is %d)\n"
-        ui.debug(msg % len(sample))
+        dbg(msg % len(sample))
         roundtrips += 1
         with remote.commandexecutor() as e:
             fheads = e.callcommand(b'heads', {})
@@ -388,13 +394,17 @@ def findcommonheads(
 
         srvheadhashes, yesno = fheads.result(), fknown.result()
     else:
-        ui.debug(b"query 1; heads\n")
+        dbg(b"query 1; heads\n")
         roundtrips += 1
         # we still need the remote head for the function return
         with remote.commandexecutor() as e:
             fheads = e.callcommand(b'heads', {})
         srvheadhashes = fheads.result()
         yesno = []
+
+    if disco_debug:
+        msg = b"         received %d server heads\n"
+        dbg(msg % len(srvheadhashes))
 
     if cl.tiprev() == nullrev:
         if audit is not None:
@@ -422,7 +432,7 @@ def findcommonheads(
     if len(knownsrvheads) == len(srvheadhashes):
         if audit is not None:
             audit[b'total-roundtrips'] = roundtrips
-        ui.debug(b"all remote heads known locally\n")
+        dbg(b"all remote heads known locally\n")
         return srvheadhashes, False, srvheadhashes
 
     # early exit if we already know that all local "heads" are known remotely
@@ -463,14 +473,14 @@ def findcommonheads(
             if full:
                 ui.note(_(b"sampling from both directions\n"))
             else:
-                ui.debug(b"taking initial sample\n")
+                dbg(b"taking initial sample\n")
             samplefunc = disco.takefullsample
             targetsize = fullsamplesize
             if grow_sample:
                 fullsamplesize = int(fullsamplesize * samplegrowth)
         else:
             # use even cheaper initial sample
-            ui.debug(b"taking quick initial sample\n")
+            dbg(b"taking quick initial sample\n")
             samplefunc = disco.takequicksample
             targetsize = initialsamplesize
         sample = samplefunc(ownheads, targetsize)
@@ -478,7 +488,7 @@ def findcommonheads(
         roundtrips += 1
         progress.update(roundtrips)
         stats = disco.stats()
-        ui.debug(
+        dbg(
             b"query %i; still undecided: %i, sample size is: %i\n"
             % (roundtrips, stats['undecided'], len(sample))
         )
@@ -503,7 +513,7 @@ def findcommonheads(
     result = disco.commonheads()
     elapsed = util.timer() - start
     progress.complete()
-    ui.debug(b"%d total queries in %.4fs\n" % (roundtrips, elapsed))
+    dbg(b"%d total queries in %.4fs\n" % (roundtrips, elapsed))
     msg = (
         b'found %d common and %d unknown server heads,'
         b' %d roundtrips in %.4fs\n'
