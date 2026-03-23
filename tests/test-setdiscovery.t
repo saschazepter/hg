@@ -1607,6 +1607,7 @@ query size restriction.
   sending known command
   sending 2301 bytes
   14 total queries in *.????s (glob)
+  (sent 15 HTTP requests and * bytes; received * bytes in responses) (glob)
   elapsed time:  *.?????? seconds (glob)
   round-trips:                  14
   queries:                    1040
@@ -1923,6 +1924,7 @@ neither should the sample size grow with the number of queries.
   query 90; still undecided: 8, sample size is: 8
   sending known command
   90 total queries in *.????s (glob)
+  (sent 91 HTTP requests and * bytes; received * bytes in responses) (glob)
   elapsed time:  *.?????? seconds (glob)
   round-trips:                  90
   queries:                     888

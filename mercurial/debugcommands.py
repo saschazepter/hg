@@ -1343,6 +1343,7 @@ def debugdiscovery(ui, repo, remoteurl=b"default", **opts):
     data[b'nb-ini_und-roots'] = len(roots_initial_undecided)
     data[b'nb-ini_und-common'] = len(common_initial_undecided)
     data[b'nb-ini_und-missing'] = len(missing_initial_undecided)
+    remote.close()
 
     fm.startitem()
     fm.data(**pycompat.strkwargs(data))
