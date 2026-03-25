@@ -2150,6 +2150,7 @@ def registersummarycallback(
             (b'content-divergent', b'contentdivergent'),
         ]
 
+        @util.rust_tracing_span("get-instability-counts")
         def getinstabilitycounts(repo: RepoT) -> dict[bytes, int]:
             filtered = repo.changelog.filteredrevs
             counts = {}
