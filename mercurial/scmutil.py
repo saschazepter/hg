@@ -2066,6 +2066,7 @@ fileprefetchhooks = util.hooks()
 _reportstroubledchangesets: bool = True
 
 
+@util.rust_tracing_span("transaction.register-summary-callback")
 def registersummarycallback(
     repo: RepoT,
     otr: TransactionT,
