@@ -470,6 +470,7 @@ class dirstatemap(_dirstatemapcommon):
         self.__getitem__ = self._map.__getitem__
         self.get = self._map.get
 
+    @util.rust_tracing_span("dirstatemap.write")
     def write(self, tr, st):
         if self._use_dirstate_v2:
             packed, meta = v2.pack_dirstate(self._map, self.copymap)
@@ -803,6 +804,7 @@ if rustmod is not None:
             self._map
             return self.identity
 
+        @util.rust_tracing_span("dirstatemap.write")
         def write(self, tr, st):
             if not self._use_dirstate_v2:
                 p1, p2 = self.parents()
