@@ -1963,7 +1963,9 @@ class localrepository(_localrepo_base_classes):
         won't call this unless they have registered a custom hook or are
         replacing code that is expected to call a hook.
         """
-        return hook.hook(self.ui, self, name, throw, **args)
+        str_name = pycompat.sysstr(name)
+        with util.rust_tracing_span("localrepo.hooks.%s" % str_name):
+            return hook.hook(self.ui, self, name, throw, **args)
 
     def python_hook(self, name, *args, **kwargs):
         """Call a python hook, passing this repo instance.
