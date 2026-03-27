@@ -2,6 +2,9 @@ use std::cmp::Ordering as O;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
+use rayon::iter::ParallelIterator;
+use rayon::slice::ParallelSlice;
+
 use super::RevlogType;
 use super::diff::CMP_BLK_SIZE;
 use super::diff::lines_prefix_size_low;
@@ -147,6 +150,15 @@ impl Manifest {
     ) -> impl Iterator<Item = Result<ManifestEntry<'_>, HgError>> {
         self.bytes
             .split(|b| b == &b'\n')
+            .filter(|line| !line.is_empty())
+            .map(ManifestEntry::from_raw)
+    }
+
+    pub fn par_iter(
+        &self,
+    ) -> impl ParallelIterator<Item = Result<ManifestEntry<'_>, HgError>> {
+        self.bytes
+            .par_split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())
             .map(ManifestEntry::from_raw)
     }
