@@ -196,5 +196,6 @@ Cleanup
 This also terminates the `debug::virtual-share` invocation
 XXX teach run-tests.py to do it itself?
 
+  $ cat $TESTTMP/source/error.log
   $ cd $TESTTMP # move out of the FUSE so we can unmount it
   $ umount $FUSE_ROOT
