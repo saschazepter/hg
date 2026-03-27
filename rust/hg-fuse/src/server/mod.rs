@@ -45,8 +45,6 @@ pub struct Server {
     /// each filenode id.
     /// TODO try to pass in a hasher that just uses the nodeid?
     file_nodeid_to_size: DashMap<Node, usize>,
-    /// Maps assigned revision inodes to the manifest node they're in.
-    ino_to_nodeid: DashMap<INodeNo, Node>,
     /// Revisions whose tree we've populated
     revisions: DashMap<Node, Arc<OwnedRevision>>,
     /// When this server was started
@@ -86,7 +84,6 @@ impl Server {
         Ok(Self {
             repo,
             file_nodeid_to_size: DashMap::default(),
-            ino_to_nodeid: DashMap::default(),
             revisions: DashMap::default(),
             // Use a constant time, so that restarts don't affect the dirstate.
             start_time: SystemTime::UNIX_EPOCH
@@ -248,7 +245,7 @@ impl Server {
 
         let manifest = manifestlog.data_for_node(manifest_node.into())?;
 
-        let (revision_data, new_ino_to_nodeid) = OwnedRevision::from_revision(
+        let revision_data = OwnedRevision::from_revision(
             &self.repo,
             &self.file_nodeid_to_size,
             manifest,
@@ -258,15 +255,6 @@ impl Server {
         )?;
         let revision_arc = Arc::new(revision_data);
         self.revisions.insert(changeset, Arc::clone(&revision_arc));
-
-        // Update the higher-level mapping now that the revision is fully built
-        // and stored
-        // Note that this implies that `new_ino_to_nodeid` is sorted in a way
-        // that the root directory is at the end, otherwise we might race and
-        // expose the root's children before they are inserted here.
-        for ino in new_ino_to_nodeid {
-            self.ino_to_nodeid.insert(ino, changeset);
-        }
 
         let preload = self
             .repo
@@ -327,8 +315,9 @@ impl Server {
         ino: INodeNo,
         func: impl FnOnce(&OwnedRevision) -> R,
     ) -> Option<R> {
-        let revision_nodeid = self.ino_to_nodeid.get(&ino)?;
-        let revision = self.revisions.get(&revision_nodeid)?;
+        let rev = RootInodeEncoder::ino_to_rev(ino)?;
+        let node = self.repo.node(rev)?;
+        let revision = self.revisions.get(&node)?;
         Some(func(&revision))
     }
 }
