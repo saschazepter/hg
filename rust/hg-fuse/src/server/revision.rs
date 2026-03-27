@@ -48,6 +48,7 @@ use hg::utils::hg_path::ZeroPath;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::utils::u_u32;
 use hg::utils::u_u64;
+use hg::utils::u64_u;
 use hg::warnings::HgWarningContext;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
@@ -968,5 +969,33 @@ impl RevisionInodeEncoder {
         self.reserved_contents.insert(ino, contents);
         self.reserved_entries.insert(ino, entry);
         ino
+    }
+
+    /// Return the offset of the dirstate [`DirstateNode`] inside this
+    /// revisions's packed in-memory dirstate, given this inode and the
+    /// inode of its "files" folder.
+    #[expect(unused)]
+    fn ino_to_offset(files_root_ino: INodeNo, ino: INodeNo) -> usize {
+        u64_u(
+            ino.0
+                .checked_sub(files_root_ino.0)
+                .expect("inode underflow")
+                .checked_sub(1)
+                .expect("inode underflow"),
+        )
+    }
+
+    /// Return the inode that matches this offset inside this revision's packed
+    /// in-memory dirstate, given the inode of its "files" folder.
+    #[expect(unused)]
+    fn offset_to_ino(files_root_ino: INodeNo, offset: usize) -> INodeNo {
+        INodeNo(
+            files_root_ino
+                .0
+                .checked_add(1)
+                .expect("inode overflow")
+                .checked_add(u_u64(offset))
+                .expect("inode overlow"),
+        )
     }
 }

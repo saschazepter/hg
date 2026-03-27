@@ -26,12 +26,14 @@ use crate::dirstate::dirstate_map::{self};
 use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::DirstateV2Data;
 use crate::dirstate::entry::TruncatedTimestamp;
+use crate::dirstate::on_disk;
 use crate::dirstate::path_with_basename::WithBasename;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
+use crate::revlog::manifest::ManifestFlags;
 use crate::utils::hg_path::HgPath;
 use crate::utils::u_u64;
 use crate::utils::u32_u;
@@ -86,7 +88,7 @@ pub struct Docket<'on_disk> {
 
 /// Fields are documented in the *Tree metadata in the docket file*
 /// section of `mercurial/helptext/internals/dirstate-v2.txt`
-#[derive(BytesCast)]
+#[derive(BytesCast, Copy, Clone)]
 #[repr(C)]
 pub struct TreeMetadata {
     root_nodes: ChildNodes,
@@ -579,6 +581,37 @@ impl Node {
             }
         }
         (flags, size, mtime)
+    }
+
+    /// Returns the [`ManifestFlags`] for this node, or `None` if it's a
+    /// directory
+    pub(super) fn manifest_flags(&self) -> Option<ManifestFlags> {
+        if self.flags().contains(Flags::DIRECTORY) {
+            return None;
+        }
+        Some(if self.flags().contains(Flags::MODE_IS_SYMLINK) {
+            ManifestFlags::new_link()
+        } else if self.flags().contains(Flags::MODE_EXEC_PERM) {
+            ManifestFlags::new_exec()
+        } else {
+            ManifestFlags::new_empty()
+        })
+    }
+
+    /// Returns the size of the node. For a file, this corresponds to the size
+    /// of its contents in bytes, and for a directory it can be an arbitrary
+    /// value.
+    pub(super) fn size(&self) -> u64 {
+        self.size.get().into()
+    }
+
+    /// Returns the offset for the idx-th child of this node. The caller is
+    /// responsible for making sure that this node is a directory and that the
+    /// index is valid for a child of this node.
+    pub(super) fn child_offset(&self, idx: usize) -> usize {
+        let children_slice_start = self.children.start.get();
+        let child_relative_offset = idx * std::mem::size_of::<on_disk::Node>();
+        u32_u(children_slice_start) + child_relative_offset
     }
 }
 
