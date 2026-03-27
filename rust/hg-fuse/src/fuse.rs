@@ -301,7 +301,7 @@ pub const FILES_INODE_NAME: &str = "files";
 /// Number of reserved inodes for the FUSE itself
 const RESERVED_INODES_COUNT: u64 = 1_000_000;
 /// Maximum number of inodes per changelog revision
-const MAX_INODES_PER_REVISION: u64 = 100_000_000;
+const MAX_INODES_PER_REVISION: u64 = 4_294_967_295;
 
 /// Responsible for deciding how inodes are attributed outside of revisions
 pub struct RootInodeEncoder;
