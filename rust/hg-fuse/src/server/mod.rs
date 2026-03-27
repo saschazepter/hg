@@ -334,5 +334,11 @@ impl Server {
 }
 
 fn permissions_for_file(flags: ManifestFlags) -> u16 {
-    if flags.is_exec() { 0o700 } else { 0o600 }
+    if flags.is_exec() {
+        0o700
+    } else if flags.is_link() {
+        0o120600
+    } else {
+        0o600
+    }
 }
