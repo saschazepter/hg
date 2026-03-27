@@ -129,6 +129,7 @@ help
    -d --date DATE           record the specified date as commit date
    -u --user USER           record the specified user as committer
    -S --subrepos            recurse into subrepositories
+   -T --template TEMPLATE   display with template
   
   (some details hidden, use --verbose to show complete help)
 

@@ -77,6 +77,7 @@ help record (record)
    -d --date DATE           record the specified date as commit date
    -u --user USER           record the specified user as committer
    -S --subrepos            recurse into subrepositories
+   -T --template TEMPLATE   display with template
    -w --ignore-all-space    ignore white space when comparing lines
    -b --ignore-space-change ignore changes in the amount of white space
    -B --ignore-blank-lines  ignore changes whose lines are all blank

@@ -3378,7 +3378,9 @@ def commitstatus(
         for r in head_change.reopen:
             repo.ui.status(_(b'reopening closed branch head %d\n') % r)
 
-    if repo.ui.debugflag:
+    if opts.get('template'):
+        repo.ui.write(rendertemplate(repo[node], opts['template']))
+    elif repo.ui.debugflag:
         repo.ui.write(
             _(b'committed changeset %d:%s\n') % (ctx.rev(), ctx.hex())
         )

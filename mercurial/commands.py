@@ -1891,7 +1891,8 @@ def clone(ui, source, dest=None, **opts):
     + walkopts
     + commitopts
     + commitopts2
-    + subrepoopts,
+    + subrepoopts
+    + formatteropts,
     _(b'[OPTION]... [FILE]...'),
     helpcategory=command.CATEGORY_COMMITTING,
     helpbasic=True,
@@ -1929,6 +1930,9 @@ def commit(ui, repo, *pats, **opts):
     Message, user and date are taken from the amended commit unless
     specified. When a message isn't specified on the command line,
     the editor will open with the message of the amended commit.
+
+    If --template is provided, then the newly created changeset (if any) will
+    be printed using the given template.
 
     It is not possible to amend public changesets (see :hg:`help phases`)
     or changesets that have children.

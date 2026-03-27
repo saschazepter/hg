@@ -876,4 +876,12 @@ testing commands.commit.post-status config option
   A added-file
   ? unknown-file
 
+Testing templating of the resulting commit
+------------------------------------------
+
+
+  $ hg commit -m 'more files' -T 'COMMITTED {node} by {author}\n'
+  COMMITTED 89f016d38f43abd0f094ff7770af44690a5f8bc7 by test
+  ? unknown-file
+
   $ cd ..
