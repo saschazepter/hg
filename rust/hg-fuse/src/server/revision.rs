@@ -54,7 +54,6 @@ use rayon::iter::ParallelIterator;
 
 use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
-use crate::fuse::InodeEncoder;
 use crate::fuse::RootInodeEncoder;
 use crate::server::permissions_for_file;
 
@@ -905,6 +904,14 @@ impl RevisionInodeEncoder {
         encoder
     }
 
+    /// Returns a new unique inode
+    fn new_inode(&self) -> INodeNo {
+        let new_inode =
+            INodeNo(self.current_ino.fetch_add(1, Ordering::Relaxed));
+        assert!(self.available_range.contains(&new_inode), "inode overflow");
+        new_inode
+    }
+
     #[tracing::instrument(level = "debug", skip_all)]
     fn add_dirstate(
         &mut self,
@@ -978,14 +985,5 @@ impl RevisionInodeEncoder {
         self.reserved_contents.insert(ino, contents);
         self.reserved_entries.insert(ino, entry);
         ino
-    }
-}
-
-impl InodeEncoder for RevisionInodeEncoder {
-    fn new_inode(&self) -> INodeNo {
-        let new_inode =
-            INodeNo(self.current_ino.fetch_add(1, Ordering::Relaxed));
-        assert!(self.available_range.contains(&new_inode), "inode overflow");
-        new_inode
     }
 }

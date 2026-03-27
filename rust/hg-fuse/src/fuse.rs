@@ -273,14 +273,6 @@ impl Entry {
     }
 }
 
-/// A trait for types responsible for deciding how inodes are attributed in an
-/// opaque manner.
-pub trait InodeEncoder {
-    /// Returns a new, unique inode.
-    fn new_inode(&self) -> INodeNo; // TODO should we error on out of inode?
-    // TODO `reclaim_inode`?
-}
-
 // TODO different inodes per virtual share
 /// Inode number for the root of the FUSE
 pub const ROOT_INODE: INodeNo = INodeNo(1);
