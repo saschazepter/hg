@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::convert::Infallible;
 use std::ffi::OsStr;
 use std::ffi::OsString;
@@ -7,6 +6,7 @@ use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::SystemTime;
@@ -20,18 +20,17 @@ use hg::Node;
 use hg::Revision;
 use hg::dirstate::dirstate_map::DirstateEntryReset;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
+use hg::dirstate::dirstate_map::FuseNodeInfo;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::Docket;
 use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
-use hg::dirstate::path_with_basename::WithBasename;
 use hg::errors::HgError;
 use hg::matchers::Matcher;
 use hg::narrow;
-use hg::operations::ExpandedManifestEntry;
-use hg::operations::FilesForRevBorrowed;
+use hg::operations::FilesForDirstateBorrowed;
 use hg::repo::Repo;
 use hg::requirements::DIRSTATE_TRACKED_HINT_V1;
 use hg::requirements::DIRSTATE_V2_REQUIREMENT;
@@ -44,23 +43,18 @@ use hg::sparse;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
-use hg::utils::hg_path::ZeroPath;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::utils::u_u32;
 use hg::utils::u_u64;
 use hg::utils::u64_u;
 use hg::warnings::HgWarningContext;
-use rayon::iter::IndexedParallelIterator;
-use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 
 use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::RootInodeEncoder;
 use crate::server::permissions_for_file;
-
-/// Mapping of inode to a reference in the revision (including reserved ones)
-type InoToRef = FastHashMap<INodeNo, RevisionTreeRef>;
 
 /// Stores information about a given changelog revision
 pub(super) struct ManifestRevisionDetails {
@@ -84,11 +78,7 @@ impl ManifestRevisionDetails {
 
 /// Represents a manifest revision
 pub(super) struct OwnedRevision {
-    /// The revision itself, in a private type to prevent generated `self_cell`
-    /// methods like `borrow_dependent` from being accessible from outside of
-    /// this module.
-    revision: RevisionHolder,
-    ino_to_ref: InoToRef,
+    revision: RevisionTree,
     changelog_rev: Revision,
 }
 
@@ -104,23 +94,16 @@ impl OwnedRevision {
         start_time: SystemTime,
         narrow_matcher: &impl Matcher,
     ) -> Result<Self, HgError> {
-        let mut ino_to_ref = FastHashMap::default();
         let changelog_rev = manifest_details.changeset_rev;
-        let revision = RevisionHolder::try_new(
-            manifest,
-            |manifest| -> Result<RevisionTree<'_>, HgError> {
-                RevisionTree::from_revision(
-                    repo,
-                    file_nodeid_to_size,
-                    &mut ino_to_ref,
-                    manifest,
-                    manifest_details,
-                    start_time,
-                    narrow_matcher,
-                )
-            },
+        let revision = RevisionTree::from_revision(
+            repo,
+            file_nodeid_to_size,
+            &manifest,
+            manifest_details,
+            start_time,
+            narrow_matcher,
         )?;
-        Ok(Self { revision, ino_to_ref, changelog_rev })
+        Ok(Self { revision, changelog_rev })
     }
 
     /// Preload this revision's filesystem structure into the kernel's caches.
@@ -131,19 +114,18 @@ impl OwnedRevision {
         // TODO figure out if manually doing relative `openat`/`fstatat` calls
         // is worth the trouble, given that we should just be using an in-memory
         // dirstate soon.
-        let inner = self.revision.borrow_dependent();
-
-        // reverse the iterator so we load the top-level dirs first
-        inner.dirs.par_iter().rev().for_each(|dir| {
-            let path = hg_path_to_path_buf(dir.path.full_path());
-
-            if let Ok(path) = path {
+        let inner = &self.revision;
+        // The iterator starts from the root nodes, which is what we want
+        inner.dirstate.debug_iter(true).par_bridge().for_each(|entry| {
+            let Ok((path, (type_byte, _, _, _))) = entry else {
+                return;
+            };
+            let Ok(path) = hg_path_to_path_buf(path) else {
+                return;
+            };
+            if type_byte == b' ' {
                 Self::preload_directory(root.join(path));
-            }
-        });
-        inner.files.par_iter().for_each(|file| {
-            let path = hg_path_to_path_buf(file.path.full_path());
-            if let Ok(path) = path {
+            } else {
                 _ = std::fs::symlink_metadata(root.join(path));
             }
         });
@@ -169,122 +151,70 @@ impl OwnedRevision {
     }
 
     pub fn get_entry(&self, ino: INodeNo) -> Option<Entry> {
-        let tree_ref = self.ino_to_ref.get(&ino)?;
-        let revision = self.revision.borrow_dependent();
-        match tree_ref {
-            RevisionTreeRef::File(idx) => {
-                let file = &revision.files[*idx];
-                Some(file.into())
-            }
-            RevisionTreeRef::Dir(idx) => {
-                let dir = &revision.dirs[*idx];
-                Some(dir.into())
-            }
-            RevisionTreeRef::Reserved(_) => {
-                let entry = &revision.reserved[&ino];
-                Some(entry.entry.clone())
-            }
+        let revision = &self.revision;
+        if let Some(reserved) = revision.reserved.get(&ino) {
+            return Some(reserved.entry.clone());
         }
+        let info = self.revision.dirstate.get_map().fuse_node_info(
+            RevisionInodeEncoder::ino_to_offset(revision.files_root_ino, ino),
+        )?;
+
+        Some(self.entry_for_dirstate_node(info))
     }
 
     /// Return the child entry matching `name` for inode `parent`, if both exist
     pub fn lookup(&self, parent: INodeNo, name: &OsStr) -> Option<Entry> {
-        let parent_ref = self.ino_to_ref.get(&parent)?;
-        let revision = self.revision.borrow_dependent();
-        match parent_ref {
-            RevisionTreeRef::File(_) => None,
-            RevisionTreeRef::Reserved(_) => {
-                let maybe_dir = &revision.reserved[&parent];
-                maybe_dir.children.iter().find_map(|ino| {
-                    let child = &revision.reserved[ino];
-                    let entry = &child.entry;
-                    if entry.name() == name {
-                        Some(entry.clone())
-                    } else {
-                        None
-                    }
-                })
-            }
-            RevisionTreeRef::Dir(idx) => {
-                let dir = &revision.dirs[*idx];
-                dir.children.iter().find_map(|&c| match c {
-                    RevisionTreeRef::File(idx) => {
-                        let file = &revision.files[idx];
-                        let file_name = file.path.base_name().as_bytes();
-                        if file_name == name.as_encoded_bytes() {
-                            Some(file.into())
-                        } else {
-                            None
-                        }
-                    }
-                    RevisionTreeRef::Dir(idx) => {
-                        let dir = &revision.dirs[idx];
-                        let dir_name = dir.path.base_name().as_bytes();
-                        if dir_name == name.as_encoded_bytes() {
-                            Some(dir.into())
-                        } else {
-                            None
-                        }
-                    }
-                    RevisionTreeRef::Reserved(ino) => {
-                        let reserved = &revision.reserved[&ino];
-                        if reserved.entry.name() == name {
-                            Some(reserved.entry.clone())
-                        } else {
-                            None
-                        }
-                    }
-                })
-            }
+        let revision = &self.revision;
+        if let Some(reserved) = revision.reserved.get(&parent) {
+            return reserved.children.iter().find_map(|ino| {
+                let entry = self.get_entry(*ino)?;
+                if entry.name() == name {
+                    Some(entry.clone())
+                } else {
+                    None
+                }
+            });
         }
+
+        let info = self.revision.dirstate.get_map().fuse_lookup(
+            RevisionInodeEncoder::ino_to_offset(
+                revision.files_root_ino,
+                parent,
+            ),
+            name.as_bytes(),
+        )?;
+        Some(self.entry_for_dirstate_node(info))
     }
 
     /// Return direct children entries for `ino`
     pub fn entries(&self, ino: INodeNo) -> Option<Vec<Entry>> {
-        let tree_ref = self.ino_to_ref.get(&ino)?;
-        let revision = self.revision.borrow_dependent();
-        match tree_ref {
-            RevisionTreeRef::File(_) => None,
-            RevisionTreeRef::Dir(idx) => {
-                let dir = &revision.dirs[*idx];
-                let children = dir
-                    .children
-                    .iter()
-                    .map(|child_ref| match child_ref {
-                        RevisionTreeRef::File(idx) => {
-                            let file = &revision.files[*idx];
-                            file.into()
-                        }
-                        RevisionTreeRef::Dir(idx) => {
-                            let dir = &revision.dirs[*idx];
-                            dir.into()
-                        }
-                        RevisionTreeRef::Reserved(ino) => {
-                            let reserved = &revision.reserved[ino];
-                            reserved.entry.clone()
-                        }
-                    })
-                    .collect();
-                Some(children)
-            }
-            RevisionTreeRef::Reserved(ino) => {
-                let reserved = &revision.reserved[ino];
-                match reserved.entry {
-                    Entry::Dir { .. } => {
-                        let children = reserved
-                            .children
-                            .iter()
-                            .map(|child_ref| {
-                                let child_ref = &revision.reserved[child_ref];
-                                child_ref.entry.clone()
-                            })
-                            .collect();
-                        Some(children)
-                    }
-                    Entry::File { .. } => None,
+        let revision = &self.revision;
+        if let Some(reserved) = revision.reserved.get(&ino) {
+            return match reserved.entry {
+                Entry::Dir { .. } => {
+                    let children = reserved
+                        .children
+                        .iter()
+                        .filter_map(|ino| {
+                            let entry = self.get_entry(*ino)?;
+                            Some(entry.clone())
+                        })
+                        .collect();
+                    Some(children)
                 }
-            }
+                Entry::File { .. } => None,
+            };
         }
+
+        let dmap = revision.dirstate.get_map();
+        let children = dmap.fuse_children_entries(
+            RevisionInodeEncoder::ino_to_offset(revision.files_root_ino, ino),
+        )?;
+        let entries = children
+            .into_iter()
+            .map(|info| self.entry_for_dirstate_node(info))
+            .collect();
+        Some(entries)
     }
 
     pub fn read(
@@ -292,28 +222,44 @@ impl OwnedRevision {
         ino: INodeNo,
         repo: &Repo,
     ) -> Result<Option<RawData>, HgError> {
-        let Some(tree_ref) = self.ino_to_ref.get(&ino) else {
+        let revision = &self.revision;
+        if let Some(reserved) = revision.reserved.get(&ino) {
+            return match &reserved.entry {
+                Entry::Dir { .. } => Ok(None),
+                Entry::File { ino, .. } => {
+                    Ok(Some(revision.reserved_contents[ino].clone()))
+                }
+            };
+        }
+
+        let Some(info) = self.revision.dirstate.get_map().fuse_node_info(
+            RevisionInodeEncoder::ino_to_offset(revision.files_root_ino, ino),
+        ) else {
             return Ok(None);
         };
-        let revision = self.revision.borrow_dependent();
-        match tree_ref {
-            RevisionTreeRef::File(idx) => {
-                let file = &revision.files[*idx];
-                let full_path = file.path.full_path();
-                let data =
-                    repo.filelog(full_path)?.data_for_node(file.file_node)?;
-                Ok(Some(data.into_file_data()?))
-            }
-            RevisionTreeRef::Dir(_) => Ok(None),
-            RevisionTreeRef::Reserved(ino) => {
-                let reserved = &revision.reserved[ino];
-                match &reserved.entry {
-                    Entry::Dir { .. } => Ok(None),
-                    Entry::File { ino, .. } => {
-                        Ok(Some(revision.reserved_contents[ino].clone()))
-                    }
-                }
-            }
+        let file_nodeid = self
+            .revision
+            .ino_to_file_nodeid
+            .get(&ino)
+            .expect("node should exist");
+        let data = repo.filelog(info.path)?.data_for_node(*file_nodeid)?;
+        Ok(Some(data.into_file_data()?))
+    }
+
+    fn entry_for_dirstate_node(
+        &self,
+        FuseNodeInfo { path, size, flags, offset }: FuseNodeInfo,
+    ) -> Entry {
+        let ino = RevisionInodeEncoder::offset_to_ino(
+            self.revision.files_root_ino,
+            offset,
+        );
+        let name = path.split_filename().1.as_bytes();
+        let name = OsStr::from_bytes(name).to_os_string();
+        if let Some(flags) = flags {
+            Entry::File { name, ino, size, flags }
+        } else {
+            Entry::Dir { name, ino }
         }
     }
 
@@ -323,99 +269,52 @@ impl OwnedRevision {
     }
 }
 
-self_cell::self_cell!(
-    /// Keeps a `RevisionTree<'manifest>` next to the `manifest` that it
-    /// borrows.
-    struct RevisionHolder {
-        owner: Manifest,
-        #[covariant]
-        dependent: RevisionTree,
-    }
-);
-
 /// Holds the tree representation of a given changelog revision
-struct RevisionTree<'manifest> {
-    /// Holds all files
-    pub files: Vec<RevisionTreeFile<'manifest>>,
-    /// Holds all folders
-    pub dirs: Vec<RevisionTreeDir<'manifest>>,
-    /// Holds all reserved FUSE entries
+struct RevisionTree {
+    /// The full dirstate for this revision
+    dirstate: OwningDirstateMap,
+    /// Mapping of inode to file nodeid, so we can answer reads
+    ino_to_file_nodeid: DashMap<INodeNo, Node>,
+    /// Inode for the "files" folder for this revision
+    files_root_ino: INodeNo,
+    /// Mapping of all reserved inodes to their FUSE entries
     pub reserved: FastHashMap<INodeNo, ReservedRevisionEntry>,
-    /// Holds all reserved FUSE file contents
+    /// Mapping of all reserved inodes that have file contents
     reserved_contents: FastHashMap<INodeNo, RawData>,
-}
-
-impl std::fmt::Debug for RevisionTree<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut builder = f.debug_struct("RevisionTree");
-        builder
-            .field("files", &self.files.len())
-            .field("dirs", &self.dirs.len());
-        builder.finish()
-    }
 }
 
 /// Iterator over the size for each filenode
 type FilenodeSizeIterator<'a> = &'a mut (dyn Iterator<Item = usize> + 'static);
 
-impl<'manifest> RevisionTree<'manifest> {
+impl RevisionTree {
     #[allow(clippy::too_many_arguments)]
     pub fn from_revision(
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
-        ino_to_ref: &mut InoToRef,
-        manifest: &'manifest Manifest,
+        manifest: &Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
         narrow_matcher: &impl Matcher,
-    ) -> Result<RevisionTree<'manifest>, HgError> {
-        let (temp_map, files_array) = Self::process_manifest_files(
-            repo,
-            file_nodeid_to_size,
-            ino_to_ref,
-            manifest,
-            manifest_details,
-            start_time,
-            narrow_matcher,
-        )?;
-
-        let mut dirs_array = Vec::with_capacity(temp_map.mapping.len());
-
-        // Now that we have all directories, create the actual tree structure
-        temp_map.to_tree(
-            ino_to_ref,
-            HgPath::new(b""),
-            &mut vec![],
-            &mut dirs_array,
-        );
-
-        let files_root_ino = temp_map.inode_encoder.files_root_inode;
+    ) -> Result<RevisionTree, HgError> {
+        let (dirstate, ino_to_file_nodeid, inode_encoder) =
+            Self::process_manifest_files(
+                repo,
+                file_nodeid_to_size,
+                manifest,
+                manifest_details,
+                start_time,
+                narrow_matcher,
+            )?;
 
         // Remember the inodes for reserved entries
-        let reserved = temp_map.inode_encoder.reserved_entries;
-        for (inode, _) in reserved.iter() {
-            // We skip the files root inode since it serves the files
-            if *inode != files_root_ino {
-                ino_to_ref.insert(*inode, RevisionTreeRef::Reserved(*inode));
-            }
-        }
-
-        dirs_array
-            .last_mut()
-            .expect("should have at least the root dir")
-            .children
-            .extend(
-                reserved[&files_root_ino]
-                    .children
-                    .iter()
-                    .map(|ino| RevisionTreeRef::Reserved(*ino)),
-            );
+        let reserved = inode_encoder.reserved_entries;
 
         let tree = RevisionTree {
-            files: files_array,
-            dirs: dirs_array,
+            dirstate,
+            ino_to_file_nodeid,
+            files_root_ino: inode_encoder.files_root_inode,
             reserved,
-            reserved_contents: temp_map.inode_encoder.reserved_contents,
+            reserved_contents: inode_encoder.reserved_contents,
         };
         Ok(tree)
     }
@@ -427,16 +326,14 @@ impl<'manifest> RevisionTree<'manifest> {
     fn process_manifest_files(
         repo: &Repo,
         file_nodeid_to_size: &DashMap<Node, usize>,
-        ino_to_ref: &mut InoToRef,
-        manifest: &'manifest Manifest,
+        manifest: &Manifest,
         manifest_details: ManifestRevisionDetails,
         start_time: SystemTime,
         narrow_matcher: &impl Matcher,
-    ) -> Result<(TempMap<'manifest>, Vec<RevisionTreeFile<'manifest>>), HgError>
-    {
-        let narrow_patterns = narrow::raw_store_patterns(repo)?;
-        let files_for_rev = FilesForRevBorrowed::new(manifest, &narrow_matcher);
-
+    ) -> Result<
+        (OwningDirstateMap, DashMap<INodeNo, Node>, RevisionInodeEncoder),
+        HgError,
+    > {
         let warnings = HgWarningContext::new();
         let sparse_matcher = sparse::matcher(
             repo,
@@ -449,23 +346,12 @@ impl<'manifest> RevisionTree<'manifest> {
             Ok(())
         });
 
-        // Sort the flat files so the children always come before the parents
-        let mut zeropath_files = files_for_rev
-            .iter()
-            .map(|line| {
-                let line = line?;
-                Ok((ZeroPath::try_from(line.0)?, line))
-            })
-            .filter(|res| match res {
-                // Filter according to the sparse profile
-                Ok((_, (path, _, _))) => sparse_matcher.matches(path),
-                Err(_) => true, // Errors must be included
-            })
-            .collect::<Result<Vec<(ZeroPath, ExpandedManifestEntry)>, HgError>>(
-            )?;
-
-        zeropath_files.sort_by(|a, b| a.0.cmp(&b.0));
-        let number_of_files = zeropath_files.len();
+        let files_for_rev = FilesForDirstateBorrowed::new(
+            manifest,
+            &narrow_matcher,
+            &sparse_matcher,
+        );
+        let narrow_patterns = narrow::raw_store_patterns(repo)?;
 
         let cached_file_sizes = file_nodeid_to_size.len();
 
@@ -473,6 +359,7 @@ impl<'manifest> RevisionTree<'manifest> {
         let size_span = tracing::debug_span!("computing sizes").entered();
         let use_fake_file_size =
             repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
+        let path_to_filenode_id = DashMap::new();
         let sizes_vec = if use_fake_file_size {
             vec![]
         } else {
@@ -488,10 +375,12 @@ impl<'manifest> RevisionTree<'manifest> {
                     requirements,
                     hg::revlog::RevlogType::Filelog,
                 )?;
-            zeropath_files
+            files_for_rev
                 .par_iter()
-                .map(|(_, (path, file_node, _flags))| {
-                    if let Some(size) = file_nodeid_to_size.get(file_node) {
+                .map(|res| {
+                    let (path, file_node, _flags) = res?;
+                    path_to_filenode_id.insert(path, file_node);
+                    if let Some(size) = file_nodeid_to_size.get(&file_node) {
                         // We already know this size
                         return Ok(*size);
                     }
@@ -506,7 +395,7 @@ impl<'manifest> RevisionTree<'manifest> {
                     // TODO keep a persistent NodeTree of filenode_id -> size
                     // until we have it in revlogv2?
                     let size = filelog.contents_size_for_node(file_node)?;
-                    file_nodeid_to_size.insert(*file_node, size);
+                    file_nodeid_to_size.insert(file_node, size);
                     Ok(size)
                 })
                 .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
@@ -518,16 +407,16 @@ impl<'manifest> RevisionTree<'manifest> {
         let mut sizes_iter = sizes_vec.into_iter();
         let manifest_iter = if use_fake_file_size {
             let repeat: FilenodeSizeIterator = &mut always_zero;
-            zeropath_files.into_iter().zip(repeat)
+            files_for_rev.iter().zip(repeat)
         } else {
             let sizes_vec: &mut dyn Iterator<Item = usize> = &mut sizes_iter;
-            zeropath_files.into_iter().zip(sizes_vec)
+            files_for_rev.iter().zip(sizes_vec)
         };
 
         let available_inode_range = RootInodeEncoder::revision_inode_range(
             manifest_details.changeset_rev,
         );
-        let inode_encoder = RevisionInodeEncoder::new(
+        let mut inode_encoder = RevisionInodeEncoder::new(
             available_inode_range,
             repo.store_path().parent().expect("store always has a parent"),
             &manifest_details.branch,
@@ -535,26 +424,28 @@ impl<'manifest> RevisionTree<'manifest> {
             narrow_patterns,
         );
 
-        // Compute temporary mapping of all directories to their children
-        let root_path = HgPath::new(b"");
-
-        let mut temp_map = TempMap::new(inode_encoder);
-        let mut files_array = Vec::with_capacity(number_of_files);
-        let mut current_file_parent = root_path;
-
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
 
-        let map_span = tracing::debug_span!("building the map").entered();
+        let map_span = tracing::debug_span!("building the dirstate").entered();
         let start_time: TruncatedTimestamp = start_time.into();
-        for ((_zeropath, line), size) in manifest_iter {
-            Self::add_manifest_file_to_map(
-                ino_to_ref,
-                &mut files_array,
-                &mut temp_map,
-                &mut current_file_parent,
-                (line, size),
-                (&mut dirstate, start_time),
-            )?;
+        for (line, size) in manifest_iter {
+            let (path, _file_node_id, flags) = line?;
+            dirstate.reset_state(DirstateEntryReset {
+                filename: path,
+                wc_tracked: true,
+                p1_tracked: true,
+                p2_info: false, // We're never in an active merge
+                has_meaningful_mtime: true,
+                parent_file_data_opt: Some(ParentFileData {
+                    mode_size: Some((
+                        permissions_for_file(flags).into(),
+                        u_u32(size),
+                    )),
+                    mtime: Some(start_time),
+                }),
+                from_empty: true, // We are starting from scratch
+                set_parents_mtime: true,
+            })?;
         }
         let cache_misses = file_nodeid_to_size.len() - cached_file_sizes;
         drop(map_span);
@@ -564,221 +455,14 @@ impl<'manifest> RevisionTree<'manifest> {
             p1: manifest_details.changeset_node,
             p2: NULL_NODE,
         };
-        temp_map.inode_encoder.add_dirstate(dirstate, dirstate_parents)?;
+        let (dirstate, inode_to_file_nodeid) = inode_encoder.add_dirstate(
+            dirstate,
+            dirstate_parents,
+            path_to_filenode_id,
+        )?;
 
-        Ok((temp_map, files_array))
+        Ok((dirstate, inode_to_file_nodeid, inode_encoder))
     }
-
-    /// Processes a manifest line and adds it to the temporary map.
-    ///
-    /// * Creates its ancestor (thus directory) nodes
-    /// * Computes the size of the file revision it points to
-    /// * Assigns it an inode
-    /// * Inserts the resulting file information in its parent node
-    #[allow(clippy::too_many_arguments)]
-    fn add_manifest_file_to_map(
-        ino_to_ref: &mut InoToRef,
-        files_array: &mut Vec<RevisionTreeFile<'manifest>>,
-        temp_map: &mut TempMap<'manifest>,
-        current_file_parent: &mut &'manifest HgPath,
-        (line, size): (ExpandedManifestEntry<'manifest>, usize),
-        (dirstate, start_time): (&mut OwningDirstateMap, TruncatedTimestamp),
-    ) -> Result<(), HgError> {
-        let (path, file_node_id, flags) = line;
-        let file_parent = path.parent();
-        if file_parent != *current_file_parent {
-            // We've finished with the current dir
-            *current_file_parent = file_parent;
-            let mut dir_cursor = file_parent;
-            let mut parent_dir = dir_cursor.parent();
-            while dir_cursor != parent_dir {
-                // Loop over parent dirs to create them if need be
-                let dir_ref = TempMapItem::Dir(dir_cursor);
-                temp_map
-                    .mapping
-                    .entry(parent_dir)
-                    .and_modify(|s| {
-                        // Insert the current level in its parent.
-                        // We use a set for simple dedup, but should do
-                        // better later.
-                        s.insert(dir_ref);
-                    })
-                    .or_insert_with(|| {
-                        let mut set = HashSet::new();
-                        set.insert(dir_ref);
-                        set
-                    });
-                dir_cursor = parent_dir;
-                parent_dir = dir_cursor.parent();
-            }
-        }
-
-        let inode = temp_map.inode_encoder.new_inode();
-
-        dirstate.reset_state(DirstateEntryReset {
-            filename: path,
-            wc_tracked: true,
-            p1_tracked: true,
-            p2_info: false, // We're never in an active merge
-            has_meaningful_mtime: true,
-            parent_file_data_opt: Some(ParentFileData {
-                mode_size: Some((
-                    permissions_for_file(flags).into(),
-                    u_u32(size),
-                )),
-                mtime: Some(start_time),
-            }),
-            from_empty: true, // We are starting from scratch
-            set_parents_mtime: true,
-        })?;
-
-        let file_entry = RevisionTreeFile {
-            inode,
-            file_node: file_node_id,
-            flags,
-            path: WithBasename::new(path),
-            size: u_u64(size),
-        };
-        files_array.push(file_entry);
-        let file_idx = files_array.len() - 1;
-        ino_to_ref.insert(inode, RevisionTreeRef::File(file_idx));
-
-        let file_ref = TempMapItem::File(file_idx);
-
-        // Add it to its temporary parent
-        temp_map
-            .mapping
-            .entry(file_parent)
-            .and_modify(|s| {
-                s.insert(file_ref);
-            })
-            .or_insert_with(|| {
-                let mut set = HashSet::new();
-                set.insert(file_ref);
-                set
-            });
-        Ok(())
-    }
-}
-
-/// Represents a file in a given manifest revision
-pub(super) struct RevisionTreeFile<'manifest> {
-    /// The unique inode for this file
-    pub inode: INodeNo,
-    /// Its full path from the base of the "working directory"
-    pub path: WithBasename<&'manifest HgPath>,
-    /// Flags for this file (mostly useful for exec or link)
-    pub flags: ManifestFlags,
-    /// The node for the corresponding filelog
-    pub file_node: Node,
-    /// The size of its full uncompressed contents
-    pub size: u64,
-}
-
-impl From<&RevisionTreeFile<'_>> for Entry {
-    fn from(file: &RevisionTreeFile) -> Self {
-        Self::file(
-            OsStr::from_bytes(file.path.base_name().as_bytes()).to_os_string(),
-            file.inode,
-            file.size,
-            file.flags,
-        )
-    }
-}
-
-/// Represents a directory in a given manifest revision
-#[derive(Debug)]
-pub(super) struct RevisionTreeDir<'manifest> {
-    /// The unique inode for this directory
-    pub inode: INodeNo,
-    /// Its full path from the base of the "working directory"
-    pub path: WithBasename<&'manifest HgPath>,
-    /// Pointers to its direct children
-    pub children: Vec<RevisionTreeRef>,
-}
-
-impl From<&RevisionTreeDir<'_>> for Entry {
-    fn from(dir: &RevisionTreeDir) -> Self {
-        Self::dir(
-            OsStr::from_bytes(dir.path.base_name().as_bytes()).to_os_string(),
-            dir.inode,
-        )
-    }
-}
-
-/// Represents a pointer to an entry in the [`RevisionTree`]
-#[derive(Copy, Clone, Debug)]
-pub(super) enum RevisionTreeRef {
-    /// Points to a file in the [`RevisionTree`]
-    File(usize),
-    /// Points to a directory the [`RevisionTree`]
-    Dir(usize),
-    /// Points to a reserved entry of the [`RevisionTree`]
-    Reserved(INodeNo),
-}
-
-/// Mapping of path -> children, used in [`TempMap`]
-type TempMapping<'manifest> =
-    FastHashMap<&'manifest HgPath, HashSet<TempMapItem<'manifest>>>;
-
-/// Temporary struct used to build the tree structure since we need to know
-/// all parent -> children edges before being able to build the flat directory
-/// vec used in [`RevisionTree`].
-struct TempMap<'manifest> {
-    mapping: TempMapping<'manifest>,
-    /// Responsible for giving out inodes when building this revision
-    inode_encoder: RevisionInodeEncoder,
-}
-
-impl<'manifest> TempMap<'manifest> {
-    fn new(inode_encoder: RevisionInodeEncoder) -> Self {
-        Self { mapping: FastHashMap::default(), inode_encoder }
-    }
-
-    /// Iterate over the temporary mapping to build the revision tree,
-    /// separating directories and files in two vecs.
-    fn to_tree(
-        &self,
-        ino_to_ref: &mut InoToRef,
-        current_path: &'manifest HgPath,
-        parent_buffer: &mut Vec<RevisionTreeRef>,
-        dirs: &mut Vec<RevisionTreeDir<'manifest>>,
-    ) {
-        let mut children = vec![];
-        for tree_ref in &self.mapping[current_path] {
-            match tree_ref {
-                TempMapItem::Dir(child_path) => {
-                    assert_ne!(*child_path, current_path);
-                    self.to_tree(ino_to_ref, child_path, &mut children, dirs)
-                }
-                TempMapItem::File(idx) => {
-                    children.push(RevisionTreeRef::File(*idx))
-                }
-            }
-        }
-        let inode = if current_path.is_empty() {
-            self.inode_encoder.files_root_inode
-        } else {
-            self.inode_encoder.new_inode()
-        };
-        dirs.push(RevisionTreeDir {
-            inode,
-            path: WithBasename::new(current_path),
-            children,
-        });
-
-        let dir_ref = RevisionTreeRef::Dir(dirs.len() - 1);
-        ino_to_ref.insert(inode, dir_ref);
-        parent_buffer.push(dir_ref);
-    }
-}
-
-/// Represents either a finished pointer to a [`RevisionTreeFile`] or a
-/// temporary directory used in [`TempMap`].
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-enum TempMapItem<'manifest> {
-    Dir(&'manifest HgPath),
-    File(usize),
 }
 
 /// Represents a reserved FUSE entry inside the revision's root dir
@@ -899,28 +583,70 @@ impl RevisionInodeEncoder {
         &mut self,
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
-    ) -> Result<(), HgError> {
-        let (data, metadata, _, _) = dirstate.pack_v2(
-            DirstateMapWriteMode::ForceNewDataFile,
-            None::<WriteNodeVisit>,
-        )?;
-        let dirstate_size = u_u64(data.len());
+        path_to_filenode_id: DashMap<&HgPath, Node>,
+    ) -> Result<(OwningDirstateMap, DashMap<INodeNo, Node>), HgError> {
+        let ino_to_filenode_id = DashMap::with_capacity(dirstate.len());
+        let latest_ino = AtomicU64::new(self.files_root_inode.0);
+        // Insert them in the files root
+        let files_root_entry = self
+            .reserved_entries
+            .get_mut(&self.files_root_inode)
+            .expect("root node should exist");
+
+        // Special case to remember the root nodes since they need to be
+        // attached to the files root. The mutex will be uncontended since
+        // the dirstate does not support parallel inserts, this is purely so we
+        // can satisfy the callback being immutable.
+        let root_nodes = Mutex::new(&mut files_root_entry.children);
+
+        // Called on every node, in serialization order, to store the mapping
+        // of path -> filenodeid (or nothing for directories).
+        let visit: WriteNodeVisit = &|path, is_root_node, offset| {
+            let ino = Self::offset_to_ino(self.files_root_inode, u64_u(offset));
+            if is_root_node {
+                root_nodes.lock().expect("propagate the panic").push(ino);
+            }
+
+            // Remember the inode to filenode id mapping to answer reads
+            let path_to_filenode_entry = path_to_filenode_id.get(path);
+            path_to_filenode_entry
+                .map(|node_id| ino_to_filenode_id.insert(ino, *node_id));
+            latest_ino.store(ino.0, Ordering::Relaxed);
+        };
+
+        let (data, tree_metadata, appending, old_size) = dirstate
+            .pack_v2(DirstateMapWriteMode::ForceNewDataFile, Some(visit))?;
+        let new_inode = latest_ino
+            .load(Ordering::Relaxed)
+            .checked_add(1)
+            .expect("inode overflow");
+        assert!(
+            self.available_range.contains(&INodeNo(new_inode)),
+            "inode overflow"
+        );
+        self.current_ino = AtomicU64::new(new_inode);
+        // Paranoid checks
+        assert!(!appending, "dirstate must be written from scratch");
+        assert_eq!(old_size, 0, "dirstate must be written from scratch");
+        let data_size = data.len();
         let uuid = Docket::new_uid();
 
         // Create the data file
-        let data_ino =
-            self.add_reserved_file(format!("dirstate.{uuid}"), data.into());
+        let packed_data: RawData = data.into();
+        let data_ino = self
+            .add_reserved_file(format!("dirstate.{uuid}"), packed_data.clone());
 
         // Create the docket file
         let docket_data = Docket::serialize(
             parents,
-            metadata,
-            dirstate_size,
+            tree_metadata,
+            u_u64(data_size),
             uuid.as_bytes(),
         )
         .expect("dirstate overflow");
 
-        let docket_ino = self.add_reserved_file("dirstate", docket_data.into());
+        let docket_data: RawData = docket_data.into();
+        let docket_ino = self.add_reserved_file("dirstate", docket_data);
 
         // Insert them in .hg
         let dot_hg_entry = self
@@ -930,7 +656,15 @@ impl RevisionInodeEncoder {
         dot_hg_entry.children.push(data_ino);
         dot_hg_entry.children.push(docket_ino);
 
-        Ok(())
+        // Return a new dirstate based off the packed data
+        let new_dirstate = OwningDirstateMap::new_v2(
+            packed_data,
+            data_size,
+            tree_metadata.as_bytes(),
+            uuid.as_bytes().to_vec(),
+            None,
+        )?;
+        Ok((new_dirstate, ino_to_filenode_id))
     }
 
     fn add_reserved_directory(
@@ -974,7 +708,6 @@ impl RevisionInodeEncoder {
     /// Return the offset of the dirstate [`DirstateNode`] inside this
     /// revisions's packed in-memory dirstate, given this inode and the
     /// inode of its "files" folder.
-    #[expect(unused)]
     fn ino_to_offset(files_root_ino: INodeNo, ino: INodeNo) -> usize {
         u64_u(
             ino.0
@@ -987,7 +720,6 @@ impl RevisionInodeEncoder {
 
     /// Return the inode that matches this offset inside this revision's packed
     /// in-memory dirstate, given the inode of its "files" folder.
-    #[expect(unused)]
     fn offset_to_ino(files_root_ino: INodeNo, offset: usize) -> INodeNo {
         INodeNo(
             files_root_ino
