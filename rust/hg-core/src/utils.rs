@@ -15,6 +15,7 @@ use im_rc::ordmap::DiffItem;
 use im_rc::ordmap::OrdMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
+use rayon::iter::ParallelIterator;
 
 use crate::errors::HgIoError;
 use crate::errors::IoErrorContext;
@@ -238,6 +239,24 @@ pub fn filter_map_results<'a, I, F, A, B, E>(
 where
     I: Iterator<Item = Result<A, E>> + 'a,
     F: Fn(A) -> Result<Option<B>, E> + 'a,
+{
+    iter.filter_map(move |result| match result {
+        Ok(node) => f(node).transpose(),
+        Err(e) => Some(Err(e)),
+    })
+}
+
+/// Parallel version of [`filter_map_results`]
+pub fn par_filter_map_results<'a, I, F, A, B, E>(
+    iter: I,
+    f: F,
+) -> impl ParallelIterator<Item = Result<B, E>> + 'a
+where
+    I: ParallelIterator<Item = Result<A, E>> + 'a,
+    F: Fn(A) -> Result<Option<B>, E> + 'a,
+    B: Send,
+    E: Send,
+    F: Sync + Send,
 {
     iter.filter_map(move |result| match result {
         Ok(node) => f(node).transpose(),

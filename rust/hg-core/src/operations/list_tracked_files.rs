@@ -5,6 +5,8 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use rayon::iter::ParallelIterator;
+
 use crate::Node;
 use crate::UncheckedRevision;
 use crate::errors::HgError;
@@ -16,6 +18,7 @@ use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestFlags;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
+use crate::utils::par_filter_map_results;
 
 /// List files under Mercurial control at a given revset.
 pub fn list_revset_tracked_files<M: Matcher>(
@@ -72,6 +75,12 @@ pub struct FilesForRevBorrowed<'manifest, 'matcher> {
     narrow_matcher: &'matcher dyn Matcher,
 }
 
+pub struct FilesForDirstateBorrowed<'manifest, 'narrow, 'sparse> {
+    manifest: &'manifest Manifest,
+    narrow_matcher: &'narrow dyn Matcher,
+    sparse_matcher: &'sparse dyn Matcher,
+}
+
 /// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
 /// already checked.
 pub type ExpandedManifestEntry<'manifest> =
@@ -109,6 +118,50 @@ impl<'manifest, 'matcher> FilesForRevBorrowed<'manifest, 'matcher> {
             } else {
                 None
             })
+        })
+    }
+}
+
+impl<'manifest, 'narrow, 'sparse>
+    FilesForDirstateBorrowed<'manifest, 'narrow, 'sparse>
+{
+    pub fn new(
+        manifest: &'manifest Manifest,
+        narrow_matcher: &'narrow impl Matcher,
+        sparse_matcher: &'sparse impl Matcher,
+    ) -> Self {
+        Self { manifest, narrow_matcher, sparse_matcher }
+    }
+
+    pub fn par_iter(
+        &self,
+    ) -> impl ParallelIterator<Item = IterResult<'manifest>> {
+        par_filter_map_results(self.manifest.par_iter(), |entry| {
+            let path = entry.path;
+            Ok(
+                if self.narrow_matcher.matches(path)
+                    && self.sparse_matcher.matches(path)
+                {
+                    Some((path, entry.node_id()?, entry.flags))
+                } else {
+                    None
+                },
+            )
+        })
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = IterResult<'manifest>> {
+        filter_map_results(self.manifest.iter(), |entry| {
+            let path = entry.path;
+            Ok(
+                if self.narrow_matcher.matches(path)
+                    && self.sparse_matcher.matches(path)
+                {
+                    Some((path, entry.node_id()?, entry.flags))
+                } else {
+                    None
+                },
+            )
         })
     }
 }

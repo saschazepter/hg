@@ -16,6 +16,7 @@ pub use cat::CatOutput;
 pub use cat::cat;
 pub use debugdata::debug_data;
 pub use list_tracked_files::ExpandedManifestEntry;
+pub use list_tracked_files::FilesForDirstateBorrowed;
 pub use list_tracked_files::FilesForRev;
 pub use list_tracked_files::FilesForRevBorrowed;
 pub use list_tracked_files::list_rev_tracked_files;
