@@ -566,8 +566,8 @@ impl<'manifest> RevisionTree<'manifest> {
             )?;
         }
         let cache_misses = file_nodeid_to_size.len() - cached_file_sizes;
-        tracing::debug!("cached {} new filelog node sizes", cache_misses);
         drop(map_span);
+        tracing::debug!("cached {} new filelog node sizes", cache_misses);
 
         let dirstate_parents = DirstateParents {
             p1: manifest_details.changeset_node,
