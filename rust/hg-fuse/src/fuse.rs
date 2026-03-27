@@ -317,9 +317,9 @@ impl RootInodeEncoder {
             return NULL_REV_INODE;
         };
         let number = rev
-            .checked_add(RESERVED_INODES_COUNT)
-            .expect("not enough space for inodes")
             .checked_mul(MAX_INODES_PER_REVISION)
+            .expect("not enough space for inodes")
+            .checked_add(RESERVED_INODES_COUNT)
             .expect("not enough space for inodes");
         INodeNo(number)
     }
@@ -341,7 +341,7 @@ impl RootInodeEncoder {
 
     /// Returns `true` if this is a reserved root inode
     pub fn is_reserved(ino: INodeNo) -> bool {
-        ino.0 <= RESERVED_INODES_COUNT
+        ino.0 < RESERVED_INODES_COUNT
     }
 
     /// Returns the possible entries for a reserved root inode if it exists
@@ -401,11 +401,41 @@ impl RootInodeEncoder {
         let rev_num = ino
             .0
             .checked_sub(RESERVED_INODES_COUNT)?
-            .checked_div_euclid(MAX_INODES_PER_REVISION)?;
+            .checked_div(MAX_INODES_PER_REVISION)?;
         if let Ok(rev_num) = rev_num.try_into() {
             Some(UncheckedRevision(rev_num))
         } else {
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ino_to_rev() {
+        let pairs = [
+            (0, None),
+            (RESERVED_INODES_COUNT - 1, None),
+            (RESERVED_INODES_COUNT, Some(0)),
+            (RESERVED_INODES_COUNT + 444444, Some(0)),
+            (RESERVED_INODES_COUNT + 2 * MAX_INODES_PER_REVISION, Some(2)),
+            (
+                RESERVED_INODES_COUNT + 55000 * MAX_INODES_PER_REVISION,
+                Some(55000),
+            ),
+            (
+                RESERVED_INODES_COUNT + 55000 * MAX_INODES_PER_REVISION + 1234,
+                Some(55000),
+            ),
+        ];
+        for (ino, expected) in pairs {
+            assert_eq!(
+                expected.map(UncheckedRevision),
+                RootInodeEncoder::ino_to_rev(INodeNo(ino))
+            )
         }
     }
 }
