@@ -33,6 +33,8 @@ use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::utils::hg_path::HgPath;
+use crate::utils::u_u64;
+use crate::utils::u32_u;
 use crate::vfs::Vfs;
 
 /// Added at the start of `.hg/dirstate` when the "v2" format is used.
@@ -625,6 +627,15 @@ where
         .map(|(slice, _rest)| slice)
 }
 
+/// A function that is called for every on-disk [`Node`] being written to the
+/// dirstate data file. Each node is called in order of serialization.
+/// The function is called with the full path of the node, whether it's a
+/// root node and its size (as defined in [`Node::size`]).
+///
+/// Used in the context of hg-fuse to create a mapping of offset -> filenodeid,
+/// with inodes being derived from offsets.
+pub type WriteNodeVisit<'a> = &'a dyn Fn(&HgPath, bool, u64);
+
 /// Returns new data and metadata, together with whether that data should be
 /// appended to the existing data file whose content is at
 /// `dirstate_map.on_disk` (true), instead of written to a new data file
@@ -632,6 +643,7 @@ where
 pub(super) fn write(
     dirstate_map: &DirstateMap,
     write_mode: DirstateMapWriteMode,
+    visit_in_order: Option<WriteNodeVisit>,
 ) -> Result<(Vec<u8>, TreeMetadata, bool, usize), DirstateError> {
     let append = match write_mode {
         DirstateMapWriteMode::Auto => dirstate_map.write_should_append(),
@@ -664,7 +676,7 @@ pub(super) fn write(
             ));
         }
     }
-    let root_nodes = writer.write_nodes(root_nodes)?;
+    let root_nodes = writer.write_nodes(root_nodes, visit_in_order)?;
 
     let unreachable_bytes = if append {
         dirstate_map.unreachable_bytes
@@ -694,6 +706,7 @@ impl Writer<'_, '_> {
     fn write_nodes(
         &mut self,
         nodes: dirstate_map::ChildNodesRef,
+        visit_in_order: Option<WriteNodeVisit>,
     ) -> Result<ChildNodes, DirstateError> {
         // Reuse already-written nodes if possible
         if self.append
@@ -719,7 +732,7 @@ impl Writer<'_, '_> {
             let full_path = node.full_path(self.dirstate_map.on_disk)?;
             self.check_children(&children, full_path)?;
 
-            let children = self.write_nodes(children)?;
+            let children = self.write_nodes(children, visit_in_order)?;
             let full_path = self.write_path(full_path.as_bytes());
             let copy_source = if let Some(source) =
                 node.copy_source(self.dirstate_map.on_disk)?
@@ -787,6 +800,19 @@ impl Writer<'_, '_> {
         // they refer to.
         let start = self.current_offset();
         let len = child_nodes_len_from_usize(nodes_len);
+        if let Some(visit) = visit_in_order {
+            for (idx, node) in on_disk_nodes.iter().enumerate() {
+                let full_path = node.full_path(&self.out)?;
+                let root_node = node.base_name(&self.out)? == full_path;
+                let serialization_start = u32_u(start.get());
+                let node_offset = idx * std::mem::size_of::<Node>();
+                visit(
+                    full_path,
+                    root_node,
+                    u_u64(serialization_start + node_offset),
+                );
+            }
+        }
         self.out.extend(on_disk_nodes.as_bytes());
         Ok(ChildNodes { start, len })
     }

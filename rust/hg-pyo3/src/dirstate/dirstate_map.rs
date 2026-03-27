@@ -20,6 +20,7 @@ use hg::dirstate::entry::DirstateEntry;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::owning::OwningDirstateMap;
 use hg::utils::files::normalize_case;
 use hg::utils::hg_path::HgPath;
@@ -305,7 +306,7 @@ impl DirstateMap {
                 _ => DirstateMapWriteMode::Auto, // XXX should we error out?
             };
             let (packed, tree_metadata, append, _old_data_size) = inner
-                .pack_v2(rust_write_mode)
+                .pack_v2(rust_write_mode, None::<WriteNodeVisit>)
                 .map_err(|e| dirstate_error(py, e))?;
             // TODO optim. In theory we should be able to avoid these copies,
             // since we have full ownership of `packed` and `tree_metadata`.

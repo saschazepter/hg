@@ -18,6 +18,7 @@ use crate::dirstate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateIdentity;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::on_disk::Docket as DirstateDocket;
+use crate::dirstate::on_disk::WriteNodeVisit;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::status::IgnoreFnType;
 use crate::errors::HgBacktrace;
@@ -648,7 +649,7 @@ impl Repo {
                 DirstateMapWriteMode::ForceNewDataFile
             };
             let (data, tree_metadata, append, old_data_size) =
-                map.pack_v2(write_mode)?;
+                map.pack_v2(write_mode, None::<WriteNodeVisit>)?;
 
             // Reuse the uuid, or generate a new one, keeping the old for
             // deletion.

@@ -23,6 +23,7 @@ use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::Docket;
+use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
 use hg::dirstate::path_with_basename::WithBasename;
@@ -898,8 +899,10 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
     ) -> Result<(), HgError> {
-        let (data, metadata, _, _) =
-            dirstate.pack_v2(DirstateMapWriteMode::ForceNewDataFile)?;
+        let (data, metadata, _, _) = dirstate.pack_v2(
+            DirstateMapWriteMode::ForceNewDataFile,
+            None::<WriteNodeVisit>,
+        )?;
         let dirstate_size = u_u64(data.len());
         let uuid = Docket::new_uid();
 

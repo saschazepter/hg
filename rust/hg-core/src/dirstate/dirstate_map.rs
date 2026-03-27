@@ -21,6 +21,7 @@ use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::DirstateV2Data;
 use crate::dirstate::entry::ParentFileData;
 use crate::dirstate::entry::TruncatedTimestamp;
+use crate::dirstate::on_disk::WriteNodeVisit;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
@@ -1375,10 +1376,11 @@ impl OwningDirstateMap {
     pub fn pack_v2(
         &self,
         write_mode: DirstateMapWriteMode,
+        visit_in_order: Option<WriteNodeVisit>,
     ) -> Result<(Vec<u8>, on_disk::TreeMetadata, bool, usize), DirstateError>
     {
         let map = self.get_map();
-        on_disk::write(map, write_mode)
+        on_disk::write(map, write_mode, visit_in_order)
     }
 
     /// `callback` allows the caller to process and do something with the
@@ -2049,8 +2051,10 @@ mod tests {
         };
         map.reset_state(reset)?;
 
-        let (packed, metadata, _should_append, _old_data_size) =
-            map.pack_v2(DirstateMapWriteMode::ForceNewDataFile)?;
+        let (packed, metadata, _should_append, _old_data_size) = map.pack_v2(
+            DirstateMapWriteMode::ForceNewDataFile,
+            None::<WriteNodeVisit>,
+        )?;
         let packed_len = packed.len();
         assert!(packed_len > 0);
 
