@@ -65,6 +65,8 @@ IGNORES = {
     'warnings',
     'threading',
     'collections.abc',
+    'heapq',
+    'copy',
 }
 
 _pypy = '__pypy__' in sys.builtin_module_names
