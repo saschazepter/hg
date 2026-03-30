@@ -67,6 +67,8 @@ IGNORES = {
     'collections.abc',
     'heapq',
     'copy',
+    'difflib',
+    'decimal',
 }
 
 _pypy = '__pypy__' in sys.builtin_module_names
