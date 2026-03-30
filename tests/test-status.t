@@ -9,41 +9,8 @@
   > EOF
 #endif
 
-  $ cat > advance-fs-time.py <<EOF
-  > import os
-  > import sys
-  > 
-  > def main():
-  >     if len(sys.argv) != 2:
-  >         print(f"Usage: {sys.argv[0]} <file>", file=sys.stderr)
-  >         sys.exit(1)
-  > 
-  >     path = sys.argv[1]
-  >     created = not os.path.exists(path)
-  > 
-  >     try:
-  >         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-  >         os.close(fd)
-  >         created = True
-  >     except FileExistsError:
-  >         pass
-  > 
-  >     try:
-  >         t0 = os.stat(path).st_mtime
-  >         while True:
-  >             os.utime(path)
-  >             if os.stat(path).st_mtime != t0:
-  >                 break
-  >     finally:
-  >         if created:
-  >             os.unlink(path)
-  > 
-  > if __name__ == "__main__":
-  >     main()
-  > EOF
-
   $ advance_fs_time() {
-  >   "$PYTHON" "$TESTTMP"/advance-fs-time.py "$TESTTMP"/test-file.txt
+  >   "$PYTHON" "$TESTDIR"/testlib/advance-fs-time.py "$TESTTMP"/test-file.txt
   > }
 
   $ hg init repo1
