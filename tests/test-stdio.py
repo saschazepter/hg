@@ -49,6 +49,11 @@ with os.fdopen(
     'w',
 ) as write_result_f:
     write_result_f.write(str(write_result))
+# If the signal is coming late,
+# we ignore the signal to avoid a test flake (return code -2).
+# This can happen for example if the kernel accepts the whole
+# large write without blocking.
+signal.signal(signal.SIGINT, signal.SIG_IGN)
 '''
 
 
