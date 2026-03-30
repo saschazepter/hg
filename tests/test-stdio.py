@@ -43,7 +43,7 @@ from mercurial.utils import procutil
 
 signal.signal(signal.SIGINT, lambda *x: None)
 dispatch.initstdio()
-write_result = procutil.{stream}.write(b'x' * 1048576)
+write_result = procutil.{stream}.write(b'x' * (2 * 1048576))
 with os.fdopen(
     os.open({write_result_fn!r}, os.O_WRONLY | getattr(os, 'O_TEMPORARY', 0)),
     'w',
@@ -229,11 +229,11 @@ class TestStdio(unittest.TestCase):
                 # writes.
                 buf = []
             self.assertEqual(
-                _readall(stream_receiver, 131072, buf), b'x' * 1048576
+                _readall(stream_receiver, 131072, buf), b'x' * (2 * 1048576)
             )
 
         def post_child_check():
-            self.assertEqual(write_result_f.read(), '1048576')
+            self.assertEqual(write_result_f.read(), str(2 * 1048576))
 
         with tempfile.NamedTemporaryFile('r') as write_result_f:
             self._test(
