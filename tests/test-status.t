@@ -1065,6 +1065,7 @@ Changing the hgignore rules makes us recompute the status (and rewrite the dirst
   > something-else
   > EOF
 
+  $ advance_fs_time
   $ hg status --config ui.ignore.global="$TESTTMP"/extra-hgignore
   $ hg debugdirstate --all --no-dates | grep '^ '
       0         -1 set                 subdir
