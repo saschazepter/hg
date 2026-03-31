@@ -3483,6 +3483,20 @@ def _estimatememory() -> int | None:
         pass
 
 
+_imported_rust_pytracing_module = None
+
+
+def _rust_pytracing_module():
+    global _imported_rust_pytracing_module
+    if _imported_rust_pytracing_module is not None:
+        return _imported_rust_pytracing_module
+    try:
+        _imported_rust_pytracing_module = policy.importrust("tracing")
+    except ImportError:
+        return None
+    return _imported_rust_pytracing_module
+
+
 _rust_tracer = None
 
 
@@ -3500,9 +3514,10 @@ def rust_tracing_span(name: str):
     if _rust_tracer is not None:
         return _rust_tracer(name)
 
-    try:
-        tracer = policy.importrust("tracing", member="tracer", default=None)
-    except ImportError:
+    mod = _rust_pytracing_module()
+    if mod is not None:
+        tracer = getattr(mod, "tracer", None)
+    else:
         tracer = None
 
     import contextlib
@@ -3525,6 +3540,33 @@ def rust_tracing_span(name: str):
     _rust_tracer = trace_span
 
     return trace_span(name)
+
+
+@contextlib.contextmanager
+def rust_tracing_context():
+    """Maybe¹ returns a context manager that on entry sets up rust tracing, and
+    on exit tears down rust tracing, flushing the tracing data to the output
+    file. This is meant for use in the chg server, in other situations the rust
+    extension does this automatically without needing this function.
+
+    See "Profiling and tracing" in `rust/README.md` for more information.
+
+    [1] The context manager does nothing if the Rust extensions are unavailable
+    or have not been compiled with the `full-tracing` feature.
+    """
+
+    tracing_guard = getattr(
+        _rust_pytracing_module(), "_chrome_tracing_guard", None
+    )
+
+    if tracing_guard is None:
+        yield
+    else:
+        tracing_guard.setup()
+        try:
+            yield
+        finally:
+            tracing_guard.teardown()
 
 
 def load_path(path: bytes, module_name: str) -> types.ModuleType:

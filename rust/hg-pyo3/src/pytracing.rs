@@ -107,11 +107,7 @@ mod full_tracing {
         }
     }
 
-    /// See [`ChromeTracingGuard`]
-    /// Enable an env-filtered chrome-trace logger to a file.
-    /// Defaults to writing to `./trace-{unix epoch in micros}.json`, but can
-    /// be overridden via the `HG_TRACE_PATH` environment variable.
-    pub fn setup_tracing_guard() -> ChromeTracingGuard {
+    fn setup_layer_guard() -> Option<FlushGuard> {
         // Expect that if any events are recorded, we probably are going to
         // record a few. 16 is pretty arbitrary, but seems like a good
         // balance between not re-sizing for most cases and not
@@ -153,7 +149,26 @@ mod full_tracing {
         // time has happened since we've started tracing until the first actual
         // tracing point.
         tracing::info!(name: "tracing setup", "pyo3 chrome tracing setup done");
-        ChromeTracingGuard::new(chrome_layer_guard)
+        Some(chrome_layer_guard)
+    }
+
+    /// See [`ChromeTracingGuard`]
+    /// Enable an env-filtered chrome-trace logger to a file.
+    /// Defaults to writing to `./trace-{unix epoch in micros}.json`, but can
+    /// be overridden via the `HG_TRACE_PATH` environment variable.
+    pub fn setup_tracing_guard() -> ChromeTracingGuard {
+        if std::env::var("CHGINTERNALMARK").is_ok() {
+            // If CHGINTERNALMARK is set, we're inside a chg server process
+            // Interesting traces come from chg worker processes, not server
+            // processes, so don't initialize tracing until we explicitly
+            // call setup from a worker process
+            ChromeTracingGuard::null()
+        } else {
+            match setup_layer_guard() {
+                None => ChromeTracingGuard::null(),
+                Some(guard) => ChromeTracingGuard::new(guard),
+            }
+        }
     }
 
     /// A [`Layer`] implementation that intercepts each new [`Span`] and
@@ -230,23 +245,44 @@ mod full_tracing {
     /// the Python process finishing.
     #[pyclass]
     pub struct ChromeTracingGuard {
-        guard: Mutex<FlushGuard>,
+        guard: Option<Mutex<FlushGuard>>,
     }
 
     impl ChromeTracingGuard {
         fn new(guard: FlushGuard) -> Self {
-            Self { guard: Mutex::new(guard) }
+            Self { guard: Some(Mutex::new(guard)) }
+        }
+
+        fn null() -> Self {
+            Self { guard: None }
+        }
+    }
+
+    #[pymethods]
+    impl ChromeTracingGuard {
+        fn setup(&mut self) {
+            if self.guard.is_none()
+                && let Some(guard) = setup_layer_guard()
+            {
+                self.guard = Some(Mutex::new(guard))
+            }
+        }
+
+        fn teardown(&mut self) {
+            if let Some(guard) = self.guard.take() {
+                guard
+                    .try_lock()
+                    .map(|guard| {
+                        guard.flush();
+                    })
+                    .ok();
+            }
         }
     }
 
     impl Drop for ChromeTracingGuard {
         fn drop(&mut self) {
-            self.guard
-                .try_lock()
-                .map(|guard| {
-                    guard.flush();
-                })
-                .ok();
+            self.teardown()
         }
     }
 }

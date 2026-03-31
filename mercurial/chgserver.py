@@ -612,7 +612,9 @@ class chgcmdserver(commandserver.server):
             if var in encoding.environ:
                 del encoding.environ[var]
         try:
-            return super().runcommand()
+            with util.rust_tracing_context():
+                with util.rust_tracing_span("chg worker process"):
+                    return super().runcommand()
         finally:
             self._restoreio()
             self._oldios = globaloldios
