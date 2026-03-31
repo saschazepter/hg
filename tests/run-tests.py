@@ -54,7 +54,6 @@ import functools
 import json
 import multiprocessing
 import os
-import platform
 import queue
 import random
 import re
@@ -763,7 +762,7 @@ def parseargs(args, parser):
     if 'java' in sys.platform or '__pypy__' in sys.modules:
         options.pure = True
 
-    if platform.python_implementation() != 'CPython' and options.rust:
+    if sys.implementation.name != 'cpython' and options.rust:
         parser.error('Rust extensions are only available with CPython')
 
     if options.pure and options.rust:
