@@ -52,10 +52,7 @@ except ImportError:
     pass
 
 # PyPy doesn't load C extensions.
-#
-# The canonical way to do this is to test platform.python_implementation().
-# But we don't import platform and don't bloat for it here.
-if '__pypy__' in sys.builtin_module_names:
+if sys.implementation.name == 'pypy':
     policy: bytes = b'cffi'
 
 # Environment variable can always force settings.
