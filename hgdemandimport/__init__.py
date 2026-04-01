@@ -65,6 +65,10 @@ IGNORES = {
     'warnings',
     'threading',
     'collections.abc',
+    # The following modules can’t be lazy-loaded on Python 3.15.0a7 because
+    # they are lazily imported with the PEP 810 mechanism from other modules
+    # (in the standard library) and that doesn’t work well together with
+    # importlib.util.LazyLoader that demandimportpy3 uses.
     'heapq',
     'copy',
 }
