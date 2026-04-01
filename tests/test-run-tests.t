@@ -2120,8 +2120,7 @@ Bad local addon
 broken hghave
 (create a file that will conflict with things imported by hghave.py)
 
-  $ echo "assert False" > $TESTTMP/packaging.py
-  $ PYTHONPATH="$TESTTMP" rt test-substitution.t test-cases-ab.t
+  $ DEVEL_HGHAVE_CRASH=1 rt test-substitution.t test-cases-ab.t
   running 3 tests using 1 parallel processes 
   EEE
   ERROR: test-cases-ab.t#A: broken hghave
@@ -2130,7 +2129,7 @@ broken hghave
   # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
   python hash seed: * (glob)
   [1]
-  $ rm $TESTTMP/packaging.py
+  $ unset DEVEL_HGHAVE_CRASH
 
 Skipping test (and forbidding it)
 =================================

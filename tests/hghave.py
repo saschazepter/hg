@@ -10,7 +10,12 @@ import subprocess
 import sys
 import tempfile
 
-from packaging.version import Version
+
+# Provide a way for tests to easily trigger some exception in this file.
+#
+# This is used to test for error handling.
+if os.environ.get('DEVEL_HGHAVE_CRASH', '0') == '1':
+    raise RuntimeError("planned test crash")
 
 tempprefix = 'hg-hghave-'
 
@@ -1114,13 +1119,13 @@ def has_black():
     return p.returncode == 0
 
 
-@check('pytype', 'the pytype type checker')
+@check('pytype', 'the pytype type checker at version 2024.10.11')
 def has_pytype():
     pytypecmd = 'pytype --version'
     version = matchoutput(pytypecmd, b'[0-9a-b.]+')
     if not version:
         return False
-    return Version(_bytes2sys(version.group(0))) >= Version('2019.10.17')
+    return version.group(0) == b"2024.10.11"
 
 
 @check("rustfmt", "rustfmt tool at version nightly-2024-07-16")
