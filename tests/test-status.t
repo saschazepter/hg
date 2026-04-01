@@ -9,6 +9,10 @@
   > EOF
 #endif
 
+  $ advance_fs_time() {
+  >   "$PYTHON" "$TESTDIR"/testlib/advance-fs-time.py "$TESTTMP"/test-file.txt
+  > }
+
   $ hg init repo1
   $ cd repo1
   $ mkdir a b a/1 b/1 b/2
@@ -989,7 +993,7 @@ It is still not set when there are unknown files
 Now the directory is eligible for caching, so its mtime is saved in the dirstate
 
   $ rm subdir/unknown
-  $ sleep 0.1 # ensure the kernel’s internal clock for mtimes has ticked
+  $ advance_fs_time
   $ hg status
   $ hg debugdirstate --all --no-dates | grep '^ '
       0         -1 set                 subdir
@@ -1028,6 +1032,7 @@ Changing the hgignore rules makes us recompute the status (and rewrite the dirst
   > something-else
   > EOF
 
+  $ advance_fs_time
   $ hg status --config ui.ignore.global="$TESTTMP"/extra-hgignore
   $ hg debugdirstate --all --no-dates | grep '^ '
       0         -1 set                 subdir

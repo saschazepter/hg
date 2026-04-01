@@ -93,6 +93,19 @@ def has_abandoned_transaction(repo):
     return os.path.exists(repo.sjoin(b"journal"))
 
 
+# since store isn't kept in sync with the shares,
+# we can't rely on the backup listing kept in the store to accurately
+# reflect what files need to be cleaned up in the share,
+# so "be bold" and delete all dirstate backup files
+def cleanup_dirstate_backup_files(vfs, undo_prefix):
+    prefix = b"%s.backup.dirstate." % (undo_prefix)
+    suffix = b".bck"
+    listing = vfs.listdir()
+    for f in listing:
+        if f.startswith(prefix) and f.endswith(suffix):
+            vfs.unlink(f)
+
+
 def cleanup_undo_files(report, vfsmap, undo_prefix=b'undo'):
     """remove "undo" files used by the rollback logic
 
@@ -104,6 +117,7 @@ def cleanup_undo_files(report, vfsmap, undo_prefix=b'undo'):
     backup_entries = []
     undo_files = []
     svfs = vfsmap[b'store']
+    cleanup_dirstate_backup_files(vfsmap[b'plain'], undo_prefix)
     try:
         with svfs(backup_listing) as f:
             backup_entries = read_backup_files(report, f)
