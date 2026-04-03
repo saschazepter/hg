@@ -12,10 +12,6 @@ use fuser::INodeNo;
 use hg::Node;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
-use hg::matchers::Matcher;
-use hg::narrow;
-use hg::repo::Repo;
-use hg::revlog::RevlogError;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::warnings::HgWarningContext;
@@ -24,8 +20,10 @@ use crate::fuse::COMMITS_INODE;
 use crate::fuse::Entry;
 use crate::fuse::RootInodeEncoder;
 use crate::fuse::path_to_revision_working_copy;
-use crate::server::revision::ManifestRevisionDetails;
 use crate::server::revision::OwnedRevision;
+use crate::server::store::Error as StoreError;
+use crate::server::store::FileToken;
+use crate::server::store::StoreBackend;
 
 pub mod local;
 pub mod revision;
@@ -44,49 +42,36 @@ pub struct Config {
     /// Whether to preload the directory structure by traversing the filesystem
     /// at the mountpoint (useful for debugging outside of the context of an
     /// overlay, which would change the mountpoint).
-    #[expect(unused)]
     preload_structure: bool,
 }
 
 /// Responsible for serving contents from the store to the FUSE layer
-pub struct Server {
+pub struct Server<S, T> {
     /// The repo that we're serving for
     /// TODO more than 1 repo at once
-    repo: Repo,
-    /// Cache of the size of the uncompressed contents (without metadata) of
-    /// each filenode id.
-    /// TODO try to pass in a hasher that just uses the nodeid?
-    file_nodeid_to_size: DashMap<Node, usize>,
+    store: S,
     /// Revisions whose tree we've populated
-    revisions: DashMap<Node, Arc<OwnedRevision>>,
+    revisions: DashMap<Node, Arc<OwnedRevision<T>>>,
     /// When this server was started
     start_time: SystemTime,
     /// User ID returned on requests, by default it's the process'.
     uid: u32,
     /// Group ID returned on requests, by default it's the process'.
     gid: u32,
-    /// The matcher for this repo's narrowspec
-    narrow_matcher: Box<dyn Matcher + Send + 'static>,
 }
 
-impl Server {
+impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     pub fn new(
-        repo: &Repo,
+        store: S,
         user_id: Option<u32>,
         group_id: Option<u32>,
     ) -> Result<Self, HgError> {
-        // Recreate our owned repo
-        let repo = Repo::find(
-            repo.config(),
-            Some(repo.working_directory_path().to_path_buf()),
-        )?;
         let process_metadata =
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
         let uid = user_id.unwrap_or_else(|| process_metadata.uid());
         let gid = group_id.unwrap_or_else(|| process_metadata.gid());
 
         let warnings = HgWarningContext::new();
-        let narrow_matcher = narrow::matcher(&repo, warnings.sender())?;
         let _ = warnings.finish(|warning| -> Result<(), Infallible> {
             // TODO better warnings
             tracing::warn!("narrow warning: {:?}", warning);
@@ -94,21 +79,19 @@ impl Server {
         });
 
         Ok(Self {
-            repo,
-            file_nodeid_to_size: DashMap::default(),
+            store,
             revisions: DashMap::default(),
             // Use a constant time, so that restarts don't affect the dirstate.
             start_time: SystemTime::UNIX_EPOCH
                 + MERCURIAL_FIRST_COMMIT_TIMESTAMP,
             uid,
             gid,
-            narrow_matcher,
         })
     }
 
-    pub fn update_repo(&self) -> Result<(), HgError> {
+    pub fn update_store(&self) -> Result<(), HgError> {
         // Only OK to call because we know this in-memory [`Repo`] is readonly
-        self.repo.reload_revlogs()?;
+        self.store.update_store();
         Ok(())
     }
 
@@ -189,7 +172,7 @@ impl Server {
         parent: INodeNo,
         name: &std::ffi::OsStr,
         mount_point: &Path,
-    ) -> Result<Option<Entry>, HgError> {
+    ) -> Result<Option<Entry>, StoreError<T>> {
         if RootInodeEncoder::is_reserved(parent) {
             if parent == COMMITS_INODE {
                 if let Ok(node) = Node::from_hex(name.as_encoded_bytes()) {
@@ -197,7 +180,7 @@ impl Server {
                     if let Some(revision) = self.revisions.get(&node) {
                         // We've already loaded this revision
                         let root_inode = RootInodeEncoder::revision_inode(
-                            revision.changelog_rev(),
+                            self.store.idx_for_node(node)?,
                         );
                         let root_entry_opt = revision.get_entry(root_inode);
                         return Ok(root_entry_opt);
@@ -231,47 +214,30 @@ impl Server {
         &self,
         changeset: Node,
         mount_point: &Path,
-    ) -> Result<Option<Entry>, HgError> {
-        let changelog = self.repo.changelog()?;
-        let changeset_rev = match changelog.rev_from_node(changeset.into()) {
-            Ok(rev) => rev,
-            Err(RevlogError::InvalidRevision(_)) => {
-                drop(changelog);
-                // Update the repo in case it's a new revision
-                self.update_repo()?;
-                // Try again
-                self.repo.changelog()?.rev_from_node(changeset.into())?
-            }
-            Err(e) => return Err(e)?,
-        };
-        let changelog = self.repo.changelog()?;
-        let data = changelog.data_for_node(changeset.into())?;
-        let manifest_node = data.manifest_node()?;
-        let manifestlog = self.repo.manifestlog()?;
-        let changeset_extras =
-            changelog.data_for_node(changeset.into())?.extra()?;
-        let branch = match changeset_extras.get("branch") {
-            Some(branch) => branch.to_vec(),
-            None => b"default".to_vec(),
-        };
-
-        let manifest = manifestlog.data_for_node(manifest_node.into())?;
-
-        let revision_data = OwnedRevision::from_revision(
-            &self.repo,
-            &self.file_nodeid_to_size,
-            manifest,
-            ManifestRevisionDetails::new(changeset, changeset_rev, branch),
+    ) -> Result<Option<Entry>, StoreError<T>> {
+        let revision_data = match OwnedRevision::from_revision(
+            &self.store,
+            changeset,
             self.start_time,
-            &self.narrow_matcher,
-        )?;
+        ) {
+            Ok(data) => data,
+            Err(e) => match e.kind {
+                store::ErrorKind::NoSuchChangeset(_) => {
+                    // This may be a new changeset, update the store and retry
+                    self.store.update_store();
+                    OwnedRevision::from_revision(
+                        &self.store,
+                        changeset,
+                        self.start_time,
+                    )?
+                }
+                _ => return Err(e),
+            },
+        };
         let revision_arc = Arc::new(revision_data);
         self.revisions.insert(changeset, Arc::clone(&revision_arc));
 
-        let preload = self
-            .repo
-            .config()
-            .get_bool(b"fuse", b"preload-working-copy-structure")?;
+        let preload = self.store.server_config().preload_structure;
         if preload {
             self.spawn_revision_preloading(
                 changeset,
@@ -281,7 +247,9 @@ impl Server {
         }
         let entry = Entry::dir(
             format!("{:x}", changeset).into(),
-            RootInodeEncoder::revision_inode(changeset_rev),
+            RootInodeEncoder::revision_inode(
+                self.store.idx_for_node(changeset)?,
+            ),
         );
         Ok(Some(entry))
     }
@@ -290,7 +258,7 @@ impl Server {
     fn spawn_revision_preloading(
         &self,
         changeset: Node,
-        revision: Arc<OwnedRevision>,
+        revision: Arc<OwnedRevision<T>>,
         mount_point: &Path,
     ) {
         let root = mount_point.join(path_to_revision_working_copy(changeset));
@@ -313,7 +281,7 @@ impl Server {
             return Ok(RootInodeEncoder::data_for_reserved(ino));
         }
         if let Some(Ok(Some(data))) =
-            self.with_revision(ino, |revision| revision.read(ino, &self.repo))
+            self.with_revision(ino, |revision| revision.read(ino, &self.store))
         {
             Ok(Some(data))
         } else {
@@ -325,10 +293,10 @@ impl Server {
     fn with_revision<R>(
         &self,
         ino: INodeNo,
-        func: impl FnOnce(&OwnedRevision) -> R,
+        func: impl FnOnce(&OwnedRevision<T>) -> R,
     ) -> Option<R> {
-        let rev = RootInodeEncoder::ino_to_rev(ino)?;
-        let node = self.repo.node(rev)?;
+        let idx = RootInodeEncoder::ino_to_idx(ino)?;
+        let node = self.store.node_for_idx(idx).ok()?;
         let revision = self.revisions.get(&node)?;
         Some(func(&revision))
     }

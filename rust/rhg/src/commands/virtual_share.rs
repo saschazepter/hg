@@ -7,9 +7,11 @@ use std::time::Duration;
 use clap::Arg;
 use fuser::SessionACL;
 use hg::errors::IoResultExt;
+use hg::repo::Repo;
 use hg::utils::u32_u;
 use hg_fuse::fuse::HgFuse;
 use hg_fuse::server::Server;
+use hg_fuse::server::local::LocalBackend;
 use libc::SIGHUP;
 use libc::SIGINT;
 use libc::SIGTERM;
@@ -86,7 +88,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     } else {
         SessionACL::Owner
     };
-    let server = Server::new(repo, user_id, group_id)?;
+    // Recreate an owned repo for the backend
+    let backend_repo = Repo::find(
+        repo.config(),
+        Some(repo.working_directory_path().to_path_buf()),
+    )?;
+    let store = LocalBackend::new(backend_repo)?;
+    let server = Server::new(store, user_id, group_id)?;
 
     // Set up non-fatal signals to break our loop
     let should_terminate = Arc::new(AtomicBool::new(false));

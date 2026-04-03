@@ -16,8 +16,6 @@ use fuser::INodeNo;
 use fuser::MountOption;
 use fuser::SessionACL;
 use hg::Node;
-use hg::Revision;
-use hg::UncheckedRevision;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::revlog::manifest::ManifestFlags;
@@ -26,6 +24,9 @@ use hg::utils::u32_u;
 use hg::utils::u64_u;
 
 use crate::server::Server;
+use crate::server::store::FileToken;
+use crate::server::store::RevisionIdx;
+use crate::server::store::StoreBackend;
 
 /// Return the path to the working directory root, relative to the FUSE root
 pub fn path_to_revision_working_copy(changeset: Node) -> PathBuf {
@@ -33,19 +34,19 @@ pub fn path_to_revision_working_copy(changeset: Node) -> PathBuf {
 }
 
 /// A virtual filesystem in user-space (FUSE) for Mercurial
-pub struct HgFuse {
-    server: Server,
+pub struct HgFuse<S, T> {
+    server: Server<S, T>,
     /// The mount point for this FUSE
     mount_point: PathBuf,
 }
 
-impl HgFuse {
+impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
     /// Mount an instance of this FUSE to `destination`.
     /// This function will not try to create the destination folder.
     /// This function returns a handle to the filesystem session, which
     /// if dropped unmounts the filesystem.
     pub fn mount(
-        server: Server,
+        server: Server<S, T>,
         destination: impl AsRef<Path>,
         session_acl: SessionACL,
         thread_count: usize,
@@ -76,7 +77,7 @@ const TTL: Duration = Duration::MAX;
 // long way off.
 const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
 
-impl Filesystem for HgFuse {
+impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
     fn access(
         &self,
         _req: &fuser::Request,
@@ -300,15 +301,13 @@ pub struct RootInodeEncoder;
 
 impl RootInodeEncoder {
     /// Get the inode for a given revision
-    pub fn revision_inode(rev: Revision) -> INodeNo {
+    pub fn revision_inode(idx: RevisionIdx) -> INodeNo {
         // Keep it simple for now, devise a (much better) encoding later
         //
         // Reserve 1M inodes for the special FUSE nodes, and 100M inodes
         // for each revision
-        let Ok(rev): Result<u64, _> = rev.0.try_into() else {
-            return NULL_REV_INODE;
-        };
-        let number = rev
+        let idx: u64 = idx.0.into();
+        let number = idx
             .checked_mul(MAX_INODES_PER_REVISION)
             .expect("not enough space for inodes")
             .checked_add(RESERVED_INODES_COUNT)
@@ -317,7 +316,7 @@ impl RootInodeEncoder {
     }
 
     /// Get the inode range for a given revision
-    pub fn revision_inode_range(rev: Revision) -> Range<INodeNo> {
+    pub fn revision_inode_range(rev: RevisionIdx) -> Range<INodeNo> {
         let min_inode = Self::revision_inode(rev);
         min_inode..INodeNo(min_inode.0 + MAX_INODES_PER_REVISION)
     }
@@ -389,13 +388,13 @@ impl RootInodeEncoder {
         None
     }
 
-    pub fn ino_to_rev(ino: INodeNo) -> Option<UncheckedRevision> {
+    pub fn ino_to_idx(ino: INodeNo) -> Option<RevisionIdx> {
         let rev_num = ino
             .0
             .checked_sub(RESERVED_INODES_COUNT)?
             .checked_div(MAX_INODES_PER_REVISION)?;
         if let Ok(rev_num) = rev_num.try_into() {
-            Some(UncheckedRevision(rev_num))
+            Some(RevisionIdx(rev_num))
         } else {
             None
         }
@@ -425,8 +424,8 @@ mod tests {
         ];
         for (ino, expected) in pairs {
             assert_eq!(
-                expected.map(UncheckedRevision),
-                RootInodeEncoder::ino_to_rev(INodeNo(ino))
+                expected.map(RevisionIdx),
+                RootInodeEncoder::ino_to_idx(INodeNo(ino))
             )
         }
     }

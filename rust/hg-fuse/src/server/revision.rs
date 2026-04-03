@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::ops::Range;
@@ -16,7 +15,6 @@ use hg::DirstateParents;
 use hg::FastHashMap;
 use hg::NULL_NODE;
 use hg::Node;
-use hg::Revision;
 use hg::dirstate::dirstate_map::DirstateEntryReset;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::dirstate_map::FuseNodeInfo;
@@ -26,27 +24,19 @@ use hg::dirstate::on_disk::Docket;
 use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
-use hg::errors::HgError;
-use hg::matchers::Matcher;
 use hg::narrow;
-use hg::operations::FilesForDirstateBorrowed;
-use hg::repo::Repo;
 use hg::requirements::DIRSTATE_TRACKED_HINT_V1;
 use hg::requirements::DIRSTATE_V2_REQUIREMENT;
 use hg::requirements::SHARED_REQUIREMENT;
 use hg::requirements::SHARESAFE_REQUIREMENT;
 use hg::requirements::SPARSE_REQUIREMENT;
-use hg::revlog::manifest::Manifest;
 use hg::revlog::manifest::ManifestFlags;
-use hg::sparse;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::hg_path_to_path_buf;
-use hg::utils::u_u32;
 use hg::utils::u_u64;
 use hg::utils::u64_u;
-use hg::warnings::HgWarningContext;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 
@@ -54,55 +44,29 @@ use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::RootInodeEncoder;
 use crate::server::permissions_for_file;
-
-/// Stores information about a given changelog revision
-pub(super) struct ManifestRevisionDetails {
-    /// Its changeset nodeid
-    changeset_node: Node,
-    /// Its changeset revision number
-    changeset_rev: Revision,
-    /// The branch its changeset is on
-    branch: Vec<u8>,
-}
-
-impl ManifestRevisionDetails {
-    pub fn new(
-        changeset_node: Node,
-        changeset_rev: Revision,
-        branch: Vec<u8>,
-    ) -> Self {
-        Self { changeset_node, changeset_rev, branch }
-    }
-}
+use crate::server::store::ChangesetFiles;
+use crate::server::store::Error as StoreError;
+use crate::server::store::FileToken;
+use crate::server::store::StoreBackend;
+use crate::server::store::StoreInfo;
 
 /// Represents a manifest revision
-pub(super) struct OwnedRevision {
-    revision: RevisionTree,
-    changelog_rev: Revision,
+pub(super) struct OwnedRevision<T> {
+    revision: RevisionTree<T>,
 }
 
-impl OwnedRevision {
+impl<T: FileToken> OwnedRevision<T> {
     /// Return a [`Self`] that represents this manifest, along with the new
     /// inodes.
     #[tracing::instrument(level = "debug", skip_all)]
-    pub fn from_revision(
-        repo: &Repo,
-        file_nodeid_to_size: &DashMap<Node, usize>,
-        manifest: Manifest,
-        manifest_details: ManifestRevisionDetails,
+    pub fn from_revision<S: StoreBackend<T>>(
+        store: &S,
+        changeset: Node,
         start_time: SystemTime,
-        narrow_matcher: &impl Matcher,
-    ) -> Result<Self, HgError> {
-        let changelog_rev = manifest_details.changeset_rev;
-        let revision = RevisionTree::from_revision(
-            repo,
-            file_nodeid_to_size,
-            &manifest,
-            manifest_details,
-            start_time,
-            narrow_matcher,
-        )?;
-        Ok(Self { revision, changelog_rev })
+    ) -> Result<Self, StoreError<T>> {
+        let revision =
+            RevisionTree::from_revision(store, changeset, start_time)?;
+        Ok(Self { revision })
     }
 
     /// Preload this revision's filesystem structure into the kernel's caches.
@@ -216,11 +180,14 @@ impl OwnedRevision {
         Some(entries)
     }
 
-    pub fn read(
+    pub fn read<S: StoreBackend<T>>(
         &self,
         ino: INodeNo,
-        repo: &Repo,
-    ) -> Result<Option<RawData>, HgError> {
+        store: &S,
+    ) -> Result<Option<RawData>, StoreError<T>> {
+        let Some(rev_idx) = RootInodeEncoder::ino_to_idx(ino) else {
+            return Ok(None);
+        };
         let revision = &self.revision;
         if let Some(reserved) = revision.reserved.get(&ino) {
             return match &reserved.entry {
@@ -236,13 +203,12 @@ impl OwnedRevision {
         ) else {
             return Ok(None);
         };
-        let file_nodeid = self
-            .revision
-            .ino_to_file_nodeid
-            .get(&ino)
-            .expect("node should exist");
-        let data = repo.filelog(info.path)?.data_for_node(*file_nodeid)?;
-        Ok(Some(data.into_file_data()?))
+
+        let changeset = store.node_for_idx(rev_idx)?;
+        let token =
+            self.revision.ino_to_token.get(&ino).expect("node should exist");
+        let data = store.file_data(changeset, info.path, *token)?;
+        Ok(Some(data))
     }
 
     fn entry_for_dirstate_node(
@@ -261,19 +227,14 @@ impl OwnedRevision {
             Entry::Dir { name, ino }
         }
     }
-
-    /// Return the changelog [`Revision`] for this [`Self`]
-    pub fn changelog_rev(&self) -> Revision {
-        self.changelog_rev
-    }
 }
 
 /// Holds the tree representation of a given changelog revision
-struct RevisionTree {
+struct RevisionTree<T> {
     /// The full dirstate for this revision
     dirstate: OwningDirstateMap,
-    /// Mapping of inode to file nodeid, so we can answer reads
-    ino_to_file_nodeid: DashMap<INodeNo, Node>,
+    /// Mapping of inode to file token, so we can answer reads
+    ino_to_token: DashMap<INodeNo, T>,
     /// Inode for the "files" folder for this revision
     files_root_ino: INodeNo,
     /// Mapping of all reserved inodes to their FUSE entries
@@ -282,32 +243,22 @@ struct RevisionTree {
     reserved_contents: FastHashMap<INodeNo, RawData>,
 }
 
-impl RevisionTree {
+impl<T: FileToken> RevisionTree<T> {
     #[allow(clippy::too_many_arguments)]
-    pub fn from_revision(
-        repo: &Repo,
-        file_nodeid_to_size: &DashMap<Node, usize>,
-        manifest: &Manifest,
-        manifest_details: ManifestRevisionDetails,
+    pub fn from_revision<S: StoreBackend<T>>(
+        store: &S,
+        changeset: Node,
         start_time: SystemTime,
-        narrow_matcher: &impl Matcher,
-    ) -> Result<RevisionTree, HgError> {
+    ) -> Result<RevisionTree<T>, StoreError<T>> {
         let (dirstate, ino_to_file_nodeid, inode_encoder) =
-            Self::process_manifest_files(
-                repo,
-                file_nodeid_to_size,
-                manifest,
-                manifest_details,
-                start_time,
-                narrow_matcher,
-            )?;
+            Self::process_manifest_files(store, changeset, start_time)?;
 
         // Remember the inodes for reserved entries
         let reserved = inode_encoder.reserved_entries;
 
         let tree = RevisionTree {
             dirstate,
-            ino_to_file_nodeid,
+            ino_to_token: ino_to_file_nodeid,
             files_root_ino: inode_encoder.files_root_inode,
             reserved,
             reserved_contents: inode_encoder.reserved_contents,
@@ -319,127 +270,61 @@ impl RevisionTree {
     /// with the array of all files processed into [`RevisionTreeFile`].
     #[tracing::instrument(level = "debug", skip_all)]
     #[allow(clippy::too_many_arguments)]
-    fn process_manifest_files(
-        repo: &Repo,
-        file_nodeid_to_size: &DashMap<Node, usize>,
-        manifest: &Manifest,
-        manifest_details: ManifestRevisionDetails,
+    fn process_manifest_files<S: StoreBackend<T>>(
+        store: &S,
+        changeset: Node,
         start_time: SystemTime,
-        narrow_matcher: &impl Matcher,
     ) -> Result<
-        (OwningDirstateMap, DashMap<INodeNo, Node>, RevisionInodeEncoder),
-        HgError,
+        (OwningDirstateMap, DashMap<INodeNo, T>, RevisionInodeEncoder),
+        StoreError<T>,
     > {
-        let warnings = HgWarningContext::new();
-        let sparse_matcher = sparse::matcher(
-            repo,
-            Some(vec![manifest_details.changeset_rev]),
-            warnings.sender(),
-        )?;
-        let _ = warnings.finish(|warning| -> Result<(), Infallible> {
-            // TODO better warnings
-            tracing::warn!("sparse warning: {:?}", warning);
-            Ok(())
-        });
-
-        let files_for_rev = FilesForDirstateBorrowed::new(
-            manifest,
-            &narrow_matcher,
-            &sparse_matcher,
-        );
-        let narrow_patterns = narrow::raw_store_patterns(repo)?;
-
-        let cached_file_sizes = file_nodeid_to_size.len();
-
-        // File sizes
-        let size_span = tracing::debug_span!("computing sizes").entered();
-        let path_to_filenode_id = DashMap::new();
-        // Collect all file sizes in parallel
-        let store_vfs = &repo.store_vfs();
-        let config = repo.config();
-        let requirements = repo.requirements();
-        // This function being called in a loop can add up, so do it only
-        // once since it doesn't change in this context
-        let default_revlog_options =
-            hg::revlog::options::default_revlog_options(
-                config,
-                requirements,
-                hg::revlog::RevlogType::Filelog,
-            )?;
-        let files_info = files_for_rev
-            .par_iter()
-            .map(|res| {
-                let (path, file_node, flags) = res?;
-                path_to_filenode_id.insert(path, file_node);
-                if let Some(size) = file_nodeid_to_size.get(&file_node) {
-                    // We already know this size
-                    return Ok((path, file_node, flags, *size));
-                }
-                // Work around `Repo::filelog` creating revlog options and
-                // a store VFS every time. TODO just use `Repo::filelog`
-                // once that's cached properly.
-                let filelog = hg::revlog::filelog::Filelog::open_vfs(
-                    store_vfs,
-                    path,
-                    default_revlog_options,
-                )?;
-                // TODO keep a persistent NodeTree of filenode_id -> size
-                // until we have it in revlogv2?
-                let size = filelog.contents_size_for_node(file_node)?;
-                file_nodeid_to_size.insert(file_node, size);
-                Ok((path, file_node, flags, size))
-            })
-            .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?;
-        drop(size_span);
-
-        let available_inode_range = RootInodeEncoder::revision_inode_range(
-            manifest_details.changeset_rev,
-        );
+        let revision_idx = store.idx_for_node(changeset)?;
+        let available_inode_range =
+            RootInodeEncoder::revision_inode_range(revision_idx);
         let mut inode_encoder = RevisionInodeEncoder::new(
             available_inode_range,
-            repo.store_path().parent().expect("store always has a parent"),
-            &manifest_details.branch,
-            repo.has_sparse(),
-            narrow_patterns,
+            store.changeset_store_info(changeset)?,
         );
 
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
 
         let map_span = tracing::debug_span!("building the dirstate").entered();
         let start_time: TruncatedTimestamp = start_time.into();
-        for (path, _file_node_id, flags, size) in files_info {
-            dirstate.reset_state(DirstateEntryReset {
-                filename: path,
-                wc_tracked: true,
-                p1_tracked: true,
-                p2_info: false, // We're never in an active merge
-                has_meaningful_mtime: true,
-                parent_file_data_opt: Some(ParentFileData {
-                    mode_size: Some((
-                        permissions_for_file(flags).into(),
-                        u_u32(size),
-                    )),
-                    mtime: Some(start_time),
-                }),
-                from_empty: true, // We are starting from scratch
-                set_parents_mtime: true,
-            })?;
+        let files = store.changeset_files(changeset)?;
+        let mut path_to_token = FastHashMap::default();
+        for file_info in files.iter() {
+            path_to_token.insert(file_info.path, file_info.token);
+            dirstate
+                .reset_state(DirstateEntryReset {
+                    filename: file_info.path,
+                    wc_tracked: true,
+                    p1_tracked: true,
+                    p2_info: false, // We're never in an active merge
+                    has_meaningful_mtime: true,
+                    parent_file_data_opt: Some(ParentFileData {
+                        mode_size: Some((
+                            permissions_for_file(file_info.flags).into(),
+                            file_info.size.try_into().expect("file too large"),
+                        )),
+                        mtime: Some(start_time),
+                    }),
+                    from_empty: true, // We are starting from scratch
+                    set_parents_mtime: true,
+                })
+                .expect(
+                    "insert in brand-new in-memory dirstate should not fail",
+                );
         }
-        let cache_misses = file_nodeid_to_size.len() - cached_file_sizes;
         drop(map_span);
-        tracing::debug!("cached {} new filelog node sizes", cache_misses);
 
-        let dirstate_parents = DirstateParents {
-            p1: manifest_details.changeset_node,
-            p2: NULL_NODE,
-        };
-        let (dirstate, inode_to_file_nodeid) = inode_encoder.add_dirstate(
+        let dirstate_parents = DirstateParents { p1: changeset, p2: NULL_NODE };
+        let (dirstate, inode_to_token) = inode_encoder.add_dirstate(
             dirstate,
             dirstate_parents,
-            path_to_filenode_id,
+            path_to_token,
         )?;
 
-        Ok((dirstate, inode_to_file_nodeid, inode_encoder))
+        Ok((dirstate, inode_to_token, inode_encoder))
     }
 }
 
@@ -472,10 +357,7 @@ struct RevisionInodeEncoder {
 impl RevisionInodeEncoder {
     fn new(
         available_range: Range<INodeNo>,
-        root_hg_path: &Path,
-        branch: &[u8],
-        has_sparse: bool,
-        narrow_patterns: Option<Vec<u8>>,
+        store_info: Option<StoreInfo>,
     ) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
@@ -492,42 +374,7 @@ impl RevisionInodeEncoder {
         // Must be the first in our current encoding, see `RootInodeEncoder`
         let root_ino = encoder.new_inode();
 
-        let mut requirements = vec![
-            SHARED_REQUIREMENT,
-            SHARESAFE_REQUIREMENT,
-            DIRSTATE_V2_REQUIREMENT,
-            DIRSTATE_TRACKED_HINT_V1,
-        ];
-        if has_sparse {
-            requirements.push(SPARSE_REQUIREMENT);
-        }
-        let requirements = requirements.join("\n");
-        let requires_contents = requirements.as_bytes();
-        let requires_ino =
-            encoder.add_reserved_file("requires", requires_contents.into());
-
-        let store_path_bytes = get_bytes_from_path(root_hg_path);
-        let sharedpath_ino =
-            encoder.add_reserved_file("sharedpath", store_path_bytes.into());
-
-        let branch_ino = encoder.add_reserved_file("branch", branch.into());
-
-        let mut tracked_key = vec![];
-        write_tracked_key_to(&mut tracked_key)
-            .expect("writing to Vec cannot fail");
-        let tracked_key_ino = encoder
-            .add_reserved_file("dirstate-tracked-key", tracked_key.into());
-
-        let mut dot_hg_files =
-            vec![requires_ino, sharedpath_ino, branch_ino, tracked_key_ino];
-
-        if let Some(patterns) = narrow_patterns {
-            let narrow_dirstate = encoder
-                .add_reserved_file(narrow::DIRSTATE_FILENAME, patterns.into());
-            dot_hg_files.push(narrow_dirstate);
-        }
-
-        let dot_hg_ino = encoder.add_reserved_directory(".hg", &dot_hg_files);
+        let dot_hg_ino = encoder.add_dot_hg(store_info);
 
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files
@@ -548,6 +395,52 @@ impl RevisionInodeEncoder {
         encoder
     }
 
+    fn add_dot_hg(&mut self, store_info: Option<StoreInfo>) -> INodeNo {
+        let mut requirements = vec![
+            SHARED_REQUIREMENT,
+            SHARESAFE_REQUIREMENT,
+            DIRSTATE_V2_REQUIREMENT,
+            DIRSTATE_TRACKED_HINT_V1,
+        ];
+        let mut dot_hg_files = vec![];
+
+        if let Some(info) = store_info {
+            if info.has_sparse {
+                requirements.push(SPARSE_REQUIREMENT);
+            }
+            let store_path_bytes = get_bytes_from_path(info.share_source);
+            let sharedpath_ino =
+                self.add_reserved_file("sharedpath", store_path_bytes.into());
+            dot_hg_files.push(sharedpath_ino);
+
+            let branch_ino =
+                self.add_reserved_file("branch", info.branch.as_bytes().into());
+            dot_hg_files.push(branch_ino);
+
+            if let Some(patterns) = info.narrow_patterns {
+                let narrow_dirstate = self.add_reserved_file(
+                    narrow::DIRSTATE_FILENAME,
+                    patterns.into(),
+                );
+                dot_hg_files.push(narrow_dirstate);
+            }
+        }
+        let requirements = requirements.join("\n");
+        let requires_contents = requirements.as_bytes();
+        let requires_ino =
+            self.add_reserved_file("requires", requires_contents.into());
+
+        let mut tracked_key = vec![];
+        write_tracked_key_to(&mut tracked_key)
+            .expect("writing to Vec cannot fail");
+        let tracked_key_ino =
+            self.add_reserved_file("dirstate-tracked-key", tracked_key.into());
+
+        dot_hg_files.push(requires_ino);
+        dot_hg_files.push(tracked_key_ino);
+        self.add_reserved_directory(".hg", &dot_hg_files)
+    }
+
     /// Returns a new unique inode
     fn new_inode(&self) -> INodeNo {
         let new_inode =
@@ -557,13 +450,13 @@ impl RevisionInodeEncoder {
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
-    fn add_dirstate(
+    fn add_dirstate<T: FileToken>(
         &mut self,
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
-        path_to_filenode_id: DashMap<&HgPath, Node>,
-    ) -> Result<(OwningDirstateMap, DashMap<INodeNo, Node>), HgError> {
-        let ino_to_filenode_id = DashMap::with_capacity(dirstate.len());
+        path_to_token: FastHashMap<&HgPath, T>,
+    ) -> Result<(OwningDirstateMap, DashMap<INodeNo, T>), StoreError<T>> {
+        let ino_to_token = DashMap::with_capacity(dirstate.len());
         let latest_ino = AtomicU64::new(self.files_root_inode.0);
         // Insert them in the files root
         let files_root_entry = self
@@ -585,15 +478,17 @@ impl RevisionInodeEncoder {
                 root_nodes.lock().expect("propagate the panic").push(ino);
             }
 
-            // Remember the inode to filenode id mapping to answer reads
-            let path_to_filenode_entry = path_to_filenode_id.get(path);
-            path_to_filenode_entry
-                .map(|node_id| ino_to_filenode_id.insert(ino, *node_id));
+            // Remember the inode to token mapping to answer reads
+            let path_to_token_entry = path_to_token.get(path);
+            path_to_token_entry.map(|token| ino_to_token.insert(ino, *token));
             latest_ino.store(ino.0, Ordering::Relaxed);
         };
 
-        let (data, tree_metadata, appending, old_size) = dirstate
-            .pack_v2(DirstateMapWriteMode::ForceNewDataFile, Some(visit))?;
+        let packed_res = dirstate
+            .pack_v2(DirstateMapWriteMode::ForceNewDataFile, Some(visit));
+        let (data, tree_metadata, appending, old_size) = packed_res.expect(
+            "in-memory serialization of a brand-new dirstate should not fail",
+        );
         let new_inode = latest_ino
             .load(Ordering::Relaxed)
             .checked_add(1)
@@ -641,8 +536,9 @@ impl RevisionInodeEncoder {
             tree_metadata.as_bytes(),
             uuid.as_bytes().to_vec(),
             None,
-        )?;
-        Ok((new_dirstate, ino_to_filenode_id))
+        )
+        .expect("in-memory creation of a brand-new dirstate should not fail");
+        Ok((new_dirstate, ino_to_token))
     }
 
     fn add_reserved_directory(
