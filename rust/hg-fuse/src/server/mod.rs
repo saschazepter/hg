@@ -28,6 +28,7 @@ use crate::server::revision::ManifestRevisionDetails;
 use crate::server::revision::OwnedRevision;
 
 pub mod revision;
+pub mod store;
 
 const BLOCK_SIZE: u32 = 4096;
 // Fake size that's obvious enough to be grepped in case that's
@@ -35,6 +36,16 @@ const BLOCK_SIZE: u32 = 4096;
 const FAKE_DIR_SIZE: u64 = 2005;
 const MERCURIAL_FIRST_COMMIT_TIMESTAMP: Duration =
     Duration::from_secs(1115154970);
+
+/// Configuration options for the FUSE
+#[derive(Debug)]
+pub struct Config {
+    /// Whether to preload the directory structure by traversing the filesystem
+    /// at the mountpoint (useful for debugging outside of the context of an
+    /// overlay, which would change the mountpoint).
+    #[expect(unused)]
+    preload_structure: bool,
+}
 
 /// Responsible for serving contents from the store to the FUSE layer
 pub struct Server {
