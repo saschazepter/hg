@@ -27,6 +27,7 @@ use crate::fuse::path_to_revision_working_copy;
 use crate::server::revision::ManifestRevisionDetails;
 use crate::server::revision::OwnedRevision;
 
+pub mod local;
 pub mod revision;
 pub mod store;
 
