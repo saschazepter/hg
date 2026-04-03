@@ -1548,16 +1548,6 @@ revision. The preloading is done in a background thread."""
 
 [[items]]
 section = "fuse"
-name = "fake-file-sizes"
-experimental = true
-default = false
-documentation = """Whether to pretend files have a nonsensical size. Used to
-remove the overhead of computing file sizes when they don't matter.
-
-This is a development option, and isn't guaranteed to exist forever."""
-
-[[items]]
-section = "fuse"
 name = "event-loop-threads"
 experimental = true
 documentation = """The number of threads to use for the FUSE kernel event loop."""

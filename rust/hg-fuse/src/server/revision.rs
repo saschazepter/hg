@@ -1,7 +1,6 @@
 use std::convert::Infallible;
 use std::ffi::OsStr;
 use std::ffi::OsString;
-use std::iter::repeat;
 use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
@@ -283,9 +282,6 @@ struct RevisionTree {
     reserved_contents: FastHashMap<INodeNo, RawData>,
 }
 
-/// Iterator over the size for each filenode
-type FilenodeSizeIterator<'a> = &'a mut (dyn Iterator<Item = usize> + 'static);
-
 impl RevisionTree {
     #[allow(clippy::too_many_arguments)]
     pub fn from_revision(
@@ -357,61 +353,44 @@ impl RevisionTree {
 
         // File sizes
         let size_span = tracing::debug_span!("computing sizes").entered();
-        let use_fake_file_size =
-            repo.config().get_bool(b"fuse", b"fake-file-sizes")?;
         let path_to_filenode_id = DashMap::new();
-        let sizes_vec = if use_fake_file_size {
-            vec![]
-        } else {
-            // Collect all file sizes in parallel
-            let store_vfs = &repo.store_vfs();
-            let config = repo.config();
-            let requirements = repo.requirements();
-            // This function being called in a loop can add up, so do it only
-            // once since it doesn't change in this context
-            let default_revlog_options =
-                hg::revlog::options::default_revlog_options(
-                    config,
-                    requirements,
-                    hg::revlog::RevlogType::Filelog,
+        // Collect all file sizes in parallel
+        let store_vfs = &repo.store_vfs();
+        let config = repo.config();
+        let requirements = repo.requirements();
+        // This function being called in a loop can add up, so do it only
+        // once since it doesn't change in this context
+        let default_revlog_options =
+            hg::revlog::options::default_revlog_options(
+                config,
+                requirements,
+                hg::revlog::RevlogType::Filelog,
+            )?;
+        let files_info = files_for_rev
+            .par_iter()
+            .map(|res| {
+                let (path, file_node, flags) = res?;
+                path_to_filenode_id.insert(path, file_node);
+                if let Some(size) = file_nodeid_to_size.get(&file_node) {
+                    // We already know this size
+                    return Ok((path, file_node, flags, *size));
+                }
+                // Work around `Repo::filelog` creating revlog options and
+                // a store VFS every time. TODO just use `Repo::filelog`
+                // once that's cached properly.
+                let filelog = hg::revlog::filelog::Filelog::open_vfs(
+                    store_vfs,
+                    path,
+                    default_revlog_options,
                 )?;
-            files_for_rev
-                .par_iter()
-                .map(|res| {
-                    let (path, file_node, _flags) = res?;
-                    path_to_filenode_id.insert(path, file_node);
-                    if let Some(size) = file_nodeid_to_size.get(&file_node) {
-                        // We already know this size
-                        return Ok(*size);
-                    }
-                    // Work around `Repo::filelog` creating revlog options and
-                    // a store VFS every time. TODO just use `Repo::filelog`
-                    // once that's cached properly.
-                    let filelog = hg::revlog::filelog::Filelog::open_vfs(
-                        store_vfs,
-                        path,
-                        default_revlog_options,
-                    )?;
-                    // TODO keep a persistent NodeTree of filenode_id -> size
-                    // until we have it in revlogv2?
-                    let size = filelog.contents_size_for_node(file_node)?;
-                    file_nodeid_to_size.insert(file_node, size);
-                    Ok(size)
-                })
-                .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?
-        };
+                // TODO keep a persistent NodeTree of filenode_id -> size
+                // until we have it in revlogv2?
+                let size = filelog.contents_size_for_node(file_node)?;
+                file_nodeid_to_size.insert(file_node, size);
+                Ok((path, file_node, flags, size))
+            })
+            .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?;
         drop(size_span);
-
-        // Zip the files with their sizes without allocating useless sizes
-        let mut always_zero = repeat(0);
-        let mut sizes_iter = sizes_vec.into_iter();
-        let manifest_iter = if use_fake_file_size {
-            let repeat: FilenodeSizeIterator = &mut always_zero;
-            files_for_rev.iter().zip(repeat)
-        } else {
-            let sizes_vec: &mut dyn Iterator<Item = usize> = &mut sizes_iter;
-            files_for_rev.iter().zip(sizes_vec)
-        };
 
         let available_inode_range = RootInodeEncoder::revision_inode_range(
             manifest_details.changeset_rev,
@@ -428,8 +407,7 @@ impl RevisionTree {
 
         let map_span = tracing::debug_span!("building the dirstate").entered();
         let start_time: TruncatedTimestamp = start_time.into();
-        for (line, size) in manifest_iter {
-            let (path, _file_node_id, flags) = line?;
+        for (path, _file_node_id, flags, size) in files_info {
             dirstate.reset_state(DirstateEntryReset {
                 filename: path,
                 wc_tracked: true,
