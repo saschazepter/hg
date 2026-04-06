@@ -780,7 +780,8 @@ class InnerRevlog:
 
         targetsize = None
         rawsize = self.index.raw_size(rev)
-        if rawsize is not None and 0 <= rawsize:
+        if rawsize is not None:
+            assert rawsize >= 0
             targetsize = 4 * rawsize
 
         self.seen_file_size(rawsize)
