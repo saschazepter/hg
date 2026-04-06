@@ -174,7 +174,7 @@ class InnerRevlog:
         self._segmentfile.clear_cache()
         self._segmentfile_sidedata.clear_cache()
 
-    def seen_file_size(self, size):
+    def seen_file_size(self, size: int):
         """signal that we have seen a file this big
 
         This might update the limit of underlying cache."""
@@ -783,8 +783,7 @@ class InnerRevlog:
         if rawsize is not None:
             assert rawsize >= 0
             targetsize = 4 * rawsize
-
-        self.seen_file_size(rawsize)
+            self.seen_file_size(rawsize)
 
         bins = self._chunks(chain, targetsize=targetsize)
         if basetext is None:
