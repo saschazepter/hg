@@ -42,11 +42,12 @@ pub struct LocalBackend {
 }
 
 impl LocalBackend {
-    pub fn new(repo: Repo) -> Result<Self, HgError> {
+    pub fn new(repo: Repo, archive_view: bool) -> Result<Self, HgError> {
         let repo_config = repo.config();
         let server_config = Config {
             preload_structure: repo_config
                 .get_bool(b"fuse", b"preload-working-copy-structure")?,
+            archive_view,
         };
         let file_nodeid_to_size = DashMap::new();
 

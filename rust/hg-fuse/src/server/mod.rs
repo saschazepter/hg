@@ -43,6 +43,9 @@ pub struct Config {
     /// at the mountpoint (useful for debugging outside of the context of an
     /// overlay, which would change the mountpoint).
     preload_structure: bool,
+    /// When archive_view is true, we do not present a .hg directory alongside
+    /// the files in a revision.
+    archive_view: bool,
 }
 
 /// Responsible for serving contents from the store to the FUSE layer

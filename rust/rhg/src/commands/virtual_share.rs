@@ -59,6 +59,12 @@ pub fn args() -> clap::Command {
                 .help("allow requests from the filesystem owner and root")
                 .conflicts_with("open-to-all"),
         )
+        .arg(
+            Arg::new("archive-view")
+                .long("archive-view")
+                .action(clap::ArgAction::SetTrue)
+                .help("present revision contents without a .hg directory"),
+        )
         .about(HELP_TEXT)
 }
 
@@ -81,6 +87,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let group_id = invocation.subcommand_args.get_one("group-id").copied();
     let open_to_all = invocation.subcommand_args.get_flag("open-to-all");
     let open_to_root = invocation.subcommand_args.get_flag("open-to-root");
+    let archive_view = invocation.subcommand_args.get_flag("archive-view");
     let session_acl = if open_to_all {
         SessionACL::All
     } else if open_to_root {
@@ -93,7 +100,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         repo.config(),
         Some(repo.working_directory_path().to_path_buf()),
     )?;
-    let store = LocalBackend::new(backend_repo)?;
+    let store = LocalBackend::new(backend_repo, archive_view)?;
     let server = Server::new(store, user_id, group_id)?;
 
     // Set up non-fatal signals to break our loop

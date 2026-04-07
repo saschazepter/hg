@@ -284,6 +284,7 @@ impl<T: FileToken> RevisionTree<T> {
         let mut inode_encoder = RevisionInodeEncoder::new(
             available_inode_range,
             store.changeset_store_info(changeset)?,
+            store.server_config().archive_view,
         );
 
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
@@ -347,7 +348,7 @@ struct RevisionInodeEncoder {
     /// Inode for the root of the actual revision files
     files_root_inode: INodeNo,
     /// Inode for the root of the .hg in the revision
-    dot_hg_ino: INodeNo,
+    dot_hg_ino: Option<INodeNo>,
     /// Inode for the root of the revision hierarchy
     root_ino: INodeNo,
     /// Mapping each reserved file's inode to its data
@@ -358,6 +359,7 @@ impl RevisionInodeEncoder {
     fn new(
         available_range: Range<INodeNo>,
         store_info: Option<StoreInfo>,
+        archive_view: bool,
     ) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
@@ -365,8 +367,8 @@ impl RevisionInodeEncoder {
             reserved_entries: FastHashMap::default(),
             // Placeholder value while we generate it
             files_root_inode: INodeNo(0),
-            // Placeholder value while we generate it
-            dot_hg_ino: INodeNo(0),
+            // Will be replaced with an actual inode unless archive_view is true
+            dot_hg_ino: None,
             // Placeholder value while we generate it
             root_ino: INodeNo(0),
             reserved_contents: FastHashMap::default(),
@@ -374,12 +376,15 @@ impl RevisionInodeEncoder {
         // Must be the first in our current encoding, see `RootInodeEncoder`
         let root_ino = encoder.new_inode();
 
-        let dot_hg_ino = encoder.add_dot_hg(store_info);
-
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files
-        let files_root_ino =
-            encoder.add_reserved_directory(FILES_INODE_NAME, &[dot_hg_ino]);
+        let files_root_ino = if archive_view {
+            encoder.add_reserved_directory(FILES_INODE_NAME, &[])
+        } else {
+            let dot_hg_ino = encoder.add_dot_hg(store_info);
+            encoder.dot_hg_ino = Some(dot_hg_ino);
+            encoder.add_reserved_directory(FILES_INODE_NAME, &[dot_hg_ino])
+        };
 
         encoder.reserved_entries.insert(
             root_ino,
@@ -390,7 +395,6 @@ impl RevisionInodeEncoder {
         );
 
         encoder.files_root_inode = files_root_ino;
-        encoder.dot_hg_ino = dot_hg_ino;
         encoder.root_ino = root_ino;
         encoder
     }
@@ -522,12 +526,14 @@ impl RevisionInodeEncoder {
         let docket_ino = self.add_reserved_file("dirstate", docket_data);
 
         // Insert them in .hg
-        let dot_hg_entry = self
-            .reserved_entries
-            .get_mut(&self.dot_hg_ino)
-            .expect(".hg node should exist");
-        dot_hg_entry.children.push(data_ino);
-        dot_hg_entry.children.push(docket_ino);
+        if let Some(dot_hg_ino) = self.dot_hg_ino.as_ref() {
+            let dot_hg_entry = self
+                .reserved_entries
+                .get_mut(dot_hg_ino)
+                .expect(".hg node should exist");
+            dot_hg_entry.children.push(data_ino);
+            dot_hg_entry.children.push(docket_ino);
+        }
 
         // Return a new dirstate based off the packed data
         let new_dirstate = OwningDirstateMap::new_v2(
