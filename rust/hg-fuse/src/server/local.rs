@@ -156,6 +156,16 @@ impl StoreBackend<LocalToken> for LocalBackend {
         &self,
         changeset: Node,
     ) -> Result<RevisionIdx, Error<LocalToken>> {
+        if let Ok(idx) = self
+            .repo
+            .changelog()?
+            .rev_from_node(changeset.into())
+            .map(|n| RevisionIdx(n.0.try_into().expect("invalid revision")))
+        {
+            return Ok(idx);
+        }
+        // TODO report errors somehow?
+        _ = self.repo.reload_revlogs();
         Ok(self
             .repo
             .changelog()?
@@ -255,11 +265,6 @@ impl StoreBackend<LocalToken> for LocalBackend {
             has_sparse: self.repo.has_sparse(),
             branch,
         }))
-    }
-
-    fn update_store(&self) {
-        // TODO report errors somehow?
-        _ = self.repo.reload_revlogs();
     }
 }
 

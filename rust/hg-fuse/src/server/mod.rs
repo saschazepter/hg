@@ -89,12 +89,6 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         })
     }
 
-    pub fn update_store(&self) -> Result<(), HgError> {
-        // Only OK to call because we know this in-memory [`Repo`] is readonly
-        self.store.update_store();
-        Ok(())
-    }
-
     pub fn attributes(&self, ino: INodeNo) -> Option<fuser::FileAttr> {
         let entry = self.get_entry(ino)?;
         Some(self.attributes_for_entry(entry))
@@ -215,25 +209,11 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         changeset: Node,
         mount_point: &Path,
     ) -> Result<Option<Entry>, StoreError<T>> {
-        let revision_data = match OwnedRevision::from_revision(
+        let revision_data = OwnedRevision::from_revision(
             &self.store,
             changeset,
             self.start_time,
-        ) {
-            Ok(data) => data,
-            Err(e) => match e.kind {
-                store::ErrorKind::NoSuchChangeset(_) => {
-                    // This may be a new changeset, update the store and retry
-                    self.store.update_store();
-                    OwnedRevision::from_revision(
-                        &self.store,
-                        changeset,
-                        self.start_time,
-                    )?
-                }
-                _ => return Err(e),
-            },
-        };
+        )?;
         let revision_arc = Arc::new(revision_data);
         self.revisions.insert(changeset, Arc::clone(&revision_arc));
 

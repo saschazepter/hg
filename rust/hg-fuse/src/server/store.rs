@@ -140,11 +140,6 @@ pub trait StoreBackend<T: FileToken>: Send + Sync + 'static {
     ) -> Result<Option<StoreInfo>, Error<T>> {
         Ok(None)
     }
-
-    /// Ask the backend to update its view of the repository in case it has
-    /// changed since it was started. This is optional as it only matters if
-    /// the underlying store can move forward without this backend knowing it.
-    fn update_store(&self) {}
 }
 
 /// A trait whose only method enables iteration over a given changeset's files.
