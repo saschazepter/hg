@@ -3763,6 +3763,18 @@ class revlog:
 
         return d
 
+    def _rewrite_sidedata_info(self, helpers, startrev, endrev):
+        for rev in range(startrev, endrev + 1):
+            new_sidedata, flags = sidedatautil.run_sidedata_helpers(
+                store=self,
+                sidedata_helpers=helpers,
+                sidedata={},
+                rev=rev,
+            )
+
+            serialized_sidedata = sidedatautil.serialize_sidedata(new_sidedata)
+            yield (rev, serialized_sidedata, flags)
+
     def rewrite_sidedata(self, transaction, helpers, startrev, endrev):
         if not self.configs.feature.has_side_data:
             return
@@ -3772,82 +3784,9 @@ class revlog:
             # Nothing to generate or remove
             return
 
-        new_entries = []
         # append the new sidedata
         with self._writing(transaction):
-            ifh, dfh, sdfh = self._inner._writinghandles
-            dfh.seek(self._docket.sidedata_end, os.SEEK_SET)
-
-            current_offset = sdfh.tell()
-            for rev in range(startrev, endrev + 1):
-                new_sidedata, flags = sidedatautil.run_sidedata_helpers(
-                    store=self,
-                    sidedata_helpers=helpers,
-                    sidedata={},
-                    rev=rev,
-                )
-
-                serialized_sidedata = sidedatautil.serialize_sidedata(
-                    new_sidedata
-                )
-
-                sidedata_compression_mode = COMP_MODE_INLINE
-                if serialized_sidedata and self.configs.feature.has_side_data:
-                    sidedata_compression_mode = COMP_MODE_PLAIN
-                    h, comp_sidedata = self._inner.compress(serialized_sidedata)
-                    if (
-                        h != b'u'
-                        and comp_sidedata[0] != b'\0'
-                        and len(comp_sidedata) < len(serialized_sidedata)
-                    ):
-                        assert not h
-                        if (
-                            comp_sidedata[0]
-                            == self._docket.default_compression_header
-                        ):
-                            sidedata_compression_mode = COMP_MODE_DEFAULT
-                            serialized_sidedata = comp_sidedata
-                        else:
-                            sidedata_compression_mode = COMP_MODE_INLINE
-                            serialized_sidedata = comp_sidedata
-                if (
-                    self.index.sidedata_chunk_offset(rev) != 0
-                    or self.index.sidedata_chunk_length(rev) != 0
-                ):
-                    # rewriting entries that already have sidedata is not
-                    # supported yet, because it introduces garbage data in the
-                    # revlog.
-                    msg = b"rewriting existing sidedata is not supported yet"
-                    raise error.Abort(msg)
-
-                # Apply (potential) flags to add and to remove after running
-                # the sidedata helpers
-                assert not (flags[0] & flags[1])
-                entry_update = (
-                    current_offset,
-                    len(serialized_sidedata),
-                    flags[0],
-                    flags[1],
-                    sidedata_compression_mode,
-                )
-
-                # the sidedata computation might have move the file cursors around
-                sdfh.seek(current_offset, os.SEEK_SET)
-                sdfh.write(serialized_sidedata)
-                new_entries.append(entry_update)
-                current_offset += len(serialized_sidedata)
-                self._docket.sidedata_end = sdfh.tell()
-
-            # rewrite the new index entries
-            ifh.seek(startrev * self.index.entry_size)
-            for i, e in enumerate(new_entries):
-                rev = startrev + i
-                self.index.replace_sidedata_info(
-                    rev, *e
-                )  # pytype: disable=attribute-error
-                packed = self.index.entry_binary(rev)
-                if rev == 0 and self._docket is None:
-                    header = self._format_flags | self._format_version
-                    header = self.index.pack_header(header)
-                    packed = header + packed
-                ifh.write(packed)
+            new_info = self._rewrite_sidedata_info(helpers, startrev, endrev)
+            old_end = self._docket.sidedata_end
+            new_end = self._inner.rewrite_sidedata(new_info, old_end)
+            self._docket.sidedata_end = new_end

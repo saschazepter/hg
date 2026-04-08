@@ -875,6 +875,9 @@ class BaseInnerRevlog(abc.ABC):
             raise error.ProgrammingError(msg)
         return self.canonical_index_file
 
+    def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
+        raise error.ProgrammingError(b"rewriting sidedata without support")
+
 
 class InnerRevlogV1(BaseInnerRevlog):
     """A inner revlog for a revlog-v1 revlog"""
@@ -1173,3 +1176,71 @@ class InnerRevlogV2(BaseInnerRevlog):
             dfh.tell() if dfh else None,
             sdfh.tell() if sdfh else None,
         )
+
+    def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
+        assert self.is_writing
+        new_entries = []
+        # append the new sidedata
+        ifh, dfh, sdfh = self._writinghandles
+        dfh.seek(sidedata_end, os.SEEK_SET)
+
+        current_offset = sdfh.tell()
+        startrev = None
+        for rev, serialized_sidedata, flags in new_info:
+            if startrev is None:
+                startrev = rev
+
+            sidedata_compression_mode = COMP_MODE_INLINE
+            if serialized_sidedata and self.feature_config.has_side_data:
+                sidedata_compression_mode = COMP_MODE_PLAIN
+                h, comp_sidedata = self.compress(serialized_sidedata)
+                if (
+                    h != b'u'
+                    and comp_sidedata[0] != b'\0'
+                    and len(comp_sidedata) < len(serialized_sidedata)
+                ):
+                    assert not h
+                    if comp_sidedata[0] == self._default_compression_header:
+                        sidedata_compression_mode = COMP_MODE_DEFAULT
+                        serialized_sidedata = comp_sidedata
+                    else:
+                        sidedata_compression_mode = COMP_MODE_INLINE
+                        serialized_sidedata = comp_sidedata
+            if (
+                self.index.sidedata_chunk_offset(rev) != 0
+                or self.index.sidedata_chunk_length(rev) != 0
+            ):
+                # rewriting entries that already have sidedata is not
+                # supported yet, because it introduces garbage data in the
+                # revlog.
+                msg = b"rewriting existing sidedata is not supported yet"
+                raise error.Abort(msg)
+
+            # Apply (potential) flags to add and to remove after running
+            # the sidedata helpers
+            assert not (flags[0] & flags[1])
+            entry_update = (
+                current_offset,
+                len(serialized_sidedata),
+                flags[0],
+                flags[1],
+                sidedata_compression_mode,
+            )
+
+            # the sidedata computation might have move the file cursors around
+            sdfh.seek(current_offset, os.SEEK_SET)
+            sdfh.write(serialized_sidedata)
+            new_entries.append(entry_update)
+            current_offset += len(serialized_sidedata)
+            sidedata_end = sdfh.tell()
+
+        # rewrite the new index entries
+        ifh.seek(startrev * self.index.entry_size)
+        for i, e in enumerate(new_entries):
+            rev = startrev + i
+            self.index.replace_sidedata_info(
+                rev, *e
+            )  # pytype: disable=attribute-error
+            packed = self.index.entry_binary(rev)
+            ifh.write(packed)
+        return sidedata_end
