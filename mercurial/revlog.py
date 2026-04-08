@@ -488,7 +488,7 @@ class revlog:
     """
 
     _flagserrorclass = error.RevlogError
-    _inner: py_inner.InnerRevlog
+    _inner: py_inner.BaseInnerRevlog
 
     # use by large file to signal it might affect some filelog
     _large_file_enabled = False
@@ -807,20 +807,36 @@ class revlog:
             else:
                 default_compression_header = docket.default_compression_header
             try:
-                self._inner = py_inner.InnerRevlog(
-                    opener=self.opener,
-                    target=self.target,
-                    index_data=index_data,
-                    index_file=self._indexfile,
-                    index_parser=self._parse_index,
-                    data_file=self._datafile,
-                    sidedata_file=self._sidedatafile,
-                    inline=self._inline,
-                    data_config=self.configs.data,
-                    delta_config=self.configs.delta,
-                    feature_config=self.configs.feature,
-                    default_compression_header=default_compression_header,
-                )
+                if docket is None:
+                    self._inner = py_inner.InnerRevlogV1(
+                        opener=self.opener,
+                        target=self.target,
+                        index_data=index_data,
+                        index_file=self._indexfile,
+                        index_parser=self._parse_index,
+                        data_file=self._datafile,
+                        sidedata_file=self._sidedatafile,
+                        inline=self._inline,
+                        data_config=self.configs.data,
+                        delta_config=self.configs.delta,
+                        feature_config=self.configs.feature,
+                        default_compression_header=default_compression_header,
+                    )
+                else:
+                    self._inner = py_inner.InnerRevlogV2(
+                        opener=self.opener,
+                        target=self.target,
+                        index_data=index_data,
+                        index_file=self._indexfile,
+                        index_parser=self._parse_index,
+                        data_file=self._datafile,
+                        sidedata_file=self._sidedatafile,
+                        inline=self._inline,
+                        data_config=self.configs.data,
+                        delta_config=self.configs.delta,
+                        feature_config=self.configs.feature,
+                        default_compression_header=default_compression_header,
+                    )
             except py_inner.CorruptedRevlogError:
                 raise error.RevlogError(
                     _(b"index %s is corrupted") % self.display_id

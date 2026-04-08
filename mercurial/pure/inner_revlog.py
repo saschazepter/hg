@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import abc
 import binascii
 import contextlib
 import os
@@ -66,7 +67,7 @@ class CorruptedRevlogError(error.RevlogError):
     ...
 
 
-class InnerRevlog:
+class BaseInnerRevlog(abc.ABC):
     """An inner layer of the revlog object
 
     That layer exist to be able to delegate some operation to Rust, its
@@ -1012,3 +1013,11 @@ class InnerRevlog:
             msg = b"not delay or divert found on this revlog"
             raise error.ProgrammingError(msg)
         return self.canonical_index_file
+
+
+class InnerRevlogV1(BaseInnerRevlog):
+    """A inner revlog for a revlog-v1 revlog"""
+
+
+class InnerRevlogV2(BaseInnerRevlog):
+    """A inner revlog for a revlog-v2 revlog"""
