@@ -479,75 +479,8 @@ class BaseInnerRevlog(abc.ABC):
                     self.opener, self.index_file, b"w+", self._delay_buffer
                 )
 
-    def _index_new_fp(self):
-        """internal method to create a new index file for writing
-
-        You should not use this unless you are upgrading from inline revlog
-        """
-        return self.opener(
-            self.index_file,
-            mode=b"w",
-            checkambig=self.data_config.check_ambig,
-        )
-
     def split_inline(self, tr, header, new_index_file_path=None):
-        """split the data of an inline revlog into an index and a data file"""
-        assert self._delay_buffer is None
-        existing_handles = False
-        if self._writinghandles is not None:
-            existing_handles = True
-            fp = self._writinghandles[0]
-            fp.flush()
-            fp.close()
-            # We can't use the cached file handle after close(). So prevent
-            # its usage.
-            self._writinghandles = None
-            self._segmentfile.writing_handle = None
-            # No need to deal with sidedata writing handle as it is only
-            # relevant with revlog-v2 which is never inline, not reaching
-            # this code
-
-        new_dfh = self.opener(self.data_file, mode=b"w+")
-        new_dfh.truncate(0)  # drop any potentially existing data
-        try:
-            with self.reading():
-                for r in range(len(self.index)):
-                    new_dfh.write(self.get_segment_for_revs(r, r)[1])
-                new_dfh.flush()
-
-            if new_index_file_path is not None:
-                self.index_file = new_index_file_path
-            with self._index_new_fp() as fp:
-                self.inline = False
-                for i in range(len(self.index)):
-                    e = self.index.entry_binary(i)
-                    if i == 0:
-                        packed_header = self.index.pack_header(header)
-                        e = packed_header + e
-                    fp.write(e)
-
-                # If we don't use side-write, the temp file replace the real
-                # index when we exit the context manager
-
-            self._segmentfile = randomaccessfile.randomaccessfile(
-                self.opener,
-                self.data_file,
-                self.data_config.chunk_cache_size,
-            )
-
-            if existing_handles:
-                # switched from inline to conventional reopen the index
-                ifh = self._index_write_fp()
-                self._writinghandles = (ifh, new_dfh)
-                self._segmentfile.writing_handle = new_dfh
-                new_dfh = None
-                # No need to deal with sidedata writing handle as it is only
-                # relevant with revlog-v2 which is never inline, not reaching
-                # this code
-        finally:
-            if new_dfh is not None:
-                new_dfh.close()
-        return self.index_file
+        raise error.ProgrammingError("Cannot split a non-V1 revlog")
 
     def get_segment_for_revs(self, startrev, endrev):
         """Obtain a segment of raw data corresponding to a range of revisions.
@@ -989,6 +922,76 @@ class InnerRevlogV1(BaseInnerRevlog):
             dfh.tell() if dfh else None,
             None,
         )
+
+    def _index_new_fp(self):
+        """internal method to create a new index file for writing
+
+        You should not use this unless you are upgrading from inline revlog
+        """
+        return self.opener(
+            self.index_file,
+            mode=b"w",
+            checkambig=self.data_config.check_ambig,
+        )
+
+    def split_inline(self, tr, header, new_index_file_path=None):
+        """split the data of an inline revlog into an index and a data file"""
+        assert self._delay_buffer is None
+        existing_handles = False
+        if self._writinghandles is not None:
+            existing_handles = True
+            fp = self._writinghandles[0]
+            fp.flush()
+            fp.close()
+            # We can't use the cached file handle after close(). So prevent
+            # its usage.
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            # No need to deal with sidedata writing handle as it is only
+            # relevant with revlog-v2 which is never inline, not reaching
+            # this code
+
+        new_dfh = self.opener(self.data_file, mode=b"w+")
+        new_dfh.truncate(0)  # drop any potentially existing data
+        try:
+            with self.reading():
+                for r in range(len(self.index)):
+                    new_dfh.write(self.get_segment_for_revs(r, r)[1])
+                new_dfh.flush()
+
+            if new_index_file_path is not None:
+                self.index_file = new_index_file_path
+            with self._index_new_fp() as fp:
+                self.inline = False
+                for i in range(len(self.index)):
+                    e = self.index.entry_binary(i)
+                    if i == 0:
+                        packed_header = self.index.pack_header(header)
+                        e = packed_header + e
+                    fp.write(e)
+
+                # If we don't use side-write, the temp file replace the real
+                # index when we exit the context manager
+
+            self._segmentfile = randomaccessfile.randomaccessfile(
+                self.opener,
+                self.data_file,
+                self.data_config.chunk_cache_size,
+            )
+
+            if existing_handles:
+                # switched from inline to conventional reopen the index
+                ifh = self._index_write_fp()
+                self._writinghandles = (ifh, new_dfh)
+                self._segmentfile.writing_handle = new_dfh
+                new_dfh = None
+                # No need to deal with sidedata writing handle as it is only
+                # relevant with revlog-v2 which is never inline, not reaching
+                # this code
+        finally:
+            if new_dfh is not None:
+                new_dfh.close()
+        return self.index_file
 
 
 class InnerRevlogV2(BaseInnerRevlog):
