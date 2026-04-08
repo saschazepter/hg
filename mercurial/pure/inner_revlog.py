@@ -114,9 +114,6 @@ class BaseInnerRevlog(abc.ABC):
         self.delta_config = delta_config
         self.feature_config = feature_config
 
-        # used during diverted write.
-        self._orig_index_file = None
-
         self._default_compression_header = default_compression_header
 
         if target[0] == KIND_MANIFESTLOG:
@@ -126,7 +123,7 @@ class BaseInnerRevlog(abc.ABC):
 
         # index
 
-        # 3-tuple of file handles being used for active writing.
+        # tuple of file handles being used for active writing.
         self._writinghandles = None
 
         self._segmentfile = randomaccessfile.randomaccessfile(
@@ -154,8 +151,6 @@ class BaseInnerRevlog(abc.ABC):
                 self.data_config.uncompressed_cache_count,
                 maxcost=65536,  # some arbitrary initial value
             )
-
-        self._delay_buffer = None
 
     def __len__(self):
         return len(self.index)
@@ -219,8 +214,6 @@ class BaseInnerRevlog(abc.ABC):
 
     @property
     def canonical_index_file(self):
-        if self._orig_index_file is not None:
-            return self._orig_index_file
         return self.index_file
 
     @property
@@ -229,9 +222,7 @@ class BaseInnerRevlog(abc.ABC):
 
         The delaying mechanism can be either in-memory or written on disk in a
         side-file."""
-        return (self._delay_buffer is not None) or (
-            self._orig_index_file is not None
-        )
+        return False
 
     # Derived from index values.
 
@@ -401,9 +392,6 @@ class BaseInnerRevlog(abc.ABC):
         """Context manager that keeps files open for reading"""
         if len(self.index) == 0:
             yield  # nothing to be read
-        elif self._delay_buffer is not None and self.inline:
-            msg = "revlog with delayed write should not be inline"
-            raise error.ProgrammingError(msg)
         else:
             with self._reading():
                 yield
@@ -442,42 +430,13 @@ class BaseInnerRevlog(abc.ABC):
     def _writing(self, transaction, data_end=None, sidedata_end=None):
         ...
 
+    @abc.abstractmethod
     def _index_write_fp(self, index_end=None):
         """internal method to open the index file for writing
 
         You should not use this directly and use `_writing` instead
         """
-        try:
-            if self._delay_buffer is None:
-                f = self.opener(
-                    self.index_file,
-                    mode=b"r+",
-                    checkambig=self.data_config.check_ambig,
-                )
-            else:
-                # check_ambig affect we way we open file for writing, however
-                # here, we do not actually open a file for writting as write
-                # will appened to a delay_buffer. So check_ambig is not
-                # meaningful and unneeded here.
-                f = randomaccessfile.appender(
-                    self.opener, self.index_file, b"r+", self._delay_buffer
-                )
-            if index_end is None:
-                f.seek(0, os.SEEK_END)
-            else:
-                f.seek(index_end, os.SEEK_SET)
-            return f
-        except FileNotFoundError:
-            if self._delay_buffer is None:
-                return self.opener(
-                    self.index_file,
-                    mode=b"w+",
-                    checkambig=self.data_config.check_ambig,
-                )
-            else:
-                return randomaccessfile.appender(
-                    self.opener, self.index_file, b"w+", self._delay_buffer
-                )
+        ...
 
     def split_inline(self, tr, header, new_index_file_path=None):
         raise error.ProgrammingError("Cannot split a non-V1 revlog")
@@ -722,6 +681,291 @@ class BaseInnerRevlog(abc.ABC):
     ):
         ...
 
+    def delay(self):
+        raise error.ProgrammingError("Cannot delay a non-V1 revlog")
+
+    def write_pending(self):
+        raise error.ProgrammingError("Cannot write_pending a non-V1 revlog")
+
+    def finalize_pending(self):
+        raise error.ProgrammingError("Cannot finalize_pending a non-V1 revlog")
+
+    def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
+        raise error.ProgrammingError(b"rewriting sidedata without support")
+
+
+class InnerRevlogV1(BaseInnerRevlog):
+    """A inner revlog for a revlog-v1 revlog"""
+
+    def __init__(
+        self,
+        opener: vfsmod.vfs,
+        target: tuple[int, bytes],
+        index_data,
+        index_file,
+        index_parser,
+        data_file,
+        inline,
+        data_config,
+        delta_config,
+        feature_config,
+        default_compression_header: i_comp.RevlogCompHeader,
+    ):
+        super().__init__(
+            opener=opener,
+            target=target,
+            index_data=index_data,
+            index_file=index_file,
+            index_parser=index_parser,
+            data_file=data_file,
+            inline=inline,
+            data_config=data_config,
+            delta_config=delta_config,
+            feature_config=feature_config,
+            default_compression_header=default_compression_header,
+        )
+        # used during diverted write.
+        self._orig_index_file = None
+        self._delay_buffer = None
+
+    @contextlib.contextmanager
+    def _reading(self):
+        if self.is_delaying and self.inline:
+            msg = "revlog with delayed write should not be inline"
+            raise error.ProgrammingError(msg)
+        with super()._reading():
+            yield
+
+    @contextlib.contextmanager
+    def _writing(self, transaction, data_end=None, sidedata_end=None):
+        ifh = dfh = None
+        if data_end is not None:
+            raise error.ProgrammingError(b"data_end not None for v1")
+        if sidedata_end is not None:
+            raise error.ProgrammingError(b"sidedata_end not None for v1")
+        try:
+            r = len(self.index)
+            # opening the data file.
+            dsize = 0
+            if r:
+                dsize = self.end(r - 1)
+            dfh = None
+            if not self.inline:
+                try:
+                    dfh = self.opener(self.data_file, mode=b"r+")
+                    dfh.seek(0, os.SEEK_END)
+                except FileNotFoundError:
+                    dfh = self.opener(self.data_file, mode=b"w+")
+                transaction.add(self.data_file, dsize)
+            # opening the index file.
+            isize = r * self.index.entry_size
+            ifh = self._index_write_fp()
+            if self.inline:
+                transaction.add(self.index_file, dsize + isize)
+            else:
+                transaction.add(self.index_file, isize)
+            # exposing all file handle for writing.
+            self._writinghandles = (ifh, dfh)
+            self._segmentfile.writing_handle = ifh if self.inline else dfh
+            yield
+        finally:
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            if dfh is not None:
+                dfh.close()
+            # closing the index file last to avoid exposing referent to
+            # potential unflushed data content.
+            if ifh is not None:
+                ifh.close()
+
+    def _index_write_fp(self, index_end=None):
+        """internal method to open the index file for writing
+
+        You should not use this directly and use `_writing` instead
+        """
+        if index_end is not None:
+            raise error.ProgrammingError("index_end not None for v1")
+        try:
+            if self._delay_buffer is None:
+                f = self.opener(
+                    self.index_file,
+                    mode=b"r+",
+                    checkambig=self.data_config.check_ambig,
+                )
+            else:
+                # check_ambig affect we way we open file for writing, however
+                # here, we do not actually open a file for writting as write
+                # will appened to a delay_buffer. So check_ambig is not
+                # meaningful and unneeded here.
+                f = randomaccessfile.appender(
+                    self.opener, self.index_file, b"r+", self._delay_buffer
+                )
+            f.seek(0, os.SEEK_END)
+            return f
+        except FileNotFoundError:
+            if self._delay_buffer is None:
+                return self.opener(
+                    self.index_file,
+                    mode=b"w+",
+                    checkambig=self.data_config.check_ambig,
+                )
+            else:
+                return randomaccessfile.appender(
+                    self.opener, self.index_file, b"w+", self._delay_buffer
+                )
+
+    def write_entry(
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
+        index_end,
+        data_end,
+        sidedata_end,
+    ):
+        # Files opened in a+ mode have inconsistent behavior on various
+        # platforms. Windows requires that a file positioning call be made
+        # when the file handle transitions between reads and writes. See
+        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
+        # platforms, Python or the platform itself can be buggy. Some versions
+        # of Solaris have been observed to not append at the end of the file
+        # if the file was seeked to before the end. See issue4943 for more.
+        #
+        # We work around this issue by inserting a seek() before writing.
+        # Note: This is likely not necessary on Python 3. However, because
+        # the file handle is reused for reads and may be seeked there, we need
+        # to be careful before changing this.
+        if self._writinghandles is None:
+            msg = b'adding revision outside `revlog._writing` context'
+            raise error.ProgrammingError(msg)
+        assert not sidedata
+        ifh, dfh = self._writinghandles
+        if index_end is None:
+            ifh.seek(0, os.SEEK_END)
+        else:
+            ifh.seek(index_end, os.SEEK_SET)
+        if dfh:
+            if data_end is None:
+                dfh.seek(0, os.SEEK_END)
+            else:
+                dfh.seek(data_end, os.SEEK_SET)
+
+        curr = len(self.index) - 1
+        if not self.inline:
+            transaction.add(self.data_file, offset)
+            transaction.add(self.canonical_index_file, curr * len(entry))
+            if data[0]:
+                dfh.write(data[0])
+            dfh.write(data[1])
+            if self._delay_buffer is None:
+                ifh.write(entry)
+            else:
+                self._delay_buffer.append(entry)
+        elif self._delay_buffer is not None:
+            msg = b'invalid delayed write on inline revlog'
+            raise error.ProgrammingError(msg)
+        else:
+            offset += curr * self.index.entry_size
+            transaction.add(self.canonical_index_file, offset)
+            ifh.write(entry)
+            ifh.write(data[0])
+            ifh.write(data[1])
+        return (
+            ifh.tell(),
+            dfh.tell() if dfh else None,
+            None,
+        )
+
+    @property
+    def canonical_index_file(self):
+        if self._orig_index_file is not None:
+            return self._orig_index_file
+        return self.index_file
+
+    def _index_new_fp(self):
+        """internal method to create a new index file for writing
+
+        You should not use this unless you are upgrading from inline revlog
+        """
+        return self.opener(
+            self.index_file,
+            mode=b"w",
+            checkambig=self.data_config.check_ambig,
+        )
+
+    def split_inline(self, tr, header, new_index_file_path=None):
+        """split the data of an inline revlog into an index and a data file"""
+        assert self._delay_buffer is None
+        existing_handles = False
+        if self._writinghandles is not None:
+            existing_handles = True
+            fp = self._writinghandles[0]
+            fp.flush()
+            fp.close()
+            # We can't use the cached file handle after close(). So prevent
+            # its usage.
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            # No need to deal with sidedata writing handle as it is only
+            # relevant with revlog-v2 which is never inline, not reaching
+            # this code
+
+        new_dfh = self.opener(self.data_file, mode=b"w+")
+        new_dfh.truncate(0)  # drop any potentially existing data
+        try:
+            with self.reading():
+                for r in range(len(self.index)):
+                    new_dfh.write(self.get_segment_for_revs(r, r)[1])
+                new_dfh.flush()
+
+            if new_index_file_path is not None:
+                self.index_file = new_index_file_path
+            with self._index_new_fp() as fp:
+                self.inline = False
+                for i in range(len(self.index)):
+                    e = self.index.entry_binary(i)
+                    if i == 0:
+                        packed_header = self.index.pack_header(header)
+                        e = packed_header + e
+                    fp.write(e)
+
+                # If we don't use side-write, the temp file replace the real
+                # index when we exit the context manager
+
+            self._segmentfile = randomaccessfile.randomaccessfile(
+                self.opener,
+                self.data_file,
+                self.data_config.chunk_cache_size,
+            )
+
+            if existing_handles:
+                # switched from inline to conventional reopen the index
+                ifh = self._index_write_fp()
+                self._writinghandles = (ifh, new_dfh)
+                self._segmentfile.writing_handle = new_dfh
+                new_dfh = None
+                # No need to deal with sidedata writing handle as it is only
+                # relevant with revlog-v2 which is never inline, not reaching
+                # this code
+        finally:
+            if new_dfh is not None:
+                new_dfh.close()
+        return self.index_file
+
+    @property
+    def is_delaying(self):
+        """is the revlog is currently delaying the visibility of written data?
+
+        The delaying mechanism can be either in-memory or written on disk in a
+        side-file."""
+        return (self._delay_buffer is not None) or (
+            self._orig_index_file is not None
+        )
+
     def _divert_index(self):
         index_file = self.index_file
         # when we encounter a legacy inline-changelog, split it. However it is
@@ -807,191 +1051,6 @@ class BaseInnerRevlog(abc.ABC):
             msg = b"not delay or divert found on this revlog"
             raise error.ProgrammingError(msg)
         return self.canonical_index_file
-
-    def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
-        raise error.ProgrammingError(b"rewriting sidedata without support")
-
-
-class InnerRevlogV1(BaseInnerRevlog):
-    """A inner revlog for a revlog-v1 revlog"""
-
-    @contextlib.contextmanager
-    def _writing(self, transaction, data_end=None, sidedata_end=None):
-        ifh = dfh = None
-        if data_end is not None:
-            raise error.ProgrammingError(b"data_end not None for v1")
-        if sidedata_end is not None:
-            raise error.ProgrammingError(b"sidedata_end not None for v1")
-        try:
-            r = len(self.index)
-            # opening the data file.
-            dsize = 0
-            if r:
-                dsize = self.end(r - 1)
-            dfh = None
-            if not self.inline:
-                try:
-                    dfh = self.opener(self.data_file, mode=b"r+")
-                    dfh.seek(0, os.SEEK_END)
-                except FileNotFoundError:
-                    dfh = self.opener(self.data_file, mode=b"w+")
-                transaction.add(self.data_file, dsize)
-            # opening the index file.
-            isize = r * self.index.entry_size
-            ifh = self._index_write_fp()
-            if self.inline:
-                transaction.add(self.index_file, dsize + isize)
-            else:
-                transaction.add(self.index_file, isize)
-            # exposing all file handle for writing.
-            self._writinghandles = (ifh, dfh)
-            self._segmentfile.writing_handle = ifh if self.inline else dfh
-            yield
-        finally:
-            self._writinghandles = None
-            self._segmentfile.writing_handle = None
-            if dfh is not None:
-                dfh.close()
-            # closing the index file last to avoid exposing referent to
-            # potential unflushed data content.
-            if ifh is not None:
-                ifh.close()
-
-    def write_entry(
-        self,
-        transaction,
-        entry,
-        data,
-        link,
-        offset,
-        sidedata,
-        sidedata_offset,
-        index_end,
-        data_end,
-        sidedata_end,
-    ):
-        # Files opened in a+ mode have inconsistent behavior on various
-        # platforms. Windows requires that a file positioning call be made
-        # when the file handle transitions between reads and writes. See
-        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
-        # platforms, Python or the platform itself can be buggy. Some versions
-        # of Solaris have been observed to not append at the end of the file
-        # if the file was seeked to before the end. See issue4943 for more.
-        #
-        # We work around this issue by inserting a seek() before writing.
-        # Note: This is likely not necessary on Python 3. However, because
-        # the file handle is reused for reads and may be seeked there, we need
-        # to be careful before changing this.
-        if self._writinghandles is None:
-            msg = b'adding revision outside `revlog._writing` context'
-            raise error.ProgrammingError(msg)
-        assert not sidedata
-        ifh, dfh = self._writinghandles
-        if index_end is None:
-            ifh.seek(0, os.SEEK_END)
-        else:
-            ifh.seek(index_end, os.SEEK_SET)
-        if dfh:
-            if data_end is None:
-                dfh.seek(0, os.SEEK_END)
-            else:
-                dfh.seek(data_end, os.SEEK_SET)
-
-        curr = len(self.index) - 1
-        if not self.inline:
-            transaction.add(self.data_file, offset)
-            transaction.add(self.canonical_index_file, curr * len(entry))
-            if data[0]:
-                dfh.write(data[0])
-            dfh.write(data[1])
-            if self._delay_buffer is None:
-                ifh.write(entry)
-            else:
-                self._delay_buffer.append(entry)
-        elif self._delay_buffer is not None:
-            msg = b'invalid delayed write on inline revlog'
-            raise error.ProgrammingError(msg)
-        else:
-            offset += curr * self.index.entry_size
-            transaction.add(self.canonical_index_file, offset)
-            ifh.write(entry)
-            ifh.write(data[0])
-            ifh.write(data[1])
-        return (
-            ifh.tell(),
-            dfh.tell() if dfh else None,
-            None,
-        )
-
-    def _index_new_fp(self):
-        """internal method to create a new index file for writing
-
-        You should not use this unless you are upgrading from inline revlog
-        """
-        return self.opener(
-            self.index_file,
-            mode=b"w",
-            checkambig=self.data_config.check_ambig,
-        )
-
-    def split_inline(self, tr, header, new_index_file_path=None):
-        """split the data of an inline revlog into an index and a data file"""
-        assert self._delay_buffer is None
-        existing_handles = False
-        if self._writinghandles is not None:
-            existing_handles = True
-            fp = self._writinghandles[0]
-            fp.flush()
-            fp.close()
-            # We can't use the cached file handle after close(). So prevent
-            # its usage.
-            self._writinghandles = None
-            self._segmentfile.writing_handle = None
-            # No need to deal with sidedata writing handle as it is only
-            # relevant with revlog-v2 which is never inline, not reaching
-            # this code
-
-        new_dfh = self.opener(self.data_file, mode=b"w+")
-        new_dfh.truncate(0)  # drop any potentially existing data
-        try:
-            with self.reading():
-                for r in range(len(self.index)):
-                    new_dfh.write(self.get_segment_for_revs(r, r)[1])
-                new_dfh.flush()
-
-            if new_index_file_path is not None:
-                self.index_file = new_index_file_path
-            with self._index_new_fp() as fp:
-                self.inline = False
-                for i in range(len(self.index)):
-                    e = self.index.entry_binary(i)
-                    if i == 0:
-                        packed_header = self.index.pack_header(header)
-                        e = packed_header + e
-                    fp.write(e)
-
-                # If we don't use side-write, the temp file replace the real
-                # index when we exit the context manager
-
-            self._segmentfile = randomaccessfile.randomaccessfile(
-                self.opener,
-                self.data_file,
-                self.data_config.chunk_cache_size,
-            )
-
-            if existing_handles:
-                # switched from inline to conventional reopen the index
-                ifh = self._index_write_fp()
-                self._writinghandles = (ifh, new_dfh)
-                self._segmentfile.writing_handle = new_dfh
-                new_dfh = None
-                # No need to deal with sidedata writing handle as it is only
-                # relevant with revlog-v2 which is never inline, not reaching
-                # this code
-        finally:
-            if new_dfh is not None:
-                new_dfh.close()
-        return self.index_file
 
 
 class InnerRevlogV2(BaseInnerRevlog):
@@ -1130,6 +1189,28 @@ class InnerRevlogV2(BaseInnerRevlog):
             # potential unflushed data content.
             if ifh is not None:
                 ifh.close()
+
+    def _index_write_fp(self, index_end=None):
+        """internal method to open the index file for writing
+
+        You should not use this directly and use `_writing` instead
+        """
+        if index_end is None:
+            raise error.ProgrammingError("index_end None for v2")
+        try:
+            f = self.opener(
+                self.index_file,
+                mode=b"r+",
+                checkambig=self.data_config.check_ambig,
+            )
+            f.seek(index_end, os.SEEK_SET)
+            return f
+        except FileNotFoundError:
+            return self.opener(
+                self.index_file,
+                mode=b"w+",
+                checkambig=self.data_config.check_ambig,
+            )
 
     def write_entry(
         self,
