@@ -88,7 +88,6 @@ class BaseInnerRevlog(abc.ABC):
         index_file,
         index_parser,
         data_file,
-        sidedata_file,
         inline,
         data_config,
         delta_config,
@@ -110,7 +109,6 @@ class BaseInnerRevlog(abc.ABC):
 
         self.index_file = index_file
         self.data_file = data_file
-        self.sidedata_file = sidedata_file
         self.inline = inline
         self.data_config = data_config
         self.delta_config = delta_config
@@ -136,11 +134,6 @@ class BaseInnerRevlog(abc.ABC):
             (self.index_file if self.inline else self.data_file),
             self.data_config.chunk_cache_size,
             chunk_cache,
-        )
-        self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
-            self.opener,
-            self.sidedata_file,
-            self.data_config.chunk_cache_size,
         )
 
         # revlog header -> revlog compressor
@@ -173,7 +166,6 @@ class BaseInnerRevlog(abc.ABC):
         if self._uncompressed_chunk_cache is not None:
             self._uncompressed_chunk_cache.clear()
         self._segmentfile.clear_cache()
-        self._segmentfile_sidedata.clear_cache()
 
     def seen_file_size(self, size: int):
         """signal that we have seen a file this big
@@ -406,16 +398,20 @@ class BaseInnerRevlog(abc.ABC):
 
     @contextlib.contextmanager
     def reading(self):
-        """Context manager that keeps data and sidedata files open for reading"""
+        """Context manager that keeps files open for reading"""
         if len(self.index) == 0:
             yield  # nothing to be read
         elif self._delay_buffer is not None and self.inline:
             msg = "revlog with delayed write should not be inline"
             raise error.ProgrammingError(msg)
         else:
-            with self._segmentfile.reading():
-                with self._segmentfile_sidedata.reading():
-                    yield
+            with self._reading():
+                yield
+
+    @contextlib.contextmanager
+    def _reading(self):
+        with self._segmentfile.reading():
+            yield
 
     @property
     def is_writing(self):
@@ -427,7 +423,7 @@ class BaseInnerRevlog(abc.ABC):
         """True if any file handle is being held
 
         Used for assert and debug in the python code"""
-        return self._segmentfile.is_open or self._segmentfile_sidedata.is_open
+        return self._segmentfile.is_open
 
     @contextlib.contextmanager
     def writing(self, transaction, data_end=None, sidedata_end=None):
@@ -438,61 +434,15 @@ class BaseInnerRevlog(abc.ABC):
         if self.is_writing:
             yield
         else:
-            ifh = dfh = sdfh = None
-            try:
-                r = len(self.index)
-                # opening the data file.
-                dsize = 0
-                if r:
-                    dsize = self.end(r - 1)
-                dfh = None
-                if not self.inline:
-                    try:
-                        dfh = self.opener(self.data_file, mode=b"r+")
-                        if data_end is None:
-                            dfh.seek(0, os.SEEK_END)
-                        else:
-                            dfh.seek(data_end, os.SEEK_SET)
-                    except FileNotFoundError:
-                        dfh = self.opener(self.data_file, mode=b"w+")
-                    transaction.add(self.data_file, dsize)
-                if self.sidedata_file is not None:
-                    assert sidedata_end is not None
-                    # revlog-v2 does not inline, help Pytype
-                    assert dfh is not None
-                    try:
-                        sdfh = self.opener(self.sidedata_file, mode=b"r+")
-                        sdfh.seek(sidedata_end, os.SEEK_SET)
-                    except FileNotFoundError:
-                        sdfh = self.opener(self.sidedata_file, mode=b"w+")
-                    transaction.add(self.sidedata_file, sidedata_end)
-
-                # opening the index file.
-                isize = r * self.index.entry_size
-                ifh = self.__index_write_fp()
-                if self.inline:
-                    transaction.add(self.index_file, dsize + isize)
-                else:
-                    transaction.add(self.index_file, isize)
-                # exposing all file handle for writing.
-                self._writinghandles = (ifh, dfh, sdfh)
-                self._segmentfile.writing_handle = ifh if self.inline else dfh
-                self._segmentfile_sidedata.writing_handle = sdfh
+            with self._writing(transaction, data_end, sidedata_end):
                 yield
-            finally:
-                self._writinghandles = None
-                self._segmentfile.writing_handle = None
-                self._segmentfile_sidedata.writing_handle = None
-                if dfh is not None:
-                    dfh.close()
-                if sdfh is not None:
-                    sdfh.close()
-                # closing the index file last to avoid exposing referent to
-                # potential unflushed data content.
-                if ifh is not None:
-                    ifh.close()
 
-    def __index_write_fp(self, index_end=None):
+    @contextlib.contextmanager
+    @abc.abstractmethod
+    def _writing(self, transaction, data_end=None, sidedata_end=None):
+        ...
+
+    def _index_write_fp(self, index_end=None):
         """internal method to open the index file for writing
 
         You should not use this directly and use `_writing` instead
@@ -529,7 +479,7 @@ class BaseInnerRevlog(abc.ABC):
                     self.opener, self.index_file, b"w+", self._delay_buffer
                 )
 
-    def __index_new_fp(self):
+    def _index_new_fp(self):
         """internal method to create a new index file for writing
 
         You should not use this unless you are upgrading from inline revlog
@@ -567,7 +517,7 @@ class BaseInnerRevlog(abc.ABC):
 
             if new_index_file_path is not None:
                 self.index_file = new_index_file_path
-            with self.__index_new_fp() as fp:
+            with self._index_new_fp() as fp:
                 self.inline = False
                 for i in range(len(self.index)):
                     e = self.index.entry_binary(i)
@@ -587,8 +537,8 @@ class BaseInnerRevlog(abc.ABC):
 
             if existing_handles:
                 # switched from inline to conventional reopen the index
-                ifh = self.__index_write_fp()
-                self._writinghandles = (ifh, new_dfh, None)
+                ifh = self._index_write_fp()
+                self._writinghandles = (ifh, new_dfh)
                 self._segmentfile.writing_handle = new_dfh
                 new_dfh = None
                 # No need to deal with sidedata writing handle as it is only
@@ -821,40 +771,7 @@ class BaseInnerRevlog(abc.ABC):
 
     def sidedata(self, rev, sidedata_end):
         """Return the sidedata for a given revision number."""
-        sidedata_offset = self.index.sidedata_chunk_offset(rev)
-        sidedata_size = self.index.sidedata_chunk_length(rev)
-
-        if self.inline:
-            sidedata_offset += self.index.entry_size * (1 + rev)
-        if sidedata_size == 0:
-            return {}
-
-        if sidedata_end < sidedata_offset + sidedata_size:
-            filename = self.sidedata_file
-            end = sidedata_end
-            offset = sidedata_offset
-            length = sidedata_size
-            m = FILE_TOO_SHORT_MSG % (filename, length, offset, end)
-            raise error.RevlogError(m)
-
-        comp_segment = self._segmentfile_sidedata.read_chunk(
-            sidedata_offset, sidedata_size
-        )
-
-        comp = self.index.sidedata_chunk_compression_mode(rev)
-        if comp == COMP_MODE_PLAIN:
-            segment = comp_segment
-        elif comp == COMP_MODE_DEFAULT:
-            segment = self._decompressor(comp_segment)
-        elif comp == COMP_MODE_INLINE:
-            segment = self.decompress(comp_segment)
-        else:
-            msg = b'unknown compression mode %d'
-            msg %= comp
-            raise error.RevlogError(msg)
-
-        sidedata = sidedatautil.deserialize_sidedata(segment)
-        return sidedata
+        return {}
 
     @abc.abstractmethod
     def write_entry(
@@ -962,6 +879,48 @@ class BaseInnerRevlog(abc.ABC):
 class InnerRevlogV1(BaseInnerRevlog):
     """A inner revlog for a revlog-v1 revlog"""
 
+    @contextlib.contextmanager
+    def _writing(self, transaction, data_end=None, sidedata_end=None):
+        ifh = dfh = None
+        if data_end is not None:
+            raise error.ProgrammingError(b"data_end not None for v1")
+        if sidedata_end is not None:
+            raise error.ProgrammingError(b"sidedata_end not None for v1")
+        try:
+            r = len(self.index)
+            # opening the data file.
+            dsize = 0
+            if r:
+                dsize = self.end(r - 1)
+            dfh = None
+            if not self.inline:
+                try:
+                    dfh = self.opener(self.data_file, mode=b"r+")
+                    dfh.seek(0, os.SEEK_END)
+                except FileNotFoundError:
+                    dfh = self.opener(self.data_file, mode=b"w+")
+                transaction.add(self.data_file, dsize)
+            # opening the index file.
+            isize = r * self.index.entry_size
+            ifh = self._index_write_fp()
+            if self.inline:
+                transaction.add(self.index_file, dsize + isize)
+            else:
+                transaction.add(self.index_file, isize)
+            # exposing all file handle for writing.
+            self._writinghandles = (ifh, dfh)
+            self._segmentfile.writing_handle = ifh if self.inline else dfh
+            yield
+        finally:
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            if dfh is not None:
+                dfh.close()
+            # closing the index file last to avoid exposing referent to
+            # potential unflushed data content.
+            if ifh is not None:
+                ifh.close()
+
     def write_entry(
         self,
         transaction,
@@ -991,7 +950,7 @@ class InnerRevlogV1(BaseInnerRevlog):
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
         assert not sidedata
-        ifh, dfh, sdfh = self._writinghandles
+        ifh, dfh = self._writinghandles
         if index_end is None:
             ifh.seek(0, os.SEEK_END)
         else:
@@ -1031,6 +990,140 @@ class InnerRevlogV1(BaseInnerRevlog):
 
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
+
+    def __init__(
+        self,
+        opener: vfsmod.vfs,
+        target: tuple[int, bytes],
+        index_data,
+        index_file,
+        index_parser,
+        data_file,
+        sidedata_file,
+        data_config,
+        delta_config,
+        feature_config,
+        default_compression_header: i_comp.RevlogCompHeader,
+    ):
+        super().__init__(
+            opener=opener,
+            target=target,
+            index_parser=index_parser,
+            index_data=index_data,
+            index_file=index_file,
+            data_file=data_file,
+            inline=False,
+            data_config=data_config,
+            delta_config=delta_config,
+            feature_config=feature_config,
+            default_compression_header=default_compression_header,
+        )
+
+        self.sidedata_file = sidedata_file
+        self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
+            self.opener,
+            self.sidedata_file,
+            self.data_config.chunk_cache_size,
+        )
+
+    def clear_cache(self):
+        super().clear_cache()
+        self._segmentfile_sidedata.clear_cache()
+
+    @contextlib.contextmanager
+    def _reading(self):
+        with super()._reading():
+            with self._segmentfile_sidedata.reading():
+                yield
+
+    @property
+    def is_open(self):
+        """True if any file handle is being held
+
+        Used for assert and debug in the python code"""
+        return super().is_open or self._segmentfile_sidedata.is_open
+
+    def sidedata(self, rev, sidedata_end):
+        """Return the sidedata for a given revision number."""
+        sidedata_offset = self.index.sidedata_chunk_offset(rev)
+        sidedata_size = self.index.sidedata_chunk_length(rev)
+
+        if sidedata_size == 0:
+            return {}
+
+        if sidedata_end < sidedata_offset + sidedata_size:
+            filename = self.sidedata_file
+            end = sidedata_end
+            offset = sidedata_offset
+            length = sidedata_size
+            m = FILE_TOO_SHORT_MSG % (filename, length, offset, end)
+            raise error.RevlogError(m)
+
+        comp_segment = self._segmentfile_sidedata.read_chunk(
+            sidedata_offset, sidedata_size
+        )
+
+        comp = self.index.sidedata_chunk_compression_mode(rev)
+        if comp == COMP_MODE_PLAIN:
+            segment = comp_segment
+        elif comp == COMP_MODE_DEFAULT:
+            segment = self._decompressor(comp_segment)
+        elif comp == COMP_MODE_INLINE:
+            segment = self.decompress(comp_segment)
+        else:
+            msg = b'unknown compression mode %d'
+            msg %= comp
+            raise error.RevlogError(msg)
+
+        sidedata = sidedatautil.deserialize_sidedata(segment)
+        return sidedata
+
+    @contextlib.contextmanager
+    def _writing(self, transaction, data_end=None, sidedata_end=None):
+        ifh = dfh = sdfh = None
+        if data_end is None:
+            raise error.ProgrammingError(b"data_end None for v2")
+        if sidedata_end is None:
+            raise error.ProgrammingError(b"sidedata_end None for v2")
+        try:
+            r = len(self.index)
+            # opening the data file.
+            try:
+                dfh = self.opener(self.data_file, mode=b"r+")
+            except FileNotFoundError:
+                dfh = self.opener(self.data_file, mode=b"w+")
+            else:
+                dfh.seek(data_end, os.SEEK_SET)
+            # revlog-v2 does not inline, help Pytype
+            try:
+                sdfh = self.opener(self.sidedata_file, mode=b"r+")
+            except FileNotFoundError:
+                sdfh = self.opener(self.sidedata_file, mode=b"w+")
+            else:
+                sdfh.seek(sidedata_end, os.SEEK_SET)
+            # opening the index file.
+            isize = r * self.index.entry_size
+            ifh = self._index_write_fp(index_end=isize)
+            transaction.add(self.data_file, data_end)
+            transaction.add(self.sidedata_file, sidedata_end)
+            transaction.add(self.index_file, isize)
+            # exposing all file handle for writing.
+            self._writinghandles = (ifh, dfh, sdfh)
+            self._segmentfile.writing_handle = ifh if self.inline else dfh
+            self._segmentfile_sidedata.writing_handle = sdfh
+            yield
+        finally:
+            self._writinghandles = None
+            self._segmentfile.writing_handle = None
+            self._segmentfile_sidedata.writing_handle = None
+            if sdfh is not None:
+                sdfh.close()
+            if dfh is not None:
+                dfh.close()
+            # closing the index file last to avoid exposing referent to
+            # potential unflushed data content.
+            if ifh is not None:
+                ifh.close()
 
     def write_entry(
         self,
