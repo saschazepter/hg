@@ -856,6 +856,7 @@ class BaseInnerRevlog(abc.ABC):
         sidedata = sidedatautil.deserialize_sidedata(segment)
         return sidedata
 
+    @abc.abstractmethod
     def write_entry(
         self,
         transaction,
@@ -869,64 +870,7 @@ class BaseInnerRevlog(abc.ABC):
         data_end,
         sidedata_end,
     ):
-        # Files opened in a+ mode have inconsistent behavior on various
-        # platforms. Windows requires that a file positioning call be made
-        # when the file handle transitions between reads and writes. See
-        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
-        # platforms, Python or the platform itself can be buggy. Some versions
-        # of Solaris have been observed to not append at the end of the file
-        # if the file was seeked to before the end. See issue4943 for more.
-        #
-        # We work around this issue by inserting a seek() before writing.
-        # Note: This is likely not necessary on Python 3. However, because
-        # the file handle is reused for reads and may be seeked there, we need
-        # to be careful before changing this.
-        if self._writinghandles is None:
-            msg = b'adding revision outside `revlog._writing` context'
-            raise error.ProgrammingError(msg)
-        ifh, dfh, sdfh = self._writinghandles
-        if index_end is None:
-            ifh.seek(0, os.SEEK_END)
-        else:
-            ifh.seek(index_end, os.SEEK_SET)
-        if dfh:
-            if data_end is None:
-                dfh.seek(0, os.SEEK_END)
-            else:
-                dfh.seek(data_end, os.SEEK_SET)
-        if sdfh:
-            sdfh.seek(sidedata_end, os.SEEK_SET)
-
-        curr = len(self.index) - 1
-        if not self.inline:
-            transaction.add(self.data_file, offset)
-            if self.sidedata_file:
-                transaction.add(self.sidedata_file, sidedata_offset)
-            transaction.add(self.canonical_index_file, curr * len(entry))
-            if data[0]:
-                dfh.write(data[0])
-            dfh.write(data[1])
-            if sidedata:
-                sdfh.write(sidedata)
-            if self._delay_buffer is None:
-                ifh.write(entry)
-            else:
-                self._delay_buffer.append(entry)
-        elif self._delay_buffer is not None:
-            msg = b'invalid delayed write on inline revlog'
-            raise error.ProgrammingError(msg)
-        else:
-            offset += curr * self.index.entry_size
-            transaction.add(self.canonical_index_file, offset)
-            assert not sidedata
-            ifh.write(entry)
-            ifh.write(data[0])
-            ifh.write(data[1])
-        return (
-            ifh.tell(),
-            dfh.tell() if dfh else None,
-            sdfh.tell() if sdfh else None,
-        )
+        ...
 
     def _divert_index(self):
         index_file = self.index_file
@@ -1018,6 +962,121 @@ class BaseInnerRevlog(abc.ABC):
 class InnerRevlogV1(BaseInnerRevlog):
     """A inner revlog for a revlog-v1 revlog"""
 
+    def write_entry(
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
+        index_end,
+        data_end,
+        sidedata_end,
+    ):
+        # Files opened in a+ mode have inconsistent behavior on various
+        # platforms. Windows requires that a file positioning call be made
+        # when the file handle transitions between reads and writes. See
+        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
+        # platforms, Python or the platform itself can be buggy. Some versions
+        # of Solaris have been observed to not append at the end of the file
+        # if the file was seeked to before the end. See issue4943 for more.
+        #
+        # We work around this issue by inserting a seek() before writing.
+        # Note: This is likely not necessary on Python 3. However, because
+        # the file handle is reused for reads and may be seeked there, we need
+        # to be careful before changing this.
+        if self._writinghandles is None:
+            msg = b'adding revision outside `revlog._writing` context'
+            raise error.ProgrammingError(msg)
+        assert not sidedata
+        ifh, dfh, sdfh = self._writinghandles
+        if index_end is None:
+            ifh.seek(0, os.SEEK_END)
+        else:
+            ifh.seek(index_end, os.SEEK_SET)
+        if dfh:
+            if data_end is None:
+                dfh.seek(0, os.SEEK_END)
+            else:
+                dfh.seek(data_end, os.SEEK_SET)
+
+        curr = len(self.index) - 1
+        if not self.inline:
+            transaction.add(self.data_file, offset)
+            transaction.add(self.canonical_index_file, curr * len(entry))
+            if data[0]:
+                dfh.write(data[0])
+            dfh.write(data[1])
+            if self._delay_buffer is None:
+                ifh.write(entry)
+            else:
+                self._delay_buffer.append(entry)
+        elif self._delay_buffer is not None:
+            msg = b'invalid delayed write on inline revlog'
+            raise error.ProgrammingError(msg)
+        else:
+            offset += curr * self.index.entry_size
+            transaction.add(self.canonical_index_file, offset)
+            ifh.write(entry)
+            ifh.write(data[0])
+            ifh.write(data[1])
+        return (
+            ifh.tell(),
+            dfh.tell() if dfh else None,
+            None,
+        )
+
 
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
+
+    def write_entry(
+        self,
+        transaction,
+        entry,
+        data,
+        link,
+        offset,
+        sidedata,
+        sidedata_offset,
+        index_end,
+        data_end,
+        sidedata_end,
+    ):
+        # Files opened in a+ mode have inconsistent behavior on various
+        # platforms. Windows requires that a file positioning call be made
+        # when the file handle transitions between reads and writes. See
+        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
+        # platforms, Python or the platform itself can be buggy. Some versions
+        # of Solaris have been observed to not append at the end of the file
+        # if the file was seeked to before the end. See issue4943 for more.
+        #
+        # We work around this issue by inserting a seek() before writing.
+        # Note: This is likely not necessary on Python 3. However, because
+        # the file handle is reused for reads and may be seeked there, we need
+        # to be careful before changing this.
+        if self._writinghandles is None:
+            msg = b'adding revision outside `revlog._writing` context'
+            raise error.ProgrammingError(msg)
+        ifh, dfh, sdfh = self._writinghandles
+        ifh.seek(index_end, os.SEEK_SET)
+        dfh.seek(data_end, os.SEEK_SET)
+        sdfh.seek(sidedata_end, os.SEEK_SET)
+
+        curr = len(self.index) - 1
+        transaction.add(self.data_file, offset)
+        transaction.add(self.sidedata_file, sidedata_offset)
+        transaction.add(self.index_file, curr * len(entry))
+        if data[0]:
+            dfh.write(data[0])
+        dfh.write(data[1])
+        if sidedata:
+            sdfh.write(sidedata)
+        ifh.write(entry)
+        return (
+            ifh.tell(),
+            dfh.tell() if dfh else None,
+            sdfh.tell() if sdfh else None,
+        )
