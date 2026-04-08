@@ -461,7 +461,7 @@ class InnerRevlog:
                     assert dfh is not None
                     try:
                         sdfh = self.opener(self.sidedata_file, mode=b"r+")
-                        dfh.seek(sidedata_end, os.SEEK_SET)
+                        sdfh.seek(sidedata_end, os.SEEK_SET)
                     except FileNotFoundError:
                         sdfh = self.opener(self.sidedata_file, mode=b"w+")
                     transaction.add(self.sidedata_file, sidedata_end)
