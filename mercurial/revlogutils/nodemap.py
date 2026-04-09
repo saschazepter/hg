@@ -156,7 +156,7 @@ def delete_nodemap(tr, repo, revlog):
     """Delete nodemap data on disk for a given revlog"""
     prefix = revlog.radix
     pattern = re.compile(br"(^|/)%s(-[0-9a-f]+\.nd|\.n(\.a)?)$" % prefix)
-    dirpath = revlog.opener.dirname(revlog._indexfile)
+    dirpath = revlog.opener.dirname(revlog.radix)
     for f in revlog.opener.listdir(dirpath):
         if pattern.match(f):
             repo.svfs.tryunlink(f)
