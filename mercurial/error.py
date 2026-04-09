@@ -128,6 +128,16 @@ class SidedataHashError(RevlogError):
         self.expecteddigest = expected
         self.actualdigest = got
 
+    @property
+    def message(self):
+        from .node import hex
+
+        return b"SidedataHashError: %d %s %s" % (
+            self.sidedatakey,
+            hex(self.expecteddigest),
+            hex(self.actualdigest),
+        )
+
 
 class FilteredIndexError(IndexError):
     __bytes__ = _tobytes

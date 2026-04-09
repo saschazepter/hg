@@ -31,6 +31,7 @@ will likely receive warnings about a direct import.
   mercurial/debugcommands.py:*: function level import: mercurial.cext (glob)
   mercurial/debugcommands.py:*: function level import: mercurial.pyo3_rustext (glob)
   mercurial/error.py:*: function level import: mercurial.node.hex (glob)
+  mercurial/error.py:*: function level import: mercurial.node.hex (glob)
   mercurial/error.py:*: function level import: mercurial.node.short (glob)
   mercurial/extensions.py:*: function level import: mercurial.color (glob)
   mercurial/extensions.py:*: function level import: mercurial.filemerge (glob)
