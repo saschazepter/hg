@@ -2219,9 +2219,9 @@ class revlog:
                 if len(self.index) == 0 and self.target[1] != b'':
                     if self._docket is None:
                         assert self._sidedatafile is None
-                        self.opener.register_file(self._indexfile)
-                        if not self._inline:
-                            self.opener.register_file(self._datafile)
+                        self.opener.register_file(self._inner.index_file)
+                        if not self._inner.inline:
+                            self.opener.register_file(self._inner.data_file)
                 yield
                 if self._docket is not None:
                     self._write_docket(transaction)
