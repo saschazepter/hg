@@ -573,9 +573,6 @@ class revlog:
         self.radix = radix
 
         self._docket_file = None
-        self._indexfile = None
-        self._datafile = None
-        self._sidedatafile = None
         self._nodemap_file = None
         self._docket = None
         self._nodemap_docket = None
@@ -702,13 +699,9 @@ class revlog:
         self._docket = init_data.docket
         self._inline = init_data.inline
         self.docket = init_data.docket
-        self._indexfile = init_data.files.get("index")
-        self._datafile = init_data.files.get("data")
-        self._docket_file = init_data.files.get("docket")
         self._nodemap_file = init_data.files.get("nodemap")
-        self._sidedatafile = init_data.files.get("sidedata")
 
-        self._load_inner(init_data.index_data)
+        self._load_inner(init_data.index_data, init_data.files)
 
     def refresh(self, docket=None):
         """refresh the state from on-disk state
@@ -729,10 +722,7 @@ class revlog:
                 self.display_id,
                 docket,
             )
-            self._indexfile = files.get("index")
-            self._datafile = files.get("data")
             self._nodemap_file = files.get("nodemap")
-            self._sidedatafile = files.get("sidedata")
         else:
             init_data = revlog_init.load_entry_point(
                 vfs=self.opener,
@@ -745,16 +735,16 @@ class revlog:
             self._format_flags = init_data.format_flags
             self._inline = init_data.inline
             assert init_data.docket is None
-            self._indexfile = init_data.files.get("index")
-            self._datafile = init_data.files.get("data")
-            assert init_data.files.get("docket") is None
+            assert init_data.files.get("index") is not None
+            assert init_data.files.get("data") is not None
             assert init_data.files.get("nodemap") is None
             assert init_data.files.get("sidedata") is None
             index_data = init_data.index_data
+            files = init_data.files
 
-        self._load_inner(index_data)
+        self._load_inner(index_data, files)
 
-    def _load_inner(self, index_data):
+    def _load_inner(self, index_data, files):
         """init-method: load the InnerRevlog instance
 
         This method is part of the initialization sequence. That initialization
@@ -790,8 +780,8 @@ class revlog:
                 vfs_base=vfs.base,
                 vfs_is_readonly=not vfs.read_write,
                 index_data=index_data,
-                index_file=self._indexfile,
-                data_file=self._datafile,
+                index_file=files["index"],
+                data_file=files["data"],
                 inline=self._inline,
                 data_config=self.configs.data,
                 delta_config=self.configs.delta,
@@ -808,9 +798,9 @@ class revlog:
                         opener=self.opener,
                         target=self.target,
                         index_data=index_data,
-                        index_file=self._indexfile,
+                        index_file=files["index"],
                         index_parser=self._parse_index,
-                        data_file=self._datafile,
+                        data_file=files["data"],
                         inline=self._inline,
                         data_config=self.configs.data,
                         delta_config=self.configs.delta,
@@ -821,10 +811,10 @@ class revlog:
                         opener=self.opener,
                         target=self.target,
                         index_data=index_data,
-                        index_file=self._indexfile,
+                        index_file=files["index"],
                         index_parser=self._parse_index,
-                        data_file=self._datafile,
-                        sidedata_file=self._sidedatafile,
+                        data_file=files["data"],
+                        sidedata_file=files["sidedata"],
                         data_config=self.configs.data,
                         delta_config=self.configs.delta,
                         feature_config=self.configs.feature,
@@ -2147,13 +2137,11 @@ class revlog:
             )
             maybe_self = weak_self()
             if maybe_self is not None:
-                maybe_self._indexfile = old_index_file_path
-                maybe_self._inner.index_file = maybe_self._indexfile
+                maybe_self._inner.index_file = old_index_file_path
 
         def abort_callback(tr):
             maybe_self = weak_self()
             if maybe_self is not None:
-                maybe_self._indexfile = old_index_file_path
                 maybe_self._inner.inline = True
                 maybe_self._inner.index_file = old_index_file_path
 
@@ -2178,8 +2166,6 @@ class revlog:
             self.opener.register_file(self._inner.data_file)
 
         self._inline = False
-        if new_index_file_path is not None:
-            self._indexfile = new_index_file_path
 
         nodemaputil.setup_persistent_nodemap(tr, self)
 
@@ -2217,7 +2203,6 @@ class revlog:
                 # with a docket still use the fncache
                 if len(self.index) == 0 and self.target[1] != b'':
                     if self._docket is None:
-                        assert self._sidedatafile is None
                         self.opener.register_file(self._inner.index_file)
                         if not self._inner.inline:
                             self.opener.register_file(self._inner.data_file)

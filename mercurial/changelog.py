@@ -361,7 +361,6 @@ class changelog(revlog.revlog):
         else:
             new_index = self._inner.delay()
             if new_index is not None:
-                self._indexfile = new_index
                 tr.registertmp(new_index)
         # use "000" as prefix to make sure we run before the spliting of legacy
         # inline changelog..
@@ -375,8 +374,7 @@ class changelog(revlog.revlog):
             self._docket.write(tr)
             self._v2_delayed = False
         else:
-            new_index_file = self._inner.finalize_pending()
-            self._indexfile = new_index_file
+            self._inner.finalize_pending()
             if self._inline:
                 msg = 'changelog should not be inline at that point'
                 raise error.ProgrammingError(msg)
@@ -392,7 +390,6 @@ class changelog(revlog.revlog):
             with util.rust_tracing_span("changelog write_pending"):
                 new_index, any_pending = self._inner.write_pending()
             if new_index is not None:
-                self._indexfile = new_index
                 tr.registertmp(new_index)
         return any_pending
 
