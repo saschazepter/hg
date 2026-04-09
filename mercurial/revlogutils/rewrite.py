@@ -299,10 +299,6 @@ def _setup_new_files(
         new_sidedata_filepath,
         nb_bytes=sidedata_cutoff,
     )
-    revlog.opener.register_file(docket.index_filepath())
-    revlog.opener.register_file(docket.data_filepath())
-    revlog.opener.register_file(docket.sidedata_filepath())
-
     docket.index_end = index_cutoff
     docket.data_end = data_cutoff
     docket.sidedata_end = sidedata_cutoff
