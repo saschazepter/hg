@@ -883,7 +883,7 @@ class revlog:
         if self._inline:
 
             def get_stream():
-                with self.opener(self._indexfile, mode=b"r") as fp:
+                with self.opener(self._inner.index_file, mode=b"r") as fp:
                     yield None
                     size = index_size + data_size
                     if size <= 65536:
@@ -894,7 +894,7 @@ class revlog:
             inline_stream = get_stream()
             next(inline_stream)
             return [
-                (self._indexfile, inline_stream, index_size + data_size),
+                (self._inner.index_file, inline_stream, index_size + data_size),
             ]
         elif force_inline:
 
@@ -918,12 +918,12 @@ class revlog:
             inline_stream = get_stream()
             next(inline_stream)
             return [
-                (self._indexfile, inline_stream, index_size + data_size),
+                (self._inner.index_file, inline_stream, index_size + data_size),
             ]
         else:
 
             def get_index_stream():
-                with self.opener(self._indexfile, mode=b"r") as fp:
+                with self.opener(self._inner.index_file, mode=b"r") as fp:
                     yield None
                     if index_size <= 65536:
                         yield fp.read(index_size)
@@ -931,7 +931,7 @@ class revlog:
                         yield from util.filechunkiter(fp, limit=index_size)
 
             def get_data_stream():
-                with self._datafp() as fp:
+                with self.opener(self._inner.data_file, mode=b"r") as fp:
                     yield None
                     if data_size <= 65536:
                         yield fp.read(data_size)
@@ -943,8 +943,8 @@ class revlog:
             data_stream = get_data_stream()
             next(data_stream)
             return [
-                (self._datafile, data_stream, data_size),
-                (self._indexfile, index_stream, index_size),
+                (self._inner.data_file, data_stream, data_size),
+                (self._inner.index_file, index_stream, index_size),
             ]
 
     def _register_nodemap_info(self, index):
@@ -994,10 +994,6 @@ class revlog:
             return self.target[1]
         else:
             return self.radix
-
-    def _datafp(self, mode=b'r'):
-        """file object for the revlog's data file"""
-        return self.opener(self._datafile, mode=mode)
 
     def tiprev(self):
         return len(self.index) - 1
