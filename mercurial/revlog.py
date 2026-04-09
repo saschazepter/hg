@@ -3728,17 +3728,11 @@ class revlog:
 
     def storageinfo(
         self,
-        exclusivefiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,
     ):
         d = {}
-
-        if exclusivefiles:
-            d[b'exclusivefiles'] = [(self.opener, self._indexfile)]
-            if not self._inline:
-                d[b'exclusivefiles'].append((self.opener, self._datafile))
 
         if revisionscount:
             d[b'revisionscount'] = len(self)

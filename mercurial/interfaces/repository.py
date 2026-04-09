@@ -1176,7 +1176,6 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation, Protocol):
     @abc.abstractmethod
     def storageinfo(
         self,
-        exclusivefiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,
@@ -1186,10 +1185,6 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation, Protocol):
         Returns a dict describing storage for this tracked path. The keys
         in the dict map to arguments of the same. The arguments are bools
         indicating whether to calculate and obtain that data.
-
-        exclusivefiles
-           Iterable of (vfs, path) describing files that are exclusively
-           used to back storage for this tracked path.
 
         revisionscount
            Number of revisions available for retrieval.
@@ -1767,7 +1762,6 @@ class imanifeststorage(IDeltaEmittingStore, Protocol):
     @abc.abstractmethod
     def storageinfo(
         self,
-        exclusivefiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,

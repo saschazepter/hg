@@ -50,7 +50,6 @@ class baselog:  # revlog.revlog):
 
     def storageinfo(
         self,
-        exclusivefiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,

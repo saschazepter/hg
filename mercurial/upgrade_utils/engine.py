@@ -215,7 +215,6 @@ def _clonerevlogs(
         rl = entry.get_revlog_instance(srcrepo)
 
         info = rl.storageinfo(
-            exclusivefiles=True,
             revisionscount=True,
             trackedsize=True,
             storedsize=True,
