@@ -19,6 +19,12 @@ from __future__ import annotations
 
 import struct
 
+from typing import Iterator
+
+from ..interfaces.types import (
+    HgPathT,
+)
+
 from .. import error, util
 from ..utils import docket as docket_mod
 
@@ -51,6 +57,8 @@ S_HEADER = struct.Struct(constants.INDEX_HEADER_FMT + b'BBBBBBQQQQQQc')
 # * 1 bytes: size of index uuid
 # * 8 bytes: size of file
 S_OLD_UID = struct.Struct('>BL')
+
+UidT = int
 
 
 class RevlogDocket:
@@ -112,14 +120,14 @@ class RevlogDocket:
             self._sidedata_end = self._initial_sidedata_end
         self.default_compression_header = default_compression_header
 
-    def index_filepath(self):
+    def index_filepath(self) -> HgPathT:
         """file path to the current index file associated to this docket"""
         # very simplistic version at first
         if self._index_uuid is None:
             self._index_uuid = make_uid()
         return b"%s-%s.idx" % (self._radix, self._index_uuid)
 
-    def new_index_file(self):
+    def new_index_file(self) -> HgPathT:
         """switch index file to a new UID
 
         The previous index UID is moved to the "older" list."""
@@ -128,21 +136,21 @@ class RevlogDocket:
         self._index_uuid = make_uid()
         return self.index_filepath()
 
-    def old_index_filepaths(self, include_empty=True):
+    def old_index_filepaths(self, include_empty=True) -> Iterator[HgPathT]:
         """yield file path to older index files associated to this docket"""
         # very simplistic version at first
         for uuid, size in self._older_index_uuids:
             if include_empty or size > 0:
                 yield b"%s-%s.idx" % (self._radix, uuid)
 
-    def data_filepath(self):
+    def data_filepath(self) -> HgPathT:
         """file path to the current data file associated to this docket"""
         # very simplistic version at first
         if self._data_uuid is None:
             self._data_uuid = make_uid()
         return b"%s-%s.dat" % (self._radix, self._data_uuid)
 
-    def new_data_file(self):
+    def new_data_file(self) -> HgPathT:
         """switch data file to a new UID
 
         The previous data UID is moved to the "older" list."""
@@ -151,21 +159,23 @@ class RevlogDocket:
         self._data_uuid = make_uid()
         return self.data_filepath()
 
-    def old_data_filepaths(self, include_empty=True):
+    def old_data_filepaths(
+        self, include_empty: int = True
+    ) -> Iterator[HgPathT]:
         """yield file path to older data files associated to this docket"""
         # very simplistic version at first
         for uuid, size in self._older_data_uuids:
             if include_empty or size > 0:
                 yield b"%s-%s.dat" % (self._radix, uuid)
 
-    def sidedata_filepath(self):
+    def sidedata_filepath(self) -> HgPathT:
         """file path to the current sidedata file associated to this docket"""
         # very simplistic version at first
         if self._sidedata_uuid is None:
             self._sidedata_uuid = make_uid()
         return b"%s-%s.sda" % (self._radix, self._sidedata_uuid)
 
-    def new_sidedata_file(self):
+    def new_sidedata_file(self) -> HgPathT:
         """switch sidedata file to a new UID
 
         The previous sidedata UID is moved to the "older" list."""
@@ -174,7 +184,9 @@ class RevlogDocket:
         self._sidedata_uuid = make_uid()
         return self.sidedata_filepath()
 
-    def old_sidedata_filepaths(self, include_empty=True):
+    def old_sidedata_filepaths(
+        self, include_empty: bool = True
+    ) -> Iterator[HgPathT]:
         """yield file path to older sidedata files associated to this docket"""
         # very simplistic version at first
         for uuid, size in self._older_sidedata_uuids:
@@ -182,21 +194,21 @@ class RevlogDocket:
                 yield b"%s-%s.sda" % (self._radix, uuid)
 
     @property
-    def index_end(self):
+    def index_end(self) -> int:
         return self._index_end
 
     @index_end.setter
-    def index_end(self, new_size):
+    def index_end(self, new_size: int) -> None:
         if new_size != self._index_end:
             self._index_end = new_size
             self._dirty = True
 
     @property
-    def data_end(self):
+    def data_end(self) -> int:
         return self._data_end
 
     @data_end.setter
-    def data_end(self, new_size):
+    def data_end(self, new_size: int) -> None:
         if new_size != self._data_end:
             self._data_end = new_size
             self._dirty = True
@@ -211,7 +223,9 @@ class RevlogDocket:
             self._sidedata_end = new_size
             self._dirty = True
 
-    def write(self, transaction, pending=False, stripping=False):
+    def write(
+        self, transaction, pending: bool = False, stripping: bool = False
+    ) -> bool:
         """write the modification of disk if any
 
         This make the new content visible to all process"""
@@ -232,7 +246,7 @@ class RevlogDocket:
             self._dirty = pending
             return True
 
-    def _serialize(self, pending=False):
+    def _serialize(self, pending: bool = False) -> bytes:
         if pending:
             official_index_end = self._initial_index_end
             official_data_end = self._initial_data_end
@@ -290,7 +304,7 @@ def default_docket(
     file_path,
     configs,
     version_header,
-):
+) -> RevlogDocket | None:
     """given a revlog version a new docket object for the given revlog"""
     rl_version = version_header & 0xFFFF
     if rl_version not in (constants.REVLOGV2, constants.CHANGELOGV2):
@@ -307,7 +321,7 @@ def default_docket(
     return docket
 
 
-def _parse_old_uids(get_data, count):
+def _parse_old_uids(get_data, count) -> list[tuple[bytes, UidT]]:
     all_sizes = []
     all_uids = []
     for i in range(0, count):
@@ -320,14 +334,14 @@ def _parse_old_uids(get_data, count):
     return all_uids
 
 
-def parse_docket_args(data):
+def parse_docket_args(data) -> dict:
     """given some docket data return the argument to initialize a docket"""
     header = S_HEADER.unpack(data[: S_HEADER.size])
 
     # this is a mutable closure capture used in `get_data`
     offset = [S_HEADER.size]
 
-    def get_data(size):
+    def get_data(size) -> bytes:
         """utility closure to access the `size` next bytes"""
         if offset[0] + size > len(data):
             # XXX better class
@@ -391,7 +405,13 @@ def parse_docket_args(data):
     }
 
 
-def parse_docket(vfs, radix, file_path, data, use_pending=False):
+def parse_docket(
+    vfs,
+    radix,
+    file_path,
+    data,
+    use_pending=False,
+) -> RevlogDocket:
     """given some docket data return a docket object for the given revlog"""
     args = parse_docket_args(data)
     docket = RevlogDocket(
