@@ -2857,24 +2857,26 @@ class revlog:
             return
 
         # first truncate the files on disk
+        end = rev * self.index.entry_size
         data_end = self.start(rev)
-        if not self._inline:
-            transaction.add(self._datafile, data_end)
-            end = rev * self.index.entry_size
+
+        if self._docket is None:
+            if self._inline:
+                end += data_end
+            else:
+                transaction.add(self._inner.data_file, data_end)
+            transaction.add(self._inner.index_file, end)
         else:
-            end = data_end + (rev * self.index.entry_size)
-
-        if self.configs.feature.has_side_data:
             sidedata_end = self.sidedata_cut_off(rev)
-            transaction.add(self._sidedatafile, sidedata_end)
-
-        transaction.add(self._indexfile, end)
-        if self._docket is not None:
             # XXX we could, leverage the docket while stripping. However it is
             # not powerfull enough at the time of this comment
-            self._docket.index_end = end
-            self._docket.data_end = data_end
-            self._docket.sidedata_end = sidedata_end
+            docket = self._docket
+            docket.index_end = end
+            docket.data_end = data_end
+            docket.sidedata_end = sidedata_end
+            transaction.add(docket.index_filepath(), end)
+            transaction.add(docket.data_filepath(), data_end)
+            transaction.add(docket.sidedata_filepath(), sidedata_end)
             self._docket.write(transaction, stripping=True)
 
         # then reset internal state in memory to forget those revisions
