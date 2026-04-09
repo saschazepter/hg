@@ -82,23 +82,23 @@ def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
 
     oldvfs = oldrl.opener
     newvfs = newrl.opener
-    oldindex = oldvfs.join(oldrl._indexfile)
-    newindex = newvfs.join(newrl._indexfile)
-    olddata = oldvfs.join(oldrl._datafile)
-    newdata = newvfs.join(newrl._datafile)
+    oldindex = oldvfs.join(oldrl._inner.index_file)
+    newindex = newvfs.join(newrl._inner.index_file)
+    olddata = oldvfs.join(oldrl._inner.data_file)
+    newdata = newvfs.join(newrl._inner.data_file)
 
-    with newvfs(newrl._indexfile, b'w'):
+    with newvfs(newrl._inner.index_file, b'w'):
         pass  # create all the directories
 
     util.copyfile(oldindex, newindex)
-    copydata = oldrl.opener.exists(oldrl._datafile)
+    copydata = oldrl.opener.exists(oldrl._inner.data_file)
     if copydata:
         util.copyfile(olddata, newdata)
 
     if newrl.target != b'':
-        newvfs.register_file(newrl._indexfile)
+        newvfs.register_file(newrl._inner.index_file)
         if copydata:
-            newvfs.register_file(newrl._datafile)
+            newvfs.register_file(newrl._inner.data_file)
 
     if entry.is_filelog:
         if (fileindex := destrepo.store.fileindex) is not None:
