@@ -57,6 +57,26 @@ pub fn u_i32(i: usize) -> i32 {
 }
 
 #[inline(always)]
+pub fn u_i64(i: usize) -> i64 {
+    i.try_into().expect("value too large for a i64")
+}
+
+#[inline(always)]
+pub fn u64_i64(i: u64) -> i64 {
+    i.try_into().expect("value too large for a i64")
+}
+
+#[inline(always)]
+pub fn u32_i64(i: u32) -> i64 {
+    i.into()
+}
+
+#[inline(always)]
+pub fn i32_i64(i: i32) -> i64 {
+    i.into()
+}
+
+#[inline(always)]
 pub fn u16_u(i: u16) -> usize {
     i as usize
 }

@@ -8,6 +8,7 @@ from __future__ import annotations
 import abc
 import binascii
 import contextlib
+import io
 import os
 import typing
 import zlib
@@ -150,6 +151,17 @@ class BaseInnerRevlog(abc.ABC):
 
     def __len__(self):
         return len(self.index)
+
+    @abc.abstractmethod
+    def check_size(self) -> tuple[int, int]:
+        """Check size of index and data files
+
+        return a (dd, di) tuple.
+        - dd: extra bytes for the "data" file
+        - di: extra bytes for the "index" file
+
+        A healthy revlog will return (0, 0).
+        """
 
     def clear_cache(self):
         assert not self.is_delaying
@@ -718,6 +730,41 @@ class InnerRevlogV1(BaseInnerRevlog):
         self._orig_index_file = None
         self._delay_buffer = None
 
+    def check_size(self) -> tuple[int, int]:
+        """Check size of index and data files
+
+        return a (dd, di) tuple.
+        - dd: extra bytes for the "data" file
+        - di: extra bytes for the "index" file
+
+        A healthy revlog will return (0, 0).
+        """
+        expected_data = 0
+        if len(self):
+            expected_data = max(0, self.end(len(self) - 1))
+        excepted_index = len(self) * self.index.entry_size
+
+        try:
+            with self.opener(self.data_file) as f:
+                f.seek(0, io.SEEK_END)
+                dd = f.tell()
+        except FileNotFoundError:
+            dd = 0
+        if not self.inline:
+            dd -= expected_data
+
+        try:
+            with self.opener(self.index_file) as f:
+                f.seek(0, io.SEEK_END)
+                di = f.tell()
+        except FileNotFoundError:
+            di = 0
+        di -= excepted_index
+        if self.inline:
+            di -= expected_data
+
+        return (dd, di)
+
     @contextlib.contextmanager
     def _reading(self):
         if self.is_delaying and self.inline:
@@ -1082,6 +1129,24 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.data_config.chunk_cache_size,
         )
         self._default_compression_header = default_compression_header
+
+    def check_size(self) -> tuple[int, int]:
+        """Check size of index and data files
+
+        return a (dd, di) tuple.
+        - dd: extra bytes for the "data" file
+        - di: extra bytes for the "index" file
+
+        A healthy revlog will return (0, 0).
+        """
+        # TODO: return something sensible for V2
+        #
+        # trailing data are not error in V2, but missing data are.
+        #
+        # However, until the InnerRevlogV2 is has access to the docket that
+        # knows about data file end. In addition, there is more than just
+        # index and data for revlog-v2 so the return would have to evolve.
+        return (0, 0)
 
     def clear_cache(self):
         super().clear_cache()

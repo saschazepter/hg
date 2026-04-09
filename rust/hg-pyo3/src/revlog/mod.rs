@@ -343,6 +343,10 @@ impl InnerRevlog {
         })
     }
 
+    fn check_size(slf: &Bound<'_, Self>) -> PyResult<(i64, i64)> {
+        Self::with_core_read(slf, |_self_ref, irl| Ok(irl.check_size()))
+    }
+
     #[getter]
     fn is_delaying(slf: &Bound<'_, Self>) -> PyResult<bool> {
         Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_delaying()))

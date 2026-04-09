@@ -67,8 +67,12 @@ use crate::revlog::nodemap::NodeTree;
 use crate::transaction::Transaction;
 use crate::utils::ByTotalChunksSize;
 use crate::utils::RawData;
+use crate::utils::i32_i64;
 use crate::utils::u_i32;
+use crate::utils::u_i64;
+use crate::utils::u32_i64;
 use crate::utils::u32_u;
+use crate::utils::u64_i64;
 use crate::vfs::Vfs;
 
 /// Matches the `_InnerRevlog` class in the Python code, as an arbitrary
@@ -1487,6 +1491,45 @@ impl InnerRevlog {
             .as_ref()
             .map(ToOwned::to_owned)
             .unwrap_or_else(|| self.index_file.to_owned())
+    }
+
+    /// Check size of index and data files
+    ///
+    /// return a (dd, di) tuple.
+    /// - dd: extra bytes for the "data" file
+    /// - di: extra bytes for the "index" file
+    ///
+    /// A healthy revlog will return (0, 0).
+    pub fn check_size(&self) -> (i64, i64) {
+        let rev_count = u_i32(self.len());
+        let expected_data = if self.is_empty() {
+            0i64
+        } else {
+            let last = Revision(rev_count - 1);
+            let e = self.index.get_entry(last);
+            u_i64(e.offset()) + u32_i64(e.compressed_len())
+        };
+        let expected_index = i32_i64(rev_count) * u_i64(INDEX_ENTRY_SIZE);
+
+        let index_size = u64_i64(
+            if let Ok(mut fp) = self.vfs.open(self.index_file.as_ref()) {
+                fp.seek(SeekFrom::End(0)).unwrap_or(0)
+            } else {
+                0
+            },
+        );
+        let data_size = u64_i64(
+            if let Ok(mut fp) = self.vfs.open(self.data_file.as_ref()) {
+                fp.seek(SeekFrom::End(0)).unwrap_or(0)
+            } else {
+                0
+            },
+        );
+        if self.inline {
+            (index_size - expected_index - expected_data, data_size)
+        } else {
+            (index_size - expected_index, data_size - expected_data)
+        }
     }
 
     /// Return the path to the diverted index

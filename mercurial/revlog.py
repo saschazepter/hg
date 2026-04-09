@@ -16,7 +16,6 @@ from __future__ import annotations
 import binascii
 import collections
 import contextlib
-import io
 import os
 import struct
 import typing
@@ -2884,7 +2883,7 @@ class revlog:
 
         del self.index[rev:-1]
 
-    def checksize(self):
+    def checksize(self) -> tuple[int, int]:
         """Check size of index and data files
 
         return a (dd, di) tuple.
@@ -2893,36 +2892,7 @@ class revlog:
 
         A healthy revlog will return (0, 0).
         """
-        expected = 0
-        if len(self):
-            expected = max(0, self.end(len(self) - 1))
-
-        try:
-            with self._datafp() as f:
-                f.seek(0, io.SEEK_END)
-                actual = f.tell()
-            dd = actual - expected
-        except FileNotFoundError:
-            dd = 0
-
-        try:
-            f = self.opener(self._indexfile)
-            f.seek(0, io.SEEK_END)
-            actual = f.tell()
-            f.close()
-            s = self.index.entry_size
-            i = max(0, actual // s)
-            di = actual - (i * s)
-            if self._inline:
-                databytes = 0
-                for r in self:
-                    databytes += max(0, self.length(r))
-                dd = 0
-                di = actual - len(self) * s - databytes
-        except FileNotFoundError:
-            di = 0
-
-        return (dd, di)
+        return self._inner.check_size()
 
     def files(self, include_old: bool = True) -> list[HgPathT]:
         """return list of files that compose this revlog"""
