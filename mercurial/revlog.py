@@ -40,6 +40,7 @@ from .node import (
 )
 from .i18n import _
 from .interfaces.types import (
+    HgPathT,
     NodeIdT,
     OutboundRevisionT,
     RevnumT,
@@ -2923,7 +2924,7 @@ class revlog:
 
         return (dd, di)
 
-    def files(self, include_old=True):
+    def files(self, include_old: bool = True) -> list[HgPathT]:
         """return list of files that compose this revlog"""
         res = [self._indexfile]
         if self._docket_file is None:
