@@ -2125,14 +2125,14 @@ class revlog:
         pre_touched = troffset is not None
         if not pre_touched and self.target[0] != KIND_CHANGELOG:
             raise error.RevlogError(
-                _(b"%s not found in the transaction") % self._indexfile
+                _(b"%s not found in the transaction") % self._inner.index_file
             )
 
         tr.addbackup(self._inner.canonical_index_file, for_offset=pre_touched)
-        tr.add(self._datafile, 0)
+        tr.add(self._inner.data_file, 0)
 
         new_index_file_path = None
-        old_index_file_path = self._indexfile
+        old_index_file_path = self._inner.index_file
         new_index_file_path = revlog_init.split_index_filename(self.radix)
         opener = self.opener
         weak_self = weakref.ref(self)
@@ -2175,7 +2175,7 @@ class revlog:
             new_index_file_path=new_index_file_path,
         )
         if self.target[1] != b'':
-            self.opener.register_file(self._datafile)
+            self.opener.register_file(self._inner.data_file)
 
         self._inline = False
         if new_index_file_path is not None:
