@@ -109,16 +109,16 @@ def v1_censor(revlog_cls, rl, tr, censor_nodes, tombstone=b''):
             rawtext, tr, rl.linkrev(rev), p1, p2, node, rl.flags(rev)
         )
 
-    tr.addbackup(rl._indexfile, location=b'store')
+    tr.addbackup(rl._inner.index_file, location=b'store')
     if not rl._inline:
-        tr.addbackup(rl._datafile, location=b'store')
+        tr.addbackup(rl._inner.data_file, location=b'store')
 
-    rl.opener.rename(newrl._indexfile, rl._indexfile)
+    rl.opener.rename(newrl._inner.index_file, rl._inner.index_file)
     if newrl._inline:
         assert rl._inline
     else:
         assert not rl._inline
-        rl.opener.rename(newrl._datafile, rl._datafile)
+        rl.opener.rename(newrl._inner.data_file, rl._inner.data_file)
 
     rl.refresh()
 
@@ -540,7 +540,7 @@ def _reorder_filelog_parents(repo, fl, to_fix):
         msg = "expected version 1 revlog, got version '%d'" % rl._format_version
         raise error.ProgrammingError(msg)
 
-    index_file = rl._indexfile
+    index_file = rl._inner.index_file
     new_file_path = index_file + b'.tmp-parents-fix'
     repaired_msg = _(b"repaired revision %d of 'filelog %s'\n")
 
@@ -956,7 +956,7 @@ def quick_upgrade(rl):
     if not (revs_with_meta or revs_with_snapshot):
         # We just need to write the header flag
         # XXX do we need to sort the parent anyway?
-        with rl.opener(rl._indexfile, b'br+') as n:
+        with rl.opener(rl._inner.index_file, b'br+') as n:
             n.seek(0)
             first_entry = rl.index.entry_binary(0)
             header = rl._format_flags
@@ -1020,7 +1020,7 @@ def quick_upgrade(rl):
         new_index.append(e)
 
     # write data
-    with rl.opener(rl._indexfile, b'wb', atomictemp=True) as n:
+    with rl.opener(rl._inner.index_file, b'wb', atomictemp=True) as n:
         for rev in range(len(new_index)):
             idx = new_index.entry_binary(rev)
             if rev == 0:
