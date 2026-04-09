@@ -120,6 +120,10 @@ class RevlogDocket:
             self._sidedata_end = self._initial_sidedata_end
         self.default_compression_header = default_compression_header
 
+    def docket_path(self) -> HgPathT:
+        """file path of that docket"""
+        return self._path
+
     def index_filepath(self) -> HgPathT:
         """file path to the current index file associated to this docket"""
         # very simplistic version at first

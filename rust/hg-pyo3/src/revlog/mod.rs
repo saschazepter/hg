@@ -523,6 +523,17 @@ impl InnerRevlog {
         })
     }
 
+    #[getter]
+    fn data_file(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyBytes>> {
+        Self::with_core_read(slf, |_self_ref, irl| {
+            let path = get_bytes_from_path(&irl.data_file);
+            Ok(PyBytes::new(py, &path).unbind())
+        })
+    }
+
     // This is only used in Python *tests*
     #[getter]
     #[doc(hidden)]

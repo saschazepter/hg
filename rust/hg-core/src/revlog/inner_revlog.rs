@@ -85,7 +85,7 @@ pub struct InnerRevlog {
     pub index_file: PathBuf,
     /// The data file path, relative to the vfs root (same as `index_file`
     /// if inline)
-    data_file: PathBuf,
+    pub data_file: PathBuf,
     /// Data config that applies to this revlog
     data_config: RevlogDataConfig,
     /// Delta config that applies to this revlog
