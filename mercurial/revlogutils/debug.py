@@ -685,8 +685,8 @@ def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
         flags,
     )
 
-    with revlog._datafp() as fh:
-        deltacomputer.finddeltainfo(revinfo, fh, target_rev=rev)
+    with revlog.reading():
+        deltacomputer.finddeltainfo(revinfo, target_rev=rev)
 
 
 def debug_revlog_stats(
