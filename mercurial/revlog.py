@@ -802,10 +802,6 @@ class revlog:
             assert self._inner.has_revdiff_extra
             self.index = RustIndexProxy(self._inner)
         else:
-            if docket is None:
-                default_compression_header = None
-            else:
-                default_compression_header = docket.default_compression_header
             try:
                 if docket is None:
                     self._inner = py_inner.InnerRevlogV1(
@@ -819,7 +815,6 @@ class revlog:
                         data_config=self.configs.data,
                         delta_config=self.configs.delta,
                         feature_config=self.configs.feature,
-                        default_compression_header=default_compression_header,
                     )
                 else:
                     self._inner = py_inner.InnerRevlogV2(
@@ -833,7 +828,7 @@ class revlog:
                         data_config=self.configs.data,
                         delta_config=self.configs.delta,
                         feature_config=self.configs.feature,
-                        default_compression_header=default_compression_header,
+                        default_compression_header=docket.default_compression_header,
                     )
             except py_inner.CorruptedRevlogError:
                 raise error.RevlogError(

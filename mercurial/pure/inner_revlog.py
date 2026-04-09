@@ -78,7 +78,6 @@ class BaseInnerRevlog(abc.ABC):
     """does this inner revlog support revdiff with an extra patch"""
 
     opener: vfsmod.vfs
-    _default_compression_header: i_comp.RevlogCompHeader
 
     def __init__(
         self,
@@ -92,7 +91,6 @@ class BaseInnerRevlog(abc.ABC):
         data_config,
         delta_config,
         feature_config,
-        default_compression_header: i_comp.RevlogCompHeader,
     ):
         try:
             index, chunk_cache = index_parser(
@@ -113,8 +111,6 @@ class BaseInnerRevlog(abc.ABC):
         self.data_config = data_config
         self.delta_config = delta_config
         self.feature_config = feature_config
-
-        self._default_compression_header = default_compression_header
 
         if target[0] == KIND_MANIFESTLOG:
             self._diff_fn = mdiff.manifest_diff
@@ -297,11 +293,7 @@ class BaseInnerRevlog(abc.ABC):
     @util.propertycache
     def _decompressor(self):
         """the default decompressor"""
-        if self._default_compression_header is None:
-            return None
-        t = self._default_compression_header
-        c = self._get_decompressor(t)
-        return c.decompress
+        return None
 
     def _get_decompressor(
         self,
@@ -709,7 +701,6 @@ class InnerRevlogV1(BaseInnerRevlog):
         data_config,
         delta_config,
         feature_config,
-        default_compression_header: i_comp.RevlogCompHeader,
     ):
         super().__init__(
             opener=opener,
@@ -722,7 +713,6 @@ class InnerRevlogV1(BaseInnerRevlog):
             data_config=data_config,
             delta_config=delta_config,
             feature_config=feature_config,
-            default_compression_header=default_compression_header,
         )
         # used during diverted write.
         self._orig_index_file = None
@@ -1056,6 +1046,8 @@ class InnerRevlogV1(BaseInnerRevlog):
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
 
+    _default_compression_header: i_comp.RevlogCompHeader
+
     def __init__(
         self,
         opener: vfsmod.vfs,
@@ -1081,7 +1073,6 @@ class InnerRevlogV2(BaseInnerRevlog):
             data_config=data_config,
             delta_config=delta_config,
             feature_config=feature_config,
-            default_compression_header=default_compression_header,
         )
 
         self.sidedata_file = sidedata_file
@@ -1090,10 +1081,17 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.sidedata_file,
             self.data_config.chunk_cache_size,
         )
+        self._default_compression_header = default_compression_header
 
     def clear_cache(self):
         super().clear_cache()
         self._segmentfile_sidedata.clear_cache()
+
+    @util.propertycache
+    def _decompressor(self):
+        """the default decompressor"""
+        t = self._default_compression_header
+        return self._get_decompressor(t).decompress
 
     @contextlib.contextmanager
     def _reading(self):
