@@ -776,6 +776,30 @@ def repocleartagscachefunc(repo):
     raise error.Abort(b"tags API of this hg command is unknown")
 
 
+def get_index_file(revlog):
+    indexfile = getattr(getattr(revlog, '_inner', None), 'index_file', None)
+    if indexfile is None:
+        # compatibility with <= hg-7.2
+        indexfile = get_index_file(revlog)
+    if indexfile is None:
+        # compatibility with <= hg-5.8
+        indexfile = getattr(revlog, 'indexfile')
+    assert indexfile is not None
+    return indexfile
+
+
+def get_data_file(revlog):
+    datafile = getattr(getattr(revlog, '_inner', None), 'data_file', None)
+    if datafile is None:
+        # compatibility with <= hg-7.2
+        datafile = getattr(revlog, '_datafile', None)
+    if datafile is None:
+        # compatibility with <= hg-5.8
+        datafile = getattr(revlog, 'datafile')
+    assert datafile is not None
+    return datafile
+
+
 # utilities to clear cache
 
 
@@ -3465,10 +3489,7 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
     # compat with hg <= 5.8
     radix = getattr(rl, 'radix', None)
     target = getattr(rl, 'target', None)
-    indexfile = getattr(rl, '_indexfile', None)
-    if indexfile is None:
-        # compatibility with <= hg-5.8
-        indexfile = getattr(rl, 'indexfile')
+    indexfile = get_index_file(rl)
     data = opener.read(indexfile)
 
     header = struct.unpack(b'>I', data[0:4])[0]
@@ -4049,13 +4070,10 @@ def _temprevlog(ui, orig, truncaterev):
     if util.safehasattr(orig, k):
         revlogkwargs[k] = getattr(orig, k)
 
-    indexfile = getattr(orig, '_indexfile', None)
-    if indexfile is None:
-        # compatibility with <= hg-5.8
-        indexfile = getattr(orig, 'indexfile')
+    indexfile = get_index_file(orig)
     origindexpath = orig.opener.join(indexfile)
 
-    datafile = orig._datafile
+    datafile = get_data_file(orig)
     origdatapath = orig.opener.join(datafile)
     radix = b'revlog'
     indexname = b'revlog.i'
@@ -4186,10 +4204,7 @@ def perfrevlogchunks(ui, repo, file_=None, engines=None, startrev=0, **opts):
             with rl.reading():
                 yield None
         elif rl._inline:
-            indexfile = getattr(rl, '_indexfile', None)
-            if indexfile is None:
-                # compatibility with <= hg-5.8
-                indexfile = getattr(rl, 'indexfile')
+            indexfile = get_index_file(rl)
             yield getsvfs(repo)(indexfile)
         else:
             datafile = getattr(rl, 'datafile', getattr(rl, 'datafile'))
