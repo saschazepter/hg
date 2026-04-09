@@ -1177,7 +1177,6 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation, Protocol):
     def storageinfo(
         self,
         exclusivefiles=False,
-        sharedfiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,
@@ -1191,11 +1190,6 @@ class ifilestorage(ifileindex, ifiledata, ifilemutation, Protocol):
         exclusivefiles
            Iterable of (vfs, path) describing files that are exclusively
            used to back storage for this tracked path.
-
-        sharedfiles
-           Iterable of (vfs, path) describing files that are used to back
-           storage for this tracked path. Those files may also provide storage
-           for other stored entities.
 
         revisionscount
            Number of revisions available for retrieval.
@@ -1774,7 +1768,6 @@ class imanifeststorage(IDeltaEmittingStore, Protocol):
     def storageinfo(
         self,
         exclusivefiles=False,
-        sharedfiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,

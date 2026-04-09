@@ -2032,14 +2032,12 @@ class manifestrevlog(repository.imanifeststorage):
     def storageinfo(
         self,
         exclusivefiles=False,
-        sharedfiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,
     ):
         return self._revlog.storageinfo(
             exclusivefiles=exclusivefiles,
-            sharedfiles=sharedfiles,
             revisionscount=revisionscount,
             trackedsize=trackedsize,
             storedsize=storedsize,

@@ -3729,7 +3729,6 @@ class revlog:
     def storageinfo(
         self,
         exclusivefiles=False,
-        sharedfiles=False,
         revisionscount=False,
         trackedsize=False,
         storedsize=False,
@@ -3740,9 +3739,6 @@ class revlog:
             d[b'exclusivefiles'] = [(self.opener, self._indexfile)]
             if not self._inline:
                 d[b'exclusivefiles'].append((self.opener, self._datafile))
-
-        if sharedfiles:
-            d[b'sharedfiles'] = []
 
         if revisionscount:
             d[b'revisionscount'] = len(self)
