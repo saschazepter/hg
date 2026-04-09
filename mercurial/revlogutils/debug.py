@@ -986,7 +986,12 @@ def reencoded_info(
 
     is_inline = orig_revlog._inline
 
-    indexfile = getattr(orig_revlog, '_indexfile', None)
+    indexfile = getattr(
+        getattr(orig_revlog, '_inner', None), 'index_file', None
+    )
+    if indexfile is None:
+        # compatibility with <= hg-7.2
+        indexfile = getattr(orig_revlog, '_indexfile', None)
     if indexfile is None:
         # compatibility with <= hg-5.8
         indexfile = getattr(orig_revlog, 'indexfile')
@@ -994,11 +999,15 @@ def reencoded_info(
 
     if not is_inline:
         datafile = getattr(
-            orig_revlog,
-            '_datafile',
-            getattr(orig_revlog, 'datafile', None),
+            getattr(orig_revlog, '_inner', None), 'data_file', None
         )
-        origdatapath = orig_revlog.opener.join(datafile)
+        if datafile is None:
+            datafile = getattr(
+                orig_revlog,
+                '_datafile',
+                getattr(orig_revlog, 'datafile', None),
+            )
+            origdatapath = orig_revlog.opener.join(datafile)
     radix = b'revlog'
 
     truncaterev = 0
