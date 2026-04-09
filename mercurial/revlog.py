@@ -854,6 +854,8 @@ class revlog:
                 …
             ]
         """
+        if self._docket is not None:
+            raise NotImplementedError("no get_stream for revlog with docket")
         n = len(self)
         index = self.index
         while n > 0:
@@ -902,7 +904,8 @@ class revlog:
 
                     for rev in range(n):
                         idx = self.index.entry_binary(rev)
-                        if rev == 0 and self._docket is None:
+                        if rev == 0:
+                            assert self._docket is None
                             # re-inject the inline flag
                             header = self._format_flags
                             header |= self._format_version
