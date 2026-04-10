@@ -23,6 +23,7 @@ from ..node import (
 )
 from ..i18n import _
 from ..interfaces.types import (
+    HgPathT,
     RevnumT,
 )
 from ..revlogutils.constants import (
@@ -167,6 +168,10 @@ class BaseInnerRevlog(abc.ABC):
 
         A healthy revlog will return (0, 0).
         """
+
+    @abc.abstractmethod
+    def files(self, include_old: bool = True) -> list[HgPathT]:
+        """return list of files that compose this revlog"""
 
     def clear_cache(self):
         assert not self.is_delaying
@@ -767,6 +772,13 @@ class InnerRevlogV1(BaseInnerRevlog):
 
         return (dd, di)
 
+    def files(self, include_old: bool = True) -> list[HgPathT]:
+        """return list of files that compose this revlog"""
+        res = [self.index_file]
+        if not self.inline:
+            res.append(self.data_file)
+        return res
+
     @contextlib.contextmanager
     def _reading(self):
         if self.is_delaying and self.inline:
@@ -1156,6 +1168,26 @@ class InnerRevlogV2(BaseInnerRevlog):
         # knows about data file end. In addition, there is more than just
         # index and data for revlog-v2 so the return would have to evolve.
         return (0, 0)
+
+    def files(self, include_old: bool = True) -> list[HgPathT]:
+        """return list of files that compose this revlog"""
+        docket = self.docket
+        res = []
+        add_one = res.append
+        add_many = res.extend
+        add_one(docket.docket_path())
+        add_one(docket.index_filepath())
+        if include_old:
+            add_many(docket.old_index_filepaths(include_empty=False))
+        if docket.data_end:
+            add_one(docket.data_filepath())
+        if include_old:
+            add_many(docket.old_data_filepaths(include_empty=False))
+        if docket.sidedata_end:
+            add_one(docket.sidedata_filepath())
+        if include_old:
+            add_many(docket.old_sidedata_filepaths(include_empty=False))
+        return res
 
     def clear_cache(self):
         super().clear_cache()

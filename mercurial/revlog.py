@@ -2835,27 +2835,7 @@ class revlog:
 
     def files(self, include_old: bool = True) -> list[HgPathT]:
         """return list of files that compose this revlog"""
-        res = []
-        add_one = res.append
-        add_many = res.extend
-        if (docket := self._docket) is None:
-            add_one(self._inner.index_file)
-            if not self._inner.inline:
-                add_one(self._inner.data_file)
-        else:
-            add_one(docket.docket_path())
-            add_one(docket.index_filepath())
-            if include_old:
-                add_many(docket.old_index_filepaths(include_empty=False))
-            if docket.data_end:
-                add_one(docket.data_filepath())
-            if include_old:
-                add_many(docket.old_data_filepaths(include_empty=False))
-            if docket.sidedata_end:
-                add_one(docket.sidedata_filepath())
-            if include_old:
-                add_many(docket.old_sidedata_filepaths(include_empty=False))
-        return res
+        return self._inner.files(include_old=include_old)
 
     def emitrevisions(
         self,

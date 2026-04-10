@@ -575,6 +575,20 @@ impl InnerRevlog {
         })
     }
 
+    #[pyo3(signature = (include_old=false))]
+    fn files(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        include_old: bool,
+    ) -> PyResult<Vec<Py<PyBytes>>> {
+        let _ = include_old;
+        Ok(if Self::inline(slf)? {
+            vec![Self::index_file(slf, py)?]
+        } else {
+            vec![Self::index_file(slf, py)?, Self::data_file(slf, py)?]
+        })
+    }
+
     fn clear_cache(slf: &Bound<'_, Self>) -> PyResult<Py<PyAny>> {
         assert!(!Self::is_delaying(slf)?);
         let mut self_ref = slf.borrow_mut();
