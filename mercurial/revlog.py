@@ -2389,8 +2389,6 @@ class revlog:
 
         curr = len(self)
 
-        offset = self._inner.next_data_offset()
-
         p1r, p2r = self.rev(p1), self.rev(p2)
 
         if deltacomputer is None:
@@ -2504,7 +2502,7 @@ class revlog:
 
         e = revlogutils.entry(
             flags=flags,
-            data_offset=offset,
+            data_offset=self._inner.next_data_offset(),
             data_compressed_length=deltainfo.deltalen,
             data_uncompressed_length=textlen,
             data_compression_mode=compression_mode,
@@ -2525,13 +2523,15 @@ class revlog:
             header = self._format_flags | self._format_version
             header = self.index.pack_header(header)
             entry = header + entry
-        self._writeentry(
+        self._inner.write_entry(
             transaction,
             entry,
             deltainfo.data,
             link,
             serialized_sidedata,
         )
+        self._enforceinlinesize(transaction)
+        nodemaputil.setup_persistent_nodemap(transaction, self)
 
         if alwayscache and revinfo.btext is None:
             rawtext = deltacomputer.buildtext(revinfo)
@@ -2543,36 +2543,6 @@ class revlog:
         if deltainfo.u_data is not None:
             self._inner.record_uncompressed_chunk(curr, deltainfo.u_data)
         return curr
-
-    def _writeentry(
-        self,
-        transaction,
-        entry,
-        data,
-        link,
-        sidedata,
-    ):
-        # Files opened in a+ mode have inconsistent behavior on various
-        # platforms. Windows requires that a file positioning call be made
-        # when the file handle transitions between reads and writes. See
-        # 3686fa2b8eee and the mixedfilemodewrapper in windows.py. On other
-        # platforms, Python or the platform itself can be buggy. Some versions
-        # of Solaris have been observed to not append at the end of the file
-        # if the file was seeked to before the end. See issue4943 for more.
-        #
-        # We work around this issue by inserting a seek() before writing.
-        # Note: This is likely not necessary on Python 3. However, because
-        # the file handle is reused for reads and may be seeked there, we need
-        # to be careful before changing this.
-        self._inner.write_entry(
-            transaction,
-            entry,
-            data,
-            link,
-            sidedata,
-        )
-        self._enforceinlinesize(transaction)
-        nodemaputil.setup_persistent_nodemap(transaction, self)
 
     def addgroup(
         self,
