@@ -165,8 +165,7 @@ class abstractsmartset:
         # sub classes may override this. start and stop must not be negative,
         # but start > stop is allowed, which should be an empty set.
 
-        if True:
-            ys = []
+        def gen():
             it = iter(self)
             for x in range(start):
                 y = next(it, None)
@@ -176,8 +175,16 @@ class abstractsmartset:
                 y = next(it, None)
                 if y is None:
                     break
-                ys.append(y)
-            return baseset(ys, datarepr=(b'slice=%d:%d %r', start, stop, self))
+                yield y
+
+        if self.isascending():
+            iterasc = True
+        elif self.isdescending():
+            iterasc = False
+        else:
+            iterasc = None
+
+        return generatorset(gen(), iterasc=iterasc, preserve_order=True)
 
 
 class baseset(abstractsmartset):

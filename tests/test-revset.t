@@ -1689,8 +1689,7 @@ Test scmutil.revsingle() should return the last revision
 
   $ hg debugrevspec -s 'last(0::)'
   * set:
-  <baseset slice=0:1
-    <generatorsetasc->>
+  <generatorsetdesc+>
   9
   $ hg identify -r '0::' --num
   9
