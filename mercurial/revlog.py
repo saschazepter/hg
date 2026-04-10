@@ -499,8 +499,6 @@ class revlog:
 
     opener: vfsmod.vfs
 
-    _docket_file: bytes | None
-
     configs: revlog_config.RevlogConfigs
 
     @staticmethod
@@ -574,7 +572,6 @@ class revlog:
 
         self._docket_file = None
         self._nodemap_file = None
-        self._docket = None
         self._nodemap_docket = None
         self.index: BaseIndexObject | None = None
         self.opener = opener
@@ -631,6 +628,11 @@ class revlog:
 
         # prevent nesting of addgroup
         self._adding_group = None
+
+    @property
+    def _docket(self) -> docketutil.RevlogDocket | None:
+        # TODO: deprecate this in later version
+        return self._inner.docket
 
     @property
     def data_config(self):
@@ -696,11 +698,14 @@ class revlog:
         )
         self._format_version = init_data.format_version
         self._format_flags = init_data.format_flags
-        self._docket = init_data.docket
         self._inline = init_data.inline
         self._nodemap_file = init_data.files.get("nodemap")
 
-        self._load_inner(init_data.index_data, init_data.files)
+        self._load_inner(
+            init_data.index_data,
+            init_data.files,
+            init_data.docket,
+        )
 
     def refresh(self, docket=None):
         """refresh the state from on-disk state
@@ -710,7 +715,7 @@ class revlog:
         """
         self.clearcaches()
         if docket is not None:
-            self._docket = docket
+            self._inner.docket = docket
             self._docket_file = revlog_init.find_entry_point_path(
                 self.opener,
                 self.radix,
@@ -734,10 +739,11 @@ class revlog:
             assert init_data.files.get("data") is not None
             index_data = init_data.index_data
             files = init_data.files
+            docket = init_data.docket
 
-        self._load_inner(index_data, files)
+        self._load_inner(index_data, files, docket)
 
-    def _load_inner(self, index_data, files):
+    def _load_inner(self, index_data, files, docket):
         """init-method: load the InnerRevlog instance
 
         This method is part of the initialization sequence. That initialization
@@ -749,7 +755,6 @@ class revlog:
         kind = self.revlog_kind
         inline = self._inline
         format_version = self._format_version
-        docket = self._docket
 
         use_rust_index = revlog_init.use_rust_index(
             vfs,
@@ -805,7 +810,7 @@ class revlog:
                         opener=self.opener,
                         radix=self.radix,
                         target=self.target,
-                        docket=self._docket,
+                        docket=docket,
                         index_parser=self._parse_index,
                         configs=self.configs,
                     )
@@ -1935,7 +1940,7 @@ class revlog:
         elif comp_mode == COMP_MODE_INLINE:
             comp, chunk = _split_compression(full_chunk)
         elif comp_mode == COMP_MODE_DEFAULT:
-            comp = self._docket.default_compression_header
+            comp = self._inner.docket.default_compression_header
             chunk = full_chunk
         return (comp, chunk)
 
@@ -2020,7 +2025,7 @@ class revlog:
             return {}
         sidedata_end = None
         if self._docket is not None:
-            sidedata_end = self._docket.sidedata_end
+            sidedata_end = self._inner.docket.sidedata_end
         return self._inner.sidedata(rev, sidedata_end)
 
     def rawdata(self, nodeorrev, validate=True):
@@ -2178,8 +2183,8 @@ class revlog:
             data_end = None
             sidedata_end = None
             if self._docket is not None:
-                data_end = self._docket.data_end
-                sidedata_end = self._docket.sidedata_end
+                data_end = self._inner.docket.data_end
+                sidedata_end = self._inner.docket.sidedata_end
             with self._inner.writing(
                 transaction,
                 data_end=data_end,
@@ -2210,7 +2215,7 @@ class revlog:
 
         We could also imagine using the same transaction logic for all revlog
         since docket are cheap."""
-        self._docket.write(transaction)
+        self._inner.docket.write(transaction)
 
     def addrevision(
         self,
@@ -2451,7 +2456,7 @@ class revlog:
 
         compression_mode = COMP_MODE_INLINE
         if self._docket is not None:
-            default_comp = self._docket.default_compression_header
+            default_comp = self._inner.docket.default_compression_header
             r = deltautil.delta_compression(default_comp, deltainfo)
             compression_mode, deltainfo = r
 
@@ -2459,7 +2464,7 @@ class revlog:
         if sidedata and self.configs.feature.has_side_data:
             sidedata_compression_mode = COMP_MODE_PLAIN
             serialized_sidedata = sidedatautil.serialize_sidedata(sidedata)
-            sidedata_offset = self._docket.sidedata_end
+            sidedata_offset = self._inner.docket.sidedata_end
             h, comp_sidedata = self._inner.compress(serialized_sidedata)
             if (
                 h != b'u'
@@ -2469,7 +2474,7 @@ class revlog:
                 assert not h
                 if (
                     comp_sidedata[0:1]
-                    == self._docket.default_compression_header
+                    == self._inner.docket.default_compression_header
                 ):
                     sidedata_compression_mode = COMP_MODE_DEFAULT
                     serialized_sidedata = comp_sidedata
@@ -2566,7 +2571,7 @@ class revlog:
         if self._docket is None:
             return self.end(prev)
         else:
-            return self._docket.data_end
+            return self._inner.docket.data_end
 
     def _writeentry(
         self,
@@ -2592,9 +2597,9 @@ class revlog:
         # to be careful before changing this.
         index_end = data_end = sidedata_end = None
         if self._docket is not None:
-            index_end = self._docket.index_end
-            data_end = self._docket.data_end
-            sidedata_end = self._docket.sidedata_end
+            index_end = self._inner.docket.index_end
+            data_end = self._inner.docket.data_end
+            sidedata_end = self._inner.docket.sidedata_end
 
         files_end = self._inner.write_entry(
             transaction,
@@ -2610,9 +2615,9 @@ class revlog:
         )
         self._enforceinlinesize(transaction)
         if self._docket is not None:
-            self._docket.index_end = files_end[0]
-            self._docket.data_end = files_end[1]
-            self._docket.sidedata_end = files_end[2]
+            self._inner.docket.index_end = files_end[0]
+            self._inner.docket.data_end = files_end[1]
+            self._inner.docket.sidedata_end = files_end[2]
 
         nodemaputil.setup_persistent_nodemap(transaction, self)
 
@@ -2850,7 +2855,7 @@ class revlog:
             transaction.add(docket.index_filepath(), end)
             transaction.add(docket.data_filepath(), data_end)
             transaction.add(docket.sidedata_filepath(), sidedata_end)
-            self._docket.write(transaction, stripping=True)
+            self._inner.docket.write(transaction, stripping=True)
 
         # then reset internal state in memory to forget those revisions
         self._chaininfocache.clear()
@@ -2887,7 +2892,7 @@ class revlog:
                 add_one(docket.data_filepath())
             if include_old:
                 add_many(docket.old_data_filepaths(include_empty=False))
-            if self._docket.sidedata_end:
+            if self._inner.docket.sidedata_end:
                 add_one(docket.sidedata_filepath())
             if include_old:
                 add_many(docket.old_sidedata_filepaths(include_empty=False))
@@ -3718,6 +3723,6 @@ class revlog:
         # append the new sidedata
         with self._writing(transaction):
             new_info = self._rewrite_sidedata_info(helpers, startrev, endrev)
-            old_end = self._docket.sidedata_end
+            old_end = self._inner.docket.sidedata_end
             new_end = self._inner.rewrite_sidedata(new_info, old_end)
-            self._docket.sidedata_end = new_end
+            self._inner.docket.sidedata_end = new_end

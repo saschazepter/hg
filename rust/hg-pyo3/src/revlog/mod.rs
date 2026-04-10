@@ -328,6 +328,11 @@ impl InnerRevlog {
     }
 
     #[getter]
+    fn docket(&self) -> Option<()> {
+        None
+    }
+
+    #[getter]
     fn has_revdiff_extra(&self) -> bool {
         true
     }

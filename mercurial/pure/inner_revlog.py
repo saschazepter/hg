@@ -81,6 +81,7 @@ class BaseInnerRevlog(abc.ABC):
     boundaries are arbitrary and based on what we can delegate to Rust.
     """
 
+    docket = None
     has_revdiff_extra = False
     """does this inner revlog support revdiff with an extra patch"""
 
@@ -1105,6 +1106,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         index_parser,
         configs: revlog_config.RevlogConfigs,
     ):
+        self.docket = docket
         self.target = target
         self.radix = radix
 
