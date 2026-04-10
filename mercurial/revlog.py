@@ -2446,15 +2446,18 @@ class revlog:
             compression_mode, deltainfo = r
 
         sidedata_compression_mode = COMP_MODE_INLINE
-        if sidedata and self.configs.feature.has_side_data:
+        if not self.configs.feature.has_side_data:
+            sidedata = None
+        if not sidedata:
+            sdata = b""
+        else:
             sidedata_compression_mode = COMP_MODE_PLAIN
-            serialized_sidedata = sidedatautil.serialize_sidedata(sidedata)
-            sidedata_offset = self._inner.docket.sidedata_end
-            h, comp_sidedata = self._inner.compress(serialized_sidedata)
+            sdata = sidedatautil.serialize_sidedata(sidedata)
+            h, comp_sidedata = self._inner.compress(sdata)
             if (
                 h != b'u'
                 and comp_sidedata[0:1] != b'\0'
-                and len(comp_sidedata) < len(serialized_sidedata)
+                and len(comp_sidedata) < len(sdata)
             ):
                 assert not h
                 if (
@@ -2462,16 +2465,10 @@ class revlog:
                     == self._inner.docket.default_compression_header
                 ):
                     sidedata_compression_mode = COMP_MODE_DEFAULT
-                    serialized_sidedata = comp_sidedata
+                    sdata = comp_sidedata
                 else:
                     sidedata_compression_mode = COMP_MODE_INLINE
-                    serialized_sidedata = comp_sidedata
-        else:
-            serialized_sidedata = b""
-            # Don't store the offset if the sidedata is empty, that way
-            # we can easily detect empty sidedata and they will be no different
-            # than ones we manually add.
-            sidedata_offset = 0
+                    sdata = comp_sidedata
 
         # drop previouly existing flags
         flags &= ~REVIDX_DELTA_INFO_FLAGS
@@ -2511,8 +2508,8 @@ class revlog:
             parent_rev_1=p1r,
             parent_rev_2=p2r,
             node_id=node,
-            sidedata_offset=sidedata_offset,
-            sidedata_compressed_length=len(serialized_sidedata),
+            sidedata_offset=self._inner.docket.sidedata_end if sdata else 0,
+            sidedata_compressed_length=len(sdata),
             sidedata_compression_mode=sidedata_compression_mode,
             rank=rank,
         )
@@ -2528,7 +2525,7 @@ class revlog:
             entry,
             deltainfo.data,
             link,
-            serialized_sidedata,
+            sdata,
         )
         self._enforceinlinesize(transaction)
         nodemaputil.setup_persistent_nodemap(transaction, self)
