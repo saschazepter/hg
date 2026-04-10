@@ -231,10 +231,6 @@ class BaseInnerRevlog(abc.ABC):
             self._revision_cache = None
 
     @property
-    def canonical_index_file(self):
-        return self.index_file
-
-    @property
     def is_delaying(self):
         """is the revlog is currently delaying the visibility of written data?
 
