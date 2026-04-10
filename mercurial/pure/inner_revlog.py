@@ -684,9 +684,6 @@ class BaseInnerRevlog(abc.ABC):
         offset,
         sidedata,
         sidedata_offset,
-        index_end,
-        data_end,
-        sidedata_end,
     ):
         ...
 
@@ -861,9 +858,6 @@ class InnerRevlogV1(BaseInnerRevlog):
         offset,
         sidedata,
         sidedata_offset,
-        index_end,
-        data_end,
-        sidedata_end,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -882,15 +876,9 @@ class InnerRevlogV1(BaseInnerRevlog):
             raise error.ProgrammingError(msg)
         assert not sidedata
         ifh, dfh = self._writinghandles
-        if index_end is None:
-            ifh.seek(0, os.SEEK_END)
-        else:
-            ifh.seek(index_end, os.SEEK_SET)
+        ifh.seek(0, os.SEEK_END)
         if dfh:
-            if data_end is None:
-                dfh.seek(0, os.SEEK_END)
-            else:
-                dfh.seek(data_end, os.SEEK_SET)
+            dfh.seek(0, os.SEEK_END)
 
         curr = len(self.index) - 1
         if not self.inline:
@@ -912,11 +900,6 @@ class InnerRevlogV1(BaseInnerRevlog):
             ifh.write(entry)
             ifh.write(data[0])
             ifh.write(data[1])
-        return (
-            ifh.tell(),
-            dfh.tell() if dfh else None,
-            None,
-        )
 
     @property
     def canonical_index_file(self):
@@ -1307,9 +1290,6 @@ class InnerRevlogV2(BaseInnerRevlog):
         offset,
         sidedata,
         sidedata_offset,
-        index_end,
-        data_end,
-        sidedata_end,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -1326,10 +1306,11 @@ class InnerRevlogV2(BaseInnerRevlog):
         if self._writinghandles is None:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
+
         ifh, dfh, sdfh = self._writinghandles
-        ifh.seek(index_end, os.SEEK_SET)
-        dfh.seek(data_end, os.SEEK_SET)
-        sdfh.seek(sidedata_end, os.SEEK_SET)
+        ifh.seek(self.docket.index_end, os.SEEK_SET)
+        dfh.seek(self.docket.data_end, os.SEEK_SET)
+        sdfh.seek(self.docket.sidedata_end, os.SEEK_SET)
 
         curr = len(self.index) - 1
         transaction.add(self.data_file, offset)
@@ -1341,11 +1322,9 @@ class InnerRevlogV2(BaseInnerRevlog):
         if sidedata:
             sdfh.write(sidedata)
         ifh.write(entry)
-        return (
-            ifh.tell(),
-            dfh.tell() if dfh else None,
-            sdfh.tell() if sdfh else None,
-        )
+        self.docket.index_end = ifh.tell()
+        self.docket.data_end = dfh.tell()
+        self.docket.sidedata_end = sdfh.tell()
 
     def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
         assert self.is_writing

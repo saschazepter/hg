@@ -1391,21 +1391,13 @@ impl InnerRevlog {
     /// - `entry` is the index bytes
     /// - `header_and_data` is the compression header and the revision data
     /// - `offset` is the position in the data file to write to
-    /// - `index_end` is the overwritten position in the index in revlog-v2,
-    ///   since the format may allow a rewrite of garbage data at the end.
-    /// - `data_end` is the overwritten position in the data-file in revlog-v2,
-    ///   since the format may allow a rewrite of garbage data at the end.
-    ///
-    /// XXX Why do we have `data_end` *and* `offset`? Same question in Python
     pub fn write_entry(
         &mut self,
         mut transaction: impl Transaction,
         entry: &[u8],
         header_and_data: (&[u8], &[u8]),
         mut offset: usize,
-        index_end: Option<u64>,
-        data_end: Option<u64>,
-    ) -> Result<(u64, Option<u64>), HgError> {
+    ) -> Result<(), HgError> {
         let current_revision = self.len() - 1;
         let canonical_index_file = self.canonical_index_file();
 
@@ -1422,25 +1414,13 @@ impl InnerRevlog {
         };
         let index_handle = &mut handles.index_handle;
         let data_handle = &mut handles.data_handle;
-        if let Some(end) = index_end {
-            index_handle
-                .seek(SeekFrom::Start(end))
-                .when_reading_file(&self.index_file)?;
-        } else {
-            index_handle
-                .seek(SeekFrom::End(0))
-                .when_reading_file(&self.index_file)?;
-        }
+        index_handle
+            .seek(SeekFrom::End(0))
+            .when_reading_file(&self.index_file)?;
         if let Some(data_handle) = data_handle {
-            if let Some(end) = data_end {
-                data_handle
-                    .seek(SeekFrom::Start(end))
-                    .when_reading_file(&self.data_file)?;
-            } else {
-                data_handle
-                    .seek(SeekFrom::End(0))
-                    .when_reading_file(&self.data_file)?;
-            }
+            data_handle
+                .seek(SeekFrom::End(0))
+                .when_reading_file(&self.data_file)?;
         }
         let (header, data) = header_and_data;
 
@@ -1478,11 +1458,7 @@ impl InnerRevlog {
             index_handle.write_all(header)?;
             index_handle.write_all(data)?;
         }
-        let data_position = match data_handle {
-            Some(h) => Some(h.position()?),
-            None => None,
-        };
-        Ok((index_handle.position()?, data_position))
+        Ok(())
     }
 
     /// Return the real target index file and not the temporary when diverting

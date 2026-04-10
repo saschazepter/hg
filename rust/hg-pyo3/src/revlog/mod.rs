@@ -758,13 +758,9 @@ impl InnerRevlog {
         offset,
         _sidedata,
         _sidedata_offset,
-        index_end,
-        data_end,
-        _sidedata_end
     ))]
     fn write_entry(
         slf: &Bound<'_, Self>,
-        py: Python<'_>,
         transaction: Py<PyAny>,
         entry: &Bound<'_, PyBytes>,
         data: &Bound<'_, PyTuple>,
@@ -774,31 +770,21 @@ impl InnerRevlog {
         // Other underscore args are for revlog-v2, which is unimplemented
         _sidedata: Py<PyAny>,
         _sidedata_offset: u64,
-        index_end: Option<u64>,
-        data_end: Option<u64>,
-        _sidedata_end: Option<u64>,
-    ) -> PyResult<Py<PyTuple>> {
+    ) -> PyResult<()> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
             let transaction = PyTransaction::new(transaction);
             let header = data.get_borrowed_item(0)?;
             let header = header.cast::<PyBytes>()?;
             let data = data.get_borrowed_item(1)?;
             let data = data.cast::<PyBytes>()?;
-            let (idx_pos, data_pos) = irl
-                .write_entry(
-                    transaction,
-                    entry.as_bytes(),
-                    (header.as_bytes(), data.as_bytes()),
-                    offset,
-                    index_end,
-                    data_end,
-                )
-                .map_err(revlog_error_from_io)?;
-            let tuple = PyTuple::new(
-                py,
-                [idx_pos.into_py_any(py)?, data_pos.into_py_any(py)?],
-            )?;
-            Ok(tuple.unbind())
+            irl.write_entry(
+                transaction,
+                entry.as_bytes(),
+                (header.as_bytes(), data.as_bytes()),
+                offset,
+            )
+            .map_err(revlog_error_from_io)?;
+            Ok(())
         })
     }
 

@@ -2452,7 +2452,7 @@ class revlog:
         deltainfo = deltacomputer.finddeltainfo(revinfo)
 
         compression_mode = COMP_MODE_INLINE
-        if self._docket is not None:
+        if self._inner.docket is not None:
             default_comp = self._inner.docket.default_compression_header
             r = deltautil.delta_compression(default_comp, deltainfo)
             compression_mode, deltainfo = r
@@ -2531,7 +2531,7 @@ class revlog:
 
         self.index.append(e)
         entry = self.index.entry_binary(curr)
-        if curr == 0 and self._docket is None:
+        if curr == 0 and self._inner.docket is None:
             header = self._format_flags | self._format_version
             header = self.index.pack_header(header)
             entry = header + entry
@@ -2565,7 +2565,7 @@ class revlog:
         to `n - 1`'s sidedata being written after `n`'s data.
 
         TODO cache this in a docket file before getting out of experimental."""
-        if self._docket is None:
+        if self._inner.docket is None:
             return self.end(prev)
         else:
             return self._inner.docket.data_end
@@ -2592,13 +2592,7 @@ class revlog:
         # Note: This is likely not necessary on Python 3. However, because
         # the file handle is reused for reads and may be seeked there, we need
         # to be careful before changing this.
-        index_end = data_end = sidedata_end = None
-        if self._docket is not None:
-            index_end = self._inner.docket.index_end
-            data_end = self._inner.docket.data_end
-            sidedata_end = self._inner.docket.sidedata_end
-
-        files_end = self._inner.write_entry(
+        self._inner.write_entry(
             transaction,
             entry,
             data,
@@ -2606,16 +2600,8 @@ class revlog:
             offset,
             sidedata,
             sidedata_offset,
-            index_end,
-            data_end,
-            sidedata_end,
         )
         self._enforceinlinesize(transaction)
-        if self._docket is not None:
-            self._inner.docket.index_end = files_end[0]
-            self._inner.docket.data_end = files_end[1]
-            self._inner.docket.sidedata_end = files_end[2]
-
         nodemaputil.setup_persistent_nodemap(transaction, self)
 
     def addgroup(
@@ -2889,7 +2875,7 @@ class revlog:
                 add_one(docket.data_filepath())
             if include_old:
                 add_many(docket.old_data_filepaths(include_empty=False))
-            if self._inner.docket.sidedata_end:
+            if docket.sidedata_end:
                 add_one(docket.sidedata_filepath())
             if include_old:
                 add_many(docket.old_sidedata_filepaths(include_empty=False))
