@@ -26,6 +26,7 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    cast,
 )
 
 # import stuff from node for others to import from revlog
@@ -2081,21 +2082,23 @@ class revlog:
             msg = b"inline revlog should not have a docket"
             raise error.ProgrammingError(msg)
 
+        inner = cast(py_inner.InnerRevlogV1, self._inner)
+
         # In the common case, we enforce inline size because the revlog has
         # been appened too. And in such case, it must have an initial offset
         # recorded in the transaction.
-        troffset = tr.findoffset(self._inner.canonical_index_file)
+        troffset = tr.findoffset(inner.canonical_index_file)
         pre_touched = troffset is not None
         if not pre_touched and self.target[0] != KIND_CHANGELOG:
             raise error.RevlogError(
-                _(b"%s not found in the transaction") % self._inner.index_file
+                _(b"%s not found in the transaction") % inner.index_file
             )
 
-        tr.addbackup(self._inner.canonical_index_file, for_offset=pre_touched)
-        tr.add(self._inner.data_file, 0)
+        tr.addbackup(inner.canonical_index_file, for_offset=pre_touched)
+        tr.add(inner.data_file, 0)
 
         new_index_file_path = None
-        old_index_file_path = self._inner.index_file
+        old_index_file_path = inner.index_file
         new_index_file_path = revlog_init.split_index_filename(self.radix)
         opener = self.opener
         weak_self = weakref.ref(self)
@@ -2110,13 +2113,15 @@ class revlog:
             )
             maybe_self = weak_self()
             if maybe_self is not None:
-                maybe_self._inner.index_file = old_index_file_path
+                inner = cast(py_inner.InnerRevlogV1, maybe_self._inner)
+                inner.index_file = old_index_file_path
 
         def abort_callback(tr):
             maybe_self = weak_self()
             if maybe_self is not None:
-                maybe_self._inner.inline = True
-                maybe_self._inner.index_file = old_index_file_path
+                inner = cast(py_inner.InnerRevlogV1, maybe_self._inner)
+                inner.inline = True
+                inner.index_file = old_index_file_path
 
         tr.registertmp(new_index_file_path)
         # we use 001 here to make this this happens after the finalisation of
@@ -2130,13 +2135,13 @@ class revlog:
         tr.addabort(callback_id, abort_callback)
 
         self._format_flags &= ~FLAG_INLINE_DATA
-        self._inner.split_inline(
+        inner.split_inline(
             tr,
             self._format_flags | self._format_version,
             new_index_file_path=new_index_file_path,
         )
         if self.target[1] != b'':
-            self.opener.register_file(self._inner.data_file)
+            self.opener.register_file(inner.data_file)
 
         self._inline = False
 

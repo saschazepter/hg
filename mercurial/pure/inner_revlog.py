@@ -452,9 +452,6 @@ class BaseInnerRevlog(abc.ABC):
         """
         ...
 
-    def split_inline(self, tr, header, new_index_file_path=None):
-        raise error.ProgrammingError("Cannot split a non-V1 revlog")
-
     def get_segment_for_revs(self, startrev, endrev):
         """Obtain a segment of raw data corresponding to a range of revisions.
 
