@@ -802,9 +802,7 @@ class revlog:
                         index_parser=self._parse_index,
                         data_file=files["data"],
                         inline=self._inline,
-                        data_config=self.configs.data,
-                        delta_config=self.configs.delta,
-                        feature_config=self.configs.feature,
+                        configs=self.configs,
                     )
                 else:
                     self._inner = py_inner.InnerRevlogV2(
@@ -815,9 +813,7 @@ class revlog:
                         index_parser=self._parse_index,
                         data_file=files["data"],
                         sidedata_file=files["sidedata"],
-                        data_config=self.configs.data,
-                        delta_config=self.configs.delta,
-                        feature_config=self.configs.feature,
+                        configs=self.configs,
                         default_compression_header=docket.default_compression_header,
                     )
             except py_inner.CorruptedRevlogError:

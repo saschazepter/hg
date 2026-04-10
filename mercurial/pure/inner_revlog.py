@@ -46,6 +46,7 @@ from .. import (
     vfs as vfsmod,
 )
 from ..revlogutils import (
+    config as revlog_config,
     deltas as deltautil,
     randomaccessfile,
     sidedata as sidedatautil,
@@ -89,16 +90,14 @@ class BaseInnerRevlog(abc.ABC):
         index_parser,
         data_file,
         inline,
-        data_config,
-        delta_config,
-        feature_config,
+        configs: revlog_config.RevlogConfigs,
     ):
         try:
             index, chunk_cache = index_parser(
                 index_data,
                 inline,
-                delta_config.general_delta,
-                delta_config.delta_info,
+                configs.delta.general_delta,
+                configs.delta.delta_info,
             )
         except (ValueError, IndexError):
             raise CorruptedRevlogError(b"corrupted index")
@@ -109,9 +108,9 @@ class BaseInnerRevlog(abc.ABC):
         self.index_file = index_file
         self.data_file = data_file
         self.inline = inline
-        self.data_config = data_config
-        self.delta_config = delta_config
-        self.feature_config = feature_config
+        self.data_config = configs.data
+        self.delta_config = configs.delta
+        self.feature_config = configs.feature
 
         if target[0] == KIND_MANIFESTLOG:
             self._diff_fn = mdiff.manifest_diff
@@ -710,9 +709,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         index_parser,
         data_file,
         inline,
-        data_config,
-        delta_config,
-        feature_config,
+        configs: revlog_config.RevlogConfigs,
     ):
         super().__init__(
             opener=opener,
@@ -722,9 +719,7 @@ class InnerRevlogV1(BaseInnerRevlog):
             index_parser=index_parser,
             data_file=data_file,
             inline=inline,
-            data_config=data_config,
-            delta_config=delta_config,
-            feature_config=feature_config,
+            configs=configs,
         )
         # used during diverted write.
         self._orig_index_file = None
@@ -1104,9 +1099,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         index_parser,
         data_file,
         sidedata_file,
-        data_config,
-        delta_config,
-        feature_config,
+        configs: revlog_config.RevlogConfigs,
         default_compression_header: i_comp.RevlogCompHeader,
     ):
         super().__init__(
@@ -1117,9 +1110,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             index_file=index_file,
             data_file=data_file,
             inline=False,
-            data_config=data_config,
-            delta_config=delta_config,
-            feature_config=feature_config,
+            configs=configs,
         )
 
         self.sidedata_file = sidedata_file
