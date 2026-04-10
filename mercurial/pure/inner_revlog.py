@@ -690,9 +690,7 @@ class BaseInnerRevlog(abc.ABC):
         entry,
         data,
         link,
-        offset,
         sidedata,
-        sidedata_offset,
     ):
         ...
 
@@ -871,9 +869,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         entry,
         data,
         link,
-        offset,
         sidedata,
-        sidedata_offset,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -895,6 +891,8 @@ class InnerRevlogV1(BaseInnerRevlog):
         ifh.seek(0, os.SEEK_END)
         if dfh:
             dfh.seek(0, os.SEEK_END)
+
+        offset = self.next_data_offset()
 
         curr = len(self.index) - 1
         if not self.inline:
@@ -1325,9 +1323,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         entry,
         data,
         link,
-        offset,
         sidedata,
-        sidedata_offset,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -1351,8 +1347,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         sdfh.seek(self.docket.sidedata_end, os.SEEK_SET)
 
         curr = len(self.index) - 1
-        transaction.add(self.data_file, offset)
-        transaction.add(self.sidedata_file, sidedata_offset)
+        transaction.add(self.data_file, self.docket.data_end)
+        transaction.add(self.sidedata_file, self.docket.sidedata_end)
         transaction.add(self.index_file, curr * len(entry))
         if data[0]:
             dfh.write(data[0])

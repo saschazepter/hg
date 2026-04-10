@@ -2530,9 +2530,7 @@ class revlog:
             entry,
             deltainfo.data,
             link,
-            offset,
             serialized_sidedata,
-            sidedata_offset,
         )
 
         if alwayscache and revinfo.btext is None:
@@ -2552,9 +2550,7 @@ class revlog:
         entry,
         data,
         link,
-        offset,
         sidedata,
-        sidedata_offset,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -2573,9 +2569,7 @@ class revlog:
             entry,
             data,
             link,
-            offset,
             sidedata,
-            sidedata_offset,
         )
         self._enforceinlinesize(transaction)
         nodemaputil.setup_persistent_nodemap(transaction, self)

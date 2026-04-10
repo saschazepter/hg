@@ -772,9 +772,7 @@ impl InnerRevlog {
         entry,
         data,
         _link,
-        offset,
         _sidedata,
-        _sidedata_offset,
     ))]
     fn write_entry(
         slf: &Bound<'_, Self>,
@@ -783,10 +781,8 @@ impl InnerRevlog {
         data: &Bound<'_, PyTuple>,
         // TODO remove and also from Python
         _link: Py<PyAny>,
-        offset: usize,
         // Other underscore args are for revlog-v2, which is unimplemented
         _sidedata: Py<PyAny>,
-        _sidedata_offset: u64,
     ) -> PyResult<()> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
             let transaction = PyTransaction::new(transaction);
@@ -798,7 +794,6 @@ impl InnerRevlog {
                 transaction,
                 entry.as_bytes(),
                 (header.as_bytes(), data.as_bytes()),
-                offset,
             )
             .map_err(revlog_error_from_io)?;
             Ok(())

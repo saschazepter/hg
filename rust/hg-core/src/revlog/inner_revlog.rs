@@ -1400,10 +1400,10 @@ impl InnerRevlog {
         mut transaction: impl Transaction,
         entry: &[u8],
         header_and_data: (&[u8], &[u8]),
-        mut offset: usize,
     ) -> Result<(), HgError> {
         let current_revision = self.len() - 1;
         let canonical_index_file = self.canonical_index_file();
+        let mut offset = self.next_data_offset();
 
         let is_inline = self.is_inline();
         let handles = match &mut self.writing_handles {
