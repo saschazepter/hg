@@ -39,6 +39,11 @@ from ..revlogutils import (
 from ..store_utils import file_index as file_index_mod
 from . import actions as upgrade_actions
 
+from ..pure import (
+    inner_revlog as py_inner,
+)
+
+
 if typing.TYPE_CHECKING:
     from typing import (
         Final,
@@ -80,14 +85,18 @@ def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
     newrl = entry.get_revlog_instance(destrepo)
     newrl = getattr(newrl, '_revlog', newrl)
 
+    assert oldrl._docket is None
+    assert newrl._docket is None
     oldvfs = oldrl.opener
     newvfs = newrl.opener
-    oldindex = oldvfs.join(oldrl._inner.index_file)
-    newindex = newvfs.join(newrl._inner.index_file)
-    olddata = oldvfs.join(oldrl._inner.data_file)
-    newdata = newvfs.join(newrl._inner.data_file)
+    old_inner = typing.cast(py_inner.InnerRevlogV1, oldrl._inner)
+    new_inner = typing.cast(py_inner.InnerRevlogV1, oldrl._inner)
+    oldindex = oldvfs.join(old_inner.index_file)
+    newindex = newvfs.join(new_inner.index_file)
+    olddata = oldvfs.join(old_inner.data_file)
+    newdata = newvfs.join(new_inner.data_file)
 
-    with newvfs(newrl._inner.index_file, b'w'):
+    with newvfs(new_inner.index_file, b'w'):
         pass  # create all the directories
 
     util.copyfile(oldindex, newindex)
