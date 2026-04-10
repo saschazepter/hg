@@ -95,11 +95,6 @@ def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
     if copydata:
         util.copyfile(olddata, newdata)
 
-    if newrl.target != b'':
-        newvfs.register_file(newrl._inner.index_file)
-        if copydata:
-            newvfs.register_file(newrl._inner.data_file)
-
     if entry.is_filelog:
         if (fileindex := destrepo.store.fileindex) is not None:
             fileindex.add(entry.target_id, tr)
