@@ -675,6 +675,10 @@ class BaseInnerRevlog(abc.ABC):
         return {}
 
     @abc.abstractmethod
+    def next_data_offset(self):
+        """Returns the current offset in the (in-transaction) data file."""
+
+    @abc.abstractmethod
     def write_entry(
         self,
         transaction,
@@ -848,6 +852,10 @@ class InnerRevlogV1(BaseInnerRevlog):
                 return randomaccessfile.appender(
                     self.opener, self.index_file, b"w+", self._delay_buffer
                 )
+
+    def next_data_offset(self):
+        """Returns the current offset in the (in-transaction) data file."""
+        return self.end(len(self.index) - 1)
 
     def write_entry(
         self,
@@ -1280,6 +1288,10 @@ class InnerRevlogV2(BaseInnerRevlog):
                 mode=b"w+",
                 checkambig=self.data_config.check_ambig,
             )
+
+    def next_data_offset(self):
+        """Returns the current offset in the (in-transaction) data file."""
+        return self.docket.data_end
 
     def write_entry(
         self,

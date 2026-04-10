@@ -712,7 +712,7 @@ def debug_revlog_stats(
         fm.startitem()
         nb_rev = len(rlog)
         inline = rlog._inline
-        data_size = rlog._get_data_offset(nb_rev - 1)
+        data_size = rlog._inner.next_data_offset()
 
         target = rlog.target
         revlog_type = b'unknown'

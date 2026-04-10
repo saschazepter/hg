@@ -749,6 +749,11 @@ impl InnerRevlog {
         })
     }
 
+    /// Returns the current offset in the (in-transaction) data file.
+    fn next_data_offset(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        Self::with_core_read(slf, |_self_ref, irl| Ok(irl.next_data_offset()))
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
         transaction,

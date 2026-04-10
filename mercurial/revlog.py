@@ -2397,9 +2397,8 @@ class revlog:
             raise error.ProgrammingError(msg)
 
         curr = len(self)
-        prev = curr - 1
 
-        offset = self._get_data_offset(prev)
+        offset = self._inner.next_data_offset()
 
         p1r, p2r = self.rev(p1), self.rev(p2)
 
@@ -2555,20 +2554,6 @@ class revlog:
         if deltainfo.u_data is not None:
             self._inner.record_uncompressed_chunk(curr, deltainfo.u_data)
         return curr
-
-    def _get_data_offset(self, prev):
-        """Returns the current offset in the (in-transaction) data file.
-        Versions < 2 of the revlog can get this 0(1), revlog v2 needs a docket
-        file to store that information: since sidedata can be rewritten to the
-        end of the data file within a transaction, you can have cases where, for
-        example, rev `n` does not have sidedata while rev `n - 1` does, leading
-        to `n - 1`'s sidedata being written after `n`'s data.
-
-        TODO cache this in a docket file before getting out of experimental."""
-        if self._inner.docket is None:
-            return self.end(prev)
-        else:
-            return self._inner.docket.data_end
 
     def _writeentry(
         self,

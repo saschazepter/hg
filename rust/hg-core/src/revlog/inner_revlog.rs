@@ -1387,6 +1387,19 @@ impl InnerRevlog {
         Ok(self.index_file.to_owned())
     }
 
+    /// Returns the current offset in the (in-transaction) data file.
+    pub fn next_data_offset(&self) -> usize {
+        let idx = &self.index;
+        match idx.len() {
+            0 => 0,
+            length => {
+                let rev = Revision(u_i32(length) - 1);
+                let e = idx.get_entry(rev);
+                e.offset() + u32_u(e.compressed_len())
+            }
+        }
+    }
+
     /// Write a new entry to this revlog.
     /// - `entry` is the index bytes
     /// - `header_and_data` is the compression header and the revision data
