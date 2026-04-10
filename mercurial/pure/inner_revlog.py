@@ -670,7 +670,7 @@ class BaseInnerRevlog(abc.ABC):
             self.raw_text(rev_2)[1],
         )
 
-    def sidedata(self, rev, sidedata_end):
+    def sidedata(self, rev):
         """Return the sidedata for a given revision number."""
         return {}
 
@@ -1193,8 +1193,9 @@ class InnerRevlogV2(BaseInnerRevlog):
         Used for assert and debug in the python code"""
         return super().is_open or self._segmentfile_sidedata.is_open
 
-    def sidedata(self, rev, sidedata_end):
+    def sidedata(self, rev):
         """Return the sidedata for a given revision number."""
+        sidedata_end = self.docket.sidedata_end
         sidedata_offset = self.index.sidedata_chunk_offset(rev)
         sidedata_size = self.index.sidedata_chunk_length(rev)
 

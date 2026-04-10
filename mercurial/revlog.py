@@ -2023,10 +2023,7 @@ class revlog:
         """Return the sidedata for a given revision number."""
         if not self.configs.feature.has_side_data:
             return {}
-        sidedata_end = None
-        if self._docket is not None:
-            sidedata_end = self._inner.docket.sidedata_end
-        return self._inner.sidedata(rev, sidedata_end)
+        return self._inner.sidedata(rev)
 
     def rawdata(self, nodeorrev, validate=True):
         """return an uncompressed raw data of a given node or revision number.
