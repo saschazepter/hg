@@ -3623,6 +3623,4 @@ class revlog:
         # append the new sidedata
         with self._writing(transaction):
             new_info = self._rewrite_sidedata_info(helpers, startrev, endrev)
-            old_end = self._inner.docket.sidedata_end
-            new_end = self._inner.rewrite_sidedata(new_info, old_end)
-            self._inner.docket.sidedata_end = new_end
+            self._inner.rewrite_sidedata(new_info)

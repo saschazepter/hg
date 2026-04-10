@@ -703,7 +703,7 @@ class BaseInnerRevlog(abc.ABC):
     def finalize_pending(self):
         raise error.ProgrammingError("Cannot finalize_pending a non-V1 revlog")
 
-    def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
+    def rewrite_sidedata(self, new_info):
         raise error.ProgrammingError(b"rewriting sidedata without support")
 
 
@@ -1360,12 +1360,12 @@ class InnerRevlogV2(BaseInnerRevlog):
         self.docket.data_end = dfh.tell()
         self.docket.sidedata_end = sdfh.tell()
 
-    def rewrite_sidedata(self, new_info, sidedata_end: int) -> int:
+    def rewrite_sidedata(self, new_info):
         assert self.is_writing
         new_entries = []
         # append the new sidedata
         ifh, dfh, sdfh = self._writinghandles
-        dfh.seek(sidedata_end, os.SEEK_SET)
+        dfh.seek(self.docket.sidedata_end, os.SEEK_SET)
 
         current_offset = sdfh.tell()
         startrev = None
@@ -1415,7 +1415,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             sdfh.write(serialized_sidedata)
             new_entries.append(entry_update)
             current_offset += len(serialized_sidedata)
-            sidedata_end = sdfh.tell()
+            self.docket.sidedata_end = sdfh.tell()
 
         # rewrite the new index entries
         ifh.seek(startrev * self.index.entry_size)
@@ -1426,4 +1426,3 @@ class InnerRevlogV2(BaseInnerRevlog):
             )  # pytype: disable=attribute-error
             packed = self.index.entry_binary(rev)
             ifh.write(packed)
-        return sidedata_end
