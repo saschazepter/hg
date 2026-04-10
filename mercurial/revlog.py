@@ -2177,16 +2177,7 @@ class revlog:
         if self._inner.is_writing:
             yield
         else:
-            data_end = None
-            sidedata_end = None
-            if self._docket is not None:
-                data_end = self._inner.docket.data_end
-                sidedata_end = self._inner.docket.sidedata_end
-            with self._inner.writing(
-                transaction,
-                data_end=data_end,
-                sidedata_end=sidedata_end,
-            ):
+            with self._inner.writing(transaction):
                 # If this is a new revlog, register it to update the potential
                 # fncache.
                 #

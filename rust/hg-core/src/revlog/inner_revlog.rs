@@ -1161,17 +1161,14 @@ impl InnerRevlog {
     pub fn with_write<R>(
         &mut self,
         transaction: &mut impl Transaction,
-        data_end: Option<usize>,
         func: impl FnOnce() -> R,
     ) -> Result<R, HgError> {
         if self.is_writing() {
             return Ok(func());
         }
-        self.enter_writing_context(data_end, transaction).inspect_err(
-            |_| {
-                self.exit_writing_context();
-            },
-        )?;
+        self.enter_writing_context(transaction).inspect_err(|_| {
+            self.exit_writing_context();
+        })?;
         let res = func();
         self.exit_writing_context();
         Ok(res)
@@ -1195,7 +1192,6 @@ impl InnerRevlog {
     #[doc(hidden)]
     pub fn enter_writing_context(
         &mut self,
-        data_end: Option<usize>,
         transaction: &mut impl Transaction,
     ) -> Result<(), HgError> {
         let data_size = if self.is_empty() {
@@ -1206,13 +1202,8 @@ impl InnerRevlog {
         let mut data_handle = if !self.is_inline() {
             let data_handle = match self.vfs.open_write(&self.data_file) {
                 Ok(mut f) => {
-                    if let Some(end) = data_end {
-                        f.seek(SeekFrom::Start(end as u64))
-                            .when_reading_file(&self.data_file)?;
-                    } else {
-                        f.seek(SeekFrom::End(0))
-                            .when_reading_file(&self.data_file)?;
-                    }
+                    f.seek(SeekFrom::End(0))
+                        .when_reading_file(&self.data_file)?;
                     f
                 }
                 Err(err) => {

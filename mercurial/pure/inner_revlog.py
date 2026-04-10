@@ -423,7 +423,7 @@ class BaseInnerRevlog(abc.ABC):
         return self._segmentfile.is_open
 
     @contextlib.contextmanager
-    def writing(self, transaction, data_end=None, sidedata_end=None):
+    def writing(self, transaction):
         """Open the revlog files for writing
 
         Add content to a revlog should be done within such context.
@@ -431,12 +431,12 @@ class BaseInnerRevlog(abc.ABC):
         if self.is_writing:
             yield
         else:
-            with self._writing(transaction, data_end, sidedata_end):
+            with self._writing(transaction):
                 yield
 
     @contextlib.contextmanager
     @abc.abstractmethod
-    def _writing(self, transaction, data_end=None, sidedata_end=None):
+    def _writing(self, transaction):
         ...
 
     @abc.abstractmethod
@@ -776,12 +776,8 @@ class InnerRevlogV1(BaseInnerRevlog):
             yield
 
     @contextlib.contextmanager
-    def _writing(self, transaction, data_end=None, sidedata_end=None):
+    def _writing(self, transaction):
         ifh = dfh = None
-        if data_end is not None:
-            raise error.ProgrammingError(b"data_end not None for v1")
-        if sidedata_end is not None:
-            raise error.ProgrammingError(b"sidedata_end not None for v1")
         try:
             r = len(self.index)
             # opening the data file.
@@ -1221,12 +1217,10 @@ class InnerRevlogV2(BaseInnerRevlog):
         return sidedata
 
     @contextlib.contextmanager
-    def _writing(self, transaction, data_end=None, sidedata_end=None):
+    def _writing(self, transaction):
         ifh = dfh = sdfh = None
-        if data_end is None:
-            raise error.ProgrammingError(b"data_end None for v2")
-        if sidedata_end is None:
-            raise error.ProgrammingError(b"sidedata_end None for v2")
+        data_end = self.docket.data_end
+        sidedata_end = self.docket.sidedata_end
         try:
             r = len(self.index)
             # opening the data file.

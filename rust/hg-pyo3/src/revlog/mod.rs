@@ -133,7 +133,6 @@ impl ReadingContextManager {
 struct WritingContextManager {
     inner_revlog: Py<InnerRevlog>,
     transaction: RwLock<PyTransaction>,
-    data_end: Option<usize>,
 }
 
 #[pymethods]
@@ -146,7 +145,6 @@ impl WritingContextManager {
             unsafe { shareable.borrow_with_owner(inner_bound) }.write();
         core_irl
             .enter_writing_context(
-                slf.data_end,
                 &mut *slf
                     .transaction
                     .try_write()
@@ -848,19 +846,13 @@ impl InnerRevlog {
         Ok(ReadingContextManager { inner_revlog: slf.clone().unbind() })
     }
 
-    #[pyo3(signature = (transaction, data_end=None, sidedata_end=None))]
     fn writing(
         slf: &Bound<'_, Self>,
         transaction: Py<PyAny>,
-        data_end: Option<usize>,
-        sidedata_end: Option<usize>,
     ) -> PyResult<WritingContextManager> {
-        // Only useful in revlog v2
-        let _ = sidedata_end;
         Ok(WritingContextManager {
             inner_revlog: slf.clone().unbind(),
             transaction: RwLock::new(PyTransaction::new(transaction)),
-            data_end,
         })
     }
 
