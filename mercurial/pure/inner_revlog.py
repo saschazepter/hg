@@ -25,6 +25,7 @@ from ..i18n import _
 from ..interfaces.types import (
     HgPathT,
     RevnumT,
+    TransactionT,
 )
 from ..revlogutils.constants import (
     COMP_MODE_DEFAULT,
@@ -661,11 +662,11 @@ class BaseInnerRevlog(abc.ABC):
     @abc.abstractmethod
     def write_entry(
         self,
-        transaction,
-        entry,
-        data,
-        link,
-        sidedata,
+        transaction: TransactionT,
+        entry: bytes,
+        data: bytes,
+        link: RevnumT,
+        sidedata: bytes,
     ):
         ...
 
@@ -875,11 +876,11 @@ class InnerRevlogV1(BaseInnerRevlog):
 
     def write_entry(
         self,
-        transaction,
-        entry,
-        data,
-        link,
-        sidedata,
+        transaction: TransactionT,
+        entry: bytes,
+        data: bytes,
+        link: RevnumT,
+        sidedata: bytes,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -1360,11 +1361,11 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     def write_entry(
         self,
-        transaction,
-        entry,
-        data,
-        link,
-        sidedata,
+        transaction: TransactionT,
+        entry: bytes,
+        data: bytes,
+        link: int,
+        sidedata: bytes,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
