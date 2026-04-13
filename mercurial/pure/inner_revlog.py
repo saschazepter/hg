@@ -1156,7 +1156,6 @@ class InnerRevlogV2(BaseInnerRevlog):
             configs=configs,
         )
 
-        self.sidedata_file = docket.sidedata_filepath()
         self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
             self.opener,
             self.docket.sidedata_filepath(),
