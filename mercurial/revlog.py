@@ -857,6 +857,9 @@ class revlog:
         if n == 0:
             # no data to send
             return []
+
+        inner = cast(py_inner.InnerRevlogV1, self._inner)
+
         index_size = n * index.entry_size
         data_size = self.end(n - 1)
 
@@ -868,7 +871,7 @@ class revlog:
         if self._inline:
 
             def get_stream():
-                with self.opener(self._inner.index_file, mode=b"r") as fp:
+                with self.opener(inner.index_file, mode=b"r") as fp:
                     yield None
                     size = index_size + data_size
                     if size <= 65536:
@@ -879,7 +882,7 @@ class revlog:
             inline_stream = get_stream()
             next(inline_stream)
             return [
-                (self._inner.index_file, inline_stream, index_size + data_size),
+                (inner.index_file, inline_stream, index_size + data_size),
             ]
         elif force_inline:
 
@@ -898,17 +901,17 @@ class revlog:
                             header = self.index.pack_header(header)
                             idx = header + idx
                         yield idx
-                        yield self._inner.get_segment_for_revs(rev, rev)[1]
+                        yield inner.get_segment_for_revs(rev, rev)[1]
 
             inline_stream = get_stream()
             next(inline_stream)
             return [
-                (self._inner.index_file, inline_stream, index_size + data_size),
+                (inner.index_file, inline_stream, index_size + data_size),
             ]
         else:
 
             def get_index_stream():
-                with self.opener(self._inner.index_file, mode=b"r") as fp:
+                with self.opener(inner.index_file, mode=b"r") as fp:
                     yield None
                     if index_size <= 65536:
                         yield fp.read(index_size)
@@ -916,7 +919,7 @@ class revlog:
                         yield from util.filechunkiter(fp, limit=index_size)
 
             def get_data_stream():
-                with self.opener(self._inner.data_file, mode=b"r") as fp:
+                with self.opener(inner.data_file, mode=b"r") as fp:
                     yield None
                     if data_size <= 65536:
                         yield fp.read(data_size)
@@ -928,8 +931,8 @@ class revlog:
             data_stream = get_data_stream()
             next(data_stream)
             return [
-                (self._inner.data_file, data_stream, data_size),
-                (self._inner.index_file, index_stream, index_size),
+                (inner.data_file, data_stream, data_size),
+                (inner.index_file, index_stream, index_size),
             ]
 
     def _register_nodemap_info(self, index):
