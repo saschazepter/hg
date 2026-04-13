@@ -2172,9 +2172,10 @@ class revlog:
                 # with a docket still use the fncache
                 if len(self.index) == 0 and self.target[1] != b'':
                     if self._docket is None:
-                        self.opener.register_file(self._inner.index_file)
-                        if not self._inner.inline:
-                            self.opener.register_file(self._inner.data_file)
+                        inner = cast(py_inner.InnerRevlogV1, self._inner)
+                        self.opener.register_file(inner.index_file)
+                        if not inner.inline:
+                            self.opener.register_file(inner.data_file)
                 yield
                 if self._docket is not None:
                     self._write_docket(transaction)
