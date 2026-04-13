@@ -1159,7 +1159,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         self.sidedata_file = docket.sidedata_filepath()
         self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
             self.opener,
-            self.sidedata_file,
+            self.docket.sidedata_filepath(),
             self.data_config.chunk_cache_size,
         )
         self._default_compression_header = docket.default_compression_header
@@ -1245,7 +1245,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             return {}
 
         if sidedata_end < sidedata_offset + sidedata_size:
-            filename = self.sidedata_file
+            filename = self.docket.sidedata_filepath()
             end = sidedata_end
             offset = sidedata_offset
             length = sidedata_size
@@ -1280,24 +1280,24 @@ class InnerRevlogV2(BaseInnerRevlog):
             r = len(self.index)
             # opening the data file.
             try:
-                dfh = self.opener(self.data_file, mode=b"r+")
+                dfh = self.opener(self.docket.data_filepath(), mode=b"r+")
             except FileNotFoundError:
-                dfh = self.opener(self.data_file, mode=b"w+")
+                dfh = self.opener(self.docket.data_filepath(), mode=b"w+")
             else:
                 dfh.seek(data_end, os.SEEK_SET)
             # revlog-v2 does not inline, help Pytype
             try:
-                sdfh = self.opener(self.sidedata_file, mode=b"r+")
+                sdfh = self.opener(self.docket.sidedata_filepath(), mode=b"r+")
             except FileNotFoundError:
-                sdfh = self.opener(self.sidedata_file, mode=b"w+")
+                sdfh = self.opener(self.docket.sidedata_filepath(), mode=b"w+")
             else:
                 sdfh.seek(sidedata_end, os.SEEK_SET)
             # opening the index file.
             isize = r * self.index.entry_size
             ifh = self._index_write_fp(index_end=isize)
-            transaction.add(self.data_file, data_end)
-            transaction.add(self.sidedata_file, sidedata_end)
-            transaction.add(self.index_file, isize)
+            transaction.add(self.docket.data_filepath(), data_end)
+            transaction.add(self.docket.sidedata_filepath(), sidedata_end)
+            transaction.add(self.docket.index_filepath(), isize)
             # exposing all file handle for writing.
             self._writinghandles = (ifh, dfh, sdfh)
             self._segmentfile.writing_handle = ifh if self.inline else dfh
@@ -1325,7 +1325,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             raise error.ProgrammingError("index_end None for v2")
         try:
             f = self.opener(
-                self.index_file,
+                self.docket.index_filepath(),
                 mode=b"r+",
                 checkambig=self.data_config.check_ambig,
             )
@@ -1333,7 +1333,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             return f
         except FileNotFoundError:
             return self.opener(
-                self.index_file,
+                self.docket.index_filepath(),
                 mode=b"w+",
                 checkambig=self.data_config.check_ambig,
             )
@@ -1372,9 +1372,12 @@ class InnerRevlogV2(BaseInnerRevlog):
         sdfh.seek(self.docket.sidedata_end, os.SEEK_SET)
 
         curr = len(self.index) - 1
-        transaction.add(self.data_file, self.docket.data_end)
-        transaction.add(self.sidedata_file, self.docket.sidedata_end)
-        transaction.add(self.index_file, curr * len(entry))
+        transaction.add(self.docket.data_filepath(), self.docket.data_end)
+        transaction.add(
+            self.docket.sidedata_filepath(),
+            self.docket.sidedata_end,
+        )
+        transaction.add(self.docket.index_filepath(), curr * len(entry))
         if data[0]:
             dfh.write(data[0])
         dfh.write(data[1])
