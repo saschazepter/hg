@@ -92,28 +92,15 @@ class BaseInnerRevlog(abc.ABC):
         self,
         opener: vfsmod.vfs,
         target: tuple[int, bytes],
-        index_data,
-        index_file,
-        index_parser,
-        data_file,
+        index,
+        segment_file,
         inline,
         configs: revlog_config.RevlogConfigs,
     ):
-        try:
-            index, chunk_cache = index_parser(
-                index_data,
-                inline,
-                configs.delta.general_delta,
-                configs.delta.delta_info,
-            )
-        except (ValueError, IndexError):
-            raise CorruptedRevlogError(b"corrupted index")
         self.opener = opener
         self.target = target
         self.index: BaseIndexObject = index
 
-        self.index_file = index_file
-        self.data_file = data_file
         self.inline = inline
         self.data_config = configs.data
         self.delta_config = configs.delta
@@ -129,12 +116,7 @@ class BaseInnerRevlog(abc.ABC):
         # tuple of file handles being used for active writing.
         self._writinghandles = None
 
-        self._segmentfile = randomaccessfile.randomaccessfile(
-            self.opener,
-            (self.index_file if self.inline else self.data_file),
-            self.data_config.chunk_cache_size,
-            chunk_cache,
-        )
+        self._segmentfile = segment_file
 
         # revlog header -> revlog compressor
         self._decompressors: dict[
@@ -732,17 +714,34 @@ class InnerRevlogV1(BaseInnerRevlog):
         inline,
         configs: revlog_config.RevlogConfigs,
     ):
+        try:
+            index, chunk_cache = index_parser(
+                index_data,
+                inline,
+                configs.delta.general_delta,
+                configs.delta.delta_info,
+            )
+        except (ValueError, IndexError):
+            raise CorruptedRevlogError(b"corrupted index")
+
+        segment_file = randomaccessfile.randomaccessfile(
+            opener,
+            index_file if inline else data_file,
+            configs.data.chunk_cache_size,
+            chunk_cache,
+        )
+
         super().__init__(
             opener=opener,
             target=target,
-            index_data=index_data,
-            index_file=index_file,
-            index_parser=index_parser,
-            data_file=data_file,
+            index=index,
+            segment_file=segment_file,
             inline=inline,
             configs=configs,
         )
         # used during diverted write.
+        self.index_file = index_file
+        self.data_file = data_file
         self._orig_index_file = None
         self._delay_buffer = None
 
@@ -1132,6 +1131,9 @@ class InnerRevlogV2(BaseInnerRevlog):
         self.target = target
         self.radix = radix
 
+        # always call this to keep the uuid deterministic in test
+        docket.index_filepath()
+
         index_data = b''
         index_size = docket.index_end
         if index_size > 0:
@@ -1145,21 +1147,36 @@ class InnerRevlogV2(BaseInnerRevlog):
                 msg %= (self.display_id, len(index_data), index_size)
                 raise error.RevlogError(msg)
 
+        try:
+            index, chunk_cache = index_parser(
+                index_data,
+                False,
+                configs.delta.general_delta,
+                configs.delta.delta_info,
+            )
+        except (ValueError, IndexError):
+            raise CorruptedRevlogError(b"corrupted index")
+
+        segment_file = randomaccessfile.randomaccessfile(
+            opener,
+            docket.data_filepath(),
+            configs.data.chunk_cache_size,
+            chunk_cache,
+        )
+
         super().__init__(
             opener=opener,
             target=target,
-            index_parser=index_parser,
-            index_data=index_data,
-            index_file=docket.index_filepath(),
-            data_file=docket.data_filepath(),
+            index=index,
+            segment_file=segment_file,
             inline=False,
             configs=configs,
         )
 
         self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
             self.opener,
-            self.docket.sidedata_filepath(),
-            self.data_config.chunk_cache_size,
+            docket.sidedata_filepath(),
+            configs.data.chunk_cache_size,
         )
         self._default_compression_header = docket.default_compression_header
 
