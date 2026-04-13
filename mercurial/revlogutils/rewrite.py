@@ -160,7 +160,7 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
 
     data_cutoff = revlog.index.data_chunk_start(first_excl_rev)
     index_cutoff = revlog.index.entry_size * first_excl_rev
-    sidedata_cutoff = revlog.sidedata_cut_off(first_excl_rev)
+    sidedata_cutoff = revlog._inner.sidedata_cut_off(first_excl_rev)
 
     with pycompat.unnamedtempfile(mode=b"w+b") as tmp_storage:
         # rev → (new_base, data_start, data_end, compression_mode)

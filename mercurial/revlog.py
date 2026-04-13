@@ -1073,24 +1073,6 @@ class revlog:
     def start(self, rev):
         return self.index.data_chunk_start(rev)
 
-    def sidedata_cut_off(self, rev):
-        sd_cut_off = self.index.sidedata_chunk_offset(rev)
-        if sd_cut_off != 0:
-            return sd_cut_off
-        # This is some annoying dance, because entries without sidedata
-        # currently use 0 as their ofsset. (instead of previous-offset +
-        # previous-size)
-        #
-        # We should reconsider this sidedata → 0 sidata_offset policy.
-        # In the meantime, we need this.
-        idx = self.index
-        while 0 <= rev:
-            length = idx.sidedata_chunk_length(rev)
-            if length != 0:
-                return idx.sidedata_chunk_offset(rev) + length
-            rev -= 1
-        return 0
-
     def flags(self, rev):
         return self.index.flags(rev)
 
@@ -2765,7 +2747,7 @@ class revlog:
                 transaction.add(self._inner.data_file, data_end)
             transaction.add(self._inner.index_file, end)
         else:
-            sidedata_end = self.sidedata_cut_off(rev)
+            sidedata_end = self._inner.sidedata_cut_off(rev)
             # XXX we could, leverage the docket while stripping. However it is
             # not powerfull enough at the time of this comment
             docket = self._docket
