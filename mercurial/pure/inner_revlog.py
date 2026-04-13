@@ -706,6 +706,24 @@ class BaseInnerRevlog(abc.ABC):
     def rewrite_sidedata(self, new_info):
         raise error.ProgrammingError(b"rewriting sidedata without support")
 
+    def strip_after(self, transaction, rev):
+        """truncate the revlog on the first revision with a linkrev >= minlink
+
+        It remove all revisions after `rev`."""
+        if rev >= len(self):
+            return
+
+        # first truncate the files on disk
+        self._strip_after(transaction, rev)
+
+        # then reset internal state in memory to forget those revisions
+        self.clear_cache()
+        del self.index[rev:-1]
+
+    @abc.abstractmethod
+    def _strip_after(self, transaction, rev):
+        ...
+
 
 class InnerRevlogV1(BaseInnerRevlog):
     """A inner revlog for a revlog-v1 revlog"""
@@ -1087,6 +1105,20 @@ class InnerRevlogV1(BaseInnerRevlog):
             raise error.ProgrammingError(msg)
         return self.canonical_index_file
 
+    def _strip_after(self, transaction, rev):
+        """truncate the revlog on the first revision with a linkrev >= minlink
+
+        It remove all revisions after `rev`."""
+        # first truncate the files on disk
+        end = rev * self.index.entry_size
+        data_end = self.start(rev)
+
+        if self.inline:
+            end += data_end
+        else:
+            transaction.add(self.data_file, data_end)
+        transaction.add(self.index_file, end)
+
 
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
@@ -1444,3 +1476,21 @@ class InnerRevlogV2(BaseInnerRevlog):
                 return idx.sidedata_chunk_offset(rev) + length
             rev -= 1
         return 0
+
+    def _strip_after(self, transaction, rev):
+        """truncate the revlog on the first revision with a linkrev >= minlink
+
+        It remove all revisions after `rev`."""
+        end = rev * self.index.entry_size
+        data_end = self.start(rev)
+        sidedata_end = self.sidedata_cut_off(rev)
+        # XXX we could, leverage the docket while stripping. However it is
+        # not powerfull enough at the time of this comment
+        docket = self.docket
+        docket.index_end = end
+        docket.data_end = data_end
+        docket.sidedata_end = sidedata_end
+        transaction.add(docket.index_filepath(), end)
+        transaction.add(docket.data_filepath(), data_end)
+        transaction.add(docket.sidedata_filepath(), sidedata_end)
+        self.docket.write(transaction, stripping=True)

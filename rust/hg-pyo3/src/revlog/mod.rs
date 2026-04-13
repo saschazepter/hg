@@ -38,9 +38,11 @@ use hg::revlog::nodemap::NodeMapError;
 use hg::revlog::nodemap::NodeTree as CoreNodeTree;
 use hg::revlog::options::RevlogOpenOptions;
 use hg::revlog::path_encode::PathEncoding;
+use hg::transaction::Transaction;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
+use hg::utils::i32_u;
 use hg::utils::u32_u;
 use hg::vfs::EncodedVfs;
 use hg::vfs::VfsImpl;
@@ -836,6 +838,43 @@ impl InnerRevlog {
             let path = irl.finalize_pending().map_err(revlog_error_from_io)?;
             Ok(PyBytes::new(py, &get_bytes_from_path(path)).unbind())
         })
+    }
+
+    /// truncate the revlog on the first revision with a linkrev >= minlink
+    ///
+    /// It remove all revisions after `rev`.
+    fn strip_after(
+        slf: &Bound<'_, Self>,
+        transaction: Py<PyAny>,
+        rev: PyRevision,
+    ) -> PyResult<()> {
+        let cut_rev = i32_u(rev.0);
+        let current_size = Self::_index___len__(slf)?;
+        if cut_rev >= current_size {
+            return Ok(());
+        };
+        Self::with_core_write(slf, |_self_ref, mut irl| {
+            let rev = Revision(rev.0);
+            let index_end: usize = cut_rev * INDEX_ENTRY_SIZE;
+            let data_end: usize = irl.index.get_entry(rev).offset();
+            let mut tr = PyTransaction::new(transaction);
+            if irl.is_inline() {
+                tr.add(&irl.index_file, index_end + data_end);
+            } else {
+                tr.add(&irl.data_file, data_end);
+                tr.add(&irl.index_file, index_end);
+            }
+
+            irl.clear_cache();
+            irl.index.remove(rev).map_err(revlog_error_from_io)?;
+            irl.nodemap_invalidate().map_err(nodemap_error)?;
+            Ok(())
+        })?;
+        let mut self_ref = slf.borrow_mut();
+        self_ref.revision_cache.take();
+        self_ref.nodemap_queries.store(0, Ordering::Relaxed);
+        drop(self_ref);
+        Ok(())
     }
 
     fn _chunk(

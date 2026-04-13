@@ -2733,37 +2733,11 @@ class revlog:
             return
 
         rev, _ = self.getstrippoint(minlink)
-        if rev == len(self):
-            return
 
-        # first truncate the files on disk
-        end = rev * self.index.entry_size
-        data_end = self.start(rev)
-
-        if self._docket is None:
-            if self._inline:
-                end += data_end
-            else:
-                transaction.add(self._inner.data_file, data_end)
-            transaction.add(self._inner.index_file, end)
-        else:
-            sidedata_end = self._inner.sidedata_cut_off(rev)
-            # XXX we could, leverage the docket while stripping. However it is
-            # not powerfull enough at the time of this comment
-            docket = self._docket
-            docket.index_end = end
-            docket.data_end = data_end
-            docket.sidedata_end = sidedata_end
-            transaction.add(docket.index_filepath(), end)
-            transaction.add(docket.data_filepath(), data_end)
-            transaction.add(docket.sidedata_filepath(), sidedata_end)
-            self._inner.docket.write(transaction, stripping=True)
+        self._inner.strip_after(transaction, rev)
 
         # then reset internal state in memory to forget those revisions
         self._chaininfocache.clear()
-        self._inner.clear_cache()
-
-        del self.index[rev:-1]
 
     def checksize(self) -> tuple[int, int]:
         """Check size of index and data files
