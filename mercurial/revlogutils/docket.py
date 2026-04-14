@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import enum
 import struct
 
 from typing import Iterator
@@ -59,6 +60,24 @@ S_HEADER = struct.Struct(constants.INDEX_HEADER_FMT + b'BBBBBBQQQQQQc')
 S_OLD_UID = struct.Struct('>BL')
 
 UidT = int
+
+
+class FileType(enum.IntEnum):
+    INDEX = 1
+    DATA = 2
+    SIDEDATA = 3
+
+
+EXT = {
+    FileType.INDEX: b'idx',
+    FileType.DATA: b'dat',
+    FileType.SIDEDATA: b'sda',
+}
+
+
+def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
+    """compute a file path from a revlog radix, a uuid and a file type"""
+    return b"%s-%s.%s" % (radix, uuid, EXT[file_type])
 
 
 class RevlogDocket:
@@ -124,12 +143,15 @@ class RevlogDocket:
         """file path of that docket"""
         return self._path
 
+    def _filepath(self, file_type: FileType, uuid: bytes) -> bytes:
+        return file_path(file_type, self._radix, uuid)
+
     def index_filepath(self) -> HgPathT:
         """file path to the current index file associated to this docket"""
         # very simplistic version at first
         if self._index_uuid is None:
             self._index_uuid = make_uid()
-        return b"%s-%s.idx" % (self._radix, self._index_uuid)
+        return self._filepath(FileType.INDEX, self._index_uuid)
 
     def new_index_file(self) -> HgPathT:
         """switch index file to a new UID
@@ -145,14 +167,14 @@ class RevlogDocket:
         # very simplistic version at first
         for uuid, size in self._older_index_uuids:
             if include_empty or size > 0:
-                yield b"%s-%s.idx" % (self._radix, uuid)
+                yield self._filepath(FileType.INDEX, uuid)
 
     def data_filepath(self) -> HgPathT:
         """file path to the current data file associated to this docket"""
         # very simplistic version at first
         if self._data_uuid is None:
             self._data_uuid = make_uid()
-        return b"%s-%s.dat" % (self._radix, self._data_uuid)
+        return self._filepath(FileType.DATA, self._data_uuid)
 
     def new_data_file(self) -> HgPathT:
         """switch data file to a new UID
@@ -170,14 +192,14 @@ class RevlogDocket:
         # very simplistic version at first
         for uuid, size in self._older_data_uuids:
             if include_empty or size > 0:
-                yield b"%s-%s.dat" % (self._radix, uuid)
+                yield self._filepath(FileType.DATA, uuid)
 
     def sidedata_filepath(self) -> HgPathT:
         """file path to the current sidedata file associated to this docket"""
         # very simplistic version at first
         if self._sidedata_uuid is None:
             self._sidedata_uuid = make_uid()
-        return b"%s-%s.sda" % (self._radix, self._sidedata_uuid)
+        return self._filepath(FileType.SIDEDATA, self._sidedata_uuid)
 
     def new_sidedata_file(self) -> HgPathT:
         """switch sidedata file to a new UID
@@ -195,7 +217,7 @@ class RevlogDocket:
         # very simplistic version at first
         for uuid, size in self._older_sidedata_uuids:
             if include_empty or size > 0:
-                yield b"%s-%s.sda" % (self._radix, uuid)
+                yield self._filepath(FileType.SIDEDATA, uuid)
 
     @property
     def index_end(self) -> int:
