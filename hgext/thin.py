@@ -11,6 +11,7 @@ import weakref
 from mercurial.interfaces.types import (
     HgPathT,
     MatcherT,
+    NodeIdT,
     RepoT,
     StatusT,
     UiT,
@@ -25,6 +26,7 @@ from mercurial.i18n import _
 
 from mercurial import (
     cmdutil,
+    context,
     dirstate as dirstate_mod,
     error,
     exthelper,
@@ -40,6 +42,7 @@ from mercurial import (
 )
 
 from mercurial.repo import (
+    factory,
     requirements as req_util,
 )
 
@@ -110,6 +113,11 @@ class ThinRepo:
         self.filtername = None
         self._wlockref = None
         self._dirstate = None
+
+        backend_url = self.vfs.read(b"thin-backend")
+        assert backend_url.startswith(b"local://")
+        repo_path = backend_url[len(b"local://") : -1]
+        self._backend = LocalBackend(self._base_ui, repo_path)
 
     def __getitem__(self, node):
         return ThinWcCtx(self)
@@ -323,6 +331,28 @@ class ThinRepo:
         match can be used to filter the committed files. If editor is
         supplied, it is called to get a commit message.
         """
+        status = self.status()
+
+        files = {}
+
+        for path in status.removed:
+            files[path] = None
+        for path in status.modified + status.added:
+            files[path] = self.wvfs.tryread(path)
+        assert self.dirstate.p2() == self.nodeconstants.nullid
+        # TODO:
+        # - sending modifed file only
+        # - sending symlinks information
+        # - sending exec-bits information
+        # - sending copies informatin
+        return self._backend.commit(
+            p1_node=self.dirstate.p1(),
+            user=user,
+            date=date,
+            extra=extra,
+            description=text,
+            files=files,
+        )
 
     def status(
         self,
@@ -335,8 +365,13 @@ class ThinRepo:
         listsubrepos: bool = False,
         empty_dirs_keep_files: bool = False,
     ) -> StatusT:
-        # XXX doesn't do anything yet.
-        return scmutil.status()
+        # XXX only work for working copy status
+        assert node1 == b'.'
+        assert node2 is None
+        all_files = list(self.dirstate)
+        # XXX pretend all file are modified for now, commit will sort out the
+        # actually state of things
+        return scmutil.status(modified=all_files)
 
 
 class ThinWcCtx:
@@ -382,6 +417,52 @@ class ThinWcCtx:
             badfn=badfn,
             icasefs=icasefs,
         )
+
+
+def filectxfn_from_dict(files):
+    def getfilectx(repo, memctx, path: bytes):
+        data = files.get(path)
+        if data is None:
+            return None
+        return context.memfilectx(
+            repo,
+            memctx,
+            path,
+            data,
+        )
+
+    return getfilectx
+
+
+class LocalBackend:
+    def __init__(self, ui, local_path):
+        self._repo = factory.repository(ui, local_path)
+
+    # XXX files as a dict is obviously too simple, we loose exec, symlink and
+    # XXX copy info
+    def commit(
+        self,
+        p1_node,
+        user,
+        date,
+        extra,
+        description,
+        files,
+    ) -> NodeIdT | None:
+        if not files:
+            return None
+        with self._repo.lock(), self._repo.transaction(b"remote-commit"):
+            ctx = context.memctx(
+                self._repo,
+                [p1_node, self._repo.nodeconstants.nullid],
+                text=description,
+                files=sorted(files.keys()),
+                filectxfn=filectxfn_from_dict(files),
+                user=user,
+                date=date,
+                extra=extra,
+            )
+            return self._repo.commitctx(ctx)
 
 
 class _FakeRepo:
