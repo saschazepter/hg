@@ -6,6 +6,7 @@ This extensions is at an early stage of development."""
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import weakref
 
 from mercurial.interfaces.types import (
@@ -35,7 +36,6 @@ from mercurial import (
     lock as lockmod,
     match as matchmod,
     requirements as req_mod,
-    scmutil,
     sparse,
     util,
     vfs as vfsmod,
@@ -294,6 +294,9 @@ class ThinRepo:
         """Returns the wlock if it's held, or None if it's not."""
         return self._currentlock(self._wlockref)
 
+    def currenttransaction(self):
+        return None
+
     def hook(self, name, throw=False, **args):
         """Call a hook, passing this repo instance.
 
@@ -341,7 +344,6 @@ class ThinRepo:
             files[path] = self.wvfs.tryread(path)
         assert self.dirstate.p2() == self.nodeconstants.nullid
         # TODO:
-        # - sending modifed file only
         # - sending symlinks information
         # - sending exec-bits information
         # - sending copies informatin
@@ -366,12 +368,43 @@ class ThinRepo:
         empty_dirs_keep_files: bool = False,
     ) -> StatusT:
         # XXX only work for working copy status
-        assert node1 == b'.'
-        assert node2 is None
-        all_files = list(self.dirstate)
-        # XXX pretend all file are modified for now, commit will sort out the
-        # actually state of things
-        return scmutil.status(modified=all_files)
+        assert not self.wvfs.tryread(b'.hgsub')
+        dirstate = self.dirstate
+        # XXX narrow matcher
+        if match is None:
+            match = matchmod.alwaysmatcher()
+        with dirstate.running_status(self):
+            cmp, s, mtime_boundary = dirstate.status(
+                match,
+                subrepos=[],
+                ignored=ignored,
+                clean=clean,
+                unknown=unknown,
+                empty_dirs_keep_files=empty_dirs_keep_files,
+            )
+
+            # check for any possibly clean files
+            if cmp:
+                # for now a cheap version of context._checklookup
+                #
+                # XXX ignoring mode
+                # XXX ignoring deleted file
+                digests = {}
+                for path in cmp:
+                    with self.wvfs(path) as f:
+                        d = file_digest(f, "sha256").digest()
+                    digests[path] = d
+
+                assert dirstate.p2() == self.nodeconstants.nullid
+                are_clean = self._backend.are_clean(dirstate.p1(), digests)
+                for f, is_clean in are_clean.items():
+                    if not is_clean:
+                        s.modified.append(f)
+                    elif clean:
+                        s.clean.append(f)
+                # XXX for now we skip context._poststatusfixup as the working copy
+                # is dead after the commit anyway.
+        return s
 
 
 class ThinWcCtx:
@@ -437,6 +470,13 @@ def filectxfn_from_dict(files):
 class LocalBackend:
     def __init__(self, ui, local_path):
         self._repo = factory.repository(ui, local_path)
+
+    def are_clean(self, p1_node, file_digests) -> dict:
+        ctx = self._repo[p1_node]
+        are_clean = {}
+        for f, d in file_digests.items():
+            are_clean[f] = hashlib.sha256(ctx[f].data()).digest() == d
+        return are_clean
 
     # XXX files as a dict is obviously too simple, we loose exec, symlink and
     # XXX copy info
@@ -595,3 +635,52 @@ def wrap_may_use_commit_status(orig, repo: RepoT):
     if THIN_FEATURE in repo.features:
         return False
     return orig(repo)
+
+
+# Imported from python 3.11's hashlib.py
+# Remove and just call hashlib.file_digest directly once hg drops support for
+# pythons older than 3.11
+def file_digest(fileobj, digest, /, *, _bufsize=2**18):
+    """Hash the contents of a file-like object. Returns a digest object.
+
+    *fileobj* must be a file-like object opened for reading in binary mode.
+    It accepts file objects from open(), io.BytesIO(), and SocketIO objects.
+    The function may bypass Python's I/O and use the file descriptor *fileno*
+    directly.
+
+    *digest* must either be a hash algorithm name as a *str*, a hash
+    constructor, or a callable that returns a hash object.
+    """
+    # On Linux we could use AF_ALG sockets and sendfile() to archive zero-copy
+    # hashing with hardware acceleration.
+    if isinstance(digest, str):
+        digestobj = hashlib.new(digest)
+    else:
+        digestobj = digest()
+
+    if hasattr(fileobj, "getbuffer"):
+        # io.BytesIO object, use zero-copy buffer
+        digestobj.update(fileobj.getbuffer())
+        return digestobj
+
+    # Only binary files implement readinto().
+    if not (
+        hasattr(fileobj, "readinto")
+        and hasattr(fileobj, "readable")
+        and fileobj.readable()
+    ):
+        raise ValueError(
+            f"'{fileobj!r}' is not a file-like object in binary reading mode."
+        )
+
+    # binary file, socket.SocketIO object
+    # Note: socket I/O uses different syscalls than file I/O.
+    buf = bytearray(_bufsize)  # Reusable buffer to reduce allocations.
+    view = memoryview(buf)
+    while True:
+        size = fileobj.readinto(buf)
+        if size == 0:
+            break  # EOF
+        digestobj.update(view[:size])
+
+    return digestobj

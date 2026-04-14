@@ -59,15 +59,12 @@ anything not tested here is unsupported and likely to be broken.
 # do a commit with nothing to commit
 
   $ hg -R thin commit -m 'empty-foo' --traceback
+  nothing changed
+  [1]
 
   $ hg -R repo log -G
-  o  changeset:   1:9f76d2d87e9f
-  |  tag:         tip
-  |  user:        test
-  |  date:        Thu Jan 01 00:00:00 1970 +0000
-  |  summary:     empty-foo
-  |
   @  changeset:   0:a27d7651a8de
+     tag:         tip
      user:        test
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     base
@@ -81,17 +78,11 @@ anything not tested here is unsupported and likely to be broken.
   $ hg -R thin commit -m 'foo'
 
   $ hg -R repo log -G
-  o  changeset:   2:6a3dd2470982
+  o  changeset:   1:6a3dd2470982
   |  tag:         tip
-  |  parent:      0:a27d7651a8de
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     foo
-  |
-  | o  changeset:   1:9f76d2d87e9f
-  |/   user:        test
-  |    date:        Thu Jan 01 00:00:00 1970 +0000
-  |    summary:     empty-foo
   |
   @  changeset:   0:a27d7651a8de
      user:        test
