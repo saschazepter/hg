@@ -28,7 +28,7 @@ UID_SIZE = 8
 UNSET_UID = b"0" * UID_SIZE
 
 
-def make_uid():
+def make_uid() -> bytes:
     """Return a new unique identifier.
 
     The identifier is random and composed of UID_SIZE ascii characters.
