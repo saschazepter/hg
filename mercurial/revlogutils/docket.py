@@ -220,35 +220,37 @@ class RevlogDocket:
             if include_empty or size > 0:
                 yield self._filepath(FileType.SIDEDATA, uuid)
 
+    def get_end(self, file_type: FileType) -> int:
+        return self._ends[file_type]
+
+    def set_end(self, file_type: FileType, new_size: int) -> None:
+        if new_size != self._ends[file_type]:
+            self._ends[file_type] = new_size
+            self._dirty = True
+
     @property
     def index_end(self) -> int:
-        return self._ends[FileType.INDEX]
+        return self.get_end(FileType.INDEX)
 
     @index_end.setter
     def index_end(self, new_size: int) -> None:
-        if new_size != self._ends[FileType.INDEX]:
-            self._ends[FileType.INDEX] = new_size
-            self._dirty = True
+        self.set_end(FileType.INDEX, new_size)
 
     @property
     def data_end(self) -> int:
-        return self._ends[FileType.DATA]
+        return self.get_end(FileType.DATA)
 
     @data_end.setter
     def data_end(self, new_size: int) -> None:
-        if new_size != self._ends[FileType.DATA]:
-            self._ends[FileType.DATA] = new_size
-            self._dirty = True
+        self.set_end(FileType.DATA, new_size)
 
     @property
-    def sidedata_end(self):
-        return self._ends[FileType.SIDEDATA]
+    def sidedata_end(self) -> int:
+        return self.get_end(FileType.SIDEDATA)
 
     @sidedata_end.setter
-    def sidedata_end(self, new_size):
-        if new_size != self._ends[FileType.SIDEDATA]:
-            self._ends[FileType.SIDEDATA] = new_size
-            self._dirty = True
+    def sidedata_end(self, new_size: int) -> None:
+        self.set_end(FileType.SIDEDATA, new_size)
 
     def write(
         self, transaction, pending: bool = False, stripping: bool = False
