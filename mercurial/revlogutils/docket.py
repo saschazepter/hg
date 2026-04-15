@@ -123,20 +123,21 @@ class RevlogDocket:
         assert index_end <= pending_index_end
         assert data_end <= pending_data_end
         assert sidedata_end <= pending_sidedata_end
-        self._initial_index_end = index_end
-        self._pending_index_end = pending_index_end
-        self._initial_data_end = data_end
-        self._pending_data_end = pending_data_end
-        self._initial_sidedata_end = sidedata_end
-        self._pending_sidedata_end = pending_sidedata_end
+
+        self._initial_ends: dict[FileType, int] = {
+            FileType.INDEX: index_end,
+            FileType.DATA: data_end,
+            FileType.SIDEDATA: sidedata_end,
+        }
+        self._pending_ends: dict[FileType, int] = {
+            FileType.INDEX: pending_index_end,
+            FileType.DATA: pending_data_end,
+            FileType.SIDEDATA: pending_sidedata_end,
+        }
         if use_pending:
-            self._index_end = self._pending_index_end
-            self._data_end = self._pending_data_end
-            self._sidedata_end = self._pending_sidedata_end
+            self._ends: dict[FileType, int] = self._pending_ends.copy()
         else:
-            self._index_end = self._initial_index_end
-            self._data_end = self._initial_data_end
-            self._sidedata_end = self._initial_sidedata_end
+            self._ends: dict[FileType, int] = self._initial_ends.copy()
         self.default_compression_header = default_compression_header
 
     def docket_path(self) -> HgPathT:
@@ -157,7 +158,7 @@ class RevlogDocket:
         """switch index file to a new UID
 
         The previous index UID is moved to the "older" list."""
-        old = (self._index_uuid, self._index_end)
+        old = (self._index_uuid, self._ends[FileType.INDEX])
         self._older_index_uuids.insert(0, old)
         self._index_uuid = make_uid()
         return self.index_filepath()
@@ -180,7 +181,7 @@ class RevlogDocket:
         """switch data file to a new UID
 
         The previous data UID is moved to the "older" list."""
-        old = (self._data_uuid, self._data_end)
+        old = (self._data_uuid, self._ends[FileType.DATA])
         self._older_data_uuids.insert(0, old)
         self._data_uuid = make_uid()
         return self.data_filepath()
@@ -205,7 +206,7 @@ class RevlogDocket:
         """switch sidedata file to a new UID
 
         The previous sidedata UID is moved to the "older" list."""
-        old = (self._sidedata_uuid, self._sidedata_end)
+        old = (self._sidedata_uuid, self._ends[FileType.SIDEDATA])
         self._older_sidedata_uuids.insert(0, old)
         self._sidedata_uuid = make_uid()
         return self.sidedata_filepath()
@@ -221,32 +222,32 @@ class RevlogDocket:
 
     @property
     def index_end(self) -> int:
-        return self._index_end
+        return self._ends[FileType.INDEX]
 
     @index_end.setter
     def index_end(self, new_size: int) -> None:
-        if new_size != self._index_end:
-            self._index_end = new_size
+        if new_size != self._ends[FileType.INDEX]:
+            self._ends[FileType.INDEX] = new_size
             self._dirty = True
 
     @property
     def data_end(self) -> int:
-        return self._data_end
+        return self._ends[FileType.DATA]
 
     @data_end.setter
     def data_end(self, new_size: int) -> None:
-        if new_size != self._data_end:
-            self._data_end = new_size
+        if new_size != self._ends[FileType.DATA]:
+            self._ends[FileType.DATA] = new_size
             self._dirty = True
 
     @property
     def sidedata_end(self):
-        return self._sidedata_end
+        return self._ends[FileType.SIDEDATA]
 
     @sidedata_end.setter
     def sidedata_end(self, new_size):
-        if new_size != self._sidedata_end:
-            self._sidedata_end = new_size
+        if new_size != self._ends[FileType.SIDEDATA]:
+            self._ends[FileType.SIDEDATA] = new_size
             self._dirty = True
 
     def write(
@@ -274,17 +275,17 @@ class RevlogDocket:
 
     def _serialize(self, pending: bool = False) -> bytes:
         if pending:
-            official_index_end = self._initial_index_end
-            official_data_end = self._initial_data_end
-            official_sidedata_end = self._initial_sidedata_end
+            official_index_end = self._initial_ends[FileType.INDEX]
+            official_data_end = self._initial_ends[FileType.DATA]
+            official_sidedata_end = self._initial_ends[FileType.SIDEDATA]
         else:
-            official_index_end = self._index_end
-            official_data_end = self._data_end
-            official_sidedata_end = self._sidedata_end
+            official_index_end = self._ends[FileType.INDEX]
+            official_data_end = self._ends[FileType.DATA]
+            official_sidedata_end = self._ends[FileType.SIDEDATA]
 
         # this assert should be True as long as we have a single index filename
-        assert official_data_end <= self._data_end
-        assert official_sidedata_end <= self._sidedata_end
+        assert official_data_end <= self._ends[FileType.DATA]
+        assert official_sidedata_end <= self._ends[FileType.SIDEDATA]
         data = (
             self._version_header,
             len(self._index_uuid),
@@ -294,11 +295,11 @@ class RevlogDocket:
             len(self._sidedata_uuid),
             len(self._older_sidedata_uuids),
             official_index_end,
-            self._index_end,
+            self._ends[FileType.INDEX],
             official_data_end,
-            self._data_end,
+            self._ends[FileType.DATA],
             official_sidedata_end,
-            self._sidedata_end,
+            self._ends[FileType.SIDEDATA],
             self.default_compression_header,
         )
         s = []
