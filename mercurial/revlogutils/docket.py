@@ -110,11 +110,16 @@ class RevlogDocket:
         self._radix = radix
         self._path = file_path
         self._opener = vfs
-        self._index_uuid = index_uuid
+        self._uuids: dict[FileType, bytes] = {}
+        if index_uuid is not None:
+            self._uuids[FileType.INDEX] = index_uuid
+        if data_uuid is not None:
+            self._uuids[FileType.DATA] = data_uuid
+        if sidedata_uuid is not None:
+            self._uuids[FileType.SIDEDATA] = sidedata_uuid
+
         self._older_index_uuids = older_index_uuids
-        self._data_uuid = data_uuid
         self._older_data_uuids = older_data_uuids
-        self._sidedata_uuid = sidedata_uuid
         self._older_sidedata_uuids = older_sidedata_uuids
         assert not set(older_index_uuids) & set(older_data_uuids)
         assert not set(older_data_uuids) & set(older_sidedata_uuids)
@@ -147,20 +152,23 @@ class RevlogDocket:
     def _filepath(self, file_type: FileType, uuid: bytes) -> bytes:
         return file_path(file_type, self._radix, uuid)
 
+    def filepath(self, file_type: FileType) -> bytes:
+        if self._uuids.get(file_type) is None:
+            self._uuids[file_type] = make_uid()
+        return self._filepath(file_type, self._uuids[file_type])
+
     def index_filepath(self) -> HgPathT:
         """file path to the current index file associated to this docket"""
         # very simplistic version at first
-        if self._index_uuid is None:
-            self._index_uuid = make_uid()
-        return self._filepath(FileType.INDEX, self._index_uuid)
+        return self.filepath(FileType.INDEX)
 
     def new_index_file(self) -> HgPathT:
         """switch index file to a new UID
 
         The previous index UID is moved to the "older" list."""
-        old = (self._index_uuid, self._ends[FileType.INDEX])
+        old = (self._uuids[FileType.INDEX], self._ends[FileType.INDEX])
         self._older_index_uuids.insert(0, old)
-        self._index_uuid = make_uid()
+        self._uuids[FileType.INDEX] = make_uid()
         return self.index_filepath()
 
     def old_index_filepaths(self, include_empty=True) -> Iterator[HgPathT]:
@@ -173,18 +181,16 @@ class RevlogDocket:
     def data_filepath(self) -> HgPathT:
         """file path to the current data file associated to this docket"""
         # very simplistic version at first
-        if self._data_uuid is None:
-            self._data_uuid = make_uid()
-        return self._filepath(FileType.DATA, self._data_uuid)
+        return self.filepath(FileType.DATA)
 
     def new_data_file(self) -> HgPathT:
         """switch data file to a new UID
 
         The previous data UID is moved to the "older" list."""
-        old = (self._data_uuid, self._ends[FileType.DATA])
+        old = (self._uuids[FileType.DATA], self._ends[FileType.DATA])
         self._older_data_uuids.insert(0, old)
-        self._data_uuid = make_uid()
-        return self.data_filepath()
+        self._uuids[FileType.DATA] = make_uid()
+        return self.filepath(FileType.DATA)
 
     def old_data_filepaths(
         self, include_empty: int = True
@@ -198,18 +204,16 @@ class RevlogDocket:
     def sidedata_filepath(self) -> HgPathT:
         """file path to the current sidedata file associated to this docket"""
         # very simplistic version at first
-        if self._sidedata_uuid is None:
-            self._sidedata_uuid = make_uid()
-        return self._filepath(FileType.SIDEDATA, self._sidedata_uuid)
+        return self.filepath(FileType.SIDEDATA)
 
     def new_sidedata_file(self) -> HgPathT:
         """switch sidedata file to a new UID
 
         The previous sidedata UID is moved to the "older" list."""
-        old = (self._sidedata_uuid, self._ends[FileType.SIDEDATA])
+        old = (self._uuids[FileType.SIDEDATA], self._ends[FileType.SIDEDATA])
         self._older_sidedata_uuids.insert(0, old)
-        self._sidedata_uuid = make_uid()
-        return self.sidedata_filepath()
+        self._uuids[FileType.SIDEDATA] = make_uid()
+        return self.filepath(FileType.SIDEDATA)
 
     def old_sidedata_filepaths(
         self, include_empty: bool = True
@@ -290,11 +294,11 @@ class RevlogDocket:
         assert official_sidedata_end <= self._ends[FileType.SIDEDATA]
         data = (
             self._version_header,
-            len(self._index_uuid),
+            len(self._uuids[FileType.INDEX]),
             len(self._older_index_uuids),
-            len(self._data_uuid),
+            len(self._uuids[FileType.DATA]),
             len(self._older_data_uuids),
-            len(self._sidedata_uuid),
+            len(self._uuids[FileType.SIDEDATA]),
             len(self._older_sidedata_uuids),
             official_index_end,
             self._ends[FileType.INDEX],
@@ -307,19 +311,19 @@ class RevlogDocket:
         s = []
         s.append(S_HEADER.pack(*data))
 
-        s.append(self._index_uuid)
+        s.append(self._uuids[FileType.INDEX])
         for u, size in self._older_index_uuids:
             s.append(S_OLD_UID.pack(len(u), size))
         for u, size in self._older_index_uuids:
             s.append(u)
 
-        s.append(self._data_uuid)
+        s.append(self._uuids[FileType.DATA])
         for u, size in self._older_data_uuids:
             s.append(S_OLD_UID.pack(len(u), size))
         for u, size in self._older_data_uuids:
             s.append(u)
 
-        s.append(self._sidedata_uuid)
+        s.append(self._uuids[FileType.SIDEDATA])
         for u, size in self._older_sidedata_uuids:
             s.append(S_OLD_UID.pack(len(u), size))
         for u, size in self._older_sidedata_uuids:
