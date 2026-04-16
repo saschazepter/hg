@@ -116,6 +116,8 @@ _configsectionitems = [
 _envre = re.compile(
     br'''\A(?:
     CHGHG
+    |CHGCGROUP
+    |CHGNAMESPACES
     |HG(?:DEMANDIMPORT|EMITWARNINGS|(MODULE|ZSTD)POLICY|PROF|RCPATH)?
     |HG(?:ENCODING|PLAIN).*
     |LANG(?:UAGE)?
@@ -604,6 +606,11 @@ class chgcmdserver(commandserver.server):
         # receive EOF.
         globaloldios = self._oldios
         self._oldios = []
+        # Drop CHG* environment variables set in chg.c whose only purpose is to
+        # affect the confighash, to avoid leaking them to child processes.
+        for var in (b'CHGCGROUP', b'CHGNAMESPACES'):
+            if var in encoding.environ:
+                del encoding.environ[var]
         try:
             return super().runcommand()
         finally:

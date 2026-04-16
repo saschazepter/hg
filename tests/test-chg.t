@@ -618,3 +618,56 @@ Same test but the chg server is initially started outside any repo:
   $ chg debugconf --source profiling.enabled
   $HGRCPATH:*: true (glob)
   $ cd ..
+
+cgroup isolation
+----------------
+
+Test cgroup isolation by explicitly setting the CHGCGROUP env var.
+See test-chg-isolation.t for tests that create real cgroups.
+
+  $ chg --kill-chg-daemon
+  $ CHGCGROUP=cgroup1 CHGDEBUG= chg status 2>&1 | grep 'start'
+  chg: debug: * start cmdserver at * (glob)
+
+Running again with the same cgroup value shares the server
+
+  $ CHGCGROUP=cgroup1 CHGDEBUG= chg status 2>&1 | grep 'start'
+  [1]
+
+Running with a different cgroup value starts a new server
+
+  $ CHGCGROUP=cgroup2 CHGDEBUG= chg status 2>&1 | grep 'start'
+  chg: debug: * start cmdserver at * (glob)
+
+namespace isolation
+-------------------
+
+Test namespace isolation by explicitly setting the CHGNAMESPACES env var.
+See test-chg-isolation.t for tests that create real namespaces.
+
+  $ chg --kill-chg-daemon
+  $ CHGNAMESPACES=ns1 CHGDEBUG= chg status 2>&1 | grep 'start'
+  chg: debug: * start cmdserver at * (glob)
+
+Running again with the same namespace value shares the server
+
+  $ CHGNAMESPACES=ns1 CHGDEBUG= chg status 2>&1 | grep 'start'
+  [1]
+
+Running with a different namespace value starts a new server
+
+  $ CHGNAMESPACES=ns2 CHGDEBUG= chg status 2>&1 | grep 'start'
+  chg: debug: * start cmdserver at * (glob)
+
+cgroup and namespace env vars
+-----------------------------
+
+The CHGCGROUP and CHGNAMESPACES variables do not leak into the child process.
+
+  $ chg --kill-chg-daemon
+  $ CHGCGROUP=cgroup1 chg --config 'alias.echo=!echo ${CHGCGROUP-absent}' echo 2>/dev/null
+  absent
+
+  $ chg --kill-chg-daemon
+  $ CHGNAMESPACES=ns1 chg --config 'alias.echo=!echo ${CHGNAMESPACES-absent}' echo 2>/dev/null
+  absent

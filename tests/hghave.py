@@ -899,6 +899,20 @@ def has_debdeps():
     return matchoutput('dpkg-checkbuilddeps %s' % path, br'')
 
 
+@check("systemd-run", "systemd-run available")
+def has_systemd_run():
+    return matchoutput(
+        'systemd-run --version', br'systemd [0-9]+'
+    ) and matchoutput('systemd-run --user --scope echo hghave', br'hghave')
+
+
+@check("linux-unshare", "unshare from util-linux available")
+def has_unshare():
+    return matchoutput(
+        'unshare --version', br'unshare from util-linux'
+    ) and matchoutput('unshare --user echo hghave', br'hghave')
+
+
 @check("demandimport", "demandimport enabled")
 def has_demandimport():
     # chg disables demandimport intentionally for performance wins.

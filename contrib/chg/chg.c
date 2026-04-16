@@ -485,6 +485,30 @@ static void execoriginalhg(const char *argv[])
 		abortmsgerrno("failed to exec original hg");
 }
 
+/*
+ * Read the first max_size - 1 bytes from a file in procfs. Returns a
+ * null-terminated buffer the caller must free. Returns NULL on error.
+ */
+static char *read_procfs_file(const char *path, size_t max_size)
+{
+	int fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return NULL;
+	char *buf = malloc(max_size);
+	if (!buf)
+		return NULL;
+	/* No need to loop, since there cannot be a short read on procfs apart
+	 * from EOF. See signal(7), "Interruption of system calls and library
+	 * functions by signal handlers", which guarantees that EINTR only
+	 * happens on "slow" devices. */
+	ssize_t n = read(fd, buf, max_size - 1);
+	close(fd);
+	if (n < 0)
+		return NULL;
+	buf[n] = '\0';
+	return buf;
+}
+
 int main(int argc, const char *argv[])
 {
 	if (getenv("CHGDEBUG"))
@@ -523,6 +547,54 @@ int main(int argc, const char *argv[])
 	 * */
 	if (setenv("CHGHG", gethgcmd(), 1) != 0)
 		abortmsgerrno("failed to setenv");
+
+	/* Set $CHGCGROUP to avoid using servers in different cgroups (unless
+	 * already set, which we do in tests). We set it to the contents of
+	 * /proc/self/cgroup, if it exists. This works for both v1 and v2. It
+	 * might be overly granular for v1 cgroups, which can have many entries,
+	 * but it's much simpler than parsing the file. */
+	char *cgroup = read_procfs_file("/proc/self/cgroup", 16 * 1024);
+	if (cgroup) {
+		if (setenv("CHGCGROUP", cgroup, 0) != 0)
+			abortmsgerrno("failed to setenv");
+		free(cgroup);
+	}
+
+	/* Set $CHGNAMESPACES to avoid using servers in different namespaces.
+	 * (unless already set, which we do in tests). We set it to a string
+	 * containing symlink values from /proc/self/ns, if that directory
+	 * exists. We hardcode the nstypes instead of listing the directory for
+	 * simplicity, so we don't need to skip "." and ".." or sort results.
+	 * Also, we don't want to include the X_for_children namespaces, since
+	 * they should be the same as X, and if they weren't then the confighash
+	 * system wouldn't be sufficient anyway (e.g. would probably need to
+	 * compare client pid with server pid_for_children). */
+	static const char *nstypes[] = {
+	    "cgroup", "ipc", "mnt", "net", "pid", "time", "user", "uts",
+	};
+	int nsfd = open("/proc/self/ns", O_RDONLY | O_DIRECTORY);
+	if (nsfd != -1) {
+		char buf[4096];
+		size_t pos = 0;
+		for (size_t i = 0; i < sizeof(nstypes) / sizeof(nstypes[0]);
+		     i++) {
+			char target[256];
+			ssize_t len = readlinkat(nsfd, nstypes[i], target,
+			                         sizeof(target));
+			if (len < 0)
+				continue;
+			int r = snprintf(buf + pos, sizeof(buf) - pos, "%.*s;",
+			                 (int)len, target);
+			if (r < 0 || (size_t)r >= sizeof(buf) - pos)
+				break;
+			pos += r;
+		}
+		close(nsfd);
+		if (pos > 0) {
+			if (setenv("CHGNAMESPACES", buf, 0) != 0)
+				abortmsgerrno("failed to setenv");
+		}
+	}
 
 	hgclient_t *hgc;
 	size_t retry = 0;
