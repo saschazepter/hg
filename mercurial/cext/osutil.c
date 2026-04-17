@@ -1139,6 +1139,14 @@ static const char *describefstype(const struct statfs *pbuf)
 	if (pbuf->f_type == XFS_SUPER_MAGIC)
 		return "xfs";
 #endif
+#ifndef ZFS_SUPER_MAGIC
+/* ZFS is maintained out-of-tree, so doesn't always appear in the relevant header files */
+#define ZFS_SUPER_MAGIC 0x2fc12fc1l
+#endif
+#ifdef ZFS_SUPER_MAGIC
+	if (pbuf->f_type == ZFS_SUPER_MAGIC)
+		return "zfs";
+#endif
 	/* End of Linux filesystems */
 	return NULL;
 }
