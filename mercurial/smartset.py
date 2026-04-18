@@ -812,15 +812,19 @@ class generatorset(abstractsmartset):
     When asked for membership it generates values until either it finds the
     requested one or has gone through all the elements in the generator
 
-    >>> xs = generatorset([0, 1, 4], iterasc=True)
+    >>> xs = generatorset([0, 1, 4], iterasc=True, preserve_order=True)
     >>> list(xs)
     [0, 1, 4]
     >>> xs.last()  # cached
     4
 
+    It is recommended to pass preserve_order=True. This may become the default
+    in the future. For legacy reasons, the default is False, which is equivalent
+    to passing True followed by calling sort().
+
     Slicing:
 
-    >>> xs = generatorset([1, 3, 9], iterasc=True)
+    >>> xs = generatorset([1, 3, 9], iterasc=True, preserve_order=True)
     >>> list(xs.slice(0, 0))
     []
     >>> list(xs.slice(0, 3))
@@ -836,15 +840,25 @@ class generatorset(abstractsmartset):
 
     If iterasc is incorrect, the result will be wrong:
 
-    >>> xs = generatorset([0, 2, 1], iterasc=True)
-    >>> xs.sort()  # the default
+    >>> xs = generatorset([0, 2, 1], iterasc=True, preserve_order=True)
+    >>> xs.sort()  # no-op
     >>> list(xs)
     [0, 2, 1]
     >>> list(xs)  # cached
     [0, 2, 1]
+
+    Passing preserve_order=False is equivalent to calling sort():
+
+    >>> list(generatorset([0, 2, 1], preserve_order=False))
+    [0, 1, 2]
     """
 
-    def __new__(cls, gen, iterasc: bool | None = None):
+    def __new__(
+        cls,
+        gen,
+        iterasc: bool | None = None,
+        preserve_order: bool = False,
+    ):
         if iterasc is None:
             typ = cls
         elif iterasc:
@@ -854,10 +868,18 @@ class generatorset(abstractsmartset):
 
         return super().__new__(typ)
 
-    def __init__(self, gen, iterasc: bool | None = None):
+    def __init__(
+        self,
+        gen,
+        iterasc: bool | None = None,
+        preserve_order: bool = False,
+    ):
         """
         gen: a generator producing the values for the generatorset.
         iterasc: True if gen is ascending, False if descending, None if unknown
+        preserve_order: True to yield values in the same order as gen;
+            otherwise, yields values in ascending order (note that if iterasc
+            is not True, this requires exhausting gen before yielding anything)
         """
         # Make sure self._gen is an iterator, not an iterable. Otherwise, each
         # _consumegen would operate on an fresh iterator from the start.
@@ -866,11 +888,10 @@ class generatorset(abstractsmartset):
         self._cache = {}
         self._genlist = []
         self._finished = False
-        # Regardless of iterasc, we output values in ascending order by default.
-        # This means iteration must exhaust gen before yielding the first value
-        # if iterasc is None, or if it's False and you don't call reverse().
-        # TODO: Improve this situation.
-        self._ascending = True
+        if preserve_order:
+            self._ascending = iterasc
+        else:
+            self._ascending = True
 
     def __nonzero__(self) -> bool:
         # Do not use 'for r in self' because it will enforce the iteration
@@ -897,6 +918,8 @@ class generatorset(abstractsmartset):
         return False
 
     def __iter__(self) -> Iterator[RevnumT]:
+        if self._ascending is None:
+            return self._iterator()
         if self._ascending:
             it = self.fastasc
         else:
@@ -946,14 +969,18 @@ class generatorset(abstractsmartset):
             yield item
         if not self._finished:
             self._finished = True
+        # Only sort _genlist if we need to. If sort() is called later, it will
+        # find that fastasc/fastdesc are None and call _consumegen() again.
+        if self._ascending is not None:
             self._set_fast_methods()
 
     def _set_fast_methods(self):
-        asc = self._genlist[:]
-        asc.sort()
-        self._asclist = asc
-        self.fastasc = asc.__iter__
-        self.fastdesc = asc.__reversed__
+        if self._asclist is None:
+            asc = self._genlist[:]
+            asc.sort()
+            self._asclist = asc
+            self.fastasc = asc.__iter__
+            self.fastdesc = asc.__reversed__
 
     def __len__(self) -> int:
         for x in self._consumegen():
@@ -964,20 +991,28 @@ class generatorset(abstractsmartset):
         self._ascending = not reverse
 
     def reverse(self):
-        self._ascending = not self._ascending
+        if self._ascending is None:
+            for x in self._consumegen():
+                pass
+            # make a copy to avoid intefering with ongoing iterations
+            self._genlist = self._genlist[::-1]
+        else:
+            self._ascending = not self._ascending
 
     def isascending(self) -> bool:
-        return self._ascending
+        return self._ascending is not None and self._ascending
 
     def isdescending(self) -> bool:
-        return not self._ascending
+        return self._ascending is not None and not self._ascending
 
     def istopo(self) -> bool:
         # We don't know if the generator is in topographical order.
         return False
 
     def first(self) -> RevnumT | None:
-        if self._ascending:
+        if self._ascending is None:
+            it = self._iterator
+        elif self._ascending:
             it = self.fastasc
         else:
             it = self.fastdesc
@@ -989,6 +1024,12 @@ class generatorset(abstractsmartset):
         return next(it(), None)
 
     def last(self) -> RevnumT | None:
+        if self._ascending is None:
+            for x in self._consumegen():
+                pass
+            if self._genlist:
+                return self._genlist[-1]
+            return None
         if self._ascending:
             it = self.fastdesc
         else:
@@ -1002,7 +1043,7 @@ class generatorset(abstractsmartset):
 
     @encoding.strmethod
     def __repr__(self) -> bytes:
-        d = {False: b'-', True: b'+'}[self._ascending]
+        d = {None: b'~', False: b'-', True: b'+'}[self._ascending]
         return b'<%s%s>' % (_typename(self), d)
 
 
