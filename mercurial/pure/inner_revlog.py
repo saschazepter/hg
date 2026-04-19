@@ -660,10 +660,10 @@ class BaseInnerRevlog(abc.ABC):
         """Returns the current offset in the (in-transaction) data file."""
 
     @abc.abstractmethod
-    def write_entry(
+    def add_entry(
         self,
         transaction: TransactionT,
-        entry: bytes,
+        entry: tuple,
         data: bytes,
         link: RevnumT,
         sidedata: bytes,
@@ -708,6 +708,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         self,
         opener: vfsmod.vfs,
         target: tuple[int, bytes],
+        index_header: int,
         index_data,
         index_file,
         index_parser,
@@ -745,6 +746,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         self.data_file = data_file
         self._orig_index_file = None
         self._delay_buffer = None
+        self._index_header = index_header
 
     def check_size(self) -> tuple[int, int]:
         """Check size of index and data files
@@ -874,10 +876,10 @@ class InnerRevlogV1(BaseInnerRevlog):
         """Returns the current offset in the (in-transaction) data file."""
         return self.end(len(self.index) - 1)
 
-    def write_entry(
+    def add_entry(
         self,
         transaction: TransactionT,
-        entry: bytes,
+        entry: tuple,
         data: bytes,
         link: RevnumT,
         sidedata: bytes,
@@ -905,24 +907,30 @@ class InnerRevlogV1(BaseInnerRevlog):
 
         offset = self.next_data_offset()
 
-        curr = len(self.index) - 1
+        curr = len(self.index)
+        self.index.append(entry)
+        bin_entry = self.index.entry_binary(curr)
+        if curr == 0:
+            header = self.index.pack_header(self._index_header)
+            bin_entry = header + bin_entry
+
         if not self.inline:
             transaction.add(self.data_file, offset)
-            transaction.add(self.canonical_index_file, curr * len(entry))
+            transaction.add(self.canonical_index_file, curr * len(bin_entry))
             if data[0]:
                 dfh.write(data[0])
             dfh.write(data[1])
             if self._delay_buffer is None:
-                ifh.write(entry)
+                ifh.write(bin_entry)
             else:
-                self._delay_buffer.append(entry)
+                self._delay_buffer.append(bin_entry)
         elif self._delay_buffer is not None:
             msg = b'invalid delayed write on inline revlog'
             raise error.ProgrammingError(msg)
         else:
             offset += curr * self.index.entry_size
             transaction.add(self.canonical_index_file, offset)
-            ifh.write(entry)
+            ifh.write(bin_entry)
             ifh.write(data[0])
             ifh.write(data[1])
 
@@ -1000,6 +1008,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         finally:
             if new_dfh is not None:
                 new_dfh.close()
+        self._index_header = header
         return self.index_file
 
     @property
@@ -1359,10 +1368,10 @@ class InnerRevlogV2(BaseInnerRevlog):
         """Returns the current offset in the (in-transaction) data file."""
         return self.docket.data_end
 
-    def write_entry(
+    def add_entry(
         self,
         transaction: TransactionT,
-        entry: bytes,
+        entry: tuple,
         data: bytes,
         link: int,
         sidedata: bytes,
@@ -1388,19 +1397,22 @@ class InnerRevlogV2(BaseInnerRevlog):
         dfh.seek(self.docket.data_end, os.SEEK_SET)
         sdfh.seek(self.docket.sidedata_end, os.SEEK_SET)
 
-        curr = len(self.index) - 1
+        curr = len(self.index)
         transaction.add(self.docket.data_filepath(), self.docket.data_end)
         transaction.add(
             self.docket.sidedata_filepath(),
             self.docket.sidedata_end,
         )
-        transaction.add(self.docket.index_filepath(), curr * len(entry))
+        self.index.append(entry)
+        bin_entry = self.index.entry_binary(curr)
+        transaction.add(self.docket.index_filepath(), curr * len(bin_entry))
+
         if data[0]:
             dfh.write(data[0])
         dfh.write(data[1])
         if sidedata:
             sdfh.write(sidedata)
-        ifh.write(entry)
+        ifh.write(bin_entry)
         self.docket.index_end = ifh.tell()
         self.docket.data_end = dfh.tell()
         self.docket.sidedata_end = sdfh.tell()

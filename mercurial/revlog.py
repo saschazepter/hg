@@ -798,6 +798,7 @@ class revlog:
                     self._inner = py_inner.InnerRevlogV1(
                         opener=self.opener,
                         target=self.target,
+                        index_header=self._format_flags | self._format_version,
                         index_data=index_data,
                         index_file=files["index"],
                         index_parser=self._parse_index,
@@ -2505,15 +2506,9 @@ class revlog:
             rank=rank,
         )
 
-        self.index.append(e)
-        entry = self.index.entry_binary(curr)
-        if curr == 0 and self._inner.docket is None:
-            header = self._format_flags | self._format_version
-            header = self.index.pack_header(header)
-            entry = header + entry
-        self._inner.write_entry(
+        self._inner.add_entry(
             transaction,
-            entry,
+            e,
             deltainfo.data,
             link,
             sdata,

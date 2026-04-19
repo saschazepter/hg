@@ -74,7 +74,7 @@ impl RandomAccessFile {
             // Use a file handle being actively used for writes, if available.
             // There is some danger to doing this because reads will seek the
             // file.
-            // However, [`Revlog::write_entry`] performs a `SeekFrom::End(0)`
+            // However, [`Revlog::add_entry`] performs a `SeekFrom::End(0)`
             // before all writes, so we should be safe.
             return Ok(handle);
         }
@@ -83,7 +83,7 @@ impl RandomAccessFile {
             // Use a file handle being actively used for writes, if available.
             // There is some danger to doing this because reads will seek the
             // file.
-            // However, [`Revlog::write_entry`] performs a `SeekFrom::End(0)`
+            // However, [`Revlog::add_entry`] performs a `SeekFrom::End(0)`
             // before all writes, so we should be safe.
             return Ok(handle);
         }

@@ -776,10 +776,10 @@ impl InnerRevlog {
         _link,
         _sidedata,
     ))]
-    fn write_entry(
+    fn add_entry(
         slf: &Bound<'_, Self>,
         transaction: Py<PyAny>,
-        entry: &Bound<'_, PyBytes>,
+        entry: &Bound<'_, PyTuple>,
         data: &Bound<'_, PyTuple>,
         // TODO remove and also from Python
         _link: Py<PyAny>,
@@ -787,14 +787,15 @@ impl InnerRevlog {
         _sidedata: Py<PyAny>,
     ) -> PyResult<()> {
         Self::with_core_write(slf, |_self_ref, mut irl| {
+            let entry = py_tuple_to_revision_data_params(entry)?;
             let transaction = PyTransaction::new(transaction);
             let header = data.get_borrowed_item(0)?;
             let header = header.cast::<PyBytes>()?;
             let data = data.get_borrowed_item(1)?;
             let data = data.cast::<PyBytes>()?;
-            irl.write_entry(
+            irl.add_entry(
                 transaction,
-                entry.as_bytes(),
+                entry,
                 (header.as_bytes(), data.as_bytes()),
             )
             .map_err(revlog_error_from_io)?;

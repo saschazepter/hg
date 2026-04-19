@@ -1395,13 +1395,16 @@ impl InnerRevlog {
     /// - `entry` is the index bytes
     /// - `header_and_data` is the compression header and the revision data
     /// - `offset` is the position in the data file to write to
-    pub fn write_entry(
+    pub fn add_entry(
         &mut self,
         mut transaction: impl Transaction,
-        entry: &[u8],
+        entry: RevisionDataParams,
         header_and_data: (&[u8], &[u8]),
     ) -> Result<(), HgError> {
-        let current_revision = self.len() - 1;
+        let current_revision = self.len();
+        self.index_append(entry)?;
+        let entry = self.index.entry_binary(Revision(u_i32(current_revision)));
+
         let canonical_index_file = self.canonical_index_file();
         let mut offset = self.next_data_offset();
 
@@ -1430,8 +1433,10 @@ impl InnerRevlog {
 
         if !is_inline {
             transaction.add(&self.data_file, offset);
-            transaction
-                .add(&canonical_index_file, current_revision * entry.len());
+            transaction.add(
+                &canonical_index_file,
+                current_revision * INDEX_ENTRY_SIZE,
+            );
             let data_handle = data_handle
                 .as_mut()
                 .expect("data handle should exist when not inline");
@@ -1441,13 +1446,22 @@ impl InnerRevlog {
             data_handle.write_all(data)?;
             match &mut self.delayed_buffer {
                 Some(buf) => {
-                    buf.lock()
-                        .expect("propagate the panic")
-                        .buffer
-                        .write_all(entry)
+                    let b =
+                        &mut buf.lock().expect("propagate the panic").buffer;
+                    if current_revision == 0 {
+                        b.write_all(&self.index.header.header_bytes)
+                            .expect("write to delay buffer should succeed")
+                    }
+                    b.write_all(entry)
                         .expect("write to delay buffer should succeed");
                 }
-                None => index_handle.write_all(entry)?,
+                None => {
+                    if current_revision == 0 {
+                        index_handle
+                            .write_all(&self.index.header.header_bytes)?;
+                    }
+                    index_handle.write_all(entry)?;
+                }
             }
         } else if self.delayed_buffer.is_some() {
             return Err(HgError::abort(
@@ -1456,8 +1470,11 @@ impl InnerRevlog {
                 None,
             ));
         } else {
-            offset += current_revision * entry.len();
+            offset += current_revision * INDEX_ENTRY_SIZE;
             transaction.add(&canonical_index_file, offset);
+            if current_revision == 0 {
+                index_handle.write_all(&self.index.header.header_bytes)?;
+            }
             index_handle.write_all(entry)?;
             index_handle.write_all(header)?;
             index_handle.write_all(data)?;
