@@ -276,6 +276,8 @@ impl RevisionDataParams {
 
 /// A Revlog index
 pub struct Index {
+    /// The index header, which must not change for the life of this index
+    pub(super) header: IndexHeader,
     bytes: IndexData<DynBytes<'static>>,
     /// Offsets of starts of index blocks.
     /// Only needed when the index is interleaved with data.
@@ -381,6 +383,7 @@ impl Index {
 
             if offset == bytes.len() {
                 Ok(Self {
+                    header,
                     bytes: IndexData::new(bytes),
                     offsets: RwLock::new(Some(offsets)),
                     uses_generaldelta,
@@ -395,6 +398,7 @@ impl Index {
             }
         } else {
             Ok(Self {
+                header,
                 bytes: IndexData::new(bytes),
                 offsets: RwLock::new(None),
                 uses_generaldelta,
