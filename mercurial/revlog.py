@@ -698,7 +698,6 @@ class revlog:
         self._format_flags = init_data.format_flags
         self._docket = init_data.docket
         self._inline = init_data.inline
-        self.docket = init_data.docket
         self._nodemap_file = init_data.files.get("nodemap")
 
         self._load_inner(init_data.index_data, init_data.files)
@@ -716,13 +715,9 @@ class revlog:
                 self.opener,
                 self.radix,
             )
-            index_data, files = revlog_init.load_secondary_files(
-                self.opener,
-                self.configs,
-                self.display_id,
-                docket,
-            )
-            self._nodemap_file = files.get("nodemap")
+            files = {}
+            index_data = None
+            assert self._nodemap_file is None
         else:
             init_data = revlog_init.load_entry_point(
                 vfs=self.opener,
@@ -737,8 +732,6 @@ class revlog:
             assert init_data.docket is None
             assert init_data.files.get("index") is not None
             assert init_data.files.get("data") is not None
-            assert init_data.files.get("nodemap") is None
-            assert init_data.files.get("sidedata") is None
             index_data = init_data.index_data
             files = init_data.files
 
@@ -776,6 +769,7 @@ class revlog:
             elif use_rust_index:
                 msg = b"rust does support encoding: %s" % vfs.filter_name
                 raise error.ProgrammingError(msg)
+            assert index_data is not None
             self._inner = rustrevlog.InnerRevlog(
                 vfs_base=vfs.base,
                 vfs_is_readonly=not vfs.read_write,
@@ -794,6 +788,7 @@ class revlog:
         else:
             try:
                 if docket is None:
+                    assert index_data is not None
                     self._inner = py_inner.InnerRevlogV1(
                         opener=self.opener,
                         target=self.target,
@@ -805,16 +800,14 @@ class revlog:
                         configs=self.configs,
                     )
                 else:
+                    assert index_data is None
                     self._inner = py_inner.InnerRevlogV2(
                         opener=self.opener,
+                        radix=self.radix,
                         target=self.target,
-                        index_data=index_data,
-                        index_file=files["index"],
+                        docket=self._docket,
                         index_parser=self._parse_index,
-                        data_file=files["data"],
-                        sidedata_file=files["sidedata"],
                         configs=self.configs,
-                        default_compression_header=docket.default_compression_header,
                     )
             except py_inner.CorruptedRevlogError:
                 raise error.RevlogError(

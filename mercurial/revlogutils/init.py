@@ -41,7 +41,7 @@ class _RevlogInit:
     format_version = attr.ib(type=int)
     format_flags = attr.ib(type=int)
     files = attr.ib(type=Dict[str, Optional[bytes]])
-    index_data = attr.ib(type=bytes)
+    index_data = attr.ib(type=Optional[bytes])
     inline = attr.ib(default=False, type=bool)
     docket = attr.ib(default=None, type=docketutil.RevlogDocket)
 
@@ -196,13 +196,6 @@ def load_entry_point(
         compute_rank = opts.get(b'changelogv2.compute-rank', True)
         configs.feature.compute_rank = compute_rank
 
-    if configs.feature.persistent_nodemap:
-        files["nodemap"] = nodemaputil.get_nodemap_file(
-            vfs,
-            radix,
-            try_pending=try_pending,
-        )
-
     if not features['docket']:
         files["index"] = entry_point
         if postfix is None:
@@ -210,7 +203,14 @@ def load_entry_point(
         else:
             files["data"] = b'%s.d.%s' % (radix, postfix)
         index_data = entry_data
+        if configs.feature.persistent_nodemap:
+            files["nodemap"] = nodemaputil.get_nodemap_file(
+                vfs,
+                radix,
+                try_pending=try_pending,
+            )
     else:
+        index_data = None
         files["docket"] = entry_point
         if initempty:
             docket = docketutil.default_docket(
@@ -228,10 +228,12 @@ def load_entry_point(
                 entry_data,
                 use_pending=try_pending,
             )
-        index_data, other_files = load_secondary_files(
-            vfs, configs, display_id, docket
-        )
-        files.update(other_files)
+            # generaldelta implied by version 2 revlogs.
+            configs.delta.general_delta = True
+            configs.data.generaldelta = True
+            # the logic for persistent nodemap will be dealt with within the
+            # main docket, so disable it for now.
+            configs.feature.persistent_nodemap = False
 
     configs.finalize()
     return _RevlogInit(
@@ -242,45 +244,6 @@ def load_entry_point(
         inline=inline,
         docket=docket,
     )
-
-
-def load_secondary_files(vfs, configs, display_id, docket):
-    """init-method: process a docket to initialize secondary files
-
-    Returns the index data.
-
-    This method is part of the initialization sequence. That initialization
-    sequence is cut into multiple methods for clarity.
-    """
-    if docket is None:
-        msg = "can't load secondary file without a docket"
-        raise error.ProgrammingError(msg)
-    files = {}
-    files["index"] = docket.index_filepath()
-    index_data = b''
-    index_size = docket.index_end
-    if index_size > 0:
-        index_data = vfs.tryread(
-            files["index"],
-            configs.data.mmap_index_threshold,
-            size=index_size,
-        )
-        if len(index_data) < index_size:
-            msg = _(b'too few index data for %s: got %d, expected %d')
-            msg %= (display_id, len(index_data), index_size)
-            raise error.RevlogError(msg)
-
-    # generaldelta implied by version 2 revlogs.
-    configs.delta.general_delta = True
-    configs.data.generaldelta = True
-    # the logic for persistent nodemap will be dealt with within the
-    # main docket, so disable it for now.
-    files["nodemap"] = None
-    configs.feature.persistent_nodemap = False
-
-    files["data"] = docket.data_filepath()
-    files["sidedata"] = docket.sidedata_filepath()
-    return index_data, files
 
 
 def use_rust_index(

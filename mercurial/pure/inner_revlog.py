@@ -29,10 +29,15 @@ from ..revlogutils.constants import (
     COMP_MODE_DEFAULT,
     COMP_MODE_INLINE,
     COMP_MODE_PLAIN,
+    KIND_FILELOG,
     KIND_MANIFESTLOG,
     REVIDX_DELTA_IS_SNAPSHOT,
 )
 from ..interfaces import compression as i_comp
+
+from ..revlogutils import (
+    docket as docket_mod,
+)
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -1092,34 +1097,58 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     def __init__(
         self,
+        *,
         opener: vfsmod.vfs,
+        radix: bytes,
         target: tuple[int, bytes],
-        index_data,
-        index_file,
+        docket: docket_mod.RevlogDocket,
         index_parser,
-        data_file,
-        sidedata_file,
         configs: revlog_config.RevlogConfigs,
-        default_compression_header: i_comp.RevlogCompHeader,
     ):
+        self.target = target
+        self.radix = radix
+
+        index_data = b''
+        index_size = docket.index_end
+        if index_size > 0:
+            index_data = opener.tryread(
+                docket.index_filepath(),
+                configs.data.mmap_index_threshold,
+                size=index_size,
+            )
+            if len(index_data) < index_size:
+                msg = _(b'too few index bytes for %s: got %d, expected %d')
+                msg %= (self.display_id, len(index_data), index_size)
+                raise error.RevlogError(msg)
+
         super().__init__(
             opener=opener,
             target=target,
             index_parser=index_parser,
             index_data=index_data,
-            index_file=index_file,
-            data_file=data_file,
+            index_file=docket.index_filepath(),
+            data_file=docket.data_filepath(),
             inline=False,
             configs=configs,
         )
 
-        self.sidedata_file = sidedata_file
+        self.sidedata_file = docket.sidedata_filepath()
         self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
             self.opener,
             self.sidedata_file,
             self.data_config.chunk_cache_size,
         )
-        self._default_compression_header = default_compression_header
+        self._default_compression_header = docket.default_compression_header
+
+    @util.propertycache
+    def display_id(self):
+        """The public facing "ID" of the revlog that we use in message"""
+        if self.target[0] == KIND_FILELOG:
+            # Reference the file without the "data/" prefix, so it is familiar
+            # to the user.
+            return self.target[1]
+        else:
+            return self.radix
 
     def check_size(self) -> tuple[int, int]:
         """Check size of index and data files
