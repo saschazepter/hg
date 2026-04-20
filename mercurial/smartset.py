@@ -961,9 +961,7 @@ class generatorset(abstractsmartset):
         return not self._ascending
 
     def istopo(self) -> bool:
-        # not worth the trouble asserting if the two sets combined are still
-        # in topographical order. Use the sort() predicate to explicitly sort
-        # again instead.
+        # We don't know if the generator is in topographical order.
         return False
 
     def first(self) -> RevnumT | None:
