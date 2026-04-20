@@ -94,6 +94,9 @@ def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
 class RevlogDocket:
     """metadata associated with revlog"""
 
+    # short hand to avoid having to import the module all around
+    FT = FileType
+
     def __init__(
         self,
         vfs,
@@ -185,33 +188,15 @@ class RevlogDocket:
         # very simplistic version at first
         return self.filepath(FileType.INDEX)
 
-    def new_index_file(self) -> HgPathT:
-        """switch index file to a new UID
-
-        The previous index UID is moved to the "older" list."""
-        return self.new_filepath(FileType.INDEX)
-
     def data_filepath(self) -> HgPathT:
         """file path to the current data file associated to this docket"""
         # very simplistic version at first
         return self.filepath(FileType.DATA)
 
-    def new_data_file(self) -> HgPathT:
-        """switch data file to a new UID
-
-        The previous data UID is moved to the "older" list."""
-        return self.new_filepath(FileType.DATA)
-
     def sidedata_filepath(self) -> HgPathT:
         """file path to the current sidedata file associated to this docket"""
         # very simplistic version at first
         return self.filepath(FileType.SIDEDATA)
-
-    def new_sidedata_file(self) -> HgPathT:
-        """switch sidedata file to a new UID
-
-        The previous sidedata UID is moved to the "older" list."""
-        return self.new_filepath(FileType.SIDEDATA)
 
     def get_end(self, file_type: FileType) -> int:
         return self._ends[file_type]

@@ -292,13 +292,19 @@ def _setup_new_files(
     `old_index` object if the caller function.
     """
     docket = revlog._docket
-    old_index_filepath = revlog.opener.join(docket.index_filepath())
-    old_data_filepath = revlog.opener.join(docket.data_filepath())
-    old_sidedata_filepath = revlog.opener.join(docket.sidedata_filepath())
+    old_index_filepath = revlog.opener.join(docket.filepath(docket.FT.INDEX))
+    old_data_filepath = revlog.opener.join(docket.filepath(docket.FT.DATA))
+    old_sidedata_filepath = revlog.opener.join(
+        docket.filepath(docket.FT.SIDEDATA)
+    )
 
-    new_index_filepath = revlog.opener.join(docket.new_index_file())
-    new_data_filepath = revlog.opener.join(docket.new_data_file())
-    new_sidedata_filepath = revlog.opener.join(docket.new_sidedata_file())
+    new_index_filepath = revlog.opener.join(
+        docket.new_filepath(docket.FT.INDEX)
+    )
+    new_data_filepath = revlog.opener.join(docket.new_filepath(docket.FT.DATA))
+    new_sidedata_filepath = revlog.opener.join(
+        docket.new_filepath(docket.FT.SIDEDATA)
+    )
 
     util.copyfile(old_index_filepath, new_index_filepath, nb_bytes=index_cutoff)
     util.copyfile(old_data_filepath, new_data_filepath, nb_bytes=data_cutoff)
