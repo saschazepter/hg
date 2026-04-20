@@ -812,11 +812,9 @@ class generatorset(abstractsmartset):
     When asked for membership it generates values until either it finds the
     requested one or has gone through all the elements in the generator
 
-    TODO: Fix bug below, list should be [0, 1, 4].
-
     >>> xs = generatorset([0, 1, 4], iterasc=True)
     >>> list(xs)
-    [0, 1, 4, 0, 1, 4]
+    [0, 1, 4]
     >>> xs.last()  # cached
     4
 
@@ -851,7 +849,9 @@ class generatorset(abstractsmartset):
         """
         gen: a generator producing the values for the generatorset.
         """
-        self._gen = gen
+        # Make sure self._gen is an iterator, not an iterable. Otherwise, each
+        # _consumegen would operate on an fresh iterator from the start.
+        self._gen = iter(gen)
         self._asclist = None
         self._cache = {}
         self._genlist = []
