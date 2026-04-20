@@ -833,6 +833,16 @@ class generatorset(abstractsmartset):
     []
     >>> list(xs.slice(2, 5))
     [9]
+
+    If iterasc is incorrect, the result will be wrong for the first iteration,
+    but it will be sorted after that:
+
+    >>> xs = generatorset([0, 2, 1], iterasc=True)
+    >>> xs.sort()  # the default
+    >>> list(xs)
+    [0, 2, 1]
+    >>> list(xs)  # cached
+    [0, 1, 2]
     """
 
     def __new__(cls, gen, iterasc: bool | None = None):
