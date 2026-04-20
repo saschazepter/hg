@@ -2513,7 +2513,7 @@ class revlog:
 
         self._inner.add_entry(
             transaction,
-            e.as_tuple(),
+            e,
             deltainfo.data,
             link,
             sdata,

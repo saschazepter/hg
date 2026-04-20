@@ -49,6 +49,7 @@ if typing.TYPE_CHECKING:
 from .. import (
     error,
     mdiff,
+    revlogutils,
     util,
     vfs as vfsmod,
 )
@@ -663,7 +664,7 @@ class BaseInnerRevlog(abc.ABC):
     def add_entry(
         self,
         transaction: TransactionT,
-        entry: tuple,
+        entry: revlogutils.RevlogEntry,
         data: bytes,
         link: RevnumT,
         sidedata: bytes,
@@ -879,7 +880,7 @@ class InnerRevlogV1(BaseInnerRevlog):
     def add_entry(
         self,
         transaction: TransactionT,
-        entry: tuple,
+        entry: revlogutils.RevlogEntry,
         data: bytes,
         link: RevnumT,
         sidedata: bytes,
@@ -908,7 +909,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         offset = self.next_data_offset()
 
         curr = len(self.index)
-        self.index.append(entry)
+        self.index.append(entry.as_tuple())
         bin_entry = self.index.entry_binary(curr)
         if curr == 0:
             header = self.index.pack_header(self._index_header)
@@ -1378,7 +1379,7 @@ class InnerRevlogV2(BaseInnerRevlog):
     def add_entry(
         self,
         transaction: TransactionT,
-        entry: tuple,
+        entry: revlogutils.RevlogEntry,
         data: bytes,
         link: int,
         sidedata: bytes,
@@ -1413,7 +1414,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.docket.filepath(self.docket.FT.SIDEDATA),
             self.docket.get_end(self.docket.FT.SIDEDATA),
         )
-        self.index.append(entry)
+        self.index.append(entry.as_tuple())
         bin_entry = self.index.entry_binary(curr)
         transaction.add(
             self.docket.filepath(self.docket.FT.INDEX), curr * len(bin_entry)

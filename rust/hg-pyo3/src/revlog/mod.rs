@@ -779,15 +779,17 @@ impl InnerRevlog {
     fn add_entry(
         slf: &Bound<'_, Self>,
         transaction: Py<PyAny>,
-        entry: &Bound<'_, PyTuple>,
+        entry: &Bound<'_, PyAny>,
         data: &Bound<'_, PyTuple>,
         // TODO remove and also from Python
         _link: Py<PyAny>,
         // Other underscore args are for revlog-v2, which is unimplemented
         _sidedata: Py<PyAny>,
     ) -> PyResult<()> {
+        let tup: Bound<'_, PyAny> = entry.call_method0("as_tuple")?;
+        let entry_tup: &Bound<'_, PyTuple> = tup.cast()?;
         Self::with_core_write(slf, |_self_ref, mut irl| {
-            let entry = py_tuple_to_revision_data_params(entry)?;
+            let entry = py_tuple_to_revision_data_params(entry_tup)?;
             let transaction = PyTransaction::new(transaction);
             let header = data.get_borrowed_item(0)?;
             let header = header.cast::<PyBytes>()?;
