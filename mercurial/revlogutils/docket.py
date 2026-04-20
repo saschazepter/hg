@@ -38,26 +38,37 @@ make_uid = docket_mod.make_uid
 
 # Docket format
 #
-# * 4 bytes: revlog version
-#          |   This is mandatory as docket must be compatible with the previous
-#          |   revlog index header.
-# * 1 bytes: size of index uuid
-# * 1 bytes: number of outdated index uuid
-# * 1 bytes: size of data uuid
-# * 1 bytes: number of outdated data uuid
-# * 1 bytes: size of sizedata uuid
-# * 1 bytes: number of outdated data uuid
-# * 8 bytes: size of index-data
-# * 8 bytes: pending size of index-data
-# * 8 bytes: size of data
-# * 8 bytes: size of sidedata
-# * 8 bytes: pending size of data
-# * 8 bytes: pending size of sidedata
-# * 1 bytes: default compression header
-S_HEADER = struct.Struct(constants.INDEX_HEADER_FMT + b'BBBBBBQQQQQQc')
-# * 1 bytes: size of index uuid
-# * 8 bytes: size of file
-S_OLD_UID = struct.Struct('>BL')
+# Fixed size header:
+S_HEADER = struct.Struct(
+    # * 4 bytes: revlog version
+    #          |   This is mandatory as docket must be compatible with the
+    #          |    previous revlog index header.
+    constants.INDEX_HEADER_FMT
+    # * 1 byte:  default compression header
+    + b's'
+    # * 1 byte:  number of current uuids (A)
+    + b'B'
+    # * 1 byte:  number of pending uuids (B)
+    + b'B'
+    # * 1 byte:  number of outdated uuids (C)
+    + b'B'
+)
+# "current" section:
+# * A groups of:
+#   * 1 byte:  file type for each entry
+#   * 8 bytes: size for each entry
+#   * UID_SIZE bytes: uuis for each entry
+#
+# * B groups of:
+#   * 1 byte:  file type for each ENTRY
+#   * 8 bytes: size for each entry
+#   * UID_SIZE bytes: uuis for each entry
+S_ENTRY = struct.Struct('>BQ%ds' % docket_mod.UID_SIZE)  # and U bytes
+# "outdated" section:
+# * C group of:
+#   * 1 byte:  file type for each ENTRYy
+#   * UID_SIZE bytes: uuis for each entry
+S_OLD_ENTRY = struct.Struct('>B%ds' % docket_mod.UID_SIZE)  # and U bytes
 
 UidT = int
 
@@ -91,17 +102,15 @@ class RevlogDocket:
         use_pending=False,
         version_header=None,
         index_uuid=None,
-        older_index_uuids=None,
         data_uuid=None,
-        older_data_uuids=None,
         sidedata_uuid=None,
-        older_sidedata_uuids=None,
         index_end=0,
         pending_index_end=0,
         data_end=0,
         pending_data_end=0,
         sidedata_end=0,
         pending_sidedata_end=0,
+        outdated_uuids=None,
         default_compression_header=None,
     ):
         self._version_header = version_header
@@ -118,20 +127,9 @@ class RevlogDocket:
         if sidedata_uuid is not None:
             self._uuids[FileType.SIDEDATA] = sidedata_uuid
 
-        if older_index_uuids is None:
-            older_index_uuids = []
-        if older_data_uuids is None:
-            older_data_uuids = []
-        if older_sidedata_uuids is None:
-            older_sidedata_uuids = []
-        assert not set(older_index_uuids) & set(older_data_uuids)
-        assert not set(older_data_uuids) & set(older_sidedata_uuids)
-        assert not set(older_index_uuids) & set(older_sidedata_uuids)
-        self._older_uuids: dict[FileType, list[tuple[bytes, int]]] = {
-            FileType.INDEX: older_index_uuids,
-            FileType.DATA: older_data_uuids,
-            FileType.SIDEDATA: older_sidedata_uuids,
-        }
+        if outdated_uuids is None:
+            outdated_uuids = []
+        self._outdated_uuids: list[tuple[FileType, bytes]] = outdated_uuids
 
         # thes asserts should be True as long as we have a single index filename
         assert index_end <= pending_index_end
@@ -170,15 +168,16 @@ class RevlogDocket:
         """switch index file to a new UID
 
         The previous index UID is moved to the "older" list."""
-        old = (self._uuids[file_type], self._ends[file_type])
-        self._older_uuids[file_type].insert(0, old)
+        # XXX if the old size is 0, we could skip adding it and delete it on
+        # XXX the spot.
+        self._outdated_uuids.append((file_type, self._uuids[file_type]))
         self._uuids[file_type] = make_uid()
         return self.filepath(file_type)
 
     def old_filepaths(self) -> Iterator[HgPathT]:
         """yield file path to older index files associated to this docket"""
         # very simplistic version at first
-        for file_type, (uuid, size) in sorted(self._older_uuids.items()):
+        for file_type, uuid in self._outdated_uuids:
             yield self._filepath(file_type, uuid)
 
     def index_filepath(self) -> HgPathT:
@@ -271,53 +270,37 @@ class RevlogDocket:
 
     def _serialize(self, pending: bool = False) -> bytes:
         if pending:
-            official_index_end = self._initial_ends[FileType.INDEX]
-            official_data_end = self._initial_ends[FileType.DATA]
-            official_sidedata_end = self._initial_ends[FileType.SIDEDATA]
+            ends = self._initial_ends
         else:
-            official_index_end = self._ends[FileType.INDEX]
-            official_data_end = self._ends[FileType.DATA]
-            official_sidedata_end = self._ends[FileType.SIDEDATA]
+            ends = self._ends
 
         # this assert should be True as long as we have a single index filename
-        assert official_data_end <= self._ends[FileType.DATA]
-        assert official_sidedata_end <= self._ends[FileType.SIDEDATA]
+        assert ends[FileType.INDEX] <= self._ends[FileType.INDEX]
+        assert ends[FileType.DATA] <= self._ends[FileType.DATA]
+        assert ends[FileType.SIDEDATA] <= self._ends[FileType.SIDEDATA]
         data = (
             self._version_header,
-            len(self._uuids[FileType.INDEX]),
-            len(self._older_uuids[FileType.INDEX]),
-            len(self._uuids[FileType.DATA]),
-            len(self._older_uuids[FileType.DATA]),
-            len(self._uuids[FileType.SIDEDATA]),
-            len(self._older_uuids[FileType.SIDEDATA]),
-            official_index_end,
-            self._ends[FileType.INDEX],
-            official_data_end,
-            self._ends[FileType.DATA],
-            official_sidedata_end,
-            self._ends[FileType.SIDEDATA],
             self.default_compression_header,
+            # currently fixed to index, data, sidedata
+            3,
+            3,
+            len(self._outdated_uuids),
         )
         s = []
         s.append(S_HEADER.pack(*data))
 
-        s.append(self._uuids[FileType.INDEX])
-        for u, size in self._older_uuids[FileType.INDEX]:
-            s.append(S_OLD_UID.pack(len(u), size))
-        for u, size in self._older_uuids[FileType.INDEX]:
-            s.append(u)
+        for ft in (FileType.INDEX, FileType.DATA, FileType.SIDEDATA):
+            uuid = self._uuids[ft]
+            size = ends.get(ft, 0)
+            s.append(S_ENTRY.pack(int(ft), size, uuid))
 
-        s.append(self._uuids[FileType.DATA])
-        for u, size in self._older_uuids[FileType.DATA]:
-            s.append(S_OLD_UID.pack(len(u), size))
-        for u, size in self._older_uuids[FileType.DATA]:
-            s.append(u)
+        for ft in (FileType.INDEX, FileType.DATA, FileType.SIDEDATA):
+            uuid = self._uuids[ft]
+            size = self._ends.get(ft, ends.get(ft, 0))
+            s.append(S_ENTRY.pack(int(ft), size, uuid))
 
-        s.append(self._uuids[FileType.SIDEDATA])
-        for u, size in self._older_uuids[FileType.SIDEDATA]:
-            s.append(S_OLD_UID.pack(len(u), size))
-        for u, size in self._older_uuids[FileType.SIDEDATA]:
-            s.append(u)
+        for ft, uuid in self._outdated_uuids:
+            s.append(S_OLD_ENTRY.pack(ft, uuid))
         return b''.join(s)
 
 
@@ -344,19 +327,6 @@ def default_docket(
     return docket
 
 
-def _parse_old_uids(get_data, count) -> list[tuple[bytes, UidT]]:
-    all_sizes = []
-    all_uids = []
-    for i in range(0, count):
-        raw = get_data(S_OLD_UID.size)
-        all_sizes.append(S_OLD_UID.unpack(raw))
-
-    for uid_size, file_size in all_sizes:
-        uid = get_data(uid_size)
-        all_uids.append((uid, file_size))
-    return all_uids
-
-
 def parse_docket_args(data) -> dict:
     """given some docket data return the argument to initialize a docket"""
     header = S_HEADER.unpack(data[: S_HEADER.size])
@@ -378,53 +348,35 @@ def parse_docket_args(data) -> dict:
     iheader = iter(header)
 
     version_header = next(iheader)
-
-    index_uuid_size = next(iheader)
-    index_uuid = get_data(index_uuid_size)
-
-    older_index_uuid_count = next(iheader)
-    older_index_uuids = _parse_old_uids(get_data, older_index_uuid_count)
-
-    data_uuid_size = next(iheader)
-    data_uuid = get_data(data_uuid_size)
-
-    older_data_uuid_count = next(iheader)
-    older_data_uuids = _parse_old_uids(get_data, older_data_uuid_count)
-
-    sidedata_uuid_size = next(iheader)
-    sidedata_uuid = get_data(sidedata_uuid_size)
-
-    older_sidedata_uuid_count = next(iheader)
-    older_sidedata_uuids = _parse_old_uids(get_data, older_sidedata_uuid_count)
-
-    index_size = next(iheader)
-
-    pending_index_size = next(iheader)
-
-    data_size = next(iheader)
-
-    pending_data_size = next(iheader)
-
-    sidedata_size = next(iheader)
-
-    pending_sidedata_size = next(iheader)
-
     default_compression_header = next(iheader)
+
+    current_count = next(iheader)
+    pending_count = next(iheader)
+    outdated_count = next(iheader)
+
+    current_data = {}
+    assert current_count == 3
+    for __ in range(0, current_count):
+        ft, end, uuid = S_ENTRY.unpack(get_data(S_ENTRY.size))
+        current_data[ft] = (end, uuid)
+
+    pending_data = {}
+    assert pending_count == 3
+    for __ in range(0, pending_count):
+        ft, end, uuid = S_ENTRY.unpack(get_data(S_ENTRY.size))
+        pending_data[ft] = (end, uuid)
+
+    older_uuids = []
+    for __ in range(outdated_count):
+        ft, uuid = S_OLD_ENTRY.unpack(get_data(S_OLD_ENTRY.size))
+        older_uuids.append((ft, uuid))
+
     return {
         'version_header': version_header,
-        'index_uuid': index_uuid,
-        'older_index_uuids': older_index_uuids,
-        'data_uuid': data_uuid,
-        'older_data_uuids': older_data_uuids,
-        'sidedata_uuid': sidedata_uuid,
-        'older_sidedata_uuids': older_sidedata_uuids,
-        'index_end': index_size,
-        'pending_index_end': pending_index_size,
-        'data_end': data_size,
-        'pending_data_end': pending_data_size,
-        'sidedata_end': sidedata_size,
-        'pending_sidedata_end': pending_sidedata_size,
         'default_compression_header': default_compression_header,
+        'current': current_data,
+        'pending': pending_data,
+        'outdated_uuids': older_uuids,
     }
 
 
@@ -443,18 +395,16 @@ def parse_docket(
         file_path,
         use_pending=use_pending,
         version_header=args['version_header'],
-        index_uuid=args['index_uuid'],
-        older_index_uuids=args['older_index_uuids'],
-        data_uuid=args['data_uuid'],
-        older_data_uuids=args['older_data_uuids'],
-        sidedata_uuid=args['sidedata_uuid'],
-        older_sidedata_uuids=args['older_sidedata_uuids'],
-        index_end=args['index_end'],
-        pending_index_end=args['pending_index_end'],
-        data_end=args['data_end'],
-        pending_data_end=args['pending_data_end'],
-        sidedata_end=args['sidedata_end'],
-        pending_sidedata_end=args['pending_sidedata_end'],
         default_compression_header=args['default_compression_header'],
+        index_uuid=args['current'][FileType.INDEX][1],
+        data_uuid=args['current'][FileType.DATA][1],
+        sidedata_uuid=args['current'][FileType.SIDEDATA][1],
+        index_end=args['current'][FileType.INDEX][0],
+        data_end=args['current'][FileType.DATA][0],
+        sidedata_end=args['current'][FileType.SIDEDATA][0],
+        pending_index_end=args['pending'][FileType.INDEX][0],
+        pending_data_end=args['pending'][FileType.DATA][0],
+        pending_sidedata_end=args['pending'][FileType.SIDEDATA][0],
+        outdated_uuids=args['outdated_uuids'],
     )
     return docket
