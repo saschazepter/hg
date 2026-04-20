@@ -812,8 +812,11 @@ class generatorset(abstractsmartset):
     When asked for membership it generates values until either it finds the
     requested one or has gone through all the elements in the generator
 
+    TODO: Fix bug below, list should be [0, 1, 4].
+
     >>> xs = generatorset([0, 1, 4], iterasc=True)
-    >>> assert xs.last() == xs.last()
+    >>> list(xs)
+    [0, 1, 4, 0, 1, 4]
     >>> xs.last()  # cached
     4
 
