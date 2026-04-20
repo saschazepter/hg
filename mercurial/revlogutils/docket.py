@@ -183,21 +183,6 @@ class RevlogDocket:
         for file_type, uuid in self._outdated_uuids:
             yield self._filepath(file_type, uuid)
 
-    def index_filepath(self) -> HgPathT:
-        """file path to the current index file associated to this docket"""
-        # very simplistic version at first
-        return self.filepath(FileType.INDEX)
-
-    def data_filepath(self) -> HgPathT:
-        """file path to the current data file associated to this docket"""
-        # very simplistic version at first
-        return self.filepath(FileType.DATA)
-
-    def sidedata_filepath(self) -> HgPathT:
-        """file path to the current sidedata file associated to this docket"""
-        # very simplistic version at first
-        return self.filepath(FileType.SIDEDATA)
-
     def get_end(self, file_type: FileType) -> int:
         return self._ends[file_type]
 
