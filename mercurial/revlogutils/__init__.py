@@ -66,7 +66,14 @@ EntryTupleT = Tuple[
 
 @attr.s(slots=True)
 class RevlogEntry:
-    """Information ready to be added to an index"""
+    """Information ready to be added to an index
+
+    This is useful to abstract the actual detail of how we build the entry
+    tuple for caller who don't care about it.
+
+    This should always be called using keyword arguments. Some arguments have
+    default value, this match the value used by index version that does not
+    store such data."""
 
     data_compressed_length = attr.ib(type=int)
     data_delta_base = attr.ib(type=RevnumT)
@@ -102,49 +109,6 @@ class RevlogEntry:
             self.sidedata_compression_mode,
             self.rank,
         )
-
-
-def entry(
-    data_offset: int,
-    data_compressed_length: int,
-    data_delta_base: RevnumT,
-    link_rev: RevnumT,
-    parent_rev_1: RevnumT,
-    parent_rev_2: RevnumT,
-    node_id: NodeIdT,
-    flags: int = 0,
-    data_uncompressed_length: int | None = None,
-    data_compression_mode: CompModeT = COMP_MODE_INLINE,
-    sidedata_offset: int = 0,
-    sidedata_compressed_length: int = 0,
-    sidedata_compression_mode: CompModeT = COMP_MODE_INLINE,
-    rank: int = RANK_UNKNOWN,
-) -> EntryTupleT:
-    """Build one entry from symbolic name
-
-    This is useful to abstract the actual detail of how we build the entry
-    tuple for caller who don't care about it.
-
-    This should always be called using keyword arguments. Some arguments have
-    default value, this match the value used by index version that does not
-    store such data.
-    """
-    return RevlogEntry(
-        data_compressed_length=data_compressed_length,
-        data_delta_base=data_delta_base,
-        link_rev=link_rev,
-        parent_rev_1=parent_rev_1,
-        parent_rev_2=parent_rev_2,
-        node_id=node_id,
-        data_offset=data_offset,
-        flags=flags,
-        data_uncompressed_length=data_uncompressed_length,
-        data_compression_mode=data_compression_mode,
-        sidedata_offset=sidedata_offset,
-        sidedata_compressed_length=sidedata_compressed_length,
-        sidedata_compression_mode=sidedata_compression_mode,
-        rank=rank,
-    ).as_tuple()
 
 
 @attr.s(slots=True)

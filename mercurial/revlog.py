@@ -2494,7 +2494,7 @@ class revlog:
                 self._inner.docket.FT.SIDEDATA
             )
 
-        e = revlogutils.entry(
+        e = revlogutils.RevlogEntry(
             flags=flags,
             data_offset=self._inner.next_data_offset(),
             data_compressed_length=deltainfo.deltalen,
@@ -2513,7 +2513,7 @@ class revlog:
 
         self._inner.add_entry(
             transaction,
-            e,
+            e.as_tuple(),
             deltainfo.data,
             link,
             sdata,

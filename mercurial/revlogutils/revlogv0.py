@@ -43,7 +43,7 @@ def gettype(q):
 class revlogoldindex(list):
     rust_ext_compat = 0
     entry_size = INDEX_ENTRY_V0.size
-    null_item = revlogutils.entry(
+    null_item = revlogutils.RevlogEntry(
         data_offset=0,
         data_compressed_length=0,
         data_delta_base=node.nullrev,
@@ -51,7 +51,7 @@ class revlogoldindex(list):
         parent_rev_1=node.nullrev,
         parent_rev_2=node.nullrev,
         node_id=sha1nodeconstants.nullid,
-    )
+    ).as_tuple()
 
     @util.propertycache
     def _nodemap(self):
@@ -234,7 +234,7 @@ def parse_index_v0(data, inline, uses_generaldelta, uses_delta_info):
         off += s
         e = INDEX_ENTRY_V0.unpack(cur)
         # transform to revlogv1 format
-        e2 = revlogutils.entry(
+        e2 = revlogutils.RevlogEntry(
             data_offset=e[0],
             data_compressed_length=e[1],
             data_delta_base=e[2],
@@ -243,7 +243,7 @@ def parse_index_v0(data, inline, uses_generaldelta, uses_delta_info):
             parent_rev_2=nodemap.get(e[5], node.nullrev),
             node_id=e[6],
         )
-        index.append(e2)
+        index.append(e2.as_tuple())
         nodemap[e[6]] = n
         n += 1
 

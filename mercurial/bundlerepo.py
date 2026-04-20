@@ -126,7 +126,7 @@ class bundlerevlog(revlog.revlog):
                     _(b'unknown delta base'),
                 )
 
-            e = revlogutils.entry(
+            e = revlogutils.RevlogEntry(
                 flags=deltadata.flags,
                 data_offset=start,
                 data_compressed_length=size,
@@ -137,7 +137,7 @@ class bundlerevlog(revlog.revlog):
                 parent_rev_2=self.rev(deltadata.p2),
                 node_id=deltadata.node,
             )
-            self.index.append(e)
+            self.index.append(e.as_tuple())
             self.bundlerevs.add(n)
             n += 1
 

@@ -403,7 +403,7 @@ def _rewrite_simple(
 
     p1, p2 = old_index.parents(rev)
 
-    new_entry = revlogutils.entry(
+    new_entry = revlogutils.RevlogEntry(
         flags=old_index.flags(rev),
         data_offset=new_data_offset,
         data_compressed_length=new_data_size,
@@ -418,7 +418,7 @@ def _rewrite_simple(
         data_compression_mode=d_comp_mode,
         sidedata_compression_mode=sd_com_mode,
     )
-    revlog.index.append(new_entry)
+    revlog.index.append(new_entry.as_tuple())
     entry_bin = revlog.index.entry_binary(rev)
     new_index_file.write(entry_bin)
 
@@ -452,7 +452,7 @@ def _rewrite_censor(
 
     p1, p2 = old_index.parents(rev)
 
-    new_entry = revlogutils.entry(
+    new_entry = revlogutils.RevlogEntry(
         flags=constants.REVIDX_ISCENSORED,
         data_offset=new_data_offset,
         data_compressed_length=new_data_size,
@@ -466,7 +466,7 @@ def _rewrite_censor(
         sidedata_compressed_length=0,
         data_compression_mode=COMP_MODE_PLAIN,
         sidedata_compression_mode=COMP_MODE_PLAIN,
-    )
+    ).as_tuple()
     revlog.index.append(new_entry)
     entry_bin = revlog.index.entry_binary(rev)
     new_index_file.write(entry_bin)
@@ -1016,7 +1016,7 @@ def quick_upgrade(rl):
         if filerev in revs_with_snapshot:
             flags |= constants.REVIDX_DELTA_IS_SNAPSHOT
 
-        e = revlogutils.entry(
+        e = revlogutils.RevlogEntry(
             flags=flags,
             data_offset=dataoffset,
             data_compressed_length=data_compressed_length,
@@ -1032,7 +1032,7 @@ def quick_upgrade(rl):
             sidedata_compression_mode=sidedata_compression_mode,
             rank=rank,
         )
-        new_index.append(e)
+        new_index.append(e.as_tuple())
 
     # write data
     index_file = cast(py_inner.InnerRevlogV1, rl._inner).index_file
