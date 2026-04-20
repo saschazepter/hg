@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Protocol,
     TYPE_CHECKING,
+    Tuple,
 )
 
 from ..thirdparty import attr
@@ -33,7 +34,8 @@ from ..interfaces import (
 )
 
 # See mercurial.revlogutils.constants for doc
-COMP_MODE_INLINE = 2
+CompModeT = int
+COMP_MODE_INLINE: CompModeT = 2
 RANK_UNKNOWN = -1
 
 
@@ -43,22 +45,39 @@ def offset_type(offset, type):
     return int(int(offset) << 16 | type)
 
 
+EntryTupleT = Tuple[
+    int,
+    int,
+    Optional[int],
+    RevnumT,
+    RevnumT,
+    RevnumT,
+    RevnumT,
+    NodeIdT,
+    int,
+    int,
+    CompModeT,
+    CompModeT,
+    int,
+]
+
+
 def entry(
-    data_offset,
-    data_compressed_length,
-    data_delta_base,
-    link_rev,
-    parent_rev_1,
-    parent_rev_2,
-    node_id,
-    flags=0,
-    data_uncompressed_length=None,
-    data_compression_mode=COMP_MODE_INLINE,
-    sidedata_offset=0,
-    sidedata_compressed_length=0,
-    sidedata_compression_mode=COMP_MODE_INLINE,
-    rank=RANK_UNKNOWN,
-):
+    data_offset: int,
+    data_compressed_length: int,
+    data_delta_base: RevnumT,
+    link_rev: RevnumT,
+    parent_rev_1: RevnumT,
+    parent_rev_2: RevnumT,
+    node_id: NodeIdT,
+    flags: int = 0,
+    data_uncompressed_length: int | None = None,
+    data_compression_mode: CompModeT = COMP_MODE_INLINE,
+    sidedata_offset: int = 0,
+    sidedata_compressed_length: int = 0,
+    sidedata_compression_mode: CompModeT = COMP_MODE_INLINE,
+    rank: int = RANK_UNKNOWN,
+) -> EntryTupleT:
     """Build one entry from symbolic name
 
     This is useful to abstract the actual detail of how we build the entry
