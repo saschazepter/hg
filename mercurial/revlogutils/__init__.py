@@ -38,6 +38,8 @@ CompModeT = int
 COMP_MODE_INLINE: CompModeT = 2
 RANK_UNKNOWN = -1
 
+CompModeT = int
+
 
 def offset_type(offset, type):
     if (type & ~repository.REVISION_FLAGS_KNOWN) != 0:
@@ -62,6 +64,46 @@ EntryTupleT = Tuple[
 ]
 
 
+@attr.s(slots=True)
+class RevlogEntry:
+    """Information ready to be added to an index"""
+
+    data_compressed_length = attr.ib(type=int)
+    data_delta_base = attr.ib(type=RevnumT)
+    link_rev = attr.ib(type=RevnumT)
+    parent_rev_1 = attr.ib(type=RevnumT)
+    parent_rev_2 = attr.ib(type=RevnumT)
+    node_id = attr.ib(type=NodeIdT)
+    data_offset = attr.ib(type=int)
+    flags = attr.ib(type=int, default=0)
+    data_uncompressed_length = attr.ib(type=Optional[int], default=None)
+    data_compression_mode = attr.ib(type=CompModeT, default=COMP_MODE_INLINE)
+    sidedata_offset = attr.ib(type=Optional[int], default=0)
+    sidedata_compressed_length = attr.ib(type=int, default=0)
+    sidedata_compression_mode = attr.ib(
+        type=CompModeT,
+        default=COMP_MODE_INLINE,
+    )
+    rank = attr.ib(type=int, default=RANK_UNKNOWN)
+
+    def as_tuple(self) -> EntryTupleT:
+        return (
+            offset_type(self.data_offset, self.flags),
+            self.data_compressed_length,
+            self.data_uncompressed_length,
+            self.data_delta_base,
+            self.link_rev,
+            self.parent_rev_1,
+            self.parent_rev_2,
+            self.node_id,
+            self.sidedata_offset,
+            self.sidedata_compressed_length,
+            self.data_compression_mode,
+            self.sidedata_compression_mode,
+            self.rank,
+        )
+
+
 def entry(
     data_offset: int,
     data_compressed_length: int,
@@ -84,23 +126,25 @@ def entry(
     tuple for caller who don't care about it.
 
     This should always be called using keyword arguments. Some arguments have
-    default value, this match the value used by index version that does not store such data.
+    default value, this match the value used by index version that does not
+    store such data.
     """
-    return (
-        offset_type(data_offset, flags),
-        data_compressed_length,
-        data_uncompressed_length,
-        data_delta_base,
-        link_rev,
-        parent_rev_1,
-        parent_rev_2,
-        node_id,
-        sidedata_offset,
-        sidedata_compressed_length,
-        data_compression_mode,
-        sidedata_compression_mode,
-        rank,
-    )
+    return RevlogEntry(
+        data_compressed_length=data_compressed_length,
+        data_delta_base=data_delta_base,
+        link_rev=link_rev,
+        parent_rev_1=parent_rev_1,
+        parent_rev_2=parent_rev_2,
+        node_id=node_id,
+        data_offset=data_offset,
+        flags=flags,
+        data_uncompressed_length=data_uncompressed_length,
+        data_compression_mode=data_compression_mode,
+        sidedata_offset=sidedata_offset,
+        sidedata_compressed_length=sidedata_compressed_length,
+        sidedata_compression_mode=sidedata_compression_mode,
+        rank=rank,
+    ).as_tuple()
 
 
 @attr.s(slots=True)
