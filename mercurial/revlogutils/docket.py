@@ -175,16 +175,11 @@ class RevlogDocket:
         self._uuids[file_type] = make_uid()
         return self.filepath(file_type)
 
-    def old_filepaths(
-        self,
-        file_type: FileType,
-        include_empty=True,
-    ) -> Iterator[HgPathT]:
+    def old_filepaths(self) -> Iterator[HgPathT]:
         """yield file path to older index files associated to this docket"""
         # very simplistic version at first
-        for uuid, size in self._older_uuids[file_type]:
-            if include_empty or size > 0:
-                yield self._filepath(file_type, uuid)
+        for file_type, (uuid, size) in sorted(self._older_uuids.items()):
+            yield self._filepath(file_type, uuid)
 
     def index_filepath(self) -> HgPathT:
         """file path to the current index file associated to this docket"""
@@ -197,14 +192,6 @@ class RevlogDocket:
         The previous index UID is moved to the "older" list."""
         return self.new_filepath(FileType.INDEX)
 
-    def old_index_filepaths(self, include_empty=True) -> Iterator[HgPathT]:
-        """yield file path to older index files associated to this docket"""
-        # very simplistic version at first
-        yield from self.old_filepaths(
-            FileType.INDEX,
-            include_empty=include_empty,
-        )
-
     def data_filepath(self) -> HgPathT:
         """file path to the current data file associated to this docket"""
         # very simplistic version at first
@@ -216,15 +203,6 @@ class RevlogDocket:
         The previous data UID is moved to the "older" list."""
         return self.new_filepath(FileType.DATA)
 
-    def old_data_filepaths(
-        self, include_empty: int = True
-    ) -> Iterator[HgPathT]:
-        """yield file path to older data files associated to this docket"""
-        yield from self.old_filepaths(
-            FileType.DATA,
-            include_empty=include_empty,
-        )
-
     def sidedata_filepath(self) -> HgPathT:
         """file path to the current sidedata file associated to this docket"""
         # very simplistic version at first
@@ -235,16 +213,6 @@ class RevlogDocket:
 
         The previous sidedata UID is moved to the "older" list."""
         return self.new_filepath(FileType.SIDEDATA)
-
-    def old_sidedata_filepaths(
-        self, include_empty: bool = True
-    ) -> Iterator[HgPathT]:
-        """yield file path to older sidedata files associated to this docket"""
-        # very simplistic version at first
-        yield from self.old_filepaths(
-            FileType.SIDEDATA,
-            include_empty=include_empty,
-        )
 
     def get_end(self, file_type: FileType) -> int:
         return self._ends[file_type]

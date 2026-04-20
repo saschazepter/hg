@@ -1226,16 +1226,12 @@ class InnerRevlogV2(BaseInnerRevlog):
         add_many = res.extend
         add_one(docket.docket_path())
         add_one(docket.index_filepath())
-        if include_old:
-            add_many(docket.old_index_filepaths(include_empty=False))
         if docket.data_end:
             add_one(docket.data_filepath())
-        if include_old:
-            add_many(docket.old_data_filepaths(include_empty=False))
         if docket.sidedata_end:
             add_one(docket.sidedata_filepath())
         if include_old:
-            add_many(docket.old_sidedata_filepaths(include_empty=False))
+            add_many(docket.old_filepaths())
         return res
 
     def clear_cache(self):
