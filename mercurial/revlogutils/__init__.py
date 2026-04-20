@@ -85,7 +85,7 @@ class RevlogEntry:
     flags = attr.ib(type=int, default=0)
     data_uncompressed_length = attr.ib(type=Optional[int], default=None)
     data_compression_mode = attr.ib(type=CompModeT, default=COMP_MODE_INLINE)
-    sidedata_offset = attr.ib(type=Optional[int], default=0)
+    sidedata_offset = attr.ib(type=Optional[int], default=None)
     sidedata_compressed_length = attr.ib(type=int, default=0)
     sidedata_compression_mode = attr.ib(
         type=CompModeT,
@@ -103,7 +103,7 @@ class RevlogEntry:
             self.parent_rev_1,
             self.parent_rev_2,
             self.node_id,
-            self.sidedata_offset,
+            self.sidedata_offset if self.sidedata_offset is not None else 0,
             self.sidedata_compressed_length,
             self.data_compression_mode,
             self.sidedata_compression_mode,

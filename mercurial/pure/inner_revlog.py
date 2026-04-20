@@ -1400,6 +1400,9 @@ class InnerRevlogV2(BaseInnerRevlog):
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
 
+        if sidedata:
+            entry.sidedata_offset = self.docket.get_end(self.docket.FT.SIDEDATA)
+
         ifh, dfh, sdfh = self._writinghandles
         ifh.seek(self.docket.get_end(self.docket.FT.INDEX), os.SEEK_SET)
         dfh.seek(self.docket.get_end(self.docket.FT.DATA), os.SEEK_SET)
