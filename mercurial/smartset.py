@@ -834,15 +834,14 @@ class generatorset(abstractsmartset):
     >>> list(xs.slice(2, 5))
     [9]
 
-    If iterasc is incorrect, the result will be wrong for the first iteration,
-    but it will be sorted after that:
+    If iterasc is incorrect, the result will be wrong:
 
     >>> xs = generatorset([0, 2, 1], iterasc=True)
     >>> xs.sort()  # the default
     >>> list(xs)
     [0, 2, 1]
     >>> list(xs)  # cached
-    [0, 1, 2]
+    [0, 2, 1]
     """
 
     def __new__(cls, gen, iterasc: bool | None = None):
@@ -947,11 +946,14 @@ class generatorset(abstractsmartset):
             yield item
         if not self._finished:
             self._finished = True
-            asc = self._genlist[:]
-            asc.sort()
-            self._asclist = asc
-            self.fastasc = asc.__iter__
-            self.fastdesc = asc.__reversed__
+            self._set_fast_methods()
+
+    def _set_fast_methods(self):
+        asc = self._genlist[:]
+        asc.sort()
+        self._asclist = asc
+        self.fastasc = asc.__iter__
+        self.fastdesc = asc.__reversed__
 
     def __len__(self) -> int:
         for x in self._consumegen():
@@ -1023,6 +1025,10 @@ class _generatorsetasc(generatorset):
         self._cache[x] = False
         return False
 
+    def _set_fast_methods(self):
+        self.fastasc = self._genlist.__iter__
+        self.fastdesc = self._genlist.__reversed__
+
 
 class _generatorsetdesc(generatorset):
     """Special case of generatorset optimized for descending generators."""
@@ -1042,6 +1048,10 @@ class _generatorsetdesc(generatorset):
 
         self._cache[x] = False
         return False
+
+    def _set_fast_methods(self):
+        self.fastasc = self._genlist.__reversed__
+        self.fastdesc = self._genlist.__iter__
 
 
 def spanset(repo: RepoT, start: int = 0, end: int | None = None):
