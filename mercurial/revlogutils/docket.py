@@ -191,30 +191,6 @@ class RevlogDocket:
             self._ends[file_type] = new_size
             self._dirty = True
 
-    @property
-    def index_end(self) -> int:
-        return self.get_end(FileType.INDEX)
-
-    @index_end.setter
-    def index_end(self, new_size: int) -> None:
-        self.set_end(FileType.INDEX, new_size)
-
-    @property
-    def data_end(self) -> int:
-        return self.get_end(FileType.DATA)
-
-    @data_end.setter
-    def data_end(self, new_size: int) -> None:
-        self.set_end(FileType.DATA, new_size)
-
-    @property
-    def sidedata_end(self) -> int:
-        return self.get_end(FileType.SIDEDATA)
-
-    @sidedata_end.setter
-    def sidedata_end(self, new_size: int) -> None:
-        self.set_end(FileType.SIDEDATA, new_size)
-
     def write(
         self, transaction, pending: bool = False, stripping: bool = False
     ) -> bool:

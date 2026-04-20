@@ -313,9 +313,9 @@ def _setup_new_files(
         new_sidedata_filepath,
         nb_bytes=sidedata_cutoff,
     )
-    docket.index_end = index_cutoff
-    docket.data_end = data_cutoff
-    docket.sidedata_end = sidedata_cutoff
+    docket.set_end(docket.FT.INDEX, index_cutoff)
+    docket.set_end(docket.FT.DATA, data_cutoff)
+    docket.set_end(docket.FT.SIDEDATA, sidedata_cutoff)
 
     # reload the revlog internal information
     revlog.refresh(docket=docket)
@@ -422,9 +422,9 @@ def _rewrite_simple(
     entry_bin = revlog.index.entry_binary(rev)
     new_index_file.write(entry_bin)
 
-    revlog._docket.index_end = new_index_file.tell()
-    revlog._docket.data_end = new_data_file.tell()
-    revlog._docket.sidedata_end = new_sidedata_file.tell()
+    revlog._docket.set_end(revlog._docket.FT.INDEX, new_index_file.tell())
+    revlog._docket.set_end(revlog._docket.FT.DATA, new_data_file.tell())
+    revlog._docket.set_end(revlog._docket.FT.SIDEDATA, new_sidedata_file.tell())
 
 
 def _rewrite_censor(
@@ -470,8 +470,8 @@ def _rewrite_censor(
     revlog.index.append(new_entry)
     entry_bin = revlog.index.entry_binary(rev)
     new_index_file.write(entry_bin)
-    revlog._docket.index_end = new_index_file.tell()
-    revlog._docket.data_end = new_data_file.tell()
+    revlog._docket.set_end(revlog._docket.FT.INDEX, new_index_file.tell())
+    revlog._docket.set_end(revlog._docket.FT.DATA, new_data_file.tell())
 
 
 def _get_filename_from_filelog_index(path):

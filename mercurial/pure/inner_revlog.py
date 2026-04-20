@@ -1145,7 +1145,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         docket.filepath(docket.FT.INDEX)
 
         index_data = b''
-        index_size = docket.index_end
+        index_size = docket.get_end(docket.FT.INDEX)
         if index_size > 0:
             index_data = opener.tryread(
                 docket.filepath(docket.FT.INDEX),
@@ -1226,9 +1226,9 @@ class InnerRevlogV2(BaseInnerRevlog):
         add_many = res.extend
         add_one(docket.docket_path())
         add_one(docket.filepath(docket.FT.INDEX))
-        if docket.data_end:
+        if docket.get_end(docket.FT.DATA):
             add_one(docket.filepath(docket.FT.DATA))
-        if docket.sidedata_end:
+        if docket.get_end(docket.FT.SIDEDATA):
             add_one(docket.filepath(docket.FT.SIDEDATA))
         if include_old:
             add_many(docket.old_filepaths())
@@ -1259,7 +1259,7 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     def sidedata(self, rev):
         """Return the sidedata for a given revision number."""
-        sidedata_end = self.docket.sidedata_end
+        sidedata_end = self.docket.get_end(self.docket.FT.SIDEDATA)
         sidedata_offset = self.index.sidedata_chunk_offset(rev)
         sidedata_size = self.index.sidedata_chunk_length(rev)
 
@@ -1296,8 +1296,9 @@ class InnerRevlogV2(BaseInnerRevlog):
     @contextlib.contextmanager
     def _writing(self, transaction):
         ifh = dfh = sdfh = None
-        data_end = self.docket.data_end
-        sidedata_end = self.docket.sidedata_end
+        data_end = self.docket.get_end(self.docket.FT.DATA)
+        sidedata_end = self.docket.get_end(self.docket.FT.SIDEDATA)
+
         try:
             r = len(self.index)
             # opening the data file.
@@ -1372,7 +1373,7 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     def next_data_offset(self):
         """Returns the current offset in the (in-transaction) data file."""
-        return self.docket.data_end
+        return self.docket.get_end(self.docket.FT.DATA)
 
     def add_entry(
         self,
@@ -1399,17 +1400,18 @@ class InnerRevlogV2(BaseInnerRevlog):
             raise error.ProgrammingError(msg)
 
         ifh, dfh, sdfh = self._writinghandles
-        ifh.seek(self.docket.index_end, os.SEEK_SET)
-        dfh.seek(self.docket.data_end, os.SEEK_SET)
-        sdfh.seek(self.docket.sidedata_end, os.SEEK_SET)
+        ifh.seek(self.docket.get_end(self.docket.FT.INDEX), os.SEEK_SET)
+        dfh.seek(self.docket.get_end(self.docket.FT.DATA), os.SEEK_SET)
+        sdfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
 
         curr = len(self.index)
         transaction.add(
-            self.docket.filepath(self.docket.FT.DATA), self.docket.data_end
+            self.docket.filepath(self.docket.FT.DATA),
+            self.docket.get_end(self.docket.FT.DATA),
         )
         transaction.add(
             self.docket.filepath(self.docket.FT.SIDEDATA),
-            self.docket.sidedata_end,
+            self.docket.get_end(self.docket.FT.SIDEDATA),
         )
         self.index.append(entry)
         bin_entry = self.index.entry_binary(curr)
@@ -1423,16 +1425,16 @@ class InnerRevlogV2(BaseInnerRevlog):
         if sidedata:
             sdfh.write(sidedata)
         ifh.write(bin_entry)
-        self.docket.index_end = ifh.tell()
-        self.docket.data_end = dfh.tell()
-        self.docket.sidedata_end = sdfh.tell()
+        self.docket.set_end(self.docket.FT.INDEX, ifh.tell())
+        self.docket.set_end(self.docket.FT.DATA, dfh.tell())
+        self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
 
     def rewrite_sidedata(self, new_info):
         assert self.is_writing
         new_entries = []
         # append the new sidedata
         ifh, dfh, sdfh = self._writinghandles
-        dfh.seek(self.docket.sidedata_end, os.SEEK_SET)
+        dfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
 
         current_offset = sdfh.tell()
         startrev = None
@@ -1482,7 +1484,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             sdfh.write(serialized_sidedata)
             new_entries.append(entry_update)
             current_offset += len(serialized_sidedata)
-            self.docket.sidedata_end = sdfh.tell()
+            self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
 
         # rewrite the new index entries
         ifh.seek(startrev * self.index.entry_size)
@@ -1522,9 +1524,9 @@ class InnerRevlogV2(BaseInnerRevlog):
         # XXX we could, leverage the docket while stripping. However it is
         # not powerfull enough at the time of this comment
         docket = self.docket
-        docket.index_end = end
-        docket.data_end = data_end
-        docket.sidedata_end = sidedata_end
+        docket.set_end(self.docket.FT.INDEX, end)
+        docket.set_end(self.docket.FT.DATA, data_end)
+        docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
         transaction.add(docket.filepath(docket.FT.INDEX), end)
         transaction.add(docket.filepath(docket.FT.DATA), data_end)
         transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)

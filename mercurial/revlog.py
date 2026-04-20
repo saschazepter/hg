@@ -2488,6 +2488,12 @@ class revlog:
                     rank = 1 + self.fast_rank(pmax)
                     rank += sum(1 for _ in self.findmissingrevs([pmax], [pmin]))
 
+        sidedata_offset = 0
+        if sdata:
+            sidedata_offset = self._inner.docket.get_end(
+                self._inner.docket.FT.SIDEDATA
+            )
+
         e = revlogutils.entry(
             flags=flags,
             data_offset=self._inner.next_data_offset(),
@@ -2499,7 +2505,7 @@ class revlog:
             parent_rev_1=p1r,
             parent_rev_2=p2r,
             node_id=node,
-            sidedata_offset=self._inner.docket.sidedata_end if sdata else 0,
+            sidedata_offset=sidedata_offset,
             sidedata_compressed_length=len(sdata),
             sidedata_compression_mode=sidedata_compression_mode,
             rank=rank,
