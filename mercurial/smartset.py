@@ -812,15 +812,72 @@ class generatorset(abstractsmartset):
     When asked for membership it generates values until either it finds the
     requested one or has gone through all the elements in the generator
 
-    >>> xs = generatorset([0, 1, 4], iterasc=True, preserve_order=True)
-    >>> list(xs)
-    [0, 1, 4]
-    >>> xs.last()  # cached
-    4
-
     It is recommended to pass preserve_order=True. This may become the default
     in the future. For legacy reasons, the default is False, which is equivalent
     to passing True followed by calling sort().
+
+    Basic operations with iterasc=None:
+
+    >>> xs = generatorset([3, 1, 9], iterasc=None, preserve_order=True)
+    >>> xs.first(), xs.last()
+    (3, 9)
+    >>> xs.isascending(), xs.isdescending()
+    (False, False)
+    >>> len(xs)
+    3
+    >>> list(xs)
+    [3, 1, 9]
+    >>> xs.reverse()
+    >>> list(xs)
+    [9, 1, 3]
+    >>> xs.sort()
+    >>> list(xs)
+    [1, 3, 9]
+    >>> xs.reverse()
+    >>> list(xs)
+    [9, 3, 1]
+
+    Basic operations with iterasc=True:
+
+    >>> xs = generatorset([1, 3, 9], iterasc=True, preserve_order=True)
+    >>> xs.first(), xs.last()
+    (1, 9)
+    >>> xs.isascending(), xs.isdescending()
+    (True, False)
+    >>> len(xs)
+    3
+    >>> list(xs)
+    [1, 3, 9]
+    >>> xs.reverse()
+    >>> list(xs)
+    [9, 3, 1]
+    >>> xs.sort()
+    >>> list(xs)
+    [1, 3, 9]
+    >>> xs.reverse()
+    >>> list(xs)
+    [9, 3, 1]
+
+    Basic operations with iterasc=False:
+
+    >>> xs = generatorset([9, 3, 1], iterasc=False, preserve_order=True)
+    >>> xs.first(), xs.last()
+    (9, 1)
+    >>> xs.isascending(), xs.isdescending()
+    (False, True)
+    >>> len(xs)
+    3
+    >>> list(xs)
+    [9, 3, 1]
+    >>> xs.reverse()
+    >>> list(xs)
+    [1, 3, 9]
+    >>> xs.sort()
+    >>> list(xs)
+    [1, 3, 9]
+    >>> xs.reverse()
+    >>> list(xs)
+    [9, 3, 1]
 
     Slicing:
 
@@ -836,6 +893,34 @@ class generatorset(abstractsmartset):
     >>> list(xs.slice(1, 0))
     []
     >>> list(xs.slice(2, 5))
+    [9]
+
+    Calling reverse() only affects new iterators, not existing ones:
+
+    >>> xs = generatorset([3, 1, 9], iterasc=None, preserve_order=True)
+    >>> it = iter(xs)
+    >>> next(it)
+    3
+    >>> xs.reverse()
+    >>> next(it)
+    1
+    >>> list(xs)
+    [9, 1, 3]
+    >>> list(it)
+    [9]
+
+    Calling sort() only affects new iterators, not existing ones:
+
+    >>> xs = generatorset([3, 1, 9], iterasc=None, preserve_order=True)
+    >>> it = iter(xs)
+    >>> next(it)
+    3
+    >>> xs.sort()
+    >>> next(it)
+    1
+    >>> list(xs)
+    [1, 3, 9]
+    >>> list(it)
     [9]
 
     If iterasc is incorrect, the result will be wrong:
