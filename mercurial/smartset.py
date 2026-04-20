@@ -164,18 +164,20 @@ class abstractsmartset:
     def _slice(self, start: int, stop: int) -> abstractsmartset:
         # sub classes may override this. start and stop must not be negative,
         # but start > stop is allowed, which should be an empty set.
-        ys = []
-        it = iter(self)
-        for x in range(start):
-            y = next(it, None)
-            if y is None:
-                break
-        for x in range(stop - start):
-            y = next(it, None)
-            if y is None:
-                break
-            ys.append(y)
-        return baseset(ys, datarepr=(b'slice=%d:%d %r', start, stop, self))
+
+        if True:
+            ys = []
+            it = iter(self)
+            for x in range(start):
+                y = next(it, None)
+                if y is None:
+                    break
+            for x in range(stop - start):
+                y = next(it, None)
+                if y is None:
+                    break
+                ys.append(y)
+            return baseset(ys, datarepr=(b'slice=%d:%d %r', start, stop, self))
 
 
 class baseset(abstractsmartset):
