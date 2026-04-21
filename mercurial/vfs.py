@@ -148,6 +148,16 @@ class abstractvfs(abc.ABC):
         """
         return self.__call__
 
+    def wopen(self, path, **kwargs) -> BinaryIO:
+        """Open ``path` file, relative to vfs root for writing
+
+        If the file is missing, create it.
+        """
+        try:
+            return self(path, mode=b"r+", **kwargs)
+        except FileNotFoundError:
+            return self(path, mode=b"w+", **kwargs)
+
     def read(self, path: bytes, mmap_threshold=None, size=None) -> bytes:
         with self(path, b'rb') as fp:
             if mmap_threshold is not None:

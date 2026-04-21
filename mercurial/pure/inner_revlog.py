@@ -424,14 +424,6 @@ class BaseInnerRevlog(abc.ABC):
     def _writing(self, transaction):
         ...
 
-    @abc.abstractmethod
-    def _index_write_fp(self, index_end=None):
-        """internal method to open the index file for writing
-
-        You should not use this directly and use `_writing` instead
-        """
-        ...
-
     def get_segment_for_revs(self, startrev, endrev):
         """Obtain a segment of raw data corresponding to a range of revisions.
 
@@ -810,11 +802,8 @@ class InnerRevlogV1(BaseInnerRevlog):
                 dsize = self.end(r - 1)
             dfh = None
             if not self.inline:
-                try:
-                    dfh = self.opener(self.data_file, mode=b"r+")
-                    dfh.seek(0, os.SEEK_END)
-                except FileNotFoundError:
-                    dfh = self.opener(self.data_file, mode=b"w+")
+                dfh = self.opener.wopen(self.data_file)
+                dfh.seek(0, os.SEEK_END)
                 transaction.add(self.data_file, dsize)
             # opening the index file.
             isize = r * self.index.entry_size
@@ -1302,31 +1291,19 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         try:
             r = len(self.index)
-            # opening the data file.
-            try:
-                dfh = self.opener(
-                    self.docket.filepath(self.docket.FT.DATA), mode=b"r+"
-                )
-            except FileNotFoundError:
-                dfh = self.opener(
-                    self.docket.filepath(self.docket.FT.DATA), mode=b"w+"
-                )
-            else:
-                dfh.seek(data_end, os.SEEK_SET)
-            # revlog-v2 does not inline, help Pytype
-            try:
-                sdfh = self.opener(
-                    self.docket.filepath(self.docket.FT.SIDEDATA), mode=b"r+"
-                )
-            except FileNotFoundError:
-                sdfh = self.opener(
-                    self.docket.filepath(self.docket.FT.SIDEDATA), mode=b"w+"
-                )
-            else:
-                sdfh.seek(sidedata_end, os.SEEK_SET)
+            dfh = self.opener.wopen(self.docket.filepath(self.docket.FT.DATA))
+            dfh.seek(data_end, os.SEEK_SET)
+            sdfh = self.opener.wopen(
+                self.docket.filepath(self.docket.FT.SIDEDATA)
+            )
+            sdfh.seek(sidedata_end, os.SEEK_SET)
             # opening the index file.
             isize = r * self.index.entry_size
-            ifh = self._index_write_fp(index_end=isize)
+            ifh = self.opener.wopen(
+                self.docket.filepath(self.docket.FT.INDEX),
+                checkambig=self.data_config.check_ambig,
+            )
+            ifh.seek(isize, os.SEEK_SET)
             transaction.add(self.docket.filepath(self.docket.FT.DATA), data_end)
             transaction.add(
                 self.docket.filepath(self.docket.FT.SIDEDATA), sidedata_end
@@ -1349,28 +1326,6 @@ class InnerRevlogV2(BaseInnerRevlog):
             # potential unflushed data content.
             if ifh is not None:
                 ifh.close()
-
-    def _index_write_fp(self, index_end=None):
-        """internal method to open the index file for writing
-
-        You should not use this directly and use `_writing` instead
-        """
-        if index_end is None:
-            raise error.ProgrammingError("index_end None for v2")
-        try:
-            f = self.opener(
-                self.docket.filepath(self.docket.FT.INDEX),
-                mode=b"r+",
-                checkambig=self.data_config.check_ambig,
-            )
-            f.seek(index_end, os.SEEK_SET)
-            return f
-        except FileNotFoundError:
-            return self.opener(
-                self.docket.filepath(self.docket.FT.INDEX),
-                mode=b"w+",
-                checkambig=self.data_config.check_ambig,
-            )
 
     def next_data_offset(self):
         """Returns the current offset in the (in-transaction) data file."""
