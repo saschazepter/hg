@@ -393,8 +393,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
         if !ds_status.unsure.is_empty() {
             info!(
-                "Files to be rechecked by retrieval from filelog: {:?}",
-                ds_status.unsure.iter().map(|s| &s.path).collect::<Vec<_>>()
+                "Must recheck {} files by retrieval from filelog",
+                ds_status.unsure.len()
             );
         }
         let mut fixup = Vec::new();
