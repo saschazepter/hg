@@ -40,6 +40,7 @@ from ..utils import (
 from . import (
     constants,
     deltas,
+    docket as docket_util,
 )
 
 from ..pure import (
@@ -166,9 +167,7 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
 
     first_excl_rev = min(censor_revs)
 
-    data_cutoff = revlog.index.data_chunk_start(first_excl_rev)
-    index_cutoff = revlog.index.entry_size * first_excl_rev
-    sidedata_cutoff = revlog._inner.sidedata_cut_off(first_excl_rev)
+    file_cutoffs = revlog._inner.file_cutoffs(first_excl_rev)
 
     with pycompat.unnamedtempfile(mode=b"w+b") as tmp_storage:
         # rev → (new_base, data_start, data_end, compression_mode)
@@ -179,24 +178,11 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
             tmp_storage,
         )
 
-        all_files = _setup_new_files(
-            revlog,
-            index_cutoff,
-            data_cutoff,
-            sidedata_cutoff,
-        )
+        all_files = _setup_new_files(revlog, file_cutoffs)
 
         # we dont need to open the old index file since its content already
         # exist in a usable form in `old_index`.
         with all_files() as open_files:
-            (
-                old_data_file,
-                old_sidedata_file,
-                new_index_file,
-                new_data_file,
-                new_sidedata_file,
-            ) = open_files
-
             # writing the censored revision
 
             # Writing all subsequent revisions
@@ -273,12 +259,7 @@ def _precompute_rewritten_delta(
     return rewritten_entries
 
 
-def _setup_new_files(
-    revlog,
-    index_cutoff,
-    data_cutoff,
-    sidedata_cutoff,
-):
+def _setup_new_files(revlog, file_cutoffs: dict[docket_util.FileType, int]):
     """
 
     return a context manager to open all the relevant files:
@@ -292,30 +273,21 @@ def _setup_new_files(
     `old_index` object if the caller function.
     """
     docket = revlog._docket
-    old_index_filepath = revlog.opener.join(docket.filepath(docket.FT.INDEX))
-    old_data_filepath = revlog.opener.join(docket.filepath(docket.FT.DATA))
-    old_sidedata_filepath = revlog.opener.join(
-        docket.filepath(docket.FT.SIDEDATA)
-    )
+    vfs = revlog.opener
 
-    new_index_filepath = revlog.opener.join(
-        docket.new_filepath(docket.FT.INDEX)
-    )
-    new_data_filepath = revlog.opener.join(docket.new_filepath(docket.FT.DATA))
-    new_sidedata_filepath = revlog.opener.join(
-        docket.new_filepath(docket.FT.SIDEDATA)
-    )
+    old_file_paths = {}
+    for ft, _cutoff in sorted(file_cutoffs.items()):
+        old_file_paths[ft] = vfs.join(docket.filepath(ft))
 
-    util.copyfile(old_index_filepath, new_index_filepath, nb_bytes=index_cutoff)
-    util.copyfile(old_data_filepath, new_data_filepath, nb_bytes=data_cutoff)
-    util.copyfile(
-        old_sidedata_filepath,
-        new_sidedata_filepath,
-        nb_bytes=sidedata_cutoff,
-    )
-    docket.set_end(docket.FT.INDEX, index_cutoff)
-    docket.set_end(docket.FT.DATA, data_cutoff)
-    docket.set_end(docket.FT.SIDEDATA, sidedata_cutoff)
+    new_file_paths = {}
+    for ft, _cutoff in sorted(file_cutoffs.items()):
+        new_file_paths[ft] = vfs.join(docket.new_filepath(ft))
+
+    for ft, cutoff in sorted(file_cutoffs.items()):
+        old_path = old_file_paths[ft]
+        new_path = new_file_paths[ft]
+        util.copyfile(old_path, new_path, nb_bytes=cutoff)
+        docket.set_end(ft, cutoff)
 
     # reload the revlog internal information
     revlog.refresh(docket=docket)
@@ -324,26 +296,27 @@ def _setup_new_files(
     def all_files_opener():
         # hide opening in an helper function to please check-code, black
         # and various python version at the same time
-        with open(old_data_filepath, 'rb') as old_data_file:
-            with open(old_sidedata_filepath, 'rb') as old_sidedata_file:
-                with open(new_index_filepath, 'r+b') as new_index_file:
-                    with open(new_data_filepath, 'r+b') as new_data_file:
-                        with open(
-                            new_sidedata_filepath, 'r+b'
-                        ) as new_sidedata_file:
-                            new_index_file.seek(0, os.SEEK_END)
-                            assert new_index_file.tell() == index_cutoff
-                            new_data_file.seek(0, os.SEEK_END)
-                            assert new_data_file.tell() == data_cutoff
-                            new_sidedata_file.seek(0, os.SEEK_END)
-                            assert new_sidedata_file.tell() == sidedata_cutoff
-                            yield (
-                                old_data_file,
-                                old_sidedata_file,
-                                new_index_file,
-                                new_data_file,
-                                new_sidedata_file,
-                            )
+        files = []
+        old_files = {}
+        new_files = {}
+        try:
+            for ft, _cutoff in sorted(file_cutoffs.items()):
+                path = old_file_paths[ft]
+                f = open(path, 'rb')
+                files.append(f)
+                old_files[ft] = f
+            for ft, cutoff in sorted(file_cutoffs.items()):
+                path = new_file_paths[ft]
+                f = open(path, 'r+b')
+                files.append(f)
+                f.seek(cutoff, os.SEEK_SET)
+                assert f.tell() == cutoff
+                new_files[ft] = f
+            yield old_files, new_files
+        finally:
+            while files:
+                f = files.pop()
+                f.close()
 
     return all_files_opener
 
@@ -357,13 +330,12 @@ def _rewrite_simple(
     tmp_storage,
 ):
     """append a normal revision to the index after the rewritten one(s)"""
-    (
-        old_data_file,
-        old_sidedata_file,
-        new_index_file,
-        new_data_file,
-        new_sidedata_file,
-    ) = all_files
+    old_files, new_files = all_files
+    old_data_file = old_files[docket_util.FileType.DATA]
+    old_sidedata_file = old_files[docket_util.FileType.SIDEDATA]
+    new_index_file = new_files[docket_util.FileType.INDEX]
+    new_data_file = new_files[docket_util.FileType.DATA]
+    new_sidedata_file = new_files[docket_util.FileType.SIDEDATA]
 
     if rev not in rewritten_entries:
         old_data_file.seek(old_index.data_chunk_start(rev))
@@ -422,9 +394,8 @@ def _rewrite_simple(
     entry_bin = revlog.index.entry_binary(rev)
     new_index_file.write(entry_bin)
 
-    revlog._docket.set_end(revlog._docket.FT.INDEX, new_index_file.tell())
-    revlog._docket.set_end(revlog._docket.FT.DATA, new_data_file.tell())
-    revlog._docket.set_end(revlog._docket.FT.SIDEDATA, new_sidedata_file.tell())
+    for ft, f in sorted(new_files.items()):
+        revlog._docket.set_end(ft, f.tell())
 
 
 def _rewrite_censor(
@@ -435,13 +406,9 @@ def _rewrite_censor(
     tombstone,
 ):
     """rewrite and append a censored revision"""
-    (
-        old_data_file,
-        old_sidedata_file,
-        new_index_file,
-        new_data_file,
-        new_sidedata_file,
-    ) = all_files
+    old_files, new_files = all_files
+    new_index_file = new_files[docket_util.FileType.INDEX]
+    new_data_file = new_files[docket_util.FileType.DATA]
 
     # XXX consider trying the default compression too
     new_data_size = len(tombstone)

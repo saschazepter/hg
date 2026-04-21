@@ -1535,3 +1535,12 @@ class InnerRevlogV2(BaseInnerRevlog):
         transaction.add(docket.filepath(docket.FT.DATA), data_end)
         transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
         self.docket.write(transaction, stripping=True)
+
+    def file_cutoffs(self, first_excl_rev):
+        docket = self.docket
+        index = self.index
+        return {
+            docket.FT.INDEX: index.entry_size * first_excl_rev,
+            docket.FT.DATA: index.data_chunk_start(first_excl_rev),
+            docket.FT.SIDEDATA: self.sidedata_cut_off(first_excl_rev),
+        }
