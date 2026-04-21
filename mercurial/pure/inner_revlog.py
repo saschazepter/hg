@@ -1338,7 +1338,7 @@ class InnerRevlogV2(BaseInnerRevlog):
                 if ft in self._segment_files:
                     self._segment_files[ft].writing_handle = fh
                 handles[ft] = fh
-            self._writinghandles = tuple(handles[ft] for ft in self._active_fts)
+            self._writinghandles = handles
             yield
             self._writinghandles = None
             for segment_file in self._segment_files.values():
@@ -1375,43 +1375,32 @@ class InnerRevlogV2(BaseInnerRevlog):
         if sidedata:
             entry.sidedata_offset = self.docket.get_end(self.docket.FT.SIDEDATA)
 
-        ifh, dfh, sdfh = self._writinghandles
-        ifh.seek(self.docket.get_end(self.docket.FT.INDEX), os.SEEK_SET)
-        dfh.seek(self.docket.get_end(self.docket.FT.DATA), os.SEEK_SET)
-        sdfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
+        docket = self.docket
+        for ft, fh in sorted(self._writinghandles.items()):
+            pos = docket.get_end(ft)
+            fh.seek(pos, os.SEEK_SET)
+            transaction.add(docket.filepath(ft), pos)
 
         curr = len(self.index)
-        transaction.add(
-            self.docket.filepath(self.docket.FT.DATA),
-            self.docket.get_end(self.docket.FT.DATA),
-        )
-        transaction.add(
-            self.docket.filepath(self.docket.FT.SIDEDATA),
-            self.docket.get_end(self.docket.FT.SIDEDATA),
-        )
         self.index.append(entry.as_tuple())
         bin_entry = self.index.entry_binary(curr)
-        transaction.add(
-            self.docket.filepath(self.docket.FT.INDEX), curr * len(bin_entry)
-        )
-
         if data[0]:
-            dfh.write(data[0])
-        dfh.write(data[1])
+            self._writinghandles[docket.FT.DATA].write(data[0])
+        self._writinghandles[docket.FT.DATA].write(data[1])
         if sidedata:
-            sdfh.write(sidedata)
-        ifh.write(bin_entry)
-        self.docket.set_end(self.docket.FT.INDEX, ifh.tell())
-        self.docket.set_end(self.docket.FT.DATA, dfh.tell())
-        self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
+            self._writinghandles[docket.FT.SIDEDATA].write(sidedata)
+
+        self._writinghandles[docket.FT.INDEX].write(bin_entry)
+        for ft, fh in sorted(self._writinghandles.items()):
+            self.docket.set_end(ft, fh.tell())
 
     def rewrite_sidedata(self, new_info):
         assert self.is_writing
         new_entries = []
         # append the new sidedata
-        ifh, dfh, sdfh = self._writinghandles
-        dfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
 
+        sdfh = self._writinghandles[self.docket.FT.SIDEDATA]
+        sdfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
         current_offset = sdfh.tell()
         startrev = None
         for rev, serialized_sidedata, flags in new_info:
@@ -1463,6 +1452,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
 
         # rewrite the new index entries
+        ifh = self._writinghandles[self.docket.FT.INDEX]
         ifh.seek(startrev * self.index.entry_size)
         for i, e in enumerate(new_entries):
             rev = startrev + i
