@@ -406,6 +406,8 @@ pub enum RevlogError {
     HashCheckFailed { backtrace: HgBacktrace, rev: Revision },
     #[display("{}compression error: {}", backtrace, error)]
     Compression { backtrace: HgBacktrace, error: std::io::Error },
+    #[display("{}decompression error: {}", backtrace, error)]
+    Decompression { backtrace: HgBacktrace, error: std::io::Error },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -417,6 +419,9 @@ impl From<HgIoError> for RevlogError {
 impl RevlogError {
     fn compression(error: std::io::Error) -> Self {
         Self::Compression { backtrace: HgBacktrace::capture(), error }
+    }
+    fn decompression(error: std::io::Error) -> Self {
+        Self::Decompression { backtrace: HgBacktrace::capture(), error }
     }
 }
 

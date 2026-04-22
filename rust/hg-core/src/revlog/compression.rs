@@ -212,9 +212,7 @@ impl Compressor for ZstdCompressor {
     }
 
     fn decompress(&self, data: &[u8]) -> Result<Vec<u8>, RevlogError> {
-        zstd::stream::decode_all(data).map_err(|e| {
-            corrupted(format!("revlog decompress error: {}", e)).into()
-        })
+        zstd::stream::decode_all(data).map_err(RevlogError::decompression)
     }
 }
 
@@ -256,9 +254,7 @@ impl Compressor for ZlibCompressor {
         let mut decoder = ZlibDecoder::new(data);
         // TODO reuse the allocation somehow?
         let mut buf = vec![];
-        decoder.read_to_end(&mut buf).map_err(|e| {
-            corrupted(format!("revlog decompress error: {}", e))
-        })?;
+        decoder.read_to_end(&mut buf).map_err(RevlogError::decompression)?;
         Ok(buf)
     }
 }
@@ -301,14 +297,14 @@ pub(super) fn uncompressed_zstd_data(
             Err(_) => {
                 buf.clear();
                 zstd::stream::copy_decode(bytes, &mut buf)
-                    .map_err(|e| corrupted(e.to_string()))?;
+                    .map_err(RevlogError::decompression)?;
             }
         };
         Ok(buf)
     } else {
         let mut buf = Vec::with_capacity(cap);
         let len = zstd_decompress_to_buffer(bytes, &mut buf)
-            .map_err(|e| corrupted(e.to_string()))?;
+            .map_err(RevlogError::decompression)?;
         if len != uncompressed_len as usize {
             Err(corrupted("uncompressed length does not match"))
         } else {
