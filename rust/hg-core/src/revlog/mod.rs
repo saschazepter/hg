@@ -389,17 +389,6 @@ impl From<HgIoError> for RevlogError {
     }
 }
 
-impl From<(NodeMapError, String)> for RevlogError {
-    fn from((error, rev): (NodeMapError, String)) -> Self {
-        match error {
-            NodeMapError::MultipleResults => RevlogError::AmbiguousPrefix(rev),
-            NodeMapError::RevisionNotInIndex(rev) => RevlogError::corrupted(
-                format!("nodemap point to revision {} not in index", rev),
-            ),
-        }
-    }
-}
-
 fn corrupted<S: AsRef<str>>(context: S) -> HgError {
     HgError::corrupted(format!("corrupted revlog, {}", context.as_ref()))
 }
