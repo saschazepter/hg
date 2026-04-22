@@ -51,6 +51,9 @@ if typing.TYPE_CHECKING:
         MonoBlockIndex,
     )
 
+    # TODO: Change to Buffer for 3.14+ support
+    from collections.abc import ByteString
+
 from .. import (
     error,
     mdiff,
@@ -1164,7 +1167,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         radix: bytes,
         target: tuple[int, bytes],
         docket: docket_mod.RevlogDocket,
-        index_parser: Callable[[bytes], Index2],
+        index_parser: Callable[[tuple[ByteString, ...]], Index2],
         configs: revlog_config.RevlogConfigs,
     ):
         self.docket = docket
@@ -1193,9 +1196,8 @@ class InnerRevlogV2(BaseInnerRevlog):
                     raise error.RevlogError(msg)
             index_blocks.append(block)
 
-        assert len(index_blocks) == 1
         try:
-            index = index_parser(index_blocks[0])
+            index = index_parser(tuple(index_blocks))
         except (ValueError, IndexError):
             raise CorruptedRevlogError(b"corrupted index")
 
@@ -1397,14 +1399,15 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         curr = len(self.index)
         self.index.append(entry.as_tuple())
-        bin_entry = self.index.entry_binary(curr)
+        bin_entry = self.index.entry_binaries(curr)
         if data[0]:
             self._writinghandles[docket.FT.DATA].write(data[0])
         self._writinghandles[docket.FT.DATA].write(data[1])
         if sidedata:
             self._writinghandles[docket.FT.SIDEDATA].write(sidedata)
 
-        self._writinghandles[docket.FT.INDEX].write(bin_entry)
+        for ft, bin_piece in zip(self._index_fts, bin_entry):
+            self._writinghandles[ft].write(bin_piece)
         for ft, fh in sorted(self._writinghandles.items()):
             self.docket.set_end(ft, fh.tell())
 
@@ -1466,15 +1469,17 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
 
         # rewrite the new index entries
-        ifh = self._writinghandles[self.docket.FT.INDEX]
-        ifh.seek(startrev * self.index.entry_size)
+        ifhs = [self._writinghandles[ft] for ft in self._index_fts]
+        for fh, entry_size in zip(ifhs, self.index.entry_sizes):
+            fh.seek(startrev * entry_size)
         for i, e in enumerate(new_entries):
             rev = startrev + i
             self.index.replace_sidedata_info(
                 rev, *e
             )  # pytype: disable=attribute-error
-            packed = self.index.entry_binary(rev)
-            ifh.write(packed)
+            packed = self.index.entry_binaries(rev)
+            for fh, bin_piece in zip(ifhs, packed):
+                fh.write(bin_piece)
 
     def sidedata_cut_off(self, rev):
         sd_cut_off = self.index.sidedata_chunk_offset(rev)
@@ -1498,16 +1503,17 @@ class InnerRevlogV2(BaseInnerRevlog):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""
-        end = rev * self.index.entry_size
+        docket = self.docket
         data_end = self.start(rev)
         sidedata_end = self.sidedata_cut_off(rev)
         # XXX we could, leverage the docket while stripping. However it is
         # not powerfull enough at the time of this comment
-        docket = self.docket
-        docket.set_end(self.docket.FT.INDEX, end)
+        for ft, entry_size in zip(self._index_fts, self.index.entry_sizes):
+            end = rev * entry_size
+            docket.set_end(ft, end)
+            transaction.add(docket.filepath(ft), end)
         docket.set_end(self.docket.FT.DATA, data_end)
         docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
-        transaction.add(docket.filepath(docket.FT.INDEX), end)
         transaction.add(docket.filepath(docket.FT.DATA), data_end)
         transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
         self.docket.write(transaction, stripping=True)
@@ -1515,8 +1521,10 @@ class InnerRevlogV2(BaseInnerRevlog):
     def file_cutoffs(self, first_excl_rev):
         docket = self.docket
         index = self.index
-        return {
-            docket.FT.INDEX: index.entry_size * first_excl_rev,
+        cutoffs = {
             docket.FT.DATA: index.data_chunk_start(first_excl_rev),
             docket.FT.SIDEDATA: self.sidedata_cut_off(first_excl_rev),
         }
+        for ft, entry_size in zip(self._index_fts, self.index.entry_sizes):
+            cutoffs[ft] = entry_size * first_excl_rev
+        return cutoffs

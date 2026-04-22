@@ -1019,16 +1019,116 @@ def parse_index2(
         return index, (0, data)
 
 
-def parse_index_v2(data: ByteString) -> Index2:
+def parse_index_v2(data: tuple[ByteString, ...]) -> Index2:
     return Index2(data)
 
 
-def parse_index_cl_v2(data: ByteString) -> IndexChangelogV2:
+def parse_index_cl_v2(data: tuple[ByteString, ...]) -> IndexChangelogV2:
     return IndexChangelogV2(data)
 
 
-class Index2(Index):
-    index_format = revlog_constants.INDEX_ENTRY_V2
+class MultiBlockIndex(BaseIndex):
+    _index_formats: tuple[struct.Struct, ...]
+
+    def __init__(
+        self,
+        data: tuple[ByteString, ...],
+        uses_generaldelta,
+    ):
+        assert len(data) == len(self._index_formats)
+        count = []
+        for idx, f in enumerate(self._index_formats):
+            entry_size = f.size
+            len_data = len(data[idx])
+            assert (len_data % entry_size) == 0
+            count.append(len_data // entry_size)
+        assert len(set(count)) == 1, count
+
+        self._data = data
+        self._lgt = count[0]
+        self._extra: list[tuple[bytes, ...]] = []
+        super().__init__(uses_generaldelta=uses_generaldelta)
+
+    def __delitem__(self, i):
+        i = i.start
+        self._check_index(i)
+        self._stripnodes(i)
+        if i < self._lgt:
+            self._data = tuple(
+                block[: i * entry_size]
+                for entry_size, block in zip(self.entry_sizes, self._data)
+            )
+            self._lgt = i
+            self._extra = []
+        else:
+            self._extra = self._extra[: i - self._lgt]
+
+    def pack_header(self, header):
+        """pack header information as binary"""
+        msg = 'version header should go in the docket, not the index: %d'
+        msg %= header
+        raise error.ProgrammingError(msg)
+
+    def append(self, tup: revlogutils.EntryTupleT) -> None:
+        if '_nodemap' in vars(self):
+            self._nodemap[tup[7]] = len(self)
+        data = self._pack_entry(len(self), tup)
+        self._extra.append(data)
+
+    @util.propertycache
+    def entry_sizes(self):
+        return tuple(f.size for f in self._index_formats)
+
+    def entry_binaries(self, rev: RevnumT) -> tuple[bytes, ...]:
+        """return the raw binary strings representing a revision
+
+        Each index pieces will have its own bytes
+        """
+        self._check_index(rev)
+        if rev >= self._lgt:
+            return self._extra[rev - self._lgt]
+        else:
+            return tuple(
+                data[rev * size : (rev + 1) * size]
+                for data, size in zip(self._data, self.entry_sizes)
+            )
+
+    def _entry(self, rev: RevnumT) -> revlogutils.EntryTupleT:
+        ...
+        if rev == -1:
+            return self.null_item
+        self._check_index(rev)
+        data = self.entry_binaries(rev)
+        return self._unpack_entry(rev, data)
+
+    @classmethod
+    @abc.abstractmethod
+    def _pack_entry(
+        cls,
+        rev: RevnumT,
+        entry: revlogutils.EntryTupleT,
+    ) -> tuple[bytes, ...]:
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _unpack_entry(
+        cls,
+        rev: RevnumT,
+        data: tuple[bytes, ...],
+    ) -> revlogutils.EntryTupleT:
+        ...
+
+
+class Index2(MultiBlockIndex):
+    _index_formats = (revlog_constants.INDEX_ENTRY_V2,)
+
+    def __init__(
+        self,
+        data: tuple[ByteString, ...],
+        uses_generaldelta: bool = True,
+    ):
+        super().__init__(data, uses_generaldelta=uses_generaldelta)
 
     def replace_sidedata_info(
         self,
@@ -1062,35 +1162,43 @@ class Index2(Index):
             new = self._pack_entry(rev, entry)
             self._extra[rev - self._lgt] = new
 
-    def _unpack_entry(self, rev, data):
-        data = self.index_format.unpack(data)
+    @classmethod
+    def _unpack_entry(
+        cls,
+        rev: RevnumT,
+        data: tuple[bytes, ...],
+    ) -> revlogutils.EntryTupleT:
+        pieces = tuple(f.unpack(d) for f, d in zip(cls._index_formats, data))
+        data = pieces[0]
         entry = data[:10]
         data_comp = data[10] & 3
         sidedata_comp = (data[10] & (3 << 2)) >> 2
-        return entry + (data_comp, sidedata_comp, revlog_constants.RANK_UNKNOWN)
+        return cast(
+            revlogutils.EntryTupleT,
+            entry
+            + (
+                data_comp,
+                sidedata_comp,
+                revlog_constants.RANK_UNKNOWN,
+            ),
+        )
 
-    def _pack_entry(self, rev, entry):
+    @classmethod
+    def _pack_entry(
+        cls,
+        rev: RevnumT,
+        entry: revlogutils.EntryTupleT,
+    ) -> tuple[bytes, ...]:
         data = entry[:10]
         data_comp = entry[10] & 3
         sidedata_comp = (entry[11] & 3) << 2
         data += (data_comp | sidedata_comp,)
-
-        return self.index_format.pack(*data)
-
-    def entry_binary(self, rev):
-        """return the raw binary string representing a revision"""
-        entry = self._entry(rev)
-        return self._pack_entry(rev, entry)
-
-    def pack_header(self, header):
-        """pack header information as binary"""
-        msg = 'version header should go in the docket, not the index: %d'
-        msg %= header
-        raise error.ProgrammingError(msg)
+        pieces = (data,)
+        return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
 
 
 class IndexChangelogV2(Index2):
-    index_format = revlog_constants.INDEX_ENTRY_CL_V2
+    _index_formats = (revlog_constants.INDEX_ENTRY_CL_V2,)
 
     null_item = (
         Index2.null_item[: revlog_constants.ENTRY_RANK]
@@ -1098,8 +1206,22 @@ class IndexChangelogV2(Index2):
         + Index2.null_item[revlog_constants.ENTRY_RANK :]
     )
 
-    def _unpack_entry(self, rev, data, r=True):
-        items = self.index_format.unpack(data)
+    def __init__(
+        self,
+        data: tuple[ByteString, ...],
+    ):
+        super().__init__(data, uses_generaldelta=False)
+
+    @classmethod
+    def _unpack_entry(
+        cls,
+        rev: RevnumT,
+        data: tuple[bytes, ...],
+    ) -> revlogutils.EntryTupleT:
+        items = sum(
+            (f.unpack(d) for f, d in zip(cls._index_formats, data)),
+            start=(),
+        )
         return (
             items[revlog_constants.INDEX_ENTRY_V2_IDX_OFFSET],
             items[revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSED_LENGTH],
@@ -1119,7 +1241,12 @@ class IndexChangelogV2(Index2):
             items[revlog_constants.INDEX_ENTRY_V2_IDX_RANK],
         )
 
-    def _pack_entry(self, rev, entry):
+    @classmethod
+    def _pack_entry(
+        cls,
+        rev: RevnumT,
+        entry: revlogutils.EntryTupleT,
+    ) -> tuple[bytes, ...]:
         base = entry[revlog_constants.ENTRY_DELTA_BASE]
         link_rev = entry[revlog_constants.ENTRY_LINK_REV]
         assert base == rev, (base, rev)
@@ -1138,7 +1265,8 @@ class IndexChangelogV2(Index2):
             << 2,
             entry[revlog_constants.ENTRY_RANK],
         )
-        return self.index_format.pack(*data)
+        pieces = (data,)
+        return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
 
 
 def parse_index_devel_nodemap(data, inline, uses_generaldelta, uses_delta_info):

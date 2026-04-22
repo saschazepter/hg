@@ -332,7 +332,6 @@ def _rewrite_simple(
     old_files, new_files = all_files
     old_data_file = old_files[constants.V2FileType.DATA]
     old_sidedata_file = old_files[constants.V2FileType.SIDEDATA]
-    new_index_file = new_files[constants.V2FileType.INDEX]
     new_data_file = new_files[constants.V2FileType.DATA]
     new_sidedata_file = new_files[constants.V2FileType.SIDEDATA]
 
@@ -390,8 +389,9 @@ def _rewrite_simple(
         sidedata_compression_mode=sd_com_mode,
     )
     revlog.index.append(new_entry.as_tuple())
-    entry_bin = revlog.index.entry_binary(rev)
-    new_index_file.write(entry_bin)
+    entry_bin = revlog.index.entry_binaries(rev)
+    for ft, bin_piece in zip(revlog._inner._index_fts, entry_bin):
+        new_files[ft].write(bin_piece)
 
     for ft, f in sorted(new_files.items()):
         revlog._docket.set_end(ft, f.tell())
@@ -406,7 +406,6 @@ def _rewrite_censor(
 ):
     """rewrite and append a censored revision"""
     old_files, new_files = all_files
-    new_index_file = new_files[constants.V2FileType.INDEX]
     new_data_file = new_files[constants.V2FileType.DATA]
 
     # XXX consider trying the default compression too
@@ -434,9 +433,11 @@ def _rewrite_censor(
         sidedata_compression_mode=COMP_MODE_PLAIN,
     ).as_tuple()
     revlog.index.append(new_entry)
-    entry_bin = revlog.index.entry_binary(rev)
-    new_index_file.write(entry_bin)
-    revlog._docket.set_end(revlog._docket.FT.INDEX, new_index_file.tell())
+    entry_bin = revlog.index.entry_binaries(rev)
+    for ft, bin_piece in zip(revlog._inner._index_fts, entry_bin):
+        fh = new_files[ft]
+        fh.write(bin_piece)
+        revlog._docket.set_end(ft, fh.tell())
     revlog._docket.set_end(revlog._docket.FT.DATA, new_data_file.tell())
 
 
