@@ -400,6 +400,8 @@ pub enum RevlogError {
     InvalidCompressionMode { backtrace: HgBacktrace, mode: u8 },
     #[display("{}invalid sidedata compression mode: {}", backtrace, mode)]
     InvalidSidedataCompressionMode { backtrace: HgBacktrace, mode: u8 },
+    #[display("{}invalid phase value: {}", backtrace, value)]
+    InvalidPhase { backtrace: HgBacktrace, value: usize },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -410,12 +412,6 @@ impl From<HgIoError> for RevlogError {
 
 fn corrupted<S: AsRef<str>>(context: S) -> HgError {
     HgError::corrupted(format!("corrupted revlog, {}", context.as_ref()))
-}
-
-impl RevlogError {
-    fn corrupted<S: AsRef<str>>(context: S) -> Self {
-        RevlogError::Other(corrupted(context))
-    }
 }
 
 #[derive(derive_more::Display, Debug, Copy, Clone, PartialEq, Eq)]

@@ -1773,11 +1773,11 @@ impl TryFrom<usize> for Phase {
             2 => Self::Secret,
             32 => Self::Archived,
             96 => Self::Internal,
-            v => {
-                return Err(RevlogError::corrupted(format!(
-                    "invalid phase value {}",
-                    v
-                )));
+            _ => {
+                return Err(RevlogError::InvalidPhase {
+                    backtrace: HgBacktrace::capture(),
+                    value,
+                });
             }
         })
     }
