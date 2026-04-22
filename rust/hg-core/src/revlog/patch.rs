@@ -19,6 +19,7 @@ use byteorder::BigEndian;
 use byteorder::ByteOrder;
 
 use super::inner_revlog::RevisionBuffer;
+use crate::errors::HgBacktrace;
 use crate::revlog::CoreRevisionBuffer;
 use crate::revlog::RevlogError;
 use crate::utils::u_u32;
@@ -335,14 +336,17 @@ where
             let len = BigEndian::read_u32(&data[8..]);
             // bark on end > MAx
             if start > end {
-                return Err(RevlogError::corrupted("patch cannot be decoded"));
+                return Err(RevlogError::CorruptedDelta {
+                    backtrace: HgBacktrace::capture(),
+                });
             }
             let available = data.len() - 12;
             if len > u_u32(available + 12) {
-                let error = format!(
-                    "patch insert more data than available: {len} < {available}"
-                );
-                return Err(RevlogError::corrupted(error));
+                return Err(RevlogError::DeltaInsertsTooMuch {
+                    backtrace: HgBacktrace::capture(),
+                    len,
+                    available,
+                });
             }
             let d = D::new_rich(
                 src,

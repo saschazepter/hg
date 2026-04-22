@@ -381,6 +381,15 @@ pub enum RevlogError {
     Other(HgError),
     #[display("{}invalid data for revision: {}", backtrace, rev)]
     CorruptedRevisionData { rev: Revision, backtrace: HgBacktrace },
+    #[display("{}patch cannot be decoded", backtrace)]
+    CorruptedDelta { backtrace: HgBacktrace },
+    #[display(
+        "{}patch inserts more data than available: {} < {}",
+        backtrace,
+        len,
+        available
+    )]
+    DeltaInsertsTooMuch { backtrace: HgBacktrace, len: u32, available: usize },
 }
 
 impl From<HgIoError> for RevlogError {
