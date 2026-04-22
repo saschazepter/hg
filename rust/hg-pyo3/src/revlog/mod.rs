@@ -23,7 +23,7 @@ use hg::NULL_REVISION;
 use hg::Revision;
 use hg::UncheckedRevision;
 use hg::dyn_bytes::DynBytes;
-use hg::errors::HgError;
+use hg::errors::HgBacktrace;
 use hg::revlog::RevlogError;
 use hg::revlog::RevlogIndex;
 use hg::revlog::RevlogType;
@@ -193,10 +193,11 @@ impl SnapshotsCache for PySnapshotsCache<'_, '_> {
         rev: BaseRevision,
         value: BaseRevision,
     ) -> Result<(), RevlogError> {
-        self.insert_for_with_py_result(rev, value).map_err(|_| {
-            RevlogError::Other(HgError::unsupported(
-                "Error in Python caches handling",
-            ))
+        self.insert_for_with_py_result(rev, value).map_err(|err| {
+            RevlogError::PythonCache {
+                backtrace: HgBacktrace::capture(),
+                message: err.to_string(),
+            }
         })
     }
 }

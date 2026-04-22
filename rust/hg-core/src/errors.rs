@@ -727,6 +727,12 @@ impl From<RevlogError> for HgError {
                 r
             )),
             RevlogError::Other(error) => error,
+            RevlogError::PythonCache { message, backtrace } => HgError::Abort {
+                message,
+                detailed_exit_code: exit_codes::ABORT,
+                hint: None,
+                backtrace,
+            },
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
             err @ (RevlogError::CorruptedRevisionData { .. }
             | RevlogError::CorruptedDelta { .. }

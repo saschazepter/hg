@@ -419,6 +419,8 @@ pub enum RevlogError {
         expected: i32,
         got: usize,
     },
+    #[display("{}error in Python cache handling: {}", backtrace, message)]
+    PythonCache { backtrace: HgBacktrace, message: String },
 }
 
 impl From<HgIoError> for RevlogError {
