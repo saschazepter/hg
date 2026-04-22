@@ -52,6 +52,7 @@ use super::options::RevlogFeatureConfig;
 use super::patch;
 use super::patch::DeltaPiece;
 use super::patch::PlainDeltaPiece;
+use crate::GraphErrorKind;
 use crate::Node;
 use crate::NodePrefix;
 use crate::dyn_bytes::DynBytes;
@@ -315,11 +316,11 @@ impl InnerRevlog {
         let index_entry = self.index.get_entry(rev);
         let p1 =
             self.index.check_revision(index_entry.p1()).ok_or_else(|| {
-                RevlogError::corrupted(format!("p1 for rev {} is invalid", rev))
+                RevlogError::Graph(GraphErrorKind::P1OutOfRange(rev).into())
             })?;
         let p2 =
             self.index.check_revision(index_entry.p2()).ok_or_else(|| {
-                RevlogError::corrupted(format!("p2 for rev {} is invalid", rev))
+                RevlogError::Graph(GraphErrorKind::P2OutOfRange(rev).into())
             })?;
         let entry = RevlogEntry {
             revlog: self,

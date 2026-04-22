@@ -392,6 +392,8 @@ pub enum RevlogError {
     DeltaInsertsTooMuch { backtrace: HgBacktrace, len: u32, available: usize },
     #[display("{}linkrev for rev {} is invalid", backtrace, "rev")]
     InvalidLinkRev { rev: Revision, backtrace: HgBacktrace },
+    #[from]
+    Graph(GraphError),
 }
 
 impl From<HgIoError> for RevlogError {
