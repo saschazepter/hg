@@ -732,7 +732,8 @@ impl From<RevlogError> for HgError {
             | RevlogError::CorruptedDelta { .. }
             | RevlogError::DeltaInsertsTooMuch { .. }
             | RevlogError::InvalidLinkRev { .. }
-            | RevlogError::Graph(_)) => {
+            | RevlogError::Graph(_)
+            | RevlogError::UnknownFlags { .. }) => {
                 // Temporary while we clean up `RevlogError`
                 HgError::corrupted(err.to_string())
             }

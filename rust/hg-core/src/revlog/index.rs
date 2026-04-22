@@ -26,6 +26,7 @@ use crate::UncheckedRevision;
 use crate::dagops;
 use crate::dyn_bytes::ByteStoreTrunc;
 use crate::dyn_bytes::DynBytes;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::revlog::NULL_REVISION;
 use crate::revlog::Revision;
@@ -236,10 +237,10 @@ fn _static_assert_size_of_revision_data_v1() {
 impl RevisionDataParams {
     pub fn validate(&self) -> Result<(), RevlogError> {
         if self.flags & !REVIDX_KNOWN_FLAGS != 0 {
-            return Err(RevlogError::corrupted(format!(
-                "unknown revlog index flags: {}",
-                self.flags
-            )));
+            return Err(RevlogError::UnknownFlags {
+                flags: self.flags,
+                backtrace: HgBacktrace::capture(),
+            });
         }
         if self.data_compression_mode != COMPRESSION_MODE_INLINE {
             return Err(RevlogError::corrupted(format!(

@@ -394,6 +394,8 @@ pub enum RevlogError {
     InvalidLinkRev { rev: Revision, backtrace: HgBacktrace },
     #[from]
     Graph(GraphError),
+    #[display("{}unknown revlog index flags: {}", backtrace, flags)]
+    UnknownFlags { flags: u16, backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {
