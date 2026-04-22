@@ -390,6 +390,8 @@ pub enum RevlogError {
         available
     )]
     DeltaInsertsTooMuch { backtrace: HgBacktrace, len: u32, available: usize },
+    #[display("{}linkrev for rev {} is invalid", backtrace, "rev")]
+    InvalidLinkRev { rev: Revision, backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -581,11 +583,9 @@ impl Revlog {
     ) -> Result<Revision, RevlogError> {
         let entry = self.index().get_entry(rev);
         linked_revlog.index().check_revision(entry.link_revision()).ok_or_else(
-            || {
-                RevlogError::corrupted(format!(
-                    "linkrev for rev {} is invalid",
-                    rev
-                ))
+            || RevlogError::InvalidLinkRev {
+                backtrace: HgBacktrace::capture(),
+                rev,
             },
         )
     }

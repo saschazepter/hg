@@ -730,7 +730,8 @@ impl From<RevlogError> for HgError {
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
             err @ (RevlogError::CorruptedRevisionData { .. }
             | RevlogError::CorruptedDelta { .. }
-            | RevlogError::DeltaInsertsTooMuch { .. }) => {
+            | RevlogError::DeltaInsertsTooMuch { .. }
+            | RevlogError::InvalidLinkRev { .. }) => {
                 // Temporary while we clean up `RevlogError`
                 HgError::corrupted(err.to_string())
             }
