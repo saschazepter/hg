@@ -194,18 +194,20 @@ impl Compressor for ZstdCompressor {
         }
         let level = self.level as i32;
         if data.len() <= 1000000 {
-            let compressed = self.compressor.compress(data).map_err(|e| {
-                corrupted(format!("revlog compress error: {}", e))
-            })?;
+            let compressed = self
+                .compressor
+                .compress(data)
+                .map_err(RevlogError::compression)?;
             Ok(if compressed.len() < data.len() {
                 Some(compressed)
             } else {
                 None
             })
         } else {
-            Ok(Some(zstd::stream::encode_all(data, level).map_err(|e| {
-                corrupted(format!("revlog compress error: {}", e))
-            })?))
+            Ok(Some(
+                zstd::stream::encode_all(data, level)
+                    .map_err(RevlogError::compression)?,
+            ))
         }
     }
 
@@ -240,7 +242,7 @@ impl Compressor for ZlibCompressor {
         let mut buf = Vec::with_capacity(data.len());
         ZlibEncoder::new(data, self.level)
             .read_to_end(&mut buf)
-            .map_err(|e| corrupted(format!("revlog compress error: {}", e)))?;
+            .map_err(RevlogError::compression)?;
 
         Ok(if buf.len() < data.len() {
             buf.shrink_to_fit();

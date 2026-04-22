@@ -404,11 +404,19 @@ pub enum RevlogError {
     InvalidPhase { backtrace: HgBacktrace, value: usize },
     #[display("{}hash check failed for revision {}", backtrace, rev)]
     HashCheckFailed { backtrace: HgBacktrace, rev: Revision },
+    #[display("{}compression error: {}", backtrace, error)]
+    Compression { backtrace: HgBacktrace, error: std::io::Error },
 }
 
 impl From<HgIoError> for RevlogError {
     fn from(value: HgIoError) -> Self {
         Self::IO(Box::new(value))
+    }
+}
+
+impl RevlogError {
+    fn compression(error: std::io::Error) -> Self {
+        Self::Compression { backtrace: HgBacktrace::capture(), error }
     }
 }
 
