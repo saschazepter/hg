@@ -396,6 +396,10 @@ pub enum RevlogError {
     Graph(GraphError),
     #[display("{}unknown revlog index flags: {}", backtrace, flags)]
     UnknownFlags { flags: u16, backtrace: HgBacktrace },
+    #[display("{}invalid data compression mode: {}", backtrace, mode)]
+    InvalidCompressionMode { backtrace: HgBacktrace, mode: u8 },
+    #[display("{}invalid sidedata compression mode: {}", backtrace, mode)]
+    InvalidSidedataCompressionMode { backtrace: HgBacktrace, mode: u8 },
 }
 
 impl From<HgIoError> for RevlogError {

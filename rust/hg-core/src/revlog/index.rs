@@ -243,17 +243,17 @@ impl RevisionDataParams {
             });
         }
         if self.data_compression_mode != COMPRESSION_MODE_INLINE {
-            return Err(RevlogError::corrupted(format!(
-                "invalid data compression mode: {}",
-                self.data_compression_mode
-            )));
+            return Err(RevlogError::InvalidCompressionMode {
+                backtrace: HgBacktrace::capture(),
+                mode: self.data_compression_mode,
+            });
         }
         // FIXME isn't this only for v2 or changelog v2?
         if self._sidedata_compression_mode != COMPRESSION_MODE_INLINE {
-            return Err(RevlogError::corrupted(format!(
-                "invalid sidedata compression mode: {}",
-                self._sidedata_compression_mode
-            )));
+            return Err(RevlogError::InvalidSidedataCompressionMode {
+                backtrace: HgBacktrace::capture(),
+                mode: self._sidedata_compression_mode,
+            });
         }
         Ok(())
     }

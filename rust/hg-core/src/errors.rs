@@ -733,7 +733,9 @@ impl From<RevlogError> for HgError {
             | RevlogError::DeltaInsertsTooMuch { .. }
             | RevlogError::InvalidLinkRev { .. }
             | RevlogError::Graph(_)
-            | RevlogError::UnknownFlags { .. }) => {
+            | RevlogError::UnknownFlags { .. }
+            | RevlogError::InvalidCompressionMode { .. }
+            | RevlogError::InvalidSidedataCompressionMode { .. }) => {
                 // Temporary while we clean up `RevlogError`
                 HgError::corrupted(err.to_string())
             }
