@@ -99,10 +99,11 @@ if typing.TYPE_CHECKING:
         IndexChangelogV2,
         MonoBlockIndex,
     )
+
+    # TODO: Change to Buffer for 3.14+ support
+    from collections.abc import ByteString
 else:
     MonoBlockIndex = object
-    Index2 = object
-    IndexChangelogV2 = object
 
 from . import (
     ancestor,
@@ -273,32 +274,12 @@ def parse_index_v1(
     return index, cache
 
 
-def parse_index_v2(
-    data,
-) -> Index2:
-    index, cache = pure_parsers.parse_index2(
-        data,
-        False,
-        True,
-        True,
-        format=REVLOGV2,
-    )
-    assert cache is None
-    return cast(Index2, index)
+def parse_index_v2(data: ByteString) -> Index2:
+    return pure_parsers.parse_index_v2(data)
 
 
-def parse_index_cl_v2(
-    data,
-) -> IndexChangelogV2:
-    index, cache = pure_parsers.parse_index2(
-        data,
-        False,
-        False,
-        True,
-        format=CHANGELOGV2,
-    )
-    assert cache is None
-    return cast(IndexChangelogV2, index)
+def parse_index_cl_v2(data: ByteString) -> IndexChangelogV2:
+    return pure_parsers.parse_index_cl_v2(data)
 
 
 if hasattr(parsers, 'parse_index_devel_nodemap'):

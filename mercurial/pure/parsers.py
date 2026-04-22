@@ -962,9 +962,7 @@ class PersistentNodeMapIndex(Index):
 
 
 class InlinedIndex(MonoBlockIndex):
-    def __init__(
-        self, data, inline=0, uses_generaldelta=False, uses_delta_info=False
-    ):
+    def __init__(self, data, uses_generaldelta=False, uses_delta_info=False):
         self._data = data
         self._lgt = self._inline_scan(None)
         self._inline_scan(self._lgt)
@@ -1014,20 +1012,19 @@ def parse_index2(
     uses_delta_info,
     format=revlog_constants.REVLOGV1,
 ) -> tuple[Index | InlinedIndex, tuple[int, ByteString] | None]:
-    if format == revlog_constants.CHANGELOGV2:
-        return parse_index_cl_v2(data)
     if not inlined:
-        if format == revlog_constants.REVLOGV2:
-            cls = Index2
-        else:
-            cls = Index
-        return cls(data, uses_generaldelta, uses_delta_info), None
-    cls = InlinedIndex
-    return cls(data, inlined, uses_generaldelta, uses_delta_info), (0, data)
+        return Index(data, uses_generaldelta, uses_delta_info), None
+    else:
+        index = InlinedIndex(data, uses_generaldelta, uses_delta_info)
+        return index, (0, data)
 
 
-def parse_index_cl_v2(data):
-    return IndexChangelogV2(data), None
+def parse_index_v2(data: ByteString) -> Index2:
+    return Index2(data)
+
+
+def parse_index_cl_v2(data: ByteString) -> IndexChangelogV2:
+    return IndexChangelogV2(data)
 
 
 class Index2(Index):
