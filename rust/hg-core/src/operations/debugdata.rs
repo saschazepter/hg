@@ -9,7 +9,6 @@ use crate::errors::HgError;
 use crate::exit_codes;
 use crate::repo::Repo;
 use crate::revlog::Revlog;
-use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
 use crate::revlog::options::default_revlog_options;
 
@@ -18,16 +17,16 @@ pub fn debug_data(
     repo: &Repo,
     revset: &str,
     kind: RevlogType,
-) -> Result<Vec<u8>, RevlogError> {
+) -> Result<Vec<u8>, HgError> {
     let index_file = match kind {
         RevlogType::Changelog => "00changelog.i",
         RevlogType::Manifestlog => "00manifest.i",
         _ => {
-            return Err(RevlogError::Other(HgError::abort(
+            return Err(HgError::abort(
                 format!("invalid revlog type {}", kind),
                 exit_codes::ABORT,
                 None,
-            )));
+            ));
         }
     };
     let revlog = Revlog::open(
