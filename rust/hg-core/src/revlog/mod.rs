@@ -408,6 +408,17 @@ pub enum RevlogError {
     Compression { backtrace: HgBacktrace, error: std::io::Error },
     #[display("{}decompression error: {}", backtrace, error)]
     Decompression { backtrace: HgBacktrace, error: std::io::Error },
+    #[display(
+        "{}uncompressed length does not match: expected {}, got {}",
+        backtrace,
+        "expected",
+        "got"
+    )]
+    UncompressedLengthMismatch {
+        backtrace: HgBacktrace,
+        expected: i32,
+        got: usize,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -423,10 +434,6 @@ impl RevlogError {
     fn decompression(error: std::io::Error) -> Self {
         Self::Decompression { backtrace: HgBacktrace::capture(), error }
     }
-}
-
-fn corrupted<S: AsRef<str>>(context: S) -> HgError {
-    HgError::corrupted(format!("corrupted revlog, {}", context.as_ref()))
 }
 
 #[derive(derive_more::Display, Debug, Copy, Clone, PartialEq, Eq)]

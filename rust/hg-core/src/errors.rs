@@ -739,7 +739,8 @@ impl From<RevlogError> for HgError {
             | RevlogError::HashCheckFailed { .. }
             | RevlogError::Compression { .. }
             | RevlogError::Decompression { .. }
-            | RevlogError::InvalidPhase { .. }) => {
+            | RevlogError::InvalidPhase { .. }
+            | RevlogError::UncompressedLengthMismatch { .. }) => {
                 // Temporary while we clean up `RevlogError`
                 HgError::corrupted(err.to_string())
             }

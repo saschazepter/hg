@@ -8,8 +8,8 @@ use flate2::bufread::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 
 use super::RevlogError;
-use super::corrupted;
 use crate::config::Config;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::exit_codes;
 
@@ -306,7 +306,11 @@ pub(super) fn uncompressed_zstd_data(
         let len = zstd_decompress_to_buffer(bytes, &mut buf)
             .map_err(RevlogError::decompression)?;
         if len != uncompressed_len as usize {
-            Err(corrupted("uncompressed length does not match"))
+            Err(RevlogError::UncompressedLengthMismatch {
+                backtrace: HgBacktrace::capture(),
+                expected: uncompressed_len,
+                got: len,
+            })?
         } else {
             Ok(buf)
         }
