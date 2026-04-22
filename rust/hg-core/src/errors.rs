@@ -736,6 +736,7 @@ impl From<RevlogError> for HgError {
             | RevlogError::UnknownFlags { .. }
             | RevlogError::InvalidCompressionMode { .. }
             | RevlogError::InvalidSidedataCompressionMode { .. }
+            | RevlogError::HashCheckFailed { .. }
             | RevlogError::InvalidPhase { .. }) => {
                 // Temporary while we clean up `RevlogError`
                 HgError::corrupted(err.to_string())

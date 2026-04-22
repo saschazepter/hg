@@ -402,6 +402,8 @@ pub enum RevlogError {
     InvalidSidedataCompressionMode { backtrace: HgBacktrace, mode: u8 },
     #[display("{}invalid phase value: {}", backtrace, value)]
     InvalidPhase { backtrace: HgBacktrace, value: usize },
+    #[display("{}hash check failed for revision {}", backtrace, rev)]
+    HashCheckFailed { backtrace: HgBacktrace, rev: Revision },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -859,11 +861,10 @@ impl<'revlog> RevlogEntry<'revlog> {
                 )
                 .into());
             }
-            Err(corrupted(format!(
-                "hash check failed for revision {}",
-                self.rev
-            ))
-            .into())
+            Err(RevlogError::HashCheckFailed {
+                backtrace: HgBacktrace::capture(),
+                rev: self.rev,
+            })
         }
     }
 
