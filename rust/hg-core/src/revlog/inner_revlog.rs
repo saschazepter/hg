@@ -343,9 +343,10 @@ impl InnerRevlog {
         if rev == NULL_REVISION.into() {
             return Ok(self.make_null_entry());
         }
-        let rev = self.index.check_revision(rev).ok_or_else(|| {
-            RevlogError::corrupted(format!("rev {} is invalid", rev))
-        })?;
+        let rev = self
+            .index
+            .check_revision(rev)
+            .ok_or_else(|| RevlogError::InvalidRevision(rev.to_string()))?;
         self.get_entry(rev)
     }
 

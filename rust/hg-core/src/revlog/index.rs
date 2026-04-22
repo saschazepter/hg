@@ -992,7 +992,7 @@ impl Index {
     ) -> Result<bool, RevlogError> {
         let rev = self
             .check_revision(rev)
-            .ok_or_else(|| RevlogError::corrupted("test"))?;
+            .ok_or_else(|| RevlogError::InvalidRevision(rev.to_string()))?;
         self.is_snapshot_unchecked(rev)
     }
 
