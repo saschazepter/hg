@@ -14,6 +14,7 @@ import typing
 import zlib
 
 from typing import (
+    Callable,
     cast,
 )
 
@@ -1163,7 +1164,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         radix: bytes,
         target: tuple[int, bytes],
         docket: docket_mod.RevlogDocket,
-        index_parser,
+        index_parser: Callable[[bytes], Index2],
         configs: revlog_config.RevlogConfigs,
     ):
         self.docket = docket
@@ -1194,19 +1195,9 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         assert len(index_blocks) == 1
         try:
-            index, chunk_cache = index_parser(
-                index_blocks[0],
-                False,
-                configs.delta.general_delta,
-                configs.delta.delta_info,
-            )
+            index = index_parser(index_blocks[0])
         except (ValueError, IndexError):
             raise CorruptedRevlogError(b"corrupted index")
-
-        # the chunk_cache are "data" bytes that were read while parsing the
-        # index. This is only happens for inline revlog which we never do post
-        # revlog-v1.
-        assert chunk_cache is None
 
         self._segment_files: dict[
             docket_mod.FileType,

@@ -88,13 +88,21 @@ from .thirdparty import attr
 from .interfaces import compression as i_comp
 from .pure import parsers as pure_parsers
 
+
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
-    from .pure.parsers import BaseIndex, MonoBlockIndex
+    from .pure.parsers import (
+        BaseIndex,
+        Index2,
+        IndexChangelogV2,
+        MonoBlockIndex,
+    )
 else:
     MonoBlockIndex = object
+    Index2 = object
+    IndexChangelogV2 = object
 
 from . import (
     ancestor,
@@ -267,42 +275,30 @@ def parse_index_v1(
 
 def parse_index_v2(
     data,
-    inline,
-    uses_generaldelta,
-    uses_delta_info,
-):
-    if inline:
-        msg = "revlog version above 1 should never be inlined"
-        raise error.ProgrammingError(msg)
-    # call the C implementation to parse the index data
+) -> Index2:
     index, cache = pure_parsers.parse_index2(
         data,
-        inline,
-        uses_generaldelta,
-        uses_delta_info,
+        False,
+        True,
+        True,
         format=REVLOGV2,
     )
-    return index, cache
+    assert cache is None
+    return cast(Index2, index)
 
 
 def parse_index_cl_v2(
     data,
-    inline,
-    uses_generaldelta,
-    uses_delta_info,
-):
-    if inline:
-        msg = "revlog version above 1 should never be inlined"
-        raise error.ProgrammingError(msg)
-    # call the C implementation to parse the index data
+) -> IndexChangelogV2:
     index, cache = pure_parsers.parse_index2(
         data,
-        inline,
-        uses_generaldelta,
-        uses_delta_info,
+        False,
+        False,
+        True,
         format=CHANGELOGV2,
     )
-    return index, cache
+    assert cache is None
+    return cast(IndexChangelogV2, index)
 
 
 if hasattr(parsers, 'parse_index_devel_nodemap'):
