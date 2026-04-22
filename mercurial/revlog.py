@@ -92,7 +92,7 @@ from .pure import parsers as pure_parsers
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
-    from .pure.parsers import BaseIndexObject
+    from .pure.parsers import BaseIndex
 
 from . import (
     ancestor,
@@ -196,7 +196,7 @@ def _verify_revision(rl, skipflags, state, node):
 # people using pure don't really have performance consideration (and a
 # wheelbarrow of other slowness source)
 HAS_FAST_PERSISTENT_NODEMAP = rustrevlog is not None or hasattr(
-    parsers, 'BaseIndexObject'
+    parsers, 'BaseIndex'
 )
 
 
@@ -332,7 +332,7 @@ hexdigits = b'0123456789abcdefABCDEF'
 
 if typing.TYPE_CHECKING:
     # Tell Pytype what kind of object we expect
-    ProxyBase = BaseIndexObject
+    ProxyBase = BaseIndex
 else:
     ProxyBase = object
 
@@ -573,7 +573,7 @@ class revlog:
         self._docket_file = None
         self._nodemap_file = None
         self._nodemap_docket = None
-        self.index: BaseIndexObject | None = None
+        self.index: BaseIndex | None = None
         self.opener = opener
 
         assert target[0] in ALL_KINDS

@@ -69,7 +69,7 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
 
         non_empty_index = self.parserustindex()
         bin_entry = b'\0\0\0\0' + non_empty_index.entry_binary(0)
-        entry = parsers.IndexObject.index_format.unpack(bin_entry)
+        entry = parsers.Index.index_format.unpack(bin_entry)
         idx.append(entry)
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx.get_rev(self.node0), 0)

@@ -460,7 +460,7 @@ def _write_swapped_parents(repo, rl, rev, offset, fp):
         msg = "repo needs to be locked to rewrite parents"
         raise error.ProgrammingError(msg)
 
-    index_format = parsers.IndexObject.index_format
+    index_format = parsers.Index.index_format
     bin_entry = rl.index.entry_binary(rev)
     entry = index_format.unpack(bin_entry)
     new_entry = list(entry)
@@ -534,14 +534,14 @@ def _reorder_filelog_parents(repo, fl, to_fix):
 
             with rl.opener(new_file_path, mode=b"r+") as fp:
                 if rl._inline:
-                    index = parsers.InlinedIndexObject(fp.read())
+                    index = parsers.InlinedIndex(fp.read())
                     for rev in fl.revs():
                         if rev in to_fix:
                             offset = index._calculate_index(rev)
                             _write_swapped_parents(repo, rl, rev, offset, fp)
                             ui.write(repaired_msg % (rev, index_file))
                 else:
-                    index_format = parsers.IndexObject.index_format
+                    index_format = parsers.Index.index_format
                     for rev in to_fix:
                         offset = rev * index_format.size
                         _write_swapped_parents(repo, rl, rev, offset, fp)

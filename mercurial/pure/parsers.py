@@ -586,7 +586,7 @@ def gettype(q):
     return int(q & 0xFFFF)
 
 
-class BaseIndexObject:
+class BaseIndex:
     # Can I be passed to an algorithme implemented in Rust ?
     rust_ext_compat = 0
     # Format of an index entry according to Python's `struct` language
@@ -865,7 +865,7 @@ class BaseIndexObject:
         return [r for r, val in enumerate(ishead) if val]
 
 
-class IndexObject(BaseIndexObject):
+class Index(BaseIndex):
     def __init__(
         self, data: ByteString, uses_generaldelta=False, uses_delta_info=False
     ):
@@ -896,7 +896,7 @@ class IndexObject(BaseIndexObject):
             self._extra = self._extra[: i - self._lgt]
 
 
-class PersistentNodeMapIndexObject(IndexObject):
+class PersistentNodeMapIndex(Index):
     """a Debug oriented class to test persistent nodemap
 
     We need a simple python object to test API and higher level behavior. See
@@ -945,7 +945,7 @@ class PersistentNodeMapIndexObject(IndexObject):
                 self._nm_root = self._nm_max_idx = self._nm_docket = None
 
 
-class InlinedIndexObject(BaseIndexObject):
+class InlinedIndex(BaseIndex):
     def __init__(
         self, data, inline=0, uses_generaldelta=False, uses_delta_info=False
     ):
@@ -997,16 +997,16 @@ def parse_index2(
     uses_generaldelta,
     uses_delta_info,
     format=revlog_constants.REVLOGV1,
-) -> tuple[IndexObject | InlinedIndexObject, tuple[int, ByteString] | None]:
+) -> tuple[Index | InlinedIndex, tuple[int, ByteString] | None]:
     if format == revlog_constants.CHANGELOGV2:
         return parse_index_cl_v2(data)
     if not inlined:
         if format == revlog_constants.REVLOGV2:
-            cls = IndexObject2
+            cls = Index2
         else:
-            cls = IndexObject
+            cls = Index
         return cls(data, uses_generaldelta, uses_delta_info), None
-    cls = InlinedIndexObject
+    cls = InlinedIndex
     return cls(data, inlined, uses_generaldelta, uses_delta_info), (0, data)
 
 
@@ -1014,7 +1014,7 @@ def parse_index_cl_v2(data):
     return IndexChangelogV2(data), None
 
 
-class IndexObject2(IndexObject):
+class Index2(Index):
     index_format = revlog_constants.INDEX_ENTRY_V2
 
     def replace_sidedata_info(
@@ -1076,13 +1076,13 @@ class IndexObject2(IndexObject):
         raise error.ProgrammingError(msg)
 
 
-class IndexChangelogV2(IndexObject2):
+class IndexChangelogV2(Index2):
     index_format = revlog_constants.INDEX_ENTRY_CL_V2
 
     null_item = (
-        IndexObject2.null_item[: revlog_constants.ENTRY_RANK]
+        Index2.null_item[: revlog_constants.ENTRY_RANK]
         + (0,)  # rank of null is 0
-        + IndexObject2.null_item[revlog_constants.ENTRY_RANK :]
+        + Index2.null_item[revlog_constants.ENTRY_RANK :]
     )
 
     def _unpack_entry(self, rev, data, r=True):
@@ -1129,9 +1129,9 @@ class IndexChangelogV2(IndexObject2):
 
 
 def parse_index_devel_nodemap(data, inline, uses_generaldelta, uses_delta_info):
-    """like parse_index2, but always return a PersistentNodeMapIndexObject"""
+    """like parse_index2, but always return a PersistentNodeMapIndex"""
     return (
-        PersistentNodeMapIndexObject(data, uses_generaldelta, uses_delta_info),
+        PersistentNodeMapIndex(data, uses_generaldelta, uses_delta_info),
         None,
     )
 

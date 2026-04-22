@@ -44,7 +44,7 @@ from ..revlogutils import (
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
-    from ..pure.parsers import BaseIndexObject
+    from ..pure.parsers import BaseIndex
 
 from .. import (
     error,
@@ -101,7 +101,7 @@ class BaseInnerRevlog(abc.ABC):
     ):
         self.opener = opener
         self.target = target
-        self.index: BaseIndexObject = index
+        self.index: BaseIndex = index
 
         self.inline = inline
         self.data_config = configs.data
