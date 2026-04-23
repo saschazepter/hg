@@ -2032,7 +2032,10 @@ def copyfile(
 
     nb_bytes: if set only copy the first `nb_bytes` of the source file.
     """
-    assert not (copystat and checkambig)
+    if hardlink and (nb_bytes is not None):
+        raise error.ProgrammingError(b"cannot use hardlink with a size limit")
+    if copystat and checkambig:
+        raise error.ProgrammingError(b"cannot use copystat with checkambig")
     oldstat = None
     if os.path.lexists(dest):
         if checkambig:
