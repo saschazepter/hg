@@ -386,57 +386,70 @@ pub enum RevlogError {
     /// Boxed otherwise the enum is very large in memory
     IO(Box<HgIoError>),
     Other(Box<HgError>),
+    /// Data for a revlog revision is corrupted
     CorruptedRevisionData {
         rev: Revision,
         backtrace: HgBacktrace,
     },
+    /// A delta is corrupted (e.g. start > max size)
     CorruptedDelta {
         backtrace: HgBacktrace,
     },
+    /// A delta's metadata introduces more data than is available
     DeltaInsertsTooMuch {
         backtrace: HgBacktrace,
         len: u32,
         available: usize,
     },
+    /// This revlog revision's linkrev is invalid
     InvalidLinkRev {
         rev: Revision,
         backtrace: HgBacktrace,
     },
     #[from]
     Graph(GraphError),
+    /// This revlog's flags are invalid
     UnknownFlags {
         flags: u16,
         backtrace: HgBacktrace,
     },
+    /// An invalid compression mode for revision data was encountered
     InvalidCompressionMode {
         backtrace: HgBacktrace,
         mode: u8,
     },
+    /// An invalid compression mode for revision sidedata was encountered
     InvalidSidedataCompressionMode {
         backtrace: HgBacktrace,
         mode: u8,
     },
+    /// An invalid value for a phase was encountered
     InvalidPhase {
         backtrace: HgBacktrace,
         value: usize,
     },
+    /// Hashing the data for this revision did not match the expected hash
     HashCheckFailed {
         backtrace: HgBacktrace,
         rev: Revision,
     },
+    /// A generic compression error from the compression engine
     Compression {
         backtrace: HgBacktrace,
         error: std::io::Error,
     },
+    /// A generic decompression error from the decompression engine
     Decompression {
         backtrace: HgBacktrace,
         error: std::io::Error,
     },
+    /// The uncompressed size of a revision's data did not match the expected
     UncompressedLengthMismatch {
         backtrace: HgBacktrace,
         expected: i32,
         got: usize,
     },
+    /// A special-case for `hg-pyo3`
     PythonCache {
         backtrace: HgBacktrace,
         message: String,
