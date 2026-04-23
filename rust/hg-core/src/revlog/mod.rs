@@ -377,37 +377,69 @@ pub enum RevlogError {
     AmbiguousPrefix(String),
     /// Boxed otherwise the enum is very large in memory
     IO(Box<HgIoError>),
-    #[from]
-    Other(HgError),
+    Other(Box<HgError>),
     #[display("{}invalid data for revision: {}", backtrace, rev)]
-    CorruptedRevisionData { rev: Revision, backtrace: HgBacktrace },
+    CorruptedRevisionData {
+        rev: Revision,
+        backtrace: HgBacktrace,
+    },
     #[display("{}patch cannot be decoded", backtrace)]
-    CorruptedDelta { backtrace: HgBacktrace },
+    CorruptedDelta {
+        backtrace: HgBacktrace,
+    },
     #[display(
         "{}patch inserts more data than available: {} < {}",
         backtrace,
         len,
         available
     )]
-    DeltaInsertsTooMuch { backtrace: HgBacktrace, len: u32, available: usize },
+    DeltaInsertsTooMuch {
+        backtrace: HgBacktrace,
+        len: u32,
+        available: usize,
+    },
     #[display("{}linkrev for rev {} is invalid", backtrace, "rev")]
-    InvalidLinkRev { rev: Revision, backtrace: HgBacktrace },
+    InvalidLinkRev {
+        rev: Revision,
+        backtrace: HgBacktrace,
+    },
     #[from]
     Graph(GraphError),
     #[display("{}unknown revlog index flags: {}", backtrace, flags)]
-    UnknownFlags { flags: u16, backtrace: HgBacktrace },
+    UnknownFlags {
+        flags: u16,
+        backtrace: HgBacktrace,
+    },
     #[display("{}invalid data compression mode: {}", backtrace, mode)]
-    InvalidCompressionMode { backtrace: HgBacktrace, mode: u8 },
+    InvalidCompressionMode {
+        backtrace: HgBacktrace,
+        mode: u8,
+    },
     #[display("{}invalid sidedata compression mode: {}", backtrace, mode)]
-    InvalidSidedataCompressionMode { backtrace: HgBacktrace, mode: u8 },
+    InvalidSidedataCompressionMode {
+        backtrace: HgBacktrace,
+        mode: u8,
+    },
     #[display("{}invalid phase value: {}", backtrace, value)]
-    InvalidPhase { backtrace: HgBacktrace, value: usize },
+    InvalidPhase {
+        backtrace: HgBacktrace,
+        value: usize,
+    },
     #[display("{}hash check failed for revision {}", backtrace, rev)]
-    HashCheckFailed { backtrace: HgBacktrace, rev: Revision },
+    HashCheckFailed {
+        backtrace: HgBacktrace,
+        rev: Revision,
+    },
     #[display("{}compression error: {}", backtrace, error)]
-    Compression { backtrace: HgBacktrace, error: std::io::Error },
+    Compression {
+        backtrace: HgBacktrace,
+        error: std::io::Error,
+    },
     #[display("{}decompression error: {}", backtrace, error)]
-    Decompression { backtrace: HgBacktrace, error: std::io::Error },
+    Decompression {
+        backtrace: HgBacktrace,
+        error: std::io::Error,
+    },
     #[display(
         "{}uncompressed length does not match: expected {}, got {}",
         backtrace,
@@ -420,12 +452,21 @@ pub enum RevlogError {
         got: usize,
     },
     #[display("{}error in Python cache handling: {}", backtrace, message)]
-    PythonCache { backtrace: HgBacktrace, message: String },
+    PythonCache {
+        backtrace: HgBacktrace,
+        message: String,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
     fn from(value: HgIoError) -> Self {
         Self::IO(Box::new(value))
+    }
+}
+
+impl From<HgError> for RevlogError {
+    fn from(value: HgError) -> Self {
+        Self::Other(Box::new(value))
     }
 }
 

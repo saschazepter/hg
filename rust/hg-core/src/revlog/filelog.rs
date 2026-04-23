@@ -168,7 +168,7 @@ fn maybe_ignore_censored_revision(
         Ok(data) => Ok(FilelogRevisionData(data)),
         // Errors other than `HgError` should not happen at this point
         Err(e) => match &e {
-            RevlogError::Other(hg_error) => match hg_error {
+            RevlogError::Other(hg_error) => match &**hg_error {
                 HgError::CensoredNodeError(_, _)
                     if irl.ignore_filelog_censored_revisions() =>
                 {
@@ -283,7 +283,7 @@ impl FilelogEntry<'_> {
         let data = self.0.data();
         maybe_ignore_censored_revision(self.0.revlog, data).map_err(|e| match e
         {
-            RevlogError::Other(hg_error) => hg_error,
+            RevlogError::Other(hg_error) => *hg_error,
             revlog_error => HgError::abort_simple(revlog_error.to_string()),
         })
     }

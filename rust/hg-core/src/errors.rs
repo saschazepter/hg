@@ -726,7 +726,7 @@ impl From<RevlogError> for HgError {
                 "ambiguous revision identifier: {}",
                 r
             )),
-            RevlogError::Other(error) => error,
+            RevlogError::Other(error) => *error,
             RevlogError::PythonCache { message, backtrace } => HgError::Abort {
                 message,
                 detailed_exit_code: exit_codes::ABORT,
