@@ -456,11 +456,10 @@ impl InnerRevlog {
             ZSTD_BYTE => Ok(ZstdCompressor::new(0, 0).decompress(data)?.into()),
             b'\0' => Ok(data.into()),
             b'u' => Ok((&data[1..]).into()),
-            other => Err(HgError::unsupported(format!(
-                "unknown compression header '{}'",
-                other
-            ))
-            .into()),
+            other => Err(RevlogError::InvalidCompressionMode {
+                backtrace: HgBacktrace::capture(),
+                mode: other,
+            }),
         }
     }
 
