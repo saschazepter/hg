@@ -56,6 +56,7 @@ pub mod utils;
 pub mod vfs;
 pub mod warnings;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 
 use twox_hash::xxhash64::RandomState;
@@ -70,7 +71,9 @@ pub type LineNumber = usize;
 /// attacks. We are not concerned about those: if an ill-minded person has
 /// write access to your repository, you have other issues.
 pub type FastHashMap<K, V> = HashMap<K, V, RandomState>;
+pub type FastHashSet<K> = HashSet<K, RandomState>;
 
 // TODO: should this be the default `FastHashMap` for all of hg-core, not just
 // dirstate? How does XxHash compare with AHash, hashbrown’s default?
 pub type FastHashbrownMap<K, V> = hashbrown::HashMap<K, V, RandomState>;
+pub type FastHashbrownSet<K> = hashbrown::HashSet<K, RandomState>;
