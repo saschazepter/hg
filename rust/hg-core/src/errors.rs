@@ -288,6 +288,9 @@ impl fmt::Display for HgError {
                         backtrace, message
                     )
                 }
+                RevlogError::EllipsisNode { backtrace } => {
+                    write!(f, "{}encountered an ellipsis node", backtrace)
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {
@@ -815,6 +818,12 @@ impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
             RevlogError::Other(error) => *error,
+            RevlogError::EllipsisNode { backtrace } => {
+                Self::UnsupportedFeature(
+                    "encountered an ellipsis node".to_string(),
+                    backtrace,
+                )
+            }
             RevlogError::PythonCache { message, backtrace } => HgError::Abort {
                 message,
                 detailed_exit_code: exit_codes::ABORT,

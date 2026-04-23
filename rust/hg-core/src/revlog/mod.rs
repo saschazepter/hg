@@ -454,6 +454,10 @@ pub enum RevlogError {
         backtrace: HgBacktrace,
         message: String,
     },
+    /// We've encountered an ellipsis node, which we don't support
+    EllipsisNode {
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -920,10 +924,9 @@ impl<'revlog> RevlogEntry<'revlog> {
             Ok(data)
         } else {
             if (self.flags & REVISION_FLAG_ELLIPSIS) != 0 {
-                return Err(HgError::unsupported(
-                    "support for ellipsis nodes is missing",
-                )
-                .into());
+                return Err(RevlogError::EllipsisNode {
+                    backtrace: HgBacktrace::capture(),
+                });
             }
             Err(RevlogError::HashCheckFailed {
                 backtrace: HgBacktrace::capture(),
