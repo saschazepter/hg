@@ -56,6 +56,7 @@ use crate::GraphErrorKind;
 use crate::Node;
 use crate::NodePrefix;
 use crate::dyn_bytes::DynBytes;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
@@ -343,10 +344,12 @@ impl InnerRevlog {
         if rev == NULL_REVISION.into() {
             return Ok(self.make_null_entry());
         }
-        let rev = self
-            .index
-            .check_revision(rev)
-            .ok_or_else(|| RevlogError::InvalidRevision(rev.to_string()))?;
+        let rev = self.index.check_revision(rev).ok_or_else(|| {
+            RevlogError::InvalidRevision {
+                backtrace: HgBacktrace::capture(),
+                string: rev.to_string(),
+            }
+        })?;
         self.get_entry(rev)
     }
 
@@ -1761,9 +1764,10 @@ fn nodemap_error_to_revlog_error(
         NodeMapError::MultipleResults => {
             RevlogError::AmbiguousPrefix(format!("{:x}", node_prefix))
         }
-        NodeMapError::RevisionNotInIndex(rev) => {
-            RevlogError::InvalidRevision(rev.to_string())
-        }
+        NodeMapError::RevisionNotInIndex(rev) => RevlogError::InvalidRevision {
+            backtrace: HgBacktrace::capture(),
+            string: rev.to_string(),
+        },
     }
 }
 

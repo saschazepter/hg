@@ -139,7 +139,7 @@ impl StoreBackend<LocalToken> for LocalBackend {
             match self.repo.changelog()?.data_for_node(changeset.into()) {
                 Ok(data) => data,
                 Err(err) => match err {
-                    hg::revlog::RevlogError::InvalidRevision(_) => {
+                    hg::revlog::RevlogError::InvalidRevision { .. } => {
                         return Err(ErrorKind::NoSuchChangeset(changeset))?;
                     }
                     _ => return Err(HgError::from(err))?,

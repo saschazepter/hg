@@ -369,7 +369,11 @@ const LENGTH_NEUTRAL_FLAGS: u16 = REVISION_FLAG_HASCOPIESINFO
 
 #[derive(Debug, derive_more::From)]
 pub enum RevlogError {
-    InvalidRevision(String),
+    /// This revision string is invalid
+    InvalidRevision {
+        backtrace: HgBacktrace,
+        string: String,
+    },
     /// Working directory is not supported
     WDirUnsupported,
     /// Found more than one entry whose ID match the requested prefix
@@ -586,9 +590,12 @@ impl Revlog {
         &self,
         node: NodePrefix,
     ) -> Result<Revision, RevlogError> {
-        self.inner
-            .rev_from_node_prefix(node)?
-            .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
+        self.inner.rev_from_node_prefix(node)?.ok_or_else(|| {
+            RevlogError::InvalidRevision {
+                backtrace: HgBacktrace::capture(),
+                string: format!("{:x}", node),
+            }
+        })
     }
 
     /// Returns whether the given revision exists in this revlog.

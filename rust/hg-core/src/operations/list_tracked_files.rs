@@ -45,7 +45,7 @@ pub fn list_rev_tracked_files<M: Matcher>(
     let manifest = match repo.manifest_for_rev(rev) {
         Ok(manifest) => manifest,
         Err(e) => match e {
-            HgError::Revlog(RevlogError::InvalidRevision(_)) => {
+            HgError::Revlog(RevlogError::InvalidRevision { .. }) => {
                 let outside_of_current_narrow_spec = narrow_matcher
                     .visit_children_set(HgPath::new(""))
                     == VisitChildrenSet::Empty;

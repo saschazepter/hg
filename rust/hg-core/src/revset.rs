@@ -4,6 +4,7 @@
 
 use crate::Node;
 use crate::WORKING_DIRECTORY_REVISION;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::NULL_REVISION;
@@ -34,9 +35,9 @@ pub fn resolve_single(
     }
 
     match resolve(input, &changelog.revlog) {
-        Err(RevlogError::InvalidRevision(revision)) => {
+        Err(RevlogError::InvalidRevision { string, backtrace }) => {
             // TODO: support for the rest of the language here.
-            let msg = format!("cannot parse revset '{}'", revision);
+            let msg = format!("{backtrace}cannot parse revset '{string}'");
             Err(HgError::unsupported(msg).into())
         }
         result => result,
@@ -85,5 +86,8 @@ fn resolve(
         }
         return Ok(revlog.rev_from_node(prefix)?.into());
     }
-    Err(RevlogError::InvalidRevision(input.to_string()))
+    Err(RevlogError::InvalidRevision {
+        backtrace: HgBacktrace::capture(),
+        string: input.to_string(),
+    })
 }

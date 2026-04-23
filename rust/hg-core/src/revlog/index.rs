@@ -491,8 +491,10 @@ impl Index {
                 found_by_prefix = Some(rev)
             }
         }
-        found_by_prefix
-            .ok_or_else(|| RevlogError::InvalidRevision(format!("{:x}", node)))
+        found_by_prefix.ok_or_else(|| RevlogError::InvalidRevision {
+            backtrace: HgBacktrace::capture(),
+            string: format!("{:x}", node),
+        })
     }
 
     pub fn get_offsets(&self) -> RwLockReadGuard<'_, Option<Vec<usize>>> {
@@ -943,9 +945,12 @@ impl Index {
                 if base == NULL_REVISION.0 {
                     return Ok(true);
                 }
-                let [mut p1, mut p2] = self
-                    .parents(rev)
-                    .map_err(|e| RevlogError::InvalidRevision(e.to_string()))?;
+                let [mut p1, mut p2] = self.parents(rev).map_err(|e| {
+                    RevlogError::InvalidRevision {
+                        backtrace: HgBacktrace::capture(),
+                        string: e.to_string(),
+                    }
+                })?;
                 while p1 != NULL_REVISION {
                     let p1_entry = self.get_entry(p1);
                     if p1_entry.compressed_len() != 0 || p1.0 == 0 {
@@ -957,7 +962,10 @@ impl Index {
                         break;
                     }
                     p1 = self.check_revision(parent_base).ok_or_else(|| {
-                        RevlogError::InvalidRevision(parent_base.to_string())
+                        RevlogError::InvalidRevision {
+                            backtrace: HgBacktrace::capture(),
+                            string: parent_base.to_string(),
+                        }
                     })?;
                 }
                 while p2 != NULL_REVISION {
@@ -971,14 +979,20 @@ impl Index {
                         break;
                     }
                     p2 = self.check_revision(parent_base).ok_or_else(|| {
-                        RevlogError::InvalidRevision(parent_base.to_string())
+                        RevlogError::InvalidRevision {
+                            backtrace: HgBacktrace::capture(),
+                            string: parent_base.to_string(),
+                        }
                     })?;
                 }
                 if base == p1.0 || base == p2.0 {
                     return Ok(false);
                 }
                 rev = self.check_revision(base.into()).ok_or_else(|| {
-                    RevlogError::InvalidRevision(base.to_string())
+                    RevlogError::InvalidRevision {
+                        backtrace: HgBacktrace::capture(),
+                        string: base.to_string(),
+                    }
                 })?;
             }
             Ok(rev == NULL_REVISION)
@@ -991,9 +1005,12 @@ impl Index {
         &self,
         rev: UncheckedRevision,
     ) -> Result<bool, RevlogError> {
-        let rev = self
-            .check_revision(rev)
-            .ok_or_else(|| RevlogError::InvalidRevision(rev.to_string()))?;
+        let rev = self.check_revision(rev).ok_or_else(|| {
+            RevlogError::InvalidRevision {
+                backtrace: HgBacktrace::capture(),
+                string: rev.to_string(),
+            }
+        })?;
         self.is_snapshot_unchecked(rev)
     }
 

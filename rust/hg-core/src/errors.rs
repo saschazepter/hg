@@ -193,8 +193,11 @@ impl fmt::Display for HgError {
                 )
             }
             HgError::Revlog(revlog_error) => match revlog_error {
-                RevlogError::InvalidRevision(string) => {
-                    write!(f, "invalid revision identifier: {string}",)
+                RevlogError::InvalidRevision { backtrace, string } => {
+                    write!(
+                        f,
+                        "{backtrace}invalid revision identifier: {string}"
+                    )
                 }
                 RevlogError::WDirUnsupported => {
                     write!(f, "wdir is unsupported",)
