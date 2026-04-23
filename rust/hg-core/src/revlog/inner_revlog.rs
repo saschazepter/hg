@@ -477,7 +477,7 @@ impl InnerRevlog {
         &self,
         start_rev: Revision,
         end_rev: Revision,
-    ) -> Result<(usize, Vec<u8>), HgError> {
+    ) -> Result<(usize, Vec<u8>), RevlogError> {
         let start = if start_rev == NULL_REVISION {
             0
         } else {

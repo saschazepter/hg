@@ -298,6 +298,26 @@ impl fmt::Display for HgError {
                         backtrace
                     )
                 }
+                RevlogError::UnsupportedRevlogVersion {
+                    version,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}unsupported revlog version '{version}'",
+                    )
+                }
+                RevlogError::InvalidInlineRevlogLength {
+                    backtrace,
+                    expected,
+                    got,
+                } => {
+                    write!(
+                        f,
+                        "{}unexpected inline revlog length: expected {}, got {}",
+                        backtrace, expected, got
+                    )
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

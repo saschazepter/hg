@@ -353,7 +353,7 @@ impl Index {
     pub fn new(
         bytes: DynBytes<'static>,
         default_header: IndexHeader,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, RevlogError> {
         let header = if bytes.len() < INDEX_ENTRY_SIZE {
             default_header
         } else {
@@ -363,7 +363,10 @@ impl Index {
         if header.format_version() != IndexHeader::REVLOGV1 {
             // A proper new version should have had a repo/store
             // requirement.
-            return Err(HgError::corrupted("unsupported revlog version"));
+            return Err(RevlogError::UnsupportedRevlogVersion {
+                version: header.format_version(),
+                backtrace: HgBacktrace::capture(),
+            });
         }
 
         let uses_generaldelta = header.format_flags().uses_generaldelta();
@@ -395,7 +398,11 @@ impl Index {
                     head_revs: RwLock::new((vec![], HashSet::new())),
                 })
             } else {
-                Err(HgError::corrupted("unexpected inline revlog length"))
+                Err(RevlogError::InvalidInlineRevlogLength {
+                    backtrace: HgBacktrace::capture(),
+                    expected: offset,
+                    got: bytes.len(),
+                })
             }
         } else {
             Ok(Self {

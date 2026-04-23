@@ -463,6 +463,17 @@ pub enum RevlogError {
     InlineDelayedWrite {
         backtrace: HgBacktrace,
     },
+    /// We've encountered a version of the revlog we don't know about
+    UnsupportedRevlogVersion {
+        version: u16,
+        backtrace: HgBacktrace,
+    },
+    /// The length of an inline revlog did not match the expected
+    InvalidInlineRevlogLength {
+        backtrace: HgBacktrace,
+        expected: usize,
+        got: usize,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
