@@ -9,13 +9,13 @@
 //!
 //! Used to counts the references to directories in a manifest or dirstate.
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::collections::hash_map;
 use std::collections::hash_map::Entry;
 
 use super::DirstateError;
 use super::entry::DirstateEntry;
 use crate::FastHashMap;
+use crate::FastHashSet;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::utils::files;
 use crate::utils::hg_path::HgPath;
@@ -153,8 +153,8 @@ impl DirsMultiset {
 /// optimization to avoid some directories we don't need.
 #[derive(PartialEq, Debug)]
 pub struct DirsChildrenMultiset<'a> {
-    inner: FastHashMap<&'a HgPath, HashSet<&'a HgPath>>,
-    only_include: Option<HashSet<&'a HgPath>>,
+    inner: FastHashMap<&'a HgPath, FastHashSet<&'a HgPath>>,
+    only_include: Option<FastHashSet<&'a HgPath>>,
 }
 
 impl<'a> DirsChildrenMultiset<'a> {
@@ -187,7 +187,7 @@ impl<'a> DirsChildrenMultiset<'a> {
                     e.insert(basename);
                 })
                 .or_insert_with(|| {
-                    let mut set = HashSet::new();
+                    let mut set = FastHashSet::default();
                     set.insert(basename);
                     set
                 });
@@ -203,7 +203,7 @@ impl<'a> DirsChildrenMultiset<'a> {
     pub fn get(
         &self,
         path: impl AsRef<HgPath>,
-    ) -> Option<&HashSet<&'a HgPath>> {
+    ) -> Option<&FastHashSet<&'a HgPath>> {
         self.inner.get(path.as_ref())
     }
 }

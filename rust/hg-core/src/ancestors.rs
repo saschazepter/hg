@@ -9,12 +9,12 @@
 
 use std::cmp::max;
 use std::collections::BinaryHeap;
-use std::collections::HashSet;
 
 use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
 use super::Revision;
+use crate::FastHashSet;
 use crate::dagops;
 use crate::utils::descending_revision_set::DescendingRevisionSet;
 
@@ -34,7 +34,7 @@ pub struct AncestorsIterator<G: Graph> {
 
 pub struct MissingAncestors<G: Graph> {
     graph: G,
-    bases: HashSet<Revision>,
+    bases: FastHashSet<Revision>,
     max_base: Revision,
 }
 
@@ -187,7 +187,7 @@ impl<G: Graph> MissingAncestors<G> {
     pub fn new(graph: G, bases: impl IntoIterator<Item = Revision>) -> Self {
         let mut created = MissingAncestors {
             graph,
-            bases: HashSet::new(),
+            bases: FastHashSet::default(),
             max_base: NULL_REVISION,
         };
         created.add_bases(bases);
@@ -202,19 +202,21 @@ impl<G: Graph> MissingAncestors<G> {
     ///
     /// This is useful in unit tests, but also setdiscovery.py does
     /// read the bases attribute of a ancestor.missingancestors instance.
-    pub fn get_bases(&self) -> &HashSet<Revision> {
+    pub fn get_bases(&self) -> &FastHashSet<Revision> {
         &self.bases
     }
 
     /// Computes the relative heads of current bases.
     ///
     /// The object is still usable after this.
-    pub fn bases_heads(&self) -> Result<HashSet<Revision>, GraphError> {
+    pub fn bases_heads(&self) -> Result<FastHashSet<Revision>, GraphError> {
         dagops::heads(&self.graph, self.bases.iter())
     }
 
     /// Consumes the object and returns the relative heads of its bases.
-    pub fn into_bases_heads(mut self) -> Result<HashSet<Revision>, GraphError> {
+    pub fn into_bases_heads(
+        mut self,
+    ) -> Result<FastHashSet<Revision>, GraphError> {
         dagops::retain_heads(&self.graph, &mut self.bases)?;
         Ok(self.bases)
     }
@@ -239,7 +241,7 @@ impl<G: Graph> MissingAncestors<G> {
     /// Remove all ancestors of self.bases from the revs set (in place)
     pub fn remove_ancestors_from(
         &mut self,
-        revs: &mut HashSet<Revision>,
+        revs: &mut FastHashSet<Revision>,
     ) -> Result<(), GraphError> {
         revs.retain(|r| !self.bases.contains(r));
         // the null revision is always an ancestor. Logically speaking
@@ -304,10 +306,10 @@ impl<G: Graph> MissingAncestors<G> {
     ) -> Result<Vec<Revision>, GraphError> {
         // just for convenience and comparison with Python version
         let bases_visit = &mut self.bases;
-        let mut revs: HashSet<Revision> =
+        let mut revs: FastHashSet<Revision> =
             revs.into_iter().filter(|r| !bases_visit.contains(r)).collect();
         let revs_visit = &mut revs;
-        let mut both_visit: HashSet<Revision> =
+        let mut both_visit: FastHashSet<Revision> =
             revs_visit.intersection(bases_visit).cloned().collect();
         if revs_visit.is_empty() {
             return Ok(Vec::new());
@@ -708,7 +710,7 @@ mod tests {
             SampleGraph,
             bases.iter().map(|r| Revision(*r)),
         );
-        let mut revset: HashSet<Revision> =
+        let mut revset: FastHashSet<Revision> =
             revs.iter().map(|r| Revision(*r)).collect();
         missing_ancestors.remove_ancestors_from(&mut revset).unwrap();
         let mut as_vec: Vec<Revision> = revset.into_iter().collect();
@@ -879,7 +881,7 @@ mod tests {
             );
         assert!(missing_ancestors.bases.contains(&problem_base));
 
-        let mut revs: HashSet<Revision> =
+        let mut revs: FastHashSet<Revision> =
             [4, 12, 41, 28, 68, 38, 1, 30, 56, 44]
                 .iter()
                 .map(|r| Revision(*r))

@@ -1,13 +1,12 @@
 //! Helpers for the revlog config and opening options
 
-use std::collections::HashSet;
-
 use super::RevlogType;
 use super::compression::CompressionConfig;
 use super::index::FLAG_DELTA_INFO;
 use super::index::FLAG_FILELOG_META;
 use super::index::FLAG_GENERALDELTA;
 use super::index::FLAG_INLINE_DATA;
+use crate::FastHashSet;
 use crate::config::Config;
 use crate::config::ResourceProfileValue;
 use crate::errors::HgError;
@@ -170,7 +169,7 @@ pub struct RevlogDataConfig {
 impl RevlogDataConfig {
     pub fn new(
         config: &Config,
-        requirements: &HashSet<String>,
+        requirements: &FastHashSet<String>,
     ) -> Result<Self, HgError> {
         let mut data_config = Self::default();
         if let Some(chunk_cache_size) =
@@ -287,7 +286,7 @@ pub struct RevlogDeltaConfig {
 impl RevlogDeltaConfig {
     pub fn new(
         config: &Config,
-        requirements: &HashSet<String>,
+        requirements: &FastHashSet<String>,
         revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
         let mut delta_config = Self {
@@ -432,7 +431,7 @@ pub struct RevlogFeatureConfig {
 impl RevlogFeatureConfig {
     pub fn new(
         config: &Config,
-        requirements: &HashSet<String>,
+        requirements: &FastHashSet<String>,
         revlog_type: RevlogType,
     ) -> Result<Self, HgError> {
         let ignore_filelog_censored_revisions = revlog_type
@@ -452,7 +451,7 @@ impl RevlogFeatureConfig {
 /// current config and requirements.
 pub fn default_revlog_options(
     config: &Config,
-    requirements: &HashSet<String>,
+    requirements: &FastHashSet<String>,
     revlog_type: RevlogType,
 ) -> Result<RevlogOpenOptions, HgError> {
     let is_changelog = revlog_type == RevlogType::Changelog;

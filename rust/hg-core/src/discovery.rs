@@ -12,7 +12,6 @@
 
 use std::cmp::max;
 use std::cmp::min;
-use std::collections::HashSet;
 use std::collections::VecDeque;
 
 use rand::Rng as RngTrait;
@@ -24,6 +23,7 @@ use super::GraphError;
 use super::NULL_REVISION;
 use super::Revision;
 use crate::FastHashMap;
+use crate::FastHashSet;
 use crate::ancestors::MissingAncestors;
 use crate::dagops;
 
@@ -34,9 +34,9 @@ pub struct PartialDiscovery<G: Graph + Clone> {
     target_heads: Option<Vec<Revision>>,
     graph: G, // plays the role of self._repo
     common: MissingAncestors<G>,
-    undecided: Option<HashSet<Revision>>,
+    undecided: Option<FastHashSet<Revision>>,
     children_cache: Option<FastHashMap<Revision, Vec<Revision>>>,
-    missing: HashSet<Revision>,
+    missing: FastHashSet<Revision>,
     rng: Rng,
     respect_size: bool,
     randomize: bool,
@@ -62,9 +62,9 @@ pub struct DiscoveryStats {
 /// - `parentfn`: a callable to resolve parents for a revision
 /// - `quicksamplesize`: optional target size of the sample
 fn update_sample<I>(
-    revs: Option<&HashSet<Revision>>,
+    revs: Option<&FastHashSet<Revision>>,
     heads: impl IntoIterator<Item = Revision>,
-    sample: &mut HashSet<Revision>,
+    sample: &mut FastHashSet<Revision>,
     parentsfn: impl Fn(Revision) -> Result<I, GraphError>,
     quicksamplesize: Option<usize>,
 ) -> Result<(), GraphError>
@@ -74,7 +74,7 @@ where
     let mut distances: FastHashMap<Revision, u32> = FastHashMap::default();
     let mut visit: VecDeque<Revision> = heads.into_iter().collect();
     let mut factor: u32 = 1;
-    let mut seen: HashSet<Revision> = HashSet::new();
+    let mut seen: FastHashSet<Revision> = FastHashSet::default();
     while let Some(current) = visit.pop_front() {
         if !seen.insert(current) {
             continue;
@@ -186,7 +186,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
             target_heads: Some(target_heads),
             graph: graph.clone(),
             common: MissingAncestors::new(graph, vec![]),
-            missing: HashSet::new(),
+            missing: FastHashSet::default(),
             rng: Rng::from_seed(seed),
             respect_size,
             randomize,
@@ -256,7 +256,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
         self.ensure_children_cache()?;
         self.ensure_undecided()?; // for safety of possible future refactors
         let children = self.children_cache.as_ref().unwrap();
-        let mut seen: HashSet<Revision> = HashSet::new();
+        let mut seen: FastHashSet<Revision> = FastHashSet::default();
         let undecided_mut = self.undecided.as_mut().unwrap();
         while let Some(rev) = tovisit.pop_front() {
             if !self.missing.insert(rev) {
@@ -291,7 +291,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
     /// Did we acquire full knowledge of our Revisions that the peer has?
     pub fn is_complete(&self) -> bool {
-        self.undecided.as_ref().is_some_and(HashSet::is_empty)
+        self.undecided.as_ref().is_some_and(FastHashSet::is_empty)
     }
 
     /// Return the heads of the currently known common set of revisions.
@@ -305,7 +305,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
     /// We may introduce in the future an `into_common_heads` call that
     /// would be more appropriate for normal Rust callers, dropping `self`
     /// if it is complete.
-    pub fn common_heads(&self) -> Result<HashSet<Revision>, GraphError> {
+    pub fn common_heads(&self) -> Result<FastHashSet<Revision>, GraphError> {
         self.common.bases_heads()
     }
 
@@ -348,7 +348,9 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
     /// Provide statistics about the current state of the discovery process
     pub fn stats(&self) -> DiscoveryStats {
-        DiscoveryStats { undecided: self.undecided.as_ref().map(HashSet::len) }
+        DiscoveryStats {
+            undecided: self.undecided.as_ref().map(FastHashSet::len),
+        }
     }
 
     pub fn take_quick_sample(
@@ -393,7 +395,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
     fn bidirectional_sample(
         &mut self,
         size: usize,
-    ) -> Result<(HashSet<Revision>, usize), GraphError> {
+    ) -> Result<(FastHashSet<Revision>, usize), GraphError> {
         self.ensure_undecided()?;
         {
             // we don't want to compute children_cache before this
@@ -407,7 +409,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 
         self.ensure_children_cache()?;
         let revs = self.undecided.as_ref().unwrap();
-        let mut sample: HashSet<Revision> = revs.clone();
+        let mut sample: FastHashSet<Revision> = revs.clone();
 
         // it's possible that leveraging the children cache would be more
         // efficient here
@@ -424,7 +426,7 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
         )?;
 
         // update from roots
-        let revroots: HashSet<Revision> =
+        let revroots: FastHashSet<Revision> =
             dagops::roots(&self.graph, revs)?.into_iter().collect();
         let prescribed_size = max(size, min(revroots.len(), revsheads.len()));
 
@@ -683,7 +685,7 @@ mod tests {
     #[test]
     fn test_complete_sample() {
         let mut disco = full_disco();
-        let undecided: HashSet<Revision> =
+        let undecided: FastHashSet<Revision> =
             [4, 7, 9, 2, 3].iter().cloned().map(Revision).collect();
         disco.undecided = Some(undecided);
 

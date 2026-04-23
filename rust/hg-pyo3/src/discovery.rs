@@ -1,6 +1,5 @@
 //! Discovery of common node sets
-use std::collections::HashSet;
-
+use hg::FastHashSet;
 use hg::Revision;
 use hg::discovery::PartialDiscovery as CorePartialDiscovery;
 use pyo3::Bound;
@@ -157,7 +156,7 @@ impl PartialDiscovery {
         Ok(as_dict.unbind())
     }
 
-    fn commonheads(&self, py: Python<'_>) -> PyResult<HashSet<PyRevision>> {
+    fn commonheads(&self, py: Python<'_>) -> PyResult<FastHashSet<PyRevision>> {
         // Safety: we don't leak any reference derived form the "faked" one in
         // `SharedByPyObject`
         let inner = unsafe { self.inner.try_borrow(py)? };

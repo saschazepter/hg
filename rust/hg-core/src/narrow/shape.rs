@@ -1,7 +1,6 @@
 //! The core of the logic for narrow shapes, which enable a composable algebra
 //! for slicing a repo's history along its files.
 
-use std::collections::HashSet;
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -17,6 +16,7 @@ use sha2::Digest;
 use sha2::Sha256;
 
 use crate::FastHashMap;
+use crate::FastHashSet;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::file_patterns::FilePattern;
@@ -512,7 +512,7 @@ impl ShardTreeNode {
         store_shards: &'a StoreShards,
         shards: &[&'a Shard],
     ) -> Result<Self, Error> {
-        let mut shard_paths = HashSet::new();
+        let mut shard_paths = FastHashSet::default();
         // Gather all paths recursively
         for shard in shards {
             shard_paths.extend(shard.paths.iter().map(|path| path.as_bytes()));
@@ -549,13 +549,13 @@ impl ShardTreeNode {
         let mut include_paths = includes
             .iter()
             .map(check_pattern)
-            .collect::<Result<HashSet<&[u8]>, _>>()
+            .collect::<Result<FastHashSet<&[u8]>, _>>()
             .map_err(ErrorKind::PatternError)?; /*  */
 
         let exclude_paths = excludes
             .iter()
             .map(check_pattern)
-            .collect::<Result<HashSet<&[u8]>, _>>()
+            .collect::<Result<FastHashSet<&[u8]>, _>>()
             .map_err(ErrorKind::PatternError)?;
 
         let empty_path = b"".as_slice();
@@ -586,7 +586,7 @@ impl ShardTreeNode {
     /// contains only the paths that are included.
     fn from_paths<Paths, Bytes>(
         paths: Paths,
-        includes: HashSet<&[u8]>,
+        includes: FastHashSet<&[u8]>,
     ) -> Result<Self, HgPathError>
     where
         Paths: Iterator<Item = Bytes>,
@@ -1418,9 +1418,9 @@ mod tests {
         // Test a prefix match on a non-included-non-root node
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar/baz")),
-            VisitChildrenSet::Set(HashSet::from_iter([HgPathBuf::from_bytes(
-                b"bar/baz/ik"
-            )]))
+            VisitChildrenSet::Set(FastHashSet::from_iter([
+                HgPathBuf::from_bytes(b"bar/baz/ik")
+            ]))
         );
         // Test a nested exact match
         assert_eq!(

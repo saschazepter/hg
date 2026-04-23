@@ -13,7 +13,6 @@ pub mod config_items;
 mod layer;
 mod plain_info;
 mod values;
-use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::path::Path;
@@ -32,6 +31,7 @@ use self::config_items::DefaultConfig;
 use self::config_items::DefaultConfigItem;
 use self::layer::ConfigLayer;
 use self::layer::ConfigValue;
+use crate::FastHashSet;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
@@ -720,7 +720,7 @@ impl Config {
     }
 
     /// Return all keys defined for the given section
-    pub fn get_section_keys(&self, section: &[u8]) -> HashSet<&[u8]> {
+    pub fn get_section_keys(&self, section: &[u8]) -> FastHashSet<&[u8]> {
         self.layers.iter().flat_map(|layer| layer.iter_keys(section)).collect()
     }
 
@@ -736,7 +736,7 @@ impl Config {
         section: &'a [u8],
     ) -> impl Iterator<Item = (&'a [u8], &'a [u8])> + 'a {
         // Deduplicate keys redefined in multiple layers
-        let mut keys_already_seen = HashSet::new();
+        let mut keys_already_seen = FastHashSet::default();
         let mut key_is_new =
             move |&(key, _value): &(&'a [u8], &'a [u8])| -> bool {
                 keys_already_seen.insert(key)

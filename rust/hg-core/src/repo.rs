@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write as IoWrite;
@@ -11,6 +10,7 @@ use parking_lot::RwLock;
 use parking_lot::RwLockReadGuard;
 use parking_lot::RwLockWriteGuard;
 
+use crate::FastHashSet;
 use crate::NodePrefix;
 use crate::UncheckedRevision;
 use crate::config::Config;
@@ -63,7 +63,7 @@ pub struct Repo {
     working_directory: PathBuf,
     dot_hg: PathBuf,
     store: PathBuf,
-    requirements: HashSet<String>,
+    requirements: FastHashSet<String>,
     config: Config,
     dirstate_parents: RwLockOption<DirstateParents>,
     dirstate_map: RwLockOption<OwningDirstateMap>,
@@ -180,7 +180,7 @@ impl Repo {
         &self.store
     }
 
-    pub fn requirements(&self) -> &HashSet<String> {
+    pub fn requirements(&self) -> &FastHashSet<String> {
         &self.requirements
     }
 
@@ -789,7 +789,7 @@ impl Repo {
 /// paths.
 fn load_requirements(
     dot_hg: &PathBuf,
-) -> Result<(HashSet<String>, Vec<PathBuf>, PathBuf), HgError> {
+) -> Result<(FastHashSet<String>, Vec<PathBuf>, PathBuf), HgError> {
     let mut repo_config_files =
         vec![dot_hg.join("hgrc"), dot_hg.join("hgrc-not-shared")];
     let hg_vfs = VfsImpl::new(dot_hg.to_owned(), false, PathEncoding::None);

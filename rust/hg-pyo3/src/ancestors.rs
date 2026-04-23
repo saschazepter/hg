@@ -8,8 +8,7 @@
 //! Bindings for the `hg::ancestors` module provided by the
 //! `hg-core` crate. From Python, this will be seen as `pyo3_rustext.ancestor`
 //! and can be used as replacement for the the pure `ancestor` Python module.
-use std::collections::HashSet;
-
+use hg::FastHashSet;
 use hg::MissingAncestors as CoreMissing;
 use hg::Revision;
 use hg::ancestors::AncestorsIterator as HgAncestorsIterator;
@@ -200,14 +199,14 @@ impl MissingAncestors {
         Ok(())
     }
 
-    fn bases(slf: PyRef<'_, Self>) -> PyResult<HashSet<PyRevision>> {
+    fn bases(slf: PyRef<'_, Self>) -> PyResult<FastHashSet<PyRevision>> {
         // Safety: we don't leak the "faked" reference out of
         // `SharedByPyObject`
         let inner = unsafe { slf.inner.try_borrow(slf.py()) }?;
         Ok(inner.get_bases().iter().map(|r| PyRevision(r.0)).collect())
     }
 
-    fn basesheads(slf: PyRef<'_, Self>) -> PyResult<HashSet<PyRevision>> {
+    fn basesheads(slf: PyRef<'_, Self>) -> PyResult<FastHashSet<PyRevision>> {
         // Safety: we don't leak the "faked" reference out of
         // `SharedByPyObject`
         let inner = unsafe { slf.inner.try_borrow(slf.py()) }?;
@@ -238,7 +237,7 @@ impl MissingAncestors {
         // on &Bound<'py, PySet>
         let py = slf.py();
         let index_proxy = slf.proxy_index.bind(py);
-        let mut revs_set: HashSet<_> =
+        let mut revs_set: FastHashSet<_> =
             rev_pyiter_collect_with_py_index(revs, index_proxy)?;
 
         // Safety: we don't leak the "faked" reference out of

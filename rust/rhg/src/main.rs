@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::ffi::OsStringExt;
@@ -13,6 +12,7 @@ use clap::ArgMatches;
 use clap::command;
 use format_bytes::format_bytes;
 use format_bytes::join;
+use hg::FastHashSet;
 use hg::config::Config;
 use hg::config::ConfigSource;
 use hg::config::PlainInfo;
@@ -1017,7 +1017,7 @@ fn check_extensions(config: &Config) -> Result<(), CommandError> {
         return Ok(());
     }
 
-    let enabled: HashSet<&[u8]> = config
+    let enabled: FastHashSet<&[u8]> = config
         .iter_section(b"extensions")
         .filter_map(|(extension, value)| {
             if value == b"!" {
@@ -1093,7 +1093,7 @@ const AUTO_UPGRADES: &[((&str, &str), (&str, &str), &str)] = &[
 /// is needed.
 fn check_auto_upgrade(
     config: &Config,
-    reqs: &HashSet<String>,
+    reqs: &FastHashSet<String>,
 ) -> Result<(), CommandError> {
     for (upgrade_conf, feature_conf, local_req) in AUTO_UPGRADES.iter() {
         let auto_upgrade = config

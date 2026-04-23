@@ -1,11 +1,10 @@
-use std::collections::HashSet;
-
+use crate::FastHashSet;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::utils::strings::join_display;
 use crate::vfs::VfsImpl;
 
-fn parse(bytes: &[u8]) -> Result<HashSet<String>, HgError> {
+fn parse(bytes: &[u8]) -> Result<FastHashSet<String>, HgError> {
     // The Python code reading this file uses `str.splitlines`
     // which looks for a number of line separators (even including a couple of
     // non-ASCII ones), but Python code writing it always uses `\n`.
@@ -25,13 +24,13 @@ fn parse(bytes: &[u8]) -> Result<HashSet<String>, HgError> {
         .collect()
 }
 
-pub(crate) fn load(hg_vfs: VfsImpl) -> Result<HashSet<String>, HgError> {
+pub(crate) fn load(hg_vfs: VfsImpl) -> Result<FastHashSet<String>, HgError> {
     parse(&hg_vfs.read("requires")?)
 }
 
 pub(crate) fn load_if_exists(
     hg_vfs: &VfsImpl,
-) -> Result<HashSet<String>, HgError> {
+) -> Result<FastHashSet<String>, HgError> {
     if let Some(bytes) = hg_vfs.read("requires").io_not_found_as_none()? {
         parse(&bytes)
     } else {
@@ -42,11 +41,11 @@ pub(crate) fn load_if_exists(
         // > the repository. This file was introduced in Mercurial 0.9.2,
         // > which means very old repositories may not have one. We assume
         // > a missing file translates to no requirements.
-        Ok(HashSet::new())
+        Ok(FastHashSet::default())
     }
 }
 
-pub(crate) fn check(reqs: &HashSet<String>) -> Result<(), HgError> {
+pub(crate) fn check(reqs: &FastHashSet<String>) -> Result<(), HgError> {
     let unknown: Vec<_> = reqs
         .iter()
         .map(String::as_str)
@@ -205,7 +204,7 @@ pub const REVLOG_COMPRESSION_ZSTD: &str = "revlog-compression-zstd";
 mod tests {
     use super::*;
 
-    fn create_reqs(reqs: &[&str]) -> HashSet<String> {
+    fn create_reqs(reqs: &[&str]) -> FastHashSet<String> {
         let mut set = create_reqs_no_defaults(reqs);
         for req in REQUIRED {
             set.insert(req.to_string());
@@ -213,8 +212,8 @@ mod tests {
         set
     }
 
-    fn create_reqs_no_defaults(reqs: &[&str]) -> HashSet<String> {
-        let mut set = HashSet::new();
+    fn create_reqs_no_defaults(reqs: &[&str]) -> FastHashSet<String> {
+        let mut set = FastHashSet::default();
         for &req in reqs {
             set.insert(req.to_string());
         }

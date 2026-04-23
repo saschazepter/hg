@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::path::Path;
 
@@ -6,6 +5,7 @@ use format_bytes::DisplayBytes;
 use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 
+use crate::FastHashSet;
 use crate::NULL_REVISION;
 use crate::Node;
 use crate::Revision;
@@ -72,7 +72,7 @@ pub struct SparseConfig {
     pub(crate) includes: Vec<u8>,
     // Line-separated
     pub(crate) excludes: Vec<u8>,
-    pub(crate) profiles: HashSet<Vec<u8>>,
+    pub(crate) profiles: FastHashSet<Vec<u8>>,
 }
 
 /// All possible errors when reading sparse/narrow config
@@ -173,7 +173,7 @@ pub(crate) fn parse_config(
 ) -> Result<SparseConfig, SparseConfigError> {
     let mut includes = vec![];
     let mut excludes = vec![];
-    let mut profiles = HashSet::new();
+    let mut profiles = FastHashSet::default();
 
     #[derive(PartialEq, Eq)]
     enum Current {
@@ -276,7 +276,7 @@ fn patterns_for_rev(
 
     if !config.profiles.is_empty() {
         let mut profiles: Vec<Vec<u8>> = config.profiles.into_iter().collect();
-        let mut visited = HashSet::new();
+        let mut visited = FastHashSet::default();
 
         while let Some(profile) = profiles.pop() {
             if visited.contains(&profile) {
@@ -416,9 +416,9 @@ fn dirstate_parent_revs(
 pub fn active_profiles(
     repo: &Repo,
     warnings: &HgWarningSender,
-) -> Result<HashSet<Vec<u8>>, HgError> {
+) -> Result<FastHashSet<Vec<u8>>, HgError> {
     let revs = dirstate_parent_revs(repo)?;
-    let mut profiles = HashSet::new();
+    let mut profiles = FastHashSet::default();
     for rev in revs {
         if let Some(config) = patterns_for_rev(repo, rev, warnings)? {
             profiles.extend(config.profiles.into_iter());

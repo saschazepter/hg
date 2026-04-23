@@ -1,6 +1,5 @@
 //! Tools for moving the repository to a given revision
 
-use std::collections::HashSet;
 use std::fs::Permissions;
 use std::io::Write;
 use std::ops::Deref;
@@ -16,6 +15,7 @@ use crossbeam_channel::Sender;
 use rayon::prelude::*;
 
 use crate::DirstateParents;
+use crate::FastHashSet;
 use crate::INTERRUPT_RECEIVED;
 use crate::NULL_NODE;
 use crate::Revision;
@@ -618,7 +618,7 @@ pub fn compute_actions<
             // There will be few conflicts most of the time, and they are
             // sorted,so only create and use a HashSet if we need to match
             // against many paths.
-            let file_conflicts: HashSet<_> =
+            let file_conflicts: FastHashSet<_> =
                 file_conflicts.into_iter().collect();
             let new_gets = actions.create.iter().copied().map(|c| {
                 let backup = file_conflicts.contains(&c.0);

@@ -9,8 +9,7 @@
 //! `hg-core` package.
 //!
 //! From Python, this will be seen as `mercurial.pyo3_rustext.dagop`
-use std::collections::HashSet;
-
+use hg::FastHashSet;
 use hg::Revision;
 use hg::dagops;
 use pyo3::prelude::*;
@@ -29,10 +28,10 @@ use crate::utils::proxy_index_extract;
 pub fn headrevs(
     index_proxy: &Bound<'_, PyAny>,
     revs: &Bound<'_, PyAny>,
-) -> PyResult<HashSet<PyRevision>> {
+) -> PyResult<FastHashSet<PyRevision>> {
     // Safety: we don't leak the "faked" reference out of `SharedByPyObject`
     let index = unsafe { proxy_index_extract(index_proxy)? };
-    let mut as_set: HashSet<Revision> = rev_pyiter_collect(revs, index)?;
+    let mut as_set: FastHashSet<Revision> = rev_pyiter_collect(revs, index)?;
     dagops::retain_heads(index, &mut as_set)
         .map_err(|e| GraphError::from_hg(&e))?;
     Ok(as_set.into_iter().map(Into::into).collect())

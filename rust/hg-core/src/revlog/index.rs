@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::RwLock;
@@ -19,6 +18,7 @@ use super::RevlogError;
 use super::RevlogIndex;
 use crate::BaseRevision;
 use crate::FastHashMap;
+use crate::FastHashSet;
 use crate::Graph;
 use crate::GraphError;
 use crate::GraphErrorKind;
@@ -294,7 +294,7 @@ pub struct Index {
     /// be accessed via the [`Self::head_revs`] method.
     /// The last filtered revisions in this index, used to make sure
     /// we haven't changed filters when returning the cached `head_revs`.
-    pub(super) head_revs: RwLock<(Vec<Revision>, HashSet<Revision>)>,
+    pub(super) head_revs: RwLock<(Vec<Revision>, FastHashSet<Revision>)>,
 }
 
 impl Debug for Index {
@@ -335,7 +335,7 @@ pub trait SnapshotsCache {
     ) -> Result<(), RevlogError>;
 }
 
-impl SnapshotsCache for FastHashMap<BaseRevision, HashSet<BaseRevision>> {
+impl SnapshotsCache for FastHashMap<BaseRevision, FastHashSet<BaseRevision>> {
     fn insert_for(
         &mut self,
         rev: BaseRevision,
@@ -395,7 +395,7 @@ impl Index {
                     uses_delta_info,
                     is_inline: true,
                     bundle_repo_start: None,
-                    head_revs: RwLock::new((vec![], HashSet::new())),
+                    head_revs: RwLock::new((vec![], FastHashSet::default())),
                 })
             } else {
                 Err(RevlogError::InvalidInlineRevlogLength {
@@ -414,7 +414,7 @@ impl Index {
                 uses_delta_info,
                 is_inline: false,
                 bundle_repo_start: None,
-                head_revs: RwLock::new((vec![], HashSet::new())),
+                head_revs: RwLock::new((vec![], FastHashSet::default())),
             })
         }
     }
@@ -613,14 +613,14 @@ impl Index {
 
     /// Return the head revisions of this index
     pub fn head_revs(&self) -> Result<Vec<Revision>, GraphError> {
-        self.head_revs_advanced(&HashSet::new(), None, false)
+        self.head_revs_advanced(&FastHashSet::default(), None, false)
             .map(|h| h.unwrap())
     }
 
     /// Return the head revisions of this index
     pub fn head_revs_advanced(
         &self,
-        filtered_revs: &HashSet<Revision>,
+        filtered_revs: &FastHashSet<Revision>,
         stop_rev: Option<Revision>,
         py_shortcut: bool,
     ) -> Result<Option<Vec<Revision>>, GraphError> {
@@ -689,7 +689,7 @@ impl Index {
     pub fn head_revs_shortcut(
         &self,
     ) -> Result<Option<Vec<Revision>>, GraphError> {
-        self.head_revs_advanced(&HashSet::new(), None, true)
+        self.head_revs_advanced(&FastHashSet::default(), None, true)
     }
 
     /// Return the heads removed and added by advancing from `begin` to `end`.
@@ -704,7 +704,7 @@ impl Index {
         let mut heads_added = vec![];
         let mut heads_removed = vec![];
 
-        let mut acc = HashSet::new();
+        let mut acc = FastHashSet::default();
         let Revision(begin) = begin;
         let Revision(end) = end;
         let mut i = end;
@@ -1252,17 +1252,17 @@ impl Index {
         &self,
         min_root: UncheckedRevision,
         mut heads: Vec<Revision>,
-        roots: HashSet<UncheckedRevision>,
+        roots: FastHashSet<UncheckedRevision>,
         include_path: bool,
-    ) -> Result<HashSet<Revision>, GraphError> {
+    ) -> Result<FastHashSet<Revision>, GraphError> {
         if roots.is_empty() {
-            return Ok(HashSet::new());
+            return Ok(FastHashSet::default());
         }
         let max_head = match heads.iter().max() {
-            None => return Ok(HashSet::new()),
+            None => return Ok(FastHashSet::default()),
             Some(head) => head,
         };
-        let mut reachable = HashSet::new();
+        let mut reachable = FastHashSet::default();
         let mut seen = DescendingRevisionSet::new(*max_head);
 
         while let Some(rev) = heads.pop() {
@@ -1304,7 +1304,7 @@ impl Index {
         // potentially acceptable, especially given that `hg-pyo3` could
         // very much bypass this, constructing a vector of unique values from
         // the onset.
-        let as_set: HashSet<Revision> = revisions.iter().copied().collect();
+        let as_set: FastHashSet<Revision> = revisions.iter().copied().collect();
         // Besides deduplicating, the C version also implements the shortcut
         // for `NULL_REVISION`:
         if as_set.contains(&NULL_REVISION) {

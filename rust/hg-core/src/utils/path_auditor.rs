@@ -6,12 +6,12 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
-use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
+use crate::FastHashSet;
 use crate::utils::files::lower_clean;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
@@ -24,8 +24,8 @@ use crate::utils::strings::find_slice_in_slice;
 /// any banned components, does not traverse a symlink, etc.
 #[derive(Debug, Default)]
 pub struct PathAuditor {
-    audited: Mutex<HashSet<HgPathBuf>>,
-    audited_dirs: RwLock<HashSet<HgPathBuf>>,
+    audited: Mutex<FastHashSet<HgPathBuf>>,
+    audited_dirs: RwLock<FastHashSet<HgPathBuf>>,
     root: PathBuf,
 }
 

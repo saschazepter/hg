@@ -8,7 +8,6 @@
 // GNU General Public License version 2 or any later version.
 #![allow(non_snake_case)]
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -18,6 +17,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 use hg::BaseRevision;
+use hg::FastHashSet;
 use hg::Graph;
 use hg::NULL_REVISION;
 use hg::Revision;
@@ -1369,7 +1369,7 @@ impl InnerRevlog {
                     stop_rev.is_none(),
                 )
             } else if stop_rev.is_some() {
-                idx.head_revs_advanced(&HashSet::new(), stop_rev, false)
+                idx.head_revs_advanced(&FastHashSet::default(), stop_rev, false)
             } else {
                 idx.head_revs_shortcut()
             }

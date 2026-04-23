@@ -1,13 +1,13 @@
 //! Helpers around revlog compression
 
 use std::cell::RefCell;
-use std::collections::HashSet;
 use std::io::Read;
 
 use flate2::bufread::ZlibEncoder;
 use flate2::read::ZlibDecoder;
 
 use super::RevlogError;
+use crate::FastHashSet;
 use crate::config::Config;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
@@ -47,7 +47,7 @@ pub enum CompressionConfig {
 impl CompressionConfig {
     pub fn new(
         config: &Config,
-        requirements: &HashSet<String>,
+        requirements: &FastHashSet<String>,
     ) -> Result<Self, HgError> {
         let mut new = Self::default();
 

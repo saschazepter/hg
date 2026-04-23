@@ -13,7 +13,6 @@
 //! - Similarly *relative roots* of a collection of `Revision`, we mean those
 //!   whose parents, if any, don't belong to the collection.
 use std::collections::BTreeSet;
-use std::collections::HashSet;
 
 use bitvec::slice::BitSlice;
 
@@ -22,12 +21,13 @@ use super::GraphError;
 use super::NULL_REVISION;
 use super::Revision;
 use crate::BaseRevision;
+use crate::FastHashSet;
 use crate::ancestors::AncestorsIterator;
 
-fn remove_parents<S: std::hash::BuildHasher>(
+fn remove_parents(
     graph: &impl Graph,
     rev: Revision,
-    set: &mut HashSet<Revision, S>,
+    set: &mut FastHashSet<Revision>,
 ) -> Result<(), GraphError> {
     for parent in graph.parents(rev)?.iter() {
         if *parent != NULL_REVISION {
@@ -51,8 +51,8 @@ fn remove_parents<S: std::hash::BuildHasher>(
 pub fn heads<'a>(
     graph: &impl Graph,
     iter_revs: impl Clone + Iterator<Item = &'a Revision>,
-) -> Result<HashSet<Revision>, GraphError> {
-    let mut heads: HashSet<Revision> = iter_revs.clone().cloned().collect();
+) -> Result<FastHashSet<Revision>, GraphError> {
+    let mut heads: FastHashSet<Revision> = iter_revs.clone().cloned().collect();
     heads.remove(&NULL_REVISION);
     for rev in iter_revs {
         if *rev != NULL_REVISION {
@@ -73,9 +73,9 @@ pub fn heads<'a>(
 ///
 /// # Performance notes
 /// Internally, this function will store a full copy of `revs` in a `Vec`.
-pub fn retain_heads<S: std::hash::BuildHasher>(
+pub fn retain_heads(
     graph: &impl Graph,
-    revs: &mut HashSet<Revision, S>,
+    revs: &mut FastHashSet<Revision>,
 ) -> Result<(), GraphError> {
     revs.remove(&NULL_REVISION);
     // we need to construct an iterable copy of revs to avoid itering while
@@ -98,7 +98,7 @@ pub fn retain_heads<S: std::hash::BuildHasher>(
 pub fn retain_heads_fast(
     graph: &impl Graph,
     not_heads: &mut BitSlice,
-    filtered_revs: &HashSet<Revision>,
+    filtered_revs: &FastHashSet<Revision>,
 ) -> Result<(), GraphError> {
     for idx in (0..not_heads.len()).rev() {
         let rev = Revision(idx as BaseRevision);
@@ -118,9 +118,9 @@ pub fn retain_heads_fast(
 /// Roots of `revs`, passed as a `HashSet`
 ///
 /// They are returned in arbitrary order
-pub fn roots<G: Graph, S: std::hash::BuildHasher>(
+pub fn roots<G: Graph>(
     graph: &G,
-    revs: &HashSet<Revision, S>,
+    revs: &FastHashSet<Revision>,
 ) -> Result<Vec<Revision>, GraphError> {
     let mut roots: Vec<Revision> = Vec::new();
     for rev in revs {
@@ -170,7 +170,7 @@ pub fn range(
     heads: impl IntoIterator<Item = Revision>,
 ) -> Result<BTreeSet<Revision>, GraphError> {
     let mut range = BTreeSet::new();
-    let roots: HashSet<Revision> = roots.into_iter().collect();
+    let roots: FastHashSet<Revision> = roots.into_iter().collect();
     let min_root: Revision = match roots.iter().cloned().min() {
         None => {
             return Ok(range);
@@ -213,7 +213,7 @@ mod tests {
         graph: &impl Graph,
         revs: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        let mut revs: HashSet<Revision> =
+        let mut revs: FastHashSet<Revision> =
             revs.iter().cloned().map(Revision).collect();
         retain_heads(graph, &mut revs)?;
         let mut as_vec: Vec<Revision> = revs.iter().cloned().collect();
@@ -266,7 +266,7 @@ mod tests {
         graph: &impl Graph,
         revs: &[BaseRevision],
     ) -> Result<Vec<Revision>, GraphError> {
-        let set: HashSet<_> = revs.iter().cloned().map(Revision).collect();
+        let set: FastHashSet<_> = revs.iter().cloned().map(Revision).collect();
         let mut as_vec = roots(graph, &set)?;
         as_vec.sort_unstable();
         Ok(as_vec)

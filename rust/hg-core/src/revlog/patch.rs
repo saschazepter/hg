@@ -768,7 +768,7 @@ mod tests {
 
                 let max_pos = src_size + 1;
                 let nb_pick = rng.random_range(1..10);
-                let mut selected_pos = std::collections::HashSet::new();
+                let mut selected_pos = crate::FastHashSet::default();
                 for _ in 0..nb_pick {
                     let picked = rng.random_range(0..max_pos);
                     selected_pos.insert(picked);

@@ -1,8 +1,8 @@
 use std::cmp::min;
-use std::collections::HashSet;
 use std::env;
 use std::fmt::Debug;
 
+use hg::FastHashSet;
 use hg::Revision;
 use hg::testing::VecGraph;
 use hg::*;
@@ -58,10 +58,10 @@ fn build_random_graph(
 }
 
 /// Compute the ancestors set of all revisions of a VecGraph
-fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
-    let mut ancs: Vec<HashSet<Revision>> = Vec::new();
+fn ancestors_sets(vg: &VecGraph) -> Vec<FastHashSet<Revision>> {
+    let mut ancs: Vec<FastHashSet<Revision>> = Vec::new();
     (0..vg.len()).for_each(|i| {
-        let mut ancs_i = HashSet::new();
+        let mut ancs_i = FastHashSet::default();
         ancs_i.insert(Revision(i as BaseRevision));
         for p in vg[i].iter().cloned() {
             if p != NULL_REVISION {
@@ -76,10 +76,10 @@ fn ancestors_sets(vg: &VecGraph) -> Vec<HashSet<Revision>> {
 #[allow(unused)] // Useful when debugging
 #[derive(Clone, Debug)]
 enum MissingAncestorsAction {
-    InitialBases(HashSet<Revision>),
-    AddBases(HashSet<Revision>),
-    RemoveAncestorsFrom(HashSet<Revision>),
-    MissingAncestors(HashSet<Revision>),
+    InitialBases(FastHashSet<Revision>),
+    AddBases(FastHashSet<Revision>),
+    RemoveAncestorsFrom(FastHashSet<Revision>),
+    MissingAncestors(FastHashSet<Revision>),
 }
 
 /// An instrumented naive yet obviously correct implementation
@@ -87,9 +87,9 @@ enum MissingAncestorsAction {
 /// It also records all its actions for easy reproduction for replay
 /// of problematic cases
 struct NaiveMissingAncestors<'a> {
-    ancestors_sets: &'a Vec<HashSet<Revision>>,
+    ancestors_sets: &'a Vec<FastHashSet<Revision>>,
     graph: &'a VecGraph, // used for error reporting only
-    bases: HashSet<Revision>,
+    bases: FastHashSet<Revision>,
     history: Vec<MissingAncestorsAction>,
     // for error reporting, assuming we are in a random test
     random_seed: String,
@@ -98,8 +98,8 @@ struct NaiveMissingAncestors<'a> {
 impl<'a> NaiveMissingAncestors<'a> {
     fn new(
         graph: &'a VecGraph,
-        ancestors_sets: &'a Vec<HashSet<Revision>>,
-        bases: &HashSet<Revision>,
+        ancestors_sets: &'a Vec<FastHashSet<Revision>>,
+        bases: &FastHashSet<Revision>,
         random_seed: &str,
     ) -> Self {
         Self {
@@ -111,12 +111,12 @@ impl<'a> NaiveMissingAncestors<'a> {
         }
     }
 
-    fn add_bases(&mut self, new_bases: HashSet<Revision>) {
+    fn add_bases(&mut self, new_bases: FastHashSet<Revision>) {
         self.bases.extend(&new_bases);
         self.history.push(MissingAncestorsAction::AddBases(new_bases))
     }
 
-    fn remove_ancestors_from(&mut self, revs: &mut HashSet<Revision>) {
+    fn remove_ancestors_from(&mut self, revs: &mut FastHashSet<Revision>) {
         revs.remove(&NULL_REVISION);
         self.history
             .push(MissingAncestorsAction::RemoveAncestorsFrom(revs.clone()));
@@ -133,9 +133,9 @@ impl<'a> NaiveMissingAncestors<'a> {
         &mut self,
         revs: impl IntoIterator<Item = Revision>,
     ) -> Vec<Revision> {
-        let revs_as_set: HashSet<Revision> = revs.into_iter().collect();
+        let revs_as_set: FastHashSet<Revision> = revs.into_iter().collect();
 
-        let mut missing: HashSet<Revision> = HashSet::new();
+        let mut missing: FastHashSet<Revision> = FastHashSet::default();
         for rev in revs_as_set.iter().cloned() {
             if rev != NULL_REVISION {
                 missing.extend(&self.ancestors_sets[rev.0 as usize])
@@ -190,7 +190,7 @@ fn sample_revs<R: Rng>(
     maxrev: Revision,
     mu_opt: Option<f64>,
     sigma_opt: Option<f64>,
-) -> HashSet<Revision> {
+) -> FastHashSet<Revision> {
     let mu = mu_opt.unwrap_or(1.1);
     let sigma = sigma_opt.unwrap_or(0.8);
 
@@ -297,7 +297,7 @@ fn test_missing_ancestors_compare_naive() {
         let graph_len = Revision(graph.len() as BaseRevision);
         let ancestors_sets = ancestors_sets(&graph);
         for _testno in 0..testcount {
-            let bases: HashSet<Revision> =
+            let bases: FastHashSet<Revision> =
                 sample_revs(&mut rng, graph_len, None, None);
             let mut inc =
                 MissingAncestors::<VecGraph>::new(graph.clone(), bases.clone());

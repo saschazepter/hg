@@ -1,7 +1,6 @@
 //! The file index maps file paths in a repository to integer tokens.
 //! See `mercurial/helptext/internals/fileindex.txt` for more details.
 
-use std::collections::HashSet;
 use std::io::BufWriter;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -28,6 +27,7 @@ use on_disk::OwnedDataFiles;
 use on_disk::OwnedFileIndexView;
 pub use on_disk::PathInfo;
 
+use crate::FastHashSet;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
 use crate::transaction::Transaction;
@@ -122,7 +122,7 @@ pub struct FileIndex {
     /// Paths to be added on the next write.
     add_paths: IndexSet<HgPathBuf>,
     /// Tokens to be removed on the next write.
-    remove_tokens: HashSet<FileToken>,
+    remove_tokens: FastHashSet<FileToken>,
 }
 
 impl FileIndex {
@@ -145,7 +145,7 @@ impl FileIndex {
             config,
             force_vacuum: false,
             add_paths: IndexSet::new(),
-            remove_tokens: HashSet::new(),
+            remove_tokens: FastHashSet::default(),
         })
     }
 
@@ -428,7 +428,7 @@ impl FileIndex {
         config: &Config,
         on_disk: &FileIndexView<'_>,
         add_paths: &IndexSet<HgPathBuf>,
-        remove_tokens: &HashSet<FileToken>,
+        remove_tokens: &FastHashSet<FileToken>,
         mode: SerializeMode,
     ) -> Result<(), HgError> {
         let removing = !remove_tokens.is_empty();
