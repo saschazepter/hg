@@ -528,17 +528,15 @@ impl InnerRevlog {
 
     /// `pub` only for use in hg-pyo3
     #[doc(hidden)]
-    pub fn enter_reading_context(&self) -> Result<(), HgError> {
+    pub fn enter_reading_context(&self) -> Result<(), RevlogError> {
         if self.is_empty() {
             // Nothing to be read
             return Ok(());
         }
         if self.delayed_buffer.is_some() && self.is_inline() {
-            return Err(HgError::abort(
-                "revlog with delayed write should not be inline",
-                exit_codes::ABORT,
-                None,
-            ));
+            return Err(RevlogError::InlineDelayedWrite {
+                backtrace: HgBacktrace::capture(),
+            });
         }
         self.segment_file.get_read_handle()?;
         Ok(())

@@ -291,6 +291,13 @@ impl fmt::Display for HgError {
                 RevlogError::EllipsisNode { backtrace } => {
                     write!(f, "{}encountered an ellipsis node", backtrace)
                 }
+                RevlogError::InlineDelayedWrite { backtrace } => {
+                    write!(
+                        f,
+                        "{}revlog with delayed write should not be inline",
+                        backtrace
+                    )
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

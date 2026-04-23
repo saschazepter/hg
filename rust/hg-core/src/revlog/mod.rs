@@ -458,6 +458,11 @@ pub enum RevlogError {
     EllipsisNode {
         backtrace: HgBacktrace,
     },
+    /// An inline revlog was caught with a delayed write, this is a programming
+    /// error.
+    InlineDelayedWrite {
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
