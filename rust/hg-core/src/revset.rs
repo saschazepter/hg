@@ -21,7 +21,7 @@ use crate::revlog::WORKING_DIRECTORY_HEX;
 pub fn resolve_single(
     input: &str,
     repo: &Repo,
-) -> Result<RevisionOrWdir, RevlogError> {
+) -> Result<RevisionOrWdir, HgError> {
     let changelog = repo.changelog()?;
 
     match input {
@@ -35,10 +35,13 @@ pub fn resolve_single(
     }
 
     match resolve(input, &changelog.revlog) {
-        Err(RevlogError::InvalidRevision { string, backtrace }) => {
+        Err(HgError::Revlog(RevlogError::InvalidRevision {
+            string,
+            backtrace,
+        })) => {
             // TODO: support for the rest of the language here.
             let msg = format!("{backtrace}cannot parse revset '{string}'");
-            Err(HgError::unsupported(msg).into())
+            Err(HgError::unsupported(msg))
         }
         result => result,
     }
@@ -52,19 +55,16 @@ pub fn resolve_single(
 pub fn resolve_rev_number_or_hex_prefix(
     input: &str,
     revlog: &Revlog,
-) -> Result<Revision, RevlogError> {
+) -> Result<Revision, HgError> {
     match resolve(input, revlog)?.exclude_wdir() {
         Some(rev) => Ok(rev),
         None => Err(RevlogError::WDirUnsupported {
             backtrace: HgBacktrace::capture(),
-        }),
+        })?,
     }
 }
 
-fn resolve(
-    input: &str,
-    revlog: &Revlog,
-) -> Result<RevisionOrWdir, RevlogError> {
+fn resolve(input: &str, revlog: &Revlog) -> Result<RevisionOrWdir, HgError> {
     // The Python equivalent of this is part of `revsymbol` in
     // `mercurial/scmutil.py`
     if let Ok(integer) = input.parse::<i32>()
@@ -91,5 +91,5 @@ fn resolve(
     Err(RevlogError::InvalidRevision {
         backtrace: HgBacktrace::capture(),
         string: input.to_string(),
-    })
+    })?
 }
