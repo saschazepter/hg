@@ -85,7 +85,7 @@ impl Filelog {
         file_rev: UncheckedRevision,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let data = self.revlog.get_data_for_unchecked_rev(file_rev);
-        maybe_ignore_censored_revision(&self.revlog.inner, data)
+        maybe_ignore_censored_revision(&self.revlog.inner, data, file_rev)
     }
 
     /// The given node ID is that of the file as found in a filelog, not of a
@@ -163,19 +163,23 @@ impl Filelog {
 fn maybe_ignore_censored_revision(
     irl: &InnerRevlog,
     data_result: Result<RawData, RevlogError>,
+    revision: UncheckedRevision,
 ) -> Result<FilelogRevisionData, RevlogError> {
     match data_result {
-        Ok(data) => Ok(FilelogRevisionData(data)),
-        // Errors other than `HgError` should not happen at this point
+        Ok(data) => {
+            // OK because we've just checked that the data exists
+            let revision = Revision(revision.0);
+            Ok(FilelogRevisionData { data, revision })
+        }
+        // Errors other than this should not happen at this point
         Err(e) => match &e {
-            RevlogError::Other(hg_error) => match &**hg_error {
-                HgError::CensoredNodeError(_, _)
-                    if irl.ignore_filelog_censored_revisions() =>
-                {
-                    Ok(FilelogRevisionData(RawData::empty()))
-                }
-                _ => Err(e),
-            },
+            RevlogError::CensoredRevision { .. }
+                if irl.ignore_filelog_censored_revisions() =>
+            {
+                // OK because we've just checked that the revision exists
+                let revision = Revision(revision.0);
+                Ok(FilelogRevisionData { data: RawData::empty(), revision })
+            }
             _ => Err(e),
         },
     }
@@ -281,12 +285,20 @@ impl FilelogEntry<'_> {
 
     pub fn data(&self) -> Result<FilelogRevisionData, HgError> {
         let data = self.0.data();
-        Ok(maybe_ignore_censored_revision(self.0.revlog, data)?)
+        Ok(maybe_ignore_censored_revision(
+            self.0.revlog,
+            data,
+            self.0.revision().into(),
+        )?)
     }
 }
 
 /// The data for one revision in a filelog, uncompressed and delta-resolved.
-pub struct FilelogRevisionData(RawData);
+pub struct FilelogRevisionData {
+    #[expect(unused)]
+    revision: Revision,
+    data: RawData,
+}
 
 impl FilelogRevisionData {
     /// Split into metadata and data
@@ -295,7 +307,7 @@ impl FilelogRevisionData {
     ) -> Result<(FilelogRevisionMetadata<'_>, &[u8]), HgError> {
         const DELIMITER: &[u8; 2] = b"\x01\n";
 
-        if let Some(rest) = self.0.drop_prefix(DELIMITER) {
+        if let Some(rest) = self.data.drop_prefix(DELIMITER) {
             if let Some((metadata, data)) = rest.split_2_by_slice(DELIMITER) {
                 Ok((FilelogRevisionMetadata(Some(metadata)), data))
             } else {
@@ -304,7 +316,7 @@ impl FilelogRevisionData {
                 ))
             }
         } else {
-            Ok((FilelogRevisionMetadata(None), &self.0))
+            Ok((FilelogRevisionMetadata(None), &self.data))
         }
     }
 
@@ -326,7 +338,7 @@ impl FilelogRevisionData {
         if let (FilelogRevisionMetadata(Some(_)), data) = self.split()? {
             Ok(RawData::from(data)) // XXX consider the Bytes crate
         } else {
-            Ok(self.0)
+            Ok(self.data)
         }
     }
 }
@@ -494,24 +506,30 @@ mod tests {
 
     #[test]
     fn test_parse_no_metadata() {
-        let data = FilelogRevisionData(RawData::from(b"data".to_vec()));
+        let data = FilelogRevisionData {
+            data: RawData::from(b"data".to_vec()),
+            revision: Revision(0),
+        };
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(fields, Default::default());
     }
 
     #[test]
     fn test_parse_empty_metadata() {
-        let data =
-            FilelogRevisionData(RawData::from(b"\x01\n\x01\ndata".to_vec()));
+        let data = FilelogRevisionData {
+            data: RawData::from(b"\x01\n\x01\ndata".to_vec()),
+            revision: Revision(0),
+        };
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(fields, Default::default());
     }
 
     #[test]
     fn test_parse_one_field() {
-        let data = FilelogRevisionData(RawData::from(
-            b"\x01\ncopy: foo\n\x01\ndata".to_vec(),
-        ));
+        let data = FilelogRevisionData {
+            data: RawData::from(b"\x01\ncopy: foo\n\x01\ndata".to_vec()),
+            revision: Revision(0),
+        };
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(
             fields,
@@ -525,10 +543,13 @@ mod tests {
     #[test]
     fn test_parse_all_fields() {
         let sha = b"215d5d1546f82a79481eb2df513a7bc341bdf17f";
-        let data = FilelogRevisionData(RawData::from(format_bytes!(
-            b"\x01\ncensored: \ncopy: foo\ncopyrev: {}\n\x01\ndata",
-            sha
-        )));
+        let data = FilelogRevisionData {
+            data: RawData::from(format_bytes!(
+                b"\x01\ncensored: \ncopy: foo\ncopyrev: {}\n\x01\ndata",
+                sha
+            )),
+            revision: Revision(0),
+        };
         let fields = data.metadata().unwrap().parse().unwrap();
         assert_eq!(
             fields,
@@ -542,9 +563,10 @@ mod tests {
 
     #[test]
     fn test_parse_invalid_metadata() {
-        let data = FilelogRevisionData(RawData::from(
-            b"\x01\nbad: value\n\x01\ndata".to_vec(),
-        ));
+        let data = FilelogRevisionData {
+            data: RawData::from(b"\x01\nbad: value\n\x01\ndata".to_vec()),
+            revision: Revision(0),
+        };
         let err = data.metadata().unwrap().parse().unwrap_err();
         assert!(err.to_string().contains("unrecognized key 'bad'"));
     }

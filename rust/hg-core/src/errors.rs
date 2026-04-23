@@ -6,7 +6,6 @@ use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::Node;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
@@ -62,9 +61,6 @@ pub enum HgError {
     /// and syntax of each value.
     #[from]
     ConfigValueParseError(ConfigValueParseError),
-
-    /// Censored revision data.
-    CensoredNodeError(Node, HgBacktrace),
     /// An error at the revlog layer
     Revlog(RevlogError),
     /// An error occured in the dirstate
@@ -167,15 +163,6 @@ impl fmt::Display for HgError {
             }
             HgError::UnsupportedFeature(explanation, backtrace) => {
                 write!(f, "{}unsupported feature: {}", backtrace, explanation)
-            }
-            HgError::CensoredNodeError(node, backtrace) => {
-                write!(
-                    f,
-                    "{}censored node: {:x}\n\
-                    (set censor.policy to ignore errors)",
-                    backtrace,
-                    node.short()
-                )
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
             HgError::RaceDetected(context) => {
@@ -320,6 +307,15 @@ impl fmt::Display for HgError {
                 }
                 RevlogError::TooLittleDataForHeader { backtrace } => {
                     write!(f, "{backtrace}too little data for revlog header")
+                }
+                RevlogError::CensoredRevision { node, backtrace } => {
+                    write!(
+                        f,
+                        "{}censored node: {:x}\n\
+                        (set censor.policy to ignore errors)",
+                        backtrace,
+                        node.short()
+                    )
                 }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {

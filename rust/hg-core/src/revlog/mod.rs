@@ -478,6 +478,11 @@ pub enum RevlogError {
     TooLittleDataForHeader {
         backtrace: HgBacktrace,
     },
+    /// We have encountered a censored revision
+    CensoredRevision {
+        node: Node,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -961,11 +966,10 @@ impl<'revlog> RevlogEntry<'revlog> {
             return Ok(RawData::empty());
         }
         if self.is_censored() {
-            return Err(HgError::CensoredNodeError(
-                *self.node(),
-                HgBacktrace::capture(),
-            )
-            .into());
+            return Err(RevlogError::CensoredRevision {
+                node: *self.node(),
+                backtrace: HgBacktrace::capture(),
+            });
         }
         let raw_size = self.uncompressed_len();
         if let Some(size) = raw_size {

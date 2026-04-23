@@ -121,9 +121,6 @@ impl From<HgError> for CommandError {
             }
             // explicit because some patterns lead to falling back
             HgError::Pattern(pat) => pat.into(),
-            e @ HgError::CensoredNodeError(_, _) => {
-                CommandError::unsupported(format!("abort: {}", e))
-            }
             e @ HgError::Shape(_) => {
                 CommandError::abort(format!("abort: {e}"))
             }
