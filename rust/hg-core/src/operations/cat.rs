@@ -13,7 +13,6 @@ use itertools::put_back;
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::Node;
-use crate::revlog::RevlogError;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestEntry;
 use crate::utils::RawData;
@@ -83,10 +82,10 @@ pub fn cat<'a>(
     repo: &Repo,
     revset: &str,
     mut files: Vec<&'a HgPath>,
-) -> Result<CatOutput<'a>, RevlogError> {
+) -> Result<CatOutput<'a>, HgError> {
     let Some(rev) = crate::revset::resolve_single(revset, repo)?.exclude_wdir()
     else {
-        return Err(HgError::unsupported("cat wdir not implemented").into());
+        return Err(HgError::unsupported("cat wdir not implemented"));
     };
     let manifest = repo.manifest_for_rev(rev.into())?;
     let mut results: Vec<(&'a HgPath, RawData)> = vec![];
