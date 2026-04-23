@@ -407,7 +407,7 @@ impl InnerRevlog {
         &self,
         rev: Revision,
         stop_rev: Option<Revision>,
-    ) -> Result<(Vec<Revision>, bool), HgError> {
+    ) -> Result<(Vec<Revision>, bool), RevlogError> {
         self.index.delta_chain(rev, stop_rev)
     }
 

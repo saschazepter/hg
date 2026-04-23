@@ -787,7 +787,7 @@ impl Index {
         &self,
         rev: Revision,
         stop_rev: Option<Revision>,
-    ) -> Result<(Vec<Revision>, bool), HgError> {
+    ) -> Result<(Vec<Revision>, bool), RevlogError> {
         let mut current_rev = rev;
         let mut entry = self.get_entry(rev);
         let mut chain = vec![];
@@ -806,7 +806,10 @@ impl Index {
                 UncheckedRevision(current_rev.0 - 1)
             };
             current_rev = self.check_revision(new_rev).ok_or_else(|| {
-                HgError::corrupted(format!("Revision {new_rev} out of range"))
+                RevlogError::InvalidRevision {
+                    backtrace: HgBacktrace::capture(),
+                    string: new_rev.to_string(),
+                }
             })?;
             if current_rev.0 == NULL_REVISION.0 {
                 break;

@@ -51,7 +51,6 @@ use pyo3::buffer::PyBuffer;
 use pyo3::conversion::IntoPyObject;
 use pyo3::exceptions::PyIndexError;
 use pyo3::exceptions::PyTypeError;
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBool;
 use pyo3::types::PyBytes;
@@ -1485,8 +1484,7 @@ impl InnerRevlog {
                     })
                 })
                 .transpose()?;
-            idx.delta_chain(rev, stop_rev)
-                .map_err(|e| PyValueError::new_err(e.to_string()))
+            idx.delta_chain(rev, stop_rev).into_pyerr(py)
         })?;
 
         let py_chain = revs_py_list(py, chain)?.into_any();
