@@ -17,6 +17,7 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
+use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::file_patterns::parse_pattern_args;
@@ -184,7 +185,9 @@ fn parse_revpair(
     let resolve =
         |input| match hg::revset::resolve_single(input, repo)?.exclude_wdir() {
             Some(rev) => Ok(rev),
-            None => Err(RevlogError::WDirUnsupported),
+            None => Err(RevlogError::WDirUnsupported {
+                backtrace: HgBacktrace::capture(),
+            }),
         };
     match revs.as_slice() {
         [] => Ok(None),

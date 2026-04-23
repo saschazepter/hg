@@ -199,8 +199,11 @@ impl fmt::Display for HgError {
                         "{backtrace}invalid revision identifier: {string}"
                     )
                 }
-                RevlogError::WDirUnsupported => {
-                    write!(f, "wdir is unsupported",)
+                RevlogError::WDirUnsupported { backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}working directory revision cannot be specified",
+                    )
                 }
                 RevlogError::AmbiguousPrefix(prefix) => {
                     write!(f, "ambiguous revision prefix: {prefix}",)

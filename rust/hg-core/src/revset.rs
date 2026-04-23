@@ -55,7 +55,9 @@ pub fn resolve_rev_number_or_hex_prefix(
 ) -> Result<Revision, RevlogError> {
     match resolve(input, revlog)?.exclude_wdir() {
         Some(rev) => Ok(rev),
-        None => Err(RevlogError::WDirUnsupported),
+        None => Err(RevlogError::WDirUnsupported {
+            backtrace: HgBacktrace::capture(),
+        }),
     }
 }
 

@@ -375,7 +375,9 @@ pub enum RevlogError {
         string: String,
     },
     /// Working directory is not supported
-    WDirUnsupported,
+    WDirUnsupported {
+        backtrace: HgBacktrace,
+    },
     /// Found more than one entry whose ID match the requested prefix
     AmbiguousPrefix(String),
     /// Boxed otherwise the enum is very large in memory
