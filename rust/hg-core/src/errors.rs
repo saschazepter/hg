@@ -318,6 +318,9 @@ impl fmt::Display for HgError {
                         backtrace, expected, got
                     )
                 }
+                RevlogError::TooLittleDataForHeader { backtrace } => {
+                    write!(f, "{backtrace}too little data for revlog header")
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

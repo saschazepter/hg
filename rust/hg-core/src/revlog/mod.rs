@@ -474,6 +474,10 @@ pub enum RevlogError {
         expected: usize,
         got: usize,
     },
+    /// The index header is too small to parse
+    TooLittleDataForHeader {
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {

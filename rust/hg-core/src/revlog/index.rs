@@ -92,11 +92,11 @@ impl IndexHeader {
         BigEndian::read_u16(&self.header_bytes[2..4])
     }
 
-    pub fn parse(index_bytes: &[u8]) -> Result<IndexHeader, HgError> {
+    pub fn parse(index_bytes: &[u8]) -> Result<IndexHeader, RevlogError> {
         if index_bytes.len() < 4 {
-            return Err(HgError::corrupted(
-                "corrupted revlog: can't read the index format header",
-            ));
+            return Err(RevlogError::TooLittleDataForHeader {
+                backtrace: HgBacktrace::capture(),
+            });
         }
         Ok(IndexHeader {
             header_bytes: {
