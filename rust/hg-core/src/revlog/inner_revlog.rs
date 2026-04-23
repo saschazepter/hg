@@ -496,7 +496,7 @@ impl InnerRevlog {
     }
 
     /// Return the uncompressed raw data for `rev`
-    pub fn chunk_for_rev(&self, rev: Revision) -> Result<RawData, HgError> {
+    pub fn chunk_for_rev(&self, rev: Revision) -> Result<RawData, RevlogError> {
         if let Some(Ok(mut cache)) =
             self.uncompressed_chunk_cache.as_ref().map(|c| c.try_write())
             && let Some(chunk) = cache.get(&rev)
