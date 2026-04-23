@@ -197,8 +197,7 @@ impl StoreBackend<LocalToken> for LocalBackend {
         let changeset_rev = changelog
             .rev_from_node(changeset.into())
             .map_err(|_| ErrorKind::NoSuchChangeset(changeset))?;
-        let manifest =
-            self.repo.manifest_for_node(changeset).map_err(HgError::from)?;
+        let manifest = self.repo.manifest_for_node(changeset)?;
 
         // The sparse matcher
         let warnings = HgWarningContext::new();

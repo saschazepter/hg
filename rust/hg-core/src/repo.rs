@@ -34,7 +34,6 @@ use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
 use crate::requirements::FILEINDEX_V1_REQUIREMENT;
 use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
-use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
@@ -565,13 +564,13 @@ impl Repo {
     pub fn manifest_for_node(
         &self,
         node: impl Into<NodePrefix>,
-    ) -> Result<Manifest, RevlogError> {
-        self.manifestlog()?.data_for_node(
+    ) -> Result<Manifest, HgError> {
+        Ok(self.manifestlog()?.data_for_node(
             self.changelog()?
                 .data_for_node(node.into())?
                 .manifest_node()?
                 .into(),
-        )
+        )?)
     }
 
     /// Returns the manifest of the *changeset* with the given revision number
