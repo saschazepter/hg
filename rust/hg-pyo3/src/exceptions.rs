@@ -75,7 +75,9 @@ pub fn revlog_error_bare() -> PyErr {
 }
 
 pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
-    mercurial_py_errors::RustRevlogError::new_err(revlog_error.to_string())
+    mercurial_py_errors::RustRevlogError::new_err(
+        HgError::from(revlog_error).to_string(),
+    )
 }
 
 pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {

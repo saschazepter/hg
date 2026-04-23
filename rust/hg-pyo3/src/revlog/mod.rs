@@ -1442,8 +1442,7 @@ impl InnerRevlog {
         let rev: UncheckedRevision = rev.into();
         let rev = Self::with_index_read(slf, |idx| check_revision(idx, rev))?;
         Self::with_core_read(slf, |_self_ref, irl| {
-            irl.is_snapshot(rev)
-                .map_err(|e| PyValueError::new_err(e.to_string()))
+            irl.is_snapshot(rev).into_pyerr(slf.py())
         })
     }
 

@@ -46,15 +46,6 @@ pub struct StatusRevRev<'a, M> {
     copies: Option<(ListCopies, CopyStrategy<'a>)>,
 }
 
-fn manifest_for_rev(repo: &Repo, rev: Revision) -> Result<Manifest, HgError> {
-    repo.manifest_for_rev(rev.into()).map_err(|e| {
-        HgError::corrupted(format!(
-            "manifest lookup failed for revision {}: {}",
-            rev, e
-        ))
-    })
-}
-
 pub fn status_rev_rev_no_copies<M: Matcher>(
     repo: &Repo,
     rev1: Revision,
@@ -62,8 +53,8 @@ pub fn status_rev_rev_no_copies<M: Matcher>(
     narrow_matcher: M,
 ) -> Result<StatusRevRev<'_, M>, HgError> {
     Ok(StatusRevRev {
-        manifest1: manifest_for_rev(repo, rev1)?,
-        manifest2: manifest_for_rev(repo, rev2)?,
+        manifest1: repo.manifest_for_rev(rev1.into())?,
+        manifest2: repo.manifest_for_rev(rev2.into())?,
         narrow_matcher,
         copies: None,
     })
@@ -79,8 +70,8 @@ pub fn status_change<M: Matcher>(
     let parent = repo.changelog()?.revlog.get_entry(rev)?.p1();
     let parent = parent.unwrap_or(NULL_REVISION);
     Ok(StatusRevRev {
-        manifest1: manifest_for_rev(repo, parent)?,
-        manifest2: manifest_for_rev(repo, rev)?,
+        manifest1: repo.manifest_for_rev(parent.into())?,
+        manifest2: repo.manifest_for_rev(rev.into())?,
         narrow_matcher,
         copies: list_copies.map(|list| (list, CopyStrategy::Change(repo))),
     })

@@ -578,13 +578,13 @@ impl Repo {
     pub fn manifest_for_rev(
         &self,
         revision: UncheckedRevision,
-    ) -> Result<Manifest, RevlogError> {
-        self.manifestlog()?.data_for_node(
+    ) -> Result<Manifest, HgError> {
+        Ok(self.manifestlog()?.data_for_node(
             self.changelog()?
                 .data_for_unchecked_rev(revision)?
                 .manifest_node()?
                 .into(),
-        )
+        )?)
     }
 
     pub fn has_subrepos(&self) -> Result<bool, HgError> {

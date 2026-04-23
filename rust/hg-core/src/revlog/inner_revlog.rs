@@ -503,13 +503,7 @@ impl InnerRevlog {
         }
         // TODO revlogv2 should check the compression mode
         let data = self.get_segment_for_revs(rev, rev)?.1;
-        let uncompressed = self.decompress(&data).map_err(|e| {
-            HgError::abort(
-                format!("revlog decompression error: {}", e),
-                exit_codes::ABORT,
-                None,
-            )
-        })?;
+        let uncompressed = self.decompress(&data)?;
         let uncompressed: RawData = RawData::from(uncompressed.into_owned());
         self.record_uncompressed_chunk(rev, uncompressed.clone());
         Ok(uncompressed)

@@ -281,11 +281,7 @@ impl FilelogEntry<'_> {
 
     pub fn data(&self) -> Result<FilelogRevisionData, HgError> {
         let data = self.0.data();
-        maybe_ignore_censored_revision(self.0.revlog, data).map_err(|e| match e
-        {
-            RevlogError::Other(hg_error) => *hg_error,
-            revlog_error => HgError::abort_simple(revlog_error.to_string()),
-        })
+        Ok(maybe_ignore_censored_revision(self.0.revlog, data)?)
     }
 }
 

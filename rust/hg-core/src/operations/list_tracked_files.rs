@@ -25,12 +25,10 @@ pub fn list_revset_tracked_files<M: Matcher>(
     repo: &Repo,
     revset: &str,
     narrow_matcher: M,
-) -> Result<FilesForRev<M>, RevlogError> {
+) -> Result<FilesForRev<M>, HgError> {
     match crate::revset::resolve_single(revset, repo)?.exclude_wdir() {
         Some(rev) => list_rev_tracked_files(repo, rev.into(), narrow_matcher),
-        None => {
-            Err(HgError::unsupported("list wdir files not implemented").into())
-        }
+        None => Err(HgError::unsupported("list wdir files not implemented")),
     }
 }
 
@@ -39,7 +37,7 @@ pub fn list_rev_tracked_files<M: Matcher>(
     repo: &Repo,
     rev: UncheckedRevision,
     narrow_matcher: M,
-) -> Result<FilesForRev<M>, RevlogError> {
+) -> Result<FilesForRev<M>, HgError> {
     // TODO move this to the repo itself
     // This implies storing the narrow matcher in the repo, bubbling up the
     // errors and warnings, so it's a bit of churn. In the meantime, the repo
@@ -47,7 +45,7 @@ pub fn list_rev_tracked_files<M: Matcher>(
     let manifest = match repo.manifest_for_rev(rev) {
         Ok(manifest) => manifest,
         Err(e) => match e {
-            RevlogError::InvalidRevision(_) => {
+            HgError::Revlog(RevlogError::InvalidRevision(_)) => {
                 let outside_of_current_narrow_spec = narrow_matcher
                     .visit_children_set(HgPath::new(""))
                     == VisitChildrenSet::Empty;
