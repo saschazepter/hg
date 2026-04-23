@@ -65,6 +65,8 @@ pub enum HgError {
 
     /// Censored revision data.
     CensoredNodeError(Node, HgBacktrace),
+    /// An error at the revlog layer
+    Revlog(RevlogError),
     /// An error occured in the dirstate
     #[from]
     Dirstate(DirstateError),
@@ -190,6 +192,7 @@ impl fmt::Display for HgError {
                     at.display()
                 )
             }
+            HgError::Revlog(revlog_error) => revlog_error.fmt(f),
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {
                     DirstateV2ParseError::CorruptedDocket(
@@ -715,17 +718,6 @@ impl<T> HgResultExt<T> for Result<T, HgIoError> {
 impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
-            RevlogError::WDirUnsupported => HgError::abort_simple(
-                "working directory revision cannot be specified",
-            ),
-            RevlogError::InvalidRevision(r) => HgError::abort_simple(format!(
-                "invalid revision identifier: {}",
-                r
-            )),
-            RevlogError::AmbiguousPrefix(r) => HgError::abort_simple(format!(
-                "ambiguous revision identifier: {}",
-                r
-            )),
             RevlogError::Other(error) => *error,
             RevlogError::PythonCache { message, backtrace } => HgError::Abort {
                 message,
@@ -734,22 +726,7 @@ impl From<RevlogError> for HgError {
                 backtrace,
             },
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
-            err @ (RevlogError::CorruptedRevisionData { .. }
-            | RevlogError::CorruptedDelta { .. }
-            | RevlogError::DeltaInsertsTooMuch { .. }
-            | RevlogError::InvalidLinkRev { .. }
-            | RevlogError::Graph(_)
-            | RevlogError::UnknownFlags { .. }
-            | RevlogError::InvalidCompressionMode { .. }
-            | RevlogError::InvalidSidedataCompressionMode { .. }
-            | RevlogError::HashCheckFailed { .. }
-            | RevlogError::Compression { .. }
-            | RevlogError::Decompression { .. }
-            | RevlogError::InvalidPhase { .. }
-            | RevlogError::UncompressedLengthMismatch { .. }) => {
-                // Temporary while we clean up `RevlogError`
-                HgError::corrupted(err.to_string())
-            }
+            err => HgError::Revlog(err),
         }
     }
 }

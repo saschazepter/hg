@@ -127,6 +127,9 @@ impl From<HgError> for CommandError {
             e @ HgError::Shape(_) => {
                 CommandError::abort(format!("abort: {e}"))
             }
+            e @ HgError::Revlog(_) => {
+                CommandError::abort(format!("abort: {e}"))
+            }
             HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
                 CommandError::abort_with_exit_code_and_hint(
                     format!("abort: {}", message),
