@@ -79,13 +79,15 @@ We should have have:
 - a data file
 
   $ ls .hg/store/00changelog* .hg/store/00manifest*
-  .hg/store/00changelog-1335303a.sda
-  .hg/store/00changelog-6b8ab34b.idx
-  .hg/store/00changelog-b875dfc5.dat
+  .hg/store/00changelog-05a21d65.dat
+  .hg/store/00changelog-1335303a.i02
+  .hg/store/00changelog-43c37dde.sda
+  .hg/store/00changelog-b875dfc5.i01
   .hg/store/00changelog.i
-  .hg/store/00manifest-05a21d65.idx
-  .hg/store/00manifest-43c37dde.dat
-  .hg/store/00manifest-e2c9362a.sda
+  .hg/store/00manifest-5e69c5d1.sda
+  .hg/store/00manifest-619c4819.dat
+  .hg/store/00manifest-69d069c3.i02
+  .hg/store/00manifest-e2c9362a.i01
   .hg/store/00manifest.i
 
 Local clone works

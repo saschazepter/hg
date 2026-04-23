@@ -1121,7 +1121,7 @@ class MultiBlockIndex(BaseIndex):
 
 
 class Index2(MultiBlockIndex):
-    _index_formats = (revlog_constants.INDEX_ENTRY_V2,)
+    _index_formats = revlog_constants.INDEX_ENTRY_V2
 
     def __init__(
         self,
@@ -1169,14 +1169,15 @@ class Index2(MultiBlockIndex):
         data: tuple[bytes, ...],
     ) -> revlogutils.EntryTupleT:
         pieces = tuple(f.unpack(d) for f, d in zip(cls._index_formats, data))
-        data = pieces[0]
-        entry = data[:10]
-        data_comp = data[10] & 3
-        sidedata_comp = (data[10] & (3 << 2)) >> 2
+        entry = pieces[0]
+        data_comp = pieces[1][2] & 3
+        sidedata_comp = (pieces[1][2] & (3 << 2)) >> 2
         return cast(
             revlogutils.EntryTupleT,
             entry
             + (
+                pieces[1][0],
+                pieces[1][1],
                 data_comp,
                 sidedata_comp,
                 revlog_constants.RANK_UNKNOWN,
@@ -1193,12 +1194,12 @@ class Index2(MultiBlockIndex):
         data_comp = entry[10] & 3
         sidedata_comp = (entry[11] & 3) << 2
         data += (data_comp | sidedata_comp,)
-        pieces = (data,)
+        pieces = (data[:8], data[8:])
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
 
 
 class IndexChangelogV2(Index2):
-    _index_formats = (revlog_constants.INDEX_ENTRY_CL_V2,)
+    _index_formats = revlog_constants.INDEX_ENTRY_CL_V2
 
     null_item = (
         Index2.null_item[: revlog_constants.ENTRY_RANK]
@@ -1265,7 +1266,7 @@ class IndexChangelogV2(Index2):
             << 2,
             entry[revlog_constants.ENTRY_RANK],
         )
-        pieces = (data,)
+        pieces = (data[:7], data[7:])
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
 
 

@@ -1149,7 +1149,8 @@ class InnerRevlogV2(BaseInnerRevlog):
     _active_fts: tuple[docket_mod.FileType] = tuple(
         sorted(
             [
-                docket_mod.FileType.INDEX,
+                docket_mod.FileType.INDEX1,
+                docket_mod.FileType.INDEX2,
                 docket_mod.FileType.DATA,
                 docket_mod.FileType.SIDEDATA,
             ]
