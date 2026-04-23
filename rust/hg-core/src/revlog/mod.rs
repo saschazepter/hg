@@ -379,7 +379,10 @@ pub enum RevlogError {
         backtrace: HgBacktrace,
     },
     /// Found more than one entry whose ID match the requested prefix
-    AmbiguousPrefix(String),
+    AmbiguousPrefix {
+        backtrace: HgBacktrace,
+        prefix: String,
+    },
     /// Boxed otherwise the enum is very large in memory
     IO(Box<HgIoError>),
     Other(Box<HgError>),
@@ -1180,7 +1183,7 @@ mod tests {
             .rev_from_node(NodePrefix::from_hex("00").unwrap())
             .expect_err("Expected to give AmbiguousPrefix error")
         {
-            RevlogError::AmbiguousPrefix(_) => (),
+            RevlogError::AmbiguousPrefix { .. } => (),
             e => {
                 panic!("Got another error than AmbiguousPrefix: {:?}", e);
             }

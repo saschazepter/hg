@@ -1761,9 +1761,10 @@ fn nodemap_error_to_revlog_error(
     // is being cleaned up in a separate effort for all errors, so we keep it
     // in a self-contained function
     match err {
-        NodeMapError::MultipleResults => {
-            RevlogError::AmbiguousPrefix(format!("{:x}", node_prefix))
-        }
+        NodeMapError::MultipleResults => RevlogError::AmbiguousPrefix {
+            backtrace: HgBacktrace::capture(),
+            prefix: format!("{:x}", node_prefix),
+        },
         NodeMapError::RevisionNotInIndex(rev) => RevlogError::InvalidRevision {
             backtrace: HgBacktrace::capture(),
             string: rev.to_string(),

@@ -205,8 +205,11 @@ impl fmt::Display for HgError {
                         "{backtrace}working directory revision cannot be specified",
                     )
                 }
-                RevlogError::AmbiguousPrefix(prefix) => {
-                    write!(f, "ambiguous revision prefix: {prefix}",)
+                RevlogError::AmbiguousPrefix { backtrace, prefix } => {
+                    write!(
+                        f,
+                        "{backtrace}ambiguous revision identifier: {prefix}"
+                    )
                 }
                 RevlogError::IO(hg_io_error) => hg_io_error.fmt(f),
                 RevlogError::Other(hg_error) => hg_error.fmt(f),
