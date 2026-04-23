@@ -367,9 +367,8 @@ const LENGTH_NEUTRAL_FLAGS: u16 = REVISION_FLAG_HASCOPIESINFO
     | REVISION_FLAG_HASMETA
     | REVIDX_DELTA_INFO_FLAGS;
 
-#[derive(Debug, derive_more::From, derive_more::Display)]
+#[derive(Debug, derive_more::From)]
 pub enum RevlogError {
-    #[display("invalid revision identifier: {}", "_0")]
     InvalidRevision(String),
     /// Working directory is not supported
     WDirUnsupported,
@@ -378,80 +377,57 @@ pub enum RevlogError {
     /// Boxed otherwise the enum is very large in memory
     IO(Box<HgIoError>),
     Other(Box<HgError>),
-    #[display("{}invalid data for revision: {}", backtrace, rev)]
     CorruptedRevisionData {
         rev: Revision,
         backtrace: HgBacktrace,
     },
-    #[display("{}patch cannot be decoded", backtrace)]
     CorruptedDelta {
         backtrace: HgBacktrace,
     },
-    #[display(
-        "{}patch inserts more data than available: {} < {}",
-        backtrace,
-        len,
-        available
-    )]
     DeltaInsertsTooMuch {
         backtrace: HgBacktrace,
         len: u32,
         available: usize,
     },
-    #[display("{}linkrev for rev {} is invalid", backtrace, "rev")]
     InvalidLinkRev {
         rev: Revision,
         backtrace: HgBacktrace,
     },
     #[from]
     Graph(GraphError),
-    #[display("{}unknown revlog index flags: {}", backtrace, flags)]
     UnknownFlags {
         flags: u16,
         backtrace: HgBacktrace,
     },
-    #[display("{}invalid data compression mode: {}", backtrace, mode)]
     InvalidCompressionMode {
         backtrace: HgBacktrace,
         mode: u8,
     },
-    #[display("{}invalid sidedata compression mode: {}", backtrace, mode)]
     InvalidSidedataCompressionMode {
         backtrace: HgBacktrace,
         mode: u8,
     },
-    #[display("{}invalid phase value: {}", backtrace, value)]
     InvalidPhase {
         backtrace: HgBacktrace,
         value: usize,
     },
-    #[display("{}hash check failed for revision {}", backtrace, rev)]
     HashCheckFailed {
         backtrace: HgBacktrace,
         rev: Revision,
     },
-    #[display("{}compression error: {}", backtrace, error)]
     Compression {
         backtrace: HgBacktrace,
         error: std::io::Error,
     },
-    #[display("{}decompression error: {}", backtrace, error)]
     Decompression {
         backtrace: HgBacktrace,
         error: std::io::Error,
     },
-    #[display(
-        "{}uncompressed length does not match: expected {}, got {}",
-        backtrace,
-        "expected",
-        "got"
-    )]
     UncompressedLengthMismatch {
         backtrace: HgBacktrace,
         expected: i32,
         got: usize,
     },
-    #[display("{}error in Python cache handling: {}", backtrace, message)]
     PythonCache {
         backtrace: HgBacktrace,
         message: String,

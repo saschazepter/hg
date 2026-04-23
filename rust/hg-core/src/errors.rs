@@ -192,7 +192,94 @@ impl fmt::Display for HgError {
                     at.display()
                 )
             }
-            HgError::Revlog(revlog_error) => revlog_error.fmt(f),
+            HgError::Revlog(revlog_error) => match revlog_error {
+                RevlogError::InvalidRevision(string) => {
+                    write!(f, "invalid revision identifier: {string}",)
+                }
+                RevlogError::WDirUnsupported => {
+                    write!(f, "wdir is unsupported",)
+                }
+                RevlogError::AmbiguousPrefix(prefix) => {
+                    write!(f, "ambiguous revision prefix: {prefix}",)
+                }
+                RevlogError::IO(hg_io_error) => hg_io_error.fmt(f),
+                RevlogError::Other(hg_error) => hg_error.fmt(f),
+                RevlogError::CorruptedRevisionData { rev, backtrace } => {
+                    write!(f, "{}invalid data for revision: {}", backtrace, rev)
+                }
+                RevlogError::CorruptedDelta { backtrace } => {
+                    write!(f, "{}patch cannot be decoded", backtrace)
+                }
+                RevlogError::DeltaInsertsTooMuch {
+                    backtrace,
+                    len,
+                    available,
+                } => {
+                    write!(
+                        f,
+                        "{}patch inserts more data than available: {} < {}",
+                        backtrace, len, available
+                    )
+                }
+                RevlogError::InvalidLinkRev { rev, backtrace } => {
+                    write!(f, "{}linkrev for rev {} is invalid", backtrace, rev)
+                }
+                RevlogError::Graph(graph_error) => graph_error.fmt(f),
+                RevlogError::UnknownFlags { flags, backtrace } => {
+                    write!(
+                        f,
+                        "{}unknown revlog index flags: {}",
+                        backtrace, flags
+                    )
+                }
+                RevlogError::InvalidCompressionMode { backtrace, mode } => {
+                    write!(
+                        f,
+                        "{}invalid data compression mode: {}",
+                        backtrace, mode
+                    )
+                }
+                RevlogError::InvalidSidedataCompressionMode {
+                    backtrace,
+                    mode,
+                } => write!(
+                    f,
+                    "{}invalid sidedata compression mode: {}",
+                    backtrace, mode
+                ),
+                RevlogError::InvalidPhase { backtrace, value } => {
+                    write!(f, "{}invalid phase value: {}", backtrace, value)
+                }
+                RevlogError::HashCheckFailed { backtrace, rev } => {
+                    write!(
+                        f,
+                        "{}hash check failed for revision {}",
+                        backtrace, rev
+                    )
+                }
+                RevlogError::Compression { backtrace, error } => {
+                    write!(f, "{}compression error: {}", backtrace, error)
+                }
+                RevlogError::Decompression { backtrace, error } => {
+                    write!(f, "{}decompression error: {}", backtrace, error)
+                }
+                RevlogError::UncompressedLengthMismatch {
+                    backtrace,
+                    expected,
+                    got,
+                } => write!(
+                    f,
+                    "{}uncompressed length does not match: expected {}, got {}",
+                    backtrace, expected, got
+                ),
+                RevlogError::PythonCache { backtrace, message } => {
+                    write!(
+                        f,
+                        "{}error in Python cache handling: {}",
+                        backtrace, message
+                    )
+                }
+            },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {
                     DirstateV2ParseError::CorruptedDocket(
