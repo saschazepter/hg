@@ -1243,7 +1243,7 @@ impl InnerRevlog {
     }
 
     /// Get a write handle to the index, sought to the end of its data.
-    fn index_write_handle(&self) -> Result<FileHandle, HgError> {
+    fn index_write_handle(&self) -> Result<FileHandle, RevlogError> {
         let res = if self.delayed_buffer.is_none() {
             if self.data_config.check_ambig {
                 self.vfs.open_check_ambig(&self.index_file)
