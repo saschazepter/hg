@@ -1948,6 +1948,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
             sane.append(f)
         return sane
 
+    @util.rust_tracing_span("_checklookup")
     def _checklookup(self, files: list[bytes], mtime_boundary):
         # check for any possibly clean files
         if not files:
