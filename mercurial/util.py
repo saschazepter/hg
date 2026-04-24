@@ -2618,7 +2618,10 @@ def mktempcopy(
                     inst.filename = name
                 raise
             with ifp:
-                shutil.copyfileobj(ifp, ofp)
+                if copy_range_fileobj is not None:
+                    copy_range_fileobj(ifp, ofp)
+                else:
+                    shutil.copyfileobj(ifp, ofp)
             return temp
         except:  # re-raises
             try:
