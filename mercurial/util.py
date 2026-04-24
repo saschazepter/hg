@@ -2618,8 +2618,7 @@ def mktempcopy(
                     inst.filename = name
                 raise
             with ifp:
-                for chunk in filechunkiter(ifp):
-                    ofp.write(chunk)
+                shutil.copyfileobj(ifp, ofp)
             return temp
         except:  # re-raises
             try:
