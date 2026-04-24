@@ -47,6 +47,7 @@ from typing import (
     Iterable,
     Iterator,
     TypeVar,
+    cast,
 )
 
 from .node import hex
@@ -2592,36 +2593,41 @@ def mktempcopy(
     Returns the name of the temporary file.
     """
     d, fn = os.path.split(name)
-    fd, temp = pycompat.mkstemp(prefix=b'.%s-' % fn, suffix=b'~', dir=d)
-    os.close(fd)
-    # Temporary files are created with mode 0600, which is usually not
-    # what we want.  If the original file already exists, just copy
-    # its mode.  Otherwise, manually obey umask.
-    copymode(name, temp, createmode, enforcewritable)
-
-    if emptyok:
-        return temp
-    try:
+    with pycompat.namedtempfile(
+        prefix=b'.%s-' % fn,
+        suffix=b'~',
+        dir=d,
+        delete=False,
+    ) as ofp:
         try:
-            ifp = posixfile(name, b"rb")
-        except OSError as inst:
-            if inst.errno == errno.ENOENT:
+            temp = cast(bytes, ofp.name)  # unconfuse pytype
+            # Temporary files are created with mode 0600, which is usually not
+            # what we want.  If the original file already exists, just copy
+            # its mode.  Otherwise, manually obey umask.
+            copymode(name, temp, createmode, enforcewritable)
+            if emptyok:
+                # skipping content, ready to return
                 return temp
-            if not getattr(inst, 'filename', None):
-                inst.filename = name
+            try:
+                ifp = posixfile(name, b"rb")
+            except FileNotFoundError:
+                # new file, ready to return
+                return temp
+            except OSError as inst:
+                if not getattr(inst, 'filename', None):
+                    inst.filename = name
+                raise
+            with ifp:
+                for chunk in filechunkiter(ifp):
+                    ofp.write(chunk)
+            return temp
+        except:  # re-raises
+            try:
+                ofp.close()
+                os.unlink(ofp.name)
+            except OSError:
+                pass
             raise
-        ofp = posixfile(temp, b"wb")
-        for chunk in filechunkiter(ifp):
-            ofp.write(chunk)
-        ifp.close()
-        ofp.close()
-    except:  # re-raises
-        try:
-            os.unlink(temp)
-        except OSError:
-            pass
-        raise
-    return temp
 
 
 class filestat:

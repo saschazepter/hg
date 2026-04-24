@@ -57,7 +57,7 @@ Check that zero-size journals are correctly aborted:
   adding changesets
   transaction abort!
   rollback completed
-  abort: $EACCES$: '$TESTTMP/repo/foo/.hg/store/.00changelog.i-*' (glob)
+  abort: $EACCES$: '$TESTTMP/repo/foo/.hg/store/00changelog.i'
   [255]
 #endif
 
