@@ -3024,14 +3024,13 @@ class localrepository(_localrepo_base_classes):
 
         def unlock():
             if self.dirstate.is_changing_any:
-                msg = b"wlock release in the middle of a changing parents"
-                self.ui.develwarn(msg)
                 self.dirstate.invalidate()
+                msg = b"wlock release in the middle of a changing parents"
+                raise error.ProgrammingError(msg)
             else:
                 if self.dirstate._dirty:
                     msg = b"dirty dirstate on wlock release"
-                    self.ui.develwarn(msg)
-                self.dirstate.write(None)
+                    raise error.ProgrammingError(msg)
 
             unfi = self.unfiltered()
             if 'dirstate' in unfi.__dict__:
