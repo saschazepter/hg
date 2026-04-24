@@ -2011,6 +2011,55 @@ _hardlinkfswhitelist = {
 }
 
 
+if not hasattr(os, 'copy_file_range'):
+    copy_range_fileobj = None
+else:
+    # copied from stdlib shutil.py
+    def _determine_linux_fastcopy_blocksize(infd):
+        """Determine blocksize for fastcopying on Linux.
+
+        Hopefully the whole file will be copied in a single call.
+        The copying itself should be performed in a loop 'till EOF is
+        reached (0 return) so a blocksize smaller or bigger than the actual
+        file size should not make any difference, also in case the file
+        content changes while being copied.
+        """
+        try:
+            blocksize = max(os.fstat(infd).st_size, 2**23)  # min 8 MiB
+        except OSError:
+            blocksize = 2**27  # 128 MiB
+        # On 32-bit architectures truncate to 1 GiB to avoid OverflowError,
+        # see Python's gh-82500.
+        if sys.maxsize < 2**32:
+            blocksize = min(blocksize, 2**30)
+        return blocksize
+
+    def copy_range_fileobj(src: BinaryIO, dst: BinaryIO, size=None):
+        src_fd = src.fileno()
+        dst_fd = dst.fileno()
+        if size is None:
+            total_bytes = size_fileobj(src)
+        else:
+            total_bytes = size
+        if size == 0:
+            return
+        block_size = _determine_linux_fastcopy_blocksize(src_fd)
+        offset = 0
+        while offset < total_bytes:
+            wrote = os.copy_file_range(
+                src_fd,
+                dst_fd,
+                min(block_size, total_bytes - offset),
+                offset_src=offset,
+                offset_dst=offset,
+            )
+            if wrote == 0:
+                msg = "failed to write %d bytes from %r to %r"
+                msg %= (total_bytes, src.name, dst.name)
+                raise EOFError(msg)
+            offset += wrote
+
+
 def size_fileobj(fileobj: BinaryIO) -> int:
     """return the total size of fileobj
 
@@ -2094,7 +2143,14 @@ def copyfile(
             m = "cannot use `nb_bytes` on a symlink"
             raise error.ProgrammingError(m)
     else:
-        if True:
+        if copy_range_fileobj is not None and nb_bytes is not None:
+            with open(src, mode='rb') as src_file:
+                with open(dest, mode='wb') as dst_file:
+                    try:
+                        copy_range_fileobj(src_file, dst_file, size=nb_bytes)
+                    except EOFError as inst:
+                        raise error.Abort(stringutil.forcebytestr(inst))
+        else:
             try:
                 shutil.copyfile(src, dest)
                 if nb_bytes is not None:
