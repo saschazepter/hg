@@ -1187,6 +1187,7 @@ class dirstate(intdirstate.idirstate):
         """
         self._plchangecallbacks[category] = callback
 
+    @util.rust_tracing_span("dirstate._writedirstate")
     def _writedirstate(self, tr, st):
         # make sure we don't write invalidated content
         assert not self._invalidated_context
