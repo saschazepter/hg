@@ -2011,6 +2011,29 @@ _hardlinkfswhitelist = {
 }
 
 
+def size_fileobj(fileobj: BinaryIO) -> int:
+    """return the total size of fileobj
+
+    This doesn't affect the current position in the file.
+    """
+    return os.fstat(fileobj.fileno()).st_size
+
+
+def safe_truncate_fileobj(fileobj: BinaryIO, new_size: int) -> None:
+    """truncate a file object to the requested size
+
+    raise and EOFError if the file is smaller than the target size.
+    """
+    old_size = size_fileobj(fileobj)
+    if old_size == new_size:
+        return
+    elif old_size < new_size:
+        msg = "can't truncate to %d bytes a %d bytes file: %r"
+        msg %= (old_size, new_size, fileobj.name)
+        raise EOFError(msg)
+    fileobj.truncate(new_size)
+
+
 def copyfile(
     src,
     dest,
@@ -2071,8 +2094,15 @@ def copyfile(
             m = "cannot use `nb_bytes` on a symlink"
             raise error.ProgrammingError(m)
     else:
+        if True:
+            try:
+                shutil.copyfile(src, dest)
+                if nb_bytes is not None:
+                    with open(dest, mode='rb+') as f:
+                        safe_truncate_fileobj(f, nb_bytes)
+            except (shutil.Error, EOFError) as inst:
+                raise error.Abort(stringutil.forcebytestr(inst))
         try:
-            shutil.copyfile(src, dest)
             if copystat:
                 # copystat also copies mode
                 shutil.copystat(src, dest)
@@ -2086,10 +2116,6 @@ def copyfile(
                             oldstat.stat[stat.ST_MTIME] + 1
                         ) & 0x7FFFFFFF
                         os.utime(dest, (advanced, advanced))
-            # We could do something smarter using `copy_file_range` call or similar
-            if nb_bytes is not None:
-                with open(dest, mode='r+') as f:
-                    f.truncate(nb_bytes)
         except shutil.Error as inst:
             raise error.Abort(stringutil.forcebytestr(inst))
 
