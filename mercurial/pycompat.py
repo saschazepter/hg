@@ -517,11 +517,19 @@ def namedtempfile(
     prefix: bytes = b'tmp',
     dir: bytes | None = None,
     delete: bool = True,
-):
+) -> BinaryIO:
     mode = sysstr(mode)
     assert 'b' in mode
-    return tempfile.NamedTemporaryFile(
-        mode, bufsize, suffix=suffix, prefix=prefix, dir=dir, delete=delete
+    return cast(
+        BinaryIO,
+        tempfile.NamedTemporaryFile(
+            mode,
+            bufsize,
+            suffix=suffix,
+            prefix=prefix,
+            dir=dir,
+            delete=delete,
+        ),
     )
 
 
