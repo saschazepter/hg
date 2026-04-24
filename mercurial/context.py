@@ -1993,6 +1993,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
 
         return modified, deleted, clean, fixup
 
+    @util.rust_tracing_span("_poststatusfixup")
     def _poststatusfixup(self, status: StatusT, fixup) -> None:
         """update dirstate for files that are actually clean"""
         testing.wait_on_cfg(self._repo.ui, b'status.pre-dirstate-write-file')
