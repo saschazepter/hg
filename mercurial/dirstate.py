@@ -1124,11 +1124,12 @@ class dirstate(intdirstate.idirstate):
         )
 
     def write(self, tr: TransactionT | None) -> None:
+        # make sure we don't request a write of invalidated content
+        if self._invalidated_context:
+            msg = "trying to write and invalidated dirstate"
+            raise error.ProgrammingError(msg)
         if not self._dirty:
             return
-        # make sure we don't request a write of invalidated content
-        # XXX move before the dirty check once `unlock` stop calling `write`
-        assert not self._invalidated_context
 
         write_key = self._use_tracked_hint and self._dirty_tracked_set
         if tr:
