@@ -75,7 +75,7 @@ impl Filelog {
         file_node: impl Into<NodePrefix>,
     ) -> Result<FilelogRevisionData, RevlogError> {
         let file_rev = self.revlog.rev_from_node(file_node.into())?;
-        Ok(self.entry(file_rev)?.data()?)
+        self.entry(file_rev)?.data()
     }
 
     /// The given revision is that of the file as found in a filelog, not of a
@@ -283,13 +283,13 @@ impl FilelogEntry<'_> {
         file_data_len != other_len
     }
 
-    pub fn data(&self) -> Result<FilelogRevisionData, HgError> {
+    pub fn data(&self) -> Result<FilelogRevisionData, RevlogError> {
         let data = self.0.data();
-        Ok(maybe_ignore_censored_revision(
+        maybe_ignore_censored_revision(
             self.0.revlog,
             data,
             self.0.revision().into(),
-        )?)
+        )
     }
 }
 

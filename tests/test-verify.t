@@ -353,7 +353,7 @@ test revlog corruption
 
   $ hg verify -q
    a@1: broken revlog! (index a is corrupted) (no-rust !)
-   a@1: broken revlog! (unexpected inline revlog length) (rust !)
+   a@1: broken revlog! (unexpected inline revlog length: expected 0, got 30) (rust !)
   warning: orphan data file 'data/a.i'
   not checking dirstate because of previous errors
   1 warnings encountered!
