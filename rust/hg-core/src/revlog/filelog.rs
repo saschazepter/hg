@@ -10,7 +10,6 @@ use crate::Node;
 use crate::UncheckedRevision;
 use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgBacktrace;
-use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::LENGTH_NEUTRAL_FLAGS;
 use crate::revlog::NodePrefix;
@@ -48,7 +47,7 @@ impl Filelog {
         store_vfs: &crate::vfs::VfsImpl,
         file_path: &HgPath,
         options: RevlogOpenOptions,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, RevlogError> {
         let index_path = store_path(file_path, b".i", store_vfs.encoding);
         let data_path = store_path(file_path, b".d", store_vfs.encoding);
         let revlog = Revlog::open(
@@ -65,7 +64,7 @@ impl Filelog {
         repo: &Repo,
         file_path: &HgPath,
         options: RevlogOpenOptions,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, RevlogError> {
         Self::open_vfs(&repo.store_vfs(), file_path, options)
     }
 
@@ -450,7 +449,7 @@ pub fn is_file_modified(
     manifest: &Manifest,
     hg_path: &HgPath,
     revlog_open_options: RevlogOpenOptions,
-) -> Result<FileCompOutcome, HgError> {
+) -> Result<FileCompOutcome, RevlogError> {
     let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
     let fs_metadata = if let Ok(it) = vfs.symlink_metadata(&fs_path) {
@@ -487,12 +486,7 @@ pub fn is_file_modified(
     let filelog = Filelog::open_vfs(store_vfs, hg_path, revlog_open_options)?;
     let fs_len = fs_metadata.len();
     let file_node = entry.node_id()?;
-    let filelog_entry = filelog.entry_for_node(file_node).map_err(|_| {
-        HgError::corrupted(format!(
-            "filelog {:?} missing node {:?} from manifest",
-            hg_path, file_node
-        ))
-    })?;
+    let filelog_entry = filelog.entry_for_node(file_node)?;
     if filelog_entry.file_data_len_not_equal_to(fs_len) {
         // No need to read file contents:
         // it cannot be equal if it has a different length.

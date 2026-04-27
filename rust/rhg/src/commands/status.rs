@@ -432,7 +432,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         &to_check.path,
                         filelog_open_options,
                     ) {
-                        Err(HgError::IO(_)) => {
+                        Err(RevlogError::IO(_)) => {
                             // IO errors most likely stem from the file being
                             // deleted even though we know it's in the
                             // dirstate.

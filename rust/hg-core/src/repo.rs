@@ -595,7 +595,7 @@ impl Repo {
     }
 
     pub fn filelog(&self, path: &HgPath) -> Result<Filelog, HgError> {
-        Filelog::open(
+        Ok(Filelog::open(
             self,
             path,
             default_revlog_options(
@@ -603,7 +603,7 @@ impl Repo {
                 self.requirements(),
                 RevlogType::Filelog,
             )?,
-        )
+        )?)
     }
     /// Write to disk any updates that were made through `dirstate_map_mut`.
     ///
