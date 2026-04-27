@@ -238,7 +238,7 @@ impl StoreBackend<LocalToken> for LocalBackend {
         };
         let data_for_node = match filelog
             .data_for_node(token.0)
-            .and_then(|data| Ok(data.into_file_data()?))
+            .and_then(|data| data.into_file_data())
         {
             Ok(data_for_node) => data_for_node,
             Err(e) => {

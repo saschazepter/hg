@@ -266,7 +266,7 @@ impl FilelogSet {
     /// Reads the contents of a file by id.
     fn read(&self, id: RevFileId) -> Result<RawData, HgError> {
         let filelog = &self.get(id.index).filelog;
-        filelog.entry(id.revision)?.data()?.into_file_data()
+        Ok(filelog.entry(id.revision)?.data()?.into_file_data()?)
     }
 
     /// Returns the parents of a file. If `follow_copies` is true, it treats

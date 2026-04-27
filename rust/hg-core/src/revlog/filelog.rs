@@ -9,6 +9,7 @@ use crate::NULL_REVISION;
 use crate::Node;
 use crate::UncheckedRevision;
 use crate::dirstate::entry::has_exec_bit;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::LENGTH_NEUTRAL_FLAGS;
@@ -295,7 +296,6 @@ impl FilelogEntry<'_> {
 
 /// The data for one revision in a filelog, uncompressed and delta-resolved.
 pub struct FilelogRevisionData {
-    #[expect(unused)]
     revision: Revision,
     data: RawData,
 }
@@ -304,16 +304,18 @@ impl FilelogRevisionData {
     /// Split into metadata and data
     pub fn split(
         &self,
-    ) -> Result<(FilelogRevisionMetadata<'_>, &[u8]), HgError> {
+    ) -> Result<(FilelogRevisionMetadata<'_>, &[u8]), RevlogError> {
         const DELIMITER: &[u8; 2] = b"\x01\n";
 
         if let Some(rest) = self.data.drop_prefix(DELIMITER) {
             if let Some((metadata, data)) = rest.split_2_by_slice(DELIMITER) {
                 Ok((FilelogRevisionMetadata(Some(metadata)), data))
             } else {
-                Err(HgError::corrupted(
-                    "Missing metadata end delimiter in filelog entry",
-                ))
+                // Missing metadata end delimiter
+                Err(RevlogError::CorruptedRevisionData {
+                    rev: self.revision,
+                    backtrace: HgBacktrace::capture(),
+                })
             }
         } else {
             Ok((FilelogRevisionMetadata(None), &self.data))
@@ -321,20 +323,20 @@ impl FilelogRevisionData {
     }
 
     /// Returns the metadata header.
-    pub fn metadata(&self) -> Result<FilelogRevisionMetadata<'_>, HgError> {
+    pub fn metadata(&self) -> Result<FilelogRevisionMetadata<'_>, RevlogError> {
         let (metadata, _data) = self.split()?;
         Ok(metadata)
     }
 
     /// Returns the file contents at this revision, stripped of any metadata
-    pub fn file_data(&self) -> Result<&[u8], HgError> {
+    pub fn file_data(&self) -> Result<&[u8], RevlogError> {
         let (_metadata, data) = self.split()?;
         Ok(data)
     }
 
     /// Consume the entry, and convert it into data, discarding any metadata,
     /// if present.
-    pub fn into_file_data(self) -> Result<RawData, HgError> {
+    pub fn into_file_data(self) -> Result<RawData, RevlogError> {
         if let (FilelogRevisionMetadata(Some(_)), data) = self.split()? {
             Ok(RawData::from(data)) // XXX consider the Bytes crate
         } else {
