@@ -309,7 +309,13 @@ impl FilelogRevisionData {
 
         if let Some(rest) = self.data.drop_prefix(DELIMITER) {
             if let Some((metadata, data)) = rest.split_2_by_slice(DELIMITER) {
-                Ok((FilelogRevisionMetadata(Some(metadata)), data))
+                Ok((
+                    FilelogRevisionMetadata {
+                        metadata: Some(metadata),
+                        revision: self.revision,
+                    },
+                    data,
+                ))
             } else {
                 // Missing metadata end delimiter
                 Err(RevlogError::CorruptedRevisionData {
@@ -318,7 +324,13 @@ impl FilelogRevisionData {
                 })
             }
         } else {
-            Ok((FilelogRevisionMetadata(None), &self.data))
+            Ok((
+                FilelogRevisionMetadata {
+                    metadata: None,
+                    revision: self.revision,
+                },
+                &self.data,
+            ))
         }
     }
 
@@ -337,7 +349,9 @@ impl FilelogRevisionData {
     /// Consume the entry, and convert it into data, discarding any metadata,
     /// if present.
     pub fn into_file_data(self) -> Result<RawData, RevlogError> {
-        if let (FilelogRevisionMetadata(Some(_)), data) = self.split()? {
+        if let (FilelogRevisionMetadata { metadata: Some(_), .. }, data) =
+            self.split()?
+        {
             Ok(RawData::from(data)) // XXX consider the Bytes crate
         } else {
             Ok(self.data)
@@ -346,7 +360,10 @@ impl FilelogRevisionData {
 }
 
 /// The optional metadata header included in [`FilelogRevisionData`].
-pub struct FilelogRevisionMetadata<'a>(Option<&'a [u8]>);
+pub struct FilelogRevisionMetadata<'a> {
+    revision: Revision,
+    metadata: Option<&'a [u8]>,
+}
 
 /// Fields parsed from [`FilelogRevisionMetadata`].
 #[derive(Debug, PartialEq, Default)]
@@ -361,36 +378,41 @@ pub struct FilelogRevisionMetadataFields<'a> {
 
 impl<'a> FilelogRevisionMetadata<'a> {
     /// Parses the metadata fields.
-    pub fn parse(self) -> Result<FilelogRevisionMetadataFields<'a>, HgError> {
+    pub fn parse(
+        self,
+    ) -> Result<FilelogRevisionMetadataFields<'a>, RevlogError> {
         let mut fields = FilelogRevisionMetadataFields::default();
-        if let Some(metadata) = self.0 {
+        let parse_error = || {
+            Err(RevlogError::CorruptedRevisionData {
+                rev: self.revision,
+                backtrace: HgBacktrace::capture(),
+            })
+        };
+        if let Some(metadata) = self.metadata {
             let mut rest = metadata;
             while !rest.is_empty() {
                 let Some(colon_idx) = memchr::memchr(b':', rest) else {
-                    return Err(HgError::corrupted(
-                        "File metadata header line missing colon",
-                    ));
+                    // File metadata header line missing colon
+                    return parse_error();
                 };
                 if rest.get(colon_idx + 1) != Some(&b' ') {
-                    return Err(HgError::corrupted(
-                        "File metadata header line missing space",
-                    ));
+                    // File metadata header line missing space
+                    return parse_error();
                 }
                 let key = &rest[..colon_idx];
                 rest = &rest[colon_idx + 2..];
                 let Some(newline_idx) = memchr::memchr(b'\n', rest) else {
-                    return Err(HgError::corrupted(
-                        "File metadata header line missing newline",
-                    ));
+                    // File metadata header line missing newline
+                    return parse_error();
                 };
                 let value = &rest[..newline_idx];
                 match key {
                     b"censored" => match value {
                         b"" => fields.censored = true,
                         _ => {
-                            return Err(HgError::corrupted(
-                                "File metadata header 'censored' field has nonempty value",
-                            ));
+                            // File metadata header 'censored' field has
+                            // nonempty value
+                            return parse_error();
                         }
                     },
                     b"copy" => fields.copy = Some(HgPath::new(value)),
@@ -398,10 +420,8 @@ impl<'a> FilelogRevisionMetadata<'a> {
                         fields.copyrev = Some(Node::from_hex_for_repo(value)?)
                     }
                     _ => {
-                        return Err(HgError::corrupted(format!(
-                            "File metadata header has unrecognized key '{}'",
-                            String::from_utf8_lossy(key),
-                        )));
+                        // File metadata header has unrecognized key,
+                        return parse_error();
                     }
                 }
                 rest = &rest[newline_idx + 1..];
@@ -569,7 +589,6 @@ mod tests {
             data: RawData::from(b"\x01\nbad: value\n\x01\ndata".to_vec()),
             revision: Revision(0),
         };
-        let err = data.metadata().unwrap().parse().unwrap_err();
-        assert!(err.to_string().contains("unrecognized key 'bad'"));
+        assert!(data.metadata().unwrap().parse().is_err());
     }
 }
