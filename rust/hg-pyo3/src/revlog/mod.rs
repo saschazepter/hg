@@ -1174,7 +1174,10 @@ impl InnerRevlog {
             // `PySlice_GetIndicesEx`
             // (Python integration tests will tell us)
             let start = irl.index.check_revision(start).ok_or_else(|| {
-                nodemap_error(NodeMapError::RevisionNotInIndex(start))
+                nodemap_error(NodeMapError::RevisionNotInIndex {
+                    revision: start,
+                    backtrace: HgBacktrace::capture(),
+                })
             })?;
             irl.index.remove(start).map_err(revlog_error_from_io)?;
             irl.nodemap_invalidate().map_err(nodemap_error)?;
@@ -1473,14 +1476,18 @@ impl InnerRevlog {
 
         let (chain, stopped) = Self::with_index_read(slf, |idx| {
             let rev = idx.check_revision(rev).ok_or_else(|| {
-                nodemap_error(NodeMapError::RevisionNotInIndex(rev))
+                nodemap_error(NodeMapError::RevisionNotInIndex {
+                    revision: rev,
+                    backtrace: HgBacktrace::capture(),
+                })
             })?;
             let stop_rev = stop_rev
                 .map(|r| {
                     idx.check_revision(r).ok_or_else(|| {
-                        nodemap_error(NodeMapError::RevisionNotInIndex(
-                            rev.into(),
-                        ))
+                        nodemap_error(NodeMapError::RevisionNotInIndex {
+                            revision: rev.into(),
+                            backtrace: HgBacktrace::capture(),
+                        })
                     })
                 })
                 .transpose()?;
@@ -1592,7 +1599,10 @@ impl InnerRevlog {
 
         Self::with_index_read(slf, |idx| {
             let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
-                nodemap_error(NodeMapError::RevisionNotInIndex(data_tip))
+                nodemap_error(NodeMapError::RevisionNotInIndex {
+                    revision: data_tip,
+                    backtrace: HgBacktrace::capture(),
+                })
             })?;
 
             nt.catch_up_to_index(idx, Revision(data_tip.0 + 1))

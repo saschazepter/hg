@@ -971,7 +971,7 @@ impl<'a> ManifestEntry<'a> {
         Ok(Self::from_path_and_rest(path, rest))
     }
 
-    pub fn node_id(&self) -> Result<Node, HgError> {
+    pub fn node_id(&self) -> Result<Node, RevlogError> {
         Node::from_hex_for_repo(self.hex_node_id)
     }
 }

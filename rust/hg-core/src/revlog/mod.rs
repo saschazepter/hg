@@ -35,6 +35,7 @@ pub mod patch;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::path::Path;
+use std::path::PathBuf;
 
 use self::nodemap_docket::NodeMapDocket;
 use crate::dyn_bytes::DynBytes;
@@ -314,7 +315,10 @@ pub trait RevlogIndexNodeLookup: RevlogIndex {
                 if let Some((found_prefix, found_rev)) = found_by_prefix
                     && (candidate_node != found_prefix || rev != found_rev)
                 {
-                    return Err(NodeMapError::MultipleResults);
+                    return Err(NodeMapError::MultipleResults {
+                        prefix,
+                        backtrace: HgBacktrace::capture(),
+                    });
                 }
                 if prefix.nybbles_len() == candidate_node.nybbles_len() {
                     // Exact match, no need to keep looking
@@ -408,6 +412,8 @@ pub enum RevlogError {
     },
     #[from]
     Graph(GraphError),
+    #[from]
+    Nodemap(NodeMapError),
     /// This revlog's flags are invalid
     UnknownFlags {
         flags: u16,
@@ -483,6 +489,17 @@ pub enum RevlogError {
         node: Node,
         backtrace: HgBacktrace,
     },
+    /// This docket is corrupted
+    CorruptedDocket {
+        docket_path: PathBuf,
+        backtrace: HgBacktrace,
+    },
+    /// The docket points to a data file which is too short
+    TooLittleData {
+        docket_path: PathBuf,
+        index_path: PathBuf,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -554,7 +571,7 @@ impl Revlog {
         data_path: Option<&Path>,
         options: RevlogOpenOptions,
         revlog_type: RevlogType,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, RevlogError> {
         Self::open_gen(
             store_vfs,
             index_path,
@@ -577,7 +594,7 @@ impl Revlog {
         options: RevlogOpenOptions,
         nodemap_for_test: Option<nodemap::NodeTree>,
         revlog_type: RevlogType,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, RevlogError> {
         let index_path = index_path.as_ref();
         let index = open_index(store_vfs, index_path, options)?;
 
@@ -812,7 +829,7 @@ pub fn open_index(
     store_vfs: &impl Vfs,
     index_path: &Path,
     options: RevlogOpenOptions,
-) -> Result<Index, HgError> {
+) -> Result<Index, RevlogError> {
     let buf: DynBytes = match store_vfs.open(index_path) {
         Ok(mut file) => {
             let mut buf = if let Some(threshold) =
@@ -859,7 +876,7 @@ pub fn open_index(
         }
         Err(err) => match err.kind() {
             Some(ErrorKind::NotFound) => DynBytes::default(),
-            _ => return Err(HgError::IO(err)),
+            _ => return Err(RevlogError::IO(Box::new(err))),
         },
     };
 

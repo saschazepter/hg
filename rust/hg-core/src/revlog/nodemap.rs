@@ -32,8 +32,9 @@ use super::Revision;
 use super::RevlogIndex;
 use super::node::NULL_NODE;
 use crate::UncheckedRevision;
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
 use crate::revlog::NodeMapDocket;
+use crate::revlog::RevlogError;
 use crate::vfs::VfsImpl;
 
 type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
@@ -43,9 +44,11 @@ pub enum NodeMapError {
     /// A `NodePrefix` matches several [`Revision`]s.
     ///
     /// This can be returned by methods meant for (at most) one match.
-    MultipleResults,
+    #[display("{backtrace}MultipleResults {:x}", prefix)]
+    MultipleResults { prefix: NodePrefix, backtrace: HgBacktrace },
     /// A `Revision` stored in the nodemap could not be found in the index
-    RevisionNotInIndex(UncheckedRevision),
+    #[display("{backtrace}RevisionNotInIndex {revision}")]
+    RevisionNotInIndex { revision: UncheckedRevision, backtrace: HgBacktrace },
 }
 
 /// Mapping system from Mercurial nodes to revision numbers.
@@ -273,7 +276,10 @@ fn has_prefix_or_none(
         } else {
             None
         }),
-        None => Err(NodeMapError::RevisionNotInIndex(rev)),
+        None => Err(NodeMapError::RevisionNotInIndex {
+            revision: rev,
+            backtrace: HgBacktrace::capture(),
+        }),
     }
 }
 
@@ -300,7 +306,10 @@ fn validate_candidate(
             None => Ok((Some(NULL_REVISION), steps + 1)),
             Some(r) => match has_prefix_or_none(idx, prefix, r)? {
                 None => Ok((Some(NULL_REVISION), steps + 1)),
-                _ => Err(NodeMapError::MultipleResults),
+                _ => Err(NodeMapError::MultipleResults {
+                    prefix,
+                    backtrace: HgBacktrace::capture(),
+                }),
             },
         }
     }
@@ -312,7 +321,7 @@ pub(super) fn read_persistent_nodemap(
     store_vfs: &VfsImpl,
     index_path: &Path,
     index: &impl RevlogIndex,
-) -> Result<Option<NodeTree>, HgError> {
+) -> Result<Option<NodeTree>, RevlogError> {
     if let Some((docket, data)) =
         NodeMapDocket::read_from_file(store_vfs, index_path)?
     {
@@ -322,9 +331,7 @@ pub(super) fn read_persistent_nodemap(
             let valid_node = index.node(valid_tip_rev) == &docket.tip_node;
             if valid_node && (valid_tip_rev.0 as usize) < index.len() {
                 // The index moved forward but wasn't rewritten
-                nodemap
-                    .catch_up_to_index(index, valid_tip_rev)
-                    .map_err(|e| HgError::abort_simple(e.to_string()))?;
+                nodemap.catch_up_to_index(index, valid_tip_rev)?;
                 return Ok(Some(nodemap));
             }
         }
@@ -332,9 +339,7 @@ pub(super) fn read_persistent_nodemap(
             // The nodemap exists but is invalid somehow (strip, corruption...)
             // so we rebuild it from scratch.
             let mut nodemap = NodeTree::new(Box::<Vec<_>>::default());
-            nodemap
-                .catch_up_to_index(index, Revision(0))
-                .map_err(|e| HgError::abort_simple(e.to_string()))?;
+            nodemap.catch_up_to_index(index, Revision(0))?;
             return Ok(Some(nodemap));
         }
     }
@@ -451,7 +456,10 @@ impl NodeTree {
                 return Ok((opt, i + 1));
             }
         }
-        Err(NodeMapError::MultipleResults)
+        Err(NodeMapError::MultipleResults {
+            prefix,
+            backtrace: HgBacktrace::capture(),
+        })
     }
 
     fn visit(&self, prefix: NodePrefix) -> NodeTreeVisitor<'_> {
@@ -530,9 +538,10 @@ impl NodeTree {
         if let Element::Rev(old_rev) = deepest.element {
             let o_rev = match index.check_revision(old_rev.into()) {
                 None => {
-                    return Err(NodeMapError::RevisionNotInIndex(
-                        old_rev.into(),
-                    ));
+                    return Err(NodeMapError::RevisionNotInIndex {
+                        revision: old_rev.into(),
+                        backtrace: HgBacktrace::capture(),
+                    });
                 }
                 Some(rev) => rev,
             };
@@ -932,9 +941,15 @@ pub mod tests {
 
         let nt = sample_nodetree();
 
-        assert_eq!(nt.find_bin(&idx, hex("0")), Err(MultipleResults));
+        assert!(matches!(
+            nt.find_bin(&idx, hex("0")),
+            Err(MultipleResults { .. })
+        ));
         assert_eq!(nt.find_bin(&idx, hex("01")), Ok(Some(R!(9))));
-        assert_eq!(nt.find_bin(&idx, hex("00")), Err(MultipleResults));
+        assert!(matches!(
+            nt.find_bin(&idx, hex("00")),
+            Err(MultipleResults { .. })
+        ));
         assert_eq!(nt.find_bin(&idx, hex("00a")), Ok(Some(R!(0))));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("00a")), Ok(Some(3)));
         assert_eq!(nt.find_bin(&idx, hex("000")), Ok(Some(NULL_REVISION)));
@@ -958,7 +973,10 @@ pub mod tests {
         assert_eq!(nt.find_bin(&idx, hex("10"))?, Some(R!(1)));
         assert_eq!(nt.find_bin(&idx, hex("c"))?, Some(R!(2)));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("c"))?, Some(1));
-        assert_eq!(nt.find_bin(&idx, hex("00")), Err(MultipleResults));
+        assert!(matches!(
+            nt.find_bin(&idx, hex("00")),
+            Err(MultipleResults { .. })
+        ));
         assert_eq!(nt.find_bin(&idx, hex("000"))?, Some(NULL_REVISION));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("000"))?, Some(3));
         assert_eq!(nt.find_bin(&idx, hex("01"))?, Some(R!(9)));
@@ -1047,7 +1065,10 @@ pub mod tests {
 
         idx.insert(Revision(2), "1a01")?;
         assert_eq!(idx.nt.growable.len(), 2);
-        assert_eq!(idx.find_hex("1a"), Err(NodeMapError::MultipleResults));
+        assert!(matches!(
+            idx.find_hex("1a"),
+            Err(NodeMapError::MultipleResults { .. })
+        ));
         assert_eq!(idx.find_hex("12")?, Some(R!(0)));
         assert_eq!(idx.find_hex("1a3")?, Some(R!(1)));
         assert_eq!(idx.find_hex("1a0")?, Some(R!(2)));
@@ -1070,7 +1091,10 @@ pub mod tests {
         let mut idx = TestNtIndex::new();
         idx.insert(Revision(0), "00000abcd").unwrap();
 
-        assert_eq!(idx.find_hex("000"), Err(NodeMapError::MultipleResults));
+        assert!(matches!(
+            idx.find_hex("000"),
+            Err(NodeMapError::MultipleResults { .. })
+        ));
         // in the nodetree proper, this will be found at the first nybble
         // yet the correct answer for unique_prefix_len is not 1, nor 1+1,
         // but the first difference with `NULL_NODE`

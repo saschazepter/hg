@@ -86,15 +86,18 @@ pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {
 
 pub fn nodemap_error(err: NodeMapError) -> PyErr {
     match err {
-        NodeMapError::MultipleResults => {
-            mercurial_py_errors::RustRevlogError::new_err("")
+        NodeMapError::MultipleResults { prefix, backtrace } => {
+            mercurial_py_errors::RustRevlogError::new_err(format!(
+                "{backtrace}Multiple results for {:x}",
+                prefix
+            ))
         }
 
-        NodeMapError::RevisionNotInIndex(rev) => {
+        NodeMapError::RevisionNotInIndex { revision, backtrace } => {
             PyValueError::new_err(format!(
-                "Inconsistency: Revision {} found in nodemap \
+                "{}Inconsistency: Revision {} found in nodemap \
              is not in revlog index",
-                rev
+                backtrace, revision
             ))
         }
     }

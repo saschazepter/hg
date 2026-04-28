@@ -8,8 +8,9 @@ use memmap2::Mmap;
 use super::Node;
 use super::UncheckedRevision;
 use crate::BaseRevision;
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
 use crate::errors::HgResultExt;
+use crate::revlog::RevlogError;
 use crate::vfs::VfsImpl;
 
 const ONDISK_VERSION: u8 = 1;
@@ -46,7 +47,7 @@ impl NodeMapDocket {
     pub fn read_from_file(
         store_vfs: &VfsImpl,
         index_path: &Path,
-    ) -> Result<Option<(Self, Mmap)>, HgError> {
+    ) -> Result<Option<(Self, Mmap)>, RevlogError> {
         let docket_path = index_path.with_extension("n");
         let docket_bytes = if let Some(bytes) =
             store_vfs.read(&docket_path).io_not_found_as_none()?
@@ -64,22 +65,32 @@ impl NodeMapDocket {
             };
 
         /// Treat any error as a parse error
-        fn parse<T, E>(result: Result<T, E>) -> Result<T, HgError> {
-            result.map_err(|_| HgError::corrupted("nodemap docket parse error"))
+        fn parse<T, E>(
+            docket_path: &Path,
+            result: Result<T, E>,
+        ) -> Result<T, RevlogError> {
+            result.map_err(|_| RevlogError::CorruptedDocket {
+                docket_path: docket_path.to_path_buf(),
+                backtrace: HgBacktrace::capture(),
+            })
         }
 
-        let (header, rest) = parse(DocketHeader::from_bytes(input))?;
+        let (header, rest) =
+            parse(&docket_path, DocketHeader::from_bytes(input))?;
         let uid_size = header.uid_size as usize;
         // TODO: do we care about overflow for 4 GB+ nodemap files on 32-bit
         // systems?
         let tip_node_size = header.tip_node_size.get() as usize;
         let data_length = header.data_length.get() as usize;
-        let (uid, rest) = parse(u8::slice_from_bytes(rest, uid_size))?;
+        let (uid, rest) =
+            parse(&docket_path, u8::slice_from_bytes(rest, uid_size))?;
         let (tip_node, _rest) =
-            parse(u8::slice_from_bytes(rest, tip_node_size))?;
-        let uid = parse(std::str::from_utf8(uid))?;
-        let tip_node = parse(Node::from_bytes(tip_node))?.0.to_owned();
-        let revnum: BaseRevision = parse(header.tip_rev.get().try_into())?;
+            parse(&docket_path, u8::slice_from_bytes(rest, tip_node_size))?;
+        let uid = parse(&docket_path, std::str::from_utf8(uid))?;
+        let tip_node =
+            parse(&docket_path, Node::from_bytes(tip_node))?.0.to_owned();
+        let revnum: BaseRevision =
+            parse(&docket_path, header.tip_rev.get().try_into())?;
         let docket =
             NodeMapDocket { data_length, tip_rev: revnum.into(), tip_node };
 
@@ -92,7 +103,11 @@ impl NodeMapDocket {
             if mmap.len() >= data_length {
                 Ok(Some((docket, mmap)))
             } else {
-                Err(HgError::corrupted("persistent nodemap too short"))
+                Err(RevlogError::TooLittleData {
+                    docket_path,
+                    index_path: index_path.to_path_buf(),
+                    backtrace: HgBacktrace::capture(),
+                })
             }
         } else {
             // Even if .hg/requires opted in, some revlogs are deemed small

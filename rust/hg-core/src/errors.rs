@@ -317,6 +317,26 @@ impl fmt::Display for HgError {
                         node.short()
                     )
                 }
+                RevlogError::Nodemap(node_map_error) => node_map_error.fmt(f),
+                RevlogError::CorruptedDocket { docket_path, backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}corrupted docket: {}",
+                        docket_path.display()
+                    )
+                }
+                RevlogError::TooLittleData {
+                    docket_path,
+                    index_path,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}too few bytes in index {} (docket {})",
+                        index_path.display(),
+                        docket_path.display(),
+                    )
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

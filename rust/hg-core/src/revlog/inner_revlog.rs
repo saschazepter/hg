@@ -1684,7 +1684,7 @@ impl InnerRevlog {
     ) -> Result<Option<Revision>, RevlogError> {
         self.nodemap
             .rev_from_node_prefix(&self.index, node_prefix)
-            .map_err(|err| nodemap_error_to_revlog_error(err, node_prefix))
+            .map_err(nodemap_error_to_revlog_error)
     }
 
     /// Returns the shortest length in bytes to uniquely identify this [`Node`].
@@ -1695,7 +1695,7 @@ impl InnerRevlog {
     ) -> Result<Option<usize>, RevlogError> {
         self.nodemap
             .unique_prefix_len_node(&self.index, &node)
-            .map_err(|err| nodemap_error_to_revlog_error(err, node.into()))
+            .map_err(nodemap_error_to_revlog_error)
     }
 
     /// `pub` only for `hg-pyo3`
@@ -1746,26 +1746,27 @@ impl InnerRevlog {
         self.index.append(params)?;
         self.nodemap
             .insert(&self.index, &node, rev)
-            .map_err(|err| nodemap_error_to_revlog_error(err, node.into()))
+            .map_err(nodemap_error_to_revlog_error)
     }
 }
 
-fn nodemap_error_to_revlog_error(
-    err: NodeMapError,
-    node_prefix: NodePrefix,
-) -> RevlogError {
+fn nodemap_error_to_revlog_error(err: NodeMapError) -> RevlogError {
     // Pretty awful but no worse than what we had before. This
     // is being cleaned up in a separate effort for all errors, so we keep it
     // in a self-contained function
     match err {
-        NodeMapError::MultipleResults => RevlogError::AmbiguousPrefix {
-            backtrace: HgBacktrace::capture(),
-            prefix: format!("{:x}", node_prefix),
-        },
-        NodeMapError::RevisionNotInIndex(rev) => RevlogError::InvalidRevision {
-            backtrace: HgBacktrace::capture(),
-            string: rev.to_string(),
-        },
+        NodeMapError::MultipleResults { prefix, backtrace } => {
+            RevlogError::AmbiguousPrefix {
+                backtrace,
+                prefix: format!("{:x}", prefix),
+            }
+        }
+        NodeMapError::RevisionNotInIndex { revision, backtrace } => {
+            RevlogError::InvalidRevision {
+                backtrace,
+                string: revision.to_string(),
+            }
+        }
     }
 }
 
@@ -2214,13 +2215,13 @@ mod tests {
         );
         // ... no partial match from an in-memory index without scanning the
         // whole thing.
-        assert_eq!(
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(b"abcd").unwrap()
             ),
-            Err(NodeMapError::MultipleResults)
-        );
+            Err(NodeMapError::MultipleResults { .. })
+        ));
         assert_eq!(
             nodemap.rev_from_node_prefix(
                 &idx,

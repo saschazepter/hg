@@ -12,7 +12,8 @@ use std::fmt;
 
 use bytes_cast::BytesCast;
 
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
+use crate::revlog::RevlogError;
 
 /// The length in bytes of a `Node`
 ///
@@ -166,12 +167,14 @@ impl Node {
     /// as a changelog or manifest entry.
     ///
     /// An error is treated as repository corruption.
-    pub fn from_hex_for_repo(hex: impl AsRef<[u8]>) -> Result<Node, HgError> {
+    pub fn from_hex_for_repo(
+        hex: impl AsRef<[u8]>,
+    ) -> Result<Node, RevlogError> {
         Self::from_hex(hex.as_ref()).map_err(|FromHexError| {
-            HgError::corrupted(format!(
-                "Expected a full hexadecimal node ID, found {}",
-                String::from_utf8_lossy(hex.as_ref())
-            ))
+            RevlogError::InvalidRevision {
+                string: String::from_utf8_lossy(hex.as_ref()).into_owned(),
+                backtrace: HgBacktrace::capture(),
+            }
         })
     }
 

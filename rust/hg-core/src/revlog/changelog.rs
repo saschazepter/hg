@@ -270,7 +270,7 @@ impl ChangelogRevisionData {
     /// entry.
     pub fn manifest_node(&self) -> Result<Node, HgError> {
         let manifest_node_hex = &self.bytes[..self.manifest_end];
-        Node::from_hex_for_repo(manifest_node_hex)
+        Ok(Node::from_hex_for_repo(manifest_node_hex)?)
     }
 
     /// The full user string (usually a name followed by an email enclosed in
