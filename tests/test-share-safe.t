@@ -658,3 +658,47 @@ downgrade it from share-safe automatically
   $ hg debugformat -R auto-upgrade share-safe
   format-variant                 repo
   share-safe:                      no
+
+Test auto-upgrading share after main repository's store requirements change
+---------------------------------------------------------------------------
+
+Create a non-share-safe main repository without fileindex
+  $ hg init repo1 --config format.use-share-safe=False --config format.use-fileindex-v1=False
+#if no-rust
+  $ cat << EOF >> repo1/.hg/hgrc
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+  $ hg share repo1 repo1-share
+  updating working directory
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+Upgrade to share-safe and fileindex
+(We must do these together, since fileindex upgrade requires share-safe)
+  $ hg debugupgraderepo -R repo1 -q --run --config format.use-share-safe=True --config format.use-fileindex-v1=True
+  upgrade will perform the following actions:
+  
+  requirements
+     preserved: generaldelta, revlogv1, sparserevlog, store
+     removed: dotencode, fncache
+     added: fileindex-v1, share-safe
+  
+  processed revlogs:
+    - all-filelogs
+    - changelog
+    - manifest
+  
+  repository upgraded to share safe mode, existing shares will still work in old non-safe mode. Re-share existing shares to use them in safe mode New shares will be created in safe mode.
+
+Now auto-upgrade the share to share-safe
+  $ hg status -R repo1-share \
+  >     --config format.use-share-safe.automatic-upgrade-of-mismatching-repositories=yes \
+  >     --config share.safe-mismatch.source-safe=upgrade-allow
+  repository upgraded to use share-safe mode
+
+The auto-upgrade removed current store requirements (fileindex-v1), not old ones (fncache).
+TODO: fix this bug
+  $ hg debugrequirements -R repo1-share | grep -E 'share-safe|fncache|dotencode|fileindex'
+  abort: repository is using 'fncache' and 'fileindex-v1' which are incompatible with each other (known-bad-output !)
+  [1]
