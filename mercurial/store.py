@@ -40,6 +40,7 @@ from .revlogutils.constants import (
     KIND_FILELOG,
     KIND_MANIFESTLOG,
     RevlogKindT,
+    V2_FILE_TYPE_EXT,
 )
 from .interfaces.types import (
     HgPathT,
@@ -528,22 +529,15 @@ _data = [
     b'requires',
 ]
 
+# file extension that also use a `-SOMELONGIDHASH.ext` form
+REVLOG_FILES_LONG_EXT = (b'.nd',) + tuple(sorted(V2_FILE_TYPE_EXT.values()))
+
 REVLOG_FILES_EXT = (
     b'.i',
-    b'.idx',
     b'.d',
-    b'.dat',
     b'.n',
-    b'.nd',
-    b'.sda',
-)
-# file extension that also use a `-SOMELONGIDHASH.ext` form
-REVLOG_FILES_LONG_EXT = (
-    b'.nd',
-    b'.idx',
-    b'.dat',
-    b'.sda',
-)
+) + REVLOG_FILES_LONG_EXT
+
 # files that are "volatile" and might change between listing and streaming
 #
 # note: the ".nd" file are nodemap data and won't "change" but they might be
