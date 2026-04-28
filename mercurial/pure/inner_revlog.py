@@ -1117,6 +1117,30 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     _default_compression_header: i_comp.RevlogCompHeader
 
+    # The list of
+    #
+    # Ordering matter as this will control the order in which they will be
+    # open, and close.
+    #
+    # It seems like good hygiene to keep consistent in terms of data
+    # referencing each other (e.g, making sure we open indexes first and close
+    # them last.). However unlinke revlog-v1 where this was a hard
+    # requirements, the docket used here should garantee that we ever only
+    # access consistent data (as long as the docket is open first, and written
+    # last, as it should be)
+    #
+    # Regardless of consistency, keeping the order consistent makes testing and
+    # debugging simpler.
+    _active_fts: tuple[docket_mod.FileType] = tuple(
+        sorted(
+            [
+                docket_mod.FileType.INDEX,
+                docket_mod.FileType.DATA,
+                docket_mod.FileType.SIDEDATA,
+            ]
+        )
+    )
+
     def __init__(
         self,
         *,
@@ -1157,27 +1181,33 @@ class InnerRevlogV2(BaseInnerRevlog):
         except (ValueError, IndexError):
             raise CorruptedRevlogError(b"corrupted index")
 
-        segment_file = randomaccessfile.randomaccessfile(
-            opener,
-            docket.filepath(docket.FT.DATA),
-            configs.data.chunk_cache_size,
-            chunk_cache,
-        )
+        # the chunk_cache are "data" bytes that were read while parsing the
+        # index. This is only happens for inline revlog which we never do post
+        # revlog-v1.
+        assert chunk_cache is None
+
+        self._segment_files: dict[
+            docket_mod.FileType,
+            randomaccessfile.randomaccessfile,
+        ] = {}
+        for ft in self._active_fts:
+            if ft.is_index:
+                continue
+            self._segment_files[ft] = randomaccessfile.randomaccessfile(
+                opener,
+                docket.filepath(ft),
+                configs.data.chunk_cache_size,
+            )
 
         super().__init__(
             opener=opener,
             target=target,
             index=index,
-            segment_file=segment_file,
+            segment_file=self._segment_files[docket.FT.DATA],
             inline=False,
             configs=configs,
         )
-
-        self._segmentfile_sidedata = randomaccessfile.randomaccessfile(
-            self.opener,
-            docket.filepath(docket.FT.SIDEDATA),
-            configs.data.chunk_cache_size,
-        )
+        self._segmentfile_sidedata = self._segment_files[docket.FT.SIDEDATA]
         self._default_compression_header = docket.default_compression_header
 
     @util.propertycache
@@ -1236,9 +1266,11 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     @contextlib.contextmanager
     def _reading(self):
-        with super()._reading():
-            with self._segmentfile_sidedata.reading():
-                yield
+        with contextlib.ExitStack() as stack:
+            for ft in self._active_fts:
+                if not ft.is_index:
+                    stack.enter_context(self._segment_files[ft].reading())
+            yield
 
     @property
     def is_open(self):
@@ -1285,47 +1317,32 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     @contextlib.contextmanager
     def _writing(self, transaction):
-        ifh = dfh = sdfh = None
-        data_end = self.docket.get_end(self.docket.FT.DATA)
-        sidedata_end = self.docket.get_end(self.docket.FT.SIDEDATA)
+        docket = self.docket
 
-        try:
-            r = len(self.index)
-            dfh = self.opener.wopen(self.docket.filepath(self.docket.FT.DATA))
-            dfh.seek(data_end, os.SEEK_SET)
-            sdfh = self.opener.wopen(
-                self.docket.filepath(self.docket.FT.SIDEDATA)
-            )
-            sdfh.seek(sidedata_end, os.SEEK_SET)
-            # opening the index file.
-            isize = r * self.index.entry_size
-            ifh = self.opener.wopen(
-                self.docket.filepath(self.docket.FT.INDEX),
-                checkambig=self.data_config.check_ambig,
-            )
-            ifh.seek(isize, os.SEEK_SET)
-            transaction.add(self.docket.filepath(self.docket.FT.DATA), data_end)
-            transaction.add(
-                self.docket.filepath(self.docket.FT.SIDEDATA), sidedata_end
-            )
-            transaction.add(self.docket.filepath(self.docket.FT.INDEX), isize)
-            # exposing all file handle for writing.
-            self._writinghandles = (ifh, dfh, sdfh)
-            self._segmentfile.writing_handle = ifh if self.inline else dfh
-            self._segmentfile_sidedata.writing_handle = sdfh
+        # NOTE: I suspect we don't need check_ambig for the index, but only on
+        # the docket.
+        check_ambig = self.data_config.check_ambig
+        handles = {}
+        with contextlib.ExitStack() as stack:
+            for ft in self._active_fts[::-1]:
+                path = docket.filepath(ft)
+                end = docket.get_end(ft)
+
+                if ft.is_index:
+                    fh = self.opener.wopen(path, checkambig=check_ambig)
+                else:
+                    fh = self.opener.wopen(path)
+                stack.enter_context(fh)
+                fh.seek(end, os.SEEK_SET)
+                transaction.add(path, end)
+                if ft in self._segment_files:
+                    self._segment_files[ft].writing_handle = fh
+                handles[ft] = fh
+            self._writinghandles = tuple(handles[ft] for ft in self._active_fts)
             yield
-        finally:
             self._writinghandles = None
-            self._segmentfile.writing_handle = None
-            self._segmentfile_sidedata.writing_handle = None
-            if sdfh is not None:
-                sdfh.close()
-            if dfh is not None:
-                dfh.close()
-            # closing the index file last to avoid exposing referent to
-            # potential unflushed data content.
-            if ifh is not None:
-                ifh.close()
+            for segment_file in self._segment_files.values():
+                segment_file.writing_handle = None
 
     def next_data_offset(self):
         """Returns the current offset in the (in-transaction) data file."""
