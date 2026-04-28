@@ -40,7 +40,6 @@ from ..utils import (
 from . import (
     constants,
     deltas,
-    docket as docket_util,
 )
 
 from ..pure import (
@@ -259,7 +258,7 @@ def _precompute_rewritten_delta(
     return rewritten_entries
 
 
-def _setup_new_files(revlog, file_cutoffs: dict[docket_util.FileType, int]):
+def _setup_new_files(revlog, file_cutoffs: dict[constants.V2FileType, int]):
     """
 
     return a context manager to open all the relevant files:
@@ -331,11 +330,11 @@ def _rewrite_simple(
 ):
     """append a normal revision to the index after the rewritten one(s)"""
     old_files, new_files = all_files
-    old_data_file = old_files[docket_util.FileType.DATA]
-    old_sidedata_file = old_files[docket_util.FileType.SIDEDATA]
-    new_index_file = new_files[docket_util.FileType.INDEX]
-    new_data_file = new_files[docket_util.FileType.DATA]
-    new_sidedata_file = new_files[docket_util.FileType.SIDEDATA]
+    old_data_file = old_files[constants.V2FileType.DATA]
+    old_sidedata_file = old_files[constants.V2FileType.SIDEDATA]
+    new_index_file = new_files[constants.V2FileType.INDEX]
+    new_data_file = new_files[constants.V2FileType.DATA]
+    new_sidedata_file = new_files[constants.V2FileType.SIDEDATA]
 
     if rev not in rewritten_entries:
         old_data_file.seek(old_index.data_chunk_start(rev))
@@ -407,8 +406,8 @@ def _rewrite_censor(
 ):
     """rewrite and append a censored revision"""
     old_files, new_files = all_files
-    new_index_file = new_files[docket_util.FileType.INDEX]
-    new_data_file = new_files[docket_util.FileType.DATA]
+    new_index_file = new_files[constants.V2FileType.INDEX]
+    new_data_file = new_files[constants.V2FileType.DATA]
 
     # XXX consider trying the default compression too
     new_data_size = len(tombstone)

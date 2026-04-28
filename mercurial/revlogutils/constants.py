@@ -377,6 +377,33 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
 }
 
 
+class V2FileType(enum.IntEnum):
+    INDEX = 1
+    DATA = 2
+    SIDEDATA = 3
+
+    @property
+    def is_index(self) -> bool:
+        """True when this FileType is part of indexes information
+
+        File storing index information are handled differently. They are read
+        all at once during initialization and only written to afterward.
+
+        They don't requires the kind of read caching used by the other files.
+        """
+        is_index = self < self.DATA
+        # too low level module to import util, manually implements propertycache
+        self.__dict__["is_index"] = is_index
+        return is_index
+
+
+V2_FILE_TYPE_EXT = {
+    V2FileType.INDEX: b'idx',
+    V2FileType.DATA: b'dat',
+    V2FileType.SIDEDATA: b'sda',
+}
+
+
 SPARSE_REVLOG_MAX_CHAIN_LENGTH = 1000
 
 ### What should be done with a cached delta and its base ?

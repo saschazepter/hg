@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import enum
 import struct
 
 from typing import Iterator
@@ -73,32 +72,8 @@ S_OLD_ENTRY = struct.Struct('>B%ds' % docket_mod.UID_SIZE)  # and U bytes
 
 UidT = int
 
-
-class FileType(enum.IntEnum):
-    INDEX = 1
-    DATA = 2
-    SIDEDATA = 3
-
-    @property
-    def is_index(self) -> bool:
-        """True when this FileType is part of indexes information
-
-        File storing index information are handled differently. They are read
-        all at once during initialization and only written to afterward.
-
-        They don't requires the kind of read caching used by the other files.
-        """
-        is_index = self < self.DATA
-        # too low level module to import util, manually implements propertycache
-        self.__dict__["is_index"] = is_index
-        return is_index
-
-
-EXT = {
-    FileType.INDEX: b'idx',
-    FileType.DATA: b'dat',
-    FileType.SIDEDATA: b'sda',
-}
+FileType = constants.V2FileType
+EXT = constants.V2_FILE_TYPE_EXT
 
 
 def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
