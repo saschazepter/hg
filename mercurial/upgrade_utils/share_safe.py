@@ -32,7 +32,6 @@ if typing.TYPE_CHECKING:
 def upgrade_share_to_safe(
     ui: UiT,
     hgvfs: VfsT,
-    storevfs: VfsT,
     current_requirements: RequirementSetT,
     mismatch_config: bytes,
     mismatch_warn: bool,
@@ -40,12 +39,29 @@ def upgrade_share_to_safe(
 ) -> None:
     """Upgrades a share to use share-safe mechanism"""
     wlock = None
-    store_requirements = scmutil.readrequires(storevfs, False)
     original_crequirements = current_requirements.copy()
-    # after upgrade, store requires will be shared, so lets find
-    # the requirements which are not present in store and
-    # write them to share's .hg/requires
-    diffrequires = current_requirements - store_requirements
+    # After the upgrade, store requirements will be shared, so let's write only
+    # the working dir (non-store) requirements to the share's .hg/requires.
+    # Some definitions:
+    # * R = W + S = all wdir + store requirements known to this version of hg
+    # * C = current_requirements
+    # * X = source repo's store requirements
+    # Note that C ⊆ R and X ⊆ R, otherwise we would have aborted earlier.
+    # Below we define diffrequires as:
+    #     C & W
+    #   = C - S
+    #   = C - (S & X) - (S - X)
+    # Therefore C - S (removing all known store requirements) is similar to
+    # C - X (removing all actual store requirements) but with two differences:
+    # * Only remove (S & X), not (W & X). The only way the latter could be
+    #   nonempty is if some version of hg moves an existing requirement into
+    #   requirementsmod.WORKING_DIR_REQUIREMENTS. We should not do that.
+    # * Additionally remove (S - X). For example, if the source repo is upgraded
+    #   to a new format after the share is created, then the share could have
+    #   stale store requirements no longer in X.
+    diffrequires = (
+        current_requirements & requirementsmod.WORKING_DIR_REQUIREMENTS
+    )
     # add share-safe requirement as it will mark the share as share-safe
     diffrequires.add(requirementsmod.SHARESAFE_REQUIREMENT)
     current_requirements.add(requirementsmod.SHARESAFE_REQUIREMENT)
@@ -64,7 +80,9 @@ def upgrade_share_to_safe(
             # as reference
             current_requirements -= removed
             current_requirements |= locked_requirements
-            diffrequires = current_requirements - store_requirements
+            diffrequires = (
+                current_requirements & requirementsmod.WORKING_DIR_REQUIREMENTS
+            )
             # add share-safe requirement as it will mark the share as share-safe
             diffrequires.add(requirementsmod.SHARESAFE_REQUIREMENT)
             current_requirements.add(requirementsmod.SHARESAFE_REQUIREMENT)

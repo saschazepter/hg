@@ -661,7 +661,6 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                 share_safe_upgrade.upgrade_share_to_safe(
                     ui,
                     hgvfs,
-                    storevfs,
                     requirements,
                     mismatch_config,
                     mismatch_warn,

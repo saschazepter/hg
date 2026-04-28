@@ -697,8 +697,7 @@ Now auto-upgrade the share to share-safe
   >     --config share.safe-mismatch.source-safe=upgrade-allow
   repository upgraded to use share-safe mode
 
-The auto-upgrade removed current store requirements (fileindex-v1), not old ones (fncache).
-TODO: fix this bug
+The share has the expected requirements (share-safe and fileindex)
   $ hg debugrequirements -R repo1-share | grep -E 'share-safe|fncache|dotencode|fileindex'
-  abort: repository is using 'fncache' and 'fileindex-v1' which are incompatible with each other (known-bad-output !)
-  [1]
+  fileindex-v1
+  share-safe
