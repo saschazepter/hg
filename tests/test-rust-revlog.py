@@ -90,12 +90,8 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         for bogus in (-2, 17):
             try:
                 del idx[bogus]
-            except ValueError as exc:
-                # this underlines that we should do better with this message
-                assert exc.args[0] == (
-                    f"Inconsistency: Revision {bogus} found in nodemap "
-                    "is not in revlog index"
-                )
+            except error.Abort as exc:
+                assert b"invalid revision identifier: %d" % bogus in exc.args[0]
             else:
                 raise AssertionError(
                     f"an exception was expected for `del idx[{bogus}]`"
@@ -117,12 +113,8 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
         ):
             try:
                 del idx[start:stop]
-            except ValueError as exc:
-                # this underlines that we should do better with this message
-                assert exc.args[0] == (
-                    f"Inconsistency: Revision {start} found in nodemap "
-                    "is not in revlog index"
-                )
+            except error.Abort as exc:
+                assert b"invalid revision identifier: %d" % start in exc.args[0]
             else:
                 raise AssertionError(
                     f"an exception was expected for `del idx[{start}:{stop}]`"

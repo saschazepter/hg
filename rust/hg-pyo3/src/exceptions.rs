@@ -2,7 +2,6 @@ use hg::UncheckedRevision;
 use hg::dirstate::DirstateError;
 use hg::errors::HgError;
 use hg::revlog::RevlogError;
-use hg::revlog::nodemap::NodeMapError;
 use pyo3::PyErr;
 use pyo3::Python;
 use pyo3::create_exception;
@@ -82,25 +81,6 @@ pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
 
 pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {
     PyValueError::new_err(format!("revlog index out of range: {}", rev))
-}
-
-pub fn nodemap_error(err: NodeMapError) -> PyErr {
-    match err {
-        NodeMapError::MultipleResults { prefix, backtrace } => {
-            mercurial_py_errors::RustRevlogError::new_err(format!(
-                "{backtrace}Multiple results for {:x}",
-                prefix
-            ))
-        }
-
-        NodeMapError::RevisionNotInIndex { revision, backtrace } => {
-            PyValueError::new_err(format!(
-                "{}Inconsistency: Revision {} found in nodemap \
-             is not in revlog index",
-                backtrace, revision
-            ))
-        }
-    }
 }
 
 pub fn graph_error(_err: hg::GraphError) -> PyErr {

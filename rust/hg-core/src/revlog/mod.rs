@@ -45,7 +45,6 @@ use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
-use crate::revlog::nodemap::NodeMapError;
 use crate::utils::RawData;
 use crate::utils::u32_u;
 use crate::vfs::Vfs;
@@ -296,7 +295,7 @@ pub trait RevlogIndexNodeLookup: RevlogIndex {
         mut visit: impl FnMut(Node, Revision),
         from_rev_down: Option<Revision>,
         prefix_match: Option<Revision>,
-    ) -> Result<Option<(Node, Revision)>, NodeMapError> {
+    ) -> Result<Option<(Node, Revision)>, RevlogError> {
         let mut found_by_prefix =
             prefix_match.map(|rev| (*self.node(rev), rev));
         let from_rev_down = from_rev_down
@@ -315,8 +314,8 @@ pub trait RevlogIndexNodeLookup: RevlogIndex {
                 if let Some((found_prefix, found_rev)) = found_by_prefix
                     && (candidate_node != found_prefix || rev != found_rev)
                 {
-                    return Err(NodeMapError::MultipleResults {
-                        prefix,
+                    return Err(RevlogError::AmbiguousPrefix {
+                        prefix: format!("{:x}", prefix),
                         backtrace: HgBacktrace::capture(),
                     });
                 }
@@ -412,8 +411,6 @@ pub enum RevlogError {
     },
     #[from]
     Graph(GraphError),
-    #[from]
-    Nodemap(NodeMapError),
     /// This revlog's flags are invalid
     UnknownFlags {
         flags: u16,

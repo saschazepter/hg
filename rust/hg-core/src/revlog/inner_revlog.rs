@@ -64,7 +64,6 @@ use crate::revlog::RevlogIndexNodeLookup;
 use crate::revlog::RevlogType;
 use crate::revlog::index::RevisionDataParams;
 use crate::revlog::nodemap::NodeMap;
-use crate::revlog::nodemap::NodeMapError;
 use crate::revlog::nodemap::NodeTree;
 use crate::transaction::Transaction;
 use crate::utils::ByTotalChunksSize;
@@ -1682,9 +1681,7 @@ impl InnerRevlog {
         &self,
         node_prefix: NodePrefix,
     ) -> Result<Option<Revision>, RevlogError> {
-        self.nodemap
-            .rev_from_node_prefix(&self.index, node_prefix)
-            .map_err(nodemap_error_to_revlog_error)
+        self.nodemap.rev_from_node_prefix(&self.index, node_prefix)
     }
 
     /// Returns the shortest length in bytes to uniquely identify this [`Node`].
@@ -1693,9 +1690,7 @@ impl InnerRevlog {
         &self,
         node: super::Node,
     ) -> Result<Option<usize>, RevlogError> {
-        self.nodemap
-            .unique_prefix_len_node(&self.index, &node)
-            .map_err(nodemap_error_to_revlog_error)
+        self.nodemap.unique_prefix_len_node(&self.index, &node)
     }
 
     /// `pub` only for `hg-pyo3`
@@ -1713,7 +1708,7 @@ impl InnerRevlog {
 
     /// `pub` only for `hg-pyo3`
     #[doc(hidden)]
-    pub fn nodemap_invalidate(&mut self) -> Result<(), NodeMapError> {
+    pub fn nodemap_invalidate(&mut self) -> Result<(), RevlogError> {
         self.nodemap.invalidate(&self.index)
     }
 
@@ -1744,29 +1739,7 @@ impl InnerRevlog {
         let rev =
             Revision(self.index.len().try_into().expect("revision too large"));
         self.index.append(params)?;
-        self.nodemap
-            .insert(&self.index, &node, rev)
-            .map_err(nodemap_error_to_revlog_error)
-    }
-}
-
-fn nodemap_error_to_revlog_error(err: NodeMapError) -> RevlogError {
-    // Pretty awful but no worse than what we had before. This
-    // is being cleaned up in a separate effort for all errors, so we keep it
-    // in a self-contained function
-    match err {
-        NodeMapError::MultipleResults { prefix, backtrace } => {
-            RevlogError::AmbiguousPrefix {
-                backtrace,
-                prefix: format!("{:x}", prefix),
-            }
-        }
-        NodeMapError::RevisionNotInIndex { revision, backtrace } => {
-            RevlogError::InvalidRevision {
-                backtrace,
-                string: revision.to_string(),
-            }
-        }
+        self.nodemap.insert(&self.index, &node, rev)
     }
 }
 
@@ -1813,7 +1786,7 @@ impl RevlogNodeMap {
         idx: &impl RevlogIndex,
         node: &Node,
         rev: Revision,
-    ) -> Result<(), NodeMapError> {
+    ) -> Result<(), RevlogError> {
         let mut state = self.state.write().expect("propagate the panic");
         let tree = match state.deref_mut() {
             RevlogNodeMapState::InMemory {
@@ -1834,7 +1807,7 @@ impl RevlogNodeMap {
         &self,
         idx: &impl RevlogIndex,
         node_prefix: NodePrefix,
-    ) -> Result<Option<Revision>, NodeMapError> {
+    ) -> Result<Option<Revision>, RevlogError> {
         if node_prefix == NULL_NODE {
             // This ensures we don't count this trivial case as a query
             return Ok(Some(NULL_REVISION));
@@ -1943,7 +1916,7 @@ impl RevlogNodeMap {
     pub fn invalidate(
         &self,
         idx: &impl RevlogIndex,
-    ) -> Result<(), NodeMapError> {
+    ) -> Result<(), RevlogError> {
         let mut state = self.state.write().expect("propagate the panic");
         match state.deref_mut() {
             RevlogNodeMapState::InMemory {
@@ -1990,7 +1963,7 @@ impl NodeMap for RevlogNodeMap {
         &self,
         idx: &impl RevlogIndex,
         prefix: NodePrefix,
-    ) -> Result<Option<Revision>, NodeMapError> {
+    ) -> Result<Option<Revision>, RevlogError> {
         self.rev_from_node_prefix(idx, prefix)
     }
 
@@ -1998,7 +1971,7 @@ impl NodeMap for RevlogNodeMap {
         &self,
         idx: &impl RevlogIndex,
         node_prefix: NodePrefix,
-    ) -> Result<Option<usize>, NodeMapError> {
+    ) -> Result<Option<usize>, RevlogError> {
         let mut state = self.state.write().expect("propagate the panic");
         let state = state.deref_mut();
         match state {
@@ -2206,13 +2179,13 @@ mod tests {
         let idx = FakeIndex::new();
         let nodemap = RevlogNodeMap::from_nodetree_option(None, PathBuf::new());
         // Test exact match first, to populate the nodemap and make sure...
-        assert_eq!(
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(NODE_0).unwrap()
             ),
             Ok(Some(Revision(0)))
-        );
+        ));
         // ... no partial match from an in-memory index without scanning the
         // whole thing.
         assert!(matches!(
@@ -2220,9 +2193,9 @@ mod tests {
                 &idx,
                 NodePrefix::from_hex(b"abcd").unwrap()
             ),
-            Err(NodeMapError::MultipleResults { .. })
+            Err(RevlogError::AmbiguousPrefix { .. })
         ));
-        assert_eq!(
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(
@@ -2232,24 +2205,24 @@ mod tests {
                 .unwrap()
             ),
             Ok(Some(Revision(0)))
-        );
-        assert_eq!(
+        ));
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(b"abcde").unwrap()
             ),
             Ok(None)
-        );
+        ));
         // Test other exact match
-        assert_eq!(
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(NODE_1).unwrap()
             ),
             Ok(Some(Revision(1)))
-        );
+        ));
         // Test full node not matching
-        assert_eq!(
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(
@@ -2258,7 +2231,7 @@ mod tests {
                 .unwrap()
             ),
             Ok(None)
-        );
+        ));
     }
 
     /// Test that we don't confuse previous full matches with an unambiguous
@@ -2267,14 +2240,14 @@ mod tests {
     fn test_revlog_nodemap_prefix() {
         let idx = FakeIndex::new();
         let nodemap = RevlogNodeMap::from_nodetree_option(None, PathBuf::new());
-        assert_eq!(
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(NODE_0).unwrap()
             ),
             Ok(Some(Revision(0)))
-        );
-        assert_eq!(
+        ));
+        assert!(matches!(
             nodemap.rev_from_node_prefix(
                 &idx,
                 NodePrefix::from_hex(
@@ -2284,6 +2257,6 @@ mod tests {
                 .unwrap()
             ),
             Ok(Some(Revision(1)))
-        );
+        ));
     }
 }

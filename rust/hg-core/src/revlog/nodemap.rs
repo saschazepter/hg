@@ -39,18 +39,6 @@ use crate::vfs::VfsImpl;
 
 type NodeTreeBuffer = Box<dyn Deref<Target = [u8]> + Send + Sync>;
 
-#[derive(Debug, PartialEq, derive_more::Display)]
-pub enum NodeMapError {
-    /// A `NodePrefix` matches several [`Revision`]s.
-    ///
-    /// This can be returned by methods meant for (at most) one match.
-    #[display("{backtrace}MultipleResults {:x}", prefix)]
-    MultipleResults { prefix: NodePrefix, backtrace: HgBacktrace },
-    /// A `Revision` stored in the nodemap could not be found in the index
-    #[display("{backtrace}RevisionNotInIndex {revision}")]
-    RevisionNotInIndex { revision: UncheckedRevision, backtrace: HgBacktrace },
-}
-
 /// Mapping system from Mercurial nodes to revision numbers.
 ///
 /// ## `RevlogIndex` and `NodeMap`
@@ -66,7 +54,7 @@ pub enum NodeMapError {
 /// Notably, the `NodeMap` must not store
 /// information about more `Revision` values than there are in the index.
 /// In these methods, an encountered `Revision` is not in the index, a
-/// [RevisionNotInIndex](NodeMapError) error is returned.
+/// [RevisionNotInIndex](RevlogError) error is returned.
 ///
 /// In insert operations, the rule is thus that the `NodeMap` must always
 /// be updated after the `RevlogIndex` it is about.
@@ -78,7 +66,7 @@ pub trait NodeMap {
         &self,
         index: &impl RevlogIndex,
         node: &Node,
-    ) -> Result<Option<Revision>, NodeMapError> {
+    ) -> Result<Option<Revision>, RevlogError> {
         self.find_bin(index, node.into())
     }
 
@@ -87,12 +75,12 @@ pub trait NodeMap {
     /// If no Revision matches the given prefix, `Ok(None)` is returned.
     ///
     /// If several Revisions match the given prefix, a
-    /// [MultipleResults](NodeMapError)  error is returned.
+    /// [`RevlogError::AmbiguousPrefix`] error is returned.
     fn find_bin(
         &self,
         idx: &impl RevlogIndex,
         prefix: NodePrefix,
-    ) -> Result<Option<Revision>, NodeMapError>;
+    ) -> Result<Option<Revision>, RevlogError>;
 
     /// Give the size of the shortest node prefix that determines
     /// the revision uniquely.
@@ -104,12 +92,12 @@ pub trait NodeMap {
     /// Returns `None` if no [`Revision`] could be found for the prefix.
     ///
     /// If several Revisions match the given prefix, a
-    /// [MultipleResults](NodeMapError)  error is returned.
+    /// [`RevlogError::AmbiguousPrefix`] error is returned.
     fn unique_prefix_len_bin(
         &self,
         idx: &impl RevlogIndex,
         node_prefix: NodePrefix,
-    ) -> Result<Option<usize>, NodeMapError>;
+    ) -> Result<Option<usize>, RevlogError>;
 
     /// Same as [unique_prefix_len_bin](Self::unique_prefix_len_bin), with
     /// a full [`Node`] as input
@@ -117,7 +105,7 @@ pub trait NodeMap {
         &self,
         idx: &impl RevlogIndex,
         node: &Node,
-    ) -> Result<Option<usize>, NodeMapError> {
+    ) -> Result<Option<usize>, RevlogError> {
         self.unique_prefix_len_bin(idx, node.into())
     }
 }
@@ -128,7 +116,7 @@ pub trait MutableNodeMap: NodeMap {
         index: &I,
         node: &Node,
         rev: Revision,
-    ) -> Result<(), NodeMapError>;
+    ) -> Result<(), RevlogError>;
 }
 
 /// Low level NodeTree [`Block`] elements
@@ -266,7 +254,7 @@ fn has_prefix_or_none(
     idx: &impl RevlogIndex,
     prefix: NodePrefix,
     rev: UncheckedRevision,
-) -> Result<Option<Revision>, NodeMapError> {
+) -> Result<Option<Revision>, RevlogError> {
     if rev.is_nullrev() {
         return Ok(None);
     }
@@ -276,8 +264,8 @@ fn has_prefix_or_none(
         } else {
             None
         }),
-        None => Err(NodeMapError::RevisionNotInIndex {
-            revision: rev,
+        None => Err(RevlogError::InvalidRevision {
+            string: rev.to_string(),
             backtrace: HgBacktrace::capture(),
         }),
     }
@@ -292,7 +280,7 @@ fn validate_candidate(
     idx: &impl RevlogIndex,
     prefix: NodePrefix,
     candidate: (Option<UncheckedRevision>, usize),
-) -> Result<(Option<Revision>, usize), NodeMapError> {
+) -> Result<(Option<Revision>, usize), RevlogError> {
     let (rev, steps) = candidate;
     if let Some(nz_nybble) = prefix.first_different_nybble(&NULL_NODE) {
         rev.map_or(Ok((None, steps)), |r| {
@@ -306,8 +294,8 @@ fn validate_candidate(
             None => Ok((Some(NULL_REVISION), steps + 1)),
             Some(r) => match has_prefix_or_none(idx, prefix, r)? {
                 None => Ok((Some(NULL_REVISION), steps + 1)),
-                _ => Err(NodeMapError::MultipleResults {
-                    prefix,
+                _ => Err(RevlogError::AmbiguousPrefix {
+                    prefix: format!("{:x}", prefix),
                     backtrace: HgBacktrace::capture(),
                 }),
             },
@@ -445,19 +433,19 @@ impl NodeTree {
     ///
     /// The second returned value is the size of the smallest subprefix
     /// of `prefix` that would give the same result, i.e. not the
-    /// [MultipleResults](NodeMapError) error variant (again, using only the
+    /// [`RevlogError::AmbiguousPrefix`]error variant (again, using only the
     /// data of the [`NodeTree`]).
     fn lookup(
         &self,
         prefix: NodePrefix,
-    ) -> Result<(Option<UncheckedRevision>, usize), NodeMapError> {
+    ) -> Result<(Option<UncheckedRevision>, usize), RevlogError> {
         for (i, visit_item) in self.visit(prefix).enumerate() {
             if let Some(opt) = visit_item.final_revision() {
                 return Ok((opt, i + 1));
             }
         }
-        Err(NodeMapError::MultipleResults {
-            prefix,
+        Err(RevlogError::AmbiguousPrefix {
+            prefix: format!("{:x}", prefix),
             backtrace: HgBacktrace::capture(),
         })
     }
@@ -513,7 +501,7 @@ impl NodeTree {
         index: &I,
         node: &Node,
         rev: Revision,
-    ) -> Result<(), NodeMapError> {
+    ) -> Result<(), RevlogError> {
         self.insert_single(index, node, rev, &mut vec![])
     }
 
@@ -524,7 +512,7 @@ impl NodeTree {
         node: &Node,
         rev: Revision,
         visit_steps: &mut Vec<NodeTreeVisitItem>,
-    ) -> Result<(), NodeMapError> {
+    ) -> Result<(), RevlogError> {
         let ro_len = &self.readonly.len();
 
         visit_steps.extend(self.visit(node.into()));
@@ -538,8 +526,8 @@ impl NodeTree {
         if let Element::Rev(old_rev) = deepest.element {
             let o_rev = match index.check_revision(old_rev.into()) {
                 None => {
-                    return Err(NodeMapError::RevisionNotInIndex {
-                        revision: old_rev.into(),
+                    return Err(RevlogError::InvalidRevision {
+                        string: old_rev.to_string(),
                         backtrace: HgBacktrace::capture(),
                     });
                 }
@@ -604,7 +592,7 @@ impl NodeTree {
         index: &I,
         from: Revision,
         to: Revision,
-    ) -> Result<(), NodeMapError> {
+    ) -> Result<(), RevlogError> {
         let revisions_to_add = 0.max(to.0 - from.0) as usize;
         // There are about 5 blocks per revision for all persistent nodemaps
         // observed in the wild, so we over-allocate slightly with 6.
@@ -633,7 +621,7 @@ impl NodeTree {
         &mut self,
         index: &impl RevlogIndex,
         from: Revision,
-    ) -> Result<(), NodeMapError> {
+    ) -> Result<(), RevlogError> {
         let to = Revision(0.max(index.len() - 1) as BaseRevision);
         self.insert_many(index, from, to)
     }
@@ -775,7 +763,7 @@ impl NodeMap for NodeTree {
         &self,
         idx: &impl RevlogIndex,
         prefix: NodePrefix,
-    ) -> Result<Option<Revision>, NodeMapError> {
+    ) -> Result<Option<Revision>, RevlogError> {
         validate_candidate(idx, prefix, self.lookup(prefix)?)
             .map(|(opt, _shortest)| opt)
     }
@@ -784,7 +772,7 @@ impl NodeMap for NodeTree {
         &self,
         idx: &impl RevlogIndex,
         prefix: NodePrefix,
-    ) -> Result<Option<usize>, NodeMapError> {
+    ) -> Result<Option<usize>, RevlogError> {
         validate_candidate(idx, prefix, self.lookup(prefix)?)
             .map(|(opt, shortest)| opt.map(|_rev| shortest))
     }
@@ -794,7 +782,6 @@ impl NodeMap for NodeTree {
 pub mod tests {
     use std::collections::HashMap;
 
-    use super::NodeMapError::*;
     use super::*;
     use crate::revlog::node::Node;
     use crate::revlog::node::hex_pad_right;
@@ -912,7 +899,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_immutable_find_simplest() -> Result<(), NodeMapError> {
+    fn test_immutable_find_simplest() -> Result<(), RevlogError> {
         let mut idx: TestIndex = HashMap::new();
         pad_insert(&mut idx, R!(1), "1234deadcafe");
 
@@ -943,20 +930,26 @@ pub mod tests {
 
         assert!(matches!(
             nt.find_bin(&idx, hex("0")),
-            Err(MultipleResults { .. })
+            Err(RevlogError::AmbiguousPrefix { .. })
         ));
-        assert_eq!(nt.find_bin(&idx, hex("01")), Ok(Some(R!(9))));
+        assert!(matches!(nt.find_bin(&idx, hex("01")), Ok(Some(R!(9)))));
         assert!(matches!(
             nt.find_bin(&idx, hex("00")),
-            Err(MultipleResults { .. })
+            Err(RevlogError::AmbiguousPrefix { .. })
         ));
-        assert_eq!(nt.find_bin(&idx, hex("00a")), Ok(Some(R!(0))));
-        assert_eq!(nt.unique_prefix_len_bin(&idx, hex("00a")), Ok(Some(3)));
-        assert_eq!(nt.find_bin(&idx, hex("000")), Ok(Some(NULL_REVISION)));
+        assert!(matches!(nt.find_bin(&idx, hex("00a")), Ok(Some(R!(0)))));
+        assert!(matches!(
+            nt.unique_prefix_len_bin(&idx, hex("00a")),
+            Ok(Some(3))
+        ));
+        assert!(matches!(
+            nt.find_bin(&idx, hex("000")),
+            Ok(Some(NULL_REVISION))
+        ));
     }
 
     #[test]
-    fn test_mutated_find() -> Result<(), NodeMapError> {
+    fn test_mutated_find() -> Result<(), RevlogError> {
         let mut idx = TestIndex::new();
         pad_insert(&mut idx, R!(9), "012");
         pad_insert(&mut idx, R!(0), "00a");
@@ -975,7 +968,7 @@ pub mod tests {
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("c"))?, Some(1));
         assert!(matches!(
             nt.find_bin(&idx, hex("00")),
-            Err(MultipleResults { .. })
+            Err(RevlogError::AmbiguousPrefix { .. })
         ));
         assert_eq!(nt.find_bin(&idx, hex("000"))?, Some(NULL_REVISION));
         assert_eq!(nt.unique_prefix_len_bin(&idx, hex("000"))?, Some(3));
@@ -998,7 +991,7 @@ pub mod tests {
             &mut self,
             rev: Revision,
             node: Node,
-        ) -> Result<(), NodeMapError> {
+        ) -> Result<(), RevlogError> {
             self.index.insert(rev.into(), node);
             self.nt.insert(&self.index, &node, rev)?;
             Ok(())
@@ -1008,7 +1001,7 @@ pub mod tests {
             &mut self,
             rev: Revision,
             hex: &str,
-        ) -> Result<(), NodeMapError> {
+        ) -> Result<(), RevlogError> {
             let node = pad_node(hex);
             self.insert_node(rev, node)
         }
@@ -1016,14 +1009,14 @@ pub mod tests {
         fn find_hex(
             &self,
             prefix: &str,
-        ) -> Result<Option<Revision>, NodeMapError> {
+        ) -> Result<Option<Revision>, RevlogError> {
             self.nt.find_bin(&self.index, hex(prefix))
         }
 
         fn unique_prefix_len_hex(
             &self,
             prefix: &str,
-        ) -> Result<Option<usize>, NodeMapError> {
+        ) -> Result<Option<usize>, RevlogError> {
             self.nt.unique_prefix_len_bin(&self.index, hex(prefix))
         }
 
@@ -1045,7 +1038,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_insert_full_mutable() -> Result<(), NodeMapError> {
+    fn test_insert_full_mutable() -> Result<(), RevlogError> {
         let mut idx = TestNtIndex::new();
         idx.insert(Revision(0), "1234")?;
         assert_eq!(idx.find_hex("1")?, Some(R!(0)));
@@ -1067,7 +1060,7 @@ pub mod tests {
         assert_eq!(idx.nt.growable.len(), 2);
         assert!(matches!(
             idx.find_hex("1a"),
-            Err(NodeMapError::MultipleResults { .. })
+            Err(RevlogError::AmbiguousPrefix { .. })
         ));
         assert_eq!(idx.find_hex("12")?, Some(R!(0)));
         assert_eq!(idx.find_hex("1a3")?, Some(R!(1)));
@@ -1093,26 +1086,26 @@ pub mod tests {
 
         assert!(matches!(
             idx.find_hex("000"),
-            Err(NodeMapError::MultipleResults { .. })
+            Err(RevlogError::AmbiguousPrefix { .. })
         ));
         // in the nodetree proper, this will be found at the first nybble
         // yet the correct answer for unique_prefix_len is not 1, nor 1+1,
         // but the first difference with `NULL_NODE`
-        assert_eq!(idx.unique_prefix_len_hex("00000a"), Ok(Some(6)));
-        assert_eq!(idx.unique_prefix_len_hex("00000ab"), Ok(Some(6)));
+        assert!(matches!(idx.unique_prefix_len_hex("00000a"), Ok(Some(6))));
+        assert!(matches!(idx.unique_prefix_len_hex("00000ab"), Ok(Some(6))));
 
         // same with odd result
         idx.insert(Revision(1), "00123").unwrap();
-        assert_eq!(idx.unique_prefix_len_hex("001"), Ok(Some(3)));
-        assert_eq!(idx.unique_prefix_len_hex("0012"), Ok(Some(3)));
+        assert!(matches!(idx.unique_prefix_len_hex("001"), Ok(Some(3))));
+        assert!(matches!(idx.unique_prefix_len_hex("0012"), Ok(Some(3))));
 
         // these are unchanged of course
-        assert_eq!(idx.unique_prefix_len_hex("00000a"), Ok(Some(6)));
-        assert_eq!(idx.unique_prefix_len_hex("00000ab"), Ok(Some(6)));
+        assert!(matches!(idx.unique_prefix_len_hex("00000a"), Ok(Some(6))));
+        assert!(matches!(idx.unique_prefix_len_hex("00000ab"), Ok(Some(6))));
     }
 
     #[test]
-    fn test_insert_extreme_splitting() -> Result<(), NodeMapError> {
+    fn test_insert_extreme_splitting() -> Result<(), RevlogError> {
         // check that the splitting loop is long enough
         let mut nt_idx = TestNtIndex::new();
         let nt = &mut nt_idx.nt;
@@ -1136,7 +1129,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_insert_partly_immutable() -> Result<(), NodeMapError> {
+    fn test_insert_partly_immutable() -> Result<(), RevlogError> {
         let mut idx = TestNtIndex::new();
         idx.insert(Revision(0), "1234")?;
         idx.insert(Revision(1), "1235")?;
@@ -1173,7 +1166,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_invalidate_all() -> Result<(), NodeMapError> {
+    fn test_invalidate_all() -> Result<(), RevlogError> {
         let mut idx = TestNtIndex::new();
         idx.insert(Revision(0), "1234")?;
         idx.insert(Revision(1), "1235")?;
@@ -1200,7 +1193,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_into_added_bytes() -> Result<(), NodeMapError> {
+    fn test_into_added_bytes() -> Result<(), RevlogError> {
         let mut idx = TestNtIndex::new();
         idx.insert(Revision(0), "1234")?;
         let mut idx = idx.commit();

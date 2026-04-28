@@ -317,7 +317,6 @@ impl fmt::Display for HgError {
                         node.short()
                     )
                 }
-                RevlogError::Nodemap(node_map_error) => node_map_error.fmt(f),
                 RevlogError::CorruptedDocket { docket_path, backtrace } => {
                     write!(
                         f,

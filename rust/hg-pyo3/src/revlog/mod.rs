@@ -34,7 +34,6 @@ use hg::revlog::index::Phase;
 use hg::revlog::index::SnapshotsCache;
 use hg::revlog::inner_revlog::InnerRevlog as CoreInnerRevlog;
 use hg::revlog::nodemap::NodeMap;
-use hg::revlog::nodemap::NodeMapError;
 use hg::revlog::nodemap::NodeTree as CoreNodeTree;
 use hg::revlog::options::RevlogOpenOptions;
 use hg::revlog::path_encode::PathEncoding;
@@ -66,7 +65,6 @@ use crate::exceptions::GraphError;
 use crate::exceptions::graph_error;
 use crate::exceptions::map_lock_error;
 use crate::exceptions::map_try_lock_error;
-use crate::exceptions::nodemap_error;
 use crate::exceptions::rev_not_in_index;
 use crate::exceptions::revlog_error;
 use crate::exceptions::revlog_error_bare;
@@ -870,7 +868,7 @@ impl InnerRevlog {
 
             irl.clear_cache();
             irl.index.remove(rev).map_err(revlog_error_from_io)?;
-            irl.nodemap_invalidate().map_err(nodemap_error)?;
+            irl.nodemap_invalidate().into_pyerr(slf.py())?;
             Ok(())
         })?;
         let mut self_ref = slf.borrow_mut();
@@ -1173,14 +1171,16 @@ impl InnerRevlog {
             // `slice.indices`, which is itself an FFI wrapper for CPython's
             // `PySlice_GetIndicesEx`
             // (Python integration tests will tell us)
-            let start = irl.index.check_revision(start).ok_or_else(|| {
-                nodemap_error(NodeMapError::RevisionNotInIndex {
-                    revision: start,
+            let start = irl
+                .index
+                .check_revision(start)
+                .ok_or_else(|| RevlogError::InvalidRevision {
+                    string: start.to_string(),
                     backtrace: HgBacktrace::capture(),
                 })
-            })?;
+                .into_pyerr(slf.py())?;
             irl.index.remove(start).map_err(revlog_error_from_io)?;
-            irl.nodemap_invalidate().map_err(nodemap_error)?;
+            irl.nodemap_invalidate().into_pyerr(slf.py())?;
             Ok(())
         })
     }
@@ -1475,22 +1475,24 @@ impl InnerRevlog {
         let stop_rev: Option<UncheckedRevision> = stop_rev.map(Into::into);
 
         let (chain, stopped) = Self::with_index_read(slf, |idx| {
-            let rev = idx.check_revision(rev).ok_or_else(|| {
-                nodemap_error(NodeMapError::RevisionNotInIndex {
-                    revision: rev,
+            let rev = idx
+                .check_revision(rev)
+                .ok_or_else(|| RevlogError::InvalidRevision {
+                    string: rev.to_string(),
                     backtrace: HgBacktrace::capture(),
                 })
-            })?;
+                .into_pyerr(py)?;
             let stop_rev = stop_rev
                 .map(|r| {
                     idx.check_revision(r).ok_or_else(|| {
-                        nodemap_error(NodeMapError::RevisionNotInIndex {
-                            revision: rev.into(),
+                        RevlogError::InvalidRevision {
+                            string: rev.to_string(),
                             backtrace: HgBacktrace::capture(),
-                        })
+                        }
                     })
                 })
-                .transpose()?;
+                .transpose()
+                .into_pyerr(py)?;
             idx.delta_chain(rev, stop_rev).into_pyerr(py)
         })?;
 
@@ -1540,8 +1542,7 @@ impl InnerRevlog {
     ) -> PyResult<Py<PyBytes>> {
         Self::with_core_write(slf, |_, irl| {
             let mut nt = CoreNodeTree::load_bytes(Box::<Vec<_>>::default(), 0);
-            nt.catch_up_to_index(&irl.index, NULL_REVISION)
-                .map_err(nodemap_error)?;
+            nt.catch_up_to_index(&irl.index, NULL_REVISION).into_pyerr(py)?;
 
             let (readonly, bytes) = nt.into_readonly_and_added_bytes();
             assert_eq!(readonly.len(), 0);
@@ -1598,15 +1599,16 @@ impl InnerRevlog {
         let mut nt = CoreNodeTree::load_bytes(bytes, len);
 
         Self::with_index_read(slf, |idx| {
-            let data_tip = idx.check_revision(data_tip).ok_or_else(|| {
-                nodemap_error(NodeMapError::RevisionNotInIndex {
-                    revision: data_tip,
+            let data_tip = idx
+                .check_revision(data_tip)
+                .ok_or_else(|| RevlogError::InvalidRevision {
+                    string: data_tip.to_string(),
                     backtrace: HgBacktrace::capture(),
                 })
-            })?;
+                .into_pyerr(py)?;
 
             nt.catch_up_to_index(idx, Revision(data_tip.0 + 1))
-                .map_err(nodemap_error)?;
+                .into_pyerr(py)?;
 
             Ok(py.None())
         })?;
@@ -1772,7 +1774,7 @@ impl NodeTree {
 
         let entry = idx.inner().get_entry(rev);
         let mut nt = self.nt.write().map_err(map_lock_error)?;
-        nt.insert(idx, entry.hash(), rev).map_err(nodemap_error)
+        nt.insert(idx, entry.hash(), rev).into_pyerr(py)
     }
 
     fn shortest(
@@ -1785,7 +1787,7 @@ impl NodeTree {
         // as returned type is Copy
         let idx = &*unsafe { self.index.try_borrow(py)? };
         nt.unique_prefix_len_node(idx, &node_from_py_bytes(node)?)
-            .map_err(nodemap_error)?
+            .into_pyerr(py)?
             .ok_or_else(revlog_error_bare)
     }
 
@@ -1803,7 +1805,7 @@ impl NodeTree {
         // Safety: we don't leak any reference derived from self.index
         // as returned type is Copy
         let idx = &*unsafe { self.index.try_borrow(py)? };
-        Ok(nt.find_bin(idx, prefix).map_err(nodemap_error)?.map(|r| r.into()))
+        Ok(nt.find_bin(idx, prefix).into_pyerr(py)?.map(|r| r.into()))
     }
 }
 
