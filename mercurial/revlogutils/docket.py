@@ -128,6 +128,30 @@ class RevlogDocket:
         assert default_compression_header is not None
         self.default_compression_header = default_compression_header
 
+    @util.propertycache
+    def active_fts(self) -> tuple[FileType]:
+        """The list of active file types for the revlog variant of this docket
+
+        Ordering matter as this will control the order in which they will be
+        open, and close.
+
+        It seems like good hygiene to keep consistent in terms of data
+        referencing each other (e.g, making sure we open indexes first and close
+        them last.). However unlinke revlog-v1 where this was a hard
+        requirements, the docket used here should garantee that we ever only
+        access consistent data (as long as the docket is open first, and written
+        last, as it should be)
+
+        Regardless of consistency, keeping the order consistent makes testing
+        and debugging simpler.
+        """
+        features = constants.FEATURES_BY_VERSION[self._version_header]
+        return tuple(sorted(features['active_file_types']))
+
+    @util.propertycache
+    def index_fts(self) -> tuple[FileType]:
+        return tuple(ft for ft in self.active_fts if ft.is_index)
+
     def docket_path(self) -> HgPathT:
         """file path of that docket"""
         return self._path

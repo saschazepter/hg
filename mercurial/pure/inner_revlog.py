@@ -35,6 +35,7 @@ from ..revlogutils.constants import (
     KIND_FILELOG,
     KIND_MANIFESTLOG,
     REVIDX_DELTA_IS_SNAPSHOT,
+    V2FileType,
 )
 from ..interfaces import compression as i_comp
 
@@ -1139,34 +1140,13 @@ class InnerRevlogV2(BaseInnerRevlog):
 
     _default_compression_header: i_comp.RevlogCompHeader
 
-    # The list of
-    #
-    # Ordering matter as this will control the order in which they will be
-    # open, and close.
-    #
-    # It seems like good hygiene to keep consistent in terms of data
-    # referencing each other (e.g, making sure we open indexes first and close
-    # them last.). However unlinke revlog-v1 where this was a hard
-    # requirements, the docket used here should garantee that we ever only
-    # access consistent data (as long as the docket is open first, and written
-    # last, as it should be)
-    #
-    # Regardless of consistency, keeping the order consistent makes testing and
-    # debugging simpler.
-    _active_fts: tuple[docket_mod.FileType] = tuple(
-        sorted(
-            [
-                docket_mod.FileType.INDEX1,
-                docket_mod.FileType.INDEX2,
-                docket_mod.FileType.DATA,
-                docket_mod.FileType.SIDEDATA,
-            ]
-        )
-    )
+    @util.propertycache
+    def _active_fts(self) -> tuple[V2FileType]:
+        return self.docket.active_fts
 
     @util.propertycache
-    def _index_fts(self) -> tuple[docket_mod.FileType]:
-        return tuple(ft for ft in self._active_fts if ft.is_index)
+    def _index_fts(self) -> tuple[V2FileType]:
+        return self.docket.index_fts
 
     def __init__(
         self,

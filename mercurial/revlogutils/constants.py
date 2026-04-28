@@ -345,58 +345,6 @@ def _from_flag(flag):
     return lambda flags: bool(flags & flag)
 
 
-if typing.TYPE_CHECKING:
-    _FromFlagsFnc = Callable[[int], bool]
-
-    class RevlogFeatures(TypedDict):
-        inline: _FromFlagsFnc
-        generaldelta: _FromFlagsFnc
-        hasmeta_flag: _FromFlagsFnc
-        sidedata: bool
-        docket: bool
-        delta_info: _FromFlagsFnc
-
-
-FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
-    REVLOGV0: {
-        'inline': _no,
-        'generaldelta': _no,
-        'hasmeta_flag': _no,
-        'delta_info': _no,
-        'sidedata': False,
-        'docket': False,
-    },
-    REVLOGV1: {
-        'inline': _from_flag(FLAG_INLINE_DATA),
-        'generaldelta': _from_flag(FLAG_GENERALDELTA),
-        'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
-        'delta_info': _from_flag(FLAG_DELTA_INFO),
-        'sidedata': False,
-        'docket': False,
-    },
-    REVLOGV2: {
-        # The point of inline-revlog is to reduce the number of files used in
-        # the store. Using a docket defeat this purpose. So we needs other
-        # means to reduce the number of files for revlogv2.
-        'inline': _no,
-        'generaldelta': _yes,
-        'hasmeta_flag': _no,  # Should become yes at some point
-        'delta_info': _no,  # XXX we should make that True at some point
-        'sidedata': True,
-        'docket': True,
-    },
-    CHANGELOGV2: {
-        'inline': _no,
-        # General delta is useless for changelog since we don't do any delta
-        'generaldelta': _no,
-        'hasmeta_flag': _no,  # Should become yes at some point
-        'delta_info': _no,
-        'sidedata': True,
-        'docket': True,
-    },
-}
-
-
 class V2FileType(enum.IntEnum):
     INDEX1 = 1
     INDEX2 = 2
@@ -423,6 +371,73 @@ V2_FILE_TYPE_EXT = {
     V2FileType.INDEX2: b'i02',
     V2FileType.DATA: b'dat',
     V2FileType.SIDEDATA: b'sda',
+}
+
+
+if typing.TYPE_CHECKING:
+    _FromFlagsFnc = Callable[[int], bool]
+
+    class RevlogFeatures(TypedDict):
+        inline: _FromFlagsFnc
+        generaldelta: _FromFlagsFnc
+        hasmeta_flag: _FromFlagsFnc
+        sidedata: bool
+        docket: bool
+        delta_info: _FromFlagsFnc
+        active_file_types: tuple[V2FileType, ...]
+
+
+FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
+    REVLOGV0: {
+        'inline': _no,
+        'generaldelta': _no,
+        'hasmeta_flag': _no,
+        'delta_info': _no,
+        'sidedata': False,
+        'docket': False,
+        'active_file_types': (),
+    },
+    REVLOGV1: {
+        'inline': _from_flag(FLAG_INLINE_DATA),
+        'generaldelta': _from_flag(FLAG_GENERALDELTA),
+        'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
+        'delta_info': _from_flag(FLAG_DELTA_INFO),
+        'sidedata': False,
+        'docket': False,
+        'active_file_types': (),
+    },
+    REVLOGV2: {
+        # The point of inline-revlog is to reduce the number of files used in
+        # the store. Using a docket defeat this purpose. So we needs other
+        # means to reduce the number of files for revlogv2.
+        'inline': _no,
+        'generaldelta': _yes,
+        'hasmeta_flag': _no,  # Should become yes at some point
+        'delta_info': _no,  # XXX we should make that True at some point
+        'sidedata': True,
+        'docket': True,
+        'active_file_types': (
+            V2FileType.INDEX1,
+            V2FileType.INDEX2,
+            V2FileType.DATA,
+            V2FileType.SIDEDATA,
+        ),
+    },
+    CHANGELOGV2: {
+        'inline': _no,
+        # General delta is useless for changelog since we don't do any delta
+        'generaldelta': _no,
+        'hasmeta_flag': _no,  # Should become yes at some point
+        'delta_info': _no,
+        'sidedata': True,
+        'docket': True,
+        'active_file_types': (
+            V2FileType.INDEX1,
+            V2FileType.INDEX2,
+            V2FileType.DATA,
+            V2FileType.SIDEDATA,
+        ),
+    },
 }
 
 
