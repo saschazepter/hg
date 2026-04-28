@@ -1112,6 +1112,9 @@ class InnerRevlogV1(BaseInnerRevlog):
         transaction.add(self.index_file, end)
 
 
+IDX_TOO_SHORT = _(b'too few index bytes for %s %s: got %d, expected %d')
+
+
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
 
@@ -1141,6 +1144,10 @@ class InnerRevlogV2(BaseInnerRevlog):
         )
     )
 
+    @util.propertycache
+    def _index_fts(self) -> tuple[docket_mod.FileType]:
+        return tuple(ft for ft in self._active_fts if ft.is_index)
+
     def __init__(
         self,
         *,
@@ -1155,25 +1162,32 @@ class InnerRevlogV2(BaseInnerRevlog):
         self.target = target
         self.radix = radix
 
-        # always call this to keep the uuid deterministic in test
-        docket.filepath(docket.FT.INDEX)
+        index_blocks = []
+        for ft in self._index_fts:
+            block = b''
+            # always get the filepath to get consistent order in the test
+            block_path = docket.filepath(ft)
+            block_size = docket.get_end(ft)
+            if block_size > 0:
+                block = opener.tryread(
+                    block_path,
+                    configs.data.mmap_index_threshold,
+                    size=block_size,
+                )
+                if len(block) < block_size:
+                    msg = IDX_TOO_SHORT % (
+                        self.display_id,
+                        docket_mod.EXT[ft],
+                        len(block),
+                        block_size,
+                    )
+                    raise error.RevlogError(msg)
+            index_blocks.append(block)
 
-        index_data = b''
-        index_size = docket.get_end(docket.FT.INDEX)
-        if index_size > 0:
-            index_data = opener.tryread(
-                docket.filepath(docket.FT.INDEX),
-                configs.data.mmap_index_threshold,
-                size=index_size,
-            )
-            if len(index_data) < index_size:
-                msg = _(b'too few index bytes for %s: got %d, expected %d')
-                msg %= (self.display_id, len(index_data), index_size)
-                raise error.RevlogError(msg)
-
+        assert len(index_blocks) == 1
         try:
             index, chunk_cache = index_parser(
-                index_data,
+                index_blocks[0],
                 False,
                 configs.delta.general_delta,
                 configs.delta.delta_info,
