@@ -621,6 +621,8 @@ Test that unshare works
   o  f3ba8b99bb6f897c87bbc1c07b75c6ddf43a4f77: added foo
   
 
+  $ cd ..
+
 Test automatique upgrade/downgrade of main-repository
 ------------------------------------------------------
 
