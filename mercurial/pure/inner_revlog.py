@@ -1259,11 +1259,12 @@ class InnerRevlogV2(BaseInnerRevlog):
         add_one = res.append
         add_many = res.extend
         add_one(docket.docket_path())
-        add_one(docket.filepath(docket.FT.INDEX))
-        if docket.get_end(docket.FT.DATA):
-            add_one(docket.filepath(docket.FT.DATA))
-        if docket.get_end(docket.FT.SIDEDATA):
-            add_one(docket.filepath(docket.FT.SIDEDATA))
+        for ft in self._active_fts:
+            if ft.is_index:
+                add_one(docket.filepath(ft))
+            else:
+                if 0 < docket.get_end(ft):
+                    add_one(docket.filepath(ft))
         if include_old:
             add_many(docket.old_filepaths())
         return res
