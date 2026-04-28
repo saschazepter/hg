@@ -511,7 +511,6 @@ class BaseInnerRevlog(abc.ABC):
         start = self.start
         length = self.length
         inline = self.inline
-        iosize = self.index.entry_size
         buffer = util.buffer
 
         fetched_revs = []
@@ -563,7 +562,7 @@ class BaseInnerRevlog(abc.ABC):
             for rev in revschunk:
                 chunkstart = start(rev)
                 if inline:
-                    chunkstart += (rev + 1) * iosize
+                    chunkstart += (rev + 1) * self.index.entry_size
                 chunklength = length(rev)
                 comp_mode = self.index.data_chunk_compression_mode(rev)
                 c = buffer(data, chunkstart - offset, chunklength)
