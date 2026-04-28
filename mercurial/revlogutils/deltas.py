@@ -22,11 +22,18 @@ from typing import (
     Iterator,
     Optional,
     Sequence,
+    cast,
 )
 
 # import stuff from node for others to import from revlog
 from ..node import nullrev
 from ..i18n import _
+
+if typing.TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    from ..pure.parsers import MonoBlockIndex
+else:
+    MonoBlockIndex = object
 
 from .constants import (
     COMP_MODE_DEFAULT,
@@ -431,7 +438,8 @@ def _slicechunktodensity(
     start = revlog.start
     length = revlog.length
     if inlined:
-        entry_size = revlog.index.entry_size
+        index = cast(MonoBlockIndex, revlog.index)
+        entry_size = index.entry_size
         base_start = start
         start = lambda r: entry_size * r + base_start(r)
 

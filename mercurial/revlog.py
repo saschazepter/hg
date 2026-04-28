@@ -92,7 +92,9 @@ from .pure import parsers as pure_parsers
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
-    from .pure.parsers import BaseIndex
+    from .pure.parsers import BaseIndex, MonoBlockIndex
+else:
+    MonoBlockIndex = object
 
 from . import (
     ancestor,
@@ -330,14 +332,7 @@ _maxentrysize = 0x7FFFFFFF
 hexdigits = b'0123456789abcdefABCDEF'
 
 
-if typing.TYPE_CHECKING:
-    # Tell Pytype what kind of object we expect
-    ProxyBase = BaseIndex
-else:
-    ProxyBase = object
-
-
-class RustIndexProxy(ProxyBase):
+class RustIndexProxy(MonoBlockIndex):
     """Wrapper around the Rust index to fake having direct access to the index.
 
     Rust enforces xor mutability (one mutable reference XOR 1..n non-mutable),
@@ -842,7 +837,8 @@ class revlog:
         if self._docket is not None:
             raise NotImplementedError("no get_stream for revlog with docket")
         n = len(self)
-        index = self.index
+        inner = cast(py_inner.InnerRevlogV1, self._inner)
+        index = cast(MonoBlockIndex, self.index)
         while n > 0:
             linkrev = index.linkrev(n - 1)
             if linkrev < max_linkrev:
@@ -857,8 +853,6 @@ class revlog:
         if n == 0:
             # no data to send
             return []
-
-        inner = cast(py_inner.InnerRevlogV1, self._inner)
 
         index_size = n * index.entry_size
         data_size = self.end(n - 1)
@@ -891,7 +885,7 @@ class revlog:
                     yield None
 
                     for rev in range(n):
-                        idx = self.index.entry_binary(rev)
+                        idx = index.entry_binary(rev)
                         if rev == 0:
                             assert self._docket is None
                             # re-inject the inline flag

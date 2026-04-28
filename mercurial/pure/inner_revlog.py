@@ -44,7 +44,11 @@ from ..revlogutils import (
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
-    from ..pure.parsers import BaseIndex
+    from ..pure.parsers import (
+        BaseIndex,
+        Index2,
+        MonoBlockIndex,
+    )
 
 from .. import (
     error,
@@ -89,6 +93,7 @@ class BaseInnerRevlog(abc.ABC):
     """does this inner revlog support revdiff with an extra patch"""
 
     opener: vfsmod.vfs
+    index: BaseIndex
 
     def __init__(
         self,
@@ -101,7 +106,7 @@ class BaseInnerRevlog(abc.ABC):
     ):
         self.opener = opener
         self.target = target
-        self.index: BaseIndex = index
+        self.index = index
 
         self.inline = inline
         self.data_config = configs.data
@@ -697,6 +702,8 @@ class BaseInnerRevlog(abc.ABC):
 class InnerRevlogV1(BaseInnerRevlog):
     """A inner revlog for a revlog-v1 revlog"""
 
+    index: MonoBlockIndex
+
     def __init__(
         self,
         opener: vfsmod.vfs,
@@ -1117,6 +1124,8 @@ IDX_TOO_SHORT = _(b'too few index bytes for %s %s: got %d, expected %d')
 
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
+
+    index: Index2
 
     _default_compression_header: i_comp.RevlogCompHeader
 

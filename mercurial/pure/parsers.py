@@ -7,11 +7,17 @@
 
 from __future__ import annotations
 
+import abc
 import io
 import stat
 import struct
 import typing
 import zlib
+
+from typing import (
+    Any,
+    cast,
+)
 
 
 from ..interfaces.types import (
@@ -39,10 +45,6 @@ from ..revlogutils import nodemap as nodemaputil
 from ..revlogutils import constants as revlog_constants
 
 if typing.TYPE_CHECKING:
-    from typing import (
-        Any,
-    )
-
     # TODO: Change to Buffer for 3.14+ support
     from collections.abc import ByteString
 
@@ -586,11 +588,9 @@ def gettype(q):
     return int(q & 0xFFFF)
 
 
-class BaseIndex:
+class BaseIndex(abc.ABC):
     # Can I be passed to an algorithme implemented in Rust ?
     rust_ext_compat = 0
-    # Format of an index entry according to Python's `struct` language
-    index_format = revlog_constants.INDEX_ENTRY_V1
     # Size of a C unsigned long long int, platform independent
     big_int_size = struct.calcsize(b'>Q')
     # Size of a C long int, platform independent
@@ -623,10 +623,6 @@ class BaseIndex:
     ):
         self._uses_general_delta = uses_generaldelta
         self._bundle_repo_start_idx = None
-
-    @util.propertycache
-    def entry_size(self):
-        return self.index_format.size
 
     @util.propertycache
     def _nodemap(self):
@@ -781,18 +777,11 @@ class BaseIndex:
         base might be different."""
         self._bundle_repo_start_idx = len(self)
 
-    def append(self, tup):
-        if '_nodemap' in vars(self):
-            self._nodemap[tup[7]] = len(self)
-        data = self._pack_entry(len(self), tup)
-        self._extra.append(data)
+    @abc.abstractmethod
+    def append(self, tup: revlogutils.EntryTupleT) -> None:
+        ...
 
-    def _pack_entry(self, rev, entry):
-        assert entry[8] == 0
-        assert entry[9] == 0
-        return self.index_format.pack(*entry[:8])
-
-    def _check_index(self, i):
+    def _check_index(self, i: RevnumT):
         if not isinstance(i, int):
             raise TypeError("expecting int indexes")
         if i < 0 or i >= len(self):
@@ -804,47 +793,18 @@ class BaseIndex:
         # no reason to force it to implement an unused method.
         raise NotImplementedError
 
-    def _entry(self, i) -> tuple:
-        if i == -1:
-            return self.null_item
-        self._check_index(i)
-        if i >= self._lgt:
-            data = self._extra[i - self._lgt]
-        else:
-            index = self._calculate_index(i)
-            data = self._data[index : index + self.entry_size]
-        r = self._unpack_entry(i, data)
-        if self._lgt and i == 0:
-            offset = revlogutils.offset_type(0, gettype(r[0]))
-            r = (offset,) + r[1:]
-        return r
+    @abc.abstractmethod
+    def _entry(self, i: RevnumT) -> revlogutils.EntryTupleT:
+        """return the stored values for a revision"""
+        ...
 
     def __delitem__(self, i):
         raise NotImplementedError()
-
-    def _unpack_entry(self, rev, data):
-        r = self.index_format.unpack(data)
-        r = r + (
-            0,
-            0,
-            revlog_constants.COMP_MODE_INLINE,
-            revlog_constants.COMP_MODE_INLINE,
-            revlog_constants.RANK_UNKNOWN,
-        )
-        return r
 
     def pack_header(self, header):
         """pack header information as binary"""
         v_fmt = revlog_constants.INDEX_HEADER
         return v_fmt.pack(header)
-
-    def entry_binary(self, rev) -> bytes:
-        """return the raw binary string representing a revision"""
-        entry = self._entry(rev)
-        p = revlog_constants.INDEX_ENTRY_V1.pack(*entry[:8])
-        if rev == 0:
-            p = p[revlog_constants.INDEX_HEADER.size :]
-        return p
 
     def headrevs(self, excluded_revs=None, stop_rev=None) -> list[int]:
         count = len(self)
@@ -865,7 +825,63 @@ class BaseIndex:
         return [r for r, val in enumerate(ishead) if val]
 
 
-class Index(BaseIndex):
+class MonoBlockIndex(BaseIndex):
+    # Format of an index entry according to Python's `struct` language
+    index_format: struct.Struct = revlog_constants.INDEX_ENTRY_V1
+
+    @util.propertycache
+    def entry_size(self):
+        return self.index_format.size
+
+    def entry_binary(self, rev) -> bytes:
+        """return the raw binary string representing a revision"""
+        entry = self._entry(rev)
+        p = revlog_constants.INDEX_ENTRY_V1.pack(*entry[:8])
+        if rev == 0:
+            p = p[revlog_constants.INDEX_HEADER.size :]
+        return p
+
+    def append(self, tup: revlogutils.EntryTupleT) -> None:
+        if '_nodemap' in vars(self):
+            self._nodemap[tup[7]] = len(self)
+        data = self._pack_entry(len(self), tup)
+        self._extra.append(data)
+
+    def _entry(self, i: RevnumT) -> revlogutils.EntryTupleT:
+        if i == -1:
+            return self.null_item
+        self._check_index(i)
+        if i >= self._lgt:
+            data = self._extra[i - self._lgt]
+        else:
+            index = self._calculate_index(i)
+            data = self._data[index : index + self.entry_size]
+        r = self._unpack_entry(i, data)
+        if self._lgt and i == 0:
+            offset = revlogutils.offset_type(0, gettype(r[0]))
+            r = cast(revlogutils.EntryTupleT, (offset,) + r[1:])
+        return r
+
+    def _pack_entry(self, rev: RevnumT, entry: revlogutils.EntryTupleT):
+        assert entry[8] == 0
+        assert entry[9] == 0
+        return self.index_format.pack(*entry[:8])
+
+    def _unpack_entry(
+        self, rev: RevnumT, data: bytes
+    ) -> revlogutils.EntryTupleT:
+        r = self.index_format.unpack(data)
+        r = r + (
+            0,
+            0,
+            revlog_constants.COMP_MODE_INLINE,
+            revlog_constants.COMP_MODE_INLINE,
+            revlog_constants.RANK_UNKNOWN,
+        )
+        return cast(revlogutils.EntryTupleT, r)
+
+
+class Index(MonoBlockIndex):
     def __init__(
         self, data: ByteString, uses_generaldelta=False, uses_delta_info=False
     ):
@@ -945,7 +961,7 @@ class PersistentNodeMapIndex(Index):
                 self._nm_root = self._nm_max_idx = self._nm_docket = None
 
 
-class InlinedIndex(BaseIndex):
+class InlinedIndex(MonoBlockIndex):
     def __init__(
         self, data, inline=0, uses_generaldelta=False, uses_delta_info=False
     ):
