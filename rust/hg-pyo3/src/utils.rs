@@ -1,7 +1,9 @@
 use std::path::Path;
 
+use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::errors::hg_path_error_to_string;
+use hg::revlog::RevlogError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
 use hg::warnings::HgWarningContext;
@@ -197,7 +199,10 @@ where
             len as pyo3::ffi::Py_ssize_t,
         );
         let pybytes = Bound::from_owned_ptr_or_err(py, pyptr)
-            .map_err(|e| HgError::abort_simple(e.to_string()))?
+            .map_err(|e| RevlogError::PythonIncompleteBuffer {
+                backtrace: HgBacktrace::capture(),
+                message: e.to_string(),
+            })?
             .cast_into_unchecked();
         let buffer: *mut u8 = pyo3::ffi::PyBytes_AsString(pyptr).cast();
         debug_assert!(!buffer.is_null());

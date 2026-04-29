@@ -275,6 +275,13 @@ impl fmt::Display for HgError {
                         backtrace, message
                     )
                 }
+                RevlogError::PythonIncompleteBuffer { backtrace, message } => {
+                    write!(
+                        f,
+                        "{}failed to fill Python buffer: {}",
+                        backtrace, message
+                    )
+                }
                 RevlogError::EllipsisNode { backtrace } => {
                     write!(f, "{}encountered an ellipsis node", backtrace)
                 }

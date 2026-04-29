@@ -457,6 +457,11 @@ pub enum RevlogError {
         backtrace: HgBacktrace,
         message: String,
     },
+    /// A special-case for `hg-pyo3`
+    PythonIncompleteBuffer {
+        backtrace: HgBacktrace,
+        message: String,
+    },
     /// We've encountered an ellipsis node, which we don't support
     EllipsisNode {
         backtrace: HgBacktrace,
