@@ -373,79 +373,37 @@ const LENGTH_NEUTRAL_FLAGS: u16 = REVISION_FLAG_HASCOPIESINFO
 #[derive(Debug, derive_more::From)]
 pub enum RevlogError {
     /// This revision string is invalid
-    InvalidRevision {
-        backtrace: HgBacktrace,
-        string: String,
-    },
+    InvalidRevision { backtrace: HgBacktrace, string: String },
     /// Working directory is not supported
-    WDirUnsupported {
-        backtrace: HgBacktrace,
-    },
+    WDirUnsupported { backtrace: HgBacktrace },
     /// Found more than one entry whose ID match the requested prefix
-    AmbiguousPrefix {
-        backtrace: HgBacktrace,
-        prefix: String,
-    },
+    AmbiguousPrefix { backtrace: HgBacktrace, prefix: String },
     /// Boxed otherwise the enum is very large in memory
     IO(Box<HgIoError>),
-    Other(Box<HgError>),
     /// Data for a revlog revision is corrupted
-    CorruptedRevisionData {
-        rev: Revision,
-        backtrace: HgBacktrace,
-    },
+    CorruptedRevisionData { rev: Revision, backtrace: HgBacktrace },
     /// A delta is corrupted (e.g. start > max size)
-    CorruptedDelta {
-        backtrace: HgBacktrace,
-    },
+    CorruptedDelta { backtrace: HgBacktrace },
     /// A delta's metadata introduces more data than is available
-    DeltaInsertsTooMuch {
-        backtrace: HgBacktrace,
-        len: u32,
-        available: usize,
-    },
+    DeltaInsertsTooMuch { backtrace: HgBacktrace, len: u32, available: usize },
     /// This revlog revision's linkrev is invalid
-    InvalidLinkRev {
-        rev: Revision,
-        backtrace: HgBacktrace,
-    },
+    InvalidLinkRev { rev: Revision, backtrace: HgBacktrace },
     #[from]
     Graph(GraphError),
     /// This revlog's flags are invalid
-    UnknownFlags {
-        flags: u16,
-        backtrace: HgBacktrace,
-    },
+    UnknownFlags { flags: u16, backtrace: HgBacktrace },
     /// An invalid compression mode for revision data was encountered
-    InvalidCompressionMode {
-        backtrace: HgBacktrace,
-        mode: u8,
-    },
+    InvalidCompressionMode { backtrace: HgBacktrace, mode: u8 },
     /// An invalid compression mode for revision sidedata was encountered
-    InvalidSidedataCompressionMode {
-        backtrace: HgBacktrace,
-        mode: u8,
-    },
+    InvalidSidedataCompressionMode { backtrace: HgBacktrace, mode: u8 },
     /// An invalid value for a phase was encountered
-    InvalidPhase {
-        backtrace: HgBacktrace,
-        value: usize,
-    },
+    InvalidPhase { backtrace: HgBacktrace, value: usize },
     /// Hashing the data for this revision did not match the expected hash
-    HashCheckFailed {
-        backtrace: HgBacktrace,
-        rev: Revision,
-    },
+    HashCheckFailed { backtrace: HgBacktrace, rev: Revision },
     /// A generic compression error from the compression engine
-    Compression {
-        backtrace: HgBacktrace,
-        error: std::io::Error,
-    },
+    Compression { backtrace: HgBacktrace, error: std::io::Error },
     /// A generic decompression error from the decompression engine
-    Decompression {
-        backtrace: HgBacktrace,
-        error: std::io::Error,
-    },
+    Decompression { backtrace: HgBacktrace, error: std::io::Error },
     /// The uncompressed size of a revision's data did not match the expected
     UncompressedLengthMismatch {
         backtrace: HgBacktrace,
@@ -453,29 +411,16 @@ pub enum RevlogError {
         got: usize,
     },
     /// A special-case for `hg-pyo3`
-    PythonCache {
-        backtrace: HgBacktrace,
-        message: String,
-    },
+    PythonCache { backtrace: HgBacktrace, message: String },
     /// A special-case for `hg-pyo3`
-    PythonIncompleteBuffer {
-        backtrace: HgBacktrace,
-        message: String,
-    },
+    PythonIncompleteBuffer { backtrace: HgBacktrace, message: String },
     /// We've encountered an ellipsis node, which we don't support
-    EllipsisNode {
-        backtrace: HgBacktrace,
-    },
+    EllipsisNode { backtrace: HgBacktrace },
     /// An inline revlog was caught with a delayed write, this is a programming
     /// error.
-    InlineDelayedWrite {
-        backtrace: HgBacktrace,
-    },
+    InlineDelayedWrite { backtrace: HgBacktrace },
     /// We've encountered a version of the revlog we don't know about
-    UnsupportedRevlogVersion {
-        version: u16,
-        backtrace: HgBacktrace,
-    },
+    UnsupportedRevlogVersion { version: u16, backtrace: HgBacktrace },
     /// The length of an inline revlog did not match the expected
     InvalidInlineRevlogLength {
         backtrace: HgBacktrace,
@@ -483,19 +428,11 @@ pub enum RevlogError {
         got: usize,
     },
     /// The index header is too small to parse
-    TooLittleDataForHeader {
-        backtrace: HgBacktrace,
-    },
+    TooLittleDataForHeader { backtrace: HgBacktrace },
     /// We have encountered a censored revision
-    CensoredRevision {
-        node: Node,
-        backtrace: HgBacktrace,
-    },
+    CensoredRevision { node: Node, backtrace: HgBacktrace },
     /// This docket is corrupted
-    CorruptedDocket {
-        docket_path: PathBuf,
-        backtrace: HgBacktrace,
-    },
+    CorruptedDocket { docket_path: PathBuf, backtrace: HgBacktrace },
     /// The docket points to a data file which is too short
     TooLittleData {
         docket_path: PathBuf,
@@ -507,20 +444,12 @@ pub enum RevlogError {
     /// TODO There is no revision information because it's not available in most
     /// places where we would need it, and the churn is not worth it.
     /// We should wrap it in a context in a higher layer.
-    CorruptedManifest {
-        backtrace: HgBacktrace,
-    },
+    CorruptedManifest { backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {
     fn from(value: HgIoError) -> Self {
         Self::IO(Box::new(value))
-    }
-}
-
-impl From<HgError> for RevlogError {
-    fn from(value: HgError) -> Self {
-        Self::Other(Box::new(value))
     }
 }
 

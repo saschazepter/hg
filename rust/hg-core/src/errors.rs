@@ -199,7 +199,6 @@ impl fmt::Display for HgError {
                     )
                 }
                 RevlogError::IO(hg_io_error) => hg_io_error.fmt(f),
-                RevlogError::Other(hg_error) => hg_error.fmt(f),
                 RevlogError::CorruptedRevisionData { rev, backtrace } => {
                     write!(f, "{}invalid data for revision: {}", backtrace, rev)
                 }
@@ -872,7 +871,6 @@ impl<T> HgResultExt<T> for Result<T, HgIoError> {
 impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
-            RevlogError::Other(error) => *error,
             RevlogError::EllipsisNode { backtrace } => {
                 Self::UnsupportedFeature(
                     "encountered an ellipsis node".to_string(),
