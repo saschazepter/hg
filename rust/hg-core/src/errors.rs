@@ -336,6 +336,9 @@ impl fmt::Display for HgError {
                         docket_path.display(),
                     )
                 }
+                RevlogError::CorruptedManifest { backtrace } => {
+                    write!(f, "{backtrace}corrupted manifest")
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

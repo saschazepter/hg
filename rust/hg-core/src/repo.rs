@@ -519,14 +519,14 @@ impl Repo {
     }
 
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
-        Manifestlog::open(
+        Ok(Manifestlog::open(
             &self.store_vfs(),
             default_revlog_options(
                 self.config(),
                 self.requirements(),
                 RevlogType::Manifestlog,
             )?,
-        )
+        )?)
     }
 
     pub fn manifestlog(

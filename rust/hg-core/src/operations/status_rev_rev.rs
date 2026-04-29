@@ -8,6 +8,7 @@ use crate::dirstate::status::StatusPath;
 use crate::errors::HgError;
 use crate::matchers::Matcher;
 use crate::repo::Repo;
+use crate::revlog::RevlogError;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestEntry;
 use crate::utils::filter_map_results;
@@ -80,7 +81,7 @@ pub fn status_change<M: Matcher>(
 impl<M: Matcher> StatusRevRev<'_, M> {
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<(StatusPath<'_>, DiffStatus), HgError>>
+    ) -> impl Iterator<Item = Result<(StatusPath<'_>, DiffStatus), RevlogError>>
     {
         let iter1 = self.manifest1.iter();
         let iter2 = self.manifest2.iter();
@@ -122,7 +123,7 @@ impl<M: Matcher> StatusRevRev<'_, M> {
         path: &HgPath,
         status: DiffStatus,
         entry: Option<&ManifestEntry>,
-    ) -> Result<Option<HgPathBuf>, HgError> {
+    ) -> Result<Option<HgPathBuf>, RevlogError> {
         let Some(entry) = entry else { return Ok(None) };
         let Some((list, strategy)) = &self.copies else {
             return Ok(None);

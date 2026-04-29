@@ -14,7 +14,7 @@ use crate::GraphError;
 use crate::NULL_REVISION;
 use crate::Revision;
 use crate::UncheckedRevision;
-use crate::errors::HgError;
+use crate::errors::HgBacktrace;
 use crate::revlog::Node;
 use crate::revlog::NodePrefix;
 use crate::revlog::RevisionOrWdir;
@@ -45,7 +45,7 @@ impl Manifestlog {
     pub fn open(
         store_vfs: &VfsImpl,
         options: RevlogOpenOptions,
-    ) -> Result<Self, HgError> {
+    ) -> Result<Self, RevlogError> {
         let revlog = Revlog::open(
             store_vfs,
             "00manifest.i",
@@ -157,7 +157,7 @@ impl Manifest {
 
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<ManifestEntry<'_>, HgError>> {
+    ) -> impl Iterator<Item = Result<ManifestEntry<'_>, RevlogError>> {
         self.bytes
             .split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())
@@ -166,7 +166,8 @@ impl Manifest {
 
     pub fn par_iter(
         &self,
-    ) -> impl ParallelIterator<Item = Result<ManifestEntry<'_>, HgError>> {
+    ) -> impl ParallelIterator<Item = Result<ManifestEntry<'_>, RevlogError>>
+    {
         self.bytes
             .par_split(|b| b == &b'\n')
             .filter(|line| !line.is_empty())
@@ -177,7 +178,7 @@ impl Manifest {
     pub fn find_by_path(
         &self,
         path: &HgPath,
-    ) -> Result<Option<ManifestEntry<'_>>, HgError> {
+    ) -> Result<Option<ManifestEntry<'_>>, RevlogError> {
         use std::cmp::Ordering::*;
         let path = path.as_bytes();
         // Both boundaries of this `&[u8]` slice are always at the boundary of
@@ -211,7 +212,7 @@ impl Manifest {
     /// the final newline.
     fn find_entry_near_middle_of(
         bytes: &[u8],
-    ) -> Result<Option<std::ops::Range<usize>>, HgError> {
+    ) -> Result<Option<std::ops::Range<usize>>, RevlogError> {
         let len = bytes.len();
         if len > 0 {
             let middle = bytes.len() / 2;
@@ -236,9 +237,9 @@ impl Manifest {
                     //
                     // We didn’t find a newline, so this manifest is not
                     // well-formed.
-                    return Err(HgError::corrupted(
-                        "manifest entry without \\n delimiter",
-                    ));
+                    return Err(RevlogError::CorruptedManifest {
+                        backtrace: HgBacktrace::capture(),
+                    });
                 }
             };
             Ok(Some(entry_start..entry_end))
@@ -252,7 +253,7 @@ impl Manifest {
     pub fn diff<'m1: 'm_any, 'm2: 'm_any, 'm_any>(
         &'m1 self,
         other: &'m2 Manifest,
-    ) -> Result<ManifestDiff<'m_any>, HgError> {
+    ) -> Result<ManifestDiff<'m_any>, RevlogError> {
         let mut res = Vec::new();
         for lines in SyncLineIterator::new(&self.bytes, &other.bytes) {
             match lines {
@@ -374,16 +375,25 @@ impl<'a> ManifestLine<'a> {
         &self.line[self.filename_len as usize..self.line.len() - 1]
     }
 
-    fn into_entry(self) -> Result<ManifestEntry<'a>, HgError> {
+    fn into_entry(self) -> Result<ManifestEntry<'a>, RevlogError> {
+        let do_error = || {
+            Err(RevlogError::CorruptedManifest {
+                backtrace: HgBacktrace::capture(),
+            })
+        };
         if self.line.is_empty() {
-            Err(HgError::corrupted("empty manifest line"))
+            // Empty manifest line
+            do_error()
         } else if self.line[self.line.len() - 1] != b'\n' {
-            Err(HgError::corrupted("manifest line not terminated by '\\n'"))
+            // manifest line not terminated by \n
+            do_error()
         } else if self.filename_len == 0 {
             if self.line[0] == b'\0' {
-                Err(HgError::corrupted("manifest entry with empty filename"))
+                // manifest entry with empty filename
+                do_error()
             } else {
-                Err(HgError::corrupted("manifest entry without \\0 delimiter"))
+                // manifest entry without \\0 delimiter
+                do_error()
             }
         } else if self.filename_len < 0 {
             ManifestEntry::from_raw(&self.line[..self.line.len() - 1])
@@ -944,9 +954,10 @@ impl std::fmt::Debug for ManifestEntry<'_> {
 }
 
 impl<'a> ManifestEntry<'a> {
-    fn split_path(bytes: &[u8]) -> Result<(&[u8], &[u8]), HgError> {
+    fn split_path(bytes: &[u8]) -> Result<(&[u8], &[u8]), RevlogError> {
         bytes.split_2(b'\0').ok_or_else(|| {
-            HgError::corrupted("manifest entry without \\0 delimiter")
+            // manifest entry without \0 delimiter
+            RevlogError::CorruptedManifest { backtrace: HgBacktrace::capture() }
         })
     }
 
@@ -966,7 +977,7 @@ impl<'a> ManifestEntry<'a> {
         }
     }
 
-    fn from_raw(bytes: &'a [u8]) -> Result<Self, HgError> {
+    fn from_raw(bytes: &'a [u8]) -> Result<Self, RevlogError> {
         let (path, rest) = Self::split_path(bytes)?;
         Ok(Self::from_path_and_rest(path, rest))
     }

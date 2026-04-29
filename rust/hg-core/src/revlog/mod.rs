@@ -497,6 +497,14 @@ pub enum RevlogError {
         index_path: PathBuf,
         backtrace: HgBacktrace,
     },
+    /// A manifest revision is somehow corrupted
+    ///
+    /// TODO There is no revision information because it's not available in most
+    /// places where we would need it, and the churn is not worth it.
+    /// We should wrap it in a context in a higher layer.
+    CorruptedManifest {
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {

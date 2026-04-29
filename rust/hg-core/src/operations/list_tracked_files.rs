@@ -87,7 +87,8 @@ pub type ExpandedManifestEntry<'manifest> =
 impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'_>, HgError>> {
+    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'_>, RevlogError>>
+    {
         filter_map_results(self.manifest.iter(), |entry| {
             let path = entry.path;
             Ok(if self.narrow_matcher.matches(path) {
@@ -99,7 +100,8 @@ impl<M: Matcher> FilesForRev<M> {
     }
 }
 
-type IterResult<'manifest> = Result<ExpandedManifestEntry<'manifest>, HgError>;
+type IterResult<'manifest> =
+    Result<ExpandedManifestEntry<'manifest>, RevlogError>;
 
 impl<'manifest, 'matcher> FilesForRevBorrowed<'manifest, 'matcher> {
     pub fn new(

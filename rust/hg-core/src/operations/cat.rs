@@ -13,6 +13,7 @@ use itertools::put_back;
 use crate::errors::HgError;
 use crate::repo::Repo;
 use crate::revlog::Node;
+use crate::revlog::RevlogError;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestEntry;
 use crate::utils::RawData;
@@ -32,9 +33,11 @@ pub struct CatOutput<'a> {
 
 // Find an item in an iterator over a sorted collection.
 fn find_item<'a>(
-    i: &mut PutBack<impl Iterator<Item = Result<ManifestEntry<'a>, HgError>>>,
+    i: &mut PutBack<
+        impl Iterator<Item = Result<ManifestEntry<'a>, RevlogError>>,
+    >,
     needle: &HgPath,
-) -> Result<Option<Node>, HgError> {
+) -> Result<Option<Node>, RevlogError> {
     loop {
         match i.next() {
             None => return Ok(None),
@@ -59,7 +62,7 @@ type ManifestQueryResponse<'a> = (Vec<(&'a HgPath, Node)>, Vec<&'a HgPath>);
 fn find_files_in_manifest<'query>(
     manifest: &Manifest,
     query: impl Iterator<Item = &'query HgPath>,
-) -> Result<ManifestQueryResponse<'query>, HgError> {
+) -> Result<ManifestQueryResponse<'query>, RevlogError> {
     let mut manifest = put_back(manifest.iter());
     let mut res = vec![];
     let mut missing = vec![];
