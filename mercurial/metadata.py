@@ -724,7 +724,7 @@ INDEX_HEADER = struct.Struct(">L")
 INDEX_ENTRY = struct.Struct(">bLL")
 
 
-def encode_files_sidedata(files: rl_t.ChangedFilesT) -> SideDataT:
+def encode_files(files: rl_t.ChangedFilesT) -> bytes:
     all_files = set(files.touched)
     all_files.update(files.copied_from_p1.values())
     all_files.update(files.copied_from_p2.values())
@@ -760,12 +760,19 @@ def encode_files_sidedata(files: rl_t.ChangedFilesT) -> SideDataT:
         copy_idx = file_idx[copy]
         chunks.append(INDEX_ENTRY.pack(flag, filename_length, copy_idx))
     chunks.extend(all_files)
-    return {sidedatamod.SD_FILES: b''.join(chunks)}
+    return b''.join(chunks)
+
+
+def encode_files_sidedata(files: rl_t.ChangedFilesT) -> SideDataT:
+    return {sidedatamod.SD_FILES: encode_files(files)}
 
 
 def decode_files_sidedata(sidedata: SideDataT) -> rl_t.ChangedFilesT:
+    return decode_files(sidedata.get(sidedatamod.SD_FILES))
+
+
+def decode_files(raw: bytes) -> rl_t.ChangedFilesT:
     md = ChangingFiles()
-    raw = sidedata.get(sidedatamod.SD_FILES)
 
     if raw is None:
         return md
