@@ -78,17 +78,6 @@ impl LocalBackend {
         // Collect all file sizes in parallel
         let size_span = tracing::debug_span!("computing sizes").entered();
         let path_to_filenode_id = DashMap::new();
-        let store_vfs = &self.repo.store_vfs();
-        let config = self.repo.config();
-        let requirements = self.repo.requirements();
-        // This function being called in a loop can add up, so do it only once
-        // since it doesn't change in this context
-        let default_revlog_options =
-            hg::revlog::options::default_revlog_options(
-                config,
-                requirements,
-                hg::revlog::RevlogType::Filelog,
-            )?;
 
         let vec = files_for_rev
             .par_iter()
@@ -104,14 +93,7 @@ impl LocalBackend {
                         token: LocalToken(file_node),
                     });
                 }
-                // Work around `Repo::filelog` creating revlog options
-                // and a store VFS every time.
-                // TODO just use `Repo::filelog` once that's cached properly.
-                let filelog = hg::revlog::filelog::Filelog::open_vfs(
-                    store_vfs,
-                    path,
-                    default_revlog_options,
-                )?;
+                let filelog = self.repo.filelog(path)?;
                 // TODO keep a persistent NodeTree of filenode_id -> size until
                 // we have it in revlogv2?
                 let size = u_u64(filelog.contents_size_for_node(file_node)?);
