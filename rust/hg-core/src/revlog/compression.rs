@@ -86,8 +86,8 @@ impl CompressionConfig {
                 if new_level > 9 {
                     return Err(HgError::abort(
                         format!(
-                            "invalid compression zlib compression level {}, \
-                            expected between 0 and 9 included",
+                            "invalid value for `storage.revlog.zlib.level` \
+                            config: {}, expected between 0 and 9 included",
                             new_level
                         ),
                         exit_codes::ABORT,
@@ -100,8 +100,8 @@ impl CompressionConfig {
                 if new_level > 22 {
                     return Err(HgError::abort(
                         format!(
-                            "invalid compression zstd compression level {}, \
-                            expected between 0 and 22 included",
+                            "invalid value for `storage.revlog.zstd.level` \
+                            config: {}, expected between 0 and 22 included",
                             new_level
                         ),
                         exit_codes::ABORT,

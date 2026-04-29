@@ -153,6 +153,11 @@ impl From<HgError> for CommandError {
                     exit_codes::ABORT,
                 )
             }
+            err @ HgError::ConfigValueParseError(_) => {
+                CommandError::abort_with_exit_code(
+                    format!("{err}"), exit_codes::CONFIG_ERROR_ABORT
+                )
+            }
             _ => CommandError::abort(error.to_string()),
         }
     }

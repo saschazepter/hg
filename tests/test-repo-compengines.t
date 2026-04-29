@@ -149,8 +149,10 @@ Test error cases
   > EOF
 
   $ commitone zlib-level-out-of-range
-  abort: invalid value for `storage.revlog.zlib.level` config: 42
-  abort: invalid value for `storage.revlog.zlib.level` config: 42
+  abort: invalid value for `storage.revlog.zlib.level` config: 42 (no-rhg !)
+  abort: invalid value for `storage.revlog.zlib.level` config: 42 (no-rhg !)
+  abort: invalid value for `storage.revlog.zlib.level` config: 42, expected between 0 and 9 included (rhg !)
+  abort: invalid value for `storage.revlog.zlib.level` config: 42, expected between 0 and 9 included (rhg !)
   [255]
 
 checking details of none compression
@@ -234,8 +236,10 @@ Test error cases
   > EOF
 
   $ commitone zstd-level-out-of-range
-  abort: invalid value for `storage.revlog.zstd.level` config: 42
-  abort: invalid value for `storage.revlog.zstd.level` config: 42
+  abort: invalid value for `storage.revlog.zstd.level` config: 42 (no-rhg !)
+  abort: invalid value for `storage.revlog.zstd.level` config: 42 (no-rhg !)
+  abort: invalid value for `storage.revlog.zstd.level` config: 42, expected between 0 and 22 included (rhg !)
+  abort: invalid value for `storage.revlog.zstd.level` config: 42, expected between 0 and 22 included (rhg !)
   [255]
 
 #endif

@@ -39,6 +39,7 @@ use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::Manifestlog;
+use crate::revlog::options::RevlogOpenOptions;
 use crate::revlog::options::default_revlog_options;
 use crate::revlog::path_encode::PathEncoding;
 use crate::utils::debug::debug_wait_for_file_or_print;
@@ -67,6 +68,9 @@ pub struct Repo {
     dirstate_map: RwLockOption<OwningDirstateMap>,
     changelog: RwLockOption<Changelog>,
     manifestlog: RwLockOption<Manifestlog>,
+    filelog_options: RevlogOpenOptions,
+    manifestlog_options: RevlogOpenOptions,
+    changelog_options: RevlogOpenOptions,
 }
 
 impl Repo {
@@ -136,6 +140,16 @@ impl Repo {
             config.clone()
         };
 
+        let changelog_options =
+            default_revlog_options(&repo_config, &reqs, RevlogType::Changelog)?;
+        let manifestlog_options = default_revlog_options(
+            &repo_config,
+            &reqs,
+            RevlogType::Manifestlog,
+        )?;
+        let filelog_options =
+            default_revlog_options(&repo_config, &reqs, RevlogType::Filelog)?;
+
         let repo = Self {
             requirements: reqs,
             working_directory,
@@ -146,6 +160,9 @@ impl Repo {
             dirstate_map: RwLockOption::new(),
             changelog: RwLockOption::new(),
             manifestlog: RwLockOption::new(),
+            filelog_options,
+            manifestlog_options,
+            changelog_options,
         };
 
         requirements::check(repo.requirements())?;
@@ -496,14 +513,7 @@ impl Repo {
     fn new_changelog(&self) -> Result<Changelog, HgError> {
         // load dirstate before changelog to avoid race see issue6303
         self.dirstate_parents()?;
-        Changelog::open(
-            &self.store_vfs(),
-            default_revlog_options(
-                self.config(),
-                self.requirements(),
-                RevlogType::Changelog,
-            )?,
-        )
+        Changelog::open(&self.store_vfs(), self.changelog_options)
     }
 
     pub fn changelog(
@@ -519,14 +529,7 @@ impl Repo {
     }
 
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
-        Ok(Manifestlog::open(
-            &self.store_vfs(),
-            default_revlog_options(
-                self.config(),
-                self.requirements(),
-                RevlogType::Manifestlog,
-            )?,
-        )?)
+        Ok(Manifestlog::open(&self.store_vfs(), self.manifestlog_options)?)
     }
 
     pub fn manifestlog(
@@ -595,15 +598,7 @@ impl Repo {
     }
 
     pub fn filelog(&self, path: &HgPath) -> Result<Filelog, HgError> {
-        Ok(Filelog::open(
-            self,
-            path,
-            default_revlog_options(
-                self.config(),
-                self.requirements(),
-                RevlogType::Filelog,
-            )?,
-        )?)
+        Ok(Filelog::open(self, path, self.filelog_options)?)
     }
     /// Write to disk any updates that were made through `dirstate_map_mut`.
     ///
