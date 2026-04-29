@@ -484,6 +484,7 @@ class changelog(revlog.revlog):
         flags = 0
         sidedata = None
         if self._copiesstorage == b'changeset-sidedata':
+            assert self._inner.support_extended_data
             if files.has_copies_info:
                 flags |= flagutil.REVIDX_HASCOPIESINFO
             sidedata = metadata.encode_files_sidedata(files)

@@ -99,6 +99,9 @@ class BaseInnerRevlog(abc.ABC):
     opener: vfsmod.vfs
     index: BaseIndex
 
+    support_extended_data: bool
+    """True if the storage support more than just storing data"""
+
     def __init__(
         self,
         opener: vfsmod.vfs,
@@ -705,6 +708,8 @@ class BaseInnerRevlog(abc.ABC):
 class InnerRevlogV1(BaseInnerRevlog):
     """A inner revlog for a revlog-v1 revlog"""
 
+    support_extended_data: bool = False
+
     index: MonoBlockIndex
 
     def __init__(
@@ -1129,6 +1134,8 @@ class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
 
     index: Index2
+
+    support_extended_data: bool = True
 
     _default_compression_header: i_comp.RevlogCompHeader
 

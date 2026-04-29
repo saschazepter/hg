@@ -2199,12 +2199,21 @@ class revlog:
                 _(b"attempted to add linkrev -1 to %s") % self.display_id
             )
 
-        if not self.configs.feature.has_side_data:
+        if (
+            self._inner.support_extended_data
+            and not self.configs.feature.has_side_data
+        ):
+            # It might become possible one day, but for now, this is just suspicious
+            # (and when that day come, sidedata might just no longer be thing)
+            bad_sd_msg = _(b"extended data support without side data support")
+            raise error.ProgrammingError(bad_sd_msg)
+
+        if not self._inner.support_extended_data:
+            bad_sd_msg = _(
+                b"trying to add sidedata to a revlog who don't support them"
+            )
             if sidedata is not None:
-                msg = _(
-                    b"trying to add sidedata to a revlog who don't support them"
-                )
-                raise error.ProgrammingError(msg)
+                raise error.ProgrammingError(bad_sd_msg)
         elif sidedata is None:
             sidedata = {}
 
@@ -2410,8 +2419,10 @@ class revlog:
             compression_mode, deltainfo = r
 
         sidedata_compression_mode = COMP_MODE_INLINE
-        if not self.configs.feature.has_side_data:
+        if not self._inner.support_extended_data:
             assert sidedata is None
+        else:
+            assert self.configs.feature.has_side_data
         if not sidedata:
             sdata = b""
         else:

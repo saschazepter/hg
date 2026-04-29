@@ -356,6 +356,11 @@ impl InnerRevlog {
     }
 
     #[getter]
+    fn support_extended_data(_slf: &Bound<'_, Self>) -> PyResult<bool> {
+        Ok(false)
+    }
+
+    #[getter]
     fn inline(slf: &Bound<'_, Self>) -> PyResult<bool> {
         Self::with_core_read(slf, |_self_ref, irl| Ok(irl.is_inline()))
     }
