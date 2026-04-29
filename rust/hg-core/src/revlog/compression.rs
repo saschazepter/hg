@@ -281,7 +281,7 @@ pub(super) fn uncompressed_zstd_data(
     bytes: &[u8],
     is_delta: bool,
     uncompressed_len: i32,
-) -> Result<Vec<u8>, HgError> {
+) -> Result<Vec<u8>, RevlogError> {
     let cap = uncompressed_len.max(0) as usize;
     if is_delta {
         // [cap] is usually an over-estimate of the space needed because
