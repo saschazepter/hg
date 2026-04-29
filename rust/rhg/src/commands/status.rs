@@ -182,13 +182,14 @@ fn parse_revpair(
     let Some(revs) = revs else {
         return Ok(None);
     };
-    let resolve =
-        |input| match hg::revset::resolve_single(input, repo)?.exclude_wdir() {
+    let resolve = |input| -> Result<Revision, HgError> {
+        match hg::revset::resolve_single(input, repo)?.exclude_wdir() {
             Some(rev) => Ok(rev),
             None => Err(RevlogError::WDirUnsupported {
                 backtrace: HgBacktrace::capture(),
-            }),
-        };
+            })?,
+        }
+    };
     match revs.as_slice() {
         [] => Ok(None),
         [rev1, rev2] => Ok(Some((resolve(rev1)?, resolve(rev2)?))),

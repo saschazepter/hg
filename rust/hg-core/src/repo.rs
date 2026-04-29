@@ -34,6 +34,7 @@ use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
 use crate::requirements::FILEINDEX_V1_REQUIREMENT;
 use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
+use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
@@ -597,8 +598,8 @@ impl Repo {
         }
     }
 
-    pub fn filelog(&self, path: &HgPath) -> Result<Filelog, HgError> {
-        Ok(Filelog::open(self, path, self.filelog_options)?)
+    pub fn filelog(&self, path: &HgPath) -> Result<Filelog, RevlogError> {
+        Filelog::open(self, path, self.filelog_options)
     }
     /// Write to disk any updates that were made through `dirstate_map_mut`.
     ///

@@ -35,15 +35,12 @@ pub fn resolve_single(
     }
 
     match resolve(input, &changelog.revlog) {
-        Err(HgError::Revlog(RevlogError::InvalidRevision {
-            string,
-            backtrace,
-        })) => {
+        Err(RevlogError::InvalidRevision { string, backtrace }) => {
             // TODO: support for the rest of the language here.
             let msg = format!("{backtrace}cannot parse revset '{string}'");
             Err(HgError::unsupported(msg))
         }
-        result => result,
+        result => Ok(result?),
     }
 }
 
@@ -55,7 +52,7 @@ pub fn resolve_single(
 pub fn resolve_rev_number_or_hex_prefix(
     input: &str,
     revlog: &Revlog,
-) -> Result<Revision, HgError> {
+) -> Result<Revision, RevlogError> {
     match resolve(input, revlog)?.exclude_wdir() {
         Some(rev) => Ok(rev),
         None => Err(RevlogError::WDirUnsupported {
@@ -64,7 +61,10 @@ pub fn resolve_rev_number_or_hex_prefix(
     }
 }
 
-fn resolve(input: &str, revlog: &Revlog) -> Result<RevisionOrWdir, HgError> {
+fn resolve(
+    input: &str,
+    revlog: &Revlog,
+) -> Result<RevisionOrWdir, RevlogError> {
     // The Python equivalent of this is part of `revsymbol` in
     // `mercurial/scmutil.py`
     if let Ok(integer) = input.parse::<i32>()
