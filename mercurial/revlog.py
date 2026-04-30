@@ -2199,12 +2199,14 @@ class revlog:
                 _(b"attempted to add linkrev -1 to %s") % self.display_id
             )
 
-        if sidedata is None:
+        if not self.configs.feature.has_side_data:
+            if sidedata is not None:
+                msg = _(
+                    b"trying to add sidedata to a revlog who don't support them"
+                )
+                raise error.ProgrammingError(msg)
+        elif sidedata is None:
             sidedata = {}
-        elif sidedata and not self.configs.feature.has_side_data:
-            raise error.ProgrammingError(
-                _(b"trying to add sidedata to a revlog who don't support them")
-            )
 
         provided_node = node is not None
 
@@ -2409,8 +2411,9 @@ class revlog:
 
         sidedata_compression_mode = COMP_MODE_INLINE
         if not self.configs.feature.has_side_data:
-            sidedata = None
+            assert sidedata is None
         if not sidedata:
+            sd_size = 0
             sdata = b""
         else:
             sidedata_compression_mode = COMP_MODE_PLAIN
@@ -2431,6 +2434,8 @@ class revlog:
                 else:
                     sidedata_compression_mode = COMP_MODE_INLINE
                     sdata = comp_sidedata
+
+            sd_size = len(sdata)
 
         # drop previouly existing flags
         flags &= ~REVIDX_DELTA_INFO_FLAGS
@@ -2470,7 +2475,7 @@ class revlog:
             parent_rev_1=p1r,
             parent_rev_2=p2r,
             node_id=node,
-            sidedata_compressed_length=len(sdata),
+            sidedata_compressed_length=sd_size,
             sidedata_compression_mode=sidedata_compression_mode,
             rank=rank,
         )
@@ -2637,6 +2642,12 @@ class revlog:
                     text = data.raw_text
                     if data.compression:
                         text = None
+
+                    if self.configs.feature.has_side_data:
+                        sidedata = data.sidedata
+                    else:
+                        sidedata = None
+
                     rev = self._addrevision(
                         data.node,
                         # raw text is usually None, but it might have been set
@@ -2650,7 +2661,7 @@ class revlog:
                         cached,
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
-                        sidedata=data.sidedata,
+                        sidedata=sidedata,
                     )
 
                     if addrevisioncb:
@@ -3300,11 +3311,13 @@ class revlog:
                     self, sidedata_helpers, sidedata, rev
                 )
                 flags = flags | new_flags[0] & ~new_flags[1]
-            if not destrevlog.configs.feature.has_side_data and sidedata:
-                msg = _(
-                    b"trying to add sidedata to a revlog who don't support them"
-                )
-                raise error.ProgrammingError(msg)
+            if not destrevlog.configs.feature.has_side_data:
+                if sidedata:
+                    msg = _(
+                        b"trying to add sidedata to a revlog who don't support them"
+                    )
+                    raise error.ProgrammingError(msg)
+                sidedata = None
 
             if deltareuse == self.DELTAREUSEFULLADD:
                 text = self._revisiondata(rev)
