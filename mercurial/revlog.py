@@ -3294,15 +3294,15 @@ class revlog:
             # the revlog chunk is a delta.
             cachedelta = None
             rawtext = None
+            sidedata = self.sidedata(rev)
+            if sidedata_helpers is not None:
+                (sidedata, new_flags) = sidedatautil.run_sidedata_helpers(
+                    self, sidedata_helpers, sidedata, rev
+                )
+                flags = flags | new_flags[0] & ~new_flags[1]
+
             if deltareuse == self.DELTAREUSEFULLADD:
                 text = self._revisiondata(rev)
-                sidedata = self.sidedata(rev)
-
-                if sidedata_helpers is not None:
-                    (sidedata, new_flags) = sidedatautil.run_sidedata_helpers(
-                        self, sidedata_helpers, sidedata, rev
-                    )
-                    flags = flags | new_flags[0] & ~new_flags[1]
 
                 destrevlog.addrevision(
                     text,
@@ -3357,22 +3357,12 @@ class revlog:
                         other_storage_snapshot_level=snapshotdepth,
                     )
 
-                sidedata = None
                 if cachedelta is None:
                     try:
                         rawtext = self._revisiondata(rev, validate=False)
                     except error.CensoredNodeError as censored:
                         assert flags & REVIDX_ISCENSORED
                         rawtext = censored.tombstone
-                    sidedata = self.sidedata(rev)
-                if sidedata is None:
-                    sidedata = self.sidedata(rev)
-
-                if sidedata_helpers is not None:
-                    (sidedata, new_flags) = sidedatautil.run_sidedata_helpers(
-                        self, sidedata_helpers, sidedata, rev
-                    )
-                    flags = flags | new_flags[0] & ~new_flags[1]
 
                 destrevlog._addrevision(
                     node,
