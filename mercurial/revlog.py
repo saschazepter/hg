@@ -3300,6 +3300,11 @@ class revlog:
                     self, sidedata_helpers, sidedata, rev
                 )
                 flags = flags | new_flags[0] & ~new_flags[1]
+            if not destrevlog.configs.feature.has_side_data and sidedata:
+                msg = _(
+                    b"trying to add sidedata to a revlog who don't support them"
+                )
+                raise error.ProgrammingError(msg)
 
             if deltareuse == self.DELTAREUSEFULLADD:
                 text = self._revisiondata(rev)
