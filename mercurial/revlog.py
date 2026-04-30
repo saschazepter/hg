@@ -2413,7 +2413,6 @@ class revlog:
         if not self.configs.feature.has_side_data:
             assert sidedata is None
         if not sidedata:
-            sd_size = 0
             sdata = b""
         else:
             sidedata_compression_mode = COMP_MODE_PLAIN
@@ -2434,8 +2433,6 @@ class revlog:
                 else:
                     sidedata_compression_mode = COMP_MODE_INLINE
                     sdata = comp_sidedata
-
-            sd_size = len(sdata)
 
         # drop previouly existing flags
         flags &= ~REVIDX_DELTA_INFO_FLAGS
@@ -2475,7 +2472,6 @@ class revlog:
             parent_rev_1=p1r,
             parent_rev_2=p2r,
             node_id=node,
-            sidedata_compressed_length=sd_size,
             sidedata_compression_mode=sidedata_compression_mode,
             rank=rank,
         )

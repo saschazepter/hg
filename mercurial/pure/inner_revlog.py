@@ -1391,6 +1391,7 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         if sidedata:
             entry.sidedata_offset = self.docket.get_end(self.docket.FT.SIDEDATA)
+            entry.sidedata_compressed_length = len(sidedata)
 
         docket = self.docket
         for ft, fh in sorted(self._writinghandles.items()):
