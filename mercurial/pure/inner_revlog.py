@@ -671,7 +671,7 @@ class BaseInnerRevlog(abc.ABC):
         entry: revlogutils.RevlogEntry,
         data: bytes,
         link: RevnumT,
-        sidedata: bytes,
+        other_data: dict[V2FileType, bytes] | None,
     ):
         ...
 
@@ -888,7 +888,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         entry: revlogutils.RevlogEntry,
         data: bytes,
         link: RevnumT,
-        sidedata: bytes,
+        other_data: dict[V2FileType, bytes] | None,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -905,7 +905,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         if self._writinghandles is None:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
-        assert not sidedata
+        assert other_data is None, other_data
         ifh, dfh = self._writinghandles
         ifh.seek(0, os.SEEK_END)
         if dfh:
@@ -1358,7 +1358,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         entry: revlogutils.RevlogEntry,
         data: bytes,
         link: int,
-        sidedata: bytes,
+        other_data: dict[V2FileType, bytes] | None,
     ):
         # Files opened in a+ mode have inconsistent behavior on various
         # platforms. Windows requires that a file positioning call be made
@@ -1375,12 +1375,16 @@ class InnerRevlogV2(BaseInnerRevlog):
         if self._writinghandles is None:
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
+        docket = self.docket
 
-        if sidedata:
-            entry.sidedata_offset = self.docket.get_end(self.docket.FT.SIDEDATA)
+        if other_data is None:
+            other_data = {}
+        assert other_data is not None
+
+        if (sidedata := other_data.get(docket.FT.SIDEDATA)) is not None:
+            entry.sidedata_offset = docket.get_end(self.docket.FT.SIDEDATA)
             entry.sidedata_compressed_length = len(sidedata)
 
-        docket = self.docket
         for ft, fh in sorted(self._writinghandles.items()):
             pos = docket.get_end(ft)
             fh.seek(pos, os.SEEK_SET)
@@ -1392,8 +1396,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         if data[0]:
             self._writinghandles[docket.FT.DATA].write(data[0])
         self._writinghandles[docket.FT.DATA].write(data[1])
-        if sidedata:
-            self._writinghandles[docket.FT.SIDEDATA].write(sidedata)
+        for ft, o_data in sorted(other_data.items()):
+            self._writinghandles[ft].write(o_data)
 
         for ft, bin_piece in zip(self._index_fts, bin_entry):
             self._writinghandles[ft].write(bin_piece)
@@ -1436,7 +1440,11 @@ class InnerRevlogV2(BaseInnerRevlog):
                 # rewriting entries that already have sidedata is not
                 # supported yet, because it introduces garbage data in the
                 # revlog.
-                msg = b"rewriting existing sidedata is not supported yet"
+                msg = b"rewriting existing sidedata is not supported yet: %d %d"
+                msg %= (
+                    self.index.sidedata_chunk_offset(rev),
+                    self.index.sidedata_chunk_length(rev),
+                )
                 raise error.Abort(msg)
 
             # Apply (potential) flags to add and to remove after running

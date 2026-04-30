@@ -37,6 +37,7 @@ from .revlogutils import (
     config as revlog_config,
     constants as revlog_constants,
     flagutil,
+    sidedata as sidedatautil,
 )
 
 _defaultextra = {b'branch': b'default'}
@@ -482,12 +483,16 @@ class changelog(revlog.revlog):
                 )
         sortedfiles = sorted(files.touched)
         flags = 0
-        sidedata = None
+        other_data = None
         if self._copiesstorage == b'changeset-sidedata':
             assert self._inner.support_extended_data
             if files.has_copies_info:
                 flags |= flagutil.REVIDX_HASCOPIESINFO
+            other_data = {}
             sidedata = metadata.encode_files_sidedata(files)
+            if sidedata:
+                sd_bin = sidedatautil.serialize_sidedata(sidedata)
+                other_data[revlog_constants.V2FileType.SIDEDATA] = sd_bin
 
         if extra:
             extra = encodeextra(extra)
@@ -495,7 +500,13 @@ class changelog(revlog.revlog):
         l = [hex(manifest), user, parseddate] + sortedfiles + [b"", desc]
         text = b"\n".join(l)
         rev = self.addrevision(
-            text, transaction, len(self), p1, p2, sidedata=sidedata, flags=flags
+            text,
+            transaction,
+            len(self),
+            p1,
+            p2,
+            other_data=other_data,
+            flags=flags,
         )
         return self.node(rev)
 

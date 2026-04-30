@@ -83,6 +83,7 @@ from .revlogutils.constants import (
     REVLOG_DEFAULT_FLAGS,
     REVLOG_DEFAULT_FORMAT,
     REVLOG_DEFAULT_VERSION,
+    V2FileType,
 )
 from .thirdparty import attr
 from .interfaces import compression as i_comp
@@ -2178,7 +2179,7 @@ class revlog:
         node=None,
         flags=REVIDX_DEFAULT_FLAGS,
         deltacomputer=None,
-        sidedata=None,
+        other_data=None,
     ):
         """add a revision to the log
 
@@ -2212,10 +2213,10 @@ class revlog:
             bad_sd_msg = _(
                 b"trying to add sidedata to a revlog who don't support them"
             )
-            if sidedata is not None:
+            if other_data is not None:
                 raise error.ProgrammingError(bad_sd_msg)
-        elif sidedata is None:
-            sidedata = {}
+        elif other_data is None:
+            other_data = {}
 
         provided_node = node is not None
 
@@ -2265,7 +2266,7 @@ class revlog:
             flags,
             cachedelta=cachedelta,
             deltacomputer=deltacomputer,
-            sidedata=sidedata,
+            other_data=other_data,
         )
 
     def addrawrevision(
@@ -2279,7 +2280,7 @@ class revlog:
         flags,
         cachedelta: revlogutils.CachedDelta | None = None,
         deltacomputer=None,
-        sidedata=None,
+        other_data=None,
     ):
         """add a raw revision with known flags, node and parents
         useful when reusing a revision not stored in this revlog (ex: received
@@ -2296,7 +2297,7 @@ class revlog:
                 flags,
                 cachedelta,
                 deltacomputer=deltacomputer,
-                sidedata=sidedata,
+                other_data=other_data,
             )
 
     @util.propertycache
@@ -2330,7 +2331,7 @@ class revlog:
         cachedelta: revlogutils.CachedDelta | None,
         alwayscache=False,
         deltacomputer=None,
-        sidedata=None,
+        other_data=None,
     ):
         """internal function to add revisions to the log
 
@@ -2418,32 +2419,25 @@ class revlog:
             r = deltautil.delta_compression(default_comp, deltainfo)
             compression_mode, deltainfo = r
 
-        sidedata_compression_mode = COMP_MODE_INLINE
-        if not self._inner.support_extended_data:
-            assert sidedata is None
-        else:
-            assert self.configs.feature.has_side_data
-        if not sidedata:
-            sdata = b""
+        # XXX keep other_data to None when applicable
+        # XXX need to compress sidedata when applicable
+        if other_data is None or not self.configs.feature.has_side_data:
+            sidedata_compression_mode = COMP_MODE_INLINE
         else:
             sidedata_compression_mode = COMP_MODE_PLAIN
-            sdata = sidedatautil.serialize_sidedata(sidedata)
-            h, comp_sidedata = self._inner.compress(sdata)
-            if (
-                h != b'u'
-                and comp_sidedata[0:1] != b'\0'
-                and len(comp_sidedata) < len(sdata)
-            ):
-                assert not h
-                if (
-                    comp_sidedata[0:1]
-                    == self._inner.docket.default_compression_header
-                ):
-                    sidedata_compression_mode = COMP_MODE_DEFAULT
-                    sdata = comp_sidedata
-                else:
-                    sidedata_compression_mode = COMP_MODE_INLINE
-                    sdata = comp_sidedata
+            if sd_bin := other_data.setdefault(V2FileType.SIDEDATA, b""):
+                h, comp_sidedata = self._inner.compress(sd_bin)
+                dch = self._inner.docket.default_compression_header
+                if (len(comp_sidedata) + len(h)) < len(sd_bin):
+                    if h == b'u' or comp_sidedata[0:1] == b'\0':
+                        sidedata_compression_mode = COMP_MODE_PLAIN
+                    elif comp_sidedata[0:1] == dch:
+                        sidedata_compression_mode = COMP_MODE_DEFAULT
+                        sd_bin = comp_sidedata
+                    else:
+                        sidedata_compression_mode = COMP_MODE_INLINE
+                        sd_bin = comp_sidedata
+            other_data[V2FileType.SIDEDATA] = sd_bin
 
         # drop previouly existing flags
         flags &= ~REVIDX_DELTA_INFO_FLAGS
@@ -2492,7 +2486,7 @@ class revlog:
             e,
             deltainfo.data,
             link,
-            sdata,
+            other_data,
         )
         self._enforceinlinesize(transaction)
         nodemaputil.setup_persistent_nodemap(transaction, self)
@@ -2649,12 +2643,15 @@ class revlog:
                     text = data.raw_text
                     if data.compression:
                         text = None
-
-                    if self.configs.feature.has_side_data:
-                        sidedata = data.sidedata
+                    if not self._inner.support_extended_data:
+                        other_data = None
                     else:
-                        sidedata = None
-
+                        other_data = {}
+                        if data.sidedata and self.configs.feature.has_side_data:
+                            sd_bin = sidedatautil.serialize_sidedata(
+                                data.sidedata
+                            )
+                            other_data = {V2FileType.SIDEDATA: sd_bin}
                     rev = self._addrevision(
                         data.node,
                         # raw text is usually None, but it might have been set
@@ -2668,7 +2665,7 @@ class revlog:
                         cached,
                         alwayscache=alwayscache,
                         deltacomputer=deltacomputer,
-                        sidedata=sidedata,
+                        other_data=other_data,
                     )
 
                     if addrevisioncb:
@@ -3326,9 +3323,15 @@ class revlog:
                     raise error.ProgrammingError(msg)
                 sidedata = None
 
+            if destrevlog._inner.support_extended_data:
+                other_data = {}
+                if sidedata:
+                    sd_bin = sidedatautil.serialize_sidedata(sidedata)
+                    other_data[V2FileType.SIDEDATA] = sd_bin
+            else:
+                other_data = None
             if deltareuse == self.DELTAREUSEFULLADD:
                 text = self._revisiondata(rev)
-
                 destrevlog.addrevision(
                     text,
                     tr,
@@ -3339,7 +3342,7 @@ class revlog:
                     node=node,
                     flags=flags,
                     deltacomputer=deltacomputer,
-                    sidedata=sidedata,
+                    other_data=other_data,
                 )
             else:
                 if not destrevlog.delta_config.lazy_delta:
@@ -3399,7 +3402,7 @@ class revlog:
                     flags,
                     cachedelta,
                     deltacomputer=deltacomputer,
-                    sidedata=sidedata,
+                    other_data=other_data,
                 )
 
             if addrevisioncb:

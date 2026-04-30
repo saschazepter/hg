@@ -24,15 +24,24 @@ def wrapaddrevision(
     orig, self, text, transaction, link, p1, p2, *args, **kwargs
 ):
     if self.revlog_kind == constants.KIND_MANIFESTLOG:
-        if kwargs.get('sidedata') is None:
-            kwargs['sidedata'] = {}
-        sd = kwargs['sidedata']
+        other_data = kwargs.get('other_data')
+        if other_data is None:
+            other_data = {}
+            kwargs["other_data"] = other_data
+        if constants.V2FileType.SIDEDATA in other_data:
+            sd_bin = other_data[constants.V2FileType.SIDEDATA]
+            sd = sidedata.deserialize_sidedata(sd_bin)
+        else:
+            sd = {}
         ## let's store some arbitrary data just for testing
         # text length
         sd[sidedata.SD_TEST1] = struct.pack('>I', len(text))
         # and sha2 hashes
         sha256 = hashlib.sha256(text).digest()
         sd[sidedata.SD_TEST2] = struct.pack('>32s', sha256)
+        other_data[constants.V2FileType.SIDEDATA] = sidedata.serialize_sidedata(
+            sd
+        )
     return orig(self, text, transaction, link, p1, p2, *args, **kwargs)
 
 

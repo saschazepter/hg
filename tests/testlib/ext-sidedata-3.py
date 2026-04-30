@@ -52,11 +52,19 @@ def compute_sidedata_3(repo, revlog, rev, sidedata, text=None):
 def wrapaddrevision(
     orig, self, text, transaction, link, p1, p2, *args, **kwargs
 ):
-    if kwargs.get('sidedata') is None:
-        kwargs['sidedata'] = {}
-    sd = kwargs['sidedata']
+    other_data = kwargs.get('other_data')
+    if other_data is None:
+        other_data = {}
+        kwargs["other_data"] = other_data
+    if constants.V2FileType.SIDEDATA in other_data:
+        sd_bin = other_data[constants.V2FileType.SIDEDATA]
+        sd = sidedatamod.deserialize_sidedata(sd_bin)
+    else:
+        sd = {}
     sd, flags = compute_sidedata_1(None, self, None, sd, text=text)
-    kwargs['sidedata'] = compute_sidedata_2(None, self, None, sd, text=text)[0]
+    sd2 = compute_sidedata_2(None, self, None, sd, text=text)[0]
+    sd_bin = sidedatamod.serialize_sidedata(sd2)
+    other_data[constants.V2FileType.SIDEDATA] = sd_bin
     return orig(self, text, transaction, link, p1, p2, *args, **kwargs)
 
 
