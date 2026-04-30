@@ -2043,6 +2043,12 @@ Check upgrading to a revlog format supporting sidedata
 upgrade
 
   $ hg debugsidedata -c 0
+  $ hg debugformat revlog-v2
+  format-variant                 repo
+  revlog-v2:                       no
+  $ hg debugformat revlog-v2
+  format-variant                 repo
+  revlog-v2:                       no
   $ hg --config experimental.revlogv2=enable-unstable-format-and-corrupt-my-data debugupgraderepo --run  --no-backup --config "extensions.sidedata=$TESTDIR/testlib/ext-sidedata.py" --quiet
   upgrade will perform the following actions:
   
@@ -2088,14 +2094,17 @@ upgrade
   share-safe
   sparserevlog
   store
-  $ hg debugsidedata -c 0
+  $ hg debugsidedata -m 0
   2 sidedata entries
    entry-0001 size 4
    entry-0002 size 32
 
 downgrade
 
-  $ hg debugupgraderepo --config experimental.revlogv2=no --run --no-backup --quiet
+  $ hg debugupgraderepo \
+  >    --config experimental.revlogv2=no \
+  >    --config "extensions.sidedata=$TESTDIR/testlib/ext-sidedata.py" \
+  >    --run --no-backup --quiet
   upgrade will perform the following actions:
   
   requirements
