@@ -47,6 +47,18 @@ catch: if you edit the code during a long test suite run, different tests will
 run with different code. It's best to use '--local' when you are running the
 same test script many times, as often happens during development.
 
+### Running test cases
+
+Some tests have "test cases". Consider a 'test-example.t' that has:
+
+    #testcases v1 v2 v3
+    #testcases safe unsafe
+
+By default, 'run-tests.py' will run all six combinations: the Cartesian product
+of (v1, v2, v3) and (safe, unsafe). You can choose specific test cases by
+appending them to the filename with the '#' character. For example, to run the
+v2 safe case, use './run-tests.py test-example.t#v2#safe'.
+
 ## Writing a shell script test
 
 ### Be careful with new test scripts!
