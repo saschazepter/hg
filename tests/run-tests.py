@@ -3598,8 +3598,9 @@ class TestRunner:
                 expanded_args.append(arg)
         args = expanded_args
 
-        testcasepattern = re.compile(
-            br'([\w-]+\.(?:t|py))(?:#([a-zA-Z0-9_\-.#]+))'
+        testcase_pattern = re.compile(br'#[a-zA-Z0-9_\-.#]+')
+        basename_suffix_pattern = re.compile(
+            br'([\w-]+\.(?:t|py))(%s)' % testcase_pattern.pattern
         )
         tests = []
         for t in args:
@@ -3609,12 +3610,13 @@ class TestRunner:
                 os.path.basename(t).startswith(b'test-')
                 and (t.endswith(b'.py') or t.endswith(b'.t'))
             ):
-                m = testcasepattern.match(os.path.basename(t))
-                if m is not None:
-                    t_basename, casestr = m.groups()
+                if (
+                    m := basename_suffix_pattern.match(os.path.basename(t))
+                ) is not None:
+                    t_basename, suffix = m.groups()
                     t = os.path.join(os.path.dirname(t), t_basename)
-                    if casestr:
-                        case = casestr.split(b'#')
+                    if (m := testcase_pattern.search(suffix)) is not None:
+                        case = m.group().removeprefix(b'#').split(b'#')
                 else:
                     continue
 
