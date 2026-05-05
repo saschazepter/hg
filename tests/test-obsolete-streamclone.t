@@ -52,8 +52,8 @@ without marker
 with marker
 
   $ hg -R server bundle -t 'none-streamv2;obsolescence=true' --all all.stream-hg
-  abort: server has obsolescence markers, but client cannot receive them via stream clone (known-bad-output !)
-  [255]
   $ f --size all.stream-hg
-  all.stream-hg: size=???? (glob) (missing-correct-output !)
-  all.stream-hg: file not found (known-bad-output !)
+  all.stream-hg: size=???? (glob)
+  $ hg debugbundle all.stream-hg
+  Stream params: {}
+  stream2 -- {bytecount: ????, filecount: ??, requirements: *} (mandatory: True) (glob)
