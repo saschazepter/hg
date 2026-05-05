@@ -615,6 +615,5 @@ Same test but the chg server is initially started outside any repo:
   $ chg version -q > /dev/null
   $ cd repo
   $ chg debugconf --source profiling.enabled
-  --no-profile: false (known-bad-output !)
-  $HGRCPATH:*: true (glob) (missing-correct-output !)
+  $HGRCPATH:*: true (glob)
   $ cd ..

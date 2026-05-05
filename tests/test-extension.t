@@ -114,6 +114,8 @@ Python <= 3.10 does not have the -P option
   uipopulate called (1 times)
   uipopulate called (1 times) (chg !)
   uipopulate called (1 times)
+  uipopulate called (1 times)
+  uipopulate called (1 times) (chg !)
   reposetup called for a
   ui == repo.ui
   uipopulate called (1 times)
@@ -127,6 +129,8 @@ Python <= 3.10 does not have the -P option
   uisetup called (no-chg !)
   uisetup called [status] (no-chg !)
   uipopulate called (1 times)
+  uipopulate called (1 times)
+  uipopulate called (1 times) (chg !)
   uipopulate called (1 times) (chg !)
   Bar
   $ echo 'foobar = !' >> $HGRCPATH
