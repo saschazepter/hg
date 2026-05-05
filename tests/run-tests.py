@@ -3598,7 +3598,9 @@ class TestRunner:
                 expanded_args.append(arg)
         args = expanded_args
 
-        testcasepattern = re.compile(br'([\w-]+\.t|py)(?:#([a-zA-Z0-9_\-.#]+))')
+        testcasepattern = re.compile(
+            br'([\w-]+\.(?:t|py))(?:#([a-zA-Z0-9_\-.#]+))'
+        )
         tests = []
         for t in args:
             case = []
