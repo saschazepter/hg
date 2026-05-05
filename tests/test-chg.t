@@ -578,3 +578,43 @@ Running the same command a second time shouldn't spawn a new command server.
   >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
   >   | grep -E 'CHGHG|start cmdserver'
   CHGHG=/*/install/bin/hg (glob)
+
+  $ cd ..
+
+Test behaviors around --profile/--no-profile and the associated config
+----------------------------------------------------------------------
+
+Test that profiling.enabled=true in user config is respected when using chg.
+
+This is a regression test for a bug where the chg server, started with --no-profile
+from a directory with no repo, would inadvertently set profiling.enabled=false on
+the ui object that gets reused for subsequent commands.
+
+  $ mkdir profiles
+  $ PROFILES=$(pwd)/profiles
+  $ cp $HGRCPATH.unconfigured $HGRCPATH
+  $ cat >> "$HGRCPATH" <<EOF
+  > [profiling]
+  > type=stat
+  > enabled=true
+  > output-dir=$PROFILES
+  > EOF
+
+Start chg server in a repo:
+
+  $ hg init repo
+  $ cd repo
+  $ chg --kill-chg-daemon
+  $ chg debugconf --source profiling.enabled
+  $HGRCPATH:*: true (glob)
+
+Same test but the chg server is initially started outside any repo:
+
+  $ cd "$TESTTMP"
+  $ chg --kill-chg-daemon
+  $ chg version -q > /dev/null
+  $ cd repo
+  $ chg debugconf --source profiling.enabled
+  --no-profile: false (known-bad-output !)
+  $HGRCPATH:*: true (glob) (missing-correct-output !)
+  $ cd ..
