@@ -675,13 +675,6 @@ class changectx(basectx, i_context.IChangeContext):
         compute_on_none = True
         if self._repo.filecopiesmode == b'changeset-sidedata':
             compute_on_none = False
-        else:
-            source = self._repo.ui.config(b'experimental', b'copies.read-from')
-            if source == b'changeset-only':
-                compute_on_none = False
-            elif source != b'compatibility':
-                # filelog mode, ignore any changelog content
-                filesadded = None
         if filesadded is None:
             if compute_on_none:
                 filesadded = metadata.computechangesetfilesadded(self)
@@ -691,18 +684,8 @@ class changectx(basectx, i_context.IChangeContext):
 
     def filesremoved(self) -> list[bytes]:
         filesremoved = self._changeset.filesremoved
-        compute_on_none = True
-        if self._repo.filecopiesmode == b'changeset-sidedata':
-            compute_on_none = False
-        else:
-            source = self._repo.ui.config(b'experimental', b'copies.read-from')
-            if source == b'changeset-only':
-                compute_on_none = False
-            elif source != b'compatibility':
-                # filelog mode, ignore any changelog content
-                filesremoved = None
         if filesremoved is None:
-            if compute_on_none:
+            if self._repo.filecopiesmode != b'changeset-sidedata':
                 filesremoved = metadata.computechangesetfilesremoved(self)
             else:
                 filesremoved = []
@@ -712,29 +695,8 @@ class changectx(basectx, i_context.IChangeContext):
     def _copies(self):
         p1copies = self._changeset.p1copies
         p2copies = self._changeset.p2copies
-        compute_on_none = True
-        if self._repo.filecopiesmode == b'changeset-sidedata':
-            compute_on_none = False
-        else:
-            source = self._repo.ui.config(b'experimental', b'copies.read-from')
-            # If config says to get copy metadata only from changeset, then
-            # return that, defaulting to {} if there was no copy metadata.  In
-            # compatibility mode, we return copy data from the changeset if it
-            # was recorded there, and otherwise we fall back to getting it from
-            # the filelogs (below).
-            #
-            # If we are in compatiblity mode and there is not data in the
-            # changeset), we get the copy metadata from the filelogs.
-            #
-            # otherwise, when config said to read only from filelog, we get the
-            # copy metadata from the filelogs.
-            if source == b'changeset-only':
-                compute_on_none = False
-            elif source != b'compatibility':
-                # filelog mode, ignore any changelog content
-                p1copies = p2copies = None
         if p1copies is None:
-            if compute_on_none:
+            if self._repo.filecopiesmode != b'changeset-sidedata':
                 p1copies, p2copies = super()._copies
             else:
                 if p1copies is None:

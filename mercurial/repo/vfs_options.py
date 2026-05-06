@@ -56,11 +56,6 @@ def resolve_store_vfs_options(ui, requirements, features):
 
     if requirementsmod.COPIESSDC_REQUIREMENT in requirements:
         options[b'copies-storage'] = b'changeset-sidedata'
-    else:
-        writecopiesto = ui.config(b'experimental', b'copies.write-to')
-        copiesextramode = (b'changeset-only', b'compatibility')
-        if writecopiesto in copiesextramode:
-            options[b'copies-storage'] = b'extra'
 
     if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
         value = ui.config(b'devel', b'fileindex.vacuum-mode')

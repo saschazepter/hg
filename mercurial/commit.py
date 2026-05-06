@@ -22,25 +22,6 @@ from . import (
 )
 
 
-def _write_copy_meta(repo):
-    """return a (changelog, filelog) boolean tuple
-
-    changelog: copy related information should be stored in the changeset
-    filelof:   copy related information should be written in the file revision
-    """
-    if repo.filecopiesmode == b'changeset-sidedata':
-        writechangesetcopy = True
-        writefilecopymeta = True
-    else:
-        writecopiesto = repo.ui.config(b'experimental', b'copies.write-to')
-        writefilecopymeta = writecopiesto != b'changeset-only'
-        writechangesetcopy = writecopiesto in (
-            b'changeset-only',
-            b'compatibility',
-        )
-    return writechangesetcopy, writefilecopymeta
-
-
 @util.rust_tracing_span("commit.commitctx")
 def commitctx(repo, ctx, error=False, origctx=None):
     """Add a new revision to the target repository.
@@ -75,8 +56,6 @@ def commitctx(repo, ctx, error=False, origctx=None):
                 b'filesremoved',
             ):
                 extra.pop(name, None)
-        if repo.changelog._copiesstorage == b'extra':
-            extra = _extra_with_copies(repo, extra, files)
 
         # save the tip to check whether we actually committed anything
         oldtip = repo.changelog.tiprev()
@@ -128,7 +107,6 @@ def _prepare_files(tr, ctx, error=False, origctx=None):
     repo = ctx.repo()
     p1 = ctx.p1()
 
-    writechangesetcopy, writefilecopymeta = _write_copy_meta(repo)
     files = metadata.ChangingFiles()
     ms = mergestate.mergestate.read(repo)
     salvaged = _get_salvaged(repo, ms, ctx)
@@ -146,7 +124,7 @@ def _prepare_files(tr, ctx, error=False, origctx=None):
         repo.ui.debug(b'reusing known manifest\n')
         mn = ctx.manifestnode()
         files.update_touched(ctx.files())
-        if writechangesetcopy:
+        if repo.filecopiesmode == b'changeset-sidedata':
             files.update_added(ctx.filesadded())
             files.update_removed(ctx.filesremoved())
     elif not ctx.files() and not narrow_files:
@@ -160,7 +138,7 @@ def _prepare_files(tr, ctx, error=False, origctx=None):
         assert files.touched.issubset(origfiles)
         files.update_touched(origfiles)
 
-    if writechangesetcopy:
+    if repo.filecopiesmode == b'changeset-sidedata':
         files.update_copies_from_p1(ctx.p1copies())
         files.update_copies_from_p2(ctx.p2copies())
 
@@ -189,8 +167,6 @@ def _process_files(tr, ctx, ms, files, narrow_files=None, error=False):
     repo = ctx.repo()
     p1 = ctx.p1()
     p2 = ctx.p2()
-
-    writechangesetcopy, writefilecopymeta = _write_copy_meta(repo)
 
     with util.rust_tracing_span("read manifests"):
         m1ctx = p1.manifestctx()
@@ -241,7 +217,13 @@ def _process_files(tr, ctx, ms, files, narrow_files=None, error=False):
             else:
                 added.append(f)
                 fnode, is_touched = _filecommit(
-                    repo, fctx, m1, m2, linkrev, tr, writefilecopymeta, ms
+                    repo,
+                    fctx,
+                    m1,
+                    m2,
+                    linkrev,
+                    tr,
+                    ms,
                 )
                 if is_touched:
                     if is_touched == 'added':
@@ -290,7 +272,6 @@ def _filecommit(
     manifest2,
     linkrev,
     tr,
-    includecopymeta,
     ms,
 ):
     """
@@ -303,9 +284,6 @@ def _filecommit(
         manifest2:  manifest of changeset second parent
         linkrev:    revision number of the changeset being created
         tr:         current transation
-        includecopymeta: boolean, set to False to skip storing the copy data
-                    (only used by the Google specific feature of using
-                    changeset extra as copy source of truth).
         ms:         mergestate object
 
     output: (filenode, touched)
@@ -389,9 +367,8 @@ def _filecommit(
 
         if cnode:
             repo.ui.debug(b" %s: copy %s:%s\n" % (fname, cfname, hex(cnode)))
-            if includecopymeta:
-                meta[b"copy"] = cfname
-                meta[b"copyrev"] = hex(cnode)
+            meta[b"copy"] = cfname
+            meta[b"copyrev"] = hex(cnode)
             fparent1, fparent2 = newfparent, repo.nullid
         else:
             repo.ui.warn(
@@ -525,38 +502,3 @@ def _commit_manifest(
         mn = p1.manifestnode()
 
     return mn
-
-
-def _extra_with_copies(repo, extra, files):
-    """encode copy information into a `extra` dictionnary"""
-    p1copies = files.copied_from_p1
-    p2copies = files.copied_from_p2
-    filesadded = files.added
-    filesremoved = files.removed
-    files = sorted(files.touched)
-    if not _write_copy_meta(repo)[1]:
-        # If writing only to changeset extras, use None to indicate that
-        # no entry should be written. If writing to both, write an empty
-        # entry to prevent the reader from falling back to reading
-        # filelogs.
-        p1copies = p1copies or None
-        p2copies = p2copies or None
-        filesadded = filesadded or None
-        filesremoved = filesremoved or None
-
-    extrasentries = p1copies, p2copies, filesadded, filesremoved
-    if extra is None and any(x is not None for x in extrasentries):
-        extra = {}
-    if p1copies is not None:
-        p1copies = metadata.encodecopies(files, p1copies)
-        extra[b'p1copies'] = p1copies
-    if p2copies is not None:
-        p2copies = metadata.encodecopies(files, p2copies)
-        extra[b'p2copies'] = p2copies
-    if filesadded is not None:
-        filesadded = metadata.encodefileindices(files, filesadded)
-        extra[b'filesadded'] = filesadded
-    if filesremoved is not None:
-        filesremoved = metadata.encodefileindices(files, filesremoved)
-        extra[b'filesremoved'] = filesremoved
-    return extra

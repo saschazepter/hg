@@ -891,16 +891,6 @@ default-type = "list_type"
 
 [[items]]
 section = "experimental"
-name = "copies.read-from"
-default = "filelog-only"
-
-[[items]]
-section = "experimental"
-name = "copies.write-to"
-default = "filelog-only"
-
-[[items]]
-section = "experimental"
 name = "copytrace"
 default = "on"
 

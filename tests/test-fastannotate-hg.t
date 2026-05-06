@@ -483,7 +483,7 @@ and its ancestor by overriding "repo._filecommit".
   $ cat > ../legacyrepo.py <<EOF
   > from mercurial import commit, error, extensions
   > def _filecommit(orig, repo, fctx, manifest1, manifest2,
-  >                 linkrev, tr, includecopymeta, ms):
+  >                 linkrev, tr, ms):
   >     fname = fctx.path()
   >     text = fctx.data()
   >     flog = repo.file(fname, writable=True)

@@ -2990,14 +2990,10 @@ def amend(ui, repo, old, extra, pats, opts: dict[str, Any]):
         filestoamend = {f for f in wctx.files() if matcher(f)}
 
         changes = len(filestoamend) > 0
-        changeset_copies = (
-            repo.ui.config(b'experimental', b'copies.read-from')
-            != b'filelog-only'
-        )
         # If there are changes to amend or if copy information needs to be read
         # from the changeset extras, we cannot take the fast path of using
         # filectxs from the old commit.
-        if changes or changeset_copies:
+        if changes:
             # Recompute copies (avoid recording a -> b -> a)
             copied = copies.pathcopies(base, wctx)
             if old.p2():

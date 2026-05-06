@@ -213,7 +213,7 @@ class baselogindex:
 class changelog(baselog):
     # TODO: this appears to be an enumerated type, and should probably
     # be part of the public changelog interface
-    _copiesstorage = b'extra'
+    _copiesstorage = None
 
     def __contains__(self, rev):
         try:
