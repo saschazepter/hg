@@ -30,7 +30,7 @@ Enable the rank computation to test sorting based on the rank.
   > exp-use-changelog-v2=enable-unstable-format-and-corrupt-my-data
   > 
   > [alias]
-  > test-sts = debug::stable-tail-sort -T '{tags},'
+  > test-sts = debug::stable-tail-sort -T '{if(tags, "{tags},")}'
   > test-leaps = debug::stable-tail-sort-leaps -T '{tags}'
   > test-log = log --graph -T '{tags} rank={_fast_rank}' --rev 'tagged()'
   > EOF
@@ -83,12 +83,12 @@ Check the sort of the base linear case.
 Check the stable-tail sort of "e": "c" should come before "d".
 
   $ hg test-sts e
-  e,c,d,*,b,a, (no-eol) (glob)
+  e,c,d,b,a, (no-eol)
 
 Check that the linear descendant of the merge inherits its sort properly.
 
   $ hg test-sts f
-  f,e,c,d,*,b,a, (no-eol) (glob)
+  f,e,c,d,b,a, (no-eol)
 
 Check the leaps of "e": arriving at "c", the sort continues at "d", which
 which breaks the child-parent chain and results in a leap.
@@ -162,13 +162,13 @@ This is an expected property of the sort.
 Display the sort of "e" for reference
 
   $ hg test-sts e
-  e,c,d,*,b,a, (no-eol) (glob)
+  e,c,d,b,a, (no-eol)
 
 Check the correctness of the sort of "g",
 and that a part of the sort of "e" appears as an infix.
 
   $ hg test-sts g
-  g,e,c,d,*,b,f,*,a, (no-eol) (glob)
+  g,e,c,d,b,f,a, (no-eol)
 
 Check the leaps of "e".
 
@@ -238,13 +238,13 @@ ordering.
 Display the sort of "d" for reference:
 
   $ hg test-sts d
-  d,b,c,*,a, (no-eol) (glob)
+  d,b,c,a, (no-eol)
 
 Check that we leap from "b" directly to "e" (shadowing the leap to "c"),
 and that "c" is then emitted after "e" (its descendant).
 
   $ hg test-sts f
-  f,d,b,e,*,c,*,a, (no-eol) (glob)
+  f,d,b,e,c,a, (no-eol)
 
 Check the leaps of "d".
 
@@ -312,12 +312,12 @@ The sort of "d" is partially reused for the ordering of the exclusive part of
 Display the sort of "d" for reference:
 
   $ hg test-sts d
-  d,c,b,*,a, (no-eol) (glob)
+  d,c,b,a, (no-eol)
 
 Check that sort "f" leaps from "d" to "b":
 
   $ hg test-sts f
-  f,d,b,*,e,*,c,a, (no-eol) (glob)
+  f,d,b,e,c,a, (no-eol)
 
 Check the leaps of "d".
 
@@ -387,12 +387,12 @@ So, we need to leap in the middle of the exclusive part of "d".
 Display the sort of "d" for reference:
 
   $ hg test-sts d
-  d,g,c,b,*,a, (no-eol) (glob)
+  d,g,c,b,a, (no-eol)
 
 Check that sort "f" leaps from "g" to "b":
 
   $ hg test-sts f
-  f,d,g,b,*,e,*,c,a, (no-eol) (glob)
+  f,d,g,b,e,c,a, (no-eol)
 
 Check the leaps of "d".
 
@@ -460,13 +460,13 @@ We check that the stable-tail sort delegates properly after the exclusive part.
 Display the sort of "f" for reference:
 
   $ hg test-sts f
-  f,e,b,c,*,a, (no-eol) (glob)
+  f,e,b,c,a, (no-eol)
 
 Check that the sort of "g" delegates to the sort of "f" after processing its
 exclusive part of "g":
 
   $ hg test-sts g
-  g,d,f,e,b,c,*,a, (no-eol) (glob)
+  g,d,f,e,b,c,a, (no-eol)
 
 Check the leaps of "f".
 
@@ -551,17 +551,17 @@ happen when iterating over excl(j) and has to be postponed to excl(k).
 Display the sort of "j" for reference:
 
   $ hg test-sts j
-  j,e,d,c,g,*,f,b,a, (no-eol) (glob)
+  j,e,d,c,g,f,b,a, (no-eol)
 
 Display the sort of "k" for reference:
 
   $ hg test-sts k
-  k,h,*,d,c,b,i,*,a, (no-eol) (glob)
+  k,h,d,c,b,i,a, (no-eol)
 
 Check that the common part of excl(j) and excl(k) is iterated over after "k":
 
   $ hg test-sts l
-  l,j,e,g,*,f,k,h,*,d,c,b,i,*,a, (no-eol) (glob)
+  l,j,e,g,f,k,h,d,c,b,i,a, (no-eol)
 
 Check the leaps of "j".
 
@@ -653,13 +653,13 @@ Display the sort of "g" for reference:
 Display the sort of "i" for reference:
 
   $ hg test-sts i
-  i,e,d,b,h,*,a, (no-eol) (glob)
+  i,e,d,b,h,a, (no-eol)
 
 Check that the common part of inherited(g) and excl(k) is iterated over after
 "i":
 
   $ hg test-sts j
-  j,g,c,f,i,e,d,b,h,*,a, (no-eol) (glob)
+  j,g,c,f,i,e,d,b,h,a, (no-eol)
 
 Check the leaps of "g".
 
@@ -754,13 +754,13 @@ Display sort(i) for reference:
 Display sort(j) for reference:
 
   $ hg test-sts j
-  j,g,*,b,h,*,d,a, (no-eol) (glob)
+  j,g,b,h,d,a, (no-eol)
 
 Check that the end of excl(i) is postponed to excl(j), the end of inherited(i)
 is postponed to inherited(j) in sort(k):
 
   $ hg test-sts k
-  k,i,c,f,e,j,g,*,b,h,*,d,a, (no-eol) (glob)
+  k,i,c,f,e,j,g,b,h,d,a, (no-eol)
 
 Check the leaps of "i".
 
@@ -868,12 +868,12 @@ stack.
 Check the stable-tail sort of "o":
 
   $ hg test-sts o
-  o,l,i,d,c,h,g,k,*,j,f,e,n,*,m,b,a, (no-eol) (glob)
+  o,l,i,d,c,h,g,k,j,f,e,n,m,b,a, (no-eol)
 
 Stale-tail sort of "l" for reference:
 
   $ hg test-sts l
-  l,i,d,c,b,h,g,k,*,j,f,e,a, (no-eol) (glob)
+  l,i,d,c,b,h,g,k,j,f,e,a, (no-eol)
 
 Check the corresponding leaps:
 
@@ -986,12 +986,12 @@ the same destination in particular.
 Check the stable-tail sort of "r":
 
   $ hg test-sts r
-  r,o,l,i,d,h,g,k,*,j,f,e,n,*,m,q,*,p,c,b,a, (no-eol) (glob)
+  r,o,l,i,d,h,g,k,j,f,e,n,m,q,p,c,b,a, (no-eol)
 
 Stable-tail sort of "o" for reference:
 
   $ hg test-sts o
-  o,l,i,d,c,h,g,k,*,j,f,e,n,*,m,b,a, (no-eol) (glob)
+  o,l,i,d,c,h,g,k,j,f,e,n,m,b,a, (no-eol)
 
 Check the associated leaps:
 
@@ -1116,12 +1116,12 @@ later in the stable-tail sort of the head).
 Check the stable-tail sort of "t":
 
   $ hg test-sts t
-  t,o,l,i,d,k,*,j,n,*,m,s,*,r,p,c,b,q,h,g,f,e,a, (no-eol) (glob)
+  t,o,l,i,d,k,j,n,m,s,r,p,c,b,q,h,g,f,e,a, (no-eol)
 
 Stable-tail sort of "o" for reference:
 
   $ hg test-sts o
-  o,l,i,d,c,h,g,k,*,j,f,e,n,*,m,b,a, (no-eol) (glob)
+  o,l,i,d,c,h,g,k,j,f,e,n,m,b,a, (no-eol)
 
 Check the associated leaps:
 
