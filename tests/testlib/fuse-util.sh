@@ -15,6 +15,7 @@ mount_FUSE() {
     hg debug::virtual-share \
        $FUSE_ROOT \
        --pid-file=$TESTTMP/fuse.pid \
+       "$@" \
        >$TESTTMP/fuse-output.log \
        2>$TESTTMP/fuse-error.log \
        &
