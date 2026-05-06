@@ -59,6 +59,22 @@ of (v1, v2, v3) and (safe, unsafe). You can choose specific test cases by
 appending them to the filename with the '#' character. For example, to run the
 v2 safe case, use './run-tests.py test-example.t#v2#safe'.
 
+### Running part of a test
+
+You can run specific line ranges of a '.t' test by appending line ranges to the
+filename after the ':' character. Here are some examples:
+
+    test-example.t:5-10       lines 5 to 10, inclusive
+    test-example.t:-20        same as 1-20
+    test-example.t:20-        from 20 to last line in file
+    test-example.t:5-10,20-   multiple ranges separated by commas
+    test-example.t#v1:-20     testcase can go before
+    test-example.t:-20#v1     ... or after
+
+A common use case is ':-N' to run the first N lines of the file. This should
+always work as long as it doesn't cut a command in half. A range like ':60-80'
+only works if that section does not depend on any side effects in lines 1-59.
+
 ## Writing a shell script test
 
 ### Be careful with new test scripts!

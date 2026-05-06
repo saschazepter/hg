@@ -1398,6 +1398,107 @@ Test globbing of local IP addresses
   $ echo dead:beef::1
   $LOCALIP (glob)
 
+Test line ranges in filename
+============================
+
+  $ cat > test-lineranges.t <<EOF
+  > #testcases A B
+  > line 2
+  >   $ echo line 3
+  > line 4
+  >   $ echo line 5
+  > line 6
+  >   $ echo line 7
+  > EOF
+  $ rt 'test-lineranges.t:1-1'
+  running 2 tests using 1 parallel processes 
+  ..
+  # Ran 2 tests, 0 skipped, 0 failed.
+  $ rt 'test-lineranges.t:1-3'
+  running 2 tests using 1 parallel processes 
+  
+  --- $TESTTMP/test-lineranges.t
+  +++ $TESTTMP/test-lineranges.t#A.err
+  @@ -1,6 +1,7 @@
+   #testcases A B
+   line 2
+     $ echo line 3
+  +  line 3
+   line 4
+     $ echo line 5
+   line 6
+  
+  ERROR: test-lineranges.t#A output changed
+  !
+  --- $TESTTMP/test-lineranges.t
+  +++ $TESTTMP/test-lineranges.t#B.err
+  @@ -1,6 +1,7 @@
+   #testcases A B
+   line 2
+     $ echo line 3
+  +  line 3
+   line 4
+     $ echo line 5
+   line 6
+  
+  ERROR: test-lineranges.t#B output changed
+  !
+  Failed test-lineranges.t#A: output changed
+  Failed test-lineranges.t#B: output changed
+  # Ran 2 tests, 0 skipped, 2 failed.
+  python hash seed: * (glob)
+  [1]
+
+
+  $ rt 'test-lineranges.t:-3,7-'
+  running 2 tests using 1 parallel processes 
+  
+  --- $TESTTMP/test-lineranges.t
+  +++ $TESTTMP/test-lineranges.t#A.err
+  @@ -1,7 +1,9 @@
+   #testcases A B
+   line 2
+     $ echo line 3
+  +  line 3
+   line 4
+     $ echo line 5
+   line 6
+     $ echo line 7
+  +  line 7
+  
+  ERROR: test-lineranges.t#A output changed
+  !
+  --- $TESTTMP/test-lineranges.t
+  +++ $TESTTMP/test-lineranges.t#B.err
+  @@ -1,7 +1,9 @@
+   #testcases A B
+   line 2
+     $ echo line 3
+  +  line 3
+   line 4
+     $ echo line 5
+   line 6
+     $ echo line 7
+  +  line 7
+  
+  ERROR: test-lineranges.t#B output changed
+  !
+  Failed test-lineranges.t#A: output changed
+  Failed test-lineranges.t#B: output changed
+  # Ran 2 tests, 0 skipped, 2 failed.
+  python hash seed: * (glob)
+  [1]
+
+  $ rt 'test-lineranges.t:-1#A'
+  running 1 tests using 1 parallel processes 
+  .
+  # Ran 1 tests, 0 skipped, 0 failed.
+
+  $ rt 'test-lineranges.t#A:-1'
+  running 1 tests using 1 parallel processes 
+  .
+  # Ran 1 tests, 0 skipped, 0 failed.
+
 Add support for external test formatter
 =======================================
 

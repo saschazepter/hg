@@ -1838,6 +1838,7 @@ class TTest(Test):
         case = kwds.pop('case', [])
         self._case = case
         self._allcases = {x for y in parsettestcases(path) for x in y}
+        self._line_ranges = kwds.pop('line_ranges', None)
         super().__init__(path, *args, **kwds)
         if case:
             casepath = b'#'.join(case)
@@ -1864,6 +1865,23 @@ class TTest(Test):
         if self._refout is not None:
             self._refout = lines
 
+        if self._line_ranges:
+            # Convert from 1-based [a,b] to 0-based [a,b)
+            spans = []
+            for a, b in self._line_ranges:
+                a = max(0, int(a) - 1) if a else 0
+                b = min(len(lines), int(b)) if b else len(lines)
+                spans.append((a, b))
+            self._original_lines = lines
+            self._range_spans = spans
+            self._range_separator = b'RANGESEP-%s\n' % uuid.uuid4().hex.encode()
+            filtered = []
+            for a, b in spans:
+                if filtered:
+                    filtered.append(self._range_separator)
+                filtered.extend(lines[a:b])
+            lines = filtered
+
         salt, script, after, expected, syntax_ok = self._parsetest(lines)
 
         # Write out the generated script.
@@ -1886,10 +1904,26 @@ class TTest(Test):
             return exitcode, output
 
         r = self._processoutput(exitcode, output, salt, after, expected)
+        if self._line_ranges:
+            r = (r[0], self._splice_into_original(r[1]))
         if not syntax_ok:
             # inject a magic exit code to signal that we had syntax error.
             return (RET_SYNTAX_ERROR,) + r[1:]
         return r
+
+    def _splice_into_original(self, postout):
+        """Splice filtered-range output back into the full original file."""
+        chunks = [[]]
+        for line in postout:
+            if line == self._range_separator:
+                chunks.append([])
+            else:
+                chunks[-1].append(line)
+        result = self._original_lines[:]
+        # Process in reverse so earlier span indices stay valid after splicing.
+        for (a, b), chunk in reversed(list(zip(self._range_spans, chunks))):
+            result[a:b] = chunk
+        return result
 
     def _hghave(self, reqs):
         allreqs = b' '.join(reqs)
@@ -3599,12 +3633,20 @@ class TestRunner:
         args = expanded_args
 
         testcase_pattern = re.compile(br'#[a-zA-Z0-9_\-.#]+')
+        linerange_pattern = re.compile(br':[0-9]*-[0-9]*(?:,[0-9]*-[0-9]*)*')
         basename_suffix_pattern = re.compile(
-            br'([\w-]+\.(?:t|py))(%s)' % testcase_pattern.pattern
+            br'([\w-]+\.(?:t|py))(%s(?:%s)?|%s(?:%s)?)'
+            % (
+                testcase_pattern.pattern,
+                linerange_pattern.pattern,
+                linerange_pattern.pattern,
+                testcase_pattern.pattern,
+            )
         )
         tests = []
         for t in args:
             case = []
+            line_ranges = None
 
             if not (
                 os.path.basename(t).startswith(b'test-')
@@ -3617,6 +3659,9 @@ class TestRunner:
                     t = os.path.join(os.path.dirname(t), t_basename)
                     if (m := testcase_pattern.search(suffix)) is not None:
                         case = m.group().removeprefix(b'#').split(b'#')
+                    if m := linerange_pattern.search(suffix):
+                        strs = m.group().removeprefix(b':').split(b',')
+                        line_ranges = [s.split(b'-') for s in strs]
                 else:
                     continue
 
@@ -3641,9 +3686,16 @@ class TestRunner:
                         cases = []
                     else:
                         pass
-                    tests += [{'path': t, 'case': c} for c in sorted(cases)]
+                    for c in sorted(cases):
+                        desc = {'path': t, 'case': c}
+                        if line_ranges:
+                            desc['line_ranges'] = line_ranges
+                        tests.append(desc)
                 else:
-                    tests.append({'path': t})
+                    desc = {'path': t}
+                    if line_ranges:
+                        desc['line_ranges'] = line_ranges
+                    tests.append(desc)
             else:
                 tests.append({'path': t})
 
@@ -3663,6 +3715,9 @@ class TestRunner:
             case = getattr(test, '_case', [])
             if case:
                 desc['case'] = case
+            line_ranges = getattr(test, '_line_ranges', None)
+            if line_ranges:
+                desc['line_ranges'] = line_ranges
             return self._gettest(desc, i)
 
         try:
@@ -3804,8 +3859,10 @@ class TestRunner:
         refpath = os.path.join(getcwdb(), path)
         tmpdir = os.path.join(self._hgtmp, b'child%d' % count)
 
-        # extra keyword parameters. 'case' is used by .t tests
-        kwds = {k: testdesc[k] for k in ['case'] if k in testdesc}
+        # extra keyword parameters. 'case' and 'line_ranges' are used by .t tests
+        kwds = {
+            k: testdesc[k] for k in ['case', 'line_ranges'] if k in testdesc
+        }
 
         t = testcls(
             refpath,
