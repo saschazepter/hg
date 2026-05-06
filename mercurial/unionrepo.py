@@ -32,12 +32,9 @@ from . import (
     pathutil,
     repo as repo_utils,
     revlog,
+    revlogutils,
     util,
     vfs as vfsmod,
-)
-
-from .revlogutils import (
-    constants as revlog_constants,
 )
 
 
@@ -102,22 +99,19 @@ class unionrevlog(revlog.revlog):
 
             # TODO: it's probably wrong to set compressed length to -1, but
             # I have no idea if csize is valid in the base revlog context.
-            e = (
-                u_index.flags(rev2),
-                u_index.data_chunk_length(rev2),
-                u_index.raw_size(rev2),
-                base,
-                link,
-                self.rev(p1node),
-                self.rev(p2node),
-                node,
-                0,  # sidedata offset
-                0,  # sidedata size
-                revlog_constants.COMP_MODE_INLINE,
-                revlog_constants.COMP_MODE_INLINE,
-                u_index.lazy_rank(rev2),
+
+            e = revlogutils.RevlogEntry(
+                flags=u_index.flags(rev2),
+                data_offset=u_index.data_chunk_start(rev2),
+                data_compressed_length=u_index.data_chunk_length(rev2),
+                data_uncompressed_length=u_index.raw_size(rev2),
+                data_delta_base=base,
+                link_rev=link,
+                parent_rev_1=self.rev(p1node),
+                parent_rev_2=self.rev(p2node),
+                node_id=node,
             )
-            self.index.append(e)
+            self.index.append(e.as_tuple())
             self.bundlerevs.add(n)
             n += 1
 
