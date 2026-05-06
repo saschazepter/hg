@@ -12,8 +12,13 @@ wait_for_mount() {
 
 mount_FUSE() {
     FUSE_ROOT="$1"; shift
-    hg debug::virtual-share $FUSE_ROOT --pid-file=$TESTTMP/fuse.pid 2>error.log &
+    hg debug::virtual-share \
+       $FUSE_ROOT \
+       --pid-file=$TESTTMP/fuse.pid \
+       >$TESTTMP/fuse-output.log \
+       2>$TESTTMP/fuse-error.log \
+       &
     wait_for_mount "hgvfs" "$FUSE_ROOT"
     cat $TESTTMP/fuse.pid >> $DAEMON_PIDS
-    cat error.log
+    cat $TESTTMP/fuse-error.log
 }

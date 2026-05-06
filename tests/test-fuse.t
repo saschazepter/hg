@@ -160,7 +160,7 @@ Create a new revision in the source
   $ hg commit -Aqm2
   $ rev2=$(hg log -r . -T "{node}\n")
   $ hg log -T"{node}\n"
-  25165a2d2ee7ee9eeabce2d8f6dd9baac706fc9a
+  b26d627c39bbff0085039f55fc894f523cf100b6
   de20532b747357719aebd9ec8f4788bb787c8b9f
   1bed6038501e18cfa5551b71175be951891ced70
 
@@ -168,7 +168,6 @@ We can access the new revision
 
   $ cd $FUSE_ROOT/commits/$rev2/files
   $ hg st -A
-  C error.log
   C file1
   C file2
   C nested/dir/file.txt
@@ -187,15 +186,15 @@ TODO improve error reporting
   $ hg commit -Aqm3
   $ rev3=$(hg log -r . -T "{node}\n")
   $ hg log -T"{node}\n"
-  2d0a46521f89ffc17a2061b20ee5622909540235
-  25165a2d2ee7ee9eeabce2d8f6dd9baac706fc9a
+  209e3ba67d62ce68bc6297e6b9fd1977ff82bf01
+  b26d627c39bbff0085039f55fc894f523cf100b6
   de20532b747357719aebd9ec8f4788bb787c8b9f
   1bed6038501e18cfa5551b71175be951891ced70
   $ hg debugupgraderepo --config format.use-fileindex-v1=yes --run -q | grep 'added: fileindex-v1'
      added: fileindex-v1
 
   $ ls $FUSE_ROOT/commits/$rev3/files
-  ls: cannot access '$TESTTMP/fuse-mount/commits/2d0a46521f89ffc17a2061b20ee5622909540235/files': Input/output error
+  ls: cannot access '$TESTTMP/fuse-mount/commits/209e3ba67d62ce68bc6297e6b9fd1977ff82bf01/files': Input/output error
   [2]
 
 
@@ -205,7 +204,7 @@ Cleanup
 This also terminates the `debug::virtual-share` invocation
 XXX teach run-tests.py to do it itself?
 
-  $ cat $TESTTMP/source/error.log
+  $ cat $TESTTMP/fuse-error.log
   $ cd $TESTTMP # move out of the FUSE so we can unmount it
   $ fusermount -u $FUSE_ROOT
   $ killdaemons.py
