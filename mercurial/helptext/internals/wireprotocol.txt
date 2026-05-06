@@ -930,6 +930,20 @@ documentation in the ``clonebundles`` extension for more.
 
 The return type is a ``string``.
 
+clonebundles_manifest
+---------------------
+
+A newer version of ``clonebundles`` that supports the `peer-bundle://` scheme,
+as well as extensible arguments.
+
+As of this writing, this command accepts only one argument:
+
+store_fingerprint
+   If set to the ascii ``string`` of ``1``, the manifest will also include
+   clonebundles that have a store fingerprint (see :hg:`help shapes`)
+
+The return type is a ``string``.
+
 getbundle
 ---------
 
