@@ -1073,10 +1073,9 @@ class MultiBlockIndex(BaseIndex):
         raise error.ProgrammingError(msg)
 
     def add_entry(self, entry: revlogutils.RevlogEntry) -> None:
-        tup = entry.as_tuple()
         if '_nodemap' in vars(self):
-            self._nodemap[tup[7]] = len(self)
-        data = self._pack_entry(len(self), tup)
+            self._nodemap[entry.node_id] = len(self)
+        data = self._pack_entry(len(self), entry)
         self._extra.append(data)
 
     @util.propertycache
@@ -1098,9 +1097,11 @@ class MultiBlockIndex(BaseIndex):
             )
 
     def _entry(self, rev: RevnumT) -> revlogutils.EntryTupleT:
-        ...
         if rev == -1:
             return self.null_item
+        return self._rich_entry(rev).as_tuple()
+
+    def _rich_entry(self, rev: RevnumT) -> revlogutils.RevlogEntry:
         self._check_index(rev)
         data = self.entry_binaries(rev)
         return self._unpack_entry(rev, data)
@@ -1110,7 +1111,7 @@ class MultiBlockIndex(BaseIndex):
     def _pack_entry(
         cls,
         rev: RevnumT,
-        entry: revlogutils.EntryTupleT,
+        entry: revlogutils.RevlogEntry,
     ) -> tuple[bytes, ...]:
         ...
 
@@ -1120,7 +1121,7 @@ class MultiBlockIndex(BaseIndex):
         cls,
         rev: RevnumT,
         data: tuple[bytes, ...],
-    ) -> revlogutils.EntryTupleT:
+    ) -> revlogutils.RevlogEntry:
         ...
 
 
@@ -1157,12 +1158,11 @@ class Index2(MultiBlockIndex):
             raise KeyError(msg)
         else:
             assert not (added_flags & dropped_flags)
-            entry = list(self._entry(rev))
-            entry[0] = entry[0] | added_flags & ~dropped_flags
-            entry[8] = sidedata_offset
-            entry[9] = sidedata_length
-            entry[11] = compression_mode
-            entry = tuple(entry)
+            entry = self._rich_entry(rev)
+            entry.flags = entry.flags | added_flags & ~dropped_flags
+            entry.sidedata_offset = sidedata_offset
+            entry.sidedata_compressed_length = sidedata_length
+            entry.sidedata_compression_mode = compression_mode
             new = self._pack_entry(rev, entry)
             self._extra[rev - self._lgt] = new
 
@@ -1171,34 +1171,51 @@ class Index2(MultiBlockIndex):
         cls,
         rev: RevnumT,
         data: tuple[bytes, ...],
-    ) -> revlogutils.EntryTupleT:
+    ) -> revlogutils.RevlogEntry:
         pieces = tuple(f.unpack(d) for f, d in zip(cls._index_formats, data))
-        entry = pieces[0]
         data_comp = pieces[1][2] & 3
         sidedata_comp = (pieces[1][2] & (3 << 2)) >> 2
-        return cast(
-            revlogutils.EntryTupleT,
-            entry
-            + (
-                pieces[1][0],
-                pieces[1][1],
-                data_comp,
-                sidedata_comp,
-                revlog_constants.RANK_UNKNOWN,
-            ),
+
+        return revlogutils.RevlogEntry(
+            flags=pieces[0][0] & 0xFFFF,
+            data_offset=pieces[0][0] >> 16,
+            data_compressed_length=pieces[0][1],
+            data_uncompressed_length=pieces[0][2],
+            data_delta_base=pieces[0][3],
+            link_rev=pieces[0][4],
+            parent_rev_1=pieces[0][5],
+            parent_rev_2=pieces[0][6],
+            node_id=pieces[0][7],
+            sidedata_offset=pieces[1][0],
+            sidedata_compressed_length=pieces[1][1],
+            data_compression_mode=data_comp,
+            sidedata_compression_mode=sidedata_comp,
         )
 
     @classmethod
     def _pack_entry(
         cls,
         rev: RevnumT,
-        entry: revlogutils.EntryTupleT,
+        entry: revlogutils.RevlogEntry,
     ) -> tuple[bytes, ...]:
-        data = entry[:10]
-        data_comp = entry[10] & 3
-        sidedata_comp = (entry[11] & 3) << 2
-        data += (data_comp | sidedata_comp,)
-        pieces = (data[:8], data[8:])
+        pieces = (
+            (
+                revlogutils.offset_type(entry.data_offset, entry.flags),
+                entry.data_compressed_length,
+                entry.data_uncompressed_length,
+                entry.data_delta_base,
+                entry.link_rev,
+                entry.parent_rev_1,
+                entry.parent_rev_2,
+                entry.node_id,
+            ),
+            (
+                entry.sidedata_offset,
+                entry.sidedata_compressed_length,
+                (entry.data_compression_mode & 3)
+                | ((entry.sidedata_compression_mode & 3) << 2),
+            ),
+        )
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
 
 
@@ -1222,55 +1239,69 @@ class IndexChangelogV2(Index2):
         cls,
         rev: RevnumT,
         data: tuple[bytes, ...],
-    ) -> revlogutils.EntryTupleT:
+    ) -> revlogutils.RevlogEntry:
         items = sum(
             (f.unpack(d) for f, d in zip(cls._index_formats, data)),
             start=(),
         )
-        return (
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_OFFSET],
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSED_LENGTH],
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_UNCOMPRESSED_LENGTH],
-            rev,
-            rev,
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_PARENT_1],
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_PARENT_2],
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_NODEID],
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_SIDEDATA_OFFSET],
-            items[
+        return revlogutils.RevlogEntry(
+            flags=items[revlog_constants.INDEX_ENTRY_V2_IDX_OFFSET] & 0xFFFF,
+            data_offset=items[revlog_constants.INDEX_ENTRY_V2_IDX_OFFSET] >> 16,
+            data_compressed_length=items[
+                revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSED_LENGTH
+            ],
+            data_uncompressed_length=items[
+                revlog_constants.INDEX_ENTRY_V2_IDX_UNCOMPRESSED_LENGTH
+            ],
+            data_delta_base=rev,
+            link_rev=rev,
+            parent_rev_1=items[revlog_constants.INDEX_ENTRY_V2_IDX_PARENT_1],
+            parent_rev_2=items[revlog_constants.INDEX_ENTRY_V2_IDX_PARENT_2],
+            node_id=items[revlog_constants.INDEX_ENTRY_V2_IDX_NODEID],
+            sidedata_offset=items[
+                revlog_constants.INDEX_ENTRY_V2_IDX_SIDEDATA_OFFSET
+            ],
+            sidedata_compressed_length=items[
                 revlog_constants.INDEX_ENTRY_V2_IDX_SIDEDATA_COMPRESSED_LENGTH
             ],
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSION_MODE] & 3,
-            (items[revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSION_MODE] >> 2)
+            data_compression_mode=items[
+                revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSION_MODE
+            ]
             & 3,
-            items[revlog_constants.INDEX_ENTRY_V2_IDX_RANK],
+            sidedata_compression_mode=(
+                items[revlog_constants.INDEX_ENTRY_V2_IDX_COMPRESSION_MODE] >> 2
+            )
+            & 3,
+            rank=items[revlog_constants.INDEX_ENTRY_V2_IDX_RANK],
         )
 
     @classmethod
     def _pack_entry(
         cls,
         rev: RevnumT,
-        entry: revlogutils.EntryTupleT,
+        entry: revlogutils.RevlogEntry,
     ) -> tuple[bytes, ...]:
-        base = entry[revlog_constants.ENTRY_DELTA_BASE]
-        link_rev = entry[revlog_constants.ENTRY_LINK_REV]
+        base = entry.data_delta_base
+        link_rev = entry.link_rev
         assert base == rev, (base, rev)
         assert link_rev == rev, (link_rev, rev)
-        data = (
-            entry[revlog_constants.ENTRY_DATA_OFFSET],
-            entry[revlog_constants.ENTRY_DATA_COMPRESSED_LENGTH],
-            entry[revlog_constants.ENTRY_DATA_UNCOMPRESSED_LENGTH],
-            entry[revlog_constants.ENTRY_PARENT_1],
-            entry[revlog_constants.ENTRY_PARENT_2],
-            entry[revlog_constants.ENTRY_NODE_ID],
-            entry[revlog_constants.ENTRY_SIDEDATA_OFFSET],
-            entry[revlog_constants.ENTRY_SIDEDATA_COMPRESSED_LENGTH],
-            entry[revlog_constants.ENTRY_DATA_COMPRESSION_MODE] & 3
-            | (entry[revlog_constants.ENTRY_SIDEDATA_COMPRESSION_MODE] & 3)
-            << 2,
-            entry[revlog_constants.ENTRY_RANK],
+        pieces = (
+            (
+                revlogutils.offset_type(entry.data_offset, entry.flags),
+                entry.data_compressed_length,
+                entry.data_uncompressed_length,
+                entry.parent_rev_1,
+                entry.parent_rev_2,
+                entry.node_id,
+                entry.sidedata_offset,
+            ),
+            (
+                entry.sidedata_compressed_length,
+                (entry.data_compression_mode & 3)
+                | ((entry.sidedata_compression_mode & 3) << 2),
+                entry.rank,
+            ),
         )
-        pieces = (data[:7], data[7:])
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
 
 
