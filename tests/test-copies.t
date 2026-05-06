@@ -1,4 +1,4 @@
-#testcases filelog compatibility changeset sidedata
+#testcases filelog sidedata
 
   $ cat >> $HGRCPATH << EOF
   > [extensions]
@@ -6,21 +6,6 @@
   > [alias]
   > l = log -G -T '{rev} {desc}\n{files}\n'
   > EOF
-
-#if compatibility
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > copies.read-from = compatibility
-  > EOF
-#endif
-
-#if changeset
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > copies.read-from = changeset-only
-  > copies.write-to = changeset-only
-  > EOF
-#endif
 
 #if sidedata
   $ cat >> $HGRCPATH << EOF
@@ -340,15 +325,13 @@ Copy file that exists on both sides of the merge, different content
   o  0 add x on branch 1
      x
   $ hg debugp1copies -r 2
-  x -> z (changeset !)
   x -> z (sidedata !)
   $ hg debugp2copies -r 2
-  x -> z (no-changeset no-sidedata !)
+  x -> z (no-sidedata !)
   $ hg debugpathcopies 1 2
-  x -> z (changeset !)
   x -> z (sidedata !)
   $ hg debugpathcopies 0 2
-  x -> z (no-changeset no-sidedata !)
+  x -> z (no-sidedata !)
 
 Copy x->y on one side of merge and copy x->z on the other side. Pathcopies from one parent
 of the merge to the merge should include the copy from the other side.
@@ -597,7 +580,7 @@ Try merging the other direction too
   $ hg debugpathcopies 2 4
   x -> z (no-filelog !)
   $ hg debugpathcopies 0 4
-  x -> z (no-changeset no-compatibility !)
+  x -> z
   $ hg debugpathcopies 1 5
   $ hg debugpathcopies 2 5
   x -> z (no-filelog !)
@@ -652,15 +635,13 @@ Grafting revision 4 on top of revision 2, showing that it respect the rename:
 
   $ hg up 2 -q
   $ hg graft -r 4 --base 3 --hidden
-  grafting 4:af28412ec03c "added d, modified b" (tip) (no-changeset !)
-  grafting 4:6325ca0b7a1c "added d, modified b" (tip) (changeset !)
+  grafting 4:af28412ec03c "added d, modified b" (tip)
   merging b1 and b to b1
 
   $ hg l -l1 -p
   @  5 added d, modified b
   |  b1
-  ~  diff -r 5a4825cc2926 -r 94a2f1a0e8e2 b1 (no-changeset !)
-  ~  diff -r 0a0ed3b3251c -r d544fb655520 b1 (changeset !)
+  ~  diff -r 5a4825cc2926 -r 94a2f1a0e8e2 b1
      --- a/b1	Thu Jan 01 00:00:00 1970 +0000
      +++ b/b1	Thu Jan 01 00:00:00 1970 +0000
      @@ -1,1 +1,2 @@
@@ -720,8 +701,7 @@ merging csets is a descendant of the base.
      a
 
   $ hg rebase -r . -d 2 -t :other
-  rebasing 5:5018b1509e94 tip "added willconflict and d" (no-changeset !)
-  rebasing 5:af8d273bf580 tip "added willconflict and d" (changeset !)
+  rebasing 5:5018b1509e94 tip "added willconflict and d"
 
   $ hg up 3 -q
   $ hg l --hidden
@@ -744,5 +724,4 @@ Now if we trigger a merge between revision 3 and 6 using base revision 4,
 neither of the merging csets will be a descendant of the base revision:
 
   $ hg graft -r 6 --base 4 --hidden -t :other
-  grafting 6:99802e4f1e46 "added willconflict and d" (tip) (no-changeset !)
-  grafting 6:b19f0df72728 "added willconflict and d" (tip) (changeset !)
+  grafting 6:99802e4f1e46 "added willconflict and d" (tip)

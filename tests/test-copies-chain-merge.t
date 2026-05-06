@@ -1,4 +1,4 @@
-#testcases filelog compatibility changeset sidedata upgraded upgraded-parallel pull push pull-upgrade push-upgrade
+#testcases filelog sidedata upgraded upgraded-parallel pull push pull-upgrade push-upgrade
 
 =====================================================
 Test Copy tracing for chain of copies involving merge
@@ -33,20 +33,6 @@ use git diff to see rename
   > log={desc}\n
   > EOF
 
-#if compatibility
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > copies.read-from = compatibility
-  > EOF
-#endif
-
-#if changeset
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > copies.read-from = changeset-only
-  > copies.write-to = changeset-only
-  > EOF
-#endif
 
 #if sidedata
   $ cat >> $HGRCPATH << EOF
@@ -418,16 +404,13 @@ Subcase: new copy information on both side
   $ hg up 'desc("a-2")'
   2 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ hg merge 'desc("e-2")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mAEm-0 $case_desc - one way"
   $ hg up 'desc("e-2")'
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("a-2")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mEAm-0 $case_desc - the other way"
   created new head
@@ -512,16 +495,13 @@ Merge:
   $ hg commit -m "f-2: rename i -> d"
   $ hg debugindex d | "$PYTHON" ../no-linkrev
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * d8252ab2e760 000000000000 000000000000 (no-changeset !)
-       0       * ae258f702dfe 000000000000 000000000000 (changeset !)
+       0       * d8252ab2e760 000000000000 000000000000
        1       * b004912a8510 000000000000 000000000000
-       2       * 7b79e2fe0c89 000000000000 000000000000 (no-changeset !)
+       2       * 7b79e2fe0c89 000000000000 000000000000
   $ hg up 'desc("b-1")'
-  3 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("f-2")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mBFm-0 $case_desc - one way"
   $ hg up 'desc("f-2")'
@@ -568,10 +548,8 @@ Merge:
   $ hg commit -m "r-2: rename t -> x"
   $ hg debugindex t | "$PYTHON" ../no-linkrev
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * d74efbf65309 000000000000 000000000000 (no-changeset !)
-       1       * 02a930b9d7ad 000000000000 000000000000 (no-changeset !)
-       0       * 5aed6a8dbff0 000000000000 000000000000 (changeset !)
-       1       * a38b2fa17021 000000000000 000000000000 (changeset !)
+       0       * d74efbf65309 000000000000 000000000000
+       1       * 02a930b9d7ad 000000000000 000000000000
   $ hg up 'desc("b-1")'
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("r-2")'
@@ -676,19 +654,16 @@ Note:
   $ hg up 'desc("f-2")'
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ hg merge 'desc("g-1")' --tool :union
-  merging d (no-changeset !)
-  0 files updated, 1 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  merging d
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mFGm-0 $case_desc - one way"
   created new head
   $ hg up 'desc("g-1")'
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("f-2")' --tool :union
-  merging d (no-changeset !)
-  0 files updated, 1 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  merging d
+  0 files updated, 1 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mGFm-0 $case_desc - the other way"
   created new head
@@ -885,8 +860,7 @@ Same as `mAEm` and `mEAm` but with extra change to the file before commiting
   $ hg up 'desc("a-2")'
   2 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ hg merge 'desc("e-2")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ echo "content change for mAE-change-m" > f
   $ hg ci -m "mAE-change-m-0 $case_desc - one way"
@@ -894,8 +868,7 @@ Same as `mAEm` and `mEAm` but with extra change to the file before commiting
   $ hg up 'desc("e-2")'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("a-2")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ echo "content change for mEA-change-m" > f
   $ hg ci -m "mEA-change-m-0 $case_desc - the other way"
@@ -932,7 +905,6 @@ Merge:
 
   $ hg up 'desc("f-2")'
   2 files updated, 0 files merged, 2 files removed, 0 files unresolved
-#if no-changeset
   $ hg debugindex d | "$PYTHON" ../no-linkrev
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       * d8252ab2e760 000000000000 000000000000
@@ -943,28 +915,16 @@ Merge:
        5       * 19c0e3924691 17ec97e60577 b004912a8510
        6       * 89c873a01d97 7b79e2fe0c89 17ec97e60577
        7       * d55cb4e9ef57 000000000000 000000000000
-#else
-  $ hg debugindex d | "$PYTHON" ../no-linkrev
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * ae258f702dfe 000000000000 000000000000
-       1       * b004912a8510 000000000000 000000000000
-       2       * 5cce88bf349f ae258f702dfe 000000000000
-       3       * cc269dd788c8 b004912a8510 5cce88bf349f
-       4       * 51c91a115080 5cce88bf349f b004912a8510
-#endif
   $ hg up 'desc("b-1")'
-  3 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("f-2")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ echo "extra-change to (formelly h) during the merge" > d
   $ hg ci -m "mBF-change-m-0 $case_desc - one way"
   created new head
   $ hg manifest --rev . --debug | grep "  d"
-  1c334238bd42ec85c6a0d83fd1b2a898a6a3215d 644   d (no-changeset !)
-  cea2d99c0fde64672ef61953786fdff34f16e230 644   d (changeset !)
+  1c334238bd42ec85c6a0d83fd1b2a898a6a3215d 644   d
 
   $ hg up 'desc("f-2")'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -975,9 +935,7 @@ Merge:
   $ hg ci -m "mFB-change-m-0 $case_desc - the other way"
   created new head
   $ hg manifest --rev . --debug | grep "  d"
-  1c334238bd42ec85c6a0d83fd1b2a898a6a3215d 644   d (no-changeset !)
-  cea2d99c0fde64672ef61953786fdff34f16e230 644   d (changeset !)
-#if no-changeset
+  1c334238bd42ec85c6a0d83fd1b2a898a6a3215d 644   d
   $ hg debugindex d | "$PYTHON" ../no-linkrev
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       * d8252ab2e760 000000000000 000000000000
@@ -989,16 +947,6 @@ Merge:
        6       * 89c873a01d97 7b79e2fe0c89 17ec97e60577
        7       * d55cb4e9ef57 000000000000 000000000000
        8       * 1c334238bd42 7b79e2fe0c89 000000000000
-#else
-  $ hg debugindex d | "$PYTHON" ../no-linkrev
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * ae258f702dfe 000000000000 000000000000
-       1       * b004912a8510 000000000000 000000000000
-       2       * 5cce88bf349f ae258f702dfe 000000000000
-       3       * cc269dd788c8 b004912a8510 5cce88bf349f
-       4       * 51c91a115080 5cce88bf349f b004912a8510
-       5       * cea2d99c0fde ae258f702dfe 000000000000
-#endif
   $ hg log -G --rev '::(desc("mBF-change-m")+desc("mFB-change-m"))'
   @    mFB-change-m-0 merge with extra change - B side: unrelated change, F side: overwrite d with a copy (from h->i->d) - the other way
   |\
@@ -1040,8 +988,7 @@ copy tracing chain.
   $ hg ci -m "mCB-change-m-0 $case_desc - one way"
   created new head
   $ hg manifest --rev . --debug | grep "  d"
-  e333780c17752a3b0dd15e3ad48aa4e5c745f621 644   d (no-changeset !)
-  4b540a18ad699234b2b2aa18cb69555ac9c4b1df 644   d (changeset !)
+  e333780c17752a3b0dd15e3ad48aa4e5c745f621 644   d
 
   $ hg up 'desc("b-1")'
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -1053,8 +1000,7 @@ copy tracing chain.
   $ hg ci -m "mBC-change-m-0 $case_desc - the other way"
   created new head
   $ hg manifest --rev . --debug | grep "  d"
-  e333780c17752a3b0dd15e3ad48aa4e5c745f621 644   d (no-changeset !)
-  4b540a18ad699234b2b2aa18cb69555ac9c4b1df 644   d (changeset !)
+  e333780c17752a3b0dd15e3ad48aa4e5c745f621 644   d
 
 
   $ hg up null --quiet
@@ -1099,8 +1045,7 @@ We also touch J during some of the merge to check for unrelated change to new fi
   created new head
 
   $ hg up 'desc("e-2")'
-  2 files updated, 0 files merged, 2 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 2 files removed, 0 files unresolved (changeset !)
+  2 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ echo k > unrelated-k
   $ hg add unrelated-k
   $ hg ci -m 'k-1: unrelated changes (based on "e" changes)'
@@ -1109,8 +1054,7 @@ We also touch J during some of the merge to check for unrelated change to new fi
 (merge variant 1)
 
   $ hg up 'desc("mAEm")'
-  1 files updated, 0 files merged, 2 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 2 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg merge 'desc("k-1")'
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -1119,12 +1063,10 @@ We also touch J during some of the merge to check for unrelated change to new fi
 (merge variant 2)
 
   $ hg up 'desc("k-1")'
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ hg merge 'desc("mAEm")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mK,AEm: $case_desc"
   created new head
@@ -1142,11 +1084,9 @@ We also touch J during some of the merge to check for unrelated change to new fi
 (merge variant 4)
 
   $ hg up 'desc("j-1")'
-  3 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("mEAm")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ echo jj > unrelated-j
   $ hg ci -m "mJ,EAm: $case_desc"
@@ -1378,8 +1318,7 @@ When a non-rename change are merged with a copy overwrite, the merge pick the co
 (extra unrelated changes)
 
   $ hg up 'desc("f-2")'
-  2 files updated, 0 files merged, 2 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 2 files removed, 0 files unresolved (changeset !)
+  2 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ echo n > unrelated-n
   $ hg add unrelated-n
   $ hg ci -m 'n-1: unrelated changes (based on the "f" series of changes)'
@@ -1395,8 +1334,7 @@ When a non-rename change are merged with a copy overwrite, the merge pick the co
 (merge variant 1)
 
   $ hg up 'desc("mFGm")'
-  1 files updated, 0 files merged, 2 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 2 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg merge 'desc("o-1")'
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -1405,11 +1343,9 @@ When a non-rename change are merged with a copy overwrite, the merge pick the co
 (merge variant 2)
 
   $ hg up 'desc("o-1")'
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved (no-changeset !)
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved (changeset !)
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge 'desc("FGm")'
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved (no-changeset !)
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved (changeset !)
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg ci -m "mO,FGm: $case_desc"
   created new head
@@ -1767,7 +1703,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   $ cd ../repo-chain
 #endif
 
-#if no-compatibility no-filelog no-changeset
+#if no-filelog
 
   $ hg debugchangedfiles --compute 0
   added      : a, ;
@@ -2198,7 +2134,7 @@ The two status call should give the same value for f
   R p
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("a-2")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
 merging with unrelated change does not interfere with the renames
 ---------------------------------------------------------------
@@ -2401,15 +2337,12 @@ The bugs makes recorded copy is different depending of where we started the merg
   $ hg manifest --debug --rev 'desc("d-2")' | grep '644   d'
   b004912a8510032a0350a74daa2803dadfb00e12 644   d
   $ hg manifest --debug --rev 'desc("b-1")' | grep '644   d'
-  d8252ab2e760b0d4e5288fd44cbd15a0fa567e16 644   d (no-changeset !)
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   d (changeset !)
+  d8252ab2e760b0d4e5288fd44cbd15a0fa567e16 644   d
   $ hg debugindex d | head -n 4 | "$PYTHON" ../no-linkrev
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * d8252ab2e760 000000000000 000000000000 (no-changeset !)
-       0       * ae258f702dfe 000000000000 000000000000 (changeset !)
+       0       * d8252ab2e760 000000000000 000000000000
        1       * b004912a8510 000000000000 000000000000
-       2       * 7b79e2fe0c89 000000000000 000000000000 (no-changeset !)
-       2       * 5cce88bf349f ae258f702dfe 000000000000 (changeset !)
+       2       * 7b79e2fe0c89 000000000000 000000000000
 
 Log output should not include a merge commit as it did not happen
 
@@ -2467,7 +2400,6 @@ Subcase: new copy information on both side
   |
   o  i-0 initial commit: a b h p q r
   
-#if no-changeset
   $ hg manifest --debug --rev 'desc("mAEm-0")' | grep '644   f'
   2ff93c643948464ee1f871867910ae43a45b0bea 644   f
   $ hg manifest --debug --rev 'desc("mEAm-0")' | grep '644   f'
@@ -2483,41 +2415,26 @@ Subcase: new copy information on both side
        2       * 2ff93c643948 b76eb76580df e8825b386367
        3       * 2f649fba7eb2 b76eb76580df e8825b386367
        4       * 774e7c1637d5 e8825b386367 b76eb76580df
-#else
-  $ hg manifest --debug --rev 'desc("mAEm-0")' | grep '644   f'
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   f
-  $ hg manifest --debug --rev 'desc("mEAm-0")' | grep '644   f'
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   f
-  $ hg manifest --debug --rev 'desc("a-2")' | grep '644   f'
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   f
-  $ hg manifest --debug --rev 'desc("e-2")' | grep '644   f'
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   f
-  $ hg debugindex f | "$PYTHON" ../no-linkrev
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * ae258f702dfe 000000000000 000000000000
-       1       * d3613c1ec831 ae258f702dfe 000000000000
-       2       * 05e03c868bbc ae258f702dfe 000000000000
-#endif
 
 # Here the filelog based implementation is not looking at the rename
 # information (because the file exist on both side). However the changelog
 # based on works fine. We have different output.
 
   $ hg status --copies --rev 'desc("a-2")' --rev 'desc("mAEm-0")'
-  M f (no-changeset !)
-    b (no-filelog no-changeset !)
+  M f
+    b (no-filelog !)
   R b
   $ hg status --copies --rev 'desc("a-2")' --rev 'desc("mEAm-0")'
-  M f (no-changeset !)
-    b (no-filelog no-changeset !)
+  M f
+    b (no-filelog !)
   R b
   $ hg status --copies --rev 'desc("e-2")' --rev 'desc("mAEm-0")'
-  M f (no-changeset !)
-    d (no-filelog no-changeset !)
+  M f
+    d (no-filelog !)
   R d
   $ hg status --copies --rev 'desc("e-2")' --rev 'desc("mEAm-0")'
-  M f (no-changeset !)
-    d (no-filelog no-changeset !)
+  M f
+    d (no-filelog !)
   R d
   $ hg status --copies --rev 'desc("i-2")' --rev 'desc("a-2")'
   A f
@@ -2617,29 +2534,28 @@ Merge:
   R h
   R p
   $ hg status --copies --rev 'desc("b-1")' --rev 'desc("mBFm-0")'
-  M d (no-changeset !)
-    h (no-filelog no-changeset !)
+  M d
+    h (no-filelog !)
   R h
   $ hg status --copies --rev 'desc("f-2")' --rev 'desc("mBFm-0")'
   M b
   $ hg status --copies --rev 'desc("f-1")' --rev 'desc("mBFm-0")'
   M b
-  M d (no-changeset !)
-    i (no-filelog no-changeset !)
+  M d
+    i (no-filelog !)
   R i
   $ hg status --copies --rev 'desc("b-1")' --rev 'desc("mFBm-0")'
-  M d (no-changeset !)
-    h (no-filelog no-changeset !)
+  M d
+    h (no-filelog !)
   R h
   $ hg status --copies --rev 'desc("f-2")' --rev 'desc("mFBm-0")'
   M b
   $ hg status --copies --rev 'desc("f-1")' --rev 'desc("mFBm-0")'
   M b
-  M d (no-changeset !)
-    i (no-filelog no-changeset !)
+  M d
+    i (no-filelog !)
   R i
 
-#if no-changeset
   $ hg log -Gfr 'desc("mBFm-0")' d
   o  f-2: rename i -> d
   |
@@ -2647,15 +2563,7 @@ Merge:
   :
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mBFm-0")' d
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
-#if no-changeset
   $ hg log -Gfr 'desc("mFBm-0")' d
   o  f-2: rename i -> d
   |
@@ -2663,13 +2571,6 @@ BROKEN: `hg log --follow <file>` relies on filelog metadata to work
   :
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mFBm-0")' d
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
 
 Subcase: existing copy information overwritten on one branch, with different content)
@@ -2737,7 +2638,6 @@ Merge:
     x (no-filelog !)
   R x
 
-#if no-changeset
   $ hg log -Gfr 'desc("mBRm-0")' d
   o  i-2: c -move-> d, s -move-> t
   |
@@ -2745,15 +2645,7 @@ Merge:
   |
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mBRm-0")' d
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
-#if no-changeset
   $ hg log -Gfr 'desc("mRBm-0")' d
   o  i-2: c -move-> d, s -move-> t
   |
@@ -2761,13 +2653,6 @@ BROKEN: `hg log --follow <file>` relies on filelog metadata to work
   |
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mRBm-0")' d
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
 Subcase: reset of the copy history on one side
 ``````````````````````````````````````````````
@@ -2825,7 +2710,6 @@ revision numbers)
   $ hg status --copies --rev 'desc("g-1")' --rev 'desc("mGDm-0")'
   M d
 
-#if no-changeset
   $ hg log -Gfr 'desc("mDGm-0")' d
   o    mDGm-0 actual content merge, copies on one side - D side: delete and re-add (different content), G side: update content - one way
   |\
@@ -2839,22 +2723,8 @@ revision numbers)
   |
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mDGm-0")' d
-  o    mDGm-0 actual content merge, copies on one side - D side: delete and re-add (different content), G side: update content - one way
-  |\
-  | o  g-1: update d
-  | |
-  o |  d-2 re-add d
-  |/
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
 
-#if no-changeset
   $ hg log -Gfr 'desc("mDGm-0")' d
   o    mDGm-0 actual content merge, copies on one side - D side: delete and re-add (different content), G side: update content - one way
   |\
@@ -2868,19 +2738,6 @@ BROKEN: `hg log --follow <file>` relies on filelog metadata to work
   |
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mDGm-0")' d
-  o    mDGm-0 actual content merge, copies on one side - D side: delete and re-add (different content), G side: update content - one way
-  |\
-  | o  g-1: update d
-  | |
-  o |  d-2 re-add d
-  |/
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
 Subcase: merging a change to a file with a "copy overwrite" to that file from another branch
 ````````````````````````````````````````````````````````````````````````````````````````````
@@ -2922,18 +2779,16 @@ In this case, the file hash from "f-2" is lower, so it will be `p1` of the resul
 Details on this hash ordering pick:
 
   $ hg manifest --debug 'desc("g-1")' | grep -E 'd$'
-  17ec97e605773eb44a117d1136b3849bcdc1924f 644   d (no-changeset !)
-  5cce88bf349f7c742bb440f2c53f81db9c294279 644   d (changeset !)
+  17ec97e605773eb44a117d1136b3849bcdc1924f 644   d
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("g-1")' d
   A d
-    a (no-changeset no-compatibility !)
+    a
 
   $ hg manifest --debug 'desc("f-2")' | grep -E 'd$'
-  7b79e2fe0c8924e0e598a82f048a7b024afa4d96 644   d (no-changeset !)
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   d (changeset !)
+  7b79e2fe0c8924e0e598a82f048a7b024afa4d96 644   d
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("f-2")' d
   A d
-    h (no-changeset no-compatibility !)
+    h
 
 Copy tracing data on the resulting merge:
 
@@ -2948,8 +2803,7 @@ Copy tracing data on the resulting merge:
   R p
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mGFm-0")'
   A d
-    a (no-changeset !)
-    h (changeset !)
+    a
   A t
     p
   R a
@@ -2968,15 +2822,14 @@ Copy tracing data on the resulting merge:
     i (no-filelog !)
   R i
   $ hg status --copies --rev 'desc("g-1")' --rev 'desc("mFGm-0")'
-  M d (no-changeset !)
-    h (no-filelog no-changeset !)
+  M d
+    h (no-filelog !)
   R h
   $ hg status --copies --rev 'desc("g-1")' --rev 'desc("mGFm-0")'
-  M d (no-changeset !)
-    h (no-filelog no-changeset !)
+  M d
+    h (no-filelog !)
   R h
 
-#if no-changeset
   $ hg log -Gfr 'desc("mFGm-0")' d
   o    mFGm-0 merge - G side: content change, F side: copy overwrite, no content change - one way
   |\
@@ -2992,17 +2845,7 @@ Copy tracing data on the resulting merge:
   |
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mFGm-0")' d
-  o  g-1: update d
-  |
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
-#if no-changeset
   $ hg log -Gfr 'desc("mGFm-0")' d
   o    mGFm-0 merge - G side: content change, F side: copy overwrite, no content change - the other way
   |\
@@ -3018,15 +2861,6 @@ BROKEN: `hg log --follow <file>` relies on filelog metadata to work
   |
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mGFm-0")' d
-  o  g-1: update d
-  |
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
 Subcase: new copy information on both side with an actual merge happening
 `````````````````````````````````````````````````````````````````````````
@@ -3055,7 +2889,6 @@ Subcase: new copy information on both side with an actual merge happening
   o  i-0 initial commit: a b h p q r
   
 
-#if no-changeset
   $ hg manifest --debug --rev 'desc("mPQm-0")' | grep '644   v'
   0946c662ef16e4e67397fd717389eb6693d41749 644   v
   $ hg manifest --debug --rev 'desc("mQPm-0")' | grep '644   v'
@@ -3070,22 +2903,6 @@ Subcase: new copy information on both side with an actual merge happening
        1       * c43c088b811f 000000000000 000000000000
        2       * 0946c662ef16 3f91841cd75c c43c088b811f
        3       * 0db3aad7fcc1 c43c088b811f 3f91841cd75c
-#else
-  $ hg manifest --debug --rev 'desc("mPQm-0")' | grep '644   v'
-  65fde9f6e4d4da23b3f610e07b53673ea9541d75 644   v
-  $ hg manifest --debug --rev 'desc("mQPm-0")' | grep '644   v'
-  a098dda6413aecf154eefc976afc38b295acb7e5 644   v
-  $ hg manifest --debug --rev 'desc("p-2")' | grep '644   v'
-  5aed6a8dbff0301328c08360d24354d3d064cf0d 644   v
-  $ hg manifest --debug --rev 'desc("q-2")' | grep '644   v'
-  a38b2fa170219750dac9bc7d19df831f213ba708 644   v
-  $ hg debugindex v | "$PYTHON" ../no-linkrev
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * 5aed6a8dbff0 000000000000 000000000000
-       1       * a38b2fa17021 000000000000 000000000000
-       2       * 65fde9f6e4d4 5aed6a8dbff0 a38b2fa17021
-       3       * a098dda6413a a38b2fa17021 5aed6a8dbff0
-#endif
 
 # Here the filelog based implementation is not looking at the rename
 # information (because the file exist on both side). However the changelog
@@ -3188,14 +3005,14 @@ copy tracing chain.
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mCGm-0")'
   A d
-    a (no-compatibility no-changeset !)
+    a
   A t
     p
   R a
   R p
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mGCm-0")'
   A d
-    a (no-compatibility no-changeset !)
+    a
   A t
     p
   R a
@@ -3240,7 +3057,7 @@ copy tracing chain.
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mCB-revert-m-0")'
   M b
   A d
-    a (no-compatibility no-changeset !)
+    a
   A t
     p
   R a
@@ -3248,7 +3065,7 @@ copy tracing chain.
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mBC-revert-m-0")'
   M b
   A d
-    a (no-compatibility no-changeset !)
+    a
   A t
     p
   R a
@@ -3289,7 +3106,7 @@ rename information actually conflict with the other branch.
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mCH-delete-before-conflict-m")'
   A d
-    b (no-compatibility no-changeset !)
+    b
   A t
     p
   R a
@@ -3353,7 +3170,6 @@ Subcase: merge has same initial content on both side, but merge introduced a cha
   |
   o  i-0 initial commit: a b h p q r
   
-#if no-changeset
   $ hg manifest --debug --rev 'desc("mAE-change-m-0")' | grep '644   f'
   2f649fba7eb284e720d02b61f0546fcef694c045 644   f
   $ hg manifest --debug --rev 'desc("mEA-change-m-0")' | grep '644   f'
@@ -3369,21 +3185,6 @@ Subcase: merge has same initial content on both side, but merge introduced a cha
        2       * 2ff93c643948 b76eb76580df e8825b386367
        3       * 2f649fba7eb2 b76eb76580df e8825b386367
        4       * 774e7c1637d5 e8825b386367 b76eb76580df
-#else
-  $ hg manifest --debug --rev 'desc("mAE-change-m-0")' | grep '644   f'
-  d3613c1ec8310a812ac4268fd853ac576b6caea5 644   f
-  $ hg manifest --debug --rev 'desc("mEA-change-m-0")' | grep '644   f'
-  05e03c868bbcab4a649cb33a238d7aa07398a469 644   f
-  $ hg manifest --debug --rev 'desc("a-2")' | grep '644   f'
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   f
-  $ hg manifest --debug --rev 'desc("e-2")' | grep '644   f'
-  ae258f702dfeca05bf9b6a22a97a4b5645570f11 644   f
-  $ hg debugindex f | "$PYTHON" ../no-linkrev
-     rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       * ae258f702dfe 000000000000 000000000000
-       1       * d3613c1ec831 ae258f702dfe 000000000000
-       2       * 05e03c868bbc ae258f702dfe 000000000000
-#endif
 
 # Here the filelog based implementation is not looking at the rename
 # information (because the file exist on both side). However the changelog
@@ -3522,7 +3323,6 @@ Merge:
     i (no-filelog !)
   R i
 
-#if no-changeset
   $ hg log -Gfr 'desc("mBF-change-m-0")' d
   o    mBF-change-m-0 merge with extra change - B side: unrelated change, F side: overwrite d with a copy (from h->i->d) - one way
   |\
@@ -3532,17 +3332,7 @@ Merge:
   :/
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mBF-change-m-0")' d
-  o  mBF-change-m-0 merge with extra change - B side: unrelated change, F side: overwrite d with a copy (from h->i->d) - one way
-  :
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
-#if no-changeset
   $ hg log -Gfr 'desc("mFB-change-m-0")' d
   o    mFB-change-m-0 merge with extra change - B side: unrelated change, F side: overwrite d with a copy (from h->i->d) - the other way
   |\
@@ -3552,15 +3342,6 @@ BROKEN: `hg log --follow <file>` relies on filelog metadata to work
   :/
   o  i-0 initial commit: a b h p q r
   
-#else
-BROKEN: `hg log --follow <file>` relies on filelog metadata to work
-  $ hg log -Gfr 'desc("mFB-change-m-0")' d
-  o  mFB-change-m-0 merge with extra change - B side: unrelated change, F side: overwrite d with a copy (from h->i->d) - the other way
-  :
-  o  i-2: c -move-> d, s -move-> t
-  |
-  ~
-#endif
 
 
 Subcase: restoring and untouched deleted file, while touching it
@@ -3595,7 +3376,7 @@ copy tracing chain.
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mCB-change-m-0")'
   M b
   A d
-    a (no-compatibility no-changeset !)
+    a
   A t
     p
   R a
@@ -3603,7 +3384,7 @@ copy tracing chain.
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mBC-change-m-0")'
   M b
   A d
-    a (no-compatibility no-changeset !)
+    a
   A t
     p
   R a
@@ -3636,15 +3417,15 @@ The result from mAEm is the same for the subsequent merge:
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mAEm")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mAE,Km")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mK,AEm")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
 
 The result from mEAm is the same for the subsequent merge:
@@ -3652,17 +3433,17 @@ The result from mEAm is the same for the subsequent merge:
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mEAm")' f
   A f
     a (filelog !)
-    b (no-changeset no-compatibility no-filelog !)
+    b (no-filelog !)
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mEA,Jm")' f
   A f
     a (filelog !)
-    b (no-changeset no-compatibility no-filelog !)
+    b (no-filelog !)
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mJ,EAm")' f
   A f
     a (filelog !)
-    b (no-changeset no-compatibility no-filelog !)
+    b (no-filelog !)
 
 Subcase: chaining conflicting rename resolution
 ```````````````````````````````````````````````
@@ -3677,32 +3458,32 @@ The result from mPQm is the same for the subsequent merge:
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mPQm")' v
   A v
     r (filelog !)
-    p (no-changeset no-compatibility no-filelog !)
+    p (no-filelog !)
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mPQ,Tm")' v
   A v
     r (filelog !)
-    p (no-changeset no-compatibility no-filelog !)
+    p (no-filelog !)
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mT,PQm")' v
   A v
     r (filelog !)
-    p (no-changeset no-compatibility no-filelog !)
+    p (no-filelog !)
 
 The result from mQPm is the same for the subsequent merge:
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mQPm")' v
   A v
-    r (no-changeset no-compatibility !)
+    r
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mQP,Sm")' v
   A v
-    r (no-changeset no-compatibility !)
+    r
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mS,QPm")' v
   A v
     r (filelog !)
-    r (no-changeset no-compatibility no-filelog !)
+    r (no-filelog !)
 
 
 Subcase: chaining salvage information during a merge
@@ -3716,7 +3497,7 @@ reference output:
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mCB-revert-m-0")'
   M b
   A d
-    a (no-changeset no-compatibility !)
+    a
   A t
     p
   R a
@@ -3724,7 +3505,7 @@ reference output:
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mBC-revert-m-0")'
   M b
   A d
-    a (no-changeset no-compatibility !)
+    a
   A t
     p
   R a
@@ -3734,7 +3515,7 @@ chained output
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mBC+revert,Lm")'
   M b
   A d
-    a (no-changeset no-compatibility !)
+    a
   A t
     p
   A unrelated-l
@@ -3743,7 +3524,7 @@ chained output
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mCB+revert,Lm")'
   M b
   A d
-    a (no-changeset no-compatibility !)
+    a
   A t
     p
   A unrelated-l
@@ -3752,7 +3533,7 @@ chained output
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mL,BC+revertm")'
   M b
   A d
-    a (no-changeset no-compatibility !)
+    a
   A t
     p
   A unrelated-l
@@ -3761,7 +3542,7 @@ chained output
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mL,CB+revertm")'
   M b
   A d
-    a (no-changeset no-compatibility !)
+    a
   A t
     p
   A unrelated-l
@@ -3781,30 +3562,30 @@ reference output:
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mFGm")' d
   A d
     a (filelog !)
-    h (no-changeset no-compatibility no-filelog !)
+    h (no-filelog !)
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mGFm")' d
   A d
     a (filelog !)
-    a (no-changeset no-compatibility no-filelog !)
+    a (no-filelog !)
 
 Chained output
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mO,FGm")' d
   A d
     a (filelog !)
-    h (no-changeset no-compatibility no-filelog !)
+    h (no-filelog !)
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mFG,Om")' d
   A d
     a (filelog !)
-    h (no-changeset no-compatibility no-filelog !)
+    h (no-filelog !)
 
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mGF,Nm")' d
   A d
-    a (no-changeset no-compatibility !)
+    a
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mN,GFm")' d
   A d
-    a (no-changeset no-compatibility !)
+    a
 
 
 Subcase: chaining conflicting rename resolution, with extra change during the merge
@@ -3819,15 +3600,15 @@ The result from mAEm is the same for the subsequent merge:
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mAE-change-m")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mAE-change,Km")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mK,AE-change-m")' f
   A f
-    a (no-changeset no-compatibility !)
+    a
 
 
 The result from mEAm is the same for the subsequent merge:
@@ -3835,14 +3616,14 @@ The result from mEAm is the same for the subsequent merge:
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mEA-change-m")' f
   A f
     a (filelog !)
-    b (no-changeset no-compatibility no-filelog !)
+    b (no-filelog !)
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mEA-change,Jm")' f
   A f
     a (filelog !)
-    b (no-changeset no-compatibility no-filelog !)
+    b (no-filelog !)
 
   $ hg status --copies --rev 'desc("i-0")' --rev 'desc("mJ,EA-change-m")' f
   A f
     a (filelog !)
-    b (no-changeset no-compatibility no-filelog !)
+    b (no-filelog !)

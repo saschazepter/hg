@@ -1,4 +1,4 @@
-#testcases filelog compatibility changeset sidedata
+#testcases filelog sidedata
 
   $ cat >> $HGRCPATH << EOF
   > [extensions]
@@ -6,21 +6,6 @@
   > [alias]
   > l = log -G -T '{rev} {desc}\n{files}\n'
   > EOF
-
-#if compatibility
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > copies.read-from = compatibility
-  > EOF
-#endif
-
-#if changeset
-  $ cat >> $HGRCPATH << EOF
-  > [experimental]
-  > copies.read-from = changeset-only
-  > copies.write-to = changeset-only
-  > EOF
-#endif
 
 #if sidedata
   $ cat >> $HGRCPATH << EOF
