@@ -357,6 +357,17 @@ class wirepeer(
             self.requirecap(b'clonebundles', _(b'clone bundles'))
             return self._call(b'clonebundles')
 
+    @batchable
+    def clonebundles_manifest(self, **kwargs):
+        self.requirecap(
+            b'clonebundles_manifest', _(b'clonebundles with v2 manifest')
+        )
+
+        def decode(d):
+            return d[:-1]
+
+        return {b"store_fingerprint": b'1'}, decode
+
     def _finish_inline_clone_bundle(self, stream):
         pass  # allow override for httppeer
 
