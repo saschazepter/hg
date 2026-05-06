@@ -350,7 +350,7 @@ class RustIndexProxy(MonoBlockIndex):
         self.shortest = self.inner._index_shortest
         self.partialmatch = self.inner._index_partialmatch
         self.start_bundle_repo = self.inner._index_start_bundle_repo
-        self.append = self.inner._index_append
+        self.add_entry = self.inner._index_add_entry
         self.ancestors = self.inner._index_ancestors
         self.commonancestorsheads = self.inner._index_commonancestorsheads
         self.clearcaches = self.inner._index_clearcaches

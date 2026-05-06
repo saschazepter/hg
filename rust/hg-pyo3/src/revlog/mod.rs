@@ -1137,12 +1137,14 @@ impl InnerRevlog {
     }
 
     /// append an index entry
-    fn _index_append(
+    fn _index_add_entry(
         slf: &Bound<'_, Self>,
-        tup: &Bound<'_, PyTuple>,
+        entry: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        let tup: Bound<'_, PyAny> = entry.call_method0("as_tuple")?;
+        let entry_tup: &Bound<'_, PyTuple> = tup.cast()?;
         Self::with_core_write(slf, |_, mut irl| {
-            irl.index_append(py_tuple_to_revision_data_params(tup)?)
+            irl.index_append(py_tuple_to_revision_data_params(entry_tup)?)
                 .map_err(revlog_error_from_io)?;
 
             Ok(())

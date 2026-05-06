@@ -778,7 +778,7 @@ class BaseIndex(abc.ABC):
         self._bundle_repo_start_idx = len(self)
 
     @abc.abstractmethod
-    def append(self, tup: revlogutils.EntryTupleT) -> None:
+    def add_entry(self, entry: revlogutils.RevlogEntry) -> None:
         ...
 
     def _check_index(self, i: RevnumT):
@@ -841,7 +841,10 @@ class MonoBlockIndex(BaseIndex):
             p = p[revlog_constants.INDEX_HEADER.size :]
         return p
 
-    def append(self, tup: revlogutils.EntryTupleT) -> None:
+    def add_entry(self, entry: revlogutils.RevlogEntry) -> None:
+        self._append(entry.as_tuple())
+
+    def _append(self, tup: revlogutils.EntryTupleT) -> None:
         if '_nodemap' in vars(self):
             self._nodemap[tup[7]] = len(self)
         data = self._pack_entry(len(self), tup)
@@ -1069,7 +1072,8 @@ class MultiBlockIndex(BaseIndex):
         msg %= header
         raise error.ProgrammingError(msg)
 
-    def append(self, tup: revlogutils.EntryTupleT) -> None:
+    def add_entry(self, entry: revlogutils.RevlogEntry) -> None:
+        tup = entry.as_tuple()
         if '_nodemap' in vars(self):
             self._nodemap[tup[7]] = len(self)
         data = self._pack_entry(len(self), tup)

@@ -137,7 +137,7 @@ class bundlerevlog(revlog.revlog):
                 parent_rev_2=self.rev(deltadata.p2),
                 node_id=deltadata.node,
             )
-            self.index.append(e.as_tuple())
+            self.index.add_entry(e)
             self.bundlerevs.add(n)
             n += 1
 

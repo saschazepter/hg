@@ -351,7 +351,7 @@ class parseindex2tests(unittest.TestCase):
                 parent_rev_2=p2,
                 node_id=node,
             )
-            index.append(e.as_tuple())
+            index.add_entry(e)
 
         appendrev(4)
         appendrev(5)

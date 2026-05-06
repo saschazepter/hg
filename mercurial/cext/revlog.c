@@ -1052,8 +1052,9 @@ static PyObject *index_start_bundle_repo(indexObject *self)
 	return Py_None;
 }
 
-static PyObject *index_append(indexObject *self, PyObject *obj)
+static PyObject *index_add_entry(indexObject *self, PyObject *obj)
 {
+	PyObject *tuple;
 	uint64_t offset_flags, sidedata_offset;
 	int rev, comp_len, uncomp_len, base_rev, link_rev, parent_1, parent_2,
 	    sidedata_comp_len, rank;
@@ -1063,7 +1064,11 @@ static PyObject *index_append(indexObject *self, PyObject *obj)
 	char comp_field;
 	char *data;
 
-	if (!PyArg_ParseTuple(obj, tuple_format, &offset_flags, &comp_len,
+	tuple = PyObject_CallMethod(obj, "as_tuple", "");
+	if (tuple == NULL) {
+		return NULL;
+	}
+	if (!PyArg_ParseTuple(tuple, tuple_format, &offset_flags, &comp_len,
 	                      &uncomp_len, &base_rev, &link_rev, &parent_1,
 	                      &parent_2, &c_node_id, &c_node_id_len,
 	                      &sidedata_offset, &sidedata_comp_len,
@@ -3948,7 +3953,8 @@ static PyMethodDef index_methods[] = {
      METH_VARARGS, "determine revisions with deltas to reconstruct fulltext"},
     {"start_bundle_repo", (PyCFunction)index_start_bundle_repo, METH_NOARGS,
      "Signal the start of adding revision from a bundle"},
-    {"append", (PyCFunction)index_append, METH_O, "append an index entry"},
+    {"add_entry", (PyCFunction)index_add_entry, METH_O,
+     "append an index entry"},
     {"partialmatch", (PyCFunction)index_partialmatch, METH_VARARGS,
      "match a potentially ambiguous node ID"},
     {"shortest", (PyCFunction)index_shortest, METH_VARARGS,

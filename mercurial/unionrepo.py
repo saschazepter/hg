@@ -111,7 +111,7 @@ class unionrevlog(revlog.revlog):
                 parent_rev_2=self.rev(p2node),
                 node_id=node,
             )
-            self.index.append(e.as_tuple())
+            self.index.add_entry(e)
             self.bundlerevs.add(n)
             n += 1
 

@@ -914,7 +914,7 @@ class InnerRevlogV1(BaseInnerRevlog):
         offset = self.next_data_offset()
 
         curr = len(self.index)
-        self.index.append(entry.as_tuple())
+        self.index.add_entry(entry)
         bin_entry = self.index.entry_binary(curr)
         if curr == 0:
             header = self.index.pack_header(self._index_header)
@@ -1391,7 +1391,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             transaction.add(docket.filepath(ft), pos)
 
         curr = len(self.index)
-        self.index.append(entry.as_tuple())
+        self.index.add_entry(entry)
         bin_entry = self.index.entry_binaries(curr)
         if data[0]:
             self._writinghandles[docket.FT.DATA].write(data[0])

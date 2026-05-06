@@ -10,7 +10,10 @@ from mercurial.node import (
     bin as node_bin,
     hex,
 )
-from mercurial import error
+from mercurial import (
+    error,
+    revlogutils,
+)
 from mercurial.pure import parsers  # no-policy
 
 try:
@@ -69,8 +72,19 @@ class RustInnerRevlogTest(revlogtesting.RustRevlogBasedTestBase):
 
         non_empty_index = self.parserustindex()
         bin_entry = b'\0\0\0\0' + non_empty_index.entry_binary(0)
-        entry = parsers.Index.index_format.unpack(bin_entry)
-        idx.append(entry)
+        entry_tup = parsers.Index.index_format.unpack(bin_entry)
+        entry = revlogutils.RevlogEntry(
+            flags=entry_tup[0] & 0xFFFF,
+            data_offset=entry_tup[0] >> 16,
+            data_compressed_length=entry_tup[1],
+            data_uncompressed_length=entry_tup[2],
+            data_delta_base=entry_tup[3],
+            link_rev=entry_tup[4],
+            parent_rev_1=entry_tup[5],
+            parent_rev_2=entry_tup[6],
+            node_id=entry_tup[7],
+        )
+        idx.add_entry(entry)
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx.get_rev(self.node0), 0)
 

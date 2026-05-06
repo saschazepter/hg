@@ -388,7 +388,7 @@ def _rewrite_simple(
         data_compression_mode=d_comp_mode,
         sidedata_compression_mode=sd_com_mode,
     )
-    revlog.index.append(new_entry.as_tuple())
+    revlog.index.add_entry(new_entry)
     entry_bin = revlog.index.entry_binaries(rev)
     for ft, bin_piece in zip(revlog._inner._index_fts, entry_bin):
         new_files[ft].write(bin_piece)
@@ -431,8 +431,8 @@ def _rewrite_censor(
         sidedata_compressed_length=0,
         data_compression_mode=COMP_MODE_PLAIN,
         sidedata_compression_mode=COMP_MODE_PLAIN,
-    ).as_tuple()
-    revlog.index.append(new_entry)
+    )
+    revlog.index.add_entry(new_entry)
     entry_bin = revlog.index.entry_binaries(rev)
     for ft, bin_piece in zip(revlog._inner._index_fts, entry_bin):
         fh = new_files[ft]
@@ -999,7 +999,7 @@ def quick_upgrade(rl):
             sidedata_compression_mode=sidedata_compression_mode,
             rank=rank,
         )
-        new_index.append(e.as_tuple())
+        new_index.add_entry(e)
 
     # write data
     index_file = cast(py_inner.InnerRevlogV1, rl._inner).index_file

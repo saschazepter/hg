@@ -163,9 +163,9 @@ class revlogoldindex(list):
         """return the node of a revision"""
         return self[rev][7]
 
-    def append(self, tup):
-        self._nodemap[tup[7]] = len(self)
-        super().append(tup)
+    def add_entry(self, tup):
+        self._nodemap[tup.node_id] = len(self)
+        super().append(tup.as_tuple())
 
     def __delitem__(self, i):
         if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
