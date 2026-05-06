@@ -2925,7 +2925,7 @@ def unbundle(repo, cg, heads, source, url):
     return r
 
 
-def _maybeapplyclonebundle(pullop):
+def _maybeapplyclonebundle(pullop: pulloperation):
     """Apply a clone bundle from a remote, if possible."""
 
     repo = pullop.repo
