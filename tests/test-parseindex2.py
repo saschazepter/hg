@@ -19,6 +19,7 @@ from mercurial.node import (
 from mercurial import (
     policy,
     pycompat,
+    revlogutils,
 )
 from mercurial.revlogutils import (
     constants,
@@ -339,22 +340,18 @@ class parseindex2tests(unittest.TestCase):
             # node won't matter for this test, let's just make sure
             # they don't collide. Other data don't matter either.
             node = hexrev(p1) + hexrev(p2) + b'.' * 12
-            e = (
-                0,
-                0,
-                12,
-                1,
-                34,
-                p1,
-                p2,
-                node,
-                0,
-                0,
-                constants.COMP_MODE_INLINE,
-                constants.COMP_MODE_INLINE,
-                constants.RANK_UNKNOWN,
+            e = revlogutils.RevlogEntry(
+                flags=0,
+                data_offset=0,
+                data_compressed_length=0,
+                data_uncompressed_length=12,
+                data_delta_base=1,
+                link_rev=34,
+                parent_rev_1=p1,
+                parent_rev_2=p2,
+                node_id=node,
             )
-            index.append(e)
+            index.append(e.as_tuple())
 
         appendrev(4)
         appendrev(5)
