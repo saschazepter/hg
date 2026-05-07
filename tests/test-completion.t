@@ -220,6 +220,7 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::changed-files
   debug::clonebundle-manifest
   debug::fast-upgrade
   debug::file-index
@@ -234,7 +235,6 @@ Show debug commands if there are no other candidates
   debugbuilddag
   debugbundle
   debugcapabilities
-  debugchangedfiles
   debugcheckstate
   debugcolor
   debugcommands
@@ -429,6 +429,7 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::changed-files: compute
   debug::clonebundle-manifest: stream, raw, include, exclude
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
@@ -443,7 +444,6 @@ Show all commands + options
   debugbuilddag: mergeable-file, overwritten-file, new-file, from-existing
   debugbundle: all, part-type, spec
   debugcapabilities: bundle2-cap
-  debugchangedfiles: compute
   debugcheckstate: 
   debugcolor: style
   debugcommands: 

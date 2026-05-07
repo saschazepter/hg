@@ -537,7 +537,7 @@ def debugcapabilities(ui, path, bundle2_cap=(), **opts):
 
 
 @command(
-    b'debugchangedfiles',
+    b'debug::changed-files',
     [
         (
             b'',

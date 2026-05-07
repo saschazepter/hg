@@ -1025,6 +1025,8 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::changed-files
+                 list the stored files changes for a revision
    debug::clonebundle-manifest
                  fetch a display a clone bundle manifest from a peer
    debug::fast-upgrade
@@ -1054,8 +1056,6 @@ Test list of internal help commands
    debugbundle   lists the contents of a bundle
    debugcapabilities
                  lists the capabilities of a remote peer
-   debugchangedfiles
-                 list the stored files changes for a revision
    debugcheckstate
                  validate the correctness of the current dirstate
    debugcolor    show available color, effects or style

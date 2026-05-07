@@ -1705,7 +1705,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
 
 #if no-filelog
 
-  $ hg debugchangedfiles --compute 0
+  $ hg debug::changed-files --compute 0
   added      : a, ;
   added      : b, ;
   added      : h, ;
@@ -1717,7 +1717,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   >     case_id=`hg log -r $rev -T '{word(0, desc, ":")}\n'`
   >     echo "##### revision \"$case_id\" #####"
   >     hg debugsidedata -c -v -- $rev
-  >     hg debugchangedfiles $rev
+  >     hg debug::changed-files $rev
   > done
   ##### revision "i-0 initial commit" #####
   1 sidedata entries
