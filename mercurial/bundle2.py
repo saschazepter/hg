@@ -1684,6 +1684,7 @@ def writenewbundle(
             repo=repo,
             version=stream_version,
             filename=filename,
+            opts=opts,
             vfs=vfs,
             shape=opts.get(b"shape"),
         )
@@ -1700,6 +1701,7 @@ def write_new_stream_bundle(
     repo: RepoT,
     version: bytes,
     filename: bytes,
+    opts,
     vfs: vfsmod.vfs,
     shape: bytes | None = None,
 ):
@@ -1718,7 +1720,11 @@ def write_new_stream_bundle(
         matcher = shape_obj.matcher()
         fingerprint = shape_obj.fingerprint()
 
-    bundle = bundle20(ui, {b"stream": [version]})
+    caps: Capabilities = {b"stream": [version]}
+    if opts.get(b'obsolescence', False):
+        caps[b'obsmarkers'] = (b'V1',)
+
+    bundle = bundle20(ui, caps)
     addpartbundlestream2(
         bundle,
         repo,

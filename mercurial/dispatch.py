@@ -955,10 +955,12 @@ def _dispatch_post_cwd(req):
             for ui_ in uis:
                 ui_.setconfig(b'ui', opt, val, b'--' + opt)
 
-    if req.earlyoptions[b'profile']:
+    early_profile = req.earlyoptions[b'profile']
+
+    if early_profile and early_profile:
         for ui_ in uis:
             ui_.setconfig(b'profiling', b'enabled', b'true', b'--profile')
-    elif req.earlyoptions[b'profile'] is False:
+    elif early_profile is not None and not early_profile:
         # Check for it being set already, so that we don't pollute the config
         # with this when using chg in the very common case that it's not
         # enabled.

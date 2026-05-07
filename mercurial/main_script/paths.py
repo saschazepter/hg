@@ -53,14 +53,11 @@ def get_local(ui, rpath, wd=None):
             os.chdir(wd)
 
         path = repo_utils.find_repo(wd) or b""
-        if not path:
-            lui = ui
-        else:
-            lui = ui.copy()
-            if rcutil.use_repo_hgrc():
-                for __, c_type, rc_path in rcutil.repo_components(path):
-                    assert c_type == b'path'
-                    lui.readconfig(rc_path, root=path)
+        lui = ui.copy()
+        if path and rcutil.use_repo_hgrc():
+            for __, c_type, rc_path in rcutil.repo_components(path):
+                assert c_type == b'path'
+                lui.readconfig(rc_path, root=path)
 
         if rpath:
             # the specified path, might be defined in the [paths] section of

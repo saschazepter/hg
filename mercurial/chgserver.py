@@ -306,9 +306,12 @@ def _loadnewui(srcui, args, cdebug):
 
     extensions.populateui(newui)
     commandserver.setuplogging(newui, fp=cdebug)
-    if newui is not newlui:
-        extensions.populateui(newlui)
-        commandserver.setuplogging(newlui, fp=cdebug)
+
+    # assume `get_local` return two object in all case. If this is no longer
+    # the case, adapt this code.
+    assert newui is not newlui
+    extensions.populateui(newlui)
+    commandserver.setuplogging(newlui, fp=cdebug)
 
     return (newui, newlui)
 
