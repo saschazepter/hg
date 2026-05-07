@@ -13,6 +13,7 @@ import struct
 import sys
 
 from .interfaces.types import (
+    HgPathT,
     SideDataT,
 )
 from .node import nullrev
@@ -91,7 +92,7 @@ class ChangingFiles:
         )
 
     @util.propertycache
-    def added(self):
+    def added(self) -> frozenset[HgPathT]:
         """files actively added in the changeset
 
         Any file present in that revision that was absent in all the changeset's
@@ -114,7 +115,7 @@ class ChangingFiles:
             self.mark_added(f)
 
     @util.propertycache
-    def merged(self):
+    def merged(self) -> frozenset[HgPathT]:
         """files actively merged during a merge
 
         Any modified files which had modification on both size that needed merging.
@@ -134,7 +135,7 @@ class ChangingFiles:
             self.mark_merged(f)
 
     @util.propertycache
-    def removed(self):
+    def removed(self) -> frozenset[HgPathT]:
         """files actively removed by the changeset
 
         In case of merge this will only contain the set of files removing "new"
@@ -180,7 +181,7 @@ class ChangingFiles:
             self.mark_removed(f)
 
     @util.propertycache
-    def salvaged(self):
+    def salvaged(self) -> frozenset[HgPathT]:
         """files that might have been deleted by a merge, but still exists.
 
         During a merge, the manifest merging might select some files for
@@ -200,7 +201,7 @@ class ChangingFiles:
             self.mark_salvaged(f)
 
     @util.propertycache
-    def touched(self):
+    def touched(self) -> frozenset[HgPathT]:
         """files either actively modified, added or removed"""
         return frozenset(self._touched)
 
@@ -214,7 +215,7 @@ class ChangingFiles:
             self.mark_touched(f)
 
     @util.propertycache
-    def copied_from_p1(self):
+    def copied_from_p1(self) -> dict[HgPathT, HgPathT]:
         return self._p1_copies.copy()
 
     def mark_copied_from_p1(self, source, dest):
@@ -227,7 +228,7 @@ class ChangingFiles:
             self.mark_copied_from_p1(source, dest)
 
     @util.propertycache
-    def copied_from_p2(self):
+    def copied_from_p2(self) -> dict[HgPathT, HgPathT]:
         return self._p2_copies.copy()
 
     def mark_copied_from_p2(self, source, dest):
