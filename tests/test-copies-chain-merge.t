@@ -1716,13 +1716,9 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   $ for rev in `hg log --rev 'all()' -T '{rev}\n'`; do
   >     case_id=`hg log -r $rev -T '{word(0, desc, ":")}\n'`
   >     echo "##### revision \"$case_id\" #####"
-  >     hg debugsidedata -c -v -- $rev
   >     hg debug::changed-files $rev
   > done
   ##### revision "i-0 initial commit" #####
-  1 sidedata entries
-   entry-0014 size 64
-    '\x00\x00\x00\x06\x04\x00\x00\x00\x01\x00\x00\x00\x00\x04\x00\x00\x00\x02\x00\x00\x00\x00\x04\x00\x00\x00\x03\x00\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x00\x00\x04\x00\x00\x00\x05\x00\x00\x00\x00\x04\x00\x00\x00\x06\x00\x00\x00\x00abhpqr'
   added      : a, ;
   added      : b, ;
   added      : h, ;
@@ -1730,389 +1726,152 @@ We upgrade a repository that is not using sidedata (the filelog case) and
   added      : q, ;
   added      : r, ;
   ##### revision "i-1" #####
-  1 sidedata entries
-   entry-0014 size 44
-    '\x00\x00\x00\x04\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00\x0c\x00\x00\x00\x03\x00\x00\x00\x00\x06\x00\x00\x00\x04\x00\x00\x00\x02acps'
   removed    : a, ;
   added    p1: c, a;
   removed    : p, ;
   added    p1: s, p;
   ##### revision "i-2" #####
-  1 sidedata entries
-   entry-0014 size 44
-    '\x00\x00\x00\x04\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00\x0c\x00\x00\x00\x03\x00\x00\x00\x00\x06\x00\x00\x00\x04\x00\x00\x00\x02cdst'
   removed    : c, ;
   added    p1: d, c;
   removed    : s, ;
   added    p1: t, s;
   ##### revision "a-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00de'
   removed    : d, ;
   added    p1: e, d;
   ##### revision "a-2" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00ef'
   removed    : e, ;
   added    p1: f, e;
   ##### revision "b-1" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x01\x00\x00\x00\x00b'
   touched    : b, ;
   ##### revision "c-1 delete d" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x0c\x00\x00\x00\x01\x00\x00\x00\x00d'
   removed    : d, ;
   ##### revision "d-1 delete d" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x0c\x00\x00\x00\x01\x00\x00\x00\x00d'
   removed    : d, ;
   ##### revision "d-2 re-add d" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x01\x00\x00\x00\x00d'
   added      : d, ;
   ##### revision "e-1 b -move-> g" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00bg'
   removed    : b, ;
   added    p1: g, b;
   ##### revision "e-2 g -move-> f" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x06\x00\x00\x00\x01\x00\x00\x00\x01\x0c\x00\x00\x00\x02\x00\x00\x00\x00fg'
   added    p1: f, g;
   removed    : g, ;
   ##### revision "p-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00tu'
   removed    : t, ;
   added    p1: u, t;
   ##### revision "p-2" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00uv'
   removed    : u, ;
   added    p1: v, u;
   ##### revision "q-1 r -move-> w" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00rw'
   removed    : r, ;
   added    p1: w, r;
   ##### revision "q-2 w -move-> v" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x06\x00\x00\x00\x01\x00\x00\x00\x01\x0c\x00\x00\x00\x02\x00\x00\x00\x00vw'
   added    p1: v, w;
   removed    : w, ;
   ##### revision "mBAm-0 simple merge - A side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mABm-0 simple merge - A side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mBCm-0 simple merge - C side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mBCm-1 re-add d" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x01\x00\x00\x00\x00d'
   added      : d, ;
   ##### revision "mCBm-0 simple merge - C side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mCBm-1 re-add d" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x01\x00\x00\x00\x00d'
   added      : d, ;
   ##### revision "mBDm-0 simple merge - B side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mDBm-0 simple merge - B side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mAEm-0 merge with copies info on both side - A side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00f'
   merged     : f, ;
   ##### revision "mEAm-0 merge with copies info on both side - A side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00f'
   merged     : f, ;
   ##### revision "mPQm-0 merge with copies info on both side - P side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00v'
   merged     : v, ;
   ##### revision "mQPm-0 merge with copies info on both side - P side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00v'
   merged     : v, ;
   ##### revision "f-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00hi'
   removed    : h, ;
   added    p1: i, h;
   ##### revision "f-2" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x16\x00\x00\x00\x01\x00\x00\x00\x01\x0c\x00\x00\x00\x02\x00\x00\x00\x00di'
   touched  p1: d, i;
   removed    : i, ;
   ##### revision "mBFm-0 simple merge - B side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mFBm-0 simple merge - B side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "r-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00rx'
   removed    : r, ;
   added    p1: x, r;
   ##### revision "r-2" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x16\x00\x00\x00\x01\x00\x00\x00\x01\x0c\x00\x00\x00\x02\x00\x00\x00\x00tx'
   touched  p1: t, x;
   removed    : x, ;
   ##### revision "mBRm-0 simple merge - B side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mRBm-0 simple merge - B side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "g-1" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x01\x00\x00\x00\x00d'
   touched    : d, ;
   ##### revision "mDGm-0 actual content merge, copies on one side - D side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00d'
   merged     : d, ;
   ##### revision "mGDm-0 actual content merge, copies on one side - D side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00d'
   merged     : d, ;
   ##### revision "mFGm-0 merge - G side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00d'
   merged     : d, ;
   ##### revision "mGFm-0 merge - G side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00d'
   merged     : d, ;
   ##### revision "mCGm-0 merge updated/deleted - revive the file (updated content) - one way" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x00\x00d'
   salvaged   : d, ;
   ##### revision "mGCm-0 merge updated/deleted - revive the file (updated content) - the other way" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x00\x00d'
   salvaged   : d, ;
   ##### revision "mCB-revert-m-0 merge explicitely revive deleted file - B side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x00\x00d'
   salvaged   : d, ;
   ##### revision "mBC-revert-m-0 merge explicitely revive deleted file - B side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x00\x00d'
   salvaged   : d, ;
   ##### revision "h-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00bd'
   removed    : b, ;
   added    p1: d, b;
   ##### revision "mCH-delete-before-conflict-m-0 simple merge - C side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mHC-delete-before-conflict-m-0 simple merge - C side" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mAE-change-m-0 merge with file update and copies info on both side - A side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00f'
   merged     : f, ;
   ##### revision "mEA-change-m-0 merge with file update and copies info on both side - A side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00\x00\x00f'
   merged     : f, ;
   ##### revision "mBF-change-m-0 merge with extra change - B side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x01\x00\x00\x00\x00d'
   touched    : d, ;
   ##### revision "mFB-change-m-0 merge with extra change - B side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x01\x00\x00\x00\x00d'
   touched    : d, ;
   ##### revision "mCB-change-m-0 merge explicitely revive deleted file - B side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x00\x00d'
   salvaged   : d, ;
   ##### revision "mBC-change-m-0 merge explicitely revive deleted file - B side" #####
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x00\x00d'
   salvaged   : d, ;
   ##### revision "j-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-j'
   added      : unrelated-j, ;
   ##### revision "k-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-k'
   added      : unrelated-k, ;
   ##### revision "mAE,Km" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mK,AEm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mEA,Jm" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-j'
   touched    : unrelated-j, ;
   ##### revision "mJ,EAm" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-j'
   touched    : unrelated-j, ;
   ##### revision "s-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-s'
   added      : unrelated-s, ;
   ##### revision "t-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-t'
   added      : unrelated-t, ;
   ##### revision "mPQ,Tm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mT,PQm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mQP,Sm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mS,QPm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "l-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-l'
   added      : unrelated-l, ;
   ##### revision "mBC+revert,Lm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mCB+revert,Lm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mL,BC+revertm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mL,CB+revertm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "n-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-n'
   added      : unrelated-n, ;
   ##### revision "o-1" #####
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x01\x04\x00\x00\x00\x0b\x00\x00\x00\x00unrelated-o'
   added      : unrelated-o, ;
   ##### revision "mFG,Om" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mO,FGm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mGF,Nm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mN,GFm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mAE-change,Km" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mK,AE-change-m" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mEA-change,Jm" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
   ##### revision "mJ,EA-change-m" #####
-  1 sidedata entries
-   entry-0014 size 4
-    '\x00\x00\x00\x00'
 
 #endif
 

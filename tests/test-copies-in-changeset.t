@@ -28,10 +28,10 @@ Check that copies are recorded correctly
   $ hg cp a d
   $ hg ci -m 'copy a to b, c, and d'
 
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 44
-    '\x00\x00\x00\x04\x00\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00\x06\x00\x00\x00\x03\x00\x00\x00\x00\x06\x00\x00\x00\x04\x00\x00\x00\x00abcd'
+  $ hg debug::changed-files -- .
+  added    p1: b, a;
+  added    p1: c, a;
+  added    p1: d, a;
 
   $ hg showcopies
   a -> b
@@ -43,10 +43,9 @@ Check that renames are recorded correctly
   $ hg mv b b2
   $ hg ci -m 'rename b to b2'
 
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 25
-    '\x00\x00\x00\x02\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x03\x00\x00\x00\x00bb2'
+  $ hg debug::changed-files -- .
+  removed    : b, ;
+  added    p1: b2, b;
 
   $ hg showcopies
   b -> b2
@@ -69,10 +68,8 @@ even though there is no filelog entry.
 
   $ hg ci -m 'move b onto d'
 
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 25
-    '\x00\x00\x00\x02\x00\x00\x00\x00\x02\x00\x00\x00\x00\x16\x00\x00\x00\x03\x00\x00\x00\x00b2c'
+  $ hg debug::changed-files -- .
+  touched  p1: c, b2;
 
   $ hg showcopies
   b2 -> c
@@ -104,10 +101,10 @@ File 'f' exists only in p1, so 'i' should be from p1
   $ hg cp f i
   $ hg ci -m 'merge'
 
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 64
-    '\x00\x00\x00\x06\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x06\x00\x00\x00\x04\x00\x00\x00\x00\x07\x00\x00\x00\x05\x00\x00\x00\x01\x06\x00\x00\x00\x06\x00\x00\x00\x02adfghi'
+  $ hg debug::changed-files -- .
+  added    p1: g, a;
+  added    p2: h, d;
+  added    p1: i, f;
 
   $ hg showcopies
   a -> g
@@ -118,10 +115,8 @@ Test writing to both changeset and filelog
 
   $ hg cp a j
   $ hg ci -m 'copy a to j'
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x00\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00aj'
+  $ hg debug::changed-files -- .
+  added    p1: j, a;
   $ hg debugdata j 0
   \x01 (esc)
   copy: a
@@ -138,29 +133,23 @@ Existing copy information in the changeset gets removed on amend and writing
 copy information on to the filelog
   $ hg ci --amend -m 'copy a to j, v2'
   saved backup bundle to $TESTTMP/repo/.hg/strip-backup/*-*-amend.hg (glob)
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x00\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00aj'
+  $ hg debug::changed-files -- .
+  added    p1: j, a;
   $ hg showcopies --config experimental.copies.read-from=filelog-only
   a -> j
 The entries should be written to extras even if they're empty (so the client
 won't have to fall back to reading from filelogs)
   $ echo x >> j
   $ hg ci -m 'modify j'
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 14
-    '\x00\x00\x00\x01\x14\x00\x00\x00\x01\x00\x00\x00\x00j'
+  $ hg debug::changed-files -- .
+  touched    : j, ;
 
 Test writing only to filelog
 
   $ hg cp a k
   $ hg ci -m 'copy a to k'
-  $ hg debugsidedata -c -v -- -1
-  1 sidedata entries
-   entry-0014 size 24
-    '\x00\x00\x00\x02\x00\x00\x00\x00\x01\x00\x00\x00\x00\x06\x00\x00\x00\x02\x00\x00\x00\x00ak'
+  $ hg debug::changed-files -- .
+  added    p1: k, a;
 
   $ hg debugdata k 0
   \x01 (esc)
@@ -278,12 +267,10 @@ downgrading
   copies-sdc:                     yes    yes      no
   revlog-v2:                       no     no      no
   changelog-v2:                   yes    yes      no
-  $ hg debugsidedata -c -- 0
-  1 sidedata entries
-   entry-0014 size 14
-  $ hg debugsidedata -c -- 1
-  1 sidedata entries
-   entry-0014 size 14
+  $ hg debug::changed-files -- 0
+  added      : a, ;
+  $ hg debug::changed-files -- 1
+  removed    : a, ;
   $ hg debugsidedata -m -- 0
   $ cat << EOF > .hg/hgrc
   > [format]
@@ -304,8 +291,8 @@ downgrading
   copies-sdc:                      no     no      no
   revlog-v2:                       no     no      no
   changelog-v2:                    no     no      no
-  $ hg debugsidedata -c -- 0
-  $ hg debugsidedata -c -- 1
+  $ hg debug::changed-files -- 0
+  $ hg debug::changed-files -- 1
   $ hg debugsidedata -m -- 0
 
 upgrading
@@ -329,12 +316,10 @@ upgrading
   copies-sdc:                     yes    yes      no
   revlog-v2:                       no     no      no
   changelog-v2:                   yes    yes      no
-  $ hg debugsidedata -c -- 0
-  1 sidedata entries
-   entry-0014 size 14
-  $ hg debugsidedata -c -- 1
-  1 sidedata entries
-   entry-0014 size 14
+  $ hg debug::changed-files -- 0
+  added      : a, ;
+  $ hg debug::changed-files -- 1
+  removed    : a, ;
   $ hg debugsidedata -m -- 0
 
 
