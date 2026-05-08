@@ -1,3 +1,8 @@
+============================================================
+Test storing and use copy information at the changeset level
+============================================================
+
+
   $ cat >> $HGRCPATH << EOF
   > [format]
   > exp-use-copies-side-data-changeset = yes
@@ -12,6 +17,7 @@
   > EOF
 
 Check that copies are recorded correctly
+----------------------------------------
 
   $ hg init repo
   $ cd repo
@@ -39,6 +45,7 @@ Check that copies are recorded correctly
   a -> d
 
 Check that renames are recorded correctly
+-----------------------------------------
 
   $ hg mv b b2
   $ hg ci -m 'rename b to b2'
@@ -51,8 +58,8 @@ Check that renames are recorded correctly
   b -> b2
 
 
-Rename onto existing file. This should get recorded in the changeset files list and in the extras,
-even though there is no filelog entry.
+Rename onto existing file. This should get recorded in the changeset files list
+and in "changed-files field".
 
   $ hg cp b2 c --force
   $ hg st --copies
@@ -74,7 +81,10 @@ even though there is no filelog entry.
   $ hg showcopies
   b2 -> c
 
+The content is the same, the parent are the same, but the second revision of
+"c" has copy information so it get a different hash as intended.
 
+  $ hg diff --from 1 --to 3 c
   $ hg debugindex c
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       1 37d9b5d994ea 000000000000 000000000000
@@ -82,6 +92,7 @@ even though there is no filelog entry.
 
 
 Create a merge commit with copying done during merge.
+-----------------------------------------------------
 
   $ hg co 0
   0 files updated, 0 files merged, 3 files removed, 0 files unresolved
@@ -111,7 +122,12 @@ File 'f' exists only in p1, so 'i' should be from p1
   d -> h
   f -> i
 
-Test writing to both changeset and filelog
+More testing
+============
+
+(When this test was testing storing copy information in the changeset only,
+this was used to check we could store it in both changeset and file-revision
+metadata. Now this is just a second layer of testing)
 
   $ hg cp a j
   $ hg ci -m 'copy a to j'
@@ -125,26 +141,25 @@ Test writing to both changeset and filelog
   a
   $ hg showcopies
   a -> j
-  $ hg showcopies --config experimental.copies.read-from=compatibility
-  a -> j
-  $ hg showcopies --config experimental.copies.read-from=filelog-only
-  a -> j
-Existing copy information in the changeset gets removed on amend and writing
-copy information on to the filelog
+
+Existing copy information in the changeset should be preserved by the amend.
+
   $ hg ci --amend -m 'copy a to j, v2'
   saved backup bundle to $TESTTMP/repo/.hg/strip-backup/*-*-amend.hg (glob)
   $ hg debug::changed-files -- .
   added    p1: j, a;
-  $ hg showcopies --config experimental.copies.read-from=filelog-only
+  $ hg showcopies
   a -> j
-The entries should be written to extras even if they're empty (so the client
-won't have to fall back to reading from filelogs)
+
   $ echo x >> j
   $ hg ci -m 'modify j'
   $ hg debug::changed-files -- .
   touched    : j, ;
 
-Test writing only to filelog
+More testing
+------------
+
+(used to be testing "storing only in filelog")
 
   $ hg cp a k
   $ hg ci -m 'copy a to k'
