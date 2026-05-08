@@ -109,8 +109,7 @@ Test output of readdir
   $ $RUNTESTDIR/testlib/scandir.py commits/$rev1/files/nested
   d dir
   f file
-  f symlink1 (known-bad-output !)
-  l symlink1 (missing-correct-output !)
+  l symlink1
 
 Test the virtual share as a repo
 --------------------------------

@@ -261,7 +261,13 @@ impl Entry {
     pub fn file_type(&self) -> FileType {
         match self {
             Entry::Dir { .. } => FileType::Directory,
-            Entry::File { .. } => FileType::RegularFile,
+            Entry::File { flags, .. } => {
+                if flags.is_link() {
+                    FileType::Symlink
+                } else {
+                    FileType::RegularFile
+                }
+            }
         }
     }
 
