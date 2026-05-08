@@ -799,7 +799,13 @@ def decode_files(raw: bytes) -> rl_t.ChangedFilesT:
     for idx in range(total_files):
         flag, file_end, copy_idx = INDEX_ENTRY.unpack_from(raw, offset)
         file_end += file_offset_base
-        filename = raw[file_offset_last:file_end]
+        # Convert the filename to bytes to avoid a potential memoryview object
+        #
+        # It would be better to properly handle memoryview objets down the line.
+        # However, we should not even have filename in the serialization and
+        # use file-index token instead. So by the time this code will start to
+        # be used for real this conversion won't be around anymore.
+        filename = bytes(raw[file_offset_last:file_end])
         filesize = file_end - file_offset_last
         assert len(filename) == filesize
         offset += INDEX_ENTRY.size
