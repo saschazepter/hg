@@ -72,6 +72,9 @@ class ChangingFiles(rl_t.IChangedFiles):
         self._p1_copies = dict(() if p1_copies is None else p1_copies)
         self._p2_copies = dict(() if p2_copies is None else p2_copies)
 
+    def __nonzero__(self):
+        return bool(self._touched)
+
     def __eq__(self, other):
         return (
             self.added == other.added
@@ -725,6 +728,8 @@ INDEX_ENTRY = struct.Struct(">bLL")
 
 
 def encode_files(files: rl_t.ChangedFilesT) -> bytes:
+    if not files:
+        return b""
     all_files = set(files.touched)
     all_files.update(files.copied_from_p1.values())
     all_files.update(files.copied_from_p2.values())
@@ -775,6 +780,8 @@ def decode_files(raw: bytes) -> rl_t.ChangedFilesT:
     md = ChangingFiles()
 
     if raw is None:
+        return md
+    if not raw:
         return md
 
     copies = []
