@@ -22,7 +22,9 @@ from . import (
     requirements as requirementsmod,
     util,
 )
-
+from .interfaces import (
+    revlog as rl_t,
+)
 from .revlogutils import (
     constants as revlog_constants,
     flagutil as sidedataflag,
@@ -30,7 +32,7 @@ from .revlogutils import (
 )
 
 
-class ChangingFiles:
+class ChangingFiles(rl_t.IChangedFiles):
     """A class recording the changes made to files by a changeset
 
     Actions performed on files are gathered into 3 sets:
@@ -722,7 +724,7 @@ INDEX_HEADER = struct.Struct(">L")
 INDEX_ENTRY = struct.Struct(">bLL")
 
 
-def encode_files_sidedata(files) -> SideDataT:
+def encode_files_sidedata(files: rl_t.ChangedFilesT) -> SideDataT:
     all_files = set(files.touched)
     all_files.update(files.copied_from_p1.values())
     all_files.update(files.copied_from_p2.values())
@@ -761,7 +763,7 @@ def encode_files_sidedata(files) -> SideDataT:
     return {sidedatamod.SD_FILES: b''.join(chunks)}
 
 
-def decode_files_sidedata(sidedata: SideDataT):
+def decode_files_sidedata(sidedata: SideDataT) -> rl_t.ChangedFilesT:
     md = ChangingFiles()
     raw = sidedata.get(sidedatamod.SD_FILES)
 

@@ -29,6 +29,9 @@ from . import (
     revlog,
     util,
 )
+from .interfaces import (
+    revlog as rl_t,
+)
 from .utils import (
     dateutil,
     stringutil,
@@ -219,7 +222,7 @@ class changelogrevision:
         return decodeextra(raw)
 
     @property
-    def changes(self):
+    def changes(self) -> rl_t.ChangedFilesT:
         if self._changes is not None:
             return self._changes
         if self._cpsd:

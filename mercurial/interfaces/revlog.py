@@ -8,6 +8,11 @@
 from __future__ import annotations
 
 import enum
+import typing
+
+from ._basetypes import (
+    HgPathT,
+)
 
 
 class DeltaBaseReusePolicy(enum.IntEnum):
@@ -40,3 +45,35 @@ class DeltaBaseReusePolicy(enum.IntEnum):
     The delta base will be used and the result will be used for storage
     regardless of the validity of the chain it create.
     """
+
+
+class IChangedFiles(typing.Protocol):
+    """A Protocal holding the changes made to files by a changeset
+
+    Actions performed on files are gathered into 3 sets:
+
+    - added:   files actively added in the changeset.
+    - merged:  files whose history got merged
+    - removed: files removed in the revision
+    - salvaged: files that might have been deleted by a merge but were not
+    - touched: files affected by the merge
+
+    and copies information is held by 2 mappings
+
+    - copied_from_p1: {"<new-name>": "<source-name-in-p1>"} mapping for copies
+    - copied_from_p2: {"<new-name>": "<source-name-in-p2>"} mapping for copies
+
+    See actual implementation for details
+    """
+
+    touched: frozenset[HgPathT]
+    added: frozenset[HgPathT]
+    merged: frozenset[HgPathT]
+    salvaged: frozenset[HgPathT]
+    removed: frozenset[HgPathT]
+
+    copied_from_p1: dict[HgPathT, HgPathT]
+    copied_from_p2: dict[HgPathT, HgPathT]
+
+
+ChangedFilesT = IChangedFiles
