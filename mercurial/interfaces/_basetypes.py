@@ -66,3 +66,10 @@ VfsKeyT = bytes
 
 CallbackCategoryT = bytes
 """Key identifying a callback category."""
+
+
+SideDataKeyT = int
+"""A sidedata type key"""
+
+SideDataT = dict[SideDataKeyT, bytes]
+"""The full sidedata mapping for one revision"""

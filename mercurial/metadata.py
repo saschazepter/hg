@@ -12,6 +12,9 @@ import multiprocessing
 import struct
 import sys
 
+from .interfaces.types import (
+    SideDataT,
+)
 from .node import nullrev
 from . import (
     error,
@@ -718,7 +721,7 @@ INDEX_HEADER = struct.Struct(">L")
 INDEX_ENTRY = struct.Struct(">bLL")
 
 
-def encode_files_sidedata(files):
+def encode_files_sidedata(files) -> SideDataT:
     all_files = set(files.touched)
     all_files.update(files.copied_from_p1.values())
     all_files.update(files.copied_from_p2.values())
@@ -757,7 +760,7 @@ def encode_files_sidedata(files):
     return {sidedatamod.SD_FILES: b''.join(chunks)}
 
 
-def decode_files_sidedata(sidedata):
+def decode_files_sidedata(sidedata: SideDataT):
     md = ChangingFiles()
     raw = sidedata.get(sidedatamod.SD_FILES)
 

@@ -35,32 +35,38 @@ from __future__ import annotations
 import collections
 import struct
 
+from ..interfaces.types import (
+    RevnumT,
+    SideDataKeyT,
+    SideDataT,
+)
+
 from .. import error
 from ..utils import hashutil
 
 ## sidedata type constant
 # reserve a block for testing purposes.
-SD_TEST1 = 1
-SD_TEST2 = 2
-SD_TEST3 = 3
-SD_TEST4 = 4
-SD_TEST5 = 5
-SD_TEST6 = 6
-SD_TEST7 = 7
+SD_TEST1: SideDataKeyT = 1
+SD_TEST2: SideDataKeyT = 2
+SD_TEST3: SideDataKeyT = 3
+SD_TEST4: SideDataKeyT = 4
+SD_TEST5: SideDataKeyT = 5
+SD_TEST6: SideDataKeyT = 6
+SD_TEST7: SideDataKeyT = 7
 
 # key to store copies related information
-SD_P1COPIES = 8
-SD_P2COPIES = 9
-SD_FILESADDED = 10
-SD_FILESREMOVED = 11
-SD_FILES = 12
+SD_P1COPIES: SideDataKeyT = 8
+SD_P2COPIES: SideDataKeyT = 9
+SD_FILESADDED: SideDataKeyT = 10
+SD_FILESREMOVED: SideDataKeyT = 11
+SD_FILES: SideDataKeyT = 12
 
 # internal format constant
 SIDEDATA_HEADER = struct.Struct('>H')
 SIDEDATA_ENTRY = struct.Struct('>HL20s')
 
 
-def serialize_sidedata(sidedata):
+def serialize_sidedata(sidedata: SideDataT) -> bytes:
     sidedata = list(sidedata.items())
     sidedata.sort()
     buf = [SIDEDATA_HEADER.pack(len(sidedata))]
@@ -73,7 +79,7 @@ def serialize_sidedata(sidedata):
     return buf
 
 
-def deserialize_sidedata(blob):
+def deserialize_sidedata(blob: bytes) -> SideDataT:
     sidedata = {}
     offset = 0
     (nbentry,) = SIDEDATA_HEADER.unpack(blob[: SIDEDATA_HEADER.size])
@@ -135,7 +141,12 @@ def get_sidedata_helpers(repo, remote_sd_categories, pull=False):
     return sidedata_helpers
 
 
-def run_sidedata_helpers(store, sidedata_helpers, sidedata, rev):
+def run_sidedata_helpers(
+    store,
+    sidedata_helpers,
+    sidedata,
+    rev: RevnumT,
+) -> tuple[SideDataT, tuple[int, int]]:
     """Returns the sidedata for the given revision after running through
     the given helpers.
     - `store`: the revlog this applies to (changelog, manifest, or filelog
