@@ -152,7 +152,11 @@ class abstractsmartset:
         return filteredset(self, condition, condrepr)
 
     def slice(self, start: int, stop: int) -> abstractsmartset:
-        """Return new smartset that contains selected elements from this set"""
+        """Return a new smartset that contains a subset of this set.
+
+        This is like list[start:stop] semantics, except that start and stop
+        cannot be negative.
+        """
         if start < 0 or stop < 0:
             raise error.ProgrammingError(b'negative index not allowed')
         return self._slice(start, stop)
