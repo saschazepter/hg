@@ -5,7 +5,6 @@ use super::options::RevlogOpenOptions;
 use super::path_encode::PathEncoding;
 use crate::Graph;
 use crate::GraphError;
-use crate::NULL_REVISION;
 use crate::Node;
 use crate::UncheckedRevision;
 use crate::dirstate::entry::has_exec_bit;
@@ -133,19 +132,10 @@ impl Filelog {
 
         let index_entry = revlog.index().get_entry(rev);
 
-        let has_meta = {
-            if revlog.inner.supports_hasmeta_flag() {
-                revlog_entry.flags & REVISION_FLAG_HASMETA != 0
-            } else if index_entry.p1().0 != NULL_REVISION.0 {
-                false
-            } else {
-                revlog_entry.data()?.drop_prefix(b"\x01\n").is_some()
-            }
-        };
         let only_len_neutral_flags =
             (revlog_entry.flags & !LENGTH_NEUTRAL_FLAGS) == 0;
         let filelog_entry = FilelogEntry(revlog_entry);
-        if has_meta || !(only_len_neutral_flags) {
+        if filelog_entry.maybe_has_metadata() || !(only_len_neutral_flags) {
             Ok(filelog_entry.data()?.file_data()?.len())
         } else {
             let Ok(size): Result<usize, _> =
@@ -290,6 +280,16 @@ impl FilelogEntry<'_> {
             data,
             self.0.revision().into(),
         )
+    }
+
+    /// Without decompressing, returns `true` if metadata potentially exists and
+    /// `false` if it definitely does not.
+    pub fn maybe_has_metadata(&self) -> bool {
+        if self.0.revlog.supports_hasmeta_flag() {
+            self.0.flags & REVISION_FLAG_HASMETA != 0
+        } else {
+            !self.0.has_p1()
+        }
     }
 }
 
