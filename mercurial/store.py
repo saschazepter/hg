@@ -873,7 +873,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         An instance of the appropriate class is returned.
         """
         if self.is_changelog:
-            return changelog.changelog(repo.svfs)
+            return repo.unfiltered().changelog
         elif self.is_manifestlog:
             mandir = self.target_id
             return manifest.manifestrevlog(

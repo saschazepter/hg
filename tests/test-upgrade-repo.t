@@ -1189,6 +1189,7 @@ Check we can select negatively
        total-revisions:           9
        size-change:               0 bytes
        elapsed-time:      [0-9 ]{9} seconds (re)
+  updating the branch cache
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1253,6 +1254,7 @@ Check that we can select changelog only
        total-revisions:           9
        size-change:               0 bytes
        elapsed-time:      [0-9 ]{9} seconds (re)
+  updating the branch cache
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1405,6 +1407,7 @@ Check you can't skip revlog clone during important format downgrade
        total-revisions:           9
        size-change:               0 bytes
        elapsed-time:      [0-9 ]{9} seconds (re)
+  updating the branch cache
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
@@ -1479,6 +1482,7 @@ Check you can't skip revlog clone during important format upgrade
        total-revisions:           9
        size-change:               0 bytes
        elapsed-time:      [0-9 ]{9} seconds (re)
+  updating the branch cache
   copying phaseroots
   copying requires
   data fully upgraded in a temporary repository
