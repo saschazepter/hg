@@ -17,11 +17,13 @@ Source repo setup
   $ echo "bb" >> file2
   $ echo "c" >> nested/dir/file.txt
   $ hg commit -Aqm0
+  $ rev0=$(hg log -r . -T "{node}\n")
   $ echo "aaa" >> file1
   $ echo "bb" >> file2
   $ echo "c" >> nested/dir/file.txt
   $ ln -s ../file1 nested/symlink1
   $ hg commit -Aqm1
+  $ rev1=$(hg log -r . -T "{node}\n")
   $ hg log -T'{node}\n'
   017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
   1bed6038501e18cfa5551b71175be951891ced70
@@ -61,51 +63,51 @@ Listing the commits is forbidden
 
 Changeset folders can be listed
 
-  $ ls commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
+  $ ls commits/$rev0
   files
-  $ ls commits/1bed6038501e18cfa5551b71175be951891ced70
+  $ ls commits/$rev1
   files
 
 
 We can access the contents of each revision
 
-  $ ls -l commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files
+  $ ls -l commits/$rev0/files
   total * (glob)
   -rw------- * file1 (glob)
   -rw------- * file2 (glob)
   drwx------ * nested (glob)
-  $ ls -l commits/1bed6038501e18cfa5551b71175be951891ced70/files
+  $ ls -l commits/$rev1/files
   total * (glob)
   -rw------- * file1 (glob)
   -rw------- * file2 (glob)
   drwx------ * nested (glob)
 
 
-  $ ls -l commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/nested
+  $ ls -l commits/$rev1/files/nested
   total 1
   drwx------ * dir (glob)
   lrw------- 1 * symlink1 -> ../file1 (glob)
 
 
 We can access contents of files
-  $ cat commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/file1
+  $ cat commits/$rev1/files/file1
   aaa
   aaa
 
 We can read through symlinks
-  $ cat commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/nested/symlink1
+  $ cat commits/$rev1/files/nested/symlink1
   aaa
   aaa
 
 We can read symlinks themselves
-  $ readlink.py commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/nested/symlink1
+  $ readlink.py commits/$rev1/files/nested/symlink1
   commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/nested/symlink1 -> ../file1
 
 
 Test the virtual share as a repo
 --------------------------------
 
-  $ cd commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files
+  $ cd commits/$rev1/files
 
 hg finds a repo and can handle it fine
 
@@ -152,6 +154,7 @@ Create a new revision in the source
   $ cd $TESTTMP/source
   $ echo "after repo update" >> file1
   $ hg commit -Aqm2
+  $ rev2=$(hg log -r . -T "{node}\n")
   $ hg log -T"{node}\n"
   df38c26fa2f9c99a713635376e2df59076a5a2cf
   017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
@@ -159,7 +162,7 @@ Create a new revision in the source
 
 We can access the new revision
 
-  $ cd $FUSE_ROOT/commits/df38c26fa2f9c99a713635376e2df59076a5a2cf/files
+  $ cd $FUSE_ROOT/commits/$rev2/files
   $ hg st -A
   C error.log
   C file1
@@ -177,6 +180,7 @@ TODO improve error reporting
   $ cd $TESTTMP/source
   $ echo "requirements change" >> file1
   $ hg commit -Aqm3
+  $ rev3=$(hg log -r . -T "{node}\n")
   $ hg log -T"{node}\n"
   56cfdc65ceb2a449d20c252c94dc1d9b514fed9f
   df38c26fa2f9c99a713635376e2df59076a5a2cf
@@ -185,7 +189,7 @@ TODO improve error reporting
   $ hg debugupgraderepo --config format.use-fileindex-v1=yes --run -q | grep 'added: fileindex-v1'
      added: fileindex-v1
 
-  $ ls $FUSE_ROOT/commits/56cfdc65ceb2a449d20c252c94dc1d9b514fed9f/files
+  $ ls $FUSE_ROOT/commits/$rev3/files
   ls: cannot access '$TESTTMP/fuse-mount/commits/56cfdc65ceb2a449d20c252c94dc1d9b514fed9f/files': Input/output error
   [2]
 
@@ -198,4 +202,5 @@ XXX teach run-tests.py to do it itself?
 
   $ cat $TESTTMP/source/error.log
   $ cd $TESTTMP # move out of the FUSE so we can unmount it
-  $ umount $FUSE_ROOT
+  $ fusermount -u $FUSE_ROOT
+  $ killdaemons.py
