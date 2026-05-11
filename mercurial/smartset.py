@@ -6,6 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 from __future__ import annotations
+import typing
 
 from . import (
     encoding,
@@ -15,23 +16,27 @@ from . import (
 )
 from .utils import stringutil
 
+if typing.TYPE_CHECKING:
+    from typing import Callable, Iterable, Iterator
+    from .interfaces.types import RepoT, RevnumT
+
 
 def _typename(o):
     return pycompat.sysbytes(type(o).__name__).lstrip(b'_')
 
 
 class abstractsmartset:
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         """True if the smartset is not empty"""
         raise NotImplementedError()
 
     __bool__ = __nonzero__
 
-    def __contains__(self, rev):
+    def __contains__(self, rev: RevnumT) -> bool:
         """provide fast membership testing"""
         raise NotImplementedError()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[RevnumT]:
         """iterate the set in the order it is supposed to be iterated"""
         raise NotImplementedError()
 
@@ -40,22 +45,22 @@ class abstractsmartset:
     #
     # Default value is None instead of a function returning None to avoid
     # initializing an iterator just for testing if a fast method exists.
-    fastasc = None
-    fastdesc = None
+    fastasc: Callable[[], Iterator[RevnumT]] | None = None
+    fastdesc: Callable[[], Iterator[RevnumT]] | None = None
 
-    def isascending(self):
+    def isascending(self) -> bool:
         """True if the set will iterate in ascending order"""
         raise NotImplementedError()
 
-    def isdescending(self):
+    def isdescending(self) -> bool:
         """True if the set will iterate in descending order"""
         raise NotImplementedError()
 
-    def istopo(self):
+    def istopo(self) -> bool:
         """True if the set will iterate in topographical order"""
         raise NotImplementedError()
 
-    def min(self):
+    def min(self) -> RevnumT | None:
         """return the minimum element in the set"""
         if self.fastasc is None:
             v = min(self)
@@ -67,7 +72,7 @@ class abstractsmartset:
         self.min = lambda: v
         return v
 
-    def max(self):
+    def max(self) -> RevnumT | None:
         """return the maximum element in the set"""
         if self.fastdesc is None:
             return max(self)
@@ -79,19 +84,19 @@ class abstractsmartset:
         self.max = lambda: v
         return v
 
-    def first(self):
+    def first(self) -> RevnumT | None:
         """return the first element in the set (user iteration perspective)
 
         Return None if the set is empty"""
         raise NotImplementedError()
 
-    def last(self):
+    def last(self) -> RevnumT | None:
         """return the last element in the set (user iteration perspective)
 
         Return None if the set is empty"""
         raise NotImplementedError()
 
-    def __len__(self):
+    def __len__(self) -> int:
         """return the length of the smartsets
 
         This can be expensive on smartset that could be lazy otherwise."""
@@ -101,11 +106,11 @@ class abstractsmartset:
         """reverse the expected iteration order"""
         raise NotImplementedError()
 
-    def sort(self, reverse=False):
+    def sort(self, reverse: bool = False):
         """get the set to iterate in an ascending or descending order"""
         raise NotImplementedError()
 
-    def __and__(self, other):
+    def __and__(self, other: abstractsmartset) -> abstractsmartset:
         """Returns a new object with the intersection of the two collections.
 
         This is part of the mandatory API for smartset."""
@@ -113,13 +118,13 @@ class abstractsmartset:
             return self
         return self.filter(other.__contains__, condrepr=other, cache=False)
 
-    def __add__(self, other):
+    def __add__(self, other: abstractsmartset) -> abstractsmartset:
         """Returns a new object with the union of the two collections.
 
         This is part of the mandatory API for smartset."""
         return addset(self, other)
 
-    def __sub__(self, other):
+    def __sub__(self, other: abstractsmartset) -> abstractsmartset:
         """Returns a new object with the substraction of the two collections.
 
         This is part of the mandatory API for smartset."""
@@ -128,7 +133,12 @@ class abstractsmartset:
             lambda r: not c(r), condrepr=(b'<not %r>', other), cache=False
         )
 
-    def filter(self, condition, condrepr=None, cache=True):
+    def filter(
+        self,
+        condition: Callable[[RevnumT], bool],
+        condrepr=None,
+        cache: bool = True,
+    ) -> abstractsmartset:
         """Returns this smartset filtered by condition as a new smartset.
 
         `condition` is a callable which takes a revision number and returns a
@@ -141,13 +151,13 @@ class abstractsmartset:
             condition = util.cachefunc(condition)
         return filteredset(self, condition, condrepr)
 
-    def slice(self, start, stop):
+    def slice(self, start: int, stop: int) -> abstractsmartset:
         """Return new smartset that contains selected elements from this set"""
         if start < 0 or stop < 0:
             raise error.ProgrammingError(b'negative index not allowed')
         return self._slice(start, stop)
 
-    def _slice(self, start, stop):
+    def _slice(self, start: int, stop: int) -> abstractsmartset:
         # sub classes may override this. start and stop must not be negative,
         # but start > stop is allowed, which should be an empty set.
         ys = []
@@ -224,7 +234,9 @@ class baseset(abstractsmartset):
     True
     """
 
-    def __init__(self, data=(), datarepr=None, istopo=False):
+    def __init__(
+        self, data: Iterable[RevnumT] = (), datarepr=None, istopo: bool = False
+    ):
         """
         datarepr: a tuple of (format, obj, ...), a function or an object that
                   provides a printable representation of the given data.
@@ -243,22 +255,22 @@ class baseset(abstractsmartset):
         self._datarepr = datarepr
 
     @util.propertycache
-    def _set(self):
+    def _set(self) -> set[RevnumT]:
         return set(self._list)
 
     @util.propertycache
-    def _asclist(self):
+    def _asclist(self) -> list[RevnumT]:
         asclist = self._list[:]
         asclist.sort()
         return asclist
 
     @util.propertycache
-    def _list(self):
+    def _list(self) -> list[RevnumT]:
         # _list is only lazily constructed if we have _set
         assert '_set' in self.__dict__
         return list(self._set)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[RevnumT]:
         if self._ascending is None:
             return iter(self._list)
         elif self._ascending:
@@ -266,22 +278,22 @@ class baseset(abstractsmartset):
         else:
             return reversed(self._asclist)
 
-    def fastasc(self):
+    def fastasc(self) -> Iterator[RevnumT]:
         return iter(self._asclist)
 
-    def fastdesc(self):
+    def fastdesc(self) -> Iterator[RevnumT]:
         return reversed(self._asclist)
 
     @util.propertycache
-    def __contains__(self):
+    def __contains__(self) -> Callable[[RevnumT], bool]:
         return self._set.__contains__
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         return bool(len(self))
 
     __bool__ = __nonzero__
 
-    def sort(self, reverse=False):
+    def sort(self, reverse: bool = False):
         self._ascending = not bool(reverse)
         self._istopo = False
 
@@ -292,13 +304,13 @@ class baseset(abstractsmartset):
             self._ascending = not self._ascending
         self._istopo = False
 
-    def __len__(self):
+    def __len__(self) -> int:
         if '_list' in self.__dict__:
             return len(self._list)
         else:
             return len(self._set)
 
-    def isascending(self):
+    def isascending(self) -> bool:
         """Returns True if the collection is ascending order, False if not.
 
         This is part of the mandatory API for smartset."""
@@ -306,7 +318,7 @@ class baseset(abstractsmartset):
             return True
         return self._ascending is not None and self._ascending
 
-    def isdescending(self):
+    def isdescending(self) -> bool:
         """Returns True if the collection is descending order, False if not.
 
         This is part of the mandatory API for smartset."""
@@ -314,7 +326,7 @@ class baseset(abstractsmartset):
             return True
         return self._ascending is not None and not self._ascending
 
-    def istopo(self):
+    def istopo(self) -> bool:
         """Is the collection is in topographical order or not.
 
         This is part of the mandatory API for smartset."""
@@ -322,7 +334,7 @@ class baseset(abstractsmartset):
             return True
         return self._istopo
 
-    def first(self):
+    def first(self) -> RevnumT | None:
         if self:
             if self._ascending is None:
                 return self._list[0]
@@ -332,7 +344,7 @@ class baseset(abstractsmartset):
                 return self._asclist[-1]
         return None
 
-    def last(self):
+    def last(self) -> RevnumT | None:
         if self:
             if self._ascending is None:
                 return self._list[-1]
@@ -342,7 +354,7 @@ class baseset(abstractsmartset):
                 return self._asclist[0]
         return None
 
-    def _fastsetop(self, other, op):
+    def _fastsetop(self, other: abstractsmartset, op: str) -> abstractsmartset:
         # try to use native set operations as fast paths
         if (
             type(other) is baseset
@@ -358,13 +370,13 @@ class baseset(abstractsmartset):
             s = getattr(super(), op)(other)
         return s
 
-    def __and__(self, other):
+    def __and__(self, other: abstractsmartset) -> abstractsmartset:
         return self._fastsetop(other, '__and__')
 
-    def __sub__(self, other):
+    def __sub__(self, other: abstractsmartset) -> abstractsmartset:
         return self._fastsetop(other, '__sub__')
 
-    def _slice(self, start, stop):
+    def _slice(self, start: int, stop: int) -> abstractsmartset:
         # creating new list should be generally cheaper than iterating items
         if self._ascending is None:
             return baseset(self._list[start:stop], istopo=self._istopo)
@@ -377,7 +389,7 @@ class baseset(abstractsmartset):
         return s
 
     @encoding.strmethod
-    def __repr__(self):
+    def __repr__(self) -> bytes:
         d = {None: b'', False: b'-', True: b'+'}[self._ascending]
         s = stringutil.buildrepr(self._datarepr)
         if not s:
@@ -397,7 +409,12 @@ class filteredset(abstractsmartset):
     revset
     """
 
-    def __init__(self, subset, condition=lambda x: True, condrepr=None):
+    def __init__(
+        self,
+        subset: abstractsmartset,
+        condition: Callable[[RevnumT], bool] = lambda x: True,
+        condrepr=None,
+    ):
         """
         condition: a function that decide whether a revision in the subset
                    belongs to the revset or not.
@@ -408,33 +425,33 @@ class filteredset(abstractsmartset):
         self._condition = condition
         self._condrepr = condrepr
 
-    def __contains__(self, x):
+    def __contains__(self, x: RevnumT) -> bool:
         return x in self._subset and self._condition(x)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[RevnumT]:
         return self._iterfilter(self._subset)
 
-    def _iterfilter(self, it):
+    def _iterfilter(self, it: Iterable[RevnumT]) -> Iterator[RevnumT]:
         cond = self._condition
         for x in it:
             if cond(x):
                 yield x
 
     @property
-    def fastasc(self):
+    def fastasc(self) -> Callable[[], Iterator[RevnumT]] | None:
         it = self._subset.fastasc
         if it is None:
             return None
         return lambda: self._iterfilter(it())
 
     @property
-    def fastdesc(self):
+    def fastdesc(self) -> Callable[[], Iterator[RevnumT]] | None:
         it = self._subset.fastdesc
         if it is None:
             return None
         return lambda: self._iterfilter(it())
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         fast = None
         candidates = [
             self.fastasc if self.isascending() else None,
@@ -458,7 +475,7 @@ class filteredset(abstractsmartset):
 
     __bool__ = __nonzero__
 
-    def __len__(self):
+    def __len__(self) -> int:
         # Basic implementation to be changed in future patches.
         # until this gets improved, we use generator expression
         # here, since list comprehensions are free to call __len__ again
@@ -466,27 +483,27 @@ class filteredset(abstractsmartset):
         l = baseset(r for r in self)
         return len(l)
 
-    def sort(self, reverse=False):
+    def sort(self, reverse: bool = False):
         self._subset.sort(reverse=reverse)
 
     def reverse(self):
         self._subset.reverse()
 
-    def isascending(self):
+    def isascending(self) -> bool:
         return self._subset.isascending()
 
-    def isdescending(self):
+    def isdescending(self) -> bool:
         return self._subset.isdescending()
 
-    def istopo(self):
+    def istopo(self) -> bool:
         return self._subset.istopo()
 
-    def first(self):
+    def first(self) -> RevnumT | None:
         for x in self:
             return x
         return None
 
-    def last(self):
+    def last(self) -> RevnumT | None:
         it = None
         if self.isascending():
             it = self.fastdesc
@@ -503,7 +520,7 @@ class filteredset(abstractsmartset):
             return x
 
     @encoding.strmethod
-    def __repr__(self):
+    def __repr__(self) -> bytes:
         xs = [pycompat.byterepr(self._subset)]
         s = stringutil.buildrepr(self._condrepr)
         if s:
@@ -511,7 +528,7 @@ class filteredset(abstractsmartset):
         return b'<%s %s>' % (_typename(self), b', '.join(xs))
 
 
-def _iterordered(ascending, iter1, iter2):
+def _iterordered(ascending: bool, iter1: Iterator, iter2: Iterator) -> Iterator:
     """produce an ordered iteration from two iterators with the same order
 
     The ascending is used to indicated the iteration direction.
@@ -619,7 +636,12 @@ class addset(abstractsmartset):
     [5, 4, 3, 2, 0]
     """
 
-    def __init__(self, revs1, revs2, ascending=None):
+    def __init__(
+        self,
+        revs1: abstractsmartset,
+        revs2: abstractsmartset,
+        ascending: bool | None = None,
+    ):
         self._r1 = revs1
         self._r2 = revs2
         self._iter = None
@@ -627,21 +649,21 @@ class addset(abstractsmartset):
         self._genlist = None
         self._asclist = None
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._list)
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         return bool(self._r1) or bool(self._r2)
 
     __bool__ = __nonzero__
 
     @util.propertycache
-    def _list(self):
+    def _list(self) -> baseset:
         if not self._genlist:
             self._genlist = baseset(iter(self))
         return self._genlist
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[RevnumT]:
         """Iterate over both collections without repeating elements
 
         If the ascending attribute is not set, iterate over the first one and
@@ -696,7 +718,7 @@ class addset(abstractsmartset):
             self._asclist = sorted(self._genlist)
 
     @property
-    def fastasc(self):
+    def fastasc(self) -> Callable[[], Iterator[RevnumT]] | None:
         self._trysetasclist()
         if self._asclist is not None:
             return self._asclist.__iter__
@@ -707,7 +729,7 @@ class addset(abstractsmartset):
         return lambda: _iterordered(True, iter1(), iter2())
 
     @property
-    def fastdesc(self):
+    def fastdesc(self) -> Callable[[], Iterator[RevnumT]] | None:
         self._trysetasclist()
         if self._asclist is not None:
             return self._asclist.__reversed__
@@ -717,10 +739,10 @@ class addset(abstractsmartset):
             return None
         return lambda: _iterordered(False, iter1(), iter2())
 
-    def __contains__(self, x):
+    def __contains__(self, x: RevnumT) -> bool:
         return x in self._r1 or x in self._r2
 
-    def sort(self, reverse=False):
+    def sort(self, reverse: bool = False):
         """Sort the added set
 
         For this we use the cached list with all the generated values and if we
@@ -728,13 +750,13 @@ class addset(abstractsmartset):
         """
         self._ascending = not reverse
 
-    def isascending(self):
+    def isascending(self) -> bool:
         return self._ascending is not None and self._ascending
 
-    def isdescending(self):
+    def isdescending(self) -> bool:
         return self._ascending is not None and not self._ascending
 
-    def istopo(self):
+    def istopo(self) -> bool:
         # not worth the trouble asserting if the two sets combined are still
         # in topographical order. Use the sort() predicate to explicitly sort
         # again instead.
@@ -746,19 +768,19 @@ class addset(abstractsmartset):
         else:
             self._ascending = not self._ascending
 
-    def first(self):
+    def first(self) -> RevnumT | None:
         for x in self:
             return x
         return None
 
-    def last(self):
+    def last(self) -> RevnumT | None:
         self.reverse()
         val = self.first()
         self.reverse()
         return val
 
     @encoding.strmethod
-    def __repr__(self):
+    def __repr__(self) -> bytes:
         d = {None: b'', False: b'-', True: b'+'}[self._ascending]
         return b'<%s%s %r, %r>' % (_typename(self), d, self._r1, self._r2)
 
@@ -777,7 +799,7 @@ class generatorset(abstractsmartset):
     4
     """
 
-    def __new__(cls, gen, iterasc=None):
+    def __new__(cls, gen, iterasc: bool | None = None):
         if iterasc is None:
             typ = cls
         elif iterasc:
@@ -787,7 +809,7 @@ class generatorset(abstractsmartset):
 
         return super().__new__(typ)
 
-    def __init__(self, gen, iterasc=None):
+    def __init__(self, gen, iterasc: bool | None = None):
         """
         gen: a generator producing the values for the generatorset.
         """
@@ -798,7 +820,7 @@ class generatorset(abstractsmartset):
         self._finished = False
         self._ascending = True
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         # Do not use 'for r in self' because it will enforce the iteration
         # order (default ascending), possibly unrolling a whole descending
         # iterator.
@@ -810,7 +832,7 @@ class generatorset(abstractsmartset):
 
     __bool__ = __nonzero__
 
-    def __contains__(self, x):
+    def __contains__(self, x: RevnumT) -> bool:
         if x in self._cache:
             return self._cache[x]
 
@@ -822,7 +844,7 @@ class generatorset(abstractsmartset):
         self._cache[x] = False
         return False
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[RevnumT]:
         if self._ascending:
             it = self.fastasc
         else:
@@ -835,7 +857,7 @@ class generatorset(abstractsmartset):
         # recall the same code
         return iter(self)
 
-    def _iterator(self):
+    def _iterator(self) -> Iterator[RevnumT]:
         if self._finished:
             return iter(self._genlist)
 
@@ -863,7 +885,7 @@ class generatorset(abstractsmartset):
 
         return gen()
 
-    def _consumegen(self):
+    def _consumegen(self) -> Iterator[RevnumT]:
         cache = self._cache
         genlist = self._genlist.append
         for item in self._gen:
@@ -878,30 +900,30 @@ class generatorset(abstractsmartset):
             self.fastasc = asc.__iter__
             self.fastdesc = asc.__reversed__
 
-    def __len__(self):
+    def __len__(self) -> int:
         for x in self._consumegen():
             pass
         return len(self._genlist)
 
-    def sort(self, reverse=False):
+    def sort(self, reverse: bool = False):
         self._ascending = not reverse
 
     def reverse(self):
         self._ascending = not self._ascending
 
-    def isascending(self):
+    def isascending(self) -> bool:
         return self._ascending
 
-    def isdescending(self):
+    def isdescending(self) -> bool:
         return not self._ascending
 
-    def istopo(self):
+    def istopo(self) -> bool:
         # not worth the trouble asserting if the two sets combined are still
         # in topographical order. Use the sort() predicate to explicitly sort
         # again instead.
         return False
 
-    def first(self):
+    def first(self) -> RevnumT | None:
         if self._ascending:
             it = self.fastasc
         else:
@@ -913,7 +935,7 @@ class generatorset(abstractsmartset):
             return self.first()
         return next(it(), None)
 
-    def last(self):
+    def last(self) -> RevnumT | None:
         if self._ascending:
             it = self.fastdesc
         else:
@@ -926,7 +948,7 @@ class generatorset(abstractsmartset):
         return next(it(), None)
 
     @encoding.strmethod
-    def __repr__(self):
+    def __repr__(self) -> bytes:
         d = {False: b'-', True: b'+'}[self._ascending]
         return b'<%s%s>' % (_typename(self), d)
 
@@ -936,7 +958,7 @@ class _generatorsetasc(generatorset):
 
     fastasc = generatorset._iterator
 
-    def __contains__(self, x):
+    def __contains__(self, x: RevnumT) -> bool:
         if x in self._cache:
             return self._cache[x]
 
@@ -956,7 +978,7 @@ class _generatorsetdesc(generatorset):
 
     fastdesc = generatorset._iterator
 
-    def __contains__(self, x):
+    def __contains__(self, x: RevnumT) -> bool:
         if x in self._cache:
             return self._cache[x]
 
@@ -971,7 +993,7 @@ class _generatorsetdesc(generatorset):
         return False
 
 
-def spanset(repo, start=0, end=None):
+def spanset(repo: RepoT, start: int = 0, end: int | None = None):
     """Create a spanset that represents a range of repository revisions
 
     start: first revision included the set (default to 0)
@@ -998,62 +1020,62 @@ class _spanset(abstractsmartset):
 
     """
 
-    def __init__(self, start, end, ascending, hiddenrevs):
+    def __init__(self, start: int, end: int, ascending: bool, hiddenrevs):
         self._start = start
         self._end = end
         self._ascending = ascending
         self._hiddenrevs = hiddenrevs
 
-    def sort(self, reverse=False):
+    def sort(self, reverse: bool = False):
         self._ascending = not reverse
 
     def reverse(self):
         self._ascending = not self._ascending
 
-    def istopo(self):
+    def istopo(self) -> bool:
         # not worth the trouble asserting if the two sets combined are still
         # in topographical order. Use the sort() predicate to explicitly sort
         # again instead.
         return False
 
-    def _iterfilter(self, iterrange):
+    def _iterfilter(self, iterrange: Iterable[RevnumT]) -> Iterator[RevnumT]:
         s = self._hiddenrevs
         for r in iterrange:
             if r not in s:
                 yield r
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[RevnumT]:
         if self._ascending:
             return self.fastasc()
         else:
             return self.fastdesc()
 
-    def fastasc(self):
+    def fastasc(self) -> Iterator[RevnumT]:
         iterrange = range(self._start, self._end)
         if self._hiddenrevs:
             return self._iterfilter(iterrange)
         return iter(iterrange)
 
-    def fastdesc(self):
+    def fastdesc(self) -> Iterator[RevnumT]:
         iterrange = range(self._end - 1, self._start - 1, -1)
         if self._hiddenrevs:
             return self._iterfilter(iterrange)
         return iter(iterrange)
 
-    def __contains__(self, rev):
+    def __contains__(self, rev: RevnumT) -> bool:
         hidden = self._hiddenrevs
         return (self._start <= rev < self._end) and not (
             hidden and rev in hidden
         )
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         for r in self:
             return True
         return False
 
     __bool__ = __nonzero__
 
-    def __len__(self):
+    def __len__(self) -> int:
         if not self._hiddenrevs:
             return abs(self._end - self._start)
         else:
@@ -1065,13 +1087,13 @@ class _spanset(abstractsmartset):
                     count += 1
             return abs(self._end - self._start) - count
 
-    def isascending(self):
+    def isascending(self) -> bool:
         return self._ascending
 
-    def isdescending(self):
+    def isdescending(self) -> bool:
         return not self._ascending
 
-    def first(self):
+    def first(self) -> RevnumT | None:
         if self._ascending:
             it = self.fastasc
         else:
@@ -1080,7 +1102,7 @@ class _spanset(abstractsmartset):
             return x
         return None
 
-    def last(self):
+    def last(self) -> RevnumT | None:
         if self._ascending:
             it = self.fastdesc
         else:
@@ -1089,7 +1111,7 @@ class _spanset(abstractsmartset):
             return x
         return None
 
-    def _slice(self, start, stop):
+    def _slice(self, start: int, stop: int) -> abstractsmartset:
         if self._hiddenrevs:
             # unoptimized since all hidden revisions in range has to be scanned
             return super()._slice(start, stop)
@@ -1102,7 +1124,7 @@ class _spanset(abstractsmartset):
         return _spanset(x, y, self._ascending, self._hiddenrevs)
 
     @encoding.strmethod
-    def __repr__(self):
+    def __repr__(self) -> bytes:
         d = {False: b'-', True: b'+'}[self._ascending]
         return b'<%s%s %d:%d>' % (_typename(self), d, self._start, self._end)
 
@@ -1114,10 +1136,10 @@ class fullreposet(_spanset):
     revisions such as "null".
     """
 
-    def __init__(self, repo):
+    def __init__(self, repo: RepoT):
         super().__init__(0, len(repo), True, repo.changelog.filteredrevs)
 
-    def __and__(self, other):
+    def __and__(self, other: abstractsmartset) -> abstractsmartset:
         """As self contains the whole repo, all of the other set should also be
         in self. Therefore `self & other = other`.
 
