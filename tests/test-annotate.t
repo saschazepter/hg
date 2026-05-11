@@ -883,14 +883,13 @@ merge
   $ hg resolve --mark -q
   $ rm qux.orig
   $ hg ci -m merge
-TODO: Fix behavior with delta-info flags
   $ hg log -T '{rev}: {desc}\n' -r 'followlines(qux, 5:7)'
   16: baz:0
   19: baz:3
   20: baz:4
   24: baz:3->3+
   25: qux:4->4+
-  27: baz:3+->3- (flagless !)
+  27: baz:3+->3-
   28: merge
   $ hg up 25 --quiet
   $ hg merge 27
@@ -937,8 +936,8 @@ TODO: Fix behavior with delta-info flags
   20: baz:4
   24: baz:3->3+
   25: qux:4->4+
-  27: baz:3+->3- (flagless !)
-  29: merge from other side (flagless !)
+  27: baz:3+->3-
+  29: merge from other side
   $ hg up 24 --quiet
 
 we are missing the branch with rename when following children
@@ -1442,7 +1441,7 @@ TODO: Update logic so that delta-info-flags prints 2: another line.
   $ hg annotate b
   0: original line
   2: another line (flagless !)
-  3: another line (delta-info-flags no-pyo3-annotate !)
+  2: another line (delta-info-flags no-pyo3-annotate !)
   3: another line (delta-info-flags pyo3-annotate !)
 
   $ cd ..

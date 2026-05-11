@@ -375,11 +375,9 @@ class filelog(repository.ifilestorage):
         2-tuple of the source filename and node.
         """
         rev = self.rev(node)
-        if (
-            self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META
-            and not self.has_meta(node)
-        ):
-            return None
+        if self._revlog._format_flags & revlog_constants.FLAG_FILELOG_META:
+            if not self.has_meta(node):
+                return None
         elif self.parentrevs(rev)[0] != nullrev:
             # When creating a copy or move we set filelog parents to null,
             # because contents are probably unrelated and making a delta
