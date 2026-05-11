@@ -2087,7 +2087,7 @@ class IRepo(Protocol):
     __bool__ = __nonzero__
 
     @abc.abstractmethod
-    def __len__(self):
+    def __len__(self) -> int:
         """Returns the number of changesets in the repo."""
 
     @abc.abstractmethod
