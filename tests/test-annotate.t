@@ -1437,11 +1437,8 @@ Annotate should follow files through copies/moves.
   $ hg update 1 -q
   $ hg merge 2 -q
   $ hg commit -m "merge" -q
-TODO: Update logic so that delta-info-flags prints 2: another line.
   $ hg annotate b
   0: original line
-  2: another line (flagless !)
-  2: another line (delta-info-flags no-pyo3-annotate !)
-  3: another line (delta-info-flags pyo3-annotate !)
+  2: another line
 
   $ cd ..

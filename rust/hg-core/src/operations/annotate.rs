@@ -309,19 +309,23 @@ impl FilelogSet {
                 index: id.index,
                 revision: revisions[0],
             }));
-        } else if follow_copies {
-            // A null p1 indicates there might be copy metadata.
-            // Check for it, and if present use it as the parent.
-            let data = filelog.entry(id.revision)?.data()?;
-            let meta = data.metadata()?.parse()?;
-            // If copy or copyrev occurs without the other, ignore it.
-            // This matches filerevisioncopied in storageutil.py.
-            if let (Some(copy), Some(copyrev)) = (meta.copy, meta.copyrev) {
-                parents.push(FileId::Rev(
-                    self.open_at_node(state.repo, copy, copyrev)?,
-                ));
+        }
+        if follow_copies {
+            let filelog_entry = filelog.entry(id.revision)?;
+            if filelog_entry.maybe_has_metadata() {
+                // A null p1 indicates there might be copy metadata.
+                // Check for it, and if present use it as the parent.
+                let data = filelog_entry.data()?;
+                let meta = data.metadata()?.parse()?;
+                // If copy or copyrev occurs without the other, ignore it.
+                // This matches filerevisioncopied in storageutil.py.
+                if let (Some(copy), Some(copyrev)) = (meta.copy, meta.copyrev) {
+                    parents.push(FileId::Rev(
+                        self.open_at_node(state.repo, copy, copyrev)?,
+                    ));
+                }
+                file_data = Some(data.into_file_data()?);
             }
-            file_data = Some(data.into_file_data()?);
         }
         if revisions[1] != NULL_REVISION {
             parents.push(FileId::Rev(RevFileId {
