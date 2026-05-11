@@ -1,4 +1,5 @@
 #testcases no-pyo3-annotate pyo3-annotate
+#testcases delta-info-flags flagless
 
 #if pyo3-annotate no-rust
 Can't test pyo3 annotate without rust extensions.
@@ -19,6 +20,18 @@ Pyo3 annotate is not applicable for rhg.
   $ cat >> "$HGRCPATH" << EOF
   > [rust]
   > annotate = false
+  > EOF
+#endif
+
+#if delta-info-flags
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > use-delta-info-flags=yes
+  > EOF
+#else
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > use-delta-info-flags=no
   > EOF
 #endif
 
@@ -870,13 +883,14 @@ merge
   $ hg resolve --mark -q
   $ rm qux.orig
   $ hg ci -m merge
+TODO: Fix behavior with delta-info flags
   $ hg log -T '{rev}: {desc}\n' -r 'followlines(qux, 5:7)'
   16: baz:0
   19: baz:3
   20: baz:4
   24: baz:3->3+
   25: qux:4->4+
-  27: baz:3+->3-
+  27: baz:3+->3- (flagless !)
   28: merge
   $ hg up 25 --quiet
   $ hg merge 27
@@ -923,8 +937,8 @@ merge
   20: baz:4
   24: baz:3->3+
   25: qux:4->4+
-  27: baz:3+->3-
-  29: merge from other side
+  27: baz:3+->3- (flagless !)
+  29: merge from other side (flagless !)
   $ hg up 24 --quiet
 
 we are missing the branch with rename when following children
@@ -1407,5 +1421,28 @@ Issue5360: Deleted chunk in p1 of a merge changeset
   1: 2
   3: 3
   2: a
+
+  $ cd ..
+
+Annotate should follow files through copies/moves.
+
+  $ hg init annotate-follow-copies
+  $ cd annotate-follow-copies
+  $ echo "original line" > a
+  $ hg commit -A a -m 1
+  $ hg mv a b
+  $ hg commit -m "rename a to b" -q
+  $ hg update 0 -q
+  $ echo "another line" >> a
+  $ hg commit -m "add to a" -q
+  $ hg update 1 -q
+  $ hg merge 2 -q
+  $ hg commit -m "merge" -q
+TODO: Update logic so that delta-info-flags prints 2: another line.
+  $ hg annotate b
+  0: original line
+  2: another line (flagless !)
+  3: another line (delta-info-flags no-pyo3-annotate !)
+  3: another line (delta-info-flags pyo3-annotate !)
 
   $ cd ..
