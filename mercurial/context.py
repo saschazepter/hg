@@ -673,7 +673,7 @@ class changectx(basectx, i_context.IChangeContext):
     def filesadded(self) -> list[bytes]:
         filesadded = self._changeset.filesadded
         compute_on_none = True
-        if self._repo.filecopiesmode == b'changeset-sidedata':
+        if self._repo.filecopiesmode == b'changeset':
             compute_on_none = False
         if filesadded is None:
             if compute_on_none:
@@ -685,7 +685,7 @@ class changectx(basectx, i_context.IChangeContext):
     def filesremoved(self) -> list[bytes]:
         filesremoved = self._changeset.filesremoved
         if filesremoved is None:
-            if self._repo.filecopiesmode != b'changeset-sidedata':
+            if self._repo.filecopiesmode != b'changeset':
                 filesremoved = metadata.computechangesetfilesremoved(self)
             else:
                 filesremoved = []
@@ -696,7 +696,7 @@ class changectx(basectx, i_context.IChangeContext):
         p1copies = self._changeset.p1copies
         p2copies = self._changeset.p2copies
         if p1copies is None:
-            if self._repo.filecopiesmode != b'changeset-sidedata':
+            if self._repo.filecopiesmode != b'changeset':
                 p1copies, p2copies = super()._copies
             else:
                 if p1copies is None:

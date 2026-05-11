@@ -156,6 +156,14 @@ class revlogoldindex(list):
         """the offset of the sidedata chunk if any"""
         return revlog_constants.COMP_MODE_INLINE
 
+    def changed_files_offset(self, rev):
+        """the offset of the ChangedFiles chunk if any"""
+        return 0
+
+    def changed_files_length(self, rev):
+        """the offset of the ChangedFiles chunk if any"""
+        return 0
+
     def lazy_rank(self, rev):
         return revlog_constants.RANK_UNKNOWN
 

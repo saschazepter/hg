@@ -10,7 +10,7 @@
 #if sidedata
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > EOF
 #endif
 

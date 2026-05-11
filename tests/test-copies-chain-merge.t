@@ -37,28 +37,28 @@ use git diff to see rename
 #if sidedata
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > EOF
 #endif
 
 #if pull
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > EOF
 #endif
 
 #if push
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > EOF
 #endif
 
 #if pull-upgrade
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = no
+  > exp-use-copies-in-changeset = no
   > [experimental]
   > changegroup5 = yes
   > EOF
@@ -67,7 +67,7 @@ use git diff to see rename
 #if push-upgrade
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = no
+  > exp-use-copies-in-changeset = no
   > [experimental]
   > changegroup5 = yes
   > EOF
@@ -1583,7 +1583,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
 #if upgraded
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > EOF
   $ hg debugformat -v changelog-v2 revlog-v2 copies-sdc
   format-variant                 repo config default
@@ -1605,7 +1605,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
 #if upgraded-parallel
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > [experimental]
   > worker.repository-upgrade=yes
   > [worker]
@@ -1648,7 +1648,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
 #if pull-upgrade
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > [experimental]
   > changegroup5 = yes
   > EOF
@@ -1685,7 +1685,7 @@ We upgrade a repository that is not using sidedata (the filelog case) and
 #if push-upgrade
   $ cat >> $HGRCPATH << EOF
   > [format]
-  > exp-use-copies-side-data-changeset = yes
+  > exp-use-copies-in-changeset = yes
   > [experimental]
   > changegroup5 = yes
   > EOF

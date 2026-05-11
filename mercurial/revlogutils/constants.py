@@ -233,10 +233,12 @@ assert INDEX_ENTRY_V2[1].size == 32, INDEX_ENTRY_V2[1].size
 #   *  1 bytes: compression mode (2 lower bit are data_compression_mode)
 #               (Stored as 4 bytes by Struct apparently)
 #   *  4 bytes: changeset rank (i.e. `len(::REV)`)
-#   * 20 bytes: Padding to align to 32 bytes (see RevlogV2Plan wiki page)
+#   * 8 bytes: changing-files offset
+#   * 4 bytes: changing-files length
+#   * 4 bytes: Padding to align to 32 bytes (see RevlogV2Plan wiki page)
 INDEX_ENTRY_CL_V2: tuple[struct.Struct, ...] = (
     struct.Struct(b">Qiiii20s12xQ"),
-    struct.Struct(b"iBi20x"),
+    struct.Struct(b"iBiQi4x"),
 )
 assert INDEX_ENTRY_CL_V2[0].size == 32 * 2, INDEX_ENTRY_CL_V2[0].size
 assert INDEX_ENTRY_CL_V2[1].size == 32, INDEX_ENTRY_CL_V2[1].size
@@ -250,6 +252,8 @@ INDEX_ENTRY_V2_IDX_SIDEDATA_OFFSET = 6
 INDEX_ENTRY_V2_IDX_SIDEDATA_COMPRESSED_LENGTH = 7
 INDEX_ENTRY_V2_IDX_COMPRESSION_MODE = 8
 INDEX_ENTRY_V2_IDX_RANK = 9
+INDEX_ENTRY_V2_IDX_CGF_OFFSET = 10
+INDEX_ENTRY_V2_IDX_CGF_LENGTH = 11
 
 # revlog index flags
 
@@ -350,6 +354,7 @@ class V2FileType(enum.IntEnum):
     INDEX2 = 2
     DATA = 64
     SIDEDATA = 65
+    CHANGED_FILES = 66
 
     @property
     def is_index(self) -> bool:
@@ -371,6 +376,7 @@ V2_FILE_TYPE_EXT = {
     V2FileType.INDEX2: b'i02',
     V2FileType.DATA: b'dat',
     V2FileType.SIDEDATA: b'sda',
+    V2FileType.CHANGED_FILES: b'cgf',
 }
 
 
@@ -436,6 +442,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
             V2FileType.INDEX2,
             V2FileType.DATA,
             V2FileType.SIDEDATA,
+            V2FileType.CHANGED_FILES,
         ),
     },
 }

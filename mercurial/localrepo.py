@@ -1191,7 +1191,7 @@ class localrepository(_localrepo_base_classes):
 
         self.filecopiesmode = None
         if requirementsmod.COPIESSDC_REQUIREMENT in self.requirements:
-            self.filecopiesmode = b'changeset-sidedata'
+            self.filecopiesmode = b'changeset'
 
         self._wanted_sidedata = set()
         self._sidedata_computers = {}

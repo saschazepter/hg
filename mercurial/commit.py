@@ -124,7 +124,7 @@ def _prepare_files(tr, ctx, error=False, origctx=None):
         repo.ui.debug(b'reusing known manifest\n')
         mn = ctx.manifestnode()
         files.update_touched(ctx.files())
-        if repo.filecopiesmode == b'changeset-sidedata':
+        if repo.filecopiesmode == b'changeset':
             files.update_added(ctx.filesadded())
             files.update_removed(ctx.filesremoved())
     elif not ctx.files() and not narrow_files:
@@ -138,7 +138,7 @@ def _prepare_files(tr, ctx, error=False, origctx=None):
         assert files.touched.issubset(origfiles)
         files.update_touched(origfiles)
 
-    if repo.filecopiesmode == b'changeset-sidedata':
+    if repo.filecopiesmode == b'changeset':
         files.update_copies_from_p1(ctx.p1copies())
         files.update_copies_from_p2(ctx.p2copies())
 
@@ -151,7 +151,7 @@ def _get_salvaged(repo, ms, ctx):
     returns empty list if config option which process salvaged files are
     not enabled"""
     salvaged = []
-    copy_sd = repo.filecopiesmode == b'changeset-sidedata'
+    copy_sd = repo.filecopiesmode == b'changeset'
     if copy_sd and len(ctx.parents()) > 1:
         if ms.active():
             for fname in sorted(ms.allextras().keys()):

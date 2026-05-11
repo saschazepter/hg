@@ -118,7 +118,6 @@ from .revlogutils import (
     debug as revlog_debug,
     nodemap,
     rewrite,
-    sidedata,
 )
 from .store_utils import file_index
 
@@ -556,10 +555,8 @@ def debugchangedfiles(ui, repo, rev, **opts):
     if opts['compute']:
         files = metadata.compute_all_files_changes(ctx)
     else:
-        sd = repo.changelog.sidedata(ctx.rev())
-        files_block = sd.get(sidedata.SD_FILES)
-        if files_block is not None:
-            files = metadata.decode_files_sidedata(sd)
+        files_block = repo.changelog.changed_files_bytes(ctx.rev())
+        files = metadata.decode_files(files_block)
     if files is not None:
         for f in sorted(files.touched):
             if f in files.added:

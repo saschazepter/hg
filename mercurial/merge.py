@@ -662,7 +662,7 @@ def manifestmerge(
         and not forcefulldiff
         and not (
             repo.ui.configbool(b'experimental', b'merge-track-salvaged')
-            or repo.filecopiesmode == b'changeset-sidedata'
+            or repo.filecopiesmode == b'changeset'
         )
     ):
         # Identify which files are relevant to the merge, so we can limit the

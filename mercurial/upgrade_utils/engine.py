@@ -367,6 +367,11 @@ def _clonerevlogs(
             sidedata_helpers,
             oncopiedrevision,
         )
+        # NOTE: since we process the changelog last, we could compute extra data
+        # (e.g. `changed-files`) during the clone however, we can simply reuse
+        # the to post-process bundle here to get have something correct.
+        assert newrl is dstrepo.changelog
+        newrl.post_process_group(dstrepo.unfiltered())
         info = newrl.storageinfo(storedsize=True)
         cdstsize += info[b'storedsize'] or 0
     end_time = time.monotonic()

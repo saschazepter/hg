@@ -93,6 +93,14 @@ class RevlogEntry:
     )
     rank = attr.ib(type=int, default=RANK_UNKNOWN)
 
+    changed_files_offset = attr.ib(type=int, default=None)
+    """The byte offset of the serialized ChangedFiles data in the dedicated file
+    """
+
+    changed_files_length = attr.ib(type=int, default=None)
+    """The number of bytes of the serialized ChangedFiles data
+    """
+
     def as_tuple(self) -> EntryTupleT:
         return (
             offset_type(self.data_offset, self.flags),
@@ -306,3 +314,9 @@ class InboundRevision(repository.IInboundRevision):
 
     other_storage_snapshot_level = attr.ib(type=Optional[int], default=None)
     """The snapshot level used in the storage that emitted this delta"""
+
+    changed_files = attr.ib(type=Optional[revlog_t.ChangedFilesT], default=None)
+    """Records of changes made to files by a changeset
+
+    Changelog revision only. (note: could be move at the manifest level instead)
+    """

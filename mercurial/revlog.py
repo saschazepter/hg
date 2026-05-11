@@ -344,6 +344,8 @@ class RustIndexProxy(MonoBlockIndex):
         self.sidedata_chunk_compression_mode = (
             self.inner._index_sidedata_chunk_compression_mode
         )
+        self.changed_files_offset = self.inner._index_changed_files_offset
+        self.changed_files_length = self.inner._index_changed_files_length
         self.lazy_rank = self.inner._index_lazy_rank
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
@@ -1983,6 +1985,14 @@ class revlog:
             return {}
         return self._inner.sidedata(rev)
 
+    def changed_files_bytes(self, rev: RevnumT) -> bytes:
+        """serialized changedfiles data for this revision
+
+        if the inner-revlog doesn't store that information, always return the
+        serialization of an empty changedfiles.
+        """
+        return b""
+
     def rawdata(self, nodeorrev, validate=True):
         """return an uncompressed raw data of a given node or revision number.
 
@@ -3072,6 +3082,10 @@ class revlog:
             # OutboundRevision and can be dropped here.
             flags &= ~REVIDX_DELTA_INFO_FLAGS
 
+            # This should be transmitted the same way as the delta-info-flags,
+            # For now, no changegroup supports that.
+            flags &= ~REVIDX_HASCOPIESINFO
+
             yield OutboundRevision(
                 node=node,
                 p1node=fnode(p1rev),
@@ -3330,6 +3344,8 @@ class revlog:
                     other_data[V2FileType.SIDEDATA] = sd_bin
             else:
                 other_data = None
+                flags &= ~REVIDX_HASCOPIESINFO
+
             if deltareuse == self.DELTAREUSEFULLADD:
                 text = self._revisiondata(rev)
                 destrevlog.addrevision(

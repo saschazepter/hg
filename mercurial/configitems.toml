@@ -1289,7 +1289,7 @@ experimental = true
 
 [[items]]
 section = "format"
-name = "exp-use-copies-side-data-changeset"
+name = "exp-use-copies-in-changeset"
 default = false
 experimental = true
 

@@ -856,6 +856,8 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
                 for fl, (startrev, endrev) in touched_filelogs.items():
                     fl.rewrite_sidedata(trp, sidedata_helpers, startrev, endrev)
 
+            cl.post_process_group(repo)
+
             # making sure the value exists
             tr.changes.setdefault(b'changegroup-count-changesets', 0)
             tr.changes.setdefault(b'changegroup-count-revisions', 0)

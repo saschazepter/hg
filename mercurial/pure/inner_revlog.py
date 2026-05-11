@@ -15,6 +15,7 @@ import zlib
 
 from typing import (
     Callable,
+    Iterator,
     cast,
 )
 
@@ -659,6 +660,25 @@ class BaseInnerRevlog(abc.ABC):
     def sidedata(self, rev):
         """Return the sidedata for a given revision number."""
         return {}
+
+    def changed_files_bytes(self, rev: RevnumT) -> bytes:
+        """Serialized ChangedFiles data for this revision
+
+        If the inner-revlog doesn't store that information, always return the
+        serialization of an empty ChangedFiles.
+        """
+        return b""
+
+    def add_changed_files(
+        self,
+        transaction: TransactionT,
+        data_iter: Iterator[tuple[RevnumT, bool, bytes]],
+    ):
+        """Update the ChangedFiles information of a series of revision
+
+        Only relevant for inner revlog that support ChangedFiles.
+        """
+        raise error.ProgrammingError("lacking support for ChangedFils data")
 
     @abc.abstractmethod
     def next_data_offset(self):
@@ -1319,6 +1339,24 @@ class InnerRevlogV2(BaseInnerRevlog):
         sidedata = sidedatautil.deserialize_sidedata(segment)
         return sidedata
 
+    def changed_files_bytes(self, rev):
+        """Serialized ChangedFiles data for this revision
+
+        If the inner-revlog doesn't store that information, always return the
+        serialization of an empty ChangedFiles.
+        """
+        if self.docket.FT.CHANGED_FILES not in self._segment_files:
+            return b""
+        offset = self.index.changed_files_offset(rev)
+        size = self.index.changed_files_length(rev)
+        if size == 0:
+            return b""
+        # TODO raise a proper error on corruption
+        f = self._segment_files[self.docket.FT.CHANGED_FILES]
+        data = f.read_chunk(offset, size)
+        assert len(data) == size
+        return data
+
     @contextlib.contextmanager
     def _writing(self, transaction):
         docket = self.docket
@@ -1384,6 +1422,14 @@ class InnerRevlogV2(BaseInnerRevlog):
         if (sidedata := other_data.get(docket.FT.SIDEDATA)) is not None:
             entry.sidedata_offset = docket.get_end(self.docket.FT.SIDEDATA)
             entry.sidedata_compressed_length = len(sidedata)
+
+        if docket.FT.CHANGED_FILES in self._active_fts:
+            entry.changed_files_offset = docket.get_end(
+                self.docket.FT.CHANGED_FILES
+            )
+            entry.changed_files_length = len(
+                other_data.get(self.docket.FT.CHANGED_FILES, b"")
+            )
 
         for ft, fh in sorted(self._writinghandles.items()):
             pos = docket.get_end(ft)
@@ -1524,4 +1570,58 @@ class InnerRevlogV2(BaseInnerRevlog):
         }
         for ft, entry_size in zip(self._index_fts, self.index.entry_sizes):
             cutoffs[ft] = entry_size * first_excl_rev
+        if docket.FT.CHANGED_FILES in self._active_fts:
+            cgf_cutoff = index.changed_files_offset(first_excl_rev)
+
+            cutoffs[docket.FT.CHANGED_FILES] = cgf_cutoff
         return cutoffs
+
+    def add_changed_files(
+        self,
+        transaction: TransactionT,
+        data_iter: Iterator[tuple[RevnumT, bool, bytes]],
+    ):
+        """Update the ChangedFiles information of a series of revision
+
+        This assume the "changed-files" information were previously
+        missing in all these revisions.
+
+        This also assume these revisions that are being updated are part of a
+        pending transaction and wasn't fully committed to disk yet. As a
+        result, the revision entries were not part of the "from disk" data of
+        this index.
+        """
+        docket = self.docket
+        ft = docket.FT.CHANGED_FILES
+        assert ft in self._active_fts
+        assert self.is_writing
+        fh = self._writinghandles[ft]
+        start_pos = pos = docket.get_end(ft)
+        fh.seek(pos, os.SEEK_SET)
+        transaction.add(docket.filepath(ft), pos)
+        for rev, has_copy_info, cfg_bin in data_iter:
+            assert self.index.changed_files_offset(rev) == start_pos
+            assert self.index.changed_files_length(rev) == 0
+            size = len(cfg_bin)
+            assert size != 1
+            fh.write(cfg_bin)
+            self.index.update_changed_files(rev, has_copy_info, pos, size)
+            # XXX we could rewrite the affected blocks only
+            idx_bins = self.index.entry_binaries(rev)
+            for idx_ft, bin_piece, entry_size in zip(
+                self._index_fts,
+                idx_bins,
+                self.index.entry_sizes,
+            ):
+                idx_pos = entry_size * rev
+                assert len(bin_piece) == entry_size
+                # TODO assert the position is pending
+                idx_fh = self._writinghandles[idx_ft]
+                idx_fh.seek(idx_pos, os.SEEK_SET)
+                idx_fh.write(bin_piece)
+            pos += size
+            docket.set_end(ft, pos)
+            assert self.changed_files_bytes(rev) == cfg_bin, (
+                self.changed_files_bytes(rev),
+                cfg_bin,
+            )

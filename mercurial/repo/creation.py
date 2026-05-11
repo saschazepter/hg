@@ -169,8 +169,8 @@ def new_repo_requirements(ui, createopts):
     if requirementsmod.SPARSEREVLOG_REQUIREMENT in requirements:
         requirements.add(requirementsmod.GENERALDELTA_REQUIREMENT)
 
-    # experimental config: format.exp-use-copies-side-data-changeset
-    if ui.configbool(b'format', b'exp-use-copies-side-data-changeset'):
+    # experimental config: format.exp-use-copies-in-changeset
+    if ui.configbool(b'format', b'exp-use-copies-in-changeset'):
         requirements.add(requirementsmod.CHANGELOGV2_REQUIREMENT)
         requirements.add(requirementsmod.COPIESSDC_REQUIREMENT)
     if ui.configbool(b'experimental', b'treemanifest'):

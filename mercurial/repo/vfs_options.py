@@ -55,7 +55,7 @@ def resolve_store_vfs_options(ui, requirements, features):
         options[b'revlogv0'] = True
 
     if requirementsmod.COPIESSDC_REQUIREMENT in requirements:
-        options[b'copies-storage'] = b'changeset-sidedata'
+        options[b'copies-storage'] = b'changeset'
 
     if requirementsmod.FILEINDEXV1_REQUIREMENT in requirements:
         value = ui.config(b'devel', b'fileindex.vacuum-mode')

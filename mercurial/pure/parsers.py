@@ -747,6 +747,33 @@ class BaseIndex(abc.ABC):
         """the offset of the sidedata chunk if any"""
         return self._entry(rev)[11]
 
+    def changed_files_offset(self, rev: RevnumT) -> int:
+        """The byte offset of the serialized ChangedFiles data
+
+        Only relevant for index that actually store ChangedFiles data.
+        """
+        return 0
+
+    def changed_files_length(self, rev: RevnumT) -> int:
+        """The number of bytes of the serialized ChangedFiles data
+
+        Only relevant for index that actually store ChangedFiles data.
+        """
+        return 0
+
+    def update_changed_files(
+        self,
+        rev: RevnumT,
+        has_copies_info: bool,
+        offset: int,
+        length: int,
+    ):
+        """Update entery value related to "changed-filed" information
+
+        Only relevant for index having the feature
+        """
+        raise error.ProgrammingError("lacking support for ChangedFiles data")
+
     def lazy_rank(self, rev):
         """return the rank of <rev> if known
 
@@ -1234,6 +1261,18 @@ class IndexChangelogV2(Index2):
     ):
         super().__init__(data, uses_generaldelta=False)
 
+    def changed_files_offset(self, rev: RevnumT) -> int:
+        """The byte offset of the serialized ChangedFiles data"""
+        if rev == nullrev:
+            return 0
+        return self._rich_entry(rev).changed_files_offset
+
+    def changed_files_length(self, rev: RevnumT) -> int:
+        """The number of bytes of the serialized ChangedFiles data"""
+        if rev == nullrev:
+            return 0
+        return self._rich_entry(rev).changed_files_length
+
     @classmethod
     def _unpack_entry(
         cls,
@@ -1273,6 +1312,12 @@ class IndexChangelogV2(Index2):
             )
             & 3,
             rank=items[revlog_constants.INDEX_ENTRY_V2_IDX_RANK],
+            changed_files_offset=items[
+                revlog_constants.INDEX_ENTRY_V2_IDX_CGF_OFFSET
+            ],
+            changed_files_length=items[
+                revlog_constants.INDEX_ENTRY_V2_IDX_CGF_LENGTH
+            ],
         )
 
     @classmethod
@@ -1300,9 +1345,41 @@ class IndexChangelogV2(Index2):
                 (entry.data_compression_mode & 3)
                 | ((entry.sidedata_compression_mode & 3) << 2),
                 entry.rank,
+                entry.changed_files_offset,
+                entry.changed_files_length,
             ),
         )
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
+
+    def update_changed_files(
+        self,
+        rev: RevnumT,
+        has_copies_info: bool,
+        offset: int,
+        length: int,
+    ):
+        """Update entery value related to "changed-filed" information
+
+        This only update the in-memory state of the object, updating the
+        on-disk states is the caller responsability.
+
+        This assume the "changed-files" information were previously
+        missing for the `rev` revision.
+
+        This also assume the revision that is being updated is part of a
+        pending transaction and wasn't fully committed to disk yet. As a
+        result, the revision entry is not part of the "from disk" data of this
+        index.
+        """
+        assert rev >= self._lgt, (rev, self._lgt)
+        e = self._rich_entry(rev)
+        if has_copies_info:
+            e.flags |= revlog_constants.REVIDX_HASCOPIESINFO
+        assert e.changed_files_length == 0
+        assert length != 1, (rev, offset)
+        e.changed_files_offset = offset
+        e.changed_files_length = length
+        self._extra[rev - self._lgt] = self._pack_entry(rev, e)
 
 
 def parse_index_devel_nodemap(data, inline, uses_generaldelta, uses_delta_info):

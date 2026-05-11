@@ -25,7 +25,6 @@ from .utils import stringutil
 
 from .revlogutils import (
     flagutil,
-    sidedata as sidedatamod,
 )
 
 rustmod = policy.importrust("copy_tracing")
@@ -109,7 +108,7 @@ def _computeforwardmissing(a, b, match=None):
 
 def usechangesetcentricalgo(repo):
     """Checks if we should use changeset-centric copy algorithms"""
-    return repo.filecopiesmode == b'changeset-sidedata'
+    return repo.filecopiesmode == b'changeset'
 
 
 def _committedforwardcopies(a, b, base, match):
@@ -199,7 +198,7 @@ def _revinfo_getter(repo, match):
         def revinfo(rev):
             p1, p2 = parents(rev)
             if flags(rev) & HASCOPIESINFO:
-                raw = changelogrevision(rev)._sidedata.get(sidedatamod.SD_FILES)
+                raw = changelogrevision(rev)._bin_changes
             else:
                 raw = None
             return (p1, p2, raw)
@@ -292,7 +291,7 @@ def _changesetforwardcopies(a, b, match):
         roots_to_head = set(roots_to_head)
         revs = [r for r in revs if r in roots_to_head]
 
-    if repo.filecopiesmode == b'changeset-sidedata':
+    if repo.filecopiesmode == b'changeset':
         # When using side-data, we will process the edges "from" the children.
         # We iterate over the children, gathering previous collected data for
         # the parents. Do know when the parents data is no longer necessary, we

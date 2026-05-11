@@ -21,12 +21,16 @@ if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
 
+from .interfaces.types import (
+    RevnumT,
+)
 from . import (
     encoding,
     error,
     metadata,
     pycompat,
     revlog,
+    revlogutils,
     util,
 )
 from .interfaces import (
@@ -40,7 +44,6 @@ from .revlogutils import (
     config as revlog_config,
     constants as revlog_constants,
     flagutil,
-    sidedata as sidedatautil,
 )
 
 _defaultextra = {b'branch': b'default'}
@@ -133,12 +136,18 @@ class changelogrevision:
     __slots__ = (
         '_offsets',
         '_text',
-        '_sidedata',
+        '_bin_changes',
         '_cpsd',
         '_changes',
     )
 
-    def __new__(cls, cl, text, sidedata, cpsd):
+    def __new__(
+        cls,
+        cl,
+        text: bytes | None,
+        bin_changes: bytes,
+        cpsd: bool,
+    ):
         if not text:
             return _changelogrevision(extra=_defaultextra, manifest=cl.nullid)
 
@@ -170,9 +179,9 @@ class changelogrevision:
 
         self._offsets = (nl1, nl2, nl3, doublenl)
         self._text = text
-        self._sidedata = sidedata
+        self._bin_changes = bin_changes
         self._cpsd = cpsd
-        self._changes = None
+        self._changes: rl_t.ChangedFilesT | None = None
 
         return self
 
@@ -226,7 +235,7 @@ class changelogrevision:
         if self._changes is not None:
             return self._changes
         if self._cpsd:
-            changes = metadata.decode_files_sidedata(self._sidedata)
+            changes = metadata.decode_files(self._bin_changes)
         else:
             changes = metadata.ChangingFiles(
                 touched=self.files or (),
@@ -241,7 +250,7 @@ class changelogrevision:
     @property
     def files(self):
         if self._cpsd:
-            return sorted(self.changes.touched)
+            return sorted(bytes(f) for f in self.changes.touched)
         off = self._offsets
         if off[2] == off[3]:
             return []
@@ -334,6 +343,10 @@ class changelog(revlog.revlog):
         self._filteredrevs_hashcache = {}
         self._copiesstorage = opener.options.get(b'copies-storage')
 
+        self._missing_changed_files_start = None
+        """Record the start of the revision range that requires post-processing
+        """
+
     def __contains__(self, rev):
         return (0 <= rev < len(self)) and rev not in self._filteredrevs
 
@@ -417,18 +430,30 @@ class changelog(revlog.revlog):
         ``changelogrevision`` instead, as it is faster for partial object
         access.
         """
-        d = self._revisiondata(nodeorrev)
-        sidedata = self.sidedata(nodeorrev)
-        copy_sd = self._copiesstorage == b'changeset-sidedata'
-        c = changelogrevision(self, d, sidedata, copy_sd)
+        if isinstance(nodeorrev, int):
+            rev = nodeorrev
+        else:
+            rev = self.rev(nodeorrev)
+        d = self._revisiondata(rev)
+        cgf_bytes = self.changed_files_bytes(rev)
+        copy_sd = self._copiesstorage == b'changeset'
+        c = changelogrevision(self, d, cgf_bytes, copy_sd)
         return (c.manifest, c.user, c.date, c.files, c.description, c.extra)
 
     def changelogrevision(self, nodeorrev):
         """Obtain a ``changelogrevision`` for a node or revision."""
-        text = self._revisiondata(nodeorrev)
-        sidedata = self.sidedata(nodeorrev)
+        if isinstance(nodeorrev, int):
+            rev = nodeorrev
+        else:
+            rev = self.rev(nodeorrev)
+        text = self._revisiondata(rev)
+        cgf_bytes = bytes(self.changed_files_bytes(rev))
+
         return changelogrevision(
-            self, text, sidedata, self._copiesstorage == b'changeset-sidedata'
+            self,
+            text,
+            cgf_bytes,
+            self._copiesstorage == b'changeset',
         )
 
     def readfiles(self, nodeorrev):
@@ -487,15 +512,13 @@ class changelog(revlog.revlog):
         sortedfiles = sorted(files.touched)
         flags = 0
         other_data = None
-        if self._copiesstorage == b'changeset-sidedata':
+        if self._copiesstorage == b'changeset':
             assert self._inner.support_extended_data
             if files.has_copies_info:
                 flags |= flagutil.REVIDX_HASCOPIESINFO
             other_data = {}
-            sidedata = metadata.encode_files_sidedata(files)
-            if sidedata:
-                sd_bin = sidedatautil.serialize_sidedata(sidedata)
-                other_data[revlog_constants.V2FileType.SIDEDATA] = sd_bin
+            cgf_bin = metadata.encode_files(files)
+            other_data[revlog_constants.V2FileType.CHANGED_FILES] = cgf_bin
 
         if extra:
             extra = encodeextra(extra)
@@ -512,6 +535,86 @@ class changelog(revlog.revlog):
             flags=flags,
         )
         return self.node(rev)
+
+    def _addrevision(
+        self,
+        node,
+        rawtext,
+        transaction,
+        link,
+        p1,
+        p2,
+        flags,
+        cachedelta: revlogutils.CachedDelta | None,
+        alwayscache=False,
+        deltacomputer=None,
+        other_data=None,
+    ):
+        # Detect missing required ChangedFiles information and record enough
+        # information to be able to post process them after the fact.
+        if self._copiesstorage == b'changeset':
+            if other_data is None:
+                msg = "v2+ changelog with other_data to None"
+                raise error.ProgrammingError(msg)
+            missing_start = self._missing_changed_files_start
+            if missing_start is None:
+                if revlog_constants.V2FileType.CHANGED_FILES not in other_data:
+                    self._missing_changed_files_start = len(self.index)
+            else:
+                if revlog_constants.V2FileType.CHANGED_FILES in other_data:
+                    msg = "mixing revision with and without ChangedFiles data"
+                    raise error.ProgrammingError(msg)
+        return super()._addrevision(
+            node=node,
+            rawtext=rawtext,
+            transaction=transaction,
+            link=link,
+            p1=p1,
+            p2=p2,
+            flags=flags,
+            cachedelta=cachedelta,
+            alwayscache=alwayscache,
+            deltacomputer=deltacomputer,
+            other_data=other_data,
+        )
+
+    def changed_files_bytes(self, rev: RevnumT) -> bytes:
+        """serialized changedfiles data for this revision
+
+        if the inner-revlog doesn't store that information, always return the
+        serialization of an empty changedfiles.
+        """
+        # NOTE: This should probably be a flag on FeatureConfig but good enough
+        # for now.
+        if self._copiesstorage == b'changeset':
+            return self._inner.changed_files_bytes(rev)
+        return b""
+
+    def post_process_group(self, repo):
+        """run potential post-processing after adding a group of revision
+
+        This should run after other data (manifest, filelog, etc…) have been
+        added to the repository so more complex information (like the set of
+        ChangedFiles) can be recorded at that time.
+
+        This is expected to be run in the same transaction as the one adding
+        the revision needed post-processing, before they are committed to disk.
+        """
+        assert repo.filtername is None
+        if (start := self._missing_changed_files_start) is not None:
+            assert start >= 0, start
+            tr = repo.currenttransaction()
+            with self._writing(tr):
+                data_iter = (
+                    (rev, files.has_copies_info, metadata.encode_files(files))
+                    for (rev, files) in (
+                        (rev, metadata.compute_all_files_changes(repo[rev]))
+                        for rev in self.revs(start)
+                    )
+                )
+
+                self._inner.add_changed_files(tr, data_iter)
+                self._missing_changed_files_start = None
 
     def branchinfo(self, rev):
         """return the branch name and open/close state of a revision

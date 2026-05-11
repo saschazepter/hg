@@ -1073,6 +1073,20 @@ impl InnerRevlog {
         Ok(IDX_COMPRESSION_INLINE)
     }
 
+    fn _index_changed_files_offset(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u64> {
+        Ok(0)
+    }
+
+    fn _index_changed_files_length(
+        _slf: &Bound<'_, Self>,
+        _rev: PyRevision,
+    ) -> PyResult<u32> {
+        Ok(0)
+    }
+
     /// return the rank of <rev> if known
     ///
     /// return `revlog_constants.RANK_UNKNOWN` otherwise.
