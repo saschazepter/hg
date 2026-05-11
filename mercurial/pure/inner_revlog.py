@@ -1605,14 +1605,16 @@ class InnerRevlogV2(BaseInnerRevlog):
             size = len(cfg_bin)
             assert size != 1
             fh.write(cfg_bin)
-            self.index.update_changed_files(rev, has_copy_info, pos, size)
-            # XXX we could rewrite the affected blocks only
-            idx_bins = self.index.entry_binaries(rev)
+            idx_bins = self.index.update_changed_files(
+                rev, has_copy_info, pos, size
+            )
             for idx_ft, bin_piece, entry_size in zip(
                 self._index_fts,
                 idx_bins,
                 self.index.entry_sizes,
             ):
+                if bin_piece is None:
+                    continue
                 idx_pos = entry_size * rev
                 assert len(bin_piece) == entry_size
                 # TODO assert the position is pending

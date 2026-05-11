@@ -1357,7 +1357,7 @@ class IndexChangelogV2(Index2):
         has_copies_info: bool,
         offset: int,
         length: int,
-    ):
+    ) -> tuple[bytes | None, ...]:
         """Update entery value related to "changed-filed" information
 
         This only update the in-memory state of the object, updating the
@@ -1380,6 +1380,13 @@ class IndexChangelogV2(Index2):
         e.changed_files_offset = offset
         e.changed_files_length = length
         self._extra[rev - self._lgt] = self._pack_entry(rev, e)
+        # first piece hold the flag that might change
+        # second piece hold the offset and size
+        e_bins = self.entry_binaries(rev)
+        if has_copies_info:
+            return e_bins
+        else:
+            return (None, e_bins[1])
 
 
 def parse_index_devel_nodemap(data, inline, uses_generaldelta, uses_delta_info):
