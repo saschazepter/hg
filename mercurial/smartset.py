@@ -236,6 +236,21 @@ class baseset(abstractsmartset):
     'baseset'
     >>> rs._istopo
     True
+
+    Slicing:
+    >>> xs = baseset([3, 1, 9])
+    >>> list(xs.slice(0, 0))
+    []
+    >>> list(xs.slice(0, 3))
+    [3, 1, 9]
+    >>> list(xs.slice(0, 1))
+    [3]
+    >>> list(xs.slice(1, 3))
+    [1, 9]
+    >>> list(xs.slice(1, 0))
+    []
+    >>> list(xs.slice(2, 5))
+    [9]
     """
 
     def __init__(
@@ -801,6 +816,22 @@ class generatorset(abstractsmartset):
     >>> assert xs.last() == xs.last()
     >>> xs.last()  # cached
     4
+
+    Slicing:
+
+    >>> xs = generatorset([1, 3, 9], iterasc=True)
+    >>> list(xs.slice(0, 0))
+    []
+    >>> list(xs.slice(0, 3))
+    [1, 3, 9]
+    >>> list(xs.slice(0, 1))
+    [1]
+    >>> list(xs.slice(1, 3))
+    [3, 9]
+    >>> list(xs.slice(1, 0))
+    []
+    >>> list(xs.slice(2, 5))
+    [9]
     """
 
     def __new__(cls, gen, iterasc: bool | None = None):
