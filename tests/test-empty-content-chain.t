@@ -124,17 +124,17 @@ Create a repository with delta chain with empty delta and empty file revisions
      summary:     empty base
   
   $ hg debugindex a -v
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0
-       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0
-       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0
-       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0
-       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0
-       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0
-       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0
-       7     -1       7 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          7     0         2                   18          6       inline                    0             0
-       8     -1       8 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          8     0         2                   24          0       inline                    0             0
-       9     -1       9 9f0450b584a8      8 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0                    0                  0
+       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0                    0                  0
+       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0                    0                  0
+       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0                    0                  0
+       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0                    0                  0
+       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0                    0                  0
+       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0                    0                  0
+       7     -1       7 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          7     0         2                   18          6       inline                    0             0                    0                  0
+       8     -1       8 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          8     0         2                   24          0       inline                    0             0                    0                  0
+       9     -1       9 9f0450b584a8      8 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0                    0                  0
 
   $ cd ..
 
@@ -160,17 +160,17 @@ Clone with a bundle containing delta's against weird bases
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugindex a -v -R cloned-repo
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0
-       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0
-       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0
-       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0
-       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0
-       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0
-       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0
-       7     -1       7 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          7     0         2                   18          6       inline                    0             0
-       8     -1       8 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          8     0         2                   24          0       inline                    0             0
-       9     -1       9 9f0450b584a8      8 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0                    0                  0
+       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0                    0                  0
+       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0                    0                  0
+       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0                    0                  0
+       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0                    0                  0
+       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0                    0                  0
+       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0                    0                  0
+       7     -1       7 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          7     0         2                   18          6       inline                    0             0                    0                  0
+       8     -1       8 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          8     0         2                   24          0       inline                    0             0                    0                  0
+       9     -1       9 9f0450b584a8      8 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0                    0                  0
 
 
 pull forcing the creation of delta against a weird base
@@ -196,17 +196,17 @@ Case 1
   new changesets e2d5978dcd14:c562755b641e
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg -R pull-repo-1 debugindex a -v
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0
-       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0
-       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0
-       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0
-       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0
-       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0
-       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0
-       7     -1       7 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          7     0         2                   18          6       inline                    0             0
-       8     -1       8 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          8     0         2                   24          0       inline                    0             0
-       9     -1       9 9f0450b584a8      8 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0                    0                  0
+       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0                    0                  0
+       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0                    0                  0
+       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0                    0                  0
+       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0                    0                  0
+       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0                    0                  0
+       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0                    0                  0
+       7     -1       7 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          7     0         2                   18          6       inline                    0             0                    0                  0
+       8     -1       8 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          8     0         2                   24          0       inline                    0             0                    0                  0
+       9     -1       9 9f0450b584a8      8 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0                    0                  0
 
 case 2
 
@@ -238,17 +238,17 @@ case 2
   new changesets 03064da59860:c562755b641e
   (run 'hg update' to get a working copy)
   $ hg -R pull-repo-2 debugindex a -v
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0
-       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0
-       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0
-       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0
-       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0
-       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0
-       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0
-       7     -1       7 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          7     0         2                   18          0       inline                    0             0
-       8     -1       8 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          8     0         2                   18          6       inline                    0             0
-       9     -1       9 9f0450b584a8      7 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0     -1       0 b80de5d13875     -1 000000000000     -1 000000000000                    0          0     0         2                    0          0       inline                    0             0                    0                  0
+       1     -1       1 48f0daf20d9d     -1 000000000000     -1 000000000000                    6          1     0         2                    0          7       inline                    0             0                    0                  0
+       2     -1       2 a77634414f69      1 48f0daf20d9d     -1 000000000000                    0          2     0         2                    7          0       inline                    0             0                    0                  0
+       3     -1       3 e44c370a738f      2 a77634414f69      0 b80de5d13875                    0          3     0         2                    7          0       inline                    0             0                    0                  0
+       4     -1       4 a1680305cb3f      3 e44c370a738f     -1 000000000000                    4          4     0         2                    7          5       inline                    0             0                    0                  0
+       5     -1       5 17ffe06fa8d7     -1 000000000000     -1 000000000000                    5          5     0         2                   12          6       inline                    0             0                    0                  0
+       6     -1       6 472c4e87fcf4      3 e44c370a738f      5 17ffe06fa8d7                    0          6     0         2                   18          0       inline                    0             0                    0                  0
+       7     -1       7 b0fc748a0c2f      0 b80de5d13875      5 17ffe06fa8d7                    0          7     0         2                   18          0       inline                    0             0                    0                  0
+       8     -1       8 609fb9854b7e      6 472c4e87fcf4     -1 000000000000                    5          8     0         2                   18          6       inline                    0             0                    0                  0
+       9     -1       9 9f0450b584a8      7 b0fc748a0c2f     -1 000000000000                    5          9     0         2                   24          6       inline                    0             0                    0                  0
 
 
 Recompute all its deltas

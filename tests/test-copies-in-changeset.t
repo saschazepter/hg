@@ -279,9 +279,9 @@ downgrading
 -----------
 
   $ hg debugindex -vc
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0            42
-       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                   42            42
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0            42                    0                  0
+       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                   42            42                    0                  0
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant                 repo config default
   copies-sdc:                     yes    yes      no
@@ -315,19 +315,19 @@ downgrading
   $ hg debug::changed-files -- 1
   $ hg debugsidedata -m -- 0
   $ hg debugindex -vc
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0     -1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         2                    0         59       inline                    0             0
-       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1     0         2                   59         62       inline                    0             0 (missing-correct-output !)
-       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         2                   59         62       inline                    0             0 (known-bad-output !)
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0     -1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         2                    0         59       inline                    0             0                    0                  0
+       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1     0         2                   59         62       inline                    0             0                    0                  0 (missing-correct-output !)
+       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         2                   59         62       inline                    0             0                    0                  0 (known-bad-output !)
 
 upgrading
 ---------
 
   $ hg debugindex -vc
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0     -1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         2                    0         59       inline                    0             0
-       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1     0         2                   59         62       inline                    0             0 (missing-correct-output !)
-       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         2                   59         62       inline                    0             0 (known-bad-output !)
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0     -1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         2                    0         59       inline                    0             0                    0                  0
+       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1     0         2                   59         62       inline                    0             0                    0                  0 (missing-correct-output !)
+       1     -1       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         2                   59         62       inline                    0             0                    0                  0 (known-bad-output !)
   $ cat << EOF > .hg/hgrc
   > [format]
   > exp-use-copies-side-data-changeset = yes
@@ -353,9 +353,9 @@ upgrading
   removed    : a, ;
   $ hg debugsidedata -m -- 0
   $ hg debugindex -vc
-     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size
-       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0            42
-       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                   42            42
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size
+       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0            42                    0                  0
+       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                   42            42                    0                  0
 
 
   $ cd ..

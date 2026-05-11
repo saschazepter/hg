@@ -181,6 +181,16 @@ def sidedata_chunk_size(index, rev, hexfn):
     return b"%d" % index.sidedata_chunk_length(rev)
 
 
+@debug_column(b"changed-files-offset", size=20, verbose=True)
+def changed_files_offset(index, rev, hexfn):
+    return b"%d" % 0
+
+
+@debug_column(b"changed-files-size", size=10, verbose=True)
+def changed_files_size(index, rev, hexfn):
+    return b"%d" % 0
+
+
 def debug_index(
     ui,
     repo,
