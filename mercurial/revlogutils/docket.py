@@ -188,6 +188,16 @@ class RevlogDocket:
             self._current[file_type] = (new_size, self._current[file_type][1])
             self._dirty = True
 
+    def is_pending_offset(self, file_type: FileType, offset: int) -> bool:
+        if file_type not in self._initial:
+            return True
+        assert file_type in self._current
+        initial_uuid, initial_offset = self._initial[file_type]
+        uuid = self._current[file_type]
+        if initial_uuid != uuid:
+            return True
+        return initial_offset <= offset
+
     def write(
         self, transaction, pending: bool = False, stripping: bool = False
     ) -> bool:

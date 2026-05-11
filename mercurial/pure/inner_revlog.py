@@ -1617,7 +1617,12 @@ class InnerRevlogV2(BaseInnerRevlog):
                     continue
                 idx_pos = entry_size * rev
                 assert len(bin_piece) == entry_size
-                # TODO assert the position is pending
+                # Changing index content under reader nose would be a problem,
+                # however if that transaction has not been committed yet,
+                # nobody is reading it and this won't be a problem.
+                if not docket.is_pending_offset(idx_ft, idx_pos):
+                    msg = "add changed-files data to non-pending revision"
+                    raise error.ProgrammingError(msg)
                 idx_fh = self._writinghandles[idx_ft]
                 idx_fh.seek(idx_pos, os.SEEK_SET)
                 idx_fh.write(bin_piece)
