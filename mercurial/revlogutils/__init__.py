@@ -101,6 +101,46 @@ class RevlogEntry:
     """The number of bytes of the serialized ChangedFiles data
     """
 
+    child_p1 = attr.ib(type=Optional[RevnumT], default=None)
+    """One child of this revision, (using this revision as p1)
+
+    All the other child (p1) will be available through the chain of their
+    `p#_sibling` attributes.
+
+    A value of `nullrev` means this revision has no child.
+
+    A value of `None` means the data are not available.
+    """
+
+    child_p2 = attr.ib(type=Optional[RevnumT], default=None)
+    """One child of this revision, (using this revision as p1)
+
+    All the other child will be available through the chain of their
+    `p#_sibling` attributes.
+
+    A value of `nullrev` means this revision has no child.
+
+    A value of `None` means the data are not available.
+    """
+
+    sibling_p1 = attr.ib(type=Optional[RevnumT], default=None)
+    """A revision with the same p1
+
+    A value of `nullrev` means this revision is the final item in the
+    sibling/child list
+
+    A value of `None` means the data are not available.
+    """
+
+    sibling_p2 = attr.ib(type=Optional[RevnumT], default=None)
+    """A revision with the same p2
+
+    A value of `nullrev` means this revision is the final item in the
+    sibling/child list
+
+    A value of `None` means the data are not available.
+    """
+
     def as_tuple(self) -> EntryTupleT:
         return (
             offset_type(self.data_offset, self.flags),

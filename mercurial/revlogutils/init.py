@@ -235,6 +235,8 @@ def load_entry_point(
             # main docket, so disable it for now.
             configs.feature.persistent_nodemap = False
 
+    configs.feature.children = features['track_children']
+
     configs.finalize()
     return _RevlogInit(
         format_version=format_version,

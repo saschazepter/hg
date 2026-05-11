@@ -64,6 +64,9 @@ class FeatureConfig(_Config):
     # use a flag to signal that a filerevision constains metadata
     hasmeta_flag = attr.ib(default=False, type=bool)
 
+    # keep track of revision's children in the index
+    children = attr.ib(default=False, type=bool)
+
     # use a persistent nodemap
     persistent_nodemap = attr.ib(default=False, type=bool)
 

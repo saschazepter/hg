@@ -280,8 +280,8 @@ downgrading
 
   $ hg debugindex -vc
      rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size   child-p1   child-p2 sibling-p1 sibling-p2
-       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0             0                    0                 14          -          -          -          -
-       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                    0             0                   14                 14          -          -          -          -
+       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0             0                    0                 14          1         -1         -1         -1
+       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                    0             0                   14                 14         -1         -1         -1         -1
   $ hg debugformat -v format-variant revlog-v2 copies-sdc changelog-v2
   format-variant                 repo config default
   copies-sdc:                     yes    yes      no
@@ -352,8 +352,8 @@ upgrading
   $ hg debugsidedata -m -- 0
   $ hg debugindex -vc
      rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size   child-p1   child-p2 sibling-p1 sibling-p2
-       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0            42                    0                 14          -          -          -          -
-       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                   42            42                   14                 14          -          -          -          -
+       0      1       0 1f0dee641bb7     -1 000000000000     -1 000000000000                   58          0     0         0                    0         58        plain                    0            42                    0                 14          1         -1         -1         -1
+       1      2       1 e4b55703807d      0 1f0dee641bb7     -1 000000000000                   61          1  4096         0                   58         61        plain                   42            42                   14                 14         -1         -1         -1         -1
 
 
   $ cd ..

@@ -225,20 +225,23 @@ assert INDEX_ENTRY_V2[1].size == 32, INDEX_ENTRY_V2[1].size
 #   *  4 bytes: uncompressed length
 #   *  4 bytes: parent 1 rev
 #   *  4 bytes: parent 2 rev
-#   * 32 bytes: nodeid
-#   *  8 bytes: sidedata offset
-#
-# Part 2:
-#   *  4 bytes: sidedata compressed length
+#   * 20 bytes: nodeid
+#   *  4 bytes: child_p1
+#   *  4 bytes: child_p2
+#   *  4 bytes: sibling_p2
+#   *  4 bytes: sibling_p2
 #   *  1 bytes: compression mode (2 lower bit are data_compression_mode)
 #               (Stored as 4 bytes by Struct apparently)
+#
+# Part 2:
+#   *  8 bytes: sidedata offset
+#   *  4 bytes: sidedata compressed length
 #   *  4 bytes: changeset rank (i.e. `len(::REV)`)
 #   * 8 bytes: changing-files offset
 #   * 4 bytes: changing-files length
-#   * 4 bytes: Padding to align to 32 bytes (see RevlogV2Plan wiki page)
 INDEX_ENTRY_CL_V2: tuple[struct.Struct, ...] = (
-    struct.Struct(b">Qiiii20s12xQ"),
-    struct.Struct(b"iBiQi4x"),
+    struct.Struct(b">Qiiii20siiiiB3x"),
+    struct.Struct(b"QiiQi4x"),
 )
 assert INDEX_ENTRY_CL_V2[0].size == 32 * 2, INDEX_ENTRY_CL_V2[0].size
 assert INDEX_ENTRY_CL_V2[1].size == 32, INDEX_ENTRY_CL_V2[1].size
@@ -248,12 +251,16 @@ INDEX_ENTRY_V2_IDX_UNCOMPRESSED_LENGTH = 2
 INDEX_ENTRY_V2_IDX_PARENT_1 = 3
 INDEX_ENTRY_V2_IDX_PARENT_2 = 4
 INDEX_ENTRY_V2_IDX_NODEID = 5
-INDEX_ENTRY_V2_IDX_SIDEDATA_OFFSET = 6
-INDEX_ENTRY_V2_IDX_SIDEDATA_COMPRESSED_LENGTH = 7
-INDEX_ENTRY_V2_IDX_COMPRESSION_MODE = 8
-INDEX_ENTRY_V2_IDX_RANK = 9
-INDEX_ENTRY_V2_IDX_CGF_OFFSET = 10
-INDEX_ENTRY_V2_IDX_CGF_LENGTH = 11
+INDEX_ENTRY_V2_IDX_CHILD_P1 = 6
+INDEX_ENTRY_V2_IDX_CHILD_P2 = 7
+INDEX_ENTRY_V2_IDX_SIBLING_P1 = 8
+INDEX_ENTRY_V2_IDX_SIBLING_P2 = 9
+INDEX_ENTRY_V2_IDX_COMPRESSION_MODE = 10
+INDEX_ENTRY_V2_IDX_SIDEDATA_OFFSET = 11
+INDEX_ENTRY_V2_IDX_SIDEDATA_COMPRESSED_LENGTH = 12
+INDEX_ENTRY_V2_IDX_RANK = 13
+INDEX_ENTRY_V2_IDX_CGF_OFFSET = 14
+INDEX_ENTRY_V2_IDX_CGF_LENGTH = 15
 
 # revlog index flags
 
@@ -387,6 +394,7 @@ if typing.TYPE_CHECKING:
         inline: _FromFlagsFnc
         generaldelta: _FromFlagsFnc
         hasmeta_flag: _FromFlagsFnc
+        track_children: bool
         sidedata: bool
         docket: bool
         delta_info: _FromFlagsFnc
@@ -399,6 +407,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'generaldelta': _no,
         'hasmeta_flag': _no,
         'delta_info': _no,
+        'track_children': False,
         'sidedata': False,
         'docket': False,
         'active_file_types': (),
@@ -408,6 +417,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'generaldelta': _from_flag(FLAG_GENERALDELTA),
         'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
         'delta_info': _from_flag(FLAG_DELTA_INFO),
+        'track_children': False,
         'sidedata': False,
         'docket': False,
         'active_file_types': (),
@@ -420,6 +430,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'generaldelta': _yes,
         'hasmeta_flag': _no,  # Should become yes at some point
         'delta_info': _no,  # XXX we should make that True at some point
+        'track_children': False,
         'sidedata': True,
         'docket': True,
         'active_file_types': (
@@ -435,6 +446,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'generaldelta': _no,
         'hasmeta_flag': _no,  # Should become yes at some point
         'delta_info': _no,
+        'track_children': True,
         'sidedata': True,
         'docket': True,
         'active_file_types': (

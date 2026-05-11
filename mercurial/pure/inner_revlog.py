@@ -1390,6 +1390,123 @@ class InnerRevlogV2(BaseInnerRevlog):
         """Returns the current offset in the (in-transaction) data file."""
         return self.docket.get_end(self.docket.FT.DATA)
 
+    def prepare_update(self, transaction, file_type, pos):
+        """ensure the data we are about to write are in a mutable block
+
+        NOTE: This is currently not very efficent as we don't splits the block
+        "vertically". i.e. all data of a single type are in a continuous block.
+        """
+        docket = self.docket
+        if docket.is_pending_offset(file_type, pos):
+            # data already updatable, nothing to do
+            return
+
+        old_path = self.opener.join(docket.filepath(file_type))
+        new_name = docket.new_filepath(file_type)
+        new_path = self.opener.join(new_name)
+        util.copyfile(old_path, new_path)
+        transaction.add(new_path, 0)
+
+    def _add_children_info(
+        self,
+        transaction: TransactionT,
+        curr: RevnumT,
+        entry: revlogutils.RevlogEntry,
+    ):
+        """add children information to an incoming entry
+
+        Also update the affected parent and sibling
+        """
+        entry.child_p1 = nullrev
+        entry.child_p2 = nullrev
+        entry.sibling_p1 = nullrev
+        entry.sibling_p2 = nullrev
+        # This dict hold updated binary block for older revision affected
+        # by children tracking.
+        #
+        # IMPORTANT, In some rare case, the same revision might be affected
+        # twice (first by the p1 processing, second by the p2 processing.
+        # The current code assume that:
+        #
+        # - the index will apply the change internally independently from
+        #   the "on disk" update.
+        # - the second update call will return a binary blob containing
+        #   both update.
+        #
+        # Such cases might happens
+        #
+        #  - for buggy revision that use the same revision for p1 and p2.
+        #  - for oedipus merge between a parent and a child:
+        #
+        #      C
+        #      |\
+        #      | B
+        #      |/
+        #      A
+        #
+        #   In such case, adding C first update the sibling_p1 for B and
+        #   then update the child_p2 for that same B.
+        #
+        # NOTE: since the computationa nd update regarding p1 will never
+        # impact the computation and update regarding p2. We could computed
+        # them both upfront and use a single method to update all values in
+        # one go. Such method would be more complexe, but would result in
+        # less constraint on the index size.
+
+        update = {}
+        p1 = entry.parent_rev_1
+        assert p1 < curr
+
+        # NOTE: we could use `sibling_p1` when p1 = p2 = nullrev to
+        # track all root revisions in this revlog. This would be useful
+        # to handle "children(null)" (and to have less special case)
+        if p1 != nullrev:
+            c1 = self.index.child_p1(p1)
+            assert c1 is not None
+            assert c1 < curr, (c1, curr)
+            if c1 == nullrev:
+                update[p1] = self.index.update_child_p1(p1, curr)
+            else:
+                while (next := self.index.sibling_p1(c1)) != nullrev:
+                    # XXX: we should raise a proper corruption error here
+                    assert c1 < next, (c1, next)  # avoid infinite loop
+                    assert c1 < curr, (c1, curr)
+                    c1 = next
+                update[c1] = self.index.update_sibling_p1(c1, curr)
+        p2 = entry.parent_rev_2
+        assert p1 < curr
+        if p2 != nullrev:
+            c2 = self.index.child_p2(p2)
+            assert c2 is not None
+            assert c2 < curr, (c2, curr)
+            if c2 == nullrev:
+                update[p2] = self.index.update_child_p2(p2, curr)
+            else:
+                while (next := self.index.sibling_p2(c2)) != nullrev:
+                    # XXX: we should raise a proper corruption error here
+                    assert c2 < next, (c2, next)  # avoid infinite loop
+                    assert c2 < curr, (c2, curr)
+                    c2 = next
+                update[c2] = self.index.update_sibling_p2(c2, curr)
+        for rev, idx_bins in sorted(update.items()):
+            for idx_ft, bin_piece, entry_size in zip(
+                self._index_fts,
+                idx_bins,
+                self.index.entry_sizes,
+            ):
+                if bin_piece is None:
+                    continue
+                idx_pos = entry_size * rev
+                assert len(bin_piece) == entry_size
+                # Changing index content under reader nose would be a
+                # problem.  So we need to make sure we are writing to
+                # an uncommited block.
+                self.prepare_update(transaction, idx_ft, idx_pos)
+                assert self.docket.is_pending_offset(idx_ft, idx_pos)
+                idx_fh = self._writinghandles[idx_ft]
+                idx_fh.seek(idx_pos, os.SEEK_SET)
+                idx_fh.write(bin_piece)
+
     def add_entry(
         self,
         transaction: TransactionT,
@@ -1414,10 +1531,14 @@ class InnerRevlogV2(BaseInnerRevlog):
             msg = b'adding revision outside `revlog._writing` context'
             raise error.ProgrammingError(msg)
         docket = self.docket
+        curr = len(self.index)
 
         if other_data is None:
             other_data = {}
         assert other_data is not None
+
+        if self.feature_config.children:
+            self._add_children_info(transaction, curr, entry)
 
         if (sidedata := other_data.get(docket.FT.SIDEDATA)) is not None:
             entry.sidedata_offset = docket.get_end(self.docket.FT.SIDEDATA)
@@ -1436,7 +1557,6 @@ class InnerRevlogV2(BaseInnerRevlog):
             fh.seek(pos, os.SEEK_SET)
             transaction.add(docket.filepath(ft), pos)
 
-        curr = len(self.index)
         self.index.add_entry(entry)
         bin_entry = self.index.entry_binaries(curr)
         if data[0]:

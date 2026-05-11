@@ -1122,6 +1122,8 @@ class MultiBlockIndex(BaseIndex):
             count.append(len_data // entry_size)
         assert len(set(count)) == 1, count
 
+        data = tuple(bytearray(d) for d in data)
+
         self._data = data
         self._lgt = count[0]
         self._extra: list[tuple[bytes, ...]] = []
@@ -1199,6 +1201,34 @@ class MultiBlockIndex(BaseIndex):
     ) -> revlogutils.RevlogEntry:
         ...
 
+    def update_child_p1(self, rev: RevnumT, child: RevnumT):
+        """update the "child_p1" field of a revision
+
+        return updated binary blob for that revision
+        """
+        raise NotImplementedError
+
+    def update_child_p2(self, rev: RevnumT, child: RevnumT):
+        """update the "child_p2" field of a revision
+
+        return updated binary blob for that revision
+        """
+        raise NotImplementedError
+
+    def update_sibling_p1(self, rev: RevnumT, sibling: RevnumT):
+        """update the "sibling_p1" field of a revision
+
+        return updated binary blob for that revision
+        """
+        raise NotImplementedError
+
+    def update_sibling_p2(self, rev: RevnumT, sibling: RevnumT):
+        """update the "sibling_p2" field of a revision
+
+        return updated binary blob for that revision
+        """
+        raise NotImplementedError
+
 
 class Index2(MultiBlockIndex):
     _index_formats = revlog_constants.INDEX_ENTRY_V2
@@ -1208,6 +1238,9 @@ class Index2(MultiBlockIndex):
         data: tuple[ByteString, ...],
         uses_generaldelta: bool = True,
     ):
+        # turn the data into something mutable, this is needlessly expensive
+        # and memory hungry, but keep things simple for the reference Python
+        # implementation
         super().__init__(data, uses_generaldelta=uses_generaldelta)
 
     def replace_sidedata_info(
@@ -1345,6 +1378,10 @@ class IndexChangelogV2(Index2):
             parent_rev_1=items[revlog_constants.INDEX_ENTRY_V2_IDX_PARENT_1],
             parent_rev_2=items[revlog_constants.INDEX_ENTRY_V2_IDX_PARENT_2],
             node_id=items[revlog_constants.INDEX_ENTRY_V2_IDX_NODEID],
+            child_p1=items[revlog_constants.INDEX_ENTRY_V2_IDX_CHILD_P1],
+            child_p2=items[revlog_constants.INDEX_ENTRY_V2_IDX_CHILD_P2],
+            sibling_p1=items[revlog_constants.INDEX_ENTRY_V2_IDX_SIBLING_P1],
+            sibling_p2=items[revlog_constants.INDEX_ENTRY_V2_IDX_SIBLING_P2],
             sidedata_offset=items[
                 revlog_constants.INDEX_ENTRY_V2_IDX_SIDEDATA_OFFSET
             ],
@@ -1386,12 +1423,16 @@ class IndexChangelogV2(Index2):
                 entry.parent_rev_1,
                 entry.parent_rev_2,
                 entry.node_id,
-                entry.sidedata_offset,
-            ),
-            (
-                entry.sidedata_compressed_length,
+                entry.child_p1,
+                entry.child_p2,
+                entry.sibling_p1,
+                entry.sibling_p2,
                 (entry.data_compression_mode & 3)
                 | ((entry.sidedata_compression_mode & 3) << 2),
+            ),
+            (
+                entry.sidedata_offset,
+                entry.sidedata_compressed_length,
                 entry.rank,
                 entry.changed_files_offset,
                 entry.changed_files_length,
@@ -1435,6 +1476,132 @@ class IndexChangelogV2(Index2):
             return e_bins
         else:
             return (None, e_bins[1])
+
+    def child_p1(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using `rev` as p1.
+
+        The returned revision should be the origin of the linked list created
+        by `sibling_p1`.
+
+        return nullrev is no such revision exists
+
+        return None if the feature is unsupported
+        """
+        if rev == nullrev:
+            return None
+        child = self._rich_entry(rev).child_p1
+        if child <= rev or child >= len(self) or self.parents(child)[0] != rev:
+            # point to stripped revision, ignores them for now
+            return nullrev
+        return child
+
+    def child_p2(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using `rev` as p2.
+
+        The returned revision should be the origin of the linked list created
+        by `sibling_p2`.
+
+        return nullrev is no such revision exists
+
+        return None if the feature is unsupported
+        """
+        if rev == nullrev:
+            return None
+        child = self._rich_entry(rev).child_p2
+        if child <= rev or child >= len(self) or self.parents(child)[1] != rev:
+            # point to stripped revision, ignores them for now
+            return nullrev
+        return child
+
+    def sibling_p1(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using the same `p1` as `rev`
+
+        Following all sibling_p1 value from the first on (pointed by p1's
+        child_p1) will yield all p1-children of `p1` until `nullrev` is reach
+
+        return nullrev is this revision is the last in the chain.
+
+        return None if the feature is unsupported
+        """
+        if rev == nullrev:
+            return nullrev
+        sibling = self._rich_entry(rev).sibling_p1
+        if (
+            sibling <= rev
+            or sibling >= len(self)
+            or self.parents(sibling)[0] != self.parents(rev)[0]
+        ):
+            # point to stripped revision, ignores them for now
+            return nullrev
+        return sibling
+
+    def sibling_p2(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using the same `p2` as `rev`
+
+        Following all sibling_p2 value from the first on (pointed by p2's
+        child_p2) will yield all p2-children of `p2` until `nullrev` is reach
+
+        return nullrev is this revision is the last in the chain.
+
+        return None if the feature is unsupported
+        """
+        if rev == nullrev:
+            return nullrev
+        sibling = self._rich_entry(rev).sibling_p2
+        if (
+            sibling <= rev
+            or sibling >= len(self)
+            or self.parents(sibling)[1] != self.parents(rev)[1]
+        ):
+            # point to stripped revision, ignores them for now
+            return nullrev
+        return sibling
+
+    def _update_children_attr(self, rev: RevnumT, attr: str, value: RevnumT):
+        e = self._rich_entry(rev)
+        setattr(e, attr, value)
+        all_bins = self._pack_entry(rev, e)
+        updated_bins = (all_bins[0], None)
+
+        if rev >= self._lgt:
+            self._extra[rev - self._lgt] = all_bins
+        else:
+            for bin, data in zip(updated_bins, self._data):
+                if bin is None:
+                    continue
+                else:
+                    size = len(bin)
+                    offset = rev * size
+                    data[offset : offset + size] = bin
+        return updated_bins
+
+    def update_child_p1(self, rev: RevnumT, child: RevnumT):
+        """update the "child_p1" field of a revision
+
+        return updated binary blob for that revision
+        """
+        return self._update_children_attr(rev, "child_p1", child)
+
+    def update_child_p2(self, rev: RevnumT, child: RevnumT):
+        """update the "child_p2" field of a revision
+
+        return updated binary blob for that revision
+        """
+        return self._update_children_attr(rev, "child_p2", child)
+
+    def update_sibling_p1(self, rev: RevnumT, sibling: RevnumT):
+        """update the "sibling_p1" field of a revision
+
+        return updated binary blob for that revision
+        """
+        return self._update_children_attr(rev, "sibling_p1", sibling)
+
+    def update_sibling_p2(self, rev: RevnumT, sibling: RevnumT):
+        """update the "sibling_p2" field of a revision
+
+        return updated binary blob for that revision
+        """
+        return self._update_children_attr(rev, "sibling_p2", sibling)
 
 
 def parse_index_devel_nodemap(data, inline, uses_generaldelta, uses_delta_info):
