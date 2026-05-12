@@ -167,6 +167,20 @@ pub fn args() -> clap::Command {
                 .value_name("REV"),
         )
         .arg(
+            Arg::new("from")
+                .help("revision to diff from")
+                .long("from")
+                .value_name("REV1")
+                .conflicts_with_all(["rev", "change"]),
+        )
+        .arg(
+            Arg::new("to")
+                .help("revision to diff to")
+                .long("to")
+                .value_name("REV2")
+                .conflicts_with_all(["rev", "change"]),
+        )
+        .arg(
             Arg::new("change")
                 .help("list the changed files of a revision")
                 .long("change")
@@ -177,11 +191,10 @@ pub fn args() -> clap::Command {
 
 fn parse_revpair(
     repo: &Repo,
+    from_rev: Option<&String>,
+    to_rev: Option<&String>,
     revs: Option<Vec<String>>,
 ) -> Result<Option<(Revision, Revision)>, CommandError> {
-    let Some(revs) = revs else {
-        return Ok(None);
-    };
     let resolve = |input| -> Result<Revision, HgError> {
         match hg::revset::resolve_single(input, repo)?.exclude_wdir() {
             Some(rev) => Ok(rev),
@@ -189,6 +202,20 @@ fn parse_revpair(
                 backtrace: HgBacktrace::capture(),
             })?,
         }
+    };
+    match (from_rev, to_rev) {
+        (Some(from_rev), Some(to_rev)) => {
+            return Ok(Some((resolve(from_rev)?, resolve(to_rev)?)));
+        }
+        (Some(_), None) | (None, Some(_)) => {
+            return Err(CommandError::unsupported(
+                "status with only --from or only --to is not implemented in rhg",
+            ));
+        }
+        (None, None) => {}
+    }
+    let Some(revs) = revs else {
+        return Ok(None);
     };
     match revs.as_slice() {
         [] => Ok(None),
@@ -283,6 +310,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let revs = args.get_many::<String>("rev");
     let change = args.get_one::<String>("change");
+    let from_rev = args.get_one::<String>("from");
+    let to_rev = args.get_one::<String>("to");
     let print0 = args.get_flag("print0");
     let verbose = args.get_flag("verbose")
         || config.get_bool(b"ui", b"verbose")?
@@ -321,7 +350,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let list_copies = (list_copies || all) && !no_status;
 
     let repo = invocation.repo?;
-    let revpair = parse_revpair(repo, revs.map(|i| i.cloned().collect()))?;
+    let revpair = parse_revpair(
+        repo,
+        from_rev,
+        to_rev,
+        revs.map(|i| i.cloned().collect()),
+    )?;
     let change =
         change.map(|rev| hg::revset::resolve_single(rev, repo)).transpose()?;
     // Treat `rhg status --change wdir()` the same as `rhg status`.

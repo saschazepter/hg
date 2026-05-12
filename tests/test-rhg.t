@@ -158,7 +158,7 @@ Listing tracked files through broken pipe
   $ $NO_FALLBACK rhg files | head -n 1
   ../../../file1
 
-Status with --rev and --change
+Status with --rev, --change, --from, --to
   $ cd $TESTTMP/repository
   $ $NO_FALLBACK rhg status --change null
   $ $NO_FALLBACK rhg status --change 0
@@ -169,6 +169,20 @@ Status with --rev and --change
   A file1
   A file2
   A file3
+  $ $NO_FALLBACK rhg status --from null --to 0
+  A file1
+  A file2
+  A file3
+
+Only --from or only --to is not supported in rhg and falls back to Python:
+  $ rhg status --from null
+  A file1
+  A file2
+  A file3
+  $ rhg status --to null
+  R file1
+  R file2
+  R file3
 
 Status with --change --copies
   $ hg copy file2 file2copy
