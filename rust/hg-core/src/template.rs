@@ -61,7 +61,7 @@ pub fn parse_template(input: &str) -> Result<Node, ParseError> {
 
 fn parse_chunk(pair: Pair<Rule>) -> Result<Node, ParseError> {
     match pair.as_rule() {
-        Rule::text => Ok(Node::Text(pair.as_str().as_bytes().to_vec())),
+        Rule::text => Ok(Node::Text(parse_text(pair))),
         Rule::substitution => {
             let inner = pair
                 .into_inner()
@@ -70,6 +70,37 @@ fn parse_chunk(pair: Pair<Rule>) -> Result<Node, ParseError> {
             parse_expr(inner)
         }
         other => panic!("unexpected chunk rule: {other:?}"),
+    }
+}
+
+fn parse_text(pair: Pair<Rule>) -> Vec<u8> {
+    let mut out = Vec::with_capacity(pair.as_str().len());
+    for part in pair.into_inner() {
+        match part.as_rule() {
+            Rule::text_content => {
+                out.extend_from_slice(part.as_str().as_bytes())
+            }
+            Rule::text_escape => out.push(escape_byte(part.as_str())),
+            other => panic!("unexpected text part: {other:?}"),
+        }
+    }
+    out
+}
+
+fn escape_byte(s: &str) -> u8 {
+    let bytes = s.as_bytes();
+    debug_assert_eq!(bytes.len(), 2);
+    debug_assert_eq!(bytes[0], b'\\');
+    match bytes[1] {
+        b't' => b'\t',
+        b'r' => b'\r',
+        b'n' => b'\n',
+        b'0' => b'\0',
+        b'\\' => b'\\',
+        b'\'' => b'\'',
+        b'"' => b'"',
+        b'{' => b'{',
+        other => panic!(r"unexpected escape: \{}", other as char),
     }
 }
 
@@ -101,6 +132,22 @@ mod tests {
                 Node::Text(b" ".to_vec()),
                 Node::Integer(42),
             ]),
+        );
+    }
+
+    #[test]
+    fn rejects_unsupported() {
+        assert!(parse_template("{desc|short}").is_err());
+        assert!(parse_template(r"a\xb").is_err()); // unrecognized escape
+        assert!(parse_template("{}").is_err());
+    }
+
+    /// Recognized backslash escapes are decoded.
+    #[test]
+    fn collapses_recognized_escapes() {
+        assert_eq!(
+            parse_template(r"a\nb").unwrap(),
+            Node::Template(vec![Node::Text(b"a\nb".to_vec())]),
         );
     }
 }

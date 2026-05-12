@@ -9,6 +9,7 @@ from mercurial import (
 # match the Python parser exactly.
 SUPPORTED = [
     b"rev: {rev}",
+    rb"rev: {rev}\n",
 ]
 
 # Templates the Rust parser does not handle but the Python parser does. Under

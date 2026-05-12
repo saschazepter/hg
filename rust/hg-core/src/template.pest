@@ -1,6 +1,11 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-text = @{ (!("{" | "\\") ~ ANY)+ }
+text_escape  = @{
+  "\\"
+  ~ ("t" | "r" | "n" | "0" | "\\" | "'" | "\"" | "{")
+}
+text_content = @{ (!("{" | "\\") ~ ANY)+ }
+text         = ${ (text_content | text_escape)+ }
 
 integer  = @{ ASCII_DIGIT+ }
 symbol   = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
