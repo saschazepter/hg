@@ -77,13 +77,10 @@ impl LocalBackend {
 
         // Collect all file sizes in parallel
         let size_span = tracing::debug_span!("computing sizes").entered();
-        let path_to_filenode_id = DashMap::new();
-
         let vec = files_for_rev
             .par_iter()
             .map(|res| {
                 let (path, file_node, flags) = res?;
-                path_to_filenode_id.insert(path, file_node);
                 if let Some(size) = self.file_nodeid_to_size.get(&file_node) {
                     // We already know this size
                     return Ok(FileInfo {
