@@ -752,10 +752,10 @@ Test command without options
      a merge has occurred. The standard diff format does not report permission
      changes and diff only reports changes relative to one merge parent.
   
-  If one revision is given, it is used as the base revision. If two revisions
-  are given, the differences between them are shown. The --change option can
-  also be used as a shortcut to list the changed files of a revision from its
-  first parent.
+  By default, the working directory files are compared to its first parent. To
+  see the differences from another revision, use --from. To see the difference
+  to another revision, use --to. The --change option can also be used as a
+  shortcut to list the changed files of a revision from its first parent.
   
   The codes used to show the status of files are:
   
@@ -784,6 +784,8 @@ Test command without options
    -C --copies              show source of copied files
    -0 --print0              end filenames with NUL, for use with xargs
       --rev REV [+]         show difference from revision
+      --from REV1           revision to diff from
+      --to REV2             revision to diff to
       --change REV          list the changed files of a revision
    -I --include PATTERN [+] include names matching the given patterns
    -X --exclude PATTERN [+] exclude names matching the given patterns

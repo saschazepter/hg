@@ -508,6 +508,23 @@ Like previous tests but using --rev --rev instead of --change:
     modified
   R removed
 
+Like previous tests but using --from --to instead of --change:
+
+  $ hg status --from 0 --to 1
+  M modified
+  A added
+  A copied
+  R removed
+
+  $ hg status --from 0 --to 1 unrelated
+
+  $ hg status -C --from 0 --to 1 added modified copied removed deleted
+  M modified
+  A added
+  A copied
+    modified
+  R removed
+
   $ cd ..
 
 hg status with --rev and reverted changes:

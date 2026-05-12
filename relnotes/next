@@ -3,6 +3,7 @@
 == New Features ==
 
 * automated setup of shell compression through the `hg admin::setup-shell-completion` command.
+* status: added support for `--from` and `--to` options.
 
 == Default Format Change ==
 

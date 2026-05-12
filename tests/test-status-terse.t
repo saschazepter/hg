@@ -223,7 +223,19 @@ Omitting 'i' in terse value does not consider ignored files while tersing
 Trying with --rev
 
   $ hg status --terse marduic --rev 0 --rev 1
-  abort: cannot use --terse with --rev
+  abort: cannot use --terse with --rev, --from, or --to
+  [10]
+
+Trying with --from and --to
+
+  $ hg status --terse marduic --from 0 --to 1
+  abort: cannot use --terse with --rev, --from, or --to
+  [10]
+  $ hg status --terse marduic --from 0
+  abort: cannot use --terse with --rev, --from, or --to
+  [10]
+  $ hg status --terse marduic --to 1
+  abort: cannot use --terse with --rev, --from, or --to
   [10]
 
 Config item to set the default terseness

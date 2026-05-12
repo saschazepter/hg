@@ -6422,6 +6422,8 @@ _NOTTERSE = b'nothing'
             _(b'end filenames with NUL, for use with xargs'),
         ),
         (b'', b'rev', [], _(b'show difference from revision'), _(b'REV')),
+        (b'', b'from', b'', _(b'revision to diff from'), _(b'REV1')),
+        (b'', b'to', b'', _(b'revision to diff to'), _(b'REV2')),
         (
             b'',
             b'change',
@@ -6459,10 +6461,10 @@ def status(ui, repo, *pats, **opts):
        not report permission changes and diff only reports changes
        relative to one merge parent.
 
-    If one revision is given, it is used as the base revision.
-    If two revisions are given, the differences between them are
-    shown. The --change option can also be used as a shortcut to list
-    the changed files of a revision from its first parent.
+    By default, the working directory files are compared to its first parent. To
+    see the differences from another revision, use --from. To see the difference
+    to another revision, use --to. The --change option can also be used as a
+    shortcut to list the changed files of a revision from its first parent.
 
     The codes used to show the status of files are::
 
@@ -6510,7 +6512,7 @@ def status(ui, repo, *pats, **opts):
       - show changes in the working directory relative to a
         changeset::
 
-          hg status --rev 9353
+          hg status --from 9353
 
       - show changes in the working directory relative to the
         current directory (see :hg:`help patterns` for more information)::
@@ -6538,20 +6540,28 @@ def status(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     revs = opts.get(b'rev', [])
     change = opts.get(b'change', b'')
+    from_rev = opts.get(b'from')
+    to_rev = opts.get(b'to')
     terse = opts.get(b'terse', _NOTTERSE)
     if terse is _NOTTERSE:
-        if revs:
+        if revs or from_rev or to_rev:
             terse = b''
         else:
             terse = ui.config(b'commands', b'status.terse')
 
-    if revs and terse:
-        msg = _(b'cannot use --terse with --rev')
+    cmdutil.check_incompatible_arguments(opts, b'from', [b'rev', b'change'])
+    cmdutil.check_incompatible_arguments(opts, b'to', [b'rev', b'change'])
+    if (revs or from_rev or to_rev) and terse:
+        msg = _(b'cannot use --terse with --rev, --from, or --to')
         raise error.InputError(msg)
     elif change:
         repo = scmutil.unhidehashlikerevs(repo, [change], b'nowarn')
         ctx2 = logcmdutil.revsingle(repo, change, None)
         ctx1 = ctx2.p1()
+    elif from_rev or to_rev:
+        repo = scmutil.unhidehashlikerevs(repo, [from_rev, to_rev], b'nowarn')
+        ctx1 = logcmdutil.revsingle(repo, from_rev, None)
+        ctx2 = logcmdutil.revsingle(repo, to_rev, None)
     else:
         repo = scmutil.unhidehashlikerevs(repo, revs, b'nowarn')
         ctx1, ctx2 = logcmdutil.revpair(repo, revs)
