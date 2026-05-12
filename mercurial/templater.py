@@ -83,16 +83,20 @@ from . import (
     encoding,
     error,
     parser,
+    policy,
     pycompat,
     templatefilters,
     templatefuncs,
     templateutil,
     util,
 )
+
 from .utils import (
     resourceutil,
     stringutil,
 )
+
+rustmod = policy.importrust('template')
 
 # template parsing
 
@@ -384,6 +388,13 @@ def _unnesttemplatelist(tree):
 
 def parse(tmpl, rust_strict=False):
     """Parse template string into tree"""
+    if rustmod is not None:
+        try:
+            return _unnesttemplatelist(rustmod.parse(tmpl))
+        except error.ParseError:
+            if rust_strict:
+                raise
+            # otherwise fall back to the Python parser
     parsed, pos = _parsetemplate(tmpl, 0, len(tmpl))
     assert pos == len(tmpl), b'unquoted template should be consumed'
     return _unnesttemplatelist((b'template', parsed))

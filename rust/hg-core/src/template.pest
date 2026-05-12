@@ -1,0 +1,11 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+text = @{ (!("{" | "\\") ~ ANY)+ }
+
+integer  = @{ ASCII_DIGIT+ }
+symbol   = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+expr         = _{ integer | symbol }
+substitution = !{ "{" ~ expr ~ "}" }
+
+chunk    = _{ substitution | text }
+template = ${ SOI ~ chunk* ~ EOI }

@@ -1,0 +1,106 @@
+//! Pest parser for Mercurial template expressions
+//!
+//! This implements parsing for an incomplete subset of template expressions.
+//! Remaining expressions will fall back to the Python parser.
+
+use pest::Parser;
+use pest::iterators::Pair;
+use pest_derive::Parser;
+
+/// pest parser generated from `template.pest`. The `Rule` enum used
+/// throughout this module is derived from the grammar by this macro.
+#[derive(Parser)]
+#[grammar = "template.pest"]
+pub struct TemplateParser;
+
+/// A node in the parsed template syntax tree.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Node {
+    /// An integer literal, e.g. `42`.
+    Integer(i64),
+    /// A bare symbol (keyword or function name), e.g. `rev`.
+    Symbol(String),
+    /// Literal bytes of plain text or string-literal content.
+    Text(Vec<u8>),
+    /// An ordered sequence of nodes: the whole template, or the pieces of a
+    /// string literal that mixes text and substitutions.
+    Template(Vec<Node>),
+}
+
+/// An error produced while parsing a template.
+#[derive(Debug)]
+pub struct ParseError {
+    /// Human-readable description of the failure.
+    pub message: String,
+    /// Byte offset into the original template input where the error occurred.
+    pub location: usize,
+}
+
+impl From<pest::error::Error<Rule>> for ParseError {
+    fn from(err: pest::error::Error<Rule>) -> Self {
+        let location = match err.location {
+            pest::error::InputLocation::Pos(p) => p,
+            pest::error::InputLocation::Span((s, _)) => s,
+        };
+        ParseError { message: err.variant.message().into_owned(), location }
+    }
+}
+
+pub fn parse_template(input: &str) -> Result<Node, ParseError> {
+    let mut pairs = TemplateParser::parse(Rule::template, input)?;
+    let pair = pairs.next().expect("pest template always produces one pair");
+    let chunks = pair
+        .into_inner()
+        .filter(|p| p.as_rule() != Rule::EOI)
+        .map(parse_chunk)
+        .collect::<Result<Vec<_>, _>>()?;
+    let node = Node::Template(chunks);
+    tracing::debug!(output = ?node, "template::parse_template output");
+    Ok(node)
+}
+
+fn parse_chunk(pair: Pair<Rule>) -> Result<Node, ParseError> {
+    match pair.as_rule() {
+        Rule::text => Ok(Node::Text(pair.as_str().as_bytes().to_vec())),
+        Rule::substitution => {
+            let inner = pair
+                .into_inner()
+                .next()
+                .expect("substitution always contains one expression");
+            parse_expr(inner)
+        }
+        other => panic!("unexpected chunk rule: {other:?}"),
+    }
+}
+
+fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
+    match pair.as_rule() {
+        Rule::integer => {
+            let location = pair.as_span().start();
+            pair.as_str()
+                .parse::<i64>()
+                .map(Node::Integer)
+                .map_err(|e| ParseError { message: e.to_string(), location })
+        }
+        Rule::symbol => Ok(Node::Symbol(pair.as_str().to_owned())),
+        other => panic!("unexpected expression rule: {other:?}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_text_substitutions_and_integers() {
+        assert_eq!(
+            parse_template("hi {desc} {42}").unwrap(),
+            Node::Template(vec![
+                Node::Text(b"hi ".to_vec()),
+                Node::Symbol("desc".into()),
+                Node::Text(b" ".to_vec()),
+                Node::Integer(42),
+            ]),
+        );
+    }
+}

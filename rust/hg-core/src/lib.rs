@@ -51,6 +51,7 @@ pub mod operations;
 mod pre_regex;
 pub mod progress;
 pub mod revset;
+pub mod template;
 pub mod transaction;
 pub mod update;
 pub mod utils;
