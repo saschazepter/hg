@@ -113,23 +113,15 @@ impl StoreBackend<LocalToken> for LocalBackend {
     }
 
     fn branch(&self, changeset: Node) -> Result<String, Error<LocalToken>> {
-        // TODO move to an hg-core method
-        let data_for_node =
-            match self.repo.changelog()?.data_for_node(changeset.into()) {
-                Ok(data) => data,
-                Err(err) => match err {
-                    hg::revlog::RevlogError::InvalidRevision { .. } => {
-                        return Err(ErrorKind::NoSuchChangeset(changeset))?;
-                    }
-                    _ => return Err(HgError::from(err))?,
-                },
-            };
-        let extras = data_for_node.extra()?;
-        let Some(branch) = extras.get("branch") else {
-            return Ok("default".to_string());
-        };
-        Ok(String::from_utf8(branch.to_vec())
-            .unwrap_or_else(|_| "default".to_string()))
+        match self.repo.changelog()?.branch(changeset) {
+            Ok(branch) => Ok(branch),
+            Err(err) => match err {
+                HgError::Revlog(hg::revlog::RevlogError::InvalidRevision {
+                    ..
+                }) => Err(ErrorKind::NoSuchChangeset(changeset))?,
+                _ => Err(err)?,
+            },
+        }
     }
 
     fn idx_for_node(

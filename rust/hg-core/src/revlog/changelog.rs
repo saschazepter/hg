@@ -123,6 +123,16 @@ impl Changelog {
     pub fn get_index(&self) -> &Index {
         self.revlog.index()
     }
+
+    pub fn branch(&self, changeset: Node) -> Result<String, HgError> {
+        let data_for_node = self.data_for_node(changeset.into())?;
+        let extras = data_for_node.extra()?;
+        let Some(branch) = extras.get("branch") else {
+            return Ok("default".to_string());
+        };
+        Ok(String::from_utf8(branch.to_vec())
+            .unwrap_or_else(|_| "default".to_string()))
+    }
 }
 
 impl Graph for Changelog {
