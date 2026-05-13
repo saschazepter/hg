@@ -104,37 +104,91 @@ children listing
 
   $ for i in null `hg log -r 'all()' -T '{rev} '`; do
   > echo "### children of '$i'"
+  > echo "# revset"
   > hg log -r "children($i)" -T '{rev}\n'
+  > echo "# template"
+  > hg log -r "$i" -T '{join(children % "{word(0, child, \":\")}", "\n")}\n'
   > done
   ### children of 'null'
+  # revset
+  0
+  11
+  # template
   0
   11
   ### children of '0'
+  # revset
+  1
+  4
+  # template
   1
   4
   ### children of '1'
+  # revset
+  2
+  # template
   2
   ### children of '2'
+  # revset
+  3
+  7
+  8
+  # template
   3
   7
   8
   ### children of '3'
+  # revset
+  # template
+  
   ### children of '4'
+  # revset
+  5
+  # template
   5
   ### children of '5'
+  # revset
+  6
+  13
+  # template
   6
   13
   ### children of '6'
+  # revset
+  7
+  # template
   7
   ### children of '7'
+  # revset
+  # template
+  
   ### children of '8'
+  # revset
+  9
+  # template
   9
   ### children of '9'
+  # revset
+  10
+  # template
   10
   ### children of '10'
+  # revset
+  # template
+  
   ### children of '11'
+  # revset
+  12
+  13
+  # template
   12
   13
   ### children of '12'
+  # revset
+  # template
+  
   ### children of '13'
+  # revset
+  # template
+  
   $ cd ..

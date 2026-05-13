@@ -1558,8 +1558,16 @@ class revlog:
 
     def children(self, node):
         """find the children of a given node"""
-        c = []
         p = self.rev(node)
+
+        if hasattr(self.index, "children"):
+            c = self.index.children(p)
+            if c is not None:
+                filtered = getattr(self, 'filteredrevs', None)
+                if filtered is not None:
+                    c = [x for x in c if x not in filtered]
+                return c
+        c = []
         for r in self.revs(start=p + 1):
             prevs = [pr for pr in self.parentrevs(r) if pr != nullrev]
             if prevs:
