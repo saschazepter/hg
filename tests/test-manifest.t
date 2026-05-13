@@ -1,3 +1,6 @@
+Test manifest reading
+=====================
+
 Source bundle was generated with the following script:
 
 # hg init
@@ -9,7 +12,8 @@ Source bundle was generated with the following script:
 # chmod +x b/a
 # hg ci -Amb -d'1 0'
 
-  $ hg init
+  $ hg init repo1
+  $ cd repo1
   $ hg unbundle "$TESTDIR/bundles/test-manifest.hg"
   adding changesets
   adding manifests
@@ -104,11 +108,13 @@ Reminder of the manifest log content
   manifest:    0:fce2a30dedad1eef4da95ca1dc0004157aa527cf
 
 Showing the content of the caches after the above operations
+(It's empty for Rust because update-from-null doesn't populate the cache)
 
   $ hg debugmanifestfulltextcache
-  cache contains 1 manifest entries, in order of most to least recent:
-  id: 1e01206b1d2f72bd55f2a33fa8ccad74144825b7, size 133 bytes
-  total cache data size 157 bytes, on-disk 157 bytes
+  cache contains 1 manifest entries, in order of most to least recent: (no-rust !)
+  id: 1e01206b1d2f72bd55f2a33fa8ccad74144825b7, size 133 bytes (no-rust !)
+  total cache data size 157 bytes, on-disk 157 bytes (no-rust !)
+  cache empty (rust !)
 
 (Clearing the cache in case of any content)
 
@@ -202,9 +208,17 @@ hg update should warm the cache too
   $ hg log -r '0' --debug | grep 'manifest:'
   manifest:    0:fce2a30dedad1eef4da95ca1dc0004157aa527cf
 
+  $ cd ..
+
+Test removing files
+===================
+
 Test file removal (especially with pure).  The tests are crafted such that there
 will be contiguous spans of existing entries to ensure that is handled properly.
 (In this case, a.txt, aa.txt and c.txt, cc.txt, and ccc.txt)
+
+  $ hg init repo2
+  $ cd repo2
 
   $ cat > $TESTTMP/manifest.py <<EOF
   > from mercurial import (
@@ -214,15 +228,13 @@ will be contiguous spans of existing entries to ensure that is handled properly.
   > def extsetup(ui):
   >     manifest.FASTDELTA_TEXTDIFF_THRESHOLD = 0
   > EOF
-  $ cat >> $HGRCPATH <<EOF
+  $ cat >> .hg/hgrc <<EOF
   > [extensions]
   > manifest = $TESTTMP/manifest.py
   > EOF
 
 Pure removes should actually remove all dropped entries
 
-  $ hg init repo
-  $ cd repo
   $ echo a > a.txt
   $ echo aa > aa.txt
   $ echo b > b.txt
@@ -396,4 +408,3 @@ update on various side should only affect the target share
   id: b264454d7033405774b9f353b9b37a082c1a8fba, size 496 bytes
   id: c6e7b359cbbb5469e98f35acd73ac4757989c4d8, size 450 bytes
   total cache data size 1.46 KB, on-disk 1.46 KB
-
