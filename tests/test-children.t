@@ -1,139 +1,140 @@
-test children command
+#testcases revlogv1 changelogv2
 
-  $ cat <<EOF >> $HGRCPATH
-  > [extensions]
-  > children =
+=========================
+test children computation
+=========================
+
+The revlogv1 case check old school computation
+
+The changelogv2 case check the tracking of children in the index
+
+
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > revlog-compression=none
   > EOF
+
+#if changelogv2
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-changelog-v2=enable-unstable-format-and-corrupt-my-data
+  > EOF
+
+#endif
+
+#if revlogv1
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-changelog-v2=no
+  > EOF
+
+#endif
+
 
 init
   $ hg init t
   $ cd t
 
 no working directory
-  $ hg children
+  $ hg log -r 'children(.)'
 
 setup
-  $ echo 0 > file0
-  $ hg ci -qAm 0 -d '0 0'
 
-  $ echo 1 > file1
-  $ hg ci -qAm 1 -d '1 0'
+  $ hg debugbuilddag ".+2:f+1<4+3/f<f+3$+2<2/8"
 
-  $ echo 2 >> file0
-  $ hg ci -qAm 2 -d '2 0'
 
-  $ hg co null
-  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
-  $ echo 3 > file3
-  $ hg ci -qAm 3 -d '3 0'
+resulting graph
 
-hg children at revision 3 (tip)
-  $ hg children
-
-  $ hg co null
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
-
-hg children at nullrev (should be 0 and 3)
-  $ hg children
-  changeset:   0:4df8521a7374
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     0
+  $ hg log -G -T '{rev}\n'
+  o    13
+  |\
+  | | o  12
+  | |/
+  | o  11
+  |
+  | o  10
+  | |
+  | o  9
+  | |
+  | o  8
+  | |
+  | | o  7
+  | |/|
+  +---o  6
+  | |
+  o |  5
+  | |
+  o |  4
+  | |
+  | | o  3
+  | |/
+  | o  2
+  | |
+  | o  1
+  |/
+  o  0
   
-  changeset:   3:e2962852269d
-  tag:         tip
-  parent:      -1:000000000000
-  user:        test
-  date:        Thu Jan 01 00:00:03 1970 +0000
-  summary:     3
-  
-  $ hg co 1
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-hg children at revision 1 (should be 2)
-  $ hg children
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-  $ hg co 2
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#if changelogv2
 
-hg children at revision 2 (other head)
-  $ hg children
+  $ hg debugindex -v -c
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size   child-p1   child-p2 sibling-p1 sibling-p2
+       0      1       0 1ea73414a91b     -1 000000000000     -1 000000000000                   62          0     0         0                    0         62        plain                    0             0                    0                  0          1         -1         -1         -1
+       1      2       1 66f7d451a68b      0 1ea73414a91b     -1 000000000000                   62          1     0         0                   62         62        plain                    0             0                    0                  0          2         -1          4         -1
+       2      3       2 01241442b3c2      1 66f7d451a68b     -1 000000000000                   62          2     0         0                  124         62        plain                    0             0                    0                  0          3          7         -1         -1
+       3      4       3 2dc09a01254d      2 01241442b3c2     -1 000000000000                   62          3     0         0                  186         62        plain                    0             0                    0                  0         -1         -1          8         -1
+       4      2       4 e7bd5218ca15      0 1ea73414a91b     -1 000000000000                   62          4     0         0                  248         62        plain                    0             0                    0                  0          5         -1         -1         -1
+       5      3       5 3a367db1fabc      4 e7bd5218ca15     -1 000000000000                   62          5     0         0                  310         62        plain                    0             0                    0                  0          6         13         -1         -1
+       6      4       6 a2f58e9c1e56      5 3a367db1fabc     -1 000000000000                   62          6     0         0                  372         62        plain                    0             0                    0                  0          7         -1         -1         -1
+       7      7       7 0b5c7eb4d8af      6 a2f58e9c1e56      2 01241442b3c2                   62          7     0         0                  434         62        plain                    0             0                    0                  0         -1         -1         -1         -1
+       8      4       8 f27daae5831e      2 01241442b3c2     -1 000000000000                   62          8     0         0                  496         62        plain                    0             0                    0                  0          9         -1         -1         -1
+       9      5       9 eeb3ffa95e25      8 f27daae5831e     -1 000000000000                   62          9     0         0                  558         62        plain                    0             0                    0                  0         10         -1         -1         -1
+      10      6      10 6b5bd497916c      9 eeb3ffa95e25     -1 000000000000                   64         10     0         0                  620         64        plain                    0             0                    0                  0         -1         -1         -1         -1
+      11      1      11 68b2f8864486     -1 000000000000     -1 000000000000                   64         11     0         0                  684         64        plain                    0             0                    0                  0         12         -1         -1         -1
+      12      2      12 c5e1c0035018     11 68b2f8864486     -1 000000000000                   64         12     0         0                  748         64        plain                    0             0                    0                  0         -1         -1         13         -1
+      13      5      13 f537e7bd1a5f     11 68b2f8864486      5 3a367db1fabc                   64         13     0         0                  812         64        plain                    0             0                    0                  0         -1         -1         -1         -1
 
-  $ for i in null 0 1 2 3 '2^'; do
-  > echo "hg children -r '$i'"
-  > hg children -r $i
+#endif
+
+
+children listing
+
+  $ for i in null `hg log -r 'all()' -T '{rev} '`; do
+  > echo "### children of '$i'"
+  > hg log -r "children($i)" -T '{rev}\n'
   > done
-  hg children -r 'null'
-  changeset:   0:4df8521a7374
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     0
-  
-  changeset:   3:e2962852269d
-  tag:         tip
-  parent:      -1:000000000000
-  user:        test
-  date:        Thu Jan 01 00:00:03 1970 +0000
-  summary:     3
-  
-  hg children -r '0'
-  changeset:   1:708c093edef0
-  user:        test
-  date:        Thu Jan 01 00:00:01 1970 +0000
-  summary:     1
-  
-  hg children -r '1'
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-  hg children -r '2'
-  hg children -r '3'
-  hg children -r '2^'
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-
-hg children -r 0 file0 (should be 2)
-  $ hg children -r 0 file0
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-
-hg children -r 1 file0 (should be 2)
-  $ hg children -r 1 file0
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-
-  $ hg co 0
-  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
-
-hg children file0 at revision 0 (should be 2)
-  $ hg children file0
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-
-should be compatible with templater (don't pass fctx to displayer)
-  $ hg children file0 -Tdefault
-  changeset:   2:8f5eea5023c2
-  user:        test
-  date:        Thu Jan 01 00:00:02 1970 +0000
-  summary:     2
-  
-
+  ### children of 'null'
+  0
+  11
+  ### children of '0'
+  1
+  4
+  ### children of '1'
+  2
+  ### children of '2'
+  3
+  7
+  8
+  ### children of '3'
+  ### children of '4'
+  5
+  ### children of '5'
+  6
+  13
+  ### children of '6'
+  7
+  ### children of '7'
+  ### children of '8'
+  9
+  ### children of '9'
+  10
+  ### children of '10'
+  ### children of '11'
+  12
+  13
+  ### children of '12'
+  ### children of '13'
   $ cd ..

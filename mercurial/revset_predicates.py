@@ -405,16 +405,22 @@ def _children(repo: RepoT, subset, parentset):
     if not parentset:
         return baseset()
     cs = set()
-    pr = repo.changelog.parentrevs
-    minrev = parentset.min()
-    for r in subset:
-        if r <= minrev:
-            continue
-        p1, p2 = pr(r)
-        if p1 in parentset:
-            cs.add(r)
-        if p2 != nullrev and p2 in parentset:
-            cs.add(r)
+    cl = repo.changelog
+    if cl.feature_config.children and nullrev not in parentset:
+        children = cl.index.children
+        for r in parentset:
+            cs.update(children(r))
+    else:
+        pr = cl.parentrevs
+        minrev = parentset.min()
+        for r in subset:
+            if r <= minrev:
+                continue
+            p1, p2 = pr(r)
+            if p1 in parentset:
+                cs.add(r)
+            if p2 != nullrev and p2 in parentset:
+                cs.add(r)
     return baseset(cs)
 
 

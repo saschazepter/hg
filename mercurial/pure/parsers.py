@@ -774,6 +774,29 @@ class BaseIndex(abc.ABC):
         """
         raise error.ProgrammingError("lacking support for ChangedFiles data")
 
+    def children(self, rev: RevnumT) -> None | list[RevnumT]:
+        c1 = self.child_p1(rev)
+        if c1 is None:
+            return None
+        c2 = self.child_p2(rev)
+        if c2 is None:
+            return None
+        children_p1 = set()
+        while c1 != nullrev:
+            children_p1.add(c1)
+            next = self.sibling_p1(c1)
+            assert next not in children_p1
+            assert next is not None
+            c1 = next
+        children_p2 = set()
+        while c2 != nullrev:
+            children_p2.add(c2)
+            next = self.sibling_p2(c2)
+            assert next not in children_p2
+            assert next is not None
+            c2 = next
+        return list(sorted(children_p1 | children_p2))
+
     def child_p1(self, rev: RevnumT) -> RevnumT | None:
         """return the revision using `rev` as p1.
 
