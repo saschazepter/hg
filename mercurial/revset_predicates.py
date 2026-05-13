@@ -406,7 +406,7 @@ def _children(repo: RepoT, subset, parentset):
         return baseset()
     cs = set()
     cl = repo.changelog
-    if cl.feature_config.children and nullrev not in parentset:
+    if cl.feature_config.children:
         children = cl.index.children
         for r in parentset:
             cs.update(children(r))

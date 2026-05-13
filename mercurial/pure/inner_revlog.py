@@ -1457,10 +1457,20 @@ class InnerRevlogV2(BaseInnerRevlog):
         p1 = entry.parent_rev_1
         assert p1 < curr
 
-        # NOTE: we could use `sibling_p1` when p1 = p2 = nullrev to
-        # track all root revisions in this revlog. This would be useful
-        # to handle "children(null)" (and to have less special case)
-        if p1 != nullrev:
+        if p1 == nullrev:
+            # NOTE: we are using sibling_p1 to track all root revisions in
+            # this revlog. This is useful to handle "children(null)" (and
+            # to have less special case)
+            if curr > 0:
+                c1 = 0
+                while (next := self.index.sibling_p1(c1)) != nullrev:
+                    # XXX: we should raise a proper corruption error here
+                    assert next is not None
+                    assert c1 < next, (c1, next)  # avoid infinite loop
+                    assert c1 < curr, (c1, curr)
+                    c1 = next
+                update[c1] = self.index.update_sibling_p1(c1, curr)
+        else:
             c1 = self.index.child_p1(p1)
             assert c1 is not None
             assert c1 < curr, (c1, curr)
@@ -1469,6 +1479,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             else:
                 while (next := self.index.sibling_p1(c1)) != nullrev:
                     # XXX: we should raise a proper corruption error here
+                    assert next is not None
                     assert c1 < next, (c1, next)  # avoid infinite loop
                     assert c1 < curr, (c1, curr)
                     c1 = next
@@ -1484,6 +1495,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             else:
                 while (next := self.index.sibling_p2(c2)) != nullrev:
                     # XXX: we should raise a proper corruption error here
+                    assert next is not None
                     assert c2 < next, (c2, next)  # avoid infinite loop
                     assert c2 < curr, (c2, curr)
                     c2 = next

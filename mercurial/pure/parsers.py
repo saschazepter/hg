@@ -1511,7 +1511,10 @@ class IndexChangelogV2(Index2):
         return None if the feature is unsupported
         """
         if rev == nullrev:
-            return None
+            if len(self) == 0:
+                return nullrev
+            else:
+                return 0
         child = self._rich_entry(rev).child_p1
         if child <= rev or child >= len(self) or self.parents(child)[0] != rev:
             # point to stripped revision, ignores them for now
@@ -1529,7 +1532,7 @@ class IndexChangelogV2(Index2):
         return None if the feature is unsupported
         """
         if rev == nullrev:
-            return None
+            return nullrev
         child = self._rich_entry(rev).child_p2
         if child <= rev or child >= len(self) or self.parents(child)[1] != rev:
             # point to stripped revision, ignores them for now
