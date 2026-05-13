@@ -9,6 +9,7 @@ mod bdiff;
 pub mod dagops;
 pub mod encoding;
 pub mod errors;
+pub mod linkrev;
 pub mod narrow;
 pub mod sparse;
 pub use ancestors::AncestorsIterator;
