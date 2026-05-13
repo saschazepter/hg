@@ -105,6 +105,12 @@ We can read symlinks themselves
   $ readlink.py commits/$rev1/files/nested/symlink1
   commits/de20532b747357719aebd9ec8f4788bb787c8b9f/files/nested/symlink1 -> ../file1
 
+Test output of readdir
+  $ $RUNTESTDIR/testlib/scandir.py commits/$rev1/files/nested
+  d dir
+  f file
+  f symlink1 (known-bad-output !)
+  l symlink1 (missing-correct-output !)
 
 Test the virtual share as a repo
 --------------------------------
