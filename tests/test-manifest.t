@@ -412,6 +412,10 @@ Test rust manifest
   $ cat >> .hg/hgrc <<EOF
   > [rust]
   > exp-manifest=True
+  > [devel]
+  > # Temporarily disable paranoid until we implement text(), otherwise we can't
+  > # demonstrate __delitem__ and __setitem__ working.
+  > manifest.fast-delta.paranoid=no
   > EOF
 
 Read manifest
@@ -444,9 +448,11 @@ Change a flag (symlink)
 
 Remove a manifest line
   $ rm a
-  $ hg rm a 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__delitem__
-  $ # hg ci -m "remove a"
+  $ hg rm a
+  $ hg ci -m "remove a"
+  $ hg manifest --debug
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
 Add a manifest line
   $ touch newfile

@@ -4,6 +4,7 @@
 //! From Python, this will be seen as `mercurial.pyo3_rustext.manifest`
 
 use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 
 use hg::revlog::RevlogError;
 use hg::revlog::manifest::DecodedManifestEntry;
@@ -137,7 +138,10 @@ impl PyLazyManifest {
     }
 
     fn __delitem__(slf: &Bound<'_, Self>, key: &[u8]) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err("LazyManifest.__delitem__"))
+        Self::with_inner_write(slf, |_self_ref, mut inner| {
+            let _ = inner.remove(HgPath::new(key));
+            Ok(())
+        })
     }
 
     fn text(slf: &Bound<'_, Self>) -> PyResult<Py<PyBytes>> {
@@ -179,6 +183,21 @@ impl PyLazyManifest {
         // Safety: We are the owner.
         let shareable_ref = unsafe { self_ref.inner.borrow_with_owner(slf) };
         let guard = shareable_ref.try_read().map_err(map_try_lock_error)?;
+        f(&self_ref, guard)
+    }
+
+    /// Helper to get read-write access to [`Self::inner`].
+    fn with_inner_write<'py, T, F>(slf: &Bound<'py, Self>, f: F) -> PyResult<T>
+    where
+        F: FnOnce(
+            &PyRef<'py, Self>,
+            RwLockWriteGuard<LazyManifest>,
+        ) -> PyResult<T>,
+    {
+        let self_ref = slf.borrow();
+        // Safety: We are the owner.
+        let shareable_ref = unsafe { self_ref.inner.borrow_with_owner(slf) };
+        let guard = shareable_ref.try_write().map_err(map_try_lock_error)?;
         f(&self_ref, guard)
     }
 }

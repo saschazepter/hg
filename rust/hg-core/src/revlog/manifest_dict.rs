@@ -4,6 +4,8 @@
 // For now it's separate because it started out as a port of
 // mercurial/cext/manifest.c, and is currently only used from Python.
 
+use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -17,6 +19,7 @@ use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::node::HEX_NODE_LENGTH;
 use crate::revlog::node::NODE_BYTES_LENGTH;
 use crate::utils::hg_path::HgPath;
+use crate::utils::hg_path::HgPathBuf;
 use crate::utils::u_u16;
 use crate::utils::u_u32;
 use crate::utils::u16_u;
@@ -93,6 +96,26 @@ pub struct LazyManifest {
     data: Arc<DynBytes<'static>>,
     /// Lines parsed from [`Self::data`].
     lines: Arc<Vec<Line>>,
+    /// In-memory edits on top of [`Self::lines`], keyed by path.
+    edits: BTreeMap<HgPathBuf, Edit>,
+    /// Net change in the number of entries caused by [`Self::edits`].
+    count_delta: isize,
+}
+
+/// An edit to a manifest.
+#[derive(Copy, Clone)]
+struct Edit {
+    /// Index in [`LazyManifest::lines`] that the operation applies to.
+    index: usize,
+    /// What the edit does at [`Self::index`].
+    operation: Operation,
+}
+
+/// What an [`Edit`] does at its index.
+#[derive(Copy, Clone)]
+enum Operation {
+    /// Remove the line at the index.
+    Remove,
 }
 
 impl LazyManifest {
@@ -104,12 +127,20 @@ impl LazyManifest {
     ) -> Result<Self, ManifestError> {
         let data = DynBytes::new(Box::new(data));
         let lines = Self::parse_lines(nodelen, &data)?;
-        Ok(Self { data: Arc::new(data), lines: Arc::new(lines) })
+        Ok(Self {
+            data: Arc::new(data),
+            lines: Arc::new(lines),
+            edits: BTreeMap::new(),
+            count_delta: 0,
+        })
     }
 
     /// Returns the number of entries in the manifest.
     pub fn len(&self) -> usize {
-        self.lines.len()
+        self.lines
+            .len()
+            .checked_add_signed(self.count_delta)
+            .expect("cannot be negative")
     }
 
     /// Returns true if the manifest is empty.
@@ -119,12 +150,17 @@ impl LazyManifest {
 
     /// Returns an iterator over manifest entries.
     pub fn iter(&self) -> LazyManifestIter<'_> {
-        LazyManifestIter { inner: self, index: 0 }
+        let mut iter_edits = self.edits.iter();
+        let next_edit = iter_edits.next().map(|t| (t.0.as_ref(), *t.1));
+        LazyManifestIter { inner: self, index: 0, iter_edits, next_edit }
     }
 
     /// Returns true if the manifest contains the given path.
     pub fn contains(&self, path: &HgPath) -> bool {
-        self.binary_search(path).is_ok()
+        match self.edits.get(path).map(|edit| edit.operation) {
+            Some(Operation::Remove) => false,
+            None => Self::binary_search(&self.lines, &self.data, path).is_ok(),
+        }
     }
 
     /// Looks up a path in the manifest.
@@ -132,10 +168,55 @@ impl LazyManifest {
         &self,
         path: &HgPath,
     ) -> Result<Option<DecodedManifestEntry<'_>>, RevlogError> {
-        let Ok(index) = self.binary_search(path) else {
+        if let Some((_, Edit::Remove)) = self.edits.get(path) {
+            return Ok(None);
+        }
+        let Ok(index) = Self::binary_search(&self.lines, &self.data, path)
+        else {
             return Ok(None);
         };
         Ok(Some(self.lines[index].read(&self.data).decode()?))
+    }
+
+    /// Removes `path` from the manifest. Returns true if it was found.
+    pub fn remove(&mut self, path: &HgPath) -> bool {
+        let found = match self.edits.entry(path.to_owned()) {
+            Entry::Vacant(entry) => {
+                match Self::binary_search(&self.lines, &self.data, path) {
+                    Ok(index) => {
+                        let operation = Operation::Remove;
+                        entry.insert(Edit { index, operation });
+                        true
+                    }
+                    Err(_) => false,
+                }
+            }
+            Entry::Occupied(entry) => match entry.get().1 {
+                // Path is already removed.
+                Edit::Remove => false,
+            },
+        };
+        if found {
+            self.add_to_count_delta(-1);
+        }
+        found
+    }
+
+    /// Adds `value` to [`Self::count_delta`].
+    /// In tests, this also does a consistency check.
+    fn add_to_count_delta(&mut self, value: isize) {
+        self.count_delta += value;
+        #[cfg(test)]
+        {
+            let expected: isize = self
+                .edits
+                .values()
+                .map(|edit| match edit.operation {
+                    Operation::Remove => -1,
+                })
+                .sum();
+            assert_eq!(self.count_delta, expected);
+        }
     }
 
     /// Parses all lines of a manifest.
@@ -187,10 +268,15 @@ impl LazyManifest {
         Ok(line)
     }
 
-    /// Binary searches for `path`, returning `Ok(index)` if found.
-    /// Returns `Err(insertion_index)` if not found.
-    fn binary_search(&self, path: &HgPath) -> Result<usize, usize> {
-        self.lines.binary_search_by(|e| e.read(&self.data).path.cmp(path))
+    /// Binary searches `lines` for `path`, returning `Ok(index)` if found.
+    /// Returns `Err(insertion_index)` if not found. Takes the fields rather
+    /// than `&self` so it can be called while `edits` is mutably borrowed.
+    fn binary_search(
+        lines: &[Line],
+        data: &[u8],
+        path: &HgPath,
+    ) -> Result<usize, usize> {
+        lines.binary_search_by(|e| e.read(data).path.cmp(path))
     }
 }
 
@@ -198,18 +284,29 @@ impl LazyManifest {
 pub struct LazyManifestIter<'a> {
     inner: &'a LazyManifest,
     index: usize,
+    iter_edits: std::collections::btree_map::Iter<'a, HgPathBuf, Edit>,
+    next_edit: Option<(&'a HgPath, Edit)>,
 }
 
 impl<'a> Iterator for LazyManifestIter<'a> {
     type Item = Result<DecodedManifestEntry<'a>, RevlogError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index == self.inner.lines.len() {
-            return None;
+        let len = self.inner.lines.len();
+        while self.index < len {
+            let i = self.index;
+            self.index += 1;
+            if let Some((_, (index, Edit::Remove))) = self.next_edit
+                && i == index
+            {
+                self.next_edit =
+                    self.iter_edits.next().map(|t| (t.0.as_ref(), *t.1));
+                continue;
+            }
+            let line = self.inner.lines[i];
+            return Some(line.read(&self.inner.data).decode());
         }
-        let line = self.inner.lines[self.index];
-        self.index += 1;
-        Some(line.read(&self.inner.data).decode())
+        None
     }
 }
 
@@ -345,5 +442,55 @@ mod tests {
             manifest.err(),
             Some(ManifestError::UnsupportedNodeLength(NODE_BYTES_LENGTH + 1))
         );
+    }
+
+    #[test]
+    fn test_remove_empty() {
+        let mut manifest = new(b"");
+
+        assert!(!manifest.remove(path(b"file.txt")));
+        assert_eq!(collect(&manifest).unwrap(), &[]);
+    }
+
+    #[test]
+    fn test_remove_one() {
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let mut manifest = new(text);
+
+        assert!(manifest.remove(path(b"file.txt")));
+
+        assert_eq!(collect(&manifest).unwrap(), &[]);
+        assert_eq!(manifest.len(), 0);
+        assert!(manifest.is_empty());
+        assert!(!manifest.contains(path(b"file.txt")));
+        assert!(!manifest.remove(path(b"file.txt")));
+    }
+
+    #[test]
+    fn test_remove_two() {
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            subdir/other.py\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        let mut manifest = new(text);
+
+        assert!(manifest.remove(path(b"file.txt")));
+
+        let entry_2 = DecodedManifestEntry {
+            path: path(b"subdir/other.py"),
+            node: node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            flags: ManifestFlags::EXEC,
+        };
+
+        assert_eq!(collect(&manifest).unwrap(), &[entry_2]);
+        assert_eq!(manifest.len(), 1);
+        assert!(!manifest.is_empty());
+        assert!(!manifest.contains(path(b"file.txt")));
+        assert!(!manifest.remove(path(b"file.txt")));
+        assert!(manifest.contains(path(b"subdir/other.py")));
+
+        assert!(manifest.remove(path(b"subdir/other.py")));
+
+        assert_eq!(collect(&manifest).unwrap(), &[]);
+        assert_eq!(manifest.len(), 0);
+        assert!(manifest.is_empty());
     }
 }
