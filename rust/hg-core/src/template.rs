@@ -3,6 +3,7 @@
 //! This implements parsing for an incomplete subset of template expressions.
 //! Remaining expressions will fall back to the Python parser.
 
+use itertools::Itertools as _;
 use pest::Parser;
 use pest::iterators::Pair;
 use pest_derive::Parser;
@@ -25,6 +26,20 @@ pub enum Node {
     /// An ordered sequence of nodes: the whole template, or the pieces of a
     /// string literal that mixes text and substitutions.
     Template(Vec<Node>),
+    /// A function call, e.g. `pad(text, width=10)`.
+    FunctionCall {
+        /// The function name.
+        name: String,
+        /// The positional and keyword arguments, in source order.
+        args: Vec<Node>,
+    },
+    /// A `key=value` argument inside a function call.
+    KeyValue {
+        /// The argument name.
+        key: String,
+        /// The argument value.
+        value: Box<Node>,
+    },
 }
 
 /// An error produced while parsing a template.
@@ -114,6 +129,26 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
                 .map_err(|e| ParseError { message: e.to_string(), location })
         }
         Rule::symbol => Ok(Node::Symbol(pair.as_str().to_owned())),
+        Rule::function => {
+            let [name_pair, args_pair] =
+                pair.into_inner().collect_array().unwrap();
+            debug_assert_eq!(name_pair.as_rule(), Rule::symbol);
+            debug_assert_eq!(args_pair.as_rule(), Rule::function_args);
+            let name = name_pair.as_str().to_owned();
+            let args = args_pair
+                .into_inner()
+                .map(parse_expr)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Node::FunctionCall { name, args })
+        }
+        Rule::keyvalue => {
+            let [key_pair, value_pair] =
+                pair.into_inner().collect_array().unwrap();
+            debug_assert_eq!(key_pair.as_rule(), Rule::symbol);
+            let key = key_pair.as_str().to_owned();
+            let value = Box::new(parse_expr(value_pair)?);
+            Ok(Node::KeyValue { key, value })
+        }
         other => panic!("unexpected expression rule: {other:?}"),
     }
 }
@@ -139,7 +174,8 @@ mod tests {
     fn rejects_unsupported() {
         assert!(parse_template("{desc|short}").is_err());
         assert!(parse_template(r"a\xb").is_err()); // unrecognized escape
-        assert!(parse_template("{}").is_err());
+        assert!(parse_template("{}").is_err()); // empty substitution
+        assert!(parse_template("{f(a,)}").is_err()); // trailing comma
     }
 
     /// Recognized backslash escapes are decoded.
@@ -148,6 +184,24 @@ mod tests {
         assert_eq!(
             parse_template(r"a\nb").unwrap(),
             Node::Template(vec![Node::Text(b"a\nb".to_vec())]),
+        );
+    }
+
+    /// Function calls with positional and keyword arguments.
+    #[test]
+    fn parses_function_calls() {
+        assert_eq!(
+            parse_template("{pad(text, width=10)}").unwrap(),
+            Node::Template(vec![Node::FunctionCall {
+                name: "pad".into(),
+                args: vec![
+                    Node::Symbol("text".into()),
+                    Node::KeyValue {
+                        key: "width".into(),
+                        value: Box::new(Node::Integer(10)),
+                    },
+                ],
+            }]),
         );
     }
 }

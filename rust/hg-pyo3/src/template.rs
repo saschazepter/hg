@@ -39,13 +39,52 @@ fn node_to_py<'py>(
             Ok(PyTuple::new(
                 py,
                 [
-                    PyBytes::new(py, b"template").into_pyobject(py)?.into_any(),
+                    anybytes(py, b"template")?,
                     PyList::new(py, items)?.into_any(),
                 ],
             )?
             .into_any())
         }
+        template::Node::FunctionCall { name, args } => {
+            let name_node = bytes_pair(py, b"symbol", name.as_bytes())?;
+            let args_node = args_to_py(py, args)?;
+            Ok(PyTuple::new(
+                py,
+                [anybytes(py, b"func")?, name_node, args_node],
+            )?
+            .into_any())
+        }
+        template::Node::KeyValue { key, value } => {
+            let key_node = bytes_pair(py, b"symbol", key.as_bytes())?;
+            let value_node = node_to_py(py, *value)?;
+            Ok(PyTuple::new(
+                py,
+                [anybytes(py, b"keyvalue")?, key_node, value_node],
+            )?
+            .into_any())
+        }
     }
+}
+
+fn args_to_py<'py>(
+    py: Python<'py>,
+    args: Vec<template::Node>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let mut iter = args.into_iter();
+    let first = match iter.next() {
+        None => return Ok(py.None().into_bound(py).into_any()),
+        Some(n) => n,
+    };
+    let mut acc = node_to_py(py, first)?;
+    for node in iter {
+        let item = node_to_py(py, node)?;
+        acc = PyTuple::new(py, [anybytes(py, b"list")?, acc, item])?.into_any();
+    }
+    Ok(acc)
+}
+
+fn anybytes<'py>(py: Python<'py>, s: &[u8]) -> PyResult<Bound<'py, PyAny>> {
+    Ok(PyBytes::new(py, s).into_pyobject(py)?.into_any())
 }
 
 fn bytes_pair<'py>(

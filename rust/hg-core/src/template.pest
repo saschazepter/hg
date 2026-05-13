@@ -7,9 +7,14 @@ text_escape  = @{
 text_content = @{ (!("{" | "\\") ~ ANY)+ }
 text         = ${ (text_content | text_escape)+ }
 
+keyvalue      = { symbol ~ "=" ~ expr }
+function_arg  = _{ keyvalue | expr }
+function_args = { (function_arg ~ ("," ~ function_arg)*)? }
+function      = { symbol ~ "(" ~ function_args ~ ")" }
+
 integer  = @{ ASCII_DIGIT+ }
 symbol   = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-expr         = _{ integer | symbol }
+expr         = _{ function | integer | symbol }
 substitution = !{ "{" ~ expr ~ "}" }
 
 chunk    = _{ substitution | text }

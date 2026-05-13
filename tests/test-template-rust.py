@@ -10,6 +10,8 @@ from mercurial import (
 SUPPORTED = [
     b"rev: {rev}",
     rb"rev: {rev}\n",
+    b"{short(node)}",
+    b"{pad(rev, 4, left=desc)}",
 ]
 
 # Templates the Rust parser does not handle but the Python parser does. Under
