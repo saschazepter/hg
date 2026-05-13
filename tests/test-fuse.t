@@ -22,10 +22,11 @@ Source repo setup
   $ echo "bb" >> file2
   $ echo "c" >> nested/dir/file.txt
   $ ln -s ../file1 nested/symlink1
+  $ touch nested/file
   $ hg commit -Aqm1
   $ rev1=$(hg log -r . -T "{node}\n")
   $ hg log -T'{node}\n'
-  017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
+  de20532b747357719aebd9ec8f4788bb787c8b9f
   1bed6038501e18cfa5551b71175be951891ced70
 
 Create and test the FUSE
@@ -86,6 +87,7 @@ We can access the contents of each revision
   $ ls -l commits/$rev1/files/nested
   total 1
   drwx------ * dir (glob)
+  -rw------- 1 * file (glob)
   lrw------- 1 * symlink1 -> ../file1 (glob)
 
 
@@ -101,7 +103,7 @@ We can read through symlinks
 
 We can read symlinks themselves
   $ readlink.py commits/$rev1/files/nested/symlink1
-  commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files/nested/symlink1 -> ../file1
+  commits/de20532b747357719aebd9ec8f4788bb787c8b9f/files/nested/symlink1 -> ../file1
 
 
 Test the virtual share as a repo
@@ -116,9 +118,9 @@ We can read the store fine
   $ hg root --share-source
   $TESTTMP/source
   $ hg id
-  017e3e0cea11 tip
+  de20532b7473 tip
   $ hg log
-  changeset:   1:017e3e0cea11
+  changeset:   1:de20532b7473
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -132,17 +134,18 @@ We can read the store fine
 
 The working copy as well
   $ hg root
-  $TESTTMP/fuse-mount/commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files
+  $TESTTMP/fuse-mount/commits/de20532b747357719aebd9ec8f4788bb787c8b9f/files
   $ hg st -A
   C file1
   C file2
   C nested/dir/file.txt
+  C nested/file
   C nested/symlink1
 
 It's read-only and hg tells the user
 
   $ hg up 0
-  abort: could not lock working directory of $TESTTMP/fuse-mount/commits/017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca/files: Read-only file system
+  abort: could not lock working directory of $TESTTMP/fuse-mount/commits/de20532b747357719aebd9ec8f4788bb787c8b9f/files: Read-only file system
   [20]
 
 
@@ -156,8 +159,8 @@ Create a new revision in the source
   $ hg commit -Aqm2
   $ rev2=$(hg log -r . -T "{node}\n")
   $ hg log -T"{node}\n"
-  df38c26fa2f9c99a713635376e2df59076a5a2cf
-  017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
+  25165a2d2ee7ee9eeabce2d8f6dd9baac706fc9a
+  de20532b747357719aebd9ec8f4788bb787c8b9f
   1bed6038501e18cfa5551b71175be951891ced70
 
 We can access the new revision
@@ -168,6 +171,7 @@ We can access the new revision
   C file1
   C file2
   C nested/dir/file.txt
+  C nested/file
   C nested/symlink1
   $ cat file1
   aaa
@@ -182,15 +186,15 @@ TODO improve error reporting
   $ hg commit -Aqm3
   $ rev3=$(hg log -r . -T "{node}\n")
   $ hg log -T"{node}\n"
-  56cfdc65ceb2a449d20c252c94dc1d9b514fed9f
-  df38c26fa2f9c99a713635376e2df59076a5a2cf
-  017e3e0cea11ca4bd5cfa8c2b9922deb995f98ca
+  2d0a46521f89ffc17a2061b20ee5622909540235
+  25165a2d2ee7ee9eeabce2d8f6dd9baac706fc9a
+  de20532b747357719aebd9ec8f4788bb787c8b9f
   1bed6038501e18cfa5551b71175be951891ced70
   $ hg debugupgraderepo --config format.use-fileindex-v1=yes --run -q | grep 'added: fileindex-v1'
      added: fileindex-v1
 
   $ ls $FUSE_ROOT/commits/$rev3/files
-  ls: cannot access '$TESTTMP/fuse-mount/commits/56cfdc65ceb2a449d20c252c94dc1d9b514fed9f/files': Input/output error
+  ls: cannot access '$TESTTMP/fuse-mount/commits/2d0a46521f89ffc17a2061b20ee5622909540235/files': Input/output error
   [2]
 
 
