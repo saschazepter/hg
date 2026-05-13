@@ -1,11 +1,23 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
+// `text` handles plain text outside substitutions; `string` handles quoted string
+// literals inside substitutions, potentially with further nested substitutions.
+
 text_escape  = @{
   "\\"
   ~ ("t" | "r" | "n" | "0" | "\\" | "'" | "\"" | "{")
 }
 text_content = @{ (!("{" | "\\") ~ ANY)+ }
 text         = ${ (text_content | text_escape)+ }
+
+string_quote   = _{ "'" | "\"" }
+string_content = @{ (!(PEEK | "{" | "\\") ~ ANY)+ }
+string         = _{ PUSH(string_quote) ~ (string_content | text_escape | substitution)* ~ POP }
+
+raw_string_content = @{ ("\\" ~ PEEK | !PEEK ~ ANY)* }
+raw_string         = _{ "r" ~ PUSH(string_quote) ~ raw_string_content ~ POP }
+
+string_literal = ${ raw_string | string }
 
 keyvalue      = { symbol ~ "=" ~ expr }
 function_arg  = _{ keyvalue | expr }
@@ -14,7 +26,7 @@ function      = { symbol ~ "(" ~ function_args ~ ")" }
 
 integer  = @{ ASCII_DIGIT+ }
 symbol   = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-expr         = _{ function | integer | symbol }
+expr         = _{ function | string_literal | integer | symbol }
 substitution = !{ "{" ~ expr ~ "}" }
 
 chunk    = _{ substitution | text }

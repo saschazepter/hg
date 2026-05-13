@@ -12,6 +12,9 @@ SUPPORTED = [
     rb"rev: {rev}\n",
     b"{short(node)}",
     b"{pad(rev, 4, left=desc)}",
+    rb'{if(rev, "rev is {rev}\n")}',
+    b"{'on branch {branch}'}",
+    rb"{r'a\nb'}",
 ]
 
 # Templates the Rust parser does not handle but the Python parser does. Under

@@ -77,15 +77,18 @@ pub fn parse_template(input: &str) -> Result<Node, ParseError> {
 fn parse_chunk(pair: Pair<Rule>) -> Result<Node, ParseError> {
     match pair.as_rule() {
         Rule::text => Ok(Node::Text(parse_text(pair))),
-        Rule::substitution => {
-            let inner = pair
-                .into_inner()
-                .next()
-                .expect("substitution always contains one expression");
-            parse_expr(inner)
-        }
+        Rule::substitution => parse_substitution(pair),
         other => panic!("unexpected chunk rule: {other:?}"),
     }
+}
+
+fn parse_substitution(pair: Pair<Rule>) -> Result<Node, ParseError> {
+    debug_assert_eq!(pair.as_rule(), Rule::substitution);
+    let inner = pair
+        .into_inner()
+        .next()
+        .expect("substitution always contains one expression");
+    parse_expr(inner)
 }
 
 fn parse_text(pair: Pair<Rule>) -> Vec<u8> {
@@ -119,6 +122,31 @@ fn escape_byte(s: &str) -> u8 {
     }
 }
 
+fn parse_string_literal(pair: Pair<Rule>) -> Result<Node, ParseError> {
+    debug_assert_eq!(pair.as_rule(), Rule::string_literal);
+    let mut chunks = Vec::new();
+    let mut buf: Vec<u8> = Vec::new();
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::string_content | Rule::raw_string_content => {
+                buf.extend_from_slice(inner.as_str().as_bytes());
+            }
+            Rule::text_escape => buf.push(escape_byte(inner.as_str())),
+            Rule::substitution => {
+                if !buf.is_empty() {
+                    chunks.push(Node::Text(std::mem::take(&mut buf)));
+                }
+                chunks.push(parse_substitution(inner)?);
+            }
+            other => panic!("unexpected string chunk: {other:?}"),
+        }
+    }
+    if !buf.is_empty() {
+        chunks.push(Node::Text(buf));
+    }
+    Ok(Node::Template(chunks))
+}
+
 fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
     match pair.as_rule() {
         Rule::integer => {
@@ -141,6 +169,7 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(Node::FunctionCall { name, args })
         }
+        Rule::string_literal => parse_string_literal(pair),
         Rule::keyvalue => {
             let [key_pair, value_pair] =
                 pair.into_inner().collect_array().unwrap();
@@ -202,6 +231,24 @@ mod tests {
                     },
                 ],
             }]),
+        );
+    }
+
+    /// String literals (including raw strings and embedded substitutions).
+    #[test]
+    fn parses_string_literals() {
+        assert_eq!(
+            parse_template("{'on branch {branch}'}").unwrap(),
+            Node::Template(vec![Node::Template(vec![
+                Node::Text(b"on branch ".to_vec()),
+                Node::Symbol("branch".into()),
+            ])]),
+        );
+        assert_eq!(
+            parse_template(r"{r'a\nb'}").unwrap(),
+            Node::Template(vec![Node::Template(vec![Node::Text(
+                br"a\nb".to_vec(),
+            )])]),
         );
     }
 }
