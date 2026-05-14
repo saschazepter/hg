@@ -313,6 +313,19 @@ impl ManifestFlags {
     pub fn is_tree(self) -> bool {
         self == Self::TREE
     }
+
+    /// Parses a byte as non-empty `ManifestFlags`. Returns `None` if invalid.
+    pub fn from_byte(byte: u8) -> Option<Self> {
+        match byte {
+            b'l' | b'x' | b't' => Some(Self(NonZeroU8::new(byte))),
+            _ => None,
+        }
+    }
+
+    /// Returns the flag byte, or `None` if empty.
+    pub fn as_byte(&self) -> Option<u8> {
+        self.0.map(|f| f.get())
+    }
 }
 
 /// A manifest line is a Lazy ManifestEntry used during comparison
