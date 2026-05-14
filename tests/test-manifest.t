@@ -412,10 +412,6 @@ Test rust manifest
   $ cat >> .hg/hgrc <<EOF
   > [rust]
   > exp-manifest=True
-  > [devel]
-  > # Temporarily disable paranoid until we implement text(), otherwise we can't
-  > # demonstrate __delitem__ and __setitem__ working.
-  > manifest.fast-delta.paranoid=no
   > EOF
 
 Read manifest

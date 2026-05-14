@@ -6,7 +6,9 @@
 
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
+use std::io::Write;
 use std::ops::Deref;
+use std::ops::Range;
 use std::sync::Arc;
 
 use memchr::memchr_iter;
@@ -166,6 +168,15 @@ impl LazyManifest {
     /// Returns true if the manifest is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Returns true if the manifest has been modified in memory.
+    ///
+    /// This does not necessarily mean that [`Self::compact`] will be different
+    /// from the original manifest, since overwriting a path with the same
+    /// `(node, flags)` as it had before still makes it dirty.
+    fn is_dirty(&self) -> bool {
+        !self.edits.is_empty()
     }
 
     /// Returns an iterator over manifest entries.
@@ -365,6 +376,132 @@ impl LazyManifest {
     ) -> Result<usize, usize> {
         lines.binary_search_by(|e| e.read(data).path.cmp(path))
     }
+
+    /// If necessary, rewrites the manifest with changes applied.
+    /// Returns the full text.
+    pub fn compact(&mut self) -> &[u8] {
+        if !self.is_dirty() {
+            return &self.data;
+        }
+        let old_lines_len = self.lines.len();
+        let new_lines_len = self.len();
+        let new_text_size = self.compute_text_size();
+        let mut new_data = Vec::with_capacity(new_text_size);
+        let mut new_lines = Vec::with_capacity(new_lines_len);
+        let mut old_line_cursor = 0;
+        // Edits are sorted by path. Where several share an index, the inserts
+        // come first (because their paths sort before the existing line) and at
+        // most one update or remove follows.
+        for (path, &Edit { index, operation }) in &self.edits {
+            if old_line_cursor < index {
+                // Copy untouched lines before the edit.
+                self.copy_lines(
+                    old_line_cursor..index,
+                    &mut new_data,
+                    &mut new_lines,
+                );
+                old_line_cursor = index;
+            }
+            match operation {
+                Operation::Insert(state) | Operation::Update(state) => {
+                    write_line(path, state, &mut new_data, &mut new_lines);
+                }
+                Operation::Remove => {}
+            }
+            match operation {
+                Operation::Insert(_) => {}
+                Operation::Update(_) | Operation::Remove => {
+                    // There can be at most one Update or Remove per line.
+                    debug_assert_eq!(old_line_cursor, index);
+                    // Prevent the old line from being copied.
+                    old_line_cursor += 1;
+                }
+            }
+        }
+        if old_line_cursor < old_lines_len {
+            // Copy the rest of the untouched lines.
+            self.copy_lines(
+                old_line_cursor..old_lines_len,
+                &mut new_data,
+                &mut new_lines,
+            );
+        }
+        debug_assert_eq!(new_data.len(), new_text_size);
+        self.data = Arc::new(DynBytes::new(Box::new(new_data)));
+        self.lines = Arc::new(new_lines);
+        self.edits.clear();
+        self.count_delta = 0;
+        &self.data
+    }
+
+    /// Computes the size of the manifest text with [`Self::edits`] applied.
+    fn compute_text_size(&self) -> usize {
+        let mut delta: isize = 0;
+        for (path, &Edit { index, operation }) in &self.edits {
+            match operation {
+                Operation::Insert(state) => {
+                    delta += (line_size(path, state.flags) + 1) as isize;
+                }
+                Operation::Update(state) => {
+                    delta += (line_size(path, state.flags) + 1) as isize;
+                    delta -= (u16_u(self.lines[index].len) + 1) as isize;
+                }
+                Operation::Remove => {
+                    delta -= (u16_u(self.lines[index].len) + 1) as isize;
+                }
+            }
+        }
+        self.data.len().checked_add_signed(delta).expect("cannot be negative")
+    }
+
+    /// Copies the lines in `range` (must be nonempty) from [`Self::data`] to
+    /// `new_data`, and appends their new positions to `new_lines`.
+    fn copy_lines(
+        &self,
+        range: Range<usize>,
+        new_data: &mut Vec<u8>,
+        new_lines: &mut Vec<Line>,
+    ) {
+        debug_assert!(!range.is_empty());
+        let first = self.lines[range.start];
+        let last = self.lines[range.end - 1];
+        let start = u32_u(first.offset);
+        // Include the newline at the end of the last line.
+        let end = u32_u(last.offset) + u16_u(last.len) + 1;
+        for &line in &self.lines[range] {
+            let offset = new_data.len() + u32_u(line.offset) - start;
+            new_lines.push(Line { offset: u_u32(offset), ..line });
+        }
+        new_data.extend_from_slice(&self.data[start..end]);
+    }
+}
+
+/// The size of the line that [`write_line`] writes, excluding the newline.
+fn line_size(path: &HgPath, flags: ManifestFlags) -> usize {
+    let flag_size = if flags.is_empty() { 0 } else { 1 };
+    let null_size = 1;
+    path.len() + null_size + HEX_NODE_LENGTH + flag_size
+}
+
+/// Appends a line to `new_data` and appends its position to `new_lines`.
+fn write_line(
+    path: &HgPath,
+    state: FileState,
+    new_data: &mut Vec<u8>,
+    new_lines: &mut Vec<Line>,
+) {
+    let offset = new_data.len();
+    let flags = state.flags;
+    new_data.extend_from_slice(path.as_bytes());
+    new_data.push(b'\0');
+    write!(new_data, "{:x}", state.node).expect("writing to a Vec never fails");
+    if let Some(byte) = flags.as_byte() {
+        new_data.push(byte);
+    }
+    new_data.push(b'\n');
+    // Exclude the newline from the length.
+    let len = new_data.len() - offset - 1;
+    new_lines.push(Line { offset: u_u32(offset), len: u_u16(len), flags });
 }
 
 /// An iterator over manifest entries.
@@ -696,5 +833,138 @@ mod tests {
         assert_eq!(manifest.len(), 1);
         assert!(!manifest.is_empty());
         assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
+    }
+
+    #[test]
+    fn test_compact() {
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let mut manifest = new(text);
+
+        assert_eq!(manifest.compact(), text);
+
+        let entry_1 = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+        let entry_1_changed =
+            DecodedManifestEntry { flags: ManifestFlags::LINK, ..entry_1 };
+        let entry_2 = DecodedManifestEntry {
+            path: path(b"subdir/other.py"),
+            node: node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            flags: ManifestFlags::EXEC,
+        };
+
+        let overwrote =
+            manifest.set(entry_1.path, entry_1.node, entry_1_changed.flags);
+        assert!(overwrote);
+        assert_eq!(
+            manifest.compact(),
+            b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5l\n"
+        );
+
+        let overwrote = manifest.set(entry_2.path, entry_2.node, entry_2.flags);
+        assert!(!overwrote);
+        assert_eq!(
+            manifest.compact(),
+            b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5l\n\
+            subdir/other.py\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n"
+        );
+        assert_eq!(manifest.len(), 2);
+        assert!(manifest.contains(entry_1.path));
+        assert!(manifest.contains(entry_2.path));
+        assert_eq!(manifest.get(entry_1.path).unwrap(), Some(entry_1_changed));
+        assert_eq!(manifest.get(entry_2.path).unwrap(), Some(entry_2));
+        assert_eq!(collect(&manifest).unwrap(), &[entry_1_changed, entry_2]);
+
+        assert!(manifest.remove(entry_1.path));
+        assert_eq!(
+            manifest.compact(),
+            b"subdir/other.py\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n"
+        );
+        assert_eq!(manifest.len(), 1);
+        assert!(!manifest.contains(entry_1.path));
+        assert!(manifest.contains(entry_2.path));
+        assert_eq!(manifest.get(entry_1.path).unwrap(), None);
+        assert_eq!(manifest.get(entry_2.path).unwrap(), Some(entry_2));
+        assert_eq!(collect(&manifest).unwrap(), &[entry_2]);
+    }
+
+    #[test]
+    fn test_compact_from_empty() {
+        let mut manifest = new(b"");
+
+        assert_eq!(manifest.compact(), b"");
+
+        manifest.set(
+            path(b"b.txt"),
+            node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            ManifestFlags::EXEC,
+        );
+        manifest.set(
+            path(b"a.txt"),
+            node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            ManifestFlags::EMPTY,
+        );
+
+        let expected = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            b.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        assert_eq!(manifest.compact(), expected);
+        assert_eq!(manifest.len(), 2);
+        assert_eq!(
+            collect(&manifest).unwrap(),
+            collect(&new(expected)).unwrap()
+        );
+
+        assert!(manifest.remove(path(b"a.txt")));
+        assert!(manifest.remove(path(b"b.txt")));
+
+        assert_eq!(manifest.compact(), b"");
+        assert_eq!(manifest.len(), 0);
+        assert!(manifest.is_empty());
+        assert_eq!(collect(&manifest).unwrap(), &[]);
+    }
+
+    #[test]
+    fn test_compact_edge_cases() {
+        let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041l\n";
+        let mut manifest = new(text);
+
+        // An insert before the first line, an insert between two lines, an
+        // overwrite, a removal, and an insert after the last line.
+        manifest.set(
+            path(b"0.txt"),
+            node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            ManifestFlags::EMPTY,
+        );
+        manifest.set(
+            path(b"b.txt"),
+            node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            ManifestFlags::EMPTY,
+        );
+        assert!(manifest.set(
+            path(b"c.txt"),
+            node(b"57b886b07d3f850247a6d7ebf514b60d080f6041"),
+            ManifestFlags::EXEC
+        ));
+        assert!(manifest.remove(path(b"e.txt")));
+        manifest.set(
+            path(b"f.txt"),
+            node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            ManifestFlags::LINK,
+        );
+
+        let expected = b"0.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            b.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47\n\
+            c.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041x\n\
+            f.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5l\n";
+        assert_eq!(manifest.compact(), expected);
+        assert_eq!(
+            collect(&manifest).unwrap(),
+            collect(&new(expected)).unwrap()
+        );
     }
 }

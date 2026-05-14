@@ -47,7 +47,6 @@ struct PyLazyManifest {
     inner: PyShareable<LazyManifest>,
 }
 
-#[expect(unused_variables)]
 #[pymethods]
 impl PyLazyManifest {
     #[new]
@@ -165,7 +164,9 @@ impl PyLazyManifest {
     }
 
     fn text(slf: &Bound<'_, Self>) -> PyResult<Py<PyBytes>> {
-        Err(PyNotImplementedError::new_err("LazyManifest.text"))
+        Self::with_inner_write(slf, |_self_ref, mut inner| {
+            Ok(PyBytes::new(slf.py(), inner.compact()).unbind())
+        })
     }
 
     fn copy(slf: &Bound<'_, Self>) -> PyResult<PyLazyManifest> {
@@ -174,6 +175,7 @@ impl PyLazyManifest {
         })
     }
 
+    #[expect(unused_variables)]
     fn diff(
         slf: &Bound<'_, Self>,
         m2: &PyLazyManifest,
@@ -182,6 +184,7 @@ impl PyLazyManifest {
         Err(PyNotImplementedError::new_err("LazyManifest.diff"))
     }
 
+    #[expect(unused_variables)]
     fn filtercopy(
         slf: &Bound<'_, Self>,
         filterfn: &Bound<'_, PyFunction>,
