@@ -10,6 +10,8 @@ use std::sync::Arc;
 use memchr::memchr_iter;
 
 use crate::dyn_bytes::DynBytes;
+use crate::revlog::RevlogError;
+use crate::revlog::manifest::DecodedManifestEntry;
 use crate::revlog::manifest::ManifestEntry;
 use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::node::HEX_NODE_LENGTH;
@@ -88,7 +90,6 @@ pub struct LazyManifest {
     /// TODO: Consider extracting [`crate::segmented_bytes::CachedExtent`] and
     /// reusing it here since it's exactly what we need. `DynBytes` uses `Box`
     /// instead of `Arc`, so we have to wrap the whole thing again in `Arc`.
-    #[expect(dead_code)]
     data: Arc<DynBytes<'static>>,
     /// Lines parsed from [`Self::data`].
     lines: Arc<Vec<Line>>,
@@ -114,6 +115,11 @@ impl LazyManifest {
     /// Returns true if the manifest is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Returns an iterator over manifest entries.
+    pub fn iter(&self) -> LazyManifestIter<'_> {
+        LazyManifestIter { inner: self, index: 0 }
     }
 
     /// Parses all lines of a manifest.
@@ -166,36 +172,97 @@ impl LazyManifest {
     }
 }
 
+/// An iterator over manifest entries.
+pub struct LazyManifestIter<'a> {
+    inner: &'a LazyManifest,
+    index: usize,
+}
+
+impl<'a> Iterator for LazyManifestIter<'a> {
+    type Item = Result<DecodedManifestEntry<'a>, RevlogError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index == self.inner.lines.len() {
+            return None;
+        }
+        let line = self.inner.lines[self.index];
+        self.index += 1;
+        Some(line.read(&self.inner.data).decode())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Node;
+    use crate::revlog::manifest::ManifestFlags;
+
+    fn path(path: &[u8]) -> &HgPath {
+        HgPath::new(path)
+    }
+
+    fn node(hex: &[u8]) -> Node {
+        Node::from_hex(hex).unwrap()
+    }
 
     fn new(data: &[u8]) -> LazyManifest {
         LazyManifest::new(NODE_BYTES_LENGTH, data.to_vec()).unwrap()
     }
 
+    fn collect(
+        manifest: &LazyManifest,
+    ) -> Result<Vec<DecodedManifestEntry<'_>>, RevlogError> {
+        manifest.iter().collect()
+    }
+
     #[test]
     fn test_empty() {
         let manifest = new(b"");
+
         assert!(manifest.is_empty());
         assert_eq!(manifest.len(), 0);
+
+        assert_eq!(collect(&manifest).unwrap(), &[]);
     }
 
     #[test]
     fn test_one() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let entry = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+
         let manifest = new(text);
+
         assert!(!manifest.is_empty());
         assert_eq!(manifest.len(), 1);
+
+        assert_eq!(collect(&manifest).unwrap(), &[entry]);
     }
 
     #[test]
     fn test_two() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
             subdir/other.py\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        let entry_1 = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+        let entry_2 = DecodedManifestEntry {
+            path: path(b"subdir/other.py"),
+            node: node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            flags: ManifestFlags::EXEC,
+        };
+
         let manifest = new(text);
+
         assert!(!manifest.is_empty());
         assert_eq!(manifest.len(), 2);
+
+        assert_eq!(collect(&manifest).unwrap(), &[entry_1, entry_2]);
     }
 
     #[test]

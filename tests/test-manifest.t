@@ -423,7 +423,7 @@ Test rust manifest
 
 Read manifest
   $ hg manifest --debug 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__iter__
+  NotImplementedError: LazyManifest.__getitem__
 
 Change a file node
   $ echo change >> a

@@ -5,11 +5,16 @@
 
 use std::sync::RwLockReadGuard;
 
+use hg::revlog::RevlogError;
+use hg::revlog::manifest::DecodedManifestEntry;
 use hg::revlog::manifest_dict::LazyManifest;
+use hg::revlog::manifest_dict::LazyManifestIter;
 use hg::revlog::manifest_dict::ManifestError;
 use pyo3::Bound;
+use pyo3::IntoPyObject;
 use pyo3::Py;
 use pyo3::PyRef;
+use pyo3::PyRefMut;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::exceptions::PyNotImplementedError;
@@ -21,9 +26,12 @@ use pyo3::types::PyDict;
 use pyo3::types::PyFunction;
 use pyo3::types::PyModule;
 use pyo3::types::PyModuleMethods;
+use pyo3::types::PyTuple;
 use pyo3_sharedref::PyShareable;
+use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
+use crate::utils::HgPyErrExt;
 use crate::utils::PyBytesDeref;
 use crate::utils::new_submodule;
 
@@ -83,16 +91,16 @@ impl PyLazyManifest {
         Err(PyNotImplementedError::new_err("LazyManifest.__contains__"))
     }
 
-    fn __iter__(slf: &Bound<'_, Self>) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err("LazyManifest.__iter__"))
+    fn __iter__(slf: &Bound<'_, Self>) -> PyResult<PyPathIter> {
+        PyPathIter::new(slf)
     }
 
-    fn iterkeys(slf: &Bound<'_, Self>) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err("LazyManifest.iterkeys"))
+    fn iterkeys(slf: &Bound<'_, Self>) -> PyResult<PyPathIter> {
+        PyPathIter::new(slf)
     }
 
-    fn iterentries(slf: &Bound<'_, Self>) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err("LazyManifest.iterentries"))
+    fn iterentries(slf: &Bound<'_, Self>) -> PyResult<PyTupleIter> {
+        PyTupleIter::new(slf)
     }
 
     fn __getitem__(
@@ -154,6 +162,51 @@ impl PyLazyManifest {
         let guard = shareable_ref.try_read().map_err(map_try_lock_error)?;
         f(&self_ref, guard)
     }
+}
+
+py_shared_iterator!(
+    PyPathIter,
+    PyBytes,
+    PyLazyManifest,
+    inner,
+    LazyManifestIter<'static>,
+    |lazy_manifest| lazy_manifest.iter(),
+    convert_path_iter_item
+);
+
+fn convert_path_iter_item(
+    py: Python,
+    item: Result<DecodedManifestEntry<'_>, RevlogError>,
+) -> PyResult<Option<Py<PyBytes>>> {
+    let entry = item.into_pyerr(py)?;
+    Ok(Some(PyBytes::new(py, entry.path.as_bytes()).unbind()))
+}
+
+py_shared_iterator!(
+    PyTupleIter,
+    PyTuple,
+    PyLazyManifest,
+    inner,
+    LazyManifestIter<'static>,
+    |lazy_manifest| lazy_manifest.iter(),
+    convert_tuple_iter_item
+);
+
+fn convert_tuple_iter_item(
+    py: Python,
+    item: Result<DecodedManifestEntry<'_>, RevlogError>,
+) -> PyResult<Option<Py<PyTuple>>> {
+    let entry = item.into_pyerr(py)?;
+    let flags_bytes = match entry.flags.as_byte() {
+        None => b"" as &[u8],
+        Some(b) => &[b],
+    };
+    let tuple = (
+        PyBytes::new(py, entry.path.as_bytes()),
+        PyBytes::new(py, entry.node.as_bytes()),
+        PyBytes::new(py, flags_bytes),
+    );
+    Ok(Some(tuple.into_pyobject(py)?.unbind()))
 }
 
 pub fn init_module<'py>(
