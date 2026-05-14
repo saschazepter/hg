@@ -428,23 +428,30 @@ Read manifest
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
-#if rust
-
 Change a file node
   $ echo change >> a
-  $ hg ci -m "change a" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__setitem__
+  $ hg ci -m "change a"
+  $ hg manifest --debug
+  b453ecafea5f00c8ff3c7f3bbb5939483bf06e4f 644   a
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
 Change a flag (executable)
   $ chmod +x a
-  $ hg ci -m "make a executable" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__setitem__
+  $ hg ci -m "make a executable"
+  $ hg manifest --debug
+  b453ecafea5f00c8ff3c7f3bbb5939483bf06e4f 755 * a
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
 Change a flag (symlink)
   $ rm a
   $ ln -s target a
-  $ hg ci -m "make a symlink" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__setitem__
+  $ hg ci -m "make a symlink"
+  $ hg manifest --debug
+  e2d7104685c528c6198a4e3681a0c18829704bf2 644 @ a
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
 Remove a manifest line
   $ rm a
@@ -457,14 +464,18 @@ Remove a manifest line
 Add a manifest line
   $ touch newfile
   $ hg add newfile
-  $ hg ci -m "add newfile" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__setitem__
+  $ hg ci -m "add newfile"
+  $ hg manifest --debug
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
+  b80de5d138758541c5f05265ad144ab9fa86d1db 644   newfile
 
 Change a manifest line
   $ echo change > newfile
-  $ hg ci -m "change newfile" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.__setitem__
-
-#endif
+  $ hg ci -m "change newfile"
+  $ hg manifest --debug
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
+  57b886b07d3f850247a6d7ebf514b60d080f6041 644   newfile
 
   $ cd ..

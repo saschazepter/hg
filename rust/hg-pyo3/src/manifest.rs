@@ -6,8 +6,10 @@
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+use hg::Node;
 use hg::revlog::RevlogError;
 use hg::revlog::manifest::DecodedManifestEntry;
+use hg::revlog::manifest::ManifestFlags;
 use hg::revlog::manifest_dict::LazyManifest;
 use hg::revlog::manifest_dict::LazyManifestIter;
 use hg::revlog::manifest_dict::ManifestError;
@@ -21,6 +23,7 @@ use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyNotImplementedError;
+use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::pyclass;
 use pyo3::pymethods;
@@ -134,7 +137,24 @@ impl PyLazyManifest {
         key: &[u8],
         value: (&[u8], &[u8]),
     ) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err("LazyManifest.__setitem__"))
+        // The PyTypeErrors here match the ones in mercurial/cext/manifest.c.
+        Self::with_inner_write(slf, |_self_ref, mut inner| {
+            let (node, flags) = value;
+            let node: Node = node.try_into().map_err(
+                |_: std::array::TryFromSliceError| {
+                    PyTypeError::new_err("node must be a 20 bytes string")
+                },
+            )?;
+            let flags = match *flags {
+                [] => Some(ManifestFlags::EMPTY),
+                [b] => ManifestFlags::from_byte(b),
+                _ => None,
+            };
+            let flags = flags
+                .ok_or_else(|| PyTypeError::new_err("invalid manifest flag"))?;
+            let _ = inner.set(HgPath::new(key), node, flags);
+            Ok(())
+        })
     }
 
     fn __delitem__(slf: &Bound<'_, Self>, key: &[u8]) -> PyResult<()> {

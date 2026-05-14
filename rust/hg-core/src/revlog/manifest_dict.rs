@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use memchr::memchr_iter;
 
+use crate::Node;
 use crate::dyn_bytes::DynBytes;
 use crate::revlog::RevlogError;
 use crate::revlog::manifest::DecodedManifestEntry;
@@ -114,8 +115,27 @@ struct Edit {
 /// What an [`Edit`] does at its index.
 #[derive(Copy, Clone)]
 enum Operation {
+    /// Insert a new entry before the line at the index.
+    Insert(FileState),
+    /// Replace the line at the index.
+    Update(FileState),
     /// Remove the line at the index.
     Remove,
+}
+
+/// A manifest entry without the path.
+#[derive(Copy, Clone)]
+struct FileState {
+    /// Path's filelog node.
+    node: Node,
+    /// Path's flags.
+    flags: ManifestFlags,
+}
+
+impl FileState {
+    fn entry<'a>(&self, path: &'a HgPath) -> DecodedManifestEntry<'a> {
+        DecodedManifestEntry { path, node: self.node, flags: self.flags }
+    }
 }
 
 impl LazyManifest {
@@ -158,6 +178,7 @@ impl LazyManifest {
     /// Returns true if the manifest contains the given path.
     pub fn contains(&self, path: &HgPath) -> bool {
         match self.edits.get(path).map(|edit| edit.operation) {
+            Some(Operation::Insert(_) | Operation::Update(_)) => true,
             Some(Operation::Remove) => false,
             None => Self::binary_search(&self.lines, &self.data, path).is_ok(),
         }
@@ -168,14 +189,65 @@ impl LazyManifest {
         &self,
         path: &HgPath,
     ) -> Result<Option<DecodedManifestEntry<'_>>, RevlogError> {
-        if let Some((_, Edit::Remove)) = self.edits.get(path) {
-            return Ok(None);
+        // Use get_key_value to make the lifetime attached to the path in the
+        // LazyManifest, not the lifetime of the path parameter.
+        if let Some((path, edit)) = self.edits.get_key_value(path) {
+            return Ok(match &edit.operation {
+                Operation::Insert(state) | Operation::Update(state) => {
+                    Some(state.entry(path))
+                }
+                Operation::Remove => None,
+            });
         }
         let Ok(index) = Self::binary_search(&self.lines, &self.data, path)
         else {
             return Ok(None);
         };
         Ok(Some(self.lines[index].read(&self.data).decode()?))
+    }
+
+    /// Maps `path` to `(node, flags)` in the manifest.
+    /// Returns true if it overwrote an existing path.
+    pub fn set(
+        &mut self,
+        path: &HgPath,
+        node: Node,
+        flags: ManifestFlags,
+    ) -> bool {
+        let state = FileState { node, flags };
+        let found = match self.edits.entry(path.to_owned()) {
+            Entry::Vacant(entry) => {
+                match Self::binary_search(&self.lines, &self.data, path) {
+                    Ok(index) => {
+                        let operation = Operation::Update(state);
+                        entry.insert(Edit { index, operation });
+                        true
+                    }
+                    Err(index) => {
+                        let operation = Operation::Insert(state);
+                        entry.insert(Edit { index, operation });
+                        false
+                    }
+                }
+            }
+            Entry::Occupied(mut entry) => {
+                let operation = &mut entry.get_mut().operation;
+                match operation {
+                    Operation::Insert(s) | Operation::Update(s) => {
+                        *s = state;
+                        true
+                    }
+                    Operation::Remove => {
+                        *operation = Operation::Update(state);
+                        false
+                    }
+                }
+            }
+        };
+        if !found {
+            self.add_to_count_delta(1);
+        }
+        found
     }
 
     /// Removes `path` from the manifest. Returns true if it was found.
@@ -191,10 +263,23 @@ impl LazyManifest {
                     Err(_) => false,
                 }
             }
-            Entry::Occupied(entry) => match entry.get().1 {
-                // Path is already removed.
-                Edit::Remove => false,
-            },
+            Entry::Occupied(mut entry) => {
+                let operation = &mut entry.get_mut().operation;
+                match operation {
+                    // Path was inserted in memory. Undo that.
+                    Operation::Insert(_) => {
+                        entry.remove();
+                        true
+                    }
+                    // Path was updated in memory. Turn it into a removal.
+                    Operation::Update(_) => {
+                        *operation = Operation::Remove;
+                        true
+                    }
+                    // Path is already removed.
+                    Operation::Remove => false,
+                }
+            }
         };
         if found {
             self.add_to_count_delta(-1);
@@ -212,6 +297,8 @@ impl LazyManifest {
                 .edits
                 .values()
                 .map(|edit| match edit.operation {
+                    Operation::Insert(_) => 1,
+                    Operation::Update(_) => 0,
                     Operation::Remove => -1,
                 })
                 .sum();
@@ -293,16 +380,31 @@ impl<'a> Iterator for LazyManifestIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let len = self.inner.lines.len();
-        while self.index < len {
+        loop {
             let i = self.index;
-            self.index += 1;
-            if let Some((_, (index, Edit::Remove))) = self.next_edit
+            if let Some((path, Edit { index, operation })) = self.next_edit
                 && i == index
             {
                 self.next_edit =
                     self.iter_edits.next().map(|t| (t.0.as_ref(), *t.1));
-                continue;
+                match operation {
+                    Operation::Insert(state) => {
+                        return Some(Ok(state.entry(path)));
+                    }
+                    Operation::Update(state) => {
+                        self.index += 1;
+                        return Some(Ok(state.entry(path)));
+                    }
+                    Operation::Remove => {
+                        self.index += 1;
+                        continue;
+                    }
+                }
             }
+            if i == len {
+                break;
+            }
+            self.index += 1;
             let line = self.inner.lines[i];
             return Some(line.read(&self.inner.data).decode());
         }
@@ -492,5 +594,107 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[]);
         assert_eq!(manifest.len(), 0);
         assert!(manifest.is_empty());
+    }
+
+    #[test]
+    fn test_set_empty() {
+        let mut manifest = new(b"");
+
+        let entry = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+
+        let overwrote = manifest.set(entry.path, entry.node, entry.flags);
+        assert!(!overwrote);
+        assert_eq!(collect(&manifest).unwrap(), &[entry]);
+        assert_eq!(manifest.len(), 1);
+        assert!(!manifest.is_empty());
+        assert!(manifest.contains(entry.path));
+        assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
+    }
+
+    #[test]
+    fn test_set_one() {
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let mut manifest = new(text);
+
+        let entry_1 = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+        let entry_2 = DecodedManifestEntry {
+            path: path(b"subdir/other.py"),
+            node: node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            flags: ManifestFlags::EXEC,
+        };
+
+        let overwrote = manifest.set(entry_2.path, entry_2.node, entry_2.flags);
+        assert!(!overwrote);
+        assert_eq!(collect(&manifest).unwrap(), &[entry_1, entry_2]);
+        assert_eq!(manifest.len(), 2);
+        assert!(!manifest.is_empty());
+        assert!(manifest.contains(entry_1.path));
+        assert_eq!(manifest.get(entry_1.path).unwrap(), Some(entry_1));
+        assert!(manifest.contains(entry_2.path));
+        assert_eq!(manifest.get(entry_2.path).unwrap(), Some(entry_2));
+    }
+
+    #[test]
+    fn test_set_overwrite() {
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let mut manifest = new(text);
+
+        let entry = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"cccccccccccccccccccccccccccccccccccccccc"),
+            flags: ManifestFlags::LINK,
+        };
+
+        let overwrote = manifest.set(entry.path, entry.node, entry.flags);
+        assert!(overwrote);
+        assert_eq!(collect(&manifest).unwrap(), &[entry]);
+        assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
+    }
+
+    #[test]
+    fn test_set_remove() {
+        let mut manifest = new(b"");
+
+        let entry = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+
+        let overwrote = manifest.set(entry.path, entry.node, entry.flags);
+        assert!(!overwrote);
+        assert!(manifest.remove(entry.path));
+        assert_eq!(collect(&manifest).unwrap(), &[]);
+        assert_eq!(manifest.len(), 0);
+        assert!(manifest.is_empty());
+        assert_eq!(manifest.get(entry.path).unwrap(), None);
+    }
+
+    #[test]
+    fn test_remove_set() {
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let mut manifest = new(text);
+
+        let entry = DecodedManifestEntry {
+            path: path(b"file.txt"),
+            node: node(b"1cba44d2ee7e7f148329f51923e71a319168e2e5"),
+            flags: ManifestFlags::EMPTY,
+        };
+
+        assert!(manifest.remove(entry.path));
+        let overwrote = manifest.set(entry.path, entry.node, entry.flags);
+        assert!(!overwrote);
+        assert_eq!(collect(&manifest).unwrap(), &[entry]);
+        assert_eq!(manifest.len(), 1);
+        assert!(!manifest.is_empty());
+        assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
     }
 }
