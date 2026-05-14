@@ -18,6 +18,7 @@ use pyo3::PyRef;
 use pyo3::PyRefMut;
 use pyo3::PyResult;
 use pyo3::Python;
+use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::exceptions::PyValueError;
 use pyo3::pyclass;
@@ -111,7 +112,20 @@ impl PyLazyManifest {
         py: Python<'_>,
         key: &[u8],
     ) -> PyResult<(Py<PyBytes>, Py<PyBytes>)> {
-        Err(PyNotImplementedError::new_err("LazyManifest.__getitem__"))
+        Self::with_inner_read(slf, |_self_ref, inner| {
+            let entry = inner
+                .get(HgPath::new(key))
+                .into_pyerr(py)?
+                .ok_or_else(|| PyKeyError::new_err(key.to_vec()))?;
+            let flags_bytes = match entry.flags.as_byte() {
+                None => b"" as &[u8],
+                Some(b) => &[b],
+            };
+            Ok((
+                PyBytes::new(py, entry.node.as_bytes()).unbind(),
+                PyBytes::new(py, flags_bytes).unbind(),
+            ))
+        })
     }
 
     fn __setitem__(

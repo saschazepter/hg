@@ -127,6 +127,17 @@ impl LazyManifest {
         self.binary_search(path).is_ok()
     }
 
+    /// Looks up a path in the manifest.
+    pub fn get(
+        &self,
+        path: &HgPath,
+    ) -> Result<Option<DecodedManifestEntry<'_>>, RevlogError> {
+        let Ok(index) = self.binary_search(path) else {
+            return Ok(None);
+        };
+        Ok(Some(self.lines[index].read(&self.data).decode()?))
+    }
+
     /// Parses all lines of a manifest.
     fn parse_lines(
         nodelen: usize,
@@ -236,6 +247,9 @@ mod tests {
         assert!(!manifest.contains(path(b"")));
         assert!(!manifest.contains(path(b"file.txt")));
 
+        assert_eq!(manifest.get(path(b"")).unwrap(), None);
+        assert_eq!(manifest.get(path(b"file.txt")).unwrap(), None);
+
         assert_eq!(collect(&manifest).unwrap(), &[]);
     }
 
@@ -256,6 +270,10 @@ mod tests {
         assert!(!manifest.contains(path(b"")));
         assert!(manifest.contains(path(b"file.txt")));
         assert!(!manifest.contains(path(b"subdir/other.py")));
+
+        assert_eq!(manifest.get(path(b"")).unwrap(), None);
+        assert_eq!(manifest.get(path(b"file.txt")).unwrap(), Some(entry));
+        assert_eq!(manifest.get(path(b"subdir/other.py")).unwrap(), None);
 
         assert_eq!(collect(&manifest).unwrap(), &[entry]);
     }
@@ -283,6 +301,13 @@ mod tests {
         assert!(!manifest.contains(path(b"")));
         assert!(manifest.contains(path(b"file.txt")));
         assert!(manifest.contains(path(b"subdir/other.py")));
+
+        assert_eq!(manifest.get(path(b"")).unwrap(), None);
+        assert_eq!(manifest.get(path(b"file.txt")).unwrap(), Some(entry_1));
+        assert_eq!(
+            manifest.get(path(b"subdir/other.py")).unwrap(),
+            Some(entry_2)
+        );
 
         assert_eq!(collect(&manifest).unwrap(), &[entry_1, entry_2]);
     }
