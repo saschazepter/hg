@@ -972,6 +972,14 @@ impl std::fmt::Debug for ManifestEntry<'_> {
     }
 }
 
+/// Like [`ManifestEntry`], but with the `Node` decoded from hex.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct DecodedManifestEntry<'manifest> {
+    pub path: &'manifest HgPath,
+    pub node: Node,
+    pub flags: ManifestFlags,
+}
+
 impl<'a> ManifestEntry<'a> {
     fn split_path(bytes: &[u8]) -> Result<(&[u8], &[u8]), RevlogError> {
         bytes.split_2(b'\0').ok_or_else(|| {
@@ -1007,6 +1015,12 @@ impl<'a> ManifestEntry<'a> {
     /// Returns the entry's filelog node.
     pub fn node_id(&self) -> Result<Node, RevlogError> {
         Node::from_hex_for_repo(self.hex_node_id)
+    }
+
+    /// Converts to a [`DecodedManifestEntry`], decoding the filelog node.
+    pub fn decode(&self) -> Result<DecodedManifestEntry<'a>, RevlogError> {
+        let node = self.node_id()?;
+        Ok(DecodedManifestEntry { path: self.path, node, flags: self.flags })
     }
 }
 
