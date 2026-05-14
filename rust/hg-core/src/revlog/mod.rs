@@ -29,6 +29,7 @@ pub mod filelog;
 pub mod index;
 pub mod inner_revlog;
 pub mod manifest;
+pub mod manifest_dict;
 pub mod options;
 pub mod patch;
 
