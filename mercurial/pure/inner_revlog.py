@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import abc
 import binascii
+import collections
 import contextlib
 import io
 import os
@@ -1679,6 +1680,50 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         It remove all revisions after `rev`."""
         docket = self.docket
+        if self.feature_config.children:
+            # we need to adjust children tracking below the striping point.
+            processed_p1 = set()
+            processed_p2 = set()
+            updates = collections.defaultdict(lambda: [None, None, None, None])
+            idx = self.index
+            for stripped in range(rev, len(self.index)):
+                p1, p2 = idx.parents(stripped)
+                if p1 < rev and p1 not in processed_p1:
+                    processed_p1.add(p1)
+                    c1 = idx.child_p1(p1)
+                    assert c1 != nullrev
+                    if rev <= c1:
+                        # note: child_p1 of nullrev is always 0 (unless the
+                        # repository is empty, but then we would not have
+                        # anything to strip), so the only way to have :
+                        # "p1 == nullrev" and  "p1 < rev" and rev <=
+                        # p1.child_p1" if for "rev" to be "0". In that case we
+                        # are stripping everything and there won't be anything
+                        # left to update.
+                        #
+                        # In all case, we can't "update" nullrev so we strip
+                        # the "p1" update in this case.
+                        if p1 != nullrev:
+                            updates[p1][0] = nullrev
+                    else:
+                        while (
+                            next := idx.sibling_p1(c1)
+                        ) != nullrev and next < rev:
+                            c1 = next
+                        updates[c1][1] = nullrev
+                if p2 < rev and p2 not in processed_p2 and p2 != nullrev:
+                    processed_p2.add(p2)
+                    c2 = idx.child_p2(p2)
+                    assert c2 != nullrev
+                    if rev <= c2:
+                        updates[p2][2] = nullrev
+                    else:
+                        while (
+                            next := idx.sibling_p2(c2)
+                        ) != nullrev and next < rev:
+                            c2 = next
+                        updates[c2][3] = nullrev
+
         data_end = self.start(rev)
         sidedata_end = self.sidedata_cut_off(rev)
         # XXX we could, leverage the docket while stripping. However it is
@@ -1691,6 +1736,37 @@ class InnerRevlogV2(BaseInnerRevlog):
         docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
         transaction.add(docket.filepath(docket.FT.DATA), data_end)
         transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
+        with self.writing(transaction):
+            for u_rev, u_value in sorted(updates.items()):
+                c1, s1, c2, s2 = u_value
+                bins = None  # this assume we can just use the last bin
+                if c1 is not None:
+                    bins = idx.update_child_p1(u_rev, c1)
+                if c2 is not None:
+                    bins = idx.update_child_p2(u_rev, c2)
+                if s1 is not None:
+                    bins = idx.update_sibling_p1(u_rev, s1)
+                if s2 is not None:
+                    bins = idx.update_sibling_p2(u_rev, s2)
+                assert bins is not None
+
+                for idx_ft, bin_piece, entry_size in zip(
+                    self._index_fts,
+                    bins,
+                    idx.entry_sizes,
+                ):
+                    if bin_piece is None:
+                        continue
+                    idx_pos = entry_size * u_rev
+                    assert len(bin_piece) == entry_size
+                    # Changing index content under reader nose would be a
+                    # problem.  So we need to make sure we are writing to
+                    # an uncommited block.
+                    self.prepare_update(transaction, idx_ft, idx_pos)
+                    assert docket.is_pending_offset(idx_ft, idx_pos)
+                    idx_fh = self._writinghandles[idx_ft]
+                    idx_fh.seek(idx_pos, os.SEEK_SET)
+                    idx_fh.write(bin_piece)
         self.docket.write(transaction, stripping=True)
 
     def file_cutoffs(self, first_excl_rev):

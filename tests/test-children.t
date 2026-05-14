@@ -191,4 +191,115 @@ children listing
   # revset
   # template
   
+
+
+Test children listing after stripping
+======================================
+
+  $ hg debugstrip --rev 'last(all(), 5)'
+  saved backup bundle to $TESTTMP/t/.hg/strip-backup/eeb3ffa95e25-3a579cb2-backup.hg
+
+
+resulting graph
+
+  $ hg log -G -T '{rev}\n'
+  o  8
+  |
+  | o  7
+  |/|
+  | o  6
+  | |
+  | o  5
+  | |
+  | o  4
+  | |
+  +---o  3
+  | |
+  o |  2
+  | |
+  o |  1
+  |/
+  o  0
+  
+
+#if changelogv2
+
+  $ hg debugindex -v -c
+     rev   rank linkrev       nodeid p1-rev    p1-nodeid p2-rev    p2-nodeid            full-size delta-base flags comp-mode          data-offset chunk-size sd-comp-mode      sidedata-offset sd-chunk-size changed-files-offset changed-files-size   child-p1   child-p2 sibling-p1 sibling-p2
+       0      1       0 1ea73414a91b     -1 000000000000     -1 000000000000                   62          0     0         0                    0         62        plain                    0             0                    0                  0          1         -1         -1         -1
+       1      2       1 66f7d451a68b      0 1ea73414a91b     -1 000000000000                   62          1     0         0                   62         62        plain                    0             0                    0                  0          2         -1          4         -1
+       2      3       2 01241442b3c2      1 66f7d451a68b     -1 000000000000                   62          2     0         0                  124         62        plain                    0             0                    0                  0          3          7         -1         -1
+       3      4       3 2dc09a01254d      2 01241442b3c2     -1 000000000000                   62          3     0         0                  186         62        plain                    0             0                    0                  0         -1         -1          8         -1
+       4      2       4 e7bd5218ca15      0 1ea73414a91b     -1 000000000000                   62          4     0         0                  248         62        plain                    0             0                    0                  0          5         -1         -1         -1
+       5      3       5 3a367db1fabc      4 e7bd5218ca15     -1 000000000000                   62          5     0         0                  310         62        plain                    0             0                    0                  0          6         -1         -1         -1
+       6      4       6 a2f58e9c1e56      5 3a367db1fabc     -1 000000000000                   62          6     0         0                  372         62        plain                    0             0                    0                  0          7         -1         -1         -1
+       7      7       7 0b5c7eb4d8af      6 a2f58e9c1e56      2 01241442b3c2                   62          7     0         0                  434         62        plain                    0             0                    0                  0         -1         -1         -1         -1
+       8      4       8 f27daae5831e      2 01241442b3c2     -1 000000000000                   62          8     0         0                  496         62        plain                    0             0                    0                  0         -1         -1         -1         -1
+
+#endif
+
+
+children listing
+
+  $ for i in null `hg log -r 'all()' -T '{rev} '`; do
+  > echo "### children of '$i'"
+  > echo "# revset"
+  > hg log -r "children($i)" -T '{rev}\n'
+  > echo "# template"
+  > hg log -r "$i" -T '{join(children % "{word(0, child, \":\")}", "\n")}\n'
+  > done
+  ### children of 'null'
+  # revset
+  0
+  # template
+  0
+  ### children of '0'
+  # revset
+  1
+  4
+  # template
+  1
+  4
+  ### children of '1'
+  # revset
+  2
+  # template
+  2
+  ### children of '2'
+  # revset
+  3
+  7
+  8
+  # template
+  3
+  7
+  8
+  ### children of '3'
+  # revset
+  # template
+  
+  ### children of '4'
+  # revset
+  5
+  # template
+  5
+  ### children of '5'
+  # revset
+  6
+  # template
+  6
+  ### children of '6'
+  # revset
+  7
+  # template
+  7
+  ### children of '7'
+  # revset
+  # template
+  
+  ### children of '8'
+  # revset
+  # template
+  
+
   $ cd ..
