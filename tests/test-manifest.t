@@ -429,35 +429,35 @@ Read manifest
 Change a file node
   $ echo change >> a
   $ hg ci -m "change a" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.copy
+  NotImplementedError: LazyManifest.__setitem__
 
 Change a flag (executable)
   $ chmod +x a
   $ hg ci -m "make a executable" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.copy
+  NotImplementedError: LazyManifest.__setitem__
 
 Change a flag (symlink)
   $ rm a
   $ ln -s target a
   $ hg ci -m "make a symlink" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.copy
+  NotImplementedError: LazyManifest.__setitem__
 
 Remove a manifest line
   $ rm a
   $ hg rm a 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.copy
+  NotImplementedError: LazyManifest.__delitem__
   $ # hg ci -m "remove a"
 
 Add a manifest line
   $ touch newfile
   $ hg add newfile
   $ hg ci -m "add newfile" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.copy
+  NotImplementedError: LazyManifest.__setitem__
 
 Change a manifest line
   $ echo change > newfile
   $ hg ci -m "change newfile" 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.copy
+  NotImplementedError: LazyManifest.__setitem__
 
 #endif
 

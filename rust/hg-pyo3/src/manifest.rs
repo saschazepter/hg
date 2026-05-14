@@ -145,7 +145,9 @@ impl PyLazyManifest {
     }
 
     fn copy(slf: &Bound<'_, Self>) -> PyResult<PyLazyManifest> {
-        Err(PyNotImplementedError::new_err("LazyManifest.copy"))
+        Self::with_inner_read(slf, |_self_ref, inner| {
+            Ok(Self { inner: inner.clone().into() })
+        })
     }
 
     fn diff(
