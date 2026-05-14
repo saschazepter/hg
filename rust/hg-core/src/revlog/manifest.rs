@@ -285,39 +285,33 @@ pub type ManifestDiff<'a> =
 pub struct ManifestFlags(Option<NonZeroU8>);
 
 impl ManifestFlags {
-    pub fn new_empty() -> Self {
-        Self(None)
+    /// Empty flags.
+    pub const EMPTY: Self = Self(None);
+    /// Flag indicating that the path is a symlink.
+    pub const LINK: Self = Self(NonZeroU8::new(b'l'));
+    /// Flag indicating that the path has the executable permission set.
+    pub const EXEC: Self = Self(NonZeroU8::new(b'x'));
+    /// Flag indicating that the path is a tree in the context of treemanifest.
+    pub const TREE: Self = Self(NonZeroU8::new(b't'));
+
+    /// Returns true if the flags are empty.
+    pub fn is_empty(self) -> bool {
+        self == Self::EMPTY
     }
 
-    pub fn new_link() -> Self {
-        Self(Some(b'l'.try_into().unwrap()))
+    /// Returns true if the flags are [`Self::LINK`].
+    pub fn is_link(self) -> bool {
+        self == Self::LINK
     }
 
-    pub fn new_exec() -> Self {
-        Self(Some(b'x'.try_into().unwrap()))
+    /// Returns true if the flags are [`Self::EXEC`].
+    pub fn is_exec(self) -> bool {
+        self == Self::EXEC
     }
 
-    pub fn new_tree() -> Self {
-        Self(Some(b't'.try_into().unwrap()))
-    }
-
-    /// Whether this path is a symlink
-    pub fn is_link(&self) -> bool {
-        self.is_flag(b'l')
-    }
-
-    /// Whether this path has the executable permission set
-    pub fn is_exec(&self) -> bool {
-        self.is_flag(b'x')
-    }
-
-    /// Whether this path is a tree in the context of treemanifest
-    pub fn is_tree(&self) -> bool {
-        self.is_flag(b't')
-    }
-
-    fn is_flag(&self, flag: u8) -> bool {
-        self.0.map(|f| f == NonZeroU8::new(flag).unwrap()).unwrap_or(false)
+    /// Returns true if the flags are [`Self::TREE`].
+    pub fn is_tree(self) -> bool {
+        self == Self::TREE
     }
 }
 

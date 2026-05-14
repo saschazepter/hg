@@ -465,17 +465,17 @@ pub fn is_file_modified(
     // TODO: Also account for `FALLBACK_SYMLINK` and `FALLBACK_EXEC` from the
     // dirstate
     let fs_flags = if is_symlink {
-        ManifestFlags::new_link()
+        ManifestFlags::LINK
     } else if check_exec && has_exec_bit(&fs_metadata) {
-        ManifestFlags::new_exec()
+        ManifestFlags::EXEC
     } else {
-        ManifestFlags::new_empty()
+        ManifestFlags::EMPTY
     };
 
     let entry_flags = if check_exec {
         entry.flags
     } else if entry.flags.is_exec() {
-        ManifestFlags::new_empty()
+        ManifestFlags::EMPTY
     } else {
         entry.flags
     };

@@ -576,7 +576,7 @@ impl RevisionInodeEncoder {
                 name: name.into(),
                 ino,
                 size: u_u64(contents.len()),
-                flags: ManifestFlags::new_empty(),
+                flags: ManifestFlags::EMPTY,
             },
             children: vec![],
         };

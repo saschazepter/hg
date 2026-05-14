@@ -1529,7 +1529,7 @@ mod test {
                     entry: (
                         HgPath::new(f.as_bytes()),
                         NULL_NODE,
-                        ManifestFlags::new_empty(),
+                        ManifestFlags::EMPTY,
                     ),
                     backup: false,
                     flags_differ: false,

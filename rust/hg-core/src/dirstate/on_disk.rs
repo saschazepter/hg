@@ -590,11 +590,11 @@ impl Node {
             return None;
         }
         Some(if self.flags().contains(Flags::MODE_IS_SYMLINK) {
-            ManifestFlags::new_link()
+            ManifestFlags::LINK
         } else if self.flags().contains(Flags::MODE_EXEC_PERM) {
-            ManifestFlags::new_exec()
+            ManifestFlags::EXEC
         } else {
-            ManifestFlags::new_empty()
+            ManifestFlags::EMPTY
         })
     }
 
