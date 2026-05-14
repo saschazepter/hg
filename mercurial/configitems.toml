@@ -2353,6 +2353,18 @@ with large histories. Until this is fixed, it will remain disabled by default.
 """
 
 [[items]]
+section = "rust"
+name = "exp-manifest"
+default = false
+experimental = true
+documentation = """Whether to use the experimental Rust extension for accessing
+manifests.
+WARNING: This config does not behave correctly when set on a repo. Once the
+config is enabled anywhere, the Rust manifest code will be used for everything
+in that Mercurial process.
+"""
+
+[[items]]
 section = "server"
 name = "bookmarks-pushkey-compat"
 default = true

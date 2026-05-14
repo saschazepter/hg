@@ -400,3 +400,64 @@ update on various side should only affect the target share
   id: b264454d7033405774b9f353b9b37a082c1a8fba, size 496 bytes
   id: c6e7b359cbbb5469e98f35acd73ac4757989c4d8, size 450 bytes
   total cache data size 1.46 KB, on-disk 1.46 KB
+
+Test rust manifest
+==================
+
+  $ hg init repo-rust
+  $ cd repo-rust
+  $ hg unbundle "$TESTDIR/bundles/test-manifest.hg" -q
+  $ hg update -q
+
+  $ cat >> .hg/hgrc <<EOF
+  > [rust]
+  > exp-manifest=True
+  > EOF
+
+  $ hg manifest --debug --config rust.exp-manifest=False
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 644   a
+  b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
+  047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
+
+#if rust
+
+Read manifest
+  $ hg manifest --debug 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__iter__
+
+Change a file node
+  $ echo change >> a
+  $ hg ci -m "change a" 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__contains__
+
+Change a flag (executable)
+  $ chmod +x a
+  $ hg ci -m "make a executable" 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__contains__
+
+Change a flag (symlink)
+  $ rm a
+  $ ln -s target a
+  $ hg ci -m "make a symlink" 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__contains__
+
+Remove a manifest line
+  $ rm a
+  $ hg rm a 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__contains__
+  $ # hg ci -m "remove a"
+
+Add a manifest line
+  $ touch newfile
+  $ hg add newfile
+  $ hg ci -m "add newfile" 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__contains__
+
+Change a manifest line
+  $ echo change > newfile
+  $ hg ci -m "change newfile" 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.__contains__
+
+#endif
+
+  $ cd ..

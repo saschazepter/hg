@@ -65,6 +65,7 @@ if typing.TYPE_CHECKING:
 
 
 parsers = policy.importmod('parsers')
+rustmod = policy.importrust('manifest')
 propertycache = util.propertycache
 
 FASTDELTA_TEXTDIFF_THRESHOLD = 1000
@@ -510,6 +511,17 @@ try:
     _lazymanifest = parsers.lazymanifest
 except AttributeError:
     _lazymanifest = _LazyManifest
+
+
+def enable_rust_manifest():
+    """Enable Rust extensions for accessing manifests.
+
+    This function exists because the Rust manifest code is in an experimental
+    stage. Once it is finished, this function will go away.
+    """
+    global _lazymanifest
+    if rustmod is not None:
+        _lazymanifest = rustmod.LazyManifest
 
 
 class manifestdict(repository.imanifestdict):
@@ -2074,6 +2086,9 @@ class manifestlog(repository.imanifestlog):
     they receive (i.e. tree or flat or lazily loaded, etc)."""
 
     def __init__(self, opener, repo, rootstore, narrowmatch):
+        if repo.ui.configbool(b'rust', b'exp-manifest'):
+            enable_rust_manifest()
+
         self.nodeconstants = repo.nodeconstants
         usetreemanifest = False
         cachesize = 4
