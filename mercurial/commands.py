@@ -6421,7 +6421,13 @@ _NOTTERSE = b'nothing'
             None,
             _(b'end filenames with NUL, for use with xargs'),
         ),
-        (b'', b'rev', [], _(b'show difference from revision'), _(b'REV')),
+        (
+            b'',
+            b'rev',
+            [],
+            _(b'show difference from revision (DEPRECATED)'),
+            _(b'REV'),
+        ),
         (b'', b'from', b'', _(b'revision to diff from'), _(b'REV1')),
         (b'', b'to', b'', _(b'revision to diff to'), _(b'REV2')),
         (

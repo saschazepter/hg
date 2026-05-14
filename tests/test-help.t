@@ -783,7 +783,6 @@ Test command without options
    -n --no-status           hide status prefix
    -C --copies              show source of copied files
    -0 --print0              end filenames with NUL, for use with xargs
-      --rev REV [+]         show difference from revision
       --from REV1           revision to diff from
       --to REV2             revision to diff to
       --change REV          list the changed files of a revision
