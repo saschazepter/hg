@@ -122,6 +122,11 @@ impl LazyManifest {
         LazyManifestIter { inner: self, index: 0 }
     }
 
+    /// Returns true if the manifest contains the given path.
+    pub fn contains(&self, path: &HgPath) -> bool {
+        self.binary_search(path).is_ok()
+    }
+
     /// Parses all lines of a manifest.
     fn parse_lines(
         nodelen: usize,
@@ -169,6 +174,12 @@ impl LazyManifest {
             return Err(ManifestError::InvalidLine);
         }
         Ok(line)
+    }
+
+    /// Binary searches for `path`, returning `Ok(index)` if found.
+    /// Returns `Err(insertion_index)` if not found.
+    fn binary_search(&self, path: &HgPath) -> Result<usize, usize> {
+        self.lines.binary_search_by(|e| e.read(&self.data).path.cmp(path))
     }
 }
 
@@ -222,6 +233,9 @@ mod tests {
         assert!(manifest.is_empty());
         assert_eq!(manifest.len(), 0);
 
+        assert!(!manifest.contains(path(b"")));
+        assert!(!manifest.contains(path(b"file.txt")));
+
         assert_eq!(collect(&manifest).unwrap(), &[]);
     }
 
@@ -238,6 +252,10 @@ mod tests {
 
         assert!(!manifest.is_empty());
         assert_eq!(manifest.len(), 1);
+
+        assert!(!manifest.contains(path(b"")));
+        assert!(manifest.contains(path(b"file.txt")));
+        assert!(!manifest.contains(path(b"subdir/other.py")));
 
         assert_eq!(collect(&manifest).unwrap(), &[entry]);
     }
@@ -261,6 +279,10 @@ mod tests {
 
         assert!(!manifest.is_empty());
         assert_eq!(manifest.len(), 2);
+
+        assert!(!manifest.contains(path(b"")));
+        assert!(manifest.contains(path(b"file.txt")));
+        assert!(manifest.contains(path(b"subdir/other.py")));
 
         assert_eq!(collect(&manifest).unwrap(), &[entry_1, entry_2]);
     }

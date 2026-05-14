@@ -10,6 +10,7 @@ use hg::revlog::manifest::DecodedManifestEntry;
 use hg::revlog::manifest_dict::LazyManifest;
 use hg::revlog::manifest_dict::LazyManifestIter;
 use hg::revlog::manifest_dict::ManifestError;
+use hg::utils::hg_path::HgPath;
 use pyo3::Bound;
 use pyo3::IntoPyObject;
 use pyo3::Py;
@@ -88,7 +89,9 @@ impl PyLazyManifest {
     }
 
     fn __contains__(slf: &Bound<'_, Self>, key: &[u8]) -> PyResult<bool> {
-        Err(PyNotImplementedError::new_err("LazyManifest.__contains__"))
+        Self::with_inner_read(slf, |_self_ref, inner| {
+            Ok(inner.contains(HgPath::new(key)))
+        })
     }
 
     fn __iter__(slf: &Bound<'_, Self>) -> PyResult<PyPathIter> {
