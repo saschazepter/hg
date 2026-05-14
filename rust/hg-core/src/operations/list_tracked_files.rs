@@ -7,15 +7,14 @@
 
 use rayon::iter::ParallelIterator;
 
-use crate::Node;
 use crate::UncheckedRevision;
 use crate::errors::HgError;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
 use crate::repo::Repo;
 use crate::revlog::RevlogError;
+use crate::revlog::manifest::DecodedManifestEntry;
 use crate::revlog::manifest::Manifest;
-use crate::revlog::manifest::ManifestFlags;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::par_filter_map_results;
@@ -79,20 +78,14 @@ pub struct FilesForDirstateBorrowed<'manifest, 'narrow, 'sparse> {
     sparse_matcher: &'sparse dyn Matcher,
 }
 
-/// Like [`crate::revlog::manifest::ManifestEntry`], but with the `Node`
-/// already checked.
-pub type ExpandedManifestEntry<'manifest> =
-    (&'manifest HgPath, Node, ManifestFlags);
-
 impl<M: Matcher> FilesForRev<M> {
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<ExpandedManifestEntry<'_>, RevlogError>>
+    ) -> impl Iterator<Item = Result<DecodedManifestEntry<'_>, RevlogError>>
     {
         filter_map_results(self.manifest.iter(), |entry| {
-            let path = entry.path;
-            Ok(if self.narrow_matcher.matches(path) {
-                Some((path, entry.node_id()?, entry.flags))
+            Ok(if self.narrow_matcher.matches(entry.path) {
+                Some(entry.decode()?)
             } else {
                 None
             })
@@ -101,7 +94,7 @@ impl<M: Matcher> FilesForRev<M> {
 }
 
 type IterResult<'manifest> =
-    Result<ExpandedManifestEntry<'manifest>, RevlogError>;
+    Result<DecodedManifestEntry<'manifest>, RevlogError>;
 
 impl<'manifest, 'matcher> FilesForRevBorrowed<'manifest, 'matcher> {
     pub fn new(
@@ -112,9 +105,8 @@ impl<'manifest, 'matcher> FilesForRevBorrowed<'manifest, 'matcher> {
     }
     pub fn iter(&self) -> impl Iterator<Item = IterResult<'manifest>> {
         filter_map_results(self.manifest.iter(), |entry| {
-            let path = entry.path;
-            Ok(if self.narrow_matcher.matches(path) {
-                Some((path, entry.node_id()?, entry.flags))
+            Ok(if self.narrow_matcher.matches(entry.path) {
+                Some(entry.decode()?)
             } else {
                 None
             })
@@ -137,12 +129,11 @@ impl<'manifest, 'narrow, 'sparse>
         &self,
     ) -> impl ParallelIterator<Item = IterResult<'manifest>> {
         par_filter_map_results(self.manifest.par_iter(), |entry| {
-            let path = entry.path;
             Ok(
-                if self.narrow_matcher.matches(path)
-                    && self.sparse_matcher.matches(path)
+                if self.narrow_matcher.matches(entry.path)
+                    && self.sparse_matcher.matches(entry.path)
                 {
-                    Some((path, entry.node_id()?, entry.flags))
+                    Some(entry.decode()?)
                 } else {
                     None
                 },
@@ -152,12 +143,11 @@ impl<'manifest, 'narrow, 'sparse>
 
     pub fn iter(&self) -> impl Iterator<Item = IterResult<'manifest>> {
         filter_map_results(self.manifest.iter(), |entry| {
-            let path = entry.path;
             Ok(
-                if self.narrow_matcher.matches(path)
-                    && self.sparse_matcher.matches(path)
+                if self.narrow_matcher.matches(entry.path)
+                    && self.sparse_matcher.matches(entry.path)
                 {
-                    Some((path, entry.node_id()?, entry.flags))
+                    Some(entry.decode()?)
                 } else {
                     None
                 },

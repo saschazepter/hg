@@ -10,6 +10,7 @@ use hg::matchers::Matcher;
 use hg::narrow;
 use hg::operations::FilesForDirstateBorrowed;
 use hg::repo::Repo;
+use hg::revlog::manifest::DecodedManifestEntry;
 use hg::revlog::manifest::Manifest;
 use hg::sparse;
 use hg::utils::RawData;
@@ -80,7 +81,8 @@ impl LocalBackend {
         let vec = files_for_rev
             .par_iter()
             .map(|res| {
-                let (path, file_node, flags) = res?;
+                let DecodedManifestEntry { path, node: file_node, flags } =
+                    res?;
                 if let Some(size) = self.file_nodeid_to_size.get(&file_node) {
                     // We already know this size
                     return Ok(FileInfo {

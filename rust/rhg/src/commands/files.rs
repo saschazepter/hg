@@ -117,10 +117,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             repo,
             relative_paths,
             delimiter,
-            files.iter().map::<Result<_, CommandError>, _>(|f| {
-                let (f, _, _) = f?;
-                Ok(f)
-            }),
+            files
+                .iter()
+                .map::<Result<_, CommandError>, _>(|result| Ok(result?.path)),
         )
     } else {
         // The dirstate always reflects the sparse narrowspec.

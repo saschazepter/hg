@@ -34,7 +34,6 @@ use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::matchers::Matcher;
 use crate::narrow;
-use crate::operations::ExpandedManifestEntry;
 use crate::operations::FilesForRevBorrowed;
 use crate::operations::list_rev_tracked_files;
 use crate::progress::Progress;
@@ -44,6 +43,7 @@ use crate::revlog::RevlogType;
 use crate::revlog::filelog::FileCompOutcome;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::filelog::is_file_modified;
+use crate::revlog::manifest::DecodedManifestEntry;
 use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestFlags;
 use crate::revlog::options::RevlogOpenOptions;
@@ -137,7 +137,7 @@ pub fn update_from_null(
             .iter()
             .filter(|f| {
                 match f {
-                    Ok(f) => sparse_matcher.matches(f.0),
+                    Ok(f) => sparse_matcher.matches(f.path),
                     Err(_) => true, // Errors stop the update, include them
                 }
             })
@@ -302,7 +302,7 @@ pub struct UpdateStats {
 #[derive(Debug, PartialEq)]
 pub struct WorkingCopyFileUpdate<'a> {
     /// The manifest entry metadata from which to get the file information
-    entry: ExpandedManifestEntry<'a>,
+    entry: DecodedManifestEntry<'a>,
     /// Whether to backup this path before trying to update it
     backup: bool,
     /// Whether the flags for this pre-existing file have changed. `false` if
@@ -318,7 +318,7 @@ pub struct MergeActions<'a> {
     /// Files that need to be updated
     pub get: Vec<WorkingCopyFileUpdate<'a>>,
     /// Files that need to be created
-    pub create: Vec<ExpandedManifestEntry<'a>>,
+    pub create: Vec<DecodedManifestEntry<'a>>,
     /// Files that need to be removed
     pub remove: Vec<&'a HgPath>,
 }
@@ -351,7 +351,7 @@ impl<'paths> MergeActions<'paths> {
     ) {
         self.flags.retain(|item| retain_fn(item.0));
         self.get.retain(|item| retain_fn(item.path()));
-        self.create.retain(|item| retain_fn(item.0));
+        self.create.retain(|item| retain_fn(item.path));
         self.remove.retain(|item| retain_fn(item));
     }
 }
@@ -621,7 +621,7 @@ pub fn compute_actions<
             let file_conflicts: FastHashSet<_> =
                 file_conflicts.into_iter().collect();
             let new_gets = actions.create.iter().copied().map(|c| {
-                let backup = file_conflicts.contains(&c.0);
+                let backup = file_conflicts.contains(&c.path);
                 WorkingCopyFileUpdate { entry: c, backup, flags_differ: false }
             });
             old_gets.extend(new_gets);
@@ -629,7 +629,7 @@ pub fn compute_actions<
             // This is the same as the other arm, it's just not worth the
             // complexity to build a macro for this, so just copy.
             let new_gets = actions.create.iter().copied().map(|c| {
-                let backup = file_conflicts.contains(&c.0);
+                let backup = file_conflicts.contains(&c.path);
                 WorkingCopyFileUpdate { entry: c, backup, flags_differ: false }
             });
             old_gets.extend(new_gets);
@@ -637,7 +637,7 @@ pub fn compute_actions<
         actions.get = old_gets;
         // Don't `sort_unstable` since we're in the special case of
         // concatenating two sorted sequences.
-        actions.get.sort_by_key(|e| e.entry.0);
+        actions.get.sort_by_key(|e| e.entry.path);
         // All creates have been transformed into gets, free some memory and
         // make the total correct again.
         std::mem::take(&mut actions.create);
@@ -689,17 +689,17 @@ fn filter_sparse_actions<'a>(
         let files = FilesForRevBorrowed::new(target_manifest, narrow_matcher);
         // If an active profile changed during the update, refresh the checkout
         for entry in files.iter() {
-            let (path, node, flags) = entry?;
-            let old = old_sparse_matcher.matches(path);
-            let new = sparse_matcher.matches(path);
+            let entry = entry?;
+            let old = old_sparse_matcher.matches(entry.path);
+            let new = sparse_matcher.matches(entry.path);
             if !old && new {
                 to_get.push(WorkingCopyFileUpdate {
-                    entry: (path, node, flags),
+                    entry,
                     backup: false,
                     flags_differ: false,
                 });
             } else if old && !new {
-                to_remove.push(path);
+                to_remove.push(entry.path);
             }
         }
         actions.get.extend(to_get);
@@ -730,7 +730,8 @@ fn check_unknown_files<'a>(
     let working_directory_vfs = repo.working_directory_vfs();
     let store_vfs = repo.store_vfs();
     merge_result.create.par_iter().try_for_each(
-        |(path, _, _)| -> Result<(), HgError> {
+        |entry| -> Result<(), HgError> {
+            let path = entry.path;
             if is_conflicting_unknown_file(
                 path,
                 dirstate,
@@ -741,9 +742,9 @@ fn check_unknown_files<'a>(
                 &store_vfs,
             )? {
                 if ignore_func(path) {
-                    ignored_sender.send(*path).expect("channel must be open");
+                    ignored_sender.send(path).expect("channel must be open");
                 } else {
-                    unknown_sender.send(*path).expect("channel must be open");
+                    unknown_sender.send(path).expect("channel must be open");
                 }
             }
             Ok(())
@@ -881,15 +882,16 @@ fn manifest_actions<'manifests, 'm1: 'manifests, 'm2: 'manifests>(
     for (wc_entry, p2_entry) in diff.into_iter() {
         match (wc_entry, p2_entry) {
             (Some(wc_entry), Some(p2_entry)) => {
+                let wc_entry = wc_entry.decode()?;
+                let p2_entry = p2_entry.decode()?;
                 let filename = wc_entry.path;
-                let p2_node_id = p2_entry.node_id()?;
-                let nodes_equal = wc_entry.node_id()? == p2_node_id;
+                let nodes_equal = wc_entry.node == p2_entry.node;
                 let flags_differ = wc_entry.flags != p2_entry.flags;
                 if nodes_equal && flags_differ {
                     actions.flags.push((filename, p2_entry.flags));
                 } else {
                     actions.get.push(WorkingCopyFileUpdate {
-                        entry: (filename, p2_node_id, p2_entry.flags),
+                        entry: p2_entry,
                         backup: false,
                         flags_differ,
                     });
@@ -900,11 +902,7 @@ fn manifest_actions<'manifests, 'm1: 'manifests, 'm2: 'manifests>(
                 actions.remove.push(filename);
             }
             (None, Some(p2_entry)) => {
-                actions.create.push((
-                    p2_entry.path,
-                    p2_entry.node_id()?,
-                    p2_entry.flags,
-                ));
+                actions.create.push(p2_entry.decode()?);
             }
             (None, None) => unreachable!("diff missing from both sides"),
         }
@@ -938,11 +936,11 @@ pub trait ChunkableItem<'a> {
 
 impl<'a> ChunkableItem<'a> for WorkingCopyFileUpdate<'a> {
     fn path(&self) -> &'a HgPath {
-        self.entry.0
+        self.entry.path
     }
 
     fn is_link(&self) -> bool {
-        self.entry.2.is_link()
+        self.entry.flags.is_link()
     }
 }
 
@@ -1219,7 +1217,7 @@ fn working_copy_worker<'a: 'b, 'b>(
     }
 
     for WorkingCopyFileUpdate { entry, backup, flags_differ } in chunk {
-        let (file, file_node, flags) = entry;
+        let file = entry.path;
         if backup {
             // If a file or directory exists with the same name, back that
             // up. Otherwise, look to see if there is a file that conflicts
@@ -1273,11 +1271,12 @@ fn working_copy_worker<'a: 'b, 'b>(
             }
         }
 
+        let flags = entry.flags;
         // Treemanifest is not supported
         assert!(!flags.is_tree());
 
         let filelog = Filelog::open_vfs(store_vfs, file, options)?;
-        let filelog_revision_data = &filelog.data_for_node(file_node)?;
+        let filelog_revision_data = &filelog.data_for_node(entry.node)?;
         let file_data = filelog_revision_data.file_data()?;
 
         if flags.is_link() {
@@ -1526,11 +1525,11 @@ mod test {
         fn chunk(v: Vec<&'static str>) -> Vec<WorkingCopyFileUpdate<'static>> {
             v.into_iter()
                 .map(|f| WorkingCopyFileUpdate {
-                    entry: (
-                        HgPath::new(f.as_bytes()),
-                        NULL_NODE,
-                        ManifestFlags::EMPTY,
-                    ),
+                    entry: DecodedManifestEntry {
+                        path: HgPath::new(f.as_bytes()),
+                        node: NULL_NODE,
+                        flags: ManifestFlags::EMPTY,
+                    },
                     backup: false,
                     flags_differ: false,
                 })
