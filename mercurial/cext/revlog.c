@@ -353,6 +353,13 @@ static PyObject *index_py_parents_raw(indexObject *self, PyObject *rev)
 	return Py_BuildValue("(ii)", parents[0], parents[1]);
 }
 
+static PyObject *index_unsupported_child_sibling(indexObject *self,
+                                                 PyObject *rev)
+{
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyObject *index_py_raw_size(indexObject *self, PyObject *py_rev)
 {
 	long rev;
@@ -3944,6 +3951,14 @@ static PyMethodDef index_methods[] = {
 
     {"parents", (PyCFunction)index_py_parents, METH_O,
      "return parents of a rev"},
+    {"child_p1", (PyCFunction)index_unsupported_child_sibling, METH_O,
+     "feature unsupported by C index"},
+    {"child_p2", (PyCFunction)index_unsupported_child_sibling, METH_O,
+     "feature unsupported by C index"},
+    {"sibling_p1", (PyCFunction)index_unsupported_child_sibling, METH_O,
+     "feature unsupported by C index"},
+    {"sibling_p2", (PyCFunction)index_unsupported_child_sibling, METH_O,
+     "feature unsupported by C index"},
     {"_parents_raw", (PyCFunction)index_py_parents_raw, METH_O,
      "return raw parents value from the index"},
     {"linkrev", (PyCFunction)index_py_linkrev, METH_O,

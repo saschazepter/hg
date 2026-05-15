@@ -347,6 +347,9 @@ class RustIndexProxy(MonoBlockIndex):
         self.changed_files_offset = self.inner._index_changed_files_offset
         self.changed_files_length = self.inner._index_changed_files_length
         self.lazy_rank = self.inner._index_lazy_rank
+        self.child_p1 = (
+            self.child_p2
+        ) = self.sibling_p1 = self.sibling_p2 = lambda r: None
         self.node = self.inner._index_node
         self.has_node = self.inner._index_has_node
         self.shortest = self.inner._index_shortest

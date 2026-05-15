@@ -191,6 +191,42 @@ def changed_files_size(index, rev, hexfn):
     return b"%d" % index.changed_files_length(rev)
 
 
+@debug_column(b"child-p1", size=10, verbose=True)
+def child_p1(index, rev, hexfn):
+    child = index.child_p1(rev)
+    if child is None:
+        return b"-"
+    else:
+        return b"%d" % child
+
+
+@debug_column(b"child-p2", size=10, verbose=True)
+def child_p2(index, rev, hexfn):
+    child = index.child_p2(rev)
+    if child is None:
+        return b"-"
+    else:
+        return b"%d" % child
+
+
+@debug_column(b"sibling-p1", size=10, verbose=True)
+def sibling_p1(index, rev, hexfn):
+    child = index.sibling_p1(rev)
+    if child is None:
+        return b"-"
+    else:
+        return b"%d" % child
+
+
+@debug_column(b"sibling-p2", size=10, verbose=True)
+def sibling_p2(index, rev, hexfn):
+    child = index.sibling_p2(rev)
+    if child is None:
+        return b"-"
+    else:
+        return b"%d" % child
+
+
 def debug_index(
     ui,
     repo,

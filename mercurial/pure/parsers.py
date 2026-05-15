@@ -774,6 +774,54 @@ class BaseIndex(abc.ABC):
         """
         raise error.ProgrammingError("lacking support for ChangedFiles data")
 
+    def child_p1(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using `rev` as p1.
+
+        The returned revision should be the origin of the linked list created
+        by `sibling_p1`.
+
+        return nullrev is no such revision exists
+
+        return None if the feature is unsupported
+        """
+        return None
+
+    def child_p2(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using `rev` as p2.
+
+        The returned revision should be the origin of the linked list created
+        by `sibling_p2`.
+
+        return nullrev is no such revision exists
+
+        return None if the feature is unsupported
+        """
+        return None
+
+    def sibling_p1(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using the same `p1` as `rev`
+
+        Following all sibling_p1 value from the first on (pointed by p1's
+        child_p1) will yield all p1-children of `p1` until `nullrev` is reach
+
+        return nullrev is this revision is the last in the chain.
+
+        return None if the feature is unsupported
+        """
+        return None
+
+    def sibling_p2(self, rev: RevnumT) -> RevnumT | None:
+        """return the revision using the same `p2` as `rev`
+
+        Following all sibling_p2 value from the first on (pointed by p2's
+        child_p2) will yield all p2-children of `p2` until `nullrev` is reach
+
+        return nullrev is this revision is the last in the chain.
+
+        return None if the feature is unsupported
+        """
+        return None
+
     def lazy_rank(self, rev):
         """return the rank of <rev> if known
 
