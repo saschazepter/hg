@@ -199,7 +199,9 @@ impl FilelogEntry<'_> {
         }
 
         if self.0.revlog.index.uses_filelog_meta() {
-            return (self.0.flags & REVISION_FLAG_HASMETA) != 0;
+            if (self.0.flags & REVISION_FLAG_HASMETA) != 0 {
+                return false;
+            }
         } else {
             if uncompressed_len == other_len + 4 {
                 // It’s possible that `file_data_len == other_len` with an empty
