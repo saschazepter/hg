@@ -810,8 +810,7 @@ impl<'revlog> RevlogEntry<'revlog> {
 
     pub fn has_length_affecting_flag_processor(&self) -> bool {
         // Relevant Python code: revlog.size()
-        // note: ELLIPSIS is known to not change the content
-        (self.flags & (REVIDX_KNOWN_FLAGS ^ REVISION_FLAG_ELLIPSIS)) != 0
+        (self.flags & !LENGTH_NEUTRAL_FLAGS) != 0
     }
 
     fn check_data(&self, data: RawData) -> Result<RawData, RevlogError> {
