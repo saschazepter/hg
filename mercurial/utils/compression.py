@@ -697,6 +697,9 @@ class _noopengine(compressionengine):
         def compress(self, data):
             return None
 
+        def decompress(self, data):
+            return data
+
     def revlogcompressor(self, opts=None):
         return self.nooprevlogcompressor()
 
