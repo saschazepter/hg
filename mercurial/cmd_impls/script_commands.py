@@ -40,6 +40,14 @@ def init():
             None,
             _(b'return 0 if the revset match any revs, 2 otherwise'),
         ),
+        (
+            b'c',
+            b'count',
+            False,
+            _(
+                b'display the number of matching revision instead of the revision themself'
+            ),
+        ),
     ]
     + cmd_impls.template_opts,
     _(b'REVS'),
@@ -64,22 +72,25 @@ def cmd_script_revs_check(ui, repo, *revs, exists: bool | None = None, **opts):
     revs = scmutil.revrange(repo, revs)
 
     has_template = opts.get("template") or opts.get("style")
+    show_count = opts.get("count")
     any_match = bool(revs)
 
     if exists is None and not has_template:
         opts["template"] = b"{node}\n"
         has_template = True
 
-    if has_template:
-        opts = pycompat.byteskwargs(opts)
-        displayer = logcmdutil.changesetdisplayer(
-            ui,
-            repo,
-            opts,
-            buffered=False,
-        )
-        logcmdutil.displayrevs(ui, repo, revs, displayer)
-
+    if show_count:
+        ui.write(b"%d\n" % len(revs))
+    else:
+        if has_template:
+            opts = pycompat.byteskwargs(opts)
+            displayer = logcmdutil.changesetdisplayer(
+                ui,
+                repo,
+                opts,
+                buffered=False,
+            )
+            logcmdutil.displayrevs(ui, repo, revs, displayer)
     if exists is not None and (any_match != bool(exists)):
         return 2
     return 0

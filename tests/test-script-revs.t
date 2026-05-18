@@ -38,3 +38,15 @@ Simple invalid revset
   ((0
      ^ here)
   [10]
+
+Counting revision
+=================
+
+  $ hg script::revs 0 --count
+  1
+  $ hg script::revs '0 - 0' --count
+  0
+  $ hg script::revs '::5' --count
+  6
+  $ hg script::revs '8 % 5' --count
+  3
