@@ -17,14 +17,17 @@ use hg::utils::RawData;
 use hg::utils::hg_path::HgPath;
 use hg::utils::u_u64;
 use hg::warnings::HgWarningContext;
+use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use self_cell::self_cell;
 
 use crate::server::Config;
 use crate::server::store::BackendMode;
 use crate::server::store::ChangesetFiles;
+use crate::server::store::ChangesetFilesDiff;
 use crate::server::store::Error;
 use crate::server::store::ErrorKind;
+use crate::server::store::FileChangeInfo;
 use crate::server::store::FileInfo;
 use crate::server::store::FileToken;
 use crate::server::store::RevisionIdx;
@@ -122,6 +125,83 @@ impl LocalBackend {
 
         Ok(ChangesetFilesIterator { inner: vec })
     }
+
+    /// Returns an iterator over the diff between these manifests, given this
+    /// sparse matcher
+    fn changeset_files_diff_iterator<'manifests>(
+        &self,
+        manifest_from: &'manifests Manifest,
+        manifest_to: &'manifests Manifest,
+        sparse_matcher: &impl Matcher,
+    ) -> Result<ChangesetFilesDiffIterator<'manifests>, HgError> {
+        let diff = manifest_from.diff(manifest_to)?;
+        let cached_file_sizes = self.file_nodeid_to_size.len();
+
+        // Collect all file sizes in parallel and generate the diff iterator
+        let size_span = tracing::debug_span!("computing sizes").entered();
+        let vec = diff
+            .par_iter()
+            .map(|(before, after)| {
+                match (before, after) {
+                    (None, None) => unreachable!("diff should be meaningful"),
+                    // Creation or modification
+                    (old_opt, Some(new)) => {
+                        let path = new.path;
+                        if !sparse_matcher.matches(path) {
+                            return Ok(FileChangeInfo::Removed(path));
+                        }
+                        if !self.narrow_matcher.matches(path) {
+                            return Ok(FileChangeInfo::Removed(path));
+                        }
+                        let file_node = new.node_id()?;
+                        let flags = new.flags;
+                        if let Some(size) =
+                            self.file_nodeid_to_size.get(&file_node)
+                        {
+                            // We already know this size
+                            let file_info = FileInfo {
+                                path,
+                                size: *size,
+                                flags,
+                                token: LocalToken(file_node),
+                            };
+                            if old_opt.is_some() {
+                                return Ok(FileChangeInfo::Changed(file_info));
+                            } else {
+                                return Ok(FileChangeInfo::New(file_info));
+                            }
+                        }
+                        let filelog = self.repo.filelog(path)?;
+                        // TODO keep a persistent NodeTree of filenode_id ->
+                        // size until we have it in
+                        // revlogv2?
+                        let size =
+                            u_u64(filelog.contents_size_for_node(file_node)?);
+                        self.file_nodeid_to_size.insert(file_node, size);
+                        let file_info = FileInfo {
+                            path,
+                            size,
+                            flags,
+                            token: LocalToken(file_node),
+                        };
+                        if old_opt.is_some() {
+                            Ok(FileChangeInfo::Changed(file_info))
+                        } else {
+                            Ok(FileChangeInfo::New(file_info))
+                        }
+                    }
+                    // Removal
+                    (Some(old), None) => Ok(FileChangeInfo::Removed(old.path)),
+                }
+            })
+            .collect::<Result<Vec<_>, hg::revlog::RevlogError>>()?;
+        drop(size_span);
+
+        let cache_misses = self.file_nodeid_to_size.len() - cached_file_sizes;
+        tracing::debug!("cached {} new filelog node sizes", cache_misses);
+
+        Ok(ChangesetFilesDiffIterator { inner: vec })
+    }
 }
 
 impl StoreBackend<LocalToken> for LocalBackend {
@@ -218,6 +298,47 @@ impl StoreBackend<LocalToken> for LocalBackend {
         Ok(manifest_files_iterator)
     }
 
+    #[tracing::instrument(level = "debug", skip_all)]
+    fn changeset_files_diff(
+        &self,
+        from: Node,
+        to: Node,
+    ) -> Result<impl ChangesetFilesDiff<LocalToken>, Error<LocalToken>> {
+        // Get the manifest
+        let changelog = self.repo.changelog()?;
+        let changeset_rev_from = changelog
+            .rev_from_node(from.into())
+            .map_err(|_| ErrorKind::NoSuchChangeset(from))?;
+        let manifest_from = self.repo.manifest_for_node(from)?;
+        let changeset_rev_to = changelog
+            .rev_from_node(to.into())
+            .map_err(|_| ErrorKind::NoSuchChangeset(to))?;
+        let manifest_to = self.repo.manifest_for_node(to)?;
+
+        // The sparse matcher
+        let warnings = HgWarningContext::new();
+        let sparse_matcher = sparse::matcher(
+            &self.repo,
+            Some(vec![changeset_rev_from, changeset_rev_to]),
+            warnings.sender(),
+        )
+        .map_err(HgError::from)?;
+        let _ = warnings.finish(|warning| -> Result<(), Infallible> {
+            // TODO better warnings
+            tracing::warn!("sparse warning: {:?}", warning);
+            Ok(())
+        });
+
+        // Create the iterator
+        let manifest_diff_iterator = ManifestRefDiffIterator::try_new(
+            (manifest_from, manifest_to),
+            |(from, to)| -> Result<ChangesetFilesDiffIterator, HgError> {
+                self.changeset_files_diff_iterator(from, to, &sparse_matcher)
+            },
+        )?;
+        Ok(manifest_diff_iterator)
+    }
+
     fn file_data(
         &self,
         changeset: Node,
@@ -289,6 +410,29 @@ impl ChangesetFiles<LocalToken> for ManifestRefIterator {
 
     fn is_empty(&self) -> bool {
         self.borrow_dependent().inner.is_empty()
+    }
+}
+
+self_cell!(
+    /// Allows for the creation of an iterator over two [`Manifest`] inside the
+    /// same struct.
+    pub struct ManifestRefDiffIterator {
+        owner: (Manifest, Manifest),
+        #[covariant]
+        dependent: ChangesetFilesDiffIterator,
+    }
+);
+
+/// An implementation of [`ChangesetFilesDiff`] for a local repository
+pub struct ChangesetFilesDiffIterator<'manifests> {
+    inner: Vec<FileChangeInfo<'manifests, LocalToken>>,
+}
+
+impl ChangesetFilesDiff<LocalToken> for ManifestRefDiffIterator {
+    fn iter_diff(
+        &self,
+    ) -> impl Iterator<Item = &FileChangeInfo<'_, LocalToken>> {
+        self.borrow_dependent().inner.iter()
     }
 }
 

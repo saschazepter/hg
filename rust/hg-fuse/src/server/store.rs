@@ -113,6 +113,19 @@ pub trait StoreBackend<T: FileToken>: Send + Sync + 'static {
         changeset: Node,
     ) -> Result<impl ChangesetFiles<T>, Error<T>>;
 
+    /// Returns an iterable of all files that differ (and how) from the first
+    /// changeset to the other.
+    ///
+    /// # Errors
+    ///
+    /// Must return [`Error::NoSuchChangeset`] if either node does not exist in
+    /// the store
+    fn changeset_files_diff(
+        &self,
+        from: Node,
+        to: Node,
+    ) -> Result<impl ChangesetFilesDiff<T>, Error<T>>;
+
     /// Returns the file content for that path at this changeset
     /// (i.e uncompressed file datastripped of its metadata)
     ///
@@ -160,6 +173,18 @@ pub trait ChangesetFiles<T: FileToken> {
 
     /// Returns whether the iterator is empty.
     fn is_empty(&self) -> bool;
+}
+
+/// A trait whose only method enables iteration over the difference between two
+/// given changesets' files.
+/// Allows for a [`StoreBackend`] implementation to have more control over how
+/// to iterate efficiently, by e.g. returning a self-referencing struct and
+/// eschewing path clones.
+pub trait ChangesetFilesDiff<T: FileToken> {
+    /// Returns an iterator of information for every changed tracked file
+    /// between the two changesets. Each [`FileChangeInfo`] must refer to a
+    /// unique file, and folders should not be included.
+    fn iter_diff(&self) -> impl Iterator<Item = &FileChangeInfo<'_, T>>;
 }
 
 /// An opaque token for a given file revision. This can be used as an
@@ -213,4 +238,17 @@ pub enum BackendMode {
     /// Present working copies that have a minimal .hg directory meant to work
     /// with the thin extension
     Thin,
+}
+
+/// Information about how a store's file has changed between two revisions
+#[derive(Debug)]
+pub enum FileChangeInfo<'store, T> {
+    /// The file is new
+    New(FileInfo<'store, T>),
+    /// The file has been modified
+    /// Kept separate from `new` to force implementations to think about this
+    /// early, as it may prove useful in later optimizations.
+    Changed(FileInfo<'store, T>),
+    /// The file has been removed (either directly or through `sparse`)
+    Removed(&'store HgPath),
 }
