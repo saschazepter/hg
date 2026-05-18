@@ -46,7 +46,6 @@ from . import (
     debugcommands,
     revset,
     revset_predicates,
-    script_commands,
     strip,
     subrepo,
     templatekw,
@@ -54,6 +53,9 @@ from . import (
 
 from .admin import (
     chainsaw as admin_chainsaw,
+)
+from .cmd_impls import (
+    script_commands,
 )
 from .hgweb import (
     webcommands,

@@ -8,8 +8,8 @@
 from __future__ import annotations
 
 
-from .i18n import _
-from . import (
+from ..i18n import _
+from .. import (
     cmd_impls,
     logcmdutil,
     pycompat,
