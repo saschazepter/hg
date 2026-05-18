@@ -23,8 +23,8 @@ narrow clone a file, f10
   new changesets *:* (glob)
   $ cd narrow
   $ hg debugrequires | grep -v generaldelta
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   narrowhg-experimental
   persistent-nodemap (rust !)

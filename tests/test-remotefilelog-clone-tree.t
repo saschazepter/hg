@@ -28,8 +28,8 @@
   no changes found
   $ cd shallow
   $ hg debugrequires
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   exp-remotefilelog-repo-req-1
   fncache
   generaldelta
@@ -75,8 +75,8 @@
   no changes found
   $ cd shallow2
   $ hg debugrequires
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   exp-remotefilelog-repo-req-1
   fncache
   generaldelta
@@ -120,8 +120,8 @@
 
   $ ls shallow3/.hg/store/data
   $ hg debugrequires -R shallow3/
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   exp-remotefilelog-repo-req-1
   fncache
   generaldelta

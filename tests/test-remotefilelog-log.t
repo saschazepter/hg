@@ -28,8 +28,8 @@ Shallow clone from full
   no changes found
   $ cd shallow
   $ hg debugrequires
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   exp-remotefilelog-repo-req-1
   fncache
   generaldelta

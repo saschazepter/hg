@@ -62,9 +62,9 @@ Cloning a specific file when stream clone is supported
 Making sure we have the correct set of requirements
 
   $ hg debugrequires
+  dirstate-v2 (dirstate-v2 !)
   dotencode (tree !)
   dotencode (flat-fncache !)
-  dirstate-v2 (dirstate-v2 !)
   fncache (tree !)
   fncache (flat-fncache !)
   generaldelta

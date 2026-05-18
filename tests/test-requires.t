@@ -48,8 +48,8 @@ another repository of push/pull/clone on localhost:
   > supportlocally = $TESTTMP/supported-locally/supportlocally.py
   > EOF
   $ hg -R supported debugrequirements
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   featuresetup-test
   fncache
   generaldelta

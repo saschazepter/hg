@@ -18,8 +18,8 @@ creating 'local'
   $ checknewrepo local
   store created
   00changelog.i created
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -105,8 +105,8 @@ creating repo with format.dotencode=false
   $ checknewrepo old4
   store created
   00changelog.i created
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   persistent-nodemap (rust !)
   revlog-compression-zstd (zstd !)
@@ -224,8 +224,8 @@ creating 'local/sub/repo'
   $ checknewrepo local/sub/repo
   store created
   00changelog.i created
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -247,8 +247,8 @@ init should (for consistency with clone) expand the url
   $ checknewrepo "url from paths"
   store created
   00changelog.i created
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -266,8 +266,8 @@ verify that clone also expand urls
   $ checknewrepo "another paths url"
   store created
   00changelog.i created
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   persistent-nodemap (rust !)

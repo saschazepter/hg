@@ -17,8 +17,8 @@
 Enable sparse profile
 
   $ hg debugrequires
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   persistent-nodemap (rust !)
@@ -37,8 +37,8 @@ Enable sparse profile
 Requirement for sparse added when sparse is enabled
 
   $ hg debugrequires --config extensions.sparse=
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   exp-sparse
   fncache
   generaldelta
@@ -60,8 +60,8 @@ Requirement for sparse is removed when sparse is disabled
   $ hg debugsparse --reset --config extensions.sparse=
 
   $ hg debugrequires
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   persistent-nodemap (rust !)

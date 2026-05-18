@@ -57,8 +57,8 @@ XXX: we should have a flag in `hg debugsparse` to list the sparse profile
   [1]
 
   $ hg debugrequires
-  dotencode
   dirstate-v2 (dirstate-v2 !)
+  dotencode
   fncache
   generaldelta
   narrowhg-experimental
