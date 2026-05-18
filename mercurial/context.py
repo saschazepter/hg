@@ -844,6 +844,12 @@ class changectx(basectx, i_context.IChangeContext):
         wctx.setbase(self.p1())
         return wctx
 
+    def new_overlay(self) -> overlayworkingctx:
+        """create a overlayworkingctx based on this changectx's p1"""
+        wctx = overlayworkingctx(self.repo())
+        wctx.setbase(self)
+        return wctx
+
 
 class basefilectx(abc.ABC):
     """A filecontext object represents the common logic for its children:
