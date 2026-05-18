@@ -98,7 +98,8 @@ def cmd_script_revs_check(ui, repo, *revs, exists: bool | None = None, **opts):
     ]
     + cmd_impls.commit_opts
     + cmd_impls.commit_opts2
-    + cmd_impls.merge_tool_opts,
+    + cmd_impls.merge_tool_opts
+    + cmd_impls.formatter_opts,
     _(b'P1 P2'),
     helpcategory=command.CATEGORY_MISC,
 )
@@ -147,6 +148,9 @@ def cmd_script_merge(ui, repo, p1, p2, dry_run=False, tool=b"", **opts):
             user=opts.get("user"),
             date=opts.get("date"),
         )
-        repo.commitctx(mctx)
+        node = repo.commitctx(mctx)
         # NOTE: if we want a --confirm option, it would likely fit here.
+        if opts.get('template'):
+            render = cmdutil.rendertemplate(repo[node], opts['template'])
+            repo.ui.write(render)
     return 0

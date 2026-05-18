@@ -393,3 +393,12 @@ Test when there is nothing to merge
   abort: nothing to merge
   (use 'hg update' or check 'hg heads')
   [255]
+
+Test template usage
+===================
+
+  $ hg script::merge --message merge_f3_b2 'desc(foo_3)' 'desc(bar_2)' --template '{node}\n{p1}\n{p2}\n{desc}\n'
+  462148309d33601192d2bd24dd4d2469d8df8c02
+  3:49ec3c64341f
+  5:a349f34727bb
+  merge_f3_b2

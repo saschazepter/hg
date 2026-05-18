@@ -538,7 +538,7 @@ Show all commands + options
   revert: all, date, rev, no-backup, interactive, include, exclude, dry-run
   rollback: dry-run, force
   root: share-source, template
-  script::merge: dry-run, message, logfile, date, user, tool
+  script::merge: dry-run, message, logfile, date, user, tool, template
   script::revs: exists, style, template
   serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate, print-url, subrepos
   shelve: addremove, unknown, cleanup, date, delete, edit, keep, list, message, name, patch, interactive, stat, include, exclude
