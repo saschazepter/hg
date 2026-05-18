@@ -2414,6 +2414,9 @@ class overlayworkingctx(committablectx):
         assert p1node == self._wrappedctx.node()
         self._parents = [self._wrappedctx, self._repo.unfiltered()[p2node]]
 
+    def branch(self):
+        return self._wrappedctx.branch()
+
     def data(self, path: bytes) -> bytes:
         if self.isdirty(path):
             if self._cache[path][b'exists']:
@@ -2703,7 +2706,7 @@ class overlayworkingctx(committablectx):
                 return None
 
         if branch is None:
-            branch = self._wrappedctx.branch()
+            branch = self.branch()
 
         return memctx(
             self._repo,
