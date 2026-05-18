@@ -15,6 +15,11 @@ SUPPORTED = [
     rb'{if(rev, "rev is {rev}\n")}',
     b"{'on branch {branch}'}",
     rb"{r'a\nb'}",
+    b"{node|short}",
+    b"{-(1 + 2) * 3}",
+    rb'{files % "{file}\n"}',
+    b"{0}",
+    b"{(0)}",
 ]
 
 # Templates the Rust parser does not handle but the Python parser does. Under

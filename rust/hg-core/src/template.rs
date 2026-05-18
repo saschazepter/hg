@@ -3,9 +3,14 @@
 //! This implements parsing for an incomplete subset of template expressions.
 //! Remaining expressions will fall back to the Python parser.
 
+use std::sync::LazyLock;
+
 use itertools::Itertools as _;
 use pest::Parser;
 use pest::iterators::Pair;
+use pest::pratt_parser::Assoc;
+use pest::pratt_parser::Op;
+use pest::pratt_parser::PrattParser;
 use pest_derive::Parser;
 
 /// pest parser generated from `template.pest`. The `Rule` enum used
@@ -13,6 +18,32 @@ use pest_derive::Parser;
 #[derive(Parser)]
 #[grammar = "template.pest"]
 pub struct TemplateParser;
+
+/// Prefix operator applied to a single operand.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum UnaryOp {
+    /// Arithmetic negation, e.g. `-rev`.
+    Negate,
+}
+
+/// Infix operator applied to a left and right operand.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum BinaryOp {
+    /// Member access, e.g. `a.b`.
+    Dot,
+    /// Filter application, e.g. `node|short`.
+    Pipe,
+    /// Map/format over a list, e.g. `files % "{file}\n"`.
+    List,
+    /// Addition.
+    Add,
+    /// Subtraction.
+    Sub,
+    /// Multiplication.
+    Mul,
+    /// Division.
+    Div,
+}
 
 /// A node in the parsed template syntax tree.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -40,6 +71,13 @@ pub enum Node {
         /// The argument value.
         value: Box<Node>,
     },
+    /// A prefix operator applied to an operand.
+    Unary(UnaryOp, Box<Node>),
+    /// An infix operator applied to a left and right operand.
+    Binary(BinaryOp, Box<Node>, Box<Node>),
+    /// Parenthesized expression. This is needed so that `{(0)}` evaluates as
+    /// `0` but `{0}` does not (it instead tries to look up a symbol named `0`).
+    Group(Box<Node>),
 }
 
 /// An error produced while parsing a template.
@@ -147,7 +185,50 @@ fn parse_string_literal(pair: Pair<Rule>) -> Result<Node, ParseError> {
     Ok(Node::Template(chunks))
 }
 
+static PRATT: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
+    // In order of ascending precedence.
+    PrattParser::new()
+        .op(Op::infix(Rule::add_op, Assoc::Left)
+            | Op::infix(Rule::sub_op, Assoc::Left))
+        .op(Op::infix(Rule::mul_op, Assoc::Left)
+            | Op::infix(Rule::div_op, Assoc::Left))
+        .op(Op::infix(Rule::pipe_op, Assoc::Left)
+            | Op::infix(Rule::list_op, Assoc::Left))
+        .op(Op::infix(Rule::dot_op, Assoc::Left))
+        .op(Op::prefix(Rule::negate_op))
+});
+
 fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
+    debug_assert_eq!(pair.as_rule(), Rule::expr);
+    PRATT
+        .map_primary(parse_primary)
+        .map_prefix(|op, rhs| {
+            let rhs = rhs?;
+            let op = match op.as_rule() {
+                Rule::negate_op => UnaryOp::Negate,
+                r => panic!("unexpected prefix op rule: {r:?}"),
+            };
+            Ok(Node::Unary(op, Box::new(rhs)))
+        })
+        .map_infix(|lhs, op, rhs| {
+            let lhs = lhs?;
+            let rhs = rhs?;
+            let op = match op.as_rule() {
+                Rule::dot_op => BinaryOp::Dot,
+                Rule::pipe_op => BinaryOp::Pipe,
+                Rule::list_op => BinaryOp::List,
+                Rule::add_op => BinaryOp::Add,
+                Rule::sub_op => BinaryOp::Sub,
+                Rule::mul_op => BinaryOp::Mul,
+                Rule::div_op => BinaryOp::Div,
+                r => panic!("unexpected infix op rule: {r:?}"),
+            };
+            Ok(Node::Binary(op, Box::new(lhs), Box::new(rhs)))
+        })
+        .parse(pair.into_inner())
+}
+
+fn parse_primary(pair: Pair<Rule>) -> Result<Node, ParseError> {
     match pair.as_rule() {
         Rule::integer => {
             let location = pair.as_span().start();
@@ -165,11 +246,24 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
             let name = name_pair.as_str().to_owned();
             let args = args_pair
                 .into_inner()
-                .map(parse_expr)
+                .map(parse_function_arg)
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(Node::FunctionCall { name, args })
         }
         Rule::string_literal => parse_string_literal(pair),
+        Rule::paren => {
+            let inner = pair
+                .into_inner()
+                .next()
+                .expect("paren must have one inner expr");
+            Ok(Node::Group(Box::new(parse_expr(inner)?)))
+        }
+        other => panic!("unexpected primary rule: {other:?}"),
+    }
+}
+
+fn parse_function_arg(pair: Pair<Rule>) -> Result<Node, ParseError> {
+    match pair.as_rule() {
         Rule::keyvalue => {
             let [key_pair, value_pair] =
                 pair.into_inner().collect_array().unwrap();
@@ -178,7 +272,8 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Node, ParseError> {
             let value = Box::new(parse_expr(value_pair)?);
             Ok(Node::KeyValue { key, value })
         }
-        other => panic!("unexpected expression rule: {other:?}"),
+        Rule::expr => parse_expr(pair),
+        other => panic!("unexpected function arg rule: {other:?}"),
     }
 }
 
@@ -201,7 +296,7 @@ mod tests {
 
     #[test]
     fn rejects_unsupported() {
-        assert!(parse_template("{desc|short}").is_err());
+        assert!(parse_template(r#"{\"foo\"}"#).is_err()); // legacy escape-quoted string
         assert!(parse_template(r"a\xb").is_err()); // unrecognized escape
         assert!(parse_template("{}").is_err()); // empty substitution
         assert!(parse_template("{f(a,)}").is_err()); // trailing comma
@@ -249,6 +344,45 @@ mod tests {
             Node::Template(vec![Node::Template(vec![Node::Text(
                 br"a\nb".to_vec(),
             )])]),
+        );
+    }
+
+    /// Unary and binary operators with precedence/associativity.
+    #[test]
+    fn parses_operators() {
+        // Pipe binds tighter than subtraction.
+        assert_eq!(
+            parse_template("{1 - 3 | stringify}").unwrap(),
+            Node::Template(vec![Node::Binary(
+                BinaryOp::Sub,
+                Box::new(Node::Integer(1)),
+                Box::new(Node::Binary(
+                    BinaryOp::Pipe,
+                    Box::new(Node::Integer(3)),
+                    Box::new(Node::Symbol("stringify".into())),
+                )),
+            )]),
+        );
+        // Parens add an explicit Group wrapper.
+        assert_eq!(
+            parse_template("{(1 + 2) * 3}").unwrap(),
+            Node::Template(vec![Node::Binary(
+                BinaryOp::Mul,
+                Box::new(Node::Group(Box::new(Node::Binary(
+                    BinaryOp::Add,
+                    Box::new(Node::Integer(1)),
+                    Box::new(Node::Integer(2)),
+                )))),
+                Box::new(Node::Integer(3)),
+            )]),
+        );
+        // Unary negate as a prefix.
+        assert_eq!(
+            parse_template("{-3}").unwrap(),
+            Node::Template(vec![Node::Unary(
+                UnaryOp::Negate,
+                Box::new(Node::Integer(3)),
+            )]),
         );
     }
 }

@@ -26,7 +26,32 @@ function      = { symbol ~ "(" ~ function_args ~ ")" }
 
 integer  = @{ ASCII_DIGIT+ }
 symbol   = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-expr         = _{ function | string_literal | integer | symbol }
+
+negate_op = { "-" }
+prefix_op = _{ negate_op }
+
+dot_op   = { "." }
+pipe_op  = { "|" }
+list_op  = { "%" }
+mul_op   = { "*" }
+div_op   = { "/" }
+add_op   = { "+" }
+sub_op   = { "-" }
+infix_op = _{
+  dot_op
+  | pipe_op
+  | list_op
+  | mul_op
+  | div_op
+  | add_op
+  | sub_op
+}
+
+paren    = { "(" ~ expr ~ ")" }
+primary  = _{ function | string_literal | integer | symbol | paren }
+prefixed = _{ prefix_op* ~ primary }
+expr     = { prefixed ~ (infix_op ~ prefixed)* }
+
 substitution = !{ "{" ~ expr ~ "}" }
 
 chunk    = _{ substitution | text }

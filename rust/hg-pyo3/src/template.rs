@@ -63,6 +63,33 @@ fn node_to_py<'py>(
             )?
             .into_any())
         }
+        template::Node::Group(inner) => {
+            let inner_node = node_to_py(py, *inner)?;
+            Ok(PyTuple::new(py, [anybytes(py, b"group")?, inner_node])?
+                .into_any())
+        }
+        template::Node::Unary(op, operand) => {
+            let tag: &[u8] = match op {
+                template::UnaryOp::Negate => b"negate",
+            };
+            let operand_node = node_to_py(py, *operand)?;
+            Ok(PyTuple::new(py, [anybytes(py, tag)?, operand_node])?.into_any())
+        }
+        template::Node::Binary(op, lhs, rhs) => {
+            let tag: &[u8] = match op {
+                template::BinaryOp::Dot => b".",
+                template::BinaryOp::Pipe => b"|",
+                template::BinaryOp::List => b"%",
+                template::BinaryOp::Add => b"+",
+                template::BinaryOp::Sub => b"-",
+                template::BinaryOp::Mul => b"*",
+                template::BinaryOp::Div => b"/",
+            };
+            let lhs_node = node_to_py(py, *lhs)?;
+            let rhs_node = node_to_py(py, *rhs)?;
+            Ok(PyTuple::new(py, [anybytes(py, tag)?, lhs_node, rhs_node])?
+                .into_any())
+        }
     }
 }
 
