@@ -17,7 +17,6 @@ Simple successful
 
   $ hg script::revs 0
   1ea73414a91b0920940797d8fc6a11e447f8ea1e
-  [2]
   $ hg script::revs -e 0
   $ hg script::revs --exists 0
   $ hg script::revs -e 0 -T "{rev}\n"

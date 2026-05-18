@@ -80,8 +80,7 @@ def cmd_script_revs_check(ui, repo, *revs, exists: bool | None = None, **opts):
         )
         logcmdutil.displayrevs(ui, repo, revs, displayer)
 
-    exists = bool(exists)  # prevent potenial silly bug
-    if exists is not None and (any_match != exists):
+    if exists is not None and (any_match != bool(exists)):
         return 2
     return 0
 
