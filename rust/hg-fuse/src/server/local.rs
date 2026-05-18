@@ -1,10 +1,10 @@
 //! Implementation of a [`StoreBackend`] based off a local repository.
 
 use std::convert::Infallible;
+use std::sync::atomic::AtomicU32;
 
 use dashmap::DashMap;
 use hg::Node;
-use hg::UncheckedRevision;
 use hg::errors::HgError;
 use hg::matchers::Matcher;
 use hg::narrow;
@@ -38,6 +38,12 @@ pub struct LocalBackend {
     server_config: Config,
     /// A cache of file nodeids to their size
     file_nodeid_to_size: DashMap<Node, u64>,
+    /// Mapping from revision to revision index
+    node_to_idx: DashMap<Node, u32>,
+    /// Mapping from revision index to revision
+    idx_to_node: DashMap<u32, Node>,
+    /// Counter for generating indices for node_to_idx and idx_to_node
+    current_idx: AtomicU32,
     /// The narrow matcher for this repository, computed at the start
     narrow_matcher: Box<dyn Matcher + Send + 'static>,
 }
@@ -60,7 +66,15 @@ impl LocalBackend {
             Ok(())
         });
 
-        Ok(Self { repo, server_config, file_nodeid_to_size, narrow_matcher })
+        Ok(Self {
+            repo,
+            server_config,
+            file_nodeid_to_size,
+            node_to_idx: DashMap::new(),
+            idx_to_node: DashMap::new(),
+            current_idx: AtomicU32::new(1),
+            narrow_matcher,
+        })
     }
 
     /// Returns an iterator over this manifest given this sparse matcher
@@ -115,6 +129,11 @@ impl StoreBackend<LocalToken> for LocalBackend {
     }
 
     fn branch(&self, changeset: Node) -> Result<String, Error<LocalToken>> {
+        if self.repo.changelog()?.branch(changeset).is_err() {
+            // TODO report errors somehow?
+            _ = self.repo.reload_revlogs();
+        }
+
         match self.repo.changelog()?.branch(changeset) {
             Ok(branch) => Ok(branch),
             Err(err) => match err {
@@ -130,34 +149,30 @@ impl StoreBackend<LocalToken> for LocalBackend {
         &self,
         changeset: Node,
     ) -> Result<RevisionIdx, Error<LocalToken>> {
-        if let Ok(idx) = self
-            .repo
-            .changelog()?
-            .rev_from_node(changeset.into())
-            .map(|n| RevisionIdx(n.0.try_into().expect("invalid revision")))
-        {
-            return Ok(idx);
-        }
-        // TODO report errors somehow?
-        _ = self.repo.reload_revlogs();
-        Ok(self
-            .repo
-            .changelog()?
-            .rev_from_node(changeset.into())
-            .map(|n| RevisionIdx(n.0.try_into().expect("invalid revision")))
-            .map_err(|_| ErrorKind::NoSuchChangeset(changeset))?)
+        let entry = self.node_to_idx.entry(changeset);
+        let idx = match entry {
+            dashmap::Entry::Occupied(entry) => *entry.get(),
+            dashmap::Entry::Vacant(vacant) => {
+                let idx = self
+                    .current_idx
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                assert!(idx < u32::MAX, "inode overflow");
+                self.idx_to_node.insert(idx, changeset);
+                vacant.insert(idx);
+                idx
+            }
+        };
+        Ok(RevisionIdx(idx))
     }
 
     fn node_for_idx(
         &self,
         idx: RevisionIdx,
     ) -> Result<Node, Error<LocalToken>> {
-        let changelog = self.repo.changelog()?;
-        let revnum =
-            idx.0.try_into().map_err(|_| ErrorKind::InvalidRevisionIdx(idx))?;
-        let node_opt =
-            changelog.node_from_unchecked_rev(UncheckedRevision(revnum));
-        Ok(*node_opt.ok_or(ErrorKind::InvalidRevisionIdx(idx))?)
+        Ok(*self
+            .idx_to_node
+            .get(&idx.0)
+            .ok_or(ErrorKind::InvalidRevisionIdx(idx))?)
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
@@ -165,9 +180,15 @@ impl StoreBackend<LocalToken> for LocalBackend {
         &self,
         changeset: Node,
     ) -> Result<impl ChangesetFiles<LocalToken>, Error<LocalToken>> {
+        if self.repo.changelog()?.rev_from_node(changeset.into()).is_err() {
+            // TODO report errors somehow?
+            _ = self.repo.reload_revlogs();
+        }
+
         // Get the manifest
-        let changelog = self.repo.changelog()?;
-        let changeset_rev = changelog
+        let changeset_rev = self
+            .repo
+            .changelog()?
             .rev_from_node(changeset.into())
             .map_err(|_| ErrorKind::NoSuchChangeset(changeset))?;
         let manifest = self.repo.manifest_for_node(changeset)?;

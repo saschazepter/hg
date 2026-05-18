@@ -120,11 +120,11 @@ FUSE contents are still valid
   1b
 
   $ ls commits/$rev3a/files
-  ls: cannot access 'commits/2239aaabda03ff43ac5143a81ae4f9e9c5cef577/files': Input/output error (known-bad-output !)
-  [2]
+  0
+  3a
   $ ls commits/$rev1a/files
-  ls: cannot access 'commits/cbffcea23d292aff617f098d05aec9ffc8a839da/files': Input/output error (known-bad-output !)
-  [2]
+  0
+  1a
 
 Cleanup
 -------
