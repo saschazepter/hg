@@ -1,3 +1,5 @@
+//! Logic for accessing the manifestlog and querying manifests.
+
 use std::cmp::Ordering as O;
 use std::num::NonZeroU8;
 use std::ops::Deref;
@@ -56,13 +58,13 @@ impl Manifestlog {
         Ok(Self { revlog })
     }
 
-    /// Return the `Manifest` for the given node ID.
+    /// Return the [`Manifest`] for the given node ID.
     ///
     /// Note: this is a node ID in the manifestlog, typically found through
-    /// `ChangelogEntry::manifest_node`. It is *not* the node ID of any
-    /// changeset.
+    /// [`crate::revlog::changelog::ChangelogRevisionData::manifest_node`].
+    /// It is *not* the node ID of any changeset.
     ///
-    /// See also `Repo::manifest_for_node`
+    /// See also [`crate::repo::Repo::manifest_for_node`].
     pub fn data_for_node(
         &self,
         node: NodePrefix,
@@ -71,7 +73,7 @@ impl Manifestlog {
         self.data(rev)
     }
 
-    /// Return the rev matching this `node` in this manifest
+    /// Return the rev matching this `node` in this manifest.
     pub fn rev_for_node(
         &self,
         node: NodePrefix,
@@ -79,12 +81,12 @@ impl Manifestlog {
         self.revlog.rev_from_node(node)
     }
 
-    /// Return the `Manifest` of a given revision number.
+    /// Return the [`Manifest`] of a given revision number.
     ///
     /// Note: this is a revision number in the manifestlog, *not* of any
     /// changeset.
     ///
-    /// See also `Repo::manifest_for_rev`
+    /// See also [`crate::repo::Repo::manifest_for_rev`].
     pub fn data_for_unchecked_rev(
         &self,
         rev: UncheckedRevision,
@@ -124,10 +126,10 @@ impl Manifestlog {
     }
 }
 
-/// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
+/// [`Manifestlog`] entry which knows how to interpret the data bytes.
 pub struct Manifest {
     /// Either the manifestlog revision that this [`Manifest`] is from, or
-    /// the working directory
+    /// the working directory.
     #[expect(unused)]
     rev: RevisionOrWdir,
     /// Format for a manifest: flat sequence of variable-size entries,
@@ -143,11 +145,12 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// Return a new empty manifest
+    /// Return a new empty manifest.
     pub fn empty() -> Self {
         Self { rev: NULL_REVISION.into(), bytes: Box::new(vec![]) }
     }
 
+    /// Creates a manifest from its manifestlog revision and full text bytes.
     pub fn from_bytes(
         rev: impl Into<RevisionOrWdir>,
         bytes: Box<dyn Deref<Target = [u8]> + Send + Sync>,
@@ -155,6 +158,7 @@ impl Manifest {
         Self { rev: rev.into(), bytes }
     }
 
+    /// Iterates over the entries in the manifest.
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ManifestEntry<'_>, RevlogError>> {
@@ -164,6 +168,7 @@ impl Manifest {
             .map(ManifestEntry::from_raw)
     }
 
+    /// Iterates over the entries in the manifest (in parallel).
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<Item = Result<ManifestEntry<'_>, RevlogError>>
@@ -174,7 +179,7 @@ impl Manifest {
             .map(ManifestEntry::from_raw)
     }
 
-    /// If the given path is in this manifest, return its filelog node ID
+    /// Looks up a path in the manifest. Returns `None` if not found.
     pub fn find_by_path(
         &self,
         path: &HgPath,
@@ -249,6 +254,7 @@ impl Manifest {
         }
     }
 
+    /// Returns the diff from this manifest to `other`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn diff<'m1: 'm_any, 'm2: 'm_any, 'm_any>(
         &'m1 self,
@@ -277,6 +283,13 @@ impl Manifest {
     }
 }
 
+/// Diff of two manifests, represented as a list of tuples.
+///
+/// * `(Some(_), Some(_))`: paths match, filenode and/or flags differ
+/// * `(None, Some(_))`: file was added
+/// * `(Some(_), None)`: file was removed
+///
+/// It will never contain `(None, None)`.
 pub type ManifestDiff<'a> =
     Vec<(Option<ManifestEntry<'a>>, Option<ManifestEntry<'a>>)>;
 
@@ -328,10 +341,10 @@ impl ManifestFlags {
     }
 }
 
-/// A manifest line is a Lazy ManifestEntry used during comparison
+/// A reference to a line in a manifest.
 #[derive(Copy, Clone)]
 struct ManifestLine<'a> {
-    /// The size of that manifest line
+    /// The line, including the newline character.
     line: &'a [u8],
     /// An optional length of the filename in case it was already computed
     ///
@@ -341,7 +354,7 @@ struct ManifestLine<'a> {
 
 impl<'a> ManifestLine<'a> {
     /// Grabs the next line from a byte slice and returns the line if any,
-    /// with the remainder of the byte slice
+    /// with the remainder of the byte slice.
     fn grab_next(data: &'a [u8]) -> (Option<ManifestLine<'a>>, &'a [u8]) {
         if !data.is_empty() {
             match memchr::memchr(b'\n', data) {
@@ -356,14 +369,14 @@ impl<'a> ManifestLine<'a> {
         }
     }
 
-    /// Size of the line in bytes
+    /// Returns the size of the line in bytes, including the newline.
     fn size(&self) -> u32 {
         self.line.len().try_into().expect("manifest line larger than 4GB?")
     }
 
-    /// The filename part of that line
+    /// Returns the filename part of the line.
     ///
-    /// When accessing this, the `filename_len` is cached to speedup future
+    /// When accessing this, the `filename_len` is cached to speed up future
     /// access to the "data" part.
     fn filename(&mut self) -> &'a [u8] {
         if self.filename_len < 0 {
@@ -376,12 +389,13 @@ impl<'a> ManifestLine<'a> {
         &self.line[0..self.filename_len as usize]
     }
 
-    /// The non-filename part of this manifest line
+    /// Returns the non-filename part of the manifest line.
     pub(self) fn data(self) -> &'a [u8] {
         debug_assert!(self.filename_len > 0);
         &self.line[self.filename_len as usize..self.line.len() - 1]
     }
 
+    /// Parses this line into a [`ManifestEntry`].
     fn into_entry(self) -> Result<ManifestEntry<'a>, RevlogError> {
         let do_error = || {
             Err(RevlogError::CorruptedManifest {
@@ -415,10 +429,8 @@ impl<'a> ManifestLine<'a> {
     }
 }
 
-/// Iterate over two manifests and yield the pair of line associated with each
-/// filename.
-///
-/// If the manifest are not sorted, this is expected to misbehave
+/// An iterator over two manifests that yields lines with matching filenames
+/// together. Assumes that both manifests are sorted.
 struct SyncLineIterator<'a> {
     m1_data: &'a [u8],
     m1_line: Option<ManifestLine<'a>>,
@@ -940,7 +952,7 @@ where
     delta
 }
 
-/// `Manifestlog` entry which knows how to interpret the `manifest` data bytes.
+/// A [`ManifestLine`] parsed into path, node, and flags.
 #[derive(PartialEq)]
 pub struct ManifestEntry<'manifest> {
     pub path: &'manifest HgPath,
@@ -968,6 +980,8 @@ impl<'a> ManifestEntry<'a> {
         })
     }
 
+    /// Creates a [`ManifestEntry`] from a path and the rest of the line,
+    /// excluding the newline.
     fn from_path_and_rest(path: &'a [u8], rest: &'a [u8]) -> Self {
         let (hex_node_id, flags) = match rest.split_last() {
             Some((&b'x', rest)) => (rest, Some(b'x')),
@@ -984,11 +998,13 @@ impl<'a> ManifestEntry<'a> {
         }
     }
 
+    /// Creates a [`ManifestEntry`] from a line, excluding the newline.
     fn from_raw(bytes: &'a [u8]) -> Result<Self, RevlogError> {
         let (path, rest) = Self::split_path(bytes)?;
         Ok(Self::from_path_and_rest(path, rest))
     }
 
+    /// Returns the entry's filelog node.
     pub fn node_id(&self) -> Result<Node, RevlogError> {
         Node::from_hex_for_repo(self.hex_node_id)
     }
