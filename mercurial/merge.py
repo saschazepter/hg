@@ -12,7 +12,10 @@ import struct
 from typing import Iterator
 
 from .i18n import _
-from .node import nullrev
+from .node import (
+    nullrev,
+    wdirrev,
+)
 
 from . import (
     copies,
@@ -1846,6 +1849,25 @@ def merge(ctx, labels=None, force=False, wc=None):
         mergeforce=force,
         wc=wc,
     )
+
+
+def merge_in_memory(p1ctx, p2ctx):
+    """return an overlayworkingctx with the merge of p1ctx and p2ctx"""
+
+    if p1ctx.rev() == nullrev:
+        raise error.InputError(_(b'cannot use "null" as p1'))
+    elif p1ctx.rev() == wdirrev:
+        raise error.InputError(_(b'cannot use "wdir" as p1'))
+    elif p2ctx.rev() == nullrev:
+        raise error.InputError(_(b'cannot use "null" as p2'))
+    elif p2ctx.rev() == wdirrev:
+        raise error.InputError(_(b'cannot use "wdir" as p2'))
+
+    wctx = p1ctx.new_overlay()
+    merge(p2ctx, wc=wctx)
+    wctx.setparents(p1ctx.node(), p2ctx.node())
+    # NOTE: we should return None if nothing to merge
+    return wctx
 
 
 def update(ctx, updatecheck=None, wc=None):

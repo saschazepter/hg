@@ -93,6 +93,8 @@ Test hiding some commands (which also happens to hide an entire category).
   
   Miscellaneous commands:
   
+   script::merge
+                 Merge two revisions in memory.
    script::revs  given a revset, list its content or/amd check that it matches
                  revisions
   
@@ -241,6 +243,8 @@ Test hiding some topics.
   
   Miscellaneous commands:
   
+   script::merge
+                 Merge two revisions in memory.
    script::revs  given a revset, list its content or/amd check that it matches
                  revisions
   

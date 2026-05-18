@@ -397,6 +397,8 @@ Testing -h/--help:
   
   Miscellaneous commands:
   
+   script::merge
+                 Merge two revisions in memory.
    script::revs  given a revset, list its content or/amd check that it matches
                  revisions
   
@@ -541,6 +543,8 @@ Testing -h/--help:
   
   Miscellaneous commands:
   
+   script::merge
+                 Merge two revisions in memory.
    script::revs  given a revset, list its content or/amd check that it matches
                  revisions
   

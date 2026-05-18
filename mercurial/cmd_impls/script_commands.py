@@ -11,7 +11,10 @@ from __future__ import annotations
 from ..i18n import _
 from .. import (
     cmd_impls,
+    cmdutil,
+    error,
     logcmdutil,
+    merge as merge_mod,
     pycompat,
     registrar,
     scmutil,
@@ -80,4 +83,70 @@ def cmd_script_revs_check(ui, repo, *revs, exists: bool | None = None, **opts):
     exists = bool(exists)  # prevent potenial silly bug
     if exists is not None and (any_match != exists):
         return 2
+    return 0
+
+
+@command(
+    b'script::merge',
+    [
+        (
+            b'n',
+            b'dry-run',
+            None,
+            _(b"do not actually commit the merge"),
+        ),
+    ]
+    + cmd_impls.commit_opts
+    + cmd_impls.commit_opts2
+    + cmd_impls.merge_tool_opts,
+    _(b'P1 P2'),
+    helpcategory=command.CATEGORY_MISC,
+)
+def cmd_script_merge(ui, repo, p1, p2, dry_run=False, tool=b"", **opts):
+    """Merge two revisions in memory.
+
+    If the merge succeed, commit the result, abort otherwise.
+
+    Use --dry-run to check if a merge would succeed without actually committing
+    the result, returning 0 if no conflict exist, return 2 otherwise.
+    """
+    message = cmdutil.logmessage(repo.ui, opts=pycompat.byteskwargs(opts))
+    if not (message or dry_run):
+        # NOTE: we might want to allow spawning an editor post merge. Maybe if
+        # --edit is passed?
+        msg = _(b'not commit message specified')
+        hint = _(b"use --message or --logfile")
+        raise error.InputError(msg, hint=hint)
+
+    with repo.lock(), repo.transaction(b"merge"):
+        p1ctx = logcmdutil.revsingle(repo, p1)
+        p2ctx = logcmdutil.revsingle(repo, p2)
+
+        try:
+            overrides = {}
+            if tool:
+                overrides[(b'ui', b'forcemerge')] = tool
+            with ui.configoverride(overrides, b'script::merge'):
+                wctx = merge_mod.merge_in_memory(
+                    p1ctx,
+                    p2ctx,
+                )
+        except error.InMemoryMergeConflictsError as e:
+            if dry_run:
+                return 2
+            raise error.Abort(
+                b'cannot merge in memory: merge conflicts',
+                hint=_(bytes(e)),
+            )
+
+        if dry_run:
+            return 0
+
+        mctx = wctx.tomemctx(
+            message,
+            user=opts.get("user"),
+            date=opts.get("date"),
+        )
+        repo.commitctx(mctx)
+        # NOTE: if we want a --confirm option, it would likely fit here.
     return 0

@@ -2244,6 +2244,10 @@ help/ shows help topics
         "topic": "root"
       },
       {
+        "summary": "Merge two revisions in memory.",
+        "topic": "script::merge"
+      },
+      {
         "summary": "given a revset, list its content or/amd check that it matches revisions",
         "topic": "script::revs"
       },

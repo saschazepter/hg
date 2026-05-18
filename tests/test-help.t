@@ -145,6 +145,8 @@ the extension is unknown.
   
   Miscellaneous commands:
   
+   script::merge
+                 Merge two revisions in memory.
    script::revs  given a revset, list its content or/amd check that it matches
                  revisions
   
@@ -285,6 +287,8 @@ the extension is unknown.
   
   Miscellaneous commands:
   
+   script::merge
+                 Merge two revisions in memory.
    script::revs  given a revset, list its content or/amd check that it matches
                  revisions
   
@@ -2958,6 +2962,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   print the root (top) of the current working directory
+  </td></tr>
+  <tr><td>
+  <a href="/help/script::merge">
+  script::merge
+  </a>
+  </td><td>
+  Merge two revisions in memory.
   </td></tr>
   <tr><td>
   <a href="/help/script::revs">
