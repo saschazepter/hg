@@ -188,8 +188,7 @@ template_opts: CmdOptionsT = [
         _(b'display using template map file (DEPRECATED)'),
         _(b'STYLE'),
     ),
-    (b'T', b'template', b'', _(b'display with template'), _(b'TEMPLATE')),
-]
+] + formatter_opts
 
 log_opts: CmdOptionsT = [
     (b'p', b'patch', None, _(b'show patch')),
