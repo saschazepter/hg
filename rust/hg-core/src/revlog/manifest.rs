@@ -256,10 +256,10 @@ impl Manifest {
 
     /// Returns the diff from this manifest to `other`.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn diff<'m1: 'm_any, 'm2: 'm_any, 'm_any>(
-        &'m1 self,
-        other: &'m2 Manifest,
-    ) -> Result<ManifestDiff<'m_any>, RevlogError> {
+    pub fn diff<'a>(
+        &'a self,
+        other: &'a Manifest,
+    ) -> Result<ManifestDiff<'a>, RevlogError> {
         let mut res = Vec::new();
         for lines in SyncLineIterator::new(&self.bytes, &other.bytes) {
             match lines {
