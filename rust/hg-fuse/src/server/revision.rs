@@ -41,6 +41,7 @@ use hg::utils::u64_u;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 
+use super::store::DirstateBaseInfo;
 use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::RootInodeEncoder;
@@ -66,10 +67,10 @@ impl<T: FileToken> OwnedRevision<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
-    ) -> Result<Self, StoreError<T>> {
-        let revision =
+    ) -> Result<(Self, DirstateBaseInfo), StoreError<T>> {
+        let (revision, new_dirstate_info) =
             RevisionTree::from_revision(store, changeset, start_time)?;
-        Ok(Self { revision })
+        Ok((Self { revision }, new_dirstate_info))
     }
 
     /// Preload this revision's filesystem structure into the kernel's caches.
@@ -259,8 +260,8 @@ impl<T: FileToken> RevisionTree<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
-    ) -> Result<RevisionTree<T>, StoreError<T>> {
-        let (dirstate, offset_to_token, inode_encoder) =
+    ) -> Result<(RevisionTree<T>, DirstateBaseInfo), StoreError<T>> {
+        let (dirstate, inode_encoder, offset_to_token, new_dirstate_base) =
             Self::process_manifest_files(store, changeset, start_time)?;
 
         // Remember the inodes for reserved entries
@@ -273,7 +274,7 @@ impl<T: FileToken> RevisionTree<T> {
             reserved,
             reserved_contents: inode_encoder.reserved_contents,
         };
-        Ok(tree)
+        Ok((tree, new_dirstate_base))
     }
 
     /// Returns a temporary mapping of all directories to their children, along
@@ -284,10 +285,7 @@ impl<T: FileToken> RevisionTree<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
-    ) -> Result<
-        (OwningDirstateMap, FastHashMap<u64, T>, RevisionInodeEncoder),
-        StoreError<T>,
-    > {
+    ) -> Result<RevisionInfo<T>, StoreError<T>> {
         let revision_idx = store.idx_for_node(changeset)?;
         let available_inode_range =
             RootInodeEncoder::revision_inode_range(revision_idx);
@@ -330,15 +328,21 @@ impl<T: FileToken> RevisionTree<T> {
         drop(map_span);
 
         let dirstate_parents = DirstateParents { p1: changeset, p2: NULL_NODE };
-        let (dirstate, offset_to_token) = inode_encoder.add_dirstate(
-            dirstate,
-            dirstate_parents,
-            path_to_token,
-        )?;
+        let (dirstate, offset_to_token, dirstate_base_info) = inode_encoder
+            .add_dirstate(dirstate, dirstate_parents, path_to_token)?;
 
-        Ok((dirstate, offset_to_token, inode_encoder))
+        Ok((dirstate, inode_encoder, offset_to_token, dirstate_base_info))
     }
 }
+
+/// All information required to serve a revision in the fuse, obtained after
+/// processing the manifest
+type RevisionInfo<T> = (
+    OwningDirstateMap,
+    RevisionInodeEncoder,
+    FastHashMap<u64, T>,
+    DirstateBaseInfo,
+);
 
 /// Represents a reserved FUSE entry inside the revision's root dir
 #[derive(Debug)]
@@ -518,7 +522,10 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
-    ) -> Result<(OwningDirstateMap, FastHashMap<u64, T>), StoreError<T>> {
+    ) -> Result<
+        (OwningDirstateMap, FastHashMap<u64, T>, DirstateBaseInfo),
+        StoreError<T>,
+    > {
         // The mutex will be uncontended since the dirstate does not support
         // parallel inserts, this is purely so we can satisfy the callback being
         // immutable
@@ -560,9 +567,8 @@ impl RevisionInodeEncoder {
 
         let packed_res = dirstate
             .pack_v2(DirstateMapWriteMode::ForceNewDataFile, Some(visit));
-        let (data, tree_metadata, appending, old_size) = packed_res.expect(
-            "in-memory serialization of a brand-new dirstate should not fail",
-        );
+        let (data, tree_metadata, _, _) = packed_res
+            .expect("in-memory serialization of a dirstate should not fail");
         let new_inode = latest_ino
             .load(Ordering::Relaxed)
             .checked_add(1)
@@ -572,9 +578,6 @@ impl RevisionInodeEncoder {
             "inode overflow"
         );
         self.current_ino = AtomicU64::new(new_inode);
-        // Paranoid checks
-        assert!(!appending, "dirstate must be written from scratch");
-        assert_eq!(old_size, 0, "dirstate must be written from scratch");
         let data_size = data.len();
         let uuid = Docket::new_uid();
 
@@ -607,7 +610,7 @@ impl RevisionInodeEncoder {
 
         // Return a new dirstate based off the packed data
         let new_dirstate = OwningDirstateMap::new_v2(
-            packed_data,
+            RawData::clone(&packed_data),
             data_size,
             tree_metadata.as_bytes(),
             uuid.as_bytes().to_vec(),
@@ -617,6 +620,12 @@ impl RevisionInodeEncoder {
         Ok((
             new_dirstate,
             offset_to_token.into_inner().expect("propagate the panic"),
+            DirstateBaseInfo {
+                serialized: packed_data,
+                metadata: tree_metadata.as_bytes().to_vec(),
+                uuid: uuid.as_bytes().to_vec(),
+                node: parents.p1,
+            },
         ))
     }
 

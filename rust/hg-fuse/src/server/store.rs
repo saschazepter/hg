@@ -252,3 +252,16 @@ pub enum FileChangeInfo<'store, T> {
     /// The file has been removed (either directly or through `sparse`)
     Removed(&'store HgPath),
 }
+
+/// Groups all necessary information about a previously created in-memory
+/// dirstate to create a new, incremental one.
+pub struct DirstateBaseInfo {
+    /// The fully serialized dirstate data
+    pub serialized: RawData,
+    /// The docket metadata, with which to interpret [`Self::serialized`]
+    pub metadata: Vec<u8>,
+    /// The docket `uuid`, useful to prevent uid computation from leaking up
+    pub uuid: Vec<u8>,
+    /// The changeset nodeid for the parent of this dirstate
+    pub node: Node,
+}

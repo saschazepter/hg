@@ -3,6 +3,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
 
@@ -24,6 +25,7 @@ use crate::fuse::RootInodeEncoder;
 use crate::fuse::path_to_revision_working_copy;
 use crate::server::revision::OwnedRevision;
 use crate::server::store::BackendMode;
+use crate::server::store::DirstateBaseInfo;
 use crate::server::store::Error as StoreError;
 use crate::server::store::FileToken;
 use crate::server::store::StoreBackend;
@@ -66,6 +68,9 @@ pub struct Server<S, T> {
     gid: u32,
     /// The mount point for this FUSE
     mount_point: PathBuf,
+    /// Information about a previously loaded dirstate to compute later ones
+    /// incrementally.
+    dirstate_base_info: Mutex<Option<DirstateBaseInfo>>,
 }
 
 impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
@@ -99,6 +104,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
             uid,
             gid,
             mount_point: mount_point.as_ref().to_path_buf(),
+            dirstate_base_info: Mutex::new(None),
         })
     }
 
@@ -213,8 +219,8 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     fn load_revision(
         &self,
         changeset: Node,
-    ) -> Result<Arc<OwnedRevision<T>>, StoreError<T>> {
-        let revision_data = OwnedRevision::from_revision(
+    ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo), StoreError<T>> {
+        let (revision_data, new_dirstate_base) = OwnedRevision::from_revision(
             &self.store,
             changeset,
             self.start_time,
@@ -227,7 +233,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
                 Arc::clone(&revision_arc),
             );
         }
-        Ok(revision_arc)
+        Ok((revision_arc, new_dirstate_base))
     }
 
     fn get_revision(
@@ -237,8 +243,13 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         match self.revisions.get_value_or_guard(&changeset, None) {
             GuardResult::Value(v) => Ok(v),
             GuardResult::Guard(g) => {
-                let revision = self.load_revision(changeset)?;
+                let (revision, new_dirstate_base) =
+                    self.load_revision(changeset)?;
                 let _ = g.insert(Arc::clone(&revision));
+                // Remember the latest dirstate update for later incremental
+                // loads
+                *self.dirstate_base_info.lock().expect("propagate the panic") =
+                    Some(new_dirstate_base);
                 tracing::debug!(
                     "total revisions loaded: {}",
                     self.revisions.len()
