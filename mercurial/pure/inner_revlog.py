@@ -1408,6 +1408,42 @@ class InnerRevlogV2(BaseInnerRevlog):
         util.copyfile(old_path, new_path)
         transaction.add(new_path, 0)
 
+    def _rewrite_index(
+        self,
+        transaction: TransactionT,
+        rev: RevnumT,
+        idx_bins: tuple[None | bytes],
+        pending_only: bool = False,
+    ):
+        """rewrite on-disk index data for revision
+
+        This should be called with the returns of various `index.update_xxx`
+        methods.
+
+        The `idx_bins` is a tuple of binary data to update for `rev` for each
+        index block. `None` value are unchanged and don't need to be updated.
+        """
+        for idx_ft, bin_piece, entry_size in zip(
+            self._index_fts,
+            idx_bins,
+            self.index.entry_sizes,
+        ):
+            if bin_piece is None:
+                continue
+            idx_pos = entry_size * rev
+            assert len(bin_piece) == entry_size
+            # Changing index content under reader nose would be a problem,
+            # however if that transaction has not been committed yet,
+            # nobody is reading it and this won't be a problem.
+            if not pending_only:
+                self.prepare_update(transaction, idx_ft, idx_pos)
+            elif not self.docket.is_pending_offset(idx_ft, idx_pos):
+                msg = "invalid rewrite of a non-pending revision"
+                raise error.ProgrammingError(msg)
+            idx_fh = self._writinghandles[idx_ft]
+            idx_fh.seek(idx_pos, os.SEEK_SET)
+            idx_fh.write(bin_piece)
+
     def _add_children_info(
         self,
         transaction: TransactionT,
@@ -1502,23 +1538,7 @@ class InnerRevlogV2(BaseInnerRevlog):
                     c2 = next
                 update[c2] = self.index.update_sibling_p2(c2, curr)
         for rev, idx_bins in sorted(update.items()):
-            for idx_ft, bin_piece, entry_size in zip(
-                self._index_fts,
-                idx_bins,
-                self.index.entry_sizes,
-            ):
-                if bin_piece is None:
-                    continue
-                idx_pos = entry_size * rev
-                assert len(bin_piece) == entry_size
-                # Changing index content under reader nose would be a
-                # problem.  So we need to make sure we are writing to
-                # an uncommited block.
-                self.prepare_update(transaction, idx_ft, idx_pos)
-                assert self.docket.is_pending_offset(idx_ft, idx_pos)
-                idx_fh = self._writinghandles[idx_ft]
-                idx_fh.seek(idx_pos, os.SEEK_SET)
-                idx_fh.write(bin_piece)
+            self._rewrite_index(transaction, rev, idx_bins)
 
     def add_entry(
         self,
@@ -1750,23 +1770,7 @@ class InnerRevlogV2(BaseInnerRevlog):
                     bins = idx.update_sibling_p2(u_rev, s2)
                 assert bins is not None
 
-                for idx_ft, bin_piece, entry_size in zip(
-                    self._index_fts,
-                    bins,
-                    idx.entry_sizes,
-                ):
-                    if bin_piece is None:
-                        continue
-                    idx_pos = entry_size * u_rev
-                    assert len(bin_piece) == entry_size
-                    # Changing index content under reader nose would be a
-                    # problem.  So we need to make sure we are writing to
-                    # an uncommited block.
-                    self.prepare_update(transaction, idx_ft, idx_pos)
-                    assert docket.is_pending_offset(idx_ft, idx_pos)
-                    idx_fh = self._writinghandles[idx_ft]
-                    idx_fh.seek(idx_pos, os.SEEK_SET)
-                    idx_fh.write(bin_piece)
+                self._rewrite_index(transaction, u_rev, bins)
         self.docket.write(transaction, stripping=True)
 
     def file_cutoffs(self, first_excl_rev):
@@ -1814,26 +1818,17 @@ class InnerRevlogV2(BaseInnerRevlog):
             assert size != 1
             fh.write(cfg_bin)
             idx_bins = self.index.update_changed_files(
-                rev, has_copy_info, pos, size
+                rev,
+                has_copy_info,
+                pos,
+                size,
             )
-            for idx_ft, bin_piece, entry_size in zip(
-                self._index_fts,
+            self._rewrite_index(
+                transaction,
+                rev,
                 idx_bins,
-                self.index.entry_sizes,
-            ):
-                if bin_piece is None:
-                    continue
-                idx_pos = entry_size * rev
-                assert len(bin_piece) == entry_size
-                # Changing index content under reader nose would be a problem,
-                # however if that transaction has not been committed yet,
-                # nobody is reading it and this won't be a problem.
-                if not docket.is_pending_offset(idx_ft, idx_pos):
-                    msg = "add changed-files data to non-pending revision"
-                    raise error.ProgrammingError(msg)
-                idx_fh = self._writinghandles[idx_ft]
-                idx_fh.seek(idx_pos, os.SEEK_SET)
-                idx_fh.write(bin_piece)
+                pending_only=True,
+            )
             pos += size
             docket.set_end(ft, pos)
             assert self.changed_files_bytes(rev) == cfg_bin, (
