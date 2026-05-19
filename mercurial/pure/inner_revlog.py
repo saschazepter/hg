@@ -1391,7 +1391,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         """Returns the current offset in the (in-transaction) data file."""
         return self.docket.get_end(self.docket.FT.DATA)
 
-    def prepare_update(self, transaction, file_type, pos):
+    def _prepare_update(self, transaction, file_type, pos):
         """ensure the data we are about to write are in a mutable block
 
         NOTE: This is currently not very efficent as we don't splits the block
@@ -1436,7 +1436,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             # however if that transaction has not been committed yet,
             # nobody is reading it and this won't be a problem.
             if not pending_only:
-                self.prepare_update(transaction, idx_ft, idx_pos)
+                self._prepare_update(transaction, idx_ft, idx_pos)
             elif not self.docket.is_pending_offset(idx_ft, idx_pos):
                 msg = "invalid rewrite of a non-pending revision"
                 raise error.ProgrammingError(msg)
