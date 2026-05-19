@@ -293,6 +293,7 @@ impl<T: FileToken> RevisionTree<T> {
         let start_time: TruncatedTimestamp = start_time.into();
         let files = store.changeset_files(changeset)?;
         let mut path_to_token = FastHashMap::default();
+        path_to_token.reserve(files.len());
         for file_info in files.iter() {
             path_to_token.insert(file_info.path, file_info.token);
             dirstate

@@ -281,6 +281,14 @@ impl ChangesetFiles<LocalToken> for ManifestRefIterator {
     fn iter(&self) -> impl Iterator<Item = &FileInfo<'_, LocalToken>> {
         self.borrow_dependent().inner.iter()
     }
+
+    fn len(&self) -> usize {
+        self.borrow_dependent().inner.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.borrow_dependent().inner.is_empty()
+    }
 }
 
 /// An implementation of [`FileToken`] for a local repository

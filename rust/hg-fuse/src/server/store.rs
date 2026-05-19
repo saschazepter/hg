@@ -142,15 +142,21 @@ pub trait StoreBackend<T: FileToken>: Send + Sync + 'static {
     }
 }
 
-/// A trait whose only method enables iteration over a given changeset's files.
-/// Allows for a [`StoreBackend`] implementation to have more control over how
-/// to iterate efficiently, by e.g. returning a self-referencing struct and
-/// eschewing path clones.
+/// A trait that enables iteration over a given changeset's files. Allows for a
+/// [`StoreBackend`] implementation to have more control over how to iterate
+/// efficiently, by e.g. returning a self-referencing struct and eschewing path
+/// clones.
 pub trait ChangesetFiles<T: FileToken> {
     /// Returns an iterator of information for every tracked file in this
     /// changeset. Each [`FileInfo`] must refer to a unique file, and
     /// folders should not be included.
     fn iter(&self) -> impl Iterator<Item = &FileInfo<'_, T>>;
+
+    /// Returns the length of the iterator.
+    fn len(&self) -> usize;
+
+    /// Returns whether the iterator is empty.
+    fn is_empty(&self) -> bool;
 }
 
 /// An opaque token for a given file revision. This can be used as an
