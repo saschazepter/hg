@@ -415,3 +415,104 @@ Using --template silence the other messages
   8:fe78063b6eca
   10:7bedac8ea1ba
   merge_without_status_message
+
+  $ cd ..
+
+Test history of file reversion
+==============================
+
+create a branching repo, one branch with the initial file content, and one
+branch with the file reverted to that initial content
+
+The merge should always use the reverted file-nodeid
+
+  $ hg init repo-merge-revert
+  $ cd repo-merge-revert
+  $ mkcommit initial
+  $ mkcommit file
+  $ echo babar >> file
+  $ hg commit -m update
+  $ hg revert --rev 'desc("file")' file
+  $ hg commit -m 'revert'
+  $ hg update 'desc("file")'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ mkcommit unrelated
+  created new head
+  $ hg up null
+  0 files updated, 0 files merged, 3 files removed, 0 files unresolved
+
+  $ hg log -Gv
+  o  changeset:   4:a4e0ee299fbc
+  |  tag:         tip
+  |  parent:      1:ff6fa6fae305
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  files:       unrelated
+  |  description:
+  |  unrelated
+  |
+  |
+  | o  changeset:   3:3174de5a8de5
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  files:       file
+  | |  description:
+  | |  revert
+  | |
+  | |
+  | o  changeset:   2:99b9cb3f593c
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    files:       file
+  |    description:
+  |    update
+  |
+  |
+  o  changeset:   1:ff6fa6fae305
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  files:       file
+  |  description:
+  |  file
+  |
+  |
+  o  changeset:   0:630839011471
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     files:       initial
+     description:
+     initial
+  
+  
+
+  $ hg debugindex file
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       1 9c9a2d952e40 000000000000 000000000000
+       1       2 b336e38e6a17 9c9a2d952e40 000000000000
+       2       3 47b5662761cf b336e38e6a17 000000000000
+
+Merge in both direction, both result should use the "reverted" nodeid. Not the
+original content.
+
+  $ hg script::merge --message rev_is_p1 'desc("revert")' 'desc("unrelated")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 5
+  $ hg manifest --debug --rev 'desc("rev_is_p1")' | grep file
+  47b5662761cf7ffabf67a7a9c911976505d05e56 644   file
+
+  $ hg script::merge --message rev_is_p2 'desc("unrelated")' 'desc("revert")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 6
+  $ hg manifest --debug --rev 'desc("rev_is_p2")' | grep file
+  47b5662761cf7ffabf67a7a9c911976505d05e56 644   file
+
+no new file revision should have been created
+
+  $ hg debugindex file
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       1 9c9a2d952e40 000000000000 000000000000
+       1       2 b336e38e6a17 9c9a2d952e40 000000000000
+       2       3 47b5662761cf b336e38e6a17 000000000000
+
+
+
