@@ -1263,6 +1263,48 @@ class MultiBlockIndex(BaseIndex):
         """
         raise NotImplementedError
 
+    def _update(
+        self,
+        rev: RevnumT,
+        entry: revlogutils.RevlogEntry,
+        block_mask: tuple[bool, ...] | None = None,
+    ) -> tuple[bytes | None, ...]:
+        """update the currently stored for `rev` with the one from `entry`
+
+        If `block_mask` is provided, the update only affect some of the index
+        block. The `block_mask` should be as long as the bumber of block used
+        in this MultiBlockIndex. The index set to `True` are impacted the one
+        set to `False are unchanged`.
+
+        This method result the updated binary blobs for that revision as a
+        tuple. It is the responsability of the caller (typically inner-revlog
+        code) to update the on-disk storage. Untouched binary blobs will be set
+        to `None`.
+        """
+        all_bins = self._pack_entry(rev, entry)
+        if block_mask is None:
+            updated_bins = all_bins
+        else:
+            # zip(…, strict=True) was added in Python 3.10
+            nb_bins = len(all_bins)
+            nb_masks = len(block_mask)
+            assert nb_bins == nb_masks, (nb_bins, nb_masks)
+            updated_bins = tuple(
+                bin if mask else None
+                for (bin, mask) in zip(all_bins, block_mask)
+            )
+        if rev >= self._lgt:
+            self._extra[rev - self._lgt] = all_bins
+        else:
+            for bin, data in zip(updated_bins, self._data):
+                if bin is None:
+                    continue
+                else:
+                    size = len(bin)
+                    offset = rev * size
+                    data[offset : offset + size] = bin
+        return updated_bins
+
 
 class Index2(MultiBlockIndex):
     _index_formats = revlog_constants.INDEX_ENTRY_V2
@@ -1305,8 +1347,7 @@ class Index2(MultiBlockIndex):
             entry.sidedata_offset = sidedata_offset
             entry.sidedata_compressed_length = sidedata_length
             entry.sidedata_compression_mode = compression_mode
-            new = self._pack_entry(rev, entry)
-            self._extra[rev - self._lgt] = new
+            return self._update(rev, entry)
 
     @classmethod
     def _unpack_entry(
@@ -1502,14 +1543,10 @@ class IndexChangelogV2(Index2):
         assert length != 1, (rev, offset)
         e.changed_files_offset = offset
         e.changed_files_length = length
-        self._extra[rev - self._lgt] = self._pack_entry(rev, e)
         # first piece hold the flag that might change
         # second piece hold the offset and size
-        e_bins = self.entry_binaries(rev)
-        if has_copies_info:
-            return e_bins
-        else:
-            return (None, e_bins[1])
+        mask = (has_copies_info, True)
+        return self._update(rev, e, mask)
 
     def child_p1(self, rev: RevnumT) -> RevnumT | None:
         """return the revision using `rev` as p1.
@@ -1597,20 +1634,7 @@ class IndexChangelogV2(Index2):
     def _update_children_attr(self, rev: RevnumT, attr: str, value: RevnumT):
         e = self._rich_entry(rev)
         setattr(e, attr, value)
-        all_bins = self._pack_entry(rev, e)
-        updated_bins = (all_bins[0], None)
-
-        if rev >= self._lgt:
-            self._extra[rev - self._lgt] = all_bins
-        else:
-            for bin, data in zip(updated_bins, self._data):
-                if bin is None:
-                    continue
-                else:
-                    size = len(bin)
-                    offset = rev * size
-                    data[offset : offset + size] = bin
-        return updated_bins
+        return self._update(rev, e, (True, False))
 
     def update_child_p1(self, rev: RevnumT, child: RevnumT):
         """update the "child_p1" field of a revision
