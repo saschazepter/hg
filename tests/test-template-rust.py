@@ -20,6 +20,8 @@ SUPPORTED = [
     rb'{files % "{file}\n"}',
     b"{0}",
     b"{(0)}",
+    b"a\xe9b",
+    b"{ifcontains('\xe9', files, 'wow', 'not')}",
 ]
 
 # Templates the Rust parser does not handle but the Python parser does. Under

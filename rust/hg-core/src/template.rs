@@ -99,7 +99,27 @@ impl From<pest::error::Error<Rule>> for ParseError {
     }
 }
 
-pub fn parse_template(input: &str) -> Result<Node, ParseError> {
+pub fn parse_template(input: &[u8]) -> Result<Node, ParseError> {
+    // Fast path for the majority of templates: a pure-ASCII input is valid
+    // UTF-8, so we can directly call `from_utf8` and parse it. Note that
+    // valid UTF-8 that is not ASCII will need to go through the slow path,
+    // since the later cast `c as u8` would break otherwise. Either way, the
+    // overhead is negligible compared to the cost of parsing (in Python).
+    if input.is_ascii() {
+        let s = std::str::from_utf8(input).expect("ASCII is valid UTF-8");
+        return parse_str(s);
+    }
+    let chars: String = input.iter().map(|&b| b as char).collect();
+    parse_str(&chars).map_err(|mut err| {
+        // pest and the integer parser report byte offsets into `chars`.
+        // Each input byte is exactly one char, so the input-byte offset is the
+        // char count of the prefix.
+        err.location = chars[..err.location].chars().count();
+        err
+    })
+}
+
+fn parse_str(input: &str) -> Result<Node, ParseError> {
     let mut pairs = TemplateParser::parse(Rule::template, input)?;
     let pair = pairs.next().expect("pest template always produces one pair");
     let chunks = pair
@@ -110,6 +130,12 @@ pub fn parse_template(input: &str) -> Result<Node, ParseError> {
     let node = Node::Template(chunks);
     tracing::debug!(output = ?node, "template::parse_template output");
     Ok(node)
+}
+
+/// Append the original bytes of `s` (a span that was cast from bytes to char)
+/// to `out`.
+fn extend_span_bytes(out: &mut Vec<u8>, s: &str) {
+    out.extend(s.chars().map(|c| c as u8));
 }
 
 fn parse_chunk(pair: Pair<Rule>) -> Result<Node, ParseError> {
@@ -133,9 +159,7 @@ fn parse_text(pair: Pair<Rule>) -> Vec<u8> {
     let mut out = Vec::with_capacity(pair.as_str().len());
     for part in pair.into_inner() {
         match part.as_rule() {
-            Rule::text_content => {
-                out.extend_from_slice(part.as_str().as_bytes())
-            }
+            Rule::text_content => extend_span_bytes(&mut out, part.as_str()),
             Rule::text_escape => out.push(escape_byte(part.as_str())),
             other => panic!("unexpected text part: {other:?}"),
         }
@@ -167,7 +191,7 @@ fn parse_string_literal(pair: Pair<Rule>) -> Result<Node, ParseError> {
     for inner in pair.into_inner() {
         match inner.as_rule() {
             Rule::string_content | Rule::raw_string_content => {
-                buf.extend_from_slice(inner.as_str().as_bytes());
+                extend_span_bytes(&mut buf, inner.as_str());
             }
             Rule::text_escape => buf.push(escape_byte(inner.as_str())),
             Rule::substitution => {
@@ -284,7 +308,7 @@ mod tests {
     #[test]
     fn parses_text_substitutions_and_integers() {
         assert_eq!(
-            parse_template("hi {desc} {42}").unwrap(),
+            parse_template(b"hi {desc} {42}").unwrap(),
             Node::Template(vec![
                 Node::Text(b"hi ".to_vec()),
                 Node::Symbol("desc".into()),
@@ -296,26 +320,50 @@ mod tests {
 
     #[test]
     fn rejects_unsupported() {
-        assert!(parse_template(r#"{\"foo\"}"#).is_err()); // legacy escape-quoted string
-        assert!(parse_template(r"a\xb").is_err()); // unrecognized escape
-        assert!(parse_template("{}").is_err()); // empty substitution
-        assert!(parse_template("{f(a,)}").is_err()); // trailing comma
+        assert!(parse_template(br#"{\"foo\"}"#).is_err()); // legacy escape-quoted string
+        assert!(parse_template(br"a\xb").is_err()); // unrecognized escape
+        assert!(parse_template(b"{}").is_err()); // empty substitution
+        assert!(parse_template(b"{f(a,)}").is_err()); // trailing comma
     }
 
     /// Recognized backslash escapes are decoded.
     #[test]
     fn collapses_recognized_escapes() {
         assert_eq!(
-            parse_template(r"a\nb").unwrap(),
+            parse_template(br"a\nb").unwrap(),
             Node::Template(vec![Node::Text(b"a\nb".to_vec())]),
         );
+    }
+
+    /// Non-UTF-8 data is preserved.
+    #[test]
+    fn preserves_non_utf8_bytes() {
+        // Plain text outside substitutions.
+        assert_eq!(
+            parse_template(b"a\xe9b").unwrap(),
+            Node::Template(vec![Node::Text(b"a\xe9b".to_vec())]),
+        );
+        // Inside a string literal.
+        assert_eq!(
+            parse_template(b"{'\xe9'}").unwrap(),
+            Node::Template(vec![Node::Template(vec![Node::Text(
+                b"\xe9".to_vec(),
+            )])]),
+        );
+    }
+
+    /// Error locations are correct for non-UTF-8 inputs.
+    #[test]
+    fn error_location_is_input_byte_offset() {
+        let err = parse_template(b"\xe9{}").unwrap_err();
+        assert_eq!(err.location, 2);
     }
 
     /// Function calls with positional and keyword arguments.
     #[test]
     fn parses_function_calls() {
         assert_eq!(
-            parse_template("{pad(text, width=10)}").unwrap(),
+            parse_template(b"{pad(text, width=10)}").unwrap(),
             Node::Template(vec![Node::FunctionCall {
                 name: "pad".into(),
                 args: vec![
@@ -333,14 +381,14 @@ mod tests {
     #[test]
     fn parses_string_literals() {
         assert_eq!(
-            parse_template("{'on branch {branch}'}").unwrap(),
+            parse_template(b"{'on branch {branch}'}").unwrap(),
             Node::Template(vec![Node::Template(vec![
                 Node::Text(b"on branch ".to_vec()),
                 Node::Symbol("branch".into()),
             ])]),
         );
         assert_eq!(
-            parse_template(r"{r'a\nb'}").unwrap(),
+            parse_template(br"{r'a\nb'}").unwrap(),
             Node::Template(vec![Node::Template(vec![Node::Text(
                 br"a\nb".to_vec(),
             )])]),
@@ -352,7 +400,7 @@ mod tests {
     fn parses_operators() {
         // Pipe binds tighter than subtraction.
         assert_eq!(
-            parse_template("{1 - 3 | stringify}").unwrap(),
+            parse_template(b"{1 - 3 | stringify}").unwrap(),
             Node::Template(vec![Node::Binary(
                 BinaryOp::Sub,
                 Box::new(Node::Integer(1)),
@@ -365,7 +413,7 @@ mod tests {
         );
         // Parens add an explicit Group wrapper.
         assert_eq!(
-            parse_template("{(1 + 2) * 3}").unwrap(),
+            parse_template(b"{(1 + 2) * 3}").unwrap(),
             Node::Template(vec![Node::Binary(
                 BinaryOp::Mul,
                 Box::new(Node::Group(Box::new(Node::Binary(
@@ -378,7 +426,7 @@ mod tests {
         );
         // Unary negate as a prefix.
         assert_eq!(
-            parse_template("{-3}").unwrap(),
+            parse_template(b"{-3}").unwrap(),
             Node::Template(vec![Node::Unary(
                 UnaryOp::Negate,
                 Box::new(Node::Integer(3)),

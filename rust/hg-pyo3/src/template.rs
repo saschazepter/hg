@@ -128,14 +128,7 @@ fn parse<'py>(
     py: Python<'py>,
     tmpl: &Bound<'_, PyBytes>,
 ) -> PyResult<Bound<'py, PyAny>> {
-    let bytes = tmpl.as_bytes();
-    let s = std::str::from_utf8(bytes).map_err(|e| {
-        ParseError::new_err((
-            b"invalid utf-8 in template".to_vec(),
-            e.valid_up_to(),
-        ))
-    })?;
-    let node = template::parse_template(s).map_err(|err| {
+    let node = template::parse_template(tmpl.as_bytes()).map_err(|err| {
         ParseError::new_err((err.message.into_bytes(), err.location))
     })?;
     node_to_py(py, node)
