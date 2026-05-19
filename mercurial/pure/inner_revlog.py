@@ -705,7 +705,7 @@ class BaseInnerRevlog(abc.ABC):
     def finalize_pending(self):
         raise error.ProgrammingError("Cannot finalize_pending a non-V1 revlog")
 
-    def rewrite_sidedata(self, new_info):
+    def rewrite_sidedata(self, transaction: TransactionT, new_info):
         raise error.ProgrammingError(b"rewriting sidedata without support")
 
     def strip_after(self, transaction, rev):
@@ -1603,7 +1603,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         for ft, fh in sorted(self._writinghandles.items()):
             self.docket.set_end(ft, fh.tell())
 
-    def rewrite_sidedata(self, new_info):
+    def rewrite_sidedata(self, transaction: TransactionT, new_info):
         assert self.is_writing
         new_entries = []
         # append the new sidedata
@@ -1665,17 +1665,18 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
 
         # rewrite the new index entries
-        ifhs = [self._writinghandles[ft] for ft in self._index_fts]
-        for fh, entry_size in zip(ifhs, self.index.entry_sizes):
-            fh.seek(startrev * entry_size)
         for i, e in enumerate(new_entries):
             rev = startrev + i
-            self.index.replace_sidedata_info(
-                rev, *e
+            idx_bins = self.index.replace_sidedata_info(
+                rev,
+                *e,
             )  # pytype: disable=attribute-error
-            packed = self.index.entry_binaries(rev)
-            for fh, bin_piece in zip(ifhs, packed):
-                fh.write(bin_piece)
+            self._rewrite_index(
+                transaction,
+                rev,
+                idx_bins,
+                pending_only=True,
+            )
 
     def sidedata_cut_off(self, rev):
         sd_cut_off = self.index.sidedata_chunk_offset(rev)

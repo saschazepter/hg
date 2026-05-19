@@ -3596,4 +3596,4 @@ class revlog:
         # append the new sidedata
         with self._writing(transaction):
             new_info = self._rewrite_sidedata_info(helpers, startrev, endrev)
-            self._inner.rewrite_sidedata(new_info)
+            self._inner.rewrite_sidedata(transaction, new_info)
