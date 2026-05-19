@@ -295,45 +295,49 @@ impl<T: FileToken> RevisionTree<T> {
             store.server_config().backend_mode,
         )?;
 
-        let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
-
-        let map_span = tracing::debug_span!("building the dirstate").entered();
         let start_time: TruncatedTimestamp = start_time.into();
-        let files = store.changeset_files(changeset)?;
-        let mut path_to_token = FastHashMap::default();
-        path_to_token.reserve(files.len());
-        for file_info in files.iter() {
-            path_to_token.insert(file_info.path, file_info.token);
-            dirstate
-                .reset_state(DirstateEntryReset {
-                    filename: file_info.path,
-                    wc_tracked: true,
-                    p1_tracked: true,
-                    p2_info: false, // We're never in an active merge
-                    has_meaningful_mtime: true,
-                    parent_file_data_opt: Some(ParentFileData {
-                        mode_size: Some((
-                            permissions_for_file(file_info.flags).into(),
-                            file_info.size.try_into().expect("file too large"),
-                        )),
-                        mtime: Some(start_time),
-                    }),
-                    from_empty: true, // We are starting from scratch
-                    set_parents_mtime: true,
-                })
-                .expect(
-                    "insert in brand-new in-memory dirstate should not fail",
-                );
-        }
-        drop(map_span);
+        let info = if true {
+            let map_span =
+                tracing::debug_span!("building the dirstate").entered();
+            let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
+            let mut path_to_token = FastHashMap::default();
+            let files = store.changeset_files(changeset)?;
+            path_to_token.reserve(files.len());
+            for file_info in files.iter() {
+                path_to_token.insert(file_info.path, file_info.token);
+                let mode_size = Some((
+                    permissions_for_file(file_info.flags).into(),
+                    file_info.size.try_into().expect("file too large"),
+                ));
+                dirstate
+                    .reset_state(DirstateEntryReset {
+                        filename: file_info.path,
+                        wc_tracked: true,
+                        p1_tracked: true,
+                        p2_info: false, // We're never in an active merge
+                        has_meaningful_mtime: true,
+                        parent_file_data_opt: Some(ParentFileData {
+                            mode_size,
+                            mtime: Some(start_time),
+                        }),
+                        from_empty: true, // We are starting from scratch
+                        set_parents_mtime: true,
+                    })
+                    .expect("insert in in-memory dirstate should not fail");
+            }
+            drop(map_span);
+            let dirstate_parents =
+                DirstateParents { p1: changeset, p2: NULL_NODE };
+            inode_encoder.add_dirstate(
+                dirstate,
+                dirstate_parents,
+                path_to_token,
+            )?
+        } else {
+            unreachable!("this case will be filled in the next changeset")
+        };
 
-        let dirstate_parents = DirstateParents { p1: changeset, p2: NULL_NODE };
-        let (dirstate, dirstate_base_info) = inode_encoder.add_dirstate(
-            dirstate,
-            dirstate_parents,
-            path_to_token,
-        )?;
-
+        let (dirstate, dirstate_base_info) = info;
         Ok((dirstate, inode_encoder, dirstate_base_info))
     }
 }
