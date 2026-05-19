@@ -382,7 +382,7 @@ def _unnesttemplatelist(tree):
         return (op,) + xs
 
 
-def parse(tmpl):
+def parse(tmpl, rust_strict=False):
     """Parse template string into tree"""
     parsed, pos = _parsetemplate(tmpl, 0, len(tmpl))
     assert pos == len(tmpl), b'unquoted template should be consumed'
@@ -701,7 +701,14 @@ class engine:
     filter uses function to transform value. syntax is
     {key|filter1|filter2|...}."""
 
-    def __init__(self, loader, filters=None, defaults=None, resources=None):
+    def __init__(
+        self,
+        loader,
+        filters=None,
+        defaults=None,
+        resources=None,
+        rust_strict=False,
+    ):
         self._loader = loader
         if filters is None:
             filters = {}
@@ -713,6 +720,7 @@ class engine:
             resources = nullresourcemapper()
         self._defaults = defaults
         self._resources = resources
+        self._rust_strict = rust_strict
         self._cache = {}  # key: (func, data)
         self._tmplcache = {}  # literal template: (func, data)
 
@@ -787,7 +795,7 @@ class engine:
     def _parse(self, tmpl):
         """Parse and cache a literal template"""
         if tmpl not in self._tmplcache:
-            x = parse(tmpl)
+            x = parse(tmpl, rust_strict=self._rust_strict)
             self._tmplcache[tmpl] = compileexp(x, self, methods)
         return self._tmplcache[tmpl]
 
@@ -940,12 +948,13 @@ def _readmapfile(fp, mapfile):
 class loader:
     """Load template fragments optionally from a map file"""
 
-    def __init__(self, cache, aliases):
+    def __init__(self, cache, aliases, rust_strict=False):
         if cache is None:
             cache = {}
         self.cache = cache.copy()
         self._map = {}
         self._aliasmap = _aliasrules.buildmap(aliases)
+        self._rust_strict = rust_strict
 
     def __contains__(self, key):
         return key in self.cache or key in self._map
@@ -969,7 +978,7 @@ class loader:
         return self._parse(self.cache[t])
 
     def _parse(self, tmpl):
-        x = parse(tmpl)
+        x = parse(tmpl, rust_strict=self._rust_strict)
         if self._aliasmap:
             x = _aliasrules.expand(self._aliasmap, x)
         return x
@@ -1022,6 +1031,7 @@ class templater:
         aliases=(),
         minchunk=1024,
         maxchunk=65536,
+        rust_strict=False,
     ):
         """Create template engine optionally with preloaded template fragments
 
@@ -1039,8 +1049,14 @@ class templater:
         allfilters = templatefilters.filters.copy()
         if filters:
             allfilters.update(filters)
-        self._loader = loader(cache, aliases)
-        self._proc = engine(self._loader.load, allfilters, defaults, resources)
+        self._loader = loader(cache, aliases, rust_strict=rust_strict)
+        self._proc = engine(
+            self._loader.load,
+            allfilters,
+            defaults,
+            resources,
+            rust_strict=rust_strict,
+        )
         self._minchunk, self._maxchunk = minchunk, maxchunk
 
     @classmethod
@@ -1054,9 +1070,19 @@ class templater:
         cache=None,
         minchunk=1024,
         maxchunk=65536,
+        rust_strict=False,
     ):
         """Create templater from the specified map file"""
-        t = cls(filters, defaults, resources, cache, [], minchunk, maxchunk)
+        t = cls(
+            filters,
+            defaults,
+            resources,
+            cache,
+            [],
+            minchunk,
+            maxchunk,
+            rust_strict=rust_strict,
+        )
         if not fp:
             fp = _open_mapfile(mapfile)
         cache, tmap, aliases = _readmapfile(fp, mapfile)

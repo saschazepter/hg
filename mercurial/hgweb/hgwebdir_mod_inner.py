@@ -602,5 +602,8 @@ class hgwebdir:
                 yield config(b'web', b'motd')
 
         return templater.templater.frommapfile(
-            mapfile, fp=fp, defaults=defaults
+            mapfile,
+            fp=fp,
+            defaults=defaults,
+            rust_strict=self.ui.configbool(b'devel', b'template-rust-strict'),
         )

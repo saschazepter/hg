@@ -2207,7 +2207,12 @@ def debuginstall(ui, **opts):
             # template found, check if it is working
             err = None
             try:
-                templater.templater.frommapfile(m)
+                templater.templater.frommapfile(
+                    m,
+                    rust_strict=ui.configbool(
+                        b'devel', b'template-rust-strict'
+                    ),
+                )
             except Exception as inst:
                 err = stringutil.forcebytestr(inst)
                 p = None
@@ -4421,7 +4426,9 @@ def debugtemplate(ui, repo, tmpl, **opts):
 
     if ui.verbose:
         aliases = ui.configitems(b'templatealias')
-        tree = templater.parse(tmpl)
+        tree = templater.parse(
+            tmpl, rust_strict=ui.configbool(b'devel', b'template-rust-strict')
+        )
         ui.note(templater.prettyformat(tree), b'\n')
         newtree = templater.expandaliases(tree, aliases)
         if newtree != tree:

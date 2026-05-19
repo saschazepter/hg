@@ -661,6 +661,7 @@ def loadtemplater(ui, spec, defaults=None, resources=None, cache=None):
             defaults=defaults,
             resources=resources,
             cache=cache,
+            rust_strict=ui.configbool(b'devel', b'template-rust-strict'),
         )
     return maketemplater(
         ui, spec.tmpl, defaults=defaults, resources=resources, cache=cache
@@ -671,7 +672,11 @@ def maketemplater(ui, tmpl, defaults=None, resources=None, cache=None):
     """Create a templater from a string template 'tmpl'"""
     aliases = ui.configitems(b'templatealias')
     t = templater.templater(
-        defaults=defaults, resources=resources, cache=cache, aliases=aliases
+        defaults=defaults,
+        resources=resources,
+        cache=cache,
+        aliases=aliases,
+        rust_strict=ui.configbool(b'devel', b'template-rust-strict'),
     )
     t.cache.update(
         (k, templater.unquotestring(v)) for k, v in ui.configitems(b'templates')

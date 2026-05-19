@@ -245,7 +245,14 @@ class requestcontext:
 
         tres = formatter.templateresources(self.repo.ui, self.repo)
         return templater.templater.frommapfile(
-            mapfile, fp=fp, filters=filters, defaults=defaults, resources=tres
+            mapfile,
+            fp=fp,
+            filters=filters,
+            defaults=defaults,
+            resources=tres,
+            rust_strict=self.repo.ui.configbool(
+                b'devel', b'template-rust-strict'
+            ),
         )
 
     def sendtemplate(self, name, **kwargs):

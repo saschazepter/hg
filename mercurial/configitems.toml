@@ -776,6 +776,15 @@ Useful when testing race conditions."""
 
 [[items]]
 section = "devel"
+name = "template-rust-strict"
+default = false
+experimental = true
+documentation = """When set, raises a parse error instead of falling back to the Python
+parser if the Rust template parser cannot handle the template. Used by tests to assert
+that specific templates flow through the Rust path."""
+
+[[items]]
+section = "devel"
 name = "user.obsmarker"
 
 [[items]]
