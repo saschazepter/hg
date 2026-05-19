@@ -397,8 +397,21 @@ Test when there is nothing to merge
 Test template usage
 ===================
 
-  $ hg script::merge --message merge_f3_b2 'desc(foo_3)' 'desc(bar_2)' --template '{node}\n{p1}\n{p2}\n{desc}\n'
+  $ hg script::merge --message merge_f3_b2 'desc(foo_3)' 'desc(bar_2)' \
+  >    --template '{node}\n{p1}\n{p2}\n{desc}\n'
   462148309d33601192d2bd24dd4d2469d8df8c02
   3:49ec3c64341f
   5:a349f34727bb
   merge_f3_b2
+
+Using --template silence the other messages
+
+  $ hg script::merge --message merge_with_status_message 'desc(mv_bar_m1m)' 'desc(merge_b1_b1l)'
+  merging bar_one and bar_1 to bar_one
+
+  $ hg script::merge --message merge_without_status_message 'desc(mv_bar_m1m)' 'desc(merge_b1_b1l)' \
+  >    --template '{node}\n{p1}\n{p2}\n{desc}\n'
+  0b46603e0a2dfbbd2af625f615edfa04b1859065
+  8:fe78063b6eca
+  10:7bedac8ea1ba
+  merge_without_status_message

@@ -119,12 +119,17 @@ def cmd_script_merge(ui, repo, p1, p2, dry_run=False, tool=b"", **opts):
         hint = _(b"use --message or --logfile")
         raise error.InputError(msg, hint=hint)
 
+    template = opts.get('template')
+
     with repo.lock(), repo.transaction(b"merge"):
         p1ctx = logcmdutil.revsingle(repo, p1)
         p2ctx = logcmdutil.revsingle(repo, p2)
 
         try:
             overrides = {}
+            if template:
+                # prevent "merge message to mess with the template
+                overrides[(b'ui', b'quiet')] = True
             if tool:
                 overrides[(b'ui', b'forcemerge')] = tool
             with ui.configoverride(overrides, b'script::merge'):
