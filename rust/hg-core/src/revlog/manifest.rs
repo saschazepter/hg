@@ -390,7 +390,7 @@ impl<'a> ManifestLine<'a> {
     }
 
     /// Returns the non-filename part of the manifest line.
-    pub(self) fn data(self) -> &'a [u8] {
+    fn data(self) -> &'a [u8] {
         debug_assert!(self.filename_len > 0);
         &self.line[self.filename_len as usize..self.line.len() - 1]
     }
