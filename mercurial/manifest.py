@@ -67,7 +67,6 @@ if typing.TYPE_CHECKING:
 parsers = policy.importmod('parsers')
 propertycache = util.propertycache
 
-# Allow tests to more easily test the alternate path in manifestrevlog.add()
 FASTDELTA_TEXTDIFF_THRESHOLD = 1000
 
 
@@ -1682,15 +1681,21 @@ class manifestrevlog(repository.imanifeststorage):
         cachesize = 4
         optiontreemanifest = False
         persistentnodemap = False
+        fast_delta_paranoid = False
         opts = getattr(opener, 'options', None)
         if opts is not None:
             cachesize = opts.get(b'manifestcachesize', cachesize)
             optiontreemanifest = opts.get(b'treemanifest', False)
             persistentnodemap = opts.get(b'persistent-nodemap', False)
+            fast_delta_paranoid = opts.get(
+                b'devel.manifest.fast-delta.paranoid', False
+            )
 
         self._treeondisk = optiontreemanifest or treemanifest
 
         self._fulltextcache = manifestfulltextcache(cachesize)
+
+        self._fast_delta_paranoid = fast_delta_paranoid
 
         if tree:
             assert self._treeondisk, (tree, b'opts is %r' % opts)
@@ -1828,8 +1833,11 @@ class manifestrevlog(repository.imanifeststorage):
 
         _checkforbidden(added)
 
-        if (
-            p1 in self.fulltextcache
+        p1_text = self.fulltextcache.get(p1)
+        if p1_text is None and self._fast_delta_paranoid:
+            p1_text = self.revision(p1)
+        if self._fast_delta_paranoid or (
+            p1_text is not None
             and len(added) + len(removed) < FASTDELTA_TEXTDIFF_THRESHOLD
         ):
             # If our first parent is in the manifest cache and there aren't too
@@ -1841,11 +1849,19 @@ class manifestrevlog(repository.imanifeststorage):
                 [(x, False) for x in sorted(added)],
                 [(x, True) for x in sorted(removed)],
             )
-            arraytext, deltatext = m.fastdelta(self.fulltextcache[p1], work)
+            arraytext, deltatext = m.fastdelta(p1_text, work)
             cachedelta = revlogutils.CachedDelta(
                 self._revlog.rev(p1),
                 deltatext,
             )
+
+            if self._fast_delta_paranoid:
+                if arraytext != m.text():
+                    raise AssertionError(b"fast delta: arraytext mismatch")
+                if deltatext != mdiff.manifest_diff(
+                    util.buffer(p1_text), util.buffer(arraytext)
+                ):
+                    raise AssertionError(b"fast delta: deltatext mismatch")
         else:
             # Just encode a fulltext of the manifest and pass that through
             # to the revlog layer, and let it handle the delta process.

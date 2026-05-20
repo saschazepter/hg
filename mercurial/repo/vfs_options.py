@@ -356,4 +356,8 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
         b'storage', b'revlog.validate-delta-base'
     )
 
+    options[b'devel.manifest.fast-delta.paranoid'] = ui.configbool(
+        b'devel', b'manifest.fast-delta.paranoid'
+    )
+
     return options

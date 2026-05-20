@@ -648,6 +648,15 @@ default = ""
 
 [[items]]
 section = "devel"
+name = "manifest.fast-delta.paranoid"
+default = false
+documentation = """When true, always use the manifest "fast delta" method, and
+assert that it produces the same result as diffing full manifest texts.
+When false (default), Mercurial only uses "fast delta" in certain circumstances,
+and it assumes that its result is correct."""
+
+[[items]]
+section = "devel"
 name = "persistent-nodemap"
 default = false
 documentation = """When true, revlogs use a special reference version of the \

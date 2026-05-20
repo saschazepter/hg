@@ -1,16 +1,6 @@
-Helpers
-=======
-
-This extension forces manifest.py to compute deltas by building full texts and
-diffing them (normally it only does this if there's a large number of changes).
-
-  $ cat > $TESTTMP/force_textdiff.py <<EOF
-  > from mercurial import (
-  >     extensions,
-  >     manifest,
-  > )
-  > def extsetup(ui):
-  >     manifest.FASTDELTA_TEXTDIFF_THRESHOLD = 0
+  $ cat >> $HGRCPATH <<EOF
+  > [devel]
+  > manifest.fast-delta.paranoid=yes
   > EOF
 
 Test manifest reading
@@ -234,10 +224,6 @@ will be contiguous spans of existing entries to ensure that is handled properly.
 
   $ hg init repo2
   $ cd repo2
-  $ cat >> .hg/hgrc <<EOF
-  > [extensions]
-  > force_textdiff = $TESTTMP/force_textdiff.py
-  > EOF
 
 Pure removes should actually remove all dropped entries
 
