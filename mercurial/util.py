@@ -609,10 +609,8 @@ class fileobjectproxy:
 
         return getattr(object.__getattribute__(self, '_orig'), name)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(object.__getattribute__(self, '_orig'))
-
-    __bool__ = __nonzero__
 
     def __delattr__(self, name):
         return delattr(object.__getattribute__(self, '_orig'), name)
@@ -821,10 +819,8 @@ class socketproxy:
     def __setattr__(self, name, value):
         return setattr(object.__getattribute__(self, '_orig'), name, value)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(object.__getattribute__(self, '_orig'))
-
-    __bool__ = __nonzero__
 
     def _observedcall(self, name, *args, **kwargs):
         # Call the original object.

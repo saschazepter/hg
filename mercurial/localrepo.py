@@ -1800,10 +1800,8 @@ class localrepository(_localrepo_base_classes):
         except error.RepoLookupError:
             return False
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
-
-    __bool__ = __nonzero__
 
     def __len__(self):
         # no need to pay the cost of repoview.changelog

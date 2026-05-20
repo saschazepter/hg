@@ -99,14 +99,12 @@ class gittreemanifest(repository.imanifestdict):
     def __len__(self) -> int:
         return len(list(self.walk(matchmod.always())))
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         try:
             next(iter(self))
             return True
         except StopIteration:
             return False
-
-    __bool__ = __nonzero__
 
     def __contains__(self, path: bytes) -> bool:
         try:

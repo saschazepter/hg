@@ -597,10 +597,8 @@ class changectx(basectx, i_context.IChangeContext):
         except AttributeError:
             return id(self)
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         return self._rev != nullrev
-
-    __bool__ = __nonzero__
 
     @propertycache
     def _changeset(self):
@@ -903,15 +901,13 @@ class basefilectx(abc.ABC):
     def _repopath(self) -> bytes:
         return self._path
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         try:
             self._filenode
             return True
         except error.LookupError:
             # file is missing
             return False
-
-    __bool__ = __nonzero__
 
     def __bytes__(self) -> bytes:
         try:
@@ -1497,10 +1493,8 @@ class committablectx(basectx):
 
     __str__ = encoding.strmethod(__bytes__)
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         return True
-
-    __bool__ = __nonzero__
 
     @propertycache
     def _status(self) -> StatusT:
@@ -2232,10 +2226,8 @@ class committablefilectx(basefilectx):
         if ctx:
             self._changectx = ctx
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         return True
-
-    __bool__ = __nonzero__
 
     def linkrev(self):
         # linked to self._changectx no matter if file is modified or not

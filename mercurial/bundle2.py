@@ -292,10 +292,8 @@ class unbundlerecords(i_exch.IUnbundleRecords):
     def __len__(self):
         return len(self._sequences)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self._sequences)
-
-    __bool__ = __nonzero__
 
 
 class bundleoperation(i_exch.IUnbundleOperation):

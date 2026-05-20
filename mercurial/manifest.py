@@ -526,12 +526,10 @@ class manifestdict(repository.imanifestdict):
     def __len__(self) -> int:
         return len(self._lm)
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         # nonzero is covered by the __len__ function, but implementing it here
         # makes it easier for extensions to override.
         return len(self._lm) != 0
-
-    __bool__ = __nonzero__
 
     def set(self, key: bytes, node: bytes, flags: bytes) -> None:
         self._lm[key] = node, flags
@@ -951,11 +949,9 @@ class treemanifest(repository.imanifestdict):
             size += m.__len__()
         return size
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         # Faster than "__len__() != 0" since it avoids loading sub-manifests
         return not self._isempty()
-
-    __bool__ = __nonzero__
 
     def _isempty(self) -> bool:
         self._load()  # for consistency; already loaded by all callers

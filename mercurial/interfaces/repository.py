@@ -1283,10 +1283,8 @@ class imanifestdict(Protocol):
         """Return the number of entries in the manifest."""
 
     @abc.abstractmethod
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         """Returns True if the manifest has entries, False otherwise."""
-
-    __bool__ = __nonzero__
 
     @abc.abstractmethod
     def set(self, path: bytes, node: bytes, flags: bytes) -> None:
@@ -2080,11 +2078,9 @@ class IRepo(Protocol):
         """Whether a changeset exists."""
 
     @abc.abstractmethod
-    def __nonzero__(self):
+    def __bool__(self):
         """Always returns True."""
         return True
-
-    __bool__ = __nonzero__
 
     @abc.abstractmethod
     def __len__(self) -> int:

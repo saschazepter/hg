@@ -339,15 +339,13 @@ class lazyancestors:
             self._parentrevs, self._initrevs, self._stoprev, self._inclusive
         )
 
-    def __nonzero__(self):
+    def __bool__(self):
         """False if the set is empty, True otherwise."""
         try:
             next(iter(self))
             return True
         except StopIteration:
             return False
-
-    __bool__ = __nonzero__
 
     def __iter__(self):
         """Generate the ancestors of _initrevs in reverse topological order.

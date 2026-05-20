@@ -26,11 +26,9 @@ def _typename(o):
 
 
 class abstractsmartset:
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         """True if the smartset is not empty"""
         raise NotImplementedError()
-
-    __bool__ = __nonzero__
 
     def __contains__(self, rev: RevnumT) -> bool:
         """provide fast membership testing"""
@@ -316,10 +314,8 @@ class baseset(abstractsmartset):
     def __contains__(self) -> Callable[[RevnumT], bool]:
         return self._set.__contains__
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         return bool(len(self))
-
-    __bool__ = __nonzero__
 
     def sort(self, reverse: bool = False):
         self._ascending = not bool(reverse)
@@ -479,7 +475,7 @@ class filteredset(abstractsmartset):
             return None
         return lambda: self._iterfilter(it())
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         fast = None
         candidates = [
             self.fastasc if self.isascending() else None,
@@ -500,8 +496,6 @@ class filteredset(abstractsmartset):
         for r in it:
             return True
         return False
-
-    __bool__ = __nonzero__
 
     def __len__(self) -> int:
         # Basic implementation to be changed in future patches.
@@ -680,10 +674,8 @@ class addset(abstractsmartset):
     def __len__(self) -> int:
         return len(self._list)
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         return bool(self._r1) or bool(self._r2)
-
-    __bool__ = __nonzero__
 
     @util.propertycache
     def _list(self) -> baseset:
@@ -987,7 +979,7 @@ class generatorset(abstractsmartset):
         else:
             self._ascending = True
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         # Do not use 'for r in self' because it will enforce the iteration
         # order (default ascending), possibly unrolling a whole descending
         # iterator.
@@ -996,8 +988,6 @@ class generatorset(abstractsmartset):
         for r in self._consumegen():
             return True
         return False
-
-    __bool__ = __nonzero__
 
     def __contains__(self, x: RevnumT) -> bool:
         if x in self._cache:
@@ -1264,12 +1254,10 @@ class _spanset(abstractsmartset):
             hidden and rev in hidden
         )
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         for r in self:
             return True
         return False
-
-    __bool__ = __nonzero__
 
     def __len__(self) -> int:
         if not self._hiddenrevs:

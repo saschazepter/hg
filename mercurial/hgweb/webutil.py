@@ -118,11 +118,9 @@ class revnav:
         # used for hex generation
         self._revlog = repo.changelog
 
-    def __nonzero__(self):
+    def __bool__(self):
         """return True if any revision to navigate over"""
         return self._first() is not None
-
-    __bool__ = __nonzero__
 
     def _first(self):
         """return the minimum non-filtered changeset or None"""

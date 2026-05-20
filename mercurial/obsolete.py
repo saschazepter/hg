@@ -581,7 +581,7 @@ class obsstore:
     def __len__(self):
         return len(self._all)
 
-    def __nonzero__(self):
+    def __bool__(self):
         if getattr(self.repo, 'is_static_http_repository', False):
             # If repo is accessed via static HTTP, then we can't use os.stat()
             # to just peek at the file size.
@@ -594,8 +594,6 @@ class obsstore:
                 # avoids further stat() syscalls
                 pass
         return bool(self._all)
-
-    __bool__ = __nonzero__
 
     @property
     def readonly(self):

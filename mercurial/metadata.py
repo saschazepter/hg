@@ -72,7 +72,7 @@ class ChangingFiles(rl_t.IChangedFiles):
         self._p1_copies = dict(() if p1_copies is None else p1_copies)
         self._p2_copies = dict(() if p2_copies is None else p2_copies)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self._touched)
 
     def __eq__(self, other):

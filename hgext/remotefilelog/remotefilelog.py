@@ -250,10 +250,8 @@ class remotefilelog:
         nodetext = self.read(node)
         return nodetext != text
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
-
-    __bool__ = __nonzero__
 
     def __len__(self):
         if self.filename in (b'.hgtags', b'.hgsub', b'.hgsubstate'):

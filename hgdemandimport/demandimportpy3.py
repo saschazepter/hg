@@ -77,12 +77,8 @@ class LazyFinder:
     def __repr__(self):
         return "<LazyFinder for %r>" % object.__getattribute__(self, "_finder")
 
-    # __bool__ is canonical Python 3. But check-code insists on __nonzero__ being
-    # defined via `def`.
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(object.__getattribute__(self, "_finder"))
-
-    __bool__ = __nonzero__
 
     def __getattribute__(self, name):
         if name in ("_finder", "find_spec"):
