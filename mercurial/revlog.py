@@ -2471,7 +2471,20 @@ class revlog:
             ):
                 flags |= deltainfo.quality.to_v1_flags()
 
-        rank = RANK_UNKNOWN
+        e = revlogutils.RevlogEntry(
+            flags=flags,
+            data_offset=self._inner.next_data_offset(),
+            data_compressed_length=deltainfo.deltalen,
+            data_uncompressed_length=textlen,
+            data_compression_mode=compression_mode,
+            data_delta_base=deltainfo.base,
+            link_rev=link,
+            parent_rev_1=p1r,
+            parent_rev_2=p2r,
+            node_id=node,
+            sidedata_compression_mode=sidedata_compression_mode,
+        )
+
         if self.configs.feature.compute_rank:
             if (p1r, p2r) == (nullrev, nullrev):
                 rank = 1
@@ -2486,21 +2499,7 @@ class revlog:
                     pmin, pmax = sorted((p1r, p2r))
                     rank = 1 + self.fast_rank(pmax)
                     rank += sum(1 for _ in self.findmissingrevs([pmax], [pmin]))
-
-        e = revlogutils.RevlogEntry(
-            flags=flags,
-            data_offset=self._inner.next_data_offset(),
-            data_compressed_length=deltainfo.deltalen,
-            data_uncompressed_length=textlen,
-            data_compression_mode=compression_mode,
-            data_delta_base=deltainfo.base,
-            link_rev=link,
-            parent_rev_1=p1r,
-            parent_rev_2=p2r,
-            node_id=node,
-            sidedata_compression_mode=sidedata_compression_mode,
-            rank=rank,
-        )
+            e.rank = rank
 
         self._inner.add_entry(
             transaction,
