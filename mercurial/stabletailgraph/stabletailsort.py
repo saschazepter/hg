@@ -102,7 +102,7 @@ from ..node import nullrev
 from .. import ancestor
 
 
-def _sorted_parents(cl, p1, p2):
+def _sorted_parents(idx, p1, p2):
     """
     Chooses and returns the pair (px, pt) from (p1, p2).
 
@@ -117,18 +117,18 @@ def _sorted_parents(cl, p1, p2):
 
     In case of equal ranks, the stable node ID is used as a tie-breaker.
     """
-    r1, r2 = cl.fast_rank(p1), cl.fast_rank(p2)
+    r1, r2 = idx.rank(p1), idx.rank(p2)
     if r1 < r2:
         return (p1, p2)
     elif r1 > r2:
         return (p2, p1)
-    elif cl.node(p1) < cl.node(p2):
+    elif idx.node(p1) < idx.node(p2):
         return (p1, p2)
     else:
         return (p2, p1)
 
 
-def _nonoedipal_parent_revs(cl, rev):
+def _nonoedipal_parent_revs(idx, rev):
     """
     Returns the non-œdipal parent pair of the given revision.
 
@@ -143,21 +143,23 @@ def _nonoedipal_parent_revs(cl, rev):
 
     The œdipal edges are eliminated here using the rank information.
     """
-    p1, p2 = cl.parentrevs(rev)
-    if p1 == nullrev or cl.fast_rank(p2) == cl.fast_rank(rev) - 1:
+    assert hasattr(idx, "rank"), "This function take an index, not a revlog"
+    p1, p2 = idx.parents(rev)
+    if p1 == nullrev or idx.rank(p2) == idx.rank(rev) - 1:
         return p2, nullrev
-    elif p2 == nullrev or cl.fast_rank(p1) == cl.fast_rank(rev) - 1:
+    elif p2 == nullrev or idx.rank(p1) == idx.rank(rev) - 1:
         return p1, nullrev
     else:
         return p1, p2
 
 
-def _parents(cl, rev):
-    p1, p2 = _nonoedipal_parent_revs(cl, rev)
+def _parents(idx, rev: RevnumT) -> tuple[RevnumT, RevnumT]:
+    """returns the pair (px, pt) from (p1, p2)."""
+    p1, p2 = _nonoedipal_parent_revs(idx, rev)
     if p2 == nullrev:
         return p1, p2
 
-    return _sorted_parents(cl, p1, p2)
+    return _sorted_parents(idx, p1, p2)
 
 
 def stable_tail_sort(cl, head_rev):
@@ -177,7 +179,7 @@ def stable_tail_sort(cl, head_rev):
     while cursor_rev != nullrev:
         yield cursor_rev
 
-        px, pt = _parents(cl, cursor_rev)
+        px, pt = _parents(cl.index, cursor_rev)
         if pt == nullrev:
             cursor_rev = px
         else:
@@ -201,7 +203,7 @@ def computed_excl_splits(revlog, rev: RevnumT) -> list[tuple[RevnumT, int]]:
 
     This can be slow and is intended for debug and validation only.
     """
-    px, pt = _parents(revlog, rev)
+    px, pt = _parents(revlog.index, rev)
     if px == nullrev:
         return []
     else:
@@ -255,7 +257,7 @@ def _exclusive_part_iter(
     dangling_parents = set()
     for current in stable_tail_sort(revlog, exclusive_head):
         dangling_parents.discard(current)
-        parent_excl, parent_tail = _parents(revlog, current)
+        parent_excl, parent_tail = _parents(revlog.index, current)
         if current in tail:
             # NOTE: if current is in the (excluded) tail and was the
             # parent_excl of something we could skip ahead faster, but we leave
@@ -336,7 +338,7 @@ def stable_tail_sort_naive(cl, head_rev):
     while cursor_rev != nullrev:
         yield cursor_rev
 
-        parent_excl, parent_tail = _parents(cl, cursor_rev)
+        parent_excl, parent_tail = _parents(cl.index, cursor_rev)
         if parent_excl == nullrev:
             cursor_rev = parent_tail
         else:
