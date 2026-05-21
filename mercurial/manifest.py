@@ -67,7 +67,7 @@ if typing.TYPE_CHECKING:
 parsers = policy.importmod('parsers')
 propertycache = util.propertycache
 
-# Allow tests to more easily test the alternate path in manifestdict.fastdelta()
+# Allow tests to more easily test the alternate path in manifestrevlog.add()
 FASTDELTA_TEXTDIFF_THRESHOLD = 1000
 
 
@@ -1332,7 +1332,7 @@ class treemanifest(repository.imanifestdict):
     def fastdelta(
         self, base: ByteString, changes: Iterable[tuple[bytes, bool]]
     ) -> tuple[ByteString, ByteString]:
-        raise FastdeltaUnavailable()
+        raise error.ProgrammingError("treemanifest does not support fastdelta")
 
     def diff(
         self,
@@ -1652,10 +1652,6 @@ class manifestfulltextcache(util.lrucachedict):
 MAXCOMPRESSION = 3
 
 
-class FastdeltaUnavailable(Exception):
-    """Exception raised when fastdelta isn't usable on a manifest."""
-
-
 class manifestrevlog(repository.imanifeststorage):
     """A revlog that stores manifest texts. This is responsible for caching the
     full-text manifest contents.
@@ -1814,59 +1810,55 @@ class manifestrevlog(repository.imanifeststorage):
           readtree:    a function to read a subtree
           match:       a filematcher for the subpart of the tree manifest
         """
-        try:
-            if p1 not in self.fulltextcache:
-                raise FastdeltaUnavailable()
-            # If our first parent is in the manifest cache, we can
-            # compute a delta here using properties we know about the
-            # manifest up-front, which may save time later for the
-            # revlog layer.
+        arraytext = None
+        cachedelta = None
 
+        if self._treeondisk:
+            assert readtree, b"readtree must be set for treemanifest writes"
+            assert match, b"match must be specified for treemanifest writes"
+            m1 = readtree(self.tree, p1)
+            m2 = readtree(self.tree, p2)
+            return self._addtree(
+                m, transaction, link, m1, m2, readtree, match=match
+            )
+
+        if added is None or removed is None:
+            msg = b"added and removed can only be None for tree manifest"
+            raise error.ProgrammingError(msg)
+
+        # TODO: call _checkforbidden unconditionally
+        if p1 in self.fulltextcache:
             _checkforbidden(added)
 
-            if len(added) + len(removed) >= FASTDELTA_TEXTDIFF_THRESHOLD:
-                raise FastdeltaUnavailable()
+        if (
+            p1 in self.fulltextcache
+            and len(added) + len(removed) < FASTDELTA_TEXTDIFF_THRESHOLD
+        ):
+            # If our first parent is in the manifest cache and there aren't too
+            # many changes, then it's faster to compute a delta using properties
+            # we know about the manifest up front.
 
             # combine the changed lists into one sorted iterator
             work = heapq.merge(
                 [(x, False) for x in sorted(added)],
                 [(x, True) for x in sorted(removed)],
             )
-
             arraytext, deltatext = m.fastdelta(self.fulltextcache[p1], work)
             cachedelta = revlogutils.CachedDelta(
                 self._revlog.rev(p1),
                 deltatext,
             )
-            text = util.buffer(arraytext)
-            rev = self._revlog.addrevision(
-                text, transaction, link, p1, p2, cachedelta
-            )
-            n = self._revlog.node(rev)
-        except FastdeltaUnavailable:
-            # The first parent manifest isn't already loaded or the
-            # manifest implementation doesn't support fastdelta, so
-            # we'll just encode a fulltext of the manifest and pass
-            # that through to the revlog layer, and let it handle the
-            # delta process.
-            if self._treeondisk:
-                assert readtree, b"readtree must be set for treemanifest writes"
-                assert match, b"match must be specified for treemanifest writes"
-                m1 = readtree(self.tree, p1)
-                m2 = readtree(self.tree, p2)
-                n = self._addtree(
-                    m, transaction, link, m1, m2, readtree, match=match
-                )
-                arraytext = None
-            else:
-                text = m.text()
-                rev = self._revlog.addrevision(text, transaction, link, p1, p2)
-                n = self._revlog.node(rev)
-                arraytext = bytearray(text)
+        else:
+            # Just encode a fulltext of the manifest and pass that through
+            # to the revlog layer, and let it handle the delta process.
+            arraytext = bytearray(m.text())
 
-        if arraytext is not None:
-            self.fulltextcache[n] = arraytext
-
+        text = util.buffer(arraytext)
+        rev = self._revlog.addrevision(
+            text, transaction, link, p1, p2, cachedelta
+        )
+        n = self._revlog.node(rev)
+        self.fulltextcache[n] = arraytext
         return n
 
     def _addtree(self, m, transaction, link, m1, m2, readtree, match):
