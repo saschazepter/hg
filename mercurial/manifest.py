@@ -382,7 +382,7 @@ class _LazyManifest:
 
     def copy(self) -> _LazyManifest:
         # XXX call _compact like in C?
-        return _lazymanifest(
+        return self.__class__(
             self._nodelen,
             self.data,
             self.positions,
@@ -499,7 +499,7 @@ class _LazyManifest:
 
     def filtercopy(self, filterfn: Callable[[bytes], bool]) -> _LazyManifest:
         # XXX should be optimized
-        c = _lazymanifest(self._nodelen, b'')
+        c = self.__class__(self._nodelen, b'')
         for f, n, fl in self.iterentries():
             if filterfn(f):
                 c[f] = n, fl
