@@ -81,6 +81,7 @@ from mercurial import (
     extensions,
     mdiff,
     merge,
+    templater,
     util,
 )
 
@@ -2549,6 +2550,28 @@ def perftemplating(ui, repo, testedtemplate=None, **opts):
 
     timer, fm = gettimer(ui, opts)
     timer(format)
+    fm.end()
+
+
+@command(
+    b'perf::template-parsing|perftemplateparsing',
+    formatteropts,
+    norepo=True,
+)
+def perftemplateparsing(ui, testedtemplate=None, **opts):
+    """benchmark templater.parse on a given template"""
+    opts = _byteskwargs(opts)
+    if testedtemplate is None:
+        testedtemplate = (
+            b'{date|shortdate} [{rev}:{node|short}]'
+            b' {author|person}: {desc|firstline}\n'
+        )
+
+    def parse():
+        templater.parse(testedtemplate)
+
+    timer, fm = gettimer(ui, opts)
+    timer(parse)
     fm.end()
 
 
