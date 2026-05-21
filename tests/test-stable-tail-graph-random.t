@@ -17,6 +17,24 @@ setup the right format
   > log.topo = yes
   > EOF
 
+
+  $ check_random_ancestor () {
+  >     for seed in `seq.py 10`; do
+  >       echo "### testing #$seed"
+  >       REV_BASE=`hg script::revs "first(sort(all() - max(all()), random, random.seed=$seed))"`
+  >       REV_ANC=`hg script::revs "first(sort(::$REV_BASE, random))"`
+  >       REV_OTHER=`hg script::revs "first(sort(not (::$REV_BASE), random))"`
+  >       if hg debug::is-ancestor $REV_ANC $REV_BASE; then
+  >          true
+  >       else
+  >            echo BAD: $REV_ANC should be an ancestors of $REV_BASE
+  >       fi
+  >       if hg debug::is-ancestor $REV_OTHER $REV_BASE; then
+  >            echo BAD: $REV_ANC should not be an ancestors of $REV_BASE
+  >       fi
+  >     done
+  > }
+
 Build a repository with a random graph
 ======================================
 
@@ -43,6 +61,18 @@ Check that the stale sort is correct
   $ hg debug::stable-tail-sort "max(all())" --naive -T "{node}\n" > ../naive-sort.txt
   $ pdiff ../naive-sort.txt ../real-sort.txt
 
+  $ check_random_ancestor
+  ### testing #1
+  ### testing #2
+  ### testing #3
+  ### testing #4
+  ### testing #5
+  ### testing #6
+  ### testing #7
+  ### testing #8
+  ### testing #9
+  ### testing #10
+
   $ cd ..
 
 Build a big repository with a large random graph
@@ -65,6 +95,17 @@ Check that the rank of the last revision was properly computed
   $ test $REV_RANK -eq $REV_ANC_COUNT
   $ test $REV_RANK -eq `hg debug::stable-tail-sort "max(all())" -T "{node}\n" | wc -l | cat`
 
+  $ check_random_ancestor
+  ### testing #1
+  ### testing #2
+  ### testing #3
+  ### testing #4
+  ### testing #5
+  ### testing #6
+  ### testing #7
+  ### testing #8
+  ### testing #9
+  ### testing #10
 
   $ cd ..
 
@@ -696,6 +737,22 @@ Test some fixed random graph to verify things are stable
   |
   o  (rev: 0) rank: 1
   
+
+  $ hg debug::is-ancestor 1 10
+  $ hg debug::is-ancestor 2 20
+  $ hg debug::is-ancestor 13 100
+  $ hg debug::is-ancestor 14 200
+  $ hg debug::is-ancestor 105 150
+  [2]
+  $ hg debug::is-ancestor 106 200
+  [2]
+  $ hg debug::is-ancestor 40 250
+  [2]
+  $ hg debug::is-ancestor 100 275
+  [2]
+  $ hg debug::is-ancestor 105 106
+  $ hg debug::is-ancestor 280 300
+  [2]
 
   $ for head in `hg script::revs 'heads(all())'`; do
   >    echo ""
@@ -4363,5 +4420,20 @@ Test some fixed random graph to verify things are stable
   (rev: 1, p1: 0) rank: 2
   (rev: 0) rank: 1
 
+  $ hg debug::is-ancestor 1 10
+  $ hg debug::is-ancestor 2 20
+  $ hg debug::is-ancestor 13 100
+  $ hg debug::is-ancestor 14 200
+  $ hg debug::is-ancestor 105 250
+  [2]
+  $ hg debug::is-ancestor 106 500
+  [2]
+  $ hg debug::is-ancestor 40 300
+  [2]
+  $ hg debug::is-ancestor 100 750
+  [2]
+  $ hg debug::is-ancestor 105 106
+  $ hg debug::is-ancestor 800 986
+  [2]
 
   $ cd ..

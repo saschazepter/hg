@@ -1037,6 +1037,8 @@ Test list of internal help commands
                  (no help text available)
    debug::file-index
                  inspect or manipulate the file index
+   debug::is-ancestor
+                 exit 0 if ANC_REV1 is an ancestor of DESC_REV, 2 otherwise
    debug::revlog-reencoded-delta-info
                  show revlog statistic if delta where to be reencoded
    debug::stable-tail-sort

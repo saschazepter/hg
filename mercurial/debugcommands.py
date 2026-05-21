@@ -5199,3 +5199,19 @@ def fast_upgrade(ui, repo, *patterns, **opts):
                 count += 1
                 p.increment()
     ui.statusnoi18n(b"upgraded %d filelog\n" % count)
+
+
+@command(
+    b'debug::is-ancestor',
+    [],
+    b'hg debugisancestor ANC_REV1 DESC_REV',
+    inferrepo=True,
+)
+def debugisancestor(ui, repo, rev1, rev2, **opts):
+    """exit 0 if ANC_REV1 is an ancestor of DESC_REV, 2 otherwise"""
+    ctx1 = scmutil.revsingle(repo, rev1)
+    ctx2 = scmutil.revsingle(repo, rev2)
+    if repo.changelog.isancestorrev(ctx1.rev(), ctx2.rev()):
+        return 0
+    else:
+        return 2

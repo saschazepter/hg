@@ -225,6 +225,7 @@ Show debug commands if there are no other candidates
   debug::clonebundle-manifest
   debug::fast-upgrade
   debug::file-index
+  debug::is-ancestor
   debug::revlog-reencoded-delta-info
   debug::stable-tail-sort
   debug::stable-tail-sort-leaps
@@ -434,6 +435,7 @@ Show all commands + options
   debug::clonebundle-manifest: stream, raw, include, exclude
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
+  debug::is-ancestor: 
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::stable-tail-sort: template, limit, naive
   debug::stable-tail-sort-leaps: template, specific
