@@ -1802,8 +1802,8 @@ class manifestrevlog(repository.imanifeststorage):
         link,
         p1,
         p2,
-        added: Iterable[bytes],
-        removed: Iterable[bytes],
+        added: Iterable[bytes] | None,
+        removed: Iterable[bytes] | None,
         readtree=None,
         match=None,
     ):

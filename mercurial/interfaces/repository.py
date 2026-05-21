@@ -1745,7 +1745,7 @@ class imanifeststorage(IDeltaEmittingStore, Protocol):
         ``p1`` and ``p2`` are the parent revision numbers.
 
         ``added`` and ``removed`` are iterables of added and removed paths,
-        respectively.
+        respectively (for tree manifest, they are None).
 
         ``readtree`` is a function that can be used to read the child tree(s)
         when recursively writing the full tree structure when using
