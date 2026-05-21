@@ -852,6 +852,17 @@ class BaseIndex(abc.ABC):
         """
         return self._entry(rev)[12]
 
+    def rank(self, rev):
+        """return the rank of <rev>
+
+        raise a ProgrammingError if the rank is unknown.
+        """
+        rank = self._entry(rev)[12]
+        if rank == revlog_constants.RANK_UNKNOWN:
+            msg = b"should not call `rank(rev)` if rank might be unknown"
+            raise error.ProgrammingError(msg)
+        return rank
+
     def node(self, rev: int) -> bytes:
         """return the node of a revision"""
         return self._entry(rev)[7]
