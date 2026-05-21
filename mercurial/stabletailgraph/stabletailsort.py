@@ -84,7 +84,7 @@ def _parents(cl, rev):
     return _sorted_parents(cl, p1, p2)
 
 
-def _stable_tail_sort_naive(cl, head_rev):
+def stable_tail_sort(cl, head_rev):
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
 
@@ -109,9 +109,7 @@ def _stable_tail_sort_naive(cl, head_rev):
                 cl.parentrevs, (pt,), inclusive=True
             )
             exclusive_ancestors = (
-                a
-                for a in _stable_tail_sort_naive(cl, px)
-                if a not in tail_ancestors
+                a for a in stable_tail_sort(cl, px) if a not in tail_ancestors
             )
 
             # Notice that excl(cur) is disjoint from ancestors(pt),
@@ -120,6 +118,38 @@ def _stable_tail_sort_naive(cl, head_rev):
             excl_part_size = cl.fast_rank(cursor_rev) - cl.fast_rank(pt) - 1
             yield from itertools.islice(exclusive_ancestors, excl_part_size)
             cursor_rev = pt
+
+
+def stable_tail_sort_naive(cl, head_rev):
+    """
+    Naive topological iterator of the ancestors given by the stable-tail sort.
+
+    The stable-tail sort of a node "h" is defined as the sequence:
+    sts(h) := [h] + excl(h) + sts(pt(h))
+    where excl(h) := u for u in sts(px(h)) if u not in ancestors(pt(h))
+
+    This implementation uses a call-stack whose size is
+    O(number of open merges).
+
+    As such, this implementation exists mainly as a defining reference.
+    """
+    cursor_rev = head_rev
+    while cursor_rev != nullrev:
+        yield cursor_rev
+
+        parent_excl, parent_tail = _parents(cl, cursor_rev)
+        if parent_excl == nullrev:
+            cursor_rev = parent_tail
+        else:
+            tail_ancestors = ancestor.lazyancestors(
+                cl.parentrevs,
+                [parent_tail],
+                inclusive=True,
+            )
+            for anc in stable_tail_sort_naive(cl, parent_excl):
+                if anc not in tail_ancestors:
+                    yield anc
+            cursor_rev = parent_tail
 
 
 def _find_all_leaps_naive(cl, head_rev):
@@ -132,7 +162,7 @@ def _find_all_leaps_naive(cl, head_rev):
     Leaps are yielded in the same order as encountered in the stable-tail sort,
     from head to root.
     """
-    sts = _stable_tail_sort_naive(cl, head_rev)
+    sts = stable_tail_sort(cl, head_rev)
     prev = next(sts)
     for current in sts:
         if current != _parents(cl, prev)[0]:
@@ -161,7 +191,7 @@ def _find_specific_leaps_naive(cl, head_rev):
 
     parents_leaps = set(_find_all_leaps_naive(cl, px))
 
-    sts = _stable_tail_sort_naive(cl, head_rev)
+    sts = stable_tail_sort_naive(cl, head_rev)
     prev = next(sts)
     for current in sts:
         if current == pt:

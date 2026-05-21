@@ -19,6 +19,15 @@ respectively.
 The intermediary linear parts in the example graph are there to force the
 exclusive part choice (made on a min rank condition).
 
+#testcases real naive
+
+#if naive
+  $ cat << EOF >> $HGRCPATH
+  > [defaults]
+  > debug::stable-tail-sort=--naive
+  > EOF
+#endif
+
 
 Setup
 =====

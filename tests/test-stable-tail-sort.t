@@ -1,6 +1,15 @@
 Test for stable ordering capabilities
 =====================================
 
+#testcases real naive
+
+#if naive
+  $ cat << EOF >> $HGRCPATH
+  > [defaults]
+  > debug::stable-tail-sort=--naive
+  > EOF
+#endif
+
 (This test was imported from evolve's db172e4df9dc and adapted for core)
 
   $ cat << EOF >> $HGRCPATH

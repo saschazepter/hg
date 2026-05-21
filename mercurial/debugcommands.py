@@ -3812,10 +3812,16 @@ def debugssl(ui, repo, source=None, **opts):
             _(b'display the first N item only'),
             _(b'N'),
         ),
+        (
+            b'',
+            b'naive',
+            False,
+            _(b'Use a naive a (very) slow implementation'),
+        ),
     ],
     b'REV',
 )
-def debug_stable_tail_sort(ui, repo, revspec, template, **opts):
+def debug_stable_tail_sort(ui, repo, revspec, template, naive=False, **opts):
     """display the stable-tail sort of the ancestors of a given node"""
     rev = logcmdutil.revsingle(repo, revspec).rev()
     cl = repo.changelog
@@ -3824,7 +3830,10 @@ def debug_stable_tail_sort(ui, repo, revspec, template, **opts):
         limit = None
 
     displayer = logcmdutil.maketemplater(ui, repo, template)
-    sorted_revs = stabletailsort._stable_tail_sort_naive(cl, rev)
+    if naive:
+        sorted_revs = stabletailsort.stable_tail_sort_naive(cl, rev)
+    else:
+        sorted_revs = stabletailsort.stable_tail_sort(cl, rev)
 
     for ancestor_rev in sorted_revs:
         if limit is not None:

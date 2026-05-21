@@ -2,6 +2,15 @@
 Check that we can compute and exchange rank and stable tail sort properly
 =========================================================================
 
+#testcases real naive
+
+#if naive
+  $ cat << EOF >> $HGRCPATH
+  > [defaults]
+  > debug::stable-tail-sort=--naive
+  > EOF
+#endif
+
   $ cat << EOF >> $HGRCPATH
   > [format]
   > exp-use-changelog-v2=enable-unstable-format-and-corrupt-my-data

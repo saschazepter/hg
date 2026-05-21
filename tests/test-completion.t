@@ -435,7 +435,7 @@ Show all commands + options
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
-  debug::stable-tail-sort: template, limit
+  debug::stable-tail-sort: template, limit, naive
   debug::stable-tail-sort-leaps: template, specific
   debug::unbundle: 
   debugancestor: 
