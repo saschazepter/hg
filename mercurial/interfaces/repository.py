@@ -1731,8 +1731,8 @@ class imanifeststorage(IDeltaEmittingStore, Protocol):
         link,
         p1,
         p2,
-        added,
-        removed,
+        added: list[HgPathT],
+        removed: list[HgPathT],
         readtree=None,
         match=None,
     ):
@@ -1744,7 +1744,7 @@ class imanifeststorage(IDeltaEmittingStore, Protocol):
 
         ``p1`` and ``p2`` are the parent revision numbers.
 
-        ``added`` and ``removed`` are iterables of added and removed paths,
+        ``added`` and ``removed`` are lists of added and removed paths,
         respectively (for tree manifest, they are None).
 
         ``readtree`` is a function that can be used to read the child tree(s)

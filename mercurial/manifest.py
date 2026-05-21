@@ -24,6 +24,7 @@ from typing import (
 
 from .i18n import _
 from .interfaces.types import (
+    HgPathT,
     MatcherT,
     RevnumT,
 )
@@ -1802,8 +1803,8 @@ class manifestrevlog(repository.imanifeststorage):
         link,
         p1,
         p2,
-        added: Iterable[bytes] | None,
-        removed: Iterable[bytes] | None,
+        added: list[HgPathT] | None,
+        removed: list[HgPathT] | None,
         readtree=None,
         match=None,
     ):
