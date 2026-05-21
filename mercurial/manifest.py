@@ -1826,9 +1826,7 @@ class manifestrevlog(repository.imanifeststorage):
             msg = b"added and removed can only be None for tree manifest"
             raise error.ProgrammingError(msg)
 
-        # TODO: call _checkforbidden unconditionally
-        if p1 in self.fulltextcache:
-            _checkforbidden(added)
+        _checkforbidden(added)
 
         if (
             p1 in self.fulltextcache
