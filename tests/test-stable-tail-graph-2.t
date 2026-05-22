@@ -434,9 +434,7 @@ test the split are properly computed
   ### exclusive splits for merge revision: 5ba9a53052edb1e633e32a7e9d55bb52c939eeef
   AmergeB BbaseB length: 1
   ### exclusive splits for merge revision: 26f59ee8b1d796abfa4071cdef1a96de632ddba8
-  BbaseA length: 12
   ### exclusive splits for merge revision: f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
-  BbaseA length: 12
   ### exclusive splits for merge revision: 39bab1cb1cbeb1e28b3135fd68ed7b0052f75c52
   BmergeA length: 1
   ### exclusive splits for merge revision: 55bf3fdb634f1f8f0b779f1a5e622fa475a2b98c

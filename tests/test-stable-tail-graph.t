@@ -109,7 +109,6 @@ which breaks the child-parent chain and results in a leap.
 Check that this leap is inherited by its direct ancestor "f".
 
   $ hg test-splits f
-  e length: 6
 
   $ cd ..
 
