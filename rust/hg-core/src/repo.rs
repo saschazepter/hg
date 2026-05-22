@@ -438,13 +438,11 @@ impl Repo {
             let contents = match contents {
                 Ok(c) => c,
                 Err(error) => {
-                    match error.raw_os_error().expect("real os error") {
-                        // 2 = ENOENT, No such file or directory
-                        // 116 = ESTALE, Stale NFS file handle
-                        //
-                        // TODO match on `error.kind()` when
-                        // `ErrorKind::StaleNetworkFileHandle` is stable.
-                        2 | 116 => {
+                    match error.kind() {
+                        Some(
+                            std::io::ErrorKind::NotFound
+                            | std::io::ErrorKind::StaleNetworkFileHandle,
+                        ) => {
                             // Race where the data file was deleted right after
                             // we read the docket, try again
                             return Err(race_error);

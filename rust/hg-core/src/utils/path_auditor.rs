@@ -177,7 +177,7 @@ pub fn check_filesystem_single(
             // EINVAL can be raised as invalid path syntax under win32.
             if e.kind() != std::io::ErrorKind::NotFound
                 && e.kind() != std::io::ErrorKind::InvalidInput
-                && e.raw_os_error() != Some(20)
+                && e.kind() != std::io::ErrorKind::NotADirectory
             {
                 // Rust does not yet have an `ErrorKind` for
                 // `NotADirectory` (errno 20)

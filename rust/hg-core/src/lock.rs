@@ -166,16 +166,10 @@ lazy_static::lazy_static! {
                     return format!("{}/{:x}", hostname, meta.st_ino())
                 }
                 Err(error) => {
-                    // TODO: match on `error.kind()` when `NotADirectory`
-                    // is available on all supported Rust versions:
-                    // https://github.com/rust-lang/rust/issues/86442
-                    use libc::{
-                        ENOENT, // ErrorKind::NotFound
-                        ENOTDIR, // ErrorKind::NotADirectory
-                        EACCES, // ErrorKind::PermissionDenied
-                    };
-                    match error.raw_os_error() {
-                        Some(ENOENT) | Some(ENOTDIR) | Some(EACCES) => {}
+                    match error.kind() {
+                        ErrorKind::NotFound |
+                        ErrorKind::NotADirectory |
+                        ErrorKind::PermissionDenied  => {},
                         _ => panic!("stat /proc/self/ns/pid: {}", error),
                     }
                 }

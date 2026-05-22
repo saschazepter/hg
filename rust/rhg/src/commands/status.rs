@@ -686,10 +686,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         }
         Err(LockError::IO(error))
             if error.kind() == Some(io::ErrorKind::PermissionDenied)
-                || match error.raw_os_error() {
-                    None => false,
-                    Some(errno) => libc::EROFS == errno,
-                } =>
+                || error.kind() == Some(io::ErrorKind::ReadOnlyFilesystem) =>
         {
             // `hg status` on a read-only repository is fine
         }
