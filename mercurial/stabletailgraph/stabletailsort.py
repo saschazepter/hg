@@ -267,14 +267,29 @@ def _exclusive_part_iter(
                 break
         else:
             yield current
-            # NOTE: We should be able to only append parent_tail if the
-            # parent_excl is non-null. However there are currently some bug in
-            # the _parents function that prevent that. a fix for it is comming
-            # soon.
-            if parent_excl != nullrev and parent_excl not in tail:
-                dangling_parents.add(parent_excl)
-            if parent_tail != nullrev and parent_tail not in tail:
-                dangling_parents.add(parent_tail)
+            # NOTE: At first, one may assumes that we can not do this logic
+            # only for the "tail" parent of merge, as we have no guarantee that
+            # the STS of the exclusive head will iterate of a parent of
+            # `current` next.
+            #
+            # Indeed the next iteration could jump somewhere else in the
+            # ancestry of exclusive heads. So one parent not might be
+            # iterated over next. (in addition of the tail-parent a merge that will not
+            # be iterated over next for sure). We call this parent
+            # "next-parent" for the rest of this explanation.
+            #
+            # However the only reason for such jump to happens is for another
+            # child of "next-parent" to exist later in the STS. And this gives us two cases :
+            #
+            # - If that child it part of `tail`, then that next-parent is also
+            #   part of `tail` and we can ignore next-parent.
+            # - If next-parent is not part of `tail`, then none of its children
+            #   are. Such child will be iterated over later, and `next-parent`
+            #   will be processed.
+            if parent_excl != nullrev:
+                assert parent_tail != nullrev
+                if parent_tail not in tail:
+                    dangling_parents.add(parent_tail)
 
 
 def _group_by_range(
