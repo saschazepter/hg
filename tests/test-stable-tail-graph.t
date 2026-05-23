@@ -40,7 +40,7 @@ Enable the rank computation to test sorting based on the rank.
   > 
   > [alias]
   > test-sts = debug::stable-tail-sort -T '{if(tags, "{tags},")}'
-  > test-leaps = debug::stable-tail-sort-leaps -T '{tags}'
+  > test-splits = debug::stable-tail-sort-excl-splits -T '{tags}'
   > test-log = log --graph -T '{tags} rank={_fast_rank}' --rev 'tagged()'
   > EOF
 
@@ -102,23 +102,14 @@ Check that the linear descendant of the merge inherits its sort properly.
 Check the leaps of "e": arriving at "c", the sort continues at "d", which
 which breaks the child-parent chain and results in a leap.
 
-  $ hg test-leaps e
-  cd
+  $ hg test-splits e
+  c length: 1
 
-Check that this leap is indeed specific to "e", i.e. that it appears in its
-stable-tail sort, but not in any stable-tail sort of its ancestors.
-
-  $ hg test-leaps --specific e
 
 Check that this leap is inherited by its direct ancestor "f".
 
-  $ hg test-leaps f
-  cd
-
-Check that this leap is not classified as specific to "f", since it is specific
-to "e".
-
-  $ hg test-leaps --specific f
+  $ hg test-splits f
+  e length: 6
 
   $ cd ..
 
@@ -181,20 +172,14 @@ and that a part of the sort of "e" appears as an infix.
 
 Check the leaps of "e".
 
-  $ hg test-leaps e
-  cd
+  $ hg test-splits e
+  c length: 1
 
-  $ hg test-leaps --specific e
 
 Check that "g" inherits a leap from "e" in addition of its own.
 
-  $ hg test-leaps g
-  cd
-  bf
-
-Check that only the additional leap of "g" is classified as specific.
-
-  $ hg test-leaps --specific g
+  $ hg test-splits g
+  e length: 5
 
   $ cd ..
 
@@ -257,18 +242,15 @@ and that "c" is then emitted after "e" (its descendant).
 
 Check the leaps of "d".
 
-  $ hg test-leaps d
-  bc
+  $ hg test-splits d
+  b length: 1
 
-  $ hg test-leaps --specific d
 
 Check thet leaps of "f", which, despite being a descendant of "f", has a
 different stable-tail sort which does not reuse any leap of "d".
 
-  $ hg test-leaps f
-  be
-
-  $ hg test-leaps --specific f
+  $ hg test-splits f
+  d length: 2
 
   $ cd ..
 
@@ -330,19 +312,15 @@ Check that sort "f" leaps from "d" to "b":
 
 Check the leaps of "d".
 
-  $ hg test-leaps d
-  cb
+  $ hg test-splits d
+  c length: 1
 
-  $ hg test-leaps --specific d
 
 Check the leaps of "f".
 
-  $ hg test-leaps f
-  db
-  e* (glob)
-
-  $ hg test-leaps --specific f
-  db
+  $ hg test-splits f
+  d length: 1
+  b length: 2
 
   $ cd ..
 
@@ -405,18 +383,14 @@ Check that sort "f" leaps from "g" to "b":
 
 Check the leaps of "d".
 
-  $ hg test-leaps d
-  cb
-  $ hg test-leaps --specific d
+  $ hg test-splits d
+  g length: 2
 
 Check the leaps of "f".
 
-  $ hg test-leaps f
-  gb
-  e* (glob)
-
-  $ hg test-leaps --specific f
-  gb
+  $ hg test-splits f
+  d length: 2
+  b length: 3
 
   $ cd ..
 
@@ -479,18 +453,13 @@ exclusive part of "g":
 
 Check the leaps of "f".
 
-  $ hg test-leaps f
-  bc
-
-  $ hg test-leaps --specific f
+  $ hg test-splits f
+  e length: 2
 
 Check the leaps of "g".
 
-  $ hg test-leaps g
-  df
-  bc
-
-  $ hg test-leaps --specific g
+  $ hg test-splits g
+  d length: 1
 
   $ cd ..
 
@@ -574,27 +543,19 @@ Check that the common part of excl(j) and excl(k) is iterated over after "k":
 
 Check the leaps of "j".
 
-  $ hg test-leaps j
-  cg
-
-  $ hg test-leaps --specific j
+  $ hg test-splits j
+  e length: 3
 
 Check the leaps of "k".
 
-  $ hg test-leaps k
-  bi
-
-  $ hg test-leaps --specific k
+  $ hg test-splits k
+  h length: 5
 
 Check the leaps of "l".
 
-  $ hg test-leaps l
-  eg
-  fk
-  bi
-
-  $ hg test-leaps --specific l
-  eg
+  $ hg test-splits l
+  j length: 2
+  g length: 4
 
   $ cd ..
 
@@ -672,26 +633,20 @@ Check that the common part of inherited(g) and excl(k) is iterated over after
 
 Check the leaps of "g".
 
-  $ hg test-leaps g
-  cf
-  $ hg test-leaps g
-  cf
+  $ hg test-splits g
+  c length: 1
+  $ hg test-splits g
+  c length: 1
 
 Check the leaps of "i".
 
-  $ hg test-leaps i
-  bh
-
-  $ hg test-leaps --specific i
+  $ hg test-splits i
+  e length: 3
 
 Check the leaps of "j".
 
-  $ hg test-leaps j
-  cf
-  fi
-  bh
-
-  $ hg test-leaps --specific j
+  $ hg test-splits j
+  g length: 3
 
   $ cd ..
 
@@ -773,27 +728,19 @@ is postponed to inherited(j) in sort(k):
 
 Check the leaps of "i".
 
-  $ hg test-leaps i
-  bf
-
-  $ hg test-leaps --specific i
+  $ hg test-splits i
+  c length: 2
 
 Check the leaps of "j".
 
-  $ hg test-leaps j
-  bh
-
-  $ hg test-leaps --specific j
+  $ hg test-splits j
+  g length: 3
 
 Check the leaps of "k".
 
-  $ hg test-leaps k
-  cf
-  ej
-  bh
-
-  $ hg test-leaps --specific k
-  cf
+  $ hg test-splits k
+  i length: 2
+  f length: 2
 
   $ cd ..
 
@@ -886,19 +833,13 @@ Stale-tail sort of "l" for reference:
 
 Check the corresponding leaps:
 
-  $ hg test-leaps o
-  ch
-  gk
-  en
+  $ hg test-splits o
+  l length: 4
+  h length: 2
+  k length: 9
 
-  $ hg test-leaps --specific o
-  ch
-
-  $ hg test-leaps l
-  bh
-  gk
-
-  $ hg test-leaps --specific l
+  $ hg test-splits l
+  i length: 6
 
   $ cd ..
 
@@ -1004,22 +945,16 @@ Stable-tail sort of "o" for reference:
 
 Check the associated leaps:
 
-  $ hg test-leaps r
-  dh
-  gk
-  en
-  mq
+  $ hg test-splits r
+  o length: 4
+  h length: 2
+  k length: 9
+  n length: 16
 
-  $ hg test-leaps --specific r
-  dh
-
-  $ hg test-leaps o
-  ch
-  gk
-  en
-
-  $ hg test-leaps --specific o
-  ch
+  $ hg test-splits o
+  l length: 4
+  h length: 2
+  k length: 9
 
   $ cd ..
 
@@ -1134,22 +1069,14 @@ Stable-tail sort of "o" for reference:
 
 Check the associated leaps:
 
-  $ hg test-leaps t
-  dk
-  jn
-  ms
-  bq
+  $ hg test-splits t
+  o length: 4
+  k length: 7
+  n length: 16
 
-  $ hg test-leaps --specific t
-  dk
-  jn
-
-  $ hg test-leaps o
-  ch
-  gk
-  en
-
-  $ hg test-leaps --specific o
-  ch
+  $ hg test-splits o
+  l length: 4
+  h length: 2
+  k length: 9
 
   $ cd ..

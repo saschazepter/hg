@@ -1043,9 +1043,8 @@ Test list of internal help commands
                  show revlog statistic if delta where to be reencoded
    debug::stable-tail-sort
                  display the stable-tail sort of the ancestors of a given node
-   debug::stable-tail-sort-leaps
-                 display the leaps in the stable-tail sort of a node, one per
-                 line
+   debug::stable-tail-sort-excl-splits
+                 display the exclusive splits of a revision, one per line
    debug::unbundle
                  same as 'hg unbundle', but pretent to come from a push
    debugancestor

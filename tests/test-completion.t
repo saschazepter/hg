@@ -228,7 +228,7 @@ Show debug commands if there are no other candidates
   debug::is-ancestor
   debug::revlog-reencoded-delta-info
   debug::stable-tail-sort
-  debug::stable-tail-sort-leaps
+  debug::stable-tail-sort-excl-splits
   debug::unbundle
   debugancestor
   debugantivirusrunning
@@ -438,7 +438,7 @@ Show all commands + options
   debug::is-ancestor: 
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::stable-tail-sort: template, limit, naive
-  debug::stable-tail-sort-leaps: template, specific
+  debug::stable-tail-sort-excl-splits: template
   debug::unbundle: 
   debugancestor: 
   debugantivirusrunning: 

@@ -68,6 +68,25 @@ Tail Parent:
 Tail Part:
     The part of the revision ancestry that is also part of the "Tail Parent"
     ancestor.
+
+Stable Tail Range:
+    A (head, size) pair that encodes a group of revisions. "head" is a revision,
+    while "size" in a positive, non-null integer. Together they encode the set
+    of revisions as:
+
+        The "size" first elements of "sts(head)".
+
+    The ordering of revisions in that group is the same as `sts(heads)`.
+
+    In Python terms this would be::
+
+        Range(head, size) == stable_tail_sort(head)[:size]
+
+Exclusive Splits:
+    A way of encoding the exclusive part of a revision as a series of "Stable
+    Tail Range". It offers a compact way of expressing the discontinuity of the
+    order of revisions from the exclusive part created by the exclusion of
+    ancestors common with the "Tail".
 """
 
 from __future__ import annotations
@@ -177,6 +196,29 @@ def stable_tail_sort(cl, head_rev):
             cursor_rev = pt
 
 
+def computed_excl_splits(revlog, rev: RevnumT) -> list[tuple[RevnumT, int]]:
+    """compute the exclusive split of a revision on the fly
+
+    This can be slow and is intended for debug and validation only.
+    """
+    px, pt = _parents(revlog, rev)
+    if px == nullrev:
+        return []
+    else:
+        return list(_compute_excl_splits(revlog, px, pt))
+
+
+def _compute_excl_splits(
+    revlog,
+    exclusive_head: RevnumT,
+    tail_head: RevnumT,
+) -> Iterator[tuple[RevnumT, int]]:
+    """yield the exclusive splits from exclusive and tail parents"""
+    tail = revlog.ancestors([tail_head], inclusive=True)
+    revs = _exclusive_part_iter(revlog, exclusive_head, tail)
+    yield from _group_by_range(revlog, revs)
+
+
 def _exclusive_part_iter(
     revlog,
     exclusive_head: RevnumT,
@@ -234,6 +276,49 @@ def _exclusive_part_iter(
                 dangling_parents.add(parent_tail)
 
 
+def _group_by_range(
+    revlog,
+    revs: Iterator[RevnumT],
+) -> Iterator[tuple[RevnumT, int]]:
+    """turn an iteration of revision into equivalent Stable Tail Range
+
+    This is typically used to compute the "exclusive splits" for a merge.
+    """
+    # The first revision, will be the head of our first Range
+    current_head = next(revs, None)
+    if current_head is None:
+        return
+    # We will synchroniously iterate other that revision own stable_tail_sort
+    # to detect any divergence from the main iteration.
+    current_iter = stable_tail_sort(revlog, current_head)
+    current_length = 1  # that range contains one revision already
+    next(current_iter)
+    for current in revs:
+        # If the revision from the iterator we are "grouping" diverged from the
+        # stable-tail-sort of the current "head" revision, the range we are
+        # currently using is no longer suitable to express that iteration.
+        #
+        # So we can emit the Range we had so far and we must create a new Range
+        # using that first diverging revision as its head.
+        if current != next(current_iter, None):
+            assert current_head > nullrev
+            assert current_length > 0
+            yield (current_head, current_length)
+            # creating the new range, and tracking the STS of its new head for
+            # divergence.
+            current_head = current
+            current_iter = stable_tail_sort(revlog, current)
+            current_length = 0
+            next(current_iter)
+        current_length += 1
+    # the iteration is over, if we have any "in progress" Range, they need to
+    # be emitted.
+    if current_head is not None:
+        assert current_head > nullrev
+        assert current_length > 0
+        yield (current_head, current_length)
+
+
 def stable_tail_sort_naive(cl, head_rev):
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
@@ -262,55 +347,3 @@ def stable_tail_sort_naive(cl, head_rev):
             )
             yield from _exclusive_part_iter(cl, parent_excl, tail_ancestors)
             cursor_rev = parent_tail
-
-
-def _find_all_leaps_naive(cl, head_rev):
-    """
-    Yields the leaps in the stable-tail sort of the given revision.
-
-    A leap is a pair of revisions (source, target) consecutive in the
-    stable-tail sort of a head, for which target != px(source).
-
-    Leaps are yielded in the same order as encountered in the stable-tail sort,
-    from head to root.
-    """
-    sts = stable_tail_sort(cl, head_rev)
-    prev = next(sts)
-    for current in sts:
-        if current != _parents(cl, prev)[0]:
-            yield (prev, current)
-
-        prev = current
-
-
-def _find_specific_leaps_naive(cl, head_rev):
-    """
-    Returns the specific leaps in the stable-tail sort of the given revision.
-
-    Specific leaps are leaps appear in the stable-tail sort of a given
-    revision, but not in the stable-tail sort of any of its ancestors.
-
-    The final leaps (leading to the pt of the considered merge) are omitted.
-
-    Only merge nodes can have associated specific leaps.
-
-    This implementations uses the whole leap sets of the given revision and
-    of its parents.
-    """
-    px, pt = _parents(cl, head_rev)
-    if px == nullrev or pt == nullrev:
-        return  # linear nodes cannot have specific leaps
-
-    parents_leaps = set(_find_all_leaps_naive(cl, px))
-
-    sts = stable_tail_sort_naive(cl, head_rev)
-    prev = next(sts)
-    for current in sts:
-        if current == pt:
-            break
-        if current != _parents(cl, prev)[0]:
-            leap = (prev, current)
-            if leap not in parents_leaps:
-                yield leap
-
-        prev = current

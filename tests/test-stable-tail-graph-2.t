@@ -16,6 +16,13 @@ Check that we can compute and exchange rank and stable tail sort properly
   > exp-use-changelog-v2=enable-unstable-format-and-corrupt-my-data
   > EOF
 
+  $ check_merges_splits () {
+  >     for rev in `hg script::revs 'merge()'`; do
+  >         echo '### exclusive splits for merge revision:' $rev
+  >         hg debug::stable-tail-sort-excl-splits -T '{tags}' $rev
+  >     done
+  > }
+
 
 Test minimal rank computation with merge
 ========================================
@@ -51,6 +58,10 @@ Test minimal rank computation with merge
   2
   1
   0
+
+  $ check_merges_splits
+  ### exclusive splits for merge revision: f50d7a0d10f4f9222052280570ff420150689731
+   length: 1
 
   $ cd ..
 
@@ -413,6 +424,130 @@ Test behavior around "criss cross" merges
   1
   0
 
+test the split are properly computed
+
+  $ check_merges_splits
+  ### exclusive splits for merge revision: c81423bf5a24e28484a591de88cc764941af2c5a
+  AbaseB length: 2
+  ### exclusive splits for merge revision: 07c648efceebcbbc7e048f8f58dff9fc54b867a7
+  AbaseB length: 2
+  ### exclusive splits for merge revision: 5ba9a53052edb1e633e32a7e9d55bb52c939eeef
+  AmergeB BbaseB length: 1
+  ### exclusive splits for merge revision: 26f59ee8b1d796abfa4071cdef1a96de632ddba8
+  BbaseA length: 12
+  ### exclusive splits for merge revision: f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
+  BbaseA length: 12
+  ### exclusive splits for merge revision: 39bab1cb1cbeb1e28b3135fd68ed7b0052f75c52
+  BmergeA length: 1
+  ### exclusive splits for merge revision: 55bf3fdb634f1f8f0b779f1a5e622fa475a2b98c
+  BmergeA length: 1
+  ### exclusive splits for merge revision: 3e156070580322eac46974a017d8a19f0e0e107a
+  BmergeC length: 1
+  ### exclusive splits for merge revision: 2bd677d0f13ad7ee2d1b04f53b971a3e6b3f25d8
+  CbaseA length: 1
+  ### exclusive splits for merge revision: 1f4a19f83a298a7c9cb2d3bdaaade5aff735137b
+  CbaseA length: 1
+  ### exclusive splits for merge revision: 01e29e20ea3f7ed0d1b3894baffb277f15f110c1
+  CbaseA length: 1
+  ### exclusive splits for merge revision: e3e6738c56ced8d1732d824579530511daba8789
+  CbaseA length: 1
+  ### exclusive splits for merge revision: 88714f4125cbd9202c8017e87a97b2ef9c663ce2
+  CbaseA length: 1
+  ### exclusive splits for merge revision: 43fc0b77ff079900703a20b3cbe3b6645d345582
+  CbaseC length: 1
+  ### exclusive splits for merge revision: 4b39f229a0ced1f6ffce4b63e91dd6034d6aa640
+  CbaseB length: 2
+  ### exclusive splits for merge revision: 40553f55397e85f381e3d5813d838b180b707261
+  CbaseE length: 1
+  ### exclusive splits for merge revision: bfcfd9a61e8493d1968cb9cbd83f656ceeb5762a
+  CbaseA length: 1
+  ### exclusive splits for merge revision: 8ecb28746ec4493774464c23a3f01a18d3cfd172
+  CbaseC length: 1
+  ### exclusive splits for merge revision: 673f5499c8c2e2165142bf8c2765ef494d66cc3e
+  CbaseC length: 1
+  ### exclusive splits for merge revision: 76151e8066e129d27b08ab2a62a3cabba87d91c3
+  CbaseC length: 1
+  ### exclusive splits for merge revision: 29141354a762bb870a2606de41208700e27eaf53
+  CbaseA length: 1
+  ### exclusive splits for merge revision: 0484d39906c8af29405c38238d7d7541cfd21b27
+  CbaseB length: 2
+  ### exclusive splits for merge revision: bf6593f7e073cbe377ef1ec19b87f30b7d77cc00
+  CbaseC length: 1
+  ### exclusive splits for merge revision: b33fd5ad4c0c086b721ee2457e38c52bb6210763
+  CbaseE length: 1
+  ### exclusive splits for merge revision: c713eae2d31fc9291cdd7ed1922c68cda7ac95d4
+  CbaseA length: 1
+  ### exclusive splits for merge revision: d99e0f7dad5be63dea245790377dfd63c094e9f0
+  CbaseE length: 1
+  ### exclusive splits for merge revision: d917f77a643960caa231e26b47a57edea5410d00
+  CbaseC length: 1
+  ### exclusive splits for merge revision: 4f3b41956174ddc0b5c42448fcbf39c665e23d27
+  CbaseE length: 1
+  ### exclusive splits for merge revision: eed373b0090dceccc6935c146824995087762127
+  CmergeG length: 2
+  CbaseD length: 5
+  ### exclusive splits for merge revision: 31d7b43cc321f64e56f1d7afb1e3a68b33c153ef
+  CmergeB length: 2
+  ### exclusive splits for merge revision: 698970a2480b77b03bb3a47ba59934c9d43fdef8
+  CmergeE length: 3
+  CbaseB length: 2
+  ### exclusive splits for merge revision: 790cdfecd168ad7a449cda77ce67c265cd341d57
+  CmergeD length: 2
+  ### exclusive splits for merge revision: 37ad3ab0cddf9f01d48f38e1a26d2a258846e4b6
+  CmergeI length: 4
+  ### exclusive splits for merge revision: 97d19fc5236f8fddc35f1280c19ad2b2103ed619
+  CmergeJ length: 1
+  CbaseB length: 2
+  ### exclusive splits for merge revision: 89a0fe204177cd77929e08fa7513ec4047453322
+  CmergeR length: 6
+  ### exclusive splits for merge revision: 82238c0bc95013ccd9471ed46a28f2f8fc4dd109
+  CmergeQ length: 2
+  ### exclusive splits for merge revision: cd345198cf120276f75c45707c24bb3fe344a7dc
+  CmergeM length: 2
+  ### exclusive splits for merge revision: 0bab31f71a21aea1c9a0a78f9704e6ffe8ae61fd
+  CmergeO length: 2
+  ### exclusive splits for merge revision: 1da228afcf06af6196afa761de51004d15734b84
+  CmergeO length: 2
+  ### exclusive splits for merge revision: b3cf98c3d5874e655f78ec8e4f47ff788349b3fb
+  CmergeWG length: 5
+  CmergeK length: 7
+  ### exclusive splits for merge revision: dbde319d43a36a94df7cfc877fb97fa1b6baaa80
+  CmergeWB length: 2
+  CmergeF length: 1
+  CbaseB length: 2
+  ### exclusive splits for merge revision: 28be96b80dc1d1af3a682c04b1961d6ed173df1e
+  CmergeWI length: 2
+  CmergeP length: 2
+  ### exclusive splits for merge revision: 469c700e9ed8144bee92d51174ce07fdd2f3510b
+  CmergeWD length: 5
+  ### exclusive splits for merge revision: c7d3029bf7319c20e0c14fdae8b2e06c701455fb
+  CmergeWE length: 4
+  CmergeT length: 2
+  ### exclusive splits for merge revision: 2472d042ec9577662c733295739e360ba18e0bc2
+  CmergeWF length: 2
+  CmergeS length: 4
+  ### exclusive splits for merge revision: 041e1188f5f170496b7d1f46ddb0e566bf2de697
+  CmergeXF length: 5
+  ### exclusive splits for merge revision: 8b79544bb56d6be7ba5e7ac693e9054f20d35af6
+  CmergeXB length: 4
+  CmergeWH length: 2
+  CmergeL length: 3
+  ### exclusive splits for merge revision: 8ae32c3ed67036ef7787649b4dbe2ea844ca633d
+  CmergeXC length: 4
+  CmergeWC length: 4
+  CmergeC length: 2
+  ### exclusive splits for merge revision: 721ba7c5f4ff4b95fa05d28d6ff3360873a42a9f
+  CmergeYB length: 14
+  CmergeT length: 1
+  CmergeWK length: 2
+  CmergeN length: 4
+  ### exclusive splits for merge revision: 84d6ec6a8e21dac4717999019d29df0054dac0e0
+  CmergeYC length: 14
+  CmergeH length: 1
+  CmergeWJ length: 1
+  ### exclusive splits for merge revision: 01f771406cab36b0a9a5dd5f74bacf9596ab1b64
+  CmergeZB length: 17
+
   $ cd ..
 
 Build a bigger example repo
@@ -631,3 +766,14 @@ Check the stable tail sorting
   25
   24
   23
+
+Check the exclusive splits for each merge
+-----------------------------------------
+
+  $ check_merges_splits
+  ### exclusive splits for merge revision: cb31877dec8415e71d01ca586b18a4cf76f1afe5
+  mp1 length: 5
+  ### exclusive splits for merge revision: db5002ff344a38959e32336aca5e494ac3f05f3a
+  mp3 length: 7
+  ### exclusive splits for merge revision: 8a6975682ca47554bc4af91b78cf57cfdba304b9
+  mp1 length: 6
