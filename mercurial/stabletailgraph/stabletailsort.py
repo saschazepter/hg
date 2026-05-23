@@ -22,6 +22,12 @@ optimised to operate on large production graphs.
 from __future__ import annotations
 
 import itertools
+
+from typing import Iterator
+
+from ..interfaces.types import (
+    RevnumT,
+)
 from ..node import nullrev
 from .. import ancestor
 
@@ -120,6 +126,59 @@ def stable_tail_sort(cl, head_rev):
             cursor_rev = pt
 
 
+def _exclusive_part_iter(revlog, exclusive_head, tail) -> Iterator[RevnumT]:
+    """yield the stable-tail-sort of exclusive_head, excluding tail
+
+    This is equivalent to the following generator::
+
+        (
+            rev
+            for rev in stable_tail_sort(exclusive_head)
+            if rev not in tail
+        )
+
+    However it the version used in this function detect when all future elements
+    of ``stable_tail_sort(exclusive_head)`` will be part of tail to exit early.
+
+    This avoid iterating over all ancestors of ``exclusive_heads`` bringing the
+    overall computational complexity closer to ``O(|::exclusive_heads -
+    tail|)`` instead of ``O(|::exclusive_heads)``.
+
+    IMPORTANT: if you start doing smart optimization to this function, keep a
+    "_naive" copy to beused into `stable_tail_sort_naive`.
+    """
+    # Keep track of parents we have iterated over that are not in "tail" and that
+    # we have not iterated over yet.
+    #
+    # As long at his set is not empty, we know that there remain ancestors of
+    # "exclusive_head", that we need to iterate over.
+    #
+    # If this set is empty when our current iteration step inside "tail", we
+    # know all future ancestors will also be part of tail and can exit early.
+    dangling_parents = set()
+    for current in stable_tail_sort(revlog, exclusive_head):
+        dangling_parents.discard(current)
+        parent_excl, parent_tail = _parents(revlog, current)
+        if current in tail:
+            # NOTE: if current is in the (excluded) tail and was the
+            # parent_excl of something we could skip ahead faster, but we leave
+            # this for a later optimization.  (Possibly only in Rust)
+            if not dangling_parents:
+                # if we don't have anything else to find, we exausted the
+                # exclusive part.
+                break
+        else:
+            yield current
+            # NOTE: We should be able to only append parent_tail if the
+            # parent_excl is non-null. However there are currently some bug in
+            # the _parents function that prevent that. a fix for it is comming
+            # soon.
+            if parent_excl != nullrev and parent_excl not in tail:
+                dangling_parents.add(parent_excl)
+            if parent_tail != nullrev and parent_tail not in tail:
+                dangling_parents.add(parent_tail)
+
+
 def stable_tail_sort_naive(cl, head_rev):
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
@@ -146,9 +205,7 @@ def stable_tail_sort_naive(cl, head_rev):
                 [parent_tail],
                 inclusive=True,
             )
-            for anc in stable_tail_sort_naive(cl, parent_excl):
-                if anc not in tail_ancestors:
-                    yield anc
+            yield from _exclusive_part_iter(cl, parent_excl, tail_ancestors)
             cursor_rev = parent_tail
 
 
