@@ -36,7 +36,7 @@ Test cgroups
 Server is shared within a cgroup
   $ kill_chg_servers
   $ systemd-run --user --scope sh -c 'chg status 2>&1; chg status 2>&1' | grep -E "start|the_file"
-  Running scope as unit: * (glob)
+  Running *as unit: * (glob)
   chg: debug: * start cmdserver at * (glob)
   A the_file
   A the_file
@@ -44,18 +44,18 @@ Server is shared within a cgroup
 Server is not shared between cgroups (new, new)
   $ kill_chg_servers
   $ systemd-run --user --scope sh -c 'chg status 2>&1' | grep -E "start|the_file"
-  Running scope as unit: * (glob)
+  Running *as unit: * (glob)
   chg: debug: * start cmdserver at * (glob)
   A the_file
   $ systemd-run --user --scope sh -c 'chg status 2>&1' | grep -E "start|the_file"
-  Running scope as unit: * (glob)
+  Running *as unit: * (glob)
   chg: debug: * start cmdserver at * (glob)
   A the_file
 
 Server is not shared between cgroups (new, current)
   $ kill_chg_servers
   $ systemd-run --user --scope sh -c 'chg status 2>&1' | grep -E "start|the_file"
-  Running scope as unit: * (glob)
+  Running *as unit: * (glob)
   chg: debug: * start cmdserver at * (glob)
   A the_file
   $ chg status 2>&1 | grep -E "start|the_file"
@@ -68,7 +68,7 @@ Server is not shared between cgroups (current, new)
   chg: debug: * start cmdserver at * (glob)
   A the_file
   $ systemd-run --user --scope sh -c 'chg status 2>&1' | grep -E "start|the_file"
-  Running scope as unit: * (glob)
+  Running *as unit: * (glob)
   chg: debug: * start cmdserver at * (glob)
   A the_file
 
