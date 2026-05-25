@@ -92,6 +92,8 @@ class RevlogEntry:
         default=COMP_MODE_INLINE,
     )
     rank = attr.ib(type=int, default=RANK_UNKNOWN)
+    sts_min_rank = attr.ib(type=int, default=-1)
+    sts_canon_ancestor = attr.ib(type=int, default=-1)
     sts_split_offset = attr.ib(type=int, default=None)
     sts_split_count = attr.ib(type=int, default=0)
 

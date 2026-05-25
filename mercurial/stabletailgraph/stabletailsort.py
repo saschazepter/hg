@@ -235,10 +235,10 @@ def compute_stable_tail_data(
     revlog,
     p1: RevnumT,
     p2: RevnumT,
-) -> tuple[int, list[tuple[RevnumT, int]]]:
+) -> tuple[int, int, RevnumT, list[tuple[RevnumT, int]]]:
     """Compute stable tail information when adding a new revision
 
-    returns (rank, exclusive_splits)
+    returns (rank, min_canon_range, canon_cancestors, exclusive_splits)
 
     See module documentation for details about these values
     """
@@ -249,17 +249,26 @@ def compute_stable_tail_data(
         assert p2 == nullrev
         rank = 1
     else:
-        # the rank value might change if there is an
-        # exclusive part. So this value is not final
+        # the rank value and the min_canon_rank might change if there is an
+        # exclusive part. So theses value are not final
         rank = 1 + index.rank(parent_tail)
+    min_canon_rank = rank
 
     if parent_excl != nullrev:
+        # start with a number higher than anything we will encounter
+        min_canon_rank += index.rank(parent_excl)
         splits_iter = _compute_excl_splits(revlog, parent_excl, parent_tail)
-        for u, length in splits_iter:
+        for u, length, mru in splits_iter:
             splits.append((u, length))
             rank += length
+            min_canon_rank = min(min_canon_rank, mru)
 
-    return rank, splits
+    canon_anc, anc_min_rank = _find_canon_ancestor(
+        revlog.index, rank, parent_tail
+    )
+    min_canon_rank = min(anc_min_rank, min_canon_rank)
+
+    return rank, min_canon_rank, canon_anc, splits
 
 
 def computed_excl_splits(revlog, rev: RevnumT) -> list[tuple[RevnumT, int]]:
@@ -271,14 +280,14 @@ def computed_excl_splits(revlog, rev: RevnumT) -> list[tuple[RevnumT, int]]:
     if px == nullrev:
         return []
     else:
-        return list(_compute_excl_splits(revlog, px, pt))
+        return list((h, l) for h, l, m in _compute_excl_splits(revlog, px, pt))
 
 
 def _compute_excl_splits(
     revlog,
     exclusive_head: RevnumT,
     tail_head: RevnumT,
-) -> Iterator[tuple[RevnumT, int]]:
+) -> Iterator[tuple[RevnumT, int, int]]:
     """yield the exclusive splits from exclusive and tail parents"""
     tail = revlog.ancestors([tail_head], inclusive=True)
     revs = _exclusive_part_iter(revlog, exclusive_head, tail)
@@ -360,8 +369,14 @@ def _exclusive_part_iter(
 def _group_by_range(
     revlog,
     revs: Iterator[RevnumT],
-) -> Iterator[tuple[RevnumT, int]]:
+) -> Iterator[tuple[RevnumT, int, int]]:
     """turn an iteration of revision into equivalent Stable Tail Range
+
+    This yield a series of range as::
+
+       (range_head, range_size, minimal_rank)
+
+    Where `minimal_rank` is the lowest rank of revisions in the yielded range.
 
     This is typically used to compute the "exclusive splits" for a merge.
     """
@@ -369,10 +384,12 @@ def _group_by_range(
     current_head = next(revs, None)
     if current_head is None:
         return
+    rank = revlog.index.rank
     # We will synchroniously iterate other that revision own stable_tail_sort
     # to detect any divergence from the main iteration.
     current_iter = stable_tail_sort(revlog, current_head)
     current_length = 1  # that range contains one revision already
+    current_min_rank = rank(current_head)
     next(current_iter)
     for current in revs:
         # If the revision from the iterator we are "grouping" diverged from the
@@ -384,30 +401,62 @@ def _group_by_range(
         if current != next(current_iter, None):
             assert current_head > nullrev
             assert current_length > 0
-            yield (current_head, current_length)
+            yield (current_head, current_length, current_min_rank)
             # creating the new range, and tracking the STS of its new head for
             # divergence.
             current_head = current
             current_iter = stable_tail_sort(revlog, current)
             current_length = 0
+            current_min_rank = rank(current)
             next(current_iter)
+        else:
+            current_min_rank = min(current_min_rank, rank(current))
         current_length += 1
     # the iteration is over, if we have any "in progress" Range, they need to
     # be emitted.
     if current_head is not None:
         assert current_head > nullrev
         assert current_length > 0
-        yield (current_head, current_length)
+        yield (current_head, current_length, current_min_rank)
 
 
-def _find_canon_ancestor(index, rank, parent_tail):
+def _find_canon_ancestor(
+    index, rank: int, parent_tail: RevnumT
+) -> tuple[RevnumT, int]:
+    """Compute the canonical ancestor
+
+    This function also returns the minimal rank of the revision we skipped over
+    while doing so.
+
+    The canonical ancestor is the first revision from the chain of tail's
+    parent canonical ancestor that has higher power than rev.
+
+    Given the property of revision power, this means a revision of rank "rank"
+    have a chain of canonical ancestors of maximum length "log_2(rank)"
+    """
+    min_rank = rank
+    assert rank > 0
+    if parent_tail == nullrev:
+        return (nullrev, 1)
+    tail_rank = index.rank(parent_tail)
+    assert tail_rank > 0
+    assert rank > tail_rank, (rank, tail_rank)
+    pow_rev = _power2(rank, tail_rank)
+    candidate = parent_tail
+    while candidate != nullrev and _power2_rev(index, candidate) < pow_rev:
+        min_rank = min(min_rank, index.sts_min_rank(candidate))
+        candidate = index.sts_canon_ancestor(candidate)
+    return (candidate, min_rank)
+
+
+def _find_canon_ancestor_naive(index, rank, parent_tail):
     """Compute the canonical ancestor
 
     The canonical ancestor is the first revision from the chain of tail's
     parent canonical ancestor that has higher power than rev.
 
     Given the property of revision power, this means a revision of rank "rank"
-    have a the chain of canonical ancestors of maximum length "log_2(rank)"
+    have a chain of canonical ancestors of maximum length "log_2(rank)"
     """
     assert rank > 0
     if parent_tail == nullrev:
@@ -541,16 +590,18 @@ def debug_info(
     p1, p2 = index.parents(rev)
 
     rank = index.rank(rev)
-    canon_anc = _find_canon_ancestor(index, rank, parent_tail)
+    if naive:
+        canon_anc = _find_canon_ancestor_naive(index, rank, parent_tail)
+    else:
+        canon_anc = index.sts_canon_ancestor(rev)
     canon_rank = index.rank(canon_anc)
     canon_size = rank - canon_rank
     if naive:
         rev_sts = stable_tail_sort_naive(revlog, rev)
+        canon_part = itertools.islice(rev_sts, canon_size)
+        min_rank = min(index.rank(r) for r in canon_part)
     else:
-        rev_sts = stable_tail_sort(revlog, rev)
-
-    canon_part = itertools.islice(rev_sts, canon_size)
-    min_rank = min(index.rank(r) for r in canon_part)
+        min_rank = index.sts_min_rank(rev)
 
     ui.writenoi18n(b"%s\n" % display(index, rev))
     ui.writenoi18n(b"- rank: %d\n" % rank)

@@ -1550,6 +1550,8 @@ class IndexChangelogV2(Index2):
             ],
             sts_split_offset=items[16],
             sts_split_count=items[17],
+            sts_min_rank=items[18],
+            sts_canon_ancestor=items[19],
         )
 
     @classmethod
@@ -1587,6 +1589,8 @@ class IndexChangelogV2(Index2):
             (
                 entry.sts_split_offset,
                 entry.sts_split_count,
+                entry.sts_min_rank,
+                entry.sts_canon_ancestor,
             ),
         )
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
@@ -1598,6 +1602,12 @@ class IndexChangelogV2(Index2):
         if rev == nullrev:
             return 0
         return self._rich_entry(rev).sts_split_count
+
+    def sts_min_rank(self, rev):
+        return self._rich_entry(rev).sts_min_rank
+
+    def sts_canon_ancestor(self, rev):
+        return self._rich_entry(rev).sts_canon_ancestor
 
     def update_changed_files(
         self,

@@ -2487,10 +2487,12 @@ class revlog:
 
         if self.configs.feature.compute_rank:
             st_data = stabletailsort.compute_stable_tail_data(self, p1r, p2r)
-            rank, splits = st_data
+            rank, min_canon_rank, canon_ancestor, splits = st_data
             encoded_split = stabletailsort.split_encode(splits)
             other_data[V2FileType.STS_SPLIT] = encoded_split
             e.rank = rank
+            e.sts_min_rank = min_canon_rank
+            e.sts_canon_ancestor = canon_ancestor
 
         self._inner.add_entry(
             transaction,

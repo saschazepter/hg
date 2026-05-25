@@ -242,10 +242,12 @@ assert INDEX_ENTRY_V2[1].size == 32, INDEX_ENTRY_V2[1].size
 # Part 3:
 #   *  8 bytes: stable tail sort : split data offset
 #   *  4 bytes: stable tail sort : split data count (number of split data)
+#   *  4 bytes: stable tail sort : minimun rank within the canonical range
+#   *  4 bytes: stable tail sort : canonical ancestor
 INDEX_ENTRY_CL_V2: tuple[struct.Struct, ...] = (
     struct.Struct(b">Qiiii20siiiiB3x"),
     struct.Struct(b"QiiQi4x"),
-    struct.Struct(b"Qi20x"),
+    struct.Struct(b"Qiii12x"),
 )
 assert INDEX_ENTRY_CL_V2[0].size == 32 * 2, INDEX_ENTRY_CL_V2[0].size
 assert INDEX_ENTRY_CL_V2[1].size == 32, INDEX_ENTRY_CL_V2[1].size
