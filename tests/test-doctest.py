@@ -162,6 +162,7 @@ expected_mods_tested = {
     ('mercurial.revsetlang', '{}'),
     ('mercurial.simplemerge', '{}'),
     ('mercurial.smartset', '{}'),
+    ('mercurial.stabletailgraph.stabletailsort', '{}'),
     ('mercurial.store', '{}'),
     ('mercurial.subrepo', '{}'),
     ('mercurial.templater', '{}'),

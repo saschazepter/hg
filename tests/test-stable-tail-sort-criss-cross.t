@@ -314,6 +314,10 @@ Validate overall information
   1ea73414a91b0920940797d8fc6a11e447f8ea1e
   - rank: 1
   - pow2: 0
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     1
+    - min-rank: 1
   66f7d451a68b85ed82ff5fcc254daf50c74144bd
   - rank: 2
   - pow2: 1
@@ -322,6 +326,10 @@ Validate overall information
       - rank: 1
       - pow2: 0
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     2
+    - min-rank: 1
   01241442b3c2bf3211e593b549c655ea65b295e3
   - rank: 3
   - pow2: 1
@@ -330,6 +338,12 @@ Validate overall information
       - rank: 2
       - pow2: 1
       - pidx: p1
+  - canonical-part:
+    - ancestor: 66f7d451a68b85ed82ff5fcc254daf50c74144bd
+      - rank:   2
+      - pow2:   1
+    - size:     1
+    - min-rank: 3
   2dc09a01254db841290af0538aa52f6f52c776e3
   - rank: 4
   - pow2: 2
@@ -338,6 +352,10 @@ Validate overall information
       - rank: 3
       - pow2: 1
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     4
+    - min-rank: 1
   bebd167eb94d257ace0e814aeb98e6972ed2970d
   - rank: 5
   - pow2: 2
@@ -346,6 +364,12 @@ Validate overall information
       - rank: 4
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 2dc09a01254db841290af0538aa52f6f52c776e3
+      - rank:   4
+      - pow2:   2
+    - size:     1
+    - min-rank: 5
   c8d03c1b5e94af74b772900c58259d2e08917735
   - rank: 6
   - pow2: 2
@@ -354,6 +378,12 @@ Validate overall information
       - rank: 5
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: bebd167eb94d257ace0e814aeb98e6972ed2970d
+      - rank:   5
+      - pow2:   2
+    - size:     1
+    - min-rank: 6
   0c1445abb33dfdf88f26bd1cc0e5f2169146b371
   - rank: 4
   - pow2: 2
@@ -362,6 +392,10 @@ Validate overall information
       - rank: 3
       - pow2: 1
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     4
+    - min-rank: 1
   65eb34ffc3a822669d6a66afdcc2057050439251
   - rank: 5
   - pow2: 2
@@ -370,6 +404,12 @@ Validate overall information
       - rank: 4
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0c1445abb33dfdf88f26bd1cc0e5f2169146b371
+      - rank:   4
+      - pow2:   2
+    - size:     1
+    - min-rank: 5
   c81423bf5a24e28484a591de88cc764941af2c5a
   - rank: 9
   - pow2: 3
@@ -387,6 +427,10 @@ Validate overall information
       - rank: 6
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     9
+    - min-rank: 1
   07c648efceebcbbc7e048f8f58dff9fc54b867a7
   - rank: 9
   - pow2: 3
@@ -404,6 +448,10 @@ Validate overall information
       - rank: 6
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     9
+    - min-rank: 1
   5ba9a53052edb1e633e32a7e9d55bb52c939eeef
   - rank: 11
   - pow2: 1
@@ -421,6 +469,12 @@ Validate overall information
       - rank: 9
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: c81423bf5a24e28484a591de88cc764941af2c5a
+      - rank:   9
+      - pow2:   3
+    - size:     2
+    - min-rank: 9
   3e2da24aee59e0c496381ae14182dd52344b5742
   - rank: 12
   - pow2: 3
@@ -429,6 +483,12 @@ Validate overall information
       - rank: 11
       - pow2: 1
       - pidx: p1
+  - canonical-part:
+    - ancestor: c81423bf5a24e28484a591de88cc764941af2c5a
+      - rank:   9
+      - pow2:   3
+    - size:     3
+    - min-rank: 9
   26f59ee8b1d796abfa4071cdef1a96de632ddba8
   - rank: 13
   - pow2: 3
@@ -437,6 +497,12 @@ Validate overall information
       - rank: 12
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e2da24aee59e0c496381ae14182dd52344b5742
+      - rank:   12
+      - pow2:   3
+    - size:     1
+    - min-rank: 13
   f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
   - rank: 13
   - pow2: 3
@@ -445,6 +511,12 @@ Validate overall information
       - rank: 12
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 3e2da24aee59e0c496381ae14182dd52344b5742
+      - rank:   12
+      - pow2:   3
+    - size:     1
+    - min-rank: 13
   39bab1cb1cbeb1e28b3135fd68ed7b0052f75c52
   - rank: 15
   - pow2: 1
@@ -462,6 +534,12 @@ Validate overall information
       - rank: 13
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
+      - rank:   13
+      - pow2:   3
+    - size:     2
+    - min-rank: 13
   55bf3fdb634f1f8f0b779f1a5e622fa475a2b98c
   - rank: 15
   - pow2: 1
@@ -479,6 +557,12 @@ Validate overall information
       - rank: 13
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
+      - rank:   13
+      - pow2:   3
+    - size:     2
+    - min-rank: 13
   3e156070580322eac46974a017d8a19f0e0e107a
   - rank: 17
   - pow2: 4
@@ -496,6 +580,10 @@ Validate overall information
       - rank: 15
       - pow2: 1
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     17
+    - min-rank: 1
   4f5078f7da8a803a00a633b0243fa335c4e74ad6
   - rank: 18
   - pow2: 4
@@ -504,6 +592,12 @@ Validate overall information
       - rank: 17
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e156070580322eac46974a017d8a19f0e0e107a
+      - rank:   17
+      - pow2:   4
+    - size:     1
+    - min-rank: 18
   9729470d93299765a5e2499301c63ce99ffff19e
   - rank: 18
   - pow2: 4
@@ -512,6 +606,12 @@ Validate overall information
       - rank: 17
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e156070580322eac46974a017d8a19f0e0e107a
+      - rank:   17
+      - pow2:   4
+    - size:     1
+    - min-rank: 18
   884936b34999687314cc009cba0dd88098bb5057
   - rank: 19
   - pow2: 4
@@ -520,6 +620,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 9729470d93299765a5e2499301c63ce99ffff19e
+      - rank:   18
+      - pow2:   4
+    - size:     1
+    - min-rank: 19
   b115c694654ecc0ae9dbf84523309bcbdf882307
   - rank: 18
   - pow2: 4
@@ -528,6 +634,12 @@ Validate overall information
       - rank: 17
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e156070580322eac46974a017d8a19f0e0e107a
+      - rank:   17
+      - pow2:   4
+    - size:     1
+    - min-rank: 18
   17b6e6bac221de6517e9d34234393fc7864eed49
   - rank: 18
   - pow2: 4
@@ -536,6 +648,12 @@ Validate overall information
       - rank: 17
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e156070580322eac46974a017d8a19f0e0e107a
+      - rank:   17
+      - pow2:   4
+    - size:     1
+    - min-rank: 18
   5ce588c2b7c5790e36af99309a7435029470881e
   - rank: 19
   - pow2: 4
@@ -544,6 +662,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 17b6e6bac221de6517e9d34234393fc7864eed49
+      - rank:   18
+      - pow2:   4
+    - size:     1
+    - min-rank: 19
   f2bdd828a3aa74eff9d50bf5e77ad7fbeb38bcec
   - rank: 20
   - pow2: 4
@@ -552,6 +676,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 5ce588c2b7c5790e36af99309a7435029470881e
+      - rank:   19
+      - pow2:   4
+    - size:     1
+    - min-rank: 20
   a457569c530677cf4abcf22abb6e1e0448a703e9
   - rank: 21
   - pow2: 4
@@ -560,6 +690,12 @@ Validate overall information
       - rank: 20
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: f2bdd828a3aa74eff9d50bf5e77ad7fbeb38bcec
+      - rank:   20
+      - pow2:   4
+    - size:     1
+    - min-rank: 21
   ad46a4a0fc10d50de79329c5d5227a355e1e60df
   - rank: 22
   - pow2: 4
@@ -568,6 +704,12 @@ Validate overall information
       - rank: 21
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: a457569c530677cf4abcf22abb6e1e0448a703e9
+      - rank:   21
+      - pow2:   4
+    - size:     1
+    - min-rank: 22
   de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
   - rank: 18
   - pow2: 4
@@ -576,6 +718,12 @@ Validate overall information
       - rank: 17
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e156070580322eac46974a017d8a19f0e0e107a
+      - rank:   17
+      - pow2:   4
+    - size:     1
+    - min-rank: 18
   2bd677d0f13ad7ee2d1b04f53b971a3e6b3f25d8
   - rank: 21
   - pow2: 2
@@ -593,6 +741,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   3bdb00d5c818384a8a3377789e7536615487a262
   - rank: 22
   - pow2: 4
@@ -601,6 +755,12 @@ Validate overall information
       - rank: 21
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 2bd677d0f13ad7ee2d1b04f53b971a3e6b3f25d8
+      - rank:   21
+      - pow2:   2
+    - size:     1
+    - min-rank: 22
   b9c3aa92fba570bda608761e9ce25f0037401665
   - rank: 23
   - pow2: 4
@@ -609,6 +769,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3bdb00d5c818384a8a3377789e7536615487a262
+      - rank:   22
+      - pow2:   4
+    - size:     1
+    - min-rank: 23
   f3441cd3e6644c074d4e021a99d002b853e07038
   - rank: 24
   - pow2: 4
@@ -617,6 +783,12 @@ Validate overall information
       - rank: 23
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: b9c3aa92fba570bda608761e9ce25f0037401665
+      - rank:   23
+      - pow2:   4
+    - size:     1
+    - min-rank: 24
   0c3f2ba59eb7de765275f51411a5bc210767e585
   - rank: 25
   - pow2: 4
@@ -625,6 +797,12 @@ Validate overall information
       - rank: 24
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: f3441cd3e6644c074d4e021a99d002b853e07038
+      - rank:   24
+      - pow2:   4
+    - size:     1
+    - min-rank: 25
   2ea3fbf151b5f9ba9703169dbea412b0202b67e8
   - rank: 26
   - pow2: 4
@@ -633,6 +811,12 @@ Validate overall information
       - rank: 25
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0c3f2ba59eb7de765275f51411a5bc210767e585
+      - rank:   25
+      - pow2:   4
+    - size:     1
+    - min-rank: 26
   47c836a1f13ef41c3394a9d435f69c422fc6d28b
   - rank: 27
   - pow2: 4
@@ -641,6 +825,12 @@ Validate overall information
       - rank: 26
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 2ea3fbf151b5f9ba9703169dbea412b0202b67e8
+      - rank:   26
+      - pow2:   4
+    - size:     1
+    - min-rank: 27
   722d1b8b8942f62840c7ffcdd273cd579dd7012d
   - rank: 28
   - pow2: 4
@@ -649,6 +839,12 @@ Validate overall information
       - rank: 27
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 47c836a1f13ef41c3394a9d435f69c422fc6d28b
+      - rank:   27
+      - pow2:   4
+    - size:     1
+    - min-rank: 28
   1f4a19f83a298a7c9cb2d3bdaaade5aff735137b
   - rank: 20
   - pow2: 2
@@ -666,6 +862,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: b115c694654ecc0ae9dbf84523309bcbdf882307
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   01e29e20ea3f7ed0d1b3894baffb277f15f110c1
   - rank: 24
   - pow2: 3
@@ -683,6 +885,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   32b41ca704e142a3d62ffd360b72f3a581336e96
   - rank: 25
   - pow2: 4
@@ -691,6 +899,12 @@ Validate overall information
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 01e29e20ea3f7ed0d1b3894baffb277f15f110c1
+      - rank:   24
+      - pow2:   3
+    - size:     1
+    - min-rank: 25
   e3e6738c56ced8d1732d824579530511daba8789
   - rank: 20
   - pow2: 2
@@ -708,6 +922,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   88714f4125cbd9202c8017e87a97b2ef9c663ce2
   - rank: 21
   - pow2: 2
@@ -725,6 +945,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   d928b4e8a515721c04527bdbf88859dea8ee2ad6
   - rank: 22
   - pow2: 4
@@ -733,6 +959,12 @@ Validate overall information
       - rank: 21
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 88714f4125cbd9202c8017e87a97b2ef9c663ce2
+      - rank:   21
+      - pow2:   2
+    - size:     1
+    - min-rank: 22
   88eace5ce6823d539f94145551ab8a23125df051
   - rank: 23
   - pow2: 4
@@ -741,6 +973,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: d928b4e8a515721c04527bdbf88859dea8ee2ad6
+      - rank:   22
+      - pow2:   4
+    - size:     1
+    - min-rank: 23
   43fc0b77ff079900703a20b3cbe3b6645d345582
   - rank: 21
   - pow2: 2
@@ -758,6 +996,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   4b39f229a0ced1f6ffce4b63e91dd6034d6aa640
   - rank: 25
   - pow2: 3
@@ -775,6 +1019,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   d94da36be176bdbf1a3755708ee6fbde5a53e0b2
   - rank: 26
   - pow2: 4
@@ -783,6 +1033,12 @@ Validate overall information
       - rank: 25
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 4b39f229a0ced1f6ffce4b63e91dd6034d6aa640
+      - rank:   25
+      - pow2:   3
+    - size:     1
+    - min-rank: 26
   40553f55397e85f381e3d5813d838b180b707261
   - rank: 21
   - pow2: 2
@@ -800,6 +1056,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   bfcfd9a61e8493d1968cb9cbd83f656ceeb5762a
   - rank: 20
   - pow2: 2
@@ -817,6 +1079,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: b115c694654ecc0ae9dbf84523309bcbdf882307
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   d6c9e2d27f140892757ae56fef23f89916420b8a
   - rank: 21
   - pow2: 4
@@ -825,6 +1093,12 @@ Validate overall information
       - rank: 20
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: bfcfd9a61e8493d1968cb9cbd83f656ceeb5762a
+      - rank:   20
+      - pow2:   2
+    - size:     1
+    - min-rank: 21
   8ecb28746ec4493774464c23a3f01a18d3cfd172
   - rank: 21
   - pow2: 2
@@ -842,6 +1116,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   673f5499c8c2e2165142bf8c2765ef494d66cc3e
   - rank: 24
   - pow2: 3
@@ -859,6 +1139,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   900dd066a072f7f2bd5837614c8a1084a9b131a5
   - rank: 25
   - pow2: 4
@@ -867,6 +1153,12 @@ Validate overall information
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 673f5499c8c2e2165142bf8c2765ef494d66cc3e
+      - rank:   24
+      - pow2:   3
+    - size:     1
+    - min-rank: 25
   97ac964e34b7613f95480ec2a4c2cef5500d07fa
   - rank: 26
   - pow2: 4
@@ -875,6 +1167,12 @@ Validate overall information
       - rank: 25
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 900dd066a072f7f2bd5837614c8a1084a9b131a5
+      - rank:   25
+      - pow2:   4
+    - size:     1
+    - min-rank: 26
   0d153e3ad6320fba792315e52c5cfb53009cf50b
   - rank: 27
   - pow2: 4
@@ -883,6 +1181,12 @@ Validate overall information
       - rank: 26
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 97ac964e34b7613f95480ec2a4c2cef5500d07fa
+      - rank:   26
+      - pow2:   4
+    - size:     1
+    - min-rank: 27
   c37e7cd9f2bdc41916072669b18a38133f99867d
   - rank: 28
   - pow2: 4
@@ -891,6 +1195,12 @@ Validate overall information
       - rank: 27
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0d153e3ad6320fba792315e52c5cfb53009cf50b
+      - rank:   27
+      - pow2:   4
+    - size:     1
+    - min-rank: 28
   9a67238ad1c448d3dd52eb183b96890eaca5676e
   - rank: 29
   - pow2: 4
@@ -899,6 +1209,12 @@ Validate overall information
       - rank: 28
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: c37e7cd9f2bdc41916072669b18a38133f99867d
+      - rank:   28
+      - pow2:   4
+    - size:     1
+    - min-rank: 29
   76151e8066e129d27b08ab2a62a3cabba87d91c3
   - rank: 20
   - pow2: 2
@@ -916,6 +1232,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   c7c1497fc270aa2ed1de7d6202c1c7be605557a5
   - rank: 21
   - pow2: 4
@@ -924,6 +1246,12 @@ Validate overall information
       - rank: 20
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 76151e8066e129d27b08ab2a62a3cabba87d91c3
+      - rank:   20
+      - pow2:   2
+    - size:     1
+    - min-rank: 21
   e7135b665740f8de5ee7c6fd2c55b95265c5cbaa
   - rank: 22
   - pow2: 4
@@ -932,6 +1260,12 @@ Validate overall information
       - rank: 21
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: c7c1497fc270aa2ed1de7d6202c1c7be605557a5
+      - rank:   21
+      - pow2:   4
+    - size:     1
+    - min-rank: 22
   29141354a762bb870a2606de41208700e27eaf53
   - rank: 24
   - pow2: 3
@@ -949,6 +1283,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   0484d39906c8af29405c38238d7d7541cfd21b27
   - rank: 25
   - pow2: 3
@@ -966,6 +1306,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   5eec91b12a588a5b6d9cd8d7dd5ced3070cc9f0e
   - rank: 26
   - pow2: 4
@@ -974,6 +1320,12 @@ Validate overall information
       - rank: 25
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0484d39906c8af29405c38238d7d7541cfd21b27
+      - rank:   25
+      - pow2:   3
+    - size:     1
+    - min-rank: 26
   c84da74cf586ba35c9c7a70b2a29299c76005ff3
   - rank: 27
   - pow2: 4
@@ -982,6 +1334,12 @@ Validate overall information
       - rank: 26
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 5eec91b12a588a5b6d9cd8d7dd5ced3070cc9f0e
+      - rank:   26
+      - pow2:   4
+    - size:     1
+    - min-rank: 27
   3871506da61ef9862ff9117e2e7255479489d2d5
   - rank: 28
   - pow2: 4
@@ -990,6 +1348,12 @@ Validate overall information
       - rank: 27
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: c84da74cf586ba35c9c7a70b2a29299c76005ff3
+      - rank:   27
+      - pow2:   4
+    - size:     1
+    - min-rank: 28
   bf6593f7e073cbe377ef1ec19b87f30b7d77cc00
   - rank: 24
   - pow2: 3
@@ -1007,6 +1371,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   b33fd5ad4c0c086b721ee2457e38c52bb6210763
   - rank: 24
   - pow2: 3
@@ -1024,6 +1394,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   c713eae2d31fc9291cdd7ed1922c68cda7ac95d4
   - rank: 20
   - pow2: 2
@@ -1041,6 +1417,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   d99e0f7dad5be63dea245790377dfd63c094e9f0
   - rank: 21
   - pow2: 2
@@ -1058,6 +1440,12 @@ Validate overall information
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   e4cfd6264623da7c5bb90277ca857bff677236e9
   - rank: 22
   - pow2: 4
@@ -1066,6 +1454,12 @@ Validate overall information
       - rank: 21
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: d99e0f7dad5be63dea245790377dfd63c094e9f0
+      - rank:   21
+      - pow2:   2
+    - size:     1
+    - min-rank: 22
   fac9e582edd1c53906b1b1c8f48d5d612213ac63
   - rank: 23
   - pow2: 4
@@ -1074,6 +1468,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: e4cfd6264623da7c5bb90277ca857bff677236e9
+      - rank:   22
+      - pow2:   4
+    - size:     1
+    - min-rank: 23
   d917f77a643960caa231e26b47a57edea5410d00
   - rank: 20
   - pow2: 2
@@ -1091,6 +1491,12 @@ Validate overall information
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   c3c7fa726f887f8a24b87244d4dc2389a352fc12
   - rank: 21
   - pow2: 4
@@ -1099,6 +1505,12 @@ Validate overall information
       - rank: 20
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: d917f77a643960caa231e26b47a57edea5410d00
+      - rank:   20
+      - pow2:   2
+    - size:     1
+    - min-rank: 21
   4f3b41956174ddc0b5c42448fcbf39c665e23d27
   - rank: 24
   - pow2: 3
@@ -1116,6 +1528,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   eed373b0090dceccc6935c146824995087762127
   - rank: 36
   - pow2: 5
@@ -1135,6 +1553,10 @@ Validate overall information
       - rank: 28
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     36
+    - min-rank: 1
   31d7b43cc321f64e56f1d7afb1e3a68b33c153ef
   - rank: 24
   - pow2: 3
@@ -1152,6 +1574,12 @@ Validate overall information
       - rank: 21
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     5
+    - min-rank: 18
   698970a2480b77b03bb3a47ba59934c9d43fdef8
   - rank: 31
   - pow2: 3
@@ -1171,6 +1599,12 @@ Validate overall information
       - rank: 25
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 32b41ca704e142a3d62ffd360b72f3a581336e96
+      - rank:   25
+      - pow2:   4
+    - size:     6
+    - min-rank: 18
   790cdfecd168ad7a449cda77ce67c265cd341d57
   - rank: 24
   - pow2: 3
@@ -1188,6 +1622,12 @@ Validate overall information
       - rank: 21
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     5
+    - min-rank: 18
   37ad3ab0cddf9f01d48f38e1a26d2a258846e4b6
   - rank: 29
   - pow2: 3
@@ -1205,6 +1645,12 @@ Validate overall information
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 4f3b41956174ddc0b5c42448fcbf39c665e23d27
+      - rank:   24
+      - pow2:   3
+    - size:     5
+    - min-rank: 18
   97d19fc5236f8fddc35f1280c19ad2b2103ed619
   - rank: 25
   - pow2: 3
@@ -1224,6 +1670,12 @@ Validate overall information
       - rank: 21
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: c3c7fa726f887f8a24b87244d4dc2389a352fc12
+      - rank:   21
+      - pow2:   4
+    - size:     4
+    - min-rank: 18
   89a0fe204177cd77929e08fa7513ec4047453322
   - rank: 36
   - pow2: 5
@@ -1241,6 +1693,10 @@ Validate overall information
       - rank: 29
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     36
+    - min-rank: 1
   82238c0bc95013ccd9471ed46a28f2f8fc4dd109
   - rank: 25
   - pow2: 3
@@ -1258,6 +1714,12 @@ Validate overall information
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: e7135b665740f8de5ee7c6fd2c55b95265c5cbaa
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   cd345198cf120276f75c45707c24bb3fe344a7dc
   - rank: 27
   - pow2: 1
@@ -1275,6 +1737,12 @@ Validate overall information
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: b33fd5ad4c0c086b721ee2457e38c52bb6210763
+      - rank:   24
+      - pow2:   3
+    - size:     3
+    - min-rank: 18
   0bab31f71a21aea1c9a0a78f9704e6ffe8ae61fd
   - rank: 31
   - pow2: 2
@@ -1292,6 +1760,12 @@ Validate overall information
       - rank: 28
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 3871506da61ef9862ff9117e2e7255479489d2d5
+      - rank:   28
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   1da228afcf06af6196afa761de51004d15734b84
   - rank: 31
   - pow2: 2
@@ -1309,6 +1783,12 @@ Validate overall information
       - rank: 28
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 3871506da61ef9862ff9117e2e7255479489d2d5
+      - rank:   28
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   b3cf98c3d5874e655f78ec8e4f47ff788349b3fb
   - rank: 49
   - pow2: 4
@@ -1328,6 +1808,12 @@ Validate overall information
       - rank: 36
       - pow2: 5
       - pidx: p1
+  - canonical-part:
+    - ancestor: eed373b0090dceccc6935c146824995087762127
+      - rank:   36
+      - pow2:   5
+    - size:     13
+    - min-rank: 18
   dbde319d43a36a94df7cfc877fb97fa1b6baaa80
   - rank: 31
   - pow2: 2
@@ -1349,6 +1835,12 @@ Validate overall information
       - rank: 25
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 82238c0bc95013ccd9471ed46a28f2f8fc4dd109
+      - rank:   25
+      - pow2:   3
+    - size:     6
+    - min-rank: 18
   28be96b80dc1d1af3a682c04b1961d6ed173df1e
   - rank: 36
   - pow2: 5
@@ -1368,6 +1860,10 @@ Validate overall information
       - rank: 31
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     36
+    - min-rank: 1
   469c700e9ed8144bee92d51174ce07fdd2f3510b
   - rank: 37
   - pow2: 5
@@ -1385,6 +1881,10 @@ Validate overall information
       - rank: 31
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     37
+    - min-rank: 1
   c7d3029bf7319c20e0c14fdae8b2e06c701455fb
   - rank: 38
   - pow2: 5
@@ -1404,6 +1904,10 @@ Validate overall information
       - rank: 31
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     38
+    - min-rank: 1
   2472d042ec9577662c733295739e360ba18e0bc2
   - rank: 43
   - pow2: 5
@@ -1423,6 +1927,12 @@ Validate overall information
       - rank: 36
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: eed373b0090dceccc6935c146824995087762127
+      - rank:   36
+      - pow2:   5
+    - size:     7
+    - min-rank: 18
   041e1188f5f170496b7d1f46ddb0e566bf2de697
   - rank: 55
   - pow2: 4
@@ -1440,6 +1950,12 @@ Validate overall information
       - rank: 49
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: b3cf98c3d5874e655f78ec8e4f47ff788349b3fb
+      - rank:   49
+      - pow2:   4
+    - size:     6
+    - min-rank: 20
   8b79544bb56d6be7ba5e7ac693e9054f20d35af6
   - rank: 48
   - pow2: 5
@@ -1461,6 +1977,12 @@ Validate overall information
       - rank: 38
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: c7d3029bf7319c20e0c14fdae8b2e06c701455fb
+      - rank:   38
+      - pow2:   5
+    - size:     10
+    - min-rank: 20
   8ae32c3ed67036ef7787649b4dbe2ea844ca633d
   - rank: 48
   - pow2: 4
@@ -1482,6 +2004,12 @@ Validate overall information
       - rank: 37
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 469c700e9ed8144bee92d51174ce07fdd2f3510b
+      - rank:   37
+      - pow2:   5
+    - size:     11
+    - min-rank: 21
   721ba7c5f4ff4b95fa05d28d6ff3360873a42a9f
   - rank: 77
   - pow2: 6
@@ -1505,6 +2033,10 @@ Validate overall information
       - rank: 55
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     77
+    - min-rank: 1
   84d6ec6a8e21dac4717999019d29df0054dac0e0
   - rank: 65
   - pow2: 6
@@ -1526,6 +2058,10 @@ Validate overall information
       - rank: 48
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     65
+    - min-rank: 1
   01f771406cab36b0a9a5dd5f74bacf9596ab1b64
   - rank: 95
   - pow2: 4
@@ -1543,6 +2079,12 @@ Validate overall information
       - rank: 77
       - pow2: 6
       - pidx: p1
+  - canonical-part:
+    - ancestor: 721ba7c5f4ff4b95fa05d28d6ff3360873a42a9f
+      - rank:   77
+      - pow2:   6
+    - size:     18
+    - min-rank: 20
 
 Basic check
 -----------
@@ -1590,6 +2132,12 @@ Basic check
       - rank: 9
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: c81423bf5a24e28484a591de88cc764941af2c5a
+      - rank:   9
+      - pow2:   3
+    - size:     2
+    - min-rank: 9
 
   $ hg showsort 'AmergeA'
   c81423bf5a24
@@ -1630,6 +2178,10 @@ Basic check
       - rank: 6
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     9
+    - min-rank: 1
 
   $ hg showsort 'AmergeB'
   07c648efceeb
@@ -1670,6 +2222,10 @@ Basic check
       - rank: 6
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     9
+    - min-rank: 1
 
 
 close criss cross
@@ -1728,6 +2284,10 @@ close criss cross
       - rank: 15
       - pow2: 1
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     17
+    - min-rank: 1
 
 
 many branches criss cross
@@ -2055,6 +2615,12 @@ many branches criss cross
       - rank: 77
       - pow2: 6
       - pidx: p1
+  - canonical-part:
+    - ancestor: 721ba7c5f4ff4b95fa05d28d6ff3360873a42a9f
+      - rank:   77
+      - pow2:   6
+    - size:     18
+    - min-rank: 20
 
 
 Test stability of this mess
@@ -2201,6 +2767,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   01f771406cab36b0a9a5dd5f74bacf9596ab1b64
   - rank: 95
   - pow2: 4
@@ -2218,6 +2790,12 @@ Test stability of this mess
       - rank: 77
       - pow2: 6
       - pidx: p1
+  - canonical-part:
+    - ancestor: 721ba7c5f4ff4b95fa05d28d6ff3360873a42a9f
+      - rank:   77
+      - pow2:   6
+    - size:     18
+    - min-rank: 20
   041e1188f5f170496b7d1f46ddb0e566bf2de697
   - rank: 55
   - pow2: 4
@@ -2235,6 +2813,12 @@ Test stability of this mess
       - rank: 49
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: b3cf98c3d5874e655f78ec8e4f47ff788349b3fb
+      - rank:   49
+      - pow2:   4
+    - size:     6
+    - min-rank: 20
   0484d39906c8af29405c38238d7d7541cfd21b27
   - rank: 25
   - pow2: 3
@@ -2252,6 +2836,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   07c648efceebcbbc7e048f8f58dff9fc54b867a7
   - rank: 9
   - pow2: 3
@@ -2269,6 +2859,10 @@ Test stability of this mess
       - rank: 6
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     9
+    - min-rank: 1
   0bab31f71a21aea1c9a0a78f9704e6ffe8ae61fd
   - rank: 31
   - pow2: 2
@@ -2286,6 +2880,12 @@ Test stability of this mess
       - rank: 28
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 3871506da61ef9862ff9117e2e7255479489d2d5
+      - rank:   28
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   1da228afcf06af6196afa761de51004d15734b84
   - rank: 31
   - pow2: 2
@@ -2303,6 +2903,12 @@ Test stability of this mess
       - rank: 28
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 3871506da61ef9862ff9117e2e7255479489d2d5
+      - rank:   28
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   1f4a19f83a298a7c9cb2d3bdaaade5aff735137b
   - rank: 20
   - pow2: 2
@@ -2320,6 +2926,12 @@ Test stability of this mess
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: b115c694654ecc0ae9dbf84523309bcbdf882307
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   2472d042ec9577662c733295739e360ba18e0bc2
   - rank: 43
   - pow2: 5
@@ -2339,6 +2951,12 @@ Test stability of this mess
       - rank: 36
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: eed373b0090dceccc6935c146824995087762127
+      - rank:   36
+      - pow2:   5
+    - size:     7
+    - min-rank: 18
   26f59ee8b1d796abfa4071cdef1a96de632ddba8
   - rank: 13
   - pow2: 3
@@ -2347,6 +2965,12 @@ Test stability of this mess
       - rank: 12
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3e2da24aee59e0c496381ae14182dd52344b5742
+      - rank:   12
+      - pow2:   3
+    - size:     1
+    - min-rank: 13
   28be96b80dc1d1af3a682c04b1961d6ed173df1e
   - rank: 36
   - pow2: 5
@@ -2366,6 +2990,10 @@ Test stability of this mess
       - rank: 31
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     36
+    - min-rank: 1
   29141354a762bb870a2606de41208700e27eaf53
   - rank: 24
   - pow2: 3
@@ -2383,6 +3011,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   2bd677d0f13ad7ee2d1b04f53b971a3e6b3f25d8
   - rank: 21
   - pow2: 2
@@ -2400,6 +3034,12 @@ Test stability of this mess
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   31d7b43cc321f64e56f1d7afb1e3a68b33c153ef
   - rank: 24
   - pow2: 3
@@ -2417,6 +3057,12 @@ Test stability of this mess
       - rank: 21
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     5
+    - min-rank: 18
   37ad3ab0cddf9f01d48f38e1a26d2a258846e4b6
   - rank: 29
   - pow2: 3
@@ -2434,6 +3080,12 @@ Test stability of this mess
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 4f3b41956174ddc0b5c42448fcbf39c665e23d27
+      - rank:   24
+      - pow2:   3
+    - size:     5
+    - min-rank: 18
   39bab1cb1cbeb1e28b3135fd68ed7b0052f75c52
   - rank: 15
   - pow2: 1
@@ -2451,6 +3103,12 @@ Test stability of this mess
       - rank: 13
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
+      - rank:   13
+      - pow2:   3
+    - size:     2
+    - min-rank: 13
   3e156070580322eac46974a017d8a19f0e0e107a
   - rank: 17
   - pow2: 4
@@ -2468,6 +3126,10 @@ Test stability of this mess
       - rank: 15
       - pow2: 1
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     17
+    - min-rank: 1
   40553f55397e85f381e3d5813d838b180b707261
   - rank: 21
   - pow2: 2
@@ -2485,6 +3147,12 @@ Test stability of this mess
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   43fc0b77ff079900703a20b3cbe3b6645d345582
   - rank: 21
   - pow2: 2
@@ -2502,6 +3170,12 @@ Test stability of this mess
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   469c700e9ed8144bee92d51174ce07fdd2f3510b
   - rank: 37
   - pow2: 5
@@ -2519,6 +3193,10 @@ Test stability of this mess
       - rank: 31
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     37
+    - min-rank: 1
   4b39f229a0ced1f6ffce4b63e91dd6034d6aa640
   - rank: 25
   - pow2: 3
@@ -2536,6 +3214,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   4f3b41956174ddc0b5c42448fcbf39c665e23d27
   - rank: 24
   - pow2: 3
@@ -2553,6 +3237,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   55bf3fdb634f1f8f0b779f1a5e622fa475a2b98c
   - rank: 15
   - pow2: 1
@@ -2570,6 +3260,12 @@ Test stability of this mess
       - rank: 13
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
+      - rank:   13
+      - pow2:   3
+    - size:     2
+    - min-rank: 13
   5ba9a53052edb1e633e32a7e9d55bb52c939eeef
   - rank: 11
   - pow2: 1
@@ -2587,6 +3283,12 @@ Test stability of this mess
       - rank: 9
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: c81423bf5a24e28484a591de88cc764941af2c5a
+      - rank:   9
+      - pow2:   3
+    - size:     2
+    - min-rank: 9
   673f5499c8c2e2165142bf8c2765ef494d66cc3e
   - rank: 24
   - pow2: 3
@@ -2604,6 +3306,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   698970a2480b77b03bb3a47ba59934c9d43fdef8
   - rank: 31
   - pow2: 3
@@ -2623,6 +3331,12 @@ Test stability of this mess
       - rank: 25
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 32b41ca704e142a3d62ffd360b72f3a581336e96
+      - rank:   25
+      - pow2:   4
+    - size:     6
+    - min-rank: 18
   721ba7c5f4ff4b95fa05d28d6ff3360873a42a9f
   - rank: 77
   - pow2: 6
@@ -2646,6 +3360,10 @@ Test stability of this mess
       - rank: 55
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     77
+    - min-rank: 1
   76151e8066e129d27b08ab2a62a3cabba87d91c3
   - rank: 20
   - pow2: 2
@@ -2663,6 +3381,12 @@ Test stability of this mess
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   790cdfecd168ad7a449cda77ce67c265cd341d57
   - rank: 24
   - pow2: 3
@@ -2680,6 +3404,12 @@ Test stability of this mess
       - rank: 21
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     5
+    - min-rank: 18
   82238c0bc95013ccd9471ed46a28f2f8fc4dd109
   - rank: 25
   - pow2: 3
@@ -2697,6 +3427,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: e7135b665740f8de5ee7c6fd2c55b95265c5cbaa
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   84d6ec6a8e21dac4717999019d29df0054dac0e0
   - rank: 65
   - pow2: 6
@@ -2718,6 +3454,10 @@ Test stability of this mess
       - rank: 48
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     65
+    - min-rank: 1
   88714f4125cbd9202c8017e87a97b2ef9c663ce2
   - rank: 21
   - pow2: 2
@@ -2735,6 +3475,12 @@ Test stability of this mess
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   89a0fe204177cd77929e08fa7513ec4047453322
   - rank: 36
   - pow2: 5
@@ -2752,6 +3498,10 @@ Test stability of this mess
       - rank: 29
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     36
+    - min-rank: 1
   8ae32c3ed67036ef7787649b4dbe2ea844ca633d
   - rank: 48
   - pow2: 4
@@ -2773,6 +3523,12 @@ Test stability of this mess
       - rank: 37
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 469c700e9ed8144bee92d51174ce07fdd2f3510b
+      - rank:   37
+      - pow2:   5
+    - size:     11
+    - min-rank: 21
   8b79544bb56d6be7ba5e7ac693e9054f20d35af6
   - rank: 48
   - pow2: 5
@@ -2794,6 +3550,12 @@ Test stability of this mess
       - rank: 38
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: c7d3029bf7319c20e0c14fdae8b2e06c701455fb
+      - rank:   38
+      - pow2:   5
+    - size:     10
+    - min-rank: 20
   8ecb28746ec4493774464c23a3f01a18d3cfd172
   - rank: 21
   - pow2: 2
@@ -2811,6 +3573,12 @@ Test stability of this mess
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   97d19fc5236f8fddc35f1280c19ad2b2103ed619
   - rank: 25
   - pow2: 3
@@ -2830,6 +3598,12 @@ Test stability of this mess
       - rank: 21
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: c3c7fa726f887f8a24b87244d4dc2389a352fc12
+      - rank:   21
+      - pow2:   4
+    - size:     4
+    - min-rank: 18
   b33fd5ad4c0c086b721ee2457e38c52bb6210763
   - rank: 24
   - pow2: 3
@@ -2847,6 +3621,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   b3cf98c3d5874e655f78ec8e4f47ff788349b3fb
   - rank: 49
   - pow2: 4
@@ -2866,6 +3646,12 @@ Test stability of this mess
       - rank: 36
       - pow2: 5
       - pidx: p1
+  - canonical-part:
+    - ancestor: eed373b0090dceccc6935c146824995087762127
+      - rank:   36
+      - pow2:   5
+    - size:     13
+    - min-rank: 18
   bf6593f7e073cbe377ef1ec19b87f30b7d77cc00
   - rank: 24
   - pow2: 3
@@ -2883,6 +3669,12 @@ Test stability of this mess
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: ad46a4a0fc10d50de79329c5d5227a355e1e60df
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   bfcfd9a61e8493d1968cb9cbd83f656ceeb5762a
   - rank: 20
   - pow2: 2
@@ -2900,6 +3692,12 @@ Test stability of this mess
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: b115c694654ecc0ae9dbf84523309bcbdf882307
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   c713eae2d31fc9291cdd7ed1922c68cda7ac95d4
   - rank: 20
   - pow2: 2
@@ -2917,6 +3715,12 @@ Test stability of this mess
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   c7d3029bf7319c20e0c14fdae8b2e06c701455fb
   - rank: 38
   - pow2: 5
@@ -2936,6 +3740,10 @@ Test stability of this mess
       - rank: 31
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     38
+    - min-rank: 1
   c81423bf5a24e28484a591de88cc764941af2c5a
   - rank: 9
   - pow2: 3
@@ -2953,6 +3761,10 @@ Test stability of this mess
       - rank: 6
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     9
+    - min-rank: 1
   cd345198cf120276f75c45707c24bb3fe344a7dc
   - rank: 27
   - pow2: 1
@@ -2970,6 +3782,12 @@ Test stability of this mess
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: b33fd5ad4c0c086b721ee2457e38c52bb6210763
+      - rank:   24
+      - pow2:   3
+    - size:     3
+    - min-rank: 18
   d917f77a643960caa231e26b47a57edea5410d00
   - rank: 20
   - pow2: 2
@@ -2987,6 +3805,12 @@ Test stability of this mess
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   d99e0f7dad5be63dea245790377dfd63c094e9f0
   - rank: 21
   - pow2: 2
@@ -3004,6 +3828,12 @@ Test stability of this mess
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 884936b34999687314cc009cba0dd88098bb5057
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   dbde319d43a36a94df7cfc877fb97fa1b6baaa80
   - rank: 31
   - pow2: 2
@@ -3025,6 +3855,12 @@ Test stability of this mess
       - rank: 25
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 82238c0bc95013ccd9471ed46a28f2f8fc4dd109
+      - rank:   25
+      - pow2:   3
+    - size:     6
+    - min-rank: 18
   e3e6738c56ced8d1732d824579530511daba8789
   - rank: 20
   - pow2: 2
@@ -3042,6 +3878,12 @@ Test stability of this mess
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: de05b9c29ec79931c2e9af9e3c3c5477e7be1d84
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   eed373b0090dceccc6935c146824995087762127
   - rank: 36
   - pow2: 5
@@ -3061,6 +3903,10 @@ Test stability of this mess
       - rank: 28
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 0000000000000000000000000000000000000000
+    - size:     36
+    - min-rank: 1
   f7c6e7bfbcd0c7eab2106d044966c3df66e29b1d
   - rank: 13
   - pow2: 3
@@ -3069,3 +3915,9 @@ Test stability of this mess
       - rank: 12
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 3e2da24aee59e0c496381ae14182dd52344b5742
+      - rank:   12
+      - pow2:   3
+    - size:     1
+    - min-rank: 13

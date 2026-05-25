@@ -62,8 +62,8 @@ Exclusive Part:
 
 Tail Parent:
     The parent of a revision we iterate over after the revision itself and its
-    exclusive part. From that point, the STS of the initial revision and the
-    STS of the "Tail Parent" will be identical.
+    exclusive part. From that point, the STS of the initial revision and the STS
+    of the "Tail Parent" will be identical.
 
 Tail Part:
     The part of the revision ancestry that is also part of the "Tail Parent"
@@ -94,6 +94,27 @@ Revision's Power:
 
     The maximum power value a revision can have is log_2(rank). And the
     distribution of the power value follows a logarithmic rule.
+
+Canonical ancestor:
+    The canonical ancestor of `rev` is the first revision traveling the graph
+    from "Tail Parent" to "Tail Parent" of `rev` that as a power higher than
+    `rev`.
+
+    Given the property of a revision's power, this means a revision of rank
+    `rank` has a chain of canonical ancestors of maximum length "log_2(`rank`)".
+
+    In addition, nodes with higher power are more likely to be chosen as
+    canonical ancestors and have a larger canonical part.
+
+Canonical Part:
+    The prefix of a revision's stable tail sort before the canonical ancestor.
+
+    It can expressed by ``Range(rev, canonical_length)``. Where
+    ``canonical_length = rev.rank() - canonical_ancestor.rank``
+
+Minimum Canonical Rank
+    Given a revision `rev`, this is the lowest rank of all revisions in the
+    Canonical Part of `rev`.
 """
 
 from __future__ import annotations
@@ -342,6 +363,28 @@ def _group_by_range(
         yield (current_head, current_length)
 
 
+def _find_canon_ancestor(index, rank, parent_tail):
+    """Compute the canonical ancestor
+
+    The canonical ancestor is the first revision from the chain of tail's
+    parent canonical ancestor that has higher power than rev.
+
+    Given the property of revision power, this means a revision of rank "rank"
+    have a the chain of canonical ancestors of maximum length "log_2(rank)"
+    """
+    assert rank > 0
+    if parent_tail == nullrev:
+        return nullrev
+    tail_rank = index.rank(parent_tail)
+    assert tail_rank > 0
+    assert rank > tail_rank, (rank, tail_rank)
+    pow_rev = _power2(rank, tail_rank)
+    candidate = parent_tail
+    while candidate != nullrev and _power2_rev(index, candidate) < pow_rev:
+        candidate = _parents(index, candidate)[0]
+    return candidate
+
+
 def _power2_rev(index, rev: RevnumT) -> int:
     """The power of two associated with a revision.
 
@@ -349,12 +392,55 @@ def _power2_rev(index, rev: RevnumT) -> int:
     revision rank and the parent_tail rank. The maximum power value a revision
     can have is log_2(rank). And the distribution of the power value follow a
     logarithmic rule.
+
+    Nodes with higher power are more likely to be chosen as canonical
+    ancestors and have a larger canonical part.
     """
+    if rev == nullrev:
+        return -1
     rank = index.rank(rev)
     parent_tail = _parents(index, rev)[1]
     tail_rank = index.rank(parent_tail)
-    assert (rank > tail_rank) and (tail_rank >= 0), (rank, tail_rank)
-    return int.bit_length(rank ^ tail_rank) - 1
+    return _power2(rank, tail_rank)
+
+
+def _power2(high, low):
+    """the highest different bit betwent high and low value
+    >>> _power2(4, 3)
+    2
+    >>> _power2(4, 2)
+    2
+    >>> _power2(10, 5)
+    3
+    >>> _power2(10, 8)
+    1
+    >>> _power2(10, 2)
+    3
+    >>> _power2(100, 99)
+    2
+    >>> _power2(100, 80)
+    5
+    >>> _power2(100, 40)
+    6
+    >>> _power2(1000, 999)
+    3
+    >>> _power2(1000, 900)
+    6
+    >>> _power2(1000, 800)
+    7
+    >>> _power2(1000, 400)
+    9
+    >>> _power2(1050, 1049)
+    1
+    >>> _power2(1050, 1000)
+    10
+    >>> _power2(1050, 800)
+    10
+    >>> _power2(1050, 400)
+    10
+    """
+    assert (high > low) and (low >= 0), (high, low)
+    return int.bit_length(high ^ low) - 1
 
 
 def stable_tail_sort_naive(cl, head_rev):
@@ -411,8 +497,16 @@ def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
     parent_tail, parent_excl = _parents(index, rev)
     p1, p2 = index.parents(rev)
 
+    rank = index.rank(rev)
+    canon_anc = _find_canon_ancestor(index, rank, parent_tail)
+    canon_rank = index.rank(canon_anc)
+    canon_size = rank - canon_rank
+    rev_sts = stable_tail_sort_naive(revlog, rev)
+    canon_part = itertools.islice(rev_sts, canon_size)
+    min_rank = min(index.rank(r) for r in canon_part)
+
     ui.writenoi18n(b"%s\n" % display(index, rev))
-    ui.writenoi18n(b"- rank: %d\n" % index.rank(rev))
+    ui.writenoi18n(b"- rank: %d\n" % rank)
     ui.writenoi18n(b"- pow2: %d\n" % _power2_rev(index, rev))
     if parent_excl != nullrev:
         ui.writenoi18n(b"- exclusive-part:\n")
@@ -438,3 +532,10 @@ def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
             ui.writenoi18n(b"    - pidx: p1\n")
         if parent_tail == p2:
             ui.writenoi18n(b"    - pidx: p2\n")
+    ui.writenoi18n(b"- canonical-part:\n")
+    ui.writenoi18n(b"  - ancestor: %s\n" % display(index, canon_anc))
+    if canon_anc != nullrev:
+        ui.writenoi18n(b"    - rank:   %d\n" % canon_rank)
+        ui.writenoi18n(b"    - pow2:   %d\n" % _power2_rev(index, canon_anc))
+    ui.writenoi18n(b"  - size:     %d\n" % canon_size)
+    ui.writenoi18n(b"  - min-rank: %d\n" % min_rank)

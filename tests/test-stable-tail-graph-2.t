@@ -62,6 +62,10 @@ Test minimal rank computation with merge
   0
   - rank: 1
   - pow2: 0
+  - canonical-part:
+    - ancestor: -1
+    - size:     1
+    - min-rank: 1
   1
   - rank: 2
   - pow2: 1
@@ -70,6 +74,10 @@ Test minimal rank computation with merge
       - rank: 1
       - pow2: 0
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     2
+    - min-rank: 1
   2
   - rank: 2
   - pow2: 1
@@ -78,6 +86,10 @@ Test minimal rank computation with merge
       - rank: 1
       - pow2: 0
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     2
+    - min-rank: 1
   3
   - rank: 4
   - pow2: 2
@@ -95,6 +107,10 @@ Test minimal rank computation with merge
       - rank: 2
       - pow2: 1
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     4
+    - min-rank: 1
   4
   - rank: 5
   - pow2: 2
@@ -103,6 +119,12 @@ Test minimal rank computation with merge
       - rank: 4
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: 3
+      - rank:   4
+      - pow2:   2
+    - size:     1
+    - min-rank: 5
 
   $ check_merges_splits
   ### exclusive splits for merge revision: f50d7a0d10f4f9222052280570ff420150689731
@@ -609,6 +631,10 @@ test the split are properly computed
       - rank: 6
       - pow2: 2
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     9
+    - min-rank: 1
   9
   - rank: 9
   - pow2: 3
@@ -626,6 +652,10 @@ test the split are properly computed
       - rank: 6
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     9
+    - min-rank: 1
   10
   - rank: 11
   - pow2: 1
@@ -643,6 +673,12 @@ test the split are properly computed
       - rank: 9
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 8
+      - rank:   9
+      - pow2:   3
+    - size:     2
+    - min-rank: 9
   12
   - rank: 13
   - pow2: 3
@@ -651,6 +687,12 @@ test the split are properly computed
       - rank: 12
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 11
+      - rank:   12
+      - pow2:   3
+    - size:     1
+    - min-rank: 13
   13
   - rank: 13
   - pow2: 3
@@ -659,6 +701,12 @@ test the split are properly computed
       - rank: 12
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 11
+      - rank:   12
+      - pow2:   3
+    - size:     1
+    - min-rank: 13
   14
   - rank: 15
   - pow2: 1
@@ -676,6 +724,12 @@ test the split are properly computed
       - rank: 13
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 13
+      - rank:   13
+      - pow2:   3
+    - size:     2
+    - min-rank: 13
   15
   - rank: 15
   - pow2: 1
@@ -693,6 +747,12 @@ test the split are properly computed
       - rank: 13
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 13
+      - rank:   13
+      - pow2:   3
+    - size:     2
+    - min-rank: 13
   16
   - rank: 17
   - pow2: 4
@@ -710,6 +770,10 @@ test the split are properly computed
       - rank: 15
       - pow2: 1
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     17
+    - min-rank: 1
   27
   - rank: 21
   - pow2: 2
@@ -727,6 +791,12 @@ test the split are properly computed
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   35
   - rank: 20
   - pow2: 2
@@ -744,6 +814,12 @@ test the split are properly computed
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 20
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   36
   - rank: 24
   - pow2: 3
@@ -761,6 +837,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   38
   - rank: 20
   - pow2: 2
@@ -778,6 +860,12 @@ test the split are properly computed
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 26
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   39
   - rank: 21
   - pow2: 2
@@ -795,6 +883,12 @@ test the split are properly computed
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   42
   - rank: 21
   - pow2: 2
@@ -812,6 +906,12 @@ test the split are properly computed
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   43
   - rank: 25
   - pow2: 3
@@ -829,6 +929,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   45
   - rank: 21
   - pow2: 2
@@ -846,6 +952,12 @@ test the split are properly computed
       - rank: 19
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   46
   - rank: 20
   - pow2: 2
@@ -863,6 +975,12 @@ test the split are properly computed
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 20
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   48
   - rank: 21
   - pow2: 2
@@ -880,6 +998,12 @@ test the split are properly computed
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   49
   - rank: 24
   - pow2: 3
@@ -897,6 +1021,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   55
   - rank: 20
   - pow2: 2
@@ -914,6 +1044,12 @@ test the split are properly computed
       - rank: 18
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 26
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   58
   - rank: 24
   - pow2: 3
@@ -931,6 +1067,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   59
   - rank: 25
   - pow2: 3
@@ -948,6 +1090,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   63
   - rank: 24
   - pow2: 3
@@ -965,6 +1113,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   64
   - rank: 24
   - pow2: 3
@@ -982,6 +1136,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   65
   - rank: 20
   - pow2: 2
@@ -999,6 +1159,12 @@ test the split are properly computed
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 26
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   66
   - rank: 21
   - pow2: 2
@@ -1016,6 +1182,12 @@ test the split are properly computed
       - rank: 19
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   69
   - rank: 20
   - pow2: 2
@@ -1033,6 +1205,12 @@ test the split are properly computed
       - rank: 18
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 26
+      - rank:   18
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   71
   - rank: 24
   - pow2: 3
@@ -1050,6 +1228,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 25
+      - rank:   22
+      - pow2:   4
+    - size:     2
+    - min-rank: 18
   72
   - rank: 36
   - pow2: 5
@@ -1069,6 +1253,10 @@ test the split are properly computed
       - rank: 28
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     36
+    - min-rank: 1
   73
   - rank: 24
   - pow2: 3
@@ -1086,6 +1274,12 @@ test the split are properly computed
       - rank: 21
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     5
+    - min-rank: 18
   74
   - rank: 31
   - pow2: 3
@@ -1105,6 +1299,12 @@ test the split are properly computed
       - rank: 25
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 37
+      - rank:   25
+      - pow2:   4
+    - size:     6
+    - min-rank: 18
   75
   - rank: 24
   - pow2: 3
@@ -1122,6 +1322,12 @@ test the split are properly computed
       - rank: 21
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: 19
+      - rank:   19
+      - pow2:   4
+    - size:     5
+    - min-rank: 18
   76
   - rank: 29
   - pow2: 3
@@ -1139,6 +1345,12 @@ test the split are properly computed
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 71
+      - rank:   24
+      - pow2:   3
+    - size:     5
+    - min-rank: 18
   77
   - rank: 25
   - pow2: 3
@@ -1158,6 +1370,12 @@ test the split are properly computed
       - rank: 21
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 70
+      - rank:   21
+      - pow2:   4
+    - size:     4
+    - min-rank: 18
   78
   - rank: 36
   - pow2: 5
@@ -1175,6 +1393,10 @@ test the split are properly computed
       - rank: 29
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     36
+    - min-rank: 1
   79
   - rank: 25
   - pow2: 3
@@ -1192,6 +1414,12 @@ test the split are properly computed
       - rank: 22
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 57
+      - rank:   22
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   80
   - rank: 27
   - pow2: 1
@@ -1209,6 +1437,12 @@ test the split are properly computed
       - rank: 24
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: 64
+      - rank:   24
+      - pow2:   3
+    - size:     3
+    - min-rank: 18
   81
   - rank: 31
   - pow2: 2
@@ -1226,6 +1460,12 @@ test the split are properly computed
       - rank: 28
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 62
+      - rank:   28
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   82
   - rank: 31
   - pow2: 2
@@ -1243,6 +1483,12 @@ test the split are properly computed
       - rank: 28
       - pow2: 4
       - pidx: p2
+  - canonical-part:
+    - ancestor: 62
+      - rank:   28
+      - pow2:   4
+    - size:     3
+    - min-rank: 18
   83
   - rank: 49
   - pow2: 4
@@ -1262,6 +1508,12 @@ test the split are properly computed
       - rank: 36
       - pow2: 5
       - pidx: p1
+  - canonical-part:
+    - ancestor: 72
+      - rank:   36
+      - pow2:   5
+    - size:     13
+    - min-rank: 18
   84
   - rank: 31
   - pow2: 2
@@ -1283,6 +1535,12 @@ test the split are properly computed
       - rank: 25
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: 79
+      - rank:   25
+      - pow2:   3
+    - size:     6
+    - min-rank: 18
   85
   - rank: 36
   - pow2: 5
@@ -1302,6 +1560,10 @@ test the split are properly computed
       - rank: 31
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     36
+    - min-rank: 1
   86
   - rank: 37
   - pow2: 5
@@ -1319,6 +1581,10 @@ test the split are properly computed
       - rank: 31
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     37
+    - min-rank: 1
   87
   - rank: 38
   - pow2: 5
@@ -1338,6 +1604,10 @@ test the split are properly computed
       - rank: 31
       - pow2: 2
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     38
+    - min-rank: 1
   88
   - rank: 43
   - pow2: 5
@@ -1357,6 +1627,12 @@ test the split are properly computed
       - rank: 36
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 72
+      - rank:   36
+      - pow2:   5
+    - size:     7
+    - min-rank: 18
   89
   - rank: 55
   - pow2: 4
@@ -1374,6 +1650,12 @@ test the split are properly computed
       - rank: 49
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: 83
+      - rank:   49
+      - pow2:   4
+    - size:     6
+    - min-rank: 20
   90
   - rank: 48
   - pow2: 5
@@ -1395,6 +1677,12 @@ test the split are properly computed
       - rank: 38
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 87
+      - rank:   38
+      - pow2:   5
+    - size:     10
+    - min-rank: 20
   91
   - rank: 48
   - pow2: 4
@@ -1416,6 +1704,12 @@ test the split are properly computed
       - rank: 37
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: 86
+      - rank:   37
+      - pow2:   5
+    - size:     11
+    - min-rank: 21
   92
   - rank: 77
   - pow2: 6
@@ -1439,6 +1733,10 @@ test the split are properly computed
       - rank: 55
       - pow2: 4
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     77
+    - min-rank: 1
   93
   - rank: 65
   - pow2: 6
@@ -1460,6 +1758,10 @@ test the split are properly computed
       - rank: 48
       - pow2: 5
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     65
+    - min-rank: 1
   94
   - rank: 95
   - pow2: 4
@@ -1477,6 +1779,12 @@ test the split are properly computed
       - rank: 77
       - pow2: 6
       - pidx: p1
+  - canonical-part:
+    - ancestor: 92
+      - rank:   77
+      - pow2:   6
+    - size:     18
+    - min-rank: 20
 
   $ cd ..
 
@@ -1595,6 +1903,10 @@ Check overall data
       - rank: 11
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     17
+    - min-rank: 1
   22
   - rank: 19
   - pow2: 4
@@ -1612,6 +1924,10 @@ Check overall data
       - rank: 11
       - pow2: 3
       - pidx: p2
+  - canonical-part:
+    - ancestor: -1
+    - size:     19
+    - min-rank: 1
   38
   - rank: 22
   - pow2: 4
@@ -1629,6 +1945,10 @@ Check overall data
       - rank: 15
       - pow2: 3
       - pidx: p1
+  - canonical-part:
+    - ancestor: -1
+    - size:     22
+    - min-rank: 1
 
 
 Check the rank
