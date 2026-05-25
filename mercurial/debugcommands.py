@@ -3844,6 +3844,29 @@ def debug_stable_tail_sort(ui, repo, revspec, template, naive=False, **opts):
 
 
 @command(
+    b'debug::stable-tail-info',
+    [
+        (
+            b"",
+            b'display-revs',
+            False,
+            _(b'display revision number instead of node id'),
+        ),
+    ],
+    b'REVS',
+)
+def debug_stable_tail_info(ui, repo, *revs, display_revs=False, **opts):
+    """display stable tail related information for a revision"""
+    for r in logcmdutil.revrange(repo, revs):
+        stabletailsort.debug_info(
+            ui,
+            repo.changelog,
+            r,
+            display_revs=display_revs,
+        )
+
+
+@command(
     b'debug::stable-tail-sort-excl-splits',
     [
         (

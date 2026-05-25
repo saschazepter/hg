@@ -1041,6 +1041,8 @@ Test list of internal help commands
                  exit 0 if ANC_REV1 is an ancestor of DESC_REV, 2 otherwise
    debug::revlog-reencoded-delta-info
                  show revlog statistic if delta where to be reencoded
+   debug::stable-tail-info
+                 display stable tail related information for a revision
    debug::stable-tail-sort
                  display the stable-tail sort of the ancestors of a given node
    debug::stable-tail-sort-excl-splits

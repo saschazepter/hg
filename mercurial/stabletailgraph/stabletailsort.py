@@ -98,7 +98,7 @@ from typing import Container, Iterator
 from ..interfaces.types import (
     RevnumT,
 )
-from ..node import nullrev
+from ..node import hex, nullrev
 from .. import ancestor
 
 
@@ -363,3 +363,53 @@ def stable_tail_sort_naive(cl, head_rev):
             )
             yield from _exclusive_part_iter(cl, parent_excl, tail_ancestors)
             cursor_rev = parent_tail
+
+
+def _format_node(index, rev: RevnumT) -> bytes:
+    return hex(index.node(rev))
+
+
+def _format_rev(index, rev: RevnumT) -> bytes:
+    return b"%d" % rev
+
+
+def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
+    """display various stable-tail information for a given revision
+
+    (We could make this templatable for flexibility, but having it exist at all
+    is the first priority at the time of writing)
+    """
+    index = revlog.index
+
+    if display_revs:
+        display = _format_rev
+    else:
+        display = _format_node
+
+    parent_tail, parent_excl = _parents(index, rev)
+    p1, p2 = index.parents(rev)
+
+    ui.writenoi18n(b"%s\n" % display(index, rev))
+    ui.writenoi18n(b"- rank: %d\n" % index.rank(rev))
+    if parent_excl != nullrev:
+        ui.writenoi18n(b"- exclusive-part:\n")
+        ui.writenoi18n(b"  - parent: %s\n" % display(index, parent_excl))
+        ui.writenoi18n(b"    - rank: %d\n" % index.rank(parent_excl))
+        if parent_excl == p1:
+            ui.writenoi18n(b"    - pidx: p1\n")
+        if parent_excl == p2:
+            ui.writenoi18n(b"    - pidx: p2\n")
+        excl_size = index.rank(rev) - index.rank(parent_tail) - 1
+        ui.writenoi18n(b"  - size: %d\n" % excl_size)
+        ui.writenoi18n(b"  - splits:\n")
+        for head, length in computed_excl_splits(revlog, rev):
+            ui.writenoi18n(b"    - head:   %s\n" % display(index, head))
+            ui.writenoi18n(b"      length: %d\n" % length)
+    if parent_tail != nullrev:
+        ui.writenoi18n(b"- tail-part:\n")
+        ui.writenoi18n(b"  - parent: %s\n" % display(index, parent_tail))
+        ui.writenoi18n(b"    - rank: %d\n" % index.rank(parent_tail))
+        if parent_tail == p1:
+            ui.writenoi18n(b"    - pidx: p1\n")
+        if parent_tail == p2:
+            ui.writenoi18n(b"    - pidx: p2\n")

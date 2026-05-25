@@ -58,6 +58,41 @@ Test minimal rank computation with merge
   2
   1
   0
+  $ hg debug::stable-tail-info 'all()' --display-revs
+  0
+  - rank: 1
+  1
+  - rank: 2
+  - tail-part:
+    - parent: 0
+      - rank: 1
+      - pidx: p1
+  2
+  - rank: 2
+  - tail-part:
+    - parent: 0
+      - rank: 1
+      - pidx: p1
+  3
+  - rank: 4
+  - exclusive-part:
+    - parent: 2
+      - rank: 2
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   2
+        length: 1
+  - tail-part:
+    - parent: 1
+      - rank: 2
+      - pidx: p2
+  4
+  - rank: 5
+  - tail-part:
+    - parent: 3
+      - rank: 4
+      - pidx: p1
 
   $ check_merges_splits
   ### exclusive splits for merge revision: f50d7a0d10f4f9222052280570ff420150689731
@@ -546,6 +581,742 @@ test the split are properly computed
   ### exclusive splits for merge revision: 01f771406cab36b0a9a5dd5f74bacf9596ab1b64
   CmergeZB length: 17
 
+  $ hg debug::stable-tail-info 'merge()' --display-revs
+  8
+  - rank: 9
+  - exclusive-part:
+    - parent: 7
+      - rank: 5
+      - pidx: p2
+    - size: 2
+    - splits:
+      - head:   7
+        length: 2
+  - tail-part:
+    - parent: 5
+      - rank: 6
+      - pidx: p1
+  9
+  - rank: 9
+  - exclusive-part:
+    - parent: 7
+      - rank: 5
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   7
+        length: 2
+  - tail-part:
+    - parent: 5
+      - rank: 6
+      - pidx: p2
+  10
+  - rank: 11
+  - exclusive-part:
+    - parent: 9
+      - rank: 9
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   9
+        length: 1
+  - tail-part:
+    - parent: 8
+      - rank: 9
+      - pidx: p1
+  12
+  - rank: 13
+  - tail-part:
+    - parent: 11
+      - rank: 12
+      - pidx: p1
+  13
+  - rank: 13
+  - tail-part:
+    - parent: 11
+      - rank: 12
+      - pidx: p2
+  14
+  - rank: 15
+  - exclusive-part:
+    - parent: 12
+      - rank: 13
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   12
+        length: 1
+  - tail-part:
+    - parent: 13
+      - rank: 13
+      - pidx: p2
+  15
+  - rank: 15
+  - exclusive-part:
+    - parent: 12
+      - rank: 13
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   12
+        length: 1
+  - tail-part:
+    - parent: 13
+      - rank: 13
+      - pidx: p1
+  16
+  - rank: 17
+  - exclusive-part:
+    - parent: 14
+      - rank: 15
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   14
+        length: 1
+  - tail-part:
+    - parent: 15
+      - rank: 15
+      - pidx: p2
+  27
+  - rank: 21
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p2
+  35
+  - rank: 20
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p2
+  36
+  - rank: 24
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p2
+  38
+  - rank: 20
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p2
+  39
+  - rank: 21
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p1
+  42
+  - rank: 21
+  - exclusive-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   20
+        length: 1
+  - tail-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p1
+  43
+  - rank: 25
+  - exclusive-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   19
+        length: 2
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p2
+  45
+  - rank: 21
+  - exclusive-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   26
+        length: 1
+  - tail-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p1
+  46
+  - rank: 20
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p1
+  48
+  - rank: 21
+  - exclusive-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   20
+        length: 1
+  - tail-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p2
+  49
+  - rank: 24
+  - exclusive-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   20
+        length: 1
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p2
+  55
+  - rank: 20
+  - exclusive-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   20
+        length: 1
+  - tail-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p2
+  58
+  - rank: 24
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p1
+  59
+  - rank: 25
+  - exclusive-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p2
+    - size: 2
+    - splits:
+      - head:   19
+        length: 2
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p1
+  63
+  - rank: 24
+  - exclusive-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   20
+        length: 1
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p1
+  64
+  - rank: 24
+  - exclusive-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   26
+        length: 1
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p1
+  65
+  - rank: 20
+  - exclusive-part:
+    - parent: 17
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   17
+        length: 1
+  - tail-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p1
+  66
+  - rank: 21
+  - exclusive-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   26
+        length: 1
+  - tail-part:
+    - parent: 19
+      - rank: 19
+      - pidx: p2
+  69
+  - rank: 20
+  - exclusive-part:
+    - parent: 20
+      - rank: 18
+      - pidx: p2
+    - size: 1
+    - splits:
+      - head:   20
+        length: 1
+  - tail-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p1
+  71
+  - rank: 24
+  - exclusive-part:
+    - parent: 26
+      - rank: 18
+      - pidx: p1
+    - size: 1
+    - splits:
+      - head:   26
+        length: 1
+  - tail-part:
+    - parent: 25
+      - rank: 22
+      - pidx: p2
+  72
+  - rank: 36
+  - exclusive-part:
+    - parent: 44
+      - rank: 26
+      - pidx: p2
+    - size: 7
+    - splits:
+      - head:   44
+        length: 2
+      - head:   25
+        length: 5
+  - tail-part:
+    - parent: 34
+      - rank: 28
+      - pidx: p1
+  73
+  - rank: 24
+  - exclusive-part:
+    - parent: 35
+      - rank: 20
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   35
+        length: 2
+  - tail-part:
+    - parent: 42
+      - rank: 21
+      - pidx: p2
+  74
+  - rank: 31
+  - exclusive-part:
+    - parent: 41
+      - rank: 23
+      - pidx: p2
+    - size: 5
+    - splits:
+      - head:   41
+        length: 3
+      - head:   19
+        length: 2
+  - tail-part:
+    - parent: 37
+      - rank: 25
+      - pidx: p1
+  75
+  - rank: 24
+  - exclusive-part:
+    - parent: 38
+      - rank: 20
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   38
+        length: 2
+  - tail-part:
+    - parent: 45
+      - rank: 21
+      - pidx: p2
+  76
+  - rank: 29
+  - exclusive-part:
+    - parent: 47
+      - rank: 21
+      - pidx: p2
+    - size: 4
+    - splits:
+      - head:   47
+        length: 4
+  - tail-part:
+    - parent: 71
+      - rank: 24
+      - pidx: p1
+  77
+  - rank: 25
+  - exclusive-part:
+    - parent: 48
+      - rank: 21
+      - pidx: p2
+    - size: 3
+    - splits:
+      - head:   48
+        length: 1
+      - head:   19
+        length: 2
+  - tail-part:
+    - parent: 70
+      - rank: 21
+      - pidx: p1
+  78
+  - rank: 36
+  - exclusive-part:
+    - parent: 68
+      - rank: 23
+      - pidx: p1
+    - size: 6
+    - splits:
+      - head:   68
+        length: 6
+  - tail-part:
+    - parent: 54
+      - rank: 29
+      - pidx: p2
+  79
+  - rank: 25
+  - exclusive-part:
+    - parent: 65
+      - rank: 20
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   65
+        length: 2
+  - tail-part:
+    - parent: 57
+      - rank: 22
+      - pidx: p2
+  80
+  - rank: 27
+  - exclusive-part:
+    - parent: 58
+      - rank: 24
+      - pidx: p2
+    - size: 2
+    - splits:
+      - head:   58
+        length: 2
+  - tail-part:
+    - parent: 64
+      - rank: 24
+      - pidx: p1
+  81
+  - rank: 31
+  - exclusive-part:
+    - parent: 63
+      - rank: 24
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   63
+        length: 2
+  - tail-part:
+    - parent: 62
+      - rank: 28
+      - pidx: p2
+  82
+  - rank: 31
+  - exclusive-part:
+    - parent: 63
+      - rank: 24
+      - pidx: p1
+    - size: 2
+    - splits:
+      - head:   63
+        length: 2
+  - tail-part:
+    - parent: 62
+      - rank: 28
+      - pidx: p2
+  83
+  - rank: 49
+  - exclusive-part:
+    - parent: 78
+      - rank: 36
+      - pidx: p2
+    - size: 12
+    - splits:
+      - head:   78
+        length: 5
+      - head:   54
+        length: 7
+  - tail-part:
+    - parent: 72
+      - rank: 36
+      - pidx: p1
+  84
+  - rank: 31
+  - exclusive-part:
+    - parent: 73
+      - rank: 24
+      - pidx: p1
+    - size: 5
+    - splits:
+      - head:   73
+        length: 2
+      - head:   42
+        length: 1
+      - head:   19
+        length: 2
+  - tail-part:
+    - parent: 79
+      - rank: 25
+      - pidx: p2
+  85
+  - rank: 36
+  - exclusive-part:
+    - parent: 80
+      - rank: 27
+      - pidx: p2
+    - size: 4
+    - splits:
+      - head:   80
+        length: 2
+      - head:   64
+        length: 2
+  - tail-part:
+    - parent: 74
+      - rank: 31
+      - pidx: p1
+  86
+  - rank: 37
+  - exclusive-part:
+    - parent: 75
+      - rank: 24
+      - pidx: p1
+    - size: 5
+    - splits:
+      - head:   75
+        length: 5
+  - tail-part:
+    - parent: 81
+      - rank: 31
+      - pidx: p2
+  87
+  - rank: 38
+  - exclusive-part:
+    - parent: 76
+      - rank: 29
+      - pidx: p1
+    - size: 6
+    - splits:
+      - head:   76
+        length: 4
+      - head:   71
+        length: 2
+  - tail-part:
+    - parent: 82
+      - rank: 31
+      - pidx: p2
+  88
+  - rank: 43
+  - exclusive-part:
+    - parent: 77
+      - rank: 25
+      - pidx: p1
+    - size: 6
+    - splits:
+      - head:   77
+        length: 2
+      - head:   70
+        length: 4
+  - tail-part:
+    - parent: 72
+      - rank: 36
+      - pidx: p2
+  89
+  - rank: 55
+  - exclusive-part:
+    - parent: 88
+      - rank: 43
+      - pidx: p2
+    - size: 5
+    - splits:
+      - head:   88
+        length: 5
+  - tail-part:
+    - parent: 83
+      - rank: 49
+      - pidx: p1
+  90
+  - rank: 48
+  - exclusive-part:
+    - parent: 84
+      - rank: 31
+      - pidx: p1
+    - size: 9
+    - splits:
+      - head:   84
+        length: 4
+      - head:   79
+        length: 2
+      - head:   57
+        length: 3
+  - tail-part:
+    - parent: 87
+      - rank: 38
+      - pidx: p2
+  91
+  - rank: 48
+  - exclusive-part:
+    - parent: 85
+      - rank: 36
+      - pidx: p1
+    - size: 10
+    - splits:
+      - head:   85
+        length: 4
+      - head:   74
+        length: 4
+      - head:   37
+        length: 2
+  - tail-part:
+    - parent: 86
+      - rank: 37
+      - pidx: p2
+  92
+  - rank: 77
+  - exclusive-part:
+    - parent: 90
+      - rank: 48
+      - pidx: p2
+    - size: 21
+    - splits:
+      - head:   90
+        length: 14
+      - head:   71
+        length: 1
+      - head:   82
+        length: 2
+      - head:   62
+        length: 4
+  - tail-part:
+    - parent: 89
+      - rank: 55
+      - pidx: p1
+  93
+  - rank: 65
+  - exclusive-part:
+    - parent: 91
+      - rank: 48
+      - pidx: p1
+    - size: 16
+    - splits:
+      - head:   91
+        length: 14
+      - head:   45
+        length: 1
+      - head:   81
+        length: 1
+  - tail-part:
+    - parent: 90
+      - rank: 48
+      - pidx: p2
+  94
+  - rank: 95
+  - exclusive-part:
+    - parent: 93
+      - rank: 65
+      - pidx: p2
+    - size: 17
+    - splits:
+      - head:   93
+        length: 17
+  - tail-part:
+    - parent: 92
+      - rank: 77
+      - pidx: p1
+
   $ cd ..
 
 Build a bigger example repo
@@ -641,6 +1412,53 @@ Build a bigger example repo
   |/
   o  r0
   
+
+Check overall data
+------------------
+
+  $ hg debug::stable-tail-info 'merge()' --display-revs
+  16
+  - rank: 17
+  - exclusive-part:
+    - parent: 5
+      - rank: 6
+      - pidx: p2
+    - size: 5
+    - splits:
+      - head:   5
+        length: 5
+  - tail-part:
+    - parent: 15
+      - rank: 11
+      - pidx: p1
+  22
+  - rank: 19
+  - exclusive-part:
+    - parent: 21
+      - rank: 8
+      - pidx: p1
+    - size: 7
+    - splits:
+      - head:   21
+        length: 7
+  - tail-part:
+    - parent: 15
+      - rank: 11
+      - pidx: p2
+  38
+  - rank: 22
+  - exclusive-part:
+    - parent: 5
+      - rank: 6
+      - pidx: p2
+    - size: 6
+    - splits:
+      - head:   5
+        length: 6
+  - tail-part:
+    - parent: 37
+      - rank: 15
+      - pidx: p1
 
 
 Check the rank
@@ -775,3 +1593,4 @@ Check the exclusive splits for each merge
   mp3 length: 7
   ### exclusive splits for merge revision: 8a6975682ca47554bc4af91b78cf57cfdba304b9
   mp1 length: 6
+

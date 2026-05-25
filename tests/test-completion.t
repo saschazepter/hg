@@ -227,6 +227,7 @@ Show debug commands if there are no other candidates
   debug::file-index
   debug::is-ancestor
   debug::revlog-reencoded-delta-info
+  debug::stable-tail-info
   debug::stable-tail-sort
   debug::stable-tail-sort-excl-splits
   debug::unbundle
@@ -437,6 +438,7 @@ Show all commands + options
   debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::is-ancestor: 
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
+  debug::stable-tail-info: display-revs
   debug::stable-tail-sort: template, limit, naive
   debug::stable-tail-sort-excl-splits: template
   debug::unbundle: 
